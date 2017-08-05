@@ -1,6 +1,6 @@
 const path = require('path');
-const es6 = require('./parsers/es6');
-const json = require('./parsers/json');
+const JSAsset = require('./assets/JSAsset');
+const JSONAsset = require('./assets/JSONAsset');
 
 class Parser {
   constructor(options = {}) {
@@ -11,10 +11,10 @@ class Parser {
       this.registerExtension(ext, extensions[ext]);
     }
 
-    this.registerExtension('.js', es6);
-    this.registerExtension('.jsx', es6);
-    this.registerExtension('.es6', es6);
-    this.registerExtension('.json', json);
+    this.registerExtension('.js', JSAsset);
+    this.registerExtension('.jsx', JSAsset);
+    this.registerExtension('.es6', JSAsset);
+    this.registerExtension('.json', JSONAsset);
   }
 
   registerExtension(ext, parser) {
@@ -35,11 +35,9 @@ class Parser {
     return parser;
   }
 
-  parse(filename, code) {
-    let parser = this.findParser(filename);
-    let options = Object.assign({filename: filename}, this.options);
-    // console.log('parsing', filename)
-    return parser(code, options);
+  getAsset(filename, options) {
+    let Asset = this.findParser(filename);
+    return new Asset(filename, options);
   }
 }
 
