@@ -1,10 +1,14 @@
 const fs = require('./utils/fs');
 const Parser = require('./Parser');
-const babel = require('babel-core');
+const babel = require('./transforms/babel');
 
 process.on('unhandledRejection', console.error)
 
 let parser;
+
+function emit(event, ...args) {
+  process.send({event, args});
+}
 
 module.exports = async function (path, options, callback) {
   if (!parser) {
@@ -14,12 +18,10 @@ module.exports = async function (path, options, callback) {
   let asset = parser.getAsset(path, options);
   await asset.getDependencies();
 
-  // let mod = new Module(path, options);
-  // mod.code = await fs.readFile(path, 'utf8');
-  // mod.ast = parser.parse(path, mod.code);
-  // mod.collectDependencies();
+  await babel(asset);
 
-  // let res = babel.transformFromAst(mod.ast);
-  // console.log(res.code)
-  callback(null, Array.from(asset.dependencies));
+  callback(null, {
+    deps: Array.from(asset.dependencies),
+    contents: asset.contents
+  });
 };

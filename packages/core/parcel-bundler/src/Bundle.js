@@ -1,8 +1,7 @@
 const fs = require('./utils/fs');
 const Resolver = require('./Resolver');
 const Parser = require('./Parser');
-const workerFarm = require('worker-farm');
-const promisify = require('./utils/promisify');
+const WorkerFarm = require('./WorkerFarm');
 
 class Bundle {
   constructor(main, options) {
@@ -13,24 +12,24 @@ class Bundle {
 
     this.loadedModules = new Map;
     this.loading = new Set;
-    this.farm = workerFarm({autoStart: true},require.resolve('./worker.js'));
-    this.runFarm = promisify(this.farm);
+
+    this.farm = new WorkerFarm(require.resolve('./worker.js'), {autoStart: true});
   }
 
   async collectDependencies() {
     let main = await this.resolveModule(this.mainFile);
     await this.loadModule(main);
-    workerFarm.end(this.farm);
+    this.farm.end();
     return main;
   }
 
   async resolveModule(name, parent) {
-    let path = await this.resolver.resolve(name, parent);
+    let {path, package: pkg} = await this.resolver.resolve(name, parent);
     if (this.loadedModules.has(path)) {
       return this.loadedModules.get(path);
     }
 
-    let module = this.parser.getAsset(path, this.options);
+    let module = this.parser.getAsset(path, pkg, this.options);
     this.loadedModules.set(path, module);
     return module;
   }
@@ -42,10 +41,11 @@ class Bundle {
 
     this.loading.add(module);
 
-    let deps = await this.runFarm(module.name, this.options);
+    let {deps, contents, ast} = await this.farm.run(module.name, this.options);
 
     module.dependencies = deps;
-    // module.ast = ast;
+    module.contents = contents;
+    module.ast = ast;
 
     await Promise.all(deps.map(async dep => {
       let mod = await this.resolveModule(dep, module.name);

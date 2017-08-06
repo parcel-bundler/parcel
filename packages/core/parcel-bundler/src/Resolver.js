@@ -30,8 +30,11 @@ class Resolver {
       modules: builtins
     });
 
-    if (Array.isArray(res))
-      res = res[0];
+    if (Array.isArray(res)) {
+      res = {path: res[0], pkg: res[1]};
+    } else {
+      res = {path: res};
+    }
 
     this.cache.set(key, res);
     return res;
