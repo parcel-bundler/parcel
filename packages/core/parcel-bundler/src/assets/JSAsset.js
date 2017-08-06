@@ -5,6 +5,16 @@ const Asset = require('../Asset');
 const babylon = require('babylon');
 
 class JSAsset extends Asset {
+  async getDependencies() {
+    await this.loadIfNeeded();
+    if (!/import |export [^;]* from|require\s*\(/.test(this.contents)) {
+      // console.log('skip parse!', this.name);
+      return;
+    }
+
+    super.getDependencies();
+  }
+
   parse(code) {
     const options = {
       filename: this.name,
