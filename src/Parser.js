@@ -35,9 +35,9 @@ class Parser {
     return parser;
   }
 
-  getAsset(filename, options) {
+  getAsset(filename, pkg, options) {
     let Asset = this.findParser(filename);
-    return new Asset(filename, options);
+    return new Asset(filename, pkg, options);
   }
 }
 
