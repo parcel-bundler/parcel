@@ -20,6 +20,8 @@ module.exports = async function (path, pkg, options, callback) {
 
   await babel(asset);
 
+  asset.contents = Array.from(asset.globals.values()).join('\n') + '\n' + asset.contents;
+
   callback(null, {
     deps: Array.from(asset.dependencies),
     contents: asset.contents
