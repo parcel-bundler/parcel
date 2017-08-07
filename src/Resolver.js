@@ -33,7 +33,7 @@ class Resolver {
     if (Array.isArray(res)) {
       res = {path: res[0], pkg: res[1]};
     } else {
-      res = {path: res};
+      res = {path: res, pkg: null};
     }
 
     this.cache.set(key, res);

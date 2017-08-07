@@ -2,6 +2,7 @@ const fs = require('./utils/fs');
 const Resolver = require('./Resolver');
 const Parser = require('./Parser');
 const WorkerFarm = require('./WorkerFarm');
+const worker = require('./utils/promisify')(require('./worker.js'));
 
 class Bundle {
   constructor(main, options) {
@@ -24,7 +25,7 @@ class Bundle {
   }
 
   async resolveModule(name, parent) {
-    let {path, package: pkg} = await this.resolver.resolve(name, parent);
+    let {path, pkg} = await this.resolver.resolve(name, parent);
     if (this.loadedModules.has(path)) {
       return this.loadedModules.get(path);
     }
@@ -41,7 +42,8 @@ class Bundle {
 
     this.loading.add(module);
 
-    let {deps, contents, ast} = await this.farm.run(module.name, this.options);
+    let {deps, contents, ast} = await this.farm.run(module.name, module.package, this.options);
+    // let {deps, contents, ast} = await worker(module.name, module.package, this.options);
 
     module.dependencies = deps;
     module.contents = contents;
