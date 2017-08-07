@@ -10,12 +10,12 @@ function emit(event, ...args) {
   process.send({event, args});
 }
 
-module.exports = async function (path, options, callback) {
+module.exports = async function (path, pkg, options, callback) {
   if (!parser) {
     parser = new Parser(options || {});
   }
 
-  let asset = parser.getAsset(path, options);
+  let asset = parser.getAsset(path, pkg, options);
   await asset.getDependencies();
 
   await babel(asset);
