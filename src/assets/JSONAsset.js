@@ -1,9 +1,15 @@
 const JSAsset = require('./JSAsset');
 
 class JSONAsset extends JSAsset {
-  parse(code) {
-    return super.parse('module.exports = ' + code + ';');
+  async load() {
+    return 'module.exports = ' + await super.load() + ';';
   }
+
+  parse() {
+    // do nothing
+  }
+
+  collectDependencies() {}
 }
 
 module.exports = JSONAsset;
