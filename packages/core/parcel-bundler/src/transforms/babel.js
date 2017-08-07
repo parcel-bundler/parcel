@@ -26,7 +26,7 @@ async function shouldTransform(asset) {
     return true;
   }
 
-  // if (asset.package && asset.package.browserify && asset.package.browserify.transforms && asset.package.browserify.transforms.includes('babelify')) {
+  // if (asset.package && asset.package.browserify && asset.package.browserify.transform && asset.package.browserify.transform.includes('babelify')) {
   //   return true;
   // }
 
@@ -38,12 +38,17 @@ async function shouldTransform(asset) {
   return false;
 }
 
+const existsCache = new Map;
+
 async function resolveBabelRc(filepath, root = '/') {
   for (const filename of ['.babelrc', '.babelrc.js']) {
     let file = path.join(filepath, filename);
-    if (await fs.exists(file)) {
+    if (existsCache.get(file) || await fs.exists(file)) {
+      existsCache.set(file, true);
       return file;
     }
+
+    existsCache.set(file, false);
   }
 
   filepath = path.dirname(filepath);
