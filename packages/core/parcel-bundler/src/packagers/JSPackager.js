@@ -25,7 +25,7 @@ class JSPackager extends Readable {
     let id = this.id++;
     this.includedAssets.set(asset, id);
 
-    for (let mod of asset.modules.values()) {
+    for (let mod of asset.depAssets.values()) {
       this.addAsset(mod);
     }
 
@@ -35,7 +35,7 @@ class JSPackager extends Readable {
     wrapped += id + ':[function(require,module,exports) {\n' + asset.contents + '\n},';
 
     let deps = {};
-    for (let [dep, mod] of asset.modules) {
+    for (let [dep, mod] of asset.depAssets) {
       deps[dep] = this.includedAssets.get(mod);
     }
 

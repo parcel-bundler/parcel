@@ -12,24 +12,24 @@ async function run() {
 
   console.profile();
 
-  let module = await bundle.collectDependencies();
-  // printDeps(module);
+  let main = await bundle.collectDependencies();
+  // printDeps(main);
 
   console.profileEnd();
   console.log('here')
 
   let packager = new JSPackager;
   packager.pipe(require('fs').createWriteStream('out.js'));
-  packager.addAsset(module);
+  packager.addAsset(main);
   packager.end();
 }
 
-function printDeps(module, indent = '', deps = new Set) {
-  for (let [file, mod] of module.modules) {
+function printDeps(asset, indent = '', deps = new Set) {
+  for (let [file, a] of asset.depAssets) {
     console.log(indent + file);
-    if (!deps.has(mod.name)) {
-      deps.add(mod.name);
-      printDeps(mod, indent + '  ', deps);
+    if (!deps.has(a.name)) {
+      deps.add(a.name);
+      printDeps(a, indent + '  ', deps);
     }
   }
 }
