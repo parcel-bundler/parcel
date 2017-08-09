@@ -4,7 +4,8 @@ const walk = require('babylon-walk');
 const Asset = require('../Asset');
 const babylon = require('babylon');
 const insertGlobals = require('../visitors/globals');
-const File = require('babel-core/lib/transformation/file').default;
+const babel = require('../transforms/babel');
+const generate = require('babel-generator').default;
 
 const IMPORT_RE = /import |export [^;]* from|require\s*\(/;
 const GLOBAL_RE = /process|__dirname|__filename|global|Buffer/;
@@ -13,14 +14,11 @@ class JSAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.globals = new Map;
+    this.isAstDirty = false;
   }
 
-  async getDependencies() {
-    await this.loadIfNeeded();
-
-    if (IMPORT_RE.test(this.contents) || GLOBAL_RE.test(this.contents)) {
-      super.getDependencies();
-    }
+  mightHaveDependencies() {
+    return IMPORT_RE.test(this.contents) || GLOBAL_RE.test(this.contents);
   }
 
   parse(code) {
@@ -56,11 +54,22 @@ class JSAsset extends Asset {
   }
 
   collectDependencies() {
+    this.traverseFast(collectDependencies);
+  }
+
+  async transform() {
     if (GLOBAL_RE.test(this.contents)) {
       walk.ancestor(this.ast, insertGlobals, this);
     }
 
-    this.traverseFast(collectDependencies);
+    await babel(this);
+  }
+
+  generate() {
+    // TODO: source maps
+    let code = this.isAstDirty ? generate(this.ast).code : this.contents;
+    code = Array.from(this.globals.values()).join('\n') + '\n' + code;
+    return code;
   }
 }
 
