@@ -13,7 +13,7 @@ class Asset {
     this.contents = null;
     this.ast = null;
     this.dependencies = new Set;
-    this.modules = new Map;
+    this.depAssets = new Map;
   }
 
   async loadIfNeeded() {

@@ -11,48 +11,48 @@ class Bundle {
     this.resolver = new Resolver(options);
     this.parser = new Parser(options);
 
-    this.loadedModules = new Map;
+    this.loadedAssets = new Map;
     this.loading = new Set;
 
     this.farm = new WorkerFarm(require.resolve('./worker.js'), {autoStart: true});
   }
 
   async collectDependencies() {
-    let main = await this.resolveModule(this.mainFile);
-    await this.loadModule(main);
+    let main = await this.resolveAsset(this.mainFile);
+    await this.loadAsset(main);
     this.farm.end();
     return main;
   }
 
-  async resolveModule(name, parent) {
+  async resolveAsset(name, parent) {
     let {path, pkg} = await this.resolver.resolve(name, parent);
-    if (this.loadedModules.has(path)) {
-      return this.loadedModules.get(path);
+    if (this.loadedAssets.has(path)) {
+      return this.loadedAssets.get(path);
     }
 
-    let module = this.parser.getAsset(path, pkg, this.options);
-    this.loadedModules.set(path, module);
-    return module;
+    let asset = this.parser.getAsset(path, pkg, this.options);
+    this.loadedAssets.set(path, asset);
+    return asset;
   }
 
-  async loadModule(module) {
-    if (this.loading.has(module)) {
+  async loadAsset(asset) {
+    if (this.loading.has(asset)) {
       return;
     }
 
-    this.loading.add(module);
+    this.loading.add(asset);
 
-    let {deps, contents, ast} = await this.farm.run(module.name, module.package, this.options);
-    // let {deps, contents, ast} = await worker(module.name, module.package, this.options);
+    let {deps, contents, ast} = await this.farm.run(asset.name, asset.package, this.options);
+    // let {deps, contents, ast} = await worker(asset.name, asset.package, this.options);
 
-    module.dependencies = deps;
-    module.contents = contents;
-    module.ast = ast;
+    asset.dependencies = deps;
+    asset.contents = contents;
+    asset.ast = ast;
 
     await Promise.all(deps.map(async dep => {
-      let mod = await this.resolveModule(dep, module.name);
-      module.modules.set(dep, mod);
-      await this.loadModule(mod);
+      let assetDep = await this.resolveAsset(dep, asset.name);
+      asset.depAssets.set(dep, assetDep);
+      await this.loadAsset(assetDep);
     }));
   }
 }

@@ -1,21 +1,21 @@
 const types = require('babel-types');
 
 module.exports = {
-  ImportDeclaration(node, module) {
-    module.dependencies.add(node.source.value);
+  ImportDeclaration(node, asset) {
+    asset.dependencies.add(node.source.value);
   },
 
-  ExportNamedDeclaration(node, module) {
+  ExportNamedDeclaration(node, asset) {
     if (node.source) {
-      module.dependencies.add(node.source.value);
+      asset.dependencies.add(node.source.value);
     }
   },
 
-  ExportAllDeclaration(node, module) {
-    module.dependencies.add(node.source.value);
+  ExportAllDeclaration(node, asset) {
+    asset.dependencies.add(node.source.value);
   },
 
-  CallExpression(node, module) {
+  CallExpression(node, asset) {
     let {callee, arguments: args} = node;
 
     let isRequire = types.isIdentifier(callee)
@@ -27,6 +27,6 @@ module.exports = {
       return;
     }
 
-    module.dependencies.add(args[0].value);
+    asset.dependencies.add(args[0].value);
   }
 };
