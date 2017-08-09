@@ -17,13 +17,12 @@ module.exports = async function (path, pkg, options, callback) {
 
   let asset = parser.getAsset(path, pkg, options);
   await asset.getDependencies();
+  await asset.transform();
 
-  await babel(asset);
-
-  asset.contents = Array.from(asset.globals.values()).join('\n') + '\n' + asset.contents;
+  let contents = asset.generate();
 
   callback(null, {
     deps: Array.from(asset.dependencies),
-    contents: asset.contents
+    contents: contents
   });
 };

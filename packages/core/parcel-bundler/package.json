@@ -5,6 +5,7 @@
   "license": "MIT",
   "dependencies": {
     "babel-core": "^6.25.0",
+    "babel-generator": "^6.25.0",
     "babylon": "^6.17.4",
     "babylon-walk": "^1.0.2",
     "browser-resolve": "^1.11.2",

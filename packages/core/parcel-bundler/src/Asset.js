@@ -30,8 +30,16 @@ class Asset {
   }
 
   async getDependencies() {
-    await this.parseIfNeeded();
-    this.collectDependencies();
+    await this.loadIfNeeded();
+
+    if (this.mightHaveDependencies()) {
+      await this.parseIfNeeded();
+      this.collectDependencies();
+    }
+  }
+
+  mightHaveDependencies() {
+    return true;
   }
 
   async load() {
@@ -44,6 +52,14 @@ class Asset {
 
   collectDependencies() {
     // do nothing by default
+  }
+
+  async transform() {
+    // do nothing by default
+  }
+
+  generate() {
+    return this.contents;
   }
 }
 
