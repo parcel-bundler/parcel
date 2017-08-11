@@ -27,7 +27,8 @@ class Resolver {
     var res = await resolve(filename, {
       filename: parent,
       paths: this.options.paths,
-      modules: builtins
+      modules: builtins,
+      extensions: ['.js', '.json']
     });
 
     if (Array.isArray(res)) {

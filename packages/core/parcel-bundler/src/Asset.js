@@ -5,7 +5,7 @@ const fs = require('./utils/fs');
 class Asset {
   constructor(name, pkg, options) {
     this.name = name;
-    this.basename = path.basename(this.name, path.extname(this.name));
+    this.basename = path.basename(this.name);
     this.package = pkg;
     this.options = options;
     this.encoding = 'utf8';
@@ -14,6 +14,7 @@ class Asset {
     this.ast = null;
     this.dependencies = new Set;
     this.depAssets = new Map;
+    this.bundle = null;
   }
 
   async loadIfNeeded() {

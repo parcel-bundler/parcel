@@ -1,5 +1,6 @@
 const promisify = require('./promisify');
 const fs = require('fs');
+const mkdirp = require('mkdirp');
 
 exports.readFile = promisify(fs.readFile);
 exports.writeFile = promisify(fs.writeFile);
@@ -10,3 +11,5 @@ exports.exists = function (filename) {
     fs.exists(filename, resolve);
   });
 };
+
+exports.mkdirp = promisify(mkdirp);

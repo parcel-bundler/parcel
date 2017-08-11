@@ -13,6 +13,7 @@ const GLOBAL_RE = /process|__dirname|__filename|global|Buffer/;
 class JSAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
+    this.type = 'js';
     this.globals = new Map;
     this.isAstDirty = false;
   }
