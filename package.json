@@ -9,6 +9,7 @@
     "babylon": "^6.17.4",
     "babylon-walk": "^1.0.2",
     "browser-resolve": "^1.11.2",
+    "mkdirp": "^0.5.1",
     "node-libs-browser": "^2.0.0",
     "worker-farm": "^1.4.1"
   }

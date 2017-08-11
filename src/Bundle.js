@@ -1,59 +1,77 @@
-const fs = require('./utils/fs');
-const Resolver = require('./Resolver');
-const Parser = require('./Parser');
-const WorkerFarm = require('./WorkerFarm');
-const worker = require('./utils/promisify')(require('./worker.js'));
+const Path = require('path');
+const JSPackager = require('./packagers/JSPackager');
+const CSSPackager = require('./packagers/CSSPackager');
+const fs = require('fs');
+
+const PACKAGERS = {
+  js: JSPackager,
+  css: CSSPackager
+};
 
 class Bundle {
-  constructor(main, options) {
-    this.mainFile = main;
-    this.options = options;
-    this.resolver = new Resolver(options);
-    this.parser = new Parser(options);
-
-    this.loadedAssets = new Map;
-    this.loading = new Set;
-
-    this.farm = new WorkerFarm(require.resolve('./worker.js'), {autoStart: true});
+  constructor(type, name) {
+    this.type = type;
+    this.name = name;
+    this.assets = new Set;
+    this.childBundles = new Map;
   }
 
-  async collectDependencies() {
-    let main = await this.resolveAsset(this.mainFile);
-    await this.loadAsset(main);
-    this.farm.end();
-    return main;
+  addAsset(asset) {
+    asset.bundle = this;
+    this.assets.add(asset);
   }
 
-  async resolveAsset(name, parent) {
-    let {path, pkg} = await this.resolver.resolve(name, parent);
-    if (this.loadedAssets.has(path)) {
-      return this.loadedAssets.get(path);
+  removeAsset(asset) {
+    asset.bundle = null;
+    this.assets.delete(asset);
+  }
+
+  getChildBundle(type) {
+    if (type === this.type) {
+      return this;
     }
 
-    let asset = this.parser.getAsset(path, pkg, this.options);
-    this.loadedAssets.set(path, asset);
-    return asset;
+    if (!this.childBundles.has(type)) {
+      let bundle = new Bundle(type, Path.join(Path.dirname(this.name), Path.basename(this.name, Path.extname(this.name)) + '.' + type));
+      this.childBundles.set(type, bundle);
+    }
+
+    return this.childBundles.get(type);
   }
 
-  async loadAsset(asset) {
-    if (this.loading.has(asset)) {
+  async package() {
+    let Packager = PACKAGERS[this.type];
+    if (!Packager) {
+      throw new Error('Could not find packager for ' + this.type + ' assets.');
+    }
+
+    let packager = new Packager;
+    packager.pipe(fs.createWriteStream(this.name));
+
+    let included = new Set;
+    for (let asset of this.assets) {
+      this._addDeps(asset, packager, included)
+    }
+
+    packager.end();
+
+    for (let bundle of this.childBundles.values()) {
+      await bundle.package();
+    }
+  }
+
+  _addDeps(asset, packager, included) {
+    if (!this.assets.has(asset) || included.has(asset)) {
       return;
     }
 
-    this.loading.add(asset);
+    included.add(asset);
 
-    let {deps, contents, ast} = await this.farm.run(asset.name, asset.package, this.options);
-    // let {deps, contents, ast} = await worker(asset.name, asset.package, this.options);
+    for (let depAsset of asset.depAssets.values()) {
+      this._addDeps(depAsset, packager, included);
+    }
 
-    asset.dependencies = deps;
-    asset.contents = contents;
-    asset.ast = ast;
-
-    await Promise.all(deps.map(async dep => {
-      let assetDep = await this.resolveAsset(dep, asset.name);
-      asset.depAssets.set(dep, assetDep);
-      await this.loadAsset(assetDep);
-    }));
+    packager.addAsset(asset);
   }
 }
 
