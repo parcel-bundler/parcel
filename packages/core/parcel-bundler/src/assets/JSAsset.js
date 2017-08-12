@@ -70,7 +70,9 @@ class JSAsset extends Asset {
     // TODO: source maps
     let code = this.isAstDirty ? generate(this.ast).code : this.contents;
     code = Array.from(this.globals.values()).join('\n') + '\n' + code;
-    return code;
+    return {
+      js: code
+    };
   }
 }
 

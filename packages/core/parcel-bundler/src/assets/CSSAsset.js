@@ -18,9 +18,12 @@ class CSSAsset extends Asset {
 
   // }
 
-  // generate() {
-
-  // }
+  generate() {
+    return {
+      css: this.contents,
+      js: ''
+    };
+  }
 }
 
 module.exports = CSSAsset;

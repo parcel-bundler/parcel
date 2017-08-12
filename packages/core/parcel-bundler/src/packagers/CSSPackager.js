@@ -4,7 +4,7 @@ class CSSPackager extends Readable {
   _read() {}
 
   addAsset(asset) {
-    this.push(asset.contents);
+    this.push(asset.generated.css);
   }
 
   end() {

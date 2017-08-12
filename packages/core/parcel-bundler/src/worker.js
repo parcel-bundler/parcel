@@ -19,10 +19,10 @@ module.exports = async function (path, pkg, options, callback) {
   await asset.getDependencies();
   await asset.transform();
 
-  let contents = asset.generate();
+  let generated = asset.generate();
 
   callback(null, {
     deps: Array.from(asset.dependencies),
-    contents: contents
+    generated: generated
   });
 };

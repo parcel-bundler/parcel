@@ -17,12 +17,12 @@ class Bundle {
   }
 
   addAsset(asset) {
-    asset.bundle = this;
+    asset.bundles.add(this);
     this.assets.add(asset);
   }
 
   removeAsset(asset) {
-    asset.bundle = null;
+    asset.bundles.remove(this);
     this.assets.delete(asset);
   }
 
