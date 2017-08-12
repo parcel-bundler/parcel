@@ -10,11 +10,13 @@ class Asset {
     this.options = options;
     this.encoding = 'utf8';
 
+    this.type = 'raw';
     this.contents = null;
     this.ast = null;
+    this.generated = null;
     this.dependencies = new Set;
     this.depAssets = new Map;
-    this.bundle = null;
+    this.bundles = new Set;
   }
 
   async loadIfNeeded() {
@@ -60,7 +62,9 @@ class Asset {
   }
 
   generate() {
-    return this.contents;
+    return {
+      raw: this.contents
+    };
   }
 }
 

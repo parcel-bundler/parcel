@@ -49,27 +49,32 @@ class Bundler {
     if (this.loading.has(asset)) {
       // If the asset is already in a bundle, it is shared. Add it to the root bundle.
       // TODO: this should probably be the common ancestor, not necessarily the root bundle.
-      if (asset.bundle && asset.bundle !== bundle) {
-        asset.bundle.removeAsset(asset);
-        this.rootBundle.getChildBundle(asset.type).addAsset(asset);
-      }
+      // if (asset.bundles.size > 0 && !asset.bundles.has(bundle)) {
+      //   console.log(asset.bundles, asset.name)
+      //   asset.bundle.removeAsset(asset);
+      //   this.rootBundle.getChildBundle(asset.bundle.type).addAsset(asset);
+      // }
 
       return;
     }
 
     this.loading.add(asset);
 
-    let {deps, contents, ast} = await this.farm.run(asset.name, asset.package, this.options);
-    // let {deps, contents, ast} = await worker(asset.name, asset.package, this.options);
+    let {deps, generated} = await this.farm.run(asset.name, asset.package, this.options);
 
     asset.dependencies = deps;
-    asset.contents = contents;
-    asset.ast = ast;
+    asset.generated = generated;
 
     if (!bundle) {
       bundle = new Bundle(asset.type, Path.join(this.outDir, Path.basename(asset.name, Path.extname(asset.name)) + '.' + asset.type));
       this.rootBundle = bundle;
-    } else if (asset.type !== bundle.type) {
+    }
+
+    if (asset.type !== bundle.type) {
+      if (generated[bundle.type] != null) {
+        bundle.addAsset(asset);
+      }
+
       bundle = bundle.getChildBundle(asset.type);
     }
 

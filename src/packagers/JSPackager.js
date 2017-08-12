@@ -9,6 +9,7 @@ class JSPackager extends Readable {
     this.includedAssets = new Map;
     this.id = 1;
     this.first = true;
+    this.dedupe = new Map;
   }
 
   _read() {}
@@ -22,13 +23,20 @@ class JSPackager extends Readable {
       this.push(prelude);
     }
 
-    let id = this.id++;
+    let id = this.dedupe.get(asset.generated.js);
+    if (id) {
+      this.includedAssets.set(asset, id);
+      return;
+    }
+
+    id = this.id++;
+    this.dedupe.set(asset.generated.js, id);
     this.includedAssets.set(asset, id);
 
     // let {code, sourceMap} = asset.transform('js');
     let wrapped = this.first ? '' : ',';
 
-    wrapped += id + ':[function(require,module,exports) {\n' + asset.contents + '\n},';
+    wrapped += id + ':[function(require,module,exports) {\n' + asset.generated.js + '\n},';
 
     let deps = {};
     for (let [dep, mod] of asset.depAssets) {

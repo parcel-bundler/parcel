@@ -13,7 +13,6 @@ module.exports = async function (asset) {
 
   let res = babel.transformFromAst(asset.ast, asset.contents, {code: false, filename: asset.name});
   asset.ast = res.ast;
-  asset.contents = res.code;
   asset.isAstDirty = true;
   // console.timeEnd('babel: ' + process.pid + ':' + asset.name)
 };
