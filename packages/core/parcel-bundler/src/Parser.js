@@ -2,6 +2,7 @@ const path = require('path');
 const JSAsset = require('./assets/JSAsset');
 const JSONAsset = require('./assets/JSONAsset');
 const CSSAsset = require('./assets/CSSAsset');
+const StylusAsset = require('./assets/StylusAsset');
 
 class Parser {
   constructor(options = {}) {
@@ -18,7 +19,7 @@ class Parser {
     this.registerExtension('.json', JSONAsset);
 
     this.registerExtension('.css', CSSAsset);
-    this.registerExtension('.styl', CSSAsset);
+    this.registerExtension('.styl', StylusAsset);
   }
 
   registerExtension(ext, parser) {
