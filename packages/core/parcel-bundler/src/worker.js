@@ -19,7 +19,7 @@ module.exports = async function (path, pkg, options, callback) {
   let generated = await asset.process();
 
   callback(null, {
-    deps: Array.from(asset.dependencies),
+    dependencies: Array.from(asset.dependencies),
     generated: generated
   });
 };
