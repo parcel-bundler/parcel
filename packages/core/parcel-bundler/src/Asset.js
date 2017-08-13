@@ -12,13 +12,15 @@ class Asset {
     this.package = pkg;
     this.options = options;
     this.encoding = 'utf8';
-
     this.type = 'raw';
+
+    this.processed = false;
     this.contents = null;
     this.ast = null;
     this.generated = null;
     this.dependencies = new Set;
     this.depAssets = new Map;
+    this.parentBundle = null;
     this.bundles = new Set;
   }
 
@@ -68,6 +70,33 @@ class Asset {
     return {
       raw: this.contents
     };
+  }
+
+  async process() {
+    if (!this.generated) {
+      await this.getDependencies();
+      await this.transform();
+      this.generated = this.generate();
+    }
+
+    return this.generated;
+  }
+
+  async processInFarm(farm) {
+    this.processed = true;
+
+    let {deps, generated} = await farm.run(this.name, this.package, this.options);
+    this.dependencies = new Set(deps);
+    this.generated = generated;
+  }
+
+  invalidate() {
+    this.processed = false;
+    this.contents = null;
+    this.ast = null;
+    this.generated = null;
+    this.dependencies.clear();
+    this.depAssets.clear();
   }
 }
 

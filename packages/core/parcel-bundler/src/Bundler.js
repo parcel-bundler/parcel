@@ -5,32 +5,48 @@ const WorkerFarm = require('./WorkerFarm');
 const worker = require('./utils/promisify')(require('./worker.js'));
 const Path = require('path');
 const Bundle = require('./Bundle');
+const {FSWatcher} = require('chokidar');
 
 class Bundler {
   constructor(main, options = {}) {
     this.mainFile = main;
-    this.options = options;
-    this.outDir = Path.resolve(options.outDir || 'dist');
+    this.options = this.normalizeOptions(options);
+
     this.resolver = new Resolver(options);
     this.parser = new Parser(options);
-
     this.loadedAssets = new Map;
-    this.loading = new Set;
     this.rootBundle = null;
     this.farm = null;
+    this.watcher = null;
+  }
+
+  normalizeOptions(options) {
+    let isProduction = options.production || process.env.NODE_ENV === 'production';
+    return Object.assign(options, {
+      outDir: Path.resolve(options.outDir || 'dist'),
+      watch: typeof options.watch === 'boolean' ? options.watch : !isProduction
+    });
   }
 
   async bundle() {
     this.farm = new WorkerFarm(require.resolve('./worker.js'), {autoStart: true});
 
+    if (this.options.watch) {
+      this.watcher = new FSWatcher;
+      this.watcher.on('change', this.onChange.bind(this));
+      this.watcher.on('unlink', this.onUnlink.bind(this));
+    }
+
     try {
       let main = await this.resolveAsset(this.mainFile);
       await this.loadAsset(main);
 
-      await fs.mkdirp(this.outDir);
+      await fs.mkdirp(this.options.outDir);
       await this.rootBundle.package();
     } finally {
-      this.farm.end();
+      if (!this.watcher) {
+        this.farm.end();
+      }
     }
   }
 
@@ -42,11 +58,16 @@ class Bundler {
 
     let asset = this.parser.getAsset(path, pkg, this.options);
     this.loadedAssets.set(path, asset);
+
+    if (this.watcher) {
+      this.watcher.add(path);
+    }
+
     return asset;
   }
 
   async loadAsset(asset, bundle) {
-    if (this.loading.has(asset)) {
+    if (asset.processed) {
       // If the asset is already in a bundle, it is shared. Add it to the root bundle.
       // TODO: this should probably be the common ancestor, not necessarily the root bundle.
       // if (asset.bundles.size > 0 && !asset.bundles.has(bundle)) {
@@ -58,20 +79,21 @@ class Bundler {
       return;
     }
 
-    this.loading.add(asset);
+    // Compile and collect dependencies in the background
+    await asset.processInFarm(this.farm);
 
-    let {deps, generated} = await this.farm.run(asset.name, asset.package, this.options);
-
-    asset.dependencies = deps;
-    asset.generated = generated;
-
+    // Create the root bundle if it doesn't exist
     if (!bundle) {
-      bundle = new Bundle(asset.type, Path.join(this.outDir, Path.basename(asset.name, Path.extname(asset.name)) + '.' + asset.type));
+      bundle = new Bundle(asset.type, Path.join(this.options.outDir, Path.basename(asset.name, Path.extname(asset.name)) + '.' + asset.type));
       this.rootBundle = bundle;
     }
 
+    asset.parentBundle = bundle;
+
+    // If the asset type does not match the bundle type, create a new child bundle
     if (asset.type !== bundle.type) {
-      if (generated[bundle.type] != null) {
+      // If the asset generated a representation for the parent bundle type, also add it there
+      if (asset.generated[bundle.type] != null) {
         bundle.addAsset(asset);
       }
 
@@ -80,7 +102,8 @@ class Bundler {
 
     bundle.addAsset(asset);
 
-    await Promise.all(deps.map(async dep => {
+    // Process asset dependencies
+    await Promise.all(Array.from(asset.dependencies).map(async dep => {
       let assetDep = await this.resolveAsset(dep, asset.name);
       asset.depAssets.set(dep, assetDep);
 
@@ -93,6 +116,39 @@ class Bundler {
 
       await this.loadAsset(assetDep, depBundle);
     }));
+  }
+
+  async onChange(path) {
+    console.time('change');
+    let asset = this.loadedAssets.get(path);
+    if (!asset) {
+      return;
+    }
+
+    // Invalidate and reload the asset
+    asset.invalidate();
+    await this.loadAsset(asset, asset.parentBundle);
+
+    // Re-package all affected bundles
+    for (let bundle of asset.bundles) {
+      await bundle.package(false);
+    }
+
+    console.timeEnd('change');
+  }
+
+  async onUnlink(path) {
+    let asset = this.loadedAssets.get(path);
+    if (!asset) {
+      return;
+    }
+
+    this.loadedAsset.delete(path);
+
+    for (let bundle of asset.bundles) {
+      bundle.removeAsset(asset);
+      await bundle.package(false);
+    }
   }
 }
 
