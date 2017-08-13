@@ -1,6 +1,6 @@
 const babel = require('babel-core');
-const fs = require('../utils/fs');
 const path = require('path');
+const config = require('../utils/config');
 
 module.exports = async function (asset) {
   if (!(await shouldTransform(asset))) {
@@ -30,31 +30,10 @@ async function shouldTransform(asset) {
   //   return true;
   // }
 
-  let babelrc = await resolveBabelRc(path.dirname(asset.name));
+  let babelrc = await config.resolve(asset.name, ['.babelrc', '.babelrc.js']);
   if (babelrc) {
     return true;
   }
 
   return false;
-}
-
-const existsCache = new Map;
-
-async function resolveBabelRc(filepath, root = '/') {
-  for (const filename of ['.babelrc', '.babelrc.js']) {
-    let file = path.join(filepath, filename);
-    if (existsCache.get(file) || await fs.exists(file)) {
-      existsCache.set(file, true);
-      return file;
-    }
-
-    existsCache.set(file, false);
-  }
-
-  filepath = path.dirname(filepath);
-
-  // Don't traverse above the module root
-  if (filepath !== root && path.basename(filepath) !== 'node_modules') {
-    return resolveBabelRc(filepath, root);
-  }
 }
