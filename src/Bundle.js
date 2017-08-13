@@ -39,7 +39,7 @@ class Bundle {
     return this.childBundles.get(type);
   }
 
-  async package() {
+  async package(includeChildren = true) {
     let Packager = PACKAGERS[this.type];
     if (!Packager) {
       throw new Error('Could not find packager for ' + this.type + ' assets.');
@@ -55,8 +55,10 @@ class Bundle {
 
     packager.end();
 
-    for (let bundle of this.childBundles.values()) {
-      await bundle.package();
+    if (includeChildren) {
+      for (let bundle of this.childBundles.values()) {
+        await bundle.package(includeChildren);
+      }
     }
   }
 

@@ -16,10 +16,7 @@ module.exports = async function (path, pkg, options, callback) {
   }
 
   let asset = parser.getAsset(path, pkg, options);
-  await asset.getDependencies();
-  await asset.transform();
-
-  let generated = asset.generate();
+  let generated = await asset.process();
 
   callback(null, {
     deps: Array.from(asset.dependencies),
