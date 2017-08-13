@@ -6,6 +6,7 @@ const worker = require('./utils/promisify')(require('./worker.js'));
 const Path = require('path');
 const Bundle = require('./Bundle');
 const {FSWatcher} = require('chokidar');
+const FSCache = require('./FSCache');
 
 class Bundler {
   constructor(main, options = {}) {
@@ -14,6 +15,8 @@ class Bundler {
 
     this.resolver = new Resolver(options);
     this.parser = new Parser(options);
+    this.cache = new FSCache(options);
+
     this.loadedAssets = new Map;
     this.rootBundle = null;
     this.farm = null;
@@ -79,8 +82,18 @@ class Bundler {
       return;
     }
 
-    // Compile and collect dependencies in the background
-    await asset.processInFarm(this.farm);
+    // Mark the asset processed so we don't load it twice
+    asset.processed = true;
+
+    // First try the cache, otherwise load and compile in the background
+    let processed = await this.cache.read(asset.name);
+    if (!processed) {
+      processed = await this.farm.run(asset.name, asset.package, this.options);
+      this.cache.write(asset.name, processed);
+    }
+
+    asset.dependencies = new Set(processed.dependencies);
+    asset.generated = processed.generated;
 
     // Create the root bundle if it doesn't exist
     if (!bundle) {
@@ -127,6 +140,7 @@ class Bundler {
 
     // Invalidate and reload the asset
     asset.invalidate();
+    this.cache.invalidate(asset.name);
     await this.loadAsset(asset, asset.parentBundle);
 
     // Re-package all affected bundles

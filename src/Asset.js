@@ -82,14 +82,6 @@ class Asset {
     return this.generated;
   }
 
-  async processInFarm(farm) {
-    this.processed = true;
-
-    let {deps, generated} = await farm.run(this.name, this.package, this.options);
-    this.dependencies = new Set(deps);
-    this.generated = generated;
-  }
-
   invalidate() {
     this.processed = false;
     this.contents = null;
