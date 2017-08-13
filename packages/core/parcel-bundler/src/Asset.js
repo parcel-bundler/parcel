@@ -2,8 +2,11 @@ const Parser = require('./Parser');
 const path = require('path');
 const fs = require('./utils/fs');
 
+let ASSET_ID = 1;
+
 class Asset {
   constructor(name, pkg, options) {
+    this.id = ASSET_ID++;
     this.name = name;
     this.basename = path.basename(this.name);
     this.package = pkg;
