@@ -42,6 +42,10 @@ class Bundle {
   }
 
   async package(includeChildren = true) {
+    if (this.assets.size === 0) {
+      return;
+    }
+
     let Packager = PACKAGERS[this.type];
     if (!Packager) {
       throw new Error('Could not find packager for ' + this.type + ' assets.');
