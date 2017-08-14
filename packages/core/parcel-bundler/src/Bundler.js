@@ -8,6 +8,12 @@ const Bundle = require('./Bundle');
 const {FSWatcher} = require('chokidar');
 const FSCache = require('./FSCache');
 
+const crypto = require('crypto');
+
+function md5(string) {
+  return crypto.createHash('md5').update(string).digest('hex');
+}
+
 class Bundler {
   constructor(main, options = {}) {
     this.mainFile = main;
@@ -69,15 +75,37 @@ class Bundler {
     return asset;
   }
 
+  moveAssetToRoot(asset) {
+    for (let bundle of Array.from(asset.bundles)) {
+      bundle.removeAsset(asset);
+      this.rootBundle.getChildBundle(bundle.type).addAsset(asset);
+    }
+
+    asset.parentBundle = this.rootBundle;
+
+    for (let child of asset.depAssets.values()) {
+      if (child.parentBundle !== this.rootBundle) {
+        // console.log('move child', child.name, child.depAssets)
+        this.moveAssetToRoot(child);
+      }
+    }
+  }
+
   async loadAsset(asset, bundle) {
     if (asset.processed) {
       // If the asset is already in a bundle, it is shared. Add it to the root bundle.
       // TODO: this should probably be the common ancestor, not necessarily the root bundle.
-      // if (asset.bundles.size > 0 && !asset.bundles.has(bundle)) {
-      //   console.log(asset.bundles, asset.name)
-      //   asset.bundle.removeAsset(asset);
-      //   this.rootBundle.getChildBundle(asset.bundle.type).addAsset(asset);
-      // }
+      if (asset.parentBundle && asset.parentBundle !== bundle && asset.parentBundle !== this.rootBundle) {
+        // asset.bundle.removeAsset(asset);
+        // this.rootBundle.getChildBundle(asset.bundle.type).addAsset(asset);
+        // for (let bundle of Array.from(asset.bundles)) {
+        //   bundle.removeAsset(asset);
+        //   this.rootBundle.getChildBundle(bundle.type).addAsset(asset);
+        // }
+        //
+        // asset.parentBundle = this.rootBundle;
+        this.moveAssetToRoot(asset);
+      }
 
       return;
     }
@@ -116,19 +144,23 @@ class Bundler {
     bundle.addAsset(asset);
 
     // Process asset dependencies
-    await Promise.all(Array.from(asset.dependencies).map(async dep => {
-      let assetDep = await this.resolveAsset(dep, asset.name);
-      asset.depAssets.set(dep, assetDep);
+    // await Promise.all(Array.from(asset.dependencies).map(async dep => {
+    for (let dep of asset.dependencies) {
+      let assetDep = await this.resolveAsset(dep.name, asset.name);
+      asset.depAssets.set(dep.name, assetDep);
 
       let depBundle = bundle;
-      // if (dep.dynamic) {
-      //   // split bundle
-      //   depBundle = new Bundle(basename(asset.name));
-      // }
-
+      if (dep.dynamic) {
+        // split bundle
+        // TODO: reuse split bundles if the same one is requested twice
+        depBundle = new Bundle(bundle.type, Path.join(this.options.outDir, md5(assetDep.name) + '.' + assetDep.type));
+        console.log(depBundle, assetDep.name)
+        bundle.childBundles.add(depBundle);
+      }
 
       await this.loadAsset(assetDep, depBundle);
-    }));
+    // }));
+    }
   }
 
   async onChange(path) {
