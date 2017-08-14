@@ -13,7 +13,8 @@ class Bundle {
     this.type = type;
     this.name = name;
     this.assets = new Set;
-    this.childBundles = new Map;
+    this.childBundles = new Set;
+    this.typeBundleMap = new Map;
   }
 
   addAsset(asset) {
@@ -22,7 +23,7 @@ class Bundle {
   }
 
   removeAsset(asset) {
-    asset.bundles.remove(this);
+    asset.bundles.delete(this);
     this.assets.delete(asset);
   }
 
@@ -31,12 +32,13 @@ class Bundle {
       return this;
     }
 
-    if (!this.childBundles.has(type)) {
+    if (!this.typeBundleMap.has(type)) {
       let bundle = new Bundle(type, Path.join(Path.dirname(this.name), Path.basename(this.name, Path.extname(this.name)) + '.' + type));
-      this.childBundles.set(type, bundle);
+      this.typeBundleMap.set(type, bundle);
+      this.childBundles.add(bundle);
     }
 
-    return this.childBundles.get(type);
+    return this.typeBundleMap.get(type);
   }
 
   async package(includeChildren = true) {

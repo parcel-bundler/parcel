@@ -38,6 +38,7 @@ class JSAsset extends Asset {
         'classProperties',
         'decorators',
         'exportExtensions',
+        'dynamicImport',
         'jsx',
         'flow'
       ]

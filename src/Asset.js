@@ -46,6 +46,10 @@ class Asset {
     }
   }
 
+  addDependency(name, opts) {
+    this.dependencies.add(Object.assign({name}, opts));
+  }
+
   mightHaveDependencies() {
     return true;
   }
