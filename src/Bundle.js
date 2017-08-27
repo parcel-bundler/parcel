@@ -81,6 +81,15 @@ class Bundle {
 
     packager.addAsset(asset);
   }
+
+  getHash() {
+    let hash = crypto.createHash('md5');
+    for (let asset of this.assets) {
+      hash.update(asset.hash);
+    }
+
+    return hash.digest('hex');
+  }
 }
 
 module.exports = Bundle;
