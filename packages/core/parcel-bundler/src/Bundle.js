@@ -2,6 +2,7 @@ const Path = require('path');
 const JSPackager = require('./packagers/JSPackager');
 const CSSPackager = require('./packagers/CSSPackager');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const PACKAGERS = {
   js: JSPackager,
@@ -9,9 +10,10 @@ const PACKAGERS = {
 };
 
 class Bundle {
-  constructor(type, name) {
+  constructor(type, name, parent) {
     this.type = type;
     this.name = name;
+    this.parentBundle = parent;
     this.assets = new Set;
     this.childBundles = new Set;
     this.typeBundleMap = new Map;
@@ -33,39 +35,61 @@ class Bundle {
     }
 
     if (!this.typeBundleMap.has(type)) {
-      let bundle = new Bundle(type, Path.join(Path.dirname(this.name), Path.basename(this.name, Path.extname(this.name)) + '.' + type));
+      let bundle = this.createChildBundle(type, Path.join(Path.dirname(this.name), Path.basename(this.name, Path.extname(this.name)) + '.' + type));
       this.typeBundleMap.set(type, bundle);
-      this.childBundles.add(bundle);
     }
 
     return this.typeBundleMap.get(type);
   }
 
-  async package(includeChildren = true) {
-    if (this.assets.size === 0) {
-      return;
+  createChildBundle(type, name) {
+    let bundle = new Bundle(type, name, this);
+    this.childBundles.add(bundle);
+    return bundle;
+  }
+
+  get isEmpty() {
+    return this.assets.size === 0;
+  }
+
+  async package(oldHashes, newHashes = new Map) {
+    if (this.isEmpty) {
+      return newHashes;
     }
 
-    let Packager = PACKAGERS[this.type];
-    if (!Packager) {
-      throw new Error('Could not find packager for ' + this.type + ' assets.');
-    }
+    let hash = this.getHash();
+    newHashes.set(this.name, hash);
 
-    let packager = new Packager;
-    packager.pipe(fs.createWriteStream(this.name));
+    console.log(hash, oldHashes && oldHashes.get(this.name))
 
-    let included = new Set;
-    for (let asset of this.assets) {
-      this._addDeps(asset, packager, included)
-    }
+    if (!oldHashes || oldHashes.get(this.name) !== hash) {
+      console.log('bundling', this.name)
 
-    packager.end();
-
-    if (includeChildren) {
-      for (let bundle of this.childBundles.values()) {
-        await bundle.package(includeChildren);
+      let Packager = PACKAGERS[this.type];
+      if (!Packager) {
+        throw new Error('Could not find packager for ' + this.type + ' assets.');
       }
+
+      let packager = new Packager;
+      packager.pipe(fs.createWriteStream(this.name));
+
+      if (typeof packager.generatePrelude === 'function') {
+        packager.generatePrelude(this);
+      }
+
+      let included = new Set;
+      for (let asset of this.assets) {
+        this._addDeps(asset, packager, included)
+      }
+
+      packager.end();
     }
+
+    for (let bundle of this.childBundles.values()) {
+      await bundle.package(oldHashes, newHashes);
+    }
+
+    return newHashes;
   }
 
   _addDeps(asset, packager, included) {
@@ -80,6 +104,40 @@ class Bundle {
     }
 
     packager.addAsset(asset);
+  }
+
+  getParents() {
+    let parents = [];
+    let bundle = this;
+
+    while (bundle) {
+      parents.push(bundle);
+      bundle = bundle.parentBundle;
+    }
+
+    return parents;
+  }
+
+  findCommonAncestor(bundle) {
+    // Get a list of parent bundles going up to the root
+    let ourParents = this.getParents();
+    let theirParents = bundle.getParents();
+
+    // Start from the root bundle, and find the first bundle that's different
+    let a = ourParents.pop();
+    let b = theirParents.pop();
+    let last;
+    while (a === b && ourParents.length > 0 && theirParents.length > 0) {
+      last = a;
+      a = ourParents.pop();
+      b = theirParents.pop();
+    }
+
+    if (a === b) { // One bundle descended from the other
+      return a;
+    }
+
+    return last;
   }
 
   getHash() {
