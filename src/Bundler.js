@@ -24,9 +24,9 @@ class Bundler {
     this.cache = new FSCache(options);
 
     this.loadedAssets = new Map;
-    this.rootBundle = null;
     this.farm = null;
     this.watcher = null;
+    this.bundleHashes = null;
   }
 
   normalizeOptions(options) {
@@ -49,9 +49,12 @@ class Bundler {
     try {
       let main = await this.resolveAsset(this.mainFile);
       await this.loadAsset(main);
+      this.mainAsset = main;
 
       await fs.mkdirp(this.options.outDir);
-      await this.rootBundle.package();
+
+      let bundle = this.createBundleTree(main);
+      this.bundleHashes = await bundle.package();
     } finally {
       if (!this.watcher) {
         this.farm.end();
@@ -75,38 +78,8 @@ class Bundler {
     return asset;
   }
 
-  moveAssetToRoot(asset) {
-    for (let bundle of Array.from(asset.bundles)) {
-      bundle.removeAsset(asset);
-      this.rootBundle.getChildBundle(bundle.type).addAsset(asset);
-    }
-
-    asset.parentBundle = this.rootBundle;
-
-    for (let child of asset.depAssets.values()) {
-      if (child.parentBundle !== this.rootBundle) {
-        // console.log('move child', child.name, child.depAssets)
-        this.moveAssetToRoot(child);
-      }
-    }
-  }
-
-  async loadAsset(asset, bundle) {
+  async loadAsset(asset) {
     if (asset.processed) {
-      // If the asset is already in a bundle, it is shared. Add it to the root bundle.
-      // TODO: this should probably be the common ancestor, not necessarily the root bundle.
-      if (asset.parentBundle && asset.parentBundle !== bundle && asset.parentBundle !== this.rootBundle) {
-        // asset.bundle.removeAsset(asset);
-        // this.rootBundle.getChildBundle(asset.bundle.type).addAsset(asset);
-        // for (let bundle of Array.from(asset.bundles)) {
-        //   bundle.removeAsset(asset);
-        //   this.rootBundle.getChildBundle(bundle.type).addAsset(asset);
-        // }
-        //
-        // asset.parentBundle = this.rootBundle;
-        this.moveAssetToRoot(asset);
-      }
-
       return;
     }
 
@@ -122,11 +95,38 @@ class Bundler {
 
     asset.dependencies = new Set(processed.dependencies);
     asset.generated = processed.generated;
+    asset.hash = processed.hash;
+
+    // Process asset dependencies
+    await Promise.all(Array.from(asset.dependencies).map(async dep => {
+      let assetDep = await this.resolveAsset(dep.name, asset.name);
+      asset.depAssets.set(dep.name, assetDep);
+
+      await this.loadAsset(assetDep);
+    }));
+  }
+
+  createBundleTree(asset, dep, bundle) {
+    if (asset.parentBundle) {
+      // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
+      if (asset.parentBundle !== bundle) {
+        let commonBundle = bundle.findCommonAncestor(asset.parentBundle);
+        if (asset.parentBundle !== commonBundle) {
+          this.moveAssetToBundle(asset, commonBundle);
+        }
+      }
+
+      return;
+    }
 
     // Create the root bundle if it doesn't exist
     if (!bundle) {
       bundle = new Bundle(asset.type, Path.join(this.options.outDir, Path.basename(asset.name, Path.extname(asset.name)) + '.' + asset.type));
-      this.rootBundle = bundle;
+    }
+
+    // Create a new bundle for dynamic imports
+    if (dep && dep.dynamic) {
+      bundle = bundle.createChildBundle(asset.type, Path.join(this.options.outDir, md5(asset.name) + '.' + asset.type));
     }
 
     asset.parentBundle = bundle;
@@ -143,24 +143,36 @@ class Bundler {
 
     bundle.addAsset(asset);
 
-    // Process asset dependencies
-    // await Promise.all(Array.from(asset.dependencies).map(async dep => {
     for (let dep of asset.dependencies) {
-      let assetDep = await this.resolveAsset(dep.name, asset.name);
-      asset.depAssets.set(dep.name, assetDep);
-
-      let depBundle = bundle;
-      if (dep.dynamic) {
-        // split bundle
-        // TODO: reuse split bundles if the same one is requested twice
-        depBundle = new Bundle(bundle.type, Path.join(this.options.outDir, md5(assetDep.name) + '.' + assetDep.type));
-        console.log(depBundle, assetDep.name)
-        bundle.childBundles.add(depBundle);
-      }
-
-      await this.loadAsset(assetDep, depBundle);
-    // }));
+      let assetDep = asset.depAssets.get(dep.name);
+      this.createBundleTree(assetDep, dep, bundle);
     }
+
+    return bundle;
+  }
+
+  moveAssetToBundle(asset, commonBundle) {
+    for (let bundle of Array.from(asset.bundles)) {
+      bundle.removeAsset(asset);
+      commonBundle.getChildBundle(bundle.type).addAsset(asset);
+    }
+
+    asset.parentBundle = commonBundle;
+
+    // Move all dependencies as well
+    for (let child of asset.depAssets.values()) {
+      if (child.parentBundle !== commonBundle) {
+        this.moveAssetToBundle(child, commonBundle);
+      }
+    }
+  }
+
+  updateBundleTree() {
+    for (let asset of this.loadedAssets.values()) {
+      asset.invalidateBundle();
+    }
+
+    return this.createBundleTree(this.mainAsset);
   }
 
   async onChange(path) {
@@ -175,10 +187,8 @@ class Bundler {
     this.cache.invalidate(asset.name);
     await this.loadAsset(asset, asset.parentBundle);
 
-    // Re-package all affected bundles
-    for (let bundle of asset.bundles) {
-      await bundle.package(false);
-    }
+    let bundle = this.updateBundleTree();
+    this.bundleHashes = await bundle.package(this.bundleHashes);
 
     console.timeEnd('change');
   }
@@ -189,7 +199,7 @@ class Bundler {
       return;
     }
 
-    this.loadedAsset.delete(path);
+    this.loadedAssets.delete(path);
 
     for (let bundle of asset.bundles) {
       bundle.removeAsset(asset);
