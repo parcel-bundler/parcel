@@ -11,6 +11,8 @@ for (let key in builtins) {
   }
 }
 
+builtins['_bundle_loader'] = require.resolve('./packagers/loader.js');
+
 class Resolver {
   constructor(options = {}) {
     this.options = options;

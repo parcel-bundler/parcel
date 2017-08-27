@@ -1,12 +1,12 @@
 // modules are defined as an array
-// [ module function, map of requireuires ]
+// [ module function, map of requires ]
 //
-// map of requireuires is short require name -> numeric require
+// map of requires is short require name -> numeric require
 //
 // anything defined in a previous bundle is accessed via the
 // orig method which is the requireuire for previous bundles
 
-(function (modules, cache, entry) {
+require = (function (modules, cache, entry) {
   // Save the require from previous bundle to this closure if any
   var previousRequire = typeof require === "function" && require;
 
@@ -35,13 +35,15 @@
       }
 
       var module = cache[name] = {exports: {}};
-      function req(x) {
-              var id = modules[name][1][x];
-              return newRequire(id || x);
-            }
+      function localRequire(x) {
+        return newRequire(localRequire.resolve(x));
+      }
 
-            req.import = function () {console.log('import')}
-      modules[name][0].call(module.exports, req, module, module.exports);
+      localRequire.resolve = function (x) {
+        return modules[name][1][x] || x;
+      };
+
+      modules[name][0].call(module.exports, localRequire, module, module.exports);
     }
 
     return cache[name].exports;

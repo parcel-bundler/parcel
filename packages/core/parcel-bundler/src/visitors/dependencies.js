@@ -1,4 +1,9 @@
 const types = require('babel-types');
+const {resolve} = require('path');
+const template = require('babel-template');
+
+const requireTemplate = template('require("_bundle_loader")');
+const argTemplate = template('require.resolve(MODULE)');
 
 module.exports = {
   ImportDeclaration(node, asset) {
@@ -32,8 +37,12 @@ module.exports = {
                        && types.isStringLiteral(args[0]);
 
     if (isDynamicImport) {
-      node.callee = types.memberExpression(types.identifier('require'), types.identifier('import'));
+      asset.addDependency('_bundle_loader');
       asset.addDependency(args[0].value, {dynamic: true});
+
+      node.callee = requireTemplate().expression;
+      node.arguments[0] = argTemplate({MODULE: args[0]}).expression;
+      asset.isAstDirty = true;
     }
   }
 };
