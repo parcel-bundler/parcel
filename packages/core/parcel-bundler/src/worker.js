@@ -16,10 +16,11 @@ module.exports = async function (path, pkg, options, callback) {
   }
 
   let asset = parser.getAsset(path, pkg, options);
-  let generated = await asset.process();
+  await asset.process();
 
   callback(null, {
     dependencies: Array.from(asset.dependencies),
-    generated: generated
+    generated: asset.generated,
+    hash: asset.hash
   });
 };

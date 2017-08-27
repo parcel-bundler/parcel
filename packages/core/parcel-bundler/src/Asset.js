@@ -1,6 +1,7 @@
 const Parser = require('./Parser');
 const path = require('path');
 const fs = require('./utils/fs');
+const crypto = require('crypto');
 
 let ASSET_ID = 1;
 
@@ -18,6 +19,7 @@ class Asset {
     this.contents = null;
     this.ast = null;
     this.generated = null;
+    this.hash = null;
     this.dependencies = new Set;
     this.depAssets = new Map;
     this.parentBundle = null;
@@ -81,9 +83,19 @@ class Asset {
       await this.getDependencies();
       await this.transform();
       this.generated = this.generate();
+      this.hash = this.generateHash();
     }
 
     return this.generated;
+  }
+
+  generateHash() {
+    let hash = crypto.createHash('md5');
+    for (let key in this.generated) {
+      hash.update(this.generated[key]);
+    }
+
+    return hash.digest('hex');
   }
 
   invalidate() {
@@ -91,8 +103,14 @@ class Asset {
     this.contents = null;
     this.ast = null;
     this.generated = null;
+    this.hash = null;
     this.dependencies.clear();
     this.depAssets.clear();
+  }
+
+  invalidateBundle() {
+    this.parentBundle = null;
+    this.bundles.clear();
   }
 }
 
