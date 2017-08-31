@@ -3,6 +3,8 @@ const JSAsset = require('./assets/JSAsset');
 const JSONAsset = require('./assets/JSONAsset');
 const CSSAsset = require('./assets/CSSAsset');
 const StylusAsset = require('./assets/StylusAsset');
+const GlobAsset = require('./assets/GlobAsset');
+const glob = require('glob');
 
 class Parser {
   constructor(options = {}) {
@@ -31,6 +33,10 @@ class Parser {
   }
 
   findParser(filename) {
+    if (glob.hasMagic(filename)) {
+      return GlobAsset;
+    }
+
     let extension = path.extname(filename);
     let parser = this.extensions[extension];
     if (!parser) {

@@ -1,9 +1,8 @@
 const promisify = require('./utils/promisify');
-// const builtins from './builtins';
-// import _resolve from 'browser-resolve';
 const resolve = promisify(require('browser-resolve'));
 const builtins = require('node-libs-browser');
 const path = require('path');
+const glob = require('glob');
 
 for (let key in builtins) {
   if (builtins[key] == null) {
@@ -22,8 +21,11 @@ class Resolver {
   async resolve(filename, parent) {
     let key = (parent ? path.dirname(parent) : '') + ':' + filename;
     if (this.cache.has(key)) {
-      // console.log('cached!', key)
       return this.cache.get(key);
+    }
+
+    if (glob.hasMagic(filename)) {
+      return {path: path.resolve(path.dirname(parent), filename)};
     }
 
     var res = await resolve(filename, {
