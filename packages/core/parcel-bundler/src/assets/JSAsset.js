@@ -7,7 +7,7 @@ const insertGlobals = require('../visitors/globals');
 const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 
-const IMPORT_RE = /import |export [^;]* from|require\s*\(/;
+const IMPORT_RE = /import|export [^;]* from|require\s*\(/;
 const GLOBAL_RE = /process|__dirname|__filename|global|Buffer/;
 
 class JSAsset extends Asset {

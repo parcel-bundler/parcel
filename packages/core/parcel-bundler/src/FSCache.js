@@ -57,6 +57,16 @@ class FSCache {
   invalidate(filename) {
     this.invalidated.add(filename);
   }
+
+  async delete(filename) {
+    let hash = md5(filename);
+    let cacheFile = path.join(this.dir, hash + '.json');
+
+    try {
+      await fs.unlink(cacheFile);
+      this.invalidated.delete(filename);
+    } catch (err) {}
+  }
 }
 
 module.exports = FSCache;
