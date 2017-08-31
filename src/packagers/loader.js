@@ -59,7 +59,8 @@ function loadJSBundle(bundle) {
       script.onerror = script.onload = null;
       resolve();
     };
-    document.head.appendChild(script);
+
+    document.getElementsByTagName('head')[0].appendChild(script);
   });
 }
 
@@ -78,7 +79,7 @@ function loadCSSBundle(bundle) {
       resolve();
     };
 
-    document.head.appendChild(link);
+    document.getElementsByTagName('head')[0].appendChild(link);
   });
 }
 

@@ -157,22 +157,25 @@ class Bundler {
       commonBundle.getChildBundle(bundle.type).addAsset(asset);
     }
 
+    let oldBundle = asset.parentBundle;
     asset.parentBundle = commonBundle;
 
     // Move all dependencies as well
     for (let child of asset.depAssets.values()) {
-      if (child.parentBundle !== commonBundle) {
+      if (child.parentBundle === oldBundle) {
         this.moveAssetToBundle(child, commonBundle);
       }
     }
   }
 
-  updateBundleTree() {
+  async rebundle() {
     for (let asset of this.loadedAssets.values()) {
       asset.invalidateBundle();
     }
 
-    return this.createBundleTree(this.mainAsset);
+    let bundle = this.createBundleTree(this.mainAsset);
+    this.bundleHashes = await bundle.package(this.bundleHashes);
+    return bundle;
   }
 
   async onChange(path) {
@@ -187,9 +190,7 @@ class Bundler {
     this.cache.invalidate(asset.name);
     await this.loadAsset(asset, asset.parentBundle);
 
-    let bundle = this.updateBundleTree();
-    this.bundleHashes = await bundle.package(this.bundleHashes);
-
+    await this.rebundle();
     console.timeEnd('change');
   }
 
@@ -200,11 +201,8 @@ class Bundler {
     }
 
     this.loadedAssets.delete(path);
-
-    for (let bundle of asset.bundles) {
-      bundle.removeAsset(asset);
-      await bundle.package(false);
-    }
+    this.cache.delete(path);
+    await this.rebundle();
   }
 }
 

@@ -60,8 +60,6 @@ class Bundle {
     let hash = this.getHash();
     newHashes.set(this.name, hash);
 
-    console.log(hash, oldHashes && oldHashes.get(this.name))
-
     if (!oldHashes || oldHashes.get(this.name) !== hash) {
       console.log('bundling', this.name)
 
