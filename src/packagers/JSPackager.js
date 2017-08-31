@@ -34,6 +34,7 @@ class JSPackager extends Readable {
     for (let dep of asset.dependencies) {
       let mod = asset.depAssets.get(dep.name);
 
+      // For dynamic dependencies, list the child bundles to load along with the module id
       if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
         let bundles = [basename(mod.parentBundle.name)];
         for (let child of mod.parentBundle.typeBundleMap.values()) {
@@ -57,7 +58,13 @@ class JSPackager extends Readable {
   }
 
   end() {
-    this.push('},{},' + JSON.stringify([1]) + ')');
+    // Load the entry module if this is the root bundle
+    let entry = [];
+    if (!this.bundle.parentBundle) {
+      entry.push(1);
+    }
+
+    this.push('},{},' + JSON.stringify(entry) + ')');
     this.push(null);
   }
 }
