@@ -27,7 +27,7 @@ class Asset {
   }
 
   async loadIfNeeded() {
-    if (!this.contents) {
+    if (this.contents == null) {
       this.contents = await this.load();
     }
   }
