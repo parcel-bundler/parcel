@@ -18,11 +18,9 @@ class StylusAsset extends CSSAsset {
   }
 
   collectDependencies() {
-
-  }
-
-  async transform() {
-
+    for (let dep of this.ast.deps()) {
+      this.addDependency(dep, {includedInParent: true});
+    }
   }
 
   generate() {
