@@ -98,11 +98,17 @@ class Bundler {
 
     // Process asset dependencies
     await Promise.all(processed.dependencies.map(async dep => {
-      let assetDep = await this.resolveAsset(dep.name, asset.name);
-
-      asset.dependencies.set(dep.name, dep);
-      asset.depAssets.set(dep.name, assetDep);
-      await this.loadAsset(assetDep);
+      if (dep.includedInParent) {
+        // This dependency is already included in the parent's generated output,
+        // so no need to load it. We map the name back to the parent asset so
+        // that changing it triggers a recompile of the parent.
+        this.loadedAssets.set(dep.name, asset);
+      } else {
+        let assetDep = await this.resolveAsset(dep.name, asset.name);
+        asset.dependencies.set(dep.name, dep);
+        asset.depAssets.set(dep.name, assetDep);
+        await this.loadAsset(assetDep);
+      }
     }));
   }
 
