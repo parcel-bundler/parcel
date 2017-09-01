@@ -93,15 +93,15 @@ class Bundler {
       this.cache.write(asset.name, processed);
     }
 
-    asset.dependencies = new Set(processed.dependencies);
     asset.generated = processed.generated;
     asset.hash = processed.hash;
 
     // Process asset dependencies
-    await Promise.all(Array.from(asset.dependencies).map(async dep => {
+    await Promise.all(processed.dependencies.map(async dep => {
       let assetDep = await this.resolveAsset(dep.name, asset.name);
-      asset.depAssets.set(dep.name, assetDep);
 
+      asset.dependencies.set(dep.name, dep);
+      asset.depAssets.set(dep.name, assetDep);
       await this.loadAsset(assetDep);
     }));
   }
@@ -143,7 +143,7 @@ class Bundler {
 
     bundle.addAsset(asset);
 
-    for (let dep of asset.dependencies) {
+    for (let dep of asset.dependencies.values()) {
       let assetDep = asset.depAssets.get(dep.name);
       this.createBundleTree(assetDep, dep, bundle);
     }

@@ -31,7 +31,7 @@ class JSPackager extends Readable {
     wrapped += asset.id + ':[function(require,module,exports) {\n' + asset.generated.js + '\n},';
 
     let deps = {};
-    for (let dep of asset.dependencies) {
+    for (let dep of asset.dependencies.values()) {
       let mod = asset.depAssets.get(dep.name);
 
       // For dynamic dependencies, list the child bundles to load along with the module id

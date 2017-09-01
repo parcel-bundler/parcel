@@ -20,7 +20,7 @@ class Asset {
     this.ast = null;
     this.generated = null;
     this.hash = null;
-    this.dependencies = new Set;
+    this.dependencies = new Map;
     this.depAssets = new Map;
     this.parentBundle = null;
     this.bundles = new Set;
@@ -49,7 +49,7 @@ class Asset {
   }
 
   addDependency(name, opts) {
-    this.dependencies.add(Object.assign({name}, opts));
+    this.dependencies.set(name, Object.assign({name}, opts));
   }
 
   mightHaveDependencies() {
