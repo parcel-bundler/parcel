@@ -60,8 +60,8 @@ class JSPackager extends Readable {
   end() {
     // Load the entry module if this is the root bundle
     let entry = [];
-    if (!this.bundle.parentBundle) {
-      entry.push(1);
+    if (this.bundle.entryAsset) {
+      entry.push(this.bundle.entryAsset.id);
     }
 
     this.push('},{},' + JSON.stringify(entry) + ')');

@@ -14,6 +14,7 @@ class Bundle {
     this.type = type;
     this.name = name;
     this.parentBundle = parent;
+    this.entryAsset = null;
     this.assets = new Set;
     this.childBundles = new Set;
     this.typeBundleMap = new Map;
