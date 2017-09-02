@@ -2,3 +2,8 @@ node_modules/
 .DS_Store
 yarn.lock
 package-lock.json
+test/dist
+coverage
+.nyc_output
+.cache
+dist
