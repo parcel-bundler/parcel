@@ -1,7 +1,7 @@
 {
   "name": "bundler1",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/Bundler.js",
   "license": "MIT",
   "dependencies": {
     "babel-core": "^6.25.0",
@@ -16,5 +16,14 @@
     "node-libs-browser": "^2.0.0",
     "resolve": "^1.4.0",
     "worker-farm": "^1.4.1"
+  },
+  "devDependencies": {
+    "babel-preset-es2015": "^6.24.1",
+    "mocha": "^3.5.0",
+    "nyc": "^11.1.0",
+    "rimraf": "^2.6.1"
+  },
+  "scripts": {
+    "test": "mocha"
   }
 }
