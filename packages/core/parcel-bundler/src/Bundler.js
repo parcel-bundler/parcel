@@ -55,6 +55,8 @@ class Bundler {
 
       let bundle = this.createBundleTree(main);
       this.bundleHashes = await bundle.package();
+
+      return bundle;
     } finally {
       if (!this.watcher) {
         this.farm.end();
@@ -104,8 +106,8 @@ class Bundler {
         // that changing it triggers a recompile of the parent.
         this.loadedAssets.set(dep.name, asset);
       } else {
-        let assetDep = await this.resolveAsset(dep.name, asset.name);
         asset.dependencies.set(dep.name, dep);
+        let assetDep = await this.resolveAsset(dep.name, asset.name);
         asset.depAssets.set(dep.name, assetDep);
         await this.loadAsset(assetDep);
       }
@@ -128,6 +130,7 @@ class Bundler {
     // Create the root bundle if it doesn't exist
     if (!bundle) {
       bundle = new Bundle(asset.type, Path.join(this.options.outDir, Path.basename(asset.name, Path.extname(asset.name)) + '.' + asset.type));
+      bundle.entryAsset = asset;
     }
 
     // Create a new bundle for dynamic imports
