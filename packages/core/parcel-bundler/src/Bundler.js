@@ -21,7 +21,7 @@ class Bundler {
 
     this.resolver = new Resolver(options);
     this.parser = new Parser(options);
-    this.cache = new FSCache(options);
+    this.cache = this.options.enableCache ? new FSCache(options) : null;
 
     this.loadedAssets = new Map;
     this.farm = null;
@@ -33,7 +33,8 @@ class Bundler {
     let isProduction = options.production || process.env.NODE_ENV === 'production';
     return Object.assign(options, {
       outDir: Path.resolve(options.outDir || 'dist'),
-      watch: typeof options.watch === 'boolean' ? options.watch : !isProduction
+      watch: typeof options.watch === 'boolean' ? options.watch : !isProduction,
+      enableCache: typeof options.enableCache === 'boolean' ? options.enableCache : !isProduction
     });
   }
 
@@ -89,10 +90,12 @@ class Bundler {
     asset.processed = true;
 
     // First try the cache, otherwise load and compile in the background
-    let processed = await this.cache.read(asset.name);
+    let processed = this.cache && await this.cache.read(asset.name);
     if (!processed) {
       processed = await this.farm.run(asset.name, asset.package, this.options);
-      this.cache.write(asset.name, processed);
+      if (this.cache) {
+        this.cache.write(asset.name, processed);
+      }
     }
 
     asset.generated = processed.generated;
@@ -196,9 +199,11 @@ class Bundler {
 
     // Invalidate and reload the asset
     asset.invalidate();
-    this.cache.invalidate(asset.name);
-    await this.loadAsset(asset, asset.parentBundle);
+    if (this.cache) {
+      this.cache.invalidate(asset.name);
+    }
 
+    await this.loadAsset(asset, asset.parentBundle);
     await this.rebundle();
     console.timeEnd('change');
   }
@@ -210,7 +215,10 @@ class Bundler {
     }
 
     this.loadedAssets.delete(path);
-    this.cache.delete(path);
+    if (this.cache) {
+      this.cache.delete(path);
+    }
+
     await this.rebundle();
   }
 }
