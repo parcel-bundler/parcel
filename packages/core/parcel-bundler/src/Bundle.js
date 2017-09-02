@@ -70,7 +70,8 @@ class Bundle {
       }
 
       let packager = new Packager;
-      packager.pipe(fs.createWriteStream(this.name));
+      let dest = fs.createWriteStream(this.name);
+      packager.pipe(dest);
 
       if (typeof packager.generatePrelude === 'function') {
         packager.generatePrelude(this);
@@ -82,6 +83,9 @@ class Bundle {
       }
 
       packager.end();
+      await new Promise(resolve => {
+        dest.once('finish', resolve);
+      });
     }
 
     for (let bundle of this.childBundles.values()) {
