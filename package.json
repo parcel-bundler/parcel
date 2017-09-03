@@ -11,6 +11,7 @@
     "browser-resolve": "^1.11.2",
     "chokidar": "^1.7.0",
     "glob": "^7.1.2",
+    "micromatch": "^3.0.4",
     "minimatch-capture": "^1.1.0",
     "mkdirp": "^0.5.1",
     "node-libs-browser": "^2.0.0",
