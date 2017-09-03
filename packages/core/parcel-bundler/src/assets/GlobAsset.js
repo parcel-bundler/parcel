@@ -2,31 +2,34 @@ const Asset = require('../Asset');
 const glob = require('glob');
 const promisify = require('../utils/promisify');
 const globPromise = promisify(glob);
-const minimatchCapture = require('minimatch-capture');
+const micromatch = require('micromatch');
 const path = require('path');
 
 class GlobAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'js';
-    this.matches = {};
   }
 
   async load() {
-    let cwd = path.dirname(this.name);
-    let files = await globPromise(this.name, {strict: true});
+    let files = await globPromise(this.name, {strict: true, nodir: true});
+    let re = micromatch.makeRe(this.name, {capture: true});
+    let matches = {};
 
-    for (let [file, subpath] of minimatchCapture.match(files, this.name)) {
-      let parts = subpath.split('/');
+    for (let file of files) {
+      let match = file.match(re);
+      let parts = match.slice(1).filter(Boolean).reduce((a, p) => a.concat(p.split('/')), []);
       let relative = './' + path.relative(path.dirname(this.name), file);
-      set(this.matches, parts, relative);
+      set(matches, parts, relative);
       this.addDependency(relative);
     }
+
+    return matches;
   }
 
   generate() {
     return {
-      js: 'module.exports = ' + generate(this.matches) + ';'
+      js: 'module.exports = ' + generate(this.contents) + ';'
     };
   }
 }
@@ -53,16 +56,17 @@ function generate(matches, indent = '') {
 }
 
 function set(obj, path, value) {
-  for (let i = 0; i < path.length; i++) {
+  for (let i = 0; i < path.length - 1; i++) {
     let part = path[i];
 
-    if (i < path.length - 1 && obj[part] == null) {
+    if (obj[part] == null) {
       obj[part] = {};
-      obj = obj[part];
-    } else if (i === path.length - 1) {
-      obj[part] = value;
     }
+
+    obj = obj[part];
   }
+
+  obj[path[path.length - 1]] = value;
 }
 
 module.exports = GlobAsset;

@@ -183,4 +183,18 @@ describe('integration', function () {
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 3);
   });
+
+  it('should require nested directories with a glob', async function () {
+    let b = await bundle(__dirname + '/integration/glob-deep/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', '*.js', 'a.js', 'b.js', 'c.js', 'z.js'],
+      childBundles: []
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 13);
+  });
 });
