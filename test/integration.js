@@ -197,4 +197,63 @@ describe('integration', function () {
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 13);
   });
+
+  it('should support requiring JSON files', async function () {
+    let b = await bundle(__dirname + '/integration/json/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'local.json'],
+      childBundles: []
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
+  it('should support requiring stylus files', async function () {
+    let b = await bundle(__dirname + '/integration/stylus/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.styl'],
+      childBundles: [{
+        name: 'index.css',
+        assets: ['index.styl'],
+        childBundles: []
+      }]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('.index'));
+  });
+
+  it('should support requiring stylus files with dependencies', async function () {
+    let b = await bundle(__dirname + '/integration/stylus-deps/index.js');
+
+    // a.styl shouldn't be included as a dependency that we can see.
+    // stylus takes care of inlining it.
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.styl'],
+      childBundles: [{
+        name: 'index.css',
+        assets: ['index.styl'],
+        childBundles: []
+      }]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('.index'));
+    assert(css.includes('.a'));
+  });
 });
