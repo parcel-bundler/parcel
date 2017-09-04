@@ -15,6 +15,8 @@
     "minimatch-capture": "^1.1.0",
     "mkdirp": "^0.5.1",
     "node-libs-browser": "^2.0.0",
+    "postcss": "^6.0.10",
+    "postcss-value-parser": "^3.3.0",
     "resolve": "^1.4.0",
     "worker-farm": "^1.4.1"
   },
