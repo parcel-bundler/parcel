@@ -311,4 +311,33 @@ describe('integration', function () {
 
     assert(fs.existsSync(__dirname + '/dist/' + css.match(/url\("([0-9a-f]+\.woff2)"\)/)[1]));
   });
+
+  it('should support linking to assets with url() from stylus', async function () {
+    let b = await bundle(__dirname + '/integration/stylus-url/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.styl'],
+      childBundles: [{
+        name: 'index.css',
+        assets: ['index.styl'],
+        childBundles: [{
+          type: 'raw',
+          assets: ['test.woff2'],
+          childBundles: []
+        }]
+      }]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(/url\("[0-9a-f]+\.woff2"\)/.test(css));
+    assert(css.includes('url("http://google.com")'));
+    assert(css.includes('.index'));
+
+    assert(fs.existsSync(__dirname + '/dist/' + css.match(/url\("([0-9a-f]+\.woff2)"\)/)[1]));
+  });
 });
