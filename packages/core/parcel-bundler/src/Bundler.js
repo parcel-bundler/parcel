@@ -111,6 +111,7 @@ class Bundler {
       } else {
         asset.dependencies.set(dep.name, dep);
         let assetDep = await this.resolveAsset(dep.name, asset.name);
+        assetDep.parentDeps.add(dep);
         asset.depAssets.set(dep.name, assetDep);
         await this.loadAsset(assetDep);
       }
