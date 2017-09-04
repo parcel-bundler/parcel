@@ -2,6 +2,7 @@ const CSSAsset = require('./CSSAsset');
 const path = require('path');
 const config = require('../utils/config');
 const localRequire = require('../utils/localRequire');
+const md5 = require('../utils/md5');
 
 class StylusAsset extends CSSAsset {
   async load() {
@@ -14,6 +15,19 @@ class StylusAsset extends CSSAsset {
     let stylus = localRequire('stylus', this.name);
     let style = stylus(code, this.config);
     style.set('filename', this.name);
+
+    // Setup a handler for the URL function so we add dependencies for linked assets.
+    style.define('url', node => {
+      let filename = node.val;
+      if (!/^[a-z]+:/.test(filename)) {
+        this.addDependency(filename);
+        let resolved = path.resolve(path.dirname(this.name), filename);
+        filename = md5(resolved) + path.extname(filename);
+      }
+
+      return new stylus.nodes.Literal(`url(${JSON.stringify(filename)})`);
+    });
+
     return style;
   }
 
