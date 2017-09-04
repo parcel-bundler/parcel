@@ -4,6 +4,8 @@ const config = require('../utils/config');
 const localRequire = require('../utils/localRequire');
 const md5 = require('../utils/md5');
 
+const PROTOCOL_RE = /^[a-z]+:/;
+
 class StylusAsset extends CSSAsset {
   async load() {
     this.config = this.package.stylus || await config.load(this.name, ['.stylusrc', '.stylusrc.js']);
@@ -19,7 +21,7 @@ class StylusAsset extends CSSAsset {
     // Setup a handler for the URL function so we add dependencies for linked assets.
     style.define('url', node => {
       let filename = node.val;
-      if (!/^[a-z]+:/.test(filename)) {
+      if (!PROTOCOL_RE.test(filename)) {
         this.addDependency(filename);
         let resolved = path.resolve(path.dirname(this.name), filename);
         filename = md5(resolved) + path.extname(filename);

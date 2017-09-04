@@ -3,9 +3,11 @@ const postcss = require('postcss');
 const valueParser = require('postcss-value-parser');
 const path = require('path');
 const md5 = require('../utils/md5');
+const postcssTransform = require('../transforms/postcss');
 
 const URL_RE = /url\s*\(\"?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
+const PROTOCOL_RE = /^[a-z]+:/;
 
 class CSSAsset extends Asset {
   constructor(name, pkg, options) {
@@ -37,7 +39,7 @@ class CSSAsset extends Asset {
         throw new Error('Could not find import name for ' + rule);
       }
 
-      if (/^[a-z]+:/.test(dep)) {
+      if (PROTOCOL_RE.test(dep)) {
         return;
       }
 
@@ -56,7 +58,7 @@ class CSSAsset extends Asset {
         parsed.walk(node => {
           if (node.type === 'function' && node.value === 'url' && node.nodes.length) {
             let filename = node.nodes[0].value;
-            if (!filename || /^[a-z]+:/.test(filename)) {
+            if (!filename || PROTOCOL_RE.test(filename)) {
               return;
             }
 
@@ -64,15 +66,20 @@ class CSSAsset extends Asset {
 
             let resolved = path.resolve(path.dirname(this.name), filename);
             node.nodes[0].value = md5(resolved) + path.extname(filename);
-            this.astIsDirty = dirty = true;
+            dirty = true;
           }
         });
 
         if (dirty) {
           decl.value = parsed.toString();
+          this.astIsDirty = true;
         }
       }
     });
+  }
+
+  async transform() {
+    await postcssTransform(this);
   }
 
   generate() {
@@ -83,8 +90,8 @@ class CSSAsset extends Asset {
     }
 
     let js = '';
-    if (this.modulesJSON) {
-      js = 'module.exports = ' + JSON.stringify(this.modulesJSON, false, 2) + ';';
+    if (this.cssModules) {
+      js = 'module.exports = ' + JSON.stringify(this.cssModules, false, 2) + ';';
     }
 
     return {css, js};
