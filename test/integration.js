@@ -256,4 +256,28 @@ describe('integration', function () {
     assert(css.includes('.index'));
     assert(css.includes('.a'));
   });
+
+  it('should support importing CSS from a CSS file', async function () {
+    let b = await bundle(__dirname + '/integration/css-import/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.css'],
+      childBundles: [{
+        name: 'index.css',
+        assets: ['index.css', 'other.css', 'local.css'],
+        childBundles: []
+      }]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('.local'));
+    assert(css.includes('.other'));
+    assert(/@media print {\s*.other/.test(css));
+    assert(css.includes('.index'));
+  });
 });
