@@ -1,9 +1,7 @@
-const {Readable} = require('stream');
+const Packager = require('./Packager');
 
-class CSSPackager extends Readable {
-  _read() {}
-
-  addAsset(asset) {
+class CSSPackager extends Packager {
+  async addAsset(asset) {
     let css = asset.generated.css;
 
     // Figure out which media types this asset was imported with.
@@ -24,11 +22,7 @@ class CSSPackager extends Readable {
       css = `@media ${media.join(', ')} {\n${css.trim()}\n}\n`;
     }
 
-    this.push(css);
-  }
-
-  end() {
-    this.push(null);
+    await this.dest.write(css);
   }
 }
 

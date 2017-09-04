@@ -1,6 +1,7 @@
 const Path = require('path');
 const JSPackager = require('./packagers/JSPackager');
 const CSSPackager = require('./packagers/CSSPackager');
+const RawPackager = require('./packagers/RawPackager');
 const fs = require('fs');
 const crypto = require('crypto');
 
@@ -64,28 +65,17 @@ class Bundle {
     if (!oldHashes || oldHashes.get(this.name) !== hash) {
       console.log('bundling', this.name)
 
-      let Packager = PACKAGERS[this.type];
-      if (!Packager) {
-        throw new Error('Could not find packager for ' + this.type + ' assets.');
-      }
+      let Packager = PACKAGERS[this.type] || RawPackager;
+      let packager = new Packager(this);
 
-      let packager = new Packager;
-      let dest = fs.createWriteStream(this.name);
-      packager.pipe(dest);
-
-      if (typeof packager.generatePrelude === 'function') {
-        packager.generatePrelude(this);
-      }
+      await packager.start();
 
       let included = new Set;
       for (let asset of this.assets) {
-        this._addDeps(asset, packager, included)
+        await this._addDeps(asset, packager, included);
       }
 
-      packager.end();
-      await new Promise(resolve => {
-        dest.once('finish', resolve);
-      });
+      await packager.end();
     }
 
     for (let bundle of this.childBundles.values()) {
@@ -95,7 +85,7 @@ class Bundle {
     return newHashes;
   }
 
-  _addDeps(asset, packager, included) {
+  async _addDeps(asset, packager, included) {
     if (!this.assets.has(asset) || included.has(asset)) {
       return;
     }
@@ -103,10 +93,10 @@ class Bundle {
     included.add(asset);
 
     for (let depAsset of asset.depAssets.values()) {
-      this._addDeps(depAsset, packager, included);
+      await this._addDeps(depAsset, packager, included);
     }
 
-    packager.addAsset(asset);
+    await packager.addAsset(asset);
   }
 
   getParents() {
