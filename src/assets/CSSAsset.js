@@ -1,6 +1,8 @@
 const Asset = require('../Asset');
 const postcss = require('postcss');
 const valueParser = require('postcss-value-parser');
+const path = require('path');
+const md5 = require('../utils/md5');
 
 class CSSAsset extends Asset {
   constructor(name, pkg, options) {
@@ -28,7 +30,7 @@ class CSSAsset extends Asset {
         throw new Error('Could not find import name for ' + rule);
       }
 
-      if (/^[a-z]+:\/\//.test(dep)) {
+      if (/^[a-z]+:/.test(dep)) {
         return;
       }
 
@@ -37,6 +39,32 @@ class CSSAsset extends Asset {
 
       rule.remove();
       this.astIsDirty = true;
+    });
+
+    this.ast.walkDecls(decl => {
+      if (/url\s*\(\"?(?![a-z]+:)/.test(decl.value)) {
+        let parsed = valueParser(decl.value);
+        let dirty = false;
+
+        parsed.walk(node => {
+          if (node.type === 'function' && node.value === 'url' && node.nodes.length) {
+            let filename = node.nodes[0].value;
+            if (!filename || /^[a-z]+:/.test(filename)) {
+              return;
+            }
+
+            this.addDependency(filename);
+
+            let resolved = path.resolve(path.dirname(this.name), filename);
+            node.nodes[0].value = md5(resolved) + path.extname(filename);
+            this.astIsDirty = dirty = true;
+          }
+        });
+
+        if (dirty) {
+          decl.value = parsed.toString();
+        }
+      }
     });
   }
 

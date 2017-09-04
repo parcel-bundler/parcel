@@ -1,4 +1,5 @@
 const path = require('path');
+const RawAsset = require('./Asset');
 const JSAsset = require('./assets/JSAsset');
 const JSONAsset = require('./assets/JSONAsset');
 const CSSAsset = require('./assets/CSSAsset');
@@ -38,12 +39,7 @@ class Parser {
     }
 
     let extension = path.extname(filename);
-    let parser = this.extensions[extension];
-    if (!parser) {
-      throw new Error('Could not find parser for extension ' + extension);
-    }
-
-    return parser;
+    return this.extensions[extension] || RawAsset;
   }
 
   getAsset(filename, pkg, options) {

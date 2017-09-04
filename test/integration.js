@@ -63,7 +63,9 @@ describe('integration', function () {
       tree.childBundles.forEach((b, i) => assertBundleTree(children[i], b));
     }
 
-    assert(fs.existsSync(bundle.name));
+    if (bundle.type !== 'raw') {
+      assert(fs.existsSync(bundle.name));
+    }
   }
 
   it('should produce a basic JS bundle with CommonJS requires', async function () {
@@ -279,5 +281,34 @@ describe('integration', function () {
     assert(css.includes('.other'));
     assert(/@media print {\s*.other/.test(css));
     assert(css.includes('.index'));
+  });
+
+  it('should support linking to assets with url() from CSS', async function () {
+    let b = await bundle(__dirname + '/integration/css-url/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.css'],
+      childBundles: [{
+        name: 'index.css',
+        assets: ['index.css'],
+        childBundles: [{
+          type: 'raw',
+          assets: ['test.woff2'],
+          childBundles: []
+        }]
+      }]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(/url\("[0-9a-f]+\.woff2"\)/.test(css));
+    assert(css.includes('url("http://google.com")'));
+    assert(css.includes('.index'));
+
+    assert(fs.existsSync(__dirname + '/dist/' + css.match(/url\("([0-9a-f]+\.woff2)"\)/)[1]));
   });
 });
