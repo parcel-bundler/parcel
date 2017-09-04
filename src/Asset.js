@@ -20,6 +20,7 @@ class Asset {
     this.ast = null;
     this.generated = null;
     this.hash = null;
+    this.parentDeps = new Set;
     this.dependencies = new Map;
     this.depAssets = new Map;
     this.parentBundle = null;
