@@ -1,26 +1,18 @@
-const {Readable} = require('stream');
 const fs = require('fs');
 const {basename} = require('path');
+const Packager = require('./Packager');
 
 const prelude = fs.readFileSync(__dirname + '/prelude.js', 'utf8').trim();
 
-class JSPackager extends Readable {
-  constructor(options) {
-    super();
-    this.options = options;
+class JSPackager extends Packager {
+  async start() {
     this.first = true;
     this.dedupe = new Map;
-    this.bundle = null;
+
+    await this.dest.write(prelude + '({');
   }
 
-  _read() {}
-
-  generatePrelude(bundle) {
-    this.bundle = bundle;
-    this.push(prelude + '({');
-  }
-
-  addAsset(asset) {
+  async addAsset(asset) {
     if (this.dedupe.has(asset.generated.js)) {
       return;
     }
@@ -54,18 +46,17 @@ class JSPackager extends Readable {
     wrapped += ']';
 
     this.first = false;
-    this.push(wrapped);
+    await this.dest.write(wrapped);
   }
 
-  end() {
+  async end() {
     // Load the entry module if this is the root bundle
     let entry = [];
     if (this.bundle.entryAsset) {
       entry.push(this.bundle.entryAsset.id);
     }
 
-    this.push('},{},' + JSON.stringify(entry) + ')');
-    this.push(null);
+    await this.dest.end('},{},' + JSON.stringify(entry) + ')');
   }
 }
 
