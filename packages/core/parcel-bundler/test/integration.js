@@ -340,4 +340,25 @@ describe('integration', function () {
 
     assert(fs.existsSync(__dirname + '/dist/' + css.match(/url\("([0-9a-f]+\.woff2)"\)/)[1]));
   });
+
+  it('should support transforming with postcss', async function () {
+    let b = await bundle(__dirname + '/integration/postcss/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.css'],
+      childBundles: [{
+        name: 'index.css',
+        assets: ['index.css'],
+        childBundles: []
+      }]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), '_index_1ezyc_1');
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('._index_1ezyc_1'));
+  });
 });
