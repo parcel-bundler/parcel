@@ -4,11 +4,18 @@ const valueParser = require('postcss-value-parser');
 const path = require('path');
 const md5 = require('../utils/md5');
 
+const URL_RE = /url\s*\(\"?(?![a-z]+:)/;
+const IMPORT_RE = /@import/;
+
 class CSSAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'css';
     this.astIsDirty = false;
+  }
+
+  mightHaveDependencies() {
+    return IMPORT_RE.test(this.contents) || URL_RE.test(this.contents);
   }
 
   parse(code) {
@@ -42,7 +49,7 @@ class CSSAsset extends Asset {
     });
 
     this.ast.walkDecls(decl => {
-      if (/url\s*\(\"?(?![a-z]+:)/.test(decl.value)) {
+      if (URL_RE.test(decl.value)) {
         let parsed = valueParser(decl.value);
         let dirty = false;
 
