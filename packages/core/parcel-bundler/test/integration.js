@@ -575,7 +575,7 @@ describe('integration', function () {
     assert(fs.existsSync(__dirname + '/dist/' + css.match(/url\("([0-9a-f]+\.woff2)"\)/)[1]));
   });
 
-  it('should support transforming less with postcss', async function () {
+  it('should support transforming scss with postcss', async function () {
     let b = await bundle(__dirname + '/integration/scss-postcss/index.js');
 
     assertBundleTree(b, {
