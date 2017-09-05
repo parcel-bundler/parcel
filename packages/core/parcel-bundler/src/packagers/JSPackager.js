@@ -2,7 +2,7 @@ const fs = require('fs');
 const {basename} = require('path');
 const Packager = require('./Packager');
 
-const prelude = fs.readFileSync(__dirname + '/prelude.js', 'utf8').trim();
+const prelude = fs.readFileSync(__dirname + '/../builtins/prelude.js', 'utf8').trim();
 
 class JSPackager extends Packager {
   async start() {

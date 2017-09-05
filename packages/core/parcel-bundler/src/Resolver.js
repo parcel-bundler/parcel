@@ -1,16 +1,8 @@
 const promisify = require('./utils/promisify');
 const resolve = promisify(require('browser-resolve'));
-const builtins = require('node-libs-browser');
+const builtins = require('./builtins');
 const path = require('path');
 const glob = require('glob');
-
-for (let key in builtins) {
-  if (builtins[key] == null) {
-    builtins[key] = require.resolve('./_empty.js');
-  }
-}
-
-builtins['_bundle_loader'] = require.resolve('./packagers/loader.js');
 
 class Resolver {
   constructor(options = {}) {
