@@ -7,19 +7,15 @@ const md5 = require('../utils/md5');
 const PROTOCOL_RE = /^[a-z]+:/;
 
 class StylusAsset extends CSSAsset {
-  async load() {
-    this.config = this.package.stylus || await config.load(this.name, ['.stylusrc', '.stylusrc.js']);
-    return super.load();
-  }
-
   mightHaveDependencies() {
     return true;
   }
 
-  parse(code) {
+  async parse(code) {
     // stylus should be installed locally in the module that's being required
     let stylus = localRequire('stylus', this.name);
-    let style = stylus(code, this.config);
+    let opts = this.package.stylus || await config.load(this.name, ['.stylusrc', '.stylusrc.js']);
+    let style = stylus(code, opts);
     style.set('filename', this.name);
 
     // Setup a handler for the URL function so we add dependencies for linked assets.
