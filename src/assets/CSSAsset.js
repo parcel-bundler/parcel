@@ -13,7 +13,6 @@ class CSSAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'css';
-    this.astIsDirty = false;
   }
 
   mightHaveDependencies() {
@@ -21,11 +20,12 @@ class CSSAsset extends Asset {
   }
 
   parse(code) {
-    return postcss.parse(code, {from: this.name, to: this.name});
+    let root = postcss.parse(code, {from: this.name, to: this.name});
+    return new CSSAst(code, root);
   }
 
   collectDependencies() {
-    this.ast.walkAtRules('import', rule => {
+    this.ast.root.walkAtRules('import', rule => {
       let params = valueParser(rule.params).nodes;
       let [name, ...media] = params;
       let dep;
@@ -47,10 +47,10 @@ class CSSAsset extends Asset {
       this.addDependency(dep, {media});
 
       rule.remove();
-      this.astIsDirty = true;
+      this.ast.dirty = true;
     });
 
-    this.ast.walkDecls(decl => {
+    this.ast.root.walkDecls(decl => {
       if (URL_RE.test(decl.value)) {
         let parsed = valueParser(decl.value);
         let dirty = false;
@@ -72,7 +72,7 @@ class CSSAsset extends Asset {
 
         if (dirty) {
           decl.value = parsed.toString();
-          this.astIsDirty = true;
+          this.ast.dirty = true;
         }
       }
     });
@@ -82,12 +82,17 @@ class CSSAsset extends Asset {
     await postcssTransform(this);
   }
 
-  generate() {
-    let css = this.contents;
-    if (this.astIsDirty) {
-      css = '';
-      postcss.stringify(this.ast, c => css += c);
+  getCSSAst() {
+    // Converts the ast to a CSS ast if needed, so we can apply postcss transforms.
+    if (!(this.ast instanceof CSSAst)) {
+      this.ast = CSSAsset.prototype.parse.call(this, this.ast.render());
     }
+
+    return this.ast.root;
+  }
+
+  generate() {
+    let css = this.ast ? this.ast.render() : this.contents;
 
     let js = '';
     if (this.cssModules) {
@@ -95,6 +100,23 @@ class CSSAsset extends Asset {
     }
 
     return {css, js};
+  }
+}
+
+class CSSAst {
+  constructor(css, root) {
+    this.css = css;
+    this.root = root;
+    this.dirty = false;
+  }
+
+  render() {
+    if (this.dirty) {
+      this.css = '';
+      postcss.stringify(this.root, c => this.css += c);
+    }
+
+    return this.css;
   }
 }
 

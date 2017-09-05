@@ -42,13 +42,6 @@ class StylusAsset extends CSSAsset {
       this.addDependency(dep, {includedInParent: true});
     }
   }
-
-  generate() {
-    return {
-      css: this.ast.render(),
-      js: ''
-    };
-  }
 }
 
 module.exports = StylusAsset;
