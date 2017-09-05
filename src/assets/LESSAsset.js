@@ -1,5 +1,4 @@
 const CSSAsset = require('./CSSAsset');
-const path = require('path');
 const config = require('../utils/config');
 const localRequire = require('../utils/localRequire');
 const promisify = require('../utils/promisify');
@@ -12,6 +11,7 @@ class LESSAsset extends CSSAsset {
 
     let opts = this.package.less || await config.load(this.name, ['.lessrc', '.lessrc.js']) || {};
     opts.filename = this.name;
+    opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
 
     let res = await render(code, opts);
     res.render = () => res.css;
@@ -23,6 +23,22 @@ class LESSAsset extends CSSAsset {
       this.addDependency(dep, {includedInParent: true});
     }
   }
+}
+
+function urlPlugin(asset) {
+  return {
+    install: (less, pluginManager) => {
+      let visitor = new less.visitors.Visitor({
+        visitUrl: (node, args) => {
+          node.value.value = asset.addURLDependency(node.value.value, node.currentFileInfo.filename);
+          return node;
+        }
+      });
+
+      visitor.run = visitor.visit;
+      pluginManager.addVisitor(visitor);
+    }
+  };
 }
 
 module.exports = LESSAsset;
