@@ -7,12 +7,7 @@ const Path = require('path');
 const Bundle = require('./Bundle');
 const {FSWatcher} = require('chokidar');
 const FSCache = require('./FSCache');
-
-const crypto = require('crypto');
-
-function md5(string) {
-  return crypto.createHash('md5').update(string).digest('hex');
-}
+const md5 = require('./utils/md5');
 
 class Bundler {
   constructor(main, options = {}) {

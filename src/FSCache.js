@@ -1,10 +1,6 @@
 const fs = require('./utils/fs');
 const path = require('path');
-const crypto = require('crypto');
-
-function md5(string) {
-  return crypto.createHash('md5').update(string).digest('hex');
-}
+const md5 = require('./utils/md5');
 
 class FSCache {
   constructor(options) {
