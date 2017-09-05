@@ -5,6 +5,7 @@ const JSONAsset = require('./assets/JSONAsset');
 const CSSAsset = require('./assets/CSSAsset');
 const StylusAsset = require('./assets/StylusAsset');
 const GlobAsset = require('./assets/GlobAsset');
+const LESSAsset = require('./assets/LESSAsset');
 const glob = require('glob');
 
 class Parser {
@@ -23,6 +24,7 @@ class Parser {
 
     this.registerExtension('.css', CSSAsset);
     this.registerExtension('.styl', StylusAsset);
+    this.registerExtension('.less', LESSAsset);
   }
 
   registerExtension(ext, parser) {

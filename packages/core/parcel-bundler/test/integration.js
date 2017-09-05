@@ -388,4 +388,68 @@ describe('integration', function () {
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('._index_g9mqo_1'));
   });
+
+  it('should support requiring less files', async function () {
+    let b = await bundle(__dirname + '/integration/less/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.less'],
+      childBundles: [{
+        name: 'index.css',
+        assets: ['index.less'],
+        childBundles: []
+      }]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('.index'));
+  });
+
+  it('should support less imports', async function () {
+    let b = await bundle(__dirname + '/integration/less-import/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.less'],
+      childBundles: [{
+        name: 'index.css',
+        assets: ['index.less'],
+        childBundles: []
+      }]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('.index'));
+    assert(css.includes('.base'));
+  });
+
+  it('should support transforming less with postcss', async function () {
+    let b = await bundle(__dirname + '/integration/less-postcss/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.less'],
+      childBundles: [{
+        name: 'index.css',
+        assets: ['index.less'],
+        childBundles: []
+      }]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), '_index_ku5n8_1');
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('._index_ku5n8_1'));
+  });
 });
