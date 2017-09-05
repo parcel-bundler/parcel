@@ -62,27 +62,33 @@ class Bundle {
     let hash = this.getHash();
     newHashes.set(this.name, hash);
 
+    let promises = [];
+
     if (!oldHashes || oldHashes.get(this.name) !== hash) {
-      console.log('bundling', this.name)
-
-      let Packager = PACKAGERS[this.type] || RawPackager;
-      let packager = new Packager(this);
-
-      await packager.start();
-
-      let included = new Set;
-      for (let asset of this.assets) {
-        await this._addDeps(asset, packager, included);
-      }
-
-      await packager.end();
+      // console.log('bundling', this.name)
+      promises.push(this._package());
     }
 
     for (let bundle of this.childBundles.values()) {
-      await bundle.package(oldHashes, newHashes);
+      promises.push(bundle.package(oldHashes, newHashes));
     }
 
+    await Promise.all(promises);
     return newHashes;
+  }
+
+  async _package() {
+    let Packager = PACKAGERS[this.type] || RawPackager;
+    let packager = new Packager(this);
+
+    await packager.start();
+
+    let included = new Set;
+    for (let asset of this.assets) {
+      await this._addDeps(asset, packager, included);
+    }
+
+    await packager.end();
   }
 
   async _addDeps(asset, packager, included) {
