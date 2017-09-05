@@ -12,6 +12,10 @@ class StylusAsset extends CSSAsset {
     return super.load();
   }
 
+  mightHaveDependencies() {
+    return true;
+  }
+
   parse(code) {
     // stylus should be installed locally in the module that's being required
     let stylus = localRequire('stylus', this.name);
