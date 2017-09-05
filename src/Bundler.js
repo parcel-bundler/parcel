@@ -34,12 +34,13 @@ class Bundler {
     return Object.assign(options, {
       outDir: Path.resolve(options.outDir || 'dist'),
       watch: typeof options.watch === 'boolean' ? options.watch : !isProduction,
-      enableCache: typeof options.enableCache === 'boolean' ? options.enableCache : !isProduction
+      enableCache: typeof options.enableCache === 'boolean' ? options.enableCache : true,
+      killWorkers: typeof options.killWorkers === 'boolean' ? options.killWorkers : true
     });
   }
 
   async bundle() {
-    this.farm = new WorkerFarm(require.resolve('./worker.js'), {autoStart: true});
+    this.farm = WorkerFarm.getShared(this.options);
 
     if (this.options.watch) {
       this.watcher = new FSWatcher;
@@ -59,7 +60,7 @@ class Bundler {
 
       return bundle;
     } finally {
-      if (!this.watcher) {
+      if (!this.watcher && this.options.killWorkers) {
         this.farm.end();
       }
     }

@@ -11,7 +11,13 @@ describe('integration', function () {
   });
 
   function bundle(file) {
-    let bundler = new Bundler(file, {outDir: __dirname + '/dist', production: true});
+    let bundler = new Bundler(file, {
+      outDir: __dirname + '/dist',
+      production: true,
+      enableCache: false,
+      killWorkers: false
+    });
+
     return bundler.bundle();
   }
 
