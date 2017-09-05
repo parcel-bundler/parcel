@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "babel-preset-es2015": "^6.24.1",
+    "less": "^2.7.2",
     "mocha": "^3.5.0",
     "nyc": "^11.1.0",
     "postcss-modules": "^0.8.0",
