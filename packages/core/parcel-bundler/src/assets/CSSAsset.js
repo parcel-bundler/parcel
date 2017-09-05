@@ -57,16 +57,9 @@ class CSSAsset extends Asset {
 
         parsed.walk(node => {
           if (node.type === 'function' && node.value === 'url' && node.nodes.length) {
-            let filename = node.nodes[0].value;
-            if (!filename || PROTOCOL_RE.test(filename)) {
-              return;
-            }
-
-            this.addDependency(filename);
-
-            let resolved = path.resolve(path.dirname(this.name), filename);
-            node.nodes[0].value = md5(resolved) + path.extname(filename);
-            dirty = true;
+            let url = this.addURLDependency(node.nodes[0].value);
+            dirty = node.nodes[0].value !== url;
+            node.nodes[0].value = url;
           }
         });
 
@@ -76,6 +69,16 @@ class CSSAsset extends Asset {
         }
       }
     });
+  }
+
+  addURLDependency(url, from = this.name) {
+    if (!url || PROTOCOL_RE.test(url)) {
+      return url;
+    }
+
+    let resolved = path.resolve(path.dirname(from), url);
+    this.addDependency('./' + path.relative(path.dirname(this.name), resolved));
+    return md5(resolved) + path.extname(url);
   }
 
   async transform() {
