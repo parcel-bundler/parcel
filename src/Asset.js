@@ -36,7 +36,7 @@ class Asset {
   async parseIfNeeded() {
     await this.loadIfNeeded();
     if (!this.ast) {
-      this.ast = this.parse(this.contents);
+      this.ast = await this.parse(this.contents);
     }
   }
 
