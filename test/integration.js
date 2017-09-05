@@ -120,7 +120,7 @@ describe('integration', function () {
 
     assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js', 'loader.js'],
+      assets: ['index.js', 'bundle-loader.js'],
       childBundles: [{
         assets: ['local.js'],
         childBundles: []
@@ -137,7 +137,7 @@ describe('integration', function () {
 
     assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js', 'index.css', 'loader.js'],
+      assets: ['index.js', 'index.css', 'bundle-loader.js'],
       childBundles: [{
         type: 'js',
         assets: ['local.js', 'local.css'],
@@ -163,7 +163,7 @@ describe('integration', function () {
 
     assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js', 'common.js', 'common-dep.js', 'loader.js'],
+      assets: ['index.js', 'common.js', 'common-dep.js', 'bundle-loader.js'],
       childBundles: [{
         assets: ['a.js'],
         childBundles: []
