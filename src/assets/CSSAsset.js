@@ -16,7 +16,7 @@ class CSSAsset extends Asset {
   }
 
   mightHaveDependencies() {
-    return IMPORT_RE.test(this.contents) || URL_RE.test(this.contents);
+    return !/\.css$/.test(this.name) || IMPORT_RE.test(this.contents) || URL_RE.test(this.contents);
   }
 
   parse(code) {

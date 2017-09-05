@@ -7,10 +7,6 @@ const md5 = require('../utils/md5');
 const PROTOCOL_RE = /^[a-z]+:/;
 
 class StylusAsset extends CSSAsset {
-  mightHaveDependencies() {
-    return true;
-  }
-
   async parse(code) {
     // stylus should be installed locally in the module that's being required
     let stylus = localRequire('stylus', this.name);
