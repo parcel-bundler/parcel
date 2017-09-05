@@ -9,11 +9,10 @@ module.exports = async function (asset) {
   }
 
   await asset.parseIfNeeded();
-  let res = await postcss(config.plugins).process(asset.ast, config);
+  let res = await postcss(config.plugins).process(asset.getCSSAst(), config);
 
-  asset.ast = res.root;
-  asset.contents = res.css;
-  asset.astIsDirty = false;
+  asset.ast.css = res.css;
+  asset.ast.dirty = false;
 }
 
 async function getConfig(asset) {

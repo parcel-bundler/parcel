@@ -367,4 +367,25 @@ describe('integration', function () {
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('._index_1ezyc_1'));
   });
+
+  it('should support transforming stylus with postcss', async function () {
+    let b = await bundle(__dirname + '/integration/stylus-postcss/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.styl'],
+      childBundles: [{
+        name: 'index.css',
+        assets: ['index.styl'],
+        childBundles: []
+      }]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), '_index_g9mqo_1');
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('._index_g9mqo_1'));
+  });
 });
