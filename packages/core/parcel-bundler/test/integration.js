@@ -618,4 +618,23 @@ describe('integration', function () {
     assert(css.includes('.other'));
     assert(css.includes('.index'));
   });
+
+  it('should support importing a URL to a raw asset', async function () {
+    let b = await bundle(__dirname + '/integration/import-raw/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'test.txt'],
+      childBundles: [{
+        type: 'raw',
+        assets: ['test.txt'],
+        childBundles: []
+      }]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert(/^[0-9a-f]+\.txt$/.test(output()));
+    assert(fs.existsSync(__dirname + '/dist/' + output()));
+  });
 });

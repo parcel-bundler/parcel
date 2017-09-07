@@ -2,6 +2,7 @@ const Parser = require('./Parser');
 const path = require('path');
 const fs = require('./utils/fs');
 const crypto = require('crypto');
+const md5 = require('./utils/md5');
 
 let ASSET_ID = 1;
 
@@ -75,7 +76,8 @@ class Asset {
 
   generate() {
     return {
-      raw: this.contents
+      raw: this.contents,
+      js: `module.exports = ${JSON.stringify(md5(this.name) + path.extname(this.name))};`
     };
   }
 
