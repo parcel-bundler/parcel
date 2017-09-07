@@ -1,0 +1,5 @@
+@import './dir/*.css';
+
+.index {
+  color: red;
+}

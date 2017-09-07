@@ -8,7 +8,7 @@ const path = require('path');
 class GlobAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
-    this.type = 'js';
+    this.type = path.extname(name).slice(1) || 'js';
   }
 
   async load() {
@@ -28,8 +28,13 @@ class GlobAsset extends Asset {
   }
 
   generate() {
+    let contents = '';
+    if (this.type === 'js') {
+      contents = 'module.exports = ' + generate(this.contents) + ';';
+    }
+
     return {
-      js: 'module.exports = ' + generate(this.contents) + ';'
+      [this.type]: contents
     };
   }
 }
