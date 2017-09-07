@@ -595,4 +595,27 @@ describe('integration', function () {
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('._index_1a1ih_1'));
   });
+
+  it('should support importing a glob of CSS files', async function () {
+    let b = await bundle(__dirname + '/integration/glob-css/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.css'],
+      childBundles: [{
+        name: 'index.css',
+        assets: ['index.css', '*.css', 'other.css', 'local.css'],
+        childBundles: []
+      }]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('.local'));
+    assert(css.includes('.other'));
+    assert(css.includes('.index'));
+  });
 });
