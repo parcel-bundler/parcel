@@ -607,6 +607,19 @@ describe('integration', function () {
     assert(!js.includes('local.a'));
   });
 
+  it('should minify CSS in production mode', async function () {
+    let b = await bundle(__dirname + '/integration/cssnano/index.js', {production: true});
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('.local'));
+    assert(css.includes('.index'));
+    assert(!css.includes('\n'));
+  });
+
   it('should support importing a glob of CSS files', async function () {
     let b = await bundle(__dirname + '/integration/glob-css/index.js');
 

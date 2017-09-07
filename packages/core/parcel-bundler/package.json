@@ -11,6 +11,7 @@
     "babylon-walk": "^1.0.2",
     "browser-resolve": "^1.11.2",
     "chokidar": "^1.7.0",
+    "cssnano": "^3.10.0",
     "glob": "^7.1.2",
     "micromatch": "^3.0.4",
     "mkdirp": "^0.5.1",
