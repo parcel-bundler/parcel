@@ -6,6 +6,7 @@
   "dependencies": {
     "babel-core": "^6.25.0",
     "babel-generator": "^6.25.0",
+    "babel-to-estree": "^0.0.2",
     "babylon": "^6.17.4",
     "babylon-walk": "^1.0.2",
     "browser-resolve": "^1.11.2",
@@ -17,6 +18,7 @@
     "postcss": "^6.0.10",
     "postcss-value-parser": "^3.3.0",
     "resolve": "^1.4.0",
+    "uglify-js": "^3.0.28",
     "worker-farm": "^1.4.1"
   },
   "devDependencies": {
