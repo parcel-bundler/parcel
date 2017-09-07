@@ -6,6 +6,7 @@ const babylon = require('babylon');
 const insertGlobals = require('../visitors/globals');
 const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
+const uglify = require('../transforms/uglify');
 
 const IMPORT_RE = /import|export [^;]* from|require\s*\(/;
 const GLOBAL_RE = /process|__dirname|__filename|global|Buffer/;
@@ -65,12 +66,19 @@ class JSAsset extends Asset {
     }
 
     await babel(this);
+
+    if (this.options.minify) {
+      await uglify(this);
+    }
   }
 
   generate() {
     // TODO: source maps
     let code = this.isAstDirty ? generate(this.ast).code : this.contents;
-    code = Array.from(this.globals.values()).join('\n') + '\n' + code;
+    if (this.globals.size > 0) {
+      code = Array.from(this.globals.values()).join('\n') + '\n' + code;
+    }
+
     return {
       js: code
     };

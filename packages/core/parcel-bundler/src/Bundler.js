@@ -30,7 +30,8 @@ class Bundler {
       outDir: Path.resolve(options.outDir || 'dist'),
       watch: typeof options.watch === 'boolean' ? options.watch : !isProduction,
       enableCache: typeof options.enableCache === 'boolean' ? options.enableCache : true,
-      killWorkers: typeof options.killWorkers === 'boolean' ? options.killWorkers : true
+      killWorkers: typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
+      minify: typeof options.minify === 'boolean' ? options.minify : isProduction
     });
   }
 

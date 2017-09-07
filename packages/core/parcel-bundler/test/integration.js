@@ -10,13 +10,13 @@ describe('integration', function () {
     rimraf.sync(__dirname + '/dist');
   });
 
-  function bundle(file) {
-    let bundler = new Bundler(file, {
+  function bundle(file, opts) {
+    let bundler = new Bundler(file, Object.assign({
       outDir: __dirname + '/dist',
-      production: true,
+      watch: false,
       enableCache: false,
       killWorkers: false
-    });
+    }, opts));
 
     return bundler.bundle();
   }
@@ -594,6 +594,17 @@ describe('integration', function () {
 
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('._index_1a1ih_1'));
+  });
+
+  it('should minify JS in production mode', async function () {
+    let b = await bundle(__dirname + '/integration/uglify/index.js', {production: true});
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+
+    let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!js.includes('local.a'));
   });
 
   it('should support importing a glob of CSS files', async function () {
