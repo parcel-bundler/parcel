@@ -7,7 +7,7 @@ module.exports = async function (asset) {
   await asset.parseIfNeeded();
 
   // Convert to UglifyJS AST
-  var ast = AST_Node.from_mozilla_ast(toEstree(asset.ast));
+  var ast = AST_Node.from_mozilla_ast(toEstree(asset.ast, asset.contents));
   var result = minify(ast, {
     toplevel: true
   });
