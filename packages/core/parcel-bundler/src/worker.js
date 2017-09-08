@@ -16,12 +16,16 @@ exports.init = function (options, callback) {
 };
 
 exports.run = async function (path, pkg, options, callback) {
-  let asset = parser.getAsset(path, pkg, options);
-  await asset.process();
+  try {
+    let asset = parser.getAsset(path, pkg, options);
+    await asset.process();
 
-  callback(null, {
-    dependencies: Array.from(asset.dependencies.values()),
-    generated: asset.generated,
-    hash: asset.hash
-  });
+    callback(null, {
+      dependencies: Array.from(asset.dependencies.values()),
+      generated: asset.generated,
+      hash: asset.hash
+    });
+  } catch (err) {
+    callback(err);
+  }
 };
