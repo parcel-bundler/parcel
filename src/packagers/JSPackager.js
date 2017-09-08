@@ -20,7 +20,7 @@ class JSPackager extends Packager {
     this.dedupe.set(asset.generated.js, asset.id);
 
     let wrapped = this.first ? '' : ',';
-    wrapped += asset.id + ':[function(require,module,exports) {\n' + asset.generated.js + '\n},';
+    wrapped += asset.id + ':[function(require,module,exports) {\n' + (asset.generated.js || '') + '\n},';
 
     let deps = {};
     for (let dep of asset.dependencies.values()) {

@@ -142,7 +142,7 @@ class Bundler {
     asset.parentBundle = bundle;
 
     // If the asset type does not match the bundle type, create a new child bundle
-    if (asset.type !== bundle.type) {
+    if (asset.type && asset.type !== bundle.type) {
       // If the asset generated a representation for the parent bundle type, also add it there
       if (asset.generated[bundle.type] != null) {
         bundle.addAsset(asset);
