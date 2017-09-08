@@ -2,7 +2,7 @@ const Packager = require('./Packager');
 
 class CSSPackager extends Packager {
   async addAsset(asset) {
-    let css = asset.generated.css;
+    let css = asset.generated.css || '';
 
     // Figure out which media types this asset was imported with.
     // We only want to import the asset once, so group them all together.
