@@ -36,6 +36,6 @@
     "stylus": "^0.54.5"
   },
   "scripts": {
-    "test": "mocha"
+    "test": "NODE_ENV=test mocha"
   }
 }

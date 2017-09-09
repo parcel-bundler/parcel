@@ -724,4 +724,11 @@ describe('integration', function () {
       global: true
     });
   });
+
+  it('should insert environment variables', async function () {
+    let b = await bundle(__dirname + '/integration/env/index.js');
+
+    let output = run(b);
+    assert.equal(output(), 'test');
+  });
 });
