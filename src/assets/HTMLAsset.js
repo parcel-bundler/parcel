@@ -5,6 +5,7 @@ const api = require('posthtml/lib/api');
 const path = require('path');
 const md5 = require('../utils/md5');
 const render = require('posthtml-render');
+const posthtmlTransform = require('../transforms/posthtml');
 
 // A list of all attributes that should produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
@@ -42,6 +43,10 @@ class HTMLAsset extends Asset {
 
       return node;
     });
+  }
+
+  async transform() {
+    await posthtmlTransform(this);
   }
 
   generate() {

@@ -18,6 +18,7 @@
     "node-libs-browser": "^2.0.0",
     "postcss": "^6.0.10",
     "postcss-value-parser": "^3.3.0",
+    "posthtml": "^0.9.2",
     "resolve": "^1.4.0",
     "uglify-js": "^3.0.28",
     "worker-farm": "^1.4.1"
@@ -29,6 +30,7 @@
     "node-sass": "^4.5.3",
     "nyc": "^11.1.0",
     "postcss-modules": "^0.8.0",
+    "posthtml-include": "^1.1.0",
     "rimraf": "^2.6.1",
     "stylus": "^0.54.5"
   },
