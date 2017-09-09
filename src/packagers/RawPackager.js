@@ -9,8 +9,13 @@ class RawPackager extends Packager {
   setup() {}
 
   async addAsset(asset) {
-    let name = path.join(path.dirname(this.bundle.name), md5(asset.name) + path.extname(asset.name));
-    let contents = asset.generated.raw || await fs.readFile(asset.name);
+    // Use the bundle name if this is the entry asset, otherwise generate one.
+    let name = this.bundle.name;
+    if (asset !== this.bundle.entryAsset) {
+      name = path.join(path.dirname(this.bundle.name), md5(asset.name) + path.extname(asset.name));
+    }
+
+    let contents = asset.generated[asset.type] || await fs.readFile(asset.name);
     await fs.writeFile(name, contents);
   }
 

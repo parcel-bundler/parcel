@@ -120,7 +120,7 @@ class Bundler {
       // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
       if (asset.parentBundle !== bundle) {
         let commonBundle = bundle.findCommonAncestor(asset.parentBundle);
-        if (asset.parentBundle !== commonBundle) {
+        if (asset.parentBundle !== commonBundle && asset.parentBundle.type === commonBundle.type) {
           this.moveAssetToBundle(asset, commonBundle);
         }
       }
@@ -137,6 +137,7 @@ class Bundler {
     // Create a new bundle for dynamic imports
     if (dep && dep.dynamic) {
       bundle = bundle.createChildBundle(asset.type, Path.join(this.options.outDir, md5(asset.name) + '.' + asset.type));
+      bundle.entryAsset = asset;
     }
 
     asset.parentBundle = bundle;
@@ -164,7 +165,7 @@ class Bundler {
   moveAssetToBundle(asset, commonBundle) {
     for (let bundle of Array.from(asset.bundles)) {
       bundle.removeAsset(asset);
-      commonBundle.getChildBundle(bundle.type).addAsset(asset);
+      commonBundle.addAsset(asset);
     }
 
     let oldBundle = asset.parentBundle;

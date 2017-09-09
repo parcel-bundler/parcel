@@ -69,7 +69,7 @@ describe('integration', function () {
       tree.childBundles.forEach((b, i) => assertBundleTree(children[i], b));
     }
 
-    if (bundle.type !== 'raw') {
+    if (/js|css/.test(bundle.type)) {
       assert(fs.existsSync(bundle.name));
     }
   }
@@ -299,7 +299,7 @@ describe('integration', function () {
         name: 'index.css',
         assets: ['index.css'],
         childBundles: [{
-          type: 'raw',
+          type: 'woff2',
           assets: ['test.woff2'],
           childBundles: []
         }]
@@ -328,7 +328,7 @@ describe('integration', function () {
         name: 'index.css',
         assets: ['index.styl'],
         childBundles: [{
-          type: 'raw',
+          type: 'woff2',
           assets: ['test.woff2'],
           childBundles: []
         }]
@@ -442,7 +442,7 @@ describe('integration', function () {
         name: 'index.css',
         assets: ['index.less'],
         childBundles: [{
-          type: 'raw',
+          type: 'woff2',
           assets: ['test.woff2'],
           childBundles: []
         }]
@@ -556,7 +556,7 @@ describe('integration', function () {
         name: 'index.css',
         assets: ['index.scss'],
         childBundles: [{
-          type: 'raw',
+          type: 'woff2',
           assets: ['test.woff2'],
           childBundles: []
         }]
@@ -650,7 +650,7 @@ describe('integration', function () {
       name: 'index.js',
       assets: ['index.js', 'test.txt'],
       childBundles: [{
-        type: 'raw',
+        type: 'txt',
         assets: ['test.txt'],
         childBundles: []
       }]
