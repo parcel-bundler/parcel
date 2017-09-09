@@ -691,4 +691,17 @@ describe('integration', function () {
       }
     }
   });
+
+  it('should support transforming HTML with posthtml', async function () {
+    let b = await bundle(__dirname + '/integration/posthtml/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: []
+    });
+
+    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    assert(html.includes('<h1>Other page</h1>'));
+  });
 });
