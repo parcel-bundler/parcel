@@ -704,4 +704,12 @@ describe('integration', function () {
     let html = fs.readFileSync(__dirname + '/dist/index.html');
     assert(html.includes('<h1>Other page</h1>'));
   });
+
+  it('should minify HTML in production mode', async function () {
+    let b = await bundle(__dirname + '/integration/htmlnano/index.html', {production: true});
+
+    let css = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
+    assert(css.includes('Other page'));
+    assert(!css.includes('\n'));
+  });
 });
