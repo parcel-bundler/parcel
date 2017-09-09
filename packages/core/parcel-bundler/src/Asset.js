@@ -14,7 +14,7 @@ class Asset {
     this.package = pkg;
     this.options = options;
     this.encoding = 'utf8';
-    this.type = 'raw';
+    this.type = path.extname(this.name).slice(1);
 
     this.processed = false;
     this.contents = null;
@@ -76,7 +76,7 @@ class Asset {
 
   generate() {
     return {
-      raw: this.contents,
+      [this.type]: this.contents,
       js: `module.exports = ${JSON.stringify(md5(this.name) + path.extname(this.name))};`
     };
   }
