@@ -71,16 +71,6 @@ class CSSAsset extends Asset {
     });
   }
 
-  addURLDependency(url, from = this.name) {
-    if (!url || PROTOCOL_RE.test(url)) {
-      return url;
-    }
-
-    let resolved = path.resolve(path.dirname(from), url);
-    this.addDependency('./' + path.relative(path.dirname(this.name), resolved));
-    return md5(resolved) + path.extname(url);
-  }
-
   async transform() {
     await postcssTransform(this);
   }

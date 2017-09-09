@@ -4,6 +4,8 @@ const fs = require('./utils/fs');
 const crypto = require('crypto');
 const md5 = require('./utils/md5');
 
+const PROTOCOL_RE = /^[a-z]+:/;
+
 let ASSET_ID = 1;
 
 class Asset {
@@ -52,6 +54,16 @@ class Asset {
 
   addDependency(name, opts) {
     this.dependencies.set(name, Object.assign({name}, opts));
+  }
+
+  addURLDependency(url, from = this.name) {
+    if (!url || PROTOCOL_RE.test(url)) {
+      return url;
+    }
+
+    let resolved = path.resolve(path.dirname(from), url);
+    this.addDependency('./' + path.relative(path.dirname(this.name), resolved), {dynamic: true});
+    return md5(resolved) + path.extname(url);
   }
 
   mightHaveDependencies() {

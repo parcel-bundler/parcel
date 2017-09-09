@@ -661,4 +661,34 @@ describe('integration', function () {
     assert(/^[0-9a-f]+\.txt$/.test(output()));
     assert(fs.existsSync(__dirname + '/dist/' + output()));
   });
+
+  it('should support bundling HTML', async function () {
+    let b = await bundle(__dirname + '/integration/html/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [{
+        type: 'css',
+        assets: ['index.css'],
+        childBundles: []
+      }, {
+        type: 'html',
+        assets: ['other.html'],
+        childBundles: [{
+          type: 'js',
+          assets: ['index.js'],
+          childBundles: []
+        }]
+      }]
+    });
+
+    let files = fs.readdirSync(__dirname + '/dist');
+    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    for (let file of files) {
+      if (file !== 'index.html') {
+        assert(html.includes(file));
+      }
+    }
+  });
 });
