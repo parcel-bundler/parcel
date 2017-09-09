@@ -712,4 +712,16 @@ describe('integration', function () {
     assert(css.includes('Other page'));
     assert(!css.includes('\n'));
   });
+
+  it('should insert global variables when needed', async function () {
+    let b = await bundle(__dirname + '/integration/globals/index.js');
+
+    let output = run(b);
+    assert.deepEqual(output(), {
+      dir: __dirname + '/integration/globals',
+      file: __dirname + '/integration/globals/index.js',
+      buf: new Buffer('browser').toString('base64'),
+      global: true
+    });
+  });
 });
