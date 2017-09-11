@@ -165,7 +165,7 @@ class Bundler {
   moveAssetToBundle(asset, commonBundle) {
     for (let bundle of Array.from(asset.bundles)) {
       bundle.removeAsset(asset);
-      commonBundle.addAsset(asset);
+      commonBundle.getChildBundle(bundle.type).addAsset(asset);
     }
 
     let oldBundle = asset.parentBundle;
