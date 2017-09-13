@@ -2,8 +2,9 @@ const fs = require('fs');
 const promisify = require('../utils/promisify');
 
 class Packager {
-  constructor(bundle) {
+  constructor(bundle, options = {}) {
     this.bundle = bundle;
+    this.options = options;
     this.setup();
   }
 

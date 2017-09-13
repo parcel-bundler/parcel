@@ -1,15 +1,14 @@
 const Path = require('path');
-const JSPackager = require('./packagers/JSPackager');
-const CSSPackager = require('./packagers/CSSPackager');
-const RawPackager = require('./packagers/RawPackager');
+const getPackager = require('./packagers');
 const fs = require('fs');
 const crypto = require('crypto');
 
-const PACKAGERS = {
-  js: JSPackager,
-  css: CSSPackager
-};
-
+/**
+ * A Bundle represents an output file, containing multiple assets. Bundles can have
+ * child bundles, which are bundles that are loaded dynamically from this bundle.
+ * Child bundles are also produced when importing an asset of a different type from
+ * the bundle, e.g. importing a CSS file from JS.
+ */
 class Bundle {
   constructor(type, name, parent) {
     this.type = type;
@@ -32,7 +31,7 @@ class Bundle {
   }
 
   getChildBundle(type) {
-    if (type === this.type) {
+    if (!type || type === this.type) {
       return this;
     }
 
@@ -54,7 +53,7 @@ class Bundle {
     return this.assets.size === 0;
   }
 
-  async package(oldHashes, newHashes = new Map) {
+  async package(options, oldHashes, newHashes = new Map) {
     if (this.isEmpty) {
       return newHashes;
     }
@@ -66,20 +65,20 @@ class Bundle {
 
     if (!oldHashes || oldHashes.get(this.name) !== hash) {
       // console.log('bundling', this.name)
-      promises.push(this._package());
+      promises.push(this._package(options));
     }
 
     for (let bundle of this.childBundles.values()) {
-      promises.push(bundle.package(oldHashes, newHashes));
+      promises.push(bundle.package(options, oldHashes, newHashes));
     }
 
     await Promise.all(promises);
     return newHashes;
   }
 
-  async _package() {
-    let Packager = PACKAGERS[this.type] || RawPackager;
-    let packager = new Packager(this);
+  async _package(options) {
+    let Packager = getPackager(this.type);
+    let packager = new Packager(this, options);
 
     await packager.start();
 
