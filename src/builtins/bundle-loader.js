@@ -1,18 +1,15 @@
+var getBundleURL = require('./bundle-url').getBundleURL;
+
 function loadBundles(bundles) {
-  var id = bundles.pop();
+  var id = Array.isArray(bundles) ? bundles[bundles.length - 1] : bundles;
 
   try {
-    return Promise.resolve(require(id));
+    return Promise.resolve(requireModule(id));
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') {
       return new LazyPromise(function (resolve, reject) {
-        Promise.all(bundles.map(bundle => loadBundle(bundle))).then(function () {
-          let res = require(id);
-          if (res.__esModule) {
-            return res.default;
-          }
-
-          return res;
+        Promise.all(bundles.slice(0, -1).map(bundle => loadBundle(bundle))).then(function () {
+          return requireModule(id);
         }).then(resolve, reject);
       });
     }
@@ -21,10 +18,9 @@ function loadBundles(bundles) {
   }
 }
 
-module.exports = loadBundles;
+module.exports = exports = loadBundles;
 
 var bundles = {};
-var baseURL = null;
 var bundleLoaders = {
   js: loadJSBundle,
   css: loadCSSBundle
@@ -35,12 +31,8 @@ function loadBundle(bundle) {
     return bundles[bundle];
   }
 
-  if (!baseURL) {
-    baseURL = getBaseURL();
-  }
-
   var type = bundle.match(/\.(.+)$/)[1].toLowerCase();
-  return bundles[bundle] = bundleLoaders[type](baseURL + bundle);
+  return bundles[bundle] = bundleLoaders[type](getBundleURL() + bundle);
 }
 
 function loadJSBundle(bundle) {
@@ -83,18 +75,13 @@ function loadCSSBundle(bundle) {
   });
 }
 
-function getBaseURL() {
-  // Attempt to find the URL of the current script and use that as the base URL
-  try {
-    throw new Error;
-  } catch (err) {
-    var matches = ('' + err.stack).match(/(https?|file|ftp):\/\/[^:\)]+/g);
-    if (matches) {
-      return matches[0].replace(/\/[^\/]+$/, '') + '/';
-    }
+function requireModule(id) {
+  let res = require(id);
+  if (res.__esModule) {
+    return res.default;
   }
 
-  return '/';
+  return res;
 }
 
 function LazyPromise(executor) {
