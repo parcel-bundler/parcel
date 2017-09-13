@@ -154,19 +154,15 @@ class Bundler {
       bundle.entryAsset = asset;
     }
 
-    asset.parentBundle = bundle;
+    // Add the asset to the child bundle of the asset's type
+    bundle.getChildBundle(asset.type).addAsset(asset);
 
-    // If the asset type does not match the bundle type, create a new child bundle
-    if (asset.type && asset.type !== bundle.type) {
-      // If the asset generated a representation for the parent bundle type, also add it there
-      if (asset.generated[bundle.type] != null) {
-        bundle.addAsset(asset);
-      }
-
-      bundle = bundle.getChildBundle(asset.type);
+    // If the asset generated a representation for the parent bundle type, also add it there
+    if (asset.generated[bundle.type] != null) {
+      bundle.addAsset(asset);
     }
 
-    bundle.addAsset(asset);
+    asset.parentBundle = bundle;
 
     for (let dep of asset.dependencies.values()) {
       let assetDep = asset.depAssets.get(dep.name);

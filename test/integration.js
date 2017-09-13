@@ -271,7 +271,7 @@ describe('integration', function () {
 
     assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js', 'index.css'],
+      assets: ['index.js', 'index.css', 'other.css', 'local.css'],
       childBundles: [{
         name: 'index.css',
         assets: ['index.css', 'other.css', 'local.css'],
@@ -299,11 +299,11 @@ describe('integration', function () {
       childBundles: [{
         name: 'index.css',
         assets: ['index.css'],
-        childBundles: [{
-          type: 'woff2',
-          assets: ['test.woff2'],
-          childBundles: []
-        }]
+        childBundles: []
+      }, {
+        type: 'woff2',
+        assets: ['test.woff2'],
+        childBundles: []
       }]
     });
 
@@ -328,11 +328,11 @@ describe('integration', function () {
       childBundles: [{
         name: 'index.css',
         assets: ['index.styl'],
-        childBundles: [{
-          type: 'woff2',
-          assets: ['test.woff2'],
-          childBundles: []
-        }]
+        childBundles: []
+      }, {
+        type: 'woff2',
+        assets: ['test.woff2'],
+        childBundles: []
       }]
     });
 
@@ -442,11 +442,11 @@ describe('integration', function () {
       childBundles: [{
         name: 'index.css',
         assets: ['index.less'],
-        childBundles: [{
-          type: 'woff2',
-          assets: ['test.woff2'],
-          childBundles: []
-        }]
+        childBundles: []
+      }, {
+        type: 'woff2',
+        assets: ['test.woff2'],
+        childBundles: []
       }]
     });
 
@@ -556,11 +556,11 @@ describe('integration', function () {
       childBundles: [{
         name: 'index.css',
         assets: ['index.scss'],
-        childBundles: [{
-          type: 'woff2',
-          assets: ['test.woff2'],
-          childBundles: []
-        }]
+        childBundles: []
+      }, {
+        type: 'woff2',
+        assets: ['test.woff2'],
+        childBundles: []
       }]
     });
 
@@ -626,10 +626,10 @@ describe('integration', function () {
 
     assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js', 'index.css'],
+      assets: ['index.js', 'index.css', '*.css', 'other.css', 'local.css'],
       childBundles: [{
         name: 'index.css',
-        assets: ['index.css', '*.css', 'other.css', 'local.css'],
+        assets: ['index.css', 'other.css', 'local.css'],
         childBundles: []
       }]
     });
