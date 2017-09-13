@@ -126,6 +126,7 @@ class Asset {
   invalidateBundle() {
     this.parentBundle = null;
     this.bundles.clear();
+    this.parentDeps.clear();
   }
 }
 
