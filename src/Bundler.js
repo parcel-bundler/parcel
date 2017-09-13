@@ -52,7 +52,7 @@ class Bundler {
       await fs.mkdirp(this.options.outDir);
 
       let bundle = this.createBundleTree(main);
-      this.bundleHashes = await bundle.package();
+      this.bundleHashes = await bundle.package(this.options);
 
       return bundle;
     } finally {
@@ -188,7 +188,7 @@ class Bundler {
     }
 
     let bundle = this.createBundleTree(this.mainAsset);
-    this.bundleHashes = await bundle.package(this.bundleHashes);
+    this.bundleHashes = await bundle.package(this.options, this.bundleHashes);
     return bundle;
   }
 
