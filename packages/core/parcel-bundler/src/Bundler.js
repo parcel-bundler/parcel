@@ -200,6 +200,7 @@ class Bundler {
 
     let bundle = this.createBundleTree(this.mainAsset);
     this.bundleHashes = await bundle.package(this.options, this.bundleHashes);
+    this.unloadOrphanedAssets();
     return bundle;
   }
 
@@ -208,6 +209,19 @@ class Bundler {
       if (!asset.parentBundle) {
         yield asset;
       }
+    }
+  }
+
+  unloadOrphanedAssets() {
+    for (let asset of this.findOrphanAssets()) {
+      this.unloadAsset(asset);
+    }
+  }
+
+  unloadAsset(asset) {
+    this.loadedAssets.delete(asset.name);
+    if (this.watcher) {
+      this.watcher.unwatch(asset.name);
     }
   }
 
@@ -243,7 +257,7 @@ class Bundler {
       return;
     }
 
-    this.loadedAssets.delete(path);
+    this.unloadAsset(asset);
     if (this.cache) {
       this.cache.delete(path);
     }
