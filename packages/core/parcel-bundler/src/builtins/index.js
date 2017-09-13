@@ -7,5 +7,6 @@ for (let key in builtins) {
 }
 
 builtins['_bundle_loader'] = require.resolve('./bundle-loader.js');
+builtins['_css_loader'] = require.resolve('./css-loader.js');
 
 module.exports = builtins;

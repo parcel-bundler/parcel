@@ -88,8 +88,18 @@ class CSSAsset extends Asset {
     let css = this.ast ? this.ast.render() : this.contents;
 
     let js = '';
+    if (this.options.hmr) {
+      this.addDependency('_css_loader');
+
+      js = `
+        var reloadCSS = require('_css_loader');
+        module.hot.dispose(reloadCSS);
+        module.hot.accept(reloadCSS);
+      `;
+    }
+
     if (this.cssModules) {
-      js = 'module.exports = ' + JSON.stringify(this.cssModules, false, 2) + ';';
+      js += 'module.exports = ' + JSON.stringify(this.cssModules, false, 2) + ';';
     }
 
     return {css, js};
