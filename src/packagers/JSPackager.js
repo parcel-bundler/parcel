@@ -3,6 +3,7 @@ const {basename} = require('path');
 const Packager = require('./Packager');
 
 const prelude = fs.readFileSync(__dirname + '/../builtins/prelude.js', 'utf8').trim();
+const hmr = fs.readFileSync(__dirname + '/../builtins/hmr-runtime.js', 'utf8').trim();
 
 class JSPackager extends Packager {
   async start() {
@@ -17,10 +18,10 @@ class JSPackager extends Packager {
       return;
     }
 
-    this.dedupe.set(asset.generated.js, asset.id);
-
-    let wrapped = this.first ? '' : ',';
-    wrapped += asset.id + ':[function(require,module,exports) {\n' + (asset.generated.js || '') + '\n},';
+    // Don't dedupe when HMR is turned on since it messes with the asset ids
+    if (!this.options.hmr) {
+      this.dedupe.set(asset.generated.js, asset.id);
+    }
 
     let deps = {};
     for (let dep of asset.dependencies.values()) {
@@ -42,6 +43,12 @@ class JSPackager extends Packager {
       }
     }
 
+    await this.writeModule(asset.id, asset.generated.js, deps);
+  }
+
+  async writeModule(id, code, deps = {}) {
+    let wrapped = this.first ? '' : ',';
+    wrapped += id + ':[function(require,module,exports) {\n' + (code || '') + '\n},';
     wrapped += JSON.stringify(deps);
     wrapped += ']';
 
@@ -50,8 +57,16 @@ class JSPackager extends Packager {
   }
 
   async end() {
-    // Load the entry module if this is the root bundle
     let entry = [];
+
+    // Add the HMR runtime if needed.
+    if (this.options.hmr) {
+      // Asset ids normally start at 1, so this should be safe.
+      await this.writeModule(0, hmr);
+      entry.push(0);
+    }
+
+    // Load the entry module
     if (this.bundle.entryAsset) {
       entry.push(this.bundle.entryAsset.id);
     }

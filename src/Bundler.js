@@ -8,7 +8,12 @@ const Bundle = require('./Bundle');
 const {FSWatcher} = require('chokidar');
 const FSCache = require('./FSCache');
 const md5 = require('./utils/md5');
+const HMRServer = require('./HMRServer');
 
+/**
+ * The Bundler is the main entry point. It resolves and loads assets,
+ * creates the bundle tree, and manages the worker farm, cache, and file watcher.
+ */
 class Bundler {
   constructor(main, options = {}) {
     this.mainFile = main;
@@ -21,6 +26,7 @@ class Bundler {
     this.loadedAssets = new Map;
     this.farm = null;
     this.watcher = null;
+    this.hmr = null;
     this.bundleHashes = null;
   }
 
@@ -31,7 +37,8 @@ class Bundler {
       watch: typeof options.watch === 'boolean' ? options.watch : !isProduction,
       enableCache: typeof options.enableCache === 'boolean' ? options.enableCache : true,
       killWorkers: typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
-      minify: typeof options.minify === 'boolean' ? options.minify : isProduction
+      minify: typeof options.minify === 'boolean' ? options.minify : isProduction,
+      hmr: typeof options.hmr === 'boolean' ? options.hmr : !isProduction
     });
   }
 
@@ -42,6 +49,10 @@ class Bundler {
       this.watcher = new FSWatcher;
       this.watcher.on('change', this.onChange.bind(this));
       this.watcher.on('unlink', this.onUnlink.bind(this));
+    }
+
+    if (this.options.hmr) {
+      this.hmr = new HMRServer;
     }
 
     try {
@@ -192,6 +203,14 @@ class Bundler {
     return bundle;
   }
 
+  *findOrphanAssets() {
+    for (let asset of this.loadedAssets.values()) {
+      if (!asset.parentBundle) {
+        yield asset;
+      }
+    }
+  }
+
   async onChange(path) {
     console.time('change');
     let asset = this.loadedAssets.get(path);
@@ -205,7 +224,15 @@ class Bundler {
       this.cache.invalidate(asset.name);
     }
 
-    await this.loadAsset(asset, asset.parentBundle);
+    await this.loadAsset(asset);
+
+    if (this.hmr) {
+      // Emit an HMR update for any new assets (that don't have a parent bundle yet)
+      // plus the asset that actually changed.
+      let assets = [...this.findOrphanAssets(), asset];
+      this.hmr.emitUpdate(assets);
+    }
+
     await this.rebundle();
     console.timeEnd('change');
   }

@@ -4,7 +4,7 @@
 // map of requires is short require name -> numeric require
 //
 // anything defined in a previous bundle is accessed via the
-// orig method which is the requireuire for previous bundles
+// orig method which is the require for previous bundles
 
 require = (function (modules, cache, entry) {
   // Save the require from previous bundle to this closure if any
@@ -34,7 +34,6 @@ require = (function (modules, cache, entry) {
         throw err;
       }
 
-      var module = cache[name] = {exports: {}};
       function localRequire(x) {
         return newRequire(localRequire.resolve(x));
       }
@@ -43,11 +42,22 @@ require = (function (modules, cache, entry) {
         return modules[name][1][x] || x;
       };
 
+      var module = cache[name] = new newRequire.Module;
       modules[name][0].call(module.exports, localRequire, module, module.exports);
     }
 
     return cache[name].exports;
   }
+
+  function Module() {
+    this.bundle = newRequire;
+    this.exports = {};
+  }
+
+  newRequire.Module = Module;
+  newRequire.modules = modules;
+  newRequire.cache = cache;
+  newRequire.parent = previousRequire;
 
   for (var i = 0; i < entry.length; i++) {
     newRequire(entry[i]);

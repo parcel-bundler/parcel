@@ -15,7 +15,8 @@ describe('integration', function () {
       outDir: __dirname + '/dist',
       watch: false,
       enableCache: false,
-      killWorkers: false
+      killWorkers: false,
+      hmr: false
     }, opts));
 
     return bundler.bundle();
