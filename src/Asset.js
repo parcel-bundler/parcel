@@ -4,7 +4,7 @@ const fs = require('./utils/fs');
 const crypto = require('crypto');
 const md5 = require('./utils/md5');
 
-const PROTOCOL_RE = /^[a-z]+:/;
+const URL_RE = /^(([a-z]+:)|\/)/;
 
 let ASSET_ID = 1;
 
@@ -63,7 +63,7 @@ class Asset {
   }
 
   addURLDependency(url, from = this.name) {
-    if (!url || PROTOCOL_RE.test(url)) {
+    if (!url || URL_RE.test(url)) {
       return url;
     }
 
