@@ -1,10 +1,12 @@
 const WebSocket = require('ws');
-const getPackager = require('./packagers');
-const path = require('path');
 
 class HMRServer {
   constructor() {
     this.wss = new WebSocket.Server({port: 5555});
+  }
+
+  stop() {
+    this.wss.close();
   }
 
   emitUpdate(assets) {

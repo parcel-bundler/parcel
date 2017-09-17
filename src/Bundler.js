@@ -77,8 +77,22 @@ class Bundler extends EventEmitter {
       return bundle;
     } finally {
       if (!this.watcher && this.options.killWorkers) {
-        this.farm.end();
+        this.stop();
       }
+    }
+  }
+
+  stop() {
+    if (this.farm) {
+      this.farm.end();
+    }
+
+    if (this.watcher) {
+      this.watcher.close();
+    }
+
+    if (this.hmr) {
+      this.hmr.stop();
     }
   }
 
