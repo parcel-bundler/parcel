@@ -94,8 +94,7 @@ class Asset {
 
   generate() {
     return {
-      [this.type]: this.contents,
-      js: `module.exports = ${JSON.stringify(md5(this.name) + path.extname(this.name))};`
+      [this.type]: this.contents
     };
   }
 
@@ -113,7 +112,9 @@ class Asset {
   generateHash() {
     let hash = crypto.createHash('md5');
     for (let key in this.generated) {
-      hash.update(this.generated[key]);
+      if (this.generated[key]) {
+        hash.update(this.generated[key]);
+      }
     }
 
     return hash.digest('hex');
