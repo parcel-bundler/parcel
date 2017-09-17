@@ -9,20 +9,24 @@ const {FSWatcher} = require('chokidar');
 const FSCache = require('./FSCache');
 const md5 = require('./utils/md5');
 const HMRServer = require('./HMRServer');
+const Server = require('./Server');
+const {EventEmitter} = require('events');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
  * creates the bundle tree, and manages the worker farm, cache, and file watcher.
  */
-class Bundler {
+class Bundler extends EventEmitter {
   constructor(main, options = {}) {
-    this.mainFile = main;
+    super();
+    this.mainFile = Path.resolve(main || '');
     this.options = this.normalizeOptions(options);
 
     this.resolver = new Resolver(this.options);
     this.parser = new Parser(this.options);
     this.cache = this.options.cache ? new FSCache(this.options) : null;
 
+    this.pending = true;
     this.loadedAssets = new Map;
     this.farm = null;
     this.watcher = null;
@@ -46,6 +50,7 @@ class Bundler {
   }
 
   async bundle() {
+    this.pending = true;
     this.farm = WorkerFarm.getShared(this.options);
 
     if (this.options.watch) {
@@ -59,15 +64,16 @@ class Bundler {
     }
 
     try {
-      let main = await this.resolveAsset(this.mainFile);
-      await this.loadAsset(main);
-      this.mainAsset = main;
+      this.mainAsset = await this.resolveAsset(this.mainFile);
+      await this.loadAsset(this.mainAsset);
 
       await fs.mkdirp(this.options.outDir);
 
-      let bundle = this.createBundleTree(main);
+      let bundle = this.createBundleTree(this.mainAsset);
       this.bundleHashes = await bundle.package(this.options);
 
+      this.pending = false;
+      this.emit('bundled');
       return bundle;
     } finally {
       if (!this.watcher && this.options.killWorkers) {
@@ -231,6 +237,8 @@ class Bundler {
       return;
     }
 
+    this.pending = true;
+
     // Invalidate and reload the asset
     asset.invalidate();
     if (this.cache) {
@@ -247,6 +255,8 @@ class Bundler {
     }
 
     await this.rebundle();
+    this.pending = false;
+    this.emit('bundled');
     console.timeEnd('change');
   }
 
@@ -262,6 +272,15 @@ class Bundler {
     }
 
     await this.rebundle();
+  }
+
+  middleware() {
+    return Server.middleware(this);
+  }
+
+  serve(port) {
+    this.bundle();
+    return Server.serve(this, port);
   }
 }
 
