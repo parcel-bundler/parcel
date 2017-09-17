@@ -10,7 +10,9 @@
     "babylon": "^6.17.4",
     "babylon-walk": "^1.0.2",
     "browser-resolve": "^1.11.2",
+    "chalk": "^2.1.0",
     "chokidar": "^1.7.0",
+    "commander": "^2.11.0",
     "cssnano": "^3.10.0",
     "glob": "^7.1.2",
     "htmlnano": "^0.1.6",
@@ -21,6 +23,7 @@
     "postcss-value-parser": "^3.3.0",
     "posthtml": "^0.9.2",
     "resolve": "^1.4.0",
+    "serve-static": "^1.12.4",
     "uglify-js": "^3.0.28",
     "worker-farm": "^1.4.1",
     "ws": "^3.1.0"
@@ -38,5 +41,8 @@
   },
   "scripts": {
     "test": "NODE_ENV=test mocha"
+  },
+  "bin": {
+    "bundler": "bin/cli.js"
   }
 }
