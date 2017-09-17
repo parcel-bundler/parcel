@@ -35,7 +35,7 @@ class HTMLAsset extends Asset {
         for (let attr in node.attrs) {
           let elements = ATTRS[attr];
           if (elements && elements.includes(node.tag)) {
-            node.attrs[attr] = this.addURLDependency(node.attrs[attr]);
+            node.attrs[attr] = path.join(this.options.publicURL, this.addURLDependency(node.attrs[attr]));
             this.isAstDirty = true;
           }
         }

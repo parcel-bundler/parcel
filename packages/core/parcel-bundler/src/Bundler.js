@@ -19,9 +19,9 @@ class Bundler {
     this.mainFile = main;
     this.options = this.normalizeOptions(options);
 
-    this.resolver = new Resolver(options);
-    this.parser = new Parser(options);
-    this.cache = this.options.enableCache ? new FSCache(options) : null;
+    this.resolver = new Resolver(this.options);
+    this.parser = new Parser(this.options);
+    this.cache = this.options.cache ? new FSCache(this.options) : null;
 
     this.loadedAssets = new Map;
     this.farm = null;
@@ -31,15 +31,18 @@ class Bundler {
   }
 
   normalizeOptions(options) {
-    let isProduction = options.production || process.env.NODE_ENV === 'production';
-    return Object.assign(options, {
+    const isProduction = options.production || process.env.NODE_ENV === 'production';
+    const publicURL = options.publicURL || '/' + Path.basename(options.outDir || 'dist');
+    const watch = typeof options.watch === 'boolean' ? options.watch : !isProduction;
+    return {
       outDir: Path.resolve(options.outDir || 'dist'),
-      watch: typeof options.watch === 'boolean' ? options.watch : !isProduction,
-      enableCache: typeof options.enableCache === 'boolean' ? options.enableCache : true,
+      publicURL: publicURL,
+      watch: watch,
+      cache: typeof options.cache === 'boolean' ? options.cache : true,
       killWorkers: typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
       minify: typeof options.minify === 'boolean' ? options.minify : isProduction,
-      hmr: typeof options.hmr === 'boolean' ? options.hmr : !isProduction
-    });
+      hmr: typeof options.hmr === 'boolean' ? options.hmr : watch
+    };
   }
 
   async bundle() {
