@@ -17,7 +17,7 @@ class Bundle {
     this.entryAsset = null;
     this.assets = new Set;
     this.childBundles = new Set;
-    this.typeBundleMap = new Map;
+    this.siblingBundles = new Map;
   }
 
   addAsset(asset) {
@@ -35,12 +35,12 @@ class Bundle {
       return this;
     }
 
-    if (!this.typeBundleMap.has(type)) {
+    if (!this.siblingBundles.has(type)) {
       let bundle = this.createChildBundle(type, Path.join(Path.dirname(this.name), Path.basename(this.name, Path.extname(this.name)) + '.' + type));
-      this.typeBundleMap.set(type, bundle);
+      this.siblingBundles.set(type, bundle);
     }
 
-    return this.typeBundleMap.get(type);
+    return this.siblingBundles.get(type);
   }
 
   createChildBundle(type, name) {
