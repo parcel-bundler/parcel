@@ -166,7 +166,7 @@ class Bundler extends EventEmitter {
 
     // Create the root bundle if it doesn't exist
     if (!bundle) {
-      bundle = new Bundle(asset.type, Path.join(this.options.outDir, Path.basename(asset.name, Path.extname(asset.name)) + '.' + asset.type));
+      bundle = new Bundle(asset.type, Path.join(this.options.outDir, asset.generateBundleName(true)));
       bundle.entryAsset = asset;
     }
 
