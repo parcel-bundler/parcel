@@ -14,7 +14,7 @@ describe('integration', function () {
     let bundler = new Bundler(file, Object.assign({
       outDir: __dirname + '/dist',
       watch: false,
-      enableCache: false,
+      cache: false,
       killWorkers: false,
       hmr: false
     }, opts));
