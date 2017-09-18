@@ -60,6 +60,7 @@ class Bundler extends EventEmitter {
 
     if (this.options.hmr) {
       this.hmr = new HMRServer;
+      this.options.hmrPort = this.hmr.port;
     }
 
     try {
