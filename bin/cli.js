@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-const Bundler = require('../');
 const chalk = require('chalk');
 const program = require('commander');
 const version = require('../package.json').version;
@@ -14,10 +13,7 @@ program.command('serve [input]')
   .option('--public-url <url>', 'set the public URL to serve on. defaults to the same as the --out-dir option')
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
-  .action(function (main, options) {
-    const bundler = new Bundler(main, options);
-    bundler.serve(options.port || 1234);
-  });
+  .action(bundle);
 
 program.command('watch [input]')
   .description('starts the bundler in watch mode')
@@ -25,10 +21,7 @@ program.command('watch [input]')
   .option('--public-url <url>', 'set the public URL to serve on. defaults to the same as the --out-dir option')
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
-  .action(function (main, options) {
-    const bundler = new Bundler(main, options);
-    bundler.bundle();
-  });
+  .action(bundle);
 
 program.command('build [input]')
   .description('bundles for production')
@@ -36,11 +29,7 @@ program.command('build [input]')
   .option('--public-url <url>', 'set the public URL to serve on. defaults to the same as the --out-dir option')
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
-  .action(function (main, options) {
-    process.env.NODE_ENV = 'production';
-    const bundler = new Bundler(main, options);
-    bundler.bundle();
-  });
+  .action(bundle);
 
 program.command('help [command]')
   .description('display help information for a command')
@@ -62,3 +51,20 @@ if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
 }
 
 program.parse(args);
+
+function bundle(main, command) {
+  // Require bundler here so the help command is fast
+  const Bundler = require('../');
+
+  if (command.name() === 'build') {
+    process.env.NODE_ENV = 'production';
+  }
+
+  const bundler = new Bundler(main, command);
+
+  if (command.name() === 'serve') {
+    bundler.serve(command.port || 1234);
+  } else {
+    bundler.bundle();
+  }
+}
