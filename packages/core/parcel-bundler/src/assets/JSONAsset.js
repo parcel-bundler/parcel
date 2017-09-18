@@ -5,11 +5,9 @@ class JSONAsset extends JSAsset {
     return 'module.exports = ' + await super.load() + ';';
   }
 
-  parse() {
-    // do nothing
-  }
-
+  parse() {}
   collectDependencies() {}
+  transform() {}
 }
 
 module.exports = JSONAsset;
