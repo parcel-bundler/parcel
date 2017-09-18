@@ -8,7 +8,7 @@ function loadBundles(bundles) {
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') {
       return new LazyPromise(function (resolve, reject) {
-        Promise.all(bundles.slice(0, -1).map(bundle => loadBundle(bundle))).then(function () {
+        Promise.all(bundles.slice(0, -1).map(loadBundle)).then(function () {
           return requireModule(id);
         }).then(resolve, reject);
       });
