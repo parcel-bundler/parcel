@@ -1,12 +1,17 @@
 const fs = require('./utils/fs');
 const path = require('path');
 const md5 = require('./utils/md5');
+const objectHash = require('./utils/objectHash');
+
+// These keys can affect the output, so if they differ, the cache should not match
+const OPTION_KEYS = ['publicURL', 'minify', 'hmr'];
 
 class FSCache {
   constructor(options) {
     this.dir = path.resolve(options.cacheDir || '.cache');
     this.dirExists = false;
     this.invalidated = new Set;
+    this.optionsHash = objectHash(OPTION_KEYS.reduce((p, k) => (p[k] = options[k], p), {}));
   }
 
   async ensureDirExists() {
@@ -14,13 +19,15 @@ class FSCache {
     this.dirExists = true;
   }
 
-  async write(filename, data) {
-    let hash = md5(filename);
-    let cacheFile = path.join(this.dir, hash + '.json');
+  getCacheFile(filename) {
+    let hash = md5(this.optionsHash + filename);
+    return path.join(this.dir, hash + '.json');
+  }
 
+  async write(filename, data) {
     try {
       await this.ensureDirExists();
-      await fs.writeFile(cacheFile, JSON.stringify(data));
+      await fs.writeFile(this.getCacheFile(filename), JSON.stringify(data));
       this.invalidated.delete(filename);
     } catch (err) {
       console.error('Error writing to cache', err);
@@ -32,8 +39,7 @@ class FSCache {
       return null;
     }
 
-    let hash = md5(filename);
-    let cacheFile = path.join(this.dir, hash + '.json');
+    let cacheFile = this.getCacheFile(filename);
 
     try {
       let stats = await fs.stat(filename);
@@ -55,11 +61,8 @@ class FSCache {
   }
 
   async delete(filename) {
-    let hash = md5(filename);
-    let cacheFile = path.join(this.dir, hash + '.json');
-
     try {
-      await fs.unlink(cacheFile);
+      await fs.unlink(this.getCacheFile(filename));
       this.invalidated.delete(filename);
     } catch (err) {}
   }
