@@ -129,7 +129,7 @@ class Asset {
     this.parentDeps.clear();
   }
 
-  generateBundleName() {
+  generateBundleName(isMainAsset) {
     // Resolve the main file of the package.json
     let main = this.package ? path.resolve(path.dirname(this.package.pkgfile), this.package.main) : null;
     let ext = '.' + this.type;
@@ -137,6 +137,11 @@ class Asset {
     // If this asset is main file of the package, use the package name
     if (this.name === main) {
       return this.package.name + ext;
+    }
+
+    // If this is the entry point of the root bundle, use the original filename
+    if (isMainAsset) {
+      return path.basename(this.name, path.extname(this.name)) + ext;
     }
 
     // Otherwise generate a unique name
