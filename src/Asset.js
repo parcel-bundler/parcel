@@ -69,7 +69,7 @@ class Asset {
 
     let resolved = path.resolve(path.dirname(from), url);
     this.addDependency('./' + path.relative(path.dirname(this.name), resolved), {dynamic: true});
-    return md5(resolved) + path.extname(url);
+    return this.options.parser.getAsset(resolved, this.package, this.options).generateBundleName();
   }
 
   mightHaveDependencies() {
@@ -134,6 +134,20 @@ class Asset {
     this.parentBundle = null;
     this.bundles.clear();
     this.parentDeps.clear();
+  }
+
+  generateBundleName() {
+    // Resolve the main file of the package.json
+    let main = this.package ? path.resolve(path.dirname(this.package.pkgfile), this.package.main) : null;
+    let ext = '.' + this.type;
+
+    // If this asset is main file of the package, use the package name
+    if (this.name === main) {
+      return this.package.name + ext;
+    }
+
+    // Otherwise generate a unique name
+    return md5(this.name) + ext;
   }
 }
 

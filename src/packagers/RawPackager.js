@@ -1,5 +1,4 @@
 const Packager = require('./Packager');
-const md5 = require('../utils/md5');
 const fs = require('../utils/fs');
 const path = require('path');
 
@@ -12,7 +11,7 @@ class RawPackager extends Packager {
     // Use the bundle name if this is the entry asset, otherwise generate one.
     let name = this.bundle.name;
     if (asset !== this.bundle.entryAsset) {
-      name = path.join(path.dirname(this.bundle.name), md5(asset.name) + path.extname(asset.name));
+      name = path.join(path.dirname(this.bundle.name), asset.generateBundleName());
     }
 
     let contents = asset.generated[asset.type] || await fs.readFile(asset.name);

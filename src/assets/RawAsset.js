@@ -1,5 +1,4 @@
 const Asset = require('../Asset');
-const md5 = require('../utils/md5');
 const path = require('path');
 
 class RawAsset extends Asset {
@@ -8,7 +7,7 @@ class RawAsset extends Asset {
 
   generate() {
     return {
-      js: `module.exports=${JSON.stringify(md5(this.name) + path.extname(this.name))};`
+      js: `module.exports=${JSON.stringify(this.generateBundleName())};`
     };
   }
 }
