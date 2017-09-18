@@ -4,7 +4,7 @@ const fs = require('./utils/fs');
 const crypto = require('crypto');
 const md5 = require('./utils/md5');
 
-const URL_RE = /^(([a-z]+:)|\/)/;
+const URL_RE = /^(([a-z]+:)|\/|#)/;
 
 let ASSET_ID = 1;
 
@@ -67,7 +67,7 @@ class Asset {
       return url;
     }
 
-    let resolved = path.resolve(path.dirname(from), url);
+    let resolved = path.resolve(path.dirname(from), url).replace(/[\?#].*$/, '');
     this.addDependency('./' + path.relative(path.dirname(this.name), resolved), {dynamic: true});
     return this.options.parser.getAsset(resolved, this.package, this.options).generateBundleName();
   }
