@@ -50,8 +50,9 @@ class Parser {
     return this.extensions[extension] || RawAsset;
   }
 
-  getAsset(filename, pkg, options) {
+  getAsset(filename, pkg, options = {}) {
     let Asset = this.findParser(filename);
+    options.parser = this;
     return new Asset(filename, pkg, options);
   }
 }

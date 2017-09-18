@@ -7,7 +7,6 @@ const Path = require('path');
 const Bundle = require('./Bundle');
 const {FSWatcher} = require('chokidar');
 const FSCache = require('./FSCache');
-const md5 = require('./utils/md5');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
 const {EventEmitter} = require('events');
@@ -173,7 +172,7 @@ class Bundler extends EventEmitter {
 
     // Create a new bundle for dynamic imports
     if (dep && dep.dynamic) {
-      bundle = bundle.createChildBundle(asset.type, Path.join(this.options.outDir, md5(asset.name) + '.' + asset.type));
+      bundle = bundle.createChildBundle(asset.type, Path.join(this.options.outDir, asset.generateBundleName()));
       bundle.entryAsset = asset;
     }
 
