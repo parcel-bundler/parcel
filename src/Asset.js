@@ -1,7 +1,7 @@
 const Parser = require('./Parser');
 const path = require('path');
 const fs = require('./utils/fs');
-const crypto = require('crypto');
+const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 
 const URL_RE = /^(([a-z]+:)|\/|#)/;
@@ -110,14 +110,7 @@ class Asset {
   }
 
   generateHash() {
-    let hash = crypto.createHash('md5');
-    for (let key in this.generated) {
-      if (this.generated[key]) {
-        hash.update(this.generated[key]);
-      }
-    }
-
-    return hash.digest('hex');
+    return objectHash(this.generated);
   }
 
   invalidate() {
