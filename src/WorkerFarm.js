@@ -6,7 +6,12 @@ let shared = null;
 
 class WorkerFarm extends Farm {
   constructor(options) {
-    super({autoStart: true}, require.resolve('./worker'));
+    let opts = {
+      autoStart: true,
+      maxConcurrentWorkers: require('physical-cpu-count')
+    };
+
+    super(opts, require.resolve('./worker'));
 
     this.localWorker = this.promisifyWorker(require('./worker'));
     this.remoteWorker = this.promisifyWorker(this.setup(['init', 'run']));
