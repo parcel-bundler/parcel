@@ -1,3 +1,4 @@
+const {File: BabelFile} = require('babel-core');
 const traverse = require('babel-traverse').default;
 const collectDependencies = require('../visitors/dependencies');
 const walk = require('babylon-walk');
@@ -7,9 +8,10 @@ const insertGlobals = require('../visitors/globals');
 const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
+const config = require('../utils/config');
 
-const IMPORT_RE = /import|export [^;]* from|require\s*\(/;
-const GLOBAL_RE = /process|__dirname|__filename|global|Buffer/;
+const IMPORT_RE = /\b(?:import\b|export [^;]* from|require\s*\()/;
+const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
 
 class JSAsset extends Asset {
   constructor(name, pkg, options) {
@@ -23,7 +25,8 @@ class JSAsset extends Asset {
     return IMPORT_RE.test(this.contents) || GLOBAL_RE.test(this.contents);
   }
 
-  parse(code) {
+  async parse(code) {
+    // Babylon options. We enable a few plugins by default.
     const options = {
       filename: this.name,
       allowReturnOutsideFunction: true,
@@ -33,17 +36,18 @@ class JSAsset extends Asset {
       sourceType: 'module',
       locations: true,
       plugins: [
-        'asyncFunctions',
-        'asyncGenerators',
-        'classConstructorCall',
-        'classProperties',
-        'decorators',
         'exportExtensions',
-        'dynamicImport',
-        'jsx',
-        'flow'
+        'dynamicImport'
       ]
     };
+
+    // Check if there is a babel config file. If so, determine which parser plugins to enable
+    this.babelConfig = (this.package && this.package.babel) || await config.load(this.name, ['.babelrc', '.babelrc.js']);
+    if (this.babelConfig) {
+      this.babelConfig.babelrc = false; // We already loaded the babelrc
+      const file = new BabelFile(this.babelConfig);
+      options.plugins.push(...file.parserOpts.plugins);
+    }
 
     return babylon.parse(code, options);
   }
