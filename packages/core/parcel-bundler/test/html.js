@@ -46,6 +46,27 @@ describe('html', function () {
     assert(html.includes('<h1>Other page</h1>'));
   });
 
+  it('should insert sibling CSS bundles for JS files in the HEAD', async function () {
+    let b = await bundle(__dirname + '/integration/html-css/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [{
+        type: 'js',
+        assets: ['index.js', 'index.css'],
+        childBundles: [{
+          type: 'css',
+          assets: ['index.css'],
+          childBundles: []
+        }]
+      }]
+    });
+
+    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    assert(/<link rel="stylesheet" href="\/dist\/[a-f0-9]+\.css">/.test(html));
+  });
+
   it('should minify HTML in production mode', async function () {
     let b = await bundle(__dirname + '/integration/htmlnano/index.html', {production: true});
 
