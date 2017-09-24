@@ -1,13 +1,6 @@
 const path = require('path');
-const JSAsset = require('./assets/JSAsset');
-const JSONAsset = require('./assets/JSONAsset');
-const CSSAsset = require('./assets/CSSAsset');
-const StylusAsset = require('./assets/StylusAsset');
 const RawAsset = require('./assets/RawAsset');
 const GlobAsset = require('./assets/GlobAsset');
-const LESSAsset = require('./assets/LESSAsset');
-const SASSAsset = require('./assets/SASSAsset');
-const HTMLAsset = require('./assets/HTMLAsset');
 const glob = require('glob');
 
 class Parser {
@@ -19,25 +12,21 @@ class Parser {
       this.registerExtension(ext, extensions[ext]);
     }
 
-    this.registerExtension('.js', JSAsset);
-    this.registerExtension('.jsx', JSAsset);
-    this.registerExtension('.es6', JSAsset);
-    this.registerExtension('.json', JSONAsset);
+    this.registerExtension('.js', './assets/JSAsset');
+    this.registerExtension('.jsx', './assets/JSAsset');
+    this.registerExtension('.es6', './assets/JSAsset');
+    this.registerExtension('.json', './assets/JSONAsset');
 
-    this.registerExtension('.css', CSSAsset);
-    this.registerExtension('.styl', StylusAsset);
-    this.registerExtension('.less', LESSAsset);
-    this.registerExtension('.sass', SASSAsset);
-    this.registerExtension('.scss', SASSAsset);
+    this.registerExtension('.css', './assets/CSSAsset');
+    this.registerExtension('.styl', './assets/StylusAsset');
+    this.registerExtension('.less', './assets/LESSAsset');
+    this.registerExtension('.sass', './assets/SASSAsset');
+    this.registerExtension('.scss', './assets/SASSAsset');
 
-    this.registerExtension('.html', HTMLAsset);
+    this.registerExtension('.html', './assets/HTMLAsset');
   }
 
   registerExtension(ext, parser) {
-    if (typeof parser === 'string') {
-      parser = require(parser);
-    }
-
     this.extensions[ext] = parser;
   }
 
@@ -47,7 +36,12 @@ class Parser {
     }
 
     let extension = path.extname(filename);
-    return this.extensions[extension] || RawAsset;
+    let parser = this.extensions[extension] || RawAsset;
+    if (typeof parser === 'string') {
+      parser = this.extensions[extension] = require(parser);
+    }
+
+    return parser;
   }
 
   getAsset(filename, pkg, options = {}) {
