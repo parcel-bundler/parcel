@@ -70,7 +70,7 @@ class Bundler extends EventEmitter {
       await fs.mkdirp(this.options.outDir);
 
       this.mainAsset = await this.resolveAsset(this.mainFile);
-      await this.buildAsset(this.mainAsset, true);
+      return await this.buildAsset(this.mainAsset, true);
     } catch (err) {
       this.errored = true;
       this.logger.error(err);
@@ -136,6 +136,8 @@ class Bundler extends EventEmitter {
     let buildTime = Date.now() - startTime;
     let time = buildTime < 1000 ? `${buildTime}ms` : `${(buildTime / 1000).toFixed(2)}s`;
     this.logger.status('✨', `Built in ${time}.`, 'green');
+
+    return bundle;
   }
 
   async resolveAsset(name, parent) {
