@@ -20,7 +20,7 @@ class JSAsset extends Asset {
     this.type = 'js';
     this.globals = new Map;
     this.isAstDirty = false;
-    this.generated = null;
+    this.outputCode = null;
   }
 
   mightHaveDependencies() {
@@ -80,7 +80,7 @@ class JSAsset extends Asset {
 
   generate() {
     // TODO: source maps
-    let code = this.isAstDirty ? generate(this.ast).code : (this.generated || this.contents);
+    let code = this.isAstDirty ? generate(this.ast).code : (this.outputCode || this.contents);
     if (this.globals.size > 0) {
       code = Array.from(this.globals.values()).join('\n') + '\n' + code;
     }
