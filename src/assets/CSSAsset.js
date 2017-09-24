@@ -4,6 +4,7 @@ const valueParser = require('postcss-value-parser');
 const path = require('path');
 const md5 = require('../utils/md5');
 const postcssTransform = require('../transforms/postcss');
+const CssSyntaxError = require('postcss/lib/css-syntax-error');
 
 const URL_RE = /url\s*\(\"?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
@@ -44,7 +45,7 @@ class CSSAsset extends Asset {
       }
 
       media = valueParser.stringify(media).trim();
-      this.addDependency(dep, {media});
+      this.addDependency(dep, {media, loc: rule.source.start});
 
       rule.remove();
       this.ast.dirty = true;
@@ -57,7 +58,7 @@ class CSSAsset extends Asset {
 
         parsed.walk(node => {
           if (node.type === 'function' && node.value === 'url' && node.nodes.length) {
-            let url = this.addURLDependency(node.nodes[0].value);
+            let url = this.addURLDependency(node.nodes[0].value, {loc: decl.source.start});
             dirty = node.nodes[0].value !== url;
             node.nodes[0].value = url;
           }
@@ -106,6 +107,11 @@ class CSSAsset extends Asset {
   }
 
   generateErrorMessage(err) {
+    // Wrap the error in a CssSyntaxError if needed so we can generate a code frame
+    if (err.loc && !err.showSourceCode) {
+      err = new CssSyntaxError(err.message, err.loc.line, err.loc.column, this.contents);
+    }
+
     err.message = err.reason || err.message;
     err.loc = {
       line: err.line,

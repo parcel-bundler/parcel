@@ -62,13 +62,18 @@ class Asset {
     this.dependencies.set(name, Object.assign({name}, opts));
   }
 
-  addURLDependency(url, from = this.name) {
+  addURLDependency(url, from = this.name, opts) {
     if (!url || URL_RE.test(url)) {
       return url;
     }
 
+    if (typeof from === 'object') {
+      opts = from;
+      from = this.name;
+    }
+
     let resolved = path.resolve(path.dirname(from), url).replace(/[\?#].*$/, '');
-    this.addDependency('./' + path.relative(path.dirname(this.name), resolved), {dynamic: true});
+    this.addDependency('./' + path.relative(path.dirname(this.name), resolved), Object.assign({dynamic: true}, opts));
     return this.options.parser.getAsset(resolved, this.package, this.options).generateBundleName();
   }
 
@@ -131,7 +136,7 @@ class Asset {
 
   generateBundleName(isMainAsset) {
     // Resolve the main file of the package.json
-    let main = this.package ? path.resolve(path.dirname(this.package.pkgfile), this.package.main) : null;
+    let main = this.package && this.package.main ? path.resolve(path.dirname(this.package.pkgfile), this.package.main) : null;
     let ext = '.' + this.type;
 
     // If this asset is main file of the package, use the package name
