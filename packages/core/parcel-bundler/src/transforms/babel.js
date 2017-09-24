@@ -3,7 +3,7 @@ const path = require('path');
 const config = require('../utils/config');
 
 module.exports = async function (asset) {
-  if (!asset.babelConfig) {
+  if (!(await shouldTransform(asset))) {
     return;
   }
 
@@ -13,3 +13,16 @@ module.exports = async function (asset) {
   asset.ast = res.ast;
   asset.isAstDirty = true;
 };
+
+async function shouldTransform(asset) {
+  if (asset.ast) {
+    return !!asset.babelConfig;
+  }
+
+  if (asset.package && asset.package.babel) {
+    return true;
+  }
+
+  let babelrc = await config.resolve(asset.name, ['.babelrc', '.babelrc.js']);
+  return !!babelrc;
+}
