@@ -244,8 +244,8 @@ class Bundler extends EventEmitter {
       bundle.entryAsset = asset;
     }
 
-    // Add the asset to the child bundle of the asset's type
-    bundle.getChildBundle(asset.type).addAsset(asset);
+    // Add the asset to the bundle of the asset's type
+    bundle.getSiblingBundle(asset.type).addAsset(asset);
 
     // If the asset generated a representation for the parent bundle type, also add it there
     if (asset.generated[bundle.type] != null) {
@@ -265,7 +265,7 @@ class Bundler extends EventEmitter {
   moveAssetToBundle(asset, commonBundle) {
     for (let bundle of Array.from(asset.bundles)) {
       bundle.removeAsset(asset);
-      commonBundle.getChildBundle(bundle.type).addAsset(asset);
+      commonBundle.getSiblingBundle(bundle.type).addAsset(asset);
     }
 
     let oldBundle = asset.parentBundle;
