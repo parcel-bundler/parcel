@@ -30,7 +30,7 @@ class Bundle {
     this.assets.delete(asset);
   }
 
-  getChildBundle(type) {
+  getSiblingBundle(type) {
     if (!type || type === this.type) {
       return this;
     }
