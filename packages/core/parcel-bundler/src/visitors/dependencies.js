@@ -7,17 +7,17 @@ const argTemplate = template('require.resolve(MODULE)');
 
 module.exports = {
   ImportDeclaration(node, asset) {
-    asset.addDependency(node.source.value);
+    addDependency(asset, node.source);
   },
 
   ExportNamedDeclaration(node, asset) {
     if (node.source) {
-      asset.addDependency(node.source.value);
+      addDependency(asset, node.source);
     }
   },
 
   ExportAllDeclaration(node, asset) {
-    asset.addDependency(node.source.value);
+    addDependency(asset, node.source);
   },
 
   CallExpression(node, asset) {
@@ -29,7 +29,7 @@ module.exports = {
                  && types.isStringLiteral(args[0]);
 
     if (isRequire) {
-      asset.addDependency(args[0].value);
+      addDependency(asset, args[0]);
     }
 
     let isDynamicImport = callee.type === 'Import'
@@ -38,7 +38,7 @@ module.exports = {
 
     if (isDynamicImport) {
       asset.addDependency('_bundle_loader');
-      asset.addDependency(args[0].value, {dynamic: true});
+      addDependency(asset, args[0], {dynamic: true});
 
       node.callee = requireTemplate().expression;
       node.arguments[0] = argTemplate({MODULE: args[0]}).expression;
@@ -46,3 +46,8 @@ module.exports = {
     }
   }
 };
+
+function addDependency(asset, node, opts = {}) {
+  opts.loc = node.loc && node.loc.start;
+  asset.addDependency(node.value, opts);
+}

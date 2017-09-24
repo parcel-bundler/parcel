@@ -154,6 +154,24 @@ class Bundler extends EventEmitter {
     return asset;
   }
 
+  async resolveDep(asset, dep) {
+    try {
+      return await this.resolveAsset(dep.name, asset.name);
+    } catch (err) {
+      err.message = `Cannot resolve dependency '${dep.name}'`;
+
+      // Generate a code frame where the dependency was used
+      if (dep.loc) {
+        await asset.loadIfNeeded();
+        err.loc = dep.loc;
+        err = asset.generateErrorMessage(err);
+      }
+
+      err.fileName = asset.name;
+      throw err;
+    }
+  }
+
   async loadAsset(asset) {
     if (asset.processed) {
       return;
@@ -187,7 +205,7 @@ class Bundler extends EventEmitter {
         this.loadedAssets.set(dep.name, asset);
       } else {
         asset.dependencies.set(dep.name, dep);
-        let assetDep = await this.resolveAsset(dep.name, asset.name);
+        let assetDep = await this.resolveDep(asset, dep);
         asset.depAssets.set(dep.name, assetDep);
         await this.loadAsset(assetDep);
       }
