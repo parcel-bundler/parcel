@@ -1,5 +1,6 @@
 const {File: BabelFile} = require('babel-core');
 const traverse = require('babel-traverse').default;
+const codeFrame = require('babel-code-frame');
 const collectDependencies = require('../visitors/dependencies');
 const walk = require('babylon-walk');
 const Asset = require('../Asset');
@@ -19,6 +20,7 @@ class JSAsset extends Asset {
     this.type = 'js';
     this.globals = new Map;
     this.isAstDirty = false;
+    this.generated = null;
   }
 
   mightHaveDependencies() {
@@ -78,7 +80,7 @@ class JSAsset extends Asset {
 
   generate() {
     // TODO: source maps
-    let code = this.isAstDirty ? generate(this.ast).code : this.contents;
+    let code = this.isAstDirty ? generate(this.ast).code : (this.generated || this.contents);
     if (this.globals.size > 0) {
       code = Array.from(this.globals.values()).join('\n') + '\n' + code;
     }
@@ -86,6 +88,16 @@ class JSAsset extends Asset {
     return {
       js: code
     };
+  }
+
+  generateErrorMessage(err) {
+    const loc = err.loc;
+    if (loc) {
+      err.codeFrame = codeFrame(this.contents, loc.line, loc.column + 1);
+      err.highlightedCodeFrame = codeFrame(this.contents, loc.line, loc.column + 1, {highlightCode: true});
+    }
+
+    return err;
   }
 }
 

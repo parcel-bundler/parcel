@@ -2,8 +2,6 @@ const fs = require('./utils/fs');
 const Parser = require('./Parser');
 const babel = require('./transforms/babel');
 
-process.on('unhandledRejection', console.error)
-
 let parser;
 
 function emit(event, ...args) {
@@ -17,7 +15,7 @@ exports.init = function (options, callback) {
 
 exports.run = async function (path, pkg, options, callback) {
   try {
-    let asset = parser.getAsset(path, pkg, options);
+    var asset = parser.getAsset(path, pkg, options);
     await asset.process();
 
     callback(null, {
@@ -26,6 +24,11 @@ exports.run = async function (path, pkg, options, callback) {
       hash: asset.hash
     });
   } catch (err) {
+    if (asset) {
+      err = asset.generateErrorMessage(err);
+    }
+
+    err.fileName = path;
     callback(err);
   }
 };

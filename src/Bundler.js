@@ -10,6 +10,7 @@ const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
 const {EventEmitter} = require('events');
+const Logger = require('./Logger');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -24,6 +25,7 @@ class Bundler extends EventEmitter {
     this.resolver = new Resolver(this.options);
     this.parser = new Parser(this.options);
     this.cache = this.options.cache ? new FSCache(this.options) : null;
+    this.logger = new Logger(this.options);
 
     this.pending = true;
     this.loadedAssets = new Map;
@@ -31,6 +33,7 @@ class Bundler extends EventEmitter {
     this.watcher = null;
     this.hmr = null;
     this.bundleHashes = null;
+    this.errored = false;
   }
 
   normalizeOptions(options) {
@@ -49,13 +52,11 @@ class Bundler extends EventEmitter {
   }
 
   async bundle() {
-    this.pending = true;
     this.farm = WorkerFarm.getShared(this.options);
 
     if (this.options.watch) {
       this.watcher = new FSWatcher;
       this.watcher.on('change', this.onChange.bind(this));
-      this.watcher.on('unlink', this.onUnlink.bind(this));
     }
 
     if (this.options.hmr) {
@@ -63,18 +64,16 @@ class Bundler extends EventEmitter {
       this.options.hmrPort = this.hmr.port;
     }
 
-    try {
-      this.mainAsset = await this.resolveAsset(this.mainFile);
-      await this.loadAsset(this.mainAsset);
+    this.logger.status('⏳', 'Building...');
 
+    try {
       await fs.mkdirp(this.options.outDir);
 
-      let bundle = this.createBundleTree(this.mainAsset);
-      this.bundleHashes = await bundle.package(this.options);
-
-      this.pending = false;
-      this.emit('bundled');
-      return bundle;
+      this.mainAsset = await this.resolveAsset(this.mainFile);
+      await this.buildAsset(this.mainAsset, true);
+    } catch (err) {
+      this.errored = true;
+      this.logger.error(err);
     } finally {
       if (!this.watcher && this.options.killWorkers) {
         this.stop();
@@ -96,6 +95,49 @@ class Bundler extends EventEmitter {
     }
   }
 
+  async buildAsset(asset, isInitialBundle = false) {
+    let startTime = Date.now();
+    this.pending = true;
+    this.errored = false;
+
+    // Invalidate the asset, unless this is the initial bundle
+    if (!isInitialBundle) {
+      asset.invalidate();
+      if (this.cache) {
+        this.cache.invalidate(asset.name);
+      }
+    }
+
+    // Load the asset, and its dependencies
+    await this.loadAsset(asset);
+
+    // Emit an HMR update for any new assets (that don't have a parent bundle yet)
+    // plus the asset that actually changed.
+    if (this.hmr && !isInitialBundle) {
+      let assets = [...this.findOrphanAssets(), asset];
+      this.hmr.emitUpdate(assets);
+    }
+
+    // Invalidate bundles
+    for (let asset of this.loadedAssets.values()) {
+      asset.invalidateBundle();
+    }
+
+    // Create a new bundle tree and package everything up.
+    let bundle = this.createBundleTree(this.mainAsset);
+    this.bundleHashes = await bundle.package(this.options, this.bundleHashes);
+
+    // Unload any orphaned assets
+    this.unloadOrphanedAssets();
+
+    this.pending = false;
+    this.emit('bundled');
+
+    let buildTime = Date.now() - startTime;
+    let time = buildTime < 1000 ? `${buildTime}ms` : `${(buildTime / 1000).toFixed(2)}s`;
+    this.logger.status('✨', `Built in ${time}.`, 'green');
+  }
+
   async resolveAsset(name, parent) {
     let {path, pkg} = await this.resolver.resolve(name, parent);
     if (this.loadedAssets.has(path)) {
@@ -115,6 +157,10 @@ class Bundler extends EventEmitter {
   async loadAsset(asset) {
     if (asset.processed) {
       return;
+    }
+
+    if (!this.errored) {
+      this.logger.status('⏳', `Building ${asset.basename}...`);
     }
 
     // Mark the asset processed so we don't load it twice
@@ -212,17 +258,6 @@ class Bundler extends EventEmitter {
     }
   }
 
-  async rebundle() {
-    for (let asset of this.loadedAssets.values()) {
-      asset.invalidateBundle();
-    }
-
-    let bundle = this.createBundleTree(this.mainAsset);
-    this.bundleHashes = await bundle.package(this.options, this.bundleHashes);
-    this.unloadOrphanedAssets();
-    return bundle;
-  }
-
   *findOrphanAssets() {
     for (let asset of this.loadedAssets.values()) {
       if (!asset.parentBundle) {
@@ -245,47 +280,20 @@ class Bundler extends EventEmitter {
   }
 
   async onChange(path) {
-    console.time('change');
     let asset = this.loadedAssets.get(path);
     if (!asset) {
       return;
     }
 
-    this.pending = true;
+    this.logger.clear();
+    this.logger.status('⏳', `Rebuilding ${path}...`);
 
-    // Invalidate and reload the asset
-    asset.invalidate();
-    if (this.cache) {
-      this.cache.invalidate(asset.name);
+    try {
+      await this.buildAsset(asset);
+    } catch (err) {
+      this.errored = true;
+      this.logger.error(err);
     }
-
-    await this.loadAsset(asset);
-
-    if (this.hmr) {
-      // Emit an HMR update for any new assets (that don't have a parent bundle yet)
-      // plus the asset that actually changed.
-      let assets = [...this.findOrphanAssets(), asset];
-      this.hmr.emitUpdate(assets);
-    }
-
-    await this.rebundle();
-    this.pending = false;
-    this.emit('bundled');
-    console.timeEnd('change');
-  }
-
-  async onUnlink(path) {
-    let asset = this.loadedAssets.get(path);
-    if (!asset) {
-      return;
-    }
-
-    this.unloadAsset(asset);
-    if (this.cache) {
-      this.cache.delete(path);
-    }
-
-    await this.rebundle();
   }
 
   middleware() {
@@ -293,6 +301,7 @@ class Bundler extends EventEmitter {
   }
 
   serve(port) {
+    this.logger.persistent('Server running at ' + this.logger.chalk.cyan(`http://localhost:${port}`));
     this.bundle();
     return Server.serve(this, port);
   }
