@@ -16,7 +16,8 @@ describe('integration', function () {
       watch: false,
       cache: false,
       killWorkers: false,
-      hmr: false
+      hmr: false,
+      logLevel: 0
     }, opts));
 
     return bundler.bundle();

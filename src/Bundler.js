@@ -47,7 +47,8 @@ class Bundler extends EventEmitter {
       cache: typeof options.cache === 'boolean' ? options.cache : true,
       killWorkers: typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
       minify: typeof options.minify === 'boolean' ? options.minify : isProduction,
-      hmr: typeof options.hmr === 'boolean' ? options.hmr : watch
+      hmr: typeof options.hmr === 'boolean' ? options.hmr : watch,
+      logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3
     };
   }
 
