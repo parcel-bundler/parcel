@@ -4,6 +4,7 @@ const assert = require('assert');
 const vm = require('vm');
 const fs = require('fs');
 const path = require('path');
+const WebSocket = require('ws');
 
 beforeEach(function () {
   rimraf.sync(__dirname + '/dist');
@@ -24,7 +25,7 @@ function bundle(file, opts) {
   return bundler(file, opts).bundle();
 }
 
-function run(bundle) {
+function run(bundle, globals) {
   // for testing dynamic imports
   const fakeDocument = {
     createElement(tag) {
@@ -34,19 +35,23 @@ function run(bundle) {
     getElementsByTagName() {
       return [{
         appendChild(el) {
-          if (el.tag === 'script') {
-            vm.runInContext(fs.readFileSync(__dirname + '/dist' + el.src), ctx);
-          }
+          setTimeout(function () {
+            if (el.tag === 'script') {
+              vm.runInContext(fs.readFileSync(__dirname + '/dist' + el.src), ctx);
+            }
 
-          el.onload();
+            el.onload();
+          }, 0);
         }
       }]
     }
   };
 
-  var ctx = {
-    document: fakeDocument
-  };
+  var ctx = Object.assign({
+    document: fakeDocument,
+    WebSocket,
+    console
+  }, globals);
 
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(bundle.name), ctx);
