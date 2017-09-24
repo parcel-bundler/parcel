@@ -132,7 +132,7 @@ class Bundler extends EventEmitter {
     this.unloadOrphanedAssets();
 
     this.pending = false;
-    this.emit('bundled');
+    this.emit('bundled', bundle);
 
     let buildTime = Date.now() - startTime;
     let time = buildTime < 1000 ? `${buildTime}ms` : `${(buildTime / 1000).toFixed(2)}s`;

@@ -3,6 +3,7 @@ node_modules/
 yarn.lock
 package-lock.json
 test/dist
+test/input
 coverage
 .nyc_output
 .cache
