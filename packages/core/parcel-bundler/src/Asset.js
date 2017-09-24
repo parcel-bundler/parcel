@@ -147,6 +147,10 @@ class Asset {
     // Otherwise generate a unique name
     return md5(this.name) + ext;
   }
+
+  generateErrorMessage(err) {
+    return err;
+  }
 }
 
 module.exports = Asset;

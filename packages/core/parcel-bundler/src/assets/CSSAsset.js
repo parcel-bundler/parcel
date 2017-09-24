@@ -104,6 +104,21 @@ class CSSAsset extends Asset {
 
     return {css, js};
   }
+
+  generateErrorMessage(err) {
+    err.message = err.reason || err.message;
+    err.loc = {
+      line: err.line,
+      column: err.column
+    };
+
+    if (err.showSourceCode) {
+      err.codeFrame = err.showSourceCode();
+      err.highlightedCodeFrame = err.showSourceCode(true);
+    }
+
+    return err;
+  }
 }
 
 class CSSAst {

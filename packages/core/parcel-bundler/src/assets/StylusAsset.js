@@ -24,6 +24,13 @@ class StylusAsset extends CSSAsset {
       this.addDependency(dep, {includedInParent: true});
     }
   }
+
+  generateErrorMessage(err) {
+    let index = err.message.indexOf('\n');
+    err.codeFrame = err.message.slice(index + 1);
+    err.message = err.message.slice(0, index);
+    return err;
+  }
 }
 
 module.exports = StylusAsset;

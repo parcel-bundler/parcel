@@ -14,6 +14,6 @@ module.exports = async function (asset) {
 
   // Uglify did our code generation for us, so remove the old AST
   asset.ast = null;
-  asset.contents = result.code;
+  asset.generated = result.code;
   asset.isAstDirty = false;
 };
