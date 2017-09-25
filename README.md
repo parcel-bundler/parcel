@@ -3,8 +3,8 @@
 A blazing fast, zero configuration web application bundler.
 
 - 🚀 **Blazing fast** bundle times - multicore compilation, and a filesystem cache for fast rebuilds even after a restart.
-- 📦 Out of the box support for JS, CSS, HTML, file assets, and more - no plugins to install.
-- 🐠 Automatically transforms modules using Babel, PostCSS, and PostHTML when needed - even `node_modules`.
+- 📦 Out of the box support for JS, CSS, HTML, file assets, and more - **no plugins to install**.
+- 🐠 **Automatically transforms modules** using Babel, PostCSS, and PostHTML when needed - even `node_modules`.
 - 🔪 Zero configuration **code splitting** using dynamic `import()` statements.
 - 🔥 Built in support for **hot module replacement**
 - 🚨 Friendly error logging experience - syntax highlighted code frames help pinpoint the problem.
