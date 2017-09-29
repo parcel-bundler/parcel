@@ -46,8 +46,7 @@ class JSAsset extends Asset {
     // Check if there is a babel config file. If so, determine which parser plugins to enable
     this.babelConfig = (this.package && this.package.babel) || await config.load(this.name, ['.babelrc', '.babelrc.js']);
     if (this.babelConfig) {
-      this.babelConfig.babelrc = false; // We already loaded the babelrc
-      const file = new BabelFile(this.babelConfig);
+      const file = new BabelFile({filename: this.name});
       options.plugins.push(...file.parserOpts.plugins);
     }
 
@@ -66,12 +65,14 @@ class JSAsset extends Asset {
     this.traverseFast(collectDependencies);
   }
 
+  async pretransform() {
+    await babel(this);
+  }
+
   async transform() {
     if (GLOBAL_RE.test(this.contents)) {
       walk.ancestor(this.ast, insertGlobals, this);
     }
-
-    await babel(this);
 
     if (this.options.minify) {
       await uglify(this);

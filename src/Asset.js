@@ -93,6 +93,8 @@ class Asset {
     // do nothing by default
   }
 
+  async pretransform() {}
+
   async transform() {
     // do nothing by default
   }
@@ -105,6 +107,8 @@ class Asset {
 
   async process() {
     if (!this.generated) {
+      await this.loadIfNeeded();
+      await this.pretransform();
       await this.getDependencies();
       await this.transform();
       this.generated = this.generate();
