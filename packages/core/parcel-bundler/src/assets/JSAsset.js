@@ -6,6 +6,7 @@ const walk = require('babylon-walk');
 const Asset = require('../Asset');
 const babylon = require('babylon');
 const insertGlobals = require('../visitors/globals');
+const fsVisitor = require('../visitors/fs');
 const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
@@ -13,6 +14,7 @@ const config = require('../utils/config');
 
 const IMPORT_RE = /\b(?:import\b|export [^;]* from|require\s*\()/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
+const FS_RE = /\breadFileSync\b/;
 
 class JSAsset extends Asset {
   constructor(name, pkg, options) {
@@ -70,7 +72,13 @@ class JSAsset extends Asset {
   }
 
   async transform() {
+    if (this.dependencies.has('fs') && FS_RE.test(this.contents)) {
+      await this.parseIfNeeded();
+      this.traverse(fsVisitor);
+    }
+
     if (GLOBAL_RE.test(this.contents)) {
+      await this.parseIfNeeded();
       walk.ancestor(this.ast, insertGlobals, this);
     }
 
