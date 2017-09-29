@@ -7,6 +7,7 @@ class JSONAsset extends JSAsset {
 
   parse() {}
   collectDependencies() {}
+  pretransform() {}
   transform() {}
 }
 
