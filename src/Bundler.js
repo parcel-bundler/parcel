@@ -201,6 +201,7 @@ class Bundler extends EventEmitter {
 
     // Process asset dependencies
     await Promise.all(processed.dependencies.map(async dep => {
+      let assetDep = await this.resolveDep(asset, dep);
       if (dep.includedInParent) {
         // This dependency is already included in the parent's generated output,
         // so no need to load it. We map the name back to the parent asset so
@@ -208,7 +209,6 @@ class Bundler extends EventEmitter {
         this.loadedAssets.set(dep.name, asset);
       } else {
         asset.dependencies.set(dep.name, dep);
-        let assetDep = await this.resolveDep(asset, dep);
         asset.depAssets.set(dep.name, assetDep);
         await this.loadAsset(assetDep);
       }
