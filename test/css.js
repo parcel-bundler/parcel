@@ -29,6 +29,10 @@ describe('css', function () {
       name: 'index.js',
       assets: ['index.js', 'index.css', 'bundle-loader.js', 'bundle-url.js'],
       childBundles: [{
+        name: 'index.css',
+        assets: ['index.css'],
+        childBundles: []
+      }, {
         type: 'js',
         assets: ['local.js', 'local.css'],
         childBundles: [{
@@ -36,10 +40,6 @@ describe('css', function () {
           assets: ['local.css'],
           childBundles: []
         }]
-      }, {
-        name: 'index.css',
-        assets: ['index.css'],
-        childBundles: []
       }]
     });
 
