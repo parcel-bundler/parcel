@@ -40,7 +40,7 @@ program.command('help [command]')
 
 program.on('--help', function () {
   console.log('');
-  console.log('  Run `' + chalk.bold('bundler help <command>') + '` for more information on specific commands');
+  console.log('  Run `' + chalk.bold('parcel help <command>') + '` for more information on specific commands');
   console.log('');
 });
 

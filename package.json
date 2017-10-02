@@ -1,5 +1,5 @@
 {
-  "name": "bundler1",
+  "name": "parcel",
   "version": "1.0.0",
   "main": "src/Bundler.js",
   "license": "MIT",
@@ -45,6 +45,6 @@
     "test": "NODE_ENV=test mocha"
   },
   "bin": {
-    "bundler": "bin/cli.js"
+    "parcel": "bin/cli.js"
   }
 }
