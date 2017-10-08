@@ -1,8 +1,10 @@
-<p>
+<p align="center">
   <a href="https://parceljs.org/">
     <img alt="Parcel" src="https://user-images.githubusercontent.com/19409/31321658-f6aed0f2-ac3d-11e7-8100-1587e676e0ec.png" width="749">
   </a>
 </p>
+
+## Features
 
 - 🚀 **Blazing fast** bundle times - multicore compilation, and a filesystem cache for fast rebuilds even after a restart.
 - 📦 Out of the box support for JS, CSS, HTML, file assets, and more - **no plugins to install**.
