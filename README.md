@@ -1,4 +1,4 @@
-<p align="center">
+<p>
   <a href="https://parceljs.org/">
     <img alt="Parcel" src="https://user-images.githubusercontent.com/19409/31321658-f6aed0f2-ac3d-11e7-8100-1587e676e0ec.png" width="749">
   </a>
