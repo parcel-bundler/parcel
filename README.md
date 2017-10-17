@@ -15,13 +15,13 @@
 
 ## Getting started
 
-1. Install with npm:
+1. Install with npm or yarn:
 
 ```shell
-npm install parcel -g
+yarn global add parcel
 ```
 
-2. Create an HTML entry point for your application, and link to your main JavaScript file:
+2. Parcel can take any type of file as an entry point, but an HTML or JavaScript file is a good place to start. If you link your main JavaScript file in the HTML using a relative path, Parcel will also process it for you, and replace the reference with a URL to the output file.
 
 ```html
 <html>
@@ -31,13 +31,26 @@ npm install parcel -g
 </html>
 ```
 
-3. Start a dev server:
+3. Parcel has a development server built in, which will automatically rebuild your app as you change files and supports hot module replacement for fast development. Just point it at your entry file:
 
 ```shell
 parcel index.html
 ```
 
-4. Open http://localhost:1234/ in your browser.
+4. Now open http://localhost:1234/ in your browser. If needed, you can also override the default port with the -p option.
+
+See [parceljs.org](https://parceljs.org) for more documentation!
+
+## Benchmarks
+
+Based on a reasonably sized app, containing 1726 modules, 6.5M uncompressed:
+
+| Bundler                 | Time      |
+| ----------------------- | --------- |
+| browserify              | 22.98s    |
+| webpack                 | 20.71s    |
+| **parcel**              | **9.98s** |
+| **parcel - with cache** | **2.64s** |
 
 ## Why parcel?
 
