@@ -43,7 +43,7 @@ See [parceljs.org](https://parceljs.org) for more documentation!
 
 ## Benchmarks
 
-Based on a reasonably sized app, containing 1726 modules, 6.5M uncompressed:
+Based on a reasonably sized app, containing 1726 modules, 6.5M uncompressed. Built on a 2016 MacBook Pro with 4 physical CPUs.
 
 | Bundler                 | Time      |
 | ----------------------- | --------- |
