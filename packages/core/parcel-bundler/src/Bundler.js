@@ -28,6 +28,7 @@ class Bundler extends EventEmitter {
     this.packagers = new PackagerRegistry;
     this.cache = this.options.cache ? new FSCache(this.options) : null;
     this.logger = new Logger(this.options);
+    this.delegate = options.delegate || {};
 
     this.pending = true;
     this.loadedAssets = new Map;
@@ -222,8 +223,17 @@ class Bundler extends EventEmitter {
     asset.generated = processed.generated;
     asset.hash = processed.hash;
 
+    // Call the delegate to get implicit dependencies
+    let dependencies = processed.dependencies;
+    if (this.delegate.getImplicitDependencies) {
+      let implicitDeps = await this.delegate.getImplicitDependencies(asset);
+      if (implicitDeps) {
+        dependencies = dependencies.concat(implicitDeps);
+      }
+    }
+
     // Process asset dependencies
-    await Promise.all(processed.dependencies.map(async dep => {
+    await Promise.all(dependencies.map(async dep => {
       let assetDep = await this.resolveDep(asset, dep);
       if (dep.includedInParent) {
         // This dependency is already included in the parent's generated output,

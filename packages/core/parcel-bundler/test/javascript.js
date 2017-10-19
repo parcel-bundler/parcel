@@ -125,4 +125,29 @@ describe('javascript', function () {
     let output = run(b);
     assert.equal(output(), 'test');
   });
+
+  it('should support adding implicit dependencies', async function () {
+    let b = await bundle(__dirname + '/integration/json/index.js', {
+      delegate: {
+        getImplicitDependencies(asset) {
+          if (asset.basename === 'index.js') {
+            return [{name: __dirname + '/integration/css/index.css'}];
+          }
+        }
+      }
+    });
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'local.json', 'index.css'],
+      childBundles: [{
+        type: 'css',
+        assets: ['index.css']
+      }]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
 });
