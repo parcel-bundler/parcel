@@ -344,7 +344,7 @@ class Bundler extends EventEmitter {
     return Server.middleware(this);
   }
 
-  serve(port) {
+  serve(port = 1234) {
     this.logger.persistent('Server running at ' + this.logger.chalk.cyan(`http://localhost:${port}`));
     this.bundle();
     return Server.serve(this, port);
