@@ -24,7 +24,7 @@ class Resolver {
       filename: parent,
       paths: this.options.paths,
       modules: builtins,
-      extensions: ['.js', '.json'],
+      extensions: Object.keys(this.options.extensions),
       packageFilter(pkg, pkgfile) {
         // Expose the path to the package.json file
         pkg.pkgfile = pkgfile;
