@@ -1,5 +1,4 @@
 const Path = require('path');
-const getPackager = require('./packagers');
 const fs = require('fs');
 const crypto = require('crypto');
 
@@ -53,7 +52,7 @@ class Bundle {
     return this.assets.size === 0;
   }
 
-  async package(options, oldHashes, newHashes = new Map) {
+  async package(bundler, oldHashes, newHashes = new Map) {
     if (this.isEmpty) {
       return newHashes;
     }
@@ -62,23 +61,21 @@ class Bundle {
     newHashes.set(this.name, hash);
 
     let promises = [];
-
     if (!oldHashes || oldHashes.get(this.name) !== hash) {
-      // console.log('bundling', this.name)
-      promises.push(this._package(options));
+      promises.push(this._package(bundler));
     }
 
     for (let bundle of this.childBundles.values()) {
-      promises.push(bundle.package(options, oldHashes, newHashes));
+      promises.push(bundle.package(bundler, oldHashes, newHashes));
     }
 
     await Promise.all(promises);
     return newHashes;
   }
 
-  async _package(options) {
-    let Packager = getPackager(this.type);
-    let packager = new Packager(this, options);
+  async _package(bundler) {
+    let Packager = bundler.packagers.get(this.type);
+    let packager = new Packager(this, bundler.options);
 
     await packager.start();
 

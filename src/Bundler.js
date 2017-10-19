@@ -11,6 +11,7 @@ const HMRServer = require('./HMRServer');
 const Server = require('./Server');
 const {EventEmitter} = require('events');
 const Logger = require('./Logger');
+const PackagerRegistry = require('./packagers');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -24,6 +25,7 @@ class Bundler extends EventEmitter {
 
     this.resolver = new Resolver(this.options);
     this.parser = new Parser(this.options);
+    this.packagers = new PackagerRegistry;
     this.cache = this.options.cache ? new FSCache(this.options) : null;
     this.logger = new Logger(this.options);
 
@@ -52,7 +54,28 @@ class Bundler extends EventEmitter {
     };
   }
 
+  addAssetType(extension, path) {
+    if (typeof path !== 'string') {
+      throw new Error('Asset type should be a module path.');
+    }
+
+    if (this.farm) {
+      throw new Error('Asset types must be added before bundling.');
+    }
+
+    this.parser.registerExtension(extension, path);
+  }
+
+  addPackager(type, packager) {
+    if (this.farm) {
+      throw new Error('Packagers must be added before bundling.');
+    }
+
+    this.packagers.add(type, packager);
+  }
+
   async bundle() {
+    this.options.extensions = this.parser.extensions;
     this.farm = WorkerFarm.getShared(this.options);
 
     if (this.options.watch) {
@@ -126,7 +149,7 @@ class Bundler extends EventEmitter {
 
     // Create a new bundle tree and package everything up.
     let bundle = this.createBundleTree(this.mainAsset);
-    this.bundleHashes = await bundle.package(this.options, this.bundleHashes);
+    this.bundleHashes = await bundle.package(this, this.bundleHashes);
 
     // Unload any orphaned assets
     this.unloadOrphanedAssets();

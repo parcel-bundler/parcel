@@ -7,11 +7,6 @@ class Parser {
   constructor(options = {}) {
     this.extensions = {};
 
-    let extensions = options.extensions || {};
-    for (let ext in extensions) {
-      this.registerExtension(ext, extensions[ext]);
-    }
-
     this.registerExtension('.js', './assets/JSAsset');
     this.registerExtension('.jsx', './assets/JSAsset');
     this.registerExtension('.es6', './assets/JSAsset');
@@ -24,6 +19,11 @@ class Parser {
     this.registerExtension('.scss', './assets/SASSAsset');
 
     this.registerExtension('.html', './assets/HTMLAsset');
+
+    let extensions = options.extensions || {};
+    for (let ext in extensions) {
+      this.registerExtension(ext, extensions[ext]);
+    }
   }
 
   registerExtension(ext, parser) {

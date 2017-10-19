@@ -3,12 +3,26 @@ const CSSPackager = require('./CSSPackager');
 const HTMLPackager = require('./HTMLPackager');
 const RawPackager = require('./RawPackager');
 
-const PACKAGERS = {
-  js: JSPackager,
-  css: CSSPackager,
-  html: HTMLPackager
-};
+class PackagerRegistry {
+  constructor() {
+    this.packagers = new Map;
 
-module.exports = function (type) {
-  return PACKAGERS[type] || RawPackager;
-};
+    this.add('js', JSPackager);
+    this.add('css', CSSPackager);
+    this.add('html', HTMLPackager);
+  }
+
+  add(type, packager) {
+    if (typeof packager === 'string') {
+      packager = require(packager);
+    }
+
+    this.packagers.set(type, packager);
+  }
+
+  get(type) {
+    return this.packagers.get(type) || RawPackager;
+  }
+}
+
+module.exports = PackagerRegistry;
