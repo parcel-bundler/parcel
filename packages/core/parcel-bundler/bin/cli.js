@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+require('v8-compile-cache');
 const chalk = require('chalk');
 const program = require('commander');
 const version = require('../package.json').version;
