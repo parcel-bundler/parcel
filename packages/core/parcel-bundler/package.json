@@ -1,7 +1,7 @@
 {
   "name": "parcel",
   "version": "1.0.0",
-  "main": "src/Bundler.js",
+  "main": "index.js",
   "license": "MIT",
   "dependencies": {
     "babel-core": "^6.25.0",
@@ -31,6 +31,8 @@
     "ws": "^3.1.0"
   },
   "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
     "babel-preset-es2015": "^6.24.1",
     "less": "^2.7.2",
     "mocha": "^3.5.0",
@@ -43,9 +45,13 @@
     "stylus": "^0.54.5"
   },
   "scripts": {
-    "test": "NODE_ENV=test mocha"
+    "test": "NODE_ENV=test mocha",
+    "prepublish": "babel src -d lib"
   },
   "bin": {
     "parcel": "bin/cli.js"
+  },
+  "engines": {
+    "node": ">= 6.0.0"
   }
 }
