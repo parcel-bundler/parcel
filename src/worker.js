@@ -1,3 +1,4 @@
+require('v8-compile-cache');
 const fs = require('./utils/fs');
 const Parser = require('./Parser');
 const babel = require('./transforms/babel');

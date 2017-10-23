@@ -26,6 +26,7 @@
     "resolve": "^1.4.0",
     "serve-static": "^1.12.4",
     "uglify-js": "^3.0.28",
+    "v8-compile-cache": "^1.1.0",
     "worker-farm": "^1.4.1",
     "ws": "^3.1.0"
   },
