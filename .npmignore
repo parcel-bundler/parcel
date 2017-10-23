@@ -1,11 +1,8 @@
-node_modules/
 .DS_Store
 yarn.lock
 package-lock.json
-test/dist
-test/input
+test
 coverage
 .nyc_output
 .cache
 dist
-lib
