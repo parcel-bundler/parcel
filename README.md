@@ -18,7 +18,7 @@
 1. Install with npm or yarn:
 
 ```shell
-yarn global add parcel
+yarn global add parcel-bundler
 ```
 
 2. Parcel can take any type of file as an entry point, but an HTML or JavaScript file is a good place to start. If you link your main JavaScript file in the HTML using a relative path, Parcel will also process it for you, and replace the reference with a URL to the output file.
