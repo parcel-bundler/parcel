@@ -150,4 +150,18 @@ describe('javascript', function () {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
+
+  it('should support requiring YAML files', async function () {
+    let b = await bundle(__dirname + '/integration/yaml/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'local.yaml'],
+      childBundles: []
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
 });
