@@ -1,5 +1,6 @@
 const promisify = require('./utils/promisify');
-const resolve = promisify(require('browser-resolve'));
+const resolve = require('browser-resolve');
+const resolveAsync = promisify(resolve);
 const builtins = require('./builtins');
 const path = require('path');
 const glob = require('glob');
@@ -11,7 +12,17 @@ class Resolver {
   }
 
   async resolve(filename, parent) {
-    let key = (parent ? path.dirname(parent) : '') + ':' + filename;
+    var resolved = await this.resolveInternal(filename, parent, resolveAsync);
+    return this.saveCache(filename, parent, resolved);
+  }
+
+  resolveSync(filename, parent) {
+    var resolved = this.resolveInternal(filename, parent, resolve.sync);
+    return this.saveCache(filename, parent, resolved);
+  }
+
+  resolveInternal(filename, parent, resolver) {
+    let key = this.getCacheKey(filename, parent);
     if (this.cache.has(key)) {
       return this.cache.get(key);
     }
@@ -20,7 +31,7 @@ class Resolver {
       return {path: path.resolve(path.dirname(parent), filename)};
     }
 
-    var res = await resolve(filename, {
+    return resolver(filename, {
       filename: parent,
       paths: this.options.paths,
       modules: builtins,
@@ -31,15 +42,21 @@ class Resolver {
         return pkg;
       }
     });
+  }
 
-    if (Array.isArray(res)) {
-      res = {path: res[0], pkg: res[1]};
-    } else {
-      res = {path: res, pkg: null};
+  getCacheKey(filename, parent) {
+    return (parent ? path.dirname(parent) : '') + ':' + filename;
+  }
+
+  saveCache(filename, parent, resolved) {
+    if (Array.isArray(resolved)) {
+      resolved = {path: resolved[0], pkg: resolved[1]};
+    } else if (typeof resolved === 'string') {
+      resolved = {path: resolved, pkg: null};
     }
 
-    this.cache.set(key, res);
-    return res;
+    this.cache.set(this.getCacheKey(filename, parent), resolved);
+    return resolved;
   }
 }
 

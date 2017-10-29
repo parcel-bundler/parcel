@@ -46,6 +46,7 @@ describe('stylus', function () {
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('.index'));
     assert(css.includes('.a'));
+    assert(css.includes('-webkit-box'));
   });
 
   it('should support linking to assets with url() from stylus', async function () {
