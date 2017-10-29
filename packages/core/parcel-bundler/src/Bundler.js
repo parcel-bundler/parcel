@@ -76,7 +76,7 @@ class Bundler extends EventEmitter {
   }
 
   async bundle() {
-    this.options.extensions = this.parser.extensions;
+    this.options.extensions = Object.assign({}, this.parser.extensions);
     this.farm = WorkerFarm.getShared(this.options);
 
     if (this.options.watch) {

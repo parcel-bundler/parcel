@@ -1,6 +1,9 @@
 const CSSAsset = require('./CSSAsset');
 const config = require('../utils/config');
 const localRequire = require('../utils/localRequire');
+const Resolver = require('../Resolver');
+
+const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
 class StylusAsset extends CSSAsset {
   async parse(code) {
@@ -9,6 +12,8 @@ class StylusAsset extends CSSAsset {
     let opts = this.package.stylus || await config.load(this.name, ['.stylusrc', '.stylusrc.js']);
     let style = stylus(code, opts);
     style.set('filename', this.name);
+    style.set('include css', true);
+    style.set('Evaluator', createEvaluator(this));
 
     // Setup a handler for the URL function so we add dependencies for linked assets.
     style.define('url', node => {
@@ -20,9 +25,7 @@ class StylusAsset extends CSSAsset {
   }
 
   collectDependencies() {
-    for (let dep of this.ast.deps()) {
-      this.addDependency(dep, {includedInParent: true});
-    }
+    // Do nothing. Dependencies are collected by our custom evaluator.
   }
 
   generateErrorMessage(err) {
@@ -31,6 +34,58 @@ class StylusAsset extends CSSAsset {
     err.message = err.message.slice(0, index);
     return err;
   }
+}
+
+function createEvaluator(asset) {
+  const Evaluator = localRequire('stylus/lib/visitor/evaluator', asset.name);
+  const utils = localRequire('stylus/lib/utils', asset.name);
+  const resolver = new Resolver(asset.options);
+
+  // This is a custom stylus evaluator that extends stylus with support for the node
+  // require resolution algorithm. It also adds all dependencies to the parcel asset
+  // tree so the file watcher works correctly, etc.
+  class CustomEvaluator extends Evaluator {
+    visitImport(imported) {
+      let node = this.visit(imported.path).first;
+      let path = node.string;
+      if (node.name !== 'url' && path && !URL_RE.test(path)) {
+        try {
+          // First try resolving using the node require resolution algorithm.
+          // This allows stylus files in node_modules to be resolved properly.
+          // If we find something, update the AST so stylus gets the absolute path to load later.
+          node.string = resolver.resolveSync(path, imported.filename).path;
+          asset.addDependency(node.string, {includedInParent: true});
+        } catch (err) {
+          // If we couldn't resolve, try the normal stylus resolver.
+          // We just need to do this to keep track of the dependencies - stylus does the real work.
+
+          // support optional .styl
+          if (!/\.styl$/i.test(path)) {
+            path += '.styl';
+          }
+
+          let found = utils.find(path, this.paths, this.filename);
+          if (!found) {
+            found = utils.lookupIndex(node.string, this.paths, this.filename);
+          }
+
+          if (!found) {
+            let nodeName = imported.once ? 'require' : 'import';
+            throw new Error('failed to locate @' + nodeName + ' file ' + node.string);
+          }
+
+          for (let file of found) {
+            asset.addDependency(file, {includedInParent: true});
+          }
+        }
+      }
+
+      // Done. Let stylus do its thing.
+      return super.visitImport(imported);
+    }
+  }
+
+  return CustomEvaluator;
 }
 
 module.exports = StylusAsset;
