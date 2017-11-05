@@ -30,13 +30,15 @@ class Bundler extends EventEmitter {
     this.logger = new Logger(this.options);
     this.delegate = options.delegate || {};
 
-    this.pending = true;
+    this.pending = false;
     this.loadedAssets = new Map;
     this.farm = null;
     this.watcher = null;
     this.hmr = null;
     this.bundleHashes = null;
     this.errored = false;
+    this.buildQueue = new Set;
+    this.rebuildTimeout = null;
   }
 
   normalizeOptions(options) {
@@ -76,6 +78,62 @@ class Bundler extends EventEmitter {
   }
 
   async bundle() {
+    // If another bundle is already pending, wait for that one to finish and retry.
+    if (this.pending) {
+      return new Promise((resolve, reject) => {
+        this.once('buildEnd', () => {
+          this.bundle().then(resolve, reject);
+        });
+      });
+    }
+
+    let isInitialBundle = !this.mainAsset;
+    let startTime = Date.now();
+    this.pending = true;
+    this.errored = false;
+
+    this.logger.clear();
+    this.logger.status('⏳', 'Building...');
+
+    try {
+      // Start worker farm, watcher, etc. if needed
+      this.start();
+
+      // If this is the initial bundle, ensure the output directory exists, and resolve the main asset.
+      if (isInitialBundle) {
+        await fs.mkdirp(this.options.outDir);
+
+        this.mainAsset = await this.resolveAsset(this.mainFile);
+        this.buildQueue.add(this.mainAsset);
+      }
+
+      // Build the queued assets, and produce a bundle tree.
+      let bundle = await this.buildQueuedAssets(isInitialBundle);
+
+      let buildTime = Date.now() - startTime;
+      let time = buildTime < 1000 ? `${buildTime}ms` : `${(buildTime / 1000).toFixed(2)}s`;
+      this.logger.status('✨', `Built in ${time}.`, 'green');
+
+      return bundle;
+    } catch (err) {
+      this.errored = true;
+      this.logger.error(err);
+    } finally {
+      this.pending = false;
+      this.emit('buildEnd');
+
+      // If not in watch mode, stop the worker farm so we don't keep the process running.
+      if (!this.watcher && this.options.killWorkers) {
+        this.stop();
+      }
+    }
+  }
+
+  start() {
+    if (this.farm) {
+      return;
+    }
+
     this.options.extensions = Object.assign({}, this.parser.extensions);
     this.farm = WorkerFarm.getShared(this.options);
 
@@ -87,22 +145,6 @@ class Bundler extends EventEmitter {
     if (this.options.hmr) {
       this.hmr = new HMRServer;
       this.options.hmrPort = this.hmr.port;
-    }
-
-    this.logger.status('⏳', 'Building...');
-
-    try {
-      await fs.mkdirp(this.options.outDir);
-
-      this.mainAsset = await this.resolveAsset(this.mainFile);
-      return await this.buildAsset(this.mainAsset, true);
-    } catch (err) {
-      this.errored = true;
-      this.logger.error(err);
-    } finally {
-      if (!this.watcher && this.options.killWorkers) {
-        this.stop();
-      }
     }
   }
 
@@ -120,27 +162,33 @@ class Bundler extends EventEmitter {
     }
   }
 
-  async buildAsset(asset, isInitialBundle = false) {
-    let startTime = Date.now();
-    this.pending = true;
-    this.errored = false;
+  async buildQueuedAssets(isInitialBundle = false) {
+    // Consume the rebuild queue until it is empty.
+    let loadedAssets = new Set;
+    while (this.buildQueue.size > 0) {
+      let promises = [];
+      for (let asset of this.buildQueue) {
+        // Invalidate the asset, unless this is the initial bundle
+        if (!isInitialBundle) {
+          asset.invalidate();
+          if (this.cache) {
+            this.cache.invalidate(asset.name);
+          }
+        }
 
-    // Invalidate the asset, unless this is the initial bundle
-    if (!isInitialBundle) {
-      asset.invalidate();
-      if (this.cache) {
-        this.cache.invalidate(asset.name);
+        promises.push(this.loadAsset(asset));
+        loadedAssets.add(asset);
       }
-    }
 
-    // Load the asset, and its dependencies
-    await this.loadAsset(asset);
+      // Wait for all assets to load. If there are more added while
+      // these are processing, they'll be loaded in the next batch.
+      await Promise.all(promises);
+    }
 
     // Emit an HMR update for any new assets (that don't have a parent bundle yet)
     // plus the asset that actually changed.
     if (this.hmr && !isInitialBundle) {
-      let assets = [...this.findOrphanAssets(), asset];
-      this.hmr.emitUpdate(assets);
+      this.hmr.emitUpdate([...this.findOrphanAssets(), ...loadedAssets]);
     }
 
     // Invalidate bundles
@@ -155,13 +203,7 @@ class Bundler extends EventEmitter {
     // Unload any orphaned assets
     this.unloadOrphanedAssets();
 
-    this.pending = false;
     this.emit('bundled', bundle);
-
-    let buildTime = Date.now() - startTime;
-    let time = buildTime < 1000 ? `${buildTime}ms` : `${(buildTime / 1000).toFixed(2)}s`;
-    this.logger.status('✨', `Built in ${time}.`, 'green');
-
     return bundle;
   }
 
@@ -201,6 +243,7 @@ class Bundler extends EventEmitter {
 
   async loadAsset(asset) {
     if (asset.processed) {
+      this.buildQueue.delete(asset);
       return;
     }
 
@@ -246,6 +289,8 @@ class Bundler extends EventEmitter {
         await this.loadAsset(assetDep);
       }
     }));
+
+    this.buildQueue.delete(asset);
   }
 
   createBundleTree(asset, dep, bundle) {
@@ -340,14 +385,15 @@ class Bundler extends EventEmitter {
     }
 
     this.logger.clear();
-    this.logger.status('⏳', `Rebuilding ${path}...`);
+    this.logger.status('⏳', `Building ${asset.basename}...`);
 
-    try {
-      await this.buildAsset(asset);
-    } catch (err) {
-      this.errored = true;
-      this.logger.error(err);
-    }
+    // Add the asset to the rebuild queue, and reset the timeout.
+    this.buildQueue.add(asset);
+    clearTimeout(this.rebuildTimeout);
+
+    this.rebuildTimeout = setTimeout(async () => {
+      await this.bundle();
+    }, 100);
   }
 
   middleware() {
