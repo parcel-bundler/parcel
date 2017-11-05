@@ -71,8 +71,12 @@ class Logger {
   }
 
   clear() {
+    if (!this.color) {
+      return;
+    }
+
     while (this.lines > 0) {
-      readline.clearLine(process.stdout, 0)
+      readline.clearLine(process.stdout, 0);
       readline.moveCursor(process.stdout, 0, -1);
       this.lines--;
     }
