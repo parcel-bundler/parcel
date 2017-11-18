@@ -67,6 +67,27 @@ describe('html', function () {
     assert(/<link rel="stylesheet" href="\/dist\/[a-f0-9]+\.css">/.test(html));
   });
 
+  it('should insert a HEAD element if needed when adding CSS bundles', async function () {
+    let b = await bundle(__dirname + '/integration/html-css-head/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [{
+        type: 'js',
+        assets: ['index.js', 'index.css'],
+        childBundles: [{
+          type: 'css',
+          assets: ['index.css'],
+          childBundles: []
+        }]
+      }]
+    });
+
+    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    assert(/<head><link rel="stylesheet" href="\/dist\/[a-f0-9]+\.css"><\/head>/.test(html));
+  });
+
   it('should minify HTML in production mode', async function () {
     let b = await bundle(__dirname + '/integration/htmlnano/index.html', {production: true});
 

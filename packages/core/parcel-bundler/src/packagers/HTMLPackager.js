@@ -21,20 +21,37 @@ class HTMLPackager extends Packager {
   }
 
   insertCSSBundles(cssBundles, tree) {
-    tree.match({tag: 'head'}, head => {
-      for (let bundle of cssBundles) {
-        head.content.push({
-          tag: 'link',
-          attrs: {
-            rel: 'stylesheet',
-            href: path.join(this.options.publicURL, path.basename(bundle.name))
-          }
-        });
-      }
+    let head = find(tree, 'head');
+    if (!head) {
+      let html = find(tree, 'html');
+      head = {tag: 'head'};
+      html.content.unshift(head);
+    }
 
-      return head;
-    });
+    if (!head.content) {
+      head.content = [];
+    }
+
+    for (let bundle of cssBundles) {
+      head.content.push({
+        tag: 'link',
+        attrs: {
+          rel: 'stylesheet',
+          href: path.join(this.options.publicURL, path.basename(bundle.name))
+        }
+      });
+    }
   }
+}
+
+function find(tree, tag) {
+  let res;
+  tree.match({tag}, node => {
+    res = node;
+    return node;
+  });
+
+  return res;
 }
 
 module.exports = HTMLPackager;
