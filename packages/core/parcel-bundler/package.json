@@ -6,6 +6,7 @@
   "dependencies": {
     "babel-core": "^6.25.0",
     "babel-generator": "^6.25.0",
+    "babel-plugin-transform-es2015-modules-commonjs": "^6.26.0",
     "babel-to-estree": "^0.0.2",
     "babylon": "^6.17.4",
     "babylon-walk": "^1.0.2",

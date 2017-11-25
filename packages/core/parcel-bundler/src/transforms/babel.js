@@ -9,12 +9,25 @@ module.exports = async function (asset) {
 
   await asset.parseIfNeeded();
 
-  let res = babel.transformFromAst(asset.ast, asset.contents, {code: false, filename: asset.name});
+  let config = {
+    code: false,
+    filename: asset.name
+  };
+
+  if (asset.isES6Module) {
+    config.plugins = ['transform-es2015-modules-commonjs'];
+  }
+
+  let res = babel.transformFromAst(asset.ast, asset.contents, config);
   asset.ast = res.ast;
   asset.isAstDirty = true;
 };
 
 async function shouldTransform(asset) {
+  if (asset.isES6Module) {
+    return true;
+  }
+
   if (asset.ast) {
     return !!asset.babelConfig;
   }
