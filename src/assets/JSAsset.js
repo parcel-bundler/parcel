@@ -12,7 +12,7 @@ const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
 const config = require('../utils/config');
 
-const IMPORT_RE = /\b(?:import\b|export [^;]* from|require\s*\()/;
+const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
 const FS_RE = /\breadFileSync\b/;
 
@@ -22,6 +22,7 @@ class JSAsset extends Asset {
     this.type = 'js';
     this.globals = new Map;
     this.isAstDirty = false;
+    this.isES6Module = false;
     this.outputCode = null;
   }
 
@@ -80,6 +81,10 @@ class JSAsset extends Asset {
     if (GLOBAL_RE.test(this.contents)) {
       await this.parseIfNeeded();
       walk.ancestor(this.ast, insertGlobals, this);
+    }
+
+    if (this.isES6Module) {
+      await babel(this);
     }
 
     if (this.options.minify) {

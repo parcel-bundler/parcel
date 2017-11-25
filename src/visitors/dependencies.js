@@ -7,16 +7,19 @@ const argTemplate = template('require.resolve(MODULE)');
 
 module.exports = {
   ImportDeclaration(node, asset) {
+    asset.isES6Module = true;
     addDependency(asset, node.source);
   },
 
   ExportNamedDeclaration(node, asset) {
+    asset.isES6Module = true;
     if (node.source) {
       addDependency(asset, node.source);
     }
   },
 
   ExportAllDeclaration(node, asset) {
+    asset.isES6Module = true;
     addDependency(asset, node.source);
   },
 
