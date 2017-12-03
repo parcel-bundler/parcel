@@ -408,3 +408,5 @@ class Bundler extends EventEmitter {
 }
 
 module.exports = Bundler;
+Bundler.Asset = require('./Asset');
+Bundler.Packager = require('./packagers/Packager');
