@@ -75,7 +75,7 @@ class Bundle {
 
   async _package(bundler) {
     let Packager = bundler.packagers.get(this.type);
-    let packager = new Packager(this, bundler.options);
+    let packager = new Packager(this, bundler);
 
     await packager.start();
 
