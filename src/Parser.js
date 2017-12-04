@@ -7,20 +7,20 @@ class Parser {
   constructor(options = {}) {
     this.extensions = {};
 
-    this.registerExtension('.js', './assets/JSAsset');
-    this.registerExtension('.jsx', './assets/JSAsset');
-    this.registerExtension('.es6', './assets/JSAsset');
-    this.registerExtension('.json', './assets/JSONAsset');
-    this.registerExtension('.yaml', './assets/YAMLAsset');
-    this.registerExtension('.yml', './assets/YAMLAsset');
+    this.registerExtension('js', './assets/JSAsset');
+    this.registerExtension('jsx', './assets/JSAsset');
+    this.registerExtension('es6', './assets/JSAsset');
+    this.registerExtension('json', './assets/JSONAsset');
+    this.registerExtension('yaml', './assets/YAMLAsset');
+    this.registerExtension('yml', './assets/YAMLAsset');
 
-    this.registerExtension('.css', './assets/CSSAsset');
-    this.registerExtension('.styl', './assets/StylusAsset');
-    this.registerExtension('.less', './assets/LESSAsset');
-    this.registerExtension('.sass', './assets/SASSAsset');
-    this.registerExtension('.scss', './assets/SASSAsset');
+    this.registerExtension('css', './assets/CSSAsset');
+    this.registerExtension('styl', './assets/StylusAsset');
+    this.registerExtension('less', './assets/LESSAsset');
+    this.registerExtension('sass', './assets/SASSAsset');
+    this.registerExtension('scss', './assets/SASSAsset');
 
-    this.registerExtension('.html', './assets/HTMLAsset');
+    this.registerExtension('html', './assets/HTMLAsset');
 
     let extensions = options.extensions || {};
     for (let ext in extensions) {
@@ -29,6 +29,10 @@ class Parser {
   }
 
   registerExtension(ext, parser) {
+    if (!ext.startsWith('.')) {
+      ext = '.' + ext;
+    }
+
     this.extensions[ext] = parser;
   }
 
