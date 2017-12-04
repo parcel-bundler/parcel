@@ -17,7 +17,10 @@ class WorkerFarm extends Farm {
     this.remoteWorker = this.promisifyWorker(this.setup(['init', 'run']));
 
     this.started = false;
+    this.init(options);
+  }
 
+  init(options) {
     this.localWorker.init(options);
     this.initRemoteWorkers(options);
   }
@@ -33,6 +36,8 @@ class WorkerFarm extends Farm {
   }
 
   async initRemoteWorkers(options) {
+    this.started = false;
+
     let promises = [];
     for (let i = 0; i < this.activeChildren; i++) {
       promises.push(this.remoteWorker.init(options));
@@ -69,6 +74,8 @@ class WorkerFarm extends Farm {
   static getShared(options) {
     if (!shared) {
       shared = new WorkerFarm(options);
+    } else {
+      shared.init(options);
     }
 
     return shared;
