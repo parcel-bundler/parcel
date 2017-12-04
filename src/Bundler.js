@@ -12,6 +12,7 @@ const Server = require('./Server');
 const {EventEmitter} = require('events');
 const Logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
+const localRequire = require('./utils/localRequire');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -39,6 +40,8 @@ class Bundler extends EventEmitter {
     this.errored = false;
     this.buildQueue = new Set;
     this.rebuildTimeout = null;
+
+    this.loadPlugins();
   }
 
   normalizeOptions(options) {
@@ -75,6 +78,18 @@ class Bundler extends EventEmitter {
     }
 
     this.packagers.add(type, packager);
+  }
+
+  loadPlugins() {
+    try {
+      let pkg = localRequire('./package.json', this.mainFile);
+      let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
+      for (let dep in deps) {
+        if (dep.startsWith('parcel-plugin-')) {
+          localRequire(dep, this.mainFile)(this);
+        }
+      }
+    } catch (err) {}
   }
 
   async bundle() {
