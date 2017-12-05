@@ -19,7 +19,7 @@ class Asset {
     this.id = ASSET_ID++;
     this.name = name;
     this.basename = path.basename(this.name);
-    this.package = pkg;
+    this.package = pkg || {};
     this.options = options;
     this.encoding = 'utf8';
     this.type = path.extname(this.name).slice(1);
