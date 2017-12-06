@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('./utils/fs');
 const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
-const isURL = require('is-url');
+const isURL = require('./utils/is-url');
 
 let ASSET_ID = 1;
 
