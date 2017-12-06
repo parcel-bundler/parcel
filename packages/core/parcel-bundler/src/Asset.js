@@ -11,7 +11,7 @@ let ASSET_ID = 1;
 /**
  * An Asset represents a file in the dependency tree. Assets can have multiple
  * parents that depend on it, and can be added to multiple output bundles.
- * The base Asset class doesn't to much by itself, but sets up an interface
+ * The base Asset class doesn't do much by itself, but sets up an interface
  * for subclasses to implement.
  */
 class Asset {
