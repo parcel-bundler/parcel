@@ -57,7 +57,8 @@
   "scripts": {
     "test": "NODE_ENV=test mocha",
     "format": "prettier --write './{src,bin,test}/**/*.js'",
-    "prepublish": "babel src -d lib",
+    "build": "babel src -d lib",
+    "prepublish": "yarn build",
     "precommit": "lint-staged"
   },
   "bin": {
