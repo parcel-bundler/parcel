@@ -10,7 +10,7 @@ function getBundleURLCached() {
 function getBundleURL() {
   // Attempt to find the URL of the current script and use that as the base URL
   try {
-    throw new Error;
+    throw new Error();
   } catch (err) {
     var matches = ('' + err.stack).match(/(https?|file|ftp):\/\/[^\)]+/g);
     if (matches) {
@@ -22,7 +22,9 @@ function getBundleURL() {
 }
 
 function getBaseURL(url) {
-  return ('' + url).replace(/^((?:https?|file|ftp):\/\/.+)\/[^\/]+$/, '$1') + '/';
+  return (
+    ('' + url).replace(/^((?:https?|file|ftp):\/\/.+)\/[^\/]+$/, '$1') + '/'
+  );
 }
 
 exports.getBundleURL = getBundleURLCached;

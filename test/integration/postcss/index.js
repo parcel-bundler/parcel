@@ -1,5 +1,5 @@
 var map = require('./index.css');
 
-module.exports = function () {
+module.exports = function() {
   return map.index;
 };

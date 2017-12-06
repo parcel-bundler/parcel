@@ -4,7 +4,8 @@ const readline = require('readline');
 class Logger {
   constructor(options) {
     this.logLevel = typeof options.logLevel === 'number' ? options.logLevel : 3;
-    this.color = typeof options.color === 'boolean' ? options.color : chalk.supportsColor;
+    this.color =
+      typeof options.color === 'boolean' ? options.color : chalk.supportsColor;
     this.chalk = new chalk.constructor({enabled: this.color});
     this.lines = 0;
     this.statusLine = null;
@@ -110,7 +111,10 @@ class Logger {
       this.statusLine = this.lines;
     }
 
-    this.writeLine(this.statusLine, this.chalk[color].bold(`${emoji}  ${message}`));
+    this.writeLine(
+      this.statusLine,
+      this.chalk[color].bold(`${emoji}  ${message}`)
+    );
 
     if (!hasStatusLine) {
       process.stdout.write('\n');

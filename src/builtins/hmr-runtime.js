@@ -1,12 +1,12 @@
-var global = (1,eval)('this');
+var global = (1, eval)('this');
 var OldModule = module.bundle.Module;
 function Module() {
   OldModule.call(this);
   this.hot = {
-    accept: function (fn) {
-      this._acceptCallback = fn || function () {};
+    accept: function(fn) {
+      this._acceptCallback = fn || function() {};
     },
-    dispose: function (fn) {
+    dispose: function(fn) {
       this._disposeCallback = fn;
     }
   };
@@ -16,7 +16,7 @@ module.bundle.Module = Module;
 
 if (!module.bundle.parent) {
   var ws = new WebSocket('ws://localhost:{{HMR_PORT}}/');
-  ws.onmessage = (e) => {
+  ws.onmessage = e => {
     var data = JSON.parse(e.data);
 
     if (data.type === 'update') {
@@ -95,5 +95,7 @@ function hmrAccept(bundle, id) {
     return true;
   }
 
-  return getParents(global.require, id).some(id => hmrAccept(global.require, id));
+  return getParents(global.require, id).some(id =>
+    hmrAccept(global.require, id)
+  );
 }

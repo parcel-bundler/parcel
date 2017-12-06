@@ -10,8 +10,10 @@ class FSCache {
   constructor(options) {
     this.dir = path.resolve(options.cacheDir || '.cache');
     this.dirExists = false;
-    this.invalidated = new Set;
-    this.optionsHash = objectHash(OPTION_KEYS.reduce((p, k) => (p[k] = options[k], p), {}));
+    this.invalidated = new Set();
+    this.optionsHash = objectHash(
+      OPTION_KEYS.reduce((p, k) => ((p[k] = options[k]), p), {})
+    );
   }
 
   async ensureDirExists() {

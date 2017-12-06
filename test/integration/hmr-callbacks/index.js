@@ -6,10 +6,10 @@ function run() {
 
 run();
 
-module.hot.dispose(function () {
+module.hot.dispose(function() {
   output('dispose');
 });
 
-module.hot.accept(function () {
+module.hot.accept(function() {
   output('accept');
 });

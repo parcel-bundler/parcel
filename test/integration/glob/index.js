@@ -1,5 +1,5 @@
 var vars = require('./dir/*.js');
 
-module.exports = function () {
+module.exports = function() {
   return vars.a + vars.b;
 };
