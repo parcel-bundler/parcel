@@ -112,7 +112,7 @@ class Bundler extends EventEmitter {
 
     try {
       // Start worker farm, watcher, etc. if needed
-      this.start();
+      await this.start();
 
       // If this is the initial bundle, ensure the output directory exists, and resolve the main asset.
       if (isInitialBundle) {
@@ -144,7 +144,7 @@ class Bundler extends EventEmitter {
     }
   }
 
-  start() {
+  async start() {
     if (this.farm) {
       return;
     }
@@ -159,7 +159,7 @@ class Bundler extends EventEmitter {
 
     if (this.options.hmr) {
       this.hmr = new HMRServer;
-      this.options.hmrPort = this.hmr.port;
+      this.options.hmrPort = await this.hmr.start();
     }
   }
 

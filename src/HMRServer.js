@@ -1,9 +1,12 @@
 const WebSocket = require('ws');
 
 class HMRServer {
-  constructor() {
-    this.wss = new WebSocket.Server({port: 0});
-    this.port = this.wss._server.address().port;
+  async start() {
+    await new Promise((resolve) => {
+      this.wss = new WebSocket.Server({port: 0}, resolve);
+    });
+
+    return this.wss._server.address().port;
   }
 
   stop() {
