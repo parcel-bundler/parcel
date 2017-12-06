@@ -3,7 +3,7 @@ const path = require('path');
 
 const existsCache = new Map;
 
-async function resolve(filepath, filenames, root = '/') {
+async function resolve(filepath, filenames, root = path.parse(filepath).root) {
   filepath = path.dirname(filepath);
 
   // Don't traverse above the module root
@@ -25,7 +25,7 @@ async function resolve(filepath, filenames, root = '/') {
   return resolve(filepath, filenames, root);
 }
 
-async function load(filepath, filenames, root = '/') {
+async function load(filepath, filenames, root = path.parse(filepath).root) {
   let configFile = await resolve(filepath, filenames, root);
   if (configFile) {
     if (path.extname(configFile) === '.js') {
