@@ -40,6 +40,7 @@
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.6.1",
+    "cross-env": "^5.1.1",
     "less": "^2.7.2",
     "mocha": "^3.5.0",
     "ncp": "^2.0.0",
@@ -52,7 +53,7 @@
     "stylus": "^0.54.5"
   },
   "scripts": {
-    "test": "NODE_ENV=test mocha",
+    "test": "cross-env NODE_ENV=test mocha",
     "prepublish": "babel src -d lib"
   },
   "bin": {
