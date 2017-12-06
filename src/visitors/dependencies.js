@@ -23,6 +23,10 @@ module.exports = {
     addDependency(asset, node.source);
   },
 
+  ExportDefaultDeclaration(node, asset) {
+    asset.isES6Module = true;
+  },
+
   CallExpression(node, asset) {
     let {callee, arguments: args} = node;
 
