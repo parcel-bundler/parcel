@@ -408,7 +408,7 @@ class Bundler extends EventEmitter {
 
     this.rebuildTimeout = setTimeout(async () => {
       await this.bundle();
-    }, 100);
+    }, 1000);
   }
 
   middleware() {
