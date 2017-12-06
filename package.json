@@ -41,6 +41,7 @@
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.6.1",
     "babel-preset-flow": "^6.23.0",
+    "babel-register": "^6.26.0",
     "flow-bin": "^0.60.1",
     "husky": "^0.14.3",
     "less": "^2.7.2",
@@ -57,7 +58,7 @@
     "stylus": "^0.54.5"
   },
   "scripts": {
-    "test": "NODE_ENV=test mocha",
+    "test": "NODE_ENV=test mocha --compilers js:babel-register",
     "format": "prettier --write './{src,bin,test}/**/*.js'",
     "build": "babel src -d lib",
     "prepublish": "yarn build",
