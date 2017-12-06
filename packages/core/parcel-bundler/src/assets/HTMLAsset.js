@@ -6,6 +6,7 @@ const path = require('path');
 const md5 = require('../utils/md5');
 const render = require('posthtml-render');
 const posthtmlTransform = require('../transforms/posthtml');
+const isURL = require('is-url');
 
 // A list of all attributes that should produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
@@ -35,7 +36,11 @@ class HTMLAsset extends Asset {
         for (let attr in node.attrs) {
           let elements = ATTRS[attr];
           if (elements && elements.includes(node.tag)) {
-            node.attrs[attr] = path.join(this.options.publicURL, this.addURLDependency(node.attrs[attr]));
+            let assetPath = this.addURLDependency(node.attrs[attr]);
+            if (!isURL(assetPath)) {
+              assetPath = path.join(this.options.publicURL, assetPath);
+            }
+            node.attrs[attr] = assetPath;
             this.isAstDirty = true;
           }
         }
