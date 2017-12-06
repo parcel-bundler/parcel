@@ -9,3 +9,4 @@ coverage
 .cache
 dist
 lib
+!test/**/node_modules
