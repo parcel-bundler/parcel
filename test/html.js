@@ -102,4 +102,11 @@ describe('html', function () {
     let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
     assert(html.includes('<script src="https://unpkg.com/parcel-bundler"></script>'));
   });
+
+  it('should not prepend the public path to hash links', async function () {
+    let b = await bundle(__dirname + '/integration/html/index.html');
+
+    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
+    assert(html.includes('<a href="#hash_link">'));
+  });
 });
