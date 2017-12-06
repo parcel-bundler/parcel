@@ -3,6 +3,10 @@
   "version": "1.0.1",
   "main": "index.js",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
   "dependencies": {
     "babel-core": "^6.25.0",
     "babel-generator": "^6.25.0",
