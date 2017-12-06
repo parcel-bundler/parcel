@@ -4,5 +4,6 @@ node_js:
   # - '6'
   - '8'
 cache: yarn
+install: yarn install
 script: yarn test
 sudo: false
