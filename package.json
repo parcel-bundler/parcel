@@ -35,7 +35,6 @@
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.6.1",
-    "babel-preset-es2015": "^6.24.1",
     "less": "^2.7.2",
     "mocha": "^3.5.0",
     "ncp": "^2.0.0",
