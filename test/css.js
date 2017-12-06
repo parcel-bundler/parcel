@@ -97,6 +97,10 @@ describe('css', function () {
     assert(/url\("[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
+    assert(css.includes('url("data:image/gif;base64,quotes")'));
+    assert(css.includes('.quotes'));
+    assert(css.includes('url(data:image/gif;base64,no-quote)'));
+    assert(css.includes('.no-quote'));
 
     assert(fs.existsSync(__dirname + '/dist/' + css.match(/url\("([0-9a-f]+\.woff2)"\)/)[1]));
   });
