@@ -1,12 +1,20 @@
+# Node lock & module files
 node_modules/
-.DS_Store
+!test/**/node_modules
 yarn.lock
 package-lock.json
+.nyc_output
+.cache
+
+# Mac Files
+.DS_Store
+
+# Data
 test/dist
 test/input
 coverage
-.nyc_output
-.cache
 dist
 lib
-!test/**/node_modules
+
+# Editors
+.vscode/
