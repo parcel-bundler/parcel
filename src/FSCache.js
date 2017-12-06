@@ -1,3 +1,4 @@
+// @flow
 const fs = require('./utils/fs');
 const path = require('path');
 const md5 = require('./utils/md5');
@@ -6,8 +7,20 @@ const objectHash = require('./utils/objectHash');
 // These keys can affect the output, so if they differ, the cache should not match
 const OPTION_KEYS = ['publicURL', 'minify', 'hmr'];
 
+export type FSCacheOptions = {
+  cacheDir?: string,
+  publicURL?: string,
+  minify?: string,
+  hmr?: string
+};
+
 class FSCache {
-  constructor(options) {
+  dir: string;
+  dirExists: boolean;
+  invalidated: Set<string>;
+  optionsHash: string;
+
+  constructor(options: FSCacheOptions) {
     this.dir = path.resolve(options.cacheDir || '.cache');
     this.dirExists = false;
     this.invalidated = new Set();
@@ -21,12 +34,12 @@ class FSCache {
     this.dirExists = true;
   }
 
-  getCacheFile(filename) {
+  getCacheFile(filename: string) {
     let hash = md5(this.optionsHash + filename);
     return path.join(this.dir, hash + '.json');
   }
 
-  async write(filename, data) {
+  async write(filename: string, data: Object) {
     try {
       await this.ensureDirExists();
       await fs.writeFile(this.getCacheFile(filename), JSON.stringify(data));
@@ -36,7 +49,7 @@ class FSCache {
     }
   }
 
-  async read(filename) {
+  async read(filename: string) {
     if (this.invalidated.has(filename)) {
       return null;
     }
@@ -58,11 +71,11 @@ class FSCache {
     }
   }
 
-  invalidate(filename) {
+  invalidate(filename: string) {
     this.invalidated.add(filename);
   }
 
-  async delete(filename) {
+  async delete(filename: string) {
     try {
       await fs.unlink(this.getCacheFile(filename));
       this.invalidated.delete(filename);

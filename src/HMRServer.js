@@ -1,8 +1,12 @@
+// @flow
 const WebSocket = require('ws');
 
 class HMRServer {
+  wss: WebSocket.Server;
+  port: number;
+
   async start() {
-    await new Promise((resolve) => {
+    await new Promise(resolve => {
       this.wss = new WebSocket.Server({port: 0}, resolve);
     });
 
@@ -13,7 +17,7 @@ class HMRServer {
     this.wss.close();
   }
 
-  emitUpdate(assets) {
+  emitUpdate(assets: any) {
     let msg = JSON.stringify({
       type: 'update',
       assets: assets.map(asset => {

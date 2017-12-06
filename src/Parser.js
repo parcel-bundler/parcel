@@ -1,10 +1,20 @@
+// @flow
 const path = require('path');
 const RawAsset = require('./assets/RawAsset');
 const GlobAsset = require('./assets/GlobAsset');
 const glob = require('glob');
+import type {Extensions} from './types';
+
+const unsafeRequire = require;
+
+export type ParserOptions = {
+  extensions?: Extensions
+};
 
 class Parser {
-  constructor(options = {}) {
+  extensions: Extensions;
+
+  constructor(options: ParserOptions = {}) {
     this.extensions = {};
 
     this.registerExtension('js', './assets/JSAsset');
@@ -28,7 +38,7 @@ class Parser {
     }
   }
 
-  registerExtension(ext, parser) {
+  registerExtension(ext: string, parser: string) {
     if (!ext.startsWith('.')) {
       ext = '.' + ext;
     }
@@ -36,7 +46,7 @@ class Parser {
     this.extensions[ext] = parser;
   }
 
-  findParser(filename) {
+  findParser(filename: string) {
     if (glob.hasMagic(filename)) {
       return GlobAsset;
     }
@@ -44,13 +54,13 @@ class Parser {
     let extension = path.extname(filename);
     let parser = this.extensions[extension] || RawAsset;
     if (typeof parser === 'string') {
-      parser = this.extensions[extension] = require(parser);
+      parser = this.extensions[extension] = unsafeRequire(parser);
     }
 
     return parser;
   }
 
-  getAsset(filename, pkg, options = {}) {
+  getAsset(filename: string, pkg: any, options: {parser?: Parser} = {}) {
     let Asset = this.findParser(filename);
     options.parser = this;
     return new Asset(filename, pkg, options);

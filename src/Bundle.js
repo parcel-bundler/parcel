@@ -1,3 +1,4 @@
+// @flow
 const Path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -9,7 +10,15 @@ const crypto = require('crypto');
  * the bundle, e.g. importing a CSS file from JS.
  */
 class Bundle {
-  constructor(type, name, parent) {
+  type: any;
+  name: any;
+  parentBundle: any;
+  entryAsset: any;
+  assets: Set<any>;
+  childBundles: Set<any>;
+  siblingBundles: Map<any, any>;
+
+  constructor(type: any, name: any, parent: any) {
     this.type = type;
     this.name = name;
     this.parentBundle = parent;
@@ -19,17 +28,17 @@ class Bundle {
     this.siblingBundles = new Map();
   }
 
-  addAsset(asset) {
+  addAsset(asset: any) {
     asset.bundles.add(this);
     this.assets.add(asset);
   }
 
-  removeAsset(asset) {
+  removeAsset(asset: any) {
     asset.bundles.delete(this);
     this.assets.delete(asset);
   }
 
-  getSiblingBundle(type) {
+  getSiblingBundle(type: any) {
     if (!type || type === this.type) {
       return this;
     }
@@ -48,17 +57,21 @@ class Bundle {
     return this.siblingBundles.get(type);
   }
 
-  createChildBundle(type, name) {
+  createChildBundle(type: any, name: any) {
     let bundle = new Bundle(type, name, this);
     this.childBundles.add(bundle);
     return bundle;
   }
 
-  get isEmpty() {
+  get isEmpty(): boolean {
     return this.assets.size === 0;
   }
 
-  async package(bundler, oldHashes, newHashes = new Map()) {
+  async package(
+    bundler: any,
+    oldHashes: any,
+    newHashes: Map<any, any> = new Map()
+  ) {
     if (this.isEmpty) {
       return newHashes;
     }
@@ -79,7 +92,7 @@ class Bundle {
     return newHashes;
   }
 
-  async _package(bundler) {
+  async _package(bundler: any) {
     let Packager = bundler.packagers.get(this.type);
     let packager = new Packager(this, bundler);
 
@@ -93,7 +106,7 @@ class Bundle {
     await packager.end();
   }
 
-  async _addDeps(asset, packager, included) {
+  async _addDeps(asset: any, packager: any, included: any) {
     if (!this.assets.has(asset) || included.has(asset)) {
       return;
     }
@@ -119,7 +132,7 @@ class Bundle {
     return parents;
   }
 
-  findCommonAncestor(bundle) {
+  findCommonAncestor(bundle: any) {
     // Get a list of parent bundles going up to the root
     let ourParents = this.getParents();
     let theirParents = bundle.getParents();

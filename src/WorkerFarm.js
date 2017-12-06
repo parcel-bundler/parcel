@@ -1,11 +1,14 @@
+// @flow
 const {EventEmitter} = require('events');
 const Farm = require('worker-farm/lib/farm');
 const promisify = require('./utils/promisify');
 
 let shared = null;
 
+type Options = {};
+
 class WorkerFarm extends Farm {
-  constructor(options) {
+  constructor(options: Options) {
     let opts = {
       autoStart: true,
       maxConcurrentWorkers: require('physical-cpu-count')
@@ -20,12 +23,12 @@ class WorkerFarm extends Farm {
     this.init(options);
   }
 
-  init(options) {
+  init(options: any) {
     this.localWorker.init(options);
     this.initRemoteWorkers(options);
   }
 
-  promisifyWorker(worker) {
+  promisifyWorker(worker: any) {
     let res = {};
 
     for (let key in worker) {
@@ -35,7 +38,7 @@ class WorkerFarm extends Farm {
     return res;
   }
 
-  async initRemoteWorkers(options) {
+  async initRemoteWorkers(options: any) {
     this.started = false;
 
     let promises = [];
@@ -47,7 +50,7 @@ class WorkerFarm extends Farm {
     this.started = true;
   }
 
-  receive(data) {
+  receive(data: {event: any, args: Array<any>}) {
     if (data.event) {
       this.emit(data.event, ...data.args);
     } else {
@@ -55,7 +58,7 @@ class WorkerFarm extends Farm {
     }
   }
 
-  async run(...args) {
+  async run(...args: Array<any>) {
     // Child process workers are slow to start (~600ms).
     // While we're waiting, just run on the main thread.
     // This significantly speeds up startup time.
@@ -71,7 +74,7 @@ class WorkerFarm extends Farm {
     shared = null;
   }
 
-  static getShared(options) {
+  static getShared(options: Options) {
     if (!shared) {
       shared = new WorkerFarm(options);
     } else {
@@ -83,7 +86,7 @@ class WorkerFarm extends Farm {
 }
 
 for (let key in EventEmitter.prototype) {
-  WorkerFarm.prototype[key] = EventEmitter.prototype[key];
+  WorkerFarm.prototype[key] = (EventEmitter: any).prototype[key];
 }
 
 module.exports = WorkerFarm;
