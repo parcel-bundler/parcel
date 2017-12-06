@@ -1,0 +1,8 @@
+language: node_js
+node_js:
+  # TODO: Run Babel on tests so that async-await works in Node 6
+  # - '6'
+  - '8'
+cache: yarn
+script: yarn test
+sudo: false

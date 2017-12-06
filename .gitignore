@@ -1,6 +1,5 @@
 node_modules/
 .DS_Store
-yarn.lock
 package-lock.json
 test/dist
 test/input

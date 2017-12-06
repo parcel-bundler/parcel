@@ -54,7 +54,8 @@
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
-    "prepublish": "babel src -d lib"
+    "build": "babel src -d lib",
+    "prepublish": "yarn build"
   },
   "bin": {
     "parcel": "bin/cli.js"
