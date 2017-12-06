@@ -1,27 +1,41 @@
+// @flow
 const promisify = require('./utils/promisify');
 const resolve = require('browser-resolve');
 const resolveAsync = promisify(resolve);
 const builtins = require('./builtins');
 const path = require('path');
 const glob = require('glob');
+import type {Extensions} from './types';
+
+export type ResolverOptions = {
+  extensions?: Extensions,
+  paths?: Array<string>
+};
 
 class Resolver {
-  constructor(options = {}) {
+  options: ResolverOptions;
+  cache: Map<any, any>;
+
+  constructor(options: ResolverOptions = {}) {
     this.options = options;
-    this.cache = new Map;
+    this.cache = new Map();
   }
 
-  async resolve(filename, parent) {
+  async resolve(filename: string, parent: string) {
     var resolved = await this.resolveInternal(filename, parent, resolveAsync);
     return this.saveCache(filename, parent, resolved);
   }
 
-  resolveSync(filename, parent) {
+  resolveSync(filename: string, parent: string) {
     var resolved = this.resolveInternal(filename, parent, resolve.sync);
     return this.saveCache(filename, parent, resolved);
   }
 
-  resolveInternal(filename, parent, resolver) {
+  resolveInternal(
+    filename: string,
+    parent: string,
+    resolver: (filename: string, {}) => any
+  ) {
     let key = this.getCacheKey(filename, parent);
     if (this.cache.has(key)) {
       return this.cache.get(key);
@@ -35,7 +49,7 @@ class Resolver {
       filename: parent,
       paths: this.options.paths,
       modules: builtins,
-      extensions: Object.keys(this.options.extensions),
+      extensions: Object.keys(this.options.extensions || {}),
       packageFilter(pkg, pkgfile) {
         // Expose the path to the package.json file
         pkg.pkgfile = pkgfile;
@@ -44,11 +58,11 @@ class Resolver {
     });
   }
 
-  getCacheKey(filename, parent) {
+  getCacheKey(filename: string, parent?: string) {
     return (parent ? path.dirname(parent) : '') + ':' + filename;
   }
 
-  saveCache(filename, parent, resolved) {
+  saveCache(filename: string, parent?: string, resolved: any) {
     if (Array.isArray(resolved)) {
       resolved = {path: resolved[0], pkg: resolved[1]};
     } else if (typeof resolved === 'string') {

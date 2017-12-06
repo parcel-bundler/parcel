@@ -1,6 +1,6 @@
 module.exports = {
   plugins: {
-    "posthtml-include": {
+    'posthtml-include': {
       root: __dirname
     }
   }

@@ -1,7 +1,0 @@
-{
-  "presets": [["env", {
-    "targets": {
-      "node": "6"
-    }
-  }]]
-}

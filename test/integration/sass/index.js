@@ -1,5 +1,5 @@
 require('./index.sass');
 
-module.exports = function () {
+module.exports = function() {
   return 2;
 };

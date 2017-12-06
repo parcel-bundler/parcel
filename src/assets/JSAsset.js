@@ -20,7 +20,7 @@ class JSAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'js';
-    this.globals = new Map;
+    this.globals = new Map();
     this.isAstDirty = false;
     this.isES6Module = false;
     this.outputCode = null;
@@ -40,14 +40,13 @@ class JSAsset extends Asset {
       strictMode: false,
       sourceType: 'module',
       locations: true,
-      plugins: [
-        'exportExtensions',
-        'dynamicImport'
-      ]
+      plugins: ['exportExtensions', 'dynamicImport']
     };
 
     // Check if there is a babel config file. If so, determine which parser plugins to enable
-    this.babelConfig = (this.package && this.package.babel) || await config.load(this.name, ['.babelrc', '.babelrc.js']);
+    this.babelConfig =
+      (this.package && this.package.babel) ||
+      (await config.load(this.name, ['.babelrc', '.babelrc.js']));
     if (this.babelConfig) {
       const file = new BabelFile({filename: this.name});
       options.plugins.push(...file.parserOpts.plugins);
@@ -94,7 +93,9 @@ class JSAsset extends Asset {
 
   generate() {
     // TODO: source maps
-    let code = this.isAstDirty ? generate(this.ast).code : (this.outputCode || this.contents);
+    let code = this.isAstDirty
+      ? generate(this.ast).code
+      : this.outputCode || this.contents;
     if (this.globals.size > 0) {
       code = Array.from(this.globals.values()).join('\n') + '\n' + code;
     }
@@ -108,7 +109,12 @@ class JSAsset extends Asset {
     const loc = err.loc;
     if (loc) {
       err.codeFrame = codeFrame(this.contents, loc.line, loc.column + 1);
-      err.highlightedCodeFrame = codeFrame(this.contents, loc.line, loc.column + 1, {highlightCode: true});
+      err.highlightedCodeFrame = codeFrame(
+        this.contents,
+        loc.line,
+        loc.column + 1,
+        {highlightCode: true}
+      );
     }
 
     return err;

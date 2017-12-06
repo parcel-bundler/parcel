@@ -1,16 +1,29 @@
+// @flow
 const chalk = require('chalk');
 const readline = require('readline');
 
+export type LoggerOptions = {
+  logLevel?: number,
+  color?: boolean
+};
+
 class Logger {
-  constructor(options) {
+  logLevel: number;
+  color: boolean;
+  chalk: Object;
+  lines: number;
+  statusLine: null | number;
+
+  constructor(options: LoggerOptions) {
     this.logLevel = typeof options.logLevel === 'number' ? options.logLevel : 3;
-    this.color = typeof options.color === 'boolean' ? options.color : chalk.supportsColor;
+    this.color =
+      typeof options.color === 'boolean' ? options.color : chalk.supportsColor;
     this.chalk = new chalk.constructor({enabled: this.color});
     this.lines = 0;
     this.statusLine = null;
   }
 
-  write(message, persistent = false) {
+  write(message: string, persistent: boolean = false) {
     if (!persistent) {
       this.lines += message.split('\n').length;
     }
@@ -18,7 +31,7 @@ class Logger {
     console.log(message);
   }
 
-  log(message) {
+  log(message: string) {
     if (this.logLevel < 3) {
       return;
     }
@@ -26,7 +39,7 @@ class Logger {
     this.write(message);
   }
 
-  persistent(message) {
+  persistent(message: string) {
     if (this.logLevel < 3) {
       return;
     }
@@ -34,7 +47,7 @@ class Logger {
     this.write(this.chalk.bold(message), true);
   }
 
-  warn(message) {
+  warn(message: string) {
     if (this.logLevel < 2) {
       return;
     }
@@ -42,7 +55,7 @@ class Logger {
     this.write(this.chalk.yellow(message));
   }
 
-  error(err) {
+  error(err: Object) {
     if (this.logLevel < 1) {
       return;
     }
@@ -85,7 +98,7 @@ class Logger {
     this.statusLine = null;
   }
 
-  writeLine(line, msg) {
+  writeLine(line: number, msg: string) {
     if (!this.color) {
       return this.log(msg);
     }
@@ -100,19 +113,21 @@ class Logger {
     readline.moveCursor(stdout, 0, n);
   }
 
-  status(emoji, message, color = 'gray') {
+  status(emoji: string, message: string, color: string = 'gray') {
     if (this.logLevel < 3) {
       return;
     }
 
-    let hasStatusLine = this.statusLine != null;
-    if (!hasStatusLine) {
-      this.statusLine = this.lines;
+    let statusLine = this.statusLine;
+    let hadStatusLine = this.statusLine != null;
+
+    if (statusLine == null) {
+      statusLine = this.statusLine = this.lines;
     }
 
-    this.writeLine(this.statusLine, this.chalk[color].bold(`${emoji}  ${message}`));
+    this.writeLine(statusLine, this.chalk[color].bold(`${emoji}  ${message}`));
 
-    if (!hasStatusLine) {
+    if (!hadStatusLine) {
       process.stdout.write('\n');
       this.lines++;
     }

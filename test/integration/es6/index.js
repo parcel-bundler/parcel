@@ -1,6 +1,6 @@
 import * as local from './local';
 import url from 'url';
 
-export default function () {
+export default function() {
   return local.a + local.b;
-};
+}

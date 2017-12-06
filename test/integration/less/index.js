@@ -1,5 +1,5 @@
 require('./index.less');
 
-module.exports = function () {
+module.exports = function() {
   return 2;
 };

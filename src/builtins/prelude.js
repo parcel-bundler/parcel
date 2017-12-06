@@ -6,9 +6,9 @@
 // anything defined in a previous bundle is accessed via the
 // orig method which is the require for previous bundles
 
-require = (function (modules, cache, entry) {
+require = function(modules, cache, entry) {
   // Save the require from previous bundle to this closure if any
-  var previousRequire = typeof require === "function" && require;
+  var previousRequire = typeof require === 'function' && require;
 
   function newRequire(name, jumped) {
     if (!cache[name]) {
@@ -16,7 +16,7 @@ require = (function (modules, cache, entry) {
         // if we cannot find the module within our internal map or
         // cache jump to the current global require ie. the last bundle
         // that was added to the page.
-        var currentRequire = typeof require === "function" && require;
+        var currentRequire = typeof require === 'function' && require;
         if (!jumped && currentRequire) {
           return currentRequire(name, true);
         }
@@ -29,7 +29,7 @@ require = (function (modules, cache, entry) {
           return previousRequire(name, true);
         }
 
-        var err = new Error('Cannot find module \'' + name + '\'');
+        var err = new Error("Cannot find module '" + name + "'");
         err.code = 'MODULE_NOT_FOUND';
         throw err;
       }
@@ -38,12 +38,17 @@ require = (function (modules, cache, entry) {
         return newRequire(localRequire.resolve(x));
       }
 
-      localRequire.resolve = function (x) {
+      localRequire.resolve = function(x) {
         return modules[name][1][x] || x;
       };
 
-      var module = cache[name] = new newRequire.Module;
-      modules[name][0].call(module.exports, localRequire, module, module.exports);
+      var module = (cache[name] = new newRequire.Module());
+      modules[name][0].call(
+        module.exports,
+        localRequire,
+        module,
+        module.exports
+      );
     }
 
     return cache[name].exports;
@@ -65,4 +70,4 @@ require = (function (modules, cache, entry) {
 
   // Override the current require with this new one
   return newRequire;
-})
+};

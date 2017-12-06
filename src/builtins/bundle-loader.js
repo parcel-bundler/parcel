@@ -7,10 +7,12 @@ function loadBundles(bundles) {
     return Promise.resolve(requireModule(id));
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') {
-      return new LazyPromise(function (resolve, reject) {
-        Promise.all(bundles.slice(0, -1).map(loadBundle)).then(function () {
-          return requireModule(id);
-        }).then(resolve, reject);
+      return new LazyPromise(function(resolve, reject) {
+        Promise.all(bundles.slice(0, -1).map(loadBundle))
+          .then(function() {
+            return requireModule(id);
+          })
+          .then(resolve, reject);
       });
     }
 
@@ -32,22 +34,22 @@ function loadBundle(bundle) {
   }
 
   var type = bundle.match(/\.(.+)$/)[1].toLowerCase();
-  return bundles[bundle] = bundleLoaders[type](getBundleURL() + bundle);
+  return (bundles[bundle] = bundleLoaders[type](getBundleURL() + bundle));
 }
 
 function loadJSBundle(bundle) {
-  return new Promise(function (resolve, reject) {
+  return new Promise(function(resolve, reject) {
     var script = document.createElement('script');
     script.async = true;
     script.type = 'text/javascript';
     script.charset = 'utf-8';
     script.src = bundle;
-    script.onerror = function (e) {
+    script.onerror = function(e) {
       script.onerror = script.onload = null;
       reject(e);
     };
 
-    script.onload = function () {
+    script.onload = function() {
       script.onerror = script.onload = null;
       resolve();
     };
@@ -57,16 +59,16 @@ function loadJSBundle(bundle) {
 }
 
 function loadCSSBundle(bundle) {
-  return new Promise(function (resolve, reject) {
+  return new Promise(function(resolve, reject) {
     var link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = bundle;
-    link.onerror = function (e) {
+    link.onerror = function(e) {
       link.onerror = link.onload = null;
       reject(e);
     };
 
-    link.onload = function () {
+    link.onload = function() {
       link.onerror = link.onload = null;
       resolve();
     };
@@ -89,10 +91,15 @@ function LazyPromise(executor) {
   this.promise = null;
 }
 
-LazyPromise.prototype.then = function (onSuccess, onError) {
-  return this.promise || (this.promise = new Promise(this.executor).then(onSuccess, onError));
+LazyPromise.prototype.then = function(onSuccess, onError) {
+  return (
+    this.promise ||
+    (this.promise = new Promise(this.executor).then(onSuccess, onError))
+  );
 };
 
-LazyPromise.prototype.catch = function (onError) {
-  return this.promise || (this.promise = new Promise(this.executor).catch(onError));
+LazyPromise.prototype.catch = function(onError) {
+  return (
+    this.promise || (this.promise = new Promise(this.executor).catch(onError))
+  );
 };

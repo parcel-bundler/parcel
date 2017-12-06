@@ -1,5 +1,5 @@
 require('./index.styl');
 
-module.exports = function () {
+module.exports = function() {
   return 2;
 };

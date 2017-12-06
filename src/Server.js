@@ -1,12 +1,14 @@
+// @flow
 const http = require('http');
 const path = require('path');
 const url = require('url');
 const serveStatic = require('serve-static');
+import type Bundler from './Bundler';
 
-function middleware(bundler) {
+function middleware(bundler: Bundler) {
   const serve = serveStatic(bundler.options.outDir, {index: false});
 
-  return function (req, res, next) {
+  return function(req: Object, res: Object, next?: Function) {
     // Wait for the bundler to finish bundling if needed
     if (bundler.pending) {
       bundler.once('bundled', respond);
@@ -46,7 +48,7 @@ function middleware(bundler) {
   };
 }
 
-function serve(bundler, port) {
+function serve(bundler: Bundler, port: number) {
   return http.createServer(middleware(bundler)).listen(port);
 }
 

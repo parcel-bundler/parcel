@@ -2,19 +2,21 @@ const assert = require('assert');
 const fs = require('fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
-describe('css', function () {
-  it('should produce two bundles when importing a CSS file', async function () {
+describe('css', function() {
+  it('should produce two bundles when importing a CSS file', async function() {
     this.timeout(5000);
     let b = await bundle(__dirname + '/integration/css/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css', 'local.js', 'local.css'],
-      childBundles: [{
-        name: 'index.css',
-        assets: ['index.css', 'local.css'],
-        childBundles: []
-      }]
+      childBundles: [
+        {
+          name: 'index.css',
+          assets: ['index.css', 'local.css'],
+          childBundles: []
+        }
+      ]
     });
 
     let output = run(b);
@@ -22,25 +24,30 @@ describe('css', function () {
     assert.equal(output(), 3);
   });
 
-  it('should support loading a CSS bundle along side dynamic imports', async function () {
+  it('should support loading a CSS bundle along side dynamic imports', async function() {
     let b = await bundle(__dirname + '/integration/dynamic-css/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css', 'bundle-loader.js', 'bundle-url.js'],
-      childBundles: [{
-        name: 'index.css',
-        assets: ['index.css'],
-        childBundles: []
-      }, {
-        type: 'js',
-        assets: ['local.js', 'local.css'],
-        childBundles: [{
-          type: 'css',
-          assets: ['local.css'],
+      childBundles: [
+        {
+          name: 'index.css',
+          assets: ['index.css'],
           childBundles: []
-        }]
-      }]
+        },
+        {
+          type: 'js',
+          assets: ['local.js', 'local.css'],
+          childBundles: [
+            {
+              type: 'css',
+              assets: ['local.css'],
+              childBundles: []
+            }
+          ]
+        }
+      ]
     });
 
     let output = run(b);
@@ -48,17 +55,19 @@ describe('css', function () {
     assert.equal(await output(), 3);
   });
 
-  it('should support importing CSS from a CSS file', async function () {
+  it('should support importing CSS from a CSS file', async function() {
     let b = await bundle(__dirname + '/integration/css-import/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css', 'other.css', 'local.css'],
-      childBundles: [{
-        name: 'index.css',
-        assets: ['index.css', 'other.css', 'local.css'],
-        childBundles: []
-      }]
+      childBundles: [
+        {
+          name: 'index.css',
+          assets: ['index.css', 'other.css', 'local.css'],
+          childBundles: []
+        }
+      ]
     });
 
     let output = run(b);
@@ -72,21 +81,24 @@ describe('css', function () {
     assert(css.includes('.index'));
   });
 
-  it('should support linking to assets with url() from CSS', async function () {
+  it('should support linking to assets with url() from CSS', async function() {
     let b = await bundle(__dirname + '/integration/css-url/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css'],
-      childBundles: [{
-        name: 'index.css',
-        assets: ['index.css'],
-        childBundles: []
-      }, {
-        type: 'woff2',
-        assets: ['test.woff2'],
-        childBundles: []
-      }]
+      childBundles: [
+        {
+          name: 'index.css',
+          assets: ['index.css'],
+          childBundles: []
+        },
+        {
+          type: 'woff2',
+          assets: ['test.woff2'],
+          childBundles: []
+        }
+      ]
     });
 
     let output = run(b);
@@ -98,20 +110,26 @@ describe('css', function () {
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
 
-    assert(fs.existsSync(__dirname + '/dist/' + css.match(/url\("([0-9a-f]+\.woff2)"\)/)[1]));
+    assert(
+      fs.existsSync(
+        __dirname + '/dist/' + css.match(/url\("([0-9a-f]+\.woff2)"\)/)[1]
+      )
+    );
   });
 
-  it('should support transforming with postcss', async function () {
+  it('should support transforming with postcss', async function() {
     let b = await bundle(__dirname + '/integration/postcss/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css'],
-      childBundles: [{
-        name: 'index.css',
-        assets: ['index.css'],
-        childBundles: []
-      }]
+      childBundles: [
+        {
+          name: 'index.css',
+          assets: ['index.css'],
+          childBundles: []
+        }
+      ]
     });
 
     let output = run(b);
@@ -122,8 +140,10 @@ describe('css', function () {
     assert(css.includes('._index_1ezyc_1'));
   });
 
-  it('should minify CSS in production mode', async function () {
-    let b = await bundle(__dirname + '/integration/cssnano/index.js', {production: true});
+  it('should minify CSS in production mode', async function() {
+    let b = await bundle(__dirname + '/integration/cssnano/index.js', {
+      production: true
+    });
 
     let output = run(b);
     assert.equal(typeof output, 'function');
