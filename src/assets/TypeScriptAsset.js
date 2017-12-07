@@ -13,11 +13,11 @@ class TypeScriptAsset extends JSAsset {
   async parse(code) {
     // require typescript, installed locally in the app
     let typescript = localRequire('typescript', this.name);
-
+    
     let transpilerOptions = {
       compilerOptions: {
         module: typescript.ModuleKind.CommonJS,
-        jsx: true
+        jsx: typescript.JsxEmit.Preserve
       },
       fileName: this.basename
     }
