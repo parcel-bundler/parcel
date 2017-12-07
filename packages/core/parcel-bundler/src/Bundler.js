@@ -153,7 +153,12 @@ class Bundler extends EventEmitter {
     this.farm = WorkerFarm.getShared(this.options);
 
     if (this.options.watch) {
-      this.watcher = new FSWatcher;
+      // FS events on macOS are flakey in the tests, which write lots of files very quickly
+      // See https://github.com/paulmillr/chokidar/issues/612
+      this.watcher = new FSWatcher({
+        useFsEvents: process.env.NODE_ENV !== 'test'
+      });
+
       this.watcher.on('change', this.onChange.bind(this));
     }
 
