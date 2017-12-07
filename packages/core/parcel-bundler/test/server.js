@@ -38,7 +38,6 @@ describe('server', function () {
   });
 
   it('should serve a default page if the main bundle is an HTML asset', async function () {
-    this.timeout(5000);
     let b = bundler(__dirname + '/integration/html/index.html');
     server = b.serve(0);
 

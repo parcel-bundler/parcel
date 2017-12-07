@@ -4,7 +4,6 @@ const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('css', function () {
   it('should produce two bundles when importing a CSS file', async function () {
-    this.timeout(5000);
     let b = await bundle(__dirname + '/integration/css/index.js');
 
     assertBundleTree(b, {
