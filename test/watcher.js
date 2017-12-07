@@ -91,7 +91,7 @@ describe('watcher', function () {
     let bundle = await b.bundle();
     let mtimes = fs.readdirSync(__dirname + '/dist').map(f => fs.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000 | 0);
 
-    await sleep(500); // mtime only has second level precision
+    await sleep(1000); // mtime only has second level precision
     fs.writeFileSync(__dirname + '/input/b.js', 'module.exports = require("./common")');
 
     bundle = await nextBundle(b);

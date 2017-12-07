@@ -72,7 +72,7 @@ function assertBundleTree(bundle, tree) {
   }
 
   if (tree.childBundles) {
-    let children = Array.from(bundle.childBundles);//.sort((a, b) => a.name - b.name);
+    let children = Array.from(bundle.childBundles).sort((a, b) => Array.from(a.assets).sort()[0].basename < Array.from(b.assets).sort()[0].basename ? -1 : 1);
     assert.equal(bundle.childBundles.size, tree.childBundles.length);
     tree.childBundles.forEach((b, i) => assertBundleTree(children[i], b));
   }
