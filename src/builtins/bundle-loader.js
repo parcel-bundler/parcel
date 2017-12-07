@@ -77,10 +77,6 @@ function loadCSSBundle(bundle) {
 
 function requireModule(id) {
   let res = require(id);
-  if (res.__esModule) {
-    return res.default;
-  }
-
   return res;
 }
 
