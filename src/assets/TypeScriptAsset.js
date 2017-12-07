@@ -4,10 +4,10 @@ const localRequire = require('../utils/localRequire');
 
 class TypeScriptAsset extends JSAsset {
   async transform() {
+    super.transform();
+    
     await this.parseIfNeeded();
     this.isAstDirty = true;
-
-    super.transform();
   }
 
   async parse(code) {
