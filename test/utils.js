@@ -7,12 +7,12 @@ const path = require('path');
 const WebSocket = require('ws');
 
 beforeEach(function () {
-  rimraf.sync(__dirname + '/dist');
+  rimraf.sync(path.join(__dirname, 'dist'));
 });
 
 function bundler(file, opts) {
   return new Bundler(file, Object.assign({
-    outDir: __dirname + '/dist',
+    outDir: path.join(__dirname, 'dist'),
     watch: false,
     cache: false,
     killWorkers: false,
@@ -37,7 +37,7 @@ function run(bundle, globals) {
         appendChild(el) {
           setTimeout(function () {
             if (el.tag === 'script') {
-              vm.runInContext(fs.readFileSync(__dirname + '/dist' + el.src), ctx);
+              vm.runInContext(fs.readFileSync(path.join(__dirname, 'dist', el.src)), ctx);
             }
 
             el.onload();
@@ -72,7 +72,7 @@ function assertBundleTree(bundle, tree) {
   }
 
   if (tree.childBundles) {
-    let children = Array.from(bundle.childBundles);//.sort((a, b) => a.name - b.name);
+    let children = Array.from(bundle.childBundles).sort((a, b) => Array.from(a.assets).sort()[0].basename < Array.from(b.assets).sort()[0].basename ? -1 : 1);
     assert.equal(bundle.childBundles.size, tree.childBundles.length);
     tree.childBundles.forEach((b, i) => assertBundleTree(children[i], b));
   }

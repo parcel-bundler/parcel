@@ -46,7 +46,7 @@ class Bundler extends EventEmitter {
 
   normalizeOptions(options) {
     const isProduction = options.production || process.env.NODE_ENV === 'production';
-    const publicURL = options.publicURL || '/' + Path.basename(options.outDir || 'dist');
+    const publicURL = options.publicUrl || options.publicURL || '/' + Path.basename(options.outDir || 'dist');
     const watch = typeof options.watch === 'boolean' ? options.watch : !isProduction;
     return {
       outDir: Path.resolve(options.outDir || 'dist'),
@@ -153,7 +153,12 @@ class Bundler extends EventEmitter {
     this.farm = WorkerFarm.getShared(this.options);
 
     if (this.options.watch) {
-      this.watcher = new FSWatcher;
+      // FS events on macOS are flakey in the tests, which write lots of files very quickly
+      // See https://github.com/paulmillr/chokidar/issues/612
+      this.watcher = new FSWatcher({
+        useFsEvents: process.env.NODE_ENV !== 'test'
+      });
+
       this.watcher.on('change', this.onChange.bind(this));
     }
 
