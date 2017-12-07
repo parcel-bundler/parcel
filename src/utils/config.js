@@ -1,5 +1,6 @@
 const fs = require('./fs');
 const path = require('path');
+const parseJson = require('parse-json');
 
 const existsCache = new Map;
 
@@ -32,7 +33,7 @@ async function load(filepath, filenames, root = path.parse(filepath).root) {
       return require(configFile);
     }
 
-    return JSON.parse(await fs.readFile(configFile));
+    return parseJson(await fs.readFile(configFile));
   }
 
   return null;
