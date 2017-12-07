@@ -3,9 +3,11 @@ const config = require('../utils/config');
 const localRequire = require('../utils/localRequire');
 
 class TypeScriptAsset extends JSAsset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
-    this.isTypeScript = true;
+  async transform() {
+    await this.parseIfNeeded();
+    this.isAstDirty = true;
+
+    super.transform();
   }
 
   async parse(code) {
