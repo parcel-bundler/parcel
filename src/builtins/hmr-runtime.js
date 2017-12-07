@@ -29,6 +29,8 @@ if (!module.bundle.parent) {
           hmrAccept(global.require, asset.id);
         }
       }
+    } else if (data.type === 'reload') {
+      window.location.reload();
     }
   };
 }

@@ -14,21 +14,37 @@ class HMRServer {
   }
 
   emitUpdate(assets) {
-    let msg = JSON.stringify({
-      type: 'update',
-      assets: assets.map(asset => {
-        let deps = {};
-        for (let dep of asset.dependencies.values()) {
-          let mod = asset.depAssets.get(dep.name);
-          deps[dep.name] = mod.id;
-        }
+    const containsHtmlAsset = assets.some(asset => asset.type === "html");
 
-        return {
-          id: asset.id,
-          generated: asset.generated,
-          deps: deps
-        };
-      })
+    if (containsHtmlAsset) {
+      this.emitReload();
+    } else {
+      let msg = JSON.stringify({
+        type: 'update',
+        assets: assets.map(asset => {
+          let deps = {};
+          for (let dep of asset.dependencies.values()) {
+            let mod = asset.depAssets.get(dep.name);
+            deps[dep.name] = mod.id;
+          }
+
+          return {
+            id: asset.id,
+            generated: asset.generated,
+            deps: deps
+          };
+        })
+      });
+
+      for (let ws of this.wss.clients) {
+        ws.send(msg);
+      }
+    }
+  }
+
+  emitReload() {
+    let msg = JSON.stringify({
+      type: 'reload'
     });
 
     for (let ws of this.wss.clients) {

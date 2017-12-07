@@ -185,6 +185,7 @@ class Bundler extends EventEmitter {
   async buildQueuedAssets(isInitialBundle = false) {
     // Consume the rebuild queue until it is empty.
     let loadedAssets = new Set;
+
     while (this.buildQueue.size > 0) {
       let promises = [];
       for (let asset of this.buildQueue) {
