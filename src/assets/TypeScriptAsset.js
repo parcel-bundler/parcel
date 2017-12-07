@@ -3,9 +3,9 @@ const config = require('../utils/config');
 const localRequire = require('../utils/localRequire');
 
 class TypeScriptAsset extends JSAsset {
-  async transform() {
-    this.ast = await this.parse(this.contents);
-    this.isAstDirty = true;
+  constructor(name, pkg, options) {
+    super(name, pkg, options);
+    this.isTypeScript = true;
   }
 
   async parse(code) {
@@ -14,9 +14,8 @@ class TypeScriptAsset extends JSAsset {
 
     let transpilerOptions = {
       compilerOptions: {
-        module: typescript.ModuleKind.ES2015,
-        jsx: true,
-        noEmit: false
+        module: typescript.ModuleKind.CommonJS,
+        jsx: true
       },
       fileName: this.basename
     }

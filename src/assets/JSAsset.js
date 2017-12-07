@@ -83,6 +83,11 @@ class JSAsset extends Asset {
       walk.ancestor(this.ast, insertGlobals, this);
     }
 
+    if (this.isTypeScript) {
+      await this.parseIfNeeded();
+      this.isAstDirty = true;
+    }
+
     if (this.isES6Module) {
       await babel(this);
     }
