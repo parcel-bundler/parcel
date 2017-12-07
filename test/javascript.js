@@ -26,6 +26,18 @@ describe('javascript', function () {
     assert.equal(output.default(), 3);
   });
 
+  it('should produce a JS bundle with default exorts and no imports', async function () {
+    let b = await bundle(__dirname + '/integration/es6-default-only/index.js');
+
+    assert.equal(b.assets.size, 1);
+    assert.equal(b.childBundles.size, 0);
+
+    let output = run(b);
+    assert.equal(typeof output, 'object');
+    assert.equal(typeof output.default, 'function');
+    assert.equal(output.default(), 3);
+  });
+
   it('should split bundles when a dynamic import is used', async function () {
     let b = await bundle(__dirname + '/integration/dynamic/index.js');
 
