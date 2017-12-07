@@ -12,7 +12,7 @@ function getBundleURL() {
   try {
     throw new Error;
   } catch (err) {
-    var matches = ('' + err.stack).match(/(https?|file|ftp):\/\/[^\)]+/g);
+    var matches = ('' + err.stack).match(/(https?|file|ftp):\/\/[^\)\n]+/g);
     if (matches) {
       return getBaseURL(matches[0]);
     }
