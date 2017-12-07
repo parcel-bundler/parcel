@@ -14,7 +14,7 @@ class TypeScriptAsset extends JSAsset {
 
     let transpilerOptions = {
       compilerOptions: {
-        module: typescript.ModuleKind.CommonJS,
+        module: typescript.ModuleKind.ES2015,
         jsx: true,
         noEmit: false
       },
