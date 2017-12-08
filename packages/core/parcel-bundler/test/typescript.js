@@ -66,7 +66,7 @@ describe('typescript', function () {
     assert(fs.existsSync(__dirname + '/dist/' + output.getRaw()));
   });
 
-  /*it('should minify in production mode', async function () {
+  it('should minify in production mode', async function () {
     let b = await bundle(__dirname + '/integration/typescript-require/index.ts', { production: true });
 
     assert.equal(b.assets.size, 2);
@@ -78,5 +78,15 @@ describe('typescript', function () {
 
     let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(!js.includes('local.a'));
-  });*/
+  });
+
+  it('should support loading tsconfig.json', async function () {
+    let b = await bundle(__dirname + '/integration/typescript-config/index.ts');
+
+    let output = run(b);
+    assert.equal(output, 2);
+
+    let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!js.includes('/* test comment */'));
+  });
 });

@@ -28,6 +28,7 @@ require = (function (modules, cache, entry) {
         if (previousRequire) {
           return previousRequire(name, true);
         }
+
         var err = new Error('Cannot find module \'' + name + '\'');
         err.code = 'MODULE_NOT_FOUND';
         throw err;
@@ -57,7 +58,7 @@ require = (function (modules, cache, entry) {
   newRequire.modules = modules;
   newRequire.cache = cache;
   newRequire.parent = previousRequire;
-  
+
   for (var i = 0; i < entry.length; i++) {
     newRequire(entry[i]);
   }
