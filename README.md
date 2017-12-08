@@ -77,6 +77,13 @@ Once the asset tree has been constructed, the assets are placed into a bundle tr
 
 After the bundle tree is constructed, each bundle is written to a file by a packager specific to the file type. The packagers know how to combine the code from each asset together into the final file that is loaded by a browser.
 
+## Community
+
+All feedback and suggestions are welcome!
+
+- 💬 Chat: Join us on [slack](https://slack.parceljs.org/).
+- 📣 Stay up to date on new features and announcments on [@parceljs](https://twitter.com/parceljs).
+
 ## License
 
 MIT
