@@ -30,13 +30,13 @@ if (!module.bundle.parent) {
         }
       }
     }
-    
+
     if (data.type === 'error-resolved') {
-      console.log('[parcel-bundler] ✨  Error resolved');
+      console.log('[parcel] ✨ Error resolved');
     }
 
     if (data.type === 'error') {
-      console.error(`[parcel-bundler] 🚨  Build error\n${data.error.message}\n${data.error.stack}`);
+      console.error(`[parcel] 🚨 ${data.error.message}\n${data.error.stack}`);
     }
   };
 }
