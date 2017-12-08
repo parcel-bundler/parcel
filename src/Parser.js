@@ -48,6 +48,7 @@ class Parser {
     if (typeof parser === 'string') {
       parser = this.extensions[extension] = require(parser);
     }
+
     return parser;
   }
 
