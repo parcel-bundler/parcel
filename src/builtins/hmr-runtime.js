@@ -29,8 +29,18 @@ if (!module.bundle.parent) {
           hmrAccept(global.require, asset.id);
         }
       }
-    } else if (data.type === 'reload') {
+    }
+
+    if (data.type === 'reload') {
       window.location.reload();
+    }
+
+    if (data.type === 'error-resolved') {
+      console.log('[parcel] ✨ Error resolved');
+    }
+
+    if (data.type === 'error') {
+      console.error(`[parcel] 🚨 ${data.error.message}\n${data.error.stack}`);
     }
   };
 }

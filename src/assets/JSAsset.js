@@ -27,7 +27,7 @@ class JSAsset extends Asset {
   }
 
   mightHaveDependencies() {
-    return IMPORT_RE.test(this.contents) || GLOBAL_RE.test(this.contents);
+    return !/.js$/.test(this.name) || IMPORT_RE.test(this.contents) || GLOBAL_RE.test(this.contents);
   }
 
   async parse(code) {
