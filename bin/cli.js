@@ -14,6 +14,7 @@ program.command('serve [input]')
   .option('--public-url <url>', 'set the public URL to serve on. defaults to the same as the --out-dir option')
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
+  .option('-V, --version', 'output the version number')
   .action(bundle);
 
 program.command('watch [input]')
@@ -22,6 +23,7 @@ program.command('watch [input]')
   .option('--public-url <url>', 'set the public URL to serve on. defaults to the same as the --out-dir option')
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
+  .option('-V, --version', 'output the version number')
   .action(bundle);
 
 program.command('build [input]')
@@ -30,6 +32,7 @@ program.command('build [input]')
   .option('--public-url <url>', 'set the public URL to serve on. defaults to the same as the --out-dir option')
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
+  .option('-V, --version', 'output the version number')
   .action(bundle);
 
 program.command('help [command]')
