@@ -42,7 +42,9 @@
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.6.1",
     "cross-env": "^5.1.1",
+    "husky": "^0.14.3",
     "less": "^2.7.2",
+    "lint-staged": "^6.0.0",
     "mocha": "^3.5.0",
     "ncp": "^2.0.0",
     "nib": "^1.1.2",
@@ -50,19 +52,25 @@
     "nyc": "^11.1.0",
     "postcss-modules": "^0.8.0",
     "posthtml-include": "^1.1.0",
+    "prettier": "^1.9.1",
     "rimraf": "^2.6.1",
     "stylus": "^0.54.5",
     "typescript": "^2.6.2"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
+    "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
     "build": "babel src -d lib",
-    "prepublish": "yarn build"
+    "prepublish": "yarn build",
+    "precommit": "lint-staged"
   },
   "bin": {
     "parcel": "bin/cli.js"
   },
   "engines": {
     "node": ">= 6.0.0"
+  },
+  "lint-staged": {
+    "*.{js,json,md}": ["prettier --write", "git add"]
   }
 }

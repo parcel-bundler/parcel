@@ -14,9 +14,9 @@ class Bundle {
     this.name = name;
     this.parentBundle = parent;
     this.entryAsset = null;
-    this.assets = new Set;
-    this.childBundles = new Set;
-    this.siblingBundles = new Map;
+    this.assets = new Set();
+    this.childBundles = new Set();
+    this.siblingBundles = new Map();
   }
 
   addAsset(asset) {
@@ -35,7 +35,13 @@ class Bundle {
     }
 
     if (!this.siblingBundles.has(type)) {
-      let bundle = this.createChildBundle(type, Path.join(Path.dirname(this.name), Path.basename(this.name, Path.extname(this.name)) + '.' + type));
+      let bundle = this.createChildBundle(
+        type,
+        Path.join(
+          Path.dirname(this.name),
+          Path.basename(this.name, Path.extname(this.name)) + '.' + type
+        )
+      );
       this.siblingBundles.set(type, bundle);
     }
 
@@ -52,7 +58,7 @@ class Bundle {
     return this.assets.size === 0;
   }
 
-  async package(bundler, oldHashes, newHashes = new Map) {
+  async package(bundler, oldHashes, newHashes = new Map()) {
     if (this.isEmpty) {
       return newHashes;
     }
@@ -79,7 +85,7 @@ class Bundle {
 
     await packager.start();
 
-    let included = new Set;
+    let included = new Set();
     for (let asset of this.assets) {
       await this._addDeps(asset, packager, included);
     }
@@ -128,7 +134,8 @@ class Bundle {
       b = theirParents.pop();
     }
 
-    if (a === b) { // One bundle descended from the other
+    if (a === b) {
+      // One bundle descended from the other
       return a;
     }
 

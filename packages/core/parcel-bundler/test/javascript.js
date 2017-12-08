@@ -2,8 +2,8 @@ const assert = require('assert');
 const fs = require('fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
-describe('javascript', function () {
-  it('should produce a basic JS bundle with CommonJS requires', async function () {
+describe('javascript', function() {
+  it('should produce a basic JS bundle with CommonJS requires', async function() {
     let b = await bundle(__dirname + '/integration/commonjs/index.js');
 
     assert.equal(b.assets.size, 8);
@@ -14,7 +14,7 @@ describe('javascript', function () {
     assert.equal(output(), 3);
   });
 
-  it('should produce a basic JS bundle with ES6 imports', async function () {
+  it('should produce a basic JS bundle with ES6 imports', async function() {
     let b = await bundle(__dirname + '/integration/es6/index.js');
 
     assert.equal(b.assets.size, 8);
@@ -26,7 +26,7 @@ describe('javascript', function () {
     assert.equal(output.default(), 3);
   });
 
-  it('should produce a JS bundle with default exorts and no imports', async function () {
+  it('should produce a JS bundle with default exorts and no imports', async function() {
     let b = await bundle(__dirname + '/integration/es6-default-only/index.js');
 
     assert.equal(b.assets.size, 1);
@@ -38,16 +38,18 @@ describe('javascript', function () {
     assert.equal(output.default(), 3);
   });
 
-  it('should split bundles when a dynamic import is used', async function () {
+  it('should split bundles when a dynamic import is used', async function() {
     let b = await bundle(__dirname + '/integration/dynamic/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
-      childBundles: [{
-        assets: ['local.js'],
-        childBundles: []
-      }]
+      childBundles: [
+        {
+          assets: ['local.js'],
+          childBundles: []
+        }
+      ]
     });
 
     let output = run(b);
@@ -55,19 +57,28 @@ describe('javascript', function () {
     assert.equal(await output(), 3);
   });
 
-  it('should hoist common dependencies into a parent bundle', async function () {
+  it('should hoist common dependencies into a parent bundle', async function() {
     let b = await bundle(__dirname + '/integration/dynamic-hoist/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js', 'common.js', 'common-dep.js', 'bundle-loader.js', 'bundle-url.js'],
-      childBundles: [{
-        assets: ['a.js'],
-        childBundles: []
-      }, {
-        assets: ['b.js'],
-        childBundles: []
-      }]
+      assets: [
+        'index.js',
+        'common.js',
+        'common-dep.js',
+        'bundle-loader.js',
+        'bundle-url.js'
+      ],
+      childBundles: [
+        {
+          assets: ['a.js'],
+          childBundles: []
+        },
+        {
+          assets: ['b.js'],
+          childBundles: []
+        }
+      ]
     });
 
     let output = run(b);
@@ -75,7 +86,7 @@ describe('javascript', function () {
     assert.equal(await output(), 7);
   });
 
-  it('should support requiring JSON files', async function () {
+  it('should support requiring JSON files', async function() {
     let b = await bundle(__dirname + '/integration/json/index.js');
 
     assertBundleTree(b, {
@@ -89,17 +100,19 @@ describe('javascript', function () {
     assert.equal(output(), 3);
   });
 
-  it('should support importing a URL to a raw asset', async function () {
+  it('should support importing a URL to a raw asset', async function() {
     let b = await bundle(__dirname + '/integration/import-raw/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'test.txt'],
-      childBundles: [{
-        type: 'txt',
-        assets: ['test.txt'],
-        childBundles: []
-      }]
+      childBundles: [
+        {
+          type: 'txt',
+          assets: ['test.txt'],
+          childBundles: []
+        }
+      ]
     });
 
     let output = run(b);
@@ -108,8 +121,10 @@ describe('javascript', function () {
     assert(fs.existsSync(__dirname + '/dist/' + output()));
   });
 
-  it('should minify JS in production mode', async function () {
-    let b = await bundle(__dirname + '/integration/uglify/index.js', {production: true});
+  it('should minify JS in production mode', async function() {
+    let b = await bundle(__dirname + '/integration/uglify/index.js', {
+      production: true
+    });
 
     let output = run(b);
     assert.equal(typeof output, 'function');
@@ -119,7 +134,7 @@ describe('javascript', function () {
     assert(!js.includes('local.a'));
   });
 
-  it('should insert global variables when needed', async function () {
+  it('should insert global variables when needed', async function() {
     let b = await bundle(__dirname + '/integration/globals/index.js');
 
     let output = run(b);
@@ -131,14 +146,14 @@ describe('javascript', function () {
     });
   });
 
-  it('should insert environment variables', async function () {
+  it('should insert environment variables', async function() {
     let b = await bundle(__dirname + '/integration/env/index.js');
 
     let output = run(b);
     assert.equal(output(), 'test');
   });
 
-  it('should support adding implicit dependencies', async function () {
+  it('should support adding implicit dependencies', async function() {
     let b = await bundle(__dirname + '/integration/json/index.js', {
       delegate: {
         getImplicitDependencies(asset) {
@@ -152,10 +167,12 @@ describe('javascript', function () {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.json', 'index.css'],
-      childBundles: [{
-        type: 'css',
-        assets: ['index.css']
-      }]
+      childBundles: [
+        {
+          type: 'css',
+          assets: ['index.css']
+        }
+      ]
     });
 
     let output = run(b);
@@ -163,7 +180,7 @@ describe('javascript', function () {
     assert.equal(output(), 3);
   });
 
-  it('should support requiring YAML files', async function () {
+  it('should support requiring YAML files', async function() {
     let b = await bundle(__dirname + '/integration/yaml/index.js');
 
     assertBundleTree(b, {
