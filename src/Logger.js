@@ -64,7 +64,7 @@ class Logger {
     this.status('🚨', message, 'red');
 
     if (err.codeFrame) {
-      this.write(((this.color && err.highlightedCodeFrame) || err.codeFrame) + '\n\n' + err.stack);
+      this.write((this.color && err.highlightedCodeFrame) || err.codeFrame);
     } else if (err.stack) {
       this.write(err.stack.slice(err.stack.indexOf('\n') + 1));
     }

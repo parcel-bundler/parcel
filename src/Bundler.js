@@ -227,20 +227,8 @@ class Bundler extends EventEmitter {
     return bundle;
   }
 
-  async resolveAsset(name, parent, dep) {
-    try {
-      var {path, pkg} = await this.resolver.resolve(name, parent);
-    } catch (err) {
-      err.message = `Cannot resolve dependency '${name}'`;
-
-      // Generate a code frame where the dependency was used
-      if (dep && dep.loc) {
-        err.loc = dep.loc;
-      }
-
-      err.fileName = parent;
-      throw err;
-    }
+  async resolveAsset(name, parent) {
+    let {path, pkg} = await this.resolver.resolve(name, parent);
     if (this.loadedAssets.has(path)) {
       return this.loadedAssets.get(path);
     }
@@ -256,7 +244,23 @@ class Bundler extends EventEmitter {
   }
 
   async resolveDep(asset, dep) {
-    return await this.resolveAsset(dep.name, asset.name, dep);
+    try {
+      return await this.resolveAsset(dep.name, asset.name);
+    } catch (err) {
+      if (err.message.indexOf('Cannot find module ') === 0) {
+        err.message = `Cannot resolve dependency '${dep.name}'`;
+
+        // Generate a code frame where the dependency was used
+        if (dep.loc) {
+          await asset.loadIfNeeded();
+          err.loc = dep.loc;
+          err = asset.generateErrorMessage(err);
+        }
+
+        err.fileName = asset.name;
+      }
+      throw err;
+    }
   }
 
   async loadAsset(asset) {
