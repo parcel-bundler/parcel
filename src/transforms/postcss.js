@@ -25,7 +25,10 @@ async function getConfig(asset) {
 
   config = config || {};
 
-  let postcssModulesConfig = { getJSON: (filename, json) => (asset.cssModules = json) };
+  let postcssModulesConfig = {
+    getJSON: (filename, json) => (asset.cssModules = json)
+  };
+
   if (config.plugins && config.plugins['postcss-modules']) {
     postcssModulesConfig = Object.assign(config.plugins['postcss-modules'], postcssModulesConfig);
     delete config.plugins['postcss-modules'];
