@@ -9,8 +9,6 @@
   </a>
 </p>
 
-[![Slack](https://slack.parceljs.org/badge.svg)](https://slack.parceljs.org/)
-
 ## Features
 
 - 🚀 **Blazing fast** bundle times - multicore compilation, and a filesystem cache for fast rebuilds even after a restart.
