@@ -3,8 +3,6 @@ const loadPlugins = require('../utils/loadPlugins');
 const postcss = require('postcss');
 const Config = require('../utils/config');
 const cssnano = require('cssnano');
-const omit = require('lodash.omit');
-const get = require('lodash.get');
 
 module.exports = async function (asset) {
   let config = await getConfig(asset);
@@ -26,13 +24,14 @@ async function getConfig(asset) {
   }
 
   config = config || {};
-  const postcssModulesConfig = Object.assign(get(config.plugins, 'postcss-modules') || {}, {
-    getJSON: (filename, json) => (asset.cssModules = json)
-  });
-  config.plugins = loadPlugins(
-    Array.isArray(config.plugins) ? config.plugins : omit(config.plugins, 'postcss-modules'),
-    asset.name
-  );
+
+  let postcssModulesConfig = { getJSON: (filename, json) => (asset.cssModules = json) };
+  if (config.plugins && config.plugins['postcss-modules']) {
+    postcssModulesConfig = Object.assign(config.plugins['postcss-modules'], postcssModulesConfig);
+    delete config.plugins['postcss-modules'];
+  }
+
+  config.plugins = loadPlugins(config.plugins, asset.name);
 
   if (config.modules) {
     config.plugins.push(localRequire('postcss-modules', asset.name)(postcssModulesConfig));

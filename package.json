@@ -23,8 +23,6 @@
     "htmlnano": "^0.1.6",
     "is-url": "^1.2.2",
     "js-yaml": "^3.10.0",
-    "lodash.get": "^4.4.2",
-    "lodash.omit": "^4.5.0",
     "micromatch": "^3.0.4",
     "mkdirp": "^0.5.1",
     "node-libs-browser": "^2.0.0",
