@@ -23,6 +23,7 @@ class Parser {
     this.registerExtension('scss', './assets/SASSAsset');
 
     this.registerExtension('html', './assets/HTMLAsset');
+    this.registerExtension('coffee', './assets/CoffeeScriptAsset');
 
     let extensions = options.extensions || {};
     for (let ext in extensions) {
