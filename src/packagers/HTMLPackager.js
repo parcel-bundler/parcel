@@ -15,6 +15,16 @@ class HTMLPackager extends Packager {
     if (cssBundles.length > 0) {
       html = posthtml(this.insertCSSBundles.bind(this, cssBundles))
         .process(html, {sync: true}).html;
+    } else {
+      if (this.options.hmr) {
+        let cssBundle = Array.from(this.bundle.childBundles).filter(b => b.type === 'css')[0];
+        let jsBundle = null;
+        if (cssBundle) jsBundle = cssBundle.siblingBundles.get('js');
+        if (jsBundle) {
+          html = posthtml(this.insertJSBundle.bind(this, jsBundle))
+            .process(html, {sync: true}).html;
+        }
+      }
     }
 
     await this.dest.write(html);
@@ -41,6 +51,27 @@ class HTMLPackager extends Packager {
         }
       });
     }
+  }
+
+  insertJSBundle(jsBundle, tree) {
+    let head = find(tree, 'head');
+    if (!head) {
+      let html = find(tree, 'html');
+      head = { tag: 'head' };
+      html.content.unshift(head);
+    }
+
+    if (!head.content) {
+      head.content = [];
+    }
+
+    head.content.push({
+      tag: 'script',
+      attrs: {
+        src: path.join(this.options.publicURL, path.basename(jsBundle.name)),
+        type: 'text/JavaScript'
+      }
+    });
   }
 }
 
