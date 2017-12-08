@@ -24,12 +24,20 @@ async function getConfig(asset) {
   }
 
   config = config || {};
+
+  let postcssModulesConfig = {
+    getJSON: (filename, json) => (asset.cssModules = json)
+  };
+
+  if (config.plugins && config.plugins['postcss-modules']) {
+    postcssModulesConfig = Object.assign(config.plugins['postcss-modules'], postcssModulesConfig);
+    delete config.plugins['postcss-modules'];
+  }
+
   config.plugins = loadPlugins(config.plugins, asset.name);
 
   if (config.modules) {
-    config.plugins.push(localRequire('postcss-modules', asset.name)({
-      getJSON: (filename, json) => asset.cssModules = json
-    }));
+    config.plugins.push(localRequire('postcss-modules', asset.name)(postcssModulesConfig));
   }
 
   if (asset.options.minify) {
