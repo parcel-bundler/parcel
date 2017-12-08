@@ -38,6 +38,7 @@ function middleware(bundler) {
     }
 
     function send500() {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.writeHead(500);
       res.end('🚨 Build error, check the console for details.');
     }
