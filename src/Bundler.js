@@ -247,7 +247,7 @@ class Bundler extends EventEmitter {
     try {
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
-      err.message = `Cannot resolve dependency '${dep.name}'`;
+      err.message = `Cannot resolve dependency '${dep.name}': ${err.message}`;
 
       // Generate a code frame where the dependency was used
       if (dep.loc) {
