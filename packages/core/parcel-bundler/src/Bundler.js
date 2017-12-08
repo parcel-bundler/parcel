@@ -133,6 +133,9 @@ class Bundler extends EventEmitter {
     } catch (err) {
       this.errored = true;
       this.logger.error(err);
+      if (this.hmr) {
+        this.hmr.emitError(err);
+      }
     } finally {
       this.pending = false;
       this.emit('buildEnd');
