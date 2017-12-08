@@ -4,6 +4,8 @@
   </a>
 </p>
 
+[![Slack](https://slack.parceljs.org/badge.svg)](https://slack.parceljs.org/)
+
 ## Features
 
 - 🚀 **Blazing fast** bundle times - multicore compilation, and a filesystem cache for fast rebuilds even after a restart.
@@ -71,6 +73,13 @@ Finally, existing bundlers are built around string loaders/transforms, where the
 Once the asset tree has been constructed, the assets are placed into a bundle tree. A bundle is created for the entry asset, and child bundles are created for dynamic imports, which cause code splitting to occur. Child bundles are also created when assets of a different type are imported, for example if you imported a CSS file from JavaScript, it would be placed into a sibling bundle to the corresponding JavaScript. If an asset is required in more than one bundle, it is hoisted up to the nearest common ancestor in the bundle tree so it is not included more than once.
 
 After the bundle tree is constructed, each bundle is written to a file by a packager specific to the file type. The packagers know how to combine the code from each asset together into the final file that is loaded by a browser.
+
+## Community
+
+All feedback and suggestions are welcome!
+
+- 💬 Chat: Join us on [slack](https://slack.parceljs.org/).
+- 📣 Stay up to date on new features and announcments on [@parceljs](https://twitter.com/parceljs).
 
 ## License
 
