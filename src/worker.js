@@ -9,12 +9,12 @@ function emit(event, ...args) {
   process.send({event, args});
 }
 
-exports.init = function (options, callback) {
+exports.init = function(options, callback) {
   parser = new Parser(options || {});
   callback();
 };
 
-exports.run = async function (path, pkg, options, callback) {
+exports.run = async function(path, pkg, options, callback) {
   try {
     var asset = parser.getAsset(path, pkg, options);
     await asset.process();

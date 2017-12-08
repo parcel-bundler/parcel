@@ -17,7 +17,11 @@ class CSSAsset extends Asset {
   }
 
   mightHaveDependencies() {
-    return !/\.css$/.test(this.name) || IMPORT_RE.test(this.contents) || URL_RE.test(this.contents);
+    return (
+      !/\.css$/.test(this.name) ||
+      IMPORT_RE.test(this.contents) ||
+      URL_RE.test(this.contents)
+    );
   }
 
   parse(code) {
@@ -32,7 +36,11 @@ class CSSAsset extends Asset {
       let dep;
       if (name.type === 'string') {
         dep = name.value;
-      } else if (name.type === 'function' && name.value === 'url' && name.nodes.length) {
+      } else if (
+        name.type === 'function' &&
+        name.value === 'url' &&
+        name.nodes.length
+      ) {
         dep = name.nodes[0].value;
       }
 
@@ -57,8 +65,14 @@ class CSSAsset extends Asset {
         let dirty = false;
 
         parsed.walk(node => {
-          if (node.type === 'function' && node.value === 'url' && node.nodes.length) {
-            let url = this.addURLDependency(node.nodes[0].value, {loc: decl.source.start});
+          if (
+            node.type === 'function' &&
+            node.value === 'url' &&
+            node.nodes.length
+          ) {
+            let url = this.addURLDependency(node.nodes[0].value, {
+              loc: decl.source.start
+            });
             dirty = node.nodes[0].value !== url;
             node.nodes[0].value = url;
           }
@@ -100,7 +114,8 @@ class CSSAsset extends Asset {
     }
 
     if (this.cssModules) {
-      js += 'module.exports = ' + JSON.stringify(this.cssModules, false, 2) + ';';
+      js +=
+        'module.exports = ' + JSON.stringify(this.cssModules, false, 2) + ';';
     }
 
     return {css, js};
@@ -109,7 +124,12 @@ class CSSAsset extends Asset {
   generateErrorMessage(err) {
     // Wrap the error in a CssSyntaxError if needed so we can generate a code frame
     if (err.loc && !err.showSourceCode) {
-      err = new CssSyntaxError(err.message, err.loc.line, err.loc.column, this.contents);
+      err = new CssSyntaxError(
+        err.message,
+        err.loc.line,
+        err.loc.column,
+        this.contents
+      );
     }
 
     err.message = err.reason || err.message;
@@ -137,7 +157,7 @@ class CSSAst {
   render() {
     if (this.dirty) {
       this.css = '';
-      postcss.stringify(this.root, c => this.css += c);
+      postcss.stringify(this.root, c => (this.css += c));
     }
 
     return this.css;

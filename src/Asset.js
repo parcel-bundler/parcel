@@ -28,11 +28,11 @@ class Asset {
     this.ast = null;
     this.generated = null;
     this.hash = null;
-    this.parentDeps = new Set;
-    this.dependencies = new Map;
-    this.depAssets = new Map;
+    this.parentDeps = new Set();
+    this.dependencies = new Map();
+    this.depAssets = new Map();
     this.parentBundle = null;
-    this.bundles = new Set;
+    this.bundles = new Set();
   }
 
   async loadIfNeeded() {
@@ -71,9 +71,16 @@ class Asset {
       from = this.name;
     }
 
-    let resolved = path.resolve(path.dirname(from), url).replace(/[\?#].*$/, '');
-    this.addDependency('./' + path.relative(path.dirname(this.name), resolved), Object.assign({dynamic: true}, opts));
-    return this.options.parser.getAsset(resolved, this.package, this.options).generateBundleName();
+    let resolved = path
+      .resolve(path.dirname(from), url)
+      .replace(/[\?#].*$/, '');
+    this.addDependency(
+      './' + path.relative(path.dirname(this.name), resolved),
+      Object.assign({dynamic: true}, opts)
+    );
+    return this.options.parser
+      .getAsset(resolved, this.package, this.options)
+      .generateBundleName();
   }
 
   mightHaveDependencies() {
@@ -139,7 +146,10 @@ class Asset {
 
   generateBundleName(isMainAsset) {
     // Resolve the main file of the package.json
-    let main = this.package && this.package.main ? path.resolve(path.dirname(this.package.pkgfile), this.package.main) : null;
+    let main =
+      this.package && this.package.main
+        ? path.resolve(path.dirname(this.package.pkgfile), this.package.main)
+        : null;
     let ext = '.' + this.type;
 
     // If this asset is main file of the package, use the package name
