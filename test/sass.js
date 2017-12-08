@@ -6,8 +6,6 @@ describe('sass', function() {
   it('should support requiring sass files', async function() {
     let b = await bundle(__dirname + '/integration/sass/index.js');
 
-    console.log(b);
-
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.sass'],
