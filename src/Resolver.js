@@ -8,7 +8,7 @@ const glob = require('glob');
 class Resolver {
   constructor(options = {}) {
     this.options = options;
-    this.cache = new Map;
+    this.cache = new Map();
   }
 
   async resolve(filename, parent) {

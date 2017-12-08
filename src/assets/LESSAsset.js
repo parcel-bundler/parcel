@@ -9,7 +9,10 @@ class LESSAsset extends CSSAsset {
     let less = localRequire('less', this.name);
     let render = promisify(less.render.bind(less));
 
-    let opts = this.package.less || await config.load(this.name, ['.lessrc', '.lessrc.js']) || {};
+    let opts =
+      this.package.less ||
+      (await config.load(this.name, ['.lessrc', '.lessrc.js'])) ||
+      {};
     opts.filename = this.name;
     opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
 
@@ -30,7 +33,10 @@ function urlPlugin(asset) {
     install: (less, pluginManager) => {
       let visitor = new less.visitors.Visitor({
         visitUrl: (node, args) => {
-          node.value.value = asset.addURLDependency(node.value.value, node.currentFileInfo.filename);
+          node.value.value = asset.addURLDependency(
+            node.value.value,
+            node.currentFileInfo.filename
+          );
           return node;
         }
       });

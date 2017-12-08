@@ -6,7 +6,7 @@ const serveStatic = require('serve-static');
 function middleware(bundler) {
   const serve = serveStatic(bundler.options.outDir, {index: false});
 
-  return function (req, res, next) {
+  return function(req, res, next) {
     // Wait for the bundler to finish bundling if needed
     if (bundler.pending) {
       bundler.once('bundled', respond);

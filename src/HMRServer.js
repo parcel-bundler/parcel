@@ -3,13 +3,13 @@ const prettyError = require('./utils/prettyError');
 
 class HMRServer {
   async start() {
-    await new Promise((resolve) => {
+    await new Promise(resolve => {
       this.wss = new WebSocket.Server({port: 0}, resolve);
     });
 
-    this.wss.on('connection', (ws) => {
+    this.wss.on('connection', ws => {
       if (this.unresolvedError) {
-        ws.send(JSON.stringify(this.unresolvedError))
+        ws.send(JSON.stringify(this.unresolvedError));
       }
     });
 
@@ -33,12 +33,12 @@ class HMRServer {
       }
     };
 
-    this.broadcast(this.unresolvedError)
+    this.broadcast(this.unresolvedError);
   }
 
   emitUpdate(assets) {
     if (this.unresolvedError) {
-      this.unresolvedError = null
+      this.unresolvedError = null;
       this.broadcast({
         type: 'error-resolved'
       });
@@ -63,7 +63,7 @@ class HMRServer {
   }
 
   broadcast(msg) {
-    const json = JSON.stringify(msg)
+    const json = JSON.stringify(msg);
     for (let ws of this.wss.clients) {
       ws.send(json);
     }

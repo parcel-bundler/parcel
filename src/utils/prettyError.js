@@ -1,4 +1,4 @@
-module.exports = function (err, opts = {}) {
+module.exports = function(err, opts = {}) {
   let message = typeof err === 'string' ? err : err.message;
   if (!message) {
     message = 'Unknown error';

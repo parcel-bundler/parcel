@@ -3,7 +3,7 @@ const posthtml = require('posthtml');
 const Config = require('../utils/config');
 const htmlnano = require('htmlnano');
 
-module.exports = async function (asset) {
+module.exports = async function(asset) {
   let config = await getConfig(asset);
   if (!config) {
     return;
@@ -14,10 +14,16 @@ module.exports = async function (asset) {
 
   asset.ast = res.tree;
   asset.isAstDirty = true;
-}
+};
 
 async function getConfig(asset) {
-  let config = asset.package.posthtml || await Config.load(asset.name, ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js']);
+  let config =
+    asset.package.posthtml ||
+    (await Config.load(asset.name, [
+      '.posthtmlrc',
+      '.posthtmlrc.js',
+      'posthtml.config.js'
+    ]));
   if (!config && !asset.options.minify) {
     return;
   }

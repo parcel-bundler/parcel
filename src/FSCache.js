@@ -15,7 +15,7 @@ class FSCache {
     this.invalidated = new Set();
     this.optionsHash = objectHash(
       OPTION_KEYS.reduce((p, k) => ((p[k] = options[k]), p), {
-        version: pkg.version,
+        version: pkg.version
       })
     );
   }

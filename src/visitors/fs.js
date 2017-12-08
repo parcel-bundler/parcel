@@ -22,8 +22,13 @@ module.exports = {
   CallExpression(path, asset) {
     let callee = path.node.callee;
     if (referencesImport(path, 'fs', 'readFileSync')) {
-      let vars = {__dirname: Path.dirname(asset.name), __filename: asset.basename};
-      let [filename, ...args] = path.get('arguments').map(arg => evaluate(arg, vars));
+      let vars = {
+        __dirname: Path.dirname(asset.name),
+        __filename: asset.basename
+      };
+      let [filename, ...args] = path
+        .get('arguments')
+        .map(arg => evaluate(arg, vars));
       filename = Path.resolve(filename);
 
       let res = fs.readFileSync(filename, ...args);
@@ -55,10 +60,11 @@ function isRequire(node, name, method) {
   }
 
   let {callee, arguments: args} = node;
-  let isRequire = t.isIdentifier(callee)
-    && callee.name === 'require'
-    && args.length === 1
-    && t.isStringLiteral(args[0]);
+  let isRequire =
+    t.isIdentifier(callee) &&
+    callee.name === 'require' &&
+    args.length === 1 &&
+    t.isStringLiteral(args[0]);
 
   if (!isRequire) {
     return false;
@@ -87,7 +93,7 @@ function referencesImport(path, name, method) {
     if (t.isIdentifier(callee.object)) {
       bindingPath = getBindingPath(path, callee.object.name);
 
-    // require('fs').readFileSync()
+      // require('fs').readFileSync()
     } else if (isRequire(callee.object, name)) {
       return true;
     }
@@ -104,14 +110,20 @@ function referencesImport(path, name, method) {
 
   // e.g. import fs from 'fs';
   if (parent.isImportDeclaration()) {
-    if (bindingPath.isImportSpecifier() && bindingPath.node.imported.name !== method) {
+    if (
+      bindingPath.isImportSpecifier() &&
+      bindingPath.node.imported.name !== method
+    ) {
       return false;
     }
 
     return parent.node.source.value === name;
 
-  // e.g. var fs = require('fs');
-  } else if (t.isVariableDeclarator(bindingNode) || t.isAssignmentExpression(bindingNode)) {
+    // e.g. var fs = require('fs');
+  } else if (
+    t.isVariableDeclarator(bindingNode) ||
+    t.isAssignmentExpression(bindingNode)
+  ) {
     let left = bindingNode.id || bindingNode.left;
     let right = bindingNode.init || bindingNode.right;
 
@@ -139,7 +151,7 @@ function getBindingPath(path, name) {
 function evaluate(path, vars) {
   // Inline variables
   path.traverse({
-    Identifier: function (ident) {
+    Identifier: function(ident) {
       let key = ident.node.name;
       if (key in vars) {
         ident.replaceWith(t.valueToNode(vars[key]));

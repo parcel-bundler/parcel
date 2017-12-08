@@ -2,13 +2,17 @@ const fs = require('fs');
 const {basename} = require('path');
 const Packager = require('./Packager');
 
-const prelude = fs.readFileSync(__dirname + '/../builtins/prelude.js', 'utf8').trim();
-const hmr = fs.readFileSync(__dirname + '/../builtins/hmr-runtime.js', 'utf8').trim();
+const prelude = fs
+  .readFileSync(__dirname + '/../builtins/prelude.js', 'utf8')
+  .trim();
+const hmr = fs
+  .readFileSync(__dirname + '/../builtins/hmr-runtime.js', 'utf8')
+  .trim();
 
 class JSPackager extends Packager {
   async start() {
     this.first = true;
-    this.dedupe = new Map;
+    this.dedupe = new Map();
 
     await this.dest.write(prelude + '({');
   }
@@ -48,7 +52,8 @@ class JSPackager extends Packager {
 
   async writeModule(id, code, deps = {}) {
     let wrapped = this.first ? '' : ',';
-    wrapped += id + ':[function(require,module,exports) {\n' + (code || '') + '\n},';
+    wrapped +=
+      id + ':[function(require,module,exports) {\n' + (code || '') + '\n},';
     wrapped += JSON.stringify(deps);
     wrapped += ']';
 
@@ -62,7 +67,10 @@ class JSPackager extends Packager {
     // Add the HMR runtime if needed.
     if (this.options.hmr) {
       // Asset ids normally start at 1, so this should be safe.
-      await this.writeModule(0, hmr.replace('{{HMR_PORT}}', this.options.hmrPort));
+      await this.writeModule(
+        0,
+        hmr.replace('{{HMR_PORT}}', this.options.hmrPort)
+      );
       entry.push(0);
     }
 
