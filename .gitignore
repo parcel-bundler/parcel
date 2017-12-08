@@ -9,3 +9,4 @@ coverage
 dist
 lib
 !test/**/node_modules
+.vscode/
