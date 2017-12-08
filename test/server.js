@@ -61,4 +61,21 @@ describe('server', function () {
 
     assert(threw);
   });
+
+  it('should serve a 500 if the bundler errored', async function () {
+    let b = bundler(__dirname + '/integration/html/index.html');
+    server = b.serve(0);
+    
+    b.errored = true;
+    
+    try {
+      await get('/');
+      throw new Error('GET / responded with 200')
+    } catch (err) {
+      assert.equal(err.message, 'Request failed: 500');
+    }
+    
+    b.errored = false;
+    await get('/');
+  });
 });
