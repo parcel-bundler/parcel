@@ -4,6 +4,11 @@ const postcss = require('postcss');
 const Config = require('../utils/config');
 const cssnano = require('cssnano');
 
+const enabledPlugins = {
+  postcssModules: false,
+  cssnano: false
+}
+
 module.exports = async function (asset) {
   let config = await getConfig(asset);
   if (!config) {
@@ -36,12 +41,14 @@ async function getConfig(asset) {
 
   config.plugins = loadPlugins(config.plugins, asset.name);
 
-  if (config.modules) {
+  if (config.modules && !enabledPlugins.postcssModules) {
     config.plugins.push(localRequire('postcss-modules', asset.name)(postcssModulesConfig));
+    enabledPlugins.postcssModules = true
   }
 
-  if (asset.options.minify) {
+  if (asset.options.minify && !enabledPlugins.cssnano) {
     config.plugins.push(cssnano());
+    enabledPlugins.cssnano = true
   }
 
   config.from = asset.name;
