@@ -88,7 +88,7 @@ describe('hmr', function () {
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
     let bundle = await b.bundle();
-    
+
     fs.writeFileSync(__dirname + '/input/local.js', 'require("fs"; exports.a = 5; exports.b = 5;');
     await nextEvent(b, 'buildEnd');
     await sleep(50);
@@ -194,13 +194,13 @@ describe('hmr', function () {
         error(msg) { logs.push(msg) },
       }
     });
-    
+
     fs.writeFileSync(__dirname + '/input/local.js', 'require("fs"; exports.a = 5; exports.b = 5;');
     await nextEvent(b, 'buildEnd');
     await sleep(50);
-    
+
     assert.equal(logs.length, 1)
-    assert(logs[0].trim().startsWith('[parcel-bundler] 🚨'));
+    assert(logs[0].trim().startsWith('[parcel] 🚨'));
   });
 
   it('should log when errors resolve', async function () {
@@ -216,16 +216,16 @@ describe('hmr', function () {
         log(msg) { logs.push(msg) },
       }
     });
-    
+
     fs.writeFileSync(__dirname + '/input/local.js', 'require("fs"; exports.a = 5; exports.b = 5;');
     await nextEvent(b, 'buildEnd');
-    
+
     fs.writeFileSync(__dirname + '/input/local.js', 'require("fs"); exports.a = 5; exports.b = 5;');
     await nextEvent(b, 'buildEnd');
     await sleep(50);
-    
+
     assert.equal(logs.length, 2)
-    assert(logs[0].trim().startsWith('[parcel-bundler] 🚨'));
-    assert(logs[1].trim().startsWith('[parcel-bundler] ✨'));
+    assert(logs[0].trim().startsWith('[parcel] 🚨'));
+    assert(logs[1].trim().startsWith('[parcel] ✨'));
   });
 });
