@@ -133,6 +133,9 @@ class Bundler extends EventEmitter {
     } catch (err) {
       this.errored = true;
       this.logger.error(err);
+      if (this.hmr) {
+        this.hmr.emitError(err);
+      }
     } finally {
       this.pending = false;
       this.emit('buildEnd');
@@ -185,7 +188,6 @@ class Bundler extends EventEmitter {
   async buildQueuedAssets(isInitialBundle = false) {
     // Consume the rebuild queue until it is empty.
     let loadedAssets = new Set;
-
     while (this.buildQueue.size > 0) {
       let promises = [];
       for (let asset of this.buildQueue) {
@@ -248,16 +250,18 @@ class Bundler extends EventEmitter {
     try {
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
-      err.message = `Cannot resolve dependency '${dep.name}'`;
+      if (err.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
+        err.message = `Cannot resolve dependency '${dep.name}'`;
 
-      // Generate a code frame where the dependency was used
-      if (dep.loc) {
-        await asset.loadIfNeeded();
-        err.loc = dep.loc;
-        err = asset.generateErrorMessage(err);
+        // Generate a code frame where the dependency was used
+        if (dep.loc) {
+          await asset.loadIfNeeded();
+          err.loc = dep.loc;
+          err = asset.generateErrorMessage(err);
+        }
+
+        err.fileName = asset.name;
       }
-
-      err.fileName = asset.name;
       throw err;
     }
   }

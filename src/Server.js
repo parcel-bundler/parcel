@@ -15,8 +15,10 @@ function middleware(bundler) {
     }
 
     function respond() {
-      // If the URL doesn't start with the public path, send the main HTML bundle
-      if (!req.url.startsWith(bundler.options.publicURL)) {
+      if (bundler.errored) {
+        return send500();
+      } else if (!req.url.startsWith(bundler.options.publicURL)) {
+        // If the URL doesn't start with the public path, send the main HTML bundle
         return sendIndex();
       } else {
         // Otherwise, serve the file from the dist folder
@@ -33,6 +35,12 @@ function middleware(bundler) {
       } else {
         send404();
       }
+    }
+
+    function send500() {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.writeHead(500);
+      res.end('🚨 Build error, check the console for details.');
     }
 
     function send404() {
