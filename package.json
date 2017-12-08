@@ -51,7 +51,8 @@
     "postcss-modules": "^0.8.0",
     "posthtml-include": "^1.1.0",
     "rimraf": "^2.6.1",
-    "stylus": "^0.54.5"
+    "stylus": "^0.54.5",
+    "typescript": "^2.6.2"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",

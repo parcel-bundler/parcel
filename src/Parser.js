@@ -10,6 +10,8 @@ class Parser {
     this.registerExtension('js', './assets/JSAsset');
     this.registerExtension('jsx', './assets/JSAsset');
     this.registerExtension('es6', './assets/JSAsset');
+    this.registerExtension('ts', './assets/TypeScriptAsset');
+    this.registerExtension('tsx', './assets/TypeScriptAsset');
     this.registerExtension('json', './assets/JSONAsset');
     this.registerExtension('yaml', './assets/YAMLAsset');
     this.registerExtension('yml', './assets/YAMLAsset');
@@ -46,7 +48,6 @@ class Parser {
     if (typeof parser === 'string') {
       parser = this.extensions[extension] = require(parser);
     }
-
     return parser;
   }
 
