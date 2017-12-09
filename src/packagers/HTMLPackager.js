@@ -13,8 +13,10 @@ class HTMLPackager extends Packager {
       .filter(Boolean);
 
     if (cssBundles.length > 0) {
-      html = posthtml(this.insertCSSBundles.bind(this, cssBundles))
-        .process(html, {sync: true}).html;
+      html = posthtml(this.insertCSSBundles.bind(this, cssBundles)).process(
+        html,
+        {sync: true}
+      ).html;
     }
 
     await this.dest.write(html);

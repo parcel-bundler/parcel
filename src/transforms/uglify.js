@@ -3,7 +3,7 @@ const {toEstree} = require('babel-to-estree');
 const types = require('babel-types');
 const walk = require('babylon-walk');
 
-module.exports = async function (asset) {
+module.exports = async function(asset) {
   await asset.parseIfNeeded();
 
   // Convert to UglifyJS AST

@@ -18,7 +18,10 @@ class GlobAsset extends Asset {
 
     for (let file of files) {
       let match = file.match(re);
-      let parts = match.slice(1).filter(Boolean).reduce((a, p) => a.concat(p.split('/')), []);
+      let parts = match
+        .slice(1)
+        .filter(Boolean)
+        .reduce((a, p) => a.concat(p.split('/')), []);
       let relative = './' + path.relative(path.dirname(this.name), file);
       set(matches, parts, relative);
       this.addDependency(relative);
@@ -47,7 +50,10 @@ function generate(matches, indent = '') {
       res += ',';
     }
 
-    res += `\n${indent}  ${JSON.stringify(key)}: ${generate(matches[key], indent + '  ')}`;
+    res += `\n${indent}  ${JSON.stringify(key)}: ${generate(
+      matches[key],
+      indent + '  '
+    )}`;
     first = false;
   }
 
