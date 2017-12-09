@@ -5,9 +5,9 @@ const PRIVATE_KEY_PATH = './.cache/private.pem';
 const PRIMARY_KEY_PATH = './.cache/primary.crt';
 
 function generateCertificate() {
-  let cachedKey =
+  const cachedKey =
     fs.existsSync(PRIVATE_KEY_PATH) && fs.readFileSync(PRIVATE_KEY_PATH);
-  let cachedCert =
+  const cachedCert =
     fs.existsSync(PRIMARY_KEY_PATH) && fs.readFileSync(PRIMARY_KEY_PATH);
 
   if (cachedKey && cachedCert)
