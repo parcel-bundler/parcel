@@ -1,0 +1,16 @@
+environment:
+  nodejs_version: "8"
+
+install:
+  - ps: Install-Product node $env:nodejs_version
+  - yarn
+
+test_script:
+  - node --version
+  - yarn --version
+  - yarn test
+
+cache:
+  - node_modules
+
+build: off
