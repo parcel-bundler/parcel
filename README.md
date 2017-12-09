@@ -82,7 +82,7 @@ After the bundle tree is constructed, each bundle is written to a file by a pack
 All feedback and suggestions are welcome!
 
 - 💬 Chat: Join us on [slack](https://slack.parceljs.org/).
-- 📣 Stay up to date on new features and announcments on [@parceljs](https://twitter.com/parceljs).
+- 📣 Stay up to date on new features and announcements on [@parceljs](https://twitter.com/parceljs).
 
 ## License
 
