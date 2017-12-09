@@ -150,7 +150,7 @@ class Bundler extends EventEmitter {
       }
 
       if (process.env.NODE_ENV === 'production') {
-        process.exit(1);
+        process.exitCode = 1;
       }
     } finally {
       this.pending = false;
