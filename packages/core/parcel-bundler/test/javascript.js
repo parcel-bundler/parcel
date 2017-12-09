@@ -57,6 +57,23 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
+  it('should return all exports as an object when using ES modules', async function() {
+    let b = await bundle(__dirname + '/integration/dynamic-esm/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
+      childBundles: [{
+        assets: ['local.js'],
+        childBundles: []
+      }]
+    });
+
+    let output = run(b).default;
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
+
   it('should hoist common dependencies into a parent bundle', async function() {
     let b = await bundle(__dirname + '/integration/dynamic-hoist/index.js');
 
