@@ -4,12 +4,12 @@ function loadBundles(bundles) {
   var id = Array.isArray(bundles) ? bundles[bundles.length - 1] : bundles;
 
   try {
-    return Promise.resolve(requireModule(id));
+    return Promise.resolve(require(id));
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') {
       return new LazyPromise(function (resolve, reject) {
         Promise.all(bundles.slice(0, -1).map(loadBundle)).then(function () {
-          return requireModule(id);
+          return require(id);
         }).then(resolve, reject);
       });
     }
@@ -73,15 +73,6 @@ function loadCSSBundle(bundle) {
 
     document.getElementsByTagName('head')[0].appendChild(link);
   });
-}
-
-function requireModule(id) {
-  var res = require(id);
-  if (res.__esModule) {
-    return res.default;
-  }
-
-  return res;
 }
 
 function LazyPromise(executor) {
