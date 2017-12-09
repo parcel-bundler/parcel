@@ -7,7 +7,7 @@ class RawAsset extends Asset {
 
   generate() {
     const pathToAsset = JSON.stringify(
-      `${this.options.publicURL}/${this.generateBundleName()}`
+      path.join(this.options.publicURL, this.generateBundleName())
     );
     return {
       js: `module.exports=${pathToAsset};`
