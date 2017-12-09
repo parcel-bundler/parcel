@@ -13,7 +13,6 @@ const {EventEmitter} = require('events');
 const Logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
-const http = require('http');
 const customErrors = require('./utils/customErrors');
 
 /**
