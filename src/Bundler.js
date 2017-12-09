@@ -450,33 +450,30 @@ class Bundler extends EventEmitter {
     return Server.middleware(this);
   }
 
-  getFreePort(port) {
-    return new Promise((resolve, reject) => {
-      let server = http.createServer().listen(port);
-      server.once('error', err => {
-        resolve(0);
-      });
-      server.once('listening', connection => {
-        server.close(() => {
-          resolve(port);
-        });
-      });
-    });
-  }
-
   async serve(port = 1234) {
-    port = await this.getFreePort(port);
     this.bundle();
-    let server = Server.serve(this, port);
+    let server = await Server.serve(this, port);
+
     server.once('error', err => {
-      this.logger.error(new Error(customErrors.serverErrors(err, port)));
+      this.logger.error(
+        new Error(customErrors.serverErrors(err, server.address().port))
+      );
     });
+
     server.once('listening', connection => {
-      this.logger.write(
+      this.logger.persistent(
         'Server running at ' +
           this.logger.chalk.cyan(`http://localhost:${server.address().port}\n`)
       );
+      if (server.address().port !== port) {
+        this.logger.warn(
+          `Port: ${port} could not be used, fallback to port ${
+            server.address().port
+          }\n`
+        );
+      }
     });
+
     return server;
   }
 }

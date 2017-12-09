@@ -54,7 +54,22 @@ function middleware(bundler) {
   };
 }
 
-function serve(bundler, port) {
+function getFreePort(port) {
+  return new Promise((resolve, reject) => {
+    let server = http.createServer().listen(port);
+    server.once('error', err => {
+      resolve(0);
+    });
+    server.once('listening', connection => {
+      server.close(() => {
+        resolve(port);
+      });
+    });
+  });
+}
+
+async function serve(bundler, port) {
+  port = await getFreePort(port);
   return http.createServer(middleware(bundler)).listen(port);
 }
 
