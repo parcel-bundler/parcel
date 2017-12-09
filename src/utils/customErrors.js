@@ -6,7 +6,9 @@ let serverErrorList = {
 function serverErrors(err, port) {
   let desc = serverErrorList[err.code].replace(/{port}/g, port);
   if (!desc) {
-    desc = `${err.code} accured while setting up server on port ${port}`;
+    desc = `Error: ${
+      err.code
+    } occurred while setting up server on port ${port}.`;
   }
   return desc;
 }
