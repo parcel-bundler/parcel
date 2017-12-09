@@ -96,7 +96,9 @@ class Bundler extends EventEmitter {
           localRequire(dep, this.mainFile)(this);
         }
       }
-    } catch (err) {}
+    } catch (err) {
+      this.logger.warn(err);
+    }
   }
 
   async bundle() {
