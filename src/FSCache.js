@@ -36,6 +36,7 @@ class FSCache {
       await fs.writeFile(this.getCacheFile(filename), JSON.stringify(data));
       this.invalidated.delete(filename);
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Error writing to cache', err);
     }
   }
@@ -70,7 +71,9 @@ class FSCache {
     try {
       await fs.unlink(this.getCacheFile(filename));
       this.invalidated.delete(filename);
-    } catch (err) {}
+    } catch (err) {
+      // Fail silently
+    }
   }
 }
 

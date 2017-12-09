@@ -1,6 +1,4 @@
 const http = require('http');
-const path = require('path');
-const url = require('url');
 const serveStatic = require('serve-static');
 
 function middleware(bundler) {

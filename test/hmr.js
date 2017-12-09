@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundler, run, assertBundleTree} = require('./utils');
+const {bundler, run} = require('./utils');
 const rimraf = require('rimraf');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
@@ -39,7 +39,7 @@ describe('hmr', function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
-    let bundle = await b.bundle();
+    await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
@@ -59,7 +59,7 @@ describe('hmr', function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
-    let bundle = await b.bundle();
+    await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
@@ -77,7 +77,7 @@ describe('hmr', function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
-    let bundle = await b.bundle();
+    await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
@@ -102,7 +102,7 @@ describe('hmr', function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
-    let bundle = await b.bundle();
+    await b.bundle();
 
     fs.writeFileSync(
       __dirname + '/input/local.js',
@@ -120,7 +120,7 @@ describe('hmr', function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
-    let bundle = await b.bundle();
+    await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 

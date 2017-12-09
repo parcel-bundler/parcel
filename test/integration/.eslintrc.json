@@ -1,0 +1,10 @@
+{
+  "extends": "../.eslintrc.json",
+  "env": {
+    "browser": true
+  },
+  "globals": {
+    "output": true,
+    "import": true
+  }
+}

@@ -1,4 +1,3 @@
-const Parser = require('./Parser');
 const path = require('path');
 const fs = require('./utils/fs');
 const objectHash = require('./utils/objectHash');
@@ -73,7 +72,7 @@ class Asset {
 
     let resolved = path
       .resolve(path.dirname(from), url)
-      .replace(/[\?#].*$/, '');
+      .replace(/[?#].*$/, '');
     this.addDependency(
       './' + path.relative(path.dirname(this.name), resolved),
       Object.assign({dynamic: true}, opts)

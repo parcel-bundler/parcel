@@ -42,6 +42,7 @@
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.6.1",
     "cross-env": "^5.1.1",
+    "eslint": "^4.13.0",
     "husky": "^0.14.3",
     "less": "^2.7.2",
     "lint-staged": "^6.0.0",
@@ -62,7 +63,8 @@
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
     "build": "babel src -d lib",
     "prepublish": "yarn build",
-    "precommit": "lint-staged"
+    "precommit": "lint-staged",
+    "lint": "eslint ."
   },
   "bin": {
     "parcel": "bin/cli.js"
@@ -71,6 +73,10 @@
     "node": ">= 6.0.0"
   },
   "lint-staged": {
-    "*.{js,json,md}": ["prettier --write", "git add"]
+    "*.{js,json,md}": [
+      "prettier --write",
+      "eslint --fix",
+      "git add"
+    ]
   }
 }

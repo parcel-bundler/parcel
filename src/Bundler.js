@@ -2,7 +2,6 @@ const fs = require('./utils/fs');
 const Resolver = require('./Resolver');
 const Parser = require('./Parser');
 const WorkerFarm = require('./WorkerFarm');
-const worker = require('./utils/promisify')(require('./worker.js'));
 const Path = require('path');
 const Bundle = require('./Bundle');
 const {FSWatcher} = require('chokidar');
@@ -262,19 +261,21 @@ class Bundler extends EventEmitter {
     try {
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
-      if (err.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
-        err.message = `Cannot resolve dependency '${dep.name}'`;
+      let thrown = err;
+
+      if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
+        thrown.message = `Cannot resolve dependency '${dep.name}'`;
 
         // Generate a code frame where the dependency was used
         if (dep.loc) {
           await asset.loadIfNeeded();
-          err.loc = dep.loc;
-          err = asset.generateErrorMessage(err);
+          thrown.loc = dep.loc;
+          thrown = asset.generateErrorMessage(thrown);
         }
 
-        err.fileName = asset.name;
+        thrown.fileName = asset.name;
       }
-      throw err;
+      throw thrown;
     }
   }
 

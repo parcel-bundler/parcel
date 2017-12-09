@@ -1,4 +1,3 @@
-const template = require('babel-template');
 const Path = require('path');
 const types = require('babel-types');
 

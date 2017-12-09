@@ -62,6 +62,7 @@ program
   });
 
 program.on('--help', function() {
+  /* eslint-disable no-console */
   console.log('');
   console.log(
     '  Run `' +
@@ -69,6 +70,7 @@ program.on('--help', function() {
       '` for more information on specific commands'
   );
   console.log('');
+  /* eslint-enable no-console */
 });
 
 // Make serve the default command

@@ -103,7 +103,7 @@ describe('watcher', function() {
     await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
     b = bundler(__dirname + '/input/index.js', {watch: true});
 
-    let bundle = await b.bundle();
+    await b.bundle();
     let mtimes = fs
       .readdirSync(__dirname + '/dist')
       .map(
@@ -116,7 +116,7 @@ describe('watcher', function() {
       'module.exports = require("./common")'
     );
 
-    bundle = await nextBundle(b);
+    await nextBundle(b);
     let newMtimes = fs
       .readdirSync(__dirname + '/dist')
       .map(

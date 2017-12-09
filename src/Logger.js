@@ -17,6 +17,7 @@ class Logger {
       this.lines += message.split('\n').length;
     }
 
+    // eslint-disable-next-line no-console
     console.log(message);
   }
 
