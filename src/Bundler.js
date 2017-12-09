@@ -13,6 +13,8 @@ const {EventEmitter} = require('events');
 const Logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
+const http = require('http');
+const customErrors = require('./utils/customErrors');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -448,12 +450,34 @@ class Bundler extends EventEmitter {
     return Server.middleware(this);
   }
 
-  serve(port = 1234) {
-    this.logger.persistent(
-      'Server running at ' + this.logger.chalk.cyan(`http://localhost:${port}`)
-    );
+  getFreePort(port) {
+    return new Promise((resolve, reject) => {
+      let server = http.createServer().listen(port);
+      server.once('error', err => {
+        resolve(0);
+      });
+      server.once('listening', connection => {
+        server.close(() => {
+          resolve(port);
+        });
+      });
+    });
+  }
+
+  async serve(port = 1234) {
+    port = await this.getFreePort(port);
     this.bundle();
-    return Server.serve(this, port);
+    let server = Server.serve(this, port);
+    server.once('error', err => {
+      this.logger.error(new Error(customErrors.serverErrors(err, port)));
+    });
+    server.once('listening', connection => {
+      this.logger.write(
+        'Server running at ' +
+          this.logger.chalk.cyan(`http://localhost:${server.address().port}\n`)
+      );
+    });
+    return server;
   }
 }
 
