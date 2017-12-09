@@ -7,7 +7,11 @@ const path = require('path');
 const WebSocket = require('ws');
 
 beforeEach(function() {
-  rimraf.sync(path.join(__dirname, 'dist'));
+  try {
+    rimraf.sync(path.join(__dirname, 'dist'));
+  } catch (err) {
+    console.error(err);
+  }
 });
 
 function bundler(file, opts) {
