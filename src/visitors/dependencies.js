@@ -30,18 +30,20 @@ module.exports = {
   CallExpression(node, asset) {
     let {callee, arguments: args} = node;
 
-    let isRequire = types.isIdentifier(callee)
-                 && callee.name === 'require'
-                 && args.length === 1
-                 && types.isStringLiteral(args[0]);
+    let isRequire =
+      types.isIdentifier(callee) &&
+      callee.name === 'require' &&
+      args.length === 1 &&
+      types.isStringLiteral(args[0]);
 
     if (isRequire) {
       addDependency(asset, args[0]);
     }
 
-    let isDynamicImport = callee.type === 'Import'
-                       && args.length === 1
-                       && types.isStringLiteral(args[0]);
+    let isDynamicImport =
+      callee.type === 'Import' &&
+      args.length === 1 &&
+      types.isStringLiteral(args[0]);
 
     if (isDynamicImport) {
       asset.addDependency('_bundle_loader');

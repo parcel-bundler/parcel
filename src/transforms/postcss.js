@@ -4,7 +4,7 @@ const postcss = require('postcss');
 const Config = require('../utils/config');
 const cssnano = require('cssnano');
 
-module.exports = async function (asset) {
+module.exports = async function(asset) {
   let config = await getConfig(asset);
   if (!config) {
     return;
@@ -15,21 +15,40 @@ module.exports = async function (asset) {
 
   asset.ast.css = res.css;
   asset.ast.dirty = false;
-}
+};
 
 async function getConfig(asset) {
-  let config = asset.package.postcss || await Config.load(asset.name, ['.postcssrc', '.postcssrc.js', 'postcss.config.js']);
+  let config =
+    asset.package.postcss ||
+    (await Config.load(asset.name, [
+      '.postcssrc',
+      '.postcssrc.js',
+      'postcss.config.js'
+    ]));
   if (!config && !asset.options.minify) {
     return;
   }
 
   config = config || {};
+
+  let postcssModulesConfig = {
+    getJSON: (filename, json) => (asset.cssModules = json)
+  };
+
+  if (config.plugins && config.plugins['postcss-modules']) {
+    postcssModulesConfig = Object.assign(
+      config.plugins['postcss-modules'],
+      postcssModulesConfig
+    );
+    delete config.plugins['postcss-modules'];
+  }
+
   config.plugins = loadPlugins(config.plugins, asset.name);
 
   if (config.modules) {
-    config.plugins.push(localRequire('postcss-modules', asset.name)({
-      getJSON: (filename, json) => asset.cssModules = json
-    }));
+    config.plugins.push(
+      localRequire('postcss-modules', asset.name)(postcssModulesConfig)
+    );
   }
 
   if (asset.options.minify) {

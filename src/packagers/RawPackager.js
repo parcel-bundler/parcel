@@ -11,10 +11,14 @@ class RawPackager extends Packager {
     // Use the bundle name if this is the entry asset, otherwise generate one.
     let name = this.bundle.name;
     if (asset !== this.bundle.entryAsset) {
-      name = path.join(path.dirname(this.bundle.name), asset.generateBundleName());
+      name = path.join(
+        path.dirname(this.bundle.name),
+        asset.generateBundleName()
+      );
     }
 
-    let contents = asset.generated[asset.type] || await fs.readFile(asset.name);
+    let contents =
+      asset.generated[asset.type] || (await fs.readFile(asset.name));
     await fs.writeFile(name, contents);
   }
 

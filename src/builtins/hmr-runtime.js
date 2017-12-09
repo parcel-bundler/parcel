@@ -30,6 +30,14 @@ if (!module.bundle.parent) {
         }
       }
     }
+
+    if (data.type === 'error-resolved') {
+      console.log('[parcel] ✨ Error resolved');
+    }
+
+    if (data.type === 'error') {
+      console.error(`[parcel] 🚨 ${data.error.message}\n${data.error.stack}`);
+    }
   };
 }
 

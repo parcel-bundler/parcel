@@ -3,14 +3,15 @@ const Path = require('path');
 const types = require('babel-types');
 
 const VARS = {
-  process: (asset) => {
+  process: asset => {
     asset.addDependency('process');
     return 'var process = require("process");';
   },
   global: () => 'var global = (1,eval)("this");',
-  __dirname: (asset) => `var __dirname = ${JSON.stringify(Path.dirname(asset.name))};`,
-  __filename: (asset) => `var __filename = ${JSON.stringify(asset.name)};`,
-  Buffer: (asset) => {
+  __dirname: asset =>
+    `var __dirname = ${JSON.stringify(Path.dirname(asset.name))};`,
+  __filename: asset => `var __filename = ${JSON.stringify(asset.name)};`,
+  Buffer: asset => {
     asset.addDependency('buffer');
     return 'var Buffer = require("buffer").Buffer;';
   }
@@ -32,7 +33,11 @@ module.exports = {
 
   Identifier(node, asset, ancestors) {
     let parent = ancestors[ancestors.length - 2];
-    if (VARS.hasOwnProperty(node.name) && !asset.globals.has(node.name) && types.isReferenced(node, parent)) {
+    if (
+      VARS.hasOwnProperty(node.name) &&
+      !asset.globals.has(node.name) &&
+      types.isReferenced(node, parent)
+    ) {
       asset.globals.set(node.name, VARS[node.name](asset));
     }
   },
@@ -67,7 +72,7 @@ function matchesPattern(member, match) {
     return false;
   }
 
-  const parts = Array.isArray(match) ? match : match.split(".");
+  const parts = Array.isArray(match) ? match : match.split('.');
   const nodes = [];
 
   let node;
