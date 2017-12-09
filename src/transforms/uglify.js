@@ -5,8 +5,7 @@ const walk = require('babylon-walk');
 module.exports = async function(asset) {
   await asset.parseIfNeeded();
 
-  // Minify with uglify-es
-  var result = minify(asset.generate().js, {
+  let result = minify(asset.generate().js, {
     toplevel: true
   });
 
