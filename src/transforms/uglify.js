@@ -12,6 +12,8 @@ module.exports = async function(asset) {
     toplevel: true
   });
 
+  if (result.error) throw result.error;
+
   // Uglify did our code generation for us, so remove the old AST
   asset.ast = null;
   asset.outputCode = result.code;
