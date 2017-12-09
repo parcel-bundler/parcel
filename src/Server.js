@@ -1,7 +1,11 @@
 const http = require('http');
+const https = require('https');
 const path = require('path');
 const url = require('url');
+const fs = require('fs');
 const serveStatic = require('serve-static');
+
+const generateCertificate = require('./utils/generateCertificate');
 
 function middleware(bundler) {
   const serve = serveStatic(bundler.options.outDir, {index: false});
@@ -58,5 +62,11 @@ function serve(bundler, port) {
   return http.createServer(middleware(bundler)).listen(port);
 }
 
+function serveHttps(bundler, port) {
+  const {key, cert} = generateCertificate();
+  return https.createServer({key, cert}, middleware(bundler)).listen(port);
+}
+
 exports.middleware = middleware;
 exports.serve = serve;
+exports.serveHttps = serveHttps;

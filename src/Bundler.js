@@ -448,12 +448,15 @@ class Bundler extends EventEmitter {
     return Server.middleware(this);
   }
 
-  serve(port = 1234) {
+  serve(port = 1234, https) {
     this.logger.persistent(
-      'Server running at ' + this.logger.chalk.cyan(`http://localhost:${port}`)
+      'Server running at ' +
+        this.logger.chalk.cyan(
+          `${https ? 'https' : 'http'}://localhost:${port}`
+        )
     );
     this.bundle();
-    return Server.serve(this, port);
+    return https ? Server.serveHttps(this, port) : Server.serve(this, port);
   }
 }
 

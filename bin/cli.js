@@ -19,6 +19,7 @@ program
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
+  .option('--https', 'serves files over HTTPS')
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
   .action(bundle);
@@ -92,7 +93,7 @@ function bundle(main, command) {
   const bundler = new Bundler(main, command);
 
   if (command.name() === 'serve') {
-    bundler.serve(command.port || 1234);
+    bundler.serve(command.port || 1234, command.https);
   } else {
     bundler.bundle();
   }
