@@ -24,7 +24,7 @@ module.exports = {
       let key = types.toComputedKey(node);
       if (types.isStringLiteral(key)) {
         let val = types.valueToNode(process.env[key.value]);
-        replace(ancestors[ancestors.length - 2], node, val);
+        replaceIn(ancestors[ancestors.length - 2], node, val);
         delete node.object; // prevent traversing into this node
         asset.isAstDirty = true;
       }
@@ -105,12 +105,58 @@ function matchesPattern(member, match) {
   return true;
 }
 
-// Replaces the key in `parent` whose value is `from` with `to`
-function replace(parent, from, to) {
-  for (let key in parent) {
-    if (parent[key] === from) {
-      parent[key] = to;
-      break;
+// Replaces first key in `parent` whose value is `from` with `to`
+function replaceIn(parent, from, to) {
+  if (typeof parent !== 'object') {
+    return false;
+  }
+
+  if (Array.isArray(parent)) {
+    for (let i of parent) {
+      if (deepEqual(parent[i], from)) {
+        parent[i] = to;
+        return true;
+      }
+      if (replaceIn(parent[i], from, to)) {
+        return true;
+      }
     }
   }
+
+  for (let key in parent) {
+    if (deepEqual(parent[key], from)) {
+      parent[key] = to;
+      return true;
+    }
+    if (replaceIn(parent[key], from, to)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function deepEqual(a, b) {
+  if (!!a !== !!b) {
+    return false;
+  }
+
+  if (typeof a !== typeof b || Array.isArray(a) !== Array.isArray(b)) {
+    return false;
+  }
+
+  if (typeof a !== 'object') {
+    return a === b;
+  }
+
+  if (Array.isArray(a)) {
+    return a.every((_, i) => deepEqual(a[i], b[i]));
+  }
+
+  for (let key in a) {
+    if (!deepEqual(a[key], b[key])) {
+      return false;
+    }
+  }
+  return true;
 }
