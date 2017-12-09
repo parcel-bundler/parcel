@@ -1,5 +1,4 @@
-const {AST_Node, minify} = require('uglify-es');
-const {toEstree} = require('babel-to-estree');
+const {minify} = require('uglify-es');
 const types = require('babel-types');
 const walk = require('babylon-walk');
 
@@ -7,8 +6,7 @@ module.exports = async function(asset) {
   await asset.parseIfNeeded();
 
   // Convert to UglifyES AST
-  var ast = AST_Node.from_mozilla_ast(toEstree(asset.ast, asset.contents));
-  var result = minify(ast, {
+  var result = minify(asset.generate().js, {
     toplevel: true
   });
 
