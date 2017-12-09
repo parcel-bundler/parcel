@@ -97,10 +97,8 @@ class Bundler extends EventEmitter {
         }
       }
     } catch (err) {
-      let currPath = Path.dirname(this.mainFile);
-      currPath = currPath.substring(0, currPath.lastIndexOf('/'));
-      if (currPath.length > 1) {
-        return this.loadPlugins(currPath);
+      if (err.code === 'MODULE_NOT_FOUND' && location.length > 1) {
+        return this.loadPlugins(Path.join(location, '..'));
       }
       this.logger.warn(err);
     }
