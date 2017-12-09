@@ -5,7 +5,7 @@ const RawPackager = require('./RawPackager');
 
 class PackagerRegistry {
   constructor() {
-    this.packagers = new Map;
+    this.packagers = new Map();
 
     this.add('js', JSPackager);
     this.add('css', CSSPackager);

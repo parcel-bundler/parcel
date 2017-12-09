@@ -1,10 +1,12 @@
 const chalk = require('chalk');
 const readline = require('readline');
+const prettyError = require('./utils/prettyError');
 
 class Logger {
   constructor(options) {
     this.logLevel = typeof options.logLevel === 'number' ? options.logLevel : 3;
-    this.color = typeof options.color === 'boolean' ? options.color : chalk.supportsColor;
+    this.color =
+      typeof options.color === 'boolean' ? options.color : chalk.supportsColor;
     this.chalk = new chalk.constructor({enabled: this.color});
     this.lines = 0;
     this.statusLine = null;
@@ -47,26 +49,11 @@ class Logger {
       return;
     }
 
-    let message = typeof err === 'string' ? err : err.message;
-    if (!message) {
-      return;
-    }
-
-    if (err.fileName) {
-      let fileName = err.fileName;
-      if (err.loc) {
-        fileName += `:${err.loc.line}:${err.loc.column}`;
-      }
-
-      message = `${fileName}: ${message}`;
-    }
+    let {message, stack} = prettyError(err, {color: this.color});
 
     this.status('🚨', message, 'red');
-
-    if (err.codeFrame) {
-      this.write((this.color && err.highlightedCodeFrame) || err.codeFrame);
-    } else if (err.stack) {
-      this.write(err.stack.slice(err.stack.indexOf('\n') + 1));
+    if (stack) {
+      this.write(stack);
     }
   }
 
@@ -110,7 +97,10 @@ class Logger {
       this.statusLine = this.lines;
     }
 
-    this.writeLine(this.statusLine, this.chalk[color].bold(`${emoji}  ${message}`));
+    this.writeLine(
+      this.statusLine,
+      this.chalk[color].bold(`${emoji}  ${message}`)
+    );
 
     if (!hasStatusLine) {
       process.stdout.write('\n');

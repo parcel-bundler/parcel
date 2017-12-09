@@ -26,35 +26,42 @@ class Bundler extends EventEmitter {
 
     this.resolver = new Resolver(this.options);
     this.parser = new Parser(this.options);
-    this.packagers = new PackagerRegistry;
+    this.packagers = new PackagerRegistry();
     this.cache = this.options.cache ? new FSCache(this.options) : null;
     this.logger = new Logger(this.options);
     this.delegate = options.delegate || {};
 
     this.pending = false;
-    this.loadedAssets = new Map;
+    this.loadedAssets = new Map();
     this.farm = null;
     this.watcher = null;
     this.hmr = null;
     this.bundleHashes = null;
     this.errored = false;
-    this.buildQueue = new Set;
+    this.buildQueue = new Set();
     this.rebuildTimeout = null;
 
     this.loadPlugins();
   }
 
   normalizeOptions(options) {
-    const isProduction = options.production || process.env.NODE_ENV === 'production';
-    const publicURL = options.publicUrl || options.publicURL || '/' + Path.basename(options.outDir || 'dist');
-    const watch = typeof options.watch === 'boolean' ? options.watch : !isProduction;
+    const isProduction =
+      options.production || process.env.NODE_ENV === 'production';
+    const publicURL =
+      options.publicUrl ||
+      options.publicURL ||
+      '/' + Path.basename(options.outDir || 'dist');
+    const watch =
+      typeof options.watch === 'boolean' ? options.watch : !isProduction;
     return {
       outDir: Path.resolve(options.outDir || 'dist'),
       publicURL: publicURL,
       watch: watch,
       cache: typeof options.cache === 'boolean' ? options.cache : true,
-      killWorkers: typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
-      minify: typeof options.minify === 'boolean' ? options.minify : isProduction,
+      killWorkers:
+        typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
+      minify:
+        typeof options.minify === 'boolean' ? options.minify : isProduction,
       hmr: typeof options.hmr === 'boolean' ? options.hmr : watch,
       logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3
     };
@@ -126,13 +133,19 @@ class Bundler extends EventEmitter {
       let bundle = await this.buildQueuedAssets(isInitialBundle);
 
       let buildTime = Date.now() - startTime;
-      let time = buildTime < 1000 ? `${buildTime}ms` : `${(buildTime / 1000).toFixed(2)}s`;
+      let time =
+        buildTime < 1000
+          ? `${buildTime}ms`
+          : `${(buildTime / 1000).toFixed(2)}s`;
       this.logger.status('✨', `Built in ${time}.`, 'green');
 
       return bundle;
     } catch (err) {
       this.errored = true;
       this.logger.error(err);
+      if (this.hmr) {
+        this.hmr.emitError(err);
+      }
     } finally {
       this.pending = false;
       this.emit('buildEnd');
@@ -163,7 +176,7 @@ class Bundler extends EventEmitter {
     }
 
     if (this.options.hmr) {
-      this.hmr = new HMRServer;
+      this.hmr = new HMRServer();
       this.options.hmrPort = await this.hmr.start();
     }
   }
@@ -184,7 +197,7 @@ class Bundler extends EventEmitter {
 
   async buildQueuedAssets(isInitialBundle = false) {
     // Consume the rebuild queue until it is empty.
-    let loadedAssets = new Set;
+    let loadedAssets = new Set();
     while (this.buildQueue.size > 0) {
       let promises = [];
       for (let asset of this.buildQueue) {
@@ -247,16 +260,18 @@ class Bundler extends EventEmitter {
     try {
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
-      err.message = `Cannot resolve dependency '${dep.name}'`;
+      if (err.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
+        err.message = `Cannot resolve dependency '${dep.name}'`;
 
-      // Generate a code frame where the dependency was used
-      if (dep.loc) {
-        await asset.loadIfNeeded();
-        err.loc = dep.loc;
-        err = asset.generateErrorMessage(err);
+        // Generate a code frame where the dependency was used
+        if (dep.loc) {
+          await asset.loadIfNeeded();
+          err.loc = dep.loc;
+          err = asset.generateErrorMessage(err);
+        }
+
+        err.fileName = asset.name;
       }
-
-      err.fileName = asset.name;
       throw err;
     }
   }
@@ -275,7 +290,7 @@ class Bundler extends EventEmitter {
     asset.processed = true;
 
     // First try the cache, otherwise load and compile in the background
-    let processed = this.cache && await this.cache.read(asset.name);
+    let processed = this.cache && (await this.cache.read(asset.name));
     if (!processed) {
       processed = await this.farm.run(asset.name, asset.package, this.options);
       if (this.cache) {
@@ -296,19 +311,21 @@ class Bundler extends EventEmitter {
     }
 
     // Process asset dependencies
-    await Promise.all(dependencies.map(async dep => {
-      let assetDep = await this.resolveDep(asset, dep);
-      if (dep.includedInParent) {
-        // This dependency is already included in the parent's generated output,
-        // so no need to load it. We map the name back to the parent asset so
-        // that changing it triggers a recompile of the parent.
-        this.loadedAssets.set(dep.name, asset);
-      } else {
-        asset.dependencies.set(dep.name, dep);
-        asset.depAssets.set(dep.name, assetDep);
-        await this.loadAsset(assetDep);
-      }
-    }));
+    await Promise.all(
+      dependencies.map(async dep => {
+        let assetDep = await this.resolveDep(asset, dep);
+        if (dep.includedInParent) {
+          // This dependency is already included in the parent's generated output,
+          // so no need to load it. We map the name back to the parent asset so
+          // that changing it triggers a recompile of the parent.
+          this.loadedAssets.set(dep.name, asset);
+        } else {
+          asset.dependencies.set(dep.name, dep);
+          asset.depAssets.set(dep.name, assetDep);
+          await this.loadAsset(assetDep);
+        }
+      })
+    );
 
     this.buildQueue.delete(asset);
   }
@@ -322,7 +339,10 @@ class Bundler extends EventEmitter {
       // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
       if (asset.parentBundle !== bundle) {
         let commonBundle = bundle.findCommonAncestor(asset.parentBundle);
-        if (asset.parentBundle !== commonBundle && asset.parentBundle.type === commonBundle.type) {
+        if (
+          asset.parentBundle !== commonBundle &&
+          asset.parentBundle.type === commonBundle.type
+        ) {
           this.moveAssetToBundle(asset, commonBundle);
         }
       }
@@ -332,13 +352,19 @@ class Bundler extends EventEmitter {
 
     // Create the root bundle if it doesn't exist
     if (!bundle) {
-      bundle = new Bundle(asset.type, Path.join(this.options.outDir, asset.generateBundleName(true)));
+      bundle = new Bundle(
+        asset.type,
+        Path.join(this.options.outDir, asset.generateBundleName(true))
+      );
       bundle.entryAsset = asset;
     }
 
     // Create a new bundle for dynamic imports
     if (dep && dep.dynamic) {
-      bundle = bundle.createChildBundle(asset.type, Path.join(this.options.outDir, asset.generateBundleName()));
+      bundle = bundle.createChildBundle(
+        asset.type,
+        Path.join(this.options.outDir, asset.generateBundleName())
+      );
       bundle.entryAsset = asset;
     }
 
@@ -421,7 +447,9 @@ class Bundler extends EventEmitter {
   }
 
   serve(port = 1234) {
-    this.logger.persistent('Server running at ' + this.logger.chalk.cyan(`http://localhost:${port}`));
+    this.logger.persistent(
+      'Server running at ' + this.logger.chalk.cyan(`http://localhost:${port}`)
+    );
     this.bundle();
     return Server.serve(this, port);
   }
