@@ -87,16 +87,21 @@ class Bundler extends EventEmitter {
     this.packagers.add(type, packager);
   }
 
-  loadPlugins() {
+  loadPlugins(location = this.mainFile) {
     try {
-      let pkg = localRequire('./package.json', this.mainFile);
+      let pkg = localRequire('./package.json', location);
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
       for (let dep in deps) {
         if (dep.startsWith('parcel-plugin-')) {
-          localRequire(dep, this.mainFile)(this);
+          localRequire(dep, location)(this);
         }
       }
     } catch (err) {
+      let currPath = Path.dirname(this.mainFile);
+      currPath = currPath.substring(0, currPath.lastIndexOf('/'));
+      if (currPath.length > 1) {
+        return this.loadPlugins(currPath);
+      }
       this.logger.warn(err);
     }
   }
