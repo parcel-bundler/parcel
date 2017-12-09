@@ -1,8 +1,8 @@
 const assert = require('assert');
 const {bundle, run, assertBundleTree} = require('./utils');
 
-describe('plugins', function () {
-  it('should load plugins and apply custom asset type', async function () {
+describe('plugins', function() {
+  it('should load plugins and apply custom asset type', async function() {
     let b = await bundle(__dirname + '/integration/plugins/index.js');
 
     assertBundleTree(b, {

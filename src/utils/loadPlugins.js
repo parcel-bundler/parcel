@@ -4,11 +4,13 @@ module.exports = function loadPlugins(plugins, relative) {
   if (Array.isArray(plugins)) {
     return plugins.map(p => loadPlugin(p, relative)).filter(Boolean);
   } else if (typeof plugins === 'object') {
-    return Object.keys(plugins).map(p => loadPlugin(p, relative, plugins[p])).filter(Boolean);
+    return Object.keys(plugins)
+      .map(p => loadPlugin(p, relative, plugins[p]))
+      .filter(Boolean);
   } else {
     return [];
   }
-}
+};
 
 function loadPlugin(plugin, relative, options) {
   if (typeof plugin === 'string') {
