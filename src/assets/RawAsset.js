@@ -6,8 +6,12 @@ class RawAsset extends Asset {
   load() {}
 
   generate() {
+    const pathToAsset = path.join(
+      this.options.publicURL,
+      this.generateBundleName()
+    );
     return {
-      js: `module.exports=${JSON.stringify(this.generateBundleName())};`
+      js: `module.exports=${pathToAsset};`
     };
   }
 }
