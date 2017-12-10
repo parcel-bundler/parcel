@@ -5,13 +5,13 @@ const rimraf = require('rimraf');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 
-describe('watcher', function () {
+describe('watcher', function() {
   let b;
-  beforeEach(function () {
+  beforeEach(function() {
     rimraf.sync(__dirname + '/input');
   });
 
-  afterEach(function () {
+  afterEach(function() {
     if (b) {
       b.stop();
     }
@@ -27,7 +27,7 @@ describe('watcher', function () {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  it('should rebuild on file change', async function () {
+  it('should rebuild on file change', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true});
@@ -35,14 +35,17 @@ describe('watcher', function () {
     let output = run(bundle);
     assert.equal(output(), 3);
 
-    fs.writeFileSync(__dirname + '/input/local.js', 'exports.a = 5; exports.b = 5;');
+    fs.writeFileSync(
+      __dirname + '/input/local.js',
+      'exports.a = 5; exports.b = 5;'
+    );
 
     bundle = await nextBundle(b);
     output = run(bundle);
     assert.equal(output(), 10);
   });
 
-  it('should re-generate bundle tree when files change', async function () {
+  it('should re-generate bundle tree when files change', async function() {
     await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true});
@@ -50,14 +53,23 @@ describe('watcher', function () {
 
     assertBundleTree(bundle, {
       name: 'index.js',
-      assets: ['index.js', 'common.js', 'common-dep.js', 'bundle-loader.js', 'bundle-url.js'],
-      childBundles: [{
-        assets: ['a.js'],
-        childBundles: []
-      }, {
-        assets: ['b.js'],
-        childBundles: []
-      }]
+      assets: [
+        'index.js',
+        'common.js',
+        'common-dep.js',
+        'bundle-loader.js',
+        'bundle-url.js'
+      ],
+      childBundles: [
+        {
+          assets: ['a.js'],
+          childBundles: []
+        },
+        {
+          assets: ['b.js'],
+          childBundles: []
+        }
+      ]
     });
 
     let output = run(bundle);
@@ -71,50 +83,73 @@ describe('watcher', function () {
     assertBundleTree(bundle, {
       name: 'index.js',
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
-      childBundles: [{
-        assets: ['a.js', 'common.js', 'common-dep.js'],
-        childBundles: []
-      }, {
-        assets: ['b.js'],
-        childBundles: []
-      }]
+      childBundles: [
+        {
+          assets: ['a.js', 'common.js', 'common-dep.js'],
+          childBundles: []
+        },
+        {
+          assets: ['b.js'],
+          childBundles: []
+        }
+      ]
     });
 
     output = run(bundle);
     assert.equal(await output(), 8);
   });
 
-  it('should only re-package bundles that changed', async function () {
+  it('should only re-package bundles that changed', async function() {
     await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
     b = bundler(__dirname + '/input/index.js', {watch: true});
 
     let bundle = await b.bundle();
-    let mtimes = fs.readdirSync(__dirname + '/dist').map(f => fs.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000 | 0);
+    let mtimes = fs
+      .readdirSync(__dirname + '/dist')
+      .map(
+        f => (fs.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000) | 0
+      );
 
     await sleep(1000); // mtime only has second level precision
-    fs.writeFileSync(__dirname + '/input/b.js', 'module.exports = require("./common")');
+    fs.writeFileSync(
+      __dirname + '/input/b.js',
+      'module.exports = require("./common")'
+    );
 
     bundle = await nextBundle(b);
-    let newMtimes = fs.readdirSync(__dirname + '/dist').map(f => fs.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000 | 0);
+    let newMtimes = fs
+      .readdirSync(__dirname + '/dist')
+      .map(
+        f => (fs.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000) | 0
+      );
     assert.deepEqual(mtimes.sort().slice(0, 2), newMtimes.sort().slice(0, 2));
     assert.notEqual(mtimes[mtimes.length - 1], newMtimes[newMtimes.length - 1]);
   });
 
-  it('should unload assets that are orphaned', async function () {
+  it('should unload assets that are orphaned', async function() {
     await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
     b = bundler(__dirname + '/input/index.js', {watch: true});
 
     let bundle = await b.bundle();
     assertBundleTree(bundle, {
       name: 'index.js',
-      assets: ['index.js', 'common.js', 'common-dep.js', 'bundle-loader.js', 'bundle-url.js'],
-      childBundles: [{
-        assets: ['a.js'],
-        childBundles: []
-      }, {
-        assets: ['b.js'],
-        childBundles: []
-      }]
+      assets: [
+        'index.js',
+        'common.js',
+        'common-dep.js',
+        'bundle-loader.js',
+        'bundle-url.js'
+      ],
+      childBundles: [
+        {
+          assets: ['a.js'],
+          childBundles: []
+        },
+        {
+          assets: ['b.js'],
+          childBundles: []
+        }
+      ]
     });
 
     let output = run(bundle);
@@ -129,13 +164,16 @@ describe('watcher', function () {
     assertBundleTree(bundle, {
       name: 'index.js',
       assets: ['index.js', 'common.js', 'bundle-loader.js', 'bundle-url.js'],
-      childBundles: [{
-        assets: ['a.js'],
-        childBundles: []
-      }, {
-        assets: ['b.js'],
-        childBundles: []
-      }]
+      childBundles: [
+        {
+          assets: ['a.js'],
+          childBundles: []
+        },
+        {
+          assets: ['b.js'],
+          childBundles: []
+        }
+      ]
     });
 
     output = run(bundle);
