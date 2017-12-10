@@ -10,15 +10,21 @@ class SASSAsset extends CSSAsset {
     let sass = localRequire('node-sass', this.name);
     let render = promisify(sass.render.bind(sass));
 
-    let opts = this.package.sass || await config.load(this.name, ['.sassrc', '.sassrc.js']) || {};
-    opts.includePaths = (opts.includePaths || []).concat(path.dirname(this.name));
+    let opts =
+      this.package.sass ||
+      (await config.load(this.name, ['.sassrc', '.sassrc.js'])) ||
+      {};
+    opts.includePaths = (opts.includePaths || []).concat(
+      path.dirname(this.name)
+    );
     opts.data = code;
-    opts.indentedSyntax = typeof opts.indentedSyntax === 'boolean'
-      ? opts.indentedSyntax
-      : path.extname(this.name).toLowerCase() === '.sass';
+    opts.indentedSyntax =
+      typeof opts.indentedSyntax === 'boolean'
+        ? opts.indentedSyntax
+        : path.extname(this.name).toLowerCase() === '.sass';
 
     opts.functions = Object.assign({}, opts.functions, {
-      url: (node) => {
+      url: node => {
         let filename = this.addURLDependency(node.getValue());
         return new sass.types.String(`url(${JSON.stringify(filename)})`);
       }

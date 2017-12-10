@@ -11,7 +11,16 @@ const isURL = require('../utils/is-url');
 // A list of all attributes that should produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
 const ATTRS = {
-  src: ['script', 'img', 'audio', 'video', 'source', 'track', 'iframe', 'embed'],
+  src: [
+    'script',
+    'img',
+    'audio',
+    'video',
+    'source',
+    'track',
+    'iframe',
+    'embed'
+  ],
   href: ['link', 'a'],
   poster: ['video']
 };

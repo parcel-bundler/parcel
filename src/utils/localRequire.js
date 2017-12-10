@@ -1,9 +1,9 @@
 const {dirname} = require('path');
 const resolve = require('resolve');
 
-const cache = new Map;
+const cache = new Map();
 
-module.exports = function (name, path) {
+module.exports = function(name, path) {
   let basedir = dirname(path);
   let key = basedir + ':' + name;
   let resolved = cache.get(key);

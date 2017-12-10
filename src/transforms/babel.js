@@ -2,8 +2,8 @@ const babel = require('babel-core');
 const path = require('path');
 const config = require('../utils/config');
 
-module.exports = async function (asset) {
-  if (!(await shouldTransform(asset))) {
+module.exports = async function(asset) {
+  if (!await shouldTransform(asset)) {
     return;
   }
 
@@ -15,7 +15,9 @@ module.exports = async function (asset) {
   };
 
   if (asset.isES6Module) {
-    config.plugins = [require('babel-plugin-transform-es2015-modules-commonjs')];
+    config.plugins = [
+      require('babel-plugin-transform-es2015-modules-commonjs')
+    ];
   }
 
   let res = babel.transformFromAst(asset.ast, asset.contents, config);
