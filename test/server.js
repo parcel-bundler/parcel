@@ -3,9 +3,9 @@ const fs = require('fs');
 const {bundler, run, assertBundleTree} = require('./utils');
 const http = require('http');
 
-describe('server', function () {
+describe('server', function() {
   let server;
-  afterEach(function () {
+  afterEach(function() {
     if (server) {
       server.close();
       server = null;
@@ -21,7 +21,7 @@ describe('server', function () {
 
         res.setEncoding('utf8');
         let data = '';
-        res.on('data', c => data += c);
+        res.on('data', c => (data += c));
         res.on('end', () => {
           resolve(data);
         });
@@ -29,7 +29,7 @@ describe('server', function () {
     });
   }
 
-  it('should serve files', async function () {
+  it('should serve files', async function() {
     let b = bundler(__dirname + '/integration/commonjs/index.js');
     server = b.serve(0);
 
@@ -37,7 +37,7 @@ describe('server', function () {
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
   });
 
-  it('should serve a default page if the main bundle is an HTML asset', async function () {
+  it('should serve a default page if the main bundle is an HTML asset', async function() {
     let b = bundler(__dirname + '/integration/html/index.html');
     server = b.serve(0);
 
@@ -48,7 +48,7 @@ describe('server', function () {
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
   });
 
-  it('should serve a 404 if the file does not exist', async function () {
+  it('should serve a 404 if the file does not exist', async function() {
     let b = bundler(__dirname + '/integration/commonjs/index.js');
     server = b.serve(0);
 
@@ -62,19 +62,19 @@ describe('server', function () {
     assert(threw);
   });
 
-  it('should serve a 500 if the bundler errored', async function () {
+  it('should serve a 500 if the bundler errored', async function() {
     let b = bundler(__dirname + '/integration/html/index.html');
     server = b.serve(0);
-    
+
     b.errored = true;
-    
+
     try {
       await get('/');
-      throw new Error('GET / responded with 200')
+      throw new Error('GET / responded with 200');
     } catch (err) {
       assert.equal(err.message, 'Request failed: 500');
     }
-    
+
     b.errored = false;
     await get('/');
   });

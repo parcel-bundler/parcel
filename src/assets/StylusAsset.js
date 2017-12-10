@@ -9,7 +9,9 @@ class StylusAsset extends CSSAsset {
   async parse(code) {
     // stylus should be installed locally in the module that's being required
     let stylus = localRequire('stylus', this.name);
-    let opts = this.package.stylus || await config.load(this.name, ['.stylusrc', '.stylusrc.js']);
+    let opts =
+      this.package.stylus ||
+      (await config.load(this.name, ['.stylusrc', '.stylusrc.js']));
     let style = stylus(code, opts);
     style.set('filename', this.name);
     style.set('include css', true);
@@ -71,7 +73,9 @@ function createEvaluator(asset) {
 
           if (!found) {
             let nodeName = imported.once ? 'require' : 'import';
-            throw new Error('failed to locate @' + nodeName + ' file ' + node.string);
+            throw new Error(
+              'failed to locate @' + nodeName + ' file ' + node.string
+            );
           }
 
           for (let file of found) {

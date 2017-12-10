@@ -21,7 +21,10 @@ class TypeScriptAsset extends JSAsset {
     transpilerOptions.compilerOptions.noEmit = false;
 
     // Transpile Module using TypeScript and parse result as ast format through babylon
-    this.contents = typescript.transpileModule(code, transpilerOptions).outputText;
+    this.contents = typescript.transpileModule(
+      code,
+      transpilerOptions
+    ).outputText;
     return await super.parse(this.contents);
   }
 }
