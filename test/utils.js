@@ -6,9 +6,25 @@ const fs = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
 
-beforeEach(function() {
-  rimraf.sync(path.join(__dirname, 'dist'));
+beforeEach(function(done) {
+  const finalize = () => {
+    rimraf.sync(path.join(__dirname, 'dist'));
+    done();
+  };
+
+  // Test run in a single process, creating and deleting the same file(s)
+  // Windows needs a delay for the file handles to be released before deleting
+  // is possible. Without a delay, rimraf fails on `beforeEach` for `/dist`
+  if (process.platform === 'win32') {
+    sleep(50).then(finalize);
+  } else {
+    finalize();
+  }
 });
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 function bundler(file, opts) {
   return new Bundler(
@@ -107,6 +123,7 @@ function assertBundleTree(bundle, tree) {
   }
 }
 
+exports.sleep = sleep;
 exports.bundler = bundler;
 exports.bundle = bundle;
 exports.run = run;

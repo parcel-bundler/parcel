@@ -12,8 +12,15 @@ class GlobAsset extends Asset {
   }
 
   async load() {
-    let files = await globPromise(this.name, {strict: true, nodir: true});
-    let re = micromatch.makeRe(this.name, {capture: true});
+    let regularExpressionSafeName = this.name;
+    if (process.platform === 'win32')
+      regularExpressionSafeName = regularExpressionSafeName.replace(/\\/g, '/');
+
+    let files = glob.sync(regularExpressionSafeName, {
+      strict: true,
+      nodir: true
+    });
+    let re = micromatch.makeRe(regularExpressionSafeName, {capture: true});
     let matches = {};
 
     for (let file of files) {

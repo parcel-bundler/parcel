@@ -1,5 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('javascript', function() {
@@ -63,10 +64,12 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
-      childBundles: [{
-        assets: ['local.js'],
-        childBundles: []
-      }]
+      childBundles: [
+        {
+          assets: ['local.js'],
+          childBundles: []
+        }
+      ]
     });
 
     let output = run(b).default;
@@ -156,8 +159,8 @@ describe('javascript', function() {
 
     let output = run(b);
     assert.deepEqual(output(), {
-      dir: __dirname + '/integration/globals',
-      file: __dirname + '/integration/globals/index.js',
+      dir: path.join(__dirname, '/integration/globals'),
+      file: path.join(__dirname, '/integration/globals/index.js'),
       buf: new Buffer('browser').toString('base64'),
       global: true
     });
