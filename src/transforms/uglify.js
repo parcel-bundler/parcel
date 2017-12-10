@@ -1,6 +1,5 @@
 const {minify} = require('uglify-es');
 const generate = require('babel-generator').default;
-const Logger = require('../Logger');
 
 module.exports = async function(asset) {
   await asset.parseIfNeeded();
