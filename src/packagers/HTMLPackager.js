@@ -13,16 +13,24 @@ class HTMLPackager extends Packager {
       .filter(Boolean);
 
     if (cssBundles.length > 0) {
-      html = posthtml(this.insertCSSBundles.bind(this, cssBundles))
-        .process(html, {sync: true}).html;
+      html = posthtml(this.insertCSSBundles.bind(this, cssBundles)).process(
+        html,
+        {sync: true}
+      ).html;
     } else {
+      // If HMR is active add the hmr script and css-loader
       if (this.options.hmr) {
-        let cssBundle = Array.from(this.bundle.childBundles).filter(b => b.type === 'css')[0];
-        let jsBundle = null;
-        if (cssBundle) jsBundle = cssBundle.siblingBundles.get('js');
-        if (jsBundle) {
-          html = posthtml(this.insertJSBundle.bind(this, jsBundle))
-            .process(html, {sync: true}).html;
+        // Find a css file to get css-loader from
+        cssBundles = Array.from(this.bundle.childBundles).filter(
+          b => b.type === 'css'
+        );
+        if (cssBundles.length > 0) {
+          // We can assume this will always have cssLoader as the only dependancy
+          let jsBundle = cssBundles[0].siblingBundles.get('js');
+          html = posthtml(this.insertJSBundle.bind(this, jsBundle)).process(
+            html,
+            {sync: true}
+          ).html;
         }
       }
     }
@@ -57,7 +65,7 @@ class HTMLPackager extends Packager {
     let head = find(tree, 'head');
     if (!head) {
       let html = find(tree, 'html');
-      head = { tag: 'head' };
+      head = {tag: 'head'};
       html.content.unshift(head);
     }
 

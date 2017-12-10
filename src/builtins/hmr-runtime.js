@@ -22,12 +22,15 @@ if (!module.bundle.parent) {
     if (data.type === 'update') {
       for (let asset of data.assets) {
         hmrApply(global.require, asset);
-        // Workaround to update css if it's new
-        if (asset.isNew && asset.generated.css) asset.isNew = false;
+        // CSS should always update
+        if (asset.generated && asset.generated.css) {
+          asset.isNew = false;
+        }
       }
 
       for (let asset of data.assets) {
         if (!asset.isNew) {
+          console.log('Accept');
           hmrAccept(global.require, asset.id);
         }
       }
