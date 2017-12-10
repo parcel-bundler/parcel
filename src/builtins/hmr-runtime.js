@@ -30,7 +30,6 @@ if (!module.bundle.parent) {
 
       for (let asset of data.assets) {
         if (!asset.isNew) {
-          console.log('Accept');
           hmrAccept(global.require, asset.id);
         }
       }
