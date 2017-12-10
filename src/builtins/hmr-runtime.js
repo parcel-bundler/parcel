@@ -32,12 +32,10 @@ if (!module.bundle.parent) {
     }
 
     if (data.type === 'error-resolved') {
-      // eslint-disable-next-line no-console
       console.log('[parcel] ✨ Error resolved');
     }
 
     if (data.type === 'error') {
-      // eslint-disable-next-line no-console
       console.error(`[parcel] 🚨 ${data.error.message}\n${data.error.stack}`);
     }
   };

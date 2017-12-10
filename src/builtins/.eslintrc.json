@@ -1,9 +1,9 @@
 {
-  "extends": "../../.eslintrc.json",
+  "extends": "../.eslintrc.json",
   "env": {
     "browser": true
   },
   "rules": {
-    "no-global-assign": [1]
+    "no-global-assign": 1
   }
 }
