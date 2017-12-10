@@ -63,10 +63,12 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
-      childBundles: [{
-        assets: ['local.js'],
-        childBundles: []
-      }]
+      childBundles: [
+        {
+          assets: ['local.js'],
+          childBundles: []
+        }
+      ]
     });
 
     let output = run(b).default;
@@ -167,7 +169,7 @@ describe('javascript', function() {
     let b = await bundle(__dirname + '/integration/env/index.js');
 
     let output = run(b);
-    assert.equal(output(), 'test');
+    assert.equal(output, 'test');
   });
 
   it('should support adding implicit dependencies', async function() {
