@@ -63,10 +63,12 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
-      childBundles: [{
-        assets: ['local.js'],
-        childBundles: []
-      }]
+      childBundles: [
+        {
+          assets: ['local.js'],
+          childBundles: []
+        }
+      ]
     });
 
     let output = run(b).default;
