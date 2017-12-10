@@ -63,7 +63,7 @@
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
     "build": "babel src -d lib",
     "prepublish": "yarn build",
-    "precommit": "lint-staged",
+    "precommit": "npm run lint && lint-staged",
     "lint": "eslint ."
   },
   "bin": {
@@ -75,7 +75,6 @@
   "lint-staged": {
     "*.{js,json,md}": [
       "prettier --write",
-      "eslint --fix",
       "git add"
     ]
   }
