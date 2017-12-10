@@ -88,12 +88,13 @@ for (let key in EventEmitter.prototype) {
 }
 
 function getNumWorkers() {
-  const cores = os.cpus().filter(function(cpu, index) {
-    const hasHyperthreading = cpu.model.includes('Intel');
-    const isOdd = index % 2 === 1;
-    return !hasHyperthreading || isOdd;
-  });
-  return cores.length || 1;
+  let cores;
+  try {
+    cores = require('physical-cpu-count');
+  } catch (err) {
+    cores = os.cpus();
+  }
+  return cores || 1;
 }
 
 module.exports = WorkerFarm;
