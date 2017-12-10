@@ -54,22 +54,25 @@ function middleware(bundler) {
   };
 }
 
-function getFreePort(port) {
+function checkPortAvailabilty(port) {
   return new Promise((resolve, reject) => {
     let server = http.createServer().listen(port);
     server.once('error', err => {
-      resolve(0);
+      resolve(false);
     });
     server.once('listening', connection => {
       server.close(() => {
-        resolve(port);
+        resolve(true);
       });
     });
   });
 }
 
 async function serve(bundler, port) {
-  port = await getFreePort(port);
+  if (!await checkPortAvailabilty(port)) {
+    // Fall-back to port 0 to let node.js net library pick a port
+    port = 0;
+  }
   return http.createServer(middleware(bundler)).listen(port);
 }
 

@@ -460,17 +460,18 @@ class Bundler extends EventEmitter {
     });
 
     server.once('listening', connection => {
+      let addon =
+        server.address().port !== port
+          ? ` - ${this.logger.chalk.red(
+              `configured port ${port} could not be used.`
+            )}`
+          : '';
       this.logger.persistent(
         'Server running at ' +
-          this.logger.chalk.cyan(`http://localhost:${server.address().port}\n`)
+          this.logger.chalk.cyan(`http://localhost:${server.address().port}`) +
+          addon +
+          '\n'
       );
-      if (server.address().port !== port) {
-        this.logger.warn(
-          `Port: ${port} could not be used, fallback to port ${
-            server.address().port
-          }\n`
-        );
-      }
     });
 
     return server;
