@@ -1,11 +1,15 @@
 const {minify} = require('uglify-es');
-const types = require('babel-types');
-const walk = require('babylon-walk');
+const generate = require('babel-generator').default;
 
 module.exports = async function(asset) {
   await asset.parseIfNeeded();
 
-  let result = minify(asset.generate().js, {
+  // Convert AST into JS
+  let code = asset.isAstDirty
+    ? generate(asset.ast).code
+    : asset.outputCode || asset.contents;
+
+  let result = minify(code, {
     toplevel: true
   });
 
