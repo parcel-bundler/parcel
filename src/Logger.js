@@ -4,11 +4,6 @@ const prettyError = require('./utils/prettyError');
 
 class Logger {
   constructor(options) {
-    this.initMessages();
-    this.updateOptions(options);
-  }
-
-  initMessages() {
     this.messages = [
       {
         type: 'status',
@@ -16,6 +11,7 @@ class Logger {
         content: ''
       }
     ];
+    this.updateOptions(options);
   }
 
   updateOptions(options) {
@@ -63,7 +59,7 @@ class Logger {
   }
 
   clear() {
-    if (!this.color) {
+    if (!this.color || this.logLevel === 0) {
       return;
     }
 
