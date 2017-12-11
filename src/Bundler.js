@@ -12,7 +12,6 @@ const {EventEmitter} = require('events');
 const Logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
-const customErrors = require('./utils/customErrors');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,

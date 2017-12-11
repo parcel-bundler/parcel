@@ -62,7 +62,7 @@ async function serve(bundler, port) {
     bundler.logger.error(new Error(serverErrors(err, server.address().port)));
   });
 
-  server.once('listening', connection => {
+  server.once('listening', () => {
     let addon =
       server.address().port !== port
         ? `- ${bundler.logger.chalk.red(
