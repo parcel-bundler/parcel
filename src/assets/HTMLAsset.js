@@ -46,7 +46,7 @@ class HTMLAsset extends Asset {
         for (let attr in node.attrs) {
           let elements = ATTRS[attr];
           // link is not a file
-          if (node.tag === 'a' && node.attrs[attr].indexOf('.') < 0) {
+          if (node.tag === 'a' && node.attrs[attr].indexOf('.') < 1) {
             break;
           }
           if (elements && elements.includes(node.tag)) {
