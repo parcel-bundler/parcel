@@ -20,6 +20,9 @@ class TypeScriptAsset extends JSAsset {
     if (tsconfig) transpilerOptions.compilerOptions = tsconfig.compilerOptions;
     transpilerOptions.compilerOptions.noEmit = false;
 
+    // Add config data to fileHash
+    this.hashAddon = tsconfig;
+
     // Transpile Module using TypeScript and parse result as ast format through babylon
     this.contents = typescript.transpileModule(
       code,

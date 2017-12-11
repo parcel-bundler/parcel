@@ -51,10 +51,14 @@ class JSAsset extends Asset {
     this.babelConfig =
       (this.package && this.package.babel) ||
       (await config.load(this.name, ['.babelrc', '.babelrc.js']));
+
     if (this.babelConfig) {
       const file = new BabelFile({filename: this.name});
       options.plugins.push(...file.parserOpts.plugins);
     }
+
+    // Add config data to fileHash
+    this.hashAddon = this.babelConfig;
 
     return babylon.parse(code, options);
   }

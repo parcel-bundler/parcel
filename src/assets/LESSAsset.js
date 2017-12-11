@@ -16,6 +16,9 @@ class LESSAsset extends CSSAsset {
     opts.filename = this.name;
     opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
 
+    // Add config data to fileHash
+    this.hashAddon = opts;
+
     let res = await render(code, opts);
     res.render = () => res.css;
     return res;

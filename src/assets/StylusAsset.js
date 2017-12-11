@@ -23,6 +23,9 @@ class StylusAsset extends CSSAsset {
       return new stylus.nodes.Literal(`url(${JSON.stringify(filename)})`);
     });
 
+    // Add config data to fileHash
+    this.hashAddon = opts;
+
     return style;
   }
 

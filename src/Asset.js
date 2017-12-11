@@ -32,6 +32,7 @@ class Asset {
     this.depAssets = new Map();
     this.parentBundle = null;
     this.bundles = new Set();
+    this.hashAddon = {};
   }
 
   async loadIfNeeded() {
@@ -124,7 +125,10 @@ class Asset {
   }
 
   generateHash() {
-    return objectHash(this.generated);
+    return objectHash({
+      generated: this.generated,
+      addon: this.hashAddon
+    });
   }
 
   invalidate() {
