@@ -137,10 +137,14 @@ describe('css', function() {
 
     let output = run(b);
     assert.equal(typeof output, 'function');
-    assert.equal(output(), '_index_1ezyc_1');
+
+    let value = output();
+    assert(/_index_[0-9a-z]+_1/.test(value));
+
+    let cssClass = value.match(/(_index_[0-9a-z]+_1)/)[1];
 
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
-    assert(css.includes('._index_1ezyc_1'));
+    assert(css.includes(`.${cssClass}`));
   });
 
   it('should minify CSS in production mode', async function() {
