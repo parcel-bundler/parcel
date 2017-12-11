@@ -11,6 +11,7 @@ program
   .command('serve [input]')
   .description('starts a development server')
   .option('-p, --port <port>', 'set the port to serve on. defaults to 1234')
+  .option('-o, --open', 'automatically open in default browser')
   .option(
     '-d, --out-dir <path>',
     'set the output directory. defaults to "dist"'
@@ -93,7 +94,10 @@ function bundle(main, command) {
   const bundler = new Bundler(main, command);
 
   if (command.name() === 'serve') {
-    bundler.serve(command.port || 1234);
+    const server = bundler.serve(command.port || 1234);
+    if (command.open) {
+      require('opn')(`http://localhost:${server.address().port}`);
+    }
   } else {
     bundler.bundle();
   }
