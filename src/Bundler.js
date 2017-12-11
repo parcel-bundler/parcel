@@ -457,7 +457,7 @@ class Bundler extends EventEmitter {
   }
 
   serve(port = 1234) {
-    logger.log(
+    logger.persistent(
       'Server running at ' + logger.chalk.cyan(`http://localhost:${port}`),
       true
     );

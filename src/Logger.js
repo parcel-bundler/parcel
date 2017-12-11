@@ -109,6 +109,10 @@ class Logger {
 
     this.writeLine(0);
   }
+
+  persistent(message) {
+    this.log(this.chalk.bold(message), true);
+  }
 }
 
 let logger;
