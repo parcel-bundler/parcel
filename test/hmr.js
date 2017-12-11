@@ -1,6 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundler, run, assertBundleTree} = require('./utils');
+const path = require('path');
+const {bundler, run, assertBundleTree, sleep} = require('./utils');
 const rimraf = require('rimraf');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
@@ -29,10 +30,6 @@ describe('hmr', function() {
     return new Promise(resolve => {
       emitter.once(event, resolve);
     });
-  }
-
-  function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   it('should emit an HMR update for the file that changed', async function() {
@@ -90,7 +87,10 @@ describe('hmr', function() {
     assert.equal(msg.type, 'error');
     assert.equal(
       msg.error.message,
-      __dirname + '/input/local.js:1:12: Unexpected token, expected , (1:12)'
+      `${path.join(
+        __dirname,
+        '/input/local.js'
+      )}:1:12: Unexpected token, expected , (1:12)`
     );
     assert.equal(
       msg.error.stack,
