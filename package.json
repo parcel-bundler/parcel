@@ -11,7 +11,6 @@
     "babel-core": "^6.25.0",
     "babel-generator": "^6.25.0",
     "babel-plugin-transform-es2015-modules-commonjs": "^6.26.0",
-    "babel-to-estree": "^0.0.3",
     "babylon": "^6.17.4",
     "babylon-walk": "^1.0.2",
     "browser-resolve": "^1.11.2",
@@ -34,8 +33,8 @@
     "posthtml": "^0.10.1",
     "resolve": "^1.4.0",
     "serve-static": "^1.12.4",
+    "uglify-es": "^3.2.1",
     "strip-json-comments": "^2.0.1",
-    "uglify-js": "^3.0.28",
     "v8-compile-cache": "^1.1.0",
     "worker-farm": "^1.4.1",
     "ws": "^3.3.2"
