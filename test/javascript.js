@@ -234,4 +234,18 @@ describe('javascript', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
+
+  it('should support requiring CoffeeScript files', async function () {
+    let b = await bundle(__dirname + '/integration/coffee/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'local.coffee'],
+      childBundles: []
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
 });
