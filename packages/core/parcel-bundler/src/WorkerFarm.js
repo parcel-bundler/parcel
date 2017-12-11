@@ -9,7 +9,7 @@ class WorkerFarm extends Farm {
   constructor(options) {
     let opts = {
       autoStart: true,
-      maxConcurrentWorkers: getNumWorkers(),
+      maxConcurrentWorkers: getNumWorkers()
     };
 
     super(opts, require.resolve('./worker'));
