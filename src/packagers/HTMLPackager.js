@@ -1,6 +1,7 @@
 const Packager = require('./Packager');
 const posthtml = require('posthtml');
 const path = require('path');
+const url = require('url');
 
 class HTMLPackager extends Packager {
   async addAsset(asset) {
@@ -39,7 +40,10 @@ class HTMLPackager extends Packager {
         tag: 'link',
         attrs: {
           rel: 'stylesheet',
-          href: path.join(this.options.publicURL, path.basename(bundle.name))
+          href: url.resolve(
+            path.join(this.options.publicURL, path.basename(bundle.name)),
+            ''
+          )
         }
       });
     }
