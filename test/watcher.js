@@ -1,6 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundler, run, assertBundleTree} = require('./utils');
+const path = require('path');
+const {bundler, run, assertBundleTree, sleep} = require('./utils');
 const rimraf = require('rimraf');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
@@ -21,10 +22,6 @@ describe('watcher', function() {
     return new Promise(resolve => {
       b.once('bundled', resolve);
     });
-  }
-
-  function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   it('should rebuild on file change', async function() {
@@ -155,7 +152,7 @@ describe('watcher', function() {
     let output = run(bundle);
     assert.equal(await output(), 7);
 
-    assert(b.loadedAssets.has(__dirname + '/input/common-dep.js'));
+    assert(b.loadedAssets.has(path.join(__dirname, '/input/common-dep.js')));
 
     // Get rid of common-dep.js
     fs.writeFileSync(__dirname + '/input/common.js', 'module.exports = 5;');
@@ -179,6 +176,6 @@ describe('watcher', function() {
     output = run(bundle);
     assert.equal(await output(), 13);
 
-    assert(!b.loadedAssets.has(__dirname + '/input/common-dep.js'));
+    assert(!b.loadedAssets.has(path.join(__dirname, '/input/common-dep.js')));
   });
 });

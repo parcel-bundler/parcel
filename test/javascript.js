@@ -1,5 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('javascript', function() {
@@ -136,7 +137,7 @@ describe('javascript', function() {
 
     let output = run(b);
     assert.equal(typeof output, 'function');
-    assert(/^[0-9a-f]+\.txt$/.test(output()));
+    assert(/^\/[0-9a-f]+\.txt$/.test(output()));
     assert(fs.existsSync(__dirname + '/dist/' + output()));
   });
 
@@ -158,8 +159,8 @@ describe('javascript', function() {
 
     let output = run(b);
     assert.deepEqual(output(), {
-      dir: __dirname + '/integration/globals',
-      file: __dirname + '/integration/globals/index.js',
+      dir: path.join(__dirname, '/integration/globals'),
+      file: path.join(__dirname, '/integration/globals/index.js'),
       buf: new Buffer('browser').toString('base64'),
       global: true
     });
