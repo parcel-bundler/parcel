@@ -4,12 +4,19 @@ const prettyError = require('./utils/prettyError');
 
 class Logger {
   constructor(options) {
-    this.logLevel = typeof options.logLevel === 'number' ? options.logLevel : 3;
-    this.color =
-      typeof options.color === 'boolean' ? options.color : chalk.supportsColor;
-    this.chalk = new chalk.constructor({enabled: this.color});
     this.lines = 0;
     this.statusLine = null;
+    this.updateOptions(options);
+  }
+
+  updateOptions(options) {
+    this.logLevel =
+      options && typeof options.logLevel === 'number' ? options.logLevel : 3;
+    this.color =
+      options && typeof options.color === 'boolean'
+        ? options.color
+        : chalk.supportsColor;
+    this.chalk = new chalk.constructor({enabled: this.color});
   }
 
   write(message, persistent = false) {
@@ -109,4 +116,14 @@ class Logger {
   }
 }
 
-module.exports = Logger;
+let logger = null;
+function getInstance(options) {
+  if (!logger) {
+    logger = new Logger(options);
+  } else if (options) {
+    logger.updateOptions(options);
+  }
+  return logger;
+}
+
+module.exports = getInstance;

@@ -10,7 +10,7 @@ const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
 const {EventEmitter} = require('events');
-const Logger = require('./Logger');
+const getLoggerInstance = require('./Logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 
@@ -28,7 +28,7 @@ class Bundler extends EventEmitter {
     this.parser = new Parser(this.options);
     this.packagers = new PackagerRegistry();
     this.cache = this.options.cache ? new FSCache(this.options) : null;
-    this.logger = new Logger(this.options);
+    this.logger = getLoggerInstance(this.options);
     this.delegate = options.delegate || {};
 
     this.pending = false;
