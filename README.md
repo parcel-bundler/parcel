@@ -3,11 +3,13 @@
     <img alt="Parcel" src="https://user-images.githubusercontent.com/19409/31321658-f6aed0f2-ac3d-11e7-8100-1587e676e0ec.png" width="749">
   </a>
 </p>
-<p align="center">
-  <a href="https://slack.parceljs.org/">
-    <img alt="Slack" src="https://slack.parceljs.org/badge.svg">
-  </a>
-</p>
+
+[![Travis CI Build Status](https://travis-ci.org/parcel-bundler/parcel.svg?branch=master)](https://travis-ci.org/parcel-bundler/parcel)
+[![David Dependancy Status](https://david-dm.org/parcel-bundler/parcel.svg)](https://david-dm.org/parcel-bundler/parcel)
+[![npm package](https://img.shields.io/npm/v/parcel-bundler.svg)](https://www.npmjs.com/package/parcel-bundler)
+[![npm package](https://img.shields.io/npm/dm/parcel-bundler.svg)](https://www.npmjs.com/package/parcel-bundler)
+[![Slack](https://slack.parceljs.org/badge.svg)](https://slack.parceljs.org)
+[![Twitter Follow](https://img.shields.io/twitter/follow/parceljs.svg?style=social)](https://twitter.com/parceljs)
 
 ## Features
 
