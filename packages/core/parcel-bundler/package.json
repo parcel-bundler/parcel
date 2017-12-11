@@ -26,6 +26,7 @@
     "micromatch": "^3.0.4",
     "mkdirp": "^0.5.1",
     "node-libs-browser": "^2.0.0",
+    "opn": "^5.1.0",
     "parse-json": "^4.0.0",
     "physical-cpu-count": "^2.0.0",
     "postcss": "^6.0.10",
