@@ -44,22 +44,29 @@ class HMRServer {
       });
     }
 
-    this.broadcast({
-      type: 'update',
-      assets: assets.map(asset => {
-        let deps = {};
-        for (let dep of asset.dependencies.values()) {
-          let mod = asset.depAssets.get(dep.name);
-          deps[dep.name] = mod.id;
-        }
+    const containsHtmlAsset = assets.some(asset => asset.type === "html");
+    if (containsHtmlAsset) {
+      this.broadcast({
+        type: 'reload'
+      });
+    } else {
+      this.broadcast({
+        type: 'update',
+        assets: assets.map(asset => {
+          let deps = {};
+          for (let dep of asset.dependencies.values()) {
+            let mod = asset.depAssets.get(dep.name);
+            deps[dep.name] = mod.id;
+          }
 
-        return {
-          id: asset.id,
-          generated: asset.generated,
-          deps: deps
-        };
-      })
-    });
+          return {
+            id: asset.id,
+            generated: asset.generated,
+            deps: deps
+          };
+        })
+      });
+    }
   }
 
   broadcast(msg) {
