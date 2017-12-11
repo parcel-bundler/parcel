@@ -1,5 +1,5 @@
 const Asset = require('../Asset');
-const path = require('path');
+const url = require('url');
 
 class RawAsset extends Asset {
   // Don't load raw assets. They will be copied by the RawPackager directly.
@@ -7,7 +7,7 @@ class RawAsset extends Asset {
 
   generate() {
     const pathToAsset = JSON.stringify(
-      path.join(this.options.publicURL, this.generateBundleName())
+      url.resolve(this.options.publicURL, this.generateBundleName())
     );
     return {
       js: `module.exports=${pathToAsset};`
