@@ -1,13 +1,10 @@
 const {minify} = require('uglify-es');
-const generate = require('babel-generator').default;
 
 module.exports = async function(asset) {
   await asset.parseIfNeeded();
 
   // Convert AST into JS
-  let code = asset.isAstDirty
-    ? generate(asset.ast).code
-    : asset.outputCode || asset.contents;
+  let code = asset.generate().js;
 
   let options = {
     warnings: true,
