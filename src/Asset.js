@@ -73,6 +73,11 @@ class Asset {
     let resolved = path
       .resolve(path.dirname(from), url)
       .replace(/[\?#].*$/, '');
+
+    if (!fs.existsSync(resolved)) {
+      return url;
+    }
+
     this.addDependency(
       './' + path.relative(path.dirname(this.name), resolved),
       Object.assign({dynamic: true}, opts)
