@@ -451,29 +451,7 @@ class Bundler extends EventEmitter {
 
   async serve(port = 1234) {
     this.bundle();
-    let server = await Server.serve(this, port);
-
-    server.once('error', err => {
-      this.logger.error(
-        new Error(customErrors.serverErrors(err, server.address().port))
-      );
-    });
-
-    server.once('listening', connection => {
-      let addon =
-        server.address().port !== port
-          ? `- ${this.logger.chalk.red(
-              `configured port ${port} could not be used.`
-            )}`
-          : '';
-      this.logger.persistent(
-        `Server running at ${this.logger.chalk.cyan(
-          `http://localhost:${server.address().port}`
-        )} ${addon}\n`
-      );
-    });
-
-    return server;
+    return Server.serve(this, port);
   }
 }
 
