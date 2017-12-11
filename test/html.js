@@ -73,7 +73,11 @@ describe('html', function() {
     });
 
     let html = fs.readFileSync(__dirname + '/dist/index.html');
-    assert(/<link rel="stylesheet" href="\/dist\/[a-f0-9]+\.css">/.test(html));
+    assert(
+      /<link rel="stylesheet" href="[\/\\]{1}dist[\/\\]{1}[a-f0-9]+\.css">/.test(
+        html
+      )
+    );
   });
 
   it('should insert a HEAD element if needed when adding CSS bundles', async function() {
@@ -99,7 +103,7 @@ describe('html', function() {
 
     let html = fs.readFileSync(__dirname + '/dist/index.html');
     assert(
-      /<head><link rel="stylesheet" href="\/dist\/[a-f0-9]+\.css"><\/head>/.test(
+      /<head><link rel="stylesheet" href="[\/\\]{1}dist[\/\\]{1}[a-f0-9]+\.css"><\/head>/.test(
         html
       )
     );
