@@ -47,7 +47,9 @@ class HTMLAsset extends Asset {
           let elements = ATTRS[attr];
           if (elements && elements.includes(node.tag)) {
             let assetPath = this.addURLDependency(node.attrs[attr]);
-            if (!isURL(assetPath)) {
+            let localPath =
+              './' + path.relative(path.dirname(this.name), node.attrs[attr]);
+            if (!isURL(assetPath) && this.dependencies.get(localPath)) {
               // Use url.resolve to normalize path for windows
               // from \path\to\res.js to /path/to/res.js
               assetPath = url.resolve(
