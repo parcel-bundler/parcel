@@ -1,4 +1,5 @@
 const {EventEmitter} = require('events');
+const os = require('os');
 const Farm = require('worker-farm/lib/farm');
 const promisify = require('./utils/promisify');
 
@@ -8,7 +9,7 @@ class WorkerFarm extends Farm {
   constructor(options) {
     let opts = {
       autoStart: true,
-      maxConcurrentWorkers: require('physical-cpu-count')
+      maxConcurrentWorkers: getNumWorkers(),
     };
 
     super(opts, require.resolve('./worker'));
@@ -84,6 +85,16 @@ class WorkerFarm extends Farm {
 
 for (let key in EventEmitter.prototype) {
   WorkerFarm.prototype[key] = EventEmitter.prototype[key];
+}
+
+function getNumWorkers() {
+  let cores;
+  try {
+    cores = require('physical-cpu-count');
+  } catch (err) {
+    cores = os.cpus().length;
+  }
+  return cores || 1;
 }
 
 module.exports = WorkerFarm;
