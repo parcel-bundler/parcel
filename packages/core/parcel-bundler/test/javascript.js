@@ -137,7 +137,7 @@ describe('javascript', function() {
 
     let output = run(b);
     assert.equal(typeof output, 'function');
-    assert(/^[0-9a-f]+\.txt$/.test(output()));
+    assert(/^\/[0-9a-f]+\.txt$/.test(output()));
     assert(fs.existsSync(__dirname + '/dist/' + output()));
   });
 
