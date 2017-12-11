@@ -31,11 +31,18 @@ class Resolver {
       return {path: path.resolve(path.dirname(parent), filename)};
     }
 
+    let extensions = Object.keys(this.options.extensions);
+    if (parent) {
+      const parentExt = path.extname(parent);
+      // parent's extension given high priority
+      extensions = [parentExt, ...extensions.filter(ext => ext !== parentExt)];
+    }
+
     return resolver(filename, {
       filename: parent,
       paths: this.options.paths,
       modules: builtins,
-      extensions: Object.keys(this.options.extensions),
+      extensions: extensions,
       packageFilter(pkg, pkgfile) {
         // Expose the path to the package.json file
         pkg.pkgfile = pkgfile;
