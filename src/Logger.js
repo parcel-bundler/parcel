@@ -123,4 +123,4 @@ function getInstance() {
   return logger;
 }
 
-module.exports = getInstance;
+module.exports = getInstance();
