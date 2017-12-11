@@ -2,6 +2,9 @@ const path = require('path');
 const RawAsset = require('./assets/RawAsset');
 const GlobAsset = require('./assets/GlobAsset');
 const glob = require('glob');
+const toType = require('./utils/toType');
+
+const isRegexp = /^\/.+?\/[gimuy]+?/;
 
 class Parser {
   constructor(options = {}) {
@@ -33,11 +36,32 @@ class Parser {
   }
 
   registerExtension(ext, parser) {
-    if (!ext.startsWith('.')) {
+    const type = toType(ext);
+
+    if (type === 'regexp' || isRegexp.test(ext)) {
+      ext = ext.toString();
+    } else if (!ext.startsWith('.')) {
       ext = '.' + ext;
     }
 
     this.extensions[ext] = parser;
+  }
+
+  // find extension key
+  findExt(ext) {
+    const keys = Object.keys(this.extensions);
+
+    for (let i = keys.length - 1; i >= 0; i--) {
+      const key = keys[i];
+
+      if (isRegexp.test(key) && new RegExp(key, 'i').test(ext)) {
+        return key;
+      } else if (ext === key) {
+        key;
+        return key;
+      }
+      isRegexp.lastIndex = 0;
+    }
   }
 
   findParser(filename) {
@@ -45,7 +69,8 @@ class Parser {
       return GlobAsset;
     }
 
-    let extension = path.extname(filename);
+    const fileExt = path.extname(filename);
+    let extension = this.findExt(fileExt);
     let parser = this.extensions[extension] || RawAsset;
     if (typeof parser === 'string') {
       parser = this.extensions[extension] = require(parser);
