@@ -4,9 +4,18 @@ const prettyError = require('./utils/prettyError');
 
 class Logger {
   constructor(options) {
-    this.lines = 0;
-    this.statusLine = null;
+    this.initMessages();
     this.updateOptions(options);
+  }
+
+  initMessages() {
+    this.messages = [
+      {
+        type: 'status',
+        persistent: true,
+        content: ''
+      }
+    ];
   }
 
   updateOptions(options) {
@@ -19,39 +28,70 @@ class Logger {
     this.chalk = new chalk.constructor({enabled: this.color});
   }
 
-  write(message, persistent = false) {
-    if (!persistent) {
-      this.lines += message.split('\n').length;
-    }
-
-    console.log(message);
+  write(message, persistent = false, type = 'log') {
+    message.split('\n').forEach(content => {
+      let pos =
+        this.messages.push({
+          type: type,
+          persistent: persistent,
+          content: content
+        }) - 1;
+      this.writeLine(pos);
+    });
   }
 
-  log(message) {
+  writeLine(line) {
+    if (!this.messages[line]) return;
+    let msg =
+      `[${this.messages[line].type.toUpperCase()}]: ` +
+      this.messages[line].content;
+    if (!this.color || !process.stdout.isTTY) {
+      return this.log(msg);
+    }
+
+    let stdout = process.stdout;
+    readline.cursorTo(stdout, 0, line);
+    readline.clearLine(stdout, 0);
+    stdout.write(msg);
+    readline.cursorTo(stdout, 0, this.messages.length);
+  }
+
+  writeAll() {
+    this.messages.forEach((message, index) => {
+      this.writeLine(index);
+    });
+  }
+
+  clear() {
+    if (!this.color) {
+      return;
+    }
+
+    console.clear();
+    readline.cursorTo(process.stdout, 0, 0);
+    this.messages = this.messages.filter(
+      message => message.type === 'status' || message.persistent === true
+    );
+    this.writeAll();
+  }
+
+  log(message, persistent = false) {
     if (this.logLevel < 3) {
       return;
     }
 
-    this.write(message);
+    this.write(message, persistent);
   }
 
-  persistent(message) {
-    if (this.logLevel < 3) {
-      return;
-    }
-
-    this.write(this.chalk.bold(message), true);
-  }
-
-  warn(message) {
+  warn(message, persistent = false) {
     if (this.logLevel < 2) {
       return;
     }
 
-    this.write(this.chalk.yellow(message));
+    this.write(this.chalk.yellow(message), persistent, 'warning');
   }
 
-  error(err) {
+  error(err, persistent = false) {
     if (this.logLevel < 1) {
       return;
     }
@@ -60,38 +100,8 @@ class Logger {
 
     this.status('🚨', message, 'red');
     if (stack) {
-      this.write(stack);
+      this.write(stack, persistent, 'error');
     }
-  }
-
-  clear() {
-    if (!this.color) {
-      return;
-    }
-
-    while (this.lines > 0) {
-      readline.clearLine(process.stdout, 0);
-      readline.moveCursor(process.stdout, 0, -1);
-      this.lines--;
-    }
-
-    readline.cursorTo(process.stdout, 0);
-    this.statusLine = null;
-  }
-
-  writeLine(line, msg) {
-    if (!this.color) {
-      return this.log(msg);
-    }
-
-    let n = this.lines - line;
-    let stdout = process.stdout;
-    readline.cursorTo(stdout, 0);
-    readline.moveCursor(stdout, 0, -n);
-    stdout.write(msg);
-    readline.clearLine(stdout, 1);
-    readline.cursorTo(stdout, 0);
-    readline.moveCursor(stdout, 0, n);
   }
 
   status(emoji, message, color = 'gray') {
@@ -99,29 +109,16 @@ class Logger {
       return;
     }
 
-    let hasStatusLine = this.statusLine != null;
-    if (!hasStatusLine) {
-      this.statusLine = this.lines;
-    }
+    this.messages[0].content = this.chalk[color].bold(`${emoji}  ${message}`);
 
-    this.writeLine(
-      this.statusLine,
-      this.chalk[color].bold(`${emoji}  ${message}`)
-    );
-
-    if (!hasStatusLine) {
-      process.stdout.write('\n');
-      this.lines++;
-    }
+    this.writeLine(0);
   }
 }
 
-let logger = null;
-function getInstance(options) {
+let logger;
+function getInstance() {
   if (!logger) {
-    logger = new Logger(options);
-  } else if (options) {
-    logger.updateOptions(options);
+    logger = new Logger();
   }
   return logger;
 }
