@@ -8,8 +8,8 @@ exports.stat = promisify(fs.stat);
 
 exports.exists = function(filename) {
   return new Promise(resolve => {
-    fs.fstat(filename, (err, stats) => {
-      if (err) {
+    fs.access(filename, err => {
+      if (err && err.code === 'ENOENT') {
         return resolve(false);
       }
       return resolve(true);
