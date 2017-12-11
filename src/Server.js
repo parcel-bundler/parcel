@@ -57,11 +57,10 @@ function middleware(bundler) {
 }
 
 async function serve(bundler, port) {
-  let server = http
-    .createServer(middleware(bundler))
-    .listen(await getPort({port}));
+  let freePort = await getPort({port});
+  let server = http.createServer(middleware(bundler)).listen(freePort);
 
-  server.once('error', err => {
+  server.on('error', err => {
     bundler.logger.error(new Error(serverErrors(err, server.address().port)));
   });
 
