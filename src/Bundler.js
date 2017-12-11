@@ -88,8 +88,15 @@ class Bundler extends EventEmitter {
   }
 
   loadPlugins(location = this.mainFile) {
+    let pkg;
     try {
-      let pkg = localRequire('./package.json', location);
+      pkg = localRequire('./package.json', location);
+    } catch (err) {
+      if (err.code === 'MODULE_NOT_FOUND' && location.length > 1) {
+        return this.loadPlugins(Path.join(location, '..'));
+      }
+    }
+    try {
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
       for (let dep in deps) {
         if (dep.startsWith('parcel-plugin-')) {
@@ -97,9 +104,6 @@ class Bundler extends EventEmitter {
         }
       }
     } catch (err) {
-      if (err.code === 'MODULE_NOT_FOUND' && location.length > 1) {
-        return this.loadPlugins(Path.join(location, '..'));
-      }
       this.logger.warn(err);
     }
   }
