@@ -107,5 +107,5 @@ function hmrAccept(bundle, id) {
     return true;
   }
 
-  return getParents(global.require, id).some(id => hmrAccept(global.require, id));
+  return getParents(global.require, id).forEach(id => hmrAccept(global.require, id));
 }
