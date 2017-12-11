@@ -1,7 +1,5 @@
 const Asset = require('../Asset');
 const glob = require('glob');
-const promisify = require('../utils/promisify');
-const globPromise = promisify(glob);
 const micromatch = require('micromatch');
 const path = require('path');
 
