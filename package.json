@@ -18,6 +18,7 @@
     "chokidar": "^1.7.0",
     "commander": "^2.11.0",
     "cssnano": "^3.10.0",
+    "get-port": "^3.2.0",
     "glob": "^7.1.2",
     "htmlnano": "^0.1.6",
     "is-url": "^1.2.2",
