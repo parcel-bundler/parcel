@@ -23,8 +23,11 @@ const ATTRS = {
     'embed'
   ],
   href: ['link', 'a'],
-  poster: ['video']
+  poster: ['video'],
+  content: ['meta']
 };
+
+const META_ASSETS = ['og:image'];
 
 class HTMLAsset extends Asset {
   constructor(name, pkg, options) {
@@ -46,6 +49,12 @@ class HTMLAsset extends Asset {
         for (let attr in node.attrs) {
           let elements = ATTRS[attr];
           if (elements && elements.includes(node.tag)) {
+            if (
+              node.tag === 'meta' &&
+              !META_ASSETS.includes(node.attrs['name'])
+            ) {
+              break;
+            }
             let assetPath = this.addURLDependency(node.attrs[attr]);
             if (!isURL(assetPath)) {
               // Use url.resolve to normalize path for windows
