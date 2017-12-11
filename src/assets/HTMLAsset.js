@@ -45,6 +45,10 @@ class HTMLAsset extends Asset {
       if (node.attrs) {
         for (let attr in node.attrs) {
           let elements = ATTRS[attr];
+          // link is not a file
+          if (node.tag === 'a' && node.attrs[attr].indexOf('.') < 0) {
+            break;
+          }
           if (elements && elements.includes(node.tag)) {
             let assetPath = this.addURLDependency(node.attrs[attr]);
             if (!isURL(assetPath)) {
