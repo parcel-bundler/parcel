@@ -3,6 +3,7 @@ const posthtml = require('posthtml');
 const parse = require('posthtml-parser');
 const api = require('posthtml/lib/api');
 const path = require('path');
+const normalize = require('normalize-path');
 const md5 = require('../utils/md5');
 const render = require('posthtml-render');
 const posthtmlTransform = require('../transforms/posthtml');
@@ -47,7 +48,9 @@ class HTMLAsset extends Asset {
           if (elements && elements.includes(node.tag)) {
             let assetPath = this.addURLDependency(node.attrs[attr]);
             if (!isURL(assetPath)) {
-              assetPath = path.join(this.options.publicURL, assetPath);
+              assetPath = normalize(
+                path.join(this.options.publicURL, assetPath)
+              );
             }
             node.attrs[attr] = assetPath;
             this.isAstDirty = true;

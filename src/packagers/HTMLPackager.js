@@ -1,6 +1,7 @@
 const Packager = require('./Packager');
 const posthtml = require('posthtml');
 const path = require('path');
+const normalize = require('normalize-path');
 
 class HTMLPackager extends Packager {
   async addAsset(asset) {
@@ -39,7 +40,9 @@ class HTMLPackager extends Packager {
         tag: 'link',
         attrs: {
           rel: 'stylesheet',
-          href: path.join(this.options.publicURL, path.basename(bundle.name))
+          href: normalize(
+            path.join(this.options.publicURL, path.basename(bundle.name))
+          )
         }
       });
     }

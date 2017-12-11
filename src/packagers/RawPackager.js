@@ -1,6 +1,7 @@
 const Packager = require('./Packager');
 const fs = require('../utils/fs');
 const path = require('path');
+const normalize = require('normalize-path');
 
 class RawPackager extends Packager {
   // Override so we don't create a file for this bundle.
@@ -11,9 +12,8 @@ class RawPackager extends Packager {
     // Use the bundle name if this is the entry asset, otherwise generate one.
     let name = this.bundle.name;
     if (asset !== this.bundle.entryAsset) {
-      name = path.join(
-        path.dirname(this.bundle.name),
-        asset.generateBundleName()
+      name = normalize(
+        path.join(path.dirname(this.bundle.name), asset.generateBundleName())
       );
     }
 
