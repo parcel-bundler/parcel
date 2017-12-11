@@ -31,7 +31,7 @@ describe('server', function() {
 
   it('should serve files', async function() {
     let b = bundler(__dirname + '/integration/commonjs/index.js');
-    server = b.serve(0);
+    server = await b.serve(0);
 
     let data = await get('/dist/index.js');
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
@@ -39,7 +39,7 @@ describe('server', function() {
 
   it('should serve a default page if the main bundle is an HTML asset', async function() {
     let b = bundler(__dirname + '/integration/html/index.html');
-    server = b.serve(0);
+    server = await b.serve(0);
 
     let data = await get('/');
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
@@ -50,7 +50,7 @@ describe('server', function() {
 
   it('should serve a 404 if the file does not exist', async function() {
     let b = bundler(__dirname + '/integration/commonjs/index.js');
-    server = b.serve(0);
+    server = await b.serve(0);
 
     let threw = false;
     try {
@@ -64,7 +64,7 @@ describe('server', function() {
 
   it('should serve a 500 if the bundler errored', async function() {
     let b = bundler(__dirname + '/integration/html/index.html');
-    server = b.serve(0);
+    server = await b.serve(0);
 
     b.errored = true;
 

@@ -81,7 +81,7 @@ if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
 
 program.parse(args);
 
-function bundle(main, command) {
+async function bundle(main, command) {
   // Require bundler here so the help command is fast
   const Bundler = require('../');
 
@@ -94,7 +94,7 @@ function bundle(main, command) {
   const bundler = new Bundler(main, command);
 
   if (command.name() === 'serve') {
-    const server = bundler.serve(command.port || 1234);
+    const server = await bundler.serve(command.port || 1234);
     if (command.open) {
       require('opn')(`http://localhost:${server.address().port}`);
     }
