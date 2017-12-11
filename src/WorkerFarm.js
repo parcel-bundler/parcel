@@ -1,4 +1,4 @@
-const { EventEmitter } = require('events');
+const {EventEmitter} = require('events');
 const os = require('os');
 const Farm = require('worker-farm/lib/farm');
 const promisify = require('./utils/promisify');
@@ -92,7 +92,7 @@ function getNumWorkers() {
   try {
     cores = require('physical-cpu-count');
   } catch (err) {
-    cores = os.cpus();
+    cores = os.cpus().length;
   }
   return cores || 1;
 }
