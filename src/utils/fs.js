@@ -8,7 +8,7 @@ exports.stat = promisify(fs.stat);
 
 exports.exists = function(filename) {
   return new Promise(resolve => {
-    fs.stat(filename, err => {
+    fs.fstat(filename, (err, stats) => {
       if (err) {
         return resolve(false);
       }
