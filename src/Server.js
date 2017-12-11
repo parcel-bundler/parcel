@@ -4,6 +4,7 @@ const url = require('url');
 const serveStatic = require('serve-static');
 const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
+const logger = require('./Logger')();
 
 function middleware(bundler) {
   const serve = serveStatic(bundler.options.outDir, {index: false});
@@ -61,21 +62,20 @@ async function serve(bundler, port) {
   let server = http.createServer(middleware(bundler)).listen(freePort);
 
   server.on('error', err => {
-    bundler.logger.error(new Error(serverErrors(err, server.address().port)));
+    logger.error(new Error(serverErrors(err, server.address().port)));
   });
 
   server.once('listening', connection => {
-    let addon =
-      server.address().port !== port
-        ? `- ${bundler.logger.chalk.red(
-            `configured port ${port} could not be used.`
-          )}`
-        : '';
-    bundler.logger.persistent(
-      `Server running at ${bundler.logger.chalk.cyan(
+    logger.persistent(
+      `Server running at ${logger.chalk.cyan(
         `http://localhost:${server.address().port}`
-      )} ${addon}\n`
+      )}`
     );
+    if (server.address().port !== port) {
+      logger.warn(
+        logger.chalk.red(`configured port ${port} could not be used.`)
+      );
+    }
   });
 
   return server;

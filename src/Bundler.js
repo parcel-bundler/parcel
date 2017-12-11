@@ -42,9 +42,6 @@ class Bundler extends EventEmitter {
     this.rebuildTimeout = null;
 
     this.loadPlugins();
-
-    // Keep logger compatible with other PRs
-    this.logger = logger;
   }
 
   normalizeOptions(options) {
