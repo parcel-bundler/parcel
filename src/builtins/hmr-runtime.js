@@ -18,11 +18,11 @@ if (!module.bundle.parent) {
   var ws = new WebSocket('ws://localhost:{{HMR_PORT}}/');
   ws.onmessage = function(event) {
     var data = JSON.parse(event.data);
-    var key, asset;
+    var index, asset;
 
     if (data.type === 'update') {
-      for (key in data.assets) {
-        asset = data.assets[key];
+      for (index = 0; index < data.assets.length; index++) {
+        asset = data.assets[index];
         hmrApply(global.require, asset);
         if (!asset.isNew) {
           hmrAccept(global.require, asset.id);
