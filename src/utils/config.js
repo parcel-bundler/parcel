@@ -1,6 +1,7 @@
 const fs = require('./fs');
 const path = require('path');
 const parseJson = require('parse-json');
+const stripJsonComments = require('strip-json-comments');
 
 const existsCache = new Map();
 
@@ -35,7 +36,8 @@ async function load(filepath, filenames, root = path.parse(filepath).root) {
       return require(configFile);
     }
 
-    return parseJson(await fs.readFile(configFile));
+    let configStream = await fs.readFile(configFile);
+    return parseJson(stripJsonComments(configStream.toString()));
   }
 
   return null;
