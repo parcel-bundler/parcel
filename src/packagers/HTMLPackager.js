@@ -38,7 +38,7 @@ class HTMLPackager extends Packager {
     await this.dest.write(html);
   }
 
-  insertCSSBundles(cssBundles, tree) {
+  getHeadContent(tree) {
     let head = find(tree, 'head');
     if (!head) {
       let html = find(tree, 'html');
@@ -49,6 +49,12 @@ class HTMLPackager extends Packager {
     if (!head.content) {
       head.content = [];
     }
+
+    return head;
+  }
+
+  insertCSSBundles(cssBundles, tree) {
+    let head = this.getHeadContent(tree);
 
     for (let bundle of cssBundles) {
       head.content.push({
@@ -62,16 +68,7 @@ class HTMLPackager extends Packager {
   }
 
   insertJSBundle(jsBundle, tree) {
-    let head = find(tree, 'head');
-    if (!head) {
-      let html = find(tree, 'html');
-      head = {tag: 'head'};
-      html.content.unshift(head);
-    }
-
-    if (!head.content) {
-      head.content = [];
-    }
+    let head = this.getHeadContent(tree);
 
     head.content.push({
       tag: 'script',
