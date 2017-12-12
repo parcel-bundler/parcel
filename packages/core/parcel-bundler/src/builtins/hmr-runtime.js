@@ -40,7 +40,7 @@ if (!module.bundle.parent) {
     }
 
     if (data.type === 'error') {
-      console.error(`[parcel] 🚨 ${data.error.message}\n${data.error.stack}`);
+      console.error('[parcel] 🚨  ' + data.error.message + '\n' + 'data.error.stack');
     }
   };
 }
