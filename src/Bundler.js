@@ -13,6 +13,8 @@ const {EventEmitter} = require('events');
 const Logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
+const customErrors = require('./utils/customErrors');
+const config = require('./utils/config');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -40,8 +42,6 @@ class Bundler extends EventEmitter {
     this.errored = false;
     this.buildQueue = new Set();
     this.rebuildTimeout = null;
-
-    this.loadPlugins();
   }
 
   normalizeOptions(options) {
@@ -87,9 +87,13 @@ class Bundler extends EventEmitter {
     this.packagers.add(type, packager);
   }
 
-  loadPlugins() {
+  async loadPlugins() {
+    let pkg = await config.load(this.mainFile, ['package.json']);
+    if (!pkg) {
+      return;
+    }
+
     try {
-      let pkg = localRequire('./package.json', this.mainFile);
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
       for (let dep in deps) {
         if (dep.startsWith('parcel-plugin-')) {
@@ -167,6 +171,8 @@ class Bundler extends EventEmitter {
     if (this.farm) {
       return;
     }
+
+    await this.loadPlugins();
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
     this.farm = WorkerFarm.getShared(this.options);
@@ -452,12 +458,9 @@ class Bundler extends EventEmitter {
     return Server.middleware(this);
   }
 
-  serve(port = 1234) {
-    this.logger.persistent(
-      'Server running at ' + this.logger.chalk.cyan(`http://localhost:${port}`)
-    );
+  async serve(port = 1234) {
     this.bundle();
-    return Server.serve(this, port);
+    return await Server.serve(this, port);
   }
 }
 
