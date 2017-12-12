@@ -14,6 +14,7 @@ const Logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const customErrors = require('./utils/customErrors');
+const config = require('./utils/config');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -41,8 +42,6 @@ class Bundler extends EventEmitter {
     this.errored = false;
     this.buildQueue = new Set();
     this.rebuildTimeout = null;
-
-    this.loadPlugins();
   }
 
   normalizeOptions(options) {
@@ -88,20 +87,17 @@ class Bundler extends EventEmitter {
     this.packagers.add(type, packager);
   }
 
-  loadPlugins(location = this.mainFile) {
-    let pkg;
-    try {
-      pkg = localRequire('./package.json', location);
-    } catch (err) {
-      if (err.code === 'MODULE_NOT_FOUND' && location.length > 1) {
-        return this.loadPlugins(Path.join(location, '..'));
-      }
+  async loadPlugins() {
+    let pkg = await config.load(this.mainFile, ['package.json']);
+    if (!pkg) {
+      return;
     }
+
     try {
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
       for (let dep in deps) {
         if (dep.startsWith('parcel-plugin-')) {
-          localRequire(dep, location)(this);
+          localRequire(dep, this.mainFile)(this);
         }
       }
     } catch (err) {
@@ -175,6 +171,8 @@ class Bundler extends EventEmitter {
     if (this.farm) {
       return;
     }
+
+    await this.loadPlugins();
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
     this.farm = WorkerFarm.getShared(this.options);
