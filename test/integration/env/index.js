@@ -1,3 +1,1 @@
-module.exports = function () {
-  return process.env.NODE_ENV;
-};
+module.exports = (x => x)(process.env.NODE_ENV);

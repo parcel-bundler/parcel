@@ -191,7 +191,7 @@ describe('javascript', function() {
     let b = await bundle(__dirname + '/integration/env/index.js');
 
     let output = run(b);
-    assert.equal(output(), 'test');
+    assert.equal(output, 'test');
   });
 
   it('should support adding implicit dependencies', async function() {
