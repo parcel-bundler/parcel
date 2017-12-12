@@ -58,6 +58,27 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
+  it('should dynamic import files which import raw files', async function() {
+    let b = await bundle(
+      __dirname + '/integration/dynamic-references-raw/index.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
+      childBundles: [
+        {
+          assets: ['local.js', 'test.txt'],
+          childBundles: ['test.txt']
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
+
   it('should return all exports as an object when using ES modules', async function() {
     let b = await bundle(__dirname + '/integration/dynamic-esm/index.js');
 
@@ -170,7 +191,7 @@ describe('javascript', function() {
     let b = await bundle(__dirname + '/integration/env/index.js');
 
     let output = run(b);
-    assert.equal(output(), 'test');
+    assert.equal(output(), 'test:test');
   });
 
   it('should support adding implicit dependencies', async function() {
@@ -206,6 +227,20 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.yaml'],
+      childBundles: []
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
+  it('should support requiring CoffeeScript files', async function() {
+    let b = await bundle(__dirname + '/integration/coffee/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'local.coffee'],
       childBundles: []
     });
 

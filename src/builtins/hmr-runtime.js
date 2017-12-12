@@ -1,4 +1,4 @@
-var global = (1,eval)('this');
+var global = (1, eval)('this');
 var OldModule = module.bundle.Module;
 function Module() {
   OldModule.call(this);
@@ -16,19 +16,19 @@ module.bundle.Module = Module;
 
 if (!module.bundle.parent) {
   var ws = new WebSocket('ws://localhost:{{HMR_PORT}}/');
-  ws.onmessage = (e) => {
-    var data = JSON.parse(e.data);
+  ws.onmessage = function(event) {
+    var data = JSON.parse(event.data);
 
     if (data.type === 'update') {
-      for (let asset of data.assets) {
+      data.assets.forEach(function (asset) {
         hmrApply(global.require, asset);
-      }
+      });
 
-      for (let asset of data.assets) {
+      data.assets.forEach(function (asset) {
         if (!asset.isNew) {
           hmrAccept(global.require, asset.id);
         }
-      }
+      });
     }
 
     if (data.type === 'reload') {
@@ -40,7 +40,7 @@ if (!module.bundle.parent) {
     }
 
     if (data.type === 'error') {
-      console.error(`[parcel] 🚨 ${data.error.message}\n${data.error.stack}`);
+      console.error('[parcel] 🚨  ' + data.error.message + '\n' + 'data.error.stack');
     }
   };
 }
@@ -51,10 +51,12 @@ function getParents(bundle, id) {
     return [];
   }
 
-  let parents = [];
-  for (let k in modules) {
-    for (let d in modules[k][1]) {
-      let dep = modules[k][1][d];
+  var parents = [];
+  var k, d, dep;
+
+  for (k in modules) {
+    for (d in modules[k][1]) {
+      dep = modules[k][1][d];
       if (dep === id || (Array.isArray(dep) && dep[dep.length - 1] === id)) {
         parents.push(+k);
       }
@@ -75,7 +77,7 @@ function hmrApply(bundle, asset) {
   }
 
   if (modules[asset.id] || !bundle.parent) {
-    let fn = new Function('require', 'module', 'exports', asset.generated.js);
+    var fn = new Function('require', 'module', 'exports', asset.generated.js);
     asset.isNew = !modules[asset.id];
     modules[asset.id] = [fn, asset.deps];
   } else if (bundle.parent) {
@@ -93,7 +95,7 @@ function hmrAccept(bundle, id) {
     return hmrAccept(bundle.parent, id);
   }
 
-  let cached = bundle.cache[id];
+  var cached = bundle.cache[id];
   if (cached && cached.hot._disposeCallback) {
     cached.hot._disposeCallback();
   }
@@ -107,5 +109,7 @@ function hmrAccept(bundle, id) {
     return true;
   }
 
-  return getParents(global.require, id).some(id => hmrAccept(global.require, id));
+  return getParents(global.require, id).some(function (id) {
+    return hmrAccept(global.require, id)
+  });
 }

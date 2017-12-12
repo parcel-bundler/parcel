@@ -24,8 +24,7 @@ module.exports = {
       let key = types.toComputedKey(node);
       if (types.isStringLiteral(key)) {
         let val = types.valueToNode(process.env[key.value]);
-        replace(ancestors[ancestors.length - 2], node, val);
-        delete node.object; // prevent traversing into this node
+        morph(node, val);
         asset.isAstDirty = true;
       }
     }
@@ -105,12 +104,13 @@ function matchesPattern(member, match) {
   return true;
 }
 
-// Replaces the key in `parent` whose value is `from` with `to`
-function replace(parent, from, to) {
-  for (let key in parent) {
-    if (parent[key] === from) {
-      parent[key] = to;
-      break;
-    }
+// replace object properties
+function morph(object, newProperties) {
+  for (let key in object) {
+    delete object[key];
+  }
+
+  for (let key in newProperties) {
+    object[key] = newProperties[key];
   }
 }
