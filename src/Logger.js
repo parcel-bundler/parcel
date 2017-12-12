@@ -94,8 +94,9 @@ class Logger {
 
     let {message, stack} = prettyError(err, {color: this.color});
 
-    this.status('🚨', message, 'red');
+    this.status('🚨', 'An error occured!', 'red');
     if (stack) {
+      this.write(`🚨 ${this.chalk['red'].bold(message)}`, persistent, 'error');
       this.write(stack, persistent, 'error');
     }
   }

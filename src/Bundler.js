@@ -100,9 +100,7 @@ class Bundler extends EventEmitter {
         }
       }
     } catch (err) {
-      setTimeout(() => {
-        logger.warn(err);
-      }, 500);
+      logger.warn(err);
     }
   }
 
