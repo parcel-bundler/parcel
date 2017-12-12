@@ -1,22 +1,11 @@
 const crypto = require('crypto');
-
-function recusiveHashGenerator(object, hash) {
-  for (let key of Object.keys(object).sort()) {
-    let item = object[key];
-    if (item) {
-      if (typeof item === 'object') {
-        hash = recusiveHashGenerator(item, hash);
-      }
-      hash.update(key + item);
-    }
-  }
-  return hash;
-}
+const canonicalJson = require('canonical-json');
 
 module.exports = function(object) {
   let hash = crypto.createHash('md5');
 
-  hash = recusiveHashGenerator(object, hash);
+  // Use canonical JSON to ensure same json returns the exact same string => exact same hash
+  hash.update(canonicalJson(object));
 
   return hash.digest('hex');
 };
