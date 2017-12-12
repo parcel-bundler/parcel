@@ -4,7 +4,7 @@ const GlobAsset = require('./assets/GlobAsset');
 const glob = require('glob');
 const toType = require('./utils/toType');
 
-const isRegexp = /^\/.+?\/[gimuy]+?/;
+const isRegexp = /^\/.+?\/[gimuy]+?$/;
 
 class Parser {
   constructor(options = {}) {
@@ -54,10 +54,10 @@ class Parser {
     for (let i = keys.length - 1; i >= 0; i--) {
       const key = keys[i];
 
-      if (isRegexp.test(key) && new RegExp(key, 'i').test(ext)) {
+      if (ext === key) {
         return key;
-      } else if (ext === key) {
-        key;
+      }
+      if (isRegexp.test(key) && new RegExp(key, 'i').test(ext)) {
         return key;
       }
       isRegexp.lastIndex = 0;
