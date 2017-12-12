@@ -18,16 +18,17 @@ if (!module.bundle.parent) {
   var ws = new WebSocket('ws://localhost:{{HMR_PORT}}/');
   ws.onmessage = function(event) {
     var data = JSON.parse(event.data);
-    var index, asset;
 
     if (data.type === 'update') {
-      for (index = 0; index < data.assets.length; index++) {
-        asset = data.assets[index];
+      data.assets.forEach(function (asset) {
         hmrApply(global.require, asset);
+      });
+
+      data.assets.forEach(function (asset) {
         if (!asset.isNew) {
           hmrAccept(global.require, asset.id);
         }
-      }
+      });
     }
 
     if (data.type === 'reload') {
