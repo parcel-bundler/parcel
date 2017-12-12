@@ -43,3 +43,6 @@ Search open/closed issues before submitting since someone might have asked the s
 | Node             | 
 | npm/Yarn         | 
 | Operating System | 
+
+<!-- Love parcel? Please consider supporting our collective:
+👉  https://opencollective.com/parcel/donate -->
