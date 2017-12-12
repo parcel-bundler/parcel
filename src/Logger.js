@@ -8,7 +8,7 @@ class Logger {
       {
         type: 'status',
         persistent: true,
-        content: ''
+        content: '📦  Parcel bundler 🚀'
       }
     ];
     this.updateOptions(options);
