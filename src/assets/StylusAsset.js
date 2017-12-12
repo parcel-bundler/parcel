@@ -24,7 +24,7 @@ class StylusAsset extends CSSAsset {
     });
 
     // Add config data to fileHash
-    this.hashAddon = opts;
+    this.hashAddon['stylusrc'] = opts;
 
     return style;
   }

@@ -58,7 +58,7 @@ class JSAsset extends Asset {
     }
 
     // Add config data to fileHash
-    this.hashAddon = this.babelConfig;
+    this.hashAddon['babelrc'] = this.babelConfig;
 
     return babylon.parse(code, options);
   }

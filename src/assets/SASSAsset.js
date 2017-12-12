@@ -31,7 +31,7 @@ class SASSAsset extends CSSAsset {
     });
 
     // Add config data to fileHash
-    this.hashAddon = opts;
+    this.hashAddon['sassrc'] = opts;
 
     let res = await render(opts);
     res.render = () => res.css.toString();

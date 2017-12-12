@@ -1,15 +1,22 @@
 const crypto = require('crypto');
 
-module.exports = function(object) {
-  let hash = crypto.createHash('md5');
+function recusiveHashGenerator(object, hash) {
   for (let key of Object.keys(object).sort()) {
     let item = object[key];
     if (item) {
-      for (let subkey of Object.keys(item).sort()) {
-        hash.update(subkey + item[subkey]);
+      if (typeof item === 'object') {
+        hash = recusiveHashGenerator(item, hash);
       }
+      hash.update(key + item);
     }
   }
+  return hash;
+}
+
+module.exports = function(object) {
+  let hash = crypto.createHash('md5');
+
+  hash = recusiveHashGenerator(object, hash);
 
   return hash.digest('hex');
 };

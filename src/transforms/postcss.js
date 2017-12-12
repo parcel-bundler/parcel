@@ -13,6 +13,9 @@ module.exports = async function(asset) {
   await asset.parseIfNeeded();
   let res = await postcss(config.plugins).process(asset.getCSSAst(), config);
 
+  // Add config to asset hash
+  asset.hashAddon['postcssrc'] = config;
+
   asset.ast.css = res.css;
   asset.ast.dirty = false;
 };
