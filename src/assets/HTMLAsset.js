@@ -8,6 +8,7 @@ const md5 = require('../utils/md5');
 const render = require('posthtml-render');
 const posthtmlTransform = require('../transforms/posthtml');
 const isURL = require('../utils/is-url');
+const isFile = require('../utils/is-file');
 
 // A list of all attributes that should produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
@@ -26,8 +27,6 @@ const ATTRS = {
   poster: ['video'],
   content: ['meta']
 };
-
-const META_ASSETS = ['og:image'];
 
 class HTMLAsset extends Asset {
   constructor(name, pkg, options) {
@@ -49,10 +48,7 @@ class HTMLAsset extends Asset {
         for (let attr in node.attrs) {
           let elements = ATTRS[attr];
           if (elements && elements.includes(node.tag)) {
-            if (
-              node.tag === 'meta' &&
-              !META_ASSETS.includes(node.attrs['name'])
-            ) {
+            if (node.tag === 'meta' && !isFile(node.attrs[attr])) {
               break;
             }
             let assetPath = this.addURLDependency(node.attrs[attr]);
