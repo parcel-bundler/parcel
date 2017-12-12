@@ -10,3 +10,4 @@ dist
 lib
 !test/**/node_modules
 .vscode/
+.idea/

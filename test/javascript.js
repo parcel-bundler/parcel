@@ -1,5 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('javascript', function() {
@@ -57,16 +58,39 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
+  it('should dynamic import files which import raw files', async function() {
+    let b = await bundle(
+      __dirname + '/integration/dynamic-references-raw/index.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
+      childBundles: [
+        {
+          assets: ['local.js', 'test.txt'],
+          childBundles: ['test.txt']
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
+
   it('should return all exports as an object when using ES modules', async function() {
     let b = await bundle(__dirname + '/integration/dynamic-esm/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
-      childBundles: [{
-        assets: ['local.js'],
-        childBundles: []
-      }]
+      childBundles: [
+        {
+          assets: ['local.js'],
+          childBundles: []
+        }
+      ]
     });
 
     let output = run(b).default;
@@ -134,7 +158,7 @@ describe('javascript', function() {
 
     let output = run(b);
     assert.equal(typeof output, 'function');
-    assert(/^[0-9a-f]+\.txt$/.test(output()));
+    assert(/^\/[0-9a-f]+\.txt$/.test(output()));
     assert(fs.existsSync(__dirname + '/dist/' + output()));
   });
 
@@ -156,8 +180,8 @@ describe('javascript', function() {
 
     let output = run(b);
     assert.deepEqual(output(), {
-      dir: __dirname + '/integration/globals',
-      file: __dirname + '/integration/globals/index.js',
+      dir: path.join(__dirname, '/integration/globals'),
+      file: path.join(__dirname, '/integration/globals/index.js'),
       buf: new Buffer('browser').toString('base64'),
       global: true
     });
@@ -167,7 +191,7 @@ describe('javascript', function() {
     let b = await bundle(__dirname + '/integration/env/index.js');
 
     let output = run(b);
-    assert.equal(output(), 'test');
+    assert.equal(output(), 'test:test');
   });
 
   it('should support adding implicit dependencies', async function() {
@@ -203,6 +227,20 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.yaml'],
+      childBundles: []
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
+  it('should support requiring CoffeeScript files', async function() {
+    let b = await bundle(__dirname + '/integration/coffee/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'local.coffee'],
       childBundles: []
     });
 

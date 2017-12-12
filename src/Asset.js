@@ -1,4 +1,3 @@
-const Parser = require('./Parser');
 const path = require('path');
 const fs = require('./utils/fs');
 const objectHash = require('./utils/objectHash');
