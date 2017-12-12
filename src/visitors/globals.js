@@ -107,10 +107,19 @@ function matchesPattern(member, match) {
 
 // Replaces the key in `parent` whose value is `from` with `to`
 function replace(parent, from, to) {
-  for (let key in parent) {
-    if (parent[key] === from) {
-      parent[key] = to;
-      break;
+  if (types.isCallExpression(parent)) {
+    for (let key in parent.arguments) {
+      if (parent.arguments[key] === from) {
+        parent.arguments[key] = to;
+        break;
+      }
+    }
+  } else {
+    for (let key in parent) {
+      if (parent[key] === from) {
+        parent[key] = to;
+        break;
+      }
     }
   }
 }
