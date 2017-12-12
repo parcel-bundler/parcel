@@ -165,6 +165,27 @@ describe('hmr', function() {
     assert.deepEqual(outputs, [3, 10]);
   });
 
+  it('should work for modules with many parents', async function() {
+    await ncp(__dirname + '/integration/hmr-two-parents', __dirname + '/input');
+
+    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    let bundle = await b.bundle();
+    let outputs = [];
+
+    run(bundle, {
+      output(o) {
+        outputs.push(o);
+      }
+    });
+
+    assert.deepEqual(outputs, [2]);
+
+    fs.writeFileSync(__dirname + '/input/value.js', 'exports.value = 2;');
+
+    await nextEvent(b, 'bundled');
+    assert.deepEqual(outputs, [2, 4, 4]);
+  });
+
   it('should call dispose and accept callbacks', async function() {
     await ncp(__dirname + '/integration/hmr-callbacks', __dirname + '/input');
 

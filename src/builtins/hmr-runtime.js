@@ -109,7 +109,7 @@ function hmrAccept(bundle, id) {
     return true;
   }
 
-  return getParents(global.require, id).some(function (id) {
+  return getParents(global.require, id).reverse().some(function (id) {
     return hmrAccept(global.require, id)
   });
 }
