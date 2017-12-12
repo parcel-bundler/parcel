@@ -1095,7 +1095,7 @@ code-point-at@^1.0.0:
 
 coffeescript@^2.0.3:
   version "2.1.0"
-  resolved "https://maven.livefyre.com/content/groups/npm-all/coffeescript/-/coffeescript-2.1.0.tgz#8cb7ce12021ab9f84d8c524f54edbd6141374606"
+  resolved "https://registry.yarnpkg.com/coffeescript/-/coffeescript-2.1.0.tgz#8cb7ce12021ab9f84d8c524f54edbd6141374606"
 
 collection-visit@^1.0.0:
   version "1.0.0"
