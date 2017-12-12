@@ -26,7 +26,6 @@
     "micromatch": "^3.0.4",
     "mkdirp": "^0.5.1",
     "node-libs-browser": "^2.0.0",
-    "opencollective": "^1.0.3",
     "opn": "^5.1.0",
     "parse-json": "^4.0.0",
     "physical-cpu-count": "^2.0.0",
@@ -67,7 +66,7 @@
     "build": "babel src -d lib",
     "prepublish": "yarn build",
     "precommit": "lint-staged",
-    "postinstall": "opencollective postinstall"
+    "postinstall": "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
   },
   "bin": {
     "parcel": "bin/cli.js"
