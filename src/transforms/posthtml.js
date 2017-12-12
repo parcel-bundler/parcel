@@ -12,9 +12,6 @@ module.exports = async function(asset) {
   await asset.parseIfNeeded();
   let res = await posthtml(config.plugins).process(asset.ast, config);
 
-  // Add config to asset hash
-  asset.hashAddon['posthtmlrc'] = config;
-
   asset.ast = res.tree;
   asset.isAstDirty = true;
 };
