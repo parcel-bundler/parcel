@@ -24,17 +24,27 @@
 
 ## Getting started
 
-1. Install with yarn:
+### Minimum requirements
+
+* node ≥ v8
+
+### Installation
+
+Install with yarn:
 
 ```shell
 yarn global add parcel-bundler
 ```
+
 or with npm:
+
 ```shell
 npm install -g parcel-bundler
 ```
 
-2. Parcel can take any type of file as an entry point, but an HTML or JavaScript file is a good place to start. If you link your main JavaScript file in the HTML using a relative path, Parcel will also process it for you, and replace the reference with a URL to the output file.
+### Input files
+
+Parcel can take any type of file as an entry point, but an HTML or JavaScript file is a good place to start. If you link your main JavaScript file in the HTML using a relative path, Parcel will also process it for you, and replace the reference with a URL to the output file.
 
 ```html
 <html>
@@ -44,13 +54,15 @@ npm install -g parcel-bundler
 </html>
 ```
 
-3. Parcel has a development server built in, which will automatically rebuild your app as you change files and supports hot module replacement for fast development. Just point it at your entry file:
+### Run the development server
+
+Parcel has a development server built in, which will automatically rebuild your app as you change files and supports hot module replacement for fast development. Just point it at your entry file:
 
 ```shell
 parcel index.html
 ```
 
-4. Now open http://localhost:1234/ in your browser. If needed, you can also override the default port with the -p option.
+Now open http://localhost:1234/ in your browser. If needed, you can also override the default port with the -p option.
 
 See [parceljs.org](https://parceljs.org) for more documentation!
 
@@ -97,13 +109,11 @@ All feedback and suggestions are welcome!
 This project exists thanks to all the people who contribute. [[Contribute]](CONTRIBUTING.md).
 <a href="graphs/contributors"><img src="https://opencollective.com/parcel/contributors.svg?width=890" /></a>
 
-
 ## Backers
 
 Thank you to all our backers! 🙏 [[Become a backer](https://opencollective.com/parcel#backer)]
 
 <a href="https://opencollective.com/parcel#backers" target="_blank"><img src="https://opencollective.com/parcel/backers.svg?width=890"></a>
-
 
 ## Sponsors
 
@@ -119,8 +129,6 @@ Support this project by becoming a sponsor. Your logo will show up here with a l
 <a href="https://opencollective.com/parcel/sponsor/7/website" target="_blank"><img src="https://opencollective.com/parcel/sponsor/7/avatar.svg"></a>
 <a href="https://opencollective.com/parcel/sponsor/8/website" target="_blank"><img src="https://opencollective.com/parcel/sponsor/8/avatar.svg"></a>
 <a href="https://opencollective.com/parcel/sponsor/9/website" target="_blank"><img src="https://opencollective.com/parcel/sponsor/9/avatar.svg"></a>
-
-
 
 ## License
 
