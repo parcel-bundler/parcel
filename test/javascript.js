@@ -191,7 +191,7 @@ describe('javascript', function() {
     let b = await bundle(__dirname + '/integration/env/index.js');
 
     let output = run(b);
-    assert.equal(output, 'test');
+    assert.equal(output(), 'test:test');
   });
 
   it('should support adding implicit dependencies', async function() {
@@ -235,7 +235,7 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
-  it('should support requiring CoffeeScript files', async function () {
+  it('should support requiring CoffeeScript files', async function() {
     let b = await bundle(__dirname + '/integration/coffee/index.js');
 
     assertBundleTree(b, {

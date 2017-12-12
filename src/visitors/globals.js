@@ -25,7 +25,6 @@ module.exports = {
       if (types.isStringLiteral(key)) {
         let val = types.valueToNode(process.env[key.value]);
         morph(node, val);
-        delete node.object; // prevent traversing into this node
         asset.isAstDirty = true;
       }
     }
@@ -110,6 +109,7 @@ function morph(object, newProperties) {
   for (let key in object) {
     delete object[key];
   }
+
   for (let key in newProperties) {
     object[key] = newProperties[key];
   }
