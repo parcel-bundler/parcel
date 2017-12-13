@@ -73,13 +73,32 @@ program.on('--help', function() {
   console.log('');
 });
 
-// Make serve the default command
 var args = process.argv;
-if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
+if (!args[2]) {
+  // no entry point.
+  displayWarningMessage();
+} else if (args[2] && args[2] === 'serve') {
+  // serve but with no entry point.
+  displayWarningMessage('serve');
+} else {
   args.splice(2, 0, 'serve');
+  program.parse(args);
 }
 
-program.parse(args);
+function displayWarningMessage(command = '') {
+  console.error('Please specify the entry point.');
+  console.log('For example:');
+  console.log(
+    `  ${chalk.cyan(program.name())} ${chalk.green(
+      `parcel index.html ${command}`
+    )}`
+  );
+  console.log();
+  console.log(
+    `Run ${chalk.cyan(`${program.name()} --help`)} to see all options.`
+  );
+  process.exit(1);
+}
 
 async function bundle(main, command) {
   // Require bundler here so the help command is fast
