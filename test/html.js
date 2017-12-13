@@ -146,15 +146,13 @@ describe('html', function() {
           type: 'html',
           assets: ['other.html'],
           childBundles: []
+        },
+        {
+          type: 'js',
+          assets: ['webcomponents-loader.js'],
+          childBundles: []
         }
       ]
     });
-
-    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
-    assert(
-      html.includes(
-        '<script src="./node_modules/@webcomponents/webcomponentsjs/webcomponents.js"></script>'
-      )
-    );
   });
 });
