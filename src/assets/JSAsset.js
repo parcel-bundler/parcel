@@ -34,7 +34,7 @@ class JSAsset extends Asset {
     );
   }
 
-  async parse(code) {
+  async getOptions() {
     // Babylon options. We enable a few plugins by default.
     const options = {
       filename: this.name,
@@ -55,6 +55,12 @@ class JSAsset extends Asset {
       const file = new BabelFile({filename: this.name});
       options.plugins.push(...file.parserOpts.plugins);
     }
+
+    return options;
+  }
+
+  async parse(code) {
+    const options = await this.getOptions();
 
     return babylon.parse(code, options);
   }
