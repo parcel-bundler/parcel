@@ -63,10 +63,11 @@
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
-    "build": "babel src -d lib",
+    "build": "babel src -d lib --ignore src/builtins/*",
     "prepublish": "yarn build",
     "precommit": "lint-staged",
-    "postinstall": "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
+    "postinstall":
+      "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
   },
   "bin": {
     "parcel": "bin/cli.js"
@@ -75,10 +76,7 @@
     "node": ">= 6.0.0"
   },
   "lint-staged": {
-    "*.{js,json,md}": [
-      "prettier --write",
-      "git add"
-    ]
+    "*.{js,json,md}": ["prettier --write", "git add"]
   },
   "collective": {
     "type": "opencollective",

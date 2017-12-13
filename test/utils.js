@@ -82,6 +82,7 @@ function run(bundle, globals) {
     },
     globals
   );
+  ctx.window = ctx;
 
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(bundle.name), ctx);

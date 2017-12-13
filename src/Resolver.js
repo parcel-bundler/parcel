@@ -1,7 +1,7 @@
 const promisify = require('./utils/promisify');
 const resolve = require('browser-resolve');
 const resolveAsync = promisify(resolve);
-const builtins = require('./builtins');
+const builtins = require('../src/builtins');
 const path = require('path');
 const glob = require('glob');
 

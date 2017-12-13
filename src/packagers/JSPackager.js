@@ -3,10 +3,10 @@ const {basename} = require('path');
 const Packager = require('./Packager');
 
 const prelude = fs
-  .readFileSync(__dirname + '/../builtins/prelude.js', 'utf8')
+  .readFileSync(__dirname + '/../../src/builtins/prelude.js', 'utf8')
   .trim();
 const hmr = fs
-  .readFileSync(__dirname + '/../builtins/hmr-runtime.js', 'utf8')
+  .readFileSync(__dirname + '/../../src/builtins/hmr-runtime.js', 'utf8')
   .trim();
 
 class JSPackager extends Packager {
@@ -14,7 +14,7 @@ class JSPackager extends Packager {
     this.first = true;
     this.dedupe = new Map();
 
-    await this.dest.write(prelude + '({');
+    await this.dest.write(`(function(){${prelude}({`);
   }
 
   async addAsset(asset) {
@@ -79,7 +79,7 @@ class JSPackager extends Packager {
       entry.push(this.bundle.entryAsset.id);
     }
 
-    await this.dest.end('},{},' + JSON.stringify(entry) + ')');
+    await this.dest.end('},{},' + JSON.stringify(entry) + ')}())');
   }
 }
 
