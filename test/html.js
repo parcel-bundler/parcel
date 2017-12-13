@@ -134,4 +134,12 @@ describe('html', function() {
     let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
     assert(html.includes('<a href="#hash_link">'));
   });
+
+  it('should support dynamic imports for HTML', async function() {
+    let b = await bundle(_dirname + '/integration/html-import/index.html');
+
+    let html = fs.readFileSync(__dirname + '/dist/index.html','utf-8');
+    assert(html.includes('<script src="bower_components/webcomponentsjs/webcomponents-loader.js"></script>'));
+  })
 });
+

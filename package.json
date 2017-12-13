@@ -8,6 +8,7 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "dependencies": {
+    "@webcomponents/webcomponentsjs": "^1.0.20",
     "babel-core": "^6.25.0",
     "babel-generator": "^6.25.0",
     "babel-plugin-transform-es2015-modules-commonjs": "^6.26.0",
