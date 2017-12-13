@@ -136,10 +136,25 @@ describe('html', function() {
   });
 
   it('should support dynamic imports for HTML', async function() {
-    let b = await bundle(_dirname + '/integration/html-import/index.html');
+    let b = await bundle(__dirname + '/integration/html-import/index.html');
 
-    let html = fs.readFileSync(__dirname + '/dist/index.html','utf-8');
-    assert(html.includes('<script src="bower_components/webcomponentsjs/webcomponents-loader.js"></script>'));
-  })
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'html',
+          assets: ['other.html'],
+          childBundles: []
+        }
+      ]
+    });
+
+    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
+    assert(
+      html.includes(
+        '<script src="./node_modules/@webcomponents/webcomponentsjs/webcomponents.js"></script>'
+      )
+    );
+  });
 });
-
