@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 require('v8-compile-cache');
 const chalk = require('chalk');
 const program = require('commander');
@@ -76,21 +75,21 @@ program.on('--help', function() {
 var args = process.argv;
 if (!args[2]) {
   // no entry point.
-  displayWarningMessage();
-} else if (args[2] && args[2] === 'serve') {
-  // serve but with no entry point.
-  displayWarningMessage('serve');
+  showInstructions();
+} else if (args[2] === 'serve' || args[2] === 'build') {
+  // serve or build with no entry point.
+  showInstructions(args[2]);
 } else {
   args.splice(2, 0, 'serve');
   program.parse(args);
 }
 
-function displayWarningMessage(command = '') {
+function showInstructions(command = '') {
   console.error('Please specify the entry point.');
   console.log('For example:');
   console.log(
     `  ${chalk.cyan(program.name())} ${chalk.green(
-      `parcel index.html ${command}`
+      `parcel ${command} index.html`
     )}`
   );
   console.log();
