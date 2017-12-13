@@ -3,7 +3,7 @@
 require('v8-compile-cache');
 const chalk = require('chalk');
 const program = require('commander');
-const version = require('../../package.json').version;
+const version = require('../package.json').version;
 
 program.version(version);
 
@@ -83,7 +83,7 @@ program.parse(args);
 
 async function bundle(main, command) {
   // Require bundler here so the help command is fast
-  const Bundler = require('../../');
+  const Bundler = require('../');
 
   if (command.name() === 'build') {
     process.env.NODE_ENV = 'production';
