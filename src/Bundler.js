@@ -63,7 +63,8 @@ class Bundler extends EventEmitter {
       minify:
         typeof options.minify === 'boolean' ? options.minify : isProduction,
       hmr: typeof options.hmr === 'boolean' ? options.hmr : watch,
-      logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3
+      logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
+      mainFile: this.mainFile
     };
   }
 

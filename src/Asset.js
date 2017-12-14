@@ -77,9 +77,16 @@ class Asset {
       './' + path.relative(path.dirname(this.name), resolved),
       Object.assign({dynamic: true}, opts)
     );
-    return this.options.parser
-      .getAsset(resolved, this.package, this.options)
-      .generateBundleName();
+    let asset = this.options.parser.getAsset(
+      resolved,
+      this.package,
+      this.options
+    );
+
+    if (this.isMainFile(resolved)) {
+      return asset.generateBundleName(true);
+    }
+    return asset.generateBundleName();
   }
 
   mightHaveDependencies() {
@@ -167,6 +174,10 @@ class Asset {
 
   generateErrorMessage(err) {
     return err;
+  }
+
+  isMainFile(assetPath) {
+    return this.options.mainFile === assetPath;
   }
 }
 
