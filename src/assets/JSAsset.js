@@ -12,10 +12,13 @@ const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
 const config = require('../utils/config');
 const fs = require('fs');
+const Logger = require('../Logger');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
 const FS_RE = /\breadFileSync\b/;
+
+const logger = new Logger({});
 
 class JSAsset extends Asset {
   constructor(name, pkg, options) {
@@ -33,17 +36,18 @@ class JSAsset extends Asset {
       process.env.NODE_ENV === 'development' ? ['.dev.env'] : ['.env'];
     (async () => {
       const envPath = await config.resolve(this.name, envFile);
-      const env = fs.readFileSync(envPath, {encoding: 'utf8'});
+      const env = envPath && fs.readFileSync(envPath, {encoding: 'utf8'});
       env &&
         env.split(/\n+/).forEach(line => {
-          console.log('line', line);
           let matches = null;
           if (!(matches = line.match(envRegex))) {
             return;
           }
           this.envTable[matches[1]] = matches[2];
         });
-    })();
+    })().catch(err => {
+      this.logger.warn(err);
+    });
   }
 
   mightHaveDependencies() {
