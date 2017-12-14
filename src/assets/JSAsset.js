@@ -11,6 +11,7 @@ const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
 const config = require('../utils/config');
+const fs = require('fs');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
@@ -24,6 +25,25 @@ class JSAsset extends Asset {
     this.isAstDirty = false;
     this.isES6Module = false;
     this.outputCode = null;
+
+    // decode .env
+    this.envTable = {};
+    const envRegex = /^(\w+)\s*=\s*([\s\S]+)/;
+    const envFile =
+      process.env.NODE_ENV === 'development' ? ['.dev.env'] : ['.env'];
+    (async () => {
+      const envPath = await config.resolve(this.name, envFile);
+      const env = fs.readFileSync(envPath, {encoding: 'utf8'});
+      env &&
+        env.split(/\n+/).forEach(line => {
+          console.log('line', line);
+          let matches = null;
+          if (!(matches = line.match(envRegex))) {
+            return;
+          }
+          this.envTable[matches[1]] = matches[2];
+        });
+    })();
   }
 
   mightHaveDependencies() {
@@ -46,6 +66,11 @@ class JSAsset extends Asset {
       locations: true,
       plugins: ['exportExtensions', 'dynamicImport']
     };
+
+    for (let envName in this.envTable) {
+      const envReplaceRegex = new RegExp(`process\\.env\\.${envName}`, 'gi');
+      code = code.replace(envReplaceRegex, `'${this.envTable[envName]}'`);
+    }
 
     // Check if there is a babel config file. If so, determine which parser plugins to enable
     this.babelConfig =
