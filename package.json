@@ -23,18 +23,17 @@
     "htmlnano": "^0.1.6",
     "is-url": "^1.2.2",
     "js-yaml": "^3.10.0",
+    "json5": "^0.5.1",
     "micromatch": "^3.0.4",
     "mkdirp": "^0.5.1",
     "node-libs-browser": "^2.0.0",
     "opn": "^5.1.0",
-    "parse-json": "^4.0.0",
     "physical-cpu-count": "^2.0.0",
     "postcss": "^6.0.10",
     "postcss-value-parser": "^3.3.0",
     "posthtml": "^0.10.1",
     "resolve": "^1.4.0",
     "serve-static": "^1.12.4",
-    "strip-json-comments": "^2.0.1",
     "uglify-es": "^3.2.1",
     "v8-compile-cache": "^1.1.0",
     "worker-farm": "^1.4.1",
@@ -66,7 +65,8 @@
     "build": "babel src -d lib",
     "prepublish": "yarn build",
     "precommit": "lint-staged",
-    "postinstall": "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
+    "postinstall":
+      "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
   },
   "bin": {
     "parcel": "bin/cli.js"
@@ -75,10 +75,7 @@
     "node": ">= 6.0.0"
   },
   "lint-staged": {
-    "*.{js,json,md}": [
-      "prettier --write",
-      "git add"
-    ]
+    "*.{js,json,md}": ["prettier --write", "git add"]
   },
   "collective": {
     "type": "opencollective",
