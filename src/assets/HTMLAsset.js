@@ -72,8 +72,6 @@ class HTMLAsset extends Asset {
   }
 
   async transform() {
-    await this.getConfig();
-
     await posthtmlTransform.parse(this);
   }
 
