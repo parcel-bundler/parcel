@@ -28,8 +28,6 @@ class LESSAsset extends CSSAsset {
     let less = localRequire('less', this.name);
     let render = promisify(less.render.bind(less));
 
-    await this.getConfig();
-
     let res = await render(code, this.config.less);
     res.render = () => res.css;
     return res;

@@ -39,8 +39,6 @@ class TypeScriptAsset extends JSAsset {
   }
 
   async parse(code) {
-    await this.getConfig();
-
     // Transpile Module using TypeScript and parse result as ast format through babylon
     this.contents = this.typescript.transpileModule(
       code,

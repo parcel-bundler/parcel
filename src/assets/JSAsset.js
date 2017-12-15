@@ -64,8 +64,6 @@ class JSAsset extends Asset {
   }
 
   async parse(code) {
-    await this.getConfig();
-
     return babylon.parse(code, this.config.babelOptions);
   }
 

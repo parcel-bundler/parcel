@@ -33,8 +33,6 @@ class SASSAsset extends CSSAsset {
     let sass = localRequire('node-sass', this.name);
     let render = promisify(sass.render.bind(sass));
 
-    await this.getConfig();
-
     let opts = this.config.sass;
     opts.data = code;
 

@@ -24,8 +24,6 @@ class StylusAsset extends CSSAsset {
     // stylus should be installed locally in the module that's being required
     let stylus = localRequire('stylus', this.name);
 
-    await this.getConfig();
-
     let style = stylus(code, this.config.stylus);
     style.set('filename', this.name);
     style.set('include css', true);

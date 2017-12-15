@@ -118,6 +118,7 @@ class Asset {
 
   async process() {
     if (!this.generated) {
+      await this.getConfig();
       await this.loadIfNeeded();
       await this.pretransform();
       await this.getDependencies();
