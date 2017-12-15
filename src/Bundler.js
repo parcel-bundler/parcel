@@ -15,6 +15,8 @@ const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const customErrors = require('./utils/customErrors');
 const config = require('./utils/config');
+const configCache = require('./utils/configCache');
+const objectHash = require('./utils/objectHash');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -42,6 +44,7 @@ class Bundler extends EventEmitter {
     this.errored = false;
     this.buildQueue = new Set();
     this.rebuildTimeout = null;
+    this.plugins = [];
   }
 
   normalizeOptions(options) {
@@ -97,6 +100,10 @@ class Bundler extends EventEmitter {
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
       for (let dep in deps) {
         if (dep.startsWith('parcel-plugin-')) {
+          this.plugins.push({
+            name: dep,
+            version: deps[dep]
+          });
           localRequire(dep, this.mainFile)(this);
         }
       }
@@ -167,12 +174,21 @@ class Bundler extends EventEmitter {
     }
   }
 
+  async createVersionHash() {
+    let versionObject = {
+      plugins: this.plugins,
+      version: require('../package.json').version
+    };
+    return objectHash(versionObject);
+  }
+
   async start() {
     if (this.farm) {
       return;
     }
 
     await this.loadPlugins();
+    this.versionHash = await this.createVersionHash();
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
     this.farm = WorkerFarm.getShared(this.options);
@@ -303,8 +319,16 @@ class Bundler extends EventEmitter {
 
     // First try the cache, otherwise load and compile in the background
     let processed = this.cache && (await this.cache.read(asset.name));
-    if (!processed) {
+    let sameConfig = false;
+    if (processed) {
+      sameConfig = await configCache.compare(asset, processed.configCache);
+      sameConfig = sameConfig
+        ? processed.versionHash === this.versionHash
+        : false;
+    }
+    if (!processed || !sameConfig) {
       processed = await this.farm.run(asset.name, asset.package, this.options);
+      processed.versionHash = this.versionHash;
       if (this.cache) {
         this.cache.write(asset.name, processed);
       }
