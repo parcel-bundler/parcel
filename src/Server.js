@@ -56,9 +56,9 @@ function middleware(bundler) {
   };
 }
 
-async function serve(bundler, port) {
+async function serve(bundler, port, host) {
   let freePort = await getPort({port});
-  let server = http.createServer(middleware(bundler)).listen(freePort);
+  let server = http.createServer(middleware(bundler)).listen(freePort, host);
 
   server.on('error', err => {
     bundler.logger.error(new Error(serverErrors(err, server.address().port)));
@@ -73,7 +73,7 @@ async function serve(bundler, port) {
         : '';
     bundler.logger.persistent(
       `Server running at ${bundler.logger.chalk.cyan(
-        `http://localhost:${server.address().port}`
+        `http://${host || 'localhost'}:${server.address().port}`
       )} ${addon}\n`
     );
   });
