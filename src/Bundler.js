@@ -25,6 +25,7 @@ class Bundler extends EventEmitter {
     super();
     this.mainFile = Path.resolve(main || '');
     this.options = this.normalizeOptions(options);
+    this.options.rootDir = Path.dirname(this.mainFile);
 
     this.resolver = new Resolver(this.options);
     this.parser = new Parser(this.options);

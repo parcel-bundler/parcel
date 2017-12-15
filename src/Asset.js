@@ -65,6 +65,10 @@ class Asset {
       return url;
     }
 
+    if (url.indexOf('/') === 0) {
+      url = path.join(this.options.rootDir, url);
+    }
+
     if (typeof from === 'object') {
       opts = from;
       from = this.name;
