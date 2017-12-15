@@ -6,20 +6,26 @@ const path = require('path');
 
 class SASSAsset extends CSSAsset {
   async getConfig() {
-    let opts =
+    await super.getConfig();
+
+    if (this.config.sass) {
+      return this.config;
+    }
+
+    this.config.sass =
       this.package.sass ||
       (await config.load(this.name, ['.sassrc', '.sassrc.js'])) ||
       {};
-    opts.includePaths = (opts.includePaths || []).concat(
-      path.dirname(this.name)
-    );
+    this.config.sass.includePaths = (
+      this.config.sass.includePaths || []
+    ).concat(path.dirname(this.name));
 
-    opts.indentedSyntax =
-      typeof opts.indentedSyntax === 'boolean'
-        ? opts.indentedSyntax
+    this.config.sass.indentedSyntax =
+      typeof this.config.sass.indentedSyntax === 'boolean'
+        ? this.config.sass.indentedSyntax
         : path.extname(this.name).toLowerCase() === '.sass';
 
-    return opts;
+    return this.config;
   }
 
   async parse(code) {
@@ -27,7 +33,9 @@ class SASSAsset extends CSSAsset {
     let sass = localRequire('node-sass', this.name);
     let render = promisify(sass.render.bind(sass));
 
-    let opts = await this.getConfig();
+    await this.getConfig();
+
+    let opts = this.config.sass;
     opts.data = code;
 
     opts.functions = Object.assign({}, opts.functions, {

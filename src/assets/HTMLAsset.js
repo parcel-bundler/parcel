@@ -33,6 +33,12 @@ class HTMLAsset extends Asset {
     this.isAstDirty = false;
   }
 
+  async getConfig() {
+    await posthtmlTransform.getConfig(this);
+
+    return this.config;
+  }
+
   parse(code) {
     let res = parse(code);
     res.walk = api.walk;
@@ -66,7 +72,9 @@ class HTMLAsset extends Asset {
   }
 
   async transform() {
-    await posthtmlTransform(this);
+    await this.getConfig();
+
+    await posthtmlTransform.parse(this);
   }
 
   generate() {

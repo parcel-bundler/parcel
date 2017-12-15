@@ -5,13 +5,22 @@ const promisify = require('../utils/promisify');
 
 class LESSAsset extends CSSAsset {
   async getConfig() {
-    let opts =
+    await super.getConfig();
+
+    if (this.config.less) {
+      return this.config;
+    }
+
+    this.config.less =
       this.package.less ||
       (await config.load(this.name, ['.lessrc', '.lessrc.js'])) ||
       {};
-    opts.filename = this.name;
-    opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
-    return opts;
+    this.config.less.filename = this.name;
+    this.config.less.plugins = (this.config.less.plugins || []).concat(
+      urlPlugin(this)
+    );
+
+    return this.config;
   }
 
   async parse(code) {
@@ -19,7 +28,9 @@ class LESSAsset extends CSSAsset {
     let less = localRequire('less', this.name);
     let render = promisify(less.render.bind(less));
 
-    let res = await render(code, await this.getConfig());
+    await this.getConfig();
+
+    let res = await render(code, this.config.less);
     res.render = () => res.css;
     return res;
   }

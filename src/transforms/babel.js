@@ -31,13 +31,14 @@ async function shouldTransform(asset) {
   }
 
   if (asset.ast) {
-    return !!asset.babelConfig;
+    return !!asset.config.babelConfig;
   }
 
   if (asset.package && asset.package.babel) {
     return true;
   }
 
-  let babelrc = await config.resolve(asset.name, ['.babelrc', '.babelrc.js']);
+  await asset.getConfig();
+  let babelrc = asset.config.babelConfig;
   return !!babelrc;
 }

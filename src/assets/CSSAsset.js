@@ -24,6 +24,12 @@ class CSSAsset extends Asset {
     );
   }
 
+  async getConfig() {
+    await postcssTransform.getConfig(this);
+
+    return this.config;
+  }
+
   parse(code) {
     let root = postcss.parse(code, {from: this.name, to: this.name});
     return new CSSAst(code, root);
@@ -87,7 +93,7 @@ class CSSAsset extends Asset {
   }
 
   async transform() {
-    await postcssTransform(this);
+    await postcssTransform.parse(this);
   }
 
   getCSSAst() {

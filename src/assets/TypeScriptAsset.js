@@ -10,7 +10,13 @@ class TypeScriptAsset extends JSAsset {
   }
 
   async getConfig() {
-    let transpilerOptions = {
+    await super.getConfig();
+
+    if (this.config.typescript) {
+      return this.config;
+    }
+
+    this.config.typescript = {
       compilerOptions: {
         module: this.typescript.ModuleKind.CommonJS,
         jsx: this.typescript.JsxEmit.Preserve
@@ -22,23 +28,23 @@ class TypeScriptAsset extends JSAsset {
 
     // Overwrite default if config is found
     if (tsconfig) {
-      transpilerOptions.compilerOptions = Object.assign(
-        transpilerOptions.compilerOptions,
+      this.config.typescript.compilerOptions = Object.assign(
+        this.config.typescript.compilerOptions,
         tsconfig.compilerOptions
       );
     }
-    transpilerOptions.compilerOptions.noEmit = false;
+    this.config.typescript.compilerOptions.noEmit = false;
 
-    return transpilerOptions;
+    return this.config.typescript;
   }
 
   async parse(code) {
-    let transpilerOptions = await this.getConfig();
+    await this.getConfig();
 
     // Transpile Module using TypeScript and parse result as ast format through babylon
     this.contents = this.typescript.transpileModule(
       code,
-      transpilerOptions
+      this.config.typescript
     ).outputText;
 
     return super.parse(this.contents);

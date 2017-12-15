@@ -32,6 +32,7 @@ class Asset {
     this.depAssets = new Map();
     this.parentBundle = null;
     this.bundles = new Set();
+    this.config = {};
   }
 
   async loadIfNeeded() {
@@ -91,8 +92,8 @@ class Asset {
   }
 
   async getConfig() {
-    // Return empty Object by default
-    return {};
+    // do nothing
+    return this.config;
   }
 
   parse() {

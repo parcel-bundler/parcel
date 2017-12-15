@@ -7,17 +7,26 @@ const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
 class StylusAsset extends CSSAsset {
   async getConfig() {
-    return (
+    await super.getConfig();
+
+    if (this.config.stylus) {
+      return this.config;
+    }
+
+    this.config.stylus =
       this.package.stylus ||
-      (await config.load(this.name, ['.stylusrc', '.stylusrc.js']))
-    );
+      (await config.load(this.name, ['.stylusrc', '.stylusrc.js']));
+
+    return this.config;
   }
 
   async parse(code) {
     // stylus should be installed locally in the module that's being required
     let stylus = localRequire('stylus', this.name);
 
-    let style = stylus(code, await this.getConfig());
+    await this.getConfig();
+
+    let style = stylus(code, this.config.stylus);
     style.set('filename', this.name);
     style.set('include css', true);
     style.set('Evaluator', createEvaluator(this));

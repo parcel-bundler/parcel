@@ -6,7 +6,7 @@ class JSONAsset extends JSAsset {
   }
 
   async getConfig() {
-    return {};
+    return this.config;
   }
   parse() {}
   collectDependencies() {}

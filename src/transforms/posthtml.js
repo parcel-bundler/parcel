@@ -3,38 +3,52 @@ const posthtml = require('posthtml');
 const Config = require('../utils/config');
 const htmlnano = require('htmlnano');
 
-module.exports = async function(asset) {
-  let config = await getConfig(asset);
-  if (!config) {
+async function parse(asset) {
+  await getConfig(asset);
+  if (!asset.config.posthtml) {
     return;
   }
 
   await asset.parseIfNeeded();
-  let res = await posthtml(config.plugins).process(asset.ast, config);
+  let res = await posthtml(asset.config.posthtml.plugins).process(
+    asset.ast,
+    asset.config.posthtml
+  );
 
   asset.ast = res.tree;
   asset.isAstDirty = true;
-};
+}
 
 async function getConfig(asset) {
-  let config =
+  if (asset.config.posthtml) {
+    return asset.config;
+  }
+
+  asset.config.posthtml =
     asset.package.posthtml ||
     (await Config.load(asset.name, [
       '.posthtmlrc',
       '.posthtmlrc.js',
       'posthtml.config.js'
     ]));
-  if (!config && !asset.options.minify) {
+  if (!asset.config.posthtml && !asset.options.minify) {
     return;
   }
 
-  config = config || {};
-  config.plugins = loadPlugins(config.plugins, asset.name);
+  asset.config.posthtml = asset.config.posthtml || {};
+  asset.config.posthtml.plugins = loadPlugins(
+    asset.config.posthtml.plugins,
+    asset.name
+  );
 
   if (asset.options.minify) {
-    config.plugins.push(htmlnano());
+    asset.config.posthtml.plugins.push(htmlnano());
   }
 
-  config.skipParse = true;
-  return config;
+  asset.config.posthtml.skipParse = true;
+
+  return asset.config;
 }
+
+module.exports.getConfig = getConfig;
+module.exports.parse = parse;
