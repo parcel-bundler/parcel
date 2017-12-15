@@ -4,7 +4,6 @@ const Config = require('../utils/config');
 const htmlnano = require('htmlnano');
 
 async function parse(asset) {
-  await getConfig(asset);
   if (!asset.config.posthtml) {
     return;
   }

@@ -5,7 +5,6 @@ const Config = require('../utils/config');
 const cssnano = require('cssnano');
 
 async function parse(asset) {
-  await getConfig(asset);
   if (!asset.config.postcss) {
     return;
   }
