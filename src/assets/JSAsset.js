@@ -32,8 +32,7 @@ class JSAsset extends Asset {
     // decode .env
     this.envTable = {};
     const envRegex = /^(\w+)\s*=\s*([\s\S]+)/;
-    const envFile =
-      process.env.NODE_ENV === 'development' ? ['.dev.env'] : ['.env'];
+    const envFile = process.env.DOTENV ? [process.env.DOTENV] : ['.env'];
     (async () => {
       const envPath = await config.resolve(this.name, envFile);
       const env = envPath && fs.readFileSync(envPath, {encoding: 'utf8'});
