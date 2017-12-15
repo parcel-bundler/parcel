@@ -63,7 +63,8 @@ class Bundler extends EventEmitter {
       minify:
         typeof options.minify === 'boolean' ? options.minify : isProduction,
       hmr: typeof options.hmr === 'boolean' ? options.hmr : watch,
-      logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3
+      logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
+      usePolling: options.polling ? true : false
     };
   }
 
@@ -181,7 +182,8 @@ class Bundler extends EventEmitter {
       // FS events on macOS are flakey in the tests, which write lots of files very quickly
       // See https://github.com/paulmillr/chokidar/issues/612
       this.watcher = new FSWatcher({
-        useFsEvents: process.env.NODE_ENV !== 'test'
+        useFsEvents: process.env.NODE_ENV !== 'test',
+        usePolling: this.options.usePolling
       });
 
       this.watcher.on('change', this.onChange.bind(this));
