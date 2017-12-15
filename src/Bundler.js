@@ -367,7 +367,7 @@ class Bundler extends EventEmitter {
     if (!bundle) {
       bundle = new Bundle(
         asset.type,
-        Path.join(this.options.outDir, asset.generateBundleName(true))
+        Path.join(this.options.outDir, asset.generateBundleName(this.mainFile))
       );
       bundle.entryAsset = asset;
     }
