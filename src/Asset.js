@@ -90,6 +90,11 @@ class Asset {
     return await fs.readFile(this.name, this.encoding);
   }
 
+  async getConfig() {
+    // Return empty Object by default
+    return {};
+  }
+
   parse() {
     // do nothing by default
   }

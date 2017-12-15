@@ -5,11 +5,7 @@ const promisify = require('../utils/promisify');
 const path = require('path');
 
 class SASSAsset extends CSSAsset {
-  async parse(code) {
-    // node-sass should be installed locally in the module that's being required
-    let sass = localRequire('node-sass', this.name);
-    let render = promisify(sass.render.bind(sass));
-
+  async getConfig() {
     let opts =
       this.package.sass ||
       (await config.load(this.name, ['.sassrc', '.sassrc.js'])) ||
@@ -17,11 +13,22 @@ class SASSAsset extends CSSAsset {
     opts.includePaths = (opts.includePaths || []).concat(
       path.dirname(this.name)
     );
-    opts.data = code;
+
     opts.indentedSyntax =
       typeof opts.indentedSyntax === 'boolean'
         ? opts.indentedSyntax
         : path.extname(this.name).toLowerCase() === '.sass';
+
+    return opts;
+  }
+
+  async parse(code) {
+    // node-sass should be installed locally in the module that's being required
+    let sass = localRequire('node-sass', this.name);
+    let render = promisify(sass.render.bind(sass));
+
+    let opts = await this.getConfig();
+    opts.data = code;
 
     opts.functions = Object.assign({}, opts.functions, {
       url: node => {

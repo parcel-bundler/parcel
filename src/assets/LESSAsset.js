@@ -4,19 +4,22 @@ const localRequire = require('../utils/localRequire');
 const promisify = require('../utils/promisify');
 
 class LESSAsset extends CSSAsset {
-  async parse(code) {
-    // less should be installed locally in the module that's being required
-    let less = localRequire('less', this.name);
-    let render = promisify(less.render.bind(less));
-
+  async getConfig() {
     let opts =
       this.package.less ||
       (await config.load(this.name, ['.lessrc', '.lessrc.js'])) ||
       {};
     opts.filename = this.name;
     opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
+    return opts;
+  }
 
-    let res = await render(code, opts);
+  async parse(code) {
+    // less should be installed locally in the module that's being required
+    let less = localRequire('less', this.name);
+    let render = promisify(less.render.bind(less));
+
+    let res = await render(code, await this.getConfig());
     res.render = () => res.css;
     return res;
   }

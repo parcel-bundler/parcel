@@ -5,6 +5,7 @@ class JSONAsset extends JSAsset {
     return 'module.exports = ' + (await super.load()) + ';';
   }
 
+  getConfig() {}
   parse() {}
   collectDependencies() {}
   pretransform() {}

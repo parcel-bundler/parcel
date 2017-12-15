@@ -8,7 +8,7 @@ class CoffeeScriptAsset extends JSAsset {
     let coffee = localRequire('coffeescript', this.name);
 
     // Transpile Module using CoffeeScript and parse result as ast format through babylon
-    this.contents = coffee.compile(code, {});
+    this.contents = coffee.compile(code, await this.getConfig());
     return await super.parse(this.contents);
   }
 }
