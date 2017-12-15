@@ -274,7 +274,7 @@ class Bundler extends EventEmitter {
     } catch (err) {
       if (err.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
         const absPath = Path.resolve(Path.dirname(asset.name), dep.name);
-        err.message = `Cannot resolve dependency '${absPath}'`;
+        err.message = `Cannot resolve dependency '${dep.name}' at '${absPath}'`;
 
         // Generate a code frame where the dependency was used
         if (dep.loc) {
