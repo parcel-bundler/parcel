@@ -16,7 +16,7 @@ program
     parseInt
   )
   .option(
-    '-h, --host <host>',
+    '-h, --host <hostname/ip>',
     'set the host to serve on. defaults to localhost'
   )
   .option('-o, --open', 'automatically open in default browser')
