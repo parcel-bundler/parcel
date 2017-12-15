@@ -52,6 +52,7 @@ describe('watcher', function() {
       name: 'index.js',
       assets: [
         'index.js',
+        'fetch-browser.js',
         'common.js',
         'common-dep.js',
         'bundle-loader.js',
@@ -79,7 +80,12 @@ describe('watcher', function() {
     bundle = await nextBundle(b);
     assertBundleTree(bundle, {
       name: 'index.js',
-      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
+      assets: [
+        'index.js',
+        'fetch-browser.js',
+        'bundle-loader.js',
+        'bundle-url.js'
+      ],
       childBundles: [
         {
           assets: ['a.js', 'common.js', 'common-dep.js'],
@@ -132,6 +138,7 @@ describe('watcher', function() {
       name: 'index.js',
       assets: [
         'index.js',
+        'fetch-browser.js',
         'common.js',
         'common-dep.js',
         'bundle-loader.js',
@@ -160,7 +167,13 @@ describe('watcher', function() {
     bundle = await nextBundle(b);
     assertBundleTree(bundle, {
       name: 'index.js',
-      assets: ['index.js', 'common.js', 'bundle-loader.js', 'bundle-url.js'],
+      assets: [
+        'index.js',
+        'fetch-browser.js',
+        'common.js',
+        'bundle-loader.js',
+        'bundle-url.js'
+      ],
       childBundles: [
         {
           assets: ['a.js'],

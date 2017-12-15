@@ -60,10 +60,15 @@ function run(bundle, globals) {
           appendChild(el) {
             setTimeout(function() {
               if (el.tag === 'script') {
-                vm.runInContext(
-                  fs.readFileSync(path.join(__dirname, 'dist', el.src)),
-                  ctx
-                );
+                // if the URL begins with read-content:// then it's just an inlined blob
+                const inlined = el.src.match(/^read-content:\/\/([^]*)/);
+                let code = inlined && inlined.pop();
+
+                if (!code) {
+                  code = fs.readFileSync(path.join(__dirname, 'dist', el.src));
+                }
+
+                vm.runInContext(code, ctx);
               }
 
               el.onload();
@@ -78,7 +83,24 @@ function run(bundle, globals) {
     {
       document: fakeDocument,
       WebSocket,
-      console
+      console,
+
+      // these are used in src/builtins/bundle-loader.js
+      fetch(url) {
+        return Promise.resolve({
+          text() {
+            return fs.readFileSync(path.join(__dirname, 'dist', url));
+          }
+        });
+      },
+      Blob: function(parts) {
+        this.data = parts.reduce((a, b) => a + b);
+      },
+      URL: {
+        createObjectURL(blob) {
+          return 'read-content://' + blob.data;
+        }
+      }
     },
     globals
   );
