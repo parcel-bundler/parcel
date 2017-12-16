@@ -26,13 +26,15 @@ class Logger {
 
   write(message, persistent = false, type = 'log') {
     message.split('\n').forEach(content => {
-      let pos =
-        this.messages.push({
-          type: type,
-          persistent: persistent,
-          content: content
-        }) - 1;
-      this.writeLine(pos);
+      if (content !== '') {
+        let pos =
+          this.messages.push({
+            type: type,
+            persistent: persistent,
+            content: content
+          }) - 1;
+        this.writeLine(pos);
+      }
     });
   }
 
