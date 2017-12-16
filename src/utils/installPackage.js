@@ -1,19 +1,31 @@
 const {spawn} = require('child_process');
 const config = require('./config');
 
+function testYarn(options) {
+  return new Promise((resolve, reject) => {
+    let yarnVersion = spawn('yarn', ['-v'], options);
+
+    yarnVersion.once('close', code => {
+      if (code !== 0) {
+        return resolve(false);
+      }
+      return resolve(true);
+    });
+  });
+}
+
 module.exports = async function(dir, name) {
-  let yarn;
-  try {
-    yarn = await config.resolve(dir, ['yarn.lock']);
-  } catch (e) {}
+  let options = {
+    cwd: dir
+  };
+
+  let yarn = await testYarn(options);
 
   return new Promise((resolve, reject) => {
-    let options = {
-      cwd: dir
-    };
-
-    let install = spawn('yarn', ['add', name, '--dev'], options);
-    if (!yarn) {
+    let install;
+    if (yarn) {
+      install = spawn('yarn', ['add', name, '--dev'], options);
+    } else {
       install = spawn('npm', ['install', name, '--save-dev'], options);
     }
 
@@ -41,7 +53,7 @@ module.exports = async function(dir, name) {
         });
     });
 
-    install.on('close', code => {
+    install.once('close', code => {
       if (code !== 0) {
         return reject(new Error(`Failed to install ${name}.`));
       }
