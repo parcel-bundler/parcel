@@ -1,8 +1,7 @@
 const url = require('url');
 const path = require('path');
 const toml = require('toml');
-const {exec} = require('child_process');
-const {join} = require('async-child-process');
+const {exec} = require('child-process-promise');
 
 const fs = require('../utils/fs');
 const JSAsset = require('./JSAsset');
@@ -40,7 +39,7 @@ class RustAsset extends JSAsset {
 
     const outFile = path.join(outDir, `${packageName}.js`);
 
-    await join(exec(cmd, {cwd: projectDir}));
+    await exec(cmd, {cwd: projectDir});
 
     const out = await fs.readFile(outFile, encoding);
     const deps = await fs.readdir(path.join(outDir, 'deps'));
