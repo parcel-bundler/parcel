@@ -97,7 +97,8 @@ class Bundler extends EventEmitter {
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
       for (let dep in deps) {
         if (dep.startsWith('parcel-plugin-')) {
-          await localRequire(dep, this.mainFile)(this);
+          let plugin = await localRequire(dep, this.mainFile);
+          plugin(this);
         }
       }
     } catch (err) {

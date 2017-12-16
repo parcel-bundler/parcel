@@ -2,11 +2,16 @@ const localRequire = require('./localRequire');
 
 module.exports = async function loadPlugins(plugins, relative) {
   if (Array.isArray(plugins)) {
-    return plugins.map(p => loadPlugin(p, relative)).filter(Boolean);
+    return await Promise.all(
+      plugins.map(async p => await loadPlugin(p, relative)).filter(Boolean)
+    );
   } else if (typeof plugins === 'object') {
-    return Object.keys(plugins)
-      .map(p => loadPlugin(p, relative, plugins[p]))
-      .filter(Boolean);
+    let mapPlugins = await Promise.all(
+      Object.keys(plugins).map(
+        async p => await loadPlugin(p, relative, plugins[p])
+      )
+    );
+    return mapPlugins.filter(Boolean);
   } else {
     return [];
   }

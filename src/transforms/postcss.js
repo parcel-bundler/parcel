@@ -46,9 +46,8 @@ async function getConfig(asset) {
   config.plugins = await loadPlugins(config.plugins, asset.name);
 
   if (config.modules) {
-    config.plugins.push(
-      await localRequire('postcss-modules', asset.name)(postcssModulesConfig)
-    );
+    let postcssModules = await localRequire('postcss-modules', asset.name);
+    config.plugins.push(postcssModules(postcssModulesConfig));
   }
 
   if (asset.options.minify) {
