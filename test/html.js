@@ -147,6 +147,6 @@ describe('html', function() {
       /<a href="\/dist\/other.html">/,
       /<script src="\/dist\/index.js">/
     ];
-    arr.forEach(e => assert(e, html));
+    arr.forEach(e => assert(e, e.test(html)));
   });
 });
