@@ -19,12 +19,26 @@ module.exports = async function(dir, name) {
 
     install.stdout.on('data', data => {
       // TODO: Log this using logger
-      // console.log(data.toString());
+      data
+        .toString()
+        .split('\n')
+        .forEach(message => {
+          if (message !== '') {
+            console.log(message);
+          }
+        });
     });
 
     install.stderr.on('data', data => {
       // TODO: Log this using logger
-      // console.log(data.toString());
+      data
+        .toString()
+        .split('\n')
+        .forEach(message => {
+          if (message !== '') {
+            console.log(message);
+          }
+        });
     });
 
     install.on('close', code => {
