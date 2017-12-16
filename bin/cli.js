@@ -21,6 +21,7 @@ program
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
   .option('--no-hmr', 'disable hot module replacement')
+  .option('--reload', 'enable hard reload on non-CSS file change')
   .option('--no-cache', 'disable the filesystem cache')
   .option('-V, --version', 'output the version number')
   .action(bundle);
@@ -37,6 +38,7 @@ program
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
   .option('--no-hmr', 'disable hot module replacement')
+  .option('--reload', 'enable hard reload on non-CSS file change')
   .option('--no-cache', 'disable the filesystem cache')
   .action(bundle);
 

@@ -63,7 +63,8 @@ class Bundler extends EventEmitter {
       minify:
         typeof options.minify === 'boolean' ? options.minify : isProduction,
       hmr: typeof options.hmr === 'boolean' ? options.hmr : watch,
-      logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3
+      logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
+      reload: typeof options.reload === 'boolean' ? options.reload : false
     };
   }
 
@@ -188,7 +189,7 @@ class Bundler extends EventEmitter {
     }
 
     if (this.options.hmr) {
-      this.hmr = new HMRServer();
+      this.hmr = new HMRServer(this.options);
       this.options.hmrPort = await this.hmr.start();
     }
   }

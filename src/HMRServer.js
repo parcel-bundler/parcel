@@ -2,6 +2,10 @@ const WebSocket = require('ws');
 const prettyError = require('./utils/prettyError');
 
 class HMRServer {
+  constructor(options = {}) {
+    this.options = options;
+  }
+
   async start() {
     await new Promise(resolve => {
       this.wss = new WebSocket.Server({port: 0}, resolve);
@@ -44,8 +48,11 @@ class HMRServer {
       });
     }
 
-    const containsHtmlAsset = assets.some(asset => asset.type === 'html');
-    if (containsHtmlAsset) {
+    const isReload = this.options.reload;
+    const isReloadAsset = assets.some(asset => {
+      return isReload ? assets.type !== 'js' : assets.type === 'html';
+    });
+    if (isReloadAsset) {
       this.broadcast({
         type: 'reload'
       });
