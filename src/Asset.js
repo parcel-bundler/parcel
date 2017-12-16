@@ -162,6 +162,9 @@ class Asset {
     }
 
     // Otherwise generate a unique name
+    if (this.options.keepFileName) {
+      return path.basename(this.name, path.extname(this.name)) + ext;
+    }
     return md5(this.name) + ext;
   }
 

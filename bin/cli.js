@@ -38,6 +38,7 @@ program
   )
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
+  .option('--keepFileName', 'disable output name modification')
   .action(bundle);
 
 program
@@ -53,6 +54,7 @@ program
   )
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
+  .option('--keepFileName', 'disable output name modification')
   .action(bundle);
 
 program

@@ -134,4 +134,19 @@ describe('html', function() {
     let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
     assert(html.includes('<a href="#hash_link">'));
   });
+
+  it('should not modify the names of the files', async function() {
+    let b = await bundle(__dirname + '/integration/html/index.html', {
+      keepFileName: true
+    });
+
+    let files = fs.readdirSync(__dirname + '/dist');
+    let html = fs.readFileSync(__dirname + '/dist/index.html');
+
+    const arr = [
+      /<a href="\/dist\/other.html">/,
+      /<script src="\/dist\/index.js">/
+    ];
+    arr.forEach(e => assert(e, html));
+  });
 });
