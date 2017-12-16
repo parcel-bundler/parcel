@@ -175,9 +175,15 @@ class Bundler extends EventEmitter {
   }
 
   async createVersionHash() {
+    let pkg = await config.load(this.mainFile, ['package.json']);
+    if (!pkg) {
+      return '';
+    }
+
     let versionObject = {
       plugins: this.plugins,
-      version: require('../package.json').version
+      version: pkg.version,
+      name: pkg.name
     };
     return objectHash(versionObject);
   }
