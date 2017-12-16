@@ -6,7 +6,7 @@ const rimraf = require('rimraf');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 const WebSocket = require('ws');
-const parseJson = require('parse-json');
+const json5 = require('json5');
 
 describe('hmr', function() {
   let b, ws;
@@ -45,7 +45,7 @@ describe('hmr', function() {
       'exports.a = 5; exports.b = 5;'
     );
 
-    let msg = parseJson(await nextEvent(ws, 'message'));
+    let msg = json5.parse(await nextEvent(ws, 'message'));
     assert.equal(msg.type, 'update');
     assert.equal(msg.assets.length, 1);
     assert.equal(msg.assets[0].generated.js, 'exports.a = 5; exports.b = 5;');
@@ -65,7 +65,7 @@ describe('hmr', function() {
       'require("fs"); exports.a = 5; exports.b = 5;'
     );
 
-    let msg = parseJson(await nextEvent(ws, 'message'));
+    let msg = json5.parse(await nextEvent(ws, 'message'));
     assert.equal(msg.type, 'update');
     assert.equal(msg.assets.length, 2);
   });

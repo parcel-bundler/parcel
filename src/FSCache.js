@@ -3,7 +3,7 @@ const path = require('path');
 const md5 = require('./utils/md5');
 const objectHash = require('./utils/objectHash');
 const pkg = require('../package.json');
-const parseJson = require('parse-json');
+const json5 = require('json5');
 
 // These keys can affect the output, so if they differ, the cache should not match
 const OPTION_KEYS = ['publicURL', 'minify', 'hmr'];
@@ -56,7 +56,7 @@ class FSCache {
       }
 
       let data = await fs.readFile(cacheFile);
-      return parseJson(data);
+      return json5.parse(data);
     } catch (err) {
       return null;
     }
