@@ -29,9 +29,9 @@ module.exports = async function(dir, name) {
 
     install.on('close', code => {
       if (code !== 0) {
-        reject(new Error(`Failed to install ${name}.`));
+        return reject(new Error(`Failed to install ${name}.`));
       }
-      resolve();
+      return resolve();
     });
   });
 };
