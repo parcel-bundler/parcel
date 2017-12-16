@@ -43,11 +43,11 @@ async function getConfig(asset) {
     delete config.plugins['postcss-modules'];
   }
 
-  config.plugins = loadPlugins(config.plugins, asset.name);
+  config.plugins = await loadPlugins(config.plugins, asset.name);
 
   if (config.modules) {
     config.plugins.push(
-      localRequire('postcss-modules', asset.name)(postcssModulesConfig)
+      await localRequire('postcss-modules', asset.name)(postcssModulesConfig)
     );
   }
 

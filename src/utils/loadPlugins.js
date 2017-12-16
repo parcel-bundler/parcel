@@ -1,6 +1,6 @@
 const localRequire = require('./localRequire');
 
-module.exports = function loadPlugins(plugins, relative) {
+module.exports = async function loadPlugins(plugins, relative) {
   if (Array.isArray(plugins)) {
     return plugins.map(p => loadPlugin(p, relative)).filter(Boolean);
   } else if (typeof plugins === 'object') {
@@ -12,9 +12,9 @@ module.exports = function loadPlugins(plugins, relative) {
   }
 };
 
-function loadPlugin(plugin, relative, options) {
+async function loadPlugin(plugin, relative, options) {
   if (typeof plugin === 'string') {
-    plugin = localRequire(plugin, relative);
+    plugin = await localRequire(plugin, relative);
     plugin = plugin.default || plugin;
 
     if (typeof options !== 'object') {
