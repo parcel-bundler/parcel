@@ -9,19 +9,14 @@ async function getLocation(dir) {
     try {
       return await config.resolve(dir, ['package.json']);
     } catch (e) {
-      return null;
+      // TODO: log a warning
+      return dir;
     }
   }
 }
 
 module.exports = async function(dir, name) {
   let location = await getLocation(dir);
-
-  if (!location)
-    throw new Error(
-      'No Package.json or Yarn.lock could be found in ' +
-        'current working directory to install additional packages.'
-    );
 
   return new Promise((resolve, reject) => {
     let install;
