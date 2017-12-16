@@ -1,31 +1,37 @@
 const {spawn} = require('child_process');
 const config = require('./config');
+const path = require('path');
 
-function testYarn(options) {
-  return new Promise((resolve, reject) => {
-    let yarnVersion = spawn('yarn', ['-v'], options);
-
-    yarnVersion.once('close', code => {
-      if (code !== 0) {
-        return resolve(false);
-      }
-      return resolve(true);
-    });
-  });
+async function getLocation(dir) {
+  try {
+    return await config.resolve(dir, ['yarn.lock']);
+  } catch (e) {
+    try {
+      return await config.resolve(dir, ['package.json']);
+    } catch (e) {
+      return null;
+    }
+  }
 }
 
 module.exports = async function(dir, name) {
-  let options = {
-    cwd: dir
-  };
+  let location = await getLocation(dir);
 
-  let yarn = await testYarn(options);
+  if (!location)
+    throw new Error(
+      'No Package.json or Yarn.lock could be found in ' +
+        'current working directory to install additional packages.'
+    );
 
   return new Promise((resolve, reject) => {
     let install;
-    if (yarn) {
+    let options = {};
+
+    if (location.indexOf('yarn.lock') > -1) {
+      options.cwd = path.dirname(location);
       install = spawn('yarn', ['add', name, '--dev'], options);
     } else {
+      options.cwd = path.dirname(location);
       install = spawn('npm', ['install', name, '--save-dev'], options);
     }
 
@@ -53,7 +59,7 @@ module.exports = async function(dir, name) {
         });
     });
 
-    install.once('close', code => {
+    install.on('close', code => {
       if (code !== 0) {
         return reject(new Error(`Failed to install ${name}.`));
       }

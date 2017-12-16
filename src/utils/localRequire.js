@@ -15,7 +15,7 @@ async function localRequire(name, path, triedInstall = false) {
       if (e.code === 'MODULE_NOT_FOUND' && triedInstall === false) {
         // TODO: Make this use logger
         console.log(`INSTALLING ${name}...\n`);
-        await install(basedir, name);
+        await install(process.cwd(), name);
         return localRequire(name, path, true);
       }
       throw e;
