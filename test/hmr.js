@@ -14,15 +14,24 @@ describe('hmr', function() {
     rimraf.sync(__dirname + '/input');
   });
 
-  afterEach(function() {
-    if (b) {
-      b.stop();
-      b = null;
-    }
+  afterEach(function(done) {
+    let finalise = () => {
+      if (b) {
+        b.stop();
+        b = null;
+
+        done();
+      }
+    };
 
     if (ws) {
       ws.close();
-      ws = null;
+      ws.onclose = () => {
+        ws = null;
+        finalise();
+      };
+    } else {
+      finalise();
     }
   });
 
