@@ -74,9 +74,6 @@ class HMRServer {
 
     // Handle websocket errors properly
     ws.onerror = err => {
-      if (err.code === 'ECONNRESET') {
-        return;
-      }
       // TODO: Use logger to print errors
       console.log(prettyError(err));
     };
