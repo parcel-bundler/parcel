@@ -69,10 +69,23 @@ class HMRServer {
     }
   }
 
+  send(ws, data) {
+    ws.send(data);
+
+    // Handle websocket errors properly
+    ws.onerror = err => {
+      if (err.code === 'ECONNRESET') {
+        return;
+      }
+      // TODO: Use logger to print errors
+      console.log(prettyError(err));
+    };
+  }
+
   broadcast(msg) {
     const json = JSON.stringify(msg);
     for (let ws of this.wss.clients) {
-      ws.send(json);
+      this.send(ws, json);
     }
   }
 }
