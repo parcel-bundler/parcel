@@ -8,17 +8,13 @@ class HMRServer {
     });
 
     this.wss.on('connection', ws => {
-      ws.onerror = err => {
-        this.handleSocketError(err);
-      };
+      ws.onerror = this.handleSocketError;
       if (this.unresolvedError) {
         ws.send(JSON.stringify(this.unresolvedError));
       }
     });
 
-    this.wss.on('error', err => {
-      console.log(err);
-    });
+    this.wss.on('error', this.handleSocketError);
 
     return this.wss._server.address().port;
   }
