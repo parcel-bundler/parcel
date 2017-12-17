@@ -2,6 +2,7 @@ const JSPackager = require('./JSPackager');
 const CSSPackager = require('./CSSPackager');
 const HTMLPackager = require('./HTMLPackager');
 const RawPackager = require('./RawPackager');
+const WebManifestPackager = require('./WebManifestPackager');
 
 class PackagerRegistry {
   constructor() {
@@ -10,6 +11,7 @@ class PackagerRegistry {
     this.add('js', JSPackager);
     this.add('css', CSSPackager);
     this.add('html', HTMLPackager);
+    this.add('webmanifest', WebManifestPackager);
   }
 
   add(type, packager) {
