@@ -32,10 +32,11 @@ if (!module.bundle.parent) {
     }
 
     if (data.type === 'reload') {
-      ws.close();
+      /*ws.close();
       ws.onclose = () => {
         window.location.reload();
-      }
+      }*/
+      window.location.reload();
     }
 
     if (data.type === 'error-resolved') {

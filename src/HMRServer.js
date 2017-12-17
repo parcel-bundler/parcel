@@ -8,9 +8,16 @@ class HMRServer {
     });
 
     this.wss.on('connection', ws => {
+      ws.onerror = err => {
+        this.handleSocketError(err);
+      };
       if (this.unresolvedError) {
         ws.send(JSON.stringify(this.unresolvedError));
       }
+    });
+
+    this.wss.on('error', err => {
+      console.log(err);
     });
 
     return this.wss._server.address().port;
@@ -69,20 +76,19 @@ class HMRServer {
     }
   }
 
-  send(ws, data) {
-    ws.send(data);
-
-    // Handle websocket errors properly
-    ws.onerror = err => {
-      // TODO: Use logger to print errors
-      console.log(prettyError(err));
-    };
+  handleSocketError(err) {
+    if (err.code === 'ECONNRESET') {
+      // This gets triggered on page refresh, ignore this
+      return;
+    }
+    // TODO: Use logger to print errors
+    console.log(prettyError(err));
   }
 
   broadcast(msg) {
     const json = JSON.stringify(msg);
     for (let ws of this.wss.clients) {
-      this.send(ws, json);
+      ws.send(json);
     }
   }
 }
