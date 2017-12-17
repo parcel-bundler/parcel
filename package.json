@@ -33,6 +33,7 @@
     "postcss-value-parser": "^3.3.0",
     "posthtml": "^0.10.1",
     "resolve": "^1.4.0",
+    "sanitize-filename": "^1.6.1",
     "serve-static": "^1.12.4",
     "uglify-es": "^3.2.1",
     "v8-compile-cache": "^1.1.0",

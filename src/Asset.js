@@ -3,7 +3,7 @@ const fs = require('./utils/fs');
 const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
-const sanitizePackageName = require('./utils/sanitizePackageName');
+const sanitizeFilename = require('./utils/sanitizeFilename');
 
 let ASSET_ID = 1;
 
@@ -154,7 +154,7 @@ class Asset {
 
     // If this asset is main file of the package, use the package name
     if (this.name === main) {
-      const packageName = sanitizePackageName(this.package.name);
+      const packageName = sanitizeFilename(this.package.name);
       return packageName + ext;
     }
 
