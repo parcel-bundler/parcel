@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
 
-beforeEach(function(done) {
+beforeEach(function (done) {
   const finalize = () => {
     rimraf.sync(path.join(__dirname, 'dist'));
     done();
@@ -58,7 +58,7 @@ function run(bundle, globals) {
       return [
         {
           appendChild(el) {
-            setTimeout(function() {
+            setTimeout(function () {
               if (el.tag === 'script') {
                 vm.runInContext(
                   fs.readFileSync(path.join(__dirname, 'dist', el.src)),

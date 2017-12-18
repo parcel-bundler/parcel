@@ -6,13 +6,13 @@ const rimraf = require('rimraf');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 
-describe('watcher', function() {
+describe('watcher', function () {
   let b;
-  beforeEach(function() {
+  beforeEach(function () {
     rimraf.sync(__dirname + '/input');
   });
 
-  afterEach(function() {
+  afterEach(function () {
     if (b) {
       b.stop();
     }
@@ -24,7 +24,7 @@ describe('watcher', function() {
     });
   }
 
-  it('should rebuild on file change', async function() {
+  it('should rebuild on file change', async function () {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true});
@@ -42,7 +42,7 @@ describe('watcher', function() {
     assert.equal(output(), 10);
   });
 
-  it('should re-generate bundle tree when files change', async function() {
+  it('should re-generate bundle tree when files change', async function () {
     await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true});
@@ -96,7 +96,7 @@ describe('watcher', function() {
     assert.equal(await output(), 8);
   });
 
-  it('should only re-package bundles that changed', async function() {
+  it('should only re-package bundles that changed', async function () {
     await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
     b = bundler(__dirname + '/input/index.js', {watch: true});
 
@@ -123,7 +123,7 @@ describe('watcher', function() {
     assert.notEqual(mtimes[mtimes.length - 1], newMtimes[newMtimes.length - 1]);
   });
 
-  it('should unload assets that are orphaned', async function() {
+  it('should unload assets that are orphaned', async function () {
     await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
     b = bundler(__dirname + '/input/index.js', {watch: true});
 
