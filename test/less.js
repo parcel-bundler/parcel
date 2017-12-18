@@ -2,8 +2,8 @@ const assert = require('assert');
 const fs = require('fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
-describe('less', function() {
-  it('should support requiring less files', async function() {
+describe('less', function () {
+  it('should support requiring less files', async function () {
     let b = await bundle(__dirname + '/integration/less/index.js');
 
     assertBundleTree(b, {
@@ -26,7 +26,7 @@ describe('less', function() {
     assert(css.includes('.index'));
   });
 
-  it('should support less imports', async function() {
+  it('should support less imports', async function () {
     let b = await bundle(__dirname + '/integration/less-import/index.js');
 
     assertBundleTree(b, {
@@ -50,7 +50,7 @@ describe('less', function() {
     assert(css.includes('.base'));
   });
 
-  it('should support linking to assets with url() from less', async function() {
+  it('should support linking to assets with url() from less', async function () {
     let b = await bundle(__dirname + '/integration/less-url/index.js');
 
     assertBundleTree(b, {
@@ -86,7 +86,7 @@ describe('less', function() {
     );
   });
 
-  it('should support transforming less with postcss', async function() {
+  it('should support transforming less with postcss', async function () {
     let b = await bundle(__dirname + '/integration/less-postcss/index.js');
 
     assertBundleTree(b, {

@@ -151,7 +151,7 @@ function getBindingPath(path, name) {
 function evaluate(path, vars) {
   // Inline variables
   path.traverse({
-    Identifier: function(ident) {
+    Identifier: function (ident) {
       let key = ident.node.name;
       if (key in vars) {
         ident.replaceWith(t.valueToNode(vars[key]));

@@ -8,13 +8,13 @@ const ncp = promisify(require('ncp'));
 const WebSocket = require('ws');
 const json5 = require('json5');
 
-describe('hmr', function() {
+describe('hmr', function () {
   let b, ws;
-  beforeEach(function() {
+  beforeEach(function () {
     rimraf.sync(__dirname + '/input');
   });
 
-  afterEach(function() {
+  afterEach(function () {
     if (b) {
       b.stop();
       b = null;
@@ -32,7 +32,7 @@ describe('hmr', function() {
     });
   }
 
-  it('should emit an HMR update for the file that changed', async function() {
+  it('should emit an HMR update for the file that changed', async function () {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
@@ -52,7 +52,7 @@ describe('hmr', function() {
     assert.deepEqual(msg.assets[0].deps, {});
   });
 
-  it('should emit an HMR update for all new dependencies along with the changed file', async function() {
+  it('should emit an HMR update for all new dependencies along with the changed file', async function () {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
@@ -70,7 +70,7 @@ describe('hmr', function() {
     assert.equal(msg.assets.length, 2);
   });
 
-  it('should emit an HMR error on bundle failure', async function() {
+  it('should emit an HMR error on bundle failure', async function () {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
@@ -98,7 +98,7 @@ describe('hmr', function() {
     );
   });
 
-  it('should emit an HMR error to new connections after a bundle failure', async function() {
+  it('should emit an HMR error to new connections after a bundle failure', async function () {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
@@ -116,7 +116,7 @@ describe('hmr', function() {
     assert.equal(msg.type, 'error');
   });
 
-  it('should emit an HMR error-resolved on build after error', async function() {
+  it('should emit an HMR error-resolved on build after error', async function () {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
@@ -141,7 +141,7 @@ describe('hmr', function() {
     assert.equal(msg2.type, 'error-resolved');
   });
 
-  it('should accept HMR updates in the runtime', async function() {
+  it('should accept HMR updates in the runtime', async function () {
     await ncp(__dirname + '/integration/hmr', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
@@ -165,7 +165,7 @@ describe('hmr', function() {
     assert.deepEqual(outputs, [3, 10]);
   });
 
-  it('should call dispose and accept callbacks', async function() {
+  it('should call dispose and accept callbacks', async function () {
     await ncp(__dirname + '/integration/hmr-callbacks', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
@@ -189,7 +189,7 @@ describe('hmr', function() {
     assert.deepEqual(outputs, [3, 'dispose', 10, 'accept']);
   });
 
-  it('should work across bundles', async function() {
+  it('should work across bundles', async function () {
     await ncp(__dirname + '/integration/hmr-dynamic', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
@@ -215,7 +215,7 @@ describe('hmr', function() {
     assert.deepEqual(outputs, [3, 10]);
   });
 
-  it('should log emitted errors', async function() {
+  it('should log emitted errors', async function () {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
@@ -241,7 +241,7 @@ describe('hmr', function() {
     assert(logs[0].trim().startsWith('[parcel] 🚨'));
   });
 
-  it('should log when errors resolve', async function() {
+  it('should log when errors resolve', async function  () {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});

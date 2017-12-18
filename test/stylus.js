@@ -2,8 +2,8 @@ const assert = require('assert');
 const fs = require('fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
-describe('stylus', function() {
-  it('should support requiring stylus files', async function() {
+describe('stylus', function () {
+  it('should support requiring stylus files', async function () {
     let b = await bundle(__dirname + '/integration/stylus/index.js');
 
     assertBundleTree(b, {
@@ -26,7 +26,7 @@ describe('stylus', function() {
     assert(css.includes('.index'));
   });
 
-  it('should support requiring stylus files with dependencies', async function() {
+  it('should support requiring stylus files with dependencies', async function () {
     let b = await bundle(__dirname + '/integration/stylus-deps/index.js');
 
     // a.styl shouldn't be included as a dependency that we can see.
@@ -53,7 +53,7 @@ describe('stylus', function() {
     assert(css.includes('-webkit-box'));
   });
 
-  it('should support linking to assets with url() from stylus', async function() {
+  it('should support linking to assets with url() from stylus', async function () {
     let b = await bundle(__dirname + '/integration/stylus-url/index.js');
 
     assertBundleTree(b, {
@@ -89,7 +89,7 @@ describe('stylus', function() {
     );
   });
 
-  it('should support transforming stylus with postcss', async function() {
+  it('should support transforming stylus with postcss', async function () {
     let b = await bundle(__dirname + '/integration/stylus-postcss/index.js');
 
     assertBundleTree(b, {

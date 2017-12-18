@@ -4,7 +4,7 @@ const postcss = require('postcss');
 const Config = require('../utils/config');
 const cssnano = require('cssnano');
 
-module.exports = async function(asset) {
+module.exports = async function (asset) {
   let config = await getConfig(asset);
   if (!config) {
     return;
