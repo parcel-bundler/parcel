@@ -12,17 +12,17 @@ class Resolver {
   }
 
   async resolve(filename, parent) {
-    var resolved = await this.resolveInternal(filename, parent, resolveAsync);
+    const resolved = await this.resolveInternal(filename, parent, resolveAsync);
     return this.saveCache(filename, parent, resolved);
   }
 
   resolveSync(filename, parent) {
-    var resolved = this.resolveInternal(filename, parent, resolve.sync);
+    const resolved = this.resolveInternal(filename, parent, resolve.sync);
     return this.saveCache(filename, parent, resolved);
   }
 
   resolveInternal(filename, parent, resolver) {
-    let key = this.getCacheKey(filename, parent);
+    const key = this.getCacheKey(filename, parent);
     if (this.cache.has(key)) {
       return this.cache.get(key);
     }
@@ -42,7 +42,7 @@ class Resolver {
       filename: parent,
       paths: this.options.paths,
       modules: builtins,
-      extensions: extensions,
+      extensions,
       packageFilter(pkg, pkgfile) {
         // Expose the path to the package.json file
         pkg.pkgfile = pkgfile;
