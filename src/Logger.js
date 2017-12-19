@@ -40,9 +40,7 @@ class Logger {
 
   writeLine(line) {
     if (!this.messages[line]) return;
-    let msg =
-      `[${this.messages[line].type.toUpperCase()}]: ` +
-      this.messages[line].content;
+    let msg = '📦 PARCEL: ' + this.messages[line].content;
     if (!this.color || !process.stdout.isTTY) {
       return this.log(msg);
     }
