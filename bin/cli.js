@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 require('v8-compile-cache');
 const chalk = require('chalk');
 const program = require('commander');
@@ -73,13 +72,32 @@ program.on('--help', function() {
   console.log('');
 });
 
-// Make serve the default command
 var args = process.argv;
-if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
+if (!args[2]) {
+  // no entry point.
+  showInstructions();
+} else if (args[2] === 'serve' || args[2] === 'build') {
+  // serve or build with no entry point.
+  showInstructions(args[2]);
+} else {
   args.splice(2, 0, 'serve');
+  program.parse(args);
 }
 
-program.parse(args);
+function showInstructions(command = '') {
+  console.error('Please specify the entry point.');
+  console.log('For example:');
+  console.log(
+    `  ${chalk.cyan(program.name())} ${chalk.green(
+      `parcel ${command} index.html`
+    )}`
+  );
+  console.log();
+  console.log(
+    `Run ${chalk.cyan(`${program.name()} --help`)} to see all options.`
+  );
+  process.exit(1);
+}
 
 async function bundle(main, command) {
   // Require bundler here so the help command is fast
