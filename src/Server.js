@@ -73,7 +73,7 @@ async function serve(bundler, port, host) {
         : '';
     bundler.logger.persistent(
       `Server running at ${bundler.logger.chalk.cyan(
-        `http://${host || 'localhost'}:${server.address().port}`
+        `http://${host}:${server.address().port}`
       )} ${addon}\n`
     );
   });
