@@ -4,6 +4,7 @@ require('v8-compile-cache');
 const chalk = require('chalk');
 const program = require('commander');
 const version = require('../package.json').version;
+const copy = require('clipboardy');
 
 program.version(version);
 
@@ -95,8 +96,12 @@ async function bundle(main, command) {
 
   if (command.name() === 'serve') {
     const server = await bundler.serve(command.port || 1234);
+    const url = `http://localhost:${server.address().port}`;
     if (command.open) {
-      require('opn')(`http://localhost:${server.address().port}`);
+      require('opn')(url);
+    } else {
+      copy.writeSync(url);
+      console.log(`Open ${chalk.bold.cyan(url)}`, `${chalk.dim('[copied]')}`);
     }
   } else {
     bundler.bundle();

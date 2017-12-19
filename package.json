@@ -16,6 +16,7 @@
     "browser-resolve": "^1.11.2",
     "chalk": "^2.1.0",
     "chokidar": "^1.7.0",
+    "clipboardy": "^1.2.2",
     "commander": "^2.11.0",
     "cssnano": "^3.10.0",
     "get-port": "^3.2.0",
