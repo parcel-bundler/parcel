@@ -136,17 +136,21 @@ describe('html', function() {
   });
 
   it('should not modify the names of the files', async function() {
-    let b = await bundle(__dirname + '/integration/html/index.html', {
-      keepFileName: true
-    });
+    let b = await bundle(
+      __dirname + '/integration/html-keep-filename/index.html',
+      {
+        keepFileName: true
+      }
+    );
 
-    let files = fs.readdirSync(__dirname + '/dist');
     let html = fs.readFileSync(__dirname + '/dist/index.html');
 
     const arr = [
-      /<a href="\/dist\/other.html">/,
-      /<script src="\/dist\/index.js">/
+      /<script src="\/dist\/test\/integration\/html-keep-filename\/app1\/main.js">/,
+      /<script src="\/dist\/test\/integration\/html-keep-filename\/app2\/main.js">/,
+      /<link rel="stylesheet" href="\/dist\/test\/integration\/html-keep-filename\/app1\/main.css">/,
+      /<link rel="stylesheet" href="\/dist\/test\/integration\/html-keep-filename\/app2\/main.css">/
     ];
-    arr.forEach(e => assert(e, e.test(html)));
+    arr.forEach(e => assert(e.test(html)));
   });
 });

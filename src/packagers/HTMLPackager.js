@@ -41,7 +41,10 @@ class HTMLPackager extends Packager {
         attrs: {
           rel: 'stylesheet',
           href: url.resolve(
-            path.join(this.options.publicURL, path.basename(bundle.name)),
+            path.join(
+              this.options.publicURL,
+              this.getBundleRelativeName(this.bundle, bundle)
+            ),
             ''
           )
         }
