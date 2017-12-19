@@ -458,7 +458,7 @@ class Bundler extends EventEmitter {
     return Server.middleware(this);
   }
 
-  async serve(port = 1234, host) {
+  async serve(port, host) {
     await this.bundle();
     return await Server.serve(this, port, host);
   }
