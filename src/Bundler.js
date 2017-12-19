@@ -88,14 +88,14 @@ class Bundler extends EventEmitter {
   }
 
   async loadPlugins() {
-    let pkg = await config.load(this.mainFile, ['package.json']);
+    const pkg = await config.load(this.mainFile, ['package.json']);
     if (!pkg) {
       return;
     }
 
     try {
-      let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
-      for (let dep in deps) {
+      const deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
+      for (const dep in deps) {
         if (dep.startsWith('parcel-plugin-')) {
           localRequire(dep, this.mainFile)(this);
         }
@@ -115,8 +115,8 @@ class Bundler extends EventEmitter {
       });
     }
 
-    let isInitialBundle = !this.mainAsset;
-    let startTime = Date.now();
+    const isInitialBundle = !this.mainAsset;
+    const startTime = Date.now();
     this.pending = true;
     this.errored = false;
 
@@ -136,10 +136,10 @@ class Bundler extends EventEmitter {
       }
 
       // Build the queued assets, and produce a bundle tree.
-      let bundle = await this.buildQueuedAssets(isInitialBundle);
+      const bundle = await this.buildQueuedAssets(isInitialBundle);
 
-      let buildTime = Date.now() - startTime;
-      let time =
+      const buildTime = Date.now() - startTime;
+      const time =
         buildTime < 1000
           ? `${buildTime}ms`
           : `${(buildTime / 1000).toFixed(2)}s`;
@@ -209,9 +209,9 @@ class Bundler extends EventEmitter {
 
   async buildQueuedAssets(isInitialBundle = false) {
     // Consume the rebuild queue until it is empty.
-    let loadedAssets = new Set();
+    const loadedAssets = new Set();
     while (this.buildQueue.size > 0) {
-      let promises = [];
+      const promises = [];
       for (let asset of this.buildQueue) {
         // Invalidate the asset, unless this is the initial bundle
         if (!isInitialBundle) {
@@ -237,7 +237,7 @@ class Bundler extends EventEmitter {
     }
 
     // Invalidate bundles
-    for (let asset of this.loadedAssets.values()) {
+    for (const asset of this.loadedAssets.values()) {
       asset.invalidateBundle();
     }
 
@@ -253,12 +253,12 @@ class Bundler extends EventEmitter {
   }
 
   async resolveAsset(name, parent) {
-    let {path, pkg} = await this.resolver.resolve(name, parent);
+    const {path, pkg} = await this.resolver.resolve(name, parent);
     if (this.loadedAssets.has(path)) {
       return this.loadedAssets.get(path);
     }
 
-    let asset = this.parser.getAsset(path, pkg, this.options);
+    const asset = this.parser.getAsset(path, pkg, this.options);
     this.loadedAssets.set(path, asset);
 
     if (this.watcher) {
@@ -272,7 +272,7 @@ class Bundler extends EventEmitter {
     try {
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
-      if (err.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
+      if (err.message.startsWith(`Cannot find module '${dep.name}'`)) {
         err.message = `Cannot resolve dependency '${dep.name}'`;
 
         // Generate a code frame where the dependency was used
@@ -336,7 +336,7 @@ class Bundler extends EventEmitter {
 
     // Store resolved assets in their original order
     dependencies.forEach((dep, i) => {
-      let assetDep = assetDeps[i];
+      const assetDep = assetDeps[i];
       if (dep.includedInParent) {
         // This dependency is already included in the parent's generated output,
         // so no need to load it. We map the name back to the parent asset so
@@ -413,7 +413,7 @@ class Bundler extends EventEmitter {
       commonBundle.getSiblingBundle(bundle.type).addAsset(asset);
     }
 
-    let oldBundle = asset.parentBundle;
+    const oldBundle = asset.parentBundle;
     asset.parentBundle = commonBundle;
 
     // Move all dependencies as well
@@ -468,7 +468,7 @@ class Bundler extends EventEmitter {
   }
 
   async serve(port = 1234) {
-    let server = await Server.serve(this, port);
+    const server = await Server.serve(this, port);
     this.bundle();
     return server;
   }
