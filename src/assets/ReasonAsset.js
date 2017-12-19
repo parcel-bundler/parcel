@@ -1,8 +1,6 @@
 const bsb = require('bsb-js');
 const fs = require('fs');
 const JSAsset = require('./JSAsset');
-const config = require('../utils/config');
-const localRequire = require('../utils/localRequire');
 
 class ReasonAsset extends JSAsset {
   async parse(code) {
@@ -14,14 +12,16 @@ class ReasonAsset extends JSAsset {
 
     this.contents = await new Promise((resolve, reject) => {
       // This is a simplified use-case for Reason - it only loads the most
-      // common configuration.
-      fs.readFile(this.name.replace(/\.re$/, '.bs.js'), (err, contents) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(contents.toString());
+      fs.readFile(
+        this.name.replace(/\.(re|ml)$/, '.bs.js'),
+        (err, contents) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(contents.toString());
+          }
         }
-      });
+      );
     });
 
     // After loading the compiled JS source, use the normal JS behavior.
