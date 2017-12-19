@@ -14,7 +14,7 @@ function Module() {
 
 module.bundle.Module = Module;
 
-if (!module.bundle.parent && typeof WebSocket === 'undefined') {
+if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
   var ws = new WebSocket('ws://localhost:{{HMR_PORT}}/');
   ws.onmessage = function(event) {
     var data = JSON.parse(event.data);
