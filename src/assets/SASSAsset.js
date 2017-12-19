@@ -6,6 +6,10 @@ const path = require('path');
 
 class SASSAsset extends CSSAsset {
   async parse(code) {
+    // Prevent error when code is empty
+    if (!code) {
+      return '';
+    }
     // node-sass should be installed locally in the module that's being required
     let sass = localRequire('node-sass', this.name);
     let render = promisify(sass.render.bind(sass));
@@ -17,8 +21,7 @@ class SASSAsset extends CSSAsset {
     opts.includePaths = (opts.includePaths || []).concat(
       path.dirname(this.name)
     );
-    // Prevent error when code is empty
-    opts.data = code || ' ';
+    opts.data = code;
     opts.indentedSyntax =
       typeof opts.indentedSyntax === 'boolean'
         ? opts.indentedSyntax
@@ -37,8 +40,10 @@ class SASSAsset extends CSSAsset {
   }
 
   collectDependencies() {
-    for (let dep of this.ast.stats.includedFiles) {
-      this.addDependency(dep, {includedInParent: true});
+    if (this.ast) {
+      for (let dep of this.ast.stats.includedFiles) {
+        this.addDependency(dep, {includedInParent: true});
+      }
     }
   }
 }
