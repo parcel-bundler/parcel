@@ -1,6 +1,7 @@
 const fs = require('fs');
 const {basename} = require('path');
 const Packager = require('./Packager');
+const uglify = require('../transforms/uglify');
 
 const prelude = fs
   .readFileSync(__dirname + '/../builtins/prelude.js', 'utf8')
@@ -13,8 +14,7 @@ class JSPackager extends Packager {
   async start() {
     this.first = true;
     this.dedupe = new Map();
-
-    await this.dest.write(prelude + '({');
+    this.packageContent = prelude + '({';
   }
 
   async addAsset(asset) {
@@ -58,7 +58,7 @@ class JSPackager extends Packager {
     wrapped += ']';
 
     this.first = false;
-    await this.dest.write(wrapped);
+    this.packageContent += wrapped;
   }
 
   async end() {
@@ -78,8 +78,12 @@ class JSPackager extends Packager {
     if (this.bundle.entryAsset) {
       entry.push(this.bundle.entryAsset.id);
     }
-
-    await this.dest.end('},{},' + JSON.stringify(entry) + ')');
+    this.packageContent += '},{},' + JSON.stringify(entry) + ')';
+    if (this.options.minify) {
+      this.packageContent = await uglify(this.packageContent);
+    }
+    await this.dest.write(this.packageContent);
+    await this.dest.end();
   }
 }
 

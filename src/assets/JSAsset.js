@@ -9,7 +9,6 @@ const insertGlobals = require('../visitors/globals');
 const fsVisitor = require('../visitors/fs');
 const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
-const uglify = require('../transforms/uglify');
 const config = require('../utils/config');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
@@ -94,10 +93,6 @@ class JSAsset extends Asset {
 
     if (this.isES6Module) {
       await babel(this);
-    }
-
-    if (this.options.minify) {
-      await uglify(this);
     }
   }
 
