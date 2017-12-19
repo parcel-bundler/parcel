@@ -17,7 +17,8 @@ class SASSAsset extends CSSAsset {
     opts.includePaths = (opts.includePaths || []).concat(
       path.dirname(this.name)
     );
-    opts.data = code;
+    // Prevent error when code is empty
+    opts.data = code || ' ';
     opts.indentedSyntax =
       typeof opts.indentedSyntax === 'boolean'
         ? opts.indentedSyntax
