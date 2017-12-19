@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 require('v8-compile-cache');
 const chalk = require('chalk');
 const program = require('commander');
@@ -10,7 +8,11 @@ program.version(version);
 program
   .command('serve [input]')
   .description('starts a development server')
-  .option('-p, --port <port>', 'set the port to serve on. defaults to 1234')
+  .option(
+    '-p, --port <port>',
+    'set the port to serve on. defaults to 1234',
+    parseInt
+  )
   .option('-o, --open', 'automatically open in default browser')
   .option(
     '-d, --out-dir <path>',
