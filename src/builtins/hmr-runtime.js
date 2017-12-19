@@ -33,7 +33,7 @@ if (!module.bundle.parent) {
 
     if (data.type === 'reload') {
       ws.close();
-      ws.onclose = () => {
+      ws.onclose = function () {
         window.location.reload();
       }
     }
