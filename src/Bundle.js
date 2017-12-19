@@ -83,6 +83,7 @@ class Bundle {
     let Packager = bundler.packagers.get(this.type);
     let packager = new Packager(this, bundler);
 
+    await packager.setup();
     await packager.start();
 
     let included = new Set();
