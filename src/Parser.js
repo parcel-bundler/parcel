@@ -12,6 +12,7 @@ class Parser {
     this.registerExtension('es6', './assets/JSAsset');
     this.registerExtension('jsm', './assets/JSAsset');
     this.registerExtension('mjs', './assets/JSAsset');
+    this.registerExtension('re', './assets/ReasonAsset');
     this.registerExtension('ts', './assets/TypeScriptAsset');
     this.registerExtension('tsx', './assets/TypeScriptAsset');
     this.registerExtension('coffee', './assets/CoffeeScriptAsset');
