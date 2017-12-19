@@ -321,22 +321,31 @@ class Bundler extends EventEmitter {
       }
     }
 
-    // Process asset dependencies
-    await Promise.all(
+    // Resolve and load asset dependencies
+    let assetDeps = await Promise.all(
       dependencies.map(async dep => {
         let assetDep = await this.resolveDep(asset, dep);
-        if (dep.includedInParent) {
-          // This dependency is already included in the parent's generated output,
-          // so no need to load it. We map the name back to the parent asset so
-          // that changing it triggers a recompile of the parent.
-          this.loadedAssets.set(dep.name, asset);
-        } else {
-          asset.dependencies.set(dep.name, dep);
-          asset.depAssets.set(dep.name, assetDep);
+        if (!dep.includedInParent) {
           await this.loadAsset(assetDep);
         }
+
+        return assetDep;
       })
     );
+
+    // Store resolved assets in their original order
+    dependencies.forEach((dep, i) => {
+      let assetDep = assetDeps[i];
+      if (dep.includedInParent) {
+        // This dependency is already included in the parent's generated output,
+        // so no need to load it. We map the name back to the parent asset so
+        // that changing it triggers a recompile of the parent.
+        this.loadedAssets.set(dep.name, asset);
+      } else {
+        asset.dependencies.set(dep.name, dep);
+        asset.depAssets.set(dep.name, assetDep);
+      }
+    });
 
     this.buildQueue.delete(asset);
   }
@@ -458,8 +467,9 @@ class Bundler extends EventEmitter {
   }
 
   async serve(port = 1234) {
+    let server = await Server.serve(this, port);
     this.bundle();
-    return await Server.serve(this, port);
+    return server;
   }
 }
 
