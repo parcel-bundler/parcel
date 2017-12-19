@@ -1,6 +1,8 @@
 const bsb = require('bsb-js');
 const fs = require('fs');
 const JSAsset = require('./JSAsset');
+const promisify = require('../utils/promisify');
+const readFile = promisify(fs.readFile);
 
 class ReasonAsset extends JSAsset {
   async parse(code) {
@@ -10,19 +12,11 @@ class ReasonAsset extends JSAsset {
     // the Reason compilation process.
     await bsb.runBuild();
 
-    this.contents = await new Promise((resolve, reject) => {
-      // This is a simplified use-case for Reason - it only loads the most
-      fs.readFile(
-        this.name.replace(/\.(re|ml)$/, '.bs.js'),
-        (err, contents) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(contents.toString());
-          }
-        }
-      );
-    });
+    // This is a simplified use-case for Reason - it only loads the recommended
+    // BuckleScript configuration to simplify the file processing.
+    const outputFile = this.name.replace(/\.(re|ml)$/, '.bs.js');
+    const outputContent = await readFile(outputFile);
+    this.contents = outputContent.toString();
 
     // After loading the compiled JS source, use the normal JS behavior.
     return await super.parse(this.contents);
