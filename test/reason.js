@@ -3,10 +3,6 @@ const fs = require('fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('reason', function() {
-  beforeEach(() => {
-    require('bsb-js').runBuild = () => Promise.resolve();
-  });
-
   it('should produce a bundle', async function() {
     let b = await bundle(__dirname + '/integration/reason/index.js');
 
