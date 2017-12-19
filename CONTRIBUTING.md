@@ -35,28 +35,23 @@ yarn test
 [node]: https://nodejs.org/
 [yarn]: https://yarnpkg.com/
 
-
 ## Financial contributions
 
 We also welcome financial contributions in full transparency on our [open collective](https://opencollective.com/parcel).
 Anyone can file an expense. If the expense makes sense for the development of the community, it will be "merged" in the ledger of our open collective by the core contributors and the person who filed the expense will be reimbursed.
 
-
 ## Credits
-
 
 ### Contributors
 
 Thank you to all the people who have already contributed to parcel!
 <a href="graphs/contributors"><img src="https://opencollective.com/parcel/contributors.svg?width=890" /></a>
 
-
 ### Backers
 
 Thank you to all our backers! [[Become a backer](https://opencollective.com/parcel#backer)]
 
 <a href="https://opencollective.com/parcel#backers" target="_blank"><img src="https://opencollective.com/parcel/backers.svg?width=890"></a>
-
 
 ### Sponsors
 

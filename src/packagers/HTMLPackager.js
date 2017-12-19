@@ -8,7 +8,7 @@ class HTMLPackager extends Packager {
     let html = asset.generated.html || '';
 
     // Find child bundles (e.g. JS) that have a sibling CSS bundle,
-    // add add them to the head so they are loaded immediately.
+    // add them to the head so they are loaded immediately.
     let cssBundles = Array.from(this.bundle.childBundles)
       .map(b => b.siblingBundles.get('css'))
       .filter(Boolean);
