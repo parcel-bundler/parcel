@@ -1,11 +1,6 @@
 const {minify} = require('uglify-es');
 
-module.exports = async function(asset) {
-  await asset.parseIfNeeded();
-
-  // Convert AST into JS
-  let code = asset.generate().js;
-
+module.exports = async function(code) {
   let options = {
     warnings: true,
     mangle: {
@@ -27,9 +22,5 @@ module.exports = async function(asset) {
       console.log(warning);
     });
   }
-
-  // babel-generator did our code generation for us, so remove the old AST
-  asset.ast = null;
-  asset.outputCode = result.code;
-  asset.isAstDirty = false;
+  return result.code;
 };
