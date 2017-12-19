@@ -63,21 +63,20 @@ async function serve(bundler, port) {
 
   return new Promise((resolve, reject) => {
     server.on('error', err => {
-      bundler.logger.error(new Error(serverErrors(err, server.address().port)));
+      logger.error(new Error(serverErrors(err, server.address().port)));
       reject(err);
     });
 
     server.once('listening', connection => {
-      let addon =
-        server.address().port !== port
-          ? `- ${bundler.logger.chalk.red(
-              `configured port ${port} could not be used.`
-            )}`
-          : '';
-      bundler.logger.persistent(
-        `Server running at ${bundler.logger.chalk.cyan(
+      if (server.address().port !== port) {
+        logger.warn(
+          logger.chalk.red(`configured port ${port} could not be used.`)
+        );
+      }
+      logger.persistent(
+        `Server running at ${logger.chalk.cyan(
           `http://localhost:${server.address().port}`
-        )} ${addon}`
+        )}`
       );
 
       resolve(server);
