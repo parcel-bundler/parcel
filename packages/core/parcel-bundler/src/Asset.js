@@ -3,6 +3,7 @@ const fs = require('./utils/fs');
 const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
+const sanitizeFilename = require('sanitize-filename');
 
 let ASSET_ID = 1;
 
@@ -151,9 +152,12 @@ class Asset {
         : null;
     let ext = '.' + this.type;
 
-    // If this asset is main file of the package, use the package name
+    // If this asset is main file of the package, use the sanitized package name
     if (this.name === main) {
-      return this.package.name + ext;
+      const packageName = sanitizeFilename(this.package.name, {
+        replacement: '-'
+      });
+      return packageName + ext;
     }
 
     // If this is the entry point of the root bundle, use the original filename
