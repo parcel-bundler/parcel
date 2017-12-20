@@ -134,4 +134,25 @@ describe('html', function() {
     let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
     assert(html.includes('<a href="#hash_link">'));
   });
+
+  it('should support dynamic imports for HTML', async function() {
+    let b = await bundle(__dirname + '/integration/html-import/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'html',
+          assets: ['other.html'],
+          childBundles: []
+        },
+        {
+          type: 'js',
+          assets: ['webcomponents-loader.js'],
+          childBundles: []
+        }
+      ]
+    });
+  });
 });
