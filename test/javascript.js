@@ -175,6 +175,15 @@ describe('javascript', function() {
     assert(!js.includes('local.a'));
   });
 
+  it('should use uglify config', async function() {
+    let b = await bundle(__dirname + '/integration/uglify-config/index.js', {
+      production: true
+    });
+
+    let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(js.includes('console.log'));
+  });
+
   it('should insert global variables when needed', async function() {
     let b = await bundle(__dirname + '/integration/globals/index.js');
 
