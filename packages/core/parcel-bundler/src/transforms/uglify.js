@@ -1,17 +1,13 @@
 const {minify} = require('uglify-es');
 const config = require('../utils/config');
 
-async function getConfig(asset) {
-  return config.load(asset.name, ['.uglifyrc']);
-}
-
 module.exports = async function(asset) {
   await asset.parseIfNeeded();
 
   // Convert AST into JS
   let code = asset.generate().js;
 
-  let customConfig = await getConfig(asset);
+  let customConfig = await config.load(asset.name, ['.uglifyrc']);
   let options = {
     warnings: true,
     mangle: {
@@ -27,8 +23,9 @@ module.exports = async function(asset) {
   }
 
   let result = minify(code, options);
-
-  if (result.error) throw result.error;
+  if (result.error) {
+    throw result.error;
+  }
 
   // Log all warnings
   if (result.warnings) {
