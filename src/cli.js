@@ -10,14 +10,13 @@ program
   .description('starts a development server')
   .option(
     '-p, --port <port>',
-    'set the port to serve on. defaults to 1234',
-    parseInt
+    'set the port to serve on',
+    x => parseInt(x, 10),
+    1234
   )
+  .option('-h, --host <hostname/ip>', 'set the host to serve on', 'localhost')
   .option('-o, --open', 'automatically open in default browser')
-  .option(
-    '-d, --out-dir <path>',
-    'set the output directory. defaults to "dist"'
-  )
+  .option('-d, --out-dir <path>', 'set the output directory', 'dist')
   .option(
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
@@ -30,10 +29,7 @@ program
 program
   .command('watch [input]')
   .description('starts the bundler in watch mode')
-  .option(
-    '-d, --out-dir <path>',
-    'set the output directory. defaults to "dist"'
-  )
+  .option('-d, --out-dir <path>', 'set the output directory', 'dist')
   .option(
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
@@ -45,10 +41,7 @@ program
 program
   .command('build [input]')
   .description('bundles for production')
-  .option(
-    '-d, --out-dir <path>',
-    'set the output directory. defaults to "dist"'
-  )
+  .option('-d, --out-dir <path>', 'set the output directory', 'dist')
   .option(
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
@@ -96,9 +89,17 @@ async function bundle(main, command) {
   const bundler = new Bundler(main, command);
 
   if (command.name() === 'serve') {
-    const server = await bundler.serve(command.port || 1234);
+    const server = await bundler.serve(command.port, command.host);
+
     if (command.open) {
-      require('opn')(`http://localhost:${server.address().port}`);
+      const open = () => {
+        require('opn')(`http://${command.host}:${server.address().port}`);
+      };
+      if (server.listening) {
+        open();
+      } else {
+        server.once('listening', open);
+      }
     }
   } else {
     bundler.bundle();
