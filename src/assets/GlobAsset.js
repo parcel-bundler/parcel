@@ -27,7 +27,8 @@ class GlobAsset extends Asset {
         .slice(1)
         .filter(Boolean)
         .reduce((a, p) => a.concat(p.split('/')), []);
-      let relative = './' + path.relative(path.dirname(this.name), file);
+      let relative =
+        './' + path.relative(path.dirname(this.name), file.normalize('NFC'));
       set(matches, parts, relative);
       this.addDependency(relative);
     }

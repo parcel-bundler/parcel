@@ -6,5 +6,8 @@
   "globals": {
     "output": true,
     "import": true
+  },
+  "rules": {
+    "no-console": [0]
   }
 }
