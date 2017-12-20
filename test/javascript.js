@@ -44,7 +44,12 @@ describe('javascript', function() {
 
     assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
+      assets: [
+        'index.js',
+        'bundle-loader.js',
+        'bundle-url.js',
+        'fetch-browser.js'
+      ],
       childBundles: [
         {
           assets: ['local.js'],
@@ -65,7 +70,12 @@ describe('javascript', function() {
 
     assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
+      assets: [
+        'index.js',
+        'fetch-browser.js',
+        'bundle-loader.js',
+        'bundle-url.js'
+      ],
       childBundles: [
         {
           assets: ['local.js', 'test.txt'],
@@ -84,7 +94,12 @@ describe('javascript', function() {
 
     assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
+      assets: [
+        'index.js',
+        'fetch-browser.js',
+        'bundle-loader.js',
+        'bundle-url.js'
+      ],
       childBundles: [
         {
           assets: ['local.js'],
@@ -108,7 +123,8 @@ describe('javascript', function() {
         'common.js',
         'common-dep.js',
         'bundle-loader.js',
-        'bundle-url.js'
+        'bundle-url.js',
+        'fetch-browser.js'
       ],
       childBundles: [
         {

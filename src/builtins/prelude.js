@@ -59,8 +59,14 @@ require = (function (modules, cache, entry) {
   newRequire.cache = cache;
   newRequire.parent = previousRequire;
 
+  var exports = null;
+
   for (var i = 0; i < entry.length; i++) {
-    newRequire(entry[i]);
+    exports = newRequire(entry[i]);
+  }
+
+  if(typeof __parcel_export_module === 'function') {
+    __parcel_export_module(exports);
   }
 
   // Override the current require with this new one

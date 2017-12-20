@@ -38,25 +38,76 @@ function loadBundle(bundle) {
   }
 }
 
+var jsBundleCallbacks = {};
+var jsBundleIdCounter = 0;
+
+// fetch polyfill for Node.js and the browser
+var localFetch = typeof fetch === 'undefined' ?
+  require('fetch-ponyfill')({Promise: Promise}).fetch :
+  fetch;
+
 function loadJSBundle(bundle) {
-  return new Promise(function (resolve, reject) {
-    var script = document.createElement('script');
-    script.async = true;
-    script.type = 'text/javascript';
-    script.charset = 'utf-8';
-    script.src = bundle;
-    script.onerror = function (e) {
-      script.onerror = script.onload = null;
-      reject(e);
-    };
+  var globalObject = null;
 
-    script.onload = function () {
-      script.onerror = script.onload = null;
-      resolve();
-    };
+  // browser
+  if (typeof window !== 'undefined') {
+    globalObject = window;
+  }
+  // node.js
+  else if (typeof global !== 'undefined') {
+    globalObject = global;
+  }
+  // WebWorker
+  else if (typeof self !== 'undefined') {
+    globalObject = self;
+  }
+  
+  if (globalObject.__parcel_bundle_callbacks != jsBundleCallbacks) {
+    globalObject.__parcel_bundle_callbacks = jsBundleCallbacks;
+  }
 
-    document.getElementsByTagName('head')[0].appendChild(script);
-  });
+  var promise = localFetch(bundle)
+    .then(function(response) {
+      return response.text();
+    })
+    .then(function(contents) {
+      return new Promise((resolve, reject) => {
+        var bundleId = jsBundleIdCounter++;
+        var callback = function(exported) {
+          delete jsBundleCallbacks[bundleId];
+
+          resolve(exported);
+        }
+  
+        jsBundleCallbacks[bundleId] = callback;
+        
+        var prelude =
+          'function __parcel_export_module(exported) {' +
+            '__parcel_bundle_callbacks[' + bundleId + '](exported)' +
+          '}';
+  
+        var script = document.createElement('script');
+        var blob = new Blob([prelude, contents]);
+        var blobUrl = URL.createObjectURL(blob);
+  
+        script.async = true;
+        script.type = 'text/javascript';
+        script.charset = 'utf-8';
+        script.src = blobUrl;
+        script.onerror = function (e) {
+          script.onerror = script.onload = null;
+          reject(e);
+        };
+  
+        script.onload = function () {
+          script.onerror = script.onload = null;
+        };
+  
+        document.getElementsByTagName('head')[0].appendChild(script);
+      })
+    });
+
+    return promise;
 }
 
 function loadCSSBundle(bundle) {
