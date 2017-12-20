@@ -15,9 +15,6 @@ class RustAsset extends JSAsset {
   }
 
   async parse(code) {
-    this.invalidateBundle();
-    this.invalidate();
-    this.dependencies.clear();
     const {name, encoding, options} = this;
     const release = process.env.NODE_ENV === 'production';
     const cmd = `wargo build ${release ? ' --release' : ''}`;
@@ -64,7 +61,9 @@ class RustAsset extends JSAsset {
       ENVIRONMENT: 'WEB'
     };
 
-    if (options.fromHtml) {
+    if (options.from === 'html') {
+      // if the rust file is called from an html, it's going to be called right away
+      // when the wasm file is loaded as a standalone executable
       this.contents = `((Module) => {
         ${out}
       })(${JSON.stringify(Module)})`;

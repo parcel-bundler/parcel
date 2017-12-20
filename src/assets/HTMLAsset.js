@@ -47,7 +47,7 @@ class HTMLAsset extends Asset {
           let elements = ATTRS[attr];
           if (elements && elements.includes(node.tag)) {
             let assetPath = this.addURLDependency(node.attrs[attr], {
-              fromHtml: true
+              from: 'html'
             });
             if (!isURL(assetPath)) {
               // Use url.resolve to normalize path for windows
