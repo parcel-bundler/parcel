@@ -180,10 +180,6 @@ describe('javascript', function() {
       production: true
     });
 
-    let output = run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 2);
-
     let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(js.includes('console.log'));
   });
