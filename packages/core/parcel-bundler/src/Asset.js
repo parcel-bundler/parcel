@@ -74,13 +74,15 @@ class Asset {
     let resolved = path
       .resolve(path.dirname(from), url)
       .replace(/[\?#].*$/, '');
+
     this.addDependency(
       './' + path.relative(path.dirname(this.name), resolved),
       Object.assign({dynamic: true}, opts)
     );
+
     return this.options.parser
       .getAsset(resolved, this.package, this.options)
-      .generateBundleName(resolved);
+      .generateBundleName();
   }
 
   mightHaveDependencies() {
@@ -144,7 +146,7 @@ class Asset {
     this.parentDeps.clear();
   }
 
-  generateBundleName(assetPath) {
+  generateBundleName() {
     // Resolve the main file of the package.json
     let main =
       this.package && this.package.main
@@ -161,7 +163,7 @@ class Asset {
     }
 
     // If this is the entry point of the root bundle, use the original filename
-    if (this.isMainFile(assetPath)) {
+    if (this.name === this.options.mainFile) {
       return path.basename(this.name, path.extname(this.name)) + ext;
     }
 
@@ -171,10 +173,6 @@ class Asset {
 
   generateErrorMessage(err) {
     return err;
-  }
-
-  isMainFile(assetPath) {
-    return this.options.mainFile === assetPath;
   }
 }
 
