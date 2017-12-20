@@ -63,7 +63,8 @@ class Bundler extends EventEmitter {
       minify:
         typeof options.minify === 'boolean' ? options.minify : isProduction,
       hmr: typeof options.hmr === 'boolean' ? options.hmr : watch,
-      logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3
+      logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
+      mainFile: this.mainFile
     };
   }
 
@@ -375,7 +376,7 @@ class Bundler extends EventEmitter {
     if (!bundle) {
       bundle = new Bundle(
         asset.type,
-        Path.join(this.options.outDir, asset.generateBundleName(true))
+        Path.join(this.options.outDir, asset.generateBundleName(this.mainFile))
       );
       bundle.entryAsset = asset;
     }
