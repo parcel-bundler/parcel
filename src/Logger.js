@@ -1,7 +1,7 @@
 const chalk = require('chalk');
 const readline = require('readline');
 const prettyError = require('./utils/prettyError');
-const isWin = /^win/.test(process.platform);
+const logSymbols = require('log-symbols');
 
 class Logger {
   constructor(options) {
@@ -52,7 +52,7 @@ class Logger {
 
     let {message, stack} = prettyError(err, {color: this.color});
 
-    this.status('🚨', message, 'red');
+    this.status(logSymbols.error, message, 'red');
     if (stack) {
       this.write(stack);
     }
@@ -100,7 +100,7 @@ class Logger {
 
     this.writeLine(
       this.statusLine,
-      this.chalk[color].bold(`${isWin ? '' : emoji}  ${message}`)
+      this.chalk[color].bold(`${emoji}  ${message}`)
     );
 
     if (!hasStatusLine) {
