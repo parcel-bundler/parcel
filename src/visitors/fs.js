@@ -20,7 +20,6 @@ module.exports = {
   },
 
   CallExpression(path, asset) {
-    let callee = path.node.callee;
     if (referencesImport(path, 'fs', 'readFileSync')) {
       let vars = {
         __dirname: Path.dirname(asset.name),

@@ -45,6 +45,7 @@
     "babel-preset-env": "^1.6.1",
     "coffeescript": "^2.0.3",
     "cross-env": "^5.1.1",
+    "eslint": "^4.13.0",
     "husky": "^0.14.3",
     "less": "^2.7.2",
     "lint-staged": "^6.0.0",
@@ -65,7 +66,8 @@
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
     "build": "babel src -d lib",
     "prepublish": "yarn build",
-    "precommit": "lint-staged",
+    "precommit": "npm run lint && lint-staged",
+    "lint": "eslint .",
     "postinstall":
       "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
   },

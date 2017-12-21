@@ -176,7 +176,7 @@ describe('javascript', function() {
   });
 
   it('should use uglify config', async function() {
-    let b = await bundle(__dirname + '/integration/uglify-config/index.js', {
+    await bundle(__dirname + '/integration/uglify-config/index.js', {
       production: true
     });
 

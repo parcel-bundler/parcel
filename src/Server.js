@@ -1,6 +1,4 @@
 const http = require('http');
-const path = require('path');
-const url = require('url');
 const serveStatic = require('serve-static');
 const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
@@ -66,7 +64,7 @@ async function serve(bundler, port) {
       reject(err);
     });
 
-    server.once('listening', connection => {
+    server.once('listening', () => {
       let addon =
         server.address().port !== port
           ? `- ${bundler.logger.chalk.red(
