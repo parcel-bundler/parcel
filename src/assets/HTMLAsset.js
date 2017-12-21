@@ -45,7 +45,7 @@ class HTMLAsset extends Asset {
       if (node.attrs) {
         for (let attr in node.attrs) {
           let elements = ATTRS[attr];
-          // link is not a file
+          // Check for virtual paths
           if (node.tag === 'a' && node.attrs[attr].lastIndexOf('.') < 1) {
             break;
           }
