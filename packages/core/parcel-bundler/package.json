@@ -14,7 +14,6 @@
     "babylon": "^6.17.4",
     "babylon-walk": "^1.0.2",
     "browser-resolve": "^1.11.2",
-    "bsb-js": "^1.0.1",
     "chalk": "^2.1.0",
     "chokidar": "^1.7.0",
     "commander": "^2.11.0",
@@ -44,6 +43,7 @@
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.6.1",
+    "bsb-js": "^1.0.1",
     "coffeescript": "^2.0.3",
     "cross-env": "^5.1.1",
     "eslint": "^4.13.0",

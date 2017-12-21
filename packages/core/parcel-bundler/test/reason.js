@@ -1,6 +1,5 @@
 const assert = require('assert');
-const fs = require('fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run} = require('./utils');
 
 describe('reason', function() {
   it('should produce a bundle', async function() {
