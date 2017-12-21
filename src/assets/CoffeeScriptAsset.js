@@ -1,5 +1,4 @@
 const JSAsset = require('./JSAsset');
-const config = require('../utils/config');
 const localRequire = require('../utils/localRequire');
 
 class CoffeeScriptAsset extends JSAsset {

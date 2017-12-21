@@ -1,6 +1,4 @@
 const http = require('http');
-const path = require('path');
-const url = require('url');
 const serveStatic = require('serve-static');
 const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
@@ -32,7 +30,7 @@ function middleware(bundler) {
     function sendIndex() {
       // If the main asset is an HTML file, serve it
       if (bundler.mainAsset.type === 'html') {
-        req.url = `/${bundler.mainAsset.generateBundleName(true)}`;
+        req.url = `/${bundler.mainAsset.generateBundleName()}`;
         serve(req, res, send404);
       } else {
         send404();
@@ -60,25 +58,28 @@ async function serve(bundler, port) {
   let freePort = await getPort({port});
   let server = http.createServer(middleware(bundler)).listen(freePort);
 
-  server.on('error', err => {
-    bundler.logger.error(new Error(serverErrors(err, server.address().port)));
-  });
+  return new Promise((resolve, reject) => {
+    server.on('error', err => {
+      bundler.logger.error(new Error(serverErrors(err, server.address().port)));
+      reject(err);
+    });
 
-  server.once('listening', connection => {
-    let addon =
-      server.address().port !== port
-        ? `- ${bundler.logger.chalk.red(
-            `configured port ${port} could not be used.`
-          )}`
-        : '';
-    bundler.logger.persistent(
-      `Server running at ${bundler.logger.chalk.cyan(
-        `http://localhost:${server.address().port}`
-      )} ${addon}\n`
-    );
-  });
+    server.once('listening', () => {
+      let addon =
+        server.address().port !== port
+          ? `- ${bundler.logger.chalk.red(
+              `configured port ${port} could not be used.`
+            )}`
+          : '';
+      bundler.logger.persistent(
+        `Server running at ${bundler.logger.chalk.cyan(
+          `http://localhost:${server.address().port}`
+        )} ${addon}`
+      );
 
-  return server;
+      resolve(server);
+    });
+  });
 }
 
 exports.middleware = middleware;

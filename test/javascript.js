@@ -175,6 +175,15 @@ describe('javascript', function() {
     assert(!js.includes('local.a'));
   });
 
+  it('should use uglify config', async function() {
+    await bundle(__dirname + '/integration/uglify-config/index.js', {
+      production: true
+    });
+
+    let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(js.includes('console.log'));
+  });
+
   it('should insert global variables when needed', async function() {
     let b = await bundle(__dirname + '/integration/globals/index.js');
 
@@ -247,5 +256,105 @@ describe('javascript', function() {
     let output = run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
+  });
+
+  it('should resolve the browser field before main', async function() {
+    let b = await bundle(__dirname + '/integration/resolve-entries/browser.js');
+
+    assertBundleTree(b, {
+      name: 'browser.js',
+      assets: ['browser.js', 'browser-module.js'],
+      childBundles: []
+    });
+
+    let output = run(b);
+
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'pkg-browser');
+  });
+
+  it('should resolve advanced browser resolution', async function() {
+    let b = await bundle(
+      __dirname + '/integration/resolve-entries/browser-multiple.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'browser-multiple.js',
+      assets: ['browser-multiple.js', 'projected-module.js'],
+      childBundles: []
+    });
+
+    let output = run(b);
+
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'pkg-browser-multiple');
+  });
+
+  it('should resolve the module field before main', async function() {
+    let b = await bundle(
+      __dirname + '/integration/resolve-entries/module-field.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'module-field.js',
+      assets: ['module-field.js', 'es6.module.js'],
+      childBundles: []
+    });
+
+    let output = run(b);
+
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'pkg-es6-module');
+  });
+
+  it('should resolve the jsnext:main field before main', async function() {
+    let b = await bundle(
+      __dirname + '/integration/resolve-entries/jsnext-field.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'jsnext-field.js',
+      assets: ['jsnext-field.js', 'jsnext.module.js'],
+      childBundles: []
+    });
+
+    let output = run(b);
+
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'pkg-jsnext-module');
+  });
+
+  it('should resolve the module field before jsnext:main', async function() {
+    let b = await bundle(
+      __dirname + '/integration/resolve-entries/both-fields.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'both-fields.js',
+      assets: ['both-fields.js', 'es6.module.js'],
+      childBundles: []
+    });
+
+    let output = run(b);
+
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'pkg-es6-module');
+  });
+
+  it('should resolve the main field', async function() {
+    let b = await bundle(
+      __dirname + '/integration/resolve-entries/main-field.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'main-field.js',
+      assets: ['main-field.js', 'main.js'],
+      childBundles: []
+    });
+
+    let output = run(b);
+
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'pkg-main-module');
   });
 });

@@ -16,6 +16,8 @@ test_script:
   - yarn --version
   # run tests
   - yarn test
+  # run ESlint
+  - yarn lint
 
 cache:
  - "%LOCALAPPDATA%\\Yarn"

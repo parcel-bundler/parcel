@@ -1,6 +1,5 @@
 const assert = require('assert');
-const fs = require('fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run} = require('./utils');
 
 describe('fs', function() {
   it('should inline a file as a string', async function() {

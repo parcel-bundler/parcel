@@ -1,4 +1,3 @@
-const template = require('babel-template');
 const Path = require('path');
 const types = require('babel-types');
 
@@ -18,7 +17,7 @@ const VARS = {
 };
 
 module.exports = {
-  MemberExpression(node, asset, ancestors) {
+  MemberExpression(node, asset) {
     // Inline environment variables accessed on process.env
     if (matchesPattern(node.object, 'process.env')) {
       let key = types.toComputedKey(node);
