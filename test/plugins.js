@@ -16,7 +16,9 @@ describe('plugins', function() {
   });
 
   it('should load package.json from parent tree', async function() {
-    let b = await bundle(__dirname + '/integration/plugins/sub-folder/index.js');
+    let b = await bundle(
+      __dirname + '/integration/plugins/sub-folder/index.js'
+    );
 
     assertBundleTree(b, {
       name: 'index.js',
