@@ -82,8 +82,7 @@ class Asset {
       .generateBundleName();
   }
 
-  async mightHaveDependencies() {
-    await this.loadIfNeeded();
+  mightHaveDependencies() {
     if (!this.contents) {
       return false;
     }
