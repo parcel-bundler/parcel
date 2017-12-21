@@ -7,7 +7,7 @@ const path = require('path');
 class SASSAsset extends CSSAsset {
   async parse(code) {
     // node-sass should be installed locally in the module that's being required
-    let sass = localRequire('node-sass', this.name);
+    let sass = await localRequire('node-sass', this.name);
     let render = promisify(sass.render.bind(sass));
 
     let opts =

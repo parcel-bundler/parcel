@@ -29,7 +29,7 @@ async function getConfig(asset) {
   }
 
   config = config || {};
-  config.plugins = loadPlugins(config.plugins, asset.name);
+  config.plugins = await loadPlugins(config.plugins, asset.name);
 
   if (asset.options.minify) {
     config.plugins.push(htmlnano());
