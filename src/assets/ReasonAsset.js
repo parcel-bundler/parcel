@@ -1,11 +1,11 @@
-const bsb = require('bsb-js');
-const fs = require('fs');
 const JSAsset = require('./JSAsset');
-const promisify = require('../utils/promisify');
-const readFile = promisify(fs.readFile);
+const fs = require('../utils/fs');
+const localRequire = require('../utils/localRequire');
 
 class ReasonAsset extends JSAsset {
-  async parse(code) {
+  async parse() {
+    const bsb = localRequire('bsb-js', this.name);
+
     // This runs BuckleScript - the Reason to JS compiler.
     // Other Asset types use `localRequire` but the `bsb-js` package already
     // does that internally. This should also take care of error handling in
@@ -17,7 +17,7 @@ class ReasonAsset extends JSAsset {
     // This is a simplified use-case for Reason - it only loads the recommended
     // BuckleScript configuration to simplify the file processing.
     const outputFile = this.name.replace(/\.(re|ml)$/, '.bs.js');
-    const outputContent = await readFile(outputFile);
+    const outputContent = await fs.readFile(outputFile);
     this.contents = outputContent.toString();
 
     // After loading the compiled JS source, use the normal JS behavior.
