@@ -1,7 +1,5 @@
 const Asset = require('../Asset');
 const glob = require('glob');
-const promisify = require('../utils/promisify');
-const globPromise = promisify(glob);
 const micromatch = require('micromatch');
 const path = require('path');
 
@@ -29,7 +27,8 @@ class GlobAsset extends Asset {
         .slice(1)
         .filter(Boolean)
         .reduce((a, p) => a.concat(p.split('/')), []);
-      let relative = './' + path.relative(path.dirname(this.name), file.normalize('NFC'));
+      let relative =
+        './' + path.relative(path.dirname(this.name), file.normalize('NFC'));
       set(matches, parts, relative);
       this.addDependency(relative);
     }

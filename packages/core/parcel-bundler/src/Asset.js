@@ -71,10 +71,7 @@ class Asset {
       from = this.name;
     }
 
-    let resolved = path
-      .resolve(path.dirname(from), url)
-      .replace(/[\?#].*$/, '');
-
+    let resolved = path.resolve(path.dirname(from), url).replace(/[?#].*$/, '');
     this.addDependency(
       './' + path.relative(path.dirname(this.name), resolved),
       Object.assign({dynamic: true}, opts)
