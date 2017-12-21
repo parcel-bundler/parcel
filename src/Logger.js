@@ -1,6 +1,7 @@
 const chalk = require('chalk');
 const readline = require('readline');
 const prettyError = require('./utils/prettyError');
+const isWin = /^win/.test(process.platform);
 
 class Logger {
   constructor(options) {
@@ -99,7 +100,7 @@ class Logger {
 
     this.writeLine(
       this.statusLine,
-      this.chalk[color].bold(`${emoji}  ${message}`)
+      this.chalk[color].bold(`${isWin ? '' : emoji}  ${message}`)
     );
 
     if (!hasStatusLine) {
