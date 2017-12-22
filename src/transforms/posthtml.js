@@ -32,7 +32,10 @@ async function getConfig(asset) {
   config.plugins = await loadPlugins(config.plugins, asset.name);
 
   if (asset.options.minify) {
-    config.plugins.push(htmlnano());
+    const htmlNanoOptions = {
+      collapseWhitespace: 'conservative'
+    };
+    config.plugins.push(htmlnano(htmlNanoOptions));
   }
 
   config.skipParse = true;
