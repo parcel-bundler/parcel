@@ -8,10 +8,13 @@ class HMRServer {
     });
 
     this.wss.on('connection', ws => {
+      ws.onerror = this.handleSocketError;
       if (this.unresolvedError) {
         ws.send(JSON.stringify(this.unresolvedError));
       }
     });
+
+    this.wss.on('error', this.handleSocketError);
 
     return this.wss._server.address().port;
   }
@@ -44,22 +47,38 @@ class HMRServer {
       });
     }
 
-    this.broadcast({
-      type: 'update',
-      assets: assets.map(asset => {
-        let deps = {};
-        for (let dep of asset.dependencies.values()) {
-          let mod = asset.depAssets.get(dep.name);
-          deps[dep.name] = mod.id;
-        }
+    const containsHtmlAsset = assets.some(asset => asset.type === 'html');
+    if (containsHtmlAsset) {
+      this.broadcast({
+        type: 'reload'
+      });
+    } else {
+      this.broadcast({
+        type: 'update',
+        assets: assets.map(asset => {
+          let deps = {};
+          for (let dep of asset.dependencies.values()) {
+            let mod = asset.depAssets.get(dep.name);
+            deps[dep.name] = mod.id;
+          }
 
-        return {
-          id: asset.id,
-          generated: asset.generated,
-          deps: deps
-        };
-      })
-    });
+          return {
+            id: asset.id,
+            generated: asset.generated,
+            deps: deps
+          };
+        })
+      });
+    }
+  }
+
+  handleSocketError(err) {
+    if (err.code === 'ECONNRESET') {
+      // This gets triggered on page refresh, ignore this
+      return;
+    }
+    // TODO: Use logger to print errors
+    console.log(prettyError(err));
   }
 
   broadcast(msg) {

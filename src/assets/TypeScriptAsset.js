@@ -5,7 +5,7 @@ const localRequire = require('../utils/localRequire');
 class TypeScriptAsset extends JSAsset {
   async parse(code) {
     // require typescript, installed locally in the app
-    let typescript = localRequire('typescript', this.name);
+    let typescript = await localRequire('typescript', this.name);
     let transpilerOptions = {
       compilerOptions: {
         module: typescript.ModuleKind.CommonJS,
@@ -17,7 +17,12 @@ class TypeScriptAsset extends JSAsset {
     let tsconfig = await config.load(this.name, ['tsconfig.json']);
 
     // Overwrite default if config is found
-    if (tsconfig) transpilerOptions.compilerOptions = tsconfig.compilerOptions;
+    if (tsconfig) {
+      transpilerOptions.compilerOptions = Object.assign(
+        transpilerOptions.compilerOptions,
+        tsconfig.compilerOptions
+      );
+    }
     transpilerOptions.compilerOptions.noEmit = false;
 
     // Transpile Module using TypeScript and parse result as ast format through babylon

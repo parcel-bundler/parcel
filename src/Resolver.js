@@ -31,14 +31,32 @@ class Resolver {
       return {path: path.resolve(path.dirname(parent), filename)};
     }
 
+    let extensions = Object.keys(this.options.extensions);
+    if (parent) {
+      const parentExt = path.extname(parent);
+      // parent's extension given high priority
+      extensions = [parentExt, ...extensions.filter(ext => ext !== parentExt)];
+    }
+
     return resolver(filename, {
       filename: parent,
       paths: this.options.paths,
       modules: builtins,
-      extensions: Object.keys(this.options.extensions),
+      extensions: extensions,
       packageFilter(pkg, pkgfile) {
         // Expose the path to the package.json file
         pkg.pkgfile = pkgfile;
+
+        // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
+        // we use the "module" or "jsnext:main" field to get the full dependency tree if available
+        const main = [pkg.module, pkg['jsnext:main']].find(
+          entry => typeof entry === 'string'
+        );
+
+        if (main) {
+          pkg.main = main;
+        }
+
         return pkg;
       }
     });

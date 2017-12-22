@@ -1,0 +1,12 @@
+{
+  "extends": "../.eslintrc.json",
+  "parserOptions": {
+    "ecmaVersion": 5
+  },
+  "env": {
+    "browser": true
+  },
+  "rules": {
+    "no-global-assign": 1
+  }
+}

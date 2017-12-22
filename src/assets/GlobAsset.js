@@ -1,7 +1,5 @@
 const Asset = require('../Asset');
 const glob = require('glob');
-const promisify = require('../utils/promisify');
-const globPromise = promisify(glob);
 const micromatch = require('micromatch');
 const path = require('path');
 
@@ -12,8 +10,15 @@ class GlobAsset extends Asset {
   }
 
   async load() {
-    let files = await globPromise(this.name, {strict: true, nodir: true});
-    let re = micromatch.makeRe(this.name, {capture: true});
+    let regularExpressionSafeName = this.name;
+    if (process.platform === 'win32')
+      regularExpressionSafeName = regularExpressionSafeName.replace(/\\/g, '/');
+
+    let files = glob.sync(regularExpressionSafeName, {
+      strict: true,
+      nodir: true
+    });
+    let re = micromatch.makeRe(regularExpressionSafeName, {capture: true});
     let matches = {};
 
     for (let file of files) {
@@ -22,7 +27,8 @@ class GlobAsset extends Asset {
         .slice(1)
         .filter(Boolean)
         .reduce((a, p) => a.concat(p.split('/')), []);
-      let relative = './' + path.relative(path.dirname(this.name), file);
+      let relative =
+        './' + path.relative(path.dirname(this.name), file.normalize('NFC'));
       set(matches, parts, relative);
       this.addDependency(relative);
     }

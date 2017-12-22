@@ -1,0 +1,7 @@
+{
+    "name": "pkg-browser-multiple",
+    "main": "./does-not-exist.js",
+    "browser": {
+        "./projected.js": "./projected-module.js"
+    }
+}

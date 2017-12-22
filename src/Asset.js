@@ -1,9 +1,9 @@
-const Parser = require('./Parser');
 const path = require('path');
 const fs = require('./utils/fs');
 const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
+const sanitizeFilename = require('sanitize-filename');
 
 let ASSET_ID = 1;
 
@@ -71,13 +71,12 @@ class Asset {
       from = this.name;
     }
 
-    let resolved = path
-      .resolve(path.dirname(from), url)
-      .replace(/[\?#].*$/, '');
+    let resolved = path.resolve(path.dirname(from), url).replace(/[?#].*$/, '');
     this.addDependency(
       './' + path.relative(path.dirname(this.name), resolved),
       Object.assign({dynamic: true}, opts)
     );
+
     return this.options.parser
       .getAsset(resolved, this.package, this.options)
       .generateBundleName();
@@ -144,7 +143,7 @@ class Asset {
     this.parentDeps.clear();
   }
 
-  generateBundleName(isMainAsset) {
+  generateBundleName() {
     // Resolve the main file of the package.json
     let main =
       this.package && this.package.main
@@ -152,13 +151,16 @@ class Asset {
         : null;
     let ext = '.' + this.type;
 
-    // If this asset is main file of the package, use the package name
+    // If this asset is main file of the package, use the sanitized package name
     if (this.name === main) {
-      return this.package.name + ext;
+      const packageName = sanitizeFilename(this.package.name, {
+        replacement: '-'
+      });
+      return packageName + ext;
     }
 
     // If this is the entry point of the root bundle, use the original filename
-    if (isMainAsset) {
+    if (this.name === this.options.mainFile) {
       return path.basename(this.name, path.extname(this.name)) + ext;
     }
 

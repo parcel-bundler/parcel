@@ -1,5 +1,4 @@
 const types = require('babel-types');
-const {resolve} = require('path');
 const template = require('babel-template');
 
 const requireTemplate = template('require("_bundle_loader")');

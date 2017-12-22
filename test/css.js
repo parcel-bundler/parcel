@@ -1,6 +1,9 @@
 const assert = require('assert');
 const fs = require('fs');
 const {bundle, run, assertBundleTree} = require('./utils');
+const promisify = require('../src/utils/promisify');
+const ncp = promisify(require('ncp'));
+const rimraf = require('rimraf');
 
 describe('css', function() {
   it('should produce two bundles when importing a CSS file', async function() {
@@ -137,10 +140,14 @@ describe('css', function() {
 
     let output = run(b);
     assert.equal(typeof output, 'function');
-    assert.equal(output(), '_index_1ezyc_1');
+
+    let value = output();
+    assert(/_index_[0-9a-z]+_1/.test(value));
+
+    let cssClass = value.match(/(_index_[0-9a-z]+_1)/)[1];
 
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
-    assert(css.includes('._index_1ezyc_1'));
+    assert(css.includes(`.${cssClass}`));
   });
 
   it('should minify CSS in production mode', async function() {
@@ -156,5 +163,40 @@ describe('css', function() {
     assert(css.includes('.local'));
     assert(css.includes('.index'));
     assert(!css.includes('\n'));
+  });
+
+  it('should automatically install postcss plugins with npm if needed', async function() {
+    rimraf.sync(__dirname + '/input');
+    await ncp(__dirname + '/integration/autoinstall/npm', __dirname + '/input');
+    await bundle(__dirname + '/input/index.css');
+
+    // cssnext was installed
+    let package = require('./input/package.json');
+    assert(package.devDependencies['postcss-cssnext']);
+
+    // cssnext is applied
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('rgba'));
+  });
+
+  it('should automatically install postcss plugins with yarn if needed', async function() {
+    rimraf.sync(__dirname + '/input');
+    await ncp(
+      __dirname + '/integration/autoinstall/yarn',
+      __dirname + '/input'
+    );
+    await bundle(__dirname + '/input/index.css');
+
+    // cssnext was installed
+    let package = require('./input/package.json');
+    assert(package.devDependencies['postcss-cssnext']);
+
+    // appveyor is not currently writing to the yarn.lock file and will require further investigation
+    // let lockfile = fs.readFileSync(__dirname + '/input/yarn.lock', 'utf8');
+    // assert(lockfile.includes('postcss-cssnext'));
+
+    // cssnext is applied
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('rgba'));
   });
 });
