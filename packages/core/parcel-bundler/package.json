@@ -17,6 +17,7 @@
     "chalk": "^2.1.0",
     "chokidar": "^1.7.0",
     "commander": "^2.11.0",
+    "cross-spawn": "^5.1.0",
     "cssnano": "^3.10.0",
     "get-port": "^3.2.0",
     "glob": "^7.1.2",
