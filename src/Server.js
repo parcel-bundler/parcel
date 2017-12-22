@@ -78,7 +78,7 @@ async function serve(bundler, port, https) {
           : '';
       bundler.logger.persistent(
         `Server running at ${bundler.logger.chalk.cyan(
-          `http://localhost:${server.address().port}`
+          `${https ? 'https' : 'http'}://localhost:${server.address().port}`
         )} ${addon}`
       );
 
