@@ -147,4 +147,13 @@ describe('html', function() {
       }
     }
   });
+
+  it('should conserve the spacing in the HTML tags', async function() {
+    await bundle(__dirname + '/integration/html/index.html', {
+      production: true
+    });
+
+    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
+    assert(/<i>hello<\/i> <i>world<\/i>/.test(html));
+  });
 });
