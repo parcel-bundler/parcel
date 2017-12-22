@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundler, run, assertBundleTree} = require('./utils');
+const {bundler} = require('./utils');
 const http = require('http');
 
 describe('server', function() {

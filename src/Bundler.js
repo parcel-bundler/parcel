@@ -2,7 +2,6 @@ const fs = require('./utils/fs');
 const Resolver = require('./Resolver');
 const Parser = require('./Parser');
 const WorkerFarm = require('./WorkerFarm');
-const worker = require('./utils/promisify')(require('./worker.js'));
 const Path = require('path');
 const Bundle = require('./Bundle');
 const {FSWatcher} = require('chokidar');
@@ -13,7 +12,6 @@ const {EventEmitter} = require('events');
 const logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
-const customErrors = require('./utils/customErrors');
 const config = require('./utils/config');
 
 /**
@@ -62,7 +60,8 @@ class Bundler extends EventEmitter {
       minify:
         typeof options.minify === 'boolean' ? options.minify : isProduction,
       hmr: typeof options.hmr === 'boolean' ? options.hmr : watch,
-      logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3
+      logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
+      mainFile: this.mainFile
     };
   }
 
@@ -96,7 +95,8 @@ class Bundler extends EventEmitter {
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
       for (let dep in deps) {
         if (dep.startsWith('parcel-plugin-')) {
-          localRequire(dep, this.mainFile)(this);
+          let plugin = await localRequire(dep, this.mainFile);
+          plugin(this);
         }
       }
     } catch (err) {
@@ -271,19 +271,27 @@ class Bundler extends EventEmitter {
     try {
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
-      if (err.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
-        err.message = `Cannot resolve dependency '${dep.name}'`;
+      let thrown = err;
+
+      if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
+        thrown.message = `Cannot resolve dependency '${dep.name}'`;
+
+        // Add absolute path to the error message if the dependency specifies a relative path
+        if (dep.name.startsWith('.')) {
+          const absPath = Path.resolve(Path.dirname(asset.name), dep.name);
+          err.message += ` at '${absPath}'`;
+        }
 
         // Generate a code frame where the dependency was used
         if (dep.loc) {
           await asset.loadIfNeeded();
-          err.loc = dep.loc;
-          err = asset.generateErrorMessage(err);
+          thrown.loc = dep.loc;
+          thrown = asset.generateErrorMessage(thrown);
         }
 
-        err.fileName = asset.name;
+        thrown.fileName = asset.name;
       }
-      throw err;
+      throw thrown;
     }
   }
 
@@ -374,7 +382,7 @@ class Bundler extends EventEmitter {
     if (!bundle) {
       bundle = new Bundle(
         asset.type,
-        Path.join(this.options.outDir, asset.generateBundleName(true))
+        Path.join(this.options.outDir, asset.generateBundleName())
       );
       bundle.entryAsset = asset;
     }

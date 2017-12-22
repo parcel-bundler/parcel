@@ -1,6 +1,4 @@
 const http = require('http');
-const path = require('path');
-const url = require('url');
 const serveStatic = require('serve-static');
 const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
@@ -33,7 +31,7 @@ function middleware(bundler) {
     function sendIndex() {
       // If the main asset is an HTML file, serve it
       if (bundler.mainAsset.type === 'html') {
-        req.url = `/${bundler.mainAsset.generateBundleName(true)}`;
+        req.url = `/${bundler.mainAsset.generateBundleName()}`;
         serve(req, res, send404);
       } else {
         send404();
@@ -67,17 +65,18 @@ async function serve(bundler, port) {
       reject(err);
     });
 
-    server.once('listening', connection => {
-      if (server.address().port !== port) {
-        logger.warn(
-          logger.chalk.red(`configured port ${port} could not be used.`)
-        );
-      }
+    server.once('listening', () => {
       logger.persistent(
         `Server running at ${logger.chalk.cyan(
           `http://localhost:${server.address().port}`
         )}`
       );
+      
+      if (server.address().port !== port) {
+        logger.warn(
+          logger.chalk.red(`configured port ${port} could not be used.`)
+        );
+      }
 
       resolve(server);
     });
