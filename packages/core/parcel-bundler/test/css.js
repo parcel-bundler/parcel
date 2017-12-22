@@ -1,6 +1,9 @@
 const assert = require('assert');
 const fs = require('fs');
 const {bundle, run, assertBundleTree} = require('./utils');
+const promisify = require('../src/utils/promisify');
+const ncp = promisify(require('ncp'));
+const rimraf = require('rimraf');
 
 describe('css', function() {
   it('should produce two bundles when importing a CSS file', async function() {
@@ -160,5 +163,39 @@ describe('css', function() {
     assert(css.includes('.local'));
     assert(css.includes('.index'));
     assert(!css.includes('\n'));
+  });
+
+  it('should automatically install postcss plugins with npm if needed', async function() {
+    rimraf.sync(__dirname + '/input');
+    await ncp(__dirname + '/integration/autoinstall/npm', __dirname + '/input');
+    await bundle(__dirname + '/input/index.css');
+
+    // cssnext was installed
+    let package = require('./input/package.json');
+    assert(package.devDependencies['postcss-cssnext']);
+
+    // cssnext is applied
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('rgba'));
+  });
+
+  it('should automatically install postcss plugins with yarn if needed', async function() {
+    rimraf.sync(__dirname + '/input');
+    await ncp(
+      __dirname + '/integration/autoinstall/yarn',
+      __dirname + '/input'
+    );
+    await bundle(__dirname + '/input/index.css');
+
+    // cssnext was installed
+    let package = require('./input/package.json');
+    assert(package.devDependencies['postcss-cssnext']);
+
+    let lockfile = fs.readFileSync(__dirname + '/input/yarn.lock', 'utf8');
+    assert(lockfile.includes('postcss-cssnext'));
+
+    // cssnext is applied
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('rgba'));
   });
 });
