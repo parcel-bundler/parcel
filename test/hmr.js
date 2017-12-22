@@ -1,12 +1,12 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const {bundler, run, assertBundleTree, sleep} = require('./utils');
+const {bundler, run, sleep} = require('./utils');
 const rimraf = require('rimraf');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 const WebSocket = require('ws');
-const parseJson = require('parse-json');
+const json5 = require('json5');
 
 describe('hmr', function() {
   let b, ws;
@@ -14,15 +14,24 @@ describe('hmr', function() {
     rimraf.sync(__dirname + '/input');
   });
 
-  afterEach(function() {
-    if (b) {
-      b.stop();
-      b = null;
-    }
+  afterEach(function(done) {
+    let finalise = () => {
+      if (b) {
+        b.stop();
+        b = null;
+
+        done();
+      }
+    };
 
     if (ws) {
       ws.close();
-      ws = null;
+      ws.onclose = () => {
+        ws = null;
+        finalise();
+      };
+    } else {
+      finalise();
     }
   });
 
@@ -36,7 +45,7 @@ describe('hmr', function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
-    let bundle = await b.bundle();
+    await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
@@ -45,7 +54,7 @@ describe('hmr', function() {
       'exports.a = 5; exports.b = 5;'
     );
 
-    let msg = parseJson(await nextEvent(ws, 'message'));
+    let msg = json5.parse(await nextEvent(ws, 'message'));
     assert.equal(msg.type, 'update');
     assert.equal(msg.assets.length, 1);
     assert.equal(msg.assets[0].generated.js, 'exports.a = 5; exports.b = 5;');
@@ -56,7 +65,7 @@ describe('hmr', function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
-    let bundle = await b.bundle();
+    await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
@@ -65,7 +74,7 @@ describe('hmr', function() {
       'require("fs"); exports.a = 5; exports.b = 5;'
     );
 
-    let msg = parseJson(await nextEvent(ws, 'message'));
+    let msg = json5.parse(await nextEvent(ws, 'message'));
     assert.equal(msg.type, 'update');
     assert.equal(msg.assets.length, 2);
   });
@@ -74,7 +83,7 @@ describe('hmr', function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
-    let bundle = await b.bundle();
+    await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
@@ -102,7 +111,7 @@ describe('hmr', function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
-    let bundle = await b.bundle();
+    await b.bundle();
 
     fs.writeFileSync(
       __dirname + '/input/local.js',
@@ -120,7 +129,7 @@ describe('hmr', function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
-    let bundle = await b.bundle();
+    await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 

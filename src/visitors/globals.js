@@ -1,4 +1,3 @@
-const template = require('babel-template');
 const Path = require('path');
 const types = require('babel-types');
 
@@ -18,14 +17,13 @@ const VARS = {
 };
 
 module.exports = {
-  MemberExpression(node, asset, ancestors) {
+  MemberExpression(node, asset) {
     // Inline environment variables accessed on process.env
     if (matchesPattern(node.object, 'process.env')) {
       let key = types.toComputedKey(node);
       if (types.isStringLiteral(key)) {
         let val = types.valueToNode(process.env[key.value]);
-        replace(ancestors[ancestors.length - 2], node, val);
-        delete node.object; // prevent traversing into this node
+        morph(node, val);
         asset.isAstDirty = true;
       }
     }
@@ -105,12 +103,13 @@ function matchesPattern(member, match) {
   return true;
 }
 
-// Replaces the key in `parent` whose value is `from` with `to`
-function replace(parent, from, to) {
-  for (let key in parent) {
-    if (parent[key] === from) {
-      parent[key] = to;
-      break;
-    }
+// replace object properties
+function morph(object, newProperties) {
+  for (let key in object) {
+    delete object[key];
+  }
+
+  for (let key in newProperties) {
+    object[key] = newProperties[key];
   }
 }

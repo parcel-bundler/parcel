@@ -1,6 +1,6 @@
-const builtins = require('node-libs-browser');
+var builtins = require('node-libs-browser');
 
-for (let key in builtins) {
+for (var key in builtins) {
   if (builtins[key] == null) {
     builtins[key] = require.resolve('./_empty.js');
   }

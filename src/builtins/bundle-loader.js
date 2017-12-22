@@ -32,7 +32,10 @@ function loadBundle(bundle) {
   }
 
   var type = bundle.match(/\.(.+)$/)[1].toLowerCase();
-  return bundles[bundle] = bundleLoaders[type](getBundleURL() + bundle);
+  var bundleLoader = bundleLoaders[type];
+  if (bundleLoader) {
+    return bundles[bundle] = bundleLoader(getBundleURL() + bundle);
+  }
 }
 
 function loadJSBundle(bundle) {
