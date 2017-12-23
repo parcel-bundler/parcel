@@ -32,7 +32,7 @@ function urlPlugin(asset) {
   return {
     install: (less, pluginManager) => {
       let visitor = new less.visitors.Visitor({
-        visitUrl: (node) => {
+        visitUrl: node => {
           node.value.value = asset.addURLDependency(
             node.value.value,
             node.currentFileInfo.filename

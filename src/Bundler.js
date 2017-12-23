@@ -373,10 +373,9 @@ class Bundler extends EventEmitter {
           asset.parentBundle.type === commonBundle.type
         ) {
           this.moveAssetToBundle(asset, commonBundle);
+          return;
         }
-      }
-
-      return;
+      } else return;
     }
 
     // Create the root bundle if it doesn't exist
