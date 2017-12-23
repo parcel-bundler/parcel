@@ -6,9 +6,13 @@ class RawAsset extends Asset {
   load() {}
 
   generate() {
+    let publicURL = this.options.publicURL;
+    publicURL = /\/$/.test(publicURL) ? publicURL : `${publicURL}/`;
+
     const pathToAsset = JSON.stringify(
-      url.resolve(this.options.publicURL, this.generateBundleName())
+      url.resolve(publicURL, this.generateBundleName())
     );
+
     return {
       js: `module.exports=${pathToAsset};`
     };
