@@ -1,12 +1,8 @@
-const url = require('url');
 const path = require('path');
-const toml = require('toml');
 const {exec} = require('child-process-promise');
 
 const md5 = require('../utils/md5');
-const fs = require('../utils/fs');
 const JSAsset = require('./JSAsset');
-const localRequire = require('../utils/localRequire');
 
 const rustTarget = `wasm32-unknown-unknown`;
 
@@ -17,7 +13,7 @@ class RustAsset extends JSAsset {
 
   async parse() {
     const release = process.env.NODE_ENV === 'production';
-    const {dir, ext, name, base} = path.parse(this.name);
+    const {dir, base} = path.parse(this.name);
     const wasmPath = path.join(
       this.options.publicURL,
       md5(this.name) + '.wasm'
