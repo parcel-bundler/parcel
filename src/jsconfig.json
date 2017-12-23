@@ -1,0 +1,16 @@
+{
+  // See http://go.microsoft.com/fwlink/?LinkId=759670
+  // for the documentation about the jsconfigon format
+  "compilerOptions": {
+    "module": "es6",
+    "target": "es6",
+    "noLib": true
+  },
+  "exclude": [
+    "node_modules",
+    "bower_components",
+    "jspm_packages",
+    "tmp",
+    "temp"
+  ]
+}
