@@ -17,6 +17,7 @@ class Packager {
 
   async start() {}
 
+  // eslint-disable-next-line no-unused-vars
   async addAsset(asset) {
     throw new Error('Must be implemented by subclasses');
   }

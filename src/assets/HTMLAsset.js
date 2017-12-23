@@ -1,10 +1,7 @@
 const Asset = require('../Asset');
-const posthtml = require('posthtml');
 const parse = require('posthtml-parser');
 const api = require('posthtml/lib/api');
-const path = require('path');
-const url = require('url');
-const md5 = require('../utils/md5');
+const urlJoin = require('../utils/urlJoin');
 const render = require('posthtml-render');
 const posthtmlTransform = require('../transforms/posthtml');
 const isURL = require('../utils/is-url');
@@ -50,12 +47,7 @@ class HTMLAsset extends Asset {
               from: 'html'
             });
             if (!isURL(assetPath)) {
-              // Use url.resolve to normalize path for windows
-              // from \path\to\res.js to /path/to/res.js
-              assetPath = url.resolve(
-                path.join(this.options.publicURL, assetPath),
-                ''
-              );
+              assetPath = urlJoin(this.options.publicURL, assetPath);
             }
             node.attrs[attr] = assetPath;
             this.isAstDirty = true;
