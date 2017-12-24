@@ -1,5 +1,4 @@
 const babel = require('babel-core');
-const config = require('../utils/config');
 
 module.exports = async function(asset) {
   if (!await shouldTransform(asset)) {

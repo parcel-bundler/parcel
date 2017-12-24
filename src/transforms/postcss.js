@@ -52,15 +52,14 @@ async function getConfig(asset) {
     delete asset.config.postcss.plugins['postcss-modules'];
   }
 
-  asset.config.postcss.plugins = loadPlugins(
+  asset.config.postcss.plugins = await loadPlugins(
     asset.config.postcss.plugins,
     asset.name
   );
 
   if (asset.config.postcss.modules) {
-    asset.config.postcss.plugins.push(
-      localRequire('postcss-modules', asset.name)(postcssModulesConfig)
-    );
+    let postcssModules = await localRequire('postcss-modules', asset.name);
+    asset.config.postcss.plugins.push(postcssModules(postcssModulesConfig));
   }
 
   if (asset.options.minify) {

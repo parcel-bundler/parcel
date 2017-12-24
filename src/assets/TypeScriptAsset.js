@@ -3,14 +3,9 @@ const config = require('../utils/config');
 const localRequire = require('../utils/localRequire');
 
 class TypeScriptAsset extends JSAsset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
-    // require typescript, installed locally in the app
-    this.typescript = localRequire('typescript', this.name);
-  }
-
   async getConfig() {
     await super.getConfig();
+    let typescript = await localRequire('typescript', this.name);
 
     if (this.config.typescript) {
       return this.config;
@@ -18,8 +13,8 @@ class TypeScriptAsset extends JSAsset {
 
     this.config.typescript = {
       compilerOptions: {
-        module: this.typescript.ModuleKind.CommonJS,
-        jsx: this.typescript.JsxEmit.Preserve
+        module: typescript.ModuleKind.CommonJS,
+        jsx: typescript.JsxEmit.Preserve
       },
       fileName: this.basename
     };
@@ -39,8 +34,10 @@ class TypeScriptAsset extends JSAsset {
   }
 
   async parse(code) {
+    let typescript = await localRequire('typescript', this.name);
+
     // Transpile Module using TypeScript and parse result as ast format through babylon
-    this.contents = this.typescript.transpileModule(
+    this.contents = typescript.transpileModule(
       code,
       this.config.typescript
     ).outputText;
