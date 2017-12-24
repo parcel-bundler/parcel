@@ -1,20 +1,23 @@
 const forge = require('node-forge');
 const fs = require('fs');
+const mkdirp = require('mkdirp');
+const path = require('path');
 
-const PRIVATE_KEY_PATH = './.cache/private.pem';
-const PRIMARY_KEY_PATH = './.cache/primary.crt';
+function generateCertificate(options = {}) {
+  const privateKeyPath = path.join(options.cacheDir, 'private.pem');
+  const certPath = path.join(options.cacheDir, 'primary.crt');
+  if (options.cache) {
+    const cachedKey =
+      fs.existsSync(privateKeyPath) && fs.readFileSync(privateKeyPath);
+    const cachedCert = fs.existsSync(certPath) && fs.readFileSync(certPath);
 
-function generateCertificate() {
-  const cachedKey =
-    fs.existsSync(PRIVATE_KEY_PATH) && fs.readFileSync(PRIVATE_KEY_PATH);
-  const cachedCert =
-    fs.existsSync(PRIMARY_KEY_PATH) && fs.readFileSync(PRIMARY_KEY_PATH);
-
-  if (cachedKey && cachedCert)
-    return {
-      key: cachedKey,
-      cert: cachedCert
-    };
+    if (cachedKey && cachedCert) {
+      return {
+        key: cachedKey,
+        cert: cachedCert
+      };
+    }
+  }
 
   console.log('Generating SSL Certificate...');
 
@@ -111,8 +114,11 @@ function generateCertificate() {
   const privPem = pki.privateKeyToPem(keys.privateKey);
   const certPem = pki.certificateToPem(cert);
 
-  fs.writeFileSync(PRIVATE_KEY_PATH, privPem);
-  fs.writeFileSync(PRIMARY_KEY_PATH, certPem);
+  if (options.cache) {
+    mkdirp.sync(options.cacheDir);
+    fs.writeFileSync(privateKeyPath, privPem);
+    fs.writeFileSync(certPath, certPem);
+  }
 
   return {
     key: privPem,

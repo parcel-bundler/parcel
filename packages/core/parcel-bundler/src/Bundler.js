@@ -56,6 +56,7 @@ class Bundler extends EventEmitter {
       publicURL: publicURL,
       watch: watch,
       cache: typeof options.cache === 'boolean' ? options.cache : true,
+      cacheDir: Path.resolve(options.cacheDir || '.cache'),
       killWorkers:
         typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
       minify:
