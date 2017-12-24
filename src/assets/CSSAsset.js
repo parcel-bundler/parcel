@@ -1,12 +1,10 @@
 const Asset = require('../Asset');
 const postcss = require('postcss');
 const valueParser = require('postcss-value-parser');
-const path = require('path');
-const md5 = require('../utils/md5');
 const postcssTransform = require('../transforms/postcss');
 const CssSyntaxError = require('postcss/lib/css-syntax-error');
 
-const URL_RE = /url\s*\(\"?(?![a-z]+:)/;
+const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
 const PROTOCOL_RE = /^[a-z]+:/;
 
