@@ -13,6 +13,7 @@ program
     'set the port to serve on. defaults to 1234',
     parseInt
   )
+  .option('--https', 'serves files over HTTPS')
   .option('-o, --open', 'automatically open in default browser')
   .option(
     '-d, --out-dir <path>',
@@ -96,9 +97,13 @@ async function bundle(main, command) {
   const bundler = new Bundler(main, command);
 
   if (command.name() === 'serve') {
-    const server = await bundler.serve(command.port || 1234);
+    const server = await bundler.serve(command.port || 1234, command.https);
     if (command.open) {
-      require('opn')(`http://localhost:${server.address().port}`);
+      require('opn')(
+        `${command.https ? 'https' : 'http'}://localhost:${
+          server.address().port
+        }`
+      );
     }
   } else {
     bundler.bundle();
