@@ -59,7 +59,7 @@ function middleware(bundler) {
 async function serve(bundler, port, useHTTPS = false) {
   let handler = middleware(bundler);
   let server = useHTTPS
-    ? https.createServer(generateCertificate(), handler)
+    ? https.createServer(generateCertificate(bundler.options), handler)
     : http.createServer(handler);
 
   let freePort = await getPort({port});
