@@ -13,7 +13,7 @@ const Logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
-const logSymbols = require('log-symbols');
+const emoji = require('./utils/emoji');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -123,7 +123,7 @@ class Bundler extends EventEmitter {
     this.errored = false;
 
     this.logger.clear();
-    this.logger.status(logSymbols.info, 'Building...');
+    this.logger.status(emoji.progress, 'Building...');
 
     try {
       // Start worker farm, watcher, etc. if needed
@@ -145,7 +145,7 @@ class Bundler extends EventEmitter {
         buildTime < 1000
           ? `${buildTime}ms`
           : `${(buildTime / 1000).toFixed(2)}s`;
-      this.logger.status(logSymbols.success, `Built in ${time}.`, 'green');
+      this.logger.status(emoji.success, `Built in ${time}.`, 'green');
 
       return bundle;
     } catch (err) {
@@ -305,7 +305,7 @@ class Bundler extends EventEmitter {
     }
 
     if (!this.errored) {
-      this.logger.status(logSymbols.info, `Building ${asset.basename}...`);
+      this.logger.status(emoji.progress, `Building ${asset.basename}...`);
     }
 
     // Mark the asset processed so we don't load it twice
@@ -462,7 +462,7 @@ class Bundler extends EventEmitter {
     }
 
     this.logger.clear();
-    this.logger.status(logSymbols.info, `Building ${asset.basename}...`);
+    this.logger.status(emoji.progress, `Building ${asset.basename}...`);
 
     // Add the asset to the rebuild queue, and reset the timeout.
     this.buildQueue.add(asset);
