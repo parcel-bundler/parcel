@@ -1,7 +1,9 @@
 const http = require('http');
+const https = require('https');
 const serveStatic = require('serve-static');
 const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
+const generateCertificate = require('./utils/generateCertificate');
 
 function middleware(bundler) {
   const serve = serveStatic(bundler.options.outDir, {index: false});
@@ -54,9 +56,14 @@ function middleware(bundler) {
   };
 }
 
-async function serve(bundler, port) {
+async function serve(bundler, port, useHTTPS = false) {
+  let handler = middleware(bundler);
+  let server = useHTTPS
+    ? https.createServer(generateCertificate(bundler.options), handler)
+    : http.createServer(handler);
+
   let freePort = await getPort({port});
-  let server = http.createServer(middleware(bundler)).listen(freePort);
+  server.listen(freePort);
 
   return new Promise((resolve, reject) => {
     server.on('error', err => {
@@ -71,9 +78,10 @@ async function serve(bundler, port) {
               `configured port ${port} could not be used.`
             )}`
           : '';
+
       bundler.logger.persistent(
         `Server running at ${bundler.logger.chalk.cyan(
-          `http://localhost:${server.address().port}`
+          `${https ? 'https' : 'http'}://localhost:${server.address().port}`
         )} ${addon}`
       );
 

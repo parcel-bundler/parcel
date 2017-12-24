@@ -35,13 +35,16 @@ async function getConfig(asset) {
   }
 
   asset.config.posthtml = asset.config.posthtml || {};
-  asset.config.posthtml.plugins = loadPlugins(
+  asset.config.posthtml.plugins = await loadPlugins(
     asset.config.posthtml.plugins,
     asset.name
   );
 
   if (asset.options.minify) {
-    asset.config.posthtml.plugins.push(htmlnano());
+    const htmlNanoOptions = {
+      collapseWhitespace: 'conservative'
+    };
+    asset.config.posthtml.plugins.push(htmlnano(htmlNanoOptions));
   }
 
   asset.config.posthtml.skipParse = true;

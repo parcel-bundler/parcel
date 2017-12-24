@@ -59,6 +59,7 @@ class Bundler extends EventEmitter {
       publicURL: publicURL,
       watch: watch,
       cache: typeof options.cache === 'boolean' ? options.cache : true,
+      cacheDir: Path.resolve(options.cacheDir || '.cache'),
       killWorkers:
         typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
       minify:
@@ -103,7 +104,8 @@ class Bundler extends EventEmitter {
             name: dep,
             version: deps[dep]
           });
-          localRequire(dep, this.mainFile)(this);
+          let plugin = await localRequire(dep, this.mainFile);
+          plugin(this);
         }
       }
     } catch (err) {
@@ -504,8 +506,8 @@ class Bundler extends EventEmitter {
     return Server.middleware(this);
   }
 
-  async serve(port = 1234) {
-    let server = await Server.serve(this, port);
+  async serve(port = 1234, https = false) {
+    let server = await Server.serve(this, port, https);
     this.bundle();
     return server;
   }
