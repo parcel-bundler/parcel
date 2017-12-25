@@ -6,7 +6,7 @@ const promisify = require('../utils/promisify');
 class LESSAsset extends CSSAsset {
   async parse(code) {
     // less should be installed locally in the module that's being required
-    let less = localRequire('less', this.name);
+    let less = await localRequire('less', this.name);
     let render = promisify(less.render.bind(less));
 
     let opts =
@@ -32,7 +32,7 @@ function urlPlugin(asset) {
   return {
     install: (less, pluginManager) => {
       let visitor = new less.visitors.Visitor({
-        visitUrl: (node, args) => {
+        visitUrl: node => {
           node.value.value = asset.addURLDependency(
             node.value.value,
             node.currentFileInfo.filename
