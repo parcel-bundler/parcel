@@ -272,12 +272,12 @@ class Bundler extends EventEmitter {
 
   async resolveDep(asset, dep) {
     try {
-      return await this.resolveAsset(dep.name, asset.name);
+      return await this.resolveAsset(decodeURIComponent(dep.name), asset.name);
     } catch (err) {
       let thrown = err;
 
-      if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
-        thrown.message = `Cannot resolve dependency '${dep.name}'`;
+      if (thrown.message.indexOf(`Cannot find module '${decodeURIComponent(dep.name)}'`) === 0) {
+        thrown.message = `Cannot resolve dependency '${decodeURICOmponent(dep.name)}'`;
 
         // Add absolute path to the error message if the dependency specifies a relative path
         if (dep.name.startsWith('.')) {
