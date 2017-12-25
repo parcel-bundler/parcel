@@ -5,6 +5,7 @@ const urlJoin = require('../utils/urlJoin');
 const render = require('posthtml-render');
 const posthtmlTransform = require('../transforms/posthtml');
 const isURL = require('../utils/is-url');
+const isFile = require('../utils/is-file');
 
 // A list of all attributes that should produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
@@ -20,7 +21,8 @@ const ATTRS = {
     'embed'
   ],
   href: ['link', 'a'],
-  poster: ['video']
+  poster: ['video'],
+  content: ['meta']
 };
 
 class HTMLAsset extends Asset {
@@ -43,6 +45,9 @@ class HTMLAsset extends Asset {
         for (let attr in node.attrs) {
           let elements = ATTRS[attr];
           if (elements && elements.includes(node.tag)) {
+            if (node.tag === 'meta' && !isFile(node.attrs[attr])) {
+              break;
+            }
             let assetPath = this.addURLDependency(node.attrs[attr]);
             if (!isURL(assetPath)) {
               assetPath = urlJoin(this.options.publicURL, assetPath);
