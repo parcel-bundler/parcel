@@ -1,5 +1,7 @@
 const types = require('babel-types');
 const template = require('babel-template');
+const urlJoin = require('../utils/urlJoin');
+const isURL = require('../utils/is-url');
 
 const requireTemplate = template('require("_bundle_loader")');
 const argTemplate = template('require.resolve(MODULE)');
@@ -37,6 +39,7 @@ module.exports = {
 
     if (isRequire) {
       addDependency(asset, args[0]);
+      return;
     }
 
     let isDynamicImport =
@@ -51,6 +54,25 @@ module.exports = {
       node.callee = requireTemplate().expression;
       node.arguments[0] = argTemplate({MODULE: args[0]}).expression;
       asset.isAstDirty = true;
+      return;
+    }
+
+    const isRegisterServiceWorker =
+      callee.property !== undefined &&
+      callee.property.name === 'register' &&
+      callee.object !== undefined &&
+      callee.object.property !== undefined &&
+      callee.object.property.name === 'serviceWorker' &&
+      types.isStringLiteral(args[0]);
+
+    if (isRegisterServiceWorker) {
+      let assetPath = asset.addURLDependency(args[0].value);
+      if (!isURL(assetPath)) {
+        assetPath = urlJoin(asset.options.publicURL, assetPath);
+      }
+      args[0].value = assetPath;
+      asset.isAstDirty = true;
+      return;
     }
   }
 };
