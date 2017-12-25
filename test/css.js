@@ -171,8 +171,8 @@ describe('css', function() {
     await bundle(__dirname + '/input/index.css');
 
     // cssnext was installed
-    let package = require('./input/package.json');
-    assert(package.devDependencies['postcss-cssnext']);
+    let packageJSON = require('./input/package.json');
+    assert(packageJSON.devDependencies['postcss-cssnext']);
 
     // cssnext is applied
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
@@ -188,8 +188,8 @@ describe('css', function() {
     await bundle(__dirname + '/input/index.css');
 
     // cssnext was installed
-    let package = require('./input/package.json');
-    assert(package.devDependencies['postcss-cssnext']);
+    let packageJSON = require('./input/package.json');
+    assert(packageJSON.devDependencies['postcss-cssnext']);
 
     // appveyor is not currently writing to the yarn.lock file and will require further investigation
     // let lockfile = fs.readFileSync(__dirname + '/input/yarn.lock', 'utf8');
