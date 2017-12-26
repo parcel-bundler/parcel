@@ -52,4 +52,16 @@ describe('fs', function() {
     let output = run(b);
     assert.equal(output, 'hello');
   });
+
+  it('should inline a file with import fs from "fs"', async function() {
+    let b = await bundle(__dirname + '/integration/fs-import/index.js');
+    let output = run(b);
+    assert.equal(output, 'hello');
+  });
+
+  it('should inline a file with import fs transpiled by babel', async function() {
+    let b = await bundle(__dirname + '/integration/fs-babel/index.js');
+    let output = run(b);
+    assert.equal(output, 'hello');
+  });
 });
