@@ -254,13 +254,17 @@ class Bundler extends EventEmitter {
     return bundle;
   }
 
-  async resolveAsset(name, parent) {
+  async resolveAsset(name, parent, options = {}) {
     let {path, pkg} = await this.resolver.resolve(name, parent);
     if (this.loadedAssets.has(path)) {
       return this.loadedAssets.get(path);
     }
 
-    let asset = this.parser.getAsset(path, pkg, this.options);
+    let asset = this.parser.getAsset(
+      path,
+      pkg,
+      Object.assign({}, this.options, options)
+    );
     this.loadedAssets.set(path, asset);
 
     if (this.watcher) {
@@ -272,7 +276,7 @@ class Bundler extends EventEmitter {
 
   async resolveDep(asset, dep) {
     try {
-      return await this.resolveAsset(dep.name, asset.name);
+      return await this.resolveAsset(dep.name, asset.name, dep);
     } catch (err) {
       let thrown = err;
 
