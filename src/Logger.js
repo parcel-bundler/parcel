@@ -2,6 +2,7 @@ const chalk = require('chalk');
 const readline = require('readline');
 const prettyError = require('./utils/prettyError');
 const getCursorPosition = require('get-cursor-position');
+const emoji = require('./utils/emoji');
 
 class Logger {
   constructor(options) {
@@ -9,7 +10,7 @@ class Logger {
       {
         type: 'status',
         persistent: true,
-        content: '📦  Parcel bundler 🚀'
+        content: 'Parcel bundler'
       }
     ];
     this.startLine = 0;
@@ -103,10 +104,10 @@ class Logger {
     }
 
     let {message, stack} = prettyError(err, {color: this.color});
-
-    this.status('🚨', 'An error occured!', 'red');
+    
+    this.status(emoji.error, message, 'red');
     if (stack) {
-      this.write(`🚨 ${this.chalk['red'].bold(message)}`, persistent, 'error');
+      this.write(`${emoji.error} ${this.chalk['red'].bold(message)}`, persistent, 'error');
       this.write(stack, persistent, 'error');
     }
   }
