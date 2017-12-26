@@ -1,6 +1,7 @@
 const chalk = require('chalk');
 const readline = require('readline');
 const prettyError = require('./utils/prettyError');
+const getCursorPosition = require('get-cursor-position');
 
 class Logger {
   constructor(options) {
@@ -11,6 +12,10 @@ class Logger {
         content: '📦  Parcel bundler 🚀'
       }
     ];
+    this.startLine = 0;
+    if (process.stdout.isTTY) {
+      this.startLine = getCursorPosition.sync().row;
+    }
     this.updateOptions(options);
   }
 
@@ -22,6 +27,10 @@ class Logger {
         ? options.color
         : chalk.supportsColor;
     this.chalk = new chalk.constructor({enabled: this.color});
+  }
+
+  getLastLine() {
+    process.stderr.write('\u001b[?25h');
   }
 
   write(message, persistent = false, type = 'log') {
@@ -40,16 +49,16 @@ class Logger {
 
   writeLine(line) {
     if (!this.messages[line]) return;
-    let msg = '📦 PARCEL: ' + this.messages[line].content;
+    let msg = this.messages[line].content;
     if (!this.color || !process.stdout.isTTY) {
       return this.log(msg);
     }
 
     let stdout = process.stdout;
-    readline.cursorTo(stdout, 0, line);
+    readline.cursorTo(stdout, 0, line + this.startLine);
     readline.clearLine(stdout, 0);
     stdout.write(msg);
-    readline.cursorTo(stdout, 0, this.messages.length);
+    readline.cursorTo(stdout, 0, this.messages.length + this.startLine);
   }
 
   writeAll() {
@@ -63,8 +72,9 @@ class Logger {
       return;
     }
 
-    console.clear();
-    readline.cursorTo(process.stdout, 0, 0);
+    readline.cursorTo(process.stdout, 0, this.startLine);
+    readline.clearScreenDown(process.stdout);
+    readline.cursorTo(process.stdout, 0, this.startLine);
     this.messages = this.messages.filter(
       message => message.type === 'status' || message.persistent === true
     );
@@ -116,12 +126,4 @@ class Logger {
   }
 }
 
-let logger;
-function getInstance() {
-  if (!logger) {
-    logger = new Logger();
-  }
-  return logger;
-}
-
-module.exports = getInstance();
+module.exports = Logger;

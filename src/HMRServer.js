@@ -1,6 +1,5 @@
 const WebSocket = require('ws');
 const prettyError = require('./utils/prettyError');
-const logger = require('./Logger');
 
 class HMRServer {
   async start() {
@@ -78,7 +77,7 @@ class HMRServer {
       // This gets triggered on page refresh, ignore this
       return;
     }
-    logger.error(err);
+    console.error(err);
   }
 
   broadcast(msg) {

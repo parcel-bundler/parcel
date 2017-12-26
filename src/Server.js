@@ -3,7 +3,6 @@ const https = require('https');
 const serveStatic = require('serve-static');
 const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
-const logger = require('./Logger');
 const generateCertificate = require('./utils/generateCertificate');
 
 function middleware(bundler) {
@@ -68,20 +67,20 @@ async function serve(bundler, port, useHTTPS = false) {
 
   return new Promise((resolve, reject) => {
     server.on('error', err => {
-      logger.error(new Error(serverErrors(err, server.address().port)));
+      bundler.logger.error(new Error(serverErrors(err, server.address().port)));
       reject(err);
     });
 
     server.once('listening', () => {
-      logger.persistent(
-        `Server running at ${logger.chalk.cyan(
+      bundler.logger.persistent(
+        `Server running at ${bundler.logger.chalk.cyan(
           `${https ? 'https' : 'http'}://localhost:${server.address().port}`
         )}`
       );
 
       if (server.address().port !== port) {
-        logger.warn(
-          logger.chalk.red(`configured port ${port} could not be used.`)
+        bundler.logger.warn(
+          bundler.logger.chalk.red(`configured port ${port} could not be used.`)
         );
       }
 

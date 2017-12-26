@@ -9,7 +9,7 @@ const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
 const {EventEmitter} = require('events');
-const logger = require('./Logger');
+const Logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
@@ -29,7 +29,6 @@ class Bundler extends EventEmitter {
     this.packagers = new PackagerRegistry();
     this.cache = this.options.cache ? new FSCache(this.options) : null;
     this.delegate = options.delegate || {};
-    logger.updateOptions(options);
     this.pending = false;
     this.loadedAssets = new Map();
     this.farm = null;
@@ -39,6 +38,7 @@ class Bundler extends EventEmitter {
     this.errored = false;
     this.buildQueue = new Set();
     this.rebuildTimeout = null;
+    this.logger = new Logger(options);
   }
 
   normalizeOptions(options) {
@@ -101,7 +101,7 @@ class Bundler extends EventEmitter {
         }
       }
     } catch (err) {
-      logger.warn(err);
+      this.logger.warn(err);
     }
   }
 
@@ -120,8 +120,8 @@ class Bundler extends EventEmitter {
     this.pending = true;
     this.errored = false;
 
-    logger.clear();
-    logger.status('⏳', 'Building...');
+    this.logger.clear();
+    this.logger.status('⏳', 'Building...');
 
     try {
       // Start worker farm, watcher, etc. if needed
@@ -143,12 +143,12 @@ class Bundler extends EventEmitter {
         buildTime < 1000
           ? `${buildTime}ms`
           : `${(buildTime / 1000).toFixed(2)}s`;
-      logger.status('✨', `Built in ${time}.`, 'green');
+      this.logger.status('✨', `Built in ${time}.`, 'green');
 
       return bundle;
     } catch (err) {
       this.errored = true;
-      logger.error(err);
+      this.logger.error(err);
       if (this.hmr) {
         this.hmr.emitError(err);
       }
@@ -303,7 +303,7 @@ class Bundler extends EventEmitter {
     }
 
     if (!this.errored) {
-      logger.status('⏳', `Building ${asset.basename}...`);
+      this.logger.status('⏳', `Building ${asset.basename}...`);
     }
 
     // Mark the asset processed so we don't load it twice
@@ -459,8 +459,8 @@ class Bundler extends EventEmitter {
       return;
     }
 
-    logger.clear();
-    logger.status('⏳', `Building ${asset.basename}...`);
+    this.logger.clear();
+    this.logger.status('⏳', `Building ${asset.basename}...`);
 
     // Add the asset to the rebuild queue, and reset the timeout.
     this.buildQueue.add(asset);
