@@ -2,9 +2,11 @@ const types = require('babel-types');
 const template = require('babel-template');
 const urlJoin = require('../utils/urlJoin');
 const isURL = require('../utils/is-url');
+const matchesPattern = require('./matches-pattern');
 
 const requireTemplate = template('require("_bundle_loader")');
 const argTemplate = template('require.resolve(MODULE)');
+const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
 module.exports = {
   ImportDeclaration(node, asset) {
@@ -58,12 +60,8 @@ module.exports = {
     }
 
     const isRegisterServiceWorker =
-      callee.property !== undefined &&
-      callee.property.name === 'register' &&
-      callee.object !== undefined &&
-      callee.object.property !== undefined &&
-      callee.object.property.name === 'serviceWorker' &&
-      types.isStringLiteral(args[0]);
+      types.isStringLiteral(args[0]) &&
+      matchesPattern(callee, serviceWorkerPattern);
 
     if (isRegisterServiceWorker) {
       let assetPath = asset.addURLDependency(args[0].value);
