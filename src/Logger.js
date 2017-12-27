@@ -1,6 +1,7 @@
 const chalk = require('chalk');
 const readline = require('readline');
 const prettyError = require('./utils/prettyError');
+const emoji = require('./utils/emoji');
 
 class Logger {
   constructor(options) {
@@ -51,7 +52,7 @@ class Logger {
 
     let {message, stack} = prettyError(err, {color: this.color});
 
-    this.status('🚨', message, 'red');
+    this.status(emoji.error, message, 'red');
     if (stack) {
       this.write(stack);
     }
