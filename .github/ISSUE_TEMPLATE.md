@@ -44,6 +44,10 @@ Search open/closed issues before submitting since someone might have asked the s
 
 <!--- Providing context helps us come up with a solution that is most useful in the real world -->
 
+### 💻 Code Sample
+
+<!-- If you are seeing an error, please provide a code repository, gist or sample files to reproduce the issue -->
+
 ### 🌍 Your Environment
 
 <!--- Include as many relevant details about the environment you experienced the bug in -->
