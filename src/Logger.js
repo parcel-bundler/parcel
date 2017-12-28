@@ -13,6 +13,7 @@ class Logger {
       }
     ];
     this.updateOptions(options);
+    this.lines = 0;
   }
 
   updateOptions(options) {
@@ -28,13 +29,12 @@ class Logger {
   write(message, persistent = false, type = 'log') {
     message.split('\n').forEach(content => {
       if (content !== '') {
-        let pos =
-          this.messages.push({
-            type: type,
-            persistent: persistent,
-            content: content
-          }) - 1;
-        this.writeLine(pos);
+        this.messages.push({
+          type: type,
+          persistent: persistent,
+          content: content
+        });
+        this.clear(false);
       }
     });
   }
@@ -47,10 +47,11 @@ class Logger {
     }
 
     let stdout = process.stdout;
-    readline.cursorTo(stdout, 0, line);
-    readline.clearLine(stdout, 0);
+    readline.cursorTo(stdout, 0);
     stdout.write(msg);
-    readline.cursorTo(stdout, 0, this.messages.length);
+    readline.cursorTo(stdout, 0);
+    readline.moveCursor(stdout, 0, 1);
+    this.lines++;
   }
 
   writeAll() {
@@ -59,17 +60,20 @@ class Logger {
     });
   }
 
-  clear() {
+  clear(filter = true) {
     if (!this.color || this.logLevel === 0) {
       return;
     }
 
-    readline.cursorTo(process.stdout, 0, 0);
+    readline.cursorTo(process.stdout, 0);
+    readline.moveCursor(process.stdout, 0, -this.lines);
     readline.clearScreenDown(process.stdout);
-    readline.cursorTo(process.stdout, 0, 0);
-    this.messages = this.messages.filter(
-      message => message.type === 'status' || message.persistent === true
-    );
+    this.lines = 0;
+    if (filter) {
+      this.messages = this.messages.filter(
+        message => message.type === 'status' || message.persistent === true
+      );
+    }
     this.writeAll();
   }
 
@@ -114,7 +118,7 @@ class Logger {
 
     this.messages[0].content = this.chalk[color].bold(`${emoji}  ${message}`);
 
-    this.writeLine(0);
+    this.clear(false);
   }
 
   persistent(message) {

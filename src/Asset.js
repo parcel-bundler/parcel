@@ -35,7 +35,9 @@ class Asset {
     this.parentBundle = null;
     this.bundles = new Set();
 
-    this.write('Hello world');
+    this.write(
+      'Hello world\nHello world\nHello world\nHello world\nHello world\nHello world'
+    );
   }
 
   async loadIfNeeded() {
