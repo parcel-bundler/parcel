@@ -34,10 +34,6 @@ class Asset {
     this.depAssets = new Map();
     this.parentBundle = null;
     this.bundles = new Set();
-
-    this.write(
-      'Hello world\nHello world\nHello world\nHello world\nHello world\nHello world'
-    );
   }
 
   async loadIfNeeded() {
