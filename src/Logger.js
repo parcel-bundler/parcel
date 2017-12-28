@@ -1,7 +1,6 @@
 const chalk = require('chalk');
 const readline = require('readline');
 const prettyError = require('./utils/prettyError');
-const getCursorPosition = require('get-cursor-position');
 const emoji = require('./utils/emoji');
 
 class Logger {
@@ -13,10 +12,6 @@ class Logger {
         content: 'Parcel bundler'
       }
     ];
-    this.startLine = 0;
-    if (process.stdout.isTTY) {
-      this.startLine = getCursorPosition.sync().row;
-    }
     this.updateOptions(options);
   }
 
@@ -28,10 +23,6 @@ class Logger {
         ? options.color
         : chalk.supportsColor;
     this.chalk = new chalk.constructor({enabled: this.color});
-  }
-
-  getLastLine() {
-    process.stderr.write('\u001b[?25h');
   }
 
   write(message, persistent = false, type = 'log') {
@@ -52,14 +43,14 @@ class Logger {
     if (!this.messages[line]) return;
     let msg = this.messages[line].content;
     if (!this.color || !process.stdout.isTTY) {
-      return this.log(msg);
+      return console.log(msg);
     }
 
     let stdout = process.stdout;
-    readline.cursorTo(stdout, 0, line + this.startLine);
+    readline.cursorTo(stdout, 0, line);
     readline.clearLine(stdout, 0);
     stdout.write(msg);
-    readline.cursorTo(stdout, 0, this.messages.length + this.startLine);
+    readline.cursorTo(stdout, 0, this.messages.length);
   }
 
   writeAll() {
@@ -73,9 +64,9 @@ class Logger {
       return;
     }
 
-    readline.cursorTo(process.stdout, 0, this.startLine);
+    readline.cursorTo(process.stdout, 0, 0);
     readline.clearScreenDown(process.stdout);
-    readline.cursorTo(process.stdout, 0, this.startLine);
+    readline.cursorTo(process.stdout, 0, 0);
     this.messages = this.messages.filter(
       message => message.type === 'status' || message.persistent === true
     );
@@ -104,10 +95,14 @@ class Logger {
     }
 
     let {message, stack} = prettyError(err, {color: this.color});
-    
+
     this.status(emoji.error, message, 'red');
     if (stack) {
-      this.write(`${emoji.error} ${this.chalk['red'].bold(message)}`, persistent, 'error');
+      this.write(
+        `${emoji.error} ${this.chalk['red'].bold(message)}`,
+        persistent,
+        'error'
+      );
       this.write(stack, persistent, 'error');
     }
   }
@@ -125,6 +120,37 @@ class Logger {
   persistent(message) {
     this.log(this.chalk.bold(message), true);
   }
+
+  handleMessage(options) {
+    let message = options.message;
+    let persistent = options.persistent;
+    let emoji = options.emoji;
+    switch (options.messageType) {
+      case 'log':
+        this.log(message, persistent);
+        break;
+      case 'warning':
+        this.warn(message, persistent);
+        break;
+      case 'error':
+        this.error(message, persistent);
+        break;
+      case 'status':
+        this.status(emoji, message, persistent);
+        break;
+      case 'persistent':
+        this.persistent(message);
+        break;
+    }
+  }
 }
 
-module.exports = Logger;
+let loggerInstance;
+function getLogger() {
+  if (!loggerInstance) {
+    loggerInstance = new Logger();
+  }
+  return loggerInstance;
+}
+
+module.exports = getLogger();

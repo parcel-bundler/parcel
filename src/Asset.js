@@ -4,6 +4,7 @@ const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const sanitizeFilename = require('sanitize-filename');
+const logger = require('./Logger');
 
 let ASSET_ID = 1;
 
@@ -33,6 +34,8 @@ class Asset {
     this.depAssets = new Map();
     this.parentBundle = null;
     this.bundles = new Set();
+
+    this.write('Hello world');
   }
 
   async loadIfNeeded() {
@@ -166,6 +169,19 @@ class Asset {
 
     // Otherwise generate a unique name
     return md5(this.name) + ext;
+  }
+
+  write(message, messageType = 'log') {
+    let messageOptions = {
+      type: 'logger',
+      messageType,
+      message
+    };
+    if (process.send) {
+      process.send(messageOptions);
+    } else {
+      logger.handleMessage(messageOptions);
+    }
   }
 
   generateErrorMessage(err) {
