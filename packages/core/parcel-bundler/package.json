@@ -49,6 +49,8 @@
     "coffeescript": "^2.0.3",
     "cross-env": "^5.1.1",
     "eslint": "^4.13.0",
+    "graphql": "^0.11.7",
+    "graphql-tag": "^2.6.0",
     "husky": "^0.14.3",
     "less": "^2.7.2",
     "lint-staged": "^6.0.0",
