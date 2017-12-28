@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 const prettyError = require('./utils/prettyError');
-const logger = require('./Logger');
+const logger = require('./Logger').instance;
 
 class HMRServer {
   async start() {

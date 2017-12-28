@@ -128,27 +128,7 @@ class Logger {
   }
 
   handleMessage(options) {
-    let message = options.message;
-    let persistent = options.persistent;
-    let emoji = options.emoji;
-
-    switch (options.messageType) {
-      case 'log':
-        this.log(message, persistent);
-        break;
-      case 'warning':
-        this.warn(message, persistent);
-        break;
-      case 'error':
-        this.error(message, persistent);
-        break;
-      case 'status':
-        this.status(emoji, message, persistent);
-        break;
-      case 'persistent':
-        this.persistent(message);
-        break;
-    }
+    this[options.method](...options.args);
   }
 }
 
@@ -160,4 +140,5 @@ function getLogger() {
   return loggerInstance;
 }
 
-module.exports = getLogger();
+module.exports = Logger;
+module.exports.instance = getLogger();
