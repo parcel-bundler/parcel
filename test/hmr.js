@@ -158,6 +158,9 @@ describe('hmr', function() {
     let outputs = [];
 
     run(bundle, {
+      window: {
+        location: {hostname: 'localhost'}
+      },
       output(o) {
         outputs.push(o);
       }
@@ -182,6 +185,9 @@ describe('hmr', function() {
     let outputs = [];
 
     run(bundle, {
+      window: {
+        location: {hostname: 'localhost'}
+      },
       output(o) {
         outputs.push(o);
       }
@@ -206,6 +212,9 @@ describe('hmr', function() {
     let outputs = [];
 
     run(bundle, {
+      window: {
+        location: {hostname: 'localhost'}
+      },
       output(o) {
         outputs.push(o);
       }
@@ -232,6 +241,9 @@ describe('hmr', function() {
 
     let logs = [];
     run(bundle, {
+      window: {
+        location: {hostname: 'localhost'}
+      },
       console: {
         error(msg) {
           logs.push(msg);
@@ -258,6 +270,9 @@ describe('hmr', function() {
 
     let logs = [];
     run(bundle, {
+      window: {
+        location: {hostname: 'localhost'}
+      },
       console: {
         error(msg) {
           logs.push(msg);
