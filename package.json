@@ -63,8 +63,9 @@
     "test": "cross-env NODE_ENV=test mocha",
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
     "build": "babel src -d lib",
-    "prepublish": "yarn build",
+    "prepublish": "yarn build && npm run minify",
     "precommit": "lint-staged",
+    "minify": "node ./minify.js",
     "postinstall":
       "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
   },

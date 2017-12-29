@@ -1,20 +1,38 @@
 const fs = require('fs');
-const {basename} = require('path');
+const path = require('path');
 const Packager = require('./Packager');
 
-const prelude = fs
-  .readFileSync(__dirname + '/../builtins/prelude.js', 'utf8')
-  .trim();
-const hmr = fs
-  .readFileSync(__dirname + '/../builtins/hmr-runtime.js', 'utf8')
-  .trim();
+const prelude = {
+  source: fs
+    .readFileSync(path.join(__dirname, '../builtins/prelude.js'), 'utf8')
+    .trim(),
+  minified: fs
+    .readFileSync(
+      path.join(__dirname, '../../minified/builtins/prelude.js'),
+      'utf8'
+    )
+    .trim()
+};
+
+const hmr = {
+  source: fs
+    .readFileSync(path.join(__dirname, '../builtins/hmr-runtime.js'), 'utf8')
+    .trim(),
+  minified: fs
+    .readFileSync(
+      path.join(__dirname, '../../minified/builtins/hmr-runtime.js'),
+      'utf8'
+    )
+    .trim()
+};
 
 class JSPackager extends Packager {
   async start() {
     this.first = true;
     this.dedupe = new Map();
 
-    await this.dest.write(prelude + '({');
+    let preludeCode = this.options.minify ? prelude.minified : prelude.source;
+    await this.dest.write(preludeCode + '({');
   }
 
   async addAsset(asset) {
@@ -33,10 +51,10 @@ class JSPackager extends Packager {
 
       // For dynamic dependencies, list the child bundles to load along with the module id
       if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
-        let bundles = [basename(mod.parentBundle.name)];
+        let bundles = [path.basename(mod.parentBundle.name)];
         for (let child of mod.parentBundle.siblingBundles.values()) {
           if (!child.isEmpty) {
-            bundles.push(basename(child.name));
+            bundles.push(path.basename(child.name));
           }
         }
 
@@ -67,9 +85,10 @@ class JSPackager extends Packager {
     // Add the HMR runtime if needed.
     if (this.options.hmr) {
       // Asset ids normally start at 1, so this should be safe.
+      let hmrCode = this.options.minify ? hmr.minified : hmr.source;
       await this.writeModule(
         0,
-        hmr.replace('{{HMR_PORT}}', this.options.hmrPort)
+        hmrCode.replace('{{HMR_PORT}}', this.options.hmrPort)
       );
       entry.push(0);
     }
