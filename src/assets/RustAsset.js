@@ -1,6 +1,7 @@
 const path = require('path');
 const {exec} = require('child-process-promise');
 
+const urlJoin = require('../utils/urlJoin');
 const md5 = require('../utils/md5');
 const JSAsset = require('./JSAsset');
 
@@ -14,19 +15,19 @@ class RustAsset extends JSAsset {
   async parse() {
     const release = process.env.NODE_ENV === 'production';
     const {dir, base} = path.parse(this.name);
-    const wasmPath = path.join(
-      this.options.publicURL,
-      md5(this.name) + '.wasm'
-    );
-    const cmd = `rustc +nightly --target ${rustTarget} -O --crate-type=cdylib ${base} -o .${wasmPath} ${
+    const generatedName = md5(this.name);
+    const wasmPath = path.join(this.options.outDir, generatedName + '.wasm');
+    const wasmUrl = urlJoin(this.options.publicURL, generatedName + '.wasm');
+
+    const cmd = `rustc +nightly --target ${rustTarget} -O --crate-type=cdylib ${base} -o ${wasmPath} ${
       release ? ' --release' : ''
     }`;
 
     await exec(cmd, {cwd: dir});
 
-    const pathToWasm = JSON.stringify(wasmPath);
+    const urlToWasm = JSON.stringify(wasmUrl);
 
-    this.contents = `module.exports=${pathToWasm};`;
+    this.contents = `module.exports=${urlToWasm};`;
 
     return await super.parse(this.contents);
   }
