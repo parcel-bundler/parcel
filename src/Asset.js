@@ -98,7 +98,9 @@ class Asset {
     // do nothing by default
   }
 
-  async pretransform() {}
+  async pretransform() {
+    // do nothing by default
+  }
 
   async transform() {
     // do nothing by default
