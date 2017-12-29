@@ -4,5 +4,7 @@ node_js:
   # - '6'
   - '8'
 cache: yarn
-script: yarn test
+script: 
+  - yarn test
+  - yarn lint
 sudo: false
