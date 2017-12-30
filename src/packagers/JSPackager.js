@@ -14,17 +14,9 @@ const prelude = {
     .trim()
 };
 
-const hmr = {
-  source: fs
-    .readFileSync(path.join(__dirname, '../builtins/hmr-runtime.js'), 'utf8')
-    .trim(),
-  minified: fs
-    .readFileSync(
-      path.join(__dirname, '../../minified/builtins/hmr-runtime.js'),
-      'utf8'
-    )
-    .trim()
-};
+const hmr = fs
+  .readFileSync(path.join(__dirname, '../builtins/hmr-runtime.js'), 'utf8')
+  .trim();
 
 class JSPackager extends Packager {
   async start() {
@@ -85,10 +77,9 @@ class JSPackager extends Packager {
     // Add the HMR runtime if needed.
     if (this.options.hmr) {
       // Asset ids normally start at 1, so this should be safe.
-      let hmrCode = this.options.minify ? hmr.minified : hmr.source;
       await this.writeModule(
         0,
-        hmrCode.replace('{{HMR_PORT}}', this.options.hmrPort)
+        hmr.replace('{{HMR_PORT}}', this.options.hmrPort)
       );
       entry.push(0);
     }

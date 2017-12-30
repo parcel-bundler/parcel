@@ -23,13 +23,14 @@ async function minify(inputPath, outputPath) {
 }
 
 async function runMinifier() {
-  let files = ['prelude.js', 'hmr-runtime.js'];
+  let files = ['prelude.js'];
 
   files.forEach(async file => {
     await minify(
       path.join('./src/builtins/', file),
       path.join('./minified/builtins/', file)
     );
+    // eslint-disable-next-line no-console
     console.log('minified: ' + file);
     return;
   });

@@ -16,5 +16,6 @@ lib
 dist
 /test/dist
 /test/input
+minified
 
 coverage
