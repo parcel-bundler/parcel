@@ -55,7 +55,7 @@ class Bundler extends EventEmitter {
     this.buildQueue = new Set();
     this.rebuildTimeout = null;
 
-    dotenvFiles.forEach(async dotenvFile => {
+    dotenvFiles.filter(file => file).forEach(async dotenvFile => {
       const envPath = Path.resolve(Path.dirname(this.mainFile), dotenvFile);
       if (await fs.exists(envPath)) {
         require('dotenv').config({

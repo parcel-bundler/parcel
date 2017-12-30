@@ -1,5 +1,3 @@
-import {process} from 'node-libs-browser';
-
 const {File: BabelFile} = require('babel-core');
 const traverse = require('babel-traverse').default;
 const codeFrame = require('babel-code-frame');
@@ -52,11 +50,6 @@ class JSAsset extends Asset {
       locations: true,
       plugins: ['exportExtensions', 'dynamicImport']
     };
-
-    for (let envName in Object.keys(process.env)) {
-      const envReplaceRegex = new RegExp(`process\\.env\\.${envName}`, 'gi');
-      code = code.replace(envReplaceRegex, `'${this.envTable[envName]}'`);
-    }
 
     // Check if there is a babel config file. If so, determine which parser plugins to enable
     this.babelConfig =
@@ -114,6 +107,11 @@ class JSAsset extends Asset {
     if (this.globals.size > 0) {
       code = Array.from(this.globals.values()).join('\n') + '\n' + code;
     }
+
+    Object.keys(process.env).forEach(envName => {
+      const envReplaceRegex = new RegExp(`process\\.env\\.${envName}`, 'gi');
+      code = code.replace(envReplaceRegex, `'${process.env[envName]}'`);
+    });
 
     return {
       js: code
