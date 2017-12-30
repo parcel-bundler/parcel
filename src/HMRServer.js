@@ -53,7 +53,7 @@ class HMRServer {
 
     const isReload = this.options.reload;
     const isReloadAsset = assets.some(asset => {
-      return isReload ? asset.type !== 'js' : asset.type === 'html';
+      return isReload ? asset.type !== 'css' : asset.type === 'html';
     });
     if (isReloadAsset) {
       this.broadcast({
