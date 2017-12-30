@@ -16,9 +16,19 @@ describe('html', function() {
           childBundles: []
         },
         {
+          type: 'js',
+          assets: ['index.js'],
+          childBundles: []
+        },
+        {
           type: 'html',
           assets: ['other.html'],
           childBundles: [
+            {
+              type: 'css',
+              assets: ['index.css'],
+              childBundles: []
+            },
             {
               type: 'js',
               assets: ['index.js'],
@@ -155,5 +165,34 @@ describe('html', function() {
 
     let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
     assert(/<i>hello<\/i> <i>world<\/i>/.test(html));
+  });
+
+  it('should support child bundles of different types', async function() {
+    let b = await bundle(
+      __dirname + '/integration/child-bundle-different-types/index.html'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'js',
+          assets: ['main.js', 'util.js', 'other.js'],
+          childBundles: []
+        },
+        {
+          type: 'html',
+          assets: ['other.html'],
+          childBundles: [
+            {
+              type: 'js',
+              assets: ['index.js', 'util.js', 'other.js'],
+              childBundles: []
+            }
+          ]
+        }
+      ]
+    });
   });
 });
