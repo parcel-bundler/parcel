@@ -38,9 +38,13 @@ class JSAsset extends Asset {
     );
   }
 
-  async getParserOptions() {
+  async getConfig() {
+    if (this.config.babelOptions && this.config.babelConfig) {
+      return this.config;
+    }
+
     // Babylon options. We enable a few plugins by default.
-    const options = {
+    this.config.babelOptions = {
       filename: this.name,
       allowReturnOutsideFunction: true,
       allowHashBang: true,
@@ -52,21 +56,19 @@ class JSAsset extends Asset {
     };
 
     // Check if there is a babel config file. If so, determine which parser plugins to enable
-    this.babelConfig =
+    this.config.babelConfig =
       (this.package && this.package.babel) ||
       (await config.load(this.name, ['.babelrc', '.babelrc.js']));
-    if (this.babelConfig) {
+    if (this.config.babelConfig) {
       const file = new BabelFile({filename: this.name});
-      options.plugins.push(...file.parserOpts.plugins);
+      this.config.babelOptions.plugins.push(...file.parserOpts.plugins);
     }
 
-    return options;
+    return this.config;
   }
 
   async parse(code) {
-    const options = await this.getParserOptions();
-
-    return babylon.parse(code, options);
+    return babylon.parse(code, this.config.babelOptions);
   }
 
   traverse(visitor) {

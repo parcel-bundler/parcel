@@ -4,57 +4,73 @@ const postcss = require('postcss');
 const Config = require('../utils/config');
 const cssnano = require('cssnano');
 
-module.exports = async function(asset) {
-  let config = await getConfig(asset);
-  if (!config) {
+async function parse(asset) {
+  if (!asset.config.postcss) {
     return;
   }
 
   await asset.parseIfNeeded();
-  let res = await postcss(config.plugins).process(asset.getCSSAst(), config);
+  let res = await postcss(asset.config.postcss.plugins).process(
+    asset.getCSSAst(),
+    asset.config.postcss
+  );
 
   asset.ast.css = res.css;
   asset.ast.dirty = false;
-};
+}
 
 async function getConfig(asset) {
-  let config =
+  if (asset.config.postcss) {
+    return asset.config;
+  }
+
+  asset.config.postcss =
     asset.package.postcss ||
     (await Config.load(asset.name, [
       '.postcssrc',
       '.postcssrc.js',
       'postcss.config.js'
     ]));
-  if (!config && !asset.options.minify) {
+  if (!asset.config.postcss && !asset.options.minify) {
     return;
   }
 
-  config = config || {};
+  asset.config.postcss = asset.config.postcss || {};
 
   let postcssModulesConfig = {
     getJSON: (filename, json) => (asset.cssModules = json)
   };
 
-  if (config.plugins && config.plugins['postcss-modules']) {
+  if (
+    asset.config.postcss.plugins &&
+    asset.config.postcss.plugins['postcss-modules']
+  ) {
     postcssModulesConfig = Object.assign(
-      config.plugins['postcss-modules'],
+      asset.config.postcss.plugins['postcss-modules'],
       postcssModulesConfig
     );
-    delete config.plugins['postcss-modules'];
+    delete asset.config.postcss.plugins['postcss-modules'];
   }
 
-  config.plugins = await loadPlugins(config.plugins, asset.name);
+  asset.config.postcss.plugins = await loadPlugins(
+    asset.config.postcss.plugins,
+    asset.name
+  );
 
-  if (config.modules) {
+  if (asset.config.postcss.modules) {
     let postcssModules = await localRequire('postcss-modules', asset.name);
-    config.plugins.push(postcssModules(postcssModulesConfig));
+    asset.config.postcss.plugins.push(postcssModules(postcssModulesConfig));
   }
 
   if (asset.options.minify) {
-    config.plugins.push(cssnano());
+    asset.config.postcss.plugins.push(cssnano());
   }
 
-  config.from = asset.name;
-  config.to = asset.name;
-  return config;
+  asset.config.postcss.from = asset.name;
+  asset.config.postcss.to = asset.name;
+
+  return asset.config;
 }
+
+module.exports.getConfig = getConfig;
+module.exports.parse = parse;

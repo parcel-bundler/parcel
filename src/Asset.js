@@ -33,6 +33,7 @@ class Asset {
     this.depAssets = new Map();
     this.parentBundle = null;
     this.bundles = new Set();
+    this.config = {};
   }
 
   async loadIfNeeded() {
@@ -90,6 +91,11 @@ class Asset {
     return await fs.readFile(this.name, this.encoding);
   }
 
+  async getConfig() {
+    // do nothing
+    return this.config;
+  }
+
   parse() {
     // do nothing by default
   }
@@ -114,6 +120,7 @@ class Asset {
 
   async process() {
     if (!this.generated) {
+      await this.getConfig();
       await this.loadIfNeeded();
       await this.pretransform();
       await this.getDependencies();
