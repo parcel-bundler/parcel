@@ -58,13 +58,17 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
-  it('should support bundling service workers', async function() {
-    let b = await bundle(__dirname + '/integration/service-worker/index.js');
+  it('should support bundling workers', async function() {
+    let b = await bundle(__dirname + '/integration/workers/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js'],
       childBundles: [
+        {
+          assets: ['service-worker.js'],
+          childBundles: []
+        },
         {
           assets: ['worker.js'],
           childBundles: []
