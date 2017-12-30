@@ -16,5 +16,5 @@ lib
 dist
 /test/dist
 /test/input
-
+elm-stuff
 coverage

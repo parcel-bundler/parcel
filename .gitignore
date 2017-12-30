@@ -11,3 +11,5 @@ lib
 !test/**/node_modules
 .vscode/
 .idea/
+elm-stuff
+elm-package.json
