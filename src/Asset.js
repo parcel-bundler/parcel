@@ -50,7 +50,7 @@ class Asset {
   async getDependencies() {
     await this.loadIfNeeded();
 
-    if (this.mightHaveDependencies() && this.contents) {
+    if (this.contents && this.mightHaveDependencies()) {
       await this.parseIfNeeded();
       this.collectDependencies();
     }
@@ -83,9 +83,6 @@ class Asset {
   }
 
   mightHaveDependencies() {
-    if (!this.contents) {
-      return false;
-    }
     return true;
   }
 
