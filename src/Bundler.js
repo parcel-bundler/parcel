@@ -15,6 +15,18 @@ const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const customErrors = require('./utils/customErrors');
 const config = require('./utils/config');
+const dotenv = require('dotenv');
+
+const NODE_ENV = process.env.NODE_ENV || 'development';
+dotenvFiles = [
+  `.env.${NODE_ENV}.local`,
+  `.env.${NODE_ENV}`,
+  // Don't include `.env.local` for `test` environment
+  // since normally you expect tests to produce the same
+  // results for everyone
+  NODE_ENV !== 'test' && `.env.local`,
+  '.env'
+];
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -42,6 +54,15 @@ class Bundler extends EventEmitter {
     this.errored = false;
     this.buildQueue = new Set();
     this.rebuildTimeout = null;
+
+    dotenvFiles.forEach(async dotenvFile => {
+      const envPath = Path.resolve(Path.dirname(this.mainFile), dotenvFile);
+      if (await fs.exists(envPath)) {
+        require('dotenv').config({
+          path: envPath
+        });
+      }
+    });
   }
 
   normalizeOptions(options) {

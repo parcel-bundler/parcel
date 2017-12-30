@@ -1,3 +1,5 @@
+import {process} from 'node-libs-browser';
+
 const {File: BabelFile} = require('babel-core');
 const traverse = require('babel-traverse').default;
 const codeFrame = require('babel-code-frame');
@@ -28,25 +30,6 @@ class JSAsset extends Asset {
     this.isAstDirty = false;
     this.isES6Module = false;
     this.outputCode = null;
-
-    // decode .env
-    this.envTable = {};
-    const envRegex = /^(\w+)\s*=\s*([\s\S]+)/;
-    const envFile = process.env.DOTENV ? [process.env.DOTENV] : ['.env'];
-    (async () => {
-      const envPath = await config.resolve(this.name, envFile);
-      const env = envPath && fs.readFileSync(envPath, {encoding: 'utf8'});
-      env &&
-        env.split(/\n+/).forEach(line => {
-          let matches = null;
-          if (!(matches = line.match(envRegex))) {
-            return;
-          }
-          this.envTable[matches[1]] = matches[2];
-        });
-    })().catch(err => {
-      this.logger.warn(err);
-    });
   }
 
   mightHaveDependencies() {
@@ -70,7 +53,7 @@ class JSAsset extends Asset {
       plugins: ['exportExtensions', 'dynamicImport']
     };
 
-    for (let envName in this.envTable) {
+    for (let envName in Object.keys(process.env)) {
       const envReplaceRegex = new RegExp(`process\\.env\\.${envName}`, 'gi');
       code = code.replace(envReplaceRegex, `'${this.envTable[envName]}'`);
     }
