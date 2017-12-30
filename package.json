@@ -49,6 +49,7 @@
     "bsb-js": "^1.0.1",
     "coffeescript": "^2.0.3",
     "cross-env": "^5.1.1",
+    "elm": "^0.18.0",
     "eslint": "^4.13.0",
     "graphql": "^0.11.7",
     "graphql-tag": "^2.6.0",
