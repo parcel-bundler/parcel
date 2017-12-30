@@ -151,7 +151,8 @@ describe('html', function() {
         }
       ]
     });
-    
+  });
+
   it('should not update root/main file in the bundles', async function() {
     await bundle(__dirname + '/integration/html-root/index.html');
 
