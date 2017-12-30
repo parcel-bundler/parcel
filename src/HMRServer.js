@@ -12,10 +12,13 @@ class HMRServer {
     });
 
     this.wss.on('connection', ws => {
+      ws.onerror = this.handleSocketError;
       if (this.unresolvedError) {
         ws.send(JSON.stringify(this.unresolvedError));
       }
     });
+
+    this.wss.on('error', this.handleSocketError);
 
     return this.wss._server.address().port;
   }
@@ -50,7 +53,7 @@ class HMRServer {
 
     const isReload = this.options.reload;
     const isReloadAsset = assets.some(asset => {
-      return isReload ? assets.type !== 'js' : assets.type === 'html';
+      return isReload ? asset.type !== 'js' : asset.type === 'html';
     });
     if (isReloadAsset) {
       this.broadcast({
@@ -74,6 +77,15 @@ class HMRServer {
         })
       });
     }
+  }
+
+  handleSocketError(err) {
+    if (err.code === 'ECONNRESET') {
+      // This gets triggered on page refresh, ignore this
+      return;
+    }
+    // TODO: Use logger to print errors
+    console.log(prettyError(err));
   }
 
   broadcast(msg) {

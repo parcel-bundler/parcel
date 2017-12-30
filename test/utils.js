@@ -78,10 +78,13 @@ function run(bundle, globals) {
     {
       document: fakeDocument,
       WebSocket,
-      console
+      console,
+      location: {hostname: 'localhost'}
     },
     globals
   );
+
+  ctx.window = ctx;
 
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(bundle.name), ctx);
