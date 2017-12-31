@@ -16,7 +16,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 * HTMLNano configuration [Details](https://github.com/parcel-bundler/parcel/commit/d11a15e1636ea7c7f291d0cfbf73b75cc719e839)
 * Support async plugin loading [Details](https://github.com/parcel-bundler/parcel/commit/bb6e6044b7569fd6745ab915dfd49327d0cbb955)
 * Add code sample section to `ISSUE_TEMPLATE` [Details](https://github.com/parcel-bundler/parcel/commit/8a65676023f88a53372ab4bf0b6daada49de6b49)
-* Add url dependency for serviceWorker.register calls [Details](https://github.com/parcel-bundler/parcel/commit/0ab0acaecece829392cd452f83014df7c470fc83)
+* Add url dependency for `serviceWorker.register` calls [Details](https://github.com/parcel-bundler/parcel/commit/0ab0acaecece829392cd452f83014df7c470fc83)
 * Ignored babel files [Details](https://github.com/parcel-bundler/parcel/commit/22478d368216b24da3bd3e94439b02e356fd4310)
 
 ### Fixes
@@ -27,9 +27,9 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 * Handle appstore url scheme [Details](https://github.com/parcel-bundler/parcel/commit/494fafc33ec0a3c66b423670a24539896015855f)
 * bundling issues when asset parent & commonBundle types differ [Details](https://github.com/parcel-bundler/parcel/commit/127c9b72d20847734049a7db27683279c6784ab6)
 * Handle empty assets [Details](https://github.com/parcel-bundler/parcel/commit/4c67f03808dca6cf9b9a47bcd92477e09005da75)
-* Minify Prelude.js [Details](https://github.com/parcel-bundler/parcel/commit/a0ede06395807cc0f7f6caad7aee2cb1463d41ac)
+* Minify `Prelude.js` [Details](https://github.com/parcel-bundler/parcel/commit/a0ede06395807cc0f7f6caad7aee2cb1463d41ac)
 
-## [1.3.0] - 2017-12-24
+## [1.3.1] - 2017-12-24
 
 ### Fixed
 
@@ -44,7 +44,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 * Automatically install parser dependencies [Details](https://github.com/parcel-bundler/parcel/commit/6f493f030852f557c299b2c26a565c99e1e9de66)
 * UglifyES config support [Details](https://github.com/parcel-bundler/parcel/commit/1947a15d40cc2b7dd91bdc64d02a5d79604ba550)
 * Display absolute path on failed dependency resolve [Details](https://github.com/parcel-bundler/parcel/commit/dffeb7d81ea14e9739b372132fd32d8d74d9b368)
-* Support .editorconfig [Details](https://github.com/parcel-bundler/parcel/commit/6c96b6588afc1b774551c5eda3487c2d0fab6dc0)
+* Support `.editorconfig` [Details](https://github.com/parcel-bundler/parcel/commit/6c96b6588afc1b774551c5eda3487c2d0fab6dc0)
 * Tests for ES6 Modules resolver [Details](https://github.com/parcel-bundler/parcel/commit/76186779b2a24ce1befc7c5d5b3e783c7b9f5c94)
 * ESLint [Details](https://github.com/parcel-bundler/parcel/commit/434b86c92b19e2c7de13a121600d0533c1138169)
 
