@@ -1,5 +1,4 @@
 const babel = require('babel-core');
-const path = require('path');
 const config = require('../utils/config');
 
 module.exports = async function(asset) {
@@ -21,8 +20,10 @@ module.exports = async function(asset) {
   }
 
   let res = babel.transformFromAst(asset.ast, asset.contents, config);
-  asset.ast = res.ast;
-  asset.isAstDirty = true;
+  if (!res.ignored) {
+    asset.ast = res.ast;
+    asset.isAstDirty = true;
+  }
 };
 
 async function shouldTransform(asset) {
