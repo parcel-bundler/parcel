@@ -9,5 +9,5 @@ module.exports = function(publicURL, assetPath) {
 
   return isUrl(publicURL)
     ? url.resolve(publicURL, assetPath)
-    : path.normalize(path.join(publicURL, assetPath), '');
+    : path.normalize(path.join(publicURL, assetPath));
 };
