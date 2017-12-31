@@ -124,9 +124,9 @@ describe('html', function() {
       production: true
     });
 
-    let css = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
-    assert(css.includes('Other page'));
-    assert(!css.includes('\n'));
+    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
+    assert(html.includes('Other page'));
+    assert(!html.includes('\n'));
   });
 
   it('should read .htmlnanorc and minify HTML in production mode', async function() {
