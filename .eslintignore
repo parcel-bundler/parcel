@@ -18,3 +18,4 @@ dist
 /test/input
 elm-stuff
 coverage
+*.min.js

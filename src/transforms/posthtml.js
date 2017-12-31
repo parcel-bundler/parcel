@@ -32,10 +32,12 @@ async function getConfig(asset) {
   config.plugins = await loadPlugins(config.plugins, asset.name);
 
   if (asset.options.minify) {
-    const htmlNanoOptions = {
-      collapseWhitespace: 'conservative'
-    };
-    config.plugins.push(htmlnano(htmlNanoOptions));
+    const htmlNanoConfig = asset.package.htmlnano ||
+      (await Config.load(asset.name, ['.htmlnanorc', '.htmlnanorc.js'])) || {
+        collapseWhitespace: 'conservative'
+      };
+
+    config.plugins.push(htmlnano(htmlNanoConfig));
   }
 
   config.skipParse = true;

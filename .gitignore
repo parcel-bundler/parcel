@@ -13,3 +13,4 @@ lib
 .idea/
 elm-stuff
 elm-package.json
+*.min.js
