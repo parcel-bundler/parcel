@@ -69,7 +69,7 @@
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
-    "build": "babel src -d lib",
+    "build": "babel src -d lib --ignore src/builtins/*",
     "prepublish": "yarn build",
     "precommit": "npm run lint && lint-staged",
     "lint": "eslint .",

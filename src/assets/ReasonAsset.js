@@ -21,7 +21,7 @@ class ReasonAsset extends JSAsset {
     this.contents = outputContent.toString();
 
     // After loading the compiled JS source, use the normal JS behavior.
-    return await super.parse(this.contents);
+    return await JSAsset.prototype.parse.call(this, this.contents);
   }
 }
 

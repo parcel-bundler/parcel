@@ -83,6 +83,7 @@ function run(bundle, globals) {
     },
     globals
   );
+  ctx.window = ctx;
 
   ctx.window = ctx;
 
