@@ -473,6 +473,7 @@ class Bundler extends EventEmitter {
   }
 
   middleware() {
+    this.bundle();
     return Server.middleware(this);
   }
 
