@@ -20,8 +20,10 @@ module.exports = async function(asset) {
   }
 
   let res = babel.transformFromAst(asset.ast, asset.contents, config);
-  asset.ast = res.ast;
-  asset.isAstDirty = true;
+  if (!res.ignored) {
+    asset.ast = res.ast;
+    asset.isAstDirty = true;
+  }
 };
 
 async function shouldTransform(asset) {
