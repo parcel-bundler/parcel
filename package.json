@@ -70,7 +70,8 @@
     "test": "cross-env NODE_ENV=test mocha",
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
     "build": "babel src -d lib",
-    "prepublish": "yarn build",
+    "prepublish": "yarn build && npm run minify",
+    "minify": "node ./minify.js",
     "precommit": "npm run lint && lint-staged",
     "lint": "eslint .",
     "postinstall":
