@@ -7,11 +7,9 @@ const prelude = {
     .readFileSync(path.join(__dirname, '../builtins/prelude.js'), 'utf8')
     .trim(),
   minified: fs
-    .readFileSync(
-      path.join(__dirname, '../../minified/builtins/prelude.js'),
-      'utf8'
-    )
+    .readFileSync(path.join(__dirname, '../builtins/prelude.min.js'), 'utf8')
     .trim()
+    .replace(/;$/, '')
 };
 
 const hmr = fs
