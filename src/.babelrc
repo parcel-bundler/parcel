@@ -3,5 +3,6 @@
     "targets": {
       "node": "6"
     }
-  }]]
+  }]],
+  "ignore": ["builtins"]
 }

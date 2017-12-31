@@ -43,16 +43,17 @@ async function getConfig(asset) {
     delete config.plugins['postcss-modules'];
   }
 
-  config.plugins = loadPlugins(config.plugins, asset.name);
+  config.plugins = await loadPlugins(config.plugins, asset.name);
 
   if (config.modules) {
-    config.plugins.push(
-      localRequire('postcss-modules', asset.name)(postcssModulesConfig)
-    );
+    let postcssModules = await localRequire('postcss-modules', asset.name);
+    config.plugins.push(postcssModules(postcssModulesConfig));
   }
 
   if (asset.options.minify) {
-    config.plugins.push(cssnano());
+    config.plugins.push(
+      cssnano((await Config.load(asset.name, ['cssnano.config.js'])) || {})
+    );
   }
 
   config.from = asset.name;
