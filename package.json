@@ -1,6 +1,6 @@
 {
   "name": "parcel-bundler",
-  "version": "1.2.1",
+  "version": "1.4.0",
   "main": "index.js",
   "license": "MIT",
   "repository": {
@@ -17,6 +17,7 @@
     "chalk": "^2.1.0",
     "chokidar": "^1.7.0",
     "commander": "^2.11.0",
+    "cross-spawn": "^5.1.0",
     "cssnano": "^3.10.0",
     "get-port": "^3.2.0",
     "glob": "^7.1.2",
@@ -26,6 +27,7 @@
     "json5": "^0.5.1",
     "micromatch": "^3.0.4",
     "mkdirp": "^0.5.1",
+    "node-forge": "^0.7.1",
     "node-libs-browser": "^2.0.0",
     "opn": "^5.1.0",
     "physical-cpu-count": "^2.0.0",
@@ -47,6 +49,8 @@
     "coffeescript": "^2.0.3",
     "cross-env": "^5.1.1",
     "eslint": "^4.13.0",
+    "graphql": "^0.11.7",
+    "graphql-tag": "^2.6.0",
     "husky": "^0.14.3",
     "less": "^2.7.2",
     "lint-staged": "^6.0.0",
@@ -65,8 +69,11 @@
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
-    "build": "babel src -d lib",
+    "build":
+      "yarn minify && babel src -d lib && cp -R src/builtins lib/builtins",
     "prepublish": "yarn build",
+    "minify":
+      "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
     "precommit": "npm run lint && lint-staged",
     "lint": "eslint .",
     "postinstall":

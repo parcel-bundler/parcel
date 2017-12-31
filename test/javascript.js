@@ -58,6 +58,25 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
+  it('should support bundling workers', async function() {
+    let b = await bundle(__dirname + '/integration/workers/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js'],
+      childBundles: [
+        {
+          assets: ['service-worker.js'],
+          childBundles: []
+        },
+        {
+          assets: ['worker.js'],
+          childBundles: []
+        }
+      ]
+    });
+  });
+
   it('should dynamic import files which import raw files', async function() {
     let b = await bundle(
       __dirname + '/integration/dynamic-references-raw/index.js'
@@ -158,8 +177,8 @@ describe('javascript', function() {
 
     let output = run(b);
     assert.equal(typeof output, 'function');
-    assert(/^\/[0-9a-f]+\.txt$/.test(output()));
-    assert(fs.existsSync(__dirname + '/dist/' + output()));
+    assert(/^\/dist\/[0-9a-f]+\.txt$/.test(output()));
+    assert(fs.existsSync(__dirname + output()));
   });
 
   it('should minify JS in production mode', async function() {

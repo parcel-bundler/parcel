@@ -2,6 +2,7 @@ const assert = require('assert');
 const fs = require('fs');
 const {bundler} = require('./utils');
 const http = require('http');
+const https = require('https');
 
 describe('server', function() {
   let server;
@@ -12,20 +13,28 @@ describe('server', function() {
     }
   });
 
-  function get(file) {
+  function get(file, client = http) {
     return new Promise((resolve, reject) => {
-      http.get('http://localhost:' + server.address().port + file, res => {
-        if (res.statusCode !== 200) {
-          return reject(new Error('Request failed: ' + res.statusCode));
-        }
+      client.get(
+        {
+          hostname: 'localhost',
+          port: server.address().port,
+          path: file,
+          rejectUnauthorized: false
+        },
+        res => {
+          if (res.statusCode !== 200) {
+            return reject(new Error('Request failed: ' + res.statusCode));
+          }
 
-        res.setEncoding('utf8');
-        let data = '';
-        res.on('data', c => (data += c));
-        res.on('end', () => {
-          resolve(data);
-        });
-      });
+          res.setEncoding('utf8');
+          let data = '';
+          res.on('data', c => (data += c));
+          res.on('end', () => {
+            resolve(data);
+          });
+        }
+      );
     });
   }
 
@@ -77,5 +86,13 @@ describe('server', function() {
 
     b.errored = false;
     await get('/');
+  });
+
+  it('should support HTTPS', async function() {
+    let b = bundler(__dirname + '/integration/commonjs/index.js');
+    server = await b.serve(0, true);
+
+    let data = await get('/dist/index.js', https);
+    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
   });
 });

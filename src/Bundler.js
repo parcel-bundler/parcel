@@ -13,6 +13,7 @@ const Logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
+const emoji = require('./utils/emoji');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -56,6 +57,7 @@ class Bundler extends EventEmitter {
       publicURL: publicURL,
       watch: watch,
       cache: typeof options.cache === 'boolean' ? options.cache : true,
+      cacheDir: Path.resolve(options.cacheDir || '.cache'),
       killWorkers:
         typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
       minify:
@@ -98,7 +100,7 @@ class Bundler extends EventEmitter {
       for (let dep in deps) {
         if (dep.startsWith('parcel-plugin-')) {
           let plugin = await localRequire(dep, this.mainFile);
-          plugin(this);
+          await plugin(this);
         }
       }
     } catch (err) {
@@ -122,7 +124,7 @@ class Bundler extends EventEmitter {
     this.errored = false;
 
     this.logger.clear();
-    this.logger.status('⏳', 'Building...');
+    this.logger.status(emoji.progress, 'Building...');
 
     try {
       // Start worker farm, watcher, etc. if needed
@@ -144,7 +146,7 @@ class Bundler extends EventEmitter {
         buildTime < 1000
           ? `${buildTime}ms`
           : `${(buildTime / 1000).toFixed(2)}s`;
-      this.logger.status('✨', `Built in ${time}.`, 'green');
+      this.logger.status(emoji.success, `Built in ${time}.`, 'green');
 
       return bundle;
     } catch (err) {
@@ -304,7 +306,7 @@ class Bundler extends EventEmitter {
     }
 
     if (!this.errored) {
-      this.logger.status('⏳', `Building ${asset.basename}...`);
+      this.logger.status(emoji.progress, `Building ${asset.basename}...`);
     }
 
     // Mark the asset processed so we don't load it twice
@@ -374,10 +376,9 @@ class Bundler extends EventEmitter {
           asset.parentBundle.type === commonBundle.type
         ) {
           this.moveAssetToBundle(asset, commonBundle);
+          return;
         }
-      }
-
-      return;
+      } else return;
     }
 
     // Create the root bundle if it doesn't exist
@@ -461,7 +462,7 @@ class Bundler extends EventEmitter {
     }
 
     this.logger.clear();
-    this.logger.status('⏳', `Building ${asset.basename}...`);
+    this.logger.status(emoji.progress, `Building ${asset.basename}...`);
 
     // Add the asset to the rebuild queue, and reset the timeout.
     this.buildQueue.add(asset);
@@ -476,8 +477,8 @@ class Bundler extends EventEmitter {
     return Server.middleware(this);
   }
 
-  async serve(port = 1234) {
-    let server = await Server.serve(this, port);
+  async serve(port = 1234, https = false) {
+    let server = await Server.serve(this, port, https);
     this.bundle();
     return server;
   }
