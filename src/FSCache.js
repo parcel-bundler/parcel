@@ -70,7 +70,9 @@ class FSCache {
     try {
       await fs.unlink(this.getCacheFile(filename));
       this.invalidated.delete(filename);
-    } catch (err) {}
+    } catch (err) {
+      // Fail silently
+    }
   }
 }
 
