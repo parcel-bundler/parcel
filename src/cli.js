@@ -18,6 +18,7 @@ program
     'set the port to serve HMR websockets, defaults to random',
     parseInt
   )
+  .option('--https', 'serves files over HTTPS')
   .option('-o, --open', 'automatically open in default browser')
   .option(
     '-d, --out-dir <path>',
