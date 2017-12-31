@@ -9,7 +9,7 @@ const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
 const {EventEmitter} = require('events');
-const Logger = require('./Logger');
+const logger = require('./Logger').instance;
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
@@ -29,9 +29,7 @@ class Bundler extends EventEmitter {
     this.parser = new Parser(this.options);
     this.packagers = new PackagerRegistry();
     this.cache = this.options.cache ? new FSCache(this.options) : null;
-    this.logger = new Logger(this.options);
     this.delegate = options.delegate || {};
-
     this.pending = false;
     this.loadedAssets = new Map();
     this.farm = null;
@@ -41,6 +39,8 @@ class Bundler extends EventEmitter {
     this.errored = false;
     this.buildQueue = new Set();
     this.rebuildTimeout = null;
+    this.logger = logger;
+    this.logger.updateOptions(this.options);
   }
 
   normalizeOptions(options) {

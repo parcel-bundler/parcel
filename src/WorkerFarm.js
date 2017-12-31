@@ -2,6 +2,7 @@ const {EventEmitter} = require('events');
 const os = require('os');
 const Farm = require('worker-farm/lib/farm');
 const promisify = require('./utils/promisify');
+const logger = require('./Logger').instance;
 
 let shared = null;
 
@@ -51,6 +52,8 @@ class WorkerFarm extends Farm {
   receive(data) {
     if (data.event) {
       this.emit(data.event, ...data.args);
+    } else if (data.type === 'logger') {
+      logger.handleMessage(data);
     } else {
       super.receive(data);
     }

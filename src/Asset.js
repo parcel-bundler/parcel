@@ -4,6 +4,7 @@ const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const sanitizeFilename = require('sanitize-filename');
+const logger = require('./Logger').instance;
 
 let ASSET_ID = 1;
 
@@ -168,6 +169,19 @@ class Asset {
 
     // Otherwise generate a unique name
     return md5(this.name) + ext;
+  }
+
+  write(args, method = 'log') {
+    let messageOptions = {
+      type: 'logger',
+      method,
+      args
+    };
+    if (process.send) {
+      process.send(messageOptions);
+    } else {
+      logger.handleMessage(messageOptions);
+    }
   }
 
   generateErrorMessage(err) {

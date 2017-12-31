@@ -30,8 +30,7 @@ module.exports = async function(asset) {
   // Log all warnings
   if (result.warnings) {
     result.warnings.forEach(warning => {
-      // TODO: warn this using the logger
-      console.log(warning);
+      asset.write([warning], 'warn');
     });
   }
 
