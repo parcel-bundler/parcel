@@ -6,6 +6,7 @@
 // anything defined in a previous bundle is accessed via the
 // orig method which is the require for previous bundles
 
+// eslint-disable-next-line no-global-assign
 require = (function (modules, cache, entry) {
   // Save the require from previous bundle to this closure if any
   var previousRequire = typeof require === "function" && require;
@@ -33,20 +34,23 @@ require = (function (modules, cache, entry) {
         err.code = 'MODULE_NOT_FOUND';
         throw err;
       }
-
-      function localRequire(x) {
-        return newRequire(localRequire.resolve(x));
-      }
-
-      localRequire.resolve = function (x) {
-        return modules[name][1][x] || x;
-      };
+      
+      localRequire.resolve = resolve;
 
       var module = cache[name] = new newRequire.Module;
+
       modules[name][0].call(module.exports, localRequire, module, module.exports);
     }
 
     return cache[name].exports;
+
+    function localRequire(x){
+      return newRequire(localRequire.resolve(x));
+    }
+
+    function resolve(x){
+      return modules[name][1][x] || x;
+    }
   }
 
   function Module() {

@@ -25,6 +25,6 @@ function reloadCSS() {
 
     cssTimeout = null;
   }, 50);
-};
+}
 
 module.exports = reloadCSS;
