@@ -69,9 +69,11 @@
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
-    "build": "babel src -d lib",
-    "prepublish": "yarn build && npm run minify",
-    "minify": "node ./minify.js",
+    "build":
+      "yarn minify && babel src -d lib && cp -R src/builtins lib/builtins",
+    "prepublish": "yarn build",
+    "minify":
+      "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
     "precommit": "npm run lint && lint-staged",
     "lint": "eslint .",
     "postinstall":
