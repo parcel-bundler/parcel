@@ -13,6 +13,11 @@ program
     'set the port to serve on. defaults to 1234',
     parseInt
   )
+  .option(
+    '-w, --websocket-port <port>',
+    'set the port to serve HMR websockets, defaults to random',
+    parseInt
+  )
   .option('-o, --open', 'automatically open in default browser')
   .option(
     '-d, --out-dir <path>',
