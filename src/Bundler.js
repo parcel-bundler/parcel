@@ -65,7 +65,7 @@ class Bundler extends EventEmitter {
       hmr: typeof options.hmr === 'boolean' ? options.hmr : watch,
       logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
       mainFile: this.mainFile,
-      websocketPort: options.websocketPort || 0
+      hmrPort: options.hmrPort || 0
     };
   }
 
@@ -192,7 +192,7 @@ class Bundler extends EventEmitter {
 
     if (this.options.hmr) {
       this.hmr = new HMRServer();
-      this.options.hmrPort = await this.hmr.start(this.options.websocketPort);
+      this.options.hmrPort = await this.hmr.start(this.options.hmrPort);
     }
   }
 
