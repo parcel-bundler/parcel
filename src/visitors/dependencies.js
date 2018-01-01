@@ -64,12 +64,22 @@ module.exports = {
       matchesPattern(callee, serviceWorkerPattern);
 
     if (isRegisterServiceWorker) {
-      let assetPath = asset.addURLDependency(args[0].value);
-      if (!isURL(assetPath)) {
-        assetPath = urlJoin(asset.options.publicURL, assetPath);
-      }
-      args[0].value = assetPath;
-      asset.isAstDirty = true;
+      addURLDependency(asset, args[0]);
+      return;
+    }
+  },
+
+  NewExpression(node, asset) {
+    const {callee, arguments: args} = node;
+
+    const isWebWorker =
+      callee.type === 'Identifier' &&
+      callee.name === 'Worker' &&
+      args.length === 1 &&
+      types.isStringLiteral(args[0]);
+
+    if (isWebWorker) {
+      addURLDependency(asset, args[0]);
       return;
     }
   }
@@ -78,4 +88,13 @@ module.exports = {
 function addDependency(asset, node, opts = {}) {
   opts.loc = node.loc && node.loc.start;
   asset.addDependency(node.value, opts);
+}
+
+function addURLDependency(asset, node) {
+  let assetPath = asset.addURLDependency(node.value);
+  if (!isURL(assetPath)) {
+    assetPath = urlJoin(asset.options.publicURL, assetPath);
+  }
+  node.value = assetPath;
+  asset.isAstDirty = true;
 }

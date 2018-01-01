@@ -64,7 +64,8 @@ class Bundler extends EventEmitter {
         typeof options.minify === 'boolean' ? options.minify : isProduction,
       hmr: typeof options.hmr === 'boolean' ? options.hmr : watch,
       logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
-      mainFile: this.mainFile
+      mainFile: this.mainFile,
+      hmrPort: options.hmrPort || 0
     };
   }
 
@@ -191,7 +192,7 @@ class Bundler extends EventEmitter {
 
     if (this.options.hmr) {
       this.hmr = new HMRServer();
-      this.options.hmrPort = await this.hmr.start();
+      this.options.hmrPort = await this.hmr.start(this.options.hmrPort);
     }
   }
 
@@ -379,10 +380,9 @@ class Bundler extends EventEmitter {
           asset.parentBundle.type === commonBundle.type
         ) {
           this.moveAssetToBundle(asset, commonBundle);
+          return;
         }
-      }
-
-      return;
+      } else return;
     }
 
     // Create the root bundle if it doesn't exist
@@ -478,6 +478,7 @@ class Bundler extends EventEmitter {
   }
 
   middleware() {
+    this.bundle();
     return Server.middleware(this);
   }
 

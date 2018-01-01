@@ -16,9 +16,19 @@ describe('html', function() {
           childBundles: []
         },
         {
+          type: 'js',
+          assets: ['index.js'],
+          childBundles: []
+        },
+        {
           type: 'html',
           assets: ['other.html'],
           childBundles: [
+            {
+              type: 'css',
+              assets: ['index.css'],
+              childBundles: []
+            },
             {
               type: 'js',
               assets: ['index.js'],
@@ -114,9 +124,36 @@ describe('html', function() {
       production: true
     });
 
-    let css = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
-    assert(css.includes('Other page'));
-    assert(!css.includes('\n'));
+    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
+    assert(html.includes('Other page'));
+    assert(!html.includes('\n'));
+  });
+
+  it('should read .htmlnanorc and minify HTML in production mode', async function() {
+    await bundle(__dirname + '/integration/htmlnano-config/index.html', {
+      production: true
+    });
+
+    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
+
+    // mergeStyles
+    assert(
+      html.includes(
+        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:blue}</style>'
+      )
+    );
+
+    // minifyJson
+    assert(
+      html.includes('<script type="application/json">{"user":"me"}</script>')
+    );
+
+    // minifySvg is false
+    assert(
+      html.includes(
+        '<svg version="1.1" baseprofile="full" width="300" height="200" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="red"></rect><circle cx="150" cy="100" r="80" fill="green"></circle><text x="150" y="125" font-size="60" text-anchor="middle" fill="white">SVG</text></svg>'
+      )
+    );
   });
 
   it('should not prepend the public path to assets with remote URLs', async function() {
@@ -155,5 +192,34 @@ describe('html', function() {
 
     let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
     assert(/<i>hello<\/i> <i>world<\/i>/.test(html));
+  });
+
+  it('should support child bundles of different types', async function() {
+    let b = await bundle(
+      __dirname + '/integration/child-bundle-different-types/index.html'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'js',
+          assets: ['main.js', 'util.js', 'other.js'],
+          childBundles: []
+        },
+        {
+          type: 'html',
+          assets: ['other.html'],
+          childBundles: [
+            {
+              type: 'js',
+              assets: ['index.js', 'util.js', 'other.js'],
+              childBundles: []
+            }
+          ]
+        }
+      ]
+    });
   });
 });
