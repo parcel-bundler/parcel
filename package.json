@@ -1,6 +1,6 @@
 {
   "name": "parcel-bundler",
-  "version": "1.3.1",
+  "version": "1.4.1",
   "main": "index.js",
   "license": "MIT",
   "repository": {
@@ -49,6 +49,8 @@
     "coffeescript": "^2.0.3",
     "cross-env": "^5.1.1",
     "eslint": "^4.13.0",
+    "graphql": "^0.11.7",
+    "graphql-tag": "^2.6.0",
     "husky": "^0.14.3",
     "less": "^2.7.2",
     "lint-staged": "^6.0.0",
@@ -67,8 +69,11 @@
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
-    "build": "babel src -d lib",
+    "build":
+      "yarn minify && babel src -d lib && cp -R src/builtins lib/builtins",
     "prepublish": "yarn build",
+    "minify":
+      "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
     "precommit": "npm run lint && lint-staged",
     "lint": "eslint .",
     "postinstall":

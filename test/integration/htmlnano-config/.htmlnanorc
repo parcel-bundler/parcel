@@ -1,0 +1,5 @@
+{
+  mergeStyles: true,
+  minifySvg: false,
+  minifyJson: true
+}
