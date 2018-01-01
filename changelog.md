@@ -5,6 +5,18 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2017-12-31
+
+### Added
+
+* Changelog [Details](https://github.com/parcel-bundler/parcel/commit/dc4acd8efebf76116b9e06e89827e56cfa217013)
+
+### Fixes
+
+* http hot reload server printing location as `https://...` [Details](https://github.com/parcel-bundler/parcel/commit/0fcdeb9a9feac10be3ff2485e2487588734a6754)
+* Execute bundle() when calling Bundler.middleware() [Details](https://github.com/parcel-bundler/parcel/commit/b9004fc3a0092cdfa0b18e196ab25a79e582b2d1)
+* Always parse dependencies if babel ran. [Details](https://github.com/parcel-bundler/parcel/commit/c6991116f0759b865f1a55336c32ba0793fa09c3)
+
 ## [1.4.0] - 2017-12-31
 
 ### Added
