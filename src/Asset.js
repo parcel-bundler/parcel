@@ -4,6 +4,7 @@ const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const sanitizeFilename = require('sanitize-filename');
+const getModuleRoot = require('./utils/getModuleRoot');
 
 let ASSET_ID = 1;
 
@@ -66,16 +67,20 @@ class Asset {
       return url;
     }
 
-    if (url.indexOf('/') === 0) {
-      url = path.join(this.options.rootDir, url);
-    }
-
     if (typeof from === 'object') {
       opts = from;
       from = this.name;
     }
 
-    let resolved = path.resolve(path.dirname(from), url).replace(/[?#].*$/, '');
+    let resolved;
+    if (url.indexOf('/') === 0) {
+      let root = getModuleRoot(from, this.options.rootDir);
+      resolved = path.join(root, url);
+    } else {
+      resolved = path.resolve(path.dirname(from), url);
+    }
+    resolved.replace(/[?#].*$/, '');
+
     this.addDependency(
       './' + path.relative(path.dirname(this.name), resolved),
       Object.assign({dynamic: true}, opts)

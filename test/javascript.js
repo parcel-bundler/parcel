@@ -357,4 +357,13 @@ describe('javascript', function() {
     assert.equal(typeof output.test, 'function');
     assert.equal(output.test(), 'pkg-main-module');
   });
+
+  it('absolute require in node module', async function() {
+    let b = await bundle(__dirname + '/integration/node-absolute/index.js');
+
+    let output = run(b);
+
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'test');
+  });
 });

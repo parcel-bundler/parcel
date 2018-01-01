@@ -4,6 +4,7 @@ const resolveAsync = promisify(resolve);
 const builtins = require('./builtins');
 const path = require('path');
 const glob = require('glob');
+const getModuleRoot = require('./utils/getModuleRoot');
 
 class Resolver {
   constructor(options = {}) {
@@ -25,6 +26,10 @@ class Resolver {
     let key = this.getCacheKey(filename, parent);
     if (this.cache.has(key)) {
       return this.cache.get(key);
+    }
+
+    if (filename.indexOf('/') === 0 && parent) {
+      filename = path.join(getModuleRoot(parent, '/'), filename);
     }
 
     if (glob.hasMagic(filename)) {
