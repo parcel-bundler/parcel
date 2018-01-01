@@ -99,7 +99,7 @@ class Bundler extends EventEmitter {
       for (let dep in deps) {
         if (dep.startsWith('parcel-plugin-')) {
           let plugin = await localRequire(dep, this.mainFile);
-          plugin(this);
+          await plugin(this);
         }
       }
     } catch (err) {
@@ -379,10 +379,9 @@ class Bundler extends EventEmitter {
           asset.parentBundle.type === commonBundle.type
         ) {
           this.moveAssetToBundle(asset, commonBundle);
+          return;
         }
-      }
-
-      return;
+      } else return;
     }
 
     // Create the root bundle if it doesn't exist
@@ -478,6 +477,7 @@ class Bundler extends EventEmitter {
   }
 
   middleware() {
+    this.bundle();
     return Server.middleware(this);
   }
 

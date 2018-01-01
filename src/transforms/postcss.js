@@ -51,7 +51,9 @@ async function getConfig(asset) {
   }
 
   if (asset.options.minify) {
-    config.plugins.push(cssnano());
+    config.plugins.push(
+      cssnano((await Config.load(asset.name, ['cssnano.config.js'])) || {})
+    );
   }
 
   config.from = asset.name;
