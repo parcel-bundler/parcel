@@ -5,6 +5,18 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2017-12-31
+
+### Added
+
+* Changelog [Details](https://github.com/parcel-bundler/parcel/commit/dc4acd8efebf76116b9e06e89827e56cfa217013)
+
+### Fixed
+
+* http hot reload server printing location as `https://...` [Details](https://github.com/parcel-bundler/parcel/commit/0fcdeb9a9feac10be3ff2485e2487588734a6754)
+* Execute bundle() when calling Bundler.middleware() [Details](https://github.com/parcel-bundler/parcel/commit/b9004fc3a0092cdfa0b18e196ab25a79e582b2d1)
+* Always parse dependencies if babel ran. [Details](https://github.com/parcel-bundler/parcel/commit/c6991116f0759b865f1a55336c32ba0793fa09c3)
+
 ## [1.4.0] - 2017-12-31
 
 ### Added
@@ -19,7 +31,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 * Add url dependency for serviceWorker.register calls [Details](https://github.com/parcel-bundler/parcel/commit/0ab0acaecece829392cd452f83014df7c470fc83)
 * Fix ignored babel files [Details](https://github.com/parcel-bundler/parcel/commit/22478d368216b24da3bd3e94439b02e356fd4310)
 
-### Fixes
+### Fixed
 
 * log-symbols fallback for cross-platform emoji compatibility [Details](https://github.com/parcel-bundler/parcel/commit/0eb4487491fd70390697ad413aeac994fca4309c)
 * Use hostname for websocket connection [Details](https://github.com/parcel-bundler/parcel/commit/06d5ffc33dac19fa9ca730bbf939052b500a34ec)
@@ -48,7 +60,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 * Tests for ES6 Modules resolver [Details](https://github.com/parcel-bundler/parcel/commit/76186779b2a24ce1befc7c5d5b3e783c7b9f5c94)
 * ESLint [Details](https://github.com/parcel-bundler/parcel/commit/434b86c92b19e2c7de13a121600d0533c1138169)
 
-### Fixes
+### Fixed
 
 * Parse port option as integer [Details](https://github.com/parcel-bundler/parcel/commit/1fa9fef1d1165630b0beabba5d546ee3ccffbec1)
 * Make cli.js Node 6 compatible [Details](https://github.com/parcel-bundler/parcel/commit/ac0fbaf40b9cc93b3f428c2b6c124027f56e6e78)
@@ -68,7 +80,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 * Use `JSON5` to parse config files [Details](https://github.com/parcel-bundler/parcel/commit/bd458660ce38e7a1d25bd9758084acc24418e054)
 * Move JSAsset options gathering into seperate function [Details](https://github.com/parcel-bundler/parcel/commit/333c3aa5d20f98a5f3c52635751032d12854c13c)
 
-### Fixes
+### Fixed
 
 * Don't use template literals in builtins - IE support [Details](https://github.com/parcel-bundler/parcel/commit/b7b2991d69b960d9f2951828b8145a6d9396ee4e)
 * Merge `tsconfig.json` with defaults [Details](https://github.com/parcel-bundler/parcel/commit/86835793a513b43af906a02083eed72b7eb9e0d2)
@@ -93,7 +105,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 * Add AppVeyor CI [Details](https://github.com/parcel-bundler/parcel/commit/0eb7a930ffcd4fc77b5b6c75e490299f92ca8a8e)
 * Use `UglifyES` instead of `UglifyJS` [Details](https://github.com/parcel-bundler/parcel/commit/70663cced00e5f98d3e8e3affbc0ee40a9ab4566)
 
-### Fixes
+### Fixed
 
 * Bundle-loader when using esModule [Details](https://github.com/parcel-bundler/parcel/commit/7d1f384122431b90e715161e50a5abf39dc8fd9d)
 * Use var over let in builtins for IE support [Details](https://github.com/parcel-bundler/parcel/commit/29515f4f713b093bad9cf8fedd796c4eacb4f38b)
@@ -121,7 +133,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 * More helpfull json parsing error messages using `parse-json` [Details](https://github.com/parcel-bundler/parcel/commit/2b26f9691d3dc489c509476718fa852b231ffde1)
 * Issue template [Details](https://github.com/parcel-bundler/parcel/commit/f8dd2f2aea167f011a5c885b20390521798c8c9f)
 
-### Fixes
+### Fixed
 
 * Print stack traces on error [Details](https://github.com/parcel-bundler/parcel/commit/4ab9b878a2b1ea280afaac690fb0990947c4323e)
 * Merge `postcss-modules` config [Details](https://github.com/parcel-bundler/parcel/commit/582f8db1f735ecbbd4f5c93202ba0f6a6c24f8ca)
