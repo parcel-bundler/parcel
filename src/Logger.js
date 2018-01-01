@@ -5,12 +5,19 @@ const emoji = require('./utils/emoji');
 
 class Logger {
   constructor(options) {
-    this.logLevel = typeof options.logLevel === 'number' ? options.logLevel : 3;
-    this.color =
-      typeof options.color === 'boolean' ? options.color : chalk.supportsColor;
-    this.chalk = new chalk.constructor({enabled: this.color});
     this.lines = 0;
     this.statusLine = null;
+    this.setOptions(options);
+  }
+
+  setOptions(options) {
+    this.logLevel =
+      options && typeof options.logLevel === 'number' ? options.logLevel : 3;
+    this.color =
+      options && typeof options.color === 'boolean'
+        ? options.color
+        : chalk.supportsColor;
+    this.chalk = new chalk.constructor({enabled: this.color});
   }
 
   write(message, persistent = false) {
@@ -108,6 +115,17 @@ class Logger {
       this.lines++;
     }
   }
+
+  handleMessage(options) {
+    this[options.method](...options.args);
+  }
 }
 
-module.exports = Logger;
+let logger;
+function getInstance() {
+  if (!logger) logger = new Logger();
+  return logger;
+}
+
+module.exports = getInstance();
+module.exports.class = Logger;
