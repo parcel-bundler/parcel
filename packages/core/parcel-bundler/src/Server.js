@@ -74,14 +74,14 @@ async function serve(bundler, port, useHTTPS = false) {
     server.once('listening', () => {
       let addon =
         server.address().port !== port
-          ? `- ${bundler.logger.chalk.red(
+          ? `- ${bundler.logger.chalk.yellow(
               `configured port ${port} could not be used.`
             )}`
           : '';
 
       bundler.logger.persistent(
         `Server running at ${bundler.logger.chalk.cyan(
-          `${https ? 'https' : 'http'}://localhost:${server.address().port}`
+          `${useHTTPS ? 'https' : 'http'}://localhost:${server.address().port}`
         )} ${addon}`
       );
 
