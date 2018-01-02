@@ -1,4 +1,5 @@
 const JSAsset = require('./JSAsset');
+const {minify} = require('uglify-es');
 
 class JSONAsset extends JSAsset {
   async load() {
@@ -8,7 +9,15 @@ class JSONAsset extends JSAsset {
   parse() {}
   collectDependencies() {}
   pretransform() {}
-  transform() {}
+  async transform() {
+    if (this.options.minify) {
+      this.contents = minify(this.contents, {
+        compress: {
+          expression: true
+        }
+      }).code;
+    }
+  }
 }
 
 module.exports = JSONAsset;
