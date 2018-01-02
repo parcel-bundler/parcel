@@ -1,6 +1,6 @@
-const {File: BabelFile} = require('babel-core');
-const traverse = require('babel-traverse').default;
-const codeFrame = require('babel-code-frame');
+const {File: BabelFile} = require('@babel/core');
+const traverse = require('@babel/traverse').default;
+const codeFrame = require('@babel/code-frame');
 const collectDependencies = require('../visitors/dependencies');
 const walk = require('babylon-walk');
 const Asset = require('../Asset');
@@ -8,7 +8,7 @@ const babylon = require('babylon');
 const insertGlobals = require('../visitors/globals');
 const fsVisitor = require('../visitors/fs');
 const babel = require('../transforms/babel');
-const generate = require('babel-generator').default;
+const generate = require('@babel/generator').default;
 const uglify = require('../transforms/uglify');
 const config = require('../utils/config');
 
