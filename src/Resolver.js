@@ -9,6 +9,18 @@ class Resolver {
   constructor(options = {}) {
     this.options = options;
     this.cache = new Map();
+    this.pathIndicators = {
+      // use ~ instead of root path for project
+      '~': process.cwd()
+    };
+  }
+
+  resolvePath(filename) {
+    for (let [indicator, exactPath] of Object.entries(this.pathIndicators)) {
+      if (filename.startsWith(indicator))
+        return path.resolve(exactPath, filename.slice(1));
+    }
+    return filename;
   }
 
   async resolve(filename, parent) {
@@ -38,7 +50,7 @@ class Resolver {
       extensions = [parentExt, ...extensions.filter(ext => ext !== parentExt)];
     }
 
-    return resolver(filename, {
+    return resolver(this.resolvePath(filename), {
       filename: parent,
       paths: this.options.paths,
       modules: builtins,
