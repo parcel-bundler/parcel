@@ -31,6 +31,13 @@ class Bundler extends EventEmitter {
     this.cache = this.options.cache ? new FSCache(this.options) : null;
     this.logger = new Logger(this.options);
     this.delegate = options.delegate || {};
+    this.bundleLoaders = {};
+
+    this.addBundleLoader(
+      'css',
+      require.resolve('./builtins/loaders/css-loader')
+    );
+    this.addBundleLoader('js', require.resolve('./builtins/loaders/js-loader'));
 
     this.pending = false;
     this.loadedAssets = new Map();
@@ -86,6 +93,18 @@ class Bundler extends EventEmitter {
     }
 
     this.packagers.add(type, packager);
+  }
+
+  addBundleLoader(type, path) {
+    if (typeof path !== 'string') {
+      throw new Error('Bundle loader should be a module path.');
+    }
+
+    if (this.farm) {
+      throw new Error('Bundle loaders must be added before bundling.');
+    }
+
+    this.bundleLoaders[type] = path;
   }
 
   async loadPlugins() {
@@ -178,6 +197,7 @@ class Bundler extends EventEmitter {
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
     this.farm = WorkerFarm.getShared(this.options);
+    this.options.bundleLoaders = this.bundleLoaders;
 
     if (this.options.watch) {
       // FS events on macOS are flakey in the tests, which write lots of files very quickly
