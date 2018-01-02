@@ -35,6 +35,10 @@ class Bundler extends EventEmitter {
     this.bundleLoaders = {};
 
     this.addBundleLoader(
+      'wasm',
+      require.resolve('./builtins/loaders/wasm-loader')
+    );
+    this.addBundleLoader(
       'css',
       require.resolve('./builtins/loaders/css-loader')
     );
