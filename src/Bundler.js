@@ -395,29 +395,24 @@ class Bundler extends EventEmitter {
           this.moveAssetToBundle(asset, commonBundle);
           return;
         }
-      } else return;
+      } else {
+        return;
+      }
     }
 
-    // Create the root bundle if it doesn't exist
     if (!bundle) {
-      bundle = new Bundle(
-        asset.type,
-        Path.join(this.options.outDir, asset.generateBundleName())
-      );
-      bundle.entryAsset = asset;
+      // Create the root bundle if it doesn't exist
+      bundle = Bundle.createWithAsset(asset);
+    } else if (dep && dep.dynamic) {
+      // Create a new bundle for dynamic imports
+      bundle = bundle.createChildBundle(asset);
+    } else if (asset.type && !this.packagers.has(asset.type)) {
+      // No packager is available for this asset type. Create a new bundle with only this asset.
+      bundle.createSiblingBundle(asset);
+    } else {
+      // Add the asset to the common bundle of the asset's type
+      bundle.getSiblingBundle(asset.type).addAsset(asset);
     }
-
-    // Create a new bundle for dynamic imports
-    if (dep && dep.dynamic) {
-      bundle = bundle.createChildBundle(
-        asset.type,
-        Path.join(this.options.outDir, asset.generateBundleName())
-      );
-      bundle.entryAsset = asset;
-    }
-
-    // Add the asset to the bundle of the asset's type
-    bundle.getSiblingBundle(asset.type).addAsset(asset);
 
     // If the asset generated a representation for the parent bundle type, also add it there
     if (asset.generated[bundle.type] != null) {
