@@ -10,7 +10,7 @@ class Resolver {
     this.options = options;
     this.cache = new Map();
     this.pathIndicators = {
-      // use ~ instead of root path for project
+      // resolve '~' to root path of project
       '~': process.cwd()
     };
   }
@@ -18,7 +18,7 @@ class Resolver {
   resolvePath(filename) {
     for (let [indicator, exactPath] of Object.entries(this.pathIndicators)) {
       if (filename.startsWith(indicator))
-        return path.resolve(exactPath, filename.slice(1));
+        return path.resolve(exactPath, filename.slice(indicator.length));
     }
     return filename;
   }
