@@ -162,9 +162,26 @@ class Bundler extends EventEmitter {
         this.buildQueue.add(this.mainAsset);
       }
 
-      // Build the queued assets, and produce a bundle tree.
-      this.isInitialBundle = isInitialBundle;
-      let bundle = await this.buildQueuedAssets(isInitialBundle);
+      // Build the queued assets.
+      let loadedAssets = await this.buildQueue.run();
+
+      // Emit an HMR update for any new assets (that don't have a parent bundle yet)
+      // plus the asset that actually changed.
+      if (this.hmr && !isInitialBundle) {
+        this.hmr.emitUpdate([...this.findOrphanAssets(), ...loadedAssets]);
+      }
+
+      // Invalidate bundles
+      for (let asset of this.loadedAssets.values()) {
+        asset.invalidateBundle();
+      }
+
+      // Create a new bundle tree and package everything up.
+      let bundle = this.createBundleTree(this.mainAsset);
+      this.bundleHashes = await bundle.package(this, this.bundleHashes);
+
+      // Unload any orphaned assets
+      this.unloadOrphanedAssets();
 
       let buildTime = Date.now() - startTime;
       let time =
@@ -173,6 +190,7 @@ class Bundler extends EventEmitter {
           : `${(buildTime / 1000).toFixed(2)}s`;
       this.logger.status(emoji.success, `Built in ${time}.`, 'green');
 
+      this.emit('bundled', bundle);
       return bundle;
     } catch (err) {
       this.errored = true;
@@ -237,31 +255,6 @@ class Bundler extends EventEmitter {
     }
   }
 
-  async buildQueuedAssets(isInitialBundle = false) {
-    let loadedAssets = await this.buildQueue.run();
-
-    // Emit an HMR update for any new assets (that don't have a parent bundle yet)
-    // plus the asset that actually changed.
-    if (this.hmr && !isInitialBundle) {
-      this.hmr.emitUpdate([...this.findOrphanAssets(), ...loadedAssets]);
-    }
-
-    // Invalidate bundles
-    for (let asset of this.loadedAssets.values()) {
-      asset.invalidateBundle();
-    }
-
-    // Create a new bundle tree and package everything up.
-    let bundle = this.createBundleTree(this.mainAsset);
-    this.bundleHashes = await bundle.package(this, this.bundleHashes);
-
-    // Unload any orphaned assets
-    this.unloadOrphanedAssets();
-
-    this.emit('bundled', bundle);
-    return bundle;
-  }
-
   async getAsset(name, parent) {
     let asset = await this.resolveAsset(name, parent);
     this.buildQueue.add(asset);
@@ -313,8 +306,8 @@ class Bundler extends EventEmitter {
     }
   }
 
-  async processAsset(asset) {
-    if (!this.isInitialBundle) {
+  async processAsset(asset, isRebuild) {
+    if (isRebuild) {
       asset.invalidate();
       if (this.cache) {
         this.cache.invalidate(asset.name);
@@ -482,7 +475,7 @@ class Bundler extends EventEmitter {
     this.logger.status(emoji.progress, `Building ${asset.basename}...`);
 
     // Add the asset to the rebuild queue, and reset the timeout.
-    this.buildQueue.add(asset);
+    this.buildQueue.add(asset, true);
     clearTimeout(this.rebuildTimeout);
 
     this.rebuildTimeout = setTimeout(async () => {

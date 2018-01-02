@@ -2,22 +2,22 @@ class PromiseQueue {
   constructor(callback) {
     this.process = callback;
     this.queue = [];
-    this.processing = new Set;
-    this.processed = new Set;
+    this.processing = new Set();
+    this.processed = new Set();
     this.runPromise = null;
     this.resolve = null;
     this.reject = null;
   }
 
-  add(job) {
+  add(job, ...args) {
     if (this.processing.has(job)) {
       return;
     }
 
     if (this.runPromise) {
-      this._runJob(job);
+      this._runJob(job, args);
     } else {
-      this.queue.push(job);
+      this.queue.push([job, args]);
     }
 
     this.processing.add(job);
@@ -37,14 +37,14 @@ class PromiseQueue {
     return this.runPromise;
   }
 
-  async _runJob(job) {
+  async _runJob(job, args) {
     try {
-      await this.process(job);
+      await this.process(job, ...args);
       this.processing.delete(job);
       this.processed.add(job);
       this._next();
     } catch (err) {
-      this.queue.push(job);
+      this.queue.push([job, args]);
       this.reject(err);
       this._reset();
     }
@@ -57,7 +57,7 @@ class PromiseQueue {
 
     if (this.queue.length > 0) {
       while (this.queue.length > 0) {
-        this._runJob(this.queue.shift());
+        this._runJob(...this.queue.shift());
       }
     } else {
       this.resolve(this.processed);
@@ -66,7 +66,7 @@ class PromiseQueue {
   }
 
   _reset() {
-    this.processed = new Set;
+    this.processed = new Set();
     this.runPromise = null;
     this.resolve = null;
     this.reject = null;
