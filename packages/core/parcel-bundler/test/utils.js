@@ -126,8 +126,15 @@ function assertBundleTree(bundle, tree) {
   }
 }
 
+function nextBundle(b) {
+  return new Promise(resolve => {
+    b.once('bundled', resolve);
+  });
+}
+
 exports.sleep = sleep;
 exports.bundler = bundler;
 exports.bundle = bundle;
 exports.run = run;
 exports.assertBundleTree = assertBundleTree;
+exports.nextBundle = nextBundle;
