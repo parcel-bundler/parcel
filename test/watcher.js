@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const {bundler, run, assertBundleTree, sleep} = require('./utils');
+const {bundler, run, assertBundleTree, sleep, nextBundle} = require('./utils');
 const rimraf = require('rimraf');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
@@ -17,12 +17,6 @@ describe('watcher', function() {
       b.stop();
     }
   });
-
-  function nextBundle(b) {
-    return new Promise(resolve => {
-      b.once('bundled', resolve);
-    });
-  }
 
   it('should rebuild on file change', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
