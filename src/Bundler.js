@@ -14,6 +14,7 @@ const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
 const emoji = require('./utils/emoji');
+const PromiseQueue = require('./utils/PromiseQueue');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -46,7 +47,7 @@ class Bundler extends EventEmitter {
     this.hmr = null;
     this.bundleHashes = null;
     this.errored = false;
-    this.buildQueue = new Set();
+    this.buildQueue = new PromiseQueue(this.processAsset.bind(this));
     this.rebuildTimeout = null;
   }
 
@@ -157,6 +158,7 @@ class Bundler extends EventEmitter {
       }
 
       // Build the queued assets, and produce a bundle tree.
+      this.isInitialBundle = isInitialBundle;
       let bundle = await this.buildQueuedAssets(isInitialBundle);
 
       let buildTime = Date.now() - startTime;
@@ -196,7 +198,6 @@ class Bundler extends EventEmitter {
     await this.loadPlugins();
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
-    this.farm = WorkerFarm.getShared(this.options);
     this.options.bundleLoaders = this.bundleLoaders;
 
     if (this.options.watch) {
@@ -213,6 +214,8 @@ class Bundler extends EventEmitter {
       this.hmr = new HMRServer();
       this.options.hmrPort = await this.hmr.start();
     }
+
+    this.farm = WorkerFarm.getShared(this.options);
   }
 
   stop() {
@@ -230,27 +233,7 @@ class Bundler extends EventEmitter {
   }
 
   async buildQueuedAssets(isInitialBundle = false) {
-    // Consume the rebuild queue until it is empty.
-    let loadedAssets = new Set();
-    while (this.buildQueue.size > 0) {
-      let promises = [];
-      for (let asset of this.buildQueue) {
-        // Invalidate the asset, unless this is the initial bundle
-        if (!isInitialBundle) {
-          asset.invalidate();
-          if (this.cache) {
-            this.cache.invalidate(asset.name);
-          }
-        }
-
-        promises.push(this.loadAsset(asset));
-        loadedAssets.add(asset);
-      }
-
-      // Wait for all assets to load. If there are more added while
-      // these are processing, they'll be loaded in the next batch.
-      await Promise.all(promises);
-    }
+    let loadedAssets = await this.buildQueue.run();
 
     // Emit an HMR update for any new assets (that don't have a parent bundle yet)
     // plus the asset that actually changed.
@@ -274,17 +257,20 @@ class Bundler extends EventEmitter {
     return bundle;
   }
 
-  async resolveAsset(name, parent, options = {}) {
+  async getAsset(name, parent) {
+    let asset = await this.resolveAsset(name, parent);
+    this.buildQueue.add(asset);
+    await this.buildQueue.run();
+    return asset;
+  }
+
+  async resolveAsset(name, parent) {
     let {path, pkg} = await this.resolver.resolve(name, parent);
     if (this.loadedAssets.has(path)) {
       return this.loadedAssets.get(path);
     }
 
-    let asset = this.parser.getAsset(
-      path,
-      pkg,
-      Object.assign({}, this.options, options)
-    );
+    let asset = this.parser.getAsset(path, pkg, this.options);
     this.loadedAssets.set(path, asset);
 
     if (this.watcher) {
@@ -296,7 +282,7 @@ class Bundler extends EventEmitter {
 
   async resolveDep(asset, dep) {
     try {
-      return await this.resolveAsset(dep.name, asset.name, dep);
+      return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
       let thrown = err;
 
@@ -322,9 +308,19 @@ class Bundler extends EventEmitter {
     }
   }
 
+  async processAsset(asset) {
+    if (!this.isInitialBundle) {
+      asset.invalidate();
+      if (this.cache) {
+        this.cache.invalidate(asset.name);
+      }
+    }
+
+    await this.loadAsset(asset);
+  }
+
   async loadAsset(asset) {
     if (asset.processed) {
-      this.buildQueue.delete(asset);
       return;
     }
 
@@ -381,8 +377,6 @@ class Bundler extends EventEmitter {
         asset.depAssets.set(dep.name, assetDep);
       }
     });
-
-    this.buildQueue.delete(asset);
   }
 
   createBundleTree(asset, dep, bundle) {
