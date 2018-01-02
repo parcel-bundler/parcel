@@ -2,9 +2,9 @@ const WebSocket = require('ws');
 const prettyError = require('./utils/prettyError');
 
 class HMRServer {
-  async start() {
+  async start(port) {
     await new Promise(resolve => {
-      this.wss = new WebSocket.Server({port: 0}, resolve);
+      this.wss = new WebSocket.Server({port}, resolve);
     });
 
     this.wss.on('connection', ws => {
