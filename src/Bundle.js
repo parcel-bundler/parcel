@@ -1,5 +1,4 @@
 const Path = require('path');
-const fs = require('fs');
 const crypto = require('crypto');
 
 /**

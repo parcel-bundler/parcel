@@ -1,9 +1,9 @@
 const http = require('http');
-const path = require('path');
-const url = require('url');
+const https = require('https');
 const serveStatic = require('serve-static');
 const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
+const generateCertificate = require('./utils/generateCertificate');
 
 function middleware(bundler) {
   const serve = serveStatic(bundler.options.outDir, {index: false});
@@ -32,7 +32,7 @@ function middleware(bundler) {
     function sendIndex() {
       // If the main asset is an HTML file, serve it
       if (bundler.mainAsset.type === 'html') {
-        req.url = '/' + bundler.mainAsset.basename;
+        req.url = `/${bundler.mainAsset.generateBundleName()}`;
         serve(req, res, send404);
       } else {
         send404();
@@ -56,29 +56,38 @@ function middleware(bundler) {
   };
 }
 
-async function serve(bundler, port) {
+async function serve(bundler, port, useHTTPS = false) {
+  let handler = middleware(bundler);
+  let server = useHTTPS
+    ? https.createServer(generateCertificate(bundler.options), handler)
+    : http.createServer(handler);
+
   let freePort = await getPort({port});
-  let server = http.createServer(middleware(bundler)).listen(freePort);
+  server.listen(freePort);
 
-  server.on('error', err => {
-    bundler.logger.error(new Error(serverErrors(err, server.address().port)));
+  return new Promise((resolve, reject) => {
+    server.on('error', err => {
+      bundler.logger.error(new Error(serverErrors(err, server.address().port)));
+      reject(err);
+    });
+
+    server.once('listening', () => {
+      let addon =
+        server.address().port !== port
+          ? `- ${bundler.logger.chalk.yellow(
+              `configured port ${port} could not be used.`
+            )}`
+          : '';
+
+      bundler.logger.persistent(
+        `Server running at ${bundler.logger.chalk.cyan(
+          `${useHTTPS ? 'https' : 'http'}://localhost:${server.address().port}`
+        )} ${addon}`
+      );
+
+      resolve(server);
+    });
   });
-
-  server.once('listening', connection => {
-    let addon =
-      server.address().port !== port
-        ? `- ${bundler.logger.chalk.red(
-            `configured port ${port} could not be used.`
-          )}`
-        : '';
-    bundler.logger.persistent(
-      `Server running at ${bundler.logger.chalk.cyan(
-        `http://localhost:${server.address().port}`
-      )} ${addon}\n`
-    );
-  });
-
-  return server;
 }
 
 exports.middleware = middleware;
