@@ -1,3 +1,2 @@
 const {add} = require('./add.wasm');
-
-module.exports = add(2, 3);
+output(add(2, 3));

@@ -47,7 +47,7 @@ function bundle(file, opts) {
   return bundler(file, opts).bundle();
 }
 
-function run(bundle, globals) {
+function run(bundle, globals, opts = {}) {
   // for testing dynamic imports
   const fakeDocument = {
     createElement(tag) {
@@ -79,7 +79,17 @@ function run(bundle, globals) {
       document: fakeDocument,
       WebSocket,
       console,
-      location: {hostname: 'localhost'}
+      location: {hostname: 'localhost'},
+      fetch(url) {
+        return Promise.resolve({
+          arrayBuffer() {
+            return Promise.resolve(
+              new Uint8Array(fs.readFileSync(path.join(__dirname, 'dist', url)))
+                .buffer
+            );
+          }
+        });
+      }
     },
     globals
   );
@@ -88,7 +98,12 @@ function run(bundle, globals) {
 
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(bundle.name), ctx);
-  return ctx.require(bundle.entryAsset.id);
+
+  if (opts.require !== false) {
+    return ctx.require(bundle.entryAsset.id);
+  }
+
+  return ctx;
 }
 
 function assertBundleTree(bundle, tree) {
@@ -132,9 +147,23 @@ function nextBundle(b) {
   });
 }
 
+function deferred() {
+  let resolve, reject;
+  let promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  promise.resolve = resolve;
+  promise.reject = reject;
+
+  return promise;
+}
+
 exports.sleep = sleep;
 exports.bundler = bundler;
 exports.bundle = bundle;
 exports.run = run;
 exports.assertBundleTree = assertBundleTree;
 exports.nextBundle = nextBundle;
+exports.deferred = deferred;
