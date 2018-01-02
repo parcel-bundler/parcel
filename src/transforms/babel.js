@@ -17,7 +17,8 @@ module.exports = async function(asset) {
     config.plugins = [require('@babel/plugin-transform-modules-commonjs')];
   }
 
-  let res = babel.transformFromAst(asset.ast, asset.contents, config);
+  let res = babel.transformFromAstSync(asset.ast, asset.contents, config);
+
   if (!res.ignored) {
     asset.ast = res.ast;
     asset.isAstDirty = true;
