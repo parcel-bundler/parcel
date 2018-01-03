@@ -14,17 +14,7 @@ const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
 const emoji = require('./utils/emoji');
-
-const NODE_ENV = process.env.NODE_ENV || 'development';
-const dotenvFiles = [
-  `.env.${NODE_ENV}.local`,
-  `.env.${NODE_ENV}`,
-  // Don't include `.env.local` for `test` environment
-  // since normally you expect tests to produce the same
-  // results for everyone
-  NODE_ENV !== 'test' && `.env.local`,
-  '.env'
-];
+const loadEnv = require('./utils/env');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -52,15 +42,6 @@ class Bundler extends EventEmitter {
     this.errored = false;
     this.buildQueue = new Set();
     this.rebuildTimeout = null;
-
-    dotenvFiles.filter(file => file).forEach(async dotenvFile => {
-      const envPath = Path.resolve(Path.dirname(this.mainFile), dotenvFile);
-      if (await fs.exists(envPath)) {
-        require('dotenv').config({
-          path: envPath
-        });
-      }
-    });
   }
 
   normalizeOptions(options) {
@@ -196,8 +177,10 @@ class Bundler extends EventEmitter {
     }
 
     await this.loadPlugins();
+    await loadEnv(this.mainFile);
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
+    this.options.env = process.env;
     this.farm = WorkerFarm.getShared(this.options);
 
     if (this.options.watch) {

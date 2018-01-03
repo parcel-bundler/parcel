@@ -115,11 +115,6 @@ class JSAsset extends Asset {
       code = Array.from(this.globals.values()).join('\n') + '\n' + code;
     }
 
-    Object.keys(process.env).forEach(envName => {
-      const envReplaceRegex = new RegExp(`process\\.env\\.${envName}`, 'gi');
-      code = code.replace(envReplaceRegex, `'${process.env[envName]}'`);
-    });
-
     return {
       js: code
     };
