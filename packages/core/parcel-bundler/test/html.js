@@ -172,6 +172,24 @@ describe('html', function() {
     assert(html.includes('<a href="#hash_link">'));
   });
 
+  it('Should detect virtual paths', async function() {
+    let b = await bundle(
+      __dirname + '/integration/html-virtualpath/index.html'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'html',
+          assets: ['other.html'],
+          childBundles: []
+        }
+      ]
+    });
+  });
+
   it('should not update root/main file in the bundles', async function() {
     await bundle(__dirname + '/integration/html-root/index.html');
 
