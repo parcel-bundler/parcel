@@ -7,7 +7,24 @@ module.exports = function(publicURL, assetPath) {
   // Use url.resolve to normalize path for windows
   // from \path\to\res.js to /path/to/res.js
 
-  return isUrl(publicURL)
-    ? url.resolve(publicURL, assetPath)
-    : url.resolve(path.join(publicURL, assetPath), '');
+  if (isUrl(publicURL)) {
+    const urlObj = url.parse(publicURL);
+    const regexp = /[?#](.)*/;
+
+    const rightUrlObj = Object.assign({}, urlObj, {
+      href: urlObj.href.replace(regexp, ''),
+      pathname: url.resolve(path.join(urlObj.pathname, assetPath), ''),
+      path: url.resolve(
+        `${path.join(
+          urlObj.path.replace(regexp, ''),
+          assetPath
+        )}${urlObj.search || ''}${urlObj.hash || ''}`,
+        ''
+      )
+    });
+
+    return url.format(rightUrlObj);
+  }
+
+  return url.resolve(path.join(publicURL, assetPath), '');
 };
