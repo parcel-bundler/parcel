@@ -34,7 +34,7 @@ class Resolver {
     return this.saveCache(filename, parent, resolved);
   }
 
-  async resolveInternal(filename, parent, resolver) {
+  resolveInternal(filename, parent, resolver) {
     let key = this.getCacheKey(filename, parent);
     if (this.cache.has(key)) {
       return this.cache.get(key);
