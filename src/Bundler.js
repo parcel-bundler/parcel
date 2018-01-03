@@ -14,6 +14,7 @@ const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
 const emoji = require('./utils/emoji');
+const loadEnv = require('./utils/env');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -176,8 +177,10 @@ class Bundler extends EventEmitter {
     }
 
     await this.loadPlugins();
+    await loadEnv(this.mainFile);
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
+    this.options.env = process.env;
     this.farm = WorkerFarm.getShared(this.options);
 
     if (this.options.watch) {
