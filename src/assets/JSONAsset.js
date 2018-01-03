@@ -11,11 +11,15 @@ class JSONAsset extends JSAsset {
   pretransform() {}
   async transform() {
     if (this.options.minify) {
-      this.contents = minify(this.contents, {
+      let minified = minify(this.contents, {
         compress: {
           expression: true
         }
-      }).code;
+      });
+      if (minified.error) {
+        throw minified.error;
+      }
+      this.contents = minified.code;
     }
   }
 }
