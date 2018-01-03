@@ -1,13 +1,12 @@
 const path = require('path');
+const config = require('./config');
+const packageFilenames = ['package.json'];
 
 module.exports = function(location, fallback = path.dirname(location)) {
-  location = path.dirname(location);
   if (location.indexOf('node_modules') >= 0) {
-    let matches = `${location}/`.match(
-      /.*(\/|\\)node_modules(\/|\\).*(\/|\\)/g
-    );
-    if (matches) {
-      return path.normalize(matches[0]);
+    location = config.resolveSync(location, packageFilenames);
+    if (location) {
+      return path.dirname(location);
     }
   }
   return fallback;
