@@ -2,7 +2,7 @@ const assert = require('assert');
 const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('resolver', function() {
-  it('should transfrom "~" to "process.cwd()"', async function() {
+  it('should transfrom "~/" to root of project', async function() {
     let b = await bundle(__dirname + '/integration/path/index.js');
 
     assertBundleTree(b, {

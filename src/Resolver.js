@@ -10,15 +10,16 @@ class Resolver {
     this.options = options;
     this.cache = new Map();
     this.pathIndicators = {
-      // resolve '~' to root path of project
-      '~': process.cwd()
+      // resolve '~/' to root path of project
+      '~/': path.dirname(this.options.cacheDir)
     };
   }
 
   resolvePath(filename) {
     for (let [indicator, exactPath] of Object.entries(this.pathIndicators)) {
-      if (filename.startsWith(indicator))
+      if (filename.startsWith(indicator)) {
         return path.resolve(exactPath, filename.slice(indicator.length));
+      }
     }
     return filename;
   }
@@ -33,7 +34,7 @@ class Resolver {
     return this.saveCache(filename, parent, resolved);
   }
 
-  resolveInternal(filename, parent, resolver) {
+  async resolveInternal(filename, parent, resolver) {
     let key = this.getCacheKey(filename, parent);
     if (this.cache.has(key)) {
       return this.cache.get(key);
