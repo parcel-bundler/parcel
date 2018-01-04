@@ -1,6 +1,7 @@
 const JSAsset = require('./JSAsset');
 const localRequire = require('../utils/localRequire');
 const process = require('process');
+const config = require('../utils/config');
 
 // Currently no pretty way to install Elm tools on behalf of the user :/
 async function compile(name, options) {
@@ -20,11 +21,21 @@ async function compile(name, options) {
 
 class ElmAsset extends JSAsset {
   async getParserOptions() {
-    const defaultOptions = {
+    let defaultOptions = {
       yes: true,
-      cwd: process.cwd(),
-      verbose: true
+      cwd: process.cwd()
     };
+
+    // grab other optios from package.elm.json
+    const elmOptions = await config.load(this.name, ['elm-package.json']);
+
+    if (elmOptions.nodeElmCompilerOptions) {
+      defaultOptions = Object.assign(
+        elmOptions.nodeElmCompilerOptions,
+        defaultOptions
+      );
+    }
+
     // Use a local copy of elm-make when in test
     if (process.env.NODE_ENV === 'test') {
       defaultOptions.pathToMake = require.resolve('elm/binwrappers/elm-make');
