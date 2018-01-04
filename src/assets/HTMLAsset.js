@@ -44,7 +44,7 @@ class HTMLAsset extends Asset {
           let elements = ATTRS[attr];
           // Check for virtual paths
           if (node.tag === 'a' && node.attrs[attr].lastIndexOf('.') < 1) {
-            break;
+            continue;
           }
           if (elements && elements.includes(node.tag)) {
             let assetPath = this.addURLDependency(node.attrs[attr]);

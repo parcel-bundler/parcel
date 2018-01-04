@@ -48,6 +48,22 @@ describe('html', function() {
     }
   });
 
+  it('should find href attr when not first', async function() {
+    let b = await bundle(__dirname + '/integration/html-attr-order/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'html',
+          assets: ['other.html'],
+          childBundles: []
+        }
+      ]
+    });
+  });
+
   it('should support transforming HTML with posthtml', async function() {
     let b = await bundle(__dirname + '/integration/posthtml/index.html');
 
