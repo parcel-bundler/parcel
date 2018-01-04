@@ -4,7 +4,7 @@ const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const sanitizeFilename = require('sanitize-filename');
-const getModuleRoot = require('./utils/getModuleRoot');
+const absoluteResolver = require('./utils/absoluteResolver');
 
 let ASSET_ID = 1;
 
@@ -73,9 +73,12 @@ class Asset {
     }
 
     let resolved;
-    if (url.indexOf('/') === 0) {
-      let root = getModuleRoot(from, this.options.rootDir);
-      resolved = path.join(root, url);
+    if (absoluteResolver.isAbsolutePath(url)) {
+      resolved = absoluteResolver.resolveAbsolute(
+        from,
+        url,
+        this.options.rootDir
+      );
     } else {
       resolved = path.resolve(path.dirname(from), url);
     }
