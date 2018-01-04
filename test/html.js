@@ -61,6 +61,22 @@ describe('html', function() {
     assert(html.includes('<h1>Other page</h1>'));
   });
 
+  it('should find assets inside posthtml', async function() {
+    let b = await bundle(__dirname + '/integration/posthtml-assets/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'js',
+          assets: ['index.js'],
+          childBundles: []
+        }
+      ]
+    });
+  });
+
   it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
     let b = await bundle(__dirname + '/integration/html-css/index.html');
 
