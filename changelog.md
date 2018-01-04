@@ -15,6 +15,8 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 * Don't try to include virtual paths in html [Details](https://github.com/parcel-bundler/parcel/commit/e09575d495d2ac5282671eab88b827191eee7fa7)
+* Transform HTML prior to collecting dependencies [Details](https://github.com/parcel-bundler/parcel/commit/2fbba629eaa83d7de5ccba79e01faa1187393f16)
+* Find a[href] dependencies when attrs precede it [Details](https://github.com/parcel-bundler/parcel/commit/39c5cfe377be603b16561f914cb9a07c7e5fdd6c)
 
 ## [1.4.1] - 2017-12-31
 
