@@ -65,10 +65,6 @@ class HTMLAsset extends Asset {
     await posthtmlTransform(this);
   }
 
-  async transform() {
-    await posthtmlTransform(this);
-  }
-
   generate() {
     let html = this.isAstDirty ? render(this.ast) : this.contents;
     return {html};
