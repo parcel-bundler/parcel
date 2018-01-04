@@ -61,6 +61,10 @@ class HTMLAsset extends Asset {
     });
   }
 
+  async pretransform() {
+    await posthtmlTransform(this);
+  }
+
   async transform() {
     await posthtmlTransform(this);
   }

@@ -75,8 +75,6 @@ describe('html', function() {
         }
       ]
     });
-
-    // TODO assert index.js is copied to /dist
   });
 
   it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
