@@ -19,16 +19,13 @@ class WorkerFarm {
       path.resolve(path.join(__dirname, 'worker.js')),
       workerOptions
     );
-    this.workerNodes
-      .ready()
-      .then(() => {
-        this.started = true;
-      })
-      .catch(error => {
-        throw error;
-      });
 
-    this.run.bind(this);
+    this.init();
+  }
+
+  async init() {
+    await this.workerNodes.ready();
+    this.started = true;
   }
 
   async run(...args) {
@@ -43,8 +40,8 @@ class WorkerFarm {
   }
 
   async end() {
+    console.log('Terminate worker farm.');
     await this.workerNodes.terminate();
-    this.workerNodes = null;
   }
 }
 

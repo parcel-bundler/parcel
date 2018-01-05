@@ -166,7 +166,7 @@ class Bundler extends EventEmitter {
 
       // If not in watch mode, stop the worker farm so we don't keep the process running.
       if (!this.watcher && this.options.killWorkers) {
-        this.stop();
+        await this.stop();
       }
     }
   }
@@ -199,9 +199,10 @@ class Bundler extends EventEmitter {
     }
   }
 
-  stop() {
+  async stop() {
     if (this.farm) {
-      this.farm.end();
+      await this.farm.end();
+      this.farm = null;
     }
 
     if (this.watcher) {

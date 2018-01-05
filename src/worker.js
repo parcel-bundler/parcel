@@ -1,20 +1,21 @@
 require('v8-compile-cache');
 const Parser = require('./Parser');
 
-let self = {};
-
-async function init(options) {
+let parser;
+function init(options) {
   console.log(`INIT: ${process.pid}`);
-  self.parser = new Parser(options || {});
   Object.assign(process.env, options.env || {});
+  parser = new Parser(options || {});
 }
 
-module.exports = async function(path, pkg, options, parserOptions) {
+module.exports = async function(path, pkg, options) {
+  // console.log(`RUNNING: ${process.pid}`);
+  if (!parser) {
+    init(options);
+  }
+  // console.log('Extensions: ', Object.keys(options.extensions).length);
   try {
-    if (!self.parser) {
-      init(parserOptions);
-    }
-    var asset = self.parser.getAsset(path, pkg, options);
+    var asset = parser.getAsset(path, pkg, options);
     await asset.process();
 
     return {
