@@ -42,5 +42,10 @@ describe('Url Join', () => {
       urlJoin('https://parceljs.org/foo?a=123&b=456#hello', '/bar/a.js'),
       'https://parceljs.org/foo/bar/a.js?a=123&b=456#hello'
     );
+
+    assert.equal(
+      urlJoin('/Users/people/projects/parcel', '/bar/foo.js'),
+      '/Users/people/projects/parcel/bar/foo.js'
+    );
   });
 });
