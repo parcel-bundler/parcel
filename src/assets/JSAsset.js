@@ -15,6 +15,8 @@ const config = require('../utils/config');
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
 const FS_RE = /\breadFileSync\b/;
+const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
+const WORKER_RE = /\bnew\s*Worker\s*\(/;
 
 class JSAsset extends Asset {
   constructor(name, pkg, options) {
@@ -28,13 +30,16 @@ class JSAsset extends Asset {
 
   mightHaveDependencies() {
     return (
+      this.isAstDirty ||
       !/.js$/.test(this.name) ||
       IMPORT_RE.test(this.contents) ||
-      GLOBAL_RE.test(this.contents)
+      GLOBAL_RE.test(this.contents) ||
+      SW_RE.test(this.contents) ||
+      WORKER_RE.test(this.contents)
     );
   }
 
-  async parse(code) {
+  async getParserOptions() {
     // Babylon options. We enable a few plugins by default.
     const options = {
       filename: this.name,
@@ -55,6 +60,12 @@ class JSAsset extends Asset {
       const file = new BabelFile({filename: this.name});
       options.plugins.push(...file.parserOpts.plugins);
     }
+
+    return options;
+  }
+
+  async parse(code) {
+    const options = await this.getParserOptions();
 
     return babylon.parse(code, options);
   }

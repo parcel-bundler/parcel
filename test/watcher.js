@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const {bundler, run, assertBundleTree, sleep} = require('./utils');
+const {bundler, run, assertBundleTree, sleep, nextBundle} = require('./utils');
 const rimraf = require('rimraf');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
@@ -17,12 +17,6 @@ describe('watcher', function() {
       b.stop();
     }
   });
-
-  function nextBundle(b) {
-    return new Promise(resolve => {
-      b.once('bundled', resolve);
-    });
-  }
 
   it('should rebuild on file change', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
@@ -100,7 +94,7 @@ describe('watcher', function() {
     await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
     b = bundler(__dirname + '/input/index.js', {watch: true});
 
-    let bundle = await b.bundle();
+    await b.bundle();
     let mtimes = fs
       .readdirSync(__dirname + '/dist')
       .map(
@@ -113,7 +107,7 @@ describe('watcher', function() {
       'module.exports = require("./common")'
     );
 
-    bundle = await nextBundle(b);
+    await nextBundle(b);
     let newMtimes = fs
       .readdirSync(__dirname + '/dist')
       .map(

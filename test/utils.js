@@ -78,10 +78,13 @@ function run(bundle, globals) {
     {
       document: fakeDocument,
       WebSocket,
-      console
+      console,
+      location: {hostname: 'localhost'}
     },
     globals
   );
+
+  ctx.window = ctx;
 
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(bundle.name), ctx);
@@ -123,8 +126,15 @@ function assertBundleTree(bundle, tree) {
   }
 }
 
+function nextBundle(b) {
+  return new Promise(resolve => {
+    b.once('bundled', resolve);
+  });
+}
+
 exports.sleep = sleep;
 exports.bundler = bundler;
 exports.bundle = bundle;
 exports.run = run;
 exports.assertBundleTree = assertBundleTree;
+exports.nextBundle = nextBundle;

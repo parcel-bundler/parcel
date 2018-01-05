@@ -1,16 +1,11 @@
 require('v8-compile-cache');
-const fs = require('./utils/fs');
 const Parser = require('./Parser');
-const babel = require('./transforms/babel');
 
 let parser;
 
-function emit(event, ...args) {
-  process.send({event, args});
-}
-
 exports.init = function(options, callback) {
   parser = new Parser(options || {});
+  Object.assign(process.env, options.env || {});
   callback();
 };
 
@@ -25,11 +20,13 @@ exports.run = async function(path, pkg, options, callback) {
       hash: asset.hash
     });
   } catch (err) {
+    let returned = err;
+
     if (asset) {
-      err = asset.generateErrorMessage(err);
+      returned = asset.generateErrorMessage(returned);
     }
 
-    err.fileName = path;
-    callback(err);
+    returned.fileName = path;
+    callback(returned);
   }
 };

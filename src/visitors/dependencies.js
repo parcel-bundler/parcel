@@ -1,9 +1,12 @@
 const types = require('babel-types');
-const {resolve} = require('path');
 const template = require('babel-template');
+const urlJoin = require('../utils/urlJoin');
+const isURL = require('../utils/is-url');
+const matchesPattern = require('./matches-pattern');
 
 const requireTemplate = template('require("_bundle_loader")');
 const argTemplate = template('require.resolve(MODULE)');
+const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
 module.exports = {
   ImportDeclaration(node, asset) {
@@ -38,6 +41,7 @@ module.exports = {
 
     if (isRequire) {
       addDependency(asset, args[0]);
+      return;
     }
 
     let isDynamicImport =
@@ -52,6 +56,31 @@ module.exports = {
       node.callee = requireTemplate().expression;
       node.arguments[0] = argTemplate({MODULE: args[0]}).expression;
       asset.isAstDirty = true;
+      return;
+    }
+
+    const isRegisterServiceWorker =
+      types.isStringLiteral(args[0]) &&
+      matchesPattern(callee, serviceWorkerPattern);
+
+    if (isRegisterServiceWorker) {
+      addURLDependency(asset, args[0]);
+      return;
+    }
+  },
+
+  NewExpression(node, asset) {
+    const {callee, arguments: args} = node;
+
+    const isWebWorker =
+      callee.type === 'Identifier' &&
+      callee.name === 'Worker' &&
+      args.length === 1 &&
+      types.isStringLiteral(args[0]);
+
+    if (isWebWorker) {
+      addURLDependency(asset, args[0]);
+      return;
     }
   }
 };
@@ -59,4 +88,13 @@ module.exports = {
 function addDependency(asset, node, opts = {}) {
   opts.loc = node.loc && node.loc.start;
   asset.addDependency(node.value, opts);
+}
+
+function addURLDependency(asset, node) {
+  let assetPath = asset.addURLDependency(node.value);
+  if (!isURL(assetPath)) {
+    assetPath = urlJoin(asset.options.publicURL, assetPath);
+  }
+  node.value = assetPath;
+  asset.isAstDirty = true;
 }
