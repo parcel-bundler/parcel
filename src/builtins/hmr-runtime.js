@@ -22,10 +22,6 @@ if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
     if (data.type === 'update') {
       data.assets.forEach(function (asset) {
         hmrApply(global.require, asset);
-        // CSS should always update
-        if (asset.generated && asset.generated.css) {
-          asset.isNew = false;
-        }
       });
 
       data.assets.forEach(function (asset) {

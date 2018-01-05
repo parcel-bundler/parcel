@@ -74,8 +74,7 @@ class HTMLPackager extends Packager {
     head.content.push({
       tag: 'script',
       attrs: {
-        src: path.join(this.options.publicURL, path.basename(jsBundle.name)),
-        type: 'text/JavaScript'
+        src: path.join(this.options.publicURL, path.basename(jsBundle.name))
       }
     });
   }
