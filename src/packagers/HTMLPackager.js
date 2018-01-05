@@ -7,33 +7,16 @@ class HTMLPackager extends Packager {
   async addAsset(asset) {
     let html = asset.generated.html || '';
 
-    // Find child bundles (e.g. JS) that have a sibling CSS bundle,
+    // Find child bundles that have JS or CSS sibling bundles,
     // add them to the head so they are loaded immediately.
-    let cssBundles = Array.from(this.bundle.childBundles)
-      .map(b => b.siblingBundles.get('css'))
-      .filter(Boolean);
+    let siblingBundles = Array.from(this.bundle.childBundles)
+      .reduce((p, b) => p.concat([...b.siblingBundles.values()]), [])
+      .filter(b => b.type === 'css' || b.type === 'js');
 
-    if (cssBundles.length > 0) {
-      html = posthtml(this.insertCSSBundles.bind(this, cssBundles)).process(
-        html,
-        {sync: true}
-      ).html;
-    } else {
-      // If HMR is active add the hmr script and css-loader
-      if (this.options.hmr) {
-        // Find a css file to get css-loader from
-        cssBundles = Array.from(this.bundle.childBundles).filter(
-          b => b.type === 'css'
-        );
-        if (cssBundles.length > 0) {
-          // We can assume this will always have cssLoader as the only dependancy
-          let jsBundle = cssBundles[0].siblingBundles.get('js');
-          html = posthtml(this.insertJSBundle.bind(this, jsBundle)).process(
-            html,
-            {sync: true}
-          ).html;
-        }
-      }
+    if (siblingBundles.length > 0) {
+      html = posthtml(
+        this.insertSiblingBundles.bind(this, siblingBundles)
+      ).process(html, {sync: true}).html;
     }
 
     await this.dest.write(html);
@@ -54,29 +37,27 @@ class HTMLPackager extends Packager {
     return head;
   }
 
-  insertCSSBundles(cssBundles, tree) {
+  insertSiblingBundles(siblingBundles, tree) {
     let head = this.getHeadContent(tree);
 
-    for (let bundle of cssBundles) {
-      head.content.push({
-        tag: 'link',
-        attrs: {
-          rel: 'stylesheet',
-          href: urlJoin(this.options.publicURL, path.basename(bundle.name))
-        }
-      });
-    }
-  }
-
-  insertJSBundle(jsBundle, tree) {
-    let head = this.getHeadContent(tree);
-
-    head.content.push({
-      tag: 'script',
-      attrs: {
-        src: path.join(this.options.publicURL, path.basename(jsBundle.name))
+    for (let bundle of siblingBundles) {
+      if (bundle.type === 'css') {
+        head.content.push({
+          tag: 'link',
+          attrs: {
+            rel: 'stylesheet',
+            href: urlJoin(this.options.publicURL, path.basename(bundle.name))
+          }
+        });
+      } else if (bundle.type === 'js') {
+        head.content.push({
+          tag: 'script',
+          attrs: {
+            src: path.join(this.options.publicURL, path.basename(bundle.name))
+          }
+        });
       }
-    });
+    }
   }
 }
 
