@@ -30,5 +30,10 @@ async function run(path, pkg, options) {
   }
 }
 
+function isReady() {
+  return 'ready';
+}
+
 exports.init = init;
 exports.run = run;
+exports.isReady = isReady;
