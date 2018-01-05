@@ -53,7 +53,7 @@ class HTMLPackager extends Packager {
         head.content.push({
           tag: 'script',
           attrs: {
-            src: path.join(this.options.publicURL, path.basename(bundle.name))
+            src: urlJoin(this.options.publicURL, path.basename(bundle.name))
           }
         });
       }
