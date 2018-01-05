@@ -48,6 +48,22 @@ describe('html', function() {
     }
   });
 
+  it('should find href attr when not first', async function() {
+    let b = await bundle(__dirname + '/integration/html-attr-order/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'html',
+          assets: ['other.html'],
+          childBundles: []
+        }
+      ]
+    });
+  });
+
   it('should support transforming HTML with posthtml', async function() {
     let b = await bundle(__dirname + '/integration/posthtml/index.html');
 
@@ -59,6 +75,22 @@ describe('html', function() {
 
     let html = fs.readFileSync(__dirname + '/dist/index.html');
     assert(html.includes('<h1>Other page</h1>'));
+  });
+
+  it('should find assets inside posthtml', async function() {
+    let b = await bundle(__dirname + '/integration/posthtml-assets/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'js',
+          assets: ['index.js'],
+          childBundles: []
+        }
+      ]
+    });
   });
 
   it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
@@ -170,6 +202,24 @@ describe('html', function() {
 
     let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
     assert(html.includes('<a href="#hash_link">'));
+  });
+
+  it('Should detect virtual paths', async function() {
+    let b = await bundle(
+      __dirname + '/integration/html-virtualpath/index.html'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'html',
+          assets: ['other.html'],
+          childBundles: []
+        }
+      ]
+    });
   });
 
   it('should not update root/main file in the bundles', async function() {
