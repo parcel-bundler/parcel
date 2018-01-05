@@ -51,7 +51,7 @@ function getNumWorkers() {
   } catch (err) {
     cores = os.cpus().length;
   }
-  return cores > 1 ? cores - 1 : 1 || 1;
+  return cores || 1;
 }
 
 module.exports = WorkerFarm;
