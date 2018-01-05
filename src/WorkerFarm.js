@@ -33,14 +33,13 @@ class WorkerFarm {
     // While we're waiting, just run on the main thread.
     // This significantly speeds up startup time.
     if (!this.started) {
-      return this.localWorker(...args, this.options);
+      return this.localWorker.run(...args, this.options);
     } else {
-      return this.workerNodes.call(...args, this.options);
+      return this.workerNodes.call.run(...args, this.options);
     }
   }
 
   async end() {
-    console.log('Terminate worker farm.');
     await this.workerNodes.terminate();
   }
 }
