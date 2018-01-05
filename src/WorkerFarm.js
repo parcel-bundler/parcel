@@ -1,6 +1,4 @@
 const {EventEmitter} = require('events');
-const os = require('os');
-const Farm = require('worker-farm/lib/farm');
 const promisify = require('./utils/promisify');
 
 let shared = null;
