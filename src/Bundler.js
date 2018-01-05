@@ -178,7 +178,7 @@ class Bundler extends EventEmitter {
     await this.loadPlugins();
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
-    this.farm = WorkerFarm.getShared(this.options);
+    this.farm = new WorkerFarm(this.options);
 
     if (this.options.watch) {
       // FS events on macOS are flakey in the tests, which write lots of files very quickly

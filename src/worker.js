@@ -1,23 +1,27 @@
 require('v8-compile-cache');
 const Parser = require('./Parser');
 
-let parser;
+let self = {};
 
-exports.init = function(options, callback) {
-  parser = new Parser(options || {});
-  callback();
-};
+async function init(options) {
+  console.log(`INIT: ${process.pid}`);
+  self.parser = new Parser(options || {});
+  Object.assign(process.env, options.env || {});
+}
 
-exports.run = async function(path, pkg, options, callback) {
+module.exports = async function(path, pkg, options, parserOptions) {
   try {
-    var asset = parser.getAsset(path, pkg, options);
+    if (!self.parser) {
+      init(parserOptions);
+    }
+    var asset = self.parser.getAsset(path, pkg, options);
     await asset.process();
 
-    callback(null, {
+    return {
       dependencies: Array.from(asset.dependencies.values()),
       generated: asset.generated,
       hash: asset.hash
-    });
+    };
   } catch (err) {
     let returned = err;
 
@@ -26,6 +30,6 @@ exports.run = async function(path, pkg, options, callback) {
     }
 
     returned.fileName = path;
-    callback(returned);
+    throw returned;
   }
 };

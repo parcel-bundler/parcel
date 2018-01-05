@@ -1,59 +1,34 @@
-const {EventEmitter} = require('events');
 const os = require('os');
-const Farm = require('worker-farm/lib/farm');
-const promisify = require('./utils/promisify');
+const WorkerNodes = require('worker-nodes');
+const path = require('path');
 
-let shared = null;
-
-class WorkerFarm extends Farm {
+class WorkerFarm {
   constructor(options) {
-    let opts = {
+    this.options = options;
+    this.started = false;
+
+    // Start workers
+    this.localWorker = require('./worker');
+    let workerOptions = {
       autoStart: true,
-      maxConcurrentWorkers: getNumWorkers()
+      lazyStart: true,
+      maxWorkers: getNumWorkers(),
+      minWorkers: 1
     };
+    this.workerNodes = new WorkerNodes(
+      path.resolve(path.join(__dirname, 'worker.js')),
+      workerOptions
+    );
+    this.workerNodes
+      .ready()
+      .then(() => {
+        this.started = true;
+      })
+      .catch(error => {
+        throw error;
+      });
 
-    super(opts, require.resolve('./worker'));
-
-    this.localWorker = this.promisifyWorker(require('./worker'));
-    this.remoteWorker = this.promisifyWorker(this.setup(['init', 'run']));
-
-    this.started = false;
-    this.init(options);
-  }
-
-  init(options) {
-    this.localWorker.init(options);
-    this.initRemoteWorkers(options);
-  }
-
-  promisifyWorker(worker) {
-    let res = {};
-
-    for (let key in worker) {
-      res[key] = promisify(worker[key].bind(worker));
-    }
-
-    return res;
-  }
-
-  async initRemoteWorkers(options) {
-    this.started = false;
-
-    let promises = [];
-    for (let i = 0; i < this.activeChildren; i++) {
-      promises.push(this.remoteWorker.init(options));
-    }
-
-    await Promise.all(promises);
-    this.started = true;
-  }
-
-  receive(data) {
-    if (data.event) {
-      this.emit(data.event, ...data.args);
-    } else {
-      super.receive(data);
-    }
+    this.run.bind(this);
   }
 
   async run(...args) {
@@ -61,30 +36,16 @@ class WorkerFarm extends Farm {
     // While we're waiting, just run on the main thread.
     // This significantly speeds up startup time.
     if (!this.started) {
-      return this.localWorker.run(...args);
+      return this.localWorker(...args, this.options);
     } else {
-      return this.remoteWorker.run(...args);
+      return this.workerNodes.call(...args, this.options);
     }
   }
 
-  end() {
-    super.end();
-    shared = null;
+  async end() {
+    await this.workerNodes.terminate();
+    this.workerNodes = null;
   }
-
-  static getShared(options) {
-    if (!shared) {
-      shared = new WorkerFarm(options);
-    } else {
-      shared.init(options);
-    }
-
-    return shared;
-  }
-}
-
-for (let key in EventEmitter.prototype) {
-  WorkerFarm.prototype[key] = EventEmitter.prototype[key];
 }
 
 function getNumWorkers() {
@@ -94,7 +55,7 @@ function getNumWorkers() {
   } catch (err) {
     cores = os.cpus().length;
   }
-  return cores || 1;
+  return cores > 1 ? cores - 1 : 1 || 1;
 }
 
 module.exports = WorkerFarm;
