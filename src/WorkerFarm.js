@@ -31,8 +31,8 @@ class WorkerFarm {
     }
   }
 
-  async end() {
-    await this.remoteWorkers.terminate();
+  end() {
+    this.remoteWorkers.end();
   }
 }
 

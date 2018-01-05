@@ -201,8 +201,7 @@ class Bundler extends EventEmitter {
 
   async stop() {
     if (this.farm) {
-      await this.farm.end();
-      this.farm = null;
+      this.farm.end();
     }
 
     if (this.watcher) {
