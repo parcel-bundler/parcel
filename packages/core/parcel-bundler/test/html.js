@@ -151,6 +151,33 @@ describe('html', function() {
     );
   });
 
+  it('should insert sibling JS bundles for CSS files in the HEAD', async function() {
+    let b = await bundle(__dirname + '/integration/html-css-js/index.html', {
+      hmr: true
+    });
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'css',
+          assets: ['index.css'],
+          childBundles: [
+            {
+              type: 'js',
+              assets: ['index.css', 'bundle-url.js', 'css-loader.js'],
+              childBundles: []
+            }
+          ]
+        }
+      ]
+    });
+
+    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    assert(/<script src="[/\\]{1}dist[/\\]{1}[a-f0-9]+\.js">/.test(html));
+  });
+
   it('should minify HTML in production mode', async function() {
     await bundle(__dirname + '/integration/htmlnano/index.html', {
       production: true

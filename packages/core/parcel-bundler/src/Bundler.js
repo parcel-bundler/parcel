@@ -410,6 +410,15 @@ class Bundler extends EventEmitter {
       bundle.addAsset(asset);
     }
 
+    // Add the asset to sibling bundles for each generated type
+    if (asset.type && asset.generated[asset.type]) {
+      for (let t in asset.generated) {
+        if (asset.generated[t]) {
+          bundle.getSiblingBundle(t).addAsset(asset);
+        }
+      }
+    }
+
     asset.parentBundle = bundle;
 
     for (let dep of asset.dependencies.values()) {
