@@ -44,7 +44,6 @@
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
-    "babel-eslint": "^8.1.2",
     "babel-preset-env": "^1.6.1",
     "bsb-js": "^1.0.1",
     "coffeescript": "^2.0.3",
