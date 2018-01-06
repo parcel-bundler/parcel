@@ -1,26 +1,27 @@
-const JSAsset = require('./JSAsset');
+const Asset = require('../Asset');
 const {minify} = require('uglify-es');
 
-class JSONAsset extends JSAsset {
-  async load() {
-    return 'module.exports = ' + (await super.load()) + ';';
+class JSONAsset extends Asset {
+  constructor(name, pkg, options) {
+    super(name, pkg, options);
+    this.type = 'js';
   }
 
-  parse() {}
-  collectDependencies() {}
-  pretransform() {}
-  async transform() {
+  generate() {
+    let code = `module.exports = ${this.contents};`;
+
     if (this.options.minify) {
-      let minified = minify(this.contents, {
-        compress: {
-          expression: true
-        }
-      });
+      let minified = minify(code);
       if (minified.error) {
         throw minified.error;
       }
-      this.contents = minified.code;
+
+      code = minified.code;
     }
+
+    return {
+      js: code
+    };
   }
 }
 
