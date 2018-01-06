@@ -81,7 +81,7 @@ Finally, existing bundlers are built around string loaders/transforms, where the
 
 `parcel` transforms a tree of assets to a tree of bundles. Many other bundlers are fundamentally based around JavaScript assets, with other formats tacked on - for example, by default inlined as strings into JS files. `parcel` is file-type agnostic - it will work with any type of assets the way you'd expect, with no configuration.
 
-`parcel` takes as input a single entry asset, which could be any type: a JS file, HTML, CSS, image, etc. There are various asset types defined in `parcel` which know how to handle specific file types. The assets are parsed, their dependencies are extracted, and they are transformed to their final compiled form. This creates a tree of assets.
+`parcel` takes as input a single entry asset, which could be any file type: JS, HTML, CSS, image, etc. There are various asset types defined in `parcel` which know how to handle specific file types. The assets are parsed, their dependencies are extracted, and they are transformed to their final compiled form. This creates a tree of assets.
 
 Once the asset tree has been constructed, the assets are placed into a bundle tree. A bundle is created for the entry asset, and child bundles are created for dynamic imports, which cause code splitting to occur. Child bundles are also created when assets of a different type are imported, for example if you imported a CSS file from JavaScript, it would be placed into a sibling bundle to the corresponding JavaScript. If an asset is required in more than one bundle, it is hoisted up to the nearest common ancestor in the bundle tree so it is not included more than once.
 
