@@ -1,8 +1,7 @@
-const types = require('babel-types');
-const template = require('babel-template');
+const types = require('@babel/types');
+const template = require('@babel/template');
 const urlJoin = require('../utils/urlJoin');
 const isURL = require('../utils/is-url');
-const matchesPattern = require('./matches-pattern');
 
 const requireTemplate = template('require("_bundle_loader")');
 const argTemplate = template('require.resolve(MODULE)');
@@ -61,7 +60,7 @@ module.exports = {
 
     const isRegisterServiceWorker =
       types.isStringLiteral(args[0]) &&
-      matchesPattern(callee, serviceWorkerPattern);
+      types.matchesPattern(callee, serviceWorkerPattern);
 
     if (isRegisterServiceWorker) {
       addURLDependency(asset, args[0]);

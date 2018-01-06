@@ -1,4 +1,4 @@
-const babel = require('babel-core');
+const babel = require('@babel/core');
 const config = require('../utils/config');
 
 module.exports = async function(asset) {
@@ -14,12 +14,11 @@ module.exports = async function(asset) {
   };
 
   if (asset.isES6Module) {
-    config.plugins = [
-      require('babel-plugin-transform-es2015-modules-commonjs')
-    ];
+    config.plugins = [require('@babel/plugin-transform-modules-commonjs')];
   }
 
-  let res = babel.transformFromAst(asset.ast, asset.contents, config);
+  let res = babel.transformFromAstSync(asset.ast, asset.contents, config);
+
   if (!res.ignored) {
     asset.ast = res.ast;
     asset.isAstDirty = true;

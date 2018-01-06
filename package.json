@@ -8,9 +8,9 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "dependencies": {
-    "babel-core": "^6.25.0",
-    "babel-generator": "^6.25.0",
-    "babel-plugin-transform-es2015-modules-commonjs": "^6.26.0",
+    "@babel/core": "^7.0.0-beta.36",
+    "@babel/generator": "^7.0.0-beta.36",
+    "@babel/plugin-transform-modules-commonjs": "^7.0.0-beta.36",
     "babylon": "^6.17.4",
     "babylon-walk": "^1.0.2",
     "browser-resolve": "^1.11.2",
@@ -44,8 +44,8 @@
     "ws": "^3.3.3"
   },
   "devDependencies": {
-    "babel-cli": "^6.26.0",
-    "babel-preset-env": "^1.6.1",
+    "@babel/cli": "^7.0.0-beta.36",
+    "@babel/preset-env": "^7.0.0-beta.36",
     "bsb-js": "^1.0.1",
     "coffeescript": "^2.0.3",
     "cross-env": "^5.1.1",
