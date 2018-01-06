@@ -1,4 +1,5 @@
 const JSAsset = require('./JSAsset');
+const uglify = require('../transforms/uglify');
 
 class JSONAsset extends JSAsset {
   async load() {
@@ -8,7 +9,11 @@ class JSONAsset extends JSAsset {
   parse() {}
   collectDependencies() {}
   pretransform() {}
-  transform() {}
+  async transform() {
+    if (this.options.minify) {
+      await uglify(this);
+    }
+  }
 }
 
 module.exports = JSONAsset;
