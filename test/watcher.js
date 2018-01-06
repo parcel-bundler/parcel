@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const {bundler, run, assertBundleTree, sleep} = require('./utils');
+const {bundler, run, assertBundleTree, sleep, nextBundle} = require('./utils');
 const rimraf = require('rimraf');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
@@ -17,12 +17,6 @@ describe('watcher', function() {
       b.stop();
     }
   });
-
-  function nextBundle(b) {
-    return new Promise(resolve => {
-      b.once('bundled', resolve);
-    });
-  }
 
   it('should rebuild on file change', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
@@ -55,7 +49,8 @@ describe('watcher', function() {
         'common.js',
         'common-dep.js',
         'bundle-loader.js',
-        'bundle-url.js'
+        'bundle-url.js',
+        'js-loader.js'
       ],
       childBundles: [
         {
@@ -79,7 +74,7 @@ describe('watcher', function() {
     bundle = await nextBundle(b);
     assertBundleTree(bundle, {
       name: 'index.js',
-      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
+      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
         {
           assets: ['a.js', 'common.js', 'common-dep.js'],
@@ -135,7 +130,8 @@ describe('watcher', function() {
         'common.js',
         'common-dep.js',
         'bundle-loader.js',
-        'bundle-url.js'
+        'bundle-url.js',
+        'js-loader.js'
       ],
       childBundles: [
         {
@@ -160,7 +156,13 @@ describe('watcher', function() {
     bundle = await nextBundle(b);
     assertBundleTree(bundle, {
       name: 'index.js',
-      assets: ['index.js', 'common.js', 'bundle-loader.js', 'bundle-url.js'],
+      assets: [
+        'index.js',
+        'common.js',
+        'bundle-loader.js',
+        'bundle-url.js',
+        'js-loader.js'
+      ],
       childBundles: [
         {
           assets: ['a.js'],

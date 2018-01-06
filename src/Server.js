@@ -5,6 +5,10 @@ const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
 const generateCertificate = require('./utils/generateCertificate');
 
+serveStatic.mime.define({
+  'application/wasm': ['wasm']
+});
+
 function middleware(bundler) {
   const serve = serveStatic(bundler.options.outDir, {index: false});
 

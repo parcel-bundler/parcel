@@ -15,7 +15,20 @@ class Bundle {
     this.entryAsset = null;
     this.assets = new Set();
     this.childBundles = new Set();
-    this.siblingBundles = new Map();
+    this.siblingBundles = new Set;
+    this.siblingBundlesMap = new Map();
+  }
+
+  static createWithAsset(asset, parentBundle) {
+    let bundle = new Bundle(
+      asset.type,
+      Path.join(asset.options.outDir, asset.generateBundleName()),
+      parentBundle
+    );
+
+    bundle.entryAsset = asset;
+    bundle.addAsset(asset);
+    return bundle;
   }
 
   addAsset(asset) {
@@ -33,23 +46,33 @@ class Bundle {
       return this;
     }
 
-    if (!this.siblingBundles.has(type)) {
-      let bundle = this.createChildBundle(
+    if (!this.siblingBundlesMap.has(type)) {
+      let bundle = new Bundle(
         type,
         Path.join(
           Path.dirname(this.name),
           Path.basename(this.name, Path.extname(this.name)) + '.' + type
-        )
+        ),
+        this
       );
-      this.siblingBundles.set(type, bundle);
+
+      this.childBundles.add(bundle);
+      this.siblingBundles.add(bundle);
+      this.siblingBundlesMap.set(type, bundle);
     }
 
-    return this.siblingBundles.get(type);
+    return this.siblingBundlesMap.get(type);
   }
 
-  createChildBundle(type, name) {
-    let bundle = new Bundle(type, name, this);
+  createChildBundle(entryAsset) {
+    let bundle = Bundle.createWithAsset(entryAsset, this);
     this.childBundles.add(bundle);
+    return bundle;
+  }
+
+  createSiblingBundle(entryAsset) {
+    let bundle = this.createChildBundle(entryAsset);
+    this.siblingBundles.add(bundle);
     return bundle;
   }
 

@@ -10,7 +10,7 @@ class HTMLPackager extends Packager {
     // Find child bundles (e.g. JS) that have a sibling CSS bundle,
     // add them to the head so they are loaded immediately.
     let cssBundles = Array.from(this.bundle.childBundles)
-      .map(b => b.siblingBundles.get('css'))
+      .map(b => b.siblingBundlesMap.get('css'))
       .filter(Boolean);
 
     if (cssBundles.length > 0) {

@@ -5,6 +5,7 @@ let parser;
 
 exports.init = function(options, callback) {
   parser = new Parser(options || {});
+  process.env.HMR_PORT = options.hmrPort;
   callback();
 };
 
