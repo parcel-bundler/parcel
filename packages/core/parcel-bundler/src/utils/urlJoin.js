@@ -1,8 +1,12 @@
-const url = require('url');
+const URL = require('url');
 const path = require('path');
 
+/**
+ * Joins a path onto a URL, and normalizes Windows paths
+ * e.g. from \path\to\res.js to /path/to/res.js.
+ */
 module.exports = function(publicURL, assetPath) {
-  // Use url.resolve to normalize path for windows
-  // from \path\to\res.js to /path/to/res.js
-  return url.resolve(path.join(publicURL, assetPath), '');
+  const url = URL.parse(publicURL);
+  url.pathname = path.posix.join(url.pathname, URL.parse(assetPath).pathname);
+  return URL.format(url);
 };
