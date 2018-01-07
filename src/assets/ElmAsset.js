@@ -32,7 +32,11 @@ class ElmAsset extends JSAsset {
 
     const elm = await localRequire('node-elm-compiler', this.name);
 
-    this.contents = await elm.compileToString(this.name, options);
+    try {
+      this.contents = await elm.compileToString(this.name, options);
+    } catch (err) {
+      throw new Error(err);
+    }
 
     return await super.parse(this.contents);
   }
