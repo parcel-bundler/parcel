@@ -116,7 +116,8 @@ class JSAsset extends Asset {
     }
 
     return {
-      js: code
+      js: code,
+      map: this.sourcemap
     };
   }
 

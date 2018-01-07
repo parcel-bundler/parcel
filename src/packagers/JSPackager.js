@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const Packager = require('./Packager');
+const SourcemapPackager = require('./SourcemapPackager');
 
 const prelude = {
   source: fs
@@ -20,6 +21,7 @@ class JSPackager extends Packager {
   async start() {
     this.first = true;
     this.dedupe = new Map();
+    this.sourcemapPackager = new SourcemapPackager(this.bundle, this.bundler);
 
     let preludeCode = this.options.minify ? prelude.minified : prelude.source;
     await this.dest.write(preludeCode + '({');
@@ -55,6 +57,10 @@ class JSPackager extends Packager {
       }
     }
 
+    if (asset.generated.map) {
+      this.sourcemapPackager.addAsset(asset);
+    }
+
     await this.writeModule(asset.id, asset.generated.js, deps);
   }
 
@@ -87,7 +93,14 @@ class JSPackager extends Packager {
       entry.push(this.bundle.entryAsset.id);
     }
 
-    await this.dest.end('},{},' + JSON.stringify(entry) + ')');
+    await this.dest.write('},{},' + JSON.stringify(entry) + ')');
+    if (this.sourcemapPackager.mapCount > 0) {
+      await this.dest.write(
+        `\n//# sourceMappingURL=${this.sourcemapPackager.url}`
+      );
+    }
+    await this.dest.end();
+    await this.sourcemapPackager.end();
   }
 }
 
