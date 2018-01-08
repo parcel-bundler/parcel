@@ -108,8 +108,17 @@ class JSAsset extends Asset {
   }
 
   generate() {
+    let generated;
+    if (this.isAstDirty) {
+      let opts = {
+        sourceMaps: true,
+        sourceFileName: this.basename
+      };
+      generated = generate(this.ast, opts);
+      this.sourcemap = generated.map;
+    }
     let code = this.isAstDirty
-      ? generate(this.ast).code
+      ? generated.code
       : this.outputCode || this.contents;
     if (this.globals.size > 0) {
       code = Array.from(this.globals.values()).join('\n') + '\n' + code;

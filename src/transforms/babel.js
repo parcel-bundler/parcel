@@ -9,7 +9,7 @@ module.exports = async function(asset) {
   await asset.parseIfNeeded();
 
   let config = {
-    code: true,
+    code: false,
     filename: asset.name
   };
 
@@ -20,16 +20,10 @@ module.exports = async function(asset) {
     ];
   }
 
-  config.sourceMaps = true;
-  if (asset.sourcemap) {
-    config.inputSourceMap = asset.sourcemap;
-  }
-
   let res = babel.transformFromAst(asset.ast, asset.contents, config);
   if (!res.ignored) {
     asset.ast = res.ast;
     asset.isAstDirty = true;
-    asset.sourcemap = res.map;
   }
 };
 
