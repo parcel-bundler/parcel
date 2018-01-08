@@ -97,7 +97,7 @@ All feedback and suggestions are welcome!
 ## Contributors
 
 This project exists thanks to all the people who contribute. [[Contribute]](CONTRIBUTING.md).
-<a href="graphs/contributors"><img src="https://opencollective.com/parcel/contributors.svg?width=890" /></a>
+<a href="https://github.com/parcel-bundler/parcel/graphs/contributors"><img src="https://opencollective.com/parcel/contributors.svg?width=890" title="contributors" alt="contributors" /></a>
 
 ## Backers
 
