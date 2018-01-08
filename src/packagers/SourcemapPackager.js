@@ -2,29 +2,23 @@ const fs = require('fs');
 const path = require('path');
 const Packager = require('./Packager');
 const promisify = require('../utils/promisify');
-const urlJoin = require('../utils/urlJoin');
 const sourceMap = require('source-map');
 
 class SourcemapPackager extends Packager {
   setup() {
     this.location = this.bundle.name + '.map';
-    this.dest = fs.createWriteStream(this.location);
+    this.dest = fs.createWriteStream(this.bundle.name);
     this.dest.write = promisify(this.dest.write.bind(this.dest));
     this.dest.end = promisify(this.dest.end.bind(this.dest));
 
     this.generator = new sourceMap.SourceMapGenerator({
       file: path.basename(this.bundle.name)
     });
-    this.url = urlJoin(this.options.publicURL, path.basename(this.location));
   }
 
   async addAsset(asset) {
     if (asset.generated.map) {
-      try {
-        await this.addMap(asset.generated.map);
-      } catch (e) {
-        // console.log(e);
-      }
+      await this.addMap(asset.generated.map);
     }
   }
 
@@ -36,9 +30,12 @@ class SourcemapPackager extends Packager {
 
     // Add all mappings from asset to bundle
     inputMapConsumer.eachMapping(mapping => {
-      if (!mapping.source) {
+      if (!mapping.source || !mapping.originalLine || !mapping.originalColumn) {
         return false;
       }
+      // TODO: calculate offset based on bundle
+      let lineOffset = 0;
+
       this.generator.addMapping({
         source: mapping.source,
         original: {
@@ -46,7 +43,7 @@ class SourcemapPackager extends Packager {
           column: mapping.originalColumn
         },
         generated: {
-          line: mapping.generatedLine,
+          line: mapping.generatedLine + lineOffset,
           column: mapping.generatedColumn
         },
         name: mapping.name
