@@ -7,23 +7,22 @@ class HTMLPackager extends Packager {
   async addAsset(asset) {
     let html = asset.generated.html || '';
 
-    // Find child bundles (e.g. JS) that have a sibling CSS bundle,
+    // Find child bundles that have JS or CSS sibling bundles,
     // add them to the head so they are loaded immediately.
-    let cssBundles = Array.from(this.bundle.childBundles)
-      .map(b => b.siblingBundles.get('css'))
-      .filter(Boolean);
+    let siblingBundles = Array.from(this.bundle.childBundles)
+      .reduce((p, b) => p.concat([...b.siblingBundles.values()]), [])
+      .filter(b => b.type === 'css' || b.type === 'js');
 
-    if (cssBundles.length > 0) {
-      html = posthtml(this.insertCSSBundles.bind(this, cssBundles)).process(
-        html,
-        {sync: true}
-      ).html;
+    if (siblingBundles.length > 0) {
+      html = posthtml(
+        this.insertSiblingBundles.bind(this, siblingBundles)
+      ).process(html, {sync: true}).html;
     }
 
     await this.dest.write(html);
   }
 
-  insertCSSBundles(cssBundles, tree) {
+  getHeadContent(tree) {
     let head = find(tree, 'head');
     if (!head) {
       let html = find(tree, 'html');
@@ -35,14 +34,29 @@ class HTMLPackager extends Packager {
       head.content = [];
     }
 
-    for (let bundle of cssBundles) {
-      head.content.push({
-        tag: 'link',
-        attrs: {
-          rel: 'stylesheet',
-          href: urlJoin(this.options.publicURL, path.basename(bundle.name))
-        }
-      });
+    return head;
+  }
+
+  insertSiblingBundles(siblingBundles, tree) {
+    let head = this.getHeadContent(tree);
+
+    for (let bundle of siblingBundles) {
+      if (bundle.type === 'css') {
+        head.content.push({
+          tag: 'link',
+          attrs: {
+            rel: 'stylesheet',
+            href: urlJoin(this.options.publicURL, path.basename(bundle.name))
+          }
+        });
+      } else if (bundle.type === 'js') {
+        head.content.push({
+          tag: 'script',
+          attrs: {
+            src: urlJoin(this.options.publicURL, path.basename(bundle.name))
+          }
+        });
+      }
     }
   }
 }
