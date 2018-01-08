@@ -70,8 +70,7 @@
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
-    "build":
-      "yarn minify && babel src -d lib && cp -R src/builtins lib/builtins",
+    "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
     "prepublish": "yarn build",
     "minify":
       "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
