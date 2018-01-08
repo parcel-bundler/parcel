@@ -1,7 +1,11 @@
 const sourceMap = require('source-map');
 
+function isConsumer(map) {
+  return map && map.computeColumnSpans;
+}
+
 function getConsumer(map) {
-  if (map && map.computeColumnSpans) {
+  if (isConsumer(map)) {
     return map;
   }
   map = isGenerator(map) ? map.toString() : map;
@@ -9,17 +13,14 @@ function getConsumer(map) {
 }
 
 function isGenerator(map) {
-  if (map && map.addMapping) {
-    return true;
-  }
-  return false;
+  return map && map.addMapping;
 }
 
 function getGenerator(map) {
-  if (map && map.addMapping) {
+  if (isGenerator(map)) {
     return map;
   }
-  let consumer = getConsumer(map);
+  let consumer = isConsumer(map) ? map : getConsumer(map);
   return sourceMap.SourceMapGenerator.fromSourceMap(consumer);
 }
 
