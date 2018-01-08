@@ -1,61 +1,35 @@
-const fs = require('fs');
 const path = require('path');
-const Packager = require('./Packager');
-const promisify = require('../utils/promisify');
 const sourceMap = require('source-map');
+const Packager = require('./Packager');
+const lineCounter = require('../utils/lineCounter');
+const sourceMapUtils = require('../utils/SourceMaps');
 
 class SourcemapPackager extends Packager {
-  setup() {
-    this.location = this.bundle.name + '.map';
-    this.dest = fs.createWriteStream(this.bundle.name);
-    this.dest.write = promisify(this.dest.write.bind(this.dest));
-    this.dest.end = promisify(this.dest.end.bind(this.dest));
-
+  async start() {
     this.generator = new sourceMap.SourceMapGenerator({
       file: path.basename(this.bundle.name)
     });
+    this.lineOffset = 0;
   }
 
   async addAsset(asset) {
+    this.lineOffset =
+      (this.lineOffset !== 0 ? this.lineOffset : this.getOffset(asset)) + 1;
     if (asset.generated.map) {
-      await this.addMap(asset.generated.map);
+      console.log('map: ' + asset.basename + '\n');
+      this.generator = sourceMapUtils.combineSourceMaps(
+        asset.generated.map,
+        this.generator
+      );
     }
+    this.lineOffset += lineCounter(asset.generated[asset.type] + 1);
   }
 
-  async addMap(map) {
-    let inputMapConsumer = map.computeColumnSpans
-      ? map
-      : new sourceMap.SourceMapConsumer(map);
-    let addedSources = {};
-
-    // Add all mappings from asset to bundle
-    inputMapConsumer.eachMapping(mapping => {
-      if (!mapping.source || !mapping.originalLine || !mapping.originalColumn) {
-        return false;
-      }
-      // TODO: calculate offset based on bundle
-      let lineOffset = 0;
-
-      this.generator.addMapping({
-        source: mapping.source,
-        original: {
-          line: mapping.originalLine,
-          column: mapping.originalColumn
-        },
-        generated: {
-          line: mapping.generatedLine + lineOffset,
-          column: mapping.generatedColumn
-        },
-        name: mapping.name
-      });
-      if (!addedSources[mapping.source]) {
-        let content = inputMapConsumer.sourceContentFor(mapping.source, true);
-        if (content) {
-          this.generator.setSourceContent(mapping.source, content);
-          addedSources[mapping.source] = true;
-        }
-      }
+  getOffset(asset) {
+    let sibling = this.bundle.getParents().find(value => {
+      return value.type === asset.type;
     });
+    return sibling ? sibling.lineOffset : 0 || 0;
   }
 
   async writeMap() {

@@ -11,6 +11,7 @@ const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
 const config = require('../utils/config');
+const sourceMaps = require('../utils/SourceMaps');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
@@ -113,6 +114,8 @@ class JSAsset extends Asset {
     if (this.globals.size > 0) {
       code = Array.from(this.globals.values()).join('\n') + '\n' + code;
     }
+
+    this.sourcemap = this.sourcemap ? this.sourcemap : sourceMaps.emptyMap;
 
     return {
       js: code,
