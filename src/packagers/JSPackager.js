@@ -94,11 +94,9 @@ class JSPackager extends Packager {
     }
 
     await this.dest.write('},{},' + JSON.stringify(entry) + ')');
-    if (this.sourcemapPackager.mapCount > 0) {
-      await this.dest.write(
-        `\n//# sourceMappingURL=${this.sourcemapPackager.url}`
-      );
-    }
+    await this.dest.write(
+      `\n//# sourceMappingURL=${this.sourcemapPackager.url}`
+    );
     await this.dest.end();
     await this.sourcemapPackager.end();
   }
