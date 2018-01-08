@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Packager = require('./Packager');
 const urlJoin = require('../utils/urlJoin');
+const lineCounter = require('../utils/lineCounter');
 
 const prelude = {
   source: fs
@@ -23,6 +24,7 @@ class JSPackager extends Packager {
     this.dedupe = new Map();
 
     let preludeCode = this.options.minify ? prelude.minified : prelude.source;
+    this.bundle.lineOffset = lineCounter(preludeCode);
     await this.dest.write(preludeCode + '({');
   }
 
@@ -55,7 +57,7 @@ class JSPackager extends Packager {
         deps[dep.name] = this.dedupe.get(mod.generated.js) || mod.id;
       }
     }
-
+    console.log('package: ' + asset.basename + '\n');
     await this.writeModule(asset.id, asset.generated.js, deps);
   }
 

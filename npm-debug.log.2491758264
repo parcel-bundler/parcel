@@ -1,0 +1,25 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/Users/jasperdemoor/.nvm/versions/node/v6.12.3/bin/node',
+1 verbose cli   '/Users/jasperdemoor/.nvm/versions/node/v6.12.3/bin/npm',
+1 verbose cli   'config',
+1 verbose cli   '--loglevel=warn',
+1 verbose cli   'get',
+1 verbose cli   'prefix' ]
+2 info using npm@3.10.10
+3 info using node@v6.12.3
+4 verbose exit [ 0, true ]
+5 verbose stack Error: write EPIPE
+5 verbose stack     at exports._errnoException (util.js:1020:11)
+5 verbose stack     at WriteWrap.afterWrite (net.js:800:14)
+6 verbose cwd /Users/jasperdemoor/Documents/GitHub/parcel
+7 error Darwin 17.3.0
+8 error argv "/Users/jasperdemoor/.nvm/versions/node/v6.12.3/bin/node" "/Users/jasperdemoor/.nvm/versions/node/v6.12.3/bin/npm" "config" "--loglevel=warn" "get" "prefix"
+9 error node v6.12.3
+10 error npm  v3.10.10
+11 error code EPIPE
+12 error errno EPIPE
+13 error syscall write
+14 error write EPIPE
+15 error If you need help, you may report this error at:
+15 error     <https://github.com/npm/npm/issues>
+16 verbose exit [ 1, true ]
