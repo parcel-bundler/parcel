@@ -29,7 +29,9 @@ class SourcemapPackager extends Packager {
   }
 
   async addMap(map) {
-    const inputMapConsumer = new sourceMap.SourceMapConsumer(map);
+    let inputMapConsumer = map.computeColumnSpans
+      ? map
+      : new sourceMap.SourceMapConsumer(map);
     let addedSources = {};
 
     // Add all mappings from asset to bundle
@@ -37,7 +39,7 @@ class SourcemapPackager extends Packager {
       if (!mapping.source) {
         return false;
       }
-      let newMapping = {
+      this.generator.addMapping({
         source: mapping.source,
         original: {
           line: mapping.originalLine,
@@ -48,8 +50,7 @@ class SourcemapPackager extends Packager {
           column: mapping.generatedColumn
         },
         name: mapping.name
-      };
-      this.generator.addMapping(newMapping);
+      });
       if (!addedSources[mapping.source]) {
         let content = inputMapConsumer.sourceContentFor(mapping.source, true);
         if (content) {
