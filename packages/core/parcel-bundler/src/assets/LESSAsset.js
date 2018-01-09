@@ -1,5 +1,4 @@
 const CSSAsset = require('./CSSAsset');
-const config = require('../utils/config');
 const localRequire = require('../utils/localRequire');
 const promisify = require('../utils/promisify');
 
@@ -11,7 +10,7 @@ class LESSAsset extends CSSAsset {
 
     let opts =
       this.package.less ||
-      (await config.load(this.name, ['.lessrc', '.lessrc.js'])) ||
+      (await this.getConfig(['.lessrc', '.lessrc.js'])) ||
       {};
     opts.filename = this.name;
     opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
