@@ -166,7 +166,7 @@ class Bundler extends EventEmitter {
 
       // If not in watch mode, stop the worker farm so we don't keep the process running.
       if (!this.watcher && this.options.killWorkers) {
-        this.stop();
+        await this.stop();
       }
     }
   }
@@ -181,7 +181,7 @@ class Bundler extends EventEmitter {
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
     this.options.env = process.env;
-    this.farm = WorkerFarm.getShared(this.options);
+    this.farm = new WorkerFarm(this.options);
 
     if (this.options.watch) {
       // FS events on macOS are flakey in the tests, which write lots of files very quickly
@@ -199,7 +199,7 @@ class Bundler extends EventEmitter {
     }
   }
 
-  stop() {
+  async stop() {
     if (this.farm) {
       this.farm.end();
     }
