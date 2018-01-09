@@ -33,6 +33,7 @@ class Asset {
     this.depAssets = new Map();
     this.parentBundle = null;
     this.bundles = new Set();
+    this.relativename = path.relative(this.options.rootDir, this.name);
   }
 
   async loadIfNeeded() {

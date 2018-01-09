@@ -112,7 +112,7 @@ class JSAsset extends Asset {
     if (this.isAstDirty) {
       let opts = {
         sourceMaps: true,
-        sourceFileName: this.basename
+        sourceFileName: this.relativename
       };
       let generated = generate(this.ast, opts);
       code = generated.code;
@@ -125,7 +125,7 @@ class JSAsset extends Asset {
 
     this.sourcemap = this.sourcemap
       ? this.sourcemap
-      : sourceMaps.getEmptyMap(this.basename, this.contents);
+      : sourceMaps.getEmptyMap(this.relativename, this.contents);
 
     return {
       js: code,
