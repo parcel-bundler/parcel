@@ -1,4 +1,12 @@
 const sourceMap = require('source-map');
+const lineCounter = require('./lineCounter');
+const emptyMap = {
+  version: 3,
+  sources: [],
+  names: [],
+  mappings: '',
+  sourcesContent: []
+};
 
 function isConsumer(map) {
   return map && map.computeColumnSpans;
@@ -32,13 +40,61 @@ function offsetSourceMap(map, lineOffset, columnOffset = 0) {
   return generator;
 }
 
+function getEmptyMap(sourceName, sourceContent) {
+  let map = JSON.parse(JSON.stringify(emptyMap));
+  map.sources.push(sourceName);
+  map.sourcesContent.push(sourceContent);
+
+  return map;
+}
+
+function offsetEmptyMap(map, lineOffset = 0, columnOffset = 0) {
+  let generator = getGenerator(map);
+
+  for (let i = 0; i < map.sources.length; i++) {
+    let source = map.sources[i];
+    let sourceContent = map.sourcesContent[i];
+
+    generator.setSourceContent(source, sourceContent);
+    for (let line = 1; line < lineCounter(sourceContent) + 1; line++) {
+      // We might wanna count spaces here, instead of setting 0
+      let column = 0;
+      generator.addMapping({
+        source: source,
+        original: {
+          line: line,
+          column: column
+        },
+        generated: {
+          line: line + lineOffset,
+          column: column + columnOffset
+        }
+      });
+    }
+  }
+  return generator;
+}
+
 function combineSourceMaps(source, target, lineOffset = 0, columnOffset = 0) {
+  if (
+    !source.mappings &&
+    source.sourcesContent.length !== 0 &&
+    (lineOffset || columnOffset)
+  ) {
+    source = offsetEmptyMap(source, lineOffset, columnOffset);
+    lineOffset = 0;
+    columnOffset = 0;
+  }
   let consumer = getConsumer(source);
   let generator = getGenerator(target);
   let addedSources = {};
 
   consumer.eachMapping(mapping => {
-    if (!mapping.source || !mapping.originalLine || !mapping.originalColumn) {
+    if (
+      !mapping.source ||
+      !mapping.originalLine ||
+      (!mapping.originalColumn && mapping.originalColumn !== 0)
+    ) {
       return false;
     }
 
@@ -56,7 +112,8 @@ function combineSourceMaps(source, target, lineOffset = 0, columnOffset = 0) {
     });
 
     if (!addedSources[mapping.source]) {
-      let content = consumer.sourceContentFor(mapping.source, true);
+      let content =
+        consumer.sourceContentFor(mapping.source, true) || 'hello world';
       if (content) {
         generator.setSourceContent(mapping.source, content);
         addedSources[mapping.source] = true;
@@ -67,7 +124,7 @@ function combineSourceMaps(source, target, lineOffset = 0, columnOffset = 0) {
   return generator;
 }
 
-exports.emptyMap = {version: 3, sources: [], names: [], mappings: ''};
+exports.getEmptyMap = getEmptyMap;
 exports.getConsumer = getConsumer;
 exports.isGenerator = isGenerator;
 exports.getGenerator = getGenerator;

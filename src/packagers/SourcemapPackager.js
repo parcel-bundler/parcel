@@ -9,27 +9,18 @@ class SourcemapPackager extends Packager {
     this.generator = new sourceMap.SourceMapGenerator({
       file: path.basename(this.bundle.name)
     });
-    this.lineOffset = 0;
+    this.lineOffset = 72;
   }
 
   async addAsset(asset) {
-    this.lineOffset =
-      (this.lineOffset !== 0 ? this.lineOffset : this.getOffset(asset)) + 1;
     if (asset.generated.map) {
-      console.log('map: ' + asset.basename + '\n');
       this.generator = sourceMapUtils.combineSourceMaps(
         asset.generated.map,
-        this.generator
+        this.generator,
+        this.lineOffset
       );
     }
     this.lineOffset += lineCounter(asset.generated[asset.type] + 1);
-  }
-
-  getOffset(asset) {
-    let sibling = this.bundle.getParents().find(value => {
-      return value.type === asset.type;
-    });
-    return sibling ? sibling.lineOffset : 0 || 0;
   }
 
   async writeMap() {
