@@ -25,6 +25,17 @@ class JSAsset extends Asset {
     this.isAstDirty = false;
     this.isES6Module = false;
     this.outputCode = null;
+    this.cacheData.env = {};
+  }
+
+  shouldInvalidate(cacheData) {
+    for (let key in cacheData.env) {
+      if (cacheData.env[key] !== process.env[key]) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   mightHaveDependencies() {
