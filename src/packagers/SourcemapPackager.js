@@ -9,6 +9,7 @@ class SourcemapPackager extends Packager {
     this.generator = new sourceMap.SourceMapGenerator({
       file: path.basename(this.bundle.name)
     });
+    // Current length of prelude
     this.lineOffset = 72;
   }
 
@@ -17,7 +18,7 @@ class SourcemapPackager extends Packager {
       this.generator = sourceMapUtils.combineSourceMaps(
         asset.generated.map,
         this.generator,
-        this.lineOffset
+        this.lineOffset + 1
       );
     }
     this.lineOffset += lineCounter(asset.generated[asset.type] + 1);
