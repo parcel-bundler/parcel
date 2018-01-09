@@ -10,7 +10,6 @@ const fsVisitor = require('../visitors/fs');
 const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
-const config = require('../utils/config');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
@@ -55,7 +54,7 @@ class JSAsset extends Asset {
     // Check if there is a babel config file. If so, determine which parser plugins to enable
     this.babelConfig =
       (this.package && this.package.babel) ||
-      (await config.load(this.name, ['.babelrc', '.babelrc.js']));
+      (await this.getConfig(['.babelrc', '.babelrc.js']));
     if (this.babelConfig) {
       const file = new BabelFile({filename: this.name});
       options.plugins.push(...file.parserOpts.plugins);
