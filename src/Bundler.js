@@ -35,6 +35,7 @@ class Bundler extends EventEmitter {
 
     this.pending = false;
     this.loadedAssets = new Map();
+    this.watchedAssets = new Map();
     this.farm = null;
     this.watcher = null;
     this.hmr = null;
@@ -267,11 +268,35 @@ class Bundler extends EventEmitter {
     let asset = this.parser.getAsset(path, pkg, this.options);
     this.loadedAssets.set(path, asset);
 
-    if (this.watcher) {
-      this.watcher.add(path);
+    this.watch(path, asset);
+    return asset;
+  }
+
+  watch(path, asset) {
+    if (!this.watcher) {
+      return;
     }
 
-    return asset;
+    if (!this.watchedAssets.has(path)) {
+      this.watcher.add(path);
+      this.watchedAssets.set(path, new Set());
+    }
+
+    this.watchedAssets.get(path).add(asset);
+  }
+
+  unwatch(path, asset) {
+    if (!this.watchedAssets.has(path)) {
+      return;
+    }
+
+    let watched = this.watchedAssets.get(path);
+    watched.delete(asset);
+
+    if (watched.size === 0) {
+      this.watchedAssets.delete(path);
+      this.watcher.unwatch(path);
+    }
   }
 
   async resolveDep(asset, dep) {
@@ -339,26 +364,25 @@ class Bundler extends EventEmitter {
     // Resolve and load asset dependencies
     let assetDeps = await Promise.all(
       dependencies.map(async dep => {
-        let assetDep = await this.resolveDep(asset, dep);
-        if (!dep.includedInParent) {
+        if (dep.includedInParent) {
+          // This dependency is already included in the parent's generated output,
+          // so no need to load it. We map the name back to the parent asset so
+          // that changing it triggers a recompile of the parent.
+          this.watch(dep.name, asset);
+        } else {
+          let assetDep = await this.resolveDep(asset, dep);
           await this.loadAsset(assetDep);
+          return assetDep;
         }
-
-        return assetDep;
       })
     );
 
     // Store resolved assets in their original order
     dependencies.forEach((dep, i) => {
+      asset.dependencies.set(dep.name, dep);
       let assetDep = assetDeps[i];
-      if (dep.includedInParent) {
-        // This dependency is already included in the parent's generated output,
-        // so no need to load it. We map the name back to the parent asset so
-        // that changing it triggers a recompile of the parent.
-        this.loadedAssets.set(dep.name, asset);
-      } else {
-        asset.dependencies.set(dep.name, dep);
-        asset.depAssets.set(dep.name, assetDep);
+      if (assetDep) {
+        asset.depAssets.set(dep, assetDep);
       }
     });
 
@@ -421,8 +445,7 @@ class Bundler extends EventEmitter {
 
     asset.parentBundle = bundle;
 
-    for (let dep of asset.dependencies.values()) {
-      let assetDep = asset.depAssets.get(dep.name);
+    for (let [dep, assetDep] of asset.depAssets) {
       this.createBundleTree(assetDep, dep, bundle);
     }
 
@@ -463,21 +486,31 @@ class Bundler extends EventEmitter {
   unloadAsset(asset) {
     this.loadedAssets.delete(asset.name);
     if (this.watcher) {
-      this.watcher.unwatch(asset.name);
+      this.unwatch(asset.name, asset);
+
+      // Unwatch all included dependencies that map to this asset
+      for (let dep of asset.dependencies.values()) {
+        if (dep.includedInParent) {
+          this.unwatch(dep.name, asset);
+        }
+      }
     }
   }
 
   async onChange(path) {
-    let asset = this.loadedAssets.get(path);
-    if (!asset) {
+    let assets = this.watchedAssets.get(path);
+    if (!assets || !assets.size) {
       return;
     }
 
     this.logger.clear();
-    this.logger.status(emoji.progress, `Building ${asset.basename}...`);
+    this.logger.status(emoji.progress, `Building ${Path.basename(path)}...`);
 
     // Add the asset to the rebuild queue, and reset the timeout.
-    this.buildQueue.add(asset);
+    for (let asset of assets) {
+      this.buildQueue.add(asset);
+    }
+
     clearTimeout(this.rebuildTimeout);
 
     this.rebuildTimeout = setTimeout(async () => {
