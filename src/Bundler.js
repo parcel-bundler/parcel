@@ -317,7 +317,7 @@ class Bundler extends EventEmitter {
 
     // First try the cache, otherwise load and compile in the background
     let processed = this.cache && (await this.cache.read(asset.name));
-    if (!processed) {
+    if (!processed || asset.shouldInvalidate(processed.cacheData)) {
       processed = await this.farm.run(asset.name, asset.package, this.options);
       if (this.cache) {
         this.cache.write(asset.name, processed);
