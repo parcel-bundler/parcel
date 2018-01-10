@@ -30,6 +30,7 @@ program
   )
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
+  .option('--no-sourcemaps', 'disable sourcemaps')
   .option('-V, --version', 'output the version number')
   .action(bundle);
 
@@ -46,6 +47,7 @@ program
   )
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
+  .option('--no-sourcemaps', 'disable sourcemaps')
   .action(bundle);
 
 program
