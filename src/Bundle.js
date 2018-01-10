@@ -65,16 +65,14 @@ class Bundle {
     let hash = this.getHash();
     newHashes.set(this.name, hash);
 
-    let promises = [];
     if (!oldHashes || oldHashes.get(this.name) !== hash) {
-      promises.push(this._package(bundler));
+      await this._package(bundler);
     }
 
     for (let bundle of this.childBundles.values()) {
-      promises.push(bundle.package(bundler, oldHashes, newHashes));
+      await bundle.package(bundler, oldHashes, newHashes);
     }
 
-    await Promise.all(promises);
     return newHashes;
   }
 
