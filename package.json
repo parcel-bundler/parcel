@@ -20,6 +20,7 @@
     "commander": "^2.11.0",
     "cross-spawn": "^5.1.0",
     "cssnano": "^3.10.0",
+    "dotenv": "^4.0.0",
     "get-port": "^3.2.0",
     "glob": "^7.1.2",
     "htmlnano": "^0.1.6",
@@ -70,8 +71,7 @@
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
-    "build":
-      "yarn minify && babel src -d lib && cp -R src/builtins lib/builtins",
+    "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
     "prepublish": "yarn build",
     "minify":
       "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
