@@ -1,5 +1,4 @@
 const JSAsset = require('./JSAsset');
-const config = require('../utils/config');
 const localRequire = require('../utils/localRequire');
 
 class TypeScriptAsset extends JSAsset {
@@ -14,7 +13,7 @@ class TypeScriptAsset extends JSAsset {
       fileName: this.basename
     };
 
-    let tsconfig = await config.load(this.name, ['tsconfig.json']);
+    let tsconfig = await this.getConfig(['tsconfig.json']);
 
     // Overwrite default if config is found
     if (tsconfig) {
