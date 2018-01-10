@@ -25,7 +25,6 @@ class Bundler extends EventEmitter {
     super();
     this.mainFile = Path.resolve(main || '');
     this.options = this.normalizeOptions(options);
-    this.options.rootDir = Path.dirname(this.mainFile);
 
     this.resolver = new Resolver(this.options);
     this.parser = new Parser(this.options);
@@ -68,7 +67,12 @@ class Bundler extends EventEmitter {
       hmr: typeof options.hmr === 'boolean' ? options.hmr : watch,
       logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
       mainFile: this.mainFile,
-      hmrPort: options.hmrPort || 0
+      hmrPort: options.hmrPort || 0,
+      rootDir: Path.dirname(this.mainFile),
+      sourcemaps:
+        typeof options.sourcemaps === 'boolean'
+          ? options.sourcemaps
+          : !isProduction
     };
   }
 
