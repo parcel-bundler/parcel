@@ -299,4 +299,8 @@ describe('html', function() {
       ]
     });
   });
+
+  it('should support circular dependencies', async function() {
+    await bundle(__dirname + '/integration/circular/index.html');
+  });
 });
