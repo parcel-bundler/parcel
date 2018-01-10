@@ -55,7 +55,7 @@ class JSPackager extends Packager {
         deps[dep.name] = this.dedupe.get(mod.generated.js) || mod.id;
       }
     }
-    this.bundle.addOffset(asset, this.lineOffset + 1, 0);
+    this.bundle.addOffset(asset, this.lineOffset, 0);
     await this.writeModule(asset.id, asset.generated.js, deps);
   }
 
@@ -67,7 +67,7 @@ class JSPackager extends Packager {
     wrapped += ']';
 
     this.first = false;
-    this.lineOffset += lineCounter(wrapped);
+    this.lineOffset += lineCounter(wrapped) - 1;
     await this.dest.write(wrapped);
   }
 

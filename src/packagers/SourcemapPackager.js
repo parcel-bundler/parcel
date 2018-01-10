@@ -16,7 +16,6 @@ class SourcemapPackager extends Packager {
   }
 
   async addAsset(asset) {
-    console.log('Line offset: ' + this.getOffsets(asset).line + '\n');
     if (asset.generated.map) {
       this.generator = sourceMapUtils.combineSourceMaps(
         asset.generated.map,
