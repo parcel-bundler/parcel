@@ -16,6 +16,11 @@ class Bundle {
     this.assets = new Set();
     this.childBundles = new Set();
     this.siblingBundles = new Map();
+    this.offsets = new Map();
+  }
+
+  addOffset(asset, line, column) {
+    this.offsets.set(asset.relativename, {line, column});
   }
 
   addAsset(asset) {
@@ -66,15 +71,23 @@ class Bundle {
     newHashes.set(this.name, hash);
 
     let promises = [];
+    let mappings = [];
     if (!oldHashes || oldHashes.get(this.name) !== hash) {
       promises.push(this._package(bundler));
     }
 
     for (let bundle of this.childBundles.values()) {
-      promises.push(bundle.package(bundler, oldHashes, newHashes));
+      if (bundle.type === 'map') {
+        mappings.push(bundle);
+      } else {
+        promises.push(bundle.package(bundler, oldHashes, newHashes));
+      }
     }
 
     await Promise.all(promises);
+    for (let bundle of mappings) {
+      await bundle.package(bundler, oldHashes, newHashes);
+    }
     return newHashes;
   }
 

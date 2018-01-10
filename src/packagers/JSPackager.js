@@ -24,8 +24,8 @@ class JSPackager extends Packager {
     this.dedupe = new Map();
 
     let preludeCode = this.options.minify ? prelude.minified : prelude.source;
-    this.bundle.lineOffset = lineCounter(preludeCode);
     await this.dest.write(preludeCode + '({');
+    this.lineOffset = lineCounter(preludeCode);
   }
 
   async addAsset(asset) {
@@ -55,7 +55,7 @@ class JSPackager extends Packager {
         deps[dep.name] = this.dedupe.get(mod.generated.js) || mod.id;
       }
     }
-    console.log('package: ' + asset.basename + '\n');
+    this.bundle.addOffset(asset, this.lineOffset + 1, 0);
     await this.writeModule(asset.id, asset.generated.js, deps);
   }
 
@@ -67,6 +67,7 @@ class JSPackager extends Packager {
     wrapped += ']';
 
     this.first = false;
+    this.lineOffset += lineCounter(wrapped);
     await this.dest.write(wrapped);
   }
 

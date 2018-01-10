@@ -1,7 +1,6 @@
 const path = require('path');
 const sourceMap = require('source-map');
 const Packager = require('./Packager');
-const lineCounter = require('../utils/lineCounter');
 const sourceMapUtils = require('../utils/SourceMaps');
 
 class SourcemapPackager extends Packager {
@@ -9,19 +8,22 @@ class SourcemapPackager extends Packager {
     this.generator = new sourceMap.SourceMapGenerator({
       file: path.basename(this.bundle.name)
     });
-    // Current length of prelude
-    this.lineOffset = 72;
+  }
+
+  getOffsets(asset) {
+    let parent = this.bundle.parentBundle;
+    return parent.offsets.get(asset.relativename) || {line: 0, column: 0};
   }
 
   async addAsset(asset) {
+    console.log('Line offset: ' + this.getOffsets(asset).line + '\n');
     if (asset.generated.map) {
       this.generator = sourceMapUtils.combineSourceMaps(
         asset.generated.map,
         this.generator,
-        this.lineOffset + 1
+        this.getOffsets(asset).line
       );
     }
-    this.lineOffset += lineCounter(asset.generated[asset.type] + 1);
   }
 
   async writeMap() {
