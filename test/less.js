@@ -11,6 +11,9 @@ describe('less', function() {
       assets: ['index.js', 'index.less'],
       childBundles: [
         {
+          type: 'map'
+        },
+        {
           name: 'index.css',
           assets: ['index.less'],
           childBundles: []
@@ -33,6 +36,9 @@ describe('less', function() {
       name: 'index.js',
       assets: ['index.js', 'index.less'],
       childBundles: [
+        {
+          type: 'map'
+        },
         {
           name: 'index.css',
           assets: ['index.less'],
@@ -57,6 +63,9 @@ describe('less', function() {
       name: 'index.js',
       assets: ['index.js', 'index.less'],
       childBundles: [
+        {
+          type: 'map'
+        },
         {
           name: 'index.css',
           assets: ['index.less'],
@@ -93,6 +102,9 @@ describe('less', function() {
       name: 'index.js',
       assets: ['index.js', 'index.less'],
       childBundles: [
+        {
+          type: 'map'
+        },
         {
           name: 'index.css',
           assets: ['index.less'],

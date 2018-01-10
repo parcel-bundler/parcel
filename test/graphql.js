@@ -9,7 +9,11 @@ describe('graphql', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.graphql'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);

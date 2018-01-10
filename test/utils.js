@@ -117,6 +117,7 @@ function assertBundleTree(bundle, tree) {
           ? -1
           : 1
     );
+    // console.log(children);
     assert.equal(bundle.childBundles.size, tree.childBundles.length);
     tree.childBundles.forEach((b, i) => assertBundleTree(children[i], b));
   }

@@ -11,6 +11,9 @@ describe('sass', function() {
       assets: ['index.js', 'index.sass'],
       childBundles: [
         {
+          type: 'map'
+        },
+        {
           name: 'index.css',
           assets: ['index.sass'],
           childBundles: []
@@ -33,6 +36,9 @@ describe('sass', function() {
       name: 'index.js',
       assets: ['index.js', 'index.scss'],
       childBundles: [
+        {
+          type: 'map'
+        },
         {
           name: 'index.css',
           assets: ['index.scss'],
@@ -57,6 +63,9 @@ describe('sass', function() {
       assets: ['index.js', 'index.scss'],
       childBundles: [
         {
+          type: 'map'
+        },
+        {
           name: 'index.css',
           assets: ['index.scss'],
           childBundles: []
@@ -80,6 +89,9 @@ describe('sass', function() {
       name: 'index.js',
       assets: ['index.js', 'index.scss'],
       childBundles: [
+        {
+          type: 'map'
+        },
         {
           name: 'index.css',
           assets: ['index.scss'],
@@ -116,6 +128,9 @@ describe('sass', function() {
       name: 'index.js',
       assets: ['index.js', 'index.scss'],
       childBundles: [
+        {
+          type: 'map'
+        },
         {
           name: 'index.css',
           assets: ['index.scss'],

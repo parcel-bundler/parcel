@@ -18,7 +18,11 @@ describe('html', function() {
         {
           type: 'js',
           assets: ['index.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'html',
@@ -32,7 +36,11 @@ describe('html', function() {
             {
               type: 'js',
               assets: ['index.js'],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'map'
+                }
+              ]
             }
           ]
         }
@@ -42,7 +50,8 @@ describe('html', function() {
     let files = fs.readdirSync(__dirname + '/dist');
     let html = fs.readFileSync(__dirname + '/dist/index.html');
     for (let file of files) {
-      if (file !== 'index.html') {
+      let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
+      if (file !== 'index.html' && ext !== '.map') {
         assert(html.includes(file));
       }
     }
@@ -87,7 +96,11 @@ describe('html', function() {
         {
           type: 'js',
           assets: ['index.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -108,6 +121,9 @@ describe('html', function() {
               type: 'css',
               assets: ['index.css'],
               childBundles: []
+            },
+            {
+              type: 'map'
             }
           ]
         }
@@ -137,6 +153,9 @@ describe('html', function() {
               type: 'css',
               assets: ['index.css'],
               childBundles: []
+            },
+            {
+              type: 'map'
             }
           ]
         }
@@ -164,6 +183,9 @@ describe('html', function() {
           type: 'css',
           assets: ['index.css'],
           childBundles: [
+            {
+              type: 'map'
+            },
             {
               type: 'js',
               assets: ['index.css', 'bundle-url.js', 'css-loader.js'],
@@ -283,7 +305,11 @@ describe('html', function() {
         {
           type: 'js',
           assets: ['main.js', 'util.js', 'other.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'html',
@@ -292,7 +318,11 @@ describe('html', function() {
             {
               type: 'js',
               assets: ['index.js', 'util.js', 'other.js'],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'map'
+                }
+              ]
             }
           ]
         }
