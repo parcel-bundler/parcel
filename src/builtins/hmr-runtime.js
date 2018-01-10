@@ -34,7 +34,7 @@ if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
     if (data.type === 'reload') {
       ws.close();
       ws.onclose = function () {
-        window.location.reload();
+        global.location.reload();
       }
     }
 
