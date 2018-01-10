@@ -389,12 +389,8 @@ class Bundler extends EventEmitter {
     this.buildQueue.delete(asset);
   }
 
-  createBundleTree(asset, dep, bundle) {
-    if (dep) {
-      asset.parentDeps.add(dep);
-    }
-
-    if (asset.parentBundle) {
+  hoistAsset(asset, bundle) {
+    if (asset.parentBundle && !(asset.type === bundle.type && asset.type === 'html')) {
       // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
       if (asset.parentBundle !== bundle) {
         let commonBundle = bundle.findCommonAncestor(asset.parentBundle);
@@ -403,10 +399,42 @@ class Bundler extends EventEmitter {
           asset.parentBundle.type === commonBundle.type
         ) {
           this.moveAssetToBundle(asset, commonBundle);
-          return;
+          return true;
         }
-      } else return;
+      } else return true;
     }
+    return false;
+  }
+
+  static key(args, cache, leaf) {
+    cache = cache || (Bundler._cache = Bundler._cache || new Map());
+    leaf = leaf || (Bundler._leaf = Bundler._leaf || Symbol.for('Bundler.leaf'));
+    for (let arg of args) {
+      if (!cache.has(arg)) {
+        cache.set(arg, new Map());
+      }
+      cache = cache.get(arg);
+    }
+    if (!cache.has(leaf)) {
+      cache.set(leaf, args);
+    }
+    return cache.get(leaf);
+  }
+
+  createBundleTree(asset, dep, bundle, parent, seen = new Set()) {
+    if (dep) {
+      asset.parentDeps.add(dep);
+    }
+
+    if (this.hoistAsset(asset, bundle)) {
+      return bundle;
+    }
+
+    let key = Bundler.key([parent ? parent.id : null, asset.id]);
+    if (seen.has(key)) {
+      return bundle;
+    }
+    seen.add(key);
 
     // Create the root bundle if it doesn't exist
     if (!bundle) {
@@ -446,7 +474,11 @@ class Bundler extends EventEmitter {
     asset.parentBundle = bundle;
 
     for (let [dep, assetDep] of asset.depAssets) {
-      this.createBundleTree(assetDep, dep, bundle);
+      this.createBundleTree(assetDep, dep, bundle, asset, seen);
+    }
+
+    if (asset.type !== 'html') {
+      seen.delete(key);
     }
 
     return bundle;
