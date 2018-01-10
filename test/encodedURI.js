@@ -21,7 +21,7 @@ describe('encodedURI', function() {
     let files = fs.readdirSync(__dirname + '/dist');
     let html = fs.readFileSync(__dirname + '/dist/index.html');
     for (let file of files) {
-      if (file !== 'index.html') {
+      if (file !== 'index.html' && file !== 'index.dot') {
         assert(html.includes(file));
       }
     }

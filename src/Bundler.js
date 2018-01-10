@@ -248,6 +248,17 @@ class Bundler extends EventEmitter {
       asset.invalidateBundle();
     }
 
+    // Graph the asset tree.
+    {
+      let edges = Bundler.createAssetGraph(this.mainAsset);
+      let dot = Bundler.dotGraph(edges, 'assets');
+      let p = Path.parse(
+        Path.join(this.options.outDir, this.mainAsset.generateBundleName())
+      );
+      let filename = Path.join(p.dir, p.name) + '.dot';
+      await fs.writeFile(filename, dot, 'utf8');
+    }
+
     // Create a new bundle tree and package everything up.
     let bundle = this.createBundleTree(this.mainAsset);
     this.bundleHashes = await bundle.package(this, this.bundleHashes);
@@ -325,6 +336,90 @@ class Bundler extends EventEmitter {
       }
       throw thrown;
     }
+  }
+
+  static key(args, cache, leaf) {
+    cache = cache || (Bundler._cache = Bundler._cache || new Map());
+    leaf =
+      leaf || (Bundler._leaf = Bundler._leaf || Symbol.for('Bundler.leaf'));
+    for (let arg of args) {
+      if (!cache.has(arg)) {
+        cache.set(arg, new Map());
+      }
+      cache = cache.get(arg);
+    }
+    if (!cache.has(leaf)) {
+      cache.set(leaf, args);
+    }
+    return cache.get(leaf);
+  }
+
+  static createAssetGraph(asset, edges = new Map()) {
+    for (let [dep, assetDep] of asset.depAssets) {
+      let key = Bundler.key([asset.name, assetDep.name]);
+      if (!edges.has(key)) {
+        edges.set(key, dep);
+        Bundler.createAssetGraph(assetDep, edges);
+      }
+    }
+    return edges;
+  }
+
+  static dotValid(x) {
+    return typeof x !== 'string' || !/[.,/#!$%^&*;:{}=\-_`~()]/.test(x);
+  }
+
+  static dotValue(x) {
+    return Bundler.dotValid(x) ? x : JSON.stringify(x);
+  }
+
+  static dotItem(entry) {
+    if (typeof entry !== 'string') entry = entry.join('?');
+    return Bundler.dotValue(entry);
+  }
+
+  static dotAttrs(attrs, lh = '[', rh = ']') {
+    if (Object.keys(attrs).length > 0) {
+      return (
+        lh +
+        Object.entries(attrs)
+          .map(([k, v]) => `${Bundler.dotValue(k)}=${Bundler.dotValue(v)}`)
+          .join(',') +
+        rh
+      );
+    }
+    return '';
+  }
+
+  static dotStyle(parent, child, dep, attrs = {}, highlight = {}) {
+    if (dep && dep.dynamic) {
+      attrs.color = highlight.color || 'red';
+    }
+    if (dep && dep.name) {
+      attrs.label = dep.name;
+    }
+    return Bundler.dotAttrs(attrs);
+  }
+
+  static dotEntry([[parent, child], dep]) {
+    return `  ${Bundler.dotItem(parent)} -> ${Bundler.dotItem(
+      child
+    )} ${Bundler.dotStyle(parent, child, dep)}`;
+  }
+
+  static dotSubgraph(edges, name = 'G', type = 'digraph') {
+    let dot = `${type} ${name} `;
+    dot += '{\n';
+    dot += [...edges].map(x => Bundler.dotEntry(x)).join('\n');
+    dot += '\n}\n';
+    return dot;
+  }
+
+  static dotGraph(edges, name = 'G') {
+    let dot = Bundler.dotSubgraph(edges, name);
+    dot = dot.split(process.cwd() + '/').join('');
+    dot = dot.split('/').join('/\\n');
+    return dot;
   }
 
   async loadAsset(asset) {
