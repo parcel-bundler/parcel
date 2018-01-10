@@ -14,9 +14,7 @@ module.exports = async function(asset) {
 
   if (asset.isES6Module) {
     config.babelrc = false;
-    config.plugins = [
-      require('babel-plugin-transform-es2015-modules-commonjs')
-    ];
+    config.plugins = [require('./commonjs')];
   }
 
   let res = babel.transformFromAst(asset.ast, asset.contents, config);
