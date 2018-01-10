@@ -29,9 +29,11 @@ class JSAsset extends Asset {
   }
 
   shouldInvalidate(cacheData) {
-    for (let key in cacheData.env) {
-      if (cacheData.env[key] !== process.env[key]) {
-        return true;
+    if (cacheData != null) {
+      for (let key in cacheData.env) {
+        if (cacheData.env[key] !== process.env[key]) {
+          return true;
+        }
       }
     }
 
