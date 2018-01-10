@@ -23,12 +23,16 @@ class TypeScriptAsset extends JSAsset {
       );
     }
     transpilerOptions.compilerOptions.noEmit = false;
+    transpilerOptions.compilerOptions.sourceMap = this.options.sourcemaps;
 
     // Transpile Module using TypeScript and parse result as ast format through babylon
-    this.contents = typescript.transpileModule(
-      code,
-      transpilerOptions
-    ).outputText;
+    let transpiled = typescript.transpileModule(code, transpilerOptions);
+    this.sourcemap = transpiled.sourceMapText;
+    if (this.sourcemap) {
+      this.sourcemap = JSON.parse(this.sourcemap);
+      this.sourcemap.sourcesContent = [this.contents];
+    }
+    this.contents = transpiled.outputText;
     return await super.parse(this.contents);
   }
 }

@@ -78,6 +78,7 @@ function offsetEmptyMap(map, lineOffset = 0, columnOffset = 0) {
 function combineSourceMaps(source, target, lineOffset = 0, columnOffset = 0) {
   if (
     !source.mappings &&
+    source.sourcesContent &&
     source.sourcesContent.length !== 0 &&
     (lineOffset || columnOffset)
   ) {
@@ -123,9 +124,60 @@ function combineSourceMaps(source, target, lineOffset = 0, columnOffset = 0) {
   return generator;
 }
 
+function extendSourceMap(original, extension) {
+  original = getConsumer(original);
+  extension = getConsumer(extension);
+  let generator = getGenerator(original);
+  let mappings = {};
+  let source = {
+    name: '',
+    content: ''
+  };
+
+  original.eachMapping(mapping => {
+    mappings[mapping.generatedLine][mapping.generatedColumn] = {
+      line: mapping.originalLine,
+      column: mapping.originalColumn,
+      name: mapping.name
+    };
+
+    // Set source content
+    if (!source.name || !source.content) {
+      source.name = mapping.source;
+      source.content = original.sourceContentFor(mapping.source, true);
+    }
+  });
+
+  extension.eachMapping(mapping => {
+    let newMapping = {
+      source: source.name,
+      original: {
+        line: mapping.originalLine,
+        column: mapping.originalColumn
+      },
+      generated: {
+        line: mapping.generatedLine,
+        column: mapping.generatedColumn
+      },
+      name: mapping.name
+    };
+    let foundMapping = mappings[mapping.originalLine][mapping.originalColumn];
+    if (foundMapping) {
+      newMapping.name = foundMapping.name;
+      newMapping.original.line = foundMapping.line;
+      newMapping.original.column = foundMapping.column;
+    }
+    generator.addMapping(newMapping);
+  });
+
+  generator.setSourceContent(source.name, source.content);
+  return generator;
+}
+
 exports.getEmptyMap = getEmptyMap;
 exports.getConsumer = getConsumer;
 exports.isGenerator = isGenerator;
 exports.getGenerator = getGenerator;
 exports.offsetSourceMap = offsetSourceMap;
 exports.combineSourceMaps = combineSourceMaps;
+exports.extendSourceMap = extendSourceMap;

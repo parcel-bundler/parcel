@@ -125,7 +125,14 @@ class JSAsset extends Asset {
         sourceFileName: this.options.sourcemaps ? this.relativename : undefined
       };
       let generated = generate(this.ast, opts, this.contents);
-      this.sourcemap = this.options.sourcemaps ? generated.map : undefined;
+      if (this.sourcemap && generated.map) {
+        this.sourcemap = sourceMaps.extendSourceMap(
+          this.sourcemap,
+          generated.map
+        );
+      } else {
+        this.sourcemap = this.options.sourcemaps ? generated.map : undefined;
+      }
       code = generated.code;
     }
     code = code ? code : this.outputCode || this.contents;
