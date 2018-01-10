@@ -112,8 +112,7 @@ function combineSourceMaps(source, target, lineOffset = 0, columnOffset = 0) {
     });
 
     if (!addedSources[mapping.source]) {
-      let content =
-        consumer.sourceContentFor(mapping.source, true) || 'hello world';
+      let content = consumer.sourceContentFor(mapping.source, true);
       if (content) {
         generator.setSourceContent(mapping.source, content);
         addedSources[mapping.source] = true;

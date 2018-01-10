@@ -124,7 +124,7 @@ class JSAsset extends Asset {
         sourceMaps: true,
         sourceFileName: this.relativename
       };
-      let generated = generate(this.ast, opts);
+      let generated = generate(this.ast, opts, this.contents);
       code = generated.code;
       this.sourcemap = generated.map;
     }
