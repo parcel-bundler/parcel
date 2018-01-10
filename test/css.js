@@ -31,7 +31,14 @@ describe('css', function() {
 
     assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js', 'index.css', 'bundle-loader.js', 'bundle-url.js'],
+      assets: [
+        'index.js',
+        'index.css',
+        'bundle-loader.js',
+        'bundle-url.js',
+        'js-loader.js',
+        'css-loader.js'
+      ],
       childBundles: [
         {
           name: 'index.css',
