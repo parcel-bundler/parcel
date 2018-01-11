@@ -166,8 +166,7 @@ class Bundler extends EventEmitter {
       if (process.env.NODE_ENV === 'production') {
         process.exitCode = 1;
       } else if (process.env.NODE_ENV === 'test' && this.options.hmr !== true) {
-        // throw new Error(err.message);
-        throw err;
+        // throw err;
       }
     } finally {
       this.pending = false;
