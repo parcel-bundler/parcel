@@ -1,8 +1,7 @@
 const path = require('path');
+const commandExists = require('command-exists');
 const {exec} = require('child-process-promise');
 
-const urlJoin = require('../utils/urlJoin');
-const md5 = require('../utils/md5');
 const fs = require('../utils/fs');
 const JSAsset = require('./JSAsset');
 
@@ -11,7 +10,6 @@ const rustTarget = `wasm32-unknown-unknown`;
 class RustAsset extends JSAsset {
   async getRustDeps(dir, base, name) {
     const depsCmd = `rustc ${base} --emit=dep-info`;
-    // TODO: this will generate a .d file, we need to figure out what to do with this kind of temp files
     await exec(depsCmd, {cwd: dir});
 
     const deps = await fs.readFile(
@@ -30,32 +28,41 @@ class RustAsset extends JSAsset {
       .map(dep => path.join(dir, dep.replace(':', '')));
   }
 
-  collectDependencies() {
-    for (let dep of this.rustDeps) {
-      console.log(dep);
-      console.log(dep);
-      this.addDependency(dep, {includedInParent: true});
-    }
-  }
-
-  async parse() {
+  async rustcParse() {
     const release = process.env.NODE_ENV === 'production';
     const {dir, base, name} = path.parse(this.name);
-    const generatedName = md5(this.name);
-    const wasmPath = path.join(this.options.outDir, generatedName + '.wasm');
-    const wasmUrl = urlJoin(this.options.publicURL, generatedName + '.wasm');
-
+    const wasmPath = path.format({
+      dir,
+      name,
+      ext: '.wasm'
+    });
     const compileCmd = `rustc +nightly --target ${rustTarget} -O --crate-type=cdylib ${base} -o ${wasmPath} ${
       release ? ' --release' : ''
     }`;
 
     await exec(compileCmd, {cwd: dir});
-
     this.rustDeps = await this.getRustDeps(dir, base, name);
 
-    const urlToWasm = JSON.stringify(wasmUrl);
+    for (const dep of this.rustDeps) {
+      this.addDependency(dep, {includedInParent: true});
+    }
 
-    this.contents = `module.exports=${urlToWasm};`;
+    return wasmPath;
+  }
+
+  async parse() {
+    try {
+      await commandExists('rustc');
+    } catch (e) {
+      throw new Error(
+        "Rust isn't install, you can visit https://www.rustup.rs/ for most info"
+      );
+    }
+
+    const wasmPath = await this.rustcParse();
+    const nameModule = './' + path.relative(path.dirname(this.name), wasmPath);
+
+    this.contents = `module.exports = require(${JSON.stringify(nameModule)})`;
 
     return await super.parse(this.contents);
   }
