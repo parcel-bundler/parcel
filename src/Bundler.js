@@ -167,6 +167,7 @@ class Bundler extends EventEmitter {
         process.exitCode = 1;
       } else if (process.env.NODE_ENV === 'test') {
         // Throw correct errors in tests
+        throw new Error(err.message);
         // throw err;
       }
     } finally {

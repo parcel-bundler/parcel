@@ -1,5 +1,5 @@
 const sourceMap = require('source-map');
-const lineCounter = require('./lineCounter');
+const textUtils = require('./textUtils');
 const emptyMap = {
   version: 3,
   sources: [],
@@ -56,9 +56,12 @@ function offsetEmptyMap(map, lineOffset = 0, columnOffset = 0) {
     let sourceContent = map.sourcesContent[i];
 
     generator.setSourceContent(source, sourceContent);
-    for (let line = 1; line < lineCounter(sourceContent) + 1; line++) {
-      // We might wanna count spaces here, instead of setting 0
-      let column = 0;
+    for (
+      let line = 1;
+      line < textUtils.lineCounter(sourceContent) + 1;
+      line++
+    ) {
+      let column = textUtils.whiteSpaceLength(sourceContent, line - 1);
       generator.addMapping({
         source: source,
         original: {
@@ -127,7 +130,7 @@ function combineSourceMaps(source, target, lineOffset = 0, columnOffset = 0) {
 function extendSourceMap(original, extension) {
   original = getConsumer(original);
   extension = getConsumer(extension);
-  let generator = getGenerator(original);
+  let generator = new sourceMap.SourceMapGenerator();
   let mappings = {};
   let source = {
     name: '',
@@ -135,6 +138,9 @@ function extendSourceMap(original, extension) {
   };
 
   original.eachMapping(mapping => {
+    if (!mappings[mapping.generatedLine]) {
+      mappings[mapping.generatedLine] = {};
+    }
     mappings[mapping.generatedLine][mapping.generatedColumn] = {
       line: mapping.originalLine,
       column: mapping.originalColumn,
@@ -148,6 +154,7 @@ function extendSourceMap(original, extension) {
     }
   });
 
+  let addedLines = {};
   extension.eachMapping(mapping => {
     let newMapping = {
       source: source.name,
@@ -161,13 +168,28 @@ function extendSourceMap(original, extension) {
       },
       name: mapping.name
     };
-    let foundMapping = mappings[mapping.originalLine][mapping.originalColumn];
-    if (foundMapping) {
-      newMapping.name = foundMapping.name;
-      newMapping.original.line = foundMapping.line;
-      newMapping.original.column = foundMapping.column;
+    if (mappings[mapping.originalLine] && !addedLines[mapping.originalLine]) {
+      let originalMapping =
+        mappings[mapping.originalLine][mapping.originalColumn];
+
+      if (!originalMapping) {
+        // No original column mapping found, fallback to line mapping
+        originalMapping =
+          mappings[mapping.originalLine][
+            Object.keys(mappings[mapping.originalLine])[0]
+          ];
+        originalMapping.column = source.content
+          ? textUtils.whiteSpaceLength(source.content, originalMapping.line - 1)
+          : 0;
+        addedLines[mapping.originalLine] = true;
+      }
+
+      newMapping.name = originalMapping.name;
+      newMapping.original.line = originalMapping.line;
+      newMapping.original.column = originalMapping.column;
+
+      generator.addMapping(newMapping);
     }
-    generator.addMapping(newMapping);
   });
 
   generator.setSourceContent(source.name, source.content);

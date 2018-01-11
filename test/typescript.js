@@ -42,7 +42,7 @@ describe('typescript', function() {
     let b = await bundle(__dirname + '/integration/typescript-env/index.ts');
 
     assert.equal(b.assets.size, 1);
-    assert.equal(b.childBundles.size, 0);
+    assert.equal(b.childBundles.size, 1);
 
     let output = run(b);
     assert.equal(typeof output.env, 'function');

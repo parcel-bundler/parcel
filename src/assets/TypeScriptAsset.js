@@ -31,6 +31,12 @@ class TypeScriptAsset extends JSAsset {
     if (this.sourcemap) {
       this.sourcemap = JSON.parse(this.sourcemap);
       this.sourcemap.sourcesContent = [this.contents];
+      // Remove the sourcemap URL
+      let content = transpiled.outputText;
+      transpiled.outputText = content.substring(
+        0,
+        content.lastIndexOf('//# sourceMappingURL')
+      );
     }
     this.contents = transpiled.outputText;
     return await super.parse(this.contents);
