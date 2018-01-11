@@ -13,13 +13,9 @@ beforeEach(function(done) {
   };
 
   // Test run in a single process, creating and deleting the same file(s)
-  // Windows needs a delay for the file handles to be released before deleting
+  // Needs a delay for the file handles to be released before deleting
   // is possible. Without a delay, rimraf fails on `beforeEach` for `/dist`
-  if (process.platform === 'win32') {
-    sleep(50).then(finalize);
-  } else {
-    finalize();
-  }
+  sleep(50).then(finalize);
 });
 
 function sleep(ms) {
