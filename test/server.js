@@ -46,6 +46,14 @@ describe('server', function() {
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
   });
 
+  it('should serve files from the public root if they exist', async function() {
+    let b = bundler(__dirname + '/integration/commonjs/index.js');
+    server = await b.serve(0);
+
+    let data = await get('/index.js');
+    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
+  });
+
   it('should serve a default page if the main bundle is an HTML asset', async function() {
     let b = bundler(__dirname + '/integration/html/index.html');
     server = await b.serve(0);
