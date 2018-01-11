@@ -75,6 +75,8 @@
     "test-ci": "yarn test-coverage && yarn report-coverage",
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
     "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
+    "watch":
+      "yarn minify && babel --watch src -d lib && ncp src/builtins lib/builtins",
     "prepublish": "yarn build",
     "minify":
       "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
