@@ -299,4 +299,36 @@ describe('html', function() {
       ]
     });
   });
+
+  it('should support circular dependencies', async function() {
+    let b = await bundle(__dirname + '/integration/circular/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'html',
+          assets: ['about.html'],
+          childBundles: [
+            {
+              type: 'js',
+              assets: ['about.js', 'index.js'],
+              childBundles: []
+            },
+            {
+              type: 'html',
+              assets: ['test.html'],
+              childBundles: []
+            }
+          ]
+        },
+        {
+          type: 'js',
+          assets: ['about.js', 'index.js'],
+          childBundles: []
+        }
+      ]
+    });
+  });
 });

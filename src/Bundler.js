@@ -389,7 +389,7 @@ class Bundler extends EventEmitter {
     this.buildQueue.delete(asset);
   }
 
-  createBundleTree(asset, dep, bundle) {
+  createBundleTree(asset, dep, bundle, parentBundles = new Set()) {
     if (dep) {
       asset.parentDeps.add(dep);
     }
@@ -405,7 +405,14 @@ class Bundler extends EventEmitter {
           this.moveAssetToBundle(asset, commonBundle);
           return;
         }
-      } else return;
+      } else {
+        return;
+      }
+
+      // Detect circular bundles
+      if (parentBundles.has(asset.parentBundle)) {
+        return;
+      }
     }
 
     // Create the root bundle if it doesn't exist
@@ -444,15 +451,22 @@ class Bundler extends EventEmitter {
     }
 
     asset.parentBundle = bundle;
+    parentBundles.add(bundle);
 
     for (let [dep, assetDep] of asset.depAssets) {
-      this.createBundleTree(assetDep, dep, bundle);
+      this.createBundleTree(assetDep, dep, bundle, parentBundles);
     }
 
+    parentBundles.delete(bundle);
     return bundle;
   }
 
   moveAssetToBundle(asset, commonBundle) {
+    // Never move the entry asset of a bundle, as it was explicitly requested to be placed in a separate bundle.
+    if (asset.parentBundle.entryAsset === asset) {
+      return;
+    }
+
     for (let bundle of Array.from(asset.bundles)) {
       bundle.removeAsset(asset);
       commonBundle.getSiblingBundle(bundle.type).addAsset(asset);
