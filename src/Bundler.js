@@ -166,10 +166,7 @@ class Bundler extends EventEmitter {
       if (process.env.NODE_ENV === 'production') {
         process.exitCode = 1;
       } else if (process.env.NODE_ENV === 'test' && !this.hmr) {
-        // Throw the correct errors inside the tests
-        // Commented out untill Maximum call stack size exceeded error is fixed
-        // This accures in this test: html should not update root/main file in the bundles
-        // throw err;
+        throw err;
       }
     } finally {
       this.pending = false;

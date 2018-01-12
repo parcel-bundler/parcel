@@ -344,7 +344,11 @@ describe('html', function() {
             {
               type: 'js',
               assets: ['about.js', 'index.js'],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'map'
+                }
+              ]
             },
             {
               type: 'html',
@@ -356,7 +360,11 @@ describe('html', function() {
         {
           type: 'js',
           assets: ['about.js', 'index.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
