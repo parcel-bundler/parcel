@@ -13,11 +13,12 @@ class RawPackager extends Packager {
     let name = this.bundle.name;
     if (asset !== this.bundle.entryAsset) {
       name = url.resolve(
-        path.join(path.dirname(this.bundle.name), asset.generateBundleName()),
+        path.join(path.dirname(name), asset.generateBundleName()),
         ''
       );
     }
 
+    await fs.mkdirp(path.dirname(name));
     let contents =
       asset.generated[asset.type] || (await fs.readFile(asset.name));
     await fs.writeFile(name, contents);

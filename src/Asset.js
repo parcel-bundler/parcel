@@ -1,7 +1,6 @@
 const path = require('path');
 const fs = require('./utils/fs');
 const objectHash = require('./utils/objectHash');
-const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const sanitizeFilename = require('sanitize-filename');
 const config = require('./utils/config');
@@ -180,13 +179,14 @@ class Asset {
       return packageName + ext;
     }
 
-    // If this is the entry point of the root bundle, use the original filename
-    if (this.name === this.options.mainFile) {
-      return path.basename(this.name, path.extname(this.name)) + ext;
-    }
+    // Otherwise generate a filename with ext
+    const filepath = path.relative(
+      path.dirname(this.options.mainFile),
+      this.name
+    );
+    const filename = path.basename(filepath, path.extname(filepath)) + ext;
 
-    // Otherwise generate a unique name
-    return md5(this.name) + ext;
+    return path.join(path.dirname(filepath), filename);
   }
 
   generateErrorMessage(err) {

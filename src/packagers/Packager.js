@@ -1,3 +1,5 @@
+const path = require('path');
+const mkdirp = require('mkdirp');
 const fs = require('fs');
 const promisify = require('../utils/promisify');
 
@@ -10,6 +12,7 @@ class Packager {
   }
 
   setup() {
+    mkdirp.sync(path.dirname(this.bundle.name));
     this.dest = fs.createWriteStream(this.bundle.name);
     this.dest.write = promisify(this.dest.write.bind(this.dest));
     this.dest.end = promisify(this.dest.end.bind(this.dest));
