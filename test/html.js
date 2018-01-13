@@ -116,9 +116,7 @@ describe('html', function() {
 
     let html = fs.readFileSync(__dirname + '/dist/index.html');
     assert(
-      /<link rel="stylesheet" href="[/\\]{1}dist[/\\]{1}[a-f0-9]+\.css">/.test(
-        html
-      )
+      /<link rel="stylesheet" href="[/\\]{1}dist[/\\]{1}\S+\.css">/.test(html)
     );
   });
 
@@ -145,7 +143,7 @@ describe('html', function() {
 
     let html = fs.readFileSync(__dirname + '/dist/index.html');
     assert(
-      /<head><link rel="stylesheet" href="[/\\]{1}dist[/\\]{1}[a-f0-9]+\.css"><\/head>/.test(
+      /<head><link rel="stylesheet" href="[/\\]{1}dist[/\\]{1}\S+\.css"><\/head>/.test(
         html
       )
     );
@@ -175,7 +173,7 @@ describe('html', function() {
     });
 
     let html = fs.readFileSync(__dirname + '/dist/index.html');
-    assert(/<script src="[/\\]{1}dist[/\\]{1}[a-f0-9]+\.js">/.test(html));
+    assert(/<script src="[/\\]{1}dist[/\\]{1}\S+\.js">/.test(html));
   });
 
   it('should minify HTML in production mode', async function() {

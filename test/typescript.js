@@ -66,7 +66,7 @@ describe('typescript', function() {
 
     let output = run(b);
     assert.equal(typeof output.getRaw, 'function');
-    assert(/^\/dist\/[0-9a-f]+\.txt$/.test(output.getRaw()));
+    assert(/^\/dist\/\S+\.txt$/.test(output.getRaw()));
     assert(fs.existsSync(__dirname + output.getRaw()));
   });
 

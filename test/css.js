@@ -108,7 +108,7 @@ describe('css', function() {
     assert.equal(output(), 2);
 
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
-    assert(/url\("[0-9a-f]+\.woff2"\)/.test(css));
+    assert(/url\("\S+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
     assert(css.includes('url("data:image/gif;base64,quotes")'));
@@ -118,7 +118,7 @@ describe('css', function() {
 
     assert(
       fs.existsSync(
-        __dirname + '/dist/' + css.match(/url\("([0-9a-f]+\.woff2)"\)/)[1]
+        __dirname + '/dist/' + css.match(/url\("(\S+\.woff2)"\)/)[1]
       )
     );
   });
