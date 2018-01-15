@@ -3,9 +3,11 @@ const os = require('os');
 const Farm = require('worker-farm/lib/farm');
 const promisify = require('./utils/promisify');
 const path = require('path');
+const fileCounter = require('./utils/fileCounter');
+const config = require('./utils/config');
 
 let shared = null;
-const SYNC_TRESHOLD = 50000; // Treshold to start workers in bytes
+const SYNC_TRESHOLD = 15000; // Filecount treshold before workers kick in
 
 class WorkerFarm extends Farm {
   constructor(options) {
@@ -39,13 +41,10 @@ class WorkerFarm extends Farm {
   }
 
   async shouldStart(options) {
-    try {
-      let size = await promisify(require('du'))(path.dirname(options.mainFile));
-      if (size < SYNC_TRESHOLD) {
-        return false;
-      }
-    } catch (e) {
-      // Just to make sure it returns on error
+    let pkgLocation = await config.resolve(options.mainFile, ['package.json']);
+    let count = await fileCounter(path.dirname(pkgLocation));
+    if (count < SYNC_TRESHOLD) {
+      return false;
     }
     return true;
   }
@@ -53,16 +52,17 @@ class WorkerFarm extends Farm {
   async initRemoteWorkers(options) {
     this.started = false;
 
-    if (!options.forceStartWorkers && !await this.shouldStart(options)) {
-      return;
-    }
-
     let promises = [];
     for (let i = 0; i < this.activeChildren; i++) {
       promises.push(this.remoteWorker.init(options));
     }
 
+    if (!options.forceStartWorkers && !await this.shouldStart(options)) {
+      return;
+    }
+
     await Promise.all(promises);
+
     this.started = true;
   }
 
