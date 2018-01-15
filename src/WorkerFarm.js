@@ -57,11 +57,11 @@ class WorkerFarm extends Farm {
       promises.push(this.remoteWorker.init(options));
     }
 
+    await Promise.all(promises);
+
     if (!options.forceStartWorkers && !await this.shouldStart(options)) {
       return;
     }
-
-    await Promise.all(promises);
 
     this.started = true;
   }
