@@ -29,6 +29,10 @@ program
     'set the output directory. defaults to "dist"'
   )
   .option(
+    '-f, --out-file <filename>',
+    'set the output filename. defaults to the package.json "name"'
+  )
+  .option(
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
@@ -45,6 +49,10 @@ program
     'set the output directory. defaults to "dist"'
   )
   .option(
+    '-f, --out-file <filename>',
+    'set the output filename. defaults to the package.json "name"'
+  )
+  .option(
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
@@ -58,6 +66,10 @@ program
   .option(
     '-d, --out-dir <path>',
     'set the output directory. defaults to "dist"'
+  )
+  .option(
+    '-f, --out-file <filename>',
+    'set the output filename. defaults to the package.json "name"'
   )
   .option(
     '--public-url <url>',
