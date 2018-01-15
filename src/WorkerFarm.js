@@ -2,8 +2,10 @@ const {EventEmitter} = require('events');
 const os = require('os');
 const Farm = require('worker-farm/lib/farm');
 const promisify = require('./utils/promisify');
+const path = require('path');
 
 let shared = null;
+const SYNC_TRESHOLD = 50000; // Treshold to start workers in bytes
 
 class WorkerFarm extends Farm {
   constructor(options) {
@@ -36,8 +38,24 @@ class WorkerFarm extends Farm {
     return res;
   }
 
+  async shouldStart(options) {
+    try {
+      let size = await promisify(require('du'))(path.dirname(options.mainFile));
+      if (size < SYNC_TRESHOLD) {
+        return false;
+      }
+    } catch (e) {
+      // Just to make sure it returns on error
+    }
+    return true;
+  }
+
   async initRemoteWorkers(options) {
     this.started = false;
+
+    if (!options.forceStartWorkers && !await this.shouldStart(options)) {
+      return;
+    }
 
     let promises = [];
     for (let i = 0; i < this.activeChildren; i++) {
