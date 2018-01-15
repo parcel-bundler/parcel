@@ -49,6 +49,7 @@
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.6.1",
     "bsb-js": "^1.0.1",
+    "codecov": "^3.0.0",
     "coffeescript": "^2.0.3",
     "cross-env": "^5.1.1",
     "eslint": "^4.13.0",
@@ -66,9 +67,9 @@
     "posthtml-include": "^1.1.0",
     "prettier": "^1.9.1",
     "rimraf": "^2.6.1",
+    "sinon": "^4.1.5",
     "stylus": "^0.54.5",
-    "typescript": "^2.6.2",
-    "codecov": "^3.0.0"
+    "typescript": "^2.6.2"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",

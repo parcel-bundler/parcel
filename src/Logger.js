@@ -18,7 +18,7 @@ class Logger {
       this.lines += message.split('\n').length;
     }
 
-    console.log(message);
+    this._log(message);
   }
 
   log(message) {
@@ -107,6 +107,10 @@ class Logger {
       process.stdout.write('\n');
       this.lines++;
     }
+  }
+
+  _log(message) {
+    console.log(message);
   }
 }
 
