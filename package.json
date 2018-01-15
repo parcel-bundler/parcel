@@ -19,6 +19,7 @@
     "commander": "^2.11.0",
     "cross-spawn": "^5.1.0",
     "cssnano": "^3.10.0",
+    "dotenv": "^4.0.0",
     "get-port": "^3.2.0",
     "glob": "^7.1.2",
     "htmlnano": "^0.1.6",
@@ -64,13 +65,16 @@
     "prettier": "^1.9.1",
     "rimraf": "^2.6.1",
     "stylus": "^0.54.5",
-    "typescript": "^2.6.2"
+    "typescript": "^2.6.2",
+    "codecov": "^3.0.0"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
+    "test-coverage": "rm -rf coverage/* && nyc yarn test",
+    "report-coverage": "nyc report --reporter=lcov && codecov",
+    "test-ci": "yarn test-coverage && yarn report-coverage",
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
-    "build":
-      "yarn minify && babel src -d lib && cp -R src/builtins lib/builtins",
+    "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
     "prepublish": "yarn build",
     "minify":
       "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",

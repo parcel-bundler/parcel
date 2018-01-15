@@ -1,5 +1,4 @@
 const CSSAsset = require('./CSSAsset');
-const config = require('../utils/config');
 const localRequire = require('../utils/localRequire');
 const promisify = require('../utils/promisify');
 const path = require('path');
@@ -12,7 +11,7 @@ class SASSAsset extends CSSAsset {
 
     let opts =
       this.package.sass ||
-      (await config.load(this.name, ['.sassrc', '.sassrc.js'])) ||
+      (await this.getConfig(['.sassrc', '.sassrc.js'])) ||
       {};
     opts.includePaths = (opts.includePaths || []).concat(
       path.dirname(this.name)

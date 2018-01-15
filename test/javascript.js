@@ -222,6 +222,13 @@ describe('javascript', function() {
     assert.equal(output(), 'test:test');
   });
 
+  it('should insert environment variables from a file', async function() {
+    let b = await bundle(__dirname + '/integration/env-file/index.js');
+
+    let output = run(b);
+    assert.equal(output, 'bartest');
+  });
+
   it('should support adding implicit dependencies', async function() {
     let b = await bundle(__dirname + '/integration/json/index.js', {
       delegate: {
@@ -375,5 +382,14 @@ describe('javascript', function() {
 
     assert.equal(typeof output.test, 'function');
     assert.equal(output.test(), 'pkg-main-module');
+  });
+
+  it('should minify JSON files', async function() {
+    await bundle(__dirname + '/integration/uglify-json/index.json', {
+      production: true
+    });
+
+    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(json.includes('test:"test"'));
   });
 });
