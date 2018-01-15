@@ -29,7 +29,7 @@ function getGenerator(map) {
     return map;
   }
   let consumer = isConsumer(map) ? map : getConsumer(map);
-  return sourceMap.SourceMapGenerator.fromSourceMap(consumer);
+  return combineSourceMaps(consumer, new sourceMap.SourceMapGenerator());
 }
 
 function offsetSourceMap(map, lineOffset, columnOffset = 0) {
