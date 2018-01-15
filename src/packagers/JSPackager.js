@@ -75,7 +75,9 @@ class JSPackager extends Packager {
       // Asset ids normally start at 1, so this should be safe.
       await this.writeModule(
         0,
-        hmr.replace('{{HMR_PORT}}', this.options.hmrPort)
+        hmr
+          .replace('{{HMR_PORT}}', this.options.hmrPort)
+          .replace('{{HMR_HOSTNAME}}', this.options.hmrHostname)
       );
       entry.push(0);
     }

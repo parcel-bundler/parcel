@@ -67,7 +67,8 @@ class Bundler extends EventEmitter {
       hmr: typeof options.hmr === 'boolean' ? options.hmr : watch,
       logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
       mainFile: this.mainFile,
-      hmrPort: options.hmrPort || 0
+      hmrPort: options.hmrPort || 0,
+      hmrHostname: options.hmrHostname || ''
     };
   }
 
