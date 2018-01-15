@@ -14,9 +14,11 @@ async function countFiles(location, count = 0) {
     )).reduce((accumulator, currentValue) => {
       return accumulator + currentValue;
     }, 0);
+  } else {
+    count++;
   }
 
-  return count + 1;
+  return count;
 }
 
 module.exports = countFiles;
