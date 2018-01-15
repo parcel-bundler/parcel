@@ -106,4 +106,40 @@ describe('Logger', () => {
     assert(log[0].includes('🚨'));
     assert(log[0].includes('hello'));
   });
+
+  it('Should use internal _log function for writes', () => {
+    const l = new Logger({color: false});
+    const sandbox = sinon.createSandbox(); // use sandbox to silence console.log
+
+    let spy;
+    try {
+      spy = sandbox.spy(l, '_log');
+      sandbox.stub(console, 'log');
+
+      l.write('hello world');
+    } finally {
+      l._log.restore();
+      sandbox.restore();
+    }
+
+    assert(spy.called);
+  });
+
+  it('Should use stdout directly for writeLine', () => {
+    const l = new Logger({color: true});
+    const sandbox = sinon.createSandbox();
+    const log = [];
+
+    try {
+      sandbox.stub(process.stdout, 'write').callsFake(message => {
+        log.push(message);
+      });
+
+      l.writeLine(0, 'hello');
+    } finally {
+      sandbox.restore();
+    }
+
+    assert(log.includes('hello'));
+  });
 });
