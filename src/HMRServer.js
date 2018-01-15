@@ -57,9 +57,8 @@ class HMRServer {
         type: 'update',
         assets: assets.map(asset => {
           let deps = {};
-          for (let dep of asset.dependencies.values()) {
-            let mod = asset.depAssets.get(dep.name);
-            deps[dep.name] = mod.id;
+          for (let [dep, depAsset] of asset.depAssets) {
+            deps[dep.name] = depAsset.id;
           }
 
           return {
