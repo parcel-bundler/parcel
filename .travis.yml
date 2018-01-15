@@ -5,6 +5,6 @@ node_js:
   - '8'
 cache: yarn
 script: 
-  - yarn test
+  - yarn test-ci
   - yarn lint
 sudo: false

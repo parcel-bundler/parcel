@@ -383,4 +383,13 @@ describe('javascript', function() {
     assert.equal(typeof output.test, 'function');
     assert.equal(output.test(), 'pkg-main-module');
   });
+
+  it('should minify JSON files', async function() {
+    await bundle(__dirname + '/integration/uglify-json/index.json', {
+      production: true
+    });
+
+    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(json.includes('test:"test"'));
+  });
 });
