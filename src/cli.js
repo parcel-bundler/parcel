@@ -18,6 +18,10 @@ program
     'set the port to serve HMR websockets, defaults to random',
     parseInt
   )
+  .option(
+    '--hmr-hostname <hostname>',
+    'set the hostname of HMR websockets, defaults to location.hostname of current window'
+  )
   .option('--https', 'serves files over HTTPS')
   .option('-o, --open', 'automatically open in default browser')
   .option(

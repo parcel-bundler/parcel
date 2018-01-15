@@ -73,6 +73,7 @@ class Bundler extends EventEmitter {
         typeof options.sourcemaps === 'boolean'
           ? options.sourcemaps
           : !isProduction
+      hmrHostname: options.hmrHostname || ''
     };
   }
 
