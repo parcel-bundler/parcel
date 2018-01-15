@@ -14,7 +14,7 @@ describe('Logger', () => {
     });
   };
 
-  it('Should log message on write', () => {
+  it('should log message on write', () => {
     const l = new Logger({});
     stub(l);
 
@@ -22,7 +22,7 @@ describe('Logger', () => {
     assert.equal(log[0], 'hello');
   });
 
-  it('Should track number of lines on persist false', () => {
+  it('should track number of lines on persist false', () => {
     const l = new Logger({});
     stub(l);
 
@@ -31,7 +31,7 @@ describe('Logger', () => {
     assert.equal(l.lines, count + 2);
   });
 
-  it('Should not track number of lines on persist true', () => {
+  it('should not track number of lines on persist true', () => {
     const l = new Logger({});
     stub(l);
 
@@ -40,7 +40,7 @@ describe('Logger', () => {
     assert.equal(l.lines, count);
   });
 
-  it('Should respect log levels', () => {
+  it('should respect log levels', () => {
     const l = new Logger({logLevel: 2, color: false});
     stub(l);
 
@@ -69,7 +69,7 @@ describe('Logger', () => {
     assert.equal(log.length, 5);
   });
 
-  it('Should handle lack of color support with alternatives', () => {
+  it('should handle lack of color support with alternatives', () => {
     const l = new Logger({color: false});
     stub(l);
 
@@ -86,7 +86,7 @@ describe('Logger', () => {
     assert(spy.called);
   });
 
-  it('Should reset on clear', () => {
+  it('should reset on clear', () => {
     const l = new Logger({color: true});
     stub(l);
 
@@ -98,7 +98,7 @@ describe('Logger', () => {
     assert.equal(l.statusLine, null);
   });
 
-  it('Should log emoji and message via status', () => {
+  it('should log emoji and message via status', () => {
     const l = new Logger({color: false});
     stub(l);
     l.status('🚨', 'hello');
@@ -107,7 +107,7 @@ describe('Logger', () => {
     assert(log[0].includes('hello'));
   });
 
-  it('Should use internal _log function for writes', () => {
+  it('should use internal _log function for writes', () => {
     const l = new Logger({color: false});
     const sandbox = sinon.createSandbox(); // use sandbox to silence console.log
 
@@ -125,7 +125,7 @@ describe('Logger', () => {
     assert(spy.called);
   });
 
-  it('Should use stdout directly for writeLine', () => {
+  it('should use stdout directly for writeLine', () => {
     const l = new Logger({color: true});
     const sandbox = sinon.createSandbox();
     const log = [];

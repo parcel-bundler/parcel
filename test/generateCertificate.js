@@ -20,7 +20,7 @@ describe('generateCertificate', () => {
     rimraf.sync(inputPath);
   });
 
-  it('Should support loading cached certificate', async () => {
+  it('should support loading cached certificate', async () => {
     await ncp(path.join(__dirname, '/integration/https'), cachePath);
 
     const key = await fs.readFile(path.join(cachePath, 'private.pem'));
@@ -32,7 +32,7 @@ describe('generateCertificate', () => {
     assert.equal(generated.key.toString(), key.toString());
   });
 
-  it('Should support caching generated certificate', async () => {
+  it('should support caching generated certificate', async () => {
     generateCertificate(cacheOptions);
 
     assert(await fs.exists(path.join(cachePath, 'private.pem')));
