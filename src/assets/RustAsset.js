@@ -1,17 +1,20 @@
 const path = require('path');
 const commandExists = require('command-exists');
 const {exec} = require('child-process-promise');
+const toml = require('toml');
 
 const fs = require('../utils/fs');
 const JSAsset = require('./JSAsset');
+const config = require('../utils/config');
 
 const rustTarget = `wasm32-unknown-unknown`;
 
 class RustAsset extends JSAsset {
-  async getRustDeps(dir, base, name) {
+  async generateRustDeps(dir, base) {
     const depsCmd = `rustc ${base} --emit=dep-info`;
     await exec(depsCmd, {cwd: dir});
-
+  }
+  async getRustDeps(dir, name) {
     const deps = await fs.readFile(
       path.format({
         dir,
@@ -28,6 +31,28 @@ class RustAsset extends JSAsset {
       .map(dep => path.join(dir, dep.replace(':', '')));
   }
 
+  async getCargoDir() {
+    const configFile = await config.resolve(
+      this.name,
+      ['Cargo.toml'],
+      path.parse(this.name).root
+    );
+    return path.parse(configFile).dir;
+  }
+
+  async cargoParse(cargoConfig, cargoDir) {
+    const rustName = cargoConfig.package.name;
+    const compileCmd = `cargo +nightly build --target wasm32-unknown-unknown --release`;
+    await exec(compileCmd, {cwd: cargoDir});
+
+    const outDir = path.join(cargoDir, 'target', rustTarget, 'release');
+    const wasmFile = path.join(outDir, rustName + '.wasm');
+
+    this.rustDeps = await this.getRustDeps(outDir, rustName);
+
+    return wasmFile;
+  }
+
   async rustcParse() {
     const {dir, base, name} = path.parse(this.name);
     const wasmPath = path.format({
@@ -38,11 +63,8 @@ class RustAsset extends JSAsset {
     const compileCmd = `rustc +nightly --target ${rustTarget} -O --crate-type=cdylib ${base} -o ${wasmPath}`;
 
     await exec(compileCmd, {cwd: dir});
-    this.rustDeps = await this.getRustDeps(dir, base, name);
-
-    for (const dep of this.rustDeps) {
-      this.addDependency(dep, {includedInParent: true});
-    }
+    await this.generateRustDeps(dir, base);
+    this.rustDeps = await this.getRustDeps(dir, name);
 
     return wasmPath;
   }
@@ -56,8 +78,30 @@ class RustAsset extends JSAsset {
         "Rust isn't install, you can visit https://www.rustup.rs/ for most info"
       );
     }
+    const cargoDir = await this.getCargoDir();
+    const mainFiles = ['src/lib.rs', 'src/main.rs'];
 
-    const wasmPath = await this.rustcParse();
+    const cargoConfig = await config.load(
+      this.name,
+      ['Cargo.toml'],
+      undefined,
+      toml.parse
+    );
+
+    if (cargoConfig && cargoConfig.lib && cargoConfig.lib.path) {
+      mainFiles.push(cargoConfig.lib.path);
+    }
+    const mainFile = mainFiles.find(
+      file => path.join(cargoDir, file) === this.name
+    );
+
+    const wasmPath = await (mainFile
+      ? this.cargoParse(cargoConfig, cargoDir)
+      : this.rustcParse());
+
+    for (const dep of this.rustDeps) {
+      this.addDependency(dep, {includedInParent: true});
+    }
     if (isProduction) {
       try {
         await commandExists('wasm-gc');
