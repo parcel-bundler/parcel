@@ -1,7 +1,6 @@
 const localRequire = require('../utils/localRequire');
 const loadPlugins = require('../utils/loadPlugins');
 const postcss = require('postcss');
-const Config = require('../utils/config');
 const cssnano = require('cssnano');
 
 module.exports = async function(asset) {
@@ -20,7 +19,7 @@ module.exports = async function(asset) {
 async function getConfig(asset) {
   let config =
     asset.package.postcss ||
-    (await Config.load(asset.name, [
+    (await asset.getConfig([
       '.postcssrc',
       '.postcssrc.js',
       'postcss.config.js'
@@ -52,7 +51,7 @@ async function getConfig(asset) {
 
   if (asset.options.minify) {
     config.plugins.push(
-      cssnano((await Config.load(asset.name, ['cssnano.config.js'])) || {})
+      cssnano((await asset.getConfig(['cssnano.config.js'])) || {})
     );
   }
 
