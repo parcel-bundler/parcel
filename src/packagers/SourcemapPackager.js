@@ -17,7 +17,7 @@ class SourcemapPackager extends Packager {
   }
 
   async end() {
-    await this.dest.write(this.sourcemap.toString());
+    await this.dest.write(this.sourcemap.stringify());
     await super.end();
   }
 }

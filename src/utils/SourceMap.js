@@ -160,7 +160,7 @@ class SourceMap {
     });
   }
 
-  toString() {
+  stringify() {
     let generator = new sourceMap.SourceMapGenerator({
       file: this.file
     });
