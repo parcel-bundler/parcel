@@ -12,14 +12,12 @@ const prelude = {
     .replace(/;$/, '')
 };
 
-const hmr = fs
-  .readFileSync(path.join(__dirname, '../builtins/hmr-runtime.js'), 'utf8')
-  .trim();
-
 class JSPackager extends Packager {
   async start() {
     this.first = true;
     this.dedupe = new Map();
+    this.bundleLoaders = new Set();
+    this.externalModules = new Set();
 
     let preludeCode = this.options.minify ? prelude.minified : prelude.source;
     await this.dest.write(preludeCode + '({');
@@ -39,21 +37,43 @@ class JSPackager extends Packager {
     for (let [dep, mod] of asset.depAssets) {
       // For dynamic dependencies, list the child bundles to load along with the module id
       if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
-        let bundles = [path.basename(mod.parentBundle.name)];
-        for (let child of mod.parentBundle.siblingBundles.values()) {
+        let bundles = [this.getBundleSpecifier(mod.parentBundle)];
+        for (let child of mod.parentBundle.siblingBundles) {
           if (!child.isEmpty) {
-            bundles.push(path.basename(child.name));
+            bundles.push(this.getBundleSpecifier(child));
+            this.bundleLoaders.add(child.type);
           }
         }
 
         bundles.push(mod.id);
         deps[dep.name] = bundles;
+        this.bundleLoaders.add(mod.type);
       } else {
         deps[dep.name] = this.dedupe.get(mod.generated.js) || mod.id;
+
+        // If the dep isn't in this bundle, add it to the list of external modules to preload.
+        // Only do this if this is the root JS bundle, otherwise they will have already been
+        // loaded in parallel with this bundle as part of a dynamic import.
+        if (
+          !this.bundle.assets.has(mod) &&
+          (!this.bundle.parentBundle || this.bundle.parentBundle.type !== 'js')
+        ) {
+          this.externalModules.add(mod);
+          this.bundleLoaders.add(mod.type);
+        }
       }
     }
 
     await this.writeModule(asset.id, asset.generated.js, deps);
+  }
+
+  getBundleSpecifier(bundle) {
+    let name = path.basename(bundle.name);
+    if (bundle.entryAsset) {
+      return [name, bundle.entryAsset.id];
+    }
+
+    return name;
   }
 
   async writeModule(id, code, deps = {}) {
@@ -67,23 +87,89 @@ class JSPackager extends Packager {
     await this.dest.write(wrapped);
   }
 
+  async addAssetToBundle(asset) {
+    this.bundle.addAsset(asset);
+    if (!asset.parentBundle) {
+      asset.parentBundle = this.bundle;
+    }
+
+    // Add all dependencies as well
+    for (let child of asset.depAssets.values()) {
+      await this.addAssetToBundle(child, this.bundle);
+    }
+
+    await this.addAsset(asset);
+  }
+
+  async writeBundleLoaders() {
+    if (this.bundleLoaders.size === 0) {
+      return false;
+    }
+
+    let bundleLoader = this.bundler.loadedAssets.get(
+      require.resolve('../builtins/bundle-loader')
+    );
+    if (this.externalModules.size > 0 && !bundleLoader) {
+      bundleLoader = await this.bundler.getAsset('_bundle_loader');
+      await this.addAssetToBundle(bundleLoader);
+    }
+
+    if (!bundleLoader) {
+      return;
+    }
+
+    // Generate a module to register the bundle loaders that are needed
+    let loads = 'var b=require(' + bundleLoader.id + ');';
+    for (let bundleType of this.bundleLoaders) {
+      let loader = this.options.bundleLoaders[bundleType];
+      if (loader) {
+        let asset = await this.bundler.getAsset(loader);
+        await this.addAssetToBundle(asset);
+        loads +=
+          'b.register(' +
+          JSON.stringify(bundleType) +
+          ',require(' +
+          asset.id +
+          '));';
+      }
+    }
+
+    // Preload external modules before running entry point if needed
+    if (this.externalModules.size > 0) {
+      let preload = [];
+      for (let mod of this.externalModules) {
+        preload.push([mod.generateBundleName(), mod.id]);
+      }
+
+      if (this.bundle.entryAsset) {
+        preload.push(this.bundle.entryAsset.id);
+      }
+
+      loads += 'b.load(' + JSON.stringify(preload) + ');';
+    }
+
+    // Asset ids normally start at 1, so this should be safe.
+    await this.writeModule(0, loads, {});
+    return true;
+  }
+
   async end() {
     let entry = [];
 
     // Add the HMR runtime if needed.
     if (this.options.hmr) {
-      // Asset ids normally start at 1, so this should be safe.
-      await this.writeModule(
-        0,
-        hmr
-          .replace('{{HMR_PORT}}', this.options.hmrPort)
-          .replace('{{HMR_HOSTNAME}}', this.options.hmrHostname)
+      let asset = await this.bundler.getAsset(
+        require.resolve('../builtins/hmr-runtime')
       );
+      await this.addAssetToBundle(asset);
+      entry.push(asset.id);
+    }
+
+    if (await this.writeBundleLoaders()) {
       entry.push(0);
     }
 
-    // Load the entry module
-    if (this.bundle.entryAsset) {
+    if (this.bundle.entryAsset && this.externalModules.size === 0) {
       entry.push(this.bundle.entryAsset.id);
     }
 
