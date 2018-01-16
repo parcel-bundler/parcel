@@ -20,7 +20,13 @@ module.exports = {
   },
 
   CallExpression(path, asset) {
-    if (referencesImport(path, 'fs', 'readFileSync')) {
+    // See https://github.com/defunctzombie/node-browser-resolve#skip
+    let ignore =
+      asset.package &&
+      asset.package.browser &&
+      asset.package.browser.fs === false;
+
+    if (!ignore && referencesImport(path, 'fs', 'readFileSync')) {
       let vars = {
         __dirname: Path.dirname(asset.name),
         __filename: asset.basename
