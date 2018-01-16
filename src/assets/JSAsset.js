@@ -125,12 +125,17 @@ class JSAsset extends Asset {
         sourceFileName: this.options.sourcemaps ? this.relativename : undefined
       };
       let generated = generate(this.ast, opts, this.contents);
-      if (this.sourcemap && generated.map) {
+      if (this.sourcemap) {
+        let babelmap = generated.map;
         let sourcemap = new SourceMap();
-        sourcemap.extendSourceMap(this.sourcemap, generated.map);
+        sourcemap.extendSourceMap(this.sourcemap, babelmap);
         this.sourcemap = sourcemap;
       } else {
-        this.sourcemap = this.options.sourcemaps ? generated.map : undefined;
+        if (this.options.sourcemaps && generated.rawMappings) {
+          this.sourcemap = new SourceMap();
+          this.sourcemap.concatMappings(generated.rawMappings);
+          this.sourcemap.sources[this.relativename] = this.contents;
+        }
       }
       code = generated.code;
     }
