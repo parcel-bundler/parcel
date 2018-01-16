@@ -9,21 +9,23 @@ class WorkerFarm extends Farm {
   constructor(options) {
     let opts = {
       autoStart: true,
-      maxConcurrentWorkers: getNumWorkers()
+      maxConcurrentWorkers: getNumWorkers() - 1
     };
-
     super(opts, require.resolve('./worker'));
 
-    this.localWorker = this.promisifyWorker(require('./worker'));
     this.remoteWorker = this.promisifyWorker(this.setup(['init', 'run']));
+    this.localWorker = this.promisifyWorker(require('./worker'));
 
     this.started = false;
-    this.init(options);
+    this.localWorker.busy = false;
+    this.init(options, opts.maxConcurrentWorkers);
   }
 
-  init(options) {
+  init(options, processes) {
     this.localWorker.init(options);
-    this.initRemoteWorkers(options);
+    if (processes > 0) {
+      this.initRemoteWorkers(options);
+    }
   }
 
   promisifyWorker(worker) {
@@ -60,8 +62,11 @@ class WorkerFarm extends Farm {
     // Child process workers are slow to start (~600ms).
     // While we're waiting, just run on the main thread.
     // This significantly speeds up startup time.
-    if (!this.started) {
-      return this.localWorker.run(...args);
+    if (!this.started || !this.localWorker.busy) {
+      this.localWorker.busy = true;
+      let result = await this.localWorker.run(...args);
+      this.localWorker.busy = false;
+      return result;
     } else {
       return this.remoteWorker.run(...args);
     }
