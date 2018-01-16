@@ -14,3 +14,5 @@ exports.exists = function(filename) {
 };
 
 exports.mkdirp = promisify(mkdirp);
+exports.readdir = promisify(fs.readdir);
+exports.lstat = promisify(fs.lstat);

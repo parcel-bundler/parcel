@@ -80,6 +80,7 @@ class Bundler extends EventEmitter {
       logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
       mainFile: this.mainFile,
       hmrPort: options.hmrPort || 0,
+      forceStartWorkers: options.forceStartWorkers || false,
       hmrHostname: options.hmrHostname || ''
     };
   }

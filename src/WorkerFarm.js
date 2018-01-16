@@ -2,8 +2,12 @@ const {EventEmitter} = require('events');
 const os = require('os');
 const Farm = require('worker-farm/lib/farm');
 const promisify = require('./utils/promisify');
+const path = require('path');
+const fileCounter = require('./utils/fileCounter');
+const config = require('./utils/config');
 
 let shared = null;
+const SYNC_TRESHOLD = 15000; // Filecount treshold before workers kick in
 
 class WorkerFarm extends Farm {
   constructor(options) {
@@ -36,6 +40,15 @@ class WorkerFarm extends Farm {
     return res;
   }
 
+  async shouldStart(options) {
+    let pkgLocation = await config.resolve(options.mainFile, ['package.json']);
+    let count = await fileCounter(path.dirname(pkgLocation));
+    if (count < SYNC_TRESHOLD) {
+      return false;
+    }
+    return true;
+  }
+
   async initRemoteWorkers(options) {
     this.started = false;
 
@@ -45,6 +58,11 @@ class WorkerFarm extends Farm {
     }
 
     await Promise.all(promises);
+
+    if (!options.forceStartWorkers && !await this.shouldStart(options)) {
+      return;
+    }
+
     this.started = true;
   }
 
