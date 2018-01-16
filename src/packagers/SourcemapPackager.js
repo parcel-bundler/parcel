@@ -8,6 +8,10 @@ class SourcemapPackager extends Packager {
     this.generator = new sourceMap.SourceMapGenerator({
       file: path.basename(this.bundle.name)
     });
+    this.rawNodeData = {
+      sources: {},
+      mappings: []
+    };
   }
 
   getOffsets(asset) {
@@ -16,14 +20,23 @@ class SourcemapPackager extends Packager {
   }
 
   async addAsset(asset) {
-    this.generator = sourceMapUtils.combineSourceMaps(
+    this.nodes = sourceMapUtils.addNodes(
       asset.generated.map,
-      this.generator,
+      this.rawNodeData,
       this.getOffsets(asset).line
     );
   }
 
   async writeMap() {
+    this.rawNodeData.mappings.forEach(mapping => {
+      this.generator.addMapping(mapping);
+    });
+    Object.keys(this.rawNodeData.sources).forEach(sourceName => {
+      this.generator.setSourceContent(
+        sourceName,
+        this.rawNodeData.sources[sourceName]
+      );
+    });
     await this.dest.write(this.generator.toString());
   }
 

@@ -196,6 +196,52 @@ function extendSourceMap(original, extension) {
   return generator;
 }
 
+function addNodes(source, rawNodeData, lineOffset = 0, columnOffset = 0) {
+  if (
+    !source.mappings &&
+    source.sourcesContent &&
+    source.sourcesContent.length !== 0 &&
+    (lineOffset || columnOffset)
+  ) {
+    source = offsetEmptyMap(source, lineOffset, columnOffset);
+    lineOffset = 0;
+    columnOffset = 0;
+  }
+
+  let consumer = getConsumer(source);
+  consumer.eachMapping(mapping => {
+    if (
+      !mapping.source ||
+      !mapping.originalLine ||
+      (!mapping.originalColumn && mapping.originalColumn !== 0)
+    ) {
+      return false;
+    }
+
+    rawNodeData.mappings.push({
+      source: mapping.source,
+      original: {
+        line: mapping.originalLine,
+        column: mapping.originalColumn
+      },
+      generated: {
+        line: mapping.generatedLine + lineOffset,
+        column: mapping.generatedColumn + columnOffset
+      },
+      name: mapping.name
+    });
+
+    if (!rawNodeData.sources[mapping.source]) {
+      rawNodeData.sources[mapping.source] = consumer.sourceContentFor(
+        mapping.source,
+        true
+      );
+    }
+  });
+
+  return rawNodeData;
+}
+
 exports.getEmptyMap = getEmptyMap;
 exports.getConsumer = getConsumer;
 exports.isGenerator = isGenerator;
@@ -203,3 +249,4 @@ exports.getGenerator = getGenerator;
 exports.offsetSourceMap = offsetSourceMap;
 exports.combineSourceMaps = combineSourceMaps;
 exports.extendSourceMap = extendSourceMap;
+exports.addNodes = addNodes;
