@@ -16,13 +16,11 @@ class SourcemapPackager extends Packager {
   }
 
   async addAsset(asset) {
-    if (asset.generated.map) {
-      this.generator = sourceMapUtils.combineSourceMaps(
-        asset.generated.map,
-        this.generator,
-        this.getOffsets(asset).line
-      );
-    }
+    this.generator = sourceMapUtils.combineSourceMaps(
+      asset.generated.map,
+      this.generator,
+      this.getOffsets(asset).line
+    );
   }
 
   async writeMap() {

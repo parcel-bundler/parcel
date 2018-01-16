@@ -18,6 +18,9 @@ describe('wasm', function() {
           type: 'wasm',
           assets: ['add.wasm'],
           childBundles: []
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -43,6 +46,9 @@ describe('wasm', function() {
           type: 'wasm',
           assets: ['add.wasm'],
           childBundles: []
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -72,8 +78,14 @@ describe('wasm', function() {
               type: 'wasm',
               assets: ['add.wasm'],
               childBundles: []
+            },
+            {
+              type: 'map'
             }
           ]
+        },
+        {
+          type: 'map'
         }
       ]
     });

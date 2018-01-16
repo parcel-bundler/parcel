@@ -15,14 +15,13 @@ class Bundle {
     this.entryAsset = null;
     this.assets = new Set();
     this.childBundles = new Set();
-    this.siblingBundles = new Map();
+    this.siblingBundles = new Set();
+    this.siblingBundlesMap = new Map();
     this.offsets = new Map();
   }
 
   addOffset(asset, line, column) {
     this.offsets.set(asset.relativename, {line, column});
-    this.siblingBundles = new Set;
-    this.siblingBundlesMap = new Map();
   }
 
   static createWithAsset(asset, parentBundle) {

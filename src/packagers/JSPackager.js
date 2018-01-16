@@ -178,13 +178,15 @@ class JSPackager extends Packager {
     }
 
     await this.dest.write('},{},' + JSON.stringify(entry) + ')');
-    // Add sourcemap url
-    await this.dest.write(
-      `\n//# sourceMappingURL=${urlJoin(
-        this.options.publicURL,
-        path.basename(this.bundle.name).slice(0, -3) + '.map'
-      )}`
-    );
+    if (this.options.sourcemaps) {
+      // Add sourcemap url
+      await this.dest.write(
+        `\n//# sourceMappingURL=${urlJoin(
+          this.options.publicURL,
+          path.basename(this.bundle.name).slice(0, -3) + '.map'
+        )}`
+      );
+    }
     await this.dest.end();
   }
 }
