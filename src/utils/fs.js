@@ -5,6 +5,7 @@ const mkdirp = require('mkdirp');
 exports.readFile = promisify(fs.readFile);
 exports.writeFile = promisify(fs.writeFile);
 exports.stat = promisify(fs.stat);
+exports.readdir = promisify(fs.readdir);
 
 exports.exists = function(filename) {
   return new Promise(resolve => {

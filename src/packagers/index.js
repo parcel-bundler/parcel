@@ -22,6 +22,10 @@ class PackagerRegistry {
     this.packagers.set(type, packager);
   }
 
+  has(type) {
+    return this.packagers.has(type);
+  }
+
   get(type) {
     return this.packagers.get(type) || RawPackager;
   }

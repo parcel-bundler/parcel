@@ -188,7 +188,12 @@ describe('html', function() {
             },
             {
               type: 'js',
-              assets: ['index.css', 'bundle-url.js', 'css-loader.js'],
+              assets: [
+                'index.css',
+                'bundle-url.js',
+                'css-loader.js',
+                'hmr-runtime.js'
+              ],
               childBundles: []
             }
           ]
