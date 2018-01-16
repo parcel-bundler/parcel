@@ -47,7 +47,9 @@ class HTMLAsset extends Asset {
             continue;
           }
           if (elements && elements.includes(node.tag)) {
-            let assetPath = this.addURLDependency(decodeURIComponent(node.attrs[attr]));
+            let assetPath = this.addURLDependency(
+              decodeURIComponent(node.attrs[attr])
+            );
             if (!isURL(assetPath)) {
               assetPath = urlJoin(this.options.publicURL, assetPath);
             }
