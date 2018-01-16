@@ -126,13 +126,11 @@ class SourceMap {
         line: mapping.originalLine,
         column: mapping.originalColumn
       });
-      originalMapping = originalMapping.line
-        ? originalMapping
-        : {
-            source: mapping.source,
-            line: mapping.originalLine,
-            column: mapping.originalColumn
-          };
+
+      if (!originalMapping.line) {
+        return false;
+      }
+
       this.addMapping({
         source: originalMapping.source,
         name: originalMapping.name,
