@@ -10,7 +10,7 @@ const fsVisitor = require('../visitors/fs');
 const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
-const sourceMaps = require('../utils/SourceMaps');
+const SourceMap = require('../utils/SourceMap');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
@@ -126,10 +126,9 @@ class JSAsset extends Asset {
       };
       let generated = generate(this.ast, opts, this.contents);
       if (this.sourcemap && generated.map) {
-        this.sourcemap = sourceMaps.extendSourceMap(
-          this.sourcemap,
-          generated.map
-        );
+        let sourcemap = new SourceMap();
+        sourcemap.extendSourceMap(this.sourcemap, generated.map);
+        this.sourcemap = sourcemap;
       } else {
         this.sourcemap = this.options.sourcemaps ? generated.map : undefined;
       }
@@ -140,14 +139,23 @@ class JSAsset extends Asset {
     if (this.options.sourcemaps) {
       this.sourcemap = this.sourcemap
         ? this.sourcemap
-        : sourceMaps.getEmptyMap(this.relativename, this.contents);
+        : new SourceMap().generateEmptyMap(this.relativename, this.contents);
     }
 
     if (this.globals.size > 0) {
       code = Array.from(this.globals.values()).join('\n') + '\n' + code;
-      this.sourcemap = this.options.sourcemaps
-        ? sourceMaps.offsetSourceMap(this.sourcemap, this.globals.size)
-        : undefined;
+      if (this.options.sourcemaps) {
+        if (!SourceMap.isSourceMapInstance(this.sourcemap)) {
+          let sourcemap = new SourceMap();
+          if (!this.sourcemap.version) {
+            sourcemap.copyConstructor(this.sourcemap);
+          } else {
+            sourcemap.addMap(this.sourcemap);
+          }
+          this.sourcemap = sourcemap;
+        }
+        this.sourcemap.offset(this.globals.size);
+      }
     }
 
     return {

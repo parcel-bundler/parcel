@@ -10,7 +10,7 @@ class TypeScriptAsset extends JSAsset {
         module: typescript.ModuleKind.CommonJS,
         jsx: typescript.JsxEmit.Preserve
       },
-      fileName: this.basename
+      fileName: this.relativename
     };
 
     let tsconfig = await this.getConfig(['tsconfig.json']);
@@ -30,6 +30,7 @@ class TypeScriptAsset extends JSAsset {
     this.sourcemap = transpiled.sourceMapText;
     if (this.sourcemap) {
       this.sourcemap = JSON.parse(this.sourcemap);
+      this.sourcemap.sources = [this.relativename];
       this.sourcemap.sourcesContent = [this.contents];
       // Remove the sourcemap URL
       let content = transpiled.outputText;

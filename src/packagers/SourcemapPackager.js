@@ -1,17 +1,10 @@
 const path = require('path');
-const sourceMap = require('source-map');
 const Packager = require('./Packager');
-const sourceMapUtils = require('../utils/SourceMaps');
+const SourceMap = require('../utils/SourceMap');
 
 class SourcemapPackager extends Packager {
   async start() {
-    this.generator = new sourceMap.SourceMapGenerator({
-      file: path.basename(this.bundle.name)
-    });
-    this.rawNodeData = {
-      sources: {},
-      mappings: []
-    };
+    this.sourcemap = new SourceMap(path.basename(this.bundle.name));
   }
 
   getOffsets(asset) {
@@ -20,28 +13,11 @@ class SourcemapPackager extends Packager {
   }
 
   async addAsset(asset) {
-    this.nodes = sourceMapUtils.addNodes(
-      asset.generated.map,
-      this.rawNodeData,
-      this.getOffsets(asset).line
-    );
-  }
-
-  async writeMap() {
-    this.rawNodeData.mappings.forEach(mapping => {
-      this.generator.addMapping(mapping);
-    });
-    Object.keys(this.rawNodeData.sources).forEach(sourceName => {
-      this.generator.setSourceContent(
-        sourceName,
-        this.rawNodeData.sources[sourceName]
-      );
-    });
-    await this.dest.write(this.generator.toString());
+    this.sourcemap.addMap(asset.generated.map, this.getOffsets(asset).line);
   }
 
   async end() {
-    await this.writeMap();
+    await this.dest.write(this.sourcemap.toString());
     await super.end();
   }
 }
