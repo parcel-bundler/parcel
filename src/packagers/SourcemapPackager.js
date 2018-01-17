@@ -1,6 +1,6 @@
 const path = require('path');
 const Packager = require('./Packager');
-const SourceMap = require('../utils/SourceMap');
+const SourceMap = require('../SourceMap');
 
 class SourcemapPackager extends Packager {
   async start() {

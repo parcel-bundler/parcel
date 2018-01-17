@@ -10,7 +10,7 @@ const fsVisitor = require('../visitors/fs');
 const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
-const SourceMap = require('../utils/SourceMap');
+const SourceMap = require('../SourceMap');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
@@ -125,16 +125,16 @@ class JSAsset extends Asset {
         sourceFileName: this.options.sourcemaps ? this.relativename : undefined
       };
       let generated = generate(this.ast, opts, this.contents);
-      if (this.sourcemap) {
-        let babelmap = generated.map;
-        let sourcemap = new SourceMap();
-        sourcemap.extendSourceMap(this.sourcemap, babelmap);
-        this.sourcemap = sourcemap;
-      } else {
-        if (this.options.sourcemaps && generated.rawMappings) {
-          this.sourcemap = new SourceMap();
-          this.sourcemap.concatMappings(generated.rawMappings);
-          this.sourcemap.sources[this.relativename] = this.contents;
+      if (this.options.sourcemaps && generated.rawMappings) {
+        let rawMap = new SourceMap();
+        rawMap.concatMappings(generated.rawMappings);
+        rawMap.sources[this.relativename] = this.contents;
+        if (this.sourcemap) {
+          let sourcemap = new SourceMap();
+          sourcemap.extendSourceMap(this.sourcemap, rawMap);
+          this.sourcemap = sourcemap;
+        } else {
+          this.sourcemap = rawMap;
         }
       }
       code = generated.code;

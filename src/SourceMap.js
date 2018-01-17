@@ -1,5 +1,5 @@
 const sourceMap = require('source-map');
-const textUtils = require('./textUtils');
+const textUtils = require('./utils/textUtils');
 
 class SourceMap {
   constructor(file) {
@@ -60,7 +60,7 @@ class SourceMap {
   }
 
   concatMappings(mappings) {
-    this.mappings.concat(mappings);
+    this.mappings = this.mappings.concat(mappings);
   }
 
   addMapping(mapping, lineOffset = 0, columnOffset = 0) {
@@ -119,12 +119,16 @@ class SourceMap {
 
   extendSourceMap(original, extension) {
     original = this.getConsumer(original);
-    extension = this.getConsumer(extension);
+    if (!isSourceMapInstance(extension)) {
+      throw new Error(
+        '[SOURCEMAP] Type of extension should be a SourceMap instance!'
+      );
+    }
 
     extension.eachMapping(mapping => {
       let originalMapping = original.originalPositionFor({
-        line: mapping.originalLine,
-        column: mapping.originalColumn
+        line: mapping.original.line,
+        column: mapping.original.column
       });
 
       if (!originalMapping.line) {
@@ -139,8 +143,8 @@ class SourceMap {
           column: originalMapping.column
         },
         generated: {
-          line: mapping.generatedLine,
-          column: mapping.generatedColumn
+          line: mapping.generated.line,
+          column: mapping.generated.column
         }
       });
       if (!this.sources[originalMapping.source]) {
