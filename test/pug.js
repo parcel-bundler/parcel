@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
-const { assertBundleTree, bundle, run } = require('./utils');
+const { assertBundleTree, bundle } = require('./utils');
 
 describe('pug', function() {
   it('should support bundling Pug', async function() {
