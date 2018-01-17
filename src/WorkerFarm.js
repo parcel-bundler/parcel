@@ -8,7 +8,6 @@ let shared = null;
 class WorkerFarm extends Farm {
   constructor(options) {
     let opts = {
-      autoStart: true,
       maxConcurrentWorkers: getNumWorkers()
     };
 
@@ -18,6 +17,7 @@ class WorkerFarm extends Farm {
     this.remoteWorker = this.promisifyWorker(this.setup(['init', 'run']));
 
     this.started = false;
+    this.warmWorkers = 0;
     this.init(options);
   }
 
@@ -40,7 +40,7 @@ class WorkerFarm extends Farm {
     this.started = false;
 
     let promises = [];
-    for (let i = 0; i < this.activeChildren; i++) {
+    for (let i = 0; i < this.options.maxConcurrentWorkers; i++) {
       promises.push(this.remoteWorker.init(options));
     }
 
@@ -60,10 +60,19 @@ class WorkerFarm extends Farm {
     // Child process workers are slow to start (~600ms).
     // While we're waiting, just run on the main thread.
     // This significantly speeds up startup time.
-    if (!this.started) {
-      return this.localWorker.run(...args);
-    } else {
+    if (this.started && this.warmWorkers >= this.activeChildren) {
       return this.remoteWorker.run(...args);
+    } else {
+      // Workers have started, but are not warmed up yet.
+      // Send the job to a remote worker in the background,
+      // but use the result from the local worker - it will be faster.
+      if (this.started) {
+        this.remoteWorker.run(...args).then(() => {
+          this.warmWorkers++;
+        });
+      }
+
+      return this.localWorker.run(...args);
     }
   }
 
