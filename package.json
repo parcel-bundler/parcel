@@ -64,6 +64,7 @@
     "postcss-modules": "^0.8.0",
     "posthtml-include": "^1.1.0",
     "prettier": "^1.9.1",
+    "pug": "^2.0.0-rc.4",
     "rimraf": "^2.6.1",
     "stylus": "^0.54.5",
     "typescript": "^2.6.2",
