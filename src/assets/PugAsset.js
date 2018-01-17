@@ -4,7 +4,7 @@ const localRequire = require('../utils/localRequire');
 class PugAsset extends HTMLAsset {
   async parse(code) {
     // require pug, installed locally in the app
-    let pug = yield localRequire('pug', _this.name);
+    let pug = await localRequire('pug', this.name);
 
     var fn = pug.compile(code, {});
     var html = fn({});
