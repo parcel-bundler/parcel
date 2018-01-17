@@ -1,7 +1,7 @@
 const HTMLAsset = require('./HTMLAsset');
 const localRequire = require('../utils/localRequire');
 
-class TypeScriptAsset extends HTMLAsset {
+class PugAsset extends HTMLAsset {
   async parse(code) {
     // require pug, installed locally in the app
     let pug = yield localRequire('pug', _this.name);
@@ -15,4 +15,4 @@ class TypeScriptAsset extends HTMLAsset {
   }
 }
 
-module.exports = TypeScriptAsset;
+module.exports = PugAsset;
