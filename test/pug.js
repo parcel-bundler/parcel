@@ -7,7 +7,7 @@ describe('pug', function() {
     let b = await bundle(__dirname + '/integration/pug/index.pug');
 
     assertBundleTree(b, {
-      name: 'index.pug',
+      name: 'index.html',
       assets: ['index.pug'],
       childBundles: [
         {
