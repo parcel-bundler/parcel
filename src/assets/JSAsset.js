@@ -127,7 +127,7 @@ class JSAsset extends Asset {
       let generated = generate(this.ast, opts, this.contents);
       if (this.options.sourcemaps && generated.rawMappings) {
         let rawMap = new SourceMap();
-        rawMap.concatMappings(generated.rawMappings);
+        rawMap.mappings = generated.rawMappings;
         rawMap.sources[this.relativename] = this.contents;
         if (this.sourcemap) {
           let sourcemap = new SourceMap();
