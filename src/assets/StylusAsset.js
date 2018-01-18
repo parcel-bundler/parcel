@@ -1,5 +1,4 @@
 const CSSAsset = require('./CSSAsset');
-const config = require('../utils/config');
 const localRequire = require('../utils/localRequire');
 const Resolver = require('../Resolver');
 
@@ -11,7 +10,7 @@ class StylusAsset extends CSSAsset {
     let stylus = await localRequire('stylus', this.name);
     let opts =
       this.package.stylus ||
-      (await config.load(this.name, ['.stylusrc', '.stylusrc.js']));
+      (await this.getConfig(['.stylusrc', '.stylusrc.js']));
     let style = stylus(code, opts);
     style.set('filename', this.name);
     style.set('include css', true);

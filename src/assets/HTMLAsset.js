@@ -48,10 +48,7 @@ class HTMLAsset extends Asset {
           }
           if (elements && elements.includes(node.tag)) {
             let assetPath = this.addURLDependency(
-              decodeURIComponent(node.attrs[attr]),
-              {
-                from: 'html'
-              }
+              decodeURIComponent(node.attrs[attr])
             );
             if (!isURL(assetPath)) {
               assetPath = urlJoin(this.options.publicURL, assetPath);

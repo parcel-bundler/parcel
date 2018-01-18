@@ -21,8 +21,6 @@ async function resolve(filepath, filenames, root = path.parse(filepath).root) {
       existsCache.set(file, true);
       return file;
     }
-
-    existsCache.set(file, false);
   }
 
   return resolve(filepath, filenames, root);

@@ -1,5 +1,4 @@
 const babel = require('babel-core');
-const config = require('../utils/config');
 
 module.exports = async function(asset) {
   if (!await shouldTransform(asset)) {
@@ -40,6 +39,6 @@ async function shouldTransform(asset) {
     return true;
   }
 
-  let babelrc = await config.resolve(asset.name, ['.babelrc', '.babelrc.js']);
+  let babelrc = await asset.getConfig(['.babelrc', '.babelrc.js']);
   return !!babelrc;
 }

@@ -59,7 +59,7 @@ class PromiseQueue {
       while (this.queue.length > 0) {
         this._runJob(...this.queue.shift());
       }
-    } else {
+    } else if (this.processing.size === 0) {
       this.resolve(this.processed);
       this._reset();
     }

@@ -15,7 +15,8 @@ function Module() {
 module.bundle.Module = Module;
 
 if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
-  var ws = new WebSocket('ws://' + window.location.hostname + ':' + process.env.HMR_PORT + '/');
+  var hostname = process.env.HMR_HOSTNAME || location.hostname;
+  var ws = new WebSocket('ws://' + hostname + ':' + process.env.HMR_PORT + '/');
   ws.onmessage = function(event) {
     var data = JSON.parse(event.data);
 
@@ -34,7 +35,7 @@ if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
     if (data.type === 'reload') {
       ws.close();
       ws.onclose = function () {
-        window.location.reload();
+        location.reload();
       }
     }
 
