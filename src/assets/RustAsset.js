@@ -2,6 +2,7 @@ const path = require('path');
 const commandExists = require('command-exists');
 const {exec} = require('child-process-promise');
 const toml = require('toml');
+const tomlify = require('tomlify-j0.4');
 
 const fs = require('../utils/fs');
 const JSAsset = require('./JSAsset');
@@ -31,18 +32,35 @@ class RustAsset extends JSAsset {
       .map(dep => path.join(dir, dep.replace(':', '')));
   }
 
-  async getCargoDir() {
-    const configFile = await config.resolve(
+  async getCargoPath() {
+    return await config.resolve(
       this.name,
       ['Cargo.toml'],
       path.parse(this.name).root
     );
-    return path.parse(configFile).dir;
+  }
+
+  async getCargoDir() {
+    return path.parse(await this.getCargoPath()).dir;
   }
 
   async cargoParse(cargoConfig, cargoDir) {
     const rustName = cargoConfig.package.name;
     const compileCmd = `cargo +nightly build --target wasm32-unknown-unknown --release`;
+    if (!cargoConfig.lib) {
+      cargoConfig.lib = {};
+    }
+    if (!Array.isArray(cargoConfig.lib['crate-type'])) {
+      cargoConfig.lib['crate-type'] = [];
+    }
+    if (!cargoConfig.lib['crate-type'].includes('cdylib')) {
+      cargoConfig.lib['crate-type'].push('cdylib');
+      await fs.writeFile(
+        await this.getCargoPath(),
+        tomlify.toToml(cargoConfig)
+      );
+    }
+
     await exec(compileCmd, {cwd: cargoDir});
 
     const outDir = path.join(cargoDir, 'target', rustTarget, 'release');
