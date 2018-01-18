@@ -12,3 +12,6 @@ lib
 .vscode/
 .idea/
 *.min.js
+
+test/integration/**/target
+test/integration/**/Cargo.lock

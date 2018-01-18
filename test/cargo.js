@@ -1,9 +1,9 @@
 const assert = require('assert');
 const {bundle, run, assertBundleTree} = require('./utils');
 
-describe('rust', function() {
+describe('cargo', function() {
   it('should generate a wasm file from a rust file', async function() {
-    let b = await bundle(__dirname + '/integration/rust/index.js');
+    let b = await bundle(__dirname + '/integration/cargo/src/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -17,11 +17,11 @@ describe('rust', function() {
       childBundles: [
         {
           type: 'js',
-          assets: ['add.rs'],
+          assets: ['lib.rs'],
           childBundles: [
             {
               type: 'wasm',
-              assets: ['add.wasm'],
+              assets: ['cargo.wasm'],
               childBundles: []
             }
           ]
