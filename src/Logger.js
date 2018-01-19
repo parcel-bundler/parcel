@@ -42,7 +42,7 @@ class Logger {
       return;
     }
 
-    this.write(this.chalk.yellow(message));
+    this.write(this.chalk.yellow(`${emoji.warning} ${message}`));
   }
 
   error(err) {
