@@ -45,7 +45,9 @@ class WorkerFarm extends Farm {
     }
 
     await Promise.all(promises);
-    this.started = true;
+    if (this.options.maxConcurrentWorkers > 0) {
+      this.started = true;
+    }
   }
 
   receive(data) {
@@ -97,6 +99,9 @@ for (let key in EventEmitter.prototype) {
 }
 
 function getNumWorkers() {
+  if (process.env.PARCEL_WORKERS) {
+    return parseInt(process.env.PARCEL_WORKERS);
+  }
   let cores;
   try {
     cores = require('physical-cpu-count');
