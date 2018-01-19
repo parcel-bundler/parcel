@@ -5066,6 +5066,10 @@ source-map@^0.6.1, source-map@~0.6.1:
   version "0.6.1"
   resolved "https://registry.yarnpkg.com/source-map/-/source-map-0.6.1.tgz#74722af32e9614e9c287a8d0bbde48b5e2f1a263"
 
+"source-map@git://github.com/mozilla/source-map#master":
+  version "0.7.0"
+  resolved "git://github.com/mozilla/source-map#51cf7708dd70d067dfe04ce36d546f3262b48da3"
+
 sourcemap-validator@^1.0.6:
   version "1.0.6"
   resolved "https://registry.yarnpkg.com/sourcemap-validator/-/sourcemap-validator-1.0.6.tgz#abd2f1ecdae6a3c46c2c96c5f256705b2147c9c0"

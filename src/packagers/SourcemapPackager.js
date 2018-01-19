@@ -13,7 +13,10 @@ class SourcemapPackager extends Packager {
   }
 
   async addAsset(asset) {
-    this.sourcemap.addMap(asset.generated.map, this.getOffsets(asset).line);
+    await this.sourcemap.addMap(
+      asset.generated.map,
+      this.getOffsets(asset).line
+    );
   }
 
   async end() {
