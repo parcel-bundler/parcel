@@ -1,6 +1,6 @@
 const path = require('path');
 const commandExists = require('command-exists');
-const {exec} = require('child-process-promise');
+const {exec, spawn} = require('child-process-promise');
 const toml = require('toml');
 const tomlify = require('tomlify-j0.4');
 
@@ -9,6 +9,15 @@ const JSAsset = require('./JSAsset');
 const config = require('../utils/config');
 
 const rustTarget = `wasm32-unknown-unknown`;
+
+const pipeSpawn = (cmd, params) => {
+  const promise = spawn(cmd, params.split(' '));
+  const childProcess = promise.childProcess;
+
+  childProcess.stdout.pipe(process.stdout);
+  childProcess.stderr.pipe(process.stderr);
+  return promise;
+};
 
 class RustAsset extends JSAsset {
   async generateRustDeps(dir, base) {
@@ -46,7 +55,7 @@ class RustAsset extends JSAsset {
 
   async cargoParse(cargoConfig, cargoDir) {
     const rustName = cargoConfig.package.name;
-    const compileCmd = `cargo +nightly build --target wasm32-unknown-unknown --release`;
+    const compileCmd = `cargo +nightly build --target ${rustTarget} --release`;
     if (!cargoConfig.lib) {
       cargoConfig.lib = {};
     }
@@ -90,12 +99,23 @@ class RustAsset extends JSAsset {
   async parse() {
     const isProduction = process.env.NODE_ENV === 'production';
     try {
-      await commandExists('rustc');
+      await commandExists('rustup');
     } catch (e) {
       throw new Error(
-        "Rust isn't install, you can visit https://www.rustup.rs/ for most info"
+        "Rust isn't installed, you can visit https://www.rustup.rs/ for more info"
       );
     }
+
+    const {stdout} = await exec('rustup show');
+    if (!stdout.includes(rustTarget)) {
+      await pipeSpawn('rustup', 'toolchain install nightly');
+      await pipeSpawn('rustup', 'update');
+      await pipeSpawn(
+        'rustup',
+        'target add wasm32-unknown-unknown --toolchain nightly'
+      );
+    }
+
     const cargoDir = await this.getCargoDir();
     const mainFiles = ['src/lib.rs', 'src/main.rs'];
 
