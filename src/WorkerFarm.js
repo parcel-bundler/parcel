@@ -100,8 +100,9 @@ for (let key in EventEmitter.prototype) {
 
 function getNumWorkers() {
   if (process.env.PARCEL_WORKERS) {
-    return parseInt(process.env.PARCEL_WORKERS);
+    return parseInt(process.env.PARCEL_WORKERS, 10);
   }
+
   let cores;
   try {
     cores = require('physical-cpu-count');
