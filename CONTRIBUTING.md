@@ -35,6 +35,12 @@ yarn test
 [node]: https://nodejs.org/
 [yarn]: https://yarnpkg.com/
 
+## Environment variables
+
+You can set `PARCEL_WORKERS` to the number of worker processes to spawn.
+
+`PARCEL_WORKERS=0` is handy for debugging, because that will cause all code to be run on the main thread. This allows you to place breakpoints in Asset code, for example.
+
 ## Financial contributions
 
 We also welcome financial contributions in full transparency on our [open collective](https://opencollective.com/parcel).
