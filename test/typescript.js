@@ -65,9 +65,9 @@ describe('typescript', function() {
     });
 
     let output = run(b);
-    assert.equal(typeof output.getRaw, 'function');
-    assert(/^\/dist\/[0-9a-f]+\.txt$/.test(output.getRaw()));
-    assert(fs.existsSync(__dirname + output.getRaw()));
+    let rawFile = output.getRaw().split('?')[0];
+    assert(/^\/dist\/[0-9a-f]+\.txt$/.test(rawFile));
+    assert(fs.existsSync(__dirname + rawFile));
   });
 
   it('should minify in production mode', async function() {

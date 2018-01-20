@@ -18,8 +18,15 @@ class RawAsset extends Asset {
     );
 
     return {
-      js: `module.exports=${JSON.stringify(pathToAsset)};`
+      js: `module.exports=${JSON.stringify(pathToAsset+'?'+this.generateHash(true))};`
     };
+  }
+
+  generateHash(regenerate) {
+    if (regenerate || !this.hash) {
+      this.hash = ('t=' + Date.now());
+    }
+    return this.hash;
   }
 }
 
