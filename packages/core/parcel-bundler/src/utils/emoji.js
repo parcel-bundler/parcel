@@ -4,3 +4,4 @@ const supportsEmoji = process.platform !== 'win32' || process.env.VSCODE_PID;
 exports.progress = supportsEmoji ? '⏳' : '∞';
 exports.success = supportsEmoji ? '✨' : '√';
 exports.error = supportsEmoji ? '🚨' : '×';
+exports.warning = supportsEmoji ? '⚠️' : '‼';
