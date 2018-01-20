@@ -16,7 +16,7 @@ const getMTime = async file => {
   return mtime;
 };
 
-describe('prettyError', () => {
+describe('FSCache', () => {
   beforeEach(() => {
     rimraf.sync(cachePath);
     rimraf.sync(inputPath);
