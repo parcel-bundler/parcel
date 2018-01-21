@@ -126,7 +126,7 @@ class Asset {
     // do nothing by default
   }
 
-  generate() {
+  async generate() {
     return {
       [this.type]: this.contents
     };
@@ -138,7 +138,7 @@ class Asset {
       await this.pretransform();
       await this.getDependencies();
       await this.transform();
-      this.generated = this.generate();
+      this.generated = await this.generate();
       this.hash = this.generateHash();
     }
 

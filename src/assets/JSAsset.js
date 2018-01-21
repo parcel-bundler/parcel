@@ -117,7 +117,7 @@ class JSAsset extends Asset {
     }
   }
 
-  generate() {
+  async generate() {
     let code;
     if (this.isAstDirty) {
       let opts = {
@@ -131,7 +131,7 @@ class JSAsset extends Asset {
         rawMap.sources[this.relativename] = this.contents;
         if (this.sourcemap) {
           let sourcemap = new SourceMap();
-          sourcemap.extendSourceMap(this.sourcemap, rawMap);
+          await sourcemap.extendSourceMap(this.sourcemap, rawMap);
           this.sourcemap = sourcemap;
         } else {
           this.sourcemap = rawMap;
@@ -155,7 +155,7 @@ class JSAsset extends Asset {
           if (!this.sourcemap.version) {
             sourcemap.copyConstructor(this.sourcemap);
           } else {
-            sourcemap.addMap(this.sourcemap);
+            await sourcemap.addMap(this.sourcemap);
           }
           this.sourcemap = sourcemap;
         }
