@@ -45,9 +45,6 @@
     "worker-farm": "^1.4.1",
     "ws": "^3.3.3"
   },
-  "optionalDependencies": {
-    "source-map": "^0.7.0"
-  },
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.6.1",
