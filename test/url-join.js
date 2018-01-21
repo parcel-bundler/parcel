@@ -64,4 +64,11 @@ describe('Url Join', () => {
   it('should support windows paths', () => {
     assert.equal(urlJoin('dist\\foo', '\\bar\\foo.js'), 'dist/foo/bar/foo.js');
   });
+
+  it('should parse double slashes as host', () => {
+    assert.equal(
+      urlJoin('//parceljs.org/foo?a=123&b=456#hello', 'bar/a.js'),
+      '//parceljs.org/foo/bar/a.js?a=123&b=456#hello'
+    );
+  });
 });
