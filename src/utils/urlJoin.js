@@ -6,7 +6,7 @@ const path = require('path');
  * e.g. from \path\to\res.js to /path/to/res.js.
  */
 module.exports = function(publicURL, assetPath) {
-  const url = URL.parse(publicURL);
+  const url = URL.parse(publicURL, false, true);
   url.pathname = path.posix.join(url.pathname, URL.parse(assetPath).pathname);
   return URL.format(url);
 };
