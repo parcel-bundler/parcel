@@ -32,6 +32,8 @@ class Parser {
 
     this.registerExtension('html', './assets/HTMLAsset');
 
+    this.registerExtension('webmanifest', './assets/WebManifestAsset');
+
     let extensions = options.extensions || {};
     for (let ext in extensions) {
       this.registerExtension(ext, extensions[ext]);
