@@ -40,7 +40,10 @@ class SourceMap {
           );
         }
       });
-      consumer.destroy();
+      if (consumer.destroy) {
+        // Only needs to happen in source-map 0.7
+        consumer.destroy();
+      }
     } else {
       if (!map.eachMapping) {
         map = this.copyConstructor(map);
@@ -155,7 +158,10 @@ class SourceMap {
         );
       }
     });
-    original.destroy();
+    if (original.destroy) {
+      // Only needs to happen in source-map 0.7
+      original.destroy();
+    }
   }
 
   offset(lineOffset = 0, columnOffset = 0) {
