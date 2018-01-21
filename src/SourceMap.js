@@ -119,14 +119,13 @@ class SourceMap {
   }
 
   async extendSourceMap(original, extension) {
-    original = await this.getConsumer(original);
     if (!isSourceMapInstance(extension)) {
-      original.destroy();
       throw new Error(
         '[SOURCEMAP] Type of extension should be a SourceMap instance!'
       );
     }
 
+    original = await this.getConsumer(original);
     extension.eachMapping(mapping => {
       let originalMapping = original.originalPositionFor({
         line: mapping.original.line,
