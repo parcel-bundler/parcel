@@ -20,16 +20,16 @@ class SourceMap {
     return map && map.computeColumnSpans;
   }
 
-  getConsumer(map) {
+  async getConsumer(map) {
     if (this.isConsumer(map)) {
       return map;
     }
-    return new sourceMap.SourceMapConsumer(map);
+    return await new sourceMap.SourceMapConsumer(map);
   }
 
-  addMap(map, lineOffset = 0, columnOffset = 0) {
+  async addMap(map, lineOffset = 0, columnOffset = 0) {
     if (!isSourceMapInstance(map) && map.version) {
-      let consumer = this.getConsumer(map);
+      let consumer = await this.getConsumer(map);
 
       consumer.eachMapping(mapping => {
         this.addConsumerMapping(mapping, lineOffset, columnOffset);
@@ -40,6 +40,7 @@ class SourceMap {
           );
         }
       });
+      consumer.destroy();
     } else {
       if (!map.eachMapping) {
         map = this.copyConstructor(map);
@@ -117,9 +118,10 @@ class SourceMap {
     return this;
   }
 
-  extendSourceMap(original, extension) {
-    original = this.getConsumer(original);
+  async extendSourceMap(original, extension) {
+    original = await this.getConsumer(original);
     if (!isSourceMapInstance(extension)) {
+      original.destroy();
       throw new Error(
         '[SOURCEMAP] Type of extension should be a SourceMap instance!'
       );
@@ -154,6 +156,7 @@ class SourceMap {
         );
       }
     });
+    original.destroy();
   }
 
   offset(lineOffset = 0, columnOffset = 0) {
