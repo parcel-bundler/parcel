@@ -80,7 +80,7 @@ describe('typescript', function() {
     );
 
     assert.equal(b.assets.size, 2);
-    assert.equal(b.childBundles.size, 0);
+    assert.equal(b.childBundles.size, 1);
 
     let output = run(b);
     assert.equal(typeof output.count, 'function');

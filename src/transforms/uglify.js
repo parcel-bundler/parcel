@@ -1,4 +1,5 @@
 const {minify} = require('uglify-es');
+const SourceMap = require('../SourceMap');
 
 module.exports = async function(asset) {
   await asset.parseIfNeeded();
@@ -14,7 +15,12 @@ module.exports = async function(asset) {
     },
     compress: {
       drop_console: true
-    }
+    },
+    sourceMap: asset.options.sourceMaps
+      ? {
+          filename: asset.relativeName
+        }
+      : false
   };
 
   if (customConfig) {
@@ -22,8 +28,21 @@ module.exports = async function(asset) {
   }
 
   let result = minify(code, options);
+
   if (result.error) {
     throw result.error;
+  }
+
+  if (result.map) {
+    result.map = await new SourceMap().addMap(JSON.parse(result.map));
+    if (asset.sourceMap) {
+      asset.sourceMap = await new SourceMap().extendSourceMap(
+        asset.sourceMap,
+        result.map
+      );
+    } else {
+      asset.sourceMap = result.map;
+    }
   }
 
   // Log all warnings
