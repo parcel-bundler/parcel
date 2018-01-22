@@ -66,8 +66,14 @@ class JSPackager extends Packager {
         }
       }
     }
+
     this.bundle.addOffset(asset, this.lineOffset, 0);
-    await this.writeModule(asset.id, asset.generated.js, deps);
+    await this.writeModule(
+      asset.id,
+      asset.generated.js,
+      deps,
+      asset.generated.map
+    );
   }
 
   getBundleSpecifier(bundle) {
@@ -79,7 +85,7 @@ class JSPackager extends Packager {
     return name;
   }
 
-  async writeModule(id, code, deps = {}) {
+  async writeModule(id, code, deps = {}, map) {
     let wrapped = this.first ? '' : ',';
     wrapped +=
       id + ':[function(require,module,exports) {\n' + (code || '') + '\n},';
@@ -87,8 +93,11 @@ class JSPackager extends Packager {
     wrapped += ']';
 
     this.first = false;
-    this.lineOffset += lineCounter(wrapped) - 1;
     await this.dest.write(wrapped);
+
+    // Use the pre-computed line count from the source map if possible
+    let lineCount = map && map.lineCount ? map.lineCount : lineCounter(code);
+    this.lineOffset += 1 + lineCount;
   }
 
   async addAssetToBundle(asset) {

@@ -5,6 +5,7 @@ class SourceMap {
   constructor(mappings, sources) {
     this.mappings = mappings || [];
     this.sources = sources || {};
+    this.lineCount = null;
   }
 
   async getConsumer(map) {
@@ -95,8 +96,8 @@ class SourceMap {
   generateEmptyMap(sourceName, sourceContent) {
     this.sources[sourceName] = sourceContent;
 
-    let lines = textUtils.lineCounter(sourceContent);
-    for (let line = 1; line < lines + 1; line++) {
+    this.lineCount = textUtils.lineCounter(sourceContent);
+    for (let line = 1; line < this.lineCount + 1; line++) {
       this.addMapping({
         source: sourceName,
         original: {
@@ -166,6 +167,10 @@ class SourceMap {
       mapping.generated.column = mapping.generated.column + columnOffset;
       return mapping;
     });
+
+    if (this.lineCount != null) {
+      this.lineCount += lineOffset;
+    }
   }
 
   stringify(file) {
