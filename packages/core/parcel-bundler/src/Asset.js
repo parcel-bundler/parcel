@@ -19,6 +19,7 @@ class Asset {
     this.id = ASSET_ID++;
     this.name = name;
     this.basename = path.basename(this.name);
+    this.relativeName = path.relative(options.rootDir, this.name);
     this.package = pkg || {};
     this.options = options;
     this.encoding = 'utf8';
@@ -125,7 +126,7 @@ class Asset {
     // do nothing by default
   }
 
-  generate() {
+  async generate() {
     return {
       [this.type]: this.contents
     };
@@ -137,7 +138,7 @@ class Asset {
       await this.pretransform();
       await this.getDependencies();
       await this.transform();
-      this.generated = this.generate();
+      this.generated = await this.generate();
       this.hash = this.generateHash();
     }
 

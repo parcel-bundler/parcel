@@ -8,7 +8,7 @@ describe('javascript', function() {
     let b = await bundle(__dirname + '/integration/commonjs/index.js');
 
     assert.equal(b.assets.size, 8);
-    assert.equal(b.childBundles.size, 0);
+    assert.equal(b.childBundles.size, 1);
 
     let output = run(b);
     assert.equal(typeof output, 'function');
@@ -19,7 +19,7 @@ describe('javascript', function() {
     let b = await bundle(__dirname + '/integration/es6/index.js');
 
     assert.equal(b.assets.size, 8);
-    assert.equal(b.childBundles.size, 0);
+    assert.equal(b.childBundles.size, 1);
 
     let output = run(b);
     assert.equal(typeof output, 'object');
@@ -31,7 +31,7 @@ describe('javascript', function() {
     let b = await bundle(__dirname + '/integration/es6-default-only/index.js');
 
     assert.equal(b.assets.size, 1);
-    assert.equal(b.childBundles.size, 0);
+    assert.equal(b.childBundles.size, 1);
 
     let output = run(b);
     assert.equal(typeof output, 'object');
@@ -47,8 +47,15 @@ describe('javascript', function() {
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
         {
+          type: 'map'
+        },
+        {
           assets: ['local.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -66,12 +73,23 @@ describe('javascript', function() {
       assets: ['index.js'],
       childBundles: [
         {
+          type: 'map'
+        },
+        {
           assets: ['service-worker.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['worker.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -87,8 +105,18 @@ describe('javascript', function() {
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
         {
+          type: 'map'
+        },
+        {
           assets: ['local.js', 'test.txt'],
-          childBundles: ['test.txt']
+          childBundles: [
+            {
+              type: 'map'
+            },
+            {
+              assets: ['test.txt']
+            }
+          ]
         }
       ]
     });
@@ -106,8 +134,15 @@ describe('javascript', function() {
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
         {
+          type: 'map'
+        },
+        {
           assets: ['local.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -133,11 +168,22 @@ describe('javascript', function() {
       childBundles: [
         {
           assets: ['a.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['b.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -153,7 +199,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.json'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -168,6 +218,9 @@ describe('javascript', function() {
       name: 'index.js',
       assets: ['index.js', 'test.txt'],
       childBundles: [
+        {
+          type: 'map'
+        },
         {
           type: 'txt',
           assets: ['test.txt'],
@@ -248,6 +301,9 @@ describe('javascript', function() {
         {
           type: 'css',
           assets: ['index.css']
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -263,7 +319,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.yaml'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -277,7 +337,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.coffee'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -291,7 +355,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'browser.js',
       assets: ['browser.js', 'browser-module.js'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -308,7 +376,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'browser-multiple.js',
       assets: ['browser-multiple.js', 'projected-module.js'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -325,7 +397,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'module-field.js',
       assets: ['module-field.js', 'es6.module.js'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -342,7 +418,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'jsnext-field.js',
       assets: ['jsnext-field.js', 'jsnext.module.js'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -359,7 +439,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'both-fields.js',
       assets: ['both-fields.js', 'es6.module.js'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -376,7 +460,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'main-field.js',
       assets: ['main-field.js', 'main.js'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);

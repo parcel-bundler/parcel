@@ -15,8 +15,9 @@ class Bundle {
     this.entryAsset = null;
     this.assets = new Set();
     this.childBundles = new Set();
-    this.siblingBundles = new Set;
+    this.siblingBundles = new Set();
     this.siblingBundlesMap = new Map();
+    this.offsets = new Map();
   }
 
   static createWithAsset(asset, parentBundle) {
@@ -39,6 +40,14 @@ class Bundle {
   removeAsset(asset) {
     asset.bundles.delete(this);
     this.assets.delete(asset);
+  }
+
+  addOffset(asset, line) {
+    this.offsets.set(asset, line);
+  }
+
+  getOffset(asset) {
+    return this.offsets.get(asset) || 0;
   }
 
   getSiblingBundle(type) {
@@ -89,15 +98,23 @@ class Bundle {
     newHashes.set(this.name, hash);
 
     let promises = [];
+    let mappings = [];
     if (!oldHashes || oldHashes.get(this.name) !== hash) {
       promises.push(this._package(bundler));
     }
 
     for (let bundle of this.childBundles.values()) {
-      promises.push(bundle.package(bundler, oldHashes, newHashes));
+      if (bundle.type === 'map') {
+        mappings.push(bundle);
+      } else {
+        promises.push(bundle.package(bundler, oldHashes, newHashes));
+      }
     }
 
     await Promise.all(promises);
+    for (let bundle of mappings) {
+      await bundle.package(bundler, oldHashes, newHashes);
+    }
     return newHashes;
   }
 

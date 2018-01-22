@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const Packager = require('./Packager');
+const urlJoin = require('../utils/urlJoin');
+const lineCounter = require('../utils/lineCounter');
 
 const prelude = {
   source: fs
@@ -21,6 +23,7 @@ class JSPackager extends Packager {
 
     let preludeCode = this.options.minify ? prelude.minified : prelude.source;
     await this.dest.write(preludeCode + '({');
+    this.lineOffset = lineCounter(preludeCode);
   }
 
   async addAsset(asset) {
@@ -64,7 +67,13 @@ class JSPackager extends Packager {
       }
     }
 
-    await this.writeModule(asset.id, asset.generated.js, deps);
+    this.bundle.addOffset(asset, this.lineOffset);
+    await this.writeModule(
+      asset.id,
+      asset.generated.js,
+      deps,
+      asset.generated.map
+    );
   }
 
   getBundleSpecifier(bundle) {
@@ -76,7 +85,7 @@ class JSPackager extends Packager {
     return name;
   }
 
-  async writeModule(id, code, deps = {}) {
+  async writeModule(id, code, deps = {}, map) {
     let wrapped = this.first ? '' : ',';
     wrapped +=
       id + ':[function(require,module,exports) {\n' + (code || '') + '\n},';
@@ -85,6 +94,10 @@ class JSPackager extends Packager {
 
     this.first = false;
     await this.dest.write(wrapped);
+
+    // Use the pre-computed line count from the source map if possible
+    let lineCount = map && map.lineCount ? map.lineCount : lineCounter(code);
+    this.lineOffset += 1 + lineCount;
   }
 
   async addAssetToBundle(asset) {
@@ -173,7 +186,17 @@ class JSPackager extends Packager {
       entry.push(this.bundle.entryAsset.id);
     }
 
-    await this.dest.end('},{},' + JSON.stringify(entry) + ')');
+    await this.dest.write('},{},' + JSON.stringify(entry) + ')');
+    if (this.options.sourceMaps) {
+      // Add source map url
+      await this.dest.write(
+        `\n//# sourceMappingURL=${urlJoin(
+          this.options.publicURL,
+          path.basename(this.bundle.name, '.js') + '.map'
+        )}`
+      );
+    }
+    await this.dest.end();
   }
 }
 

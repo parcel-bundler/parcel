@@ -80,6 +80,11 @@ class Bundler extends EventEmitter {
       logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
       mainFile: this.mainFile,
       hmrPort: options.hmrPort || 0,
+      rootDir: Path.dirname(this.mainFile),
+      sourceMaps:
+        typeof options.sourceMaps === 'boolean'
+          ? options.sourceMaps
+          : !isProduction,
       hmrHostname: options.hmrHostname || ''
     };
   }
@@ -204,6 +209,8 @@ class Bundler extends EventEmitter {
 
       if (process.env.NODE_ENV === 'production') {
         process.exitCode = 1;
+      } else if (process.env.NODE_ENV === 'test' && !this.hmr) {
+        throw err;
       }
     } finally {
       this.pending = false;
