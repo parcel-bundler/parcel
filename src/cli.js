@@ -67,6 +67,7 @@ program
   )
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
+  .option('--no-source-maps', 'disable sourcemaps')
   .action(bundle);
 
 program
