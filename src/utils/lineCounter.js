@@ -9,4 +9,4 @@ function lineCounter(string) {
   return lines;
 }
 
-exports.lineCounter = lineCounter;
+module.exports = lineCounter;

@@ -1,5 +1,5 @@
 const {SourceMapConsumer, SourceMapGenerator} = require('source-map');
-const textUtils = require('./utils/textUtils');
+const lineCounter = require('./utils/lineCounter');
 
 class SourceMap {
   constructor(mappings, sources) {
@@ -96,7 +96,7 @@ class SourceMap {
   generateEmptyMap(sourceName, sourceContent) {
     this.sources[sourceName] = sourceContent;
 
-    this.lineCount = textUtils.lineCounter(sourceContent);
+    this.lineCount = lineCounter(sourceContent);
     for (let line = 1; line < this.lineCount + 1; line++) {
       this.addMapping({
         source: sourceName,

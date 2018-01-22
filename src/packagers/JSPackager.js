@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Packager = require('./Packager');
 const urlJoin = require('../utils/urlJoin');
-const lineCounter = require('../utils/textUtils').lineCounter;
+const lineCounter = require('../utils/lineCounter');
 
 const prelude = {
   source: fs

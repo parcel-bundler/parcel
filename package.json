@@ -15,7 +15,6 @@
     "babylon-walk": "^1.0.2",
     "browser-resolve": "^1.11.2",
     "chalk": "^2.1.0",
-    "child-process-promise": "^2.2.1",
     "chokidar": "^1.7.0",
     "commander": "^2.11.0",
     "cross-spawn": "^5.1.0",
@@ -67,9 +66,9 @@
     "posthtml-include": "^1.1.0",
     "prettier": "^1.9.1",
     "rimraf": "^2.6.1",
+    "sourcemap-validator": "^1.0.6",
     "stylus": "^0.54.5",
-    "typescript": "^2.6.2",
-    "sourcemap-validator": "^1.0.6"
+    "typescript": "^2.6.2"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",

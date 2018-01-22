@@ -120,16 +120,12 @@ class JSAsset extends Asset {
   async generate() {
     let code;
     if (this.isAstDirty) {
-      let generated = generate(
-        this.ast,
-        {
-          sourceMaps: this.options.sourceMaps,
-          sourceFileName: this.options.sourceMaps
-            ? this.relativeName
-            : undefined
-        },
-        this.contents
-      );
+      let opts = {
+        sourceMaps: this.options.sourceMaps,
+        sourceFileName: this.relativeName
+      };
+
+      let generated = generate(this.ast, opts, this.contents);
 
       if (this.options.sourceMaps && generated.rawMappings) {
         let rawMap = new SourceMap(generated.rawMappings, {
