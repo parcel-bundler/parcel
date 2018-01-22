@@ -199,7 +199,6 @@ class SourceMap {
     while (
       middleIndex < this.mappings.length - 1 &&
       this.mappings[middleIndex + 1][key].line === line &&
-      this.mappings[middleIndex][key].line === line &&
       column > this.mappings[middleIndex][key].column
     ) {
       middleIndex++;
