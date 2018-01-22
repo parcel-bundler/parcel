@@ -20,10 +20,6 @@ class Bundle {
     this.offsets = new Map();
   }
 
-  addOffset(asset, line, column) {
-    this.offsets.set(asset.relativeName, {line, column});
-  }
-
   static createWithAsset(asset, parentBundle) {
     let bundle = new Bundle(
       asset.type,
@@ -44,6 +40,14 @@ class Bundle {
   removeAsset(asset) {
     asset.bundles.delete(this);
     this.assets.delete(asset);
+  }
+
+  addOffset(asset, line) {
+    this.offsets.set(asset, line);
+  }
+
+  getOffset(asset) {
+    return this.offsets.get(asset) || 0;
   }
 
   getSiblingBundle(type) {

@@ -145,9 +145,9 @@ class JSAsset extends Asset {
       }
 
       code = generated.code;
+    } else {
+      code = this.outputCode || this.contents;
     }
-
-    code = code ? code : this.outputCode || this.contents;
 
     if (this.options.sourceMaps && !this.sourceMap) {
       this.sourceMap = new SourceMap().generateEmptyMap(

@@ -67,7 +67,7 @@ class JSPackager extends Packager {
       }
     }
 
-    this.bundle.addOffset(asset, this.lineOffset, 0);
+    this.bundle.addOffset(asset, this.lineOffset);
     await this.writeModule(
       asset.id,
       asset.generated.js,
