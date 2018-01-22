@@ -36,9 +36,9 @@ class GlobAsset extends Asset {
     return matches;
   }
 
-  async generate() {
+  generate() {
     return {
-      js: 'module.exports = ' + (await generate(this.contents)) + ';'
+      js: 'module.exports = ' + generate(this.contents) + ';'
     };
   }
 }

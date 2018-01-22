@@ -8,14 +8,16 @@ class CoffeeScriptAsset extends JSAsset {
 
     // Transpile Module using CoffeeScript and parse result as ast format through babylon
     let transpiled = coffee.compile(code, {
-      sourceMap: this.options.sourcemaps
+      sourceMap: this.options.sourceMaps
     });
+
     if (transpiled.sourceMap) {
-      this.sourcemap = transpiled.sourceMap.generate();
-      this.sourcemap.sources = [this.relativename];
-      this.sourcemap.sourcesContent = [this.contents];
+      this.sourceMap = transpiled.sourceMap.generate();
+      this.sourceMap.sources = [this.relativeName];
+      this.sourceMap.sourcesContent = [this.contents];
     }
-    this.contents = this.options.sourcemaps ? transpiled.js : transpiled;
+
+    this.contents = this.options.sourceMaps ? transpiled.js : transpiled;
     return await super.parse(this.contents);
   }
 }

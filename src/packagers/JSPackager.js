@@ -178,12 +178,12 @@ class JSPackager extends Packager {
     }
 
     await this.dest.write('},{},' + JSON.stringify(entry) + ')');
-    if (this.options.sourcemaps) {
-      // Add sourcemap url
+    if (this.options.sourceMaps) {
+      // Add source map url
       await this.dest.write(
         `\n//# sourceMappingURL=${urlJoin(
           this.options.publicURL,
-          path.basename(this.bundle.name).slice(0, -3) + '.map'
+          path.basename(this.bundle.name, '.js') + '.map'
         )}`
       );
     }

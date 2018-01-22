@@ -1,7 +1,7 @@
 const JSPackager = require('./JSPackager');
 const CSSPackager = require('./CSSPackager');
 const HTMLPackager = require('./HTMLPackager');
-const SourceMapPackager = require('./SourcemapPackager');
+const SourceMapPackager = require('./SourceMapPackager');
 const RawPackager = require('./RawPackager');
 
 class PackagerRegistry {

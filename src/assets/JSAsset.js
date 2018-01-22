@@ -120,52 +120,60 @@ class JSAsset extends Asset {
   async generate() {
     let code;
     if (this.isAstDirty) {
-      let opts = {
-        sourceMaps: this.options.sourcemaps,
-        sourceFileName: this.options.sourcemaps ? this.relativename : undefined
-      };
-      let generated = generate(this.ast, opts, this.contents);
-      if (this.options.sourcemaps && generated.rawMappings) {
-        let rawMap = new SourceMap();
-        rawMap.mappings = generated.rawMappings;
-        rawMap.sources[this.relativename] = this.contents;
-        if (this.sourcemap) {
-          let sourcemap = new SourceMap();
-          await sourcemap.extendSourceMap(this.sourcemap, rawMap);
-          this.sourcemap = sourcemap;
+      let generated = generate(
+        this.ast,
+        {
+          sourceMaps: this.options.sourceMaps,
+          sourceFileName: this.options.sourceMaps
+            ? this.relativeName
+            : undefined
+        },
+        this.contents
+      );
+
+      if (this.options.sourceMaps && generated.rawMappings) {
+        let rawMap = new SourceMap(generated.rawMappings, {
+          [this.relativeName]: this.contents
+        });
+
+        // Check if we already have a source map (e.g. from TypeScript or CoffeeScript)
+        // In that case, we need to map the original source map to the babel generated one.
+        if (this.sourceMap) {
+          this.sourceMap = await new SourceMap().extendSourceMap(
+            this.sourceMap,
+            rawMap
+          );
         } else {
-          this.sourcemap = rawMap;
+          this.sourceMap = rawMap;
         }
       }
+
       code = generated.code;
     }
+
     code = code ? code : this.outputCode || this.contents;
 
-    if (this.options.sourcemaps) {
-      this.sourcemap = this.sourcemap
-        ? this.sourcemap
-        : new SourceMap().generateEmptyMap(this.relativename, this.contents);
+    if (this.options.sourceMaps && !this.sourceMap) {
+      this.sourceMap = new SourceMap().generateEmptyMap(
+        this.relativeName,
+        this.contents
+      );
     }
 
     if (this.globals.size > 0) {
       code = Array.from(this.globals.values()).join('\n') + '\n' + code;
-      if (this.options.sourcemaps) {
-        if (!SourceMap.isSourceMapInstance(this.sourcemap)) {
-          let sourcemap = new SourceMap();
-          if (!this.sourcemap.version) {
-            sourcemap.copyConstructor(this.sourcemap);
-          } else {
-            await sourcemap.addMap(this.sourcemap);
-          }
-          this.sourcemap = sourcemap;
+      if (this.options.sourceMaps) {
+        if (!(this.sourceMap instanceof SourceMap)) {
+          this.sourceMap = await new SourceMap().addMap(this.sourceMap);
         }
-        this.sourcemap.offset(this.globals.size);
+
+        this.sourceMap.offset(this.globals.size);
       }
     }
 
     return {
       js: code,
-      map: this.sourcemap
+      map: this.sourceMap
     };
   }
 

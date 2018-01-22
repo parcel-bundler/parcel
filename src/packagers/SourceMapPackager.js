@@ -2,27 +2,28 @@ const path = require('path');
 const Packager = require('./Packager');
 const SourceMap = require('../SourceMap');
 
-class SourcemapPackager extends Packager {
+class SourceMapPackager extends Packager {
   async start() {
-    this.sourcemap = new SourceMap(path.basename(this.bundle.name));
+    this.sourceMap = new SourceMap();
   }
 
   getOffsets(asset) {
     let parent = this.bundle.parentBundle;
-    return parent.offsets.get(asset.relativename) || {line: 0, column: 0};
+    return parent.offsets.get(asset.relativeName) || {line: 0, column: 0};
   }
 
   async addAsset(asset) {
-    await this.sourcemap.addMap(
+    await this.sourceMap.addMap(
       asset.generated.map,
       this.getOffsets(asset).line
     );
   }
 
   async end() {
-    await this.dest.write(this.sourcemap.stringify());
+    let file = path.basename(this.bundle.name);
+    await this.dest.write(this.sourceMap.stringify(file));
     await super.end();
   }
 }
 
-module.exports = SourcemapPackager;
+module.exports = SourceMapPackager;

@@ -10,7 +10,7 @@ class TypeScriptAsset extends JSAsset {
         module: typescript.ModuleKind.CommonJS,
         jsx: typescript.JsxEmit.Preserve
       },
-      fileName: this.relativename
+      fileName: this.relativeName
     };
 
     let tsconfig = await this.getConfig(['tsconfig.json']);
@@ -23,22 +23,25 @@ class TypeScriptAsset extends JSAsset {
       );
     }
     transpilerOptions.compilerOptions.noEmit = false;
-    transpilerOptions.compilerOptions.sourceMap = this.options.sourcemaps;
+    transpilerOptions.compilerOptions.sourceMap = this.options.sourceMaps;
 
     // Transpile Module using TypeScript and parse result as ast format through babylon
     let transpiled = typescript.transpileModule(code, transpilerOptions);
-    this.sourcemap = transpiled.sourceMapText;
-    if (this.sourcemap) {
-      this.sourcemap = JSON.parse(this.sourcemap);
-      this.sourcemap.sources = [this.relativename];
-      this.sourcemap.sourcesContent = [this.contents];
-      // Remove the sourcemap URL
+    this.sourceMap = transpiled.sourceMapText;
+
+    if (this.sourceMap) {
+      this.sourceMap = JSON.parse(this.sourceMap);
+      this.sourceMap.sources = [this.relativeName];
+      this.sourceMap.sourcesContent = [this.contents];
+
+      // Remove the source map URL
       let content = transpiled.outputText;
       transpiled.outputText = content.substring(
         0,
         content.lastIndexOf('//# sourceMappingURL')
       );
     }
+
     this.contents = transpiled.outputText;
     return await super.parse(this.contents);
   }

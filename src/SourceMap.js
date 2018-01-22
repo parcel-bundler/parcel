@@ -1,34 +1,22 @@
-const sourceMap = require('source-map');
+const {SourceMapConsumer, SourceMapGenerator} = require('source-map');
 const textUtils = require('./utils/textUtils');
 
 class SourceMap {
-  constructor(file) {
-    this.sources = {};
-    this.mappings = [];
-    this.file = file;
-  }
-
-  copyConstructor(map) {
-    let sourcemap = new SourceMap();
-    sourcemap.mappings = map.mappings;
-    sourcemap.sources = map.sources;
-    sourcemap.file = map.file;
-    return sourcemap;
-  }
-
-  isConsumer(map) {
-    return map && map.computeColumnSpans;
+  constructor(mappings, sources) {
+    this.mappings = mappings || [];
+    this.sources = sources || {};
   }
 
   async getConsumer(map) {
-    if (this.isConsumer(map)) {
+    if (map instanceof SourceMapConsumer) {
       return map;
     }
-    return await new sourceMap.SourceMapConsumer(map);
+
+    return await new SourceMapConsumer(map);
   }
 
   async addMap(map, lineOffset = 0, columnOffset = 0) {
-    if (!isSourceMapInstance(map) && map.version) {
+    if (!(map instanceof SourceMap) && map.version) {
       let consumer = await this.getConsumer(map);
 
       consumer.eachMapping(mapping => {
@@ -40,31 +28,32 @@ class SourceMap {
           );
         }
       });
+
       if (consumer.destroy) {
         // Only needs to happen in source-map 0.7
         consumer.destroy();
       }
     } else {
       if (!map.eachMapping) {
-        map = this.copyConstructor(map);
+        map = new SourceMap(map.mappings, map.sources);
       }
+
       if (lineOffset === 0 && columnOffset === 0) {
-        this.concatMappings(map.mappings);
+        this.mappings = this.mappings.concat(map.mappings);
       } else {
         map.eachMapping(mapping => {
           this.addMapping(mapping, lineOffset, columnOffset);
         });
       }
+
       Object.keys(map.sources).forEach(sourceName => {
         if (!this.sources[sourceName]) {
           this.sources[sourceName] = map.sources[sourceName];
         }
       });
     }
-  }
 
-  concatMappings(mappings) {
-    this.mappings = this.mappings.concat(mappings);
+    return this;
   }
 
   addMapping(mapping, lineOffset = 0, columnOffset = 0) {
@@ -72,6 +61,7 @@ class SourceMap {
       line: mapping.generated.line + lineOffset,
       column: mapping.generated.column + columnOffset
     };
+
     this.mappings.push(mapping);
   }
 
@@ -104,6 +94,7 @@ class SourceMap {
 
   generateEmptyMap(sourceName, sourceContent) {
     this.sources[sourceName] = sourceContent;
+
     let lines = textUtils.lineCounter(sourceContent);
     for (let line = 1; line < lines + 1; line++) {
       this.addMapping({
@@ -118,11 +109,12 @@ class SourceMap {
         }
       });
     }
+
     return this;
   }
 
   async extendSourceMap(original, extension) {
-    if (!isSourceMapInstance(extension)) {
+    if (!(extension instanceof SourceMap)) {
       throw new Error(
         '[SOURCEMAP] Type of extension should be a SourceMap instance!'
       );
@@ -151,6 +143,7 @@ class SourceMap {
           column: mapping.generated.column
         }
       });
+
       if (!this.sources[originalMapping.source]) {
         this.sources[originalMapping.source] = original.sourceContentFor(
           originalMapping.source,
@@ -158,10 +151,13 @@ class SourceMap {
         );
       }
     });
+
     if (original.destroy) {
       // Only needs to happen in source-map 0.7
       original.destroy();
     }
+
+    return this;
   }
 
   offset(lineOffset = 0, columnOffset = 0) {
@@ -172,21 +168,18 @@ class SourceMap {
     });
   }
 
-  stringify() {
-    let generator = new sourceMap.SourceMapGenerator({
-      file: this.file
+  stringify(file) {
+    let generator = new SourceMapGenerator({
+      file: file
     });
+
     this.eachMapping(mapping => generator.addMapping(mapping));
     Object.keys(this.sources).forEach(sourceName =>
       generator.setSourceContent(sourceName, this.sources[sourceName])
     );
+
     return generator.toString();
   }
 }
 
-function isSourceMapInstance(map) {
-  return !map.sources.length;
-}
-
 module.exports = SourceMap;
-module.exports.isSourceMapInstance = isSourceMapInstance;

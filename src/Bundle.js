@@ -21,7 +21,7 @@ class Bundle {
   }
 
   addOffset(asset, line, column) {
-    this.offsets.set(asset.relativename, {line, column});
+    this.offsets.set(asset.relativeName, {line, column});
   }
 
   static createWithAsset(asset, parentBundle) {
