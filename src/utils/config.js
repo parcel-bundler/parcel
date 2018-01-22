@@ -26,7 +26,12 @@ async function resolve(filepath, filenames, root = path.parse(filepath).root) {
   return resolve(filepath, filenames, root);
 }
 
-async function load(filepath, filenames, root = path.parse(filepath).root) {
+async function load(
+  filepath,
+  filenames,
+  root = path.parse(filepath).root,
+  parse = json5.parse
+) {
   let configFile = await resolve(filepath, filenames, root);
   if (configFile) {
     try {
@@ -35,7 +40,7 @@ async function load(filepath, filenames, root = path.parse(filepath).root) {
       }
 
       let configStream = await fs.readFile(configFile);
-      return json5.parse(configStream.toString());
+      return parse(configStream.toString());
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {
         existsCache.delete(configFile);
