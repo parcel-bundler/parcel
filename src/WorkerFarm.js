@@ -63,18 +63,18 @@ class WorkerFarm extends Farm {
     // While we're waiting, just run on the main thread.
     // This significantly speeds up startup time.
     if (this.started && this.warmWorkers >= this.activeChildren) {
-      return this.remoteWorker.run(...args);
+      return this.remoteWorker.run(...args, false);
     } else {
       // Workers have started, but are not warmed up yet.
       // Send the job to a remote worker in the background,
       // but use the result from the local worker - it will be faster.
       if (this.started) {
-        this.remoteWorker.run(...args).then(() => {
+        this.remoteWorker.run(...args, true).then(() => {
           this.warmWorkers++;
         });
       }
 
-      return this.localWorker.run(...args);
+      return this.localWorker.run(...args, false);
     }
   }
 
