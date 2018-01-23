@@ -9,6 +9,14 @@ install:
   # install modules
   - yarn install
 
+  # Install Rust and Cargo
+  # (Based on from https://github.com/rust-lang/libc/blob/master/appveyor.yml)
+  - curl -sSf -o rustup-init.exe https://win.rustup.rs
+  - rustup-init.exe -y
+  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
+  - rustc -Vv
+  - cargo -V
+
 # Post-install test scripts.
 test_script:
   # Output useful info for debugging.
@@ -21,6 +29,7 @@ test_script:
 
 cache:
  - "%LOCALAPPDATA%\\Yarn"
+ - C:\Users\appveyor\.cargo
 
 # Don't actually build.
 build: off

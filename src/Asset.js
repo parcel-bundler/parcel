@@ -60,7 +60,7 @@ class Asset {
 
     if (this.contents && this.mightHaveDependencies()) {
       await this.parseIfNeeded();
-      this.collectDependencies();
+      await this.collectDependencies();
     }
   }
 
