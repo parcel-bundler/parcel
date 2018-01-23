@@ -35,11 +35,13 @@ yarn test
 [node]: https://nodejs.org/
 [yarn]: https://yarnpkg.com/
 
-## Environment variables
+## Environment variables, command line arguments
 
 You can set `PARCEL_WORKERS` to the number of worker processes to spawn.
 
-`PARCEL_WORKERS=0` is handy for debugging, because that will cause all code to be run on the main thread. This allows you to place breakpoints in Asset code, for example.
+**NOTE:** `PARCEL_WORKERS=0` is handy for debugging, because all code will run on the main thread. You can then place breakpoints in Asset code. (Normally these breakpoints won't trigger, because the code executes in a subprocess.)
+
+**NOTE:** When developing plugins or new Asset types, run with `--no-cache` (or pass `noCache: true` to `Bundler` options). Parcel uses caching by default, but during development you'll normally pass incomplete results into the cache. This can leave you wondering why you're constantly seeing old results.
 
 ## Financial contributions
 
