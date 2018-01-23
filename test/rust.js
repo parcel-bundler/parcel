@@ -13,6 +13,7 @@ describe('rust', function() {
   }
 
   it('should generate a wasm file from a rust file with rustc', async function() {
+    this.timeout(500000);
     let b = await bundle(__dirname + '/integration/rust/index.js');
 
     assertBundleTree(b, {
@@ -43,6 +44,7 @@ describe('rust', function() {
   });
 
   it('should support rust files with dependencies via rustc', async function() {
+    this.timeout(500000);
     let b = bundler(__dirname + '/integration/rust-deps/index.js');
     let bundle = await b.bundle();
 
@@ -71,6 +73,7 @@ describe('rust', function() {
   });
 
   it('should generate a wasm file from a rust file with cargo', async function() {
+    this.timeout(500000);
     let b = await bundle(__dirname + '/integration/rust-cargo/src/index.js');
 
     assertBundleTree(b, {
