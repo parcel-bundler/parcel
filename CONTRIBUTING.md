@@ -16,7 +16,7 @@ Join our public Slack: https://slack.parceljs.org/
 
 The #contributors channel is useful. If you want help or have questions about any aspect of Parcel development, ask there! We'll see and respond.
 
-It's important to us to give a good experience to new contributors, so anything you want to do is fair game.
+It's important to us to give a good experience to new contributors, so anything you want to do is fair game. Feel free to come chat about it, or open a new [issue](https://github.com/parcel-bundler/parcel/issues/new) with RFC in the title.
 
 ## Overview
 
