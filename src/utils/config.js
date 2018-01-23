@@ -1,6 +1,10 @@
 const fs = require('./fs');
 const path = require('path');
-const json5 = require('json5');
+
+const PARSERS = {
+  json: require('json5').parse,
+  toml: require('toml').parse
+};
 
 const existsCache = new Map();
 
@@ -26,20 +30,17 @@ async function resolve(filepath, filenames, root = path.parse(filepath).root) {
   return resolve(filepath, filenames, root);
 }
 
-async function load(
-  filepath,
-  filenames,
-  root = path.parse(filepath).root,
-  parse = json5.parse
-) {
+async function load(filepath, filenames, root = path.parse(filepath).root) {
   let configFile = await resolve(filepath, filenames, root);
   if (configFile) {
     try {
-      if (path.extname(configFile) === '.js') {
+      let extname = path.extname(configFile).slice(1);
+      if (extname === 'js') {
         return require(configFile);
       }
 
       let configStream = await fs.readFile(configFile);
+      let parse = PARSERS[extname] || PARSERS.json;
       return parse(configStream.toString());
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {
