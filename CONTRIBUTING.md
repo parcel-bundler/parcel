@@ -1,5 +1,23 @@
 # Contributing
 
+## Wiki
+
+See (and edit!) our public Wiki.
+
+Useful notes for new contributors:
+
+https://github.com/parcel-bundler/parcel/wiki/Contributing
+
+We encourage you to create new pages or make helpful edits to all parts of the Wiki. Try to ask before making major changes to pages you didn't create, but just do whatever you think is best. Feel free to make a user page and collect your notes there so everyone can learn.
+
+## Slack
+
+Join our public Slack: https://slack.parceljs.org/
+
+The #contributors channel is useful. If you want help or have questions about any aspect of Parcel development, ask there! We'll see and respond.
+
+It's important to us to give a good experience to new contributors, so anything you want to do is fair game.
+
 ## Overview
 
 * `yarn install` - install all dependencies
