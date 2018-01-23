@@ -8,6 +8,7 @@ const fs = require('../utils/fs');
 const Asset = require('../Asset');
 const config = require('../utils/config');
 const pipeSpawn = require('../utils/pipeSpawn');
+const md5 = require('../utils/md5');
 
 const RUST_TARGET = 'wasm32-unknown-unknown';
 const MAIN_FILES = ['src/lib.rs', 'src/main.rs'];
@@ -159,8 +160,9 @@ class RustAsset extends Asset {
 
   async rustcBuild() {
     // Get output filename
-    const {dir, base, name} = path.parse(this.name);
-    this.wasmPath = path.join(dir, name + '.wasm');
+    await fs.mkdirp(this.options.cacheDir);
+    let name = md5(this.name);
+    this.wasmPath = path.join(this.options.cacheDir, name + '.wasm');
 
     // Run rustc to compile the code
     const args = [
@@ -173,11 +175,11 @@ class RustAsset extends Asset {
       '-o',
       this.wasmPath
     ];
-    await exec('rustc', args, {cwd: dir});
+    await exec('rustc', args);
 
     // Run again to collect dependencies
-    await exec('rustc', [base, '--emit=dep-info'], {cwd: dir});
-    this.depsPath = path.join(dir, name + '.d');
+    this.depsPath = path.join(this.options.cacheDir, name + '.d');
+    await exec('rustc', [this.name, '--emit=dep-info', '-o', this.depsPath]);
   }
 
   async collectDependencies() {
