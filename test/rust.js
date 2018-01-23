@@ -1,8 +1,17 @@
 const assert = require('assert');
 const {bundle, bundler, run, assertBundleTree} = require('./utils');
 const fs = require('fs');
+const commandExists = require('command-exists');
 
 describe('rust', function() {
+  if (!commandExists.sync('rustup')) {
+    // eslint-disable-next-line no-console
+    console.log(
+      'Skipping Rust tests. Install https://www.rustup.rs/ to run them.'
+    );
+    return;
+  }
+
   it('should generate a wasm file from a rust file with rustc', async function() {
     let b = await bundle(__dirname + '/integration/rust/index.js');
 
