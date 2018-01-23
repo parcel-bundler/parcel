@@ -98,7 +98,7 @@ class RustAsset extends Asset {
       '--toolchain',
       'nightly'
     ]);
-    if (!stdout.includes(RUST_TARGET)) {
+    if (!stdout.includes(RUST_TARGET + ' (installed)')) {
       await pipeSpawn('rustup', [
         'target',
         'add',
