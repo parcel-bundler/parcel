@@ -11,8 +11,9 @@ exports.init = function(options, callback) {
   callback();
 };
 
-exports.run = async function(path, pkg, options, callback) {
+exports.run = async function(path, pkg, options, isWarmUp, callback) {
   try {
+    options.isWarmUp = isWarmUp;
     var asset = parser.getAsset(path, pkg, options);
     await asset.process();
 
