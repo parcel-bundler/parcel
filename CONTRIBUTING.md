@@ -8,7 +8,7 @@ Useful notes for new contributors:
 
 https://github.com/parcel-bundler/parcel/wiki/Contributing
 
-We encourage you to create new pages or make helpful edits to all parts of the Wiki. Try to ask before making major changes to pages you didn't create, but just do whatever you think is best. Feel free to make a user page and collect your notes there so everyone can learn.
+We encourage you to create new pages or make helpful edits to all parts of the wiki. Try to ask before making major changes to pages you didn't create, but just do whatever you think is best. Feel free to make a user page and collect your notes there so everyone can learn.
 
 ## Slack
 
