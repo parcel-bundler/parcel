@@ -1,160 +1,210 @@
 const path = require('path');
 const commandExists = require('command-exists');
-const {exec, spawn} = require('child-process-promise');
-const toml = require('toml');
+const childProcess = require('child_process');
+const promisify = require('../utils/promisify');
+const exec = promisify(childProcess.execFile);
 const tomlify = require('tomlify-j0.4');
-
 const fs = require('../utils/fs');
-const JSAsset = require('./JSAsset');
+const Asset = require('../Asset');
 const config = require('../utils/config');
+const pipeSpawn = require('../utils/pipeSpawn');
 
-const rustTarget = `wasm32-unknown-unknown`;
+const RUST_TARGET = 'wasm32-unknown-unknown';
+const MAIN_FILES = ['src/lib.rs', 'src/main.rs'];
 
-const pipeSpawn = (cmd, params) => {
-  const promise = spawn(cmd, params.split(' '));
-  const childProcess = promise.childProcess;
+// Track installation status so we don't need to check more than once
+let rustInstalled = false;
+let wasmGCInstalled = false;
 
-  childProcess.stdout.pipe(process.stdout);
-  childProcess.stderr.pipe(process.stderr);
-  return promise;
-};
-
-class RustAsset extends JSAsset {
-  async generateRustDeps(dir, base) {
-    const depsCmd = `rustc ${base} --emit=dep-info`;
-    await exec(depsCmd, {cwd: dir});
-  }
-  async getRustDeps(dir, name) {
-    const deps = await fs.readFile(
-      path.format({
-        dir,
-        name,
-        ext: '.d'
-      }),
-      this.encoding
-    );
-
-    return deps
-      .split('\n')
-      .filter(Boolean)
-      .slice(1)
-      .map(dep => path.join(dir, dep.replace(':', '')));
+class RustAsset extends Asset {
+  constructor(name, pkg, options) {
+    super(name, pkg, options);
+    this.type = 'wasm';
   }
 
-  async getCargoPath() {
-    return await config.resolve(
-      this.name,
-      ['Cargo.toml'],
-      path.parse(this.name).root
-    );
-  }
-
-  async getCargoDir() {
-    return path.parse(await this.getCargoPath()).dir;
-  }
-
-  async cargoParse(cargoConfig, cargoDir) {
-    const rustName = cargoConfig.package.name;
-    const compileCmd = `cargo +nightly build --target ${rustTarget} --release`;
-    if (!cargoConfig.lib) {
-      cargoConfig.lib = {};
-    }
-    if (!Array.isArray(cargoConfig.lib['crate-type'])) {
-      cargoConfig.lib['crate-type'] = [];
-    }
-    if (!cargoConfig.lib['crate-type'].includes('cdylib')) {
-      cargoConfig.lib['crate-type'].push('cdylib');
-      await fs.writeFile(
-        await this.getCargoPath(),
-        tomlify.toToml(cargoConfig)
-      );
+  process() {
+    // We don't want to process this asset if the worker is in a warm up phase
+    // since the asset will also be processed by the main process, which
+    // may cause errors since rust writes to the filesystem.
+    if (this.options.isWarmUp) {
+      return;
     }
 
-    await exec(compileCmd, {cwd: cargoDir});
-
-    const outDir = path.join(cargoDir, 'target', rustTarget, 'release');
-    const wasmFile = path.join(outDir, rustName + '.wasm');
-
-    this.rustDeps = await this.getRustDeps(outDir, rustName);
-
-    return wasmFile;
-  }
-
-  async rustcParse() {
-    const {dir, base, name} = path.parse(this.name);
-    const wasmPath = path.format({
-      dir,
-      name,
-      ext: '.wasm'
-    });
-    const compileCmd = `rustc +nightly --target ${rustTarget} -O --crate-type=cdylib ${base} -o ${wasmPath}`;
-
-    await exec(compileCmd, {cwd: dir});
-    await this.generateRustDeps(dir, base);
-    this.rustDeps = await this.getRustDeps(dir, name);
-
-    return wasmPath;
+    return super.process();
   }
 
   async parse() {
-    const isProduction = process.env.NODE_ENV === 'production';
+    // Install rust toolchain and target if needed
+    await this.installRust();
+
+    // See if there is a Cargo config in the project
+    let cargoConfig = await this.getConfig(['Cargo.toml']);
+    let cargoDir;
+    let isMainFile = false;
+
+    if (cargoConfig) {
+      const mainFiles = MAIN_FILES.slice();
+      if (cargoConfig.lib && cargoConfig.lib.path) {
+        mainFiles.push(cargoConfig.lib.path);
+      }
+
+      cargoDir = path.dirname(await config.resolve(this.name, ['Cargo.toml']));
+      isMainFile = mainFiles.some(
+        file => path.join(cargoDir, file) === this.name
+      );
+    }
+
+    // If this is the main file of a Cargo build, use the cargo command to compile.
+    // Otherwise, use rustc directly.
+    if (isMainFile) {
+      await this.cargoBuild(cargoConfig, cargoDir);
+    } else {
+      await this.rustcBuild();
+    }
+
+    // If this is a prod build, use wasm-gc to remove unused code
+    if (this.options.minify) {
+      await this.installWasmGC();
+      await exec('wasm-gc', [this.wasmPath, this.wasmPath]);
+    }
+  }
+
+  async installRust() {
+    if (rustInstalled) {
+      return;
+    }
+
+    // Check for rustup
     try {
       await commandExists('rustup');
     } catch (e) {
       throw new Error(
-        "Rust isn't installed, you can visit https://www.rustup.rs/ for more info"
+        "Rust isn't installed. Visit https://www.rustup.rs/ for more info"
       );
     }
 
-    const {stdout} = await exec('rustup show');
-    if (!stdout.includes(rustTarget)) {
-      await pipeSpawn('rustup', 'toolchain install nightly');
-      await pipeSpawn('rustup', 'update');
-      await pipeSpawn(
-        'rustup',
-        'target add wasm32-unknown-unknown --toolchain nightly'
+    // Ensure nightly toolchain is installed
+    let [stdout] = await exec('rustup', ['show']);
+    if (!stdout.includes('nightly')) {
+      await pipeSpawn('rustup', ['update']);
+      await pipeSpawn('rustup', ['toolchain', 'install', 'nightly']);
+    }
+
+    // Ensure wasm target is installed
+    [stdout] = await exec('rustup', [
+      'target',
+      'list',
+      '--toolchain',
+      'nightly'
+    ]);
+    if (!stdout.includes(RUST_TARGET)) {
+      await pipeSpawn('rustup', [
+        'target',
+        'add',
+        'wasm32-unknown-unknown',
+        '--toolchain',
+        'nightly'
+      ]);
+    }
+
+    rustInstalled = true;
+  }
+
+  async installWasmGC() {
+    if (wasmGCInstalled) {
+      return;
+    }
+
+    try {
+      await commandExists('wasm-gc');
+    } catch (e) {
+      await pipeSpawn('cargo', [
+        'install',
+        '--git',
+        'https://github.com/alexcrichton/wasm-gc'
+      ]);
+    }
+
+    wasmGCInstalled = true;
+  }
+
+  async cargoBuild(cargoConfig, cargoDir) {
+    // Ensure the cargo config has cdylib as the crate-type
+    if (!cargoConfig.lib) {
+      cargoConfig.lib = {};
+    }
+
+    if (!Array.isArray(cargoConfig.lib['crate-type'])) {
+      cargoConfig.lib['crate-type'] = [];
+    }
+
+    if (!cargoConfig.lib['crate-type'].includes('cdylib')) {
+      cargoConfig.lib['crate-type'].push('cdylib');
+      await fs.writeFile(
+        path.join(cargoDir, 'Cargo.toml'),
+        tomlify.toToml(cargoConfig)
       );
     }
 
-    const cargoDir = await this.getCargoDir();
-    const mainFiles = ['src/lib.rs', 'src/main.rs'];
+    // Run cargo
+    let args = ['+nightly', 'build', '--target', RUST_TARGET, '--release'];
+    await exec('cargo', args, {cwd: cargoDir});
 
-    const cargoConfig = await config.load(
+    // Get output file paths
+    let outDir = path.join(cargoDir, 'target', RUST_TARGET, 'release');
+    let rustName = cargoConfig.package.name;
+    this.wasmPath = path.join(outDir, rustName + '.wasm');
+    this.depsPath = path.join(outDir, rustName + '.d');
+  }
+
+  async rustcBuild() {
+    // Get output filename
+    const {dir, base, name} = path.parse(this.name);
+    this.wasmPath = path.join(dir, name + '.wasm');
+
+    // Run rustc to compile the code
+    const args = [
+      '+nightly',
+      '--target',
+      RUST_TARGET,
+      '-O',
+      '--crate-type=cdylib',
       this.name,
-      ['Cargo.toml'],
-      undefined,
-      toml.parse
-    );
+      '-o',
+      this.wasmPath
+    ];
+    await exec('rustc', args, {cwd: dir});
 
-    if (cargoConfig && cargoConfig.lib && cargoConfig.lib.path) {
-      mainFiles.push(cargoConfig.lib.path);
-    }
-    const mainFile = mainFiles.find(
-      file => path.join(cargoDir, file) === this.name
-    );
+    // Run again to collect dependencies
+    await exec('rustc', [base, '--emit=dep-info'], {cwd: dir});
+    this.depsPath = path.join(dir, name + '.d');
+  }
 
-    const wasmPath = await (mainFile
-      ? this.cargoParse(cargoConfig, cargoDir)
-      : this.rustcParse());
+  async collectDependencies() {
+    // Read deps file
+    let contents = await fs.readFile(this.depsPath, 'utf8');
+    let dir = path.dirname(this.name);
 
-    for (const dep of this.rustDeps) {
-      this.addDependency(dep, {includedInParent: true});
-    }
-    if (isProduction) {
-      try {
-        await commandExists('wasm-gc');
-      } catch (e) {
-        await exec(
-          'cargo install --git https://github.com/alexcrichton/wasm-gc'
-        );
+    let deps = contents
+      .split('\n')
+      .filter(Boolean)
+      .slice(1);
+
+    for (let dep of deps) {
+      dep = path.resolve(dir, dep.slice(0, dep.indexOf(':')));
+      if (dep !== this.name) {
+        this.addDependency(dep, {includedInParent: true});
       }
-      await exec('wasm-gc ${wasmPath} ${wasmPath}');
     }
-    const nameModule = './' + path.relative(path.dirname(this.name), wasmPath);
+  }
 
-    this.contents = `module.exports = require(${JSON.stringify(nameModule)})`;
-
-    return await super.parse(this.contents);
+  async generate() {
+    return {
+      wasm: {
+        path: this.wasmPath, // pass output path to RawPackager
+        mtime: Date.now() // force re-bundling since otherwise the hash would never change
+      }
+    };
   }
 }
 

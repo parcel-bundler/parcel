@@ -1,8 +1,9 @@
 const assert = require('assert');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, bundler, run, assertBundleTree} = require('./utils');
+const fs = require('fs');
 
 describe('rust', function() {
-  it('should generate a wasm file from a rust file', async function() {
+  it('should generate a wasm file from a rust file with rustc', async function() {
     let b = await bundle(__dirname + '/integration/rust/index.js');
 
     assertBundleTree(b, {
@@ -11,25 +12,110 @@ describe('rust', function() {
         'bundle-loader.js',
         'bundle-url.js',
         'index.js',
-        'js-loader.js',
         'wasm-loader.js'
       ],
       childBundles: [
         {
-          type: 'js',
+          type: 'wasm',
           assets: ['add.rs'],
-          childBundles: [
-            {
-              type: 'wasm',
-              assets: ['add.wasm'],
-              childBundles: []
-            }
-          ]
+          childBundles: []
+        },
+        {
+          type: 'map'
         }
       ]
     });
 
-    var res = run(b);
-    assert.equal(await res, 5);
+    var res = await run(b);
+    assert.equal(res, 5);
+
+    // not minified
+    assert(fs.statSync(Array.from(b.childBundles)[0].name).size > 100);
+  });
+
+  it('should support rust files with dependencies via rustc', async function() {
+    let b = bundler(__dirname + '/integration/rust-deps/index.js');
+    let bundle = await b.bundle();
+
+    assertBundleTree(bundle, {
+      name: 'index.js',
+      assets: [
+        'bundle-loader.js',
+        'bundle-url.js',
+        'index.js',
+        'wasm-loader.js'
+      ],
+      childBundles: [
+        {
+          type: 'map'
+        },
+        {
+          type: 'wasm',
+          assets: ['test.rs'],
+          childBundles: []
+        }
+      ]
+    });
+
+    var res = await run(bundle);
+    assert.equal(res, 10);
+  });
+
+  it('should generate a wasm file from a rust file with cargo', async function() {
+    let b = await bundle(__dirname + '/integration/rust-cargo/src/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: [
+        'bundle-loader.js',
+        'bundle-url.js',
+        'index.js',
+        'wasm-loader.js'
+      ],
+      childBundles: [
+        {
+          type: 'map'
+        },
+        {
+          type: 'wasm',
+          assets: ['lib.rs'],
+          childBundles: []
+        }
+      ]
+    });
+
+    var res = await run(b);
+    assert.equal(res, 5);
+  });
+
+  it('should use wasm-gc to minify output', async function() {
+    this.timeout(500000);
+    let b = await bundle(__dirname + '/integration/rust/index.js', {
+      minify: true,
+      sourceMaps: false
+    });
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: [
+        'bundle-loader.js',
+        'bundle-url.js',
+        'index.js',
+        'wasm-loader.js'
+      ],
+      childBundles: [
+        {
+          type: 'wasm',
+          assets: ['add.rs'],
+          childBundles: []
+        }
+      ]
+    });
+
+    var res = await run(b);
+    assert.equal(res, 5);
+
+    // assert that it is smaller
+    assert(fs.statSync(Array.from(b.childBundles)[0].name).size < 100);
   });
 });
