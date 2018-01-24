@@ -99,4 +99,16 @@ describe('typescript', function() {
     let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(!js.includes('/* test comment */'));
   });
+
+  it('should support loading a tsconfig.json hierarchy', async function() {
+    let b = await bundle(
+      __dirname + '/integration/typescript-config-hierarchy/index.ts'
+    );
+
+    let output = run(b);
+    assert.equal(output, 2);
+
+    let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!js.includes('/* test comment */'));
+  });
 });
