@@ -374,4 +374,25 @@ describe('html', function() {
       ]
     });
   });
+
+  it('should support bundling HTM', async function() {
+    let b = await bundle(__dirname + '/integration/htm-extension/index.htm');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.htm'],
+      type: 'html',
+      childBundles: [
+        {
+          type: 'js',
+          assets: ['index.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        }
+      ]
+    });
+  });
 });
