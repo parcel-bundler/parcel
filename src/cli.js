@@ -32,6 +32,10 @@ program
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
+  .option(
+    '--use-polling',
+    'poll instead of using fs events. needed for networked filesystems'
+  )
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
@@ -48,6 +52,10 @@ program
   .option(
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
+  )
+  .option(
+    '--use-polling',
+    'poll instead of using fs events. needed for networked filesystems'
   )
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
