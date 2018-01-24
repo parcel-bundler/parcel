@@ -374,4 +374,59 @@ describe('html', function() {
       ]
     });
   });
+
+  it('should support bundling HTM', async function() {
+    let b = await bundle(__dirname + '/integration/htm-extension/index.htm');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.htm'],
+      type: 'html',
+      childBundles: [
+        {
+          type: 'css',
+          assets: ['index.css'],
+          childBundles: []
+        },
+        {
+          type: 'js',
+          assets: ['index.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'html',
+          assets: ['other.html'],
+          childBundles: [
+            {
+              type: 'css',
+              assets: ['index.css'],
+              childBundles: []
+            },
+            {
+              type: 'js',
+              assets: ['index.js'],
+              childBundles: [
+                {
+                  type: 'map'
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+
+    let files = fs.readdirSync(__dirname + '/dist');
+    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    for (let file of files) {
+      let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
+      if (file !== 'index.html' && ext !== '.map') {
+        assert(html.includes(file));
+      }
+    }
+  });
 });
