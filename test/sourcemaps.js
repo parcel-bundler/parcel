@@ -61,7 +61,7 @@ describe('sourcemaps', function() {
     assert.equal(output.env(), process.env.NODE_ENV);
   });
 
-  it('should create a valid sourcemap as a child of a nexted TS bundle', async function() {
+  it('should create a valid sourcemap as a child of a nested TS bundle', async function() {
     let b = await bundle(
       __dirname + '/integration/sourcemap-typescript-nested/index.ts'
     );

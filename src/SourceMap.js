@@ -9,16 +9,19 @@ class SourceMap {
   }
 
   purifyMappings(mappings) {
-    if (mappings && mappings.length) {
+    if (Array.isArray(mappings)) {
       return mappings.filter(mapping => {
         return (
+          mapping &&
           mapping.source &&
           mapping.original &&
-          mapping.original.line &&
-          (mapping.original.column || mapping.original.column === 0) &&
+          typeof mapping.original.line === 'number' &&
+          mapping.original.line > 0 &&
+          typeof mapping.original.column === 'number' &&
           mapping.generated &&
-          mapping.generated.line &&
-          (mapping.generated.column || mapping.generated.column === 0)
+          typeof mapping.generated.line === 'number' &&
+          mapping.generated.line > 0 &&
+          typeof mapping.generated.column === 'number'
         );
       });
     }
@@ -29,7 +32,7 @@ class SourceMap {
     if (map instanceof SourceMapConsumer) {
       return map;
     }
-
+    map = typeof map === 'string' ? JSON.parse(map) : map;
     return await new SourceMapConsumer(map);
   }
 
