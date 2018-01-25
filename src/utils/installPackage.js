@@ -10,12 +10,17 @@ const installPeerDependencies = async (dir, name) => {
   const pkg = await config.load(resolved, ['package.json']);
   const peers = pkg.peerDependencies || {};
 
+  const modules = [];
   for (const peer in peers) {
-    await install(dir, `${peer}@${peers[peer]}`, false);
+    modules.push(`${peer}@${peers[peer]}`);
+  }
+
+  if (modules.length) {
+    await install(dir, modules, false);
   }
 };
 
-const install = async function(dir, name, installPeers = true) {
+const install = async function(dir, modules, installPeers = true) {
   let location = await config.resolve(dir, ['yarn.lock', 'package.json']);
 
   return new Promise((resolve, reject) => {
@@ -25,9 +30,9 @@ const install = async function(dir, name, installPeers = true) {
     };
 
     if (location && path.basename(location) === 'yarn.lock') {
-      install = spawn('yarn', ['add', name, '--dev'], options);
+      install = spawn('yarn', ['add', ...modules, '--dev'], options);
     } else {
-      install = spawn('npm', ['install', name, '--save-dev'], options);
+      install = spawn('npm', ['install', ...modules, '--save-dev'], options);
     }
 
     install.stdout.pipe(process.stdout);
@@ -35,7 +40,7 @@ const install = async function(dir, name, installPeers = true) {
 
     install.on('close', async code => {
       if (code !== 0) {
-        return reject(new Error(`Failed to install ${name}.`));
+        return reject(new Error(`Failed to install ${modules.join(', ')}.`));
       }
 
       if (!installPeers) {
@@ -43,10 +48,12 @@ const install = async function(dir, name, installPeers = true) {
       }
 
       try {
-        await installPeerDependencies(dir, name);
+        await Promise.all(modules.map(m => installPeerDependencies(dir, m)));
       } catch (err) {
         return reject(
-          new Error(`Failed to install peerDependencies for ${name}.`)
+          new Error(
+            `Failed to install peerDependencies for ${modules.join(', ')}.`
+          )
         );
       }
 
