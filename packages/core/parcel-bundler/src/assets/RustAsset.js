@@ -102,7 +102,7 @@ class RustAsset extends Asset {
       await pipeSpawn('rustup', [
         'target',
         'add',
-        'wasm32-unknown-unknown',
+        RUST_TARGET,
         '--toolchain',
         'nightly'
       ]);
