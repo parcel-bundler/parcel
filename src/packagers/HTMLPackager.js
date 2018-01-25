@@ -14,9 +14,10 @@ class HTMLPackager extends Packager {
       .filter(b => b.type === 'css' || b.type === 'js');
 
     if (siblingBundles.length > 0) {
-      html = posthtml(
+      html = posthtml([
+        ensureHtmlTag,
         this.insertSiblingBundles.bind(this, siblingBundles)
-      ).process(html, {sync: true}).html;
+      ]).process(html, {sync: true}).html;
     }
 
     await this.dest.write(html);
@@ -69,6 +70,14 @@ function find(tree, tag) {
   });
 
   return res;
+}
+
+function ensureHtmlTag(tree) {
+  const html = find(tree, 'html');
+  if (!html) {
+    const content = tree.splice(0);
+    tree.push({tag: 'html', content});
+  }
 }
 
 module.exports = HTMLPackager;
