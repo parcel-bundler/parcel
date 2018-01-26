@@ -57,6 +57,7 @@ class WorkerFarm extends Farm {
       // that are still warming up when killed
       return;
     }
+
     if (data.event) {
       this.emit(data.event, ...data.args);
     } else {
@@ -85,12 +86,13 @@ class WorkerFarm extends Farm {
   }
 
   end() {
+    // Force kill all children
     this.ending = true;
-    Object.keys(this.children).forEach(
-      function(child) {
-        this.stopChild(child);
-      }.bind(this)
-    );
+    for (let child in this.children) {
+      this.stopChild(child);
+    }
+
+    this.ending = false;
     shared = null;
   }
 
