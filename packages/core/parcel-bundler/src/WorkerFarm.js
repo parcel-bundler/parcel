@@ -51,6 +51,13 @@ class WorkerFarm extends Farm {
   }
 
   receive(data) {
+    if (!this.children[data.child]) {
+      // This handles premature death
+      // normally only accurs for workers
+      // that are still warming up when killed
+      return;
+    }
+
     if (data.event) {
       this.emit(data.event, ...data.args);
     } else {
@@ -79,7 +86,13 @@ class WorkerFarm extends Farm {
   }
 
   end() {
-    super.end();
+    // Force kill all children
+    this.ending = true;
+    for (let child in this.children) {
+      this.stopChild(child);
+    }
+
+    this.ending = false;
     shared = null;
   }
 
