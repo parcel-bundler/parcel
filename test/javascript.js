@@ -254,7 +254,8 @@ describe('javascript', function() {
     });
 
     let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
-    assert(js.includes('console.log'));
+    assert(!js.includes('console.log'));
+    assert(!js.includes('// This is a comment'));
   });
 
   it('should insert global variables when needed', async function() {

@@ -11,9 +11,6 @@ module.exports = async function(asset) {
     warnings: true,
     mangle: {
       toplevel: true
-    },
-    compress: {
-      drop_console: true
     }
   };
 
