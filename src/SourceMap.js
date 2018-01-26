@@ -3,7 +3,7 @@ const lineCounter = require('./utils/lineCounter');
 
 class SourceMap {
   constructor(mappings, sources) {
-    this.mappings = this.purifyMappings(mappings) || [];
+    this.mappings = this.purifyMappings(mappings);
     this.sources = sources || {};
     this.lineCount = null;
   }
@@ -25,6 +25,7 @@ class SourceMap {
         );
       });
     }
+
     return [];
   }
 
