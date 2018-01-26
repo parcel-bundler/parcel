@@ -34,3 +34,10 @@ exports.run = async function(path, pkg, options, isWarmUp, callback) {
     callback(returned);
   }
 };
+
+process.on('unhandledRejection', function(err) {
+  // ERR_IPC_CHANNEL_CLOSED happens when the worker is killed before it finishes processing
+  if (err.code !== 'ERR_IPC_CHANNEL_CLOSED') {
+    console.error('Unhandled promise rejection:', err.stack);
+  }
+});
