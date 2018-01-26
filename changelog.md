@@ -5,6 +5,19 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2018-01-25
+
+### Added
+
+* Support .htm extension [Details](https://github.com/parcel-bundler/parcel/commit/3d6709142f702a92b04b065de1d05b211855966b)
+
+### Fixed
+
+* Fix rust projects with hyphenated names [Details](https://github.com/parcel-bundler/parcel/commit/e78baca1d0ffc499fffdd21883df1d43e0ab16f1)
+* Purify sourcemaps (Prevent babel from giving invalid mappings) [Details](https://github.com/parcel-bundler/parcel/commit/03291804ec9e73b147548a4e89e6d7079f4595d4)
+* Don't drop console statements by default in uglifyjs [Details](https://github.com/parcel-bundler/parcel/commit/8d7339aea1965b929ca8186ce8b617d5c46f218e)
+* Fix for ipc closed error in tests [Details](https://github.com/parcel-bundler/parcel/commit/aee8510b7bfb856d7a9b49efd897c7de30cd134c)
+
 ## [1.5.0] - 2018-01-23
 
 ### Added
