@@ -41,6 +41,28 @@ class HTMLAsset extends Asset {
     this.ast.walk(node => {
       if (node.attrs) {
         for (let attr in node.attrs) {
+          if (node.tag === 'img' && attr === 'srcset') {
+            const newSources = [];
+            for (const source of node.attrs[attr].split(',')) {
+              const pair = source.trim().split(' ');
+              if (pair.length === 0) continue;
+
+              let assetPath = this.addURLDependency(
+                decodeURIComponent(pair[0])
+              );
+              if (!isURL(assetPath)) {
+                assetPath = urlJoin(this.options.publicURL, assetPath);
+              }
+              pair[0] = assetPath;
+
+              newSources.push(pair.join(' '));
+            }
+
+            node.attrs[attr] = newSources.join(',');
+            this.isAstDirty = true;
+
+            continue;
+          }
           let elements = ATTRS[attr];
           // Check for virtual paths
           if (node.tag === 'a' && node.attrs[attr].lastIndexOf('.') < 1) {
