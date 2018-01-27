@@ -51,6 +51,11 @@ program
   )
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
+  .option(
+    '-t, --target [target]',
+    'set the runtime environment, either "node" or "browser". defaults to "browser"',
+    /^(node|browser)$/
+  )
   .option('--no-source-maps', 'disable sourcemaps')
   .action(bundle);
 
@@ -67,6 +72,11 @@ program
   )
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
+  .option(
+    '-t, --target <target>',
+    'set the runtime environment, either "node" or "browser". defaults to "browser"',
+    /^(node|browser)$/
+  )
   .action(bundle);
 
 program
