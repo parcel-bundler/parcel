@@ -15,38 +15,43 @@ function Module() {
 module.bundle.Module = Module;
 
 if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
-  var hostname = process.env.HMR_HOSTNAME || location.hostname;
-  var ws = new WebSocket('ws://' + hostname + ':' + process.env.HMR_PORT + '/');
-  ws.onmessage = function(event) {
-    var data = JSON.parse(event.data);
+  try {
+    var hostname = process.env.HMR_HOSTNAME || location.hostname;
+    var ws = new WebSocket('ws://' + hostname + ':' + process.env.HMR_PORT + '/');
+    ws.onmessage = function(event) {
+      var data = JSON.parse(event.data);
 
-    if (data.type === 'update') {
-      data.assets.forEach(function (asset) {
-        hmrApply(global.require, asset);
-      });
+      if (data.type === 'update') {
+        data.assets.forEach(function (asset) {
+          hmrApply(global.require, asset);
+        });
 
-      data.assets.forEach(function (asset) {
-        if (!asset.isNew) {
-          hmrAccept(global.require, asset.id);
-        }
-      });
-    }
-
-    if (data.type === 'reload') {
-      ws.close();
-      ws.onclose = function () {
-        location.reload();
+        data.assets.forEach(function (asset) {
+          if (!asset.isNew) {
+            hmrAccept(global.require, asset.id);
+          }
+        });
       }
-    }
 
-    if (data.type === 'error-resolved') {
-      console.log('[parcel] ✨ Error resolved');
-    }
+      if (data.type === 'reload') {
+        ws.close();
+        ws.onclose = function () {
+          location.reload();
+        }
+      }
 
-    if (data.type === 'error') {
-      console.error('[parcel] 🚨  ' + data.error.message + '\n' + 'data.error.stack');
-    }
-  };
+      if (data.type === 'error-resolved') {
+        console.log('[parcel] ✨ Error resolved');
+      }
+
+      if (data.type === 'error') {
+        console.error('[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack);
+      }
+    };
+  } catch (e) {
+    console.error('[parcel] 🚨 unable to set up hmr socket (details below)');
+    console.error(e);
+  }
 }
 
 function getParents(bundle, id) {
