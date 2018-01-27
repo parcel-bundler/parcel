@@ -34,6 +34,8 @@ class Parser {
     this.registerExtension('htm', './assets/HTMLAsset');
     this.registerExtension('rs', './assets/RustAsset');
 
+    this.registerExtension('png', './assets/PNGAsset');
+
     let extensions = options.extensions || {};
     for (let ext in extensions) {
       this.registerExtension(ext, extensions[ext]);
