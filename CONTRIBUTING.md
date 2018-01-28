@@ -61,6 +61,20 @@ You can set `PARCEL_WORKERS` to the number of worker processes to spawn.
 
 **NOTE:** When developing plugins or new Asset types, run with `--no-cache` (or pass `cache: false` to `Bundler` options). Parcel uses caching by default, but during development you'll normally pass incomplete results into the cache. This can leave you wondering why you're constantly seeing old results.
 
+## Link to local parcel build
+
+While contributing to parcel, you may need to run a local version of parcel and set it as the global cli option in your command line, so that when you run `parcel ...`, it will find your new local variant of parcel instead of the global package installed before (if you had it installed globally before).
+
+To do this, you have multiple options:
+
+* if you had **parcel** installed globally, you can run `yarn global remove parcel` and then `cd` to your own copy of parcel and run `yarn link`. This way, the global parcel in your PATH would reference to the local copy. To make sure you have it installed globally, just run `parcel --version`.
+
+* Another option would be to run `yarn link` in your own copy of parcel directory and then go to another directory and run `yarn link parcel-bundler`, so that locally your copy of parcel is the one used in its npm scripts.
+
+* Another way which is probably the best way is to **alias** your local parcel. This is also the recommended way of developing tools suggested by [Yarn](https://yarnpkg.com/en/org/contributing/). To achieve this, simply run `alias parcel="PATH_TO_PARCEL_BIN_CLI_FILE"`.
+
+For more information on this topic, read [this issue on parcel repository](https://github.com/parcel-bundler/parcel/issues/182).
+
 ## Financial contributions
 
 We also welcome financial contributions in full transparency on our [open collective](https://opencollective.com/parcel).
