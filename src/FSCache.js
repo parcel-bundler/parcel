@@ -3,7 +3,6 @@ const path = require('path');
 const md5 = require('./utils/md5');
 const objectHash = require('./utils/objectHash');
 const pkg = require('../package.json');
-const json5 = require('json5');
 
 // These keys can affect the output, so if they differ, the cache should not match
 const OPTION_KEYS = ['publicURL', 'minify', 'hmr'];
@@ -30,14 +29,40 @@ class FSCache {
     return path.join(this.dir, hash + '.json');
   }
 
+  async writeDepMtimes(data) {
+    // Write mtimes for each dependent file that is already compiled into this asset
+    for (let dep of data.dependencies) {
+      if (dep.includedInParent) {
+        let stats = await fs.stat(dep.name);
+        dep.mtime = stats.mtime.getTime();
+      }
+    }
+  }
+
   async write(filename, data) {
     try {
       await this.ensureDirExists();
+      await this.writeDepMtimes(data);
       await fs.writeFile(this.getCacheFile(filename), JSON.stringify(data));
       this.invalidated.delete(filename);
     } catch (err) {
       console.error('Error writing to cache', err);
     }
+  }
+
+  async checkDepMtimes(data) {
+    // Check mtimes for files that are already compiled into this asset
+    // If any of them changed, invalidate.
+    for (let dep of data.dependencies) {
+      if (dep.includedInParent) {
+        let stats = await fs.stat(dep.name);
+        if (stats.mtime > dep.mtime) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   }
 
   async read(filename) {
@@ -55,8 +80,13 @@ class FSCache {
         return null;
       }
 
-      let data = await fs.readFile(cacheFile);
-      return json5.parse(data);
+      let json = await fs.readFile(cacheFile);
+      let data = JSON.parse(json);
+      if (!await this.checkDepMtimes(data)) {
+        return null;
+      }
+
+      return data;
     } catch (err) {
       return null;
     }

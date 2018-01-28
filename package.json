@@ -1,6 +1,7 @@
 {
   "name": "parcel-bundler",
-  "version": "1.4.1",
+  "version": "1.5.1",
+  "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
   "license": "MIT",
   "repository": {
@@ -16,9 +17,11 @@
     "browser-resolve": "^1.11.2",
     "chalk": "^2.1.0",
     "chokidar": "^1.7.0",
+    "command-exists": "^1.2.2",
     "commander": "^2.11.0",
     "cross-spawn": "^5.1.0",
     "cssnano": "^3.10.0",
+    "dotenv": "^4.0.0",
     "get-port": "^3.2.0",
     "glob": "^7.1.2",
     "htmlnano": "^0.1.6",
@@ -37,15 +40,19 @@
     "resolve": "^1.4.0",
     "sanitize-filename": "^1.6.1",
     "serve-static": "^1.12.4",
+    "source-map": "0.6.1",
+    "toml": "^2.3.3",
+    "tomlify-j0.4": "^3.0.0",
     "uglify-es": "^3.2.1",
     "v8-compile-cache": "^1.1.0",
-    "worker-farm": "^1.4.1",
+    "worker-farm": "^1.5.2",
     "ws": "^3.3.3"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.6.1",
     "bsb-js": "^1.0.1",
+    "codecov": "^3.0.0",
     "coffeescript": "^2.0.3",
     "cross-env": "^5.1.1",
     "eslint": "^4.13.0",
@@ -63,14 +70,17 @@
     "posthtml-include": "^1.1.0",
     "prettier": "^1.9.1",
     "rimraf": "^2.6.1",
+    "sourcemap-validator": "^1.0.6",
     "stylus": "^0.54.5",
     "typescript": "^2.6.2"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
+    "test-coverage": "rm -rf coverage/* && nyc yarn test",
+    "report-coverage": "nyc report --reporter=lcov && codecov",
+    "test-ci": "yarn test-coverage && yarn report-coverage",
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
-    "build":
-      "yarn minify && babel src -d lib && cp -R src/builtins lib/builtins",
+    "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
     "prepublish": "yarn build",
     "minify":
       "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",

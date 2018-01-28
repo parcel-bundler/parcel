@@ -6,20 +6,16 @@ const fs = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
 
-beforeEach(function(done) {
-  const finalize = () => {
-    rimraf.sync(path.join(__dirname, 'dist'));
-    done();
-  };
-
+beforeEach(async function() {
   // Test run in a single process, creating and deleting the same file(s)
   // Windows needs a delay for the file handles to be released before deleting
   // is possible. Without a delay, rimraf fails on `beforeEach` for `/dist`
   if (process.platform === 'win32') {
-    sleep(50).then(finalize);
-  } else {
-    finalize();
+    await sleep(50);
   }
+  // Unix based systems also need a delay but only half as much as windows
+  await sleep(50);
+  rimraf.sync(path.join(__dirname, 'dist'));
 });
 
 function sleep(ms) {
@@ -47,7 +43,7 @@ function bundle(file, opts) {
   return bundler(file, opts).bundle();
 }
 
-function run(bundle, globals) {
+function run(bundle, globals, opts = {}) {
   // for testing dynamic imports
   const fakeDocument = {
     createElement(tag) {
@@ -79,7 +75,17 @@ function run(bundle, globals) {
       document: fakeDocument,
       WebSocket,
       console,
-      location: {hostname: 'localhost'}
+      location: {hostname: 'localhost'},
+      fetch(url) {
+        return Promise.resolve({
+          arrayBuffer() {
+            return Promise.resolve(
+              new Uint8Array(fs.readFileSync(path.join(__dirname, 'dist', url)))
+                .buffer
+            );
+          }
+        });
+      }
     },
     globals
   );
@@ -88,7 +94,12 @@ function run(bundle, globals) {
 
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(bundle.name), ctx);
-  return ctx.require(bundle.entryAsset.id);
+
+  if (opts.require !== false) {
+    return ctx.require(bundle.entryAsset.id);
+  }
+
+  return ctx;
 }
 
 function assertBundleTree(bundle, tree) {
@@ -126,8 +137,29 @@ function assertBundleTree(bundle, tree) {
   }
 }
 
+function nextBundle(b) {
+  return new Promise(resolve => {
+    b.once('bundled', resolve);
+  });
+}
+
+function deferred() {
+  let resolve, reject;
+  let promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  promise.resolve = resolve;
+  promise.reject = reject;
+
+  return promise;
+}
+
 exports.sleep = sleep;
 exports.bundler = bundler;
 exports.bundle = bundle;
 exports.run = run;
 exports.assertBundleTree = assertBundleTree;
+exports.nextBundle = nextBundle;
+exports.deferred = deferred;

@@ -14,6 +14,9 @@ describe('css', function() {
       assets: ['index.js', 'index.css', 'local.js', 'local.css'],
       childBundles: [
         {
+          name: 'index.map'
+        },
+        {
           name: 'index.css',
           assets: ['index.css', 'local.css'],
           childBundles: []
@@ -31,12 +34,22 @@ describe('css', function() {
 
     assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js', 'index.css', 'bundle-loader.js', 'bundle-url.js'],
+      assets: [
+        'index.js',
+        'index.css',
+        'bundle-loader.js',
+        'bundle-url.js',
+        'js-loader.js',
+        'css-loader.js'
+      ],
       childBundles: [
         {
           name: 'index.css',
           assets: ['index.css'],
           childBundles: []
+        },
+        {
+          type: 'map'
         },
         {
           type: 'js',
@@ -46,6 +59,9 @@ describe('css', function() {
               type: 'css',
               assets: ['local.css'],
               childBundles: []
+            },
+            {
+              type: 'map'
             }
           ]
         }
@@ -68,6 +84,10 @@ describe('css', function() {
           name: 'index.css',
           assets: ['index.css', 'other.css', 'local.css'],
           childBundles: []
+        },
+        {
+          name: 'index.map',
+          type: 'map'
         }
       ]
     });
@@ -94,6 +114,9 @@ describe('css', function() {
           name: 'index.css',
           assets: ['index.css'],
           childBundles: []
+        },
+        {
+          type: 'map'
         },
         {
           type: 'woff2',
@@ -134,6 +157,9 @@ describe('css', function() {
           name: 'index.css',
           assets: ['index.css'],
           childBundles: []
+        },
+        {
+          type: 'map'
         }
       ]
     });

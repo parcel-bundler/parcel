@@ -11,6 +11,9 @@ describe('stylus', function() {
       assets: ['index.js', 'index.styl'],
       childBundles: [
         {
+          type: 'map'
+        },
+        {
           name: 'index.css',
           assets: ['index.styl'],
           childBundles: []
@@ -36,6 +39,9 @@ describe('stylus', function() {
       assets: ['index.js', 'index.styl'],
       childBundles: [
         {
+          type: 'map'
+        },
+        {
           name: 'index.css',
           assets: ['index.styl'],
           childBundles: []
@@ -60,6 +66,9 @@ describe('stylus', function() {
       name: 'index.js',
       assets: ['index.js', 'index.styl'],
       childBundles: [
+        {
+          type: 'map'
+        },
         {
           name: 'index.css',
           assets: ['index.styl'],
@@ -96,6 +105,9 @@ describe('stylus', function() {
       name: 'index.js',
       assets: ['index.js', 'index.styl'],
       childBundles: [
+        {
+          type: 'map'
+        },
         {
           name: 'index.css',
           assets: ['index.styl'],

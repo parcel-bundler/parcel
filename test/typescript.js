@@ -7,7 +7,7 @@ describe('typescript', function() {
     let b = await bundle(__dirname + '/integration/typescript/index.ts');
 
     assert.equal(b.assets.size, 2);
-    assert.equal(b.childBundles.size, 0);
+    assert.equal(b.childBundles.size, 1);
 
     let output = run(b);
     assert.equal(typeof output.count, 'function');
@@ -20,7 +20,7 @@ describe('typescript', function() {
     );
 
     assert.equal(b.assets.size, 2);
-    assert.equal(b.childBundles.size, 0);
+    assert.equal(b.childBundles.size, 1);
 
     let output = run(b);
     assert.equal(typeof output.count, 'function');
@@ -31,7 +31,7 @@ describe('typescript', function() {
     let b = await bundle(__dirname + '/integration/typescript-json/index.ts');
 
     assert.equal(b.assets.size, 2);
-    assert.equal(b.childBundles.size, 0);
+    assert.equal(b.childBundles.size, 1);
 
     let output = run(b);
     assert.equal(typeof output.count, 'function');
@@ -42,7 +42,7 @@ describe('typescript', function() {
     let b = await bundle(__dirname + '/integration/typescript-env/index.ts');
 
     assert.equal(b.assets.size, 1);
-    assert.equal(b.childBundles.size, 0);
+    assert.equal(b.childBundles.size, 1);
 
     let output = run(b);
     assert.equal(typeof output.env, 'function');
@@ -56,6 +56,9 @@ describe('typescript', function() {
       name: 'index.js',
       assets: ['index.ts', 'test.txt'],
       childBundles: [
+        {
+          type: 'map'
+        },
         {
           type: 'txt',
           assets: ['test.txt'],

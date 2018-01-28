@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const {bundler, run, assertBundleTree, sleep} = require('./utils');
+const {bundler, run, assertBundleTree, sleep, nextBundle} = require('./utils');
 const rimraf = require('rimraf');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
@@ -17,12 +17,6 @@ describe('watcher', function() {
       b.stop();
     }
   });
-
-  function nextBundle(b) {
-    return new Promise(resolve => {
-      b.once('bundled', resolve);
-    });
-  }
 
   it('should rebuild on file change', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
@@ -55,16 +49,28 @@ describe('watcher', function() {
         'common.js',
         'common-dep.js',
         'bundle-loader.js',
-        'bundle-url.js'
+        'bundle-url.js',
+        'js-loader.js'
       ],
       childBundles: [
         {
           assets: ['a.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['b.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -79,15 +85,26 @@ describe('watcher', function() {
     bundle = await nextBundle(b);
     assertBundleTree(bundle, {
       name: 'index.js',
-      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
+      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
         {
           assets: ['a.js', 'common.js', 'common-dep.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['b.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -135,16 +152,28 @@ describe('watcher', function() {
         'common.js',
         'common-dep.js',
         'bundle-loader.js',
-        'bundle-url.js'
+        'bundle-url.js',
+        'js-loader.js'
       ],
       childBundles: [
         {
           assets: ['a.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['b.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -160,15 +189,32 @@ describe('watcher', function() {
     bundle = await nextBundle(b);
     assertBundleTree(bundle, {
       name: 'index.js',
-      assets: ['index.js', 'common.js', 'bundle-loader.js', 'bundle-url.js'],
+      assets: [
+        'index.js',
+        'common.js',
+        'bundle-loader.js',
+        'bundle-url.js',
+        'js-loader.js'
+      ],
       childBundles: [
         {
           assets: ['a.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['b.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -177,5 +223,27 @@ describe('watcher', function() {
     assert.equal(await output(), 13);
 
     assert(!b.loadedAssets.has(path.join(__dirname, '/input/common-dep.js')));
+  });
+
+  it('should recompile all assets when a config file changes', async function() {
+    await ncp(__dirname + '/integration/babel', __dirname + '/input');
+    b = bundler(__dirname + '/input/index.js', {watch: true});
+
+    await b.bundle();
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('class Foo {}'));
+    assert(file.includes('class Bar {}'));
+
+    // Change babelrc, should recompile both files
+    let babelrc = JSON.parse(
+      fs.readFileSync(__dirname + '/input/.babelrc', 'utf8')
+    );
+    babelrc.presets[0][1].targets.browsers.push('IE >= 11');
+    fs.writeFileSync(__dirname + '/input/.babelrc', JSON.stringify(babelrc));
+
+    await nextBundle(b);
+    file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
   });
 });
