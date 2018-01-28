@@ -85,7 +85,7 @@ class Asset {
     );
 
     return this.options.parser
-      .getAsset(resolved, this.package, this.options)
+      .getAsset(resolved, this.package, Object.assign({}, opts, this.options))
       .generateBundleName();
   }
 

@@ -47,9 +47,18 @@ class HTMLAsset extends Asset {
             continue;
           }
           if (elements && elements.includes(node.tag)) {
-            let assetPath = this.addURLDependency(
-              decodeURIComponent(node.attrs[attr])
-            );
+            let assetPath;
+            if (node.tag === 'link' && node.attrs['rel'] === 'manifest') {
+              assetPath = this.addURLDependency(
+                decodeURIComponent(node.attrs[attr]),
+                this.name,
+                {extension: '.appmanifest'}
+              );
+            } else {
+              assetPath = this.addURLDependency(
+                decodeURIComponent(node.attrs[attr])
+              );
+            }
             if (!isURL(assetPath)) {
               assetPath = urlJoin(this.options.publicURL, assetPath);
             }

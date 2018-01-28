@@ -34,6 +34,8 @@ class Parser {
     this.registerExtension('htm', './assets/HTMLAsset');
     this.registerExtension('rs', './assets/RustAsset');
 
+    this.registerExtension('appmanifest', './assets/AppManifestAsset');
+
     let extensions = options.extensions || {};
     for (let ext in extensions) {
       this.registerExtension(ext, extensions[ext]);
@@ -48,12 +50,12 @@ class Parser {
     this.extensions[ext] = parser;
   }
 
-  findParser(filename) {
+  findParser(filename, options = {}) {
     if (glob.hasMagic(filename)) {
       return GlobAsset;
     }
 
-    let extension = path.extname(filename);
+    let extension = options.extension || path.extname(filename);
     let parser = this.extensions[extension] || RawAsset;
     if (typeof parser === 'string') {
       parser = this.extensions[extension] = require(parser);
@@ -63,7 +65,7 @@ class Parser {
   }
 
   getAsset(filename, pkg, options = {}) {
-    let Asset = this.findParser(filename);
+    let Asset = this.findParser(filename, options);
     options.parser = this;
     return new Asset(filename, pkg, options);
   }
