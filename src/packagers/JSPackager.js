@@ -101,6 +101,9 @@ class JSPackager extends Packager {
   }
 
   async addAssetToBundle(asset) {
+    if (this.bundle.assets.has(asset)) {
+      return;
+    }
     this.bundle.addAsset(asset);
     if (!asset.parentBundle) {
       asset.parentBundle = this.bundle;
