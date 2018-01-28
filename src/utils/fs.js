@@ -17,3 +17,4 @@ exports.mkdirp = promisify(mkdirp);
 
 exports.existsSync = fs.existsSync;
 exports.readdirSync = fs.readdirSync;
+exports.readFileSync = fs.readFileSync;

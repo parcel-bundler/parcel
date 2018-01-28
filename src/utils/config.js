@@ -79,6 +79,32 @@ async function load(filepath, filenames, root = path.parse(filepath).root) {
   return null;
 }
 
+function loadSync(filepath, filenames, root = path.parse(filepath).root) {
+  let configFile = resolveSync(filepath, filenames, root);
+  if (configFile) {
+    try {
+      let extname = path.extname(configFile).slice(1);
+      if (extname === 'js') {
+        return require(configFile);
+      }
+
+      let configStream = fs.readFileSync(configFile);
+      let parse = PARSERS[extname] || PARSERS.json;
+      return parse(configStream.toString());
+    } catch (err) {
+      if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {
+        existsCache.delete(configFile);
+        return null;
+      }
+
+      throw err;
+    }
+  }
+
+  return null;
+}
+
 exports.resolve = resolve;
 exports.load = load;
 exports.resolveSync = resolveSync;
+exports.loadSync = loadSync;

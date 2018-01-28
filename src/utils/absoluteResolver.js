@@ -29,6 +29,9 @@ function resolveAbsolute(
   filename = filename.substring(1);
   if (location.indexOf('node_modules') >= 0) {
     location = config.resolveSync(location, packageFilenames);
+    let pkg = location ? config.loadSync(location, packageFilenames) : null;
+    location =
+      pkg && pkg.main ? path.join(location, path.dirname(pkg.main)) : null;
     if (location) {
       return path.join(path.dirname(location), filename);
     }
