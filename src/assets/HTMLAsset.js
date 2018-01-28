@@ -51,8 +51,7 @@ class HTMLAsset extends Asset {
             if (node.tag === 'link' && node.attrs['rel'] === 'manifest') {
               assetPath = this.addURLDependency(
                 decodeURIComponent(node.attrs[attr]),
-                this.name,
-                {extension: '.appmanifest'}
+                {ext: '.webmanifest'}
               );
             } else {
               assetPath = this.addURLDependency(

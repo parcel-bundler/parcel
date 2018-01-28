@@ -34,7 +34,7 @@ class Parser {
     this.registerExtension('htm', './assets/HTMLAsset');
     this.registerExtension('rs', './assets/RustAsset');
 
-    this.registerExtension('appmanifest', './assets/AppManifestAsset');
+    this.registerExtension('webmanifest', './assets/WebManifestAsset');
 
     let extensions = options.extensions || {};
     for (let ext in extensions) {
@@ -55,7 +55,7 @@ class Parser {
       return GlobAsset;
     }
 
-    let extension = options.extension || path.extname(filename);
+    let extension = options.ext || path.extname(filename);
     let parser = this.extensions[extension] || RawAsset;
     if (typeof parser === 'string') {
       parser = this.extensions[extension] = require(parser);
