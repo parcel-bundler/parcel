@@ -124,10 +124,11 @@ class JSPackager extends Packager {
     );
     if (this.externalModules.size > 0 && !bundleLoader) {
       bundleLoader = await this.bundler.getAsset('_bundle_loader');
-      await this.addAssetToBundle(bundleLoader);
     }
 
-    if (!bundleLoader) {
+    if (bundleLoader) {
+      await this.addAssetToBundle(bundleLoader);
+    } else {
       return;
     }
 
