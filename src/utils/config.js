@@ -30,6 +30,30 @@ async function resolve(filepath, filenames, root = path.parse(filepath).root) {
   return resolve(filepath, filenames, root);
 }
 
+function resolveSync(filepath, filenames, root = path.parse(filepath).root) {
+  filepath = path.dirname(filepath);
+
+  // Don't traverse above the module root
+  if (filepath === root || path.basename(filepath) === 'node_modules') {
+    return null;
+  }
+
+  for (const filename of filenames) {
+    let file = path.join(filepath, filename);
+    let exists = existsCache.has(file)
+      ? existsCache.get(file)
+      : fs.existsSync(file);
+    if (exists) {
+      existsCache.set(file, true);
+      return file;
+    }
+
+    existsCache.set(file, false);
+  }
+
+  return resolveSync(filepath, filenames, root);
+}
+
 async function load(filepath, filenames, root = path.parse(filepath).root) {
   let configFile = await resolve(filepath, filenames, root);
   if (configFile) {
@@ -55,5 +79,32 @@ async function load(filepath, filenames, root = path.parse(filepath).root) {
   return null;
 }
 
+function loadSync(filepath, filenames, root = path.parse(filepath).root) {
+  let configFile = resolveSync(filepath, filenames, root);
+  if (configFile) {
+    try {
+      let extname = path.extname(configFile).slice(1);
+      if (extname === 'js') {
+        return require(configFile);
+      }
+
+      let configStream = fs.readFileSync(configFile);
+      let parse = PARSERS[extname] || PARSERS.json;
+      return parse(configStream.toString());
+    } catch (err) {
+      if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {
+        existsCache.delete(configFile);
+        return null;
+      }
+
+      throw err;
+    }
+  }
+
+  return null;
+}
+
 exports.resolve = resolve;
 exports.load = load;
+exports.resolveSync = resolveSync;
+exports.loadSync = loadSync;

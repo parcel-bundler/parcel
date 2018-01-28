@@ -4,6 +4,7 @@ const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const sanitizeFilename = require('sanitize-filename');
+const absoluteResolver = require('./utils/absoluteResolver');
 const config = require('./utils/config');
 
 let ASSET_ID = 1;
@@ -78,7 +79,18 @@ class Asset {
       from = this.name;
     }
 
-    let resolved = path.resolve(path.dirname(from), url).replace(/[?#].*$/, '');
+    let resolved;
+    if (absoluteResolver.isAbsolutePath(url)) {
+      resolved = absoluteResolver.resolveAbsolute(
+        from,
+        url,
+        this.options.rootDir
+      );
+    } else {
+      resolved = path.resolve(path.dirname(from), url);
+    }
+    resolved.replace(/[?#].*$/, '');
+
     this.addDependency(
       './' + path.relative(path.dirname(this.name), resolved),
       Object.assign({dynamic: true}, opts)

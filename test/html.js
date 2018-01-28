@@ -395,4 +395,23 @@ describe('html', function() {
       ]
     });
   });
+
+  it('should be able to require absolute paths', async function() {
+    let b = await bundle(__dirname + '/integration/html-absolute/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'css',
+          assets: ['index.css']
+        },
+        {
+          type: 'html',
+          assets: ['other.html']
+        }
+      ]
+    });
+  });
 });

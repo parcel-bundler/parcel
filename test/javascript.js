@@ -473,7 +473,32 @@ describe('javascript', function() {
     assert.equal(typeof output.test, 'function');
     assert.equal(output.test(), 'pkg-main-module');
   });
+  
+  it('absolute require in node module', async function() {
+    let b = await bundle(__dirname + '/integration/node-absolute/index.js');
 
+    let output = run(b);
+
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'test');
+  });
+
+  it('absolute require in javascript', async function() {
+    let b = await bundle(
+      __dirname + '/integration/javascript-absolute/index.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'other.js', 'another.js']
+    });
+
+    let output = run(b);
+
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'ab');
+  });
+  
   it('should minify JSON files', async function() {
     await bundle(__dirname + '/integration/uglify-json/index.json', {
       production: true

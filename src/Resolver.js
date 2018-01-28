@@ -4,6 +4,7 @@ const resolveAsync = promisify(resolve);
 const builtins = require('./builtins');
 const path = require('path');
 const glob = require('glob');
+const absoluteResolver = require('./utils/absoluteResolver');
 
 class Resolver {
   constructor(options = {}) {
@@ -25,6 +26,14 @@ class Resolver {
     let key = this.getCacheKey(filename, parent);
     if (this.cache.has(key)) {
       return this.cache.get(key);
+    }
+
+    if (absoluteResolver.isAbsolutePath(filename) && parent) {
+      filename = absoluteResolver.resolveAbsolute(
+        parent,
+        filename,
+        this.options.rootDir
+      );
     }
 
     if (glob.hasMagic(filename)) {
