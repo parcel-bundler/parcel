@@ -1,5 +1,4 @@
 const JSAsset = require('./JSAsset');
-const config = require('../utils/config');
 const localRequire = require('../utils/localRequire');
 
 class TypeScriptAsset extends JSAsset {
@@ -11,10 +10,10 @@ class TypeScriptAsset extends JSAsset {
         module: typescript.ModuleKind.CommonJS,
         jsx: typescript.JsxEmit.Preserve
       },
-      fileName: this.basename
+      fileName: this.relativeName
     };
 
-    let tsconfig = await config.load(this.name, ['tsconfig.json']);
+    let tsconfig = await this.getConfig(['tsconfig.json']);
 
     // Overwrite default if config is found
     if (tsconfig) {
@@ -24,12 +23,26 @@ class TypeScriptAsset extends JSAsset {
       );
     }
     transpilerOptions.compilerOptions.noEmit = false;
+    transpilerOptions.compilerOptions.sourceMap = this.options.sourceMaps;
 
     // Transpile Module using TypeScript and parse result as ast format through babylon
-    this.contents = typescript.transpileModule(
-      code,
-      transpilerOptions
-    ).outputText;
+    let transpiled = typescript.transpileModule(code, transpilerOptions);
+    this.sourceMap = transpiled.sourceMapText;
+
+    if (this.sourceMap) {
+      this.sourceMap = JSON.parse(this.sourceMap);
+      this.sourceMap.sources = [this.relativeName];
+      this.sourceMap.sourcesContent = [this.contents];
+
+      // Remove the source map URL
+      let content = transpiled.outputText;
+      transpiled.outputText = content.substring(
+        0,
+        content.lastIndexOf('//# sourceMappingURL')
+      );
+    }
+
+    this.contents = transpiled.outputText;
     return await super.parse(this.contents);
   }
 }

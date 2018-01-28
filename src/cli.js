@@ -13,6 +13,15 @@ program
     'set the port to serve on. defaults to 1234',
     parseInt
   )
+  .option(
+    '-h, --hmr-port <port>',
+    'set the port to serve HMR websockets, defaults to random',
+    parseInt
+  )
+  .option(
+    '--hmr-hostname <hostname>',
+    'set the hostname of HMR websockets, defaults to location.hostname of current window'
+  )
   .option('--https', 'serves files over HTTPS')
   .option('-o, --open', 'automatically open in default browser')
   .option(
@@ -25,6 +34,7 @@ program
   )
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
+  .option('--no-source-maps', 'disable sourcemaps')
   .option('-V, --version', 'output the version number')
   .action(bundle);
 
@@ -41,6 +51,7 @@ program
   )
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
+  .option('--no-source-maps', 'disable sourcemaps')
   .action(bundle);
 
 program

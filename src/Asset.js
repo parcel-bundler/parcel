@@ -5,6 +5,7 @@ const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const sanitizeFilename = require('sanitize-filename');
 const absoluteResolver = require('./utils/absoluteResolver');
+const config = require('./utils/config');
 
 let ASSET_ID = 1;
 
@@ -19,6 +20,7 @@ class Asset {
     this.id = ASSET_ID++;
     this.name = name;
     this.basename = path.basename(this.name);
+    this.relativeName = path.relative(options.rootDir, this.name);
     this.package = pkg || {};
     this.options = options;
     this.encoding = 'utf8';
@@ -34,6 +36,11 @@ class Asset {
     this.depAssets = new Map();
     this.parentBundle = null;
     this.bundles = new Set();
+    this.cacheData = {};
+  }
+
+  shouldInvalidate() {
+    return false;
   }
 
   async loadIfNeeded() {
@@ -54,7 +61,7 @@ class Asset {
 
     if (this.contents && this.mightHaveDependencies()) {
       await this.parseIfNeeded();
-      this.collectDependencies();
+      await this.collectDependencies();
     }
   }
 
@@ -94,6 +101,19 @@ class Asset {
       .generateBundleName();
   }
 
+  async getConfig(filenames) {
+    // Resolve the config file
+    let conf = await config.resolve(this.name, filenames);
+    if (conf) {
+      // Add as a dependency so it is added to the watcher and invalidates
+      // this asset when the config changes.
+      this.addDependency(conf, {includedInParent: true});
+      return await config.load(this.name, filenames);
+    }
+
+    return null;
+  }
+
   mightHaveDependencies() {
     return true;
   }
@@ -118,7 +138,7 @@ class Asset {
     // do nothing by default
   }
 
-  generate() {
+  async generate() {
     return {
       [this.type]: this.contents
     };
@@ -130,7 +150,7 @@ class Asset {
       await this.pretransform();
       await this.getDependencies();
       await this.transform();
-      this.generated = this.generate();
+      this.generated = await this.generate();
       this.hash = this.generateHash();
     }
 
