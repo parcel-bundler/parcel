@@ -180,8 +180,12 @@ describe('hmr', function() {
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
     let bundle = await b.bundle();
     let outputs = [];
+    let moduleId = '';
 
     run(bundle, {
+      reportModuleId(id) {
+        moduleId = id;
+      },
       output(o) {
         outputs.push(o);
       }
@@ -195,7 +199,13 @@ describe('hmr', function() {
     );
 
     await nextEvent(b, 'bundled');
-    assert.deepEqual(outputs, [3, 'dispose', 10, 'accept']);
+    assert.notEqual(moduleId, undefined);
+    assert.deepEqual(outputs, [
+      3,
+      'dispose-' + moduleId,
+      10,
+      'accept-' + moduleId
+    ]);
   });
 
   it('should work across bundles', async function() {

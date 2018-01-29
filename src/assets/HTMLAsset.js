@@ -20,7 +20,8 @@ const ATTRS = {
     'embed'
   ],
   href: ['link', 'a'],
-  poster: ['video']
+  poster: ['video'],
+  'xlink:href': ['use']
 };
 
 class HTMLAsset extends Asset {
