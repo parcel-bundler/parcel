@@ -1,26 +1,10 @@
 const spawn = require('cross-spawn');
 const config = require('./config');
 const path = require('path');
-const resolve = require('resolve');
+const promisify = require('./promisify');
+const resolve = promisify(require('resolve'));
 
-const installPeerDependencies = async (dir, name) => {
-  let basedir = path.dirname(dir);
-
-  const resolved = resolve.sync(name, {basedir});
-  const pkg = await config.load(resolved, ['package.json']);
-  const peers = pkg.peerDependencies || {};
-
-  const modules = [];
-  for (const peer in peers) {
-    modules.push(`${peer}@${peers[peer]}`);
-  }
-
-  if (modules.length) {
-    await install(dir, modules, false);
-  }
-};
-
-const install = async function(dir, modules, installPeers = true) {
+async function install(dir, modules, installPeers = true) {
   let location = await config.resolve(dir, ['yarn.lock', 'package.json']);
 
   return new Promise((resolve, reject) => {
@@ -60,6 +44,23 @@ const install = async function(dir, modules, installPeers = true) {
       resolve();
     });
   });
-};
+}
+
+async function installPeerDependencies(dir, name) {
+  let basedir = path.dirname(dir);
+
+  const [resolved] = await resolve(name, {basedir});
+  const pkg = await config.load(resolved, ['package.json']);
+  const peers = pkg.peerDependencies || {};
+
+  const modules = [];
+  for (const peer in peers) {
+    modules.push(`${peer}@${peers[peer]}`);
+  }
+
+  if (modules.length) {
+    await install(dir, modules, false);
+  }
+}
 
 module.exports = install;
