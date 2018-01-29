@@ -32,24 +32,24 @@ describe('Url Join', () => {
 
   it('should join a URL with a querystring', () => {
     assert.equal(
-      urlJoin('https://parceljs.org/foo?a=123', '/bar/a.js'),
+      urlJoin('https://parceljs.org/foo', '/bar/a.js?a=123'),
       'https://parceljs.org/foo/bar/a.js?a=123'
     );
 
     assert.equal(
-      urlJoin('https://parceljs.org/foo?a=123&b=456', '/bar/a.js'),
+      urlJoin('https://parceljs.org/foo', '/bar/a.js?a=123&b=456'),
       'https://parceljs.org/foo/bar/a.js?a=123&b=456'
     );
   });
 
   it('should join a URL with a hash', () => {
     assert.equal(
-      urlJoin('https://parceljs.org/foo#hello', '/bar/a.js'),
+      urlJoin('https://parceljs.org/foo', '/bar/a.js#hello'),
       'https://parceljs.org/foo/bar/a.js#hello'
     );
 
     assert.equal(
-      urlJoin('https://parceljs.org/foo?a=123&b=456#hello', '/bar/a.js'),
+      urlJoin('https://parceljs.org/foo', '/bar/a.js?a=123&b=456#hello'),
       'https://parceljs.org/foo/bar/a.js?a=123&b=456#hello'
     );
   });
@@ -67,7 +67,7 @@ describe('Url Join', () => {
 
   it('should parse double slashes as host', () => {
     assert.equal(
-      urlJoin('//parceljs.org/foo?a=123&b=456#hello', 'bar/a.js'),
+      urlJoin('//parceljs.org/foo', 'bar/a.js?a=123&b=456#hello'),
       '//parceljs.org/foo/bar/a.js?a=123&b=456#hello'
     );
   });
