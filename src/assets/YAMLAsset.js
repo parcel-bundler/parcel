@@ -1,6 +1,7 @@
 const Asset = require('../Asset');
 const yaml = require('js-yaml');
 const {minify} = require('uglify-es');
+const {serialize} = require('serialize-to-js');
 
 class YAMLAsset extends Asset {
   constructor(name, pkg, options) {
@@ -13,7 +14,7 @@ class YAMLAsset extends Asset {
   }
 
   generate() {
-    let code = `module.exports = ${JSON.stringify(this.ast, false, 2)};`;
+    let code = `module.exports = ${serialize(this.ast)};`;
 
     if (this.options.minify) {
       let minified = minify(code);
