@@ -396,7 +396,7 @@ describe('html', function() {
     });
   });
 
-  it('shouldl support webmanifest', async function() {
+  it('should support webmanifest', async function() {
     let b = await bundle(__dirname + '/integration/webmanifest/index.html');
 
     assertBundleTree(b, {
