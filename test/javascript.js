@@ -211,6 +211,24 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
+  it('should support requiring JSON5 files', async function() {
+    let b = await bundle(__dirname + '/integration/json5/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'local.json5'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
   it('should support importing a URL to a raw asset', async function() {
     let b = await bundle(__dirname + '/integration/import-raw/index.js');
 
@@ -480,6 +498,15 @@ describe('javascript', function() {
     });
 
     let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
-    assert(json.includes('test:"test"'));
+    assert(json.includes('{test:"test"}'));
+  });
+
+  it('should minify JSON5 files', async function() {
+    await bundle(__dirname + '/integration/uglify-json5/index.json5', {
+      production: true
+    });
+
+    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(json.includes('{test:"test"}'));
   });
 });
