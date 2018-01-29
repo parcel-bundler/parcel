@@ -8,10 +8,12 @@ const semver = require('semver');
  *   - browserslist or .browserslistrc files
  *   - .babelrc or .babelrc.js files with babel-preset-env
  */
-async function getTargetEngines(asset, path) {
+async function getTargetEngines(asset, isTarget, path) {
   let targets = {};
   let pkg = await asset.getConfig(['package.json'], {path});
-  let engines = pkg && pkg.engines;
+
+  // Only use engines in node_modules, not the target app
+  let engines = pkg && !isTarget ? pkg.engines : null;
   let nodeVersion = engines && getMinSemver(engines.node);
   if (typeof nodeVersion === 'string') {
     targets.node = nodeVersion;
@@ -75,8 +77,8 @@ async function loadBabelrc(asset, path) {
   if (config && config.presets) {
     let env = config.presets.find(
       plugin =>
-        (Array.isArray(plugin) && plugin[0] === 'env') ||
-        plugin[0] === '@babel/env'
+        Array.isArray(plugin) &&
+        (plugin[0] === 'env' || plugin[0] === '@babel/env')
     );
     if (env && env[1].targets) {
       return env[1].targets;
