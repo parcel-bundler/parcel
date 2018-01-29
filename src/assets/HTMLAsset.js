@@ -37,30 +37,32 @@ class HTMLAsset extends Asset {
     return res;
   }
 
+  processSingleDependency(path) {
+    let assetPath = this.addURLDependency(decodeURIComponent(path));
+    if (!isURL(assetPath)) {
+      assetPath = urlJoin(this.options.publicURL, assetPath);
+    }
+    return assetPath;
+  }
+
+  collectSrcSetDependencies(srcset) {
+    const newSources = [];
+    for (const source of srcset.split(',')) {
+      const pair = source.trim().split(' ');
+      if (pair.length === 0) continue;
+      pair[0] = this.processSingleDependency(pair[0]);
+      newSources.push(pair.join(' '));
+    }
+    return newSources.join(',');
+  }
+
   collectDependencies() {
     this.ast.walk(node => {
       if (node.attrs) {
         for (let attr in node.attrs) {
           if (node.tag === 'img' && attr === 'srcset') {
-            const newSources = [];
-            for (const source of node.attrs[attr].split(',')) {
-              const pair = source.trim().split(' ');
-              if (pair.length === 0) continue;
-
-              let assetPath = this.addURLDependency(
-                decodeURIComponent(pair[0])
-              );
-              if (!isURL(assetPath)) {
-                assetPath = urlJoin(this.options.publicURL, assetPath);
-              }
-              pair[0] = assetPath;
-
-              newSources.push(pair.join(' '));
-            }
-
-            node.attrs[attr] = newSources.join(',');
+            node.attrs[attr] = this.collectSrcSetDependencies(node.attrs[attr]);
             this.isAstDirty = true;
-
             continue;
           }
           let elements = ATTRS[attr];
@@ -69,13 +71,7 @@ class HTMLAsset extends Asset {
             continue;
           }
           if (elements && elements.includes(node.tag)) {
-            let assetPath = this.addURLDependency(
-              decodeURIComponent(node.attrs[attr])
-            );
-            if (!isURL(assetPath)) {
-              assetPath = urlJoin(this.options.publicURL, assetPath);
-            }
-            node.attrs[attr] = assetPath;
+            node.attrs[attr] = this.processSingleDependency(node.attrs[attr]);
             this.isAstDirty = true;
           }
         }
