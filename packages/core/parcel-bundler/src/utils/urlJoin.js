@@ -7,6 +7,9 @@ const path = require('path');
  */
 module.exports = function(publicURL, assetPath) {
   const url = URL.parse(publicURL, false, true);
-  url.pathname = path.posix.join(url.pathname, URL.parse(assetPath).pathname);
+  const assetUrl = URL.parse(assetPath);
+  url.pathname = path.posix.join(url.pathname, assetUrl.pathname);
+  url.search = assetUrl.search;
+  url.hash = assetUrl.hash;
   return URL.format(url);
 };
