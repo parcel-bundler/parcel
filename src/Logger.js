@@ -13,6 +13,17 @@ class Logger {
     this.statusLine = null;
   }
 
+  chunkString(string, chunkSize) {
+    const amount = Math.ceil(string.length / chunkSize);
+    const chunks = new Array(amount);
+
+    for (let i = 0; i < amount; i++) {
+      chunks[i] = string.substr(i * chunkSize, chunkSize);
+    }
+
+    return chunks;
+  }
+
   write(message, persistent = false) {
     if (!persistent) {
       this.lines += message.split('\n').length;
@@ -92,6 +103,9 @@ class Logger {
     if (this.logLevel < 3) {
       return;
     }
+
+    // columns => stdout width, -3 => emoji
+    message = this.chunkString(message, process.stdout.columns - 3).join('\n');
 
     let hasStatusLine = this.statusLine != null;
     if (!hasStatusLine) {
