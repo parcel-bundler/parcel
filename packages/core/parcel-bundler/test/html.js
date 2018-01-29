@@ -143,7 +143,7 @@ describe('html', function() {
     );
   });
 
-  it('should insert a HEAD element if needed when adding CSS bundles', async function() {
+  it('should insert sibling bundles before body element if no HEAD', async function() {
     let b = await bundle(__dirname + '/integration/html-css-head/index.html');
 
     assertBundleTree(b, {
@@ -169,7 +169,7 @@ describe('html', function() {
 
     let html = fs.readFileSync(__dirname + '/dist/index.html');
     assert(
-      /<head><link rel="stylesheet" href="[/\\]{1}dist[/\\]{1}[a-f0-9]+\.css"><\/head>/.test(
+      /<html>\s*<link rel="stylesheet" href="[/\\]{1}dist[/\\]{1}[a-f0-9]+\.css">\s*<body>/.test(
         html
       )
     );
@@ -208,6 +208,44 @@ describe('html', function() {
 
     let html = fs.readFileSync(__dirname + '/dist/index.html');
     assert(/<script src="[/\\]{1}dist[/\\]{1}[a-f0-9]+\.js">/.test(html));
+  });
+
+  it('should insert sibling bundles at correct location in tree when optional elements are absent', async function() {
+    let b = await bundle(
+      __dirname + '/integration/html-css-optional-elements/index.html'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'js',
+          assets: ['index.js', 'index.css'],
+          childBundles: [
+            {
+              type: 'css',
+              assets: ['index.css'],
+              childBundles: []
+            },
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'js',
+          assets: ['other.js']
+        }
+      ]
+    });
+
+    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    assert(
+      /<\/script>\s*<link rel="stylesheet" href="[/\\]{1}dist[/\\]{1}[a-f0-9]+\.css"><h1>Hello/.test(
+        html
+      )
+    );
   });
 
   it('should minify HTML in production mode', async function() {
