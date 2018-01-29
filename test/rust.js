@@ -100,7 +100,7 @@ describe('rust', function() {
     assert.equal(res, 5);
   });
 
-  it('should use wasm-gc to minify output', async function() {
+  it.only('should use wasm-gc to minify output', async function() {
     this.timeout(500000);
     let b = await bundle(__dirname + '/integration/rust/index.js', {
       minify: true,
@@ -128,6 +128,7 @@ describe('rust', function() {
     assert.equal(res, 5);
 
     // assert that it is smaller
+    console.log(fs.statSync(Array.from(b.childBundles)[0].name).size);
     assert(fs.statSync(Array.from(b.childBundles)[0].name).size < 100);
   });
 });
