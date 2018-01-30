@@ -301,7 +301,7 @@ describe('html', function() {
     assert(html.includes('<a href="#hash_link">'));
   });
 
-  it('Should detect virtual paths', async function() {
+  it('should detect virtual paths', async function() {
     let b = await bundle(
       __dirname + '/integration/html-virtualpath/index.html'
     );
@@ -439,7 +439,7 @@ describe('html', function() {
     });
   });
 
-  it('Should detect srcset attribute', async function() {
+  it('should detect srcset attribute', async function() {
     let b = await bundle(__dirname + '/integration/html-srcset/index.html');
 
     assertBundleTree(b, {
@@ -460,6 +460,28 @@ describe('html', function() {
           type: 'png',
           assets: ['300x300.png'],
           childBundles: []
+        }
+      ]
+    });
+  });
+    
+  it('should support webmanifest', async function() {
+    let b = await bundle(__dirname + '/integration/webmanifest/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'webmanifest',
+          assets: ['manifest.webmanifest'],
+          childBundles: [
+            {
+              type: 'txt',
+              assets: ['some.txt'],
+              childBundles: []
+            }
+          ]
         }
       ]
     });
