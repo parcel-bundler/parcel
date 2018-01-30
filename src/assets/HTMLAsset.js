@@ -38,23 +38,41 @@ class HTMLAsset extends Asset {
     return res;
   }
 
+  processSingleDependency(path) {
+    let assetPath = this.addURLDependency(decodeURIComponent(path));
+    if (!isURL(assetPath)) {
+      assetPath = urlJoin(this.options.publicURL, assetPath);
+    }
+    return assetPath;
+  }
+
+  collectSrcSetDependencies(srcset) {
+    const newSources = [];
+    for (const source of srcset.split(',')) {
+      const pair = source.trim().split(' ');
+      if (pair.length === 0) continue;
+      pair[0] = this.processSingleDependency(pair[0]);
+      newSources.push(pair.join(' '));
+    }
+    return newSources.join(',');
+  }
+
   collectDependencies() {
     this.ast.walk(node => {
       if (node.attrs) {
         for (let attr in node.attrs) {
+          if (node.tag === 'img' && attr === 'srcset') {
+            node.attrs[attr] = this.collectSrcSetDependencies(node.attrs[attr]);
+            this.isAstDirty = true;
+            continue;
+          }
           let elements = ATTRS[attr];
           // Check for virtual paths
           if (node.tag === 'a' && node.attrs[attr].lastIndexOf('.') < 1) {
             continue;
           }
           if (elements && elements.includes(node.tag)) {
-            let assetPath = this.addURLDependency(
-              decodeURIComponent(node.attrs[attr])
-            );
-            if (!isURL(assetPath)) {
-              assetPath = urlJoin(this.options.publicURL, assetPath);
-            }
-            node.attrs[attr] = assetPath;
+            node.attrs[attr] = this.processSingleDependency(node.attrs[attr]);
             this.isAstDirty = true;
           }
         }

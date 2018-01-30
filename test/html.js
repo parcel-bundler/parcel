@@ -438,4 +438,30 @@ describe('html', function() {
       ]
     });
   });
+
+  it('Should detect srcset attribute', async function() {
+    let b = await bundle(__dirname + '/integration/html-srcset/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'png',
+          assets: ['100x100.png'],
+          childBundles: []
+        },
+        {
+          type: 'png',
+          assets: ['200x200.png'],
+          childBundles: []
+        },
+        {
+          type: 'png',
+          assets: ['300x300.png'],
+          childBundles: []
+        }
+      ]
+    });
+  });
 });
