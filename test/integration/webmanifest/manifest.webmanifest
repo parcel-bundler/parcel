@@ -1,0 +1,11 @@
+{
+    "name": "example",
+    "icons": [
+        {
+            "src": "some.txt",
+            "sizes": "192x192",
+            "type": "image/png"
+        }
+    ],
+    "display": "standalone"
+}
