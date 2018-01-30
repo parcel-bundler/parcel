@@ -11,11 +11,22 @@ class WebManifestAsset extends Asset {
   }
 
   collectDependencies() {
-    if ('icons' in this.ast) {
+    if (Array.isArray(this.ast.icons)) {
       for (let icon of this.ast.icons) {
-        let path = this.addURLDependency(icon.src);
-        icon.src = path;
+        icon.src = this.addURLDependency(icon.src);
       }
+    }
+    
+    if (Array.isArray(this.ast.screenshots)) {
+      for (let shot of this.ast.screenshots) {
+        shot.src = this.addURLDependency(shot.src);
+      }
+    }
+    
+    if (this.ast.serviceworker && this.ast.serviceworker.src) {
+      this.ast.serviceworker.src = this.addURLDependency(
+        this.ast.serviceworker.src
+      );
     }
   }
 
