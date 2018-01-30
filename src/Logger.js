@@ -104,9 +104,6 @@ class Logger {
       return;
     }
 
-    // columns => stdout width, -3 => emoji
-    message = this.chunkString(message, process.stdout.columns - 3).join('\n');
-
     let hasStatusLine = this.statusLine != null;
     if (!hasStatusLine) {
       this.statusLine = this.lines;
@@ -114,7 +111,10 @@ class Logger {
 
     this.writeLine(
       this.statusLine,
-      this.chalk[color].bold(`${emoji}  ${message}`)
+      this.chunkString(
+        this.chalk[color].bold(`${emoji}  ${message}`),
+        process.stdout.columns - 3
+      ).join('\n')
     );
 
     if (!hasStatusLine) {
