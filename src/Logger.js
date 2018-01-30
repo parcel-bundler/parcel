@@ -113,7 +113,7 @@ class Logger {
       this.statusLine,
       this.chunkString(
         this.chalk[color].bold(`${emoji}  ${message}`),
-        process.stdout.columns - 3
+        process.stdout.columns
       ).join('\n')
     );
 
