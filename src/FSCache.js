@@ -3,6 +3,7 @@ const path = require('path');
 const md5 = require('./utils/md5');
 const objectHash = require('./utils/objectHash');
 const pkg = require('../package.json');
+const logger = require('./Logger');
 
 // These keys can affect the output, so if they differ, the cache should not match
 const OPTION_KEYS = ['publicURL', 'minify', 'hmr'];
@@ -46,7 +47,7 @@ class FSCache {
       await fs.writeFile(this.getCacheFile(filename), JSON.stringify(data));
       this.invalidated.delete(filename);
     } catch (err) {
-      console.error('Error writing to cache', err);
+      logger.error('Error writing to cache', err);
     }
   }
 
