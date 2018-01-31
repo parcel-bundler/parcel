@@ -1,4 +1,5 @@
 const {minify} = require('uglify-es');
+const logger = require('../Logger');
 
 module.exports = async function(asset) {
   await asset.parseIfNeeded();
@@ -26,8 +27,7 @@ module.exports = async function(asset) {
   // Log all warnings
   if (result.warnings) {
     result.warnings.forEach(warning => {
-      // TODO: warn this using the logger
-      console.log(warning);
+      logger.warn('[uglify] ' + warning);
     });
   }
 
