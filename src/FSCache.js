@@ -5,7 +5,7 @@ const objectHash = require('./utils/objectHash');
 const pkg = require('../package.json');
 
 // These keys can affect the output, so if they differ, the cache should not match
-const OPTION_KEYS = ['publicURL', 'minify', 'hmr'];
+const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target'];
 
 class FSCache {
   constructor(options) {
