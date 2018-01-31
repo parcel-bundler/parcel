@@ -14,12 +14,7 @@ module.exports = async function(asset) {
     mangle: {
       toplevel: true
     },
-    sourceMap: asset.options.sourceMaps
-      ? {
-          filename: asset.relativeName
-        }
-      : false
-    }
+    sourceMap: asset.options.sourceMaps ? {filename: asset.relativeName} : false
   };
 
   if (customConfig) {
