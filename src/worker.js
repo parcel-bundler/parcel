@@ -11,8 +11,9 @@ exports.init = function(options, callback) {
   callback();
 };
 
-exports.run = async function(path, pkg, options, callback) {
+exports.run = async function(path, pkg, options, isWarmUp, callback) {
   try {
+    options.isWarmUp = isWarmUp;
     var asset = parser.getAsset(path, pkg, options);
     await asset.process();
 
@@ -33,3 +34,10 @@ exports.run = async function(path, pkg, options, callback) {
     callback(returned);
   }
 };
+
+process.on('unhandledRejection', function(err) {
+  // ERR_IPC_CHANNEL_CLOSED happens when the worker is killed before it finishes processing
+  if (err.code !== 'ERR_IPC_CHANNEL_CLOSED') {
+    console.error('Unhandled promise rejection:', err.stack);
+  }
+});

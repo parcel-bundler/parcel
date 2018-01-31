@@ -14,7 +14,7 @@ program
     parseInt
   )
   .option(
-    '-h, --hmr-port <port>',
+    '--hmr-port <port>',
     'set the port to serve HMR websockets, defaults to random',
     parseInt
   )

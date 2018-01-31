@@ -2,6 +2,7 @@ const forge = require('node-forge');
 const fs = require('fs');
 const mkdirp = require('mkdirp');
 const path = require('path');
+const logger = require('../Logger');
 
 function generateCertificate(options = {}) {
   const privateKeyPath = path.join(options.cacheDir, 'private.pem');
@@ -19,7 +20,7 @@ function generateCertificate(options = {}) {
     }
   }
 
-  console.log('Generating SSL Certificate...');
+  logger.log('Generating SSL Certificate...');
 
   const pki = forge.pki;
   const keys = pki.rsa.generateKeyPair(2048);

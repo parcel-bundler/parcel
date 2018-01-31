@@ -5,6 +5,50 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2018-01-25
+
+### Added
+
+* Support .htm extension [Details](https://github.com/parcel-bundler/parcel/commit/3d6709142f702a92b04b065de1d05b211855966b)
+
+### Fixed
+
+* Fix rust projects with hyphenated names [Details](https://github.com/parcel-bundler/parcel/commit/e78baca1d0ffc499fffdd21883df1d43e0ab16f1)
+* Purify sourcemaps (Prevent babel from giving invalid mappings) [Details](https://github.com/parcel-bundler/parcel/commit/03291804ec9e73b147548a4e89e6d7079f4595d4)
+* Don't drop console statements by default in uglifyjs [Details](https://github.com/parcel-bundler/parcel/commit/8d7339aea1965b929ca8186ce8b617d5c46f218e)
+* Fix for ipc closed error in tests [Details](https://github.com/parcel-bundler/parcel/commit/aee8510b7bfb856d7a9b49efd897c7de30cd134c)
+
+## [1.5.0] - 2018-01-23
+
+### Added
+
+* SourceMap support [Details](https://github.com/parcel-bundler/parcel/commit/5c5d5f8af634c0e0aa8e8a3542892febe7c27e85)
+* Custom bundleloader and wasm support [Details](https://github.com/parcel-bundler/parcel/commit/244f274f710048682505351fbed777ac7bc49406)
+* Rust support [Details](https://github.com/parcel-bundler/parcel/commit/a429c52bb4e53effe586d677d53704a78c8d302b)
+* Ability to set HMR port [Details](https://github.com/parcel-bundler/parcel/commit/065a49e8f673922e514c5279d79df74f052a1558)
+* Support .env files [Details](https://github.com/parcel-bundler/parcel/commit/50de97fb1239b7079f36c3897fe0c0c5f2e39070)
+* Hotreload css requires in html [Details](https://github.com/parcel-bundler/parcel/commit/fb3f9d7a5e120766dd3656ce00b4bb07e76d6af1)
+* Minify JSON [Details](https://github.com/parcel-bundler/parcel/commit/c858843bb0e72c6ad46a2349b36843e00b86ea76)
+* Ability to set HMR hostname [Details](https://github.com/parcel-bundler/parcel/commit/b56b2a9f3c3ff6db2dd27a086b409a8d4af6f2bd)
+* Ability to specify amount of workers using `PARCEL_WORKERS` environment variable [Details](https://github.com/parcel-bundler/parcel/commit/0a2f554080db7f7b3f077e07ac62ade9170d1372)
+* Warning emoji [Details](https://github.com/parcel-bundler/parcel/commit/25cf21709a0829131311281cb369d792cf666aa3)
+
+### Fixed
+
+* Virtualpaths, throw file not found error [Details](https://github.com/parcel-bundler/parcel/commit/e09575d495d2ac5282671eab88b827191eee7fa7)
+* Transform HTML prior to collecting dependencies [Details](https://github.com/parcel-bundler/parcel/commit/2fbba629eaa83d7de5ccba79e01faa1187393f16)
+* Find a[href] dependencies when attrs precede it [Details](https://github.com/parcel-bundler/parcel/commit/39c5cfe377be603b16561f914cb9a07c7e5fdd6c)
+* Resolve URI-encoded assets [Details](https://github.com/parcel-bundler/parcel/commit/9770acfb7576572715dd672195180d5fec8156a9)
+* Public-url not an os path [Details](https://github.com/parcel-bundler/parcel/commit/a852dd2cd0dc856121ebc2e6cbc2589525a3d435)
+* Invalidate cache when parent dependencies change [Details](https://github.com/parcel-bundler/parcel/commit/b8e897341e942b04967a1d44f462375292d5b990)
+* Invalidate cache on config change [Details](https://github.com/parcel-bundler/parcel/commit/6c3d34f2215a46dd7845193a6f4036930eaddf48)
+* Circular bundles [Details](https://github.com/parcel-bundler/parcel/commit/dd26db34fb70b3e40826bf3c4878172eb60afe91)
+* Possibly ignore fs using browser-resolve config [Details](https://github.com/parcel-bundler/parcel/commit/bd9fd9f6193c3f18efa03f897a33906869808b96)
+* Do not use global window inside hmr, fixes web worker issues [Details](https://github.com/parcel-bundler/parcel/commit/6962a9a96cdedafbf27715bc74b93e6c8ad7eb19)
+* Improved worker startup times [Details](https://github.com/parcel-bundler/parcel/commit/072d799d48bb3639c628687937f3641fe2cff74d)
+* Parse `//` as a valid url [Details](https://github.com/parcel-bundler/parcel/commit/a78280affa7e02cb142e51259ea4076ed036600a)
+* Improve windows emoji console detections [Details](https://github.com/parcel-bundler/parcel/commit/dba3d49be2d30dfe47a9bd9c88d6fba9015be968)
+
 ## [1.4.1] - 2017-12-31
 
 ### Added
