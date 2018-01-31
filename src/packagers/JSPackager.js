@@ -27,6 +27,9 @@ class JSPackager extends Packager {
   }
 
   async addAsset(asset) {
+    console.log(asset.basename);
+    console.log(asset.parentBundle);
+
     if (this.dedupe.has(asset.generated.js)) {
       return;
     }

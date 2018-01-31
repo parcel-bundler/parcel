@@ -11,6 +11,7 @@ const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
 const SourceMap = require('../SourceMap');
+const TreeShaking = require('../TreeShaking');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
@@ -27,6 +28,9 @@ class JSAsset extends Asset {
     this.isES6Module = false;
     this.outputCode = null;
     this.cacheData.env = {};
+    if (options.treeshaking) {
+      this.treeShaker = new TreeShaking();
+    }
   }
 
   shouldInvalidate(cacheData) {
@@ -110,6 +114,10 @@ class JSAsset extends Asset {
 
     if (this.isES6Module) {
       await babel(this);
+    }
+
+    if (this.options.treeshaking) {
+      this.treeShaker.getUsedImports(this.ast);
     }
 
     if (this.options.minify) {
