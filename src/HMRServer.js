@@ -3,6 +3,7 @@ const https = require('https');
 const WebSocket = require('ws');
 const prettyError = require('./utils/prettyError');
 const generateCertificate = require('./utils/generateCertificate');
+const logger = require('./Logger');
 
 class HMRServer {
   async start(options = {}) {
@@ -84,8 +85,7 @@ class HMRServer {
       // This gets triggered on page refresh, ignore this
       return;
     }
-    // TODO: Use logger to print errors
-    console.log(prettyError(err));
+    logger.log(err);
   }
 
   broadcast(msg) {
