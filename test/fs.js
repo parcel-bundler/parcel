@@ -127,4 +127,39 @@ describe('fs', function() {
       assert.equal(output, 'hey');
     });
   });
+
+  // TODO: check if the logger has warned the user
+  it('should ignore fs calls when the filename is not evaluable', async function() {
+    let b = await bundle(
+      __dirname + '/integration/fs-file-non-evaluable/index.js'
+    );
+    let thrown = false;
+
+    try {
+      run(b);
+    } catch (e) {
+      assert.equal(e.message, 'require(...).readFileSync is not a function');
+
+      thrown = true;
+    }
+
+    assert.equal(thrown, true);
+  });
+
+  it('should ignore fs calls when the options are not evaluable', async function() {
+    let b = await bundle(
+      __dirname + '/integration/fs-options-non-evaluable/index.js'
+    );
+    let thrown = false;
+
+    try {
+      run(b);
+    } catch (e) {
+      assert.equal(e.message, 'require(...).readFileSync is not a function');
+
+      thrown = true;
+    }
+
+    assert.equal(thrown, true);
+  });
 });
