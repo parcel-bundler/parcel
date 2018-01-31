@@ -79,7 +79,7 @@ class Bundler extends EventEmitter {
         typeof options.minify === 'boolean' ? options.minify : isProduction,
       target: target,
       hmr:
-        target !== 'browser'
+        target === 'node'
           ? false
           : typeof options.hmr === 'boolean' ? options.hmr : watch,
       logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
