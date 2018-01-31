@@ -87,7 +87,9 @@ class HTMLAsset extends Asset {
   }
 
   generate() {
-    let html = this.isAstDirty ? render(this.ast) : this.contents;
+    let html = this.isAstDirty
+      ? render(this.ast, {singleTags: [/^%.*%$/]})
+      : this.contents;
     return {html};
   }
 }

@@ -37,6 +37,7 @@
     "postcss": "^6.0.10",
     "postcss-value-parser": "^3.3.0",
     "posthtml": "^0.10.1",
+    "posthtml-render": "^1.1.0",
     "resolve": "^1.4.0",
     "sanitize-filename": "^1.6.1",
     "serve-static": "^1.12.4",
