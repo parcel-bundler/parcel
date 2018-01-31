@@ -1,5 +1,6 @@
 const {minify} = require('uglify-es');
 const SourceMap = require('../SourceMap');
+const logger = require('../Logger');
 
 module.exports = async function(asset) {
   await asset.parseIfNeeded();
@@ -13,14 +14,12 @@ module.exports = async function(asset) {
     mangle: {
       toplevel: true
     },
-    compress: {
-      drop_console: true
-    },
     sourceMap: asset.options.sourceMaps
       ? {
           filename: asset.relativeName
         }
       : false
+    }
   };
 
   if (customConfig) {
@@ -48,8 +47,7 @@ module.exports = async function(asset) {
   // Log all warnings
   if (result.warnings) {
     result.warnings.forEach(warning => {
-      // TODO: warn this using the logger
-      console.log(warning);
+      logger.warn('[uglify] ' + warning);
     });
   }
 

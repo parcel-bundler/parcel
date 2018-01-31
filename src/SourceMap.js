@@ -3,16 +3,37 @@ const lineCounter = require('./utils/lineCounter');
 
 class SourceMap {
   constructor(mappings, sources) {
-    this.mappings = mappings || [];
+    this.mappings = this.purifyMappings(mappings);
     this.sources = sources || {};
     this.lineCount = null;
+  }
+
+  purifyMappings(mappings) {
+    if (Array.isArray(mappings)) {
+      return mappings.filter(mapping => {
+        return (
+          mapping &&
+          mapping.source &&
+          mapping.original &&
+          typeof mapping.original.line === 'number' &&
+          mapping.original.line > 0 &&
+          typeof mapping.original.column === 'number' &&
+          mapping.generated &&
+          typeof mapping.generated.line === 'number' &&
+          mapping.generated.line > 0 &&
+          typeof mapping.generated.column === 'number'
+        );
+      });
+    }
+
+    return [];
   }
 
   async getConsumer(map) {
     if (map instanceof SourceMapConsumer) {
       return map;
     }
-
+    map = typeof map === 'string' ? JSON.parse(map) : map;
     return await new SourceMapConsumer(map);
   }
 
