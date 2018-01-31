@@ -49,7 +49,7 @@ class Logger {
       return;
     }
 
-    this.write(this.chalk.yellow(`${emoji.warning} ${message}`));
+    this.write(this.chalk.yellow(`${emoji.warning}  ${message}`));
   }
 
   error(err) {
@@ -121,11 +121,22 @@ class Logger {
   }
 }
 
-let logger;
-function getInstance() {
-  if (!logger) logger = new Logger();
-  return logger;
-}
+// If we are in a worker, make a proxy class which will
+// send the logger calls to the main process via IPC.
+// These are handled in WorkerFarm and directed to handleMessage above.
+if (process.send) {
+  class LoggerProxy {}
+  for (let method of Object.getOwnPropertyNames(Logger.prototype)) {
+    LoggerProxy.prototype[method] = (...args) => {
+      process.send({
+        type: 'logger',
+        method,
+        args
+      });
+    };
+  }
 
-module.exports = getInstance();
-module.exports.class = Logger;
+  module.exports = new LoggerProxy();
+} else {
+  module.exports = new Logger();
+}
