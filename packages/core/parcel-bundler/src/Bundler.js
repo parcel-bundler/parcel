@@ -9,7 +9,7 @@ const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
 const {EventEmitter} = require('events');
-const Logger = require('./Logger');
+const logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
@@ -31,7 +31,6 @@ class Bundler extends EventEmitter {
     this.parser = new Parser(this.options);
     this.packagers = new PackagerRegistry();
     this.cache = this.options.cache ? new FSCache(this.options) : null;
-    this.logger = new Logger(this.options);
     this.delegate = options.delegate || {};
     this.bundleLoaders = {};
 
@@ -55,6 +54,8 @@ class Bundler extends EventEmitter {
     this.errored = false;
     this.buildQueue = new PromiseQueue(this.processAsset.bind(this));
     this.rebuildTimeout = null;
+
+    logger.setOptions(this.options);
   }
 
   normalizeOptions(options) {
@@ -136,7 +137,7 @@ class Bundler extends EventEmitter {
         }
       }
     } catch (err) {
-      this.logger.warn(err);
+      logger.warn(err);
     }
   }
 
@@ -155,8 +156,8 @@ class Bundler extends EventEmitter {
     this.pending = true;
     this.errored = false;
 
-    this.logger.clear();
-    this.logger.status(emoji.progress, 'Building...');
+    logger.clear();
+    logger.status(emoji.progress, 'Building...');
 
     try {
       // Start worker farm, watcher, etc. if needed
@@ -196,13 +197,13 @@ class Bundler extends EventEmitter {
         buildTime < 1000
           ? `${buildTime}ms`
           : `${(buildTime / 1000).toFixed(2)}s`;
-      this.logger.status(emoji.success, `Built in ${time}.`, 'green');
+      logger.status(emoji.success, `Built in ${time}.`, 'green');
 
       this.emit('bundled', bundle);
       return bundle;
     } catch (err) {
       this.errored = true;
-      this.logger.error(err);
+      logger.error(err);
       if (this.hmr) {
         this.hmr.emitError(err);
       }
@@ -359,7 +360,7 @@ class Bundler extends EventEmitter {
     }
 
     if (!this.errored) {
-      this.logger.status(emoji.progress, `Building ${asset.basename}...`);
+      logger.status(emoji.progress, `Building ${asset.basename}...`);
     }
 
     // Mark the asset processed so we don't load it twice
@@ -533,8 +534,8 @@ class Bundler extends EventEmitter {
       return;
     }
 
-    this.logger.clear();
-    this.logger.status(emoji.progress, `Building ${Path.basename(path)}...`);
+    logger.clear();
+    logger.status(emoji.progress, `Building ${Path.basename(path)}...`);
 
     // Add the asset to the rebuild queue, and reset the timeout.
     for (let asset of assets) {
