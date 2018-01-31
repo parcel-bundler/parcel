@@ -14,7 +14,8 @@ function Module() {
 
 module.bundle.Module = Module;
 
-if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
+if (!global.hmrReady && typeof WebSocket !== 'undefined') {
+  global.hmrReady = true;
   var hostname = process.env.HMR_HOSTNAME || location.hostname;
   var ws = new WebSocket('ws://' + hostname + ':' + process.env.HMR_PORT + '/');
   ws.onmessage = function(event) {
