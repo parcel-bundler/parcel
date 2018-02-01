@@ -102,7 +102,7 @@ class RustAsset extends Asset {
       await pipeSpawn('rustup', [
         'target',
         'add',
-        'wasm32-unknown-unknown',
+        RUST_TARGET,
         '--toolchain',
         'nightly'
       ]);
@@ -153,7 +153,9 @@ class RustAsset extends Asset {
 
     // Get output file paths
     let outDir = path.join(cargoDir, 'target', RUST_TARGET, 'release');
-    let rustName = cargoConfig.package.name;
+
+    // Rust converts '-' to '_' when outputting files.
+    let rustName = cargoConfig.package.name.replace(/-/g, '_');
     this.wasmPath = path.join(outDir, rustName + '.wasm');
     this.depsPath = path.join(outDir, rustName + '.d');
   }

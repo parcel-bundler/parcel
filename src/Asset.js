@@ -1,3 +1,4 @@
+const URL = require('url');
 const path = require('path');
 const fs = require('./utils/fs');
 const objectHash = require('./utils/objectHash');
@@ -78,15 +79,18 @@ class Asset {
       from = this.name;
     }
 
-    let resolved = path.resolve(path.dirname(from), url).replace(/[?#].*$/, '');
+    const parsed = URL.parse(url);
+    const resolved = path.resolve(path.dirname(from), parsed.pathname);
     this.addDependency(
       './' + path.relative(path.dirname(this.name), resolved),
       Object.assign({dynamic: true}, opts)
     );
 
-    return this.options.parser
+    parsed.pathname = this.options.parser
       .getAsset(resolved, this.package, this.options)
       .generateBundleName();
+
+    return URL.format(parsed);
   }
 
   async getConfig(filenames) {

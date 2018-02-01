@@ -2,6 +2,7 @@ const {EventEmitter} = require('events');
 const os = require('os');
 const Farm = require('worker-farm/lib/farm');
 const promisify = require('./utils/promisify');
+const logger = require('./Logger');
 
 let shared = null;
 
@@ -51,8 +52,17 @@ class WorkerFarm extends Farm {
   }
 
   receive(data) {
+    if (!this.children[data.child]) {
+      // This handles premature death
+      // normally only accurs for workers
+      // that are still warming up when killed
+      return;
+    }
+
     if (data.event) {
       this.emit(data.event, ...data.args);
+    } else if (data.type === 'logger') {
+      logger.handleMessage(data);
     } else {
       super.receive(data);
     }
@@ -79,7 +89,13 @@ class WorkerFarm extends Farm {
   }
 
   end() {
-    super.end();
+    // Force kill all children
+    this.ending = true;
+    for (let child in this.children) {
+      this.stopChild(child);
+    }
+
+    this.ending = false;
     shared = null;
   }
 
