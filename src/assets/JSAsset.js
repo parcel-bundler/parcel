@@ -29,7 +29,7 @@ class JSAsset extends Asset {
     this.outputCode = null;
     this.cacheData.env = {};
     if (options.treeshaking) {
-      this.treeShaker = new TreeShaking();
+      this.treeShaker = new TreeShaking(this);
     }
   }
 

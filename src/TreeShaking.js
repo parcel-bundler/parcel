@@ -1,11 +1,41 @@
 const traverse = require('babel-traverse').default;
+const Path = require('path');
 
 class TreeShaking {
-  constructor() {
+  constructor(asset) {
+    this.asset = asset;
+    this.assetPath = Path.dirname(asset.name);
+
     this.usedImports = new Map();
   }
 
+  getRequiredExports(parents) {
+    const requiredExports = new Set();
+    for (let parent of parents) {
+      if (parent.treeShaker) {
+        const parentImports = parent.treeShaker.usedImports.get(
+          this.asset.name
+        );
+        if (parentImports) {
+          for (let parentImport of parentImports) {
+            if (!requiredExports.has(parentImport)) {
+              requiredExports.add(parentImport);
+            }
+          }
+        }
+      }
+    }
+    return requiredExports;
+  }
+
+  treeShakeExports(parents) {
+    const requiredExports = this.getRequiredExports(parents);
+    // TODO: Remove all unused code
+    console.log(requiredExports);
+  }
+
   addImport(key, {property, file}) {
+    key = Path.join(this.assetPath, `${key}.${this.asset.type}`);
     const importSet = this.usedImports.get(key);
     if (
       importSet &&
