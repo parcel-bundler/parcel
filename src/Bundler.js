@@ -178,7 +178,9 @@ class Bundler extends EventEmitter {
       // Emit an HMR update for any new assets (that don't have a parent bundle yet)
       // plus the asset that actually changed.
       if (this.hmr && !isInitialBundle) {
-        this.hmr.emitUpdate([...this.findOrphanAssets(), ...loadedAssets]);
+        if (loadedAssets) {
+          this.hmr.emitUpdate([...this.findOrphanAssets(), ...loadedAssets]);
+        }
       }
 
       // Invalidate bundles
