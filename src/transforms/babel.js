@@ -32,6 +32,12 @@ async function babelTransform(asset) {
     throw new Error(`Unsupported babel version: ${babel.version}`);
   }
 
+  if (asset.mightContainJSX()) {
+    config.plugins = config.plugins || [];
+    config.plugins.push('transform-react-jsx');
+    config.plugins.push('transform-react-display-name');
+  }
+
   let res = babel.transformFromAst(asset.ast, asset.contents, config);
   if (!res.ignored) {
     asset.ast = res.ast;
