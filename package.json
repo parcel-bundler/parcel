@@ -46,7 +46,8 @@
     "uglify-es": "^3.2.1",
     "v8-compile-cache": "^1.1.0",
     "worker-farm": "^1.5.2",
-    "ws": "^3.3.3"
+    "ws": "^3.3.3",
+    "yargs-parser": "^9.0.2"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",

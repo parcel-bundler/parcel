@@ -2,11 +2,13 @@ require('v8-compile-cache');
 const chalk = require('chalk');
 const program = require('commander');
 const version = require('../package.json').version;
+const argv = require('yargs-parser')(process.argv.slice(2));
 
 program.version(version);
 
 program
   .command('serve [input]')
+  .allowUnknownOption()
   .description('starts a development server')
   .option(
     '-p, --port <port>',
@@ -40,6 +42,7 @@ program
 
 program
   .command('watch [input]')
+  .allowUnknownOption()
   .description('starts the bundler in watch mode')
   .option(
     '-d, --out-dir <path>',
@@ -56,6 +59,7 @@ program
 
 program
   .command('build [input]')
+  .allowUnknownOption()
   .description('bundles for production')
   .option(
     '-d, --out-dir <path>',
@@ -71,6 +75,7 @@ program
 
 program
   .command('help [command]')
+  .allowUnknownOption()
   .description('display help information for a command')
   .action(function(command) {
     let cmd = program.commands.find(c => c.name() === command) || program;
@@ -105,7 +110,8 @@ async function bundle(main, command) {
     process.env.NODE_ENV = process.env.NODE_ENV || 'development';
   }
 
-  const bundler = new Bundler(main, command);
+  const options = Object.assign({}, argv, command);
+  const bundler = new Bundler(main, options);
 
   if (command.name() === 'serve') {
     const server = await bundler.serve(command.port || 1234, command.https);
