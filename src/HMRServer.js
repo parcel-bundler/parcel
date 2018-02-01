@@ -1,11 +1,19 @@
+const http = require('http');
+const https = require('https');
 const WebSocket = require('ws');
 const prettyError = require('./utils/prettyError');
+const generateCertificate = require('./utils/generateCertificate');
 const logger = require('./Logger');
 
 class HMRServer {
-  async start(port) {
+  async start(options = {}) {
     await new Promise(resolve => {
-      this.wss = new WebSocket.Server({port}, resolve);
+      let server = options.https
+        ? https.createServer(generateCertificate(options))
+        : http.createServer();
+
+      this.wss = new WebSocket.Server({server});
+      server.listen(options.hmrPort, resolve);
     });
 
     this.wss.on('connection', ws => {
