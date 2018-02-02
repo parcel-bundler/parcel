@@ -378,6 +378,8 @@ class Bundler extends EventEmitter {
 
     asset.generated = processed.generated;
     asset.hash = processed.hash;
+    asset.ast = processed.ast;
+    asset.usedImports = processed.usedImports;
 
     // Call the delegate to get implicit dependencies
     let dependencies = processed.dependencies;

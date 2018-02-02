@@ -28,9 +28,6 @@ class JSAsset extends Asset {
     this.isES6Module = false;
     this.outputCode = null;
     this.cacheData.env = {};
-    if (options.treeshaking) {
-      this.treeShaker = new TreeShaking(this);
-    }
   }
 
   shouldInvalidate(cacheData) {
@@ -117,7 +114,7 @@ class JSAsset extends Asset {
     }
 
     if (this.options.treeshaking) {
-      this.treeShaker.getUsedImports(this.ast);
+      TreeShaking.getUsedImports(this);
     }
 
     if (this.options.minify) {

@@ -3,6 +3,7 @@ const path = require('path');
 const Packager = require('./Packager');
 const urlJoin = require('../utils/urlJoin');
 const lineCounter = require('../utils/lineCounter');
+const TreeShaking = require('../TreeShaking');
 
 const prelude = {
   source: fs
@@ -27,9 +28,13 @@ class JSPackager extends Packager {
   }
 
   async addAsset(asset) {
-    console.log('Packaging: ', asset.name);
-    if (this.options.treeshaking && asset.treeShaker) {
-      asset.treeShaker.treeShakeExports(this.bundle.getAssetParents(asset));
+    if (this.options.treeshaking) {
+      if (
+        TreeShaking.treeShakeExports(asset, this.bundle.getAssetParents(asset))
+      ) {
+        // TODO: Find a fix for sourcemaps, uglifying & double generating
+        asset.generated = await asset.generate();
+      }
     }
 
     if (this.dedupe.has(asset.generated.js)) {

@@ -37,6 +37,7 @@ class Asset {
     this.parentBundle = null;
     this.bundles = new Set();
     this.cacheData = {};
+    this.usedImports = new Map();
   }
 
   shouldInvalidate() {
@@ -137,6 +138,10 @@ class Asset {
   }
 
   async process() {
+    if (this.options.treeshaking) {
+      // make sure there is an ast
+      this.parseIfNeeded();
+    }
     if (!this.generated) {
       await this.loadIfNeeded();
       await this.pretransform();
@@ -145,7 +150,6 @@ class Asset {
       this.generated = await this.generate();
       this.hash = this.generateHash();
     }
-
     return this.generated;
   }
 
