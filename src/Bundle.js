@@ -18,6 +18,14 @@ class Bundle {
     this.siblingBundles = new Set();
     this.siblingBundlesMap = new Map();
     this.offsets = new Map();
+    this.startTime = new Date().getTime();
+    this.totalSize = 0;
+    this.bundleTime = 0;
+  }
+
+  addAssetSize(asset, writeStream) {
+    asset.bundledSize = writeStream.bytesWritten - this.totalSize;
+    this.totalSize = writeStream.bytesWritten;
   }
 
   static createWithAsset(asset, parentBundle) {
@@ -130,6 +138,10 @@ class Bundle {
     }
 
     await packager.end();
+    this.bundleTime = new Date().getTime() - this.startTime;
+    for (let asset of this.assets) {
+      this.bundleTime += asset.buildTime;
+    }
   }
 
   async _addDeps(asset, packager, included) {

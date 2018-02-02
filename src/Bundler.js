@@ -16,6 +16,7 @@ const config = require('./utils/config');
 const emoji = require('./utils/emoji');
 const loadEnv = require('./utils/env');
 const PromiseQueue = require('./utils/PromiseQueue');
+const bundleReport = require('./utils/bundleReport');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -87,7 +88,8 @@ class Bundler extends EventEmitter {
         typeof options.sourceMaps === 'boolean'
           ? options.sourceMaps
           : !isProduction,
-      hmrHostname: options.hmrHostname || ''
+      hmrHostname: options.hmrHostname || '',
+      detailedReport: options.detailedReport || false
     };
   }
 
@@ -199,6 +201,7 @@ class Bundler extends EventEmitter {
           ? `${buildTime}ms`
           : `${(buildTime / 1000).toFixed(2)}s`;
       logger.status(emoji.success, `Built in ${time}.`, 'green');
+      logger.log(bundleReport(bundle, this.options.detailedReport));
 
       this.emit('bundled', bundle);
       return bundle;
@@ -368,6 +371,7 @@ class Bundler extends EventEmitter {
     asset.processed = true;
 
     // First try the cache, otherwise load and compile in the background
+    let startTime = new Date().getTime();
     let processed = this.cache && (await this.cache.read(asset.name));
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
       processed = await this.farm.run(asset.name, asset.package, this.options);
@@ -376,6 +380,7 @@ class Bundler extends EventEmitter {
       }
     }
 
+    asset.buildTime = new Date().getTime() - startTime;
     asset.generated = processed.generated;
     asset.hash = processed.hash;
 

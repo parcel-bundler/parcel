@@ -32,6 +32,7 @@ class HTMLPackager extends Packager {
     }
 
     await this.dest.write(html);
+    this.bundle.addAssetSize(asset, this.dest);
   }
 
   addBundlesToTree(bundles, tree) {

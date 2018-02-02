@@ -74,6 +74,7 @@ class JSPackager extends Packager {
       deps,
       asset.generated.map
     );
+    this.bundle.addAssetSize(asset, this.dest);
   }
 
   getBundleSpecifier(bundle) {

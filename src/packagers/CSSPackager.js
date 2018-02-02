@@ -23,6 +23,7 @@ class CSSPackager extends Packager {
     }
 
     await this.dest.write(css);
+    this.bundle.addAssetSize(asset, this.dest);
   }
 }
 

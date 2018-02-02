@@ -24,6 +24,9 @@ class RawPackager extends Packager {
     }
 
     await fs.writeFile(name, contents);
+    this.bundle.addAssetSize(asset, {
+      bytesWritten: (await fs.stat(name)).size
+    });
   }
 
   end() {}

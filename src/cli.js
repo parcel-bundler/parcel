@@ -36,6 +36,10 @@ program
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
   .option('-V, --version', 'output the version number')
+  .option(
+    '--detailed-report',
+    'print a detailed build report after a completed build'
+  )
   .action(bundle);
 
 program
@@ -52,6 +56,10 @@ program
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
+  .option(
+    '--detailed-report',
+    'print a detailed build report after a completed build'
+  )
   .action(bundle);
 
 program
@@ -67,6 +75,10 @@ program
   )
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
+  .option(
+    '--detailed-report',
+    'print a detailed build report after a completed build'
+  )
   .action(bundle);
 
 program
