@@ -87,7 +87,7 @@ class Bundler extends EventEmitter {
           ? options.sourceMaps
           : !isProduction,
       hmrHostname: options.hmrHostname || '',
-      treeshaking: true
+      treeshaking: options.treeshaking || false
     };
   }
 
@@ -378,7 +378,7 @@ class Bundler extends EventEmitter {
 
     asset.generated = processed.generated;
     asset.hash = processed.hash;
-    asset.ast = processed.ast;
+    asset.ast = processed.ast ? JSON.parse(processed.ast) : null;
     asset.usedImports = processed.usedImports;
 
     // Call the delegate to get implicit dependencies

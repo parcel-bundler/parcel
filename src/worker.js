@@ -17,12 +17,20 @@ exports.run = async function(path, pkg, options, isWarmUp, callback) {
     var asset = parser.getAsset(path, pkg, options);
     await asset.process();
 
+    let ast;
+    try {
+      // Quickfix for circular props
+      ast = JSON.stringify(asset.ast);
+    } catch (e) {
+      // Do nothing...
+    }
+
     callback(null, {
       dependencies: Array.from(asset.dependencies.values()),
       generated: asset.generated,
       hash: asset.hash,
       cacheData: asset.cacheData,
-      ast: asset.ast,
+      ast,
       usedImports: asset.usedImports
     });
   } catch (err) {
