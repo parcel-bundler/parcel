@@ -1,0 +1,5 @@
+{
+  "parcel": {
+    "transformers": "./custom-transformer.js"
+  }
+}

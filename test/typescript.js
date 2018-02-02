@@ -99,4 +99,24 @@ describe('typescript', function() {
     let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(!js.includes('/* test comment */'));
   });
+
+  it('should support custom transformers', async function() {
+    let b = await bundle(
+      __dirname + '/integration/typescript-transformers/index.ts'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.ts'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'the typescript transformer test passed');
+  });
 });
