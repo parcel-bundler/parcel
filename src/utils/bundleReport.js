@@ -28,17 +28,19 @@ function writeRow(columnWidth, items) {
 function prettifySize(size) {
   let type = 0;
   while (size > 1024) {
-    size = Math.round(size / 1024);
+    size = size / 1024;
     type++;
   }
-  return `${size} ${sizeTypes[type]}`;
+  return `${size.toFixed(2)} ${sizeTypes[type]}`;
 }
 
 function prettifyTime(time) {
+  let type = 'ms';
   if (time > 1000) {
-    return Math.round(time / 1000) + ' s';
+    time = time / 1000;
+    type = 's';
   }
-  return time + ' ms';
+  return `${time.toFixed(2)} ${type}`;
 }
 
 function createBundlesArray(mainBundle) {
@@ -64,42 +66,40 @@ function bundleReport(mainBundle, detailed = false) {
   let report = 'Bundles created:\n';
   const bundles = createBundlesArray(mainBundle);
   let nameSize = getLargestBundleName(bundles);
-  report += writeRow([nameSize + 5, 10, 10], ['Name', 'Size', 'Time']) + '\n';
+  const columnWidths = [nameSize + 5, 12, 12];
+  report += writeRow(columnWidths, ['Name', 'Size', 'Time']) + '\n';
   let totalSize = 0;
   let totalTime = 0;
   for (let bundle of bundles) {
     totalSize += bundle.totalSize;
     totalTime += bundle.bundleTime;
     report +=
-      writeRow(
-        [nameSize + 5, 10, 10],
-        [
-          path.basename(bundle.name),
-          prettifySize(bundle.totalSize),
-          prettifyTime(bundle.bundleTime)
-        ]
-      ) + '\n';
+      writeRow(columnWidths, [
+        path.basename(bundle.name),
+        prettifySize(bundle.totalSize),
+        prettifyTime(bundle.bundleTime)
+      ]) + '\n';
     if (detailed) {
+      const assetColumnWidths = [...columnWidths];
+      assetColumnWidths[0] = assetColumnWidths[0] - 2;
       for (let asset of bundle.assets) {
         report +=
           '--' +
-          writeRow(
-            [nameSize + 3, 10, 10],
-            [
-              asset.relativeName,
-              prettifySize(asset.bundledSize),
-              prettifyTime(asset.buildTime)
-            ]
-          ) +
+          writeRow(assetColumnWidths, [
+            asset.relativeName,
+            prettifySize(asset.bundledSize),
+            prettifyTime(asset.buildTime)
+          ]) +
           '\n';
       }
     }
   }
   report += '\n';
-  report += writeRow(
-    [nameSize + 5, 10, 10],
-    ['Totals: ', prettifySize(totalSize), prettifyTime(totalTime)]
-  );
+  report += writeRow(columnWidths, [
+    'Totals: ',
+    prettifySize(totalSize),
+    prettifyTime(totalTime)
+  ]);
   return report;
 }
 
