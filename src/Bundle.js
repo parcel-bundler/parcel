@@ -18,7 +18,7 @@ class Bundle {
     this.siblingBundles = new Set();
     this.siblingBundlesMap = new Map();
     this.offsets = new Map();
-    this.startTime = new Date().getTime();
+    this.startTime = Date.now();
     this.totalSize = 0;
     this.bundleTime = 0;
   }
@@ -138,7 +138,7 @@ class Bundle {
     }
 
     await packager.end();
-    this.bundleTime = new Date().getTime() - this.startTime;
+    this.bundleTime = Date.now() - this.startTime;
     for (let asset of this.assets) {
       this.bundleTime += asset.buildTime;
     }

@@ -1,12 +1,10 @@
 const path = require('path');
+const prettifyTime = require('./prettifyTime');
 const sizeTypes = ['B', 'KB', 'MB', 'GB'];
 
-function spaces(amount) {
-  let spaces = '';
-  for (let i = 0; i < amount; i++) {
-    spaces += ' ';
-  }
-  return spaces;
+function padEnd(text, length, character = ' ') {
+  // Babel doesn't catch String.prototype.padEnd as being Node 8+
+  return text + character.repeat(Math.round(length - text.length));
 }
 
 function writeRow(columnWidth, items) {
@@ -19,7 +17,7 @@ function writeRow(columnWidth, items) {
         item.length + 1 > itemWidth
           ? path.basename(item).substring(0, itemWidth)
           : item;
-      res += item + spaces(Math.abs(itemWidth - item.length));
+      res += padEnd(item, itemWidth);
     }
   }
   return res;
@@ -27,20 +25,11 @@ function writeRow(columnWidth, items) {
 
 function prettifySize(size) {
   let type = 0;
-  while (size > 1024) {
+  while (size > 1024 && type < sizeTypes.length - 1) {
     size = size / 1024;
     type++;
   }
-  return `${size.toFixed(2)} ${sizeTypes[type]}`;
-}
-
-function prettifyTime(time) {
-  let type = 'ms';
-  if (time > 1000) {
-    time = time / 1000;
-    type = 's';
-  }
-  return `${time.toFixed(2)} ${type}`;
+  return `${type > 0 ? size.toFixed(2) : size} ${sizeTypes[type]}`;
 }
 
 function createBundlesArray(mainBundle) {
