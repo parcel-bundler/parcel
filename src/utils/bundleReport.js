@@ -1,6 +1,6 @@
 const path = require('path');
 const prettifyTime = require('./prettifyTime');
-const sizeTypes = ['B', 'KB', 'MB', 'GB'];
+const sizeTypes = ['B', 'KiB', 'MiB', 'GiB'];
 
 function padEnd(text, length, character = ' ') {
   // Babel doesn't catch String.prototype.padEnd as being Node 8+
