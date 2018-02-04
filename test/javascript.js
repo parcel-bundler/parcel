@@ -408,6 +408,24 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
+  it('should support requiring TOML files', async function() {
+    let b = await bundle(__dirname + '/integration/toml/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'local.toml'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
   it('should support requiring CoffeeScript files', async function() {
     let b = await bundle(__dirname + '/integration/coffee/index.js');
 
