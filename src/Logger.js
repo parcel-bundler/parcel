@@ -24,8 +24,7 @@ class Logger {
     if (!persistent) {
       this.lines += message.split('\n').length;
     }
-
-    console.log(message);
+    console.log(`${getTime()} | ${message}`);
   }
 
   log(message) {
@@ -107,7 +106,7 @@ class Logger {
 
     this.writeLine(
       this.statusLine,
-      this.chalk[color].bold(`${emoji}  ${message}`)
+      `${getTime()} | ${this.chalk[color].bold(`${emoji}  ${message}`)}`
     );
 
     if (!hasStatusLine) {
@@ -120,6 +119,19 @@ class Logger {
     this[options.method](...options.args);
   }
 }
+
+const getTime = () => {
+  const leadZero = num => {
+    if (+num < 10) {
+      return '0' + num;
+    }
+    return num;
+  };
+  const d = new Date();
+  return `${leadZero(d.getHours())}:${leadZero(d.getMinutes())}:${leadZero(
+    d.getSeconds()
+  )}`;
+};
 
 // If we are in a worker, make a proxy class which will
 // send the logger calls to the main process via IPC.
