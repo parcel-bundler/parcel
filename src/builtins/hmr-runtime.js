@@ -1,7 +1,7 @@
 var global = (1, eval)('this');
 var OldModule = module.bundle.Module;
-function Module() {
-  OldModule.call(this);
+function Module(moduleName) {
+  OldModule.call(this, moduleName);
   this.hot = {
     accept: function (fn) {
       this._acceptCallback = fn || function () {};
@@ -17,7 +17,8 @@ module.bundle.Module = Module;
 if (!global.hmrReady && typeof WebSocket !== 'undefined') {
   global.hmrReady = true;
   var hostname = process.env.HMR_HOSTNAME || location.hostname;
-  var ws = new WebSocket('ws://' + hostname + ':' + process.env.HMR_PORT + '/');
+  var protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
   ws.onmessage = function(event) {
     var data = JSON.parse(event.data);
 

@@ -61,6 +61,35 @@ describe('sourcemaps', function() {
     assert.equal(output.env(), process.env.NODE_ENV);
   });
 
+  it('should create a valid sourcemap as a child of a nested TS bundle', async function() {
+    let b = await bundle(
+      __dirname + '/integration/sourcemap-typescript-nested/index.ts'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.ts', 'local.ts'],
+      childBundles: [
+        {
+          name: 'index.map',
+          type: 'map'
+        }
+      ]
+    });
+
+    let raw = fs
+      .readFileSync(path.join(__dirname, '/dist/index.js'))
+      .toString();
+    let map = fs
+      .readFileSync(path.join(__dirname, '/dist/index.map'))
+      .toString();
+    mapValidator(raw, map);
+
+    let output = run(b);
+    assert.equal(typeof output.env, 'function');
+    assert.equal(output.env(), process.env.NODE_ENV);
+  });
+
   it('should create a valid sourcemap for a js file with requires', async function() {
     let b = await bundle(__dirname + '/integration/sourcemap-nested/index.js');
 

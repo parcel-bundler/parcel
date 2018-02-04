@@ -18,6 +18,7 @@ class Parser {
     this.registerExtension('tsx', './assets/TypeScriptAsset');
     this.registerExtension('coffee', './assets/CoffeeScriptAsset');
     this.registerExtension('json', './assets/JSONAsset');
+    this.registerExtension('json5', './assets/JSONAsset');
     this.registerExtension('yaml', './assets/YAMLAsset');
     this.registerExtension('yml', './assets/YAMLAsset');
     this.registerExtension('gql', './assets/GraphqlAsset');
@@ -31,7 +32,10 @@ class Parser {
     this.registerExtension('scss', './assets/SASSAsset');
 
     this.registerExtension('html', './assets/HTMLAsset');
+    this.registerExtension('htm', './assets/HTMLAsset');
     this.registerExtension('rs', './assets/RustAsset');
+
+    this.registerExtension('webmanifest', './assets/WebManifestAsset');
 
     let extensions = options.extensions || {};
     for (let ext in extensions) {

@@ -29,7 +29,6 @@ test_script:
 
 cache:
  - "%LOCALAPPDATA%\\Yarn"
- - C:\Users\appveyor\.cargo
 
 # Don't actually build.
 build: off
