@@ -116,22 +116,9 @@ async function getBabelConfig(asset) {
 /**
  * Finds a .babelrc for an asset. By default, .babelrc files inside node_modules are not used.
  * However, there are some exceptions:
- *   - if `bundlerOptions.babel` is set in package.json
  *   - if `browserify.transforms` includes "babelify" in package.json (for legacy module compat)
  */
 async function getBabelRc(asset) {
-  // Check for a bundlerOptions key in package.json
-  let bundlerOptions = asset.package && asset.package.bundlerOptions;
-  if (bundlerOptions && bundlerOptions.babel) {
-    // Override the config with a bundler specific one if specified as an object
-    if (typeof bundlerOptions.babel === 'object') {
-      return bundlerOptions.babel;
-    }
-
-    // Otherwise, return the .babelrc
-    return await findBabelRc(asset);
-  }
-
   // Support legacy browserify packages
   let browserify = asset.package && asset.package.browserify;
   if (browserify && Array.isArray(browserify.transform)) {

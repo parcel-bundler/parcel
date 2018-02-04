@@ -628,9 +628,9 @@ describe('javascript', function() {
     assert(!file.includes('class Bar {}'));
   });
 
-  it('should compile node_modules if bundlerOptions is set', async function() {
+  it('should compile node_modules if legacy browserify options are found', async function() {
     await bundle(
-      __dirname + '/integration/babel-node-modules-bundleroptions/index.js'
+      __dirname + '/integration/babel-node-modules-browserify/index.js'
     );
 
     let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
