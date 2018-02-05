@@ -74,7 +74,7 @@ describe('hmr', function() {
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
     let err = await nextEvent(ws, 'error');
-    assert.equal(err.code, 'ECONNREFUSED');
+    assert.equal(err.code, 'EADDRNOTAVAIL');
     ws = null;
   });
 
