@@ -567,4 +567,13 @@ describe('javascript', function() {
     let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(json.includes('{test:"test"}'));
   });
+
+  it('should minify YAML for production', async function() {
+    await bundle(__dirname + '/integration/yaml/index.js', {
+      production: true
+    });
+
+    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(json.includes('{a:1,b:{c:2}}'));
+  });
 });
