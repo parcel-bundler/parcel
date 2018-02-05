@@ -48,7 +48,7 @@ class Parser {
       ext = '.' + ext;
     }
 
-    this.extensions[ext] = parser;
+    this.extensions[ext.toLowerCase()] = parser;
   }
 
   findParser(filename) {
@@ -56,7 +56,7 @@ class Parser {
       return GlobAsset;
     }
 
-    let extension = path.extname(filename);
+    let extension = path.extname(filename).toLowerCase();
     let parser = this.extensions[extension] || RawAsset;
     if (typeof parser === 'string') {
       parser = this.extensions[extension] = require(parser);

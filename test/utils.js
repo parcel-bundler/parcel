@@ -108,7 +108,7 @@ function assertBundleTree(bundle, tree) {
   }
 
   if (tree.type) {
-    assert.equal(bundle.type, tree.type);
+    assert.equal(bundle.type.toLowerCase(), tree.type.toLowerCase());
   }
 
   if (tree.assets) {
