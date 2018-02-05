@@ -11,6 +11,8 @@
   "dependencies": {
     "babel-core": "^6.25.0",
     "babel-generator": "^6.25.0",
+    "babel-template": "^6.25.0",
+    "babel-types": "^6.25.0",
     "babel-plugin-transform-es2015-modules-commonjs": "^6.26.0",
     "babylon": "^6.17.4",
     "babylon-walk": "^1.0.2",
@@ -39,6 +41,7 @@
     "posthtml": "^0.10.1",
     "resolve": "^1.4.0",
     "sanitize-filename": "^1.6.1",
+    "serialize-to-js": "^1.1.1",
     "serve-static": "^1.12.4",
     "source-map": "0.6.1",
     "toml": "^2.3.3",
@@ -70,6 +73,7 @@
     "posthtml-include": "^1.1.0",
     "prettier": "^1.9.1",
     "rimraf": "^2.6.1",
+    "sinon": "^4.2.2",
     "sourcemap-validator": "^1.0.6",
     "stylus": "^0.54.5",
     "typescript": "^2.6.2"

@@ -1,9 +1,26 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundle} = require('./utils');
 const Asset = require('../src/Asset');
+const {bundle} = require('./utils');
 
 describe('Asset', () => {
+  it('should include default implementations', async () => {
+    const a = new Asset(__filename, undefined, {rootDir: '/root/dir'});
+    Object.assign(a, {
+      type: 'type',
+      contents: 'contents'
+    });
+
+    const err = new Error();
+
+    assert(a.shouldInvalidate() === false);
+    assert(a.mightHaveDependencies());
+    assert.deepEqual(await a.generate(), {
+      type: 'contents'
+    });
+    assert.equal(a.generateErrorMessage(err), err);
+  });
+
   it('should support overriding the filename of the root bundle', async function() {
     const outFile = 'custom-out-file.html';
     await bundle(__dirname + '/integration/html/index.html', {
