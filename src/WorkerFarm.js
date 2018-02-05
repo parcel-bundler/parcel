@@ -39,6 +39,7 @@ class WorkerFarm extends Farm {
 
   async initRemoteWorkers(options) {
     this.started = false;
+    this.warmWorkers = 0;
 
     let promises = [];
     for (let i = 0; i < this.options.maxConcurrentWorkers; i++) {
@@ -52,36 +53,40 @@ class WorkerFarm extends Farm {
   }
 
   receive(data) {
-    if (!this.children[data.child]) {
-      // This handles premature death
-      // normally only accurs for workers
-      // that are still warming up when killed
-      return;
-    }
-
     if (data.event) {
       this.emit(data.event, ...data.args);
     } else if (data.type === 'logger') {
-      logger.handleMessage(data);
-    } else {
+      if (this.shouldUseRemoteWorkers()) {
+        logger.handleMessage(data);
+      }
+    } else if (this.children[data.child]) {
       super.receive(data);
     }
+  }
+
+  shouldUseRemoteWorkers() {
+    return this.started && this.warmWorkers >= this.activeChildren;
   }
 
   async run(...args) {
     // Child process workers are slow to start (~600ms).
     // While we're waiting, just run on the main thread.
     // This significantly speeds up startup time.
-    if (this.started && this.warmWorkers >= this.activeChildren) {
+    if (this.shouldUseRemoteWorkers()) {
       return this.remoteWorker.run(...args, false);
     } else {
       // Workers have started, but are not warmed up yet.
       // Send the job to a remote worker in the background,
       // but use the result from the local worker - it will be faster.
       if (this.started) {
-        this.remoteWorker.run(...args, true).then(() => {
-          this.warmWorkers++;
-        });
+        this.remoteWorker.run(...args, true).then(
+          () => {
+            this.warmWorkers++;
+          },
+          () => {
+            // ignore error
+          }
+        );
       }
 
       return this.localWorker.run(...args, false);
