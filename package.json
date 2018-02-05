@@ -73,6 +73,7 @@
     "posthtml-include": "^1.1.0",
     "prettier": "^1.9.1",
     "rimraf": "^2.6.1",
+    "sinon": "^4.2.2",
     "sourcemap-validator": "^1.0.6",
     "stylus": "^0.54.5",
     "typescript": "^2.6.2"

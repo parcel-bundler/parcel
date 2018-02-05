@@ -464,7 +464,7 @@ describe('html', function() {
       ]
     });
   });
-    
+
   it('should support webmanifest', async function() {
     let b = await bundle(__dirname + '/integration/webmanifest/index.html');
 

@@ -25,7 +25,7 @@ class Logger {
       this.lines += message.split('\n').length;
     }
 
-    console.log(message);
+    this._log(message);
   }
 
   log(message) {
@@ -118,6 +118,10 @@ class Logger {
 
   handleMessage(options) {
     this[options.method](...options.args);
+  }
+
+  _log(message) {
+    console.log(message);
   }
 }
 
