@@ -2,6 +2,7 @@ const {EventEmitter} = require('events');
 const os = require('os');
 const Farm = require('worker-farm/lib/farm');
 const promisify = require('./utils/promisify');
+const logger = require('./Logger');
 
 let shared = null;
 
@@ -45,12 +46,23 @@ class WorkerFarm extends Farm {
     }
 
     await Promise.all(promises);
-    this.started = true;
+    if (this.options.maxConcurrentWorkers > 0) {
+      this.started = true;
+    }
   }
 
   receive(data) {
+    if (!this.children[data.child]) {
+      // This handles premature death
+      // normally only accurs for workers
+      // that are still warming up when killed
+      return;
+    }
+
     if (data.event) {
       this.emit(data.event, ...data.args);
+    } else if (data.type === 'logger') {
+      logger.handleMessage(data);
     } else {
       super.receive(data);
     }
@@ -61,23 +73,29 @@ class WorkerFarm extends Farm {
     // While we're waiting, just run on the main thread.
     // This significantly speeds up startup time.
     if (this.started && this.warmWorkers >= this.activeChildren) {
-      return this.remoteWorker.run(...args);
+      return this.remoteWorker.run(...args, false);
     } else {
       // Workers have started, but are not warmed up yet.
       // Send the job to a remote worker in the background,
       // but use the result from the local worker - it will be faster.
       if (this.started) {
-        this.remoteWorker.run(...args).then(() => {
+        this.remoteWorker.run(...args, true).then(() => {
           this.warmWorkers++;
         });
       }
 
-      return this.localWorker.run(...args);
+      return this.localWorker.run(...args, false);
     }
   }
 
   end() {
-    super.end();
+    // Force kill all children
+    this.ending = true;
+    for (let child in this.children) {
+      this.stopChild(child);
+    }
+
+    this.ending = false;
     shared = null;
   }
 
@@ -97,6 +115,10 @@ for (let key in EventEmitter.prototype) {
 }
 
 function getNumWorkers() {
+  if (process.env.PARCEL_WORKERS) {
+    return parseInt(process.env.PARCEL_WORKERS, 10);
+  }
+
   let cores;
   try {
     cores = require('physical-cpu-count');

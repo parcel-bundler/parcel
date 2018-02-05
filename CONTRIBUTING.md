@@ -1,5 +1,23 @@
 # Contributing
 
+## Wiki
+
+See (and edit!) our public Wiki.
+
+Useful notes for new contributors:
+
+https://github.com/parcel-bundler/parcel/wiki/Contributing
+
+We encourage you to create new pages or make helpful edits to all parts of the wiki. Try to ask before making major changes to pages you didn't create, but just do whatever you think is best. Feel free to make a user page and collect your notes there so everyone can learn.
+
+## Slack
+
+Join our public Slack: https://slack.parceljs.org/
+
+The #contributors channel is useful. If you want help or have questions about any aspect of Parcel development, ask there! We'll see and respond.
+
+It's important to us to give a good experience to new contributors, so anything you want to do is fair game. Feel free to come chat about it, or open a new [issue](https://github.com/parcel-bundler/parcel/issues/new) with RFC in the title.
+
 ## Overview
 
 * `yarn install` - install all dependencies
@@ -34,6 +52,28 @@ yarn test
 [git]: https://git-scm.com/
 [node]: https://nodejs.org/
 [yarn]: https://yarnpkg.com/
+
+## Environment variables, command line arguments
+
+You can set `PARCEL_WORKERS` to the number of worker processes to spawn.
+
+**NOTE:** `PARCEL_WORKERS=0` is handy for debugging, because all code will run on the main thread. You can then place breakpoints in Asset code. (Normally these breakpoints won't trigger, because the code executes in a subprocess.)
+
+**NOTE:** When developing plugins or new Asset types, run with `--no-cache` (or pass `cache: false` to `Bundler` options). Parcel uses caching by default, but during development you'll normally pass incomplete results into the cache. This can leave you wondering why you're constantly seeing old results.
+
+## Link to local parcel build
+
+While contributing to parcel, you may need to run a local version of parcel and set it as the global cli option in your command line, so that when you run `parcel ...`, it will find your new local variant of parcel instead of the global package installed before (if you had it installed globally before).
+
+To do this, you have multiple options:
+
+* If you had **parcel** installed globally, you can run `yarn global remove parcel` and then `cd` to your own copy of parcel and run `yarn link`. This way, the global parcel in your PATH would reference to the local copy. To make sure you have it installed globally, just run `parcel --version`.
+
+* Another option would be to run `yarn link` in your own copy of parcel directory and then go to the directory, _which you wan to test your copy of parcel in_, and run `yarn link parcel-bundler`, so that locally your copy of parcel is the one used in its npm scripts.
+
+* Another way, which we highly recommend if you plan to switch between different parcel sources often, is to create some terminal aliases. This way you can have different aliases for each of the versions of parcel you wish to maintain on your machine. For example, you can make an alias called `parcelfork` pointing to your fork of parcel for development, and then `parceldev` pointing to a clone of the parcel repo for experimenting with the latest changes, and then then still keep the original `parcel` command pointing to the npm installed stable version. To do this, add some aliases to your terminal’s startup file (usually .bashrc) in the format `alias [name]=“node [path_to_new_parcel_bin_file]”` for each of the sources you want to use. For example: `alias parcelfork=“node ~/my/path/to/fork/bin/cli.js”`
+
+For more information on this topic, read [this issue on parcel repository](https://github.com/parcel-bundler/parcel/issues/182).
 
 ## Financial contributions
 

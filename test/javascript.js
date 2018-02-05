@@ -2,13 +2,14 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const {bundle, run, assertBundleTree} = require('./utils');
+const {mkdirp} = require('../src/utils/fs');
 
 describe('javascript', function() {
   it('should produce a basic JS bundle with CommonJS requires', async function() {
     let b = await bundle(__dirname + '/integration/commonjs/index.js');
 
     assert.equal(b.assets.size, 8);
-    assert.equal(b.childBundles.size, 0);
+    assert.equal(b.childBundles.size, 1);
 
     let output = run(b);
     assert.equal(typeof output, 'function');
@@ -19,7 +20,7 @@ describe('javascript', function() {
     let b = await bundle(__dirname + '/integration/es6/index.js');
 
     assert.equal(b.assets.size, 8);
-    assert.equal(b.childBundles.size, 0);
+    assert.equal(b.childBundles.size, 1);
 
     let output = run(b);
     assert.equal(typeof output, 'object');
@@ -27,11 +28,68 @@ describe('javascript', function() {
     assert.equal(output.default(), 3);
   });
 
-  it('should produce a JS bundle with default exorts and no imports', async function() {
+  it('should bundle node_modules on --target=browser', async function() {
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'browser'
+    });
+
+    assertBundleTree(b, {
+      name: 'main.js',
+      assets: ['main.js', 'local.js', 'index.js']
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
+  it('should not bundle node_modules on --target=node', async function() {
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'node'
+    });
+
+    assertBundleTree(b, {
+      name: 'main.js',
+      assets: ['main.js', 'local.js']
+    });
+
+    await mkdirp(__dirname + '/dist/node_modules/testmodule');
+    fs.writeFileSync(
+      __dirname + '/dist/node_modules/testmodule/index.js',
+      'exports.a = 5;'
+    );
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 7);
+  });
+
+  it('should not bundle node_modules on --target=electron', async function() {
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'electron'
+    });
+
+    assertBundleTree(b, {
+      name: 'main.js',
+      assets: ['main.js', 'local.js']
+    });
+
+    await mkdirp(__dirname + '/dist/node_modules/testmodule');
+    fs.writeFileSync(
+      __dirname + '/dist/node_modules/testmodule/index.js',
+      'exports.a = 5;'
+    );
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 7);
+  });
+
+  it('should produce a JS bundle with default exports and no imports', async function() {
     let b = await bundle(__dirname + '/integration/es6-default-only/index.js');
 
     assert.equal(b.assets.size, 1);
-    assert.equal(b.childBundles.size, 0);
+    assert.equal(b.childBundles.size, 1);
 
     let output = run(b);
     assert.equal(typeof output, 'object');
@@ -47,8 +105,15 @@ describe('javascript', function() {
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
         {
+          type: 'map'
+        },
+        {
           assets: ['local.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -66,12 +131,23 @@ describe('javascript', function() {
       assets: ['index.js'],
       childBundles: [
         {
+          type: 'map'
+        },
+        {
           assets: ['service-worker.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['worker.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -87,8 +163,18 @@ describe('javascript', function() {
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
         {
+          type: 'map'
+        },
+        {
           assets: ['local.js', 'test.txt'],
-          childBundles: ['test.txt']
+          childBundles: [
+            {
+              type: 'map'
+            },
+            {
+              assets: ['test.txt']
+            }
+          ]
         }
       ]
     });
@@ -106,8 +192,15 @@ describe('javascript', function() {
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
         {
+          type: 'map'
+        },
+        {
           assets: ['local.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -133,11 +226,22 @@ describe('javascript', function() {
       childBundles: [
         {
           assets: ['a.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['b.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -153,7 +257,29 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.json'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
+  it('should support requiring JSON5 files', async function() {
+    let b = await bundle(__dirname + '/integration/json5/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'local.json5'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -168,6 +294,9 @@ describe('javascript', function() {
       name: 'index.js',
       assets: ['index.js', 'test.txt'],
       childBundles: [
+        {
+          type: 'map'
+        },
         {
           type: 'txt',
           assets: ['test.txt'],
@@ -201,7 +330,8 @@ describe('javascript', function() {
     });
 
     let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
-    assert(js.includes('console.log'));
+    assert(!js.includes('console.log'));
+    assert(!js.includes('// This is a comment'));
   });
 
   it('should insert global variables when needed', async function() {
@@ -248,6 +378,9 @@ describe('javascript', function() {
         {
           type: 'css',
           assets: ['index.css']
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -263,7 +396,29 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.yaml'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
+  it('should support requiring TOML files', async function() {
+    let b = await bundle(__dirname + '/integration/toml/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'local.toml'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -277,7 +432,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.coffee'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -291,7 +450,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'browser.js',
       assets: ['browser.js', 'browser-module.js'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -308,7 +471,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'browser-multiple.js',
       assets: ['browser-multiple.js', 'projected-module.js'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -325,7 +492,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'module-field.js',
       assets: ['module-field.js', 'es6.module.js'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -342,7 +513,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'jsnext-field.js',
       assets: ['jsnext-field.js', 'jsnext.module.js'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -359,7 +534,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'both-fields.js',
       assets: ['both-fields.js', 'es6.module.js'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -376,7 +555,11 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'main-field.js',
       assets: ['main-field.js', 'main.js'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -391,6 +574,33 @@ describe('javascript', function() {
     });
 
     let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
-    assert(json.includes('test:"test"'));
+    assert(json.includes('{test:"test"}'));
+  });
+
+  it('should minify JSON5 files', async function() {
+    await bundle(__dirname + '/integration/uglify-json5/index.json5', {
+      production: true
+    });
+
+    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(json.includes('{test:"test"}'));
+  });
+
+  it('should minify YAML for production', async function() {
+    await bundle(__dirname + '/integration/yaml/index.js', {
+      production: true
+    });
+
+    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(json.includes('{a:1,b:{c:2}}'));
+  });
+
+  it('should minify TOML for production', async function() {
+    await bundle(__dirname + '/integration/toml/index.js', {
+      production: true
+    });
+
+    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(json.includes('{a:1,b:{c:2}}'));
   });
 });

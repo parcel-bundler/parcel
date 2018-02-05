@@ -3,8 +3,13 @@ node_js:
   # TODO: Run Babel on tests so that async-await works in Node 6
   # - '6'
   - '8'
-cache: yarn
-script: 
+cache:
+  yarn: true
+  cargo: true
+before_install:
+  - curl https://sh.rustup.rs -sSf | sh -s -- -y
+  - export PATH=/home/travis/.cargo/bin:$PATH
+script:
   - yarn test-ci
   - yarn lint
 sudo: false

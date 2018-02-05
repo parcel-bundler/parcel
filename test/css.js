@@ -14,6 +14,9 @@ describe('css', function() {
       assets: ['index.js', 'index.css', 'local.js', 'local.css'],
       childBundles: [
         {
+          name: 'index.map'
+        },
+        {
           name: 'index.css',
           assets: ['index.css', 'local.css'],
           childBundles: []
@@ -46,6 +49,9 @@ describe('css', function() {
           childBundles: []
         },
         {
+          type: 'map'
+        },
+        {
           type: 'js',
           assets: ['local.js', 'local.css'],
           childBundles: [
@@ -53,6 +59,9 @@ describe('css', function() {
               type: 'css',
               assets: ['local.css'],
               childBundles: []
+            },
+            {
+              type: 'map'
             }
           ]
         }
@@ -75,6 +84,10 @@ describe('css', function() {
           name: 'index.css',
           assets: ['index.css', 'other.css', 'local.css'],
           childBundles: []
+        },
+        {
+          name: 'index.map',
+          type: 'map'
         }
       ]
     });
@@ -101,6 +114,9 @@ describe('css', function() {
           name: 'index.css',
           assets: ['index.css'],
           childBundles: []
+        },
+        {
+          type: 'map'
         },
         {
           type: 'woff2',
@@ -141,6 +157,9 @@ describe('css', function() {
           name: 'index.css',
           assets: ['index.css'],
           childBundles: []
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -181,6 +200,9 @@ describe('css', function() {
     let package = require('./input/package.json');
     assert(package.devDependencies['postcss-cssnext']);
 
+    // peer dependency caniuse-lite was installed
+    assert(package.devDependencies['caniuse-lite']);
+
     // cssnext is applied
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('rgba'));
@@ -197,6 +219,9 @@ describe('css', function() {
     // cssnext was installed
     let package = require('./input/package.json');
     assert(package.devDependencies['postcss-cssnext']);
+
+    // peer dependency caniuse-lite was installed
+    assert(package.devDependencies['caniuse-lite']);
 
     // appveyor is not currently writing to the yarn.lock file and will require further investigation
     // let lockfile = fs.readFileSync(__dirname + '/input/yarn.lock', 'utf8');

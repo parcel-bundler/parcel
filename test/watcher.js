@@ -55,11 +55,22 @@ describe('watcher', function() {
       childBundles: [
         {
           assets: ['a.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['b.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -78,11 +89,22 @@ describe('watcher', function() {
       childBundles: [
         {
           assets: ['a.js', 'common.js', 'common-dep.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['b.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -102,7 +124,7 @@ describe('watcher', function() {
         f => (fs.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000) | 0
       );
 
-    await sleep(1000); // mtime only has second level precision
+    await sleep(1100); // mtime only has second level precision
     fs.writeFileSync(
       __dirname + '/input/b.js',
       'module.exports = require("./common")'
@@ -136,11 +158,22 @@ describe('watcher', function() {
       childBundles: [
         {
           assets: ['a.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['b.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -166,11 +199,22 @@ describe('watcher', function() {
       childBundles: [
         {
           assets: ['a.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['b.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
         }
       ]
     });

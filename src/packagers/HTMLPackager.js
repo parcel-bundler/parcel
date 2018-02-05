@@ -3,6 +3,18 @@ const posthtml = require('posthtml');
 const path = require('path');
 const urlJoin = require('../utils/urlJoin');
 
+// https://www.w3.org/TR/html5/dom.html#metadata-content-2
+const metadataContent = new Set([
+  'base',
+  'link',
+  'meta',
+  'noscript',
+  'script',
+  'style',
+  'template',
+  'title'
+]);
+
 class HTMLPackager extends Packager {
   async addAsset(asset) {
     let html = asset.generated.html || '';
@@ -22,27 +34,27 @@ class HTMLPackager extends Packager {
     await this.dest.write(html);
   }
 
-  getHeadContent(tree) {
-    let head = find(tree, 'head');
-    if (!head) {
-      let html = find(tree, 'html');
-      head = {tag: 'head'};
-      html.content.unshift(head);
+  addBundlesToTree(bundles, tree) {
+    const head = find(tree, 'head');
+    if (head) {
+      const content = head.content || (head.content = []);
+      content.push(...bundles);
+      return;
     }
 
-    if (!head.content) {
-      head.content = [];
-    }
+    const html = find(tree, 'html');
+    const content = html ? html.content || (html.content = []) : tree;
+    const index = findBundleInsertIndex(content);
 
-    return head;
+    content.splice(index, 0, ...bundles);
   }
 
   insertSiblingBundles(siblingBundles, tree) {
-    let head = this.getHeadContent(tree);
+    const bundles = [];
 
     for (let bundle of siblingBundles) {
       if (bundle.type === 'css') {
-        head.content.push({
+        bundles.push({
           tag: 'link',
           attrs: {
             rel: 'stylesheet',
@@ -50,7 +62,7 @@ class HTMLPackager extends Packager {
           }
         });
       } else if (bundle.type === 'js') {
-        head.content.push({
+        bundles.push({
           tag: 'script',
           attrs: {
             src: urlJoin(this.options.publicURL, path.basename(bundle.name))
@@ -58,6 +70,8 @@ class HTMLPackager extends Packager {
         });
       }
     }
+
+    this.addBundlesToTree(bundles, tree);
   }
 }
 
@@ -69,6 +83,17 @@ function find(tree, tag) {
   });
 
   return res;
+}
+
+function findBundleInsertIndex(content) {
+  for (let index = 0; index < content.length; index++) {
+    const node = content[index];
+    if (node && node.tag && !metadataContent.has(node.tag)) {
+      return index;
+    }
+  }
+
+  return 0;
 }
 
 module.exports = HTMLPackager;

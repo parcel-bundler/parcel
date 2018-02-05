@@ -9,7 +9,11 @@ describe('glob', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', '*.js', 'a.js', 'b.js'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -23,7 +27,11 @@ describe('glob', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', '*.js', 'a.js', 'b.js', 'c.js', 'z.js'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -42,6 +50,9 @@ describe('glob', function() {
           name: 'index.css',
           assets: ['index.css', 'other.css', 'local.css'],
           childBundles: []
+        },
+        {
+          type: 'map'
         }
       ]
     });

@@ -9,7 +9,7 @@ const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
 const {EventEmitter} = require('events');
-const Logger = require('./Logger');
+const logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
@@ -31,7 +31,6 @@ class Bundler extends EventEmitter {
     this.parser = new Parser(this.options);
     this.packagers = new PackagerRegistry();
     this.cache = this.options.cache ? new FSCache(this.options) : null;
-    this.logger = new Logger(this.options);
     this.delegate = options.delegate || {};
     this.bundleLoaders = {};
 
@@ -55,6 +54,8 @@ class Bundler extends EventEmitter {
     this.errored = false;
     this.buildQueue = new PromiseQueue(this.processAsset.bind(this));
     this.rebuildTimeout = null;
+
+    logger.setOptions(this.options);
   }
 
   normalizeOptions(options) {
@@ -66,6 +67,7 @@ class Bundler extends EventEmitter {
       '/' + Path.basename(options.outDir || 'dist');
     const watch =
       typeof options.watch === 'boolean' ? options.watch : !isProduction;
+    const target = options.target || 'browser';
     return {
       outDir: Path.resolve(options.outDir || 'dist'),
       publicURL: publicURL,
@@ -76,10 +78,20 @@ class Bundler extends EventEmitter {
         typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
       minify:
         typeof options.minify === 'boolean' ? options.minify : isProduction,
-      hmr: typeof options.hmr === 'boolean' ? options.hmr : watch,
+      target: target,
+      hmr:
+        target === 'node'
+          ? false
+          : typeof options.hmr === 'boolean' ? options.hmr : watch,
+      https: options.https || false,
       logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
       mainFile: this.mainFile,
       hmrPort: options.hmrPort || 0,
+      rootDir: Path.dirname(this.mainFile),
+      sourceMaps:
+        typeof options.sourceMaps === 'boolean'
+          ? options.sourceMaps
+          : !isProduction,
       hmrHostname: options.hmrHostname || ''
     };
   }
@@ -131,7 +143,7 @@ class Bundler extends EventEmitter {
         }
       }
     } catch (err) {
-      this.logger.warn(err);
+      logger.warn(err);
     }
   }
 
@@ -150,8 +162,8 @@ class Bundler extends EventEmitter {
     this.pending = true;
     this.errored = false;
 
-    this.logger.clear();
-    this.logger.status(emoji.progress, 'Building...');
+    logger.clear();
+    logger.status(emoji.progress, 'Building...');
 
     try {
       // Start worker farm, watcher, etc. if needed
@@ -191,19 +203,21 @@ class Bundler extends EventEmitter {
         buildTime < 1000
           ? `${buildTime}ms`
           : `${(buildTime / 1000).toFixed(2)}s`;
-      this.logger.status(emoji.success, `Built in ${time}.`, 'green');
+      logger.status(emoji.success, `Built in ${time}.`, 'green');
 
       this.emit('bundled', bundle);
       return bundle;
     } catch (err) {
       this.errored = true;
-      this.logger.error(err);
+      logger.error(err);
       if (this.hmr) {
         this.hmr.emitError(err);
       }
 
       if (process.env.NODE_ENV === 'production') {
         process.exitCode = 1;
+      } else if (process.env.NODE_ENV === 'test' && !this.hmr) {
+        throw err;
       }
     } finally {
       this.pending = false;
@@ -240,7 +254,7 @@ class Bundler extends EventEmitter {
 
     if (this.options.hmr) {
       this.hmr = new HMRServer();
-      this.options.hmrPort = await this.hmr.start(this.options.hmrPort);
+      this.options.hmrPort = await this.hmr.start(this.options);
     }
 
     this.farm = WorkerFarm.getShared(this.options);
@@ -352,7 +366,7 @@ class Bundler extends EventEmitter {
     }
 
     if (!this.errored) {
-      this.logger.status(emoji.progress, `Building ${asset.basename}...`);
+      logger.status(emoji.progress, `Building ${asset.basename}...`);
     }
 
     // Mark the asset processed so we don't load it twice
@@ -526,8 +540,8 @@ class Bundler extends EventEmitter {
       return;
     }
 
-    this.logger.clear();
-    this.logger.status(emoji.progress, `Building ${Path.basename(path)}...`);
+    logger.clear();
+    logger.status(emoji.progress, `Building ${Path.basename(path)}...`);
 
     // Add the asset to the rebuild queue, and reset the timeout.
     for (let asset of assets) {
