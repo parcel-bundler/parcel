@@ -1,7 +1,6 @@
 const Asset = require('../Asset');
 const yaml = require('js-yaml');
-const {minify} = require('uglify-es');
-const {serialize} = require('serialize-to-js');
+const serializeObject = require('../utils/serializeObject');
 
 class YAMLAsset extends Asset {
   constructor(name, pkg, options) {
@@ -14,19 +13,8 @@ class YAMLAsset extends Asset {
   }
 
   generate() {
-    let code = `module.exports = ${serialize(this.ast)};`;
-
-    if (this.options.minify) {
-      let minified = minify(code);
-      if (minified.error) {
-        throw minified.error;
-      }
-
-      code = minified.code;
-    }
-
     return {
-      js: code
+      js: serializeObject(this.ast, this.options.minify)
     };
   }
 }
