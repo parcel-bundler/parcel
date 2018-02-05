@@ -594,4 +594,13 @@ describe('javascript', function() {
     let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(json.includes('{a:1,b:{c:2}}'));
   });
+
+  it('should minify TOML for production', async function() {
+    await bundle(__dirname + '/integration/toml/index.js', {
+      production: true
+    });
+
+    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(json.includes('{a:1,b:{c:2}}'));
+  });
 });

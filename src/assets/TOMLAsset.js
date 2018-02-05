@@ -1,5 +1,6 @@
 const Asset = require('../Asset');
 const toml = require('toml');
+const serializeObject = require('../utils/serializeObject');
 
 class TOMLAsset extends Asset {
   constructor(name, pkg, options) {
@@ -13,7 +14,7 @@ class TOMLAsset extends Asset {
 
   generate() {
     return {
-      js: `module.exports=${JSON.stringify(this.ast, false, 2)};`
+      js: serializeObject(this.ast, this.options.minify)
     };
   }
 }
