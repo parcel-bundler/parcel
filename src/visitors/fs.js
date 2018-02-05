@@ -2,7 +2,6 @@ const t = require('babel-types');
 const Path = require('path');
 const fs = require('fs');
 const template = require('babel-template');
-const codeFrame = require('babel-code-frame');
 const logger = require('../Logger');
 
 const bufferTemplate = template('Buffer(CONTENT, ENC)');
@@ -33,42 +32,29 @@ module.exports = {
         __dirname: Path.dirname(asset.name),
         __filename: asset.basename
       };
-      let [filenameNode, ...optionNodes] = path.get('arguments');
-      let argsValue = null;
+      let filename, args, res;
 
       try {
-        argsValue = [filenameNode, ...optionNodes].map(arg =>
-          evaluate(arg, vars)
-        );
+        [filename, ...args] = path
+          .get('arguments')
+          .map(arg => evaluate(arg, vars));
+
+        filename = Path.resolve(filename);
+        res = fs.readFileSync(filename, ...args);
       } catch (err) {
         if (err instanceof NodeNotEvaluatedError) {
-          // Find the position of the node
-          let {column, line} = err.node.node.loc.start;
-          // Create a code frame around the position
-          let frame = codeFrame(asset.contents, line, column, {
-            highlightCode: true
-          });
-          let file = `${asset.name}:${line}:${column}`;
-
-          logger.warn(`${file}: Cannot statically evaluate fs argument`);
-          logger.log(frame);
-
+          // Warn using a code frame
+          err.fileName = asset.name;
+          asset.generateErrorMessage(err);
+          logger.warn(err);
           return;
         }
 
-        throw err;
-      }
-
-      let [filename, ...args] = argsValue;
-      let res = null;
-
-      filename = Path.resolve(filename);
-
-      try {
-        res = fs.readFileSync(filename, ...args);
-      } catch (err) {
-        err.loc = filenameNode.node.loc.start;
-
+        // Add location info so we log a code frame with the error
+        err.loc =
+          path.node.arguments.length > 0
+            ? path.node.arguments[0].loc.start
+            : path.node.loc.start;
         throw err;
       }
 
@@ -189,7 +175,9 @@ function getBindingPath(path, name) {
 }
 
 function NodeNotEvaluatedError(node) {
+  this.message = 'Cannot statically evaluate fs argument';
   this.node = node;
+  this.loc = node.loc.start;
 }
 
 function evaluate(path, vars) {
@@ -206,7 +194,7 @@ function evaluate(path, vars) {
   let res = path.evaluate();
 
   if (!res.confident) {
-    throw new NodeNotEvaluatedError(path);
+    throw new NodeNotEvaluatedError(path.node);
   }
 
   return res.value;
