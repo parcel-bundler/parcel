@@ -44,12 +44,16 @@ class Logger {
     this.write(this.chalk.bold(message), true);
   }
 
-  warn(message) {
+  warn(err) {
     if (this.logLevel < 2) {
       return;
     }
 
+    let {message, stack} = prettyError(err, {color: this.color});
     this.write(this.chalk.yellow(`${emoji.warning}  ${message}`));
+    if (stack) {
+      this.write(stack);
+    }
   }
 
   error(err) {
