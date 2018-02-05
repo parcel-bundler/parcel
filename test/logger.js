@@ -15,7 +15,7 @@ describe('Logger', () => {
   };
 
   it('should log message on write', () => {
-    const l = new Logger({});
+    const l = new Logger.constructor({});
     stub(l);
 
     l.write('hello');
@@ -23,7 +23,7 @@ describe('Logger', () => {
   });
 
   it('should track number of lines on persist false', () => {
-    const l = new Logger({});
+    const l = new Logger.constructor({});
     stub(l);
 
     const count = l.lines;
@@ -32,7 +32,7 @@ describe('Logger', () => {
   });
 
   it('should not track number of lines on persist true', () => {
-    const l = new Logger({});
+    const l = new Logger.constructor({});
     stub(l);
 
     const count = l.lines;
@@ -41,7 +41,7 @@ describe('Logger', () => {
   });
 
   it('should respect log levels', () => {
-    const l = new Logger({logLevel: 2, color: false});
+    const l = new Logger.constructor({logLevel: 2, color: false});
     stub(l);
 
     l.log('message');
@@ -70,7 +70,7 @@ describe('Logger', () => {
   });
 
   it('should handle lack of color support with alternatives', () => {
-    const l = new Logger({color: false});
+    const l = new Logger.constructor({color: false});
     stub(l);
 
     // clear is a no-op
@@ -87,7 +87,7 @@ describe('Logger', () => {
   });
 
   it('should reset on clear', () => {
-    const l = new Logger({color: true});
+    const l = new Logger.constructor({color: true});
     stub(l);
 
     l.lines = 10;
@@ -99,7 +99,7 @@ describe('Logger', () => {
   });
 
   it('should log emoji and message via status', () => {
-    const l = new Logger({color: false});
+    const l = new Logger.constructor({color: false});
     stub(l);
     l.status('🚨', 'hello');
 
@@ -108,7 +108,7 @@ describe('Logger', () => {
   });
 
   it('should use internal _log function for writes', () => {
-    const l = new Logger({color: false});
+    const l = new Logger.constructor({color: false});
     const sandbox = sinon.createSandbox(); // use sandbox to silence console.log
 
     let spy;
@@ -126,7 +126,7 @@ describe('Logger', () => {
   });
 
   it('should use stdout directly for writeLine', () => {
-    const l = new Logger({color: true});
+    const l = new Logger.constructor({color: true});
     const sandbox = sinon.createSandbox();
     const log = [];
 
