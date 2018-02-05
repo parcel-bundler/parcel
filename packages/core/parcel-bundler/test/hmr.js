@@ -61,6 +61,47 @@ describe('hmr', function() {
     assert.deepEqual(msg.assets[0].deps, {});
   });
 
+  it('should not enable HMR for --target=node', async function() {
+    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+
+    b = bundler(__dirname + '/input/index.js', {
+      watch: true,
+      hmr: true,
+      target: 'node'
+    });
+    await b.bundle();
+
+    ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
+
+    let err = await nextEvent(ws, 'error');
+    assert(err);
+    ws = null;
+  });
+
+  it('should enable HMR for --target=electron', async function() {
+    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+
+    b = bundler(__dirname + '/input/index.js', {
+      watch: true,
+      hmr: true,
+      target: 'electron'
+    });
+    await b.bundle();
+
+    ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
+
+    fs.writeFileSync(
+      __dirname + '/input/local.js',
+      'exports.a = 5; exports.b = 5;'
+    );
+
+    let msg = json5.parse(await nextEvent(ws, 'message'));
+    assert.equal(msg.type, 'update');
+    assert.equal(msg.assets.length, 1);
+    assert.equal(msg.assets[0].generated.js, 'exports.a = 5; exports.b = 5;');
+    assert.deepEqual(msg.assets[0].deps, {});
+  });
+
   it('should emit an HMR update for all new dependencies along with the changed file', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 

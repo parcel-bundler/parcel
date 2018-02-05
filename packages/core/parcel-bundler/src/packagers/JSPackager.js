@@ -22,6 +22,14 @@ class JSPackager extends Packager {
     this.externalModules = new Set();
 
     let preludeCode = this.options.minify ? prelude.minified : prelude.source;
+    if (this.options.target === 'electron') {
+      preludeCode =
+        `process.env.HMR_PORT=${
+          this.options.hmrPort
+        };process.env.HMR_HOSTNAME=${JSON.stringify(
+          this.options.hmrHostname
+        )};` + preludeCode;
+    }
     await this.dest.write(preludeCode + '({');
     this.lineOffset = lineCounter(preludeCode);
   }

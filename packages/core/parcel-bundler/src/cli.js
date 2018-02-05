@@ -35,6 +35,11 @@ program
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
+  .option(
+    '-t, --target [target]',
+    'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
+    /^(node|browser|electron)$/
+  )
   .option('-V, --version', 'output the version number')
   .action(bundle);
 
@@ -52,6 +57,11 @@ program
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
+  .option(
+    '-t, --target [target]',
+    'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
+    /^(node|browser|electron)$/
+  )
   .action(bundle);
 
 program
@@ -67,6 +77,11 @@ program
   )
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
+  .option(
+    '-t, --target <target>',
+    'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
+    /^(node|browser|electron)$/
+  )
   .action(bundle);
 
 program
