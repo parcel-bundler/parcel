@@ -69,6 +69,7 @@ class Bundler extends EventEmitter {
       typeof options.watch === 'boolean' ? options.watch : !isProduction;
     const target = options.target || 'browser';
     return {
+      outFile: options.outFile || '',
       outDir: Path.resolve(options.outDir || 'dist'),
       publicURL: publicURL,
       watch: watch,

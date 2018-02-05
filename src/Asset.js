@@ -179,9 +179,11 @@ class Asset {
 
     // If this asset is main file of the package, use the sanitized package name
     if (this.name === main) {
-      const packageName = sanitizeFilename(this.package.name, {
-        replacement: '-'
-      });
+      const packageName =
+        this.options.outFile ||
+        sanitizeFilename(this.package.name, {
+          replacement: '-'
+        });
       return packageName + ext;
     }
 
