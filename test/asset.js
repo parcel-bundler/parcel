@@ -1,7 +1,18 @@
-const {strictEqual} = require('assert');
+const assert = require('assert');
+const fs = require('fs');
+const {bundle} = require('./utils');
 const Asset = require('../src/Asset');
 
 describe('Asset', () => {
+  it('should support overriding the filename of the root bundle', async function() {
+    const outFile = 'custom-out-file.html';
+    await bundle(__dirname + '/integration/html/index.html', {
+      outFile
+    });
+
+    assert(fs.existsSync(__dirname, `/dist/${outFile}`));
+  });
+
   describe('addURLDependency', () => {
     const bundleName = 'xyz';
     const options = {
@@ -18,21 +29,27 @@ describe('Asset', () => {
 
     it('should ignore urls', () => {
       const url = 'https://parceljs.org/assets.html';
-      strictEqual(asset.addURLDependency(url), url);
+      assert.strictEqual(asset.addURLDependency(url), url);
     });
 
     it('should ignore empty string', () => {
-      strictEqual(asset.addURLDependency(''), '');
+      assert.strictEqual(asset.addURLDependency(''), '');
     });
 
     it('should generate bundle name', () => {
-      strictEqual(asset.addURLDependency('foo'), bundleName);
+      assert.strictEqual(asset.addURLDependency('foo'), bundleName);
     });
 
     it('should preserve query and hash', () => {
-      strictEqual(asset.addURLDependency('foo#bar'), `${bundleName}#bar`);
-      strictEqual(asset.addURLDependency('foo?bar'), `${bundleName}?bar`);
-      strictEqual(
+      assert.strictEqual(
+        asset.addURLDependency('foo#bar'),
+        `${bundleName}#bar`
+      );
+      assert.strictEqual(
+        asset.addURLDependency('foo?bar'),
+        `${bundleName}?bar`
+      );
+      assert.strictEqual(
         asset.addURLDependency('foo?bar#baz'),
         `${bundleName}?bar#baz`
       );

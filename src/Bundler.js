@@ -70,6 +70,7 @@ class Bundler extends EventEmitter {
     const target = options.target || 'browser';
     return {
       outDir: Path.resolve(options.outDir || 'dist'),
+      outFile: options.outFile || '',
       publicURL: publicURL,
       watch: watch,
       cache: typeof options.cache === 'boolean' ? options.cache : true,

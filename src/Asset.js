@@ -171,11 +171,23 @@ class Asset {
 
   generateBundleName() {
     // Resolve the main file of the package.json
-    let main =
+    const main =
       this.package && this.package.main
         ? path.resolve(path.dirname(this.package.pkgfile), this.package.main)
         : null;
-    let ext = '.' + this.type;
+    const ext = '.' + this.type;
+
+    const isEntryPoint = this.name === this.options.mainFile;
+
+    // If this is the entry point of the root bundle, use outFile filename if provided
+    if (isEntryPoint && this.options.outFile) {
+      return (
+        path.basename(
+          this.options.outFile,
+          path.extname(this.options.outFile)
+        ) + ext
+      );
+    }
 
     // If this asset is main file of the package, use the sanitized package name
     if (this.name === main) {
@@ -186,7 +198,7 @@ class Asset {
     }
 
     // If this is the entry point of the root bundle, use the original filename
-    if (this.name === this.options.mainFile) {
+    if (isEntryPoint) {
       return path.basename(this.name, path.extname(this.name)) + ext;
     }
 
