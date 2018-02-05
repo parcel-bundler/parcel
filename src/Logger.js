@@ -25,7 +25,7 @@ class Logger {
       this.lines += message.split('\n').length;
     }
 
-    console.log(message);
+    this._log(message);
   }
 
   log(message) {
@@ -44,12 +44,16 @@ class Logger {
     this.write(this.chalk.bold(message), true);
   }
 
-  warn(message) {
+  warn(err) {
     if (this.logLevel < 2) {
       return;
     }
 
+    let {message, stack} = prettyError(err, {color: this.color});
     this.write(this.chalk.yellow(`${emoji.warning}  ${message}`));
+    if (stack) {
+      this.write(stack);
+    }
   }
 
   error(err) {
@@ -118,6 +122,10 @@ class Logger {
 
   handleMessage(options) {
     this[options.method](...options.args);
+  }
+
+  _log(message) {
+    console.log(message);
   }
 }
 

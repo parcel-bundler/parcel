@@ -86,6 +86,15 @@ module.exports = {
 };
 
 function addDependency(asset, node, opts = {}) {
+  if (asset.options.target !== 'browser') {
+    const isRelativeImport =
+      node.value.startsWith('/') ||
+      node.value.startsWith('./') ||
+      node.value.startsWith('../');
+
+    if (!isRelativeImport) return;
+  }
+
   opts.loc = node.loc && node.loc.start;
   asset.addDependency(node.value, opts);
 }

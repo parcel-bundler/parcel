@@ -2,6 +2,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const {bundle, run, assertBundleTree} = require('./utils');
+const {mkdirp} = require('../src/utils/fs');
 
 describe('javascript', function() {
   it('should produce a basic JS bundle with CommonJS requires', async function() {
@@ -27,7 +28,64 @@ describe('javascript', function() {
     assert.equal(output.default(), 3);
   });
 
-  it('should produce a JS bundle with default exorts and no imports', async function() {
+  it('should bundle node_modules on --target=browser', async function() {
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'browser'
+    });
+
+    assertBundleTree(b, {
+      name: 'main.js',
+      assets: ['main.js', 'local.js', 'index.js']
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
+  it('should not bundle node_modules on --target=node', async function() {
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'node'
+    });
+
+    assertBundleTree(b, {
+      name: 'main.js',
+      assets: ['main.js', 'local.js']
+    });
+
+    await mkdirp(__dirname + '/dist/node_modules/testmodule');
+    fs.writeFileSync(
+      __dirname + '/dist/node_modules/testmodule/index.js',
+      'exports.a = 5;'
+    );
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 7);
+  });
+
+  it('should not bundle node_modules on --target=electron', async function() {
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'electron'
+    });
+
+    assertBundleTree(b, {
+      name: 'main.js',
+      assets: ['main.js', 'local.js']
+    });
+
+    await mkdirp(__dirname + '/dist/node_modules/testmodule');
+    fs.writeFileSync(
+      __dirname + '/dist/node_modules/testmodule/index.js',
+      'exports.a = 5;'
+    );
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 7);
+  });
+
+  it('should produce a JS bundle with default exports and no imports', async function() {
     let b = await bundle(__dirname + '/integration/es6-default-only/index.js');
 
     assert.equal(b.assets.size, 1);
@@ -350,6 +408,24 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
+  it('should support requiring TOML files', async function() {
+    let b = await bundle(__dirname + '/integration/toml/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'local.toml'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
   it('should support requiring CoffeeScript files', async function() {
     let b = await bundle(__dirname + '/integration/coffee/index.js');
 
@@ -508,5 +584,23 @@ describe('javascript', function() {
 
     let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(json.includes('{test:"test"}'));
+  });
+
+  it('should minify YAML for production', async function() {
+    await bundle(__dirname + '/integration/yaml/index.js', {
+      production: true
+    });
+
+    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(json.includes('{a:1,b:{c:2}}'));
+  });
+
+  it('should minify TOML for production', async function() {
+    await bundle(__dirname + '/integration/toml/index.js', {
+      production: true
+    });
+
+    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(json.includes('{a:1,b:{c:2}}'));
   });
 });
