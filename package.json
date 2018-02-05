@@ -39,6 +39,7 @@
     "posthtml": "^0.10.1",
     "resolve": "^1.4.0",
     "sanitize-filename": "^1.6.1",
+    "serialize-to-js": "^1.1.1",
     "serve-static": "^1.12.4",
     "source-map": "0.6.1",
     "toml": "^2.3.3",
