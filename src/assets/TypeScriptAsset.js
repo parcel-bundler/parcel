@@ -1,3 +1,4 @@
+const path = require('path');
 const JSAsset = require('./JSAsset');
 const localRequire = require('../utils/localRequire');
 
@@ -9,24 +10,63 @@ class TypeScriptAsset extends JSAsset {
       compilerOptions: {
         module: typescript.ModuleKind.CommonJS,
         jsx: typescript.JsxEmit.Preserve
-      },
-      fileName: this.relativeName
+      }
     };
 
-    let tsconfig = await this.getConfig(['tsconfig.json']);
+    let tsconfigPath = await this.getConfigPath(['tsconfig.json']);
 
-    // Overwrite default if config is found
-    if (tsconfig) {
+    if (tsconfigPath) {
+      let config = await this.loadConfig(tsconfigPath, ['tsconfig.json']);
+
+      // Overwrite default if config is found
       transpilerOptions.compilerOptions = Object.assign(
         transpilerOptions.compilerOptions,
-        tsconfig.compilerOptions
+        config.compilerOptions
       );
+      transpilerOptions.parcel = config.parcel;
     }
+
     transpilerOptions.compilerOptions.noEmit = false;
     transpilerOptions.compilerOptions.sourceMap = this.options.sourceMaps;
 
+    // use TypeScript to parse the json to resolve filenames and support "extends"
+    let configDir = path.dirname(tsconfigPath || this.name);
+    let tsconfig = typescript.parseJsonConfigFileContent(
+      transpilerOptions,
+      typescript.sys,
+      configDir
+    );
+    let transformersPath =
+      transpilerOptions.parcel && transpilerOptions.parcel.transformers;
+    let transformers = undefined;
+
+    if (transformersPath) {
+      if (typeof transformersPath !== 'string') {
+        throw new Error(
+          'The TypeScript option "parcel.transformers" should be a string'
+        );
+      }
+
+      // Require the transformers factory module. It should be a CommonJS module
+      let factoryPath = path.resolve(configDir, transformersPath);
+
+      // Create the TypeScript transformer factory (cf. ts.TransformerFactory)
+      transformers = require(factoryPath)();
+
+      if (transformers.before && !Array.isArray(transformers.before)) {
+        throw new Error(`CustomTransformers.before should be an array`);
+      }
+      if (transformers.after && !Array.isArray(transformers.after)) {
+        throw new Error(`CustomTransformers.after should be an array`);
+      }
+    }
+
     // Transpile Module using TypeScript and parse result as ast format through babylon
-    let transpiled = typescript.transpileModule(code, transpilerOptions);
+    let transpiled = typescript.transpileModule(code, {
+      compilerOptions: tsconfig.options,
+      fileName: this.basename,
+      transformers: transformers
+    });
     this.sourceMap = transpiled.sourceMapText;
 
     if (this.sourceMap) {

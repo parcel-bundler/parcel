@@ -93,9 +93,11 @@ class Asset {
     return URL.format(parsed);
   }
 
-  async getConfig(filenames) {
-    // Resolve the config file
-    let conf = await config.resolve(this.name, filenames);
+  getConfigPath(filenames) {
+    return config.resolve(this.name, filenames);
+  }
+
+  async loadConfig(conf, filenames) {
     if (conf) {
       // Add as a dependency so it is added to the watcher and invalidates
       // this asset when the config changes.
@@ -104,6 +106,12 @@ class Asset {
     }
 
     return null;
+  }
+  async getConfig(filenames) {
+    // Resolve the config file
+    let conf = await this.getConfigPath(filenames);
+
+    return this.loadConfig(conf, filenames);
   }
 
   mightHaveDependencies() {
