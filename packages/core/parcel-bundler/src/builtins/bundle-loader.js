@@ -1,6 +1,10 @@
 var getBundleURL = require('./bundle-url').getBundleURL;
 
 function loadBundlesLazy(bundles) {
+  if (!Array.isArray(bundles)) {
+    bundles = [bundles]
+  }
+
   var id = bundles[bundles.length - 1];
 
   try {
