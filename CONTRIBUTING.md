@@ -61,6 +61,20 @@ You can set `PARCEL_WORKERS` to the number of worker processes to spawn.
 
 **NOTE:** When developing plugins or new Asset types, run with `--no-cache` (or pass `cache: false` to `Bundler` options). Parcel uses caching by default, but during development you'll normally pass incomplete results into the cache. This can leave you wondering why you're constantly seeing old results.
 
+## Link to local parcel build
+
+While contributing to parcel, you may need to run a local version of parcel and set it as the global cli option in your command line, so that when you run `parcel ...`, it will find your new local variant of parcel instead of the global package installed before (if you had it installed globally before).
+
+To do this, you have multiple options:
+
+* If you had **parcel** installed globally, you can run `yarn global remove parcel` and then `cd` to your own copy of parcel and run `yarn link`. This way, the global parcel in your PATH would reference to the local copy. To make sure you have it installed globally, just run `parcel --version`.
+
+* Another option would be to run `yarn link` in your own copy of parcel directory and then go to the directory, _which you wan to test your copy of parcel in_, and run `yarn link parcel-bundler`, so that locally your copy of parcel is the one used in its npm scripts.
+
+* Another way, which we highly recommend if you plan to switch between different parcel sources often, is to create some terminal aliases. This way you can have different aliases for each of the versions of parcel you wish to maintain on your machine. For example, you can make an alias called `parcelfork` pointing to your fork of parcel for development, and then `parceldev` pointing to a clone of the parcel repo for experimenting with the latest changes, and then then still keep the original `parcel` command pointing to the npm installed stable version. To do this, add some aliases to your terminal’s startup file (usually .bashrc) in the format `alias [name]=“node [path_to_new_parcel_bin_file]”` for each of the sources you want to use. For example: `alias parcelfork=“node ~/my/path/to/fork/bin/cli.js”`
+
+For more information on this topic, read [this issue on parcel repository](https://github.com/parcel-bundler/parcel/issues/182).
+
 ## Financial contributions
 
 We also welcome financial contributions in full transparency on our [open collective](https://opencollective.com/parcel).

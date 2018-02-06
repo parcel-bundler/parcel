@@ -4,6 +4,7 @@ const serveStatic = require('serve-static');
 const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
 const generateCertificate = require('./utils/generateCertificate');
+const logger = require('./Logger');
 
 serveStatic.mime.define({
   'application/wasm': ['wasm']
@@ -71,20 +72,20 @@ async function serve(bundler, port, useHTTPS = false) {
 
   return new Promise((resolve, reject) => {
     server.on('error', err => {
-      bundler.logger.error(new Error(serverErrors(err, server.address().port)));
+      logger.error(new Error(serverErrors(err, server.address().port)));
       reject(err);
     });
 
     server.once('listening', () => {
       let addon =
         server.address().port !== port
-          ? `- ${bundler.logger.chalk.yellow(
+          ? `- ${logger.chalk.yellow(
               `configured port ${port} could not be used.`
             )}`
           : '';
 
-      bundler.logger.persistent(
-        `Server running at ${bundler.logger.chalk.cyan(
+      logger.persistent(
+        `Server running at ${logger.chalk.cyan(
           `${useHTTPS ? 'https' : 'http'}://localhost:${server.address().port}`
         )} ${addon}`
       );

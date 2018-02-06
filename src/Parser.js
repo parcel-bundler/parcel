@@ -18,8 +18,10 @@ class Parser {
     this.registerExtension('tsx', './assets/TypeScriptAsset');
     this.registerExtension('coffee', './assets/CoffeeScriptAsset');
     this.registerExtension('json', './assets/JSONAsset');
+    this.registerExtension('json5', './assets/JSONAsset');
     this.registerExtension('yaml', './assets/YAMLAsset');
     this.registerExtension('yml', './assets/YAMLAsset');
+    this.registerExtension('toml', './assets/TOMLAsset');
     this.registerExtension('gql', './assets/GraphqlAsset');
     this.registerExtension('graphql', './assets/GraphqlAsset');
 
@@ -34,6 +36,8 @@ class Parser {
     this.registerExtension('htm', './assets/HTMLAsset');
     this.registerExtension('rs', './assets/RustAsset');
 
+    this.registerExtension('webmanifest', './assets/WebManifestAsset');
+
     let extensions = options.extensions || {};
     for (let ext in extensions) {
       this.registerExtension(ext, extensions[ext]);
@@ -45,7 +49,7 @@ class Parser {
       ext = '.' + ext;
     }
 
-    this.extensions[ext] = parser;
+    this.extensions[ext.toLowerCase()] = parser;
   }
 
   findParser(filename) {
@@ -53,7 +57,7 @@ class Parser {
       return GlobAsset;
     }
 
-    let extension = path.extname(filename);
+    let extension = path.extname(filename).toLowerCase();
     let parser = this.extensions[extension] || RawAsset;
     if (typeof parser === 'string') {
       parser = this.extensions[extension] = require(parser);
