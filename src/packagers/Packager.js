@@ -10,7 +10,17 @@ class Packager {
   }
 
   setup() {
-    this.dest = fs.createWriteStream(this.bundle.name);
+    let filename;
+    if (this.options.rev) {
+      let hash = this.bundle
+        .getHash()
+        .toString()
+        .substr(-8, 8);
+      filename = this.bundle.name + '-' + hash;
+    } else {
+      filename = this.bundle.name;
+    }
+    this.dest = fs.createWriteStream(filename);
     this.dest.write = promisify(this.dest.write.bind(this.dest));
     this.dest.end = promisify(this.dest.end.bind(this.dest));
   }
