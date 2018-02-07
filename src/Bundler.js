@@ -92,7 +92,9 @@ class Bundler extends EventEmitter {
         typeof options.sourceMaps === 'boolean'
           ? options.sourceMaps
           : !isProduction,
-      hmrHostname: options.hmrHostname || ''
+      hmrHostname: options.hmrHostname || '',
+      usePolling:
+        typeof options.usePolling === 'boolean' ? options.usePolling : false
     };
   }
 
@@ -245,8 +247,10 @@ class Bundler extends EventEmitter {
     if (this.options.watch) {
       // FS events on macOS are flakey in the tests, which write lots of files very quickly
       // See https://github.com/paulmillr/chokidar/issues/612
+      const usePolling =
+        this.options.usePolling || process.env.NODE_ENV === 'test';
       this.watcher = new FSWatcher({
-        useFsEvents: process.env.NODE_ENV !== 'test'
+        usePolling: usePolling
       });
 
       this.watcher.on('change', this.onChange.bind(this));
