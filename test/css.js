@@ -161,6 +161,9 @@ describe('css', function() {
           childBundles: []
         },
         {
+          type: 'map'
+        },
+        {
           type: 'woff2',
           assets: ['test.woff2'],
           childBundles: []
