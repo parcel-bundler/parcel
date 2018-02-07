@@ -98,14 +98,16 @@ class JSAsset extends Asset {
   }
 
   async transform() {
-    if (this.dependencies.has('fs') && FS_RE.test(this.contents)) {
-      await this.parseIfNeeded();
-      this.traverse(fsVisitor);
-    }
+    if (this.options.target === 'browser') {
+      if (this.dependencies.has('fs') && FS_RE.test(this.contents)) {
+        await this.parseIfNeeded();
+        this.traverse(fsVisitor);
+      }
 
-    if (GLOBAL_RE.test(this.contents)) {
-      await this.parseIfNeeded();
-      walk.ancestor(this.ast, insertGlobals, this);
+      if (GLOBAL_RE.test(this.contents)) {
+        await this.parseIfNeeded();
+        walk.ancestor(this.ast, insertGlobals, this);
+      }
     }
 
     if (this.isES6Module) {

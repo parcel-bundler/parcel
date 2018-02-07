@@ -16,13 +16,13 @@ class WebManifestAsset extends Asset {
         icon.src = this.addURLDependency(icon.src);
       }
     }
-    
+
     if (Array.isArray(this.ast.screenshots)) {
       for (let shot of this.ast.screenshots) {
         shot.src = this.addURLDependency(shot.src);
       }
     }
-    
+
     if (this.ast.serviceworker && this.ast.serviceworker.src) {
       this.ast.serviceworker.src = this.addURLDependency(
         this.ast.serviceworker.src

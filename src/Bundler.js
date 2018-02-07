@@ -67,6 +67,7 @@ class Bundler extends EventEmitter {
       '/' + Path.basename(options.outDir || 'dist');
     const watch =
       typeof options.watch === 'boolean' ? options.watch : !isProduction;
+    const target = options.target || 'browser';
     return {
       outDir: Path.resolve(options.outDir || 'dist'),
       publicURL: publicURL,
@@ -77,7 +78,12 @@ class Bundler extends EventEmitter {
         typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
       minify:
         typeof options.minify === 'boolean' ? options.minify : isProduction,
-      hmr: typeof options.hmr === 'boolean' ? options.hmr : watch,
+      target: target,
+      hmr:
+        target === 'node'
+          ? false
+          : typeof options.hmr === 'boolean' ? options.hmr : watch,
+      https: options.https || false,
       logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
       mainFile: this.mainFile,
       hmrPort: options.hmrPort || 0,
@@ -246,7 +252,7 @@ class Bundler extends EventEmitter {
 
     if (this.options.hmr) {
       this.hmr = new HMRServer();
-      this.options.hmrPort = await this.hmr.start(this.options.hmrPort);
+      this.options.hmrPort = await this.hmr.start(this.options);
     }
 
     this.farm = WorkerFarm.getShared(this.options);

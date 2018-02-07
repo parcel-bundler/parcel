@@ -146,6 +146,48 @@ describe('css', function() {
     );
   });
 
+  it('should support linking to assets with url() from CSS in production', async function() {
+    let b = await bundle(__dirname + '/integration/css-url/index.js', {
+      production: true
+    });
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.css'],
+      childBundles: [
+        {
+          name: 'index.css',
+          assets: ['index.css'],
+          childBundles: []
+        },
+        {
+          type: 'woff2',
+          assets: ['test.woff2'],
+          childBundles: []
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(/url\([0-9a-f]+\.woff2\)/.test(css), 'woff ext found in css');
+    assert(css.includes('url(http://google.com)'), 'url() found');
+    assert(css.includes('.index'), '.index found');
+    assert(css.includes('url("data:image/gif;base64,quotes")'));
+    assert(css.includes('.quotes'));
+    assert(css.includes('url(data:image/gif;base64,no-quote)'));
+    assert(css.includes('.no-quote'));
+
+    assert(
+      fs.existsSync(
+        __dirname + '/dist/' + css.match(/url\(([0-9a-f]+\.woff2)\)/)[1]
+      )
+    );
+  });
+
   it('should support transforming with postcss', async function() {
     let b = await bundle(__dirname + '/integration/postcss/index.js');
 

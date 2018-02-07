@@ -124,7 +124,7 @@ describe('watcher', function() {
         f => (fs.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000) | 0
       );
 
-    await sleep(1000); // mtime only has second level precision
+    await sleep(1100); // mtime only has second level precision
     fs.writeFileSync(
       __dirname + '/input/b.js',
       'module.exports = require("./common")'

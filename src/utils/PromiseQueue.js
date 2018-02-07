@@ -28,13 +28,15 @@ class PromiseQueue {
       return this.runPromise;
     }
 
-    this.runPromise = new Promise((resolve, reject) => {
+    const runPromise = new Promise((resolve, reject) => {
       this.resolve = resolve;
       this.reject = reject;
     });
 
+    this.runPromise = runPromise;
     this._next();
-    return this.runPromise;
+
+    return runPromise;
   }
 
   async _runJob(job, args) {
