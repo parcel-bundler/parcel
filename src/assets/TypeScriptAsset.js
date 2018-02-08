@@ -43,7 +43,7 @@ class TypeScriptAsset extends JSAsset {
     }
 
     this.contents = transpiled.outputText;
-    return await super.parse(this.contents);
+    return await JSAsset.prototype.parse.call(this, this.contents);
   }
 }
 

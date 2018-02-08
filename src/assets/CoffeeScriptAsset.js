@@ -18,7 +18,7 @@ class CoffeeScriptAsset extends JSAsset {
     }
 
     this.contents = this.options.sourceMaps ? transpiled.js : transpiled;
-    return await super.parse(this.contents);
+    return await JSAsset.prototype.parse.call(this, this.contents);
   }
 }
 
