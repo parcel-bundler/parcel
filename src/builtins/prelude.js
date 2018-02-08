@@ -34,7 +34,7 @@ require = (function (modules, cache, entry) {
         err.code = 'MODULE_NOT_FOUND';
         throw err;
       }
-      
+
       localRequire.resolve = resolve;
 
       var module = cache[name] = new newRequire.Module(name);
@@ -59,6 +59,7 @@ require = (function (modules, cache, entry) {
     this.exports = {};
   }
 
+  newRequire.isParcelRequire = true;
   newRequire.Module = Module;
   newRequire.modules = modules;
   newRequire.cache = cache;

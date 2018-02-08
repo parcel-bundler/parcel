@@ -1,15 +1,15 @@
 const Asset = require('../Asset');
-const yaml = require('js-yaml');
+const toml = require('toml');
 const serializeObject = require('../utils/serializeObject');
 
-class YAMLAsset extends Asset {
+class TOMLAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'js';
   }
 
   parse(code) {
-    return yaml.safeLoad(code);
+    return toml.parse(code);
   }
 
   generate() {
@@ -19,4 +19,4 @@ class YAMLAsset extends Asset {
   }
 }
 
-module.exports = YAMLAsset;
+module.exports = TOMLAsset;
