@@ -4,6 +4,13 @@ const fs = require('fs');
 const commandExists = require('command-exists');
 
 describe('rust', function() {
+  beforeEach(function() {
+    // Web assembly is a node 8+ feature
+    if (parseInt(process.versions.node, 10) < 8) {
+      this.skip();
+    }
+  });
+
   if (!commandExists.sync('rustup')) {
     // eslint-disable-next-line no-console
     console.log(
