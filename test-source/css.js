@@ -1,7 +1,8 @@
 const assert = require('assert');
 const fs = require('fs');
 const {bundle, run, assertBundleTree} = require('./utils');
-const promisify = require('../src/utils/promisify');
+const testRequire = require('./testRequire');
+const promisify = testRequire('./utils/promisify');
 const ncp = promisify(require('ncp'));
 const rimraf = require('rimraf');
 

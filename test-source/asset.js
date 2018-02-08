@@ -1,5 +1,6 @@
 const assert = require('assert');
-const Asset = require('../src/Asset');
+const testRequire = require('./testRequire');
+const Asset = testRequire('./Asset');
 
 describe('Asset', () => {
   it('should include default implementations', async () => {

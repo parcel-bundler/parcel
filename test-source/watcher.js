@@ -3,7 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const {bundler, run, assertBundleTree, sleep, nextBundle} = require('./utils');
 const rimraf = require('rimraf');
-const promisify = require('../src/utils/promisify');
+const testRequire = require('./testRequire');
+const promisify = testRequire('./utils/promisify');
 const ncp = promisify(require('ncp'));
 
 describe('watcher', function() {

@@ -79,14 +79,15 @@
     "typescript": "^2.6.2"
   },
   "scripts": {
-    "test": "yarn build-tests && cross-env NODE_ENV=test mocha",
+    "test":
+      "node -v && yarn build-tests && cross-env NODE_ENV=test mocha './test-build/*.js' --timeout 25000",
     "test-coverage": "rm -rf coverage/* && nyc yarn test",
     "report-coverage": "nyc report --reporter=lcov && codecov",
     "test-ci": "yarn test-coverage && yarn report-coverage",
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
     "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
     "build-tests":
-      "babel test-source -d test && ncp test-source/integration test/integration && ncp test-source/mocha.opts test/mocha.opts && ncp test-source/.eslintrc.json test/.eslintrc.json",
+      "babel test-source -d test-build && ncp test-source/integration test-build/integration && ncp test-source/.eslintrc.json test-build/.eslintrc.json",
     "prepublish": "yarn build",
     "minify":
       "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",

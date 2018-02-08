@@ -1,6 +1,7 @@
 const assert = require('assert');
 const sinon = require('sinon');
-const Logger = require('../src/Logger');
+const testRequire = require('./testRequire');
+const Logger = testRequire('./Logger');
 
 describe('Logger', () => {
   let log;

@@ -1,5 +1,6 @@
 const assert = require('assert');
-const customErrors = require('../src/utils/customErrors');
+const testRequire = require('./testRequire');
+const customErrors = testRequire('./utils/customErrors');
 
 const port = 1234;
 

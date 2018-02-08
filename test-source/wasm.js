@@ -2,6 +2,13 @@ const assert = require('assert');
 const {bundle, run, assertBundleTree, deferred} = require('./utils');
 
 describe('wasm', function() {
+  beforeEach(function() {
+    // Web assembly is a node 8+ feature
+    if (parseInt(process.versions.node, 10) < 8) {
+      this.skip();
+    }
+  });
+
   it('should preload a wasm file for a sync require', async function() {
     let b = await bundle(__dirname + '/integration/wasm-sync/index.js');
 

@@ -1,7 +1,7 @@
 node_modules/
 .DS_Store
 package-lock.json
-test/
+test-build/
 coverage
 .nyc_output
 .cache

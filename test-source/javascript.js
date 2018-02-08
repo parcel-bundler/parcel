@@ -2,7 +2,8 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const {bundle, run, assertBundleTree} = require('./utils');
-const {mkdirp} = require('../src/utils/fs');
+const testRequire = require('./testRequire');
+const {mkdirp} = testRequire('./utils/fs');
 
 describe('javascript', function() {
   it('should produce a basic JS bundle with CommonJS requires', async function() {

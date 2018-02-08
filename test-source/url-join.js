@@ -1,5 +1,6 @@
 const assert = require('assert');
-const urlJoin = require('../src/utils/urlJoin');
+const testRequire = require('./testRequire');
+const urlJoin = testRequire('./utils/urlJoin');
 
 describe('Url Join', () => {
   it('should join a filename with a URL', () => {

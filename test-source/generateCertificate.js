@@ -1,10 +1,11 @@
 const assert = require('assert');
 const path = require('path');
 const rimraf = require('rimraf');
-const fs = require('../src/utils/fs');
-const promisify = require('../src/utils/promisify');
+const testRequire = require('./testRequire');
+const fs = testRequire('./utils/fs');
+const promisify = testRequire('./utils/promisify');
 const ncp = promisify(require('ncp'));
-const generateCertificate = require('../src/utils/generateCertificate');
+const generateCertificate = testRequire('./utils/generateCertificate');
 
 const cachePath = path.join(__dirname, '.cache');
 const inputPath = path.join(__dirname, '/input');
