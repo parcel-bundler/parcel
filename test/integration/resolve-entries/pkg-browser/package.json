@@ -1,5 +1,0 @@
-{
-    "name": "pkg-browser",
-    "main": "./does-not-exist.js",
-    "browser": "./browser-module.js"
-}

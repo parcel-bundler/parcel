@@ -17,7 +17,7 @@ class SourceMapPackager extends Packager {
   async end() {
     let file = path.basename(this.bundle.name);
     await this.dest.write(this.sourceMap.stringify(file));
-    await super.end();
+    await Packager.prototype.end.call(this);
   }
 }
 
