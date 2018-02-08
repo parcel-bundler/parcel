@@ -15,7 +15,7 @@ beforeEach(async function() {
     await sleep(50);
   }
   // Unix based systems also need a delay but only half as much as windows
-  await sleep(50);
+  await sleep(100);
   rimraf.sync(path.join(__dirname, 'dist'));
 });
 
