@@ -1,0 +1,6 @@
+{
+  "name": "pkg-both",
+  "main": "./does-not-exist.js",
+  "jsnext:main": "./jsnext.module.js",
+  "module": "./es6.module.js"
+}

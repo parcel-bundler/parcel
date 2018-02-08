@@ -1,0 +1,6 @@
+{
+  "name": "parcel-test",
+  "dependencies": {
+    "parcel-plugin-test": "*"
+  }
+}
