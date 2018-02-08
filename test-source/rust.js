@@ -6,7 +6,10 @@ const commandExists = require('command-exists');
 describe('rust', function() {
   if (parseInt(process.versions.node, 10) < 8) {
     // eslint-disable-next-line no-console
-    console.log('Rust is not supported in node v', process.versions.node);
+    return console.log(
+      'Rust is not supported in node v',
+      process.versions.node
+    );
   }
 
   if (!commandExists.sync('rustup')) {

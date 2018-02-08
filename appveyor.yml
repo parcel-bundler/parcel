@@ -1,3 +1,7 @@
+# Test against the latest version of this Node.js version
+environment:
+  nodejs_version: "8"
+
 # Install scripts. (runs after repo cloning)
 install:
   # Get the latest stable version of Node.js or io.js
@@ -15,7 +19,13 @@ install:
 
 # Post-install test scripts.
 test_script:
-  - node_modules\.bin\appveyor-runner
+  # Output useful info for debugging.
+  - node --version
+  - yarn --version
+  # run tests
+  - yarn test-ci
+  # run ESlint
+  - yarn lint
 
 cache:
  - "%LOCALAPPDATA%\\Yarn"

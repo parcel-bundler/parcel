@@ -4,7 +4,7 @@ const {bundle, run, assertBundleTree, deferred} = require('./utils');
 describe('wasm', function() {
   if (parseInt(process.versions.node, 10) < 8) {
     // eslint-disable-next-line no-console
-    console.log(
+    return console.log(
       'Web Assembly is not supported in node v',
       process.versions.node
     );
