@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html lang="en">
+  <body><h1>Markdown</h1>
+<p>Markdown document with <a href="http://links.com">http://links.com</a> and</p>
+<pre><code class="highlight-js">var codeBlocks;
+</code></pre>
+
+  </body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "pug-example",
+  "dependencies": {
+    "jstransformer-coffee-script": "^1.1.1",
+    "jstransformer-markdown-it": "^2.0.0"
+  },
+  "devDependencies": {
+    "pug": "^2.0.0-rc.4"
+  }
+}

@@ -14,3 +14,4 @@ lib
 *.min.js
 test/integration/**/target
 test/integration/**/Cargo.lock
+test/integration/**/node_modules
