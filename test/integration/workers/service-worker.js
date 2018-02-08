@@ -1,1 +1,0 @@
-self.addEventListener('message', () => {});

@@ -1,7 +1,0 @@
-{
-  "name": "pkg-ignore-fs",
-  "main": "index.js",
-  "browser": {
-    "fs": false
-  }
-}

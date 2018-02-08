@@ -1,5 +1,0 @@
-{
-  "plugins": {
-    "postcss-cssnext": true
-  }
-}
