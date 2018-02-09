@@ -442,26 +442,25 @@ describe('html', function() {
   it('should detect srcset attribute', async function() {
     let b = await bundle(__dirname + '/integration/html-srcset/index.html');
 
+    const images = [
+      '100x100.png',
+      '200x200.png',
+      '300x300.png',
+      'data-100x100.png',
+      'data-200x200.png',
+      'data-300x300.png'
+    ];
+
     assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.html'],
-      childBundles: [
-        {
+      childBundles: images.map(img => {
+        return {
           type: 'png',
-          assets: ['100x100.png'],
+          assets: [img],
           childBundles: []
-        },
-        {
-          type: 'png',
-          assets: ['200x200.png'],
-          childBundles: []
-        },
-        {
-          type: 'png',
-          assets: ['300x300.png'],
-          childBundles: []
-        }
-      ]
+        };
+      })
     });
   });
 

@@ -24,6 +24,11 @@ const ATTRS = {
   'xlink:href': ['use']
 };
 
+// Handle corresponding custom attributes
+for (let [key, value] of Object.entries(ATTRS)) {
+  ATTRS[`data-${key}`] = value;
+}
+
 class HTMLAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
@@ -61,7 +66,7 @@ class HTMLAsset extends Asset {
     this.ast.walk(node => {
       if (node.attrs) {
         for (let attr in node.attrs) {
-          if (node.tag === 'img' && attr === 'srcset') {
+          if (node.tag === 'img' && ['srcset', 'data-srcset'].includes(attr)) {
             node.attrs[attr] = this.collectSrcSetDependencies(node.attrs[attr]);
             this.isAstDirty = true;
             continue;
