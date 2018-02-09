@@ -13,6 +13,7 @@ class SASSAsset extends CSSAsset {
       this.package.sass ||
       (await this.getConfig(['.sassrc', '.sassrc.js'])) ||
       {};
+    opts = Object.assign({}, opts);
     opts.includePaths = (opts.includePaths || []).concat(
       path.dirname(this.name)
     );

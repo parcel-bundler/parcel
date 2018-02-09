@@ -11,6 +11,7 @@ class StylusAsset extends CSSAsset {
     let opts =
       this.package.stylus ||
       (await this.getConfig(['.stylusrc', '.stylusrc.js']));
+    opts = Object.assign({}, opts);
     let style = stylus(code, opts);
     style.set('filename', this.name);
     style.set('include css', true);

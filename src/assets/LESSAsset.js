@@ -12,6 +12,7 @@ class LESSAsset extends CSSAsset {
       this.package.less ||
       (await this.getConfig(['.lessrc', '.lessrc.js'])) ||
       {};
+    opts = Object.assign({}, opts);
     opts.filename = this.name;
     opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
 

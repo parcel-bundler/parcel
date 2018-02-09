@@ -44,6 +44,7 @@ class RustAsset extends Asset {
     let isMainFile = false;
 
     if (cargoConfig) {
+      cargoConfig = Object.assign({}, cargoConfig);
       const mainFiles = MAIN_FILES.slice();
       if (cargoConfig.lib && cargoConfig.lib.path) {
         mainFiles.push(cargoConfig.lib.path);
