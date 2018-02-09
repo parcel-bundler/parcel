@@ -161,11 +161,7 @@ async function findBabelRc(asset) {
  */
 async function getEnvConfig(asset, isSourceModule) {
   // Load the target engines for the app and generate a babel-preset-env config
-  let targetEngines = await getTargetEngines(
-    asset,
-    true,
-    asset.options.mainFile
-  );
+  let targetEngines = await getTargetEngines(asset, true);
   let targetEnv = await getEnvPlugins(targetEngines);
   if (!targetEnv) {
     return null;

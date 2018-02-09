@@ -612,6 +612,14 @@ describe('javascript', function() {
     assert(file.includes('class Bar {}'));
   });
 
+  it('should compile with babel with default engines if no config', async function() {
+    await bundle(__dirname + '/integration/babel-default/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
   it('should support compiling with babel using browserlist', async function() {
     await bundle(__dirname + '/integration/babel-browserslist/index.js');
 
