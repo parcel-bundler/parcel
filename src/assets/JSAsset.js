@@ -68,6 +68,7 @@ class JSAsset extends Asset {
       (this.package && this.package.babel) ||
       (await this.getConfig(['.babelrc', '.babelrc.js']));
     if (this.babelConfig) {
+      this.babelConfig = Object.assign({}, this.babelConfig);
       const file = new BabelFile({filename: this.name});
       options.plugins.push(...file.parserOpts.plugins);
     }

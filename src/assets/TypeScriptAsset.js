@@ -17,6 +17,7 @@ class TypeScriptAsset extends JSAsset {
 
     // Overwrite default if config is found
     if (tsconfig) {
+      tsconfig = Object.assign({}, tsconfig);
       transpilerOptions.compilerOptions = Object.assign(
         transpilerOptions.compilerOptions,
         tsconfig.compilerOptions

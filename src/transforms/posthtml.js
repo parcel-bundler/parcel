@@ -27,14 +27,15 @@ async function getConfig(asset) {
     return;
   }
 
-  config = config || {};
+  config = Object.assign({}, config || {});
   config.plugins = await loadPlugins(config.plugins, asset.name);
 
   if (asset.options.minify) {
-    const htmlNanoConfig = asset.package.htmlnano ||
+    let htmlNanoConfig = asset.package.htmlnano ||
       (await asset.getConfig(['.htmlnanorc', '.htmlnanorc.js'])) || {
         collapseWhitespace: 'conservative'
       };
+    htmlNanoConfig = Object.assign({}, htmlNanoConfig);
 
     config.plugins.push(htmlnano(htmlNanoConfig));
   }
