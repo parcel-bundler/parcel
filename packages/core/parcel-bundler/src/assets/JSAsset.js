@@ -64,11 +64,9 @@ class JSAsset extends Asset {
     };
 
     // Check if there is a babel config file. If so, determine which parser plugins to enable
-    this.babelConfig =
-      (this.package && this.package.babel) ||
-      (await this.getConfig(['.babelrc', '.babelrc.js']));
+    this.babelConfig = await babel.getConfig(this);
     if (this.babelConfig) {
-      const file = new BabelFile({filename: this.name});
+      const file = new BabelFile(this.babelConfig);
       options.plugins.push(...file.parserOpts.plugins);
     }
 
