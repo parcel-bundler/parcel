@@ -16,7 +16,7 @@ const config = require('./utils/config');
 class Asset {
   constructor(name, pkg, options) {
     let idhash = md5(name);
-    this.id = 'i' + idhash.substring(idhash.length - 5, idhash.length);
+    this.id = parseInt(idhash.substring(idhash.length - 5, idhash.length), 16);
     this.name = name;
     this.basename = path.basename(this.name);
     this.relativeName = path.relative(options.rootDir, this.name);
