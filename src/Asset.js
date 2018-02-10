@@ -7,8 +7,6 @@ const isURL = require('./utils/is-url');
 const sanitizeFilename = require('sanitize-filename');
 const config = require('./utils/config');
 
-let ASSET_ID = 1;
-
 /**
  * An Asset represents a file in the dependency tree. Assets can have multiple
  * parents that depend on it, and can be added to multiple output bundles.
@@ -17,7 +15,8 @@ let ASSET_ID = 1;
  */
 class Asset {
   constructor(name, pkg, options) {
-    this.id = ASSET_ID++;
+    let idhash = md5(name);
+    this.id = 'i' + idhash.substring(idhash.length - 5, idhash.length);
     this.name = name;
     this.basename = path.basename(this.name);
     this.relativeName = path.relative(options.rootDir, this.name);
