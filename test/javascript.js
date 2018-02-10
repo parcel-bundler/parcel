@@ -655,4 +655,25 @@ describe('javascript', function() {
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
+
+  it('should support compiling JSX', async function() {
+    await bundle(__dirname + '/integration/jsx/index.jsx');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('React.createElement("div"'));
+  });
+
+  it('should support compiling JSX in JS files with React dependency', async function() {
+    await bundle(__dirname + '/integration/jsx-react/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('React.createElement("div"'));
+  });
+
+  it('should support compiling JSX in JS files with Preact dependency', async function() {
+    await bundle(__dirname + '/integration/jsx-preact/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('h("div"'));
+  });
 });

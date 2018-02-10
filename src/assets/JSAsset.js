@@ -75,7 +75,6 @@ class JSAsset extends Asset {
 
   async parse(code) {
     const options = await this.getParserOptions();
-
     return babylon.parse(code, options);
   }
 
