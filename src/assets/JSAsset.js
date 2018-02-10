@@ -50,10 +50,6 @@ class JSAsset extends Asset {
     );
   }
 
-  mightContainJSX() {
-    return /\.(j|t)sx$/.test(this.basename);
-  }
-
   async getParserOptions() {
     // Babylon options. We enable a few plugins by default.
     const options = {
@@ -66,10 +62,6 @@ class JSAsset extends Asset {
       locations: true,
       plugins: ['exportExtensions', 'dynamicImport']
     };
-
-    if (this.mightContainJSX()) {
-      options.plugins.push('jsx');
-    }
 
     // Check if there is a babel config file. If so, determine which parser plugins to enable
     this.babelConfig = await babel.getConfig(this);
