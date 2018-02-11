@@ -21,12 +21,12 @@
     "browser-resolve": "^1.11.2",
     "browserslist": "^2.11.2",
     "chalk": "^2.1.0",
-    "chokidar": "^1.7.0",
+    "chokidar": "^2.0.1",
     "command-exists": "^1.2.2",
     "commander": "^2.11.0",
-    "cross-spawn": "^5.1.0",
+    "cross-spawn": "^6.0.4",
     "cssnano": "^3.10.0",
-    "dotenv": "^4.0.0",
+    "dotenv": "^5.0.0",
     "get-port": "^3.2.0",
     "glob": "^7.1.2",
     "htmlnano": "^0.1.6",
@@ -41,7 +41,7 @@
     "physical-cpu-count": "^2.0.0",
     "postcss": "^6.0.10",
     "postcss-value-parser": "^3.3.0",
-    "posthtml": "^0.10.1",
+    "posthtml": "^0.11.2",
     "resolve": "^1.4.0",
     "sanitize-filename": "^1.6.1",
     "semver": "^5.4.1",
@@ -53,7 +53,7 @@
     "uglify-es": "^3.2.1",
     "v8-compile-cache": "^1.1.0",
     "worker-farm": "^1.5.2",
-    "ws": "^3.3.3"
+    "ws": "^4.0.0"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
