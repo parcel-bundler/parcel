@@ -15,11 +15,11 @@ const config = require('./utils/config');
  */
 class Asset {
   constructor(name, pkg, options) {
-    let idhash = md5(name);
-    this.id = parseInt(idhash.substring(idhash.length - 5, idhash.length), 16);
     this.name = name;
     this.basename = path.basename(this.name);
     this.relativeName = path.relative(options.rootDir, this.name);
+    let idhash = md5(this.relativeName);
+    this.id = parseInt(idhash.substring(idhash.length - 5, idhash.length), 16);
     this.package = pkg || {};
     this.options = options;
     this.encoding = 'utf8';
