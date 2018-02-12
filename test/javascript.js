@@ -676,4 +676,25 @@ describe('javascript', function() {
     let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('h("div"'));
   });
+
+  it('should support optional dependencies in try...catch blocks', async function() {
+    let b = await bundle(__dirname + '/integration/optional-dep/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+
+    let err = new Error('Cannot find module "optional-dep"');
+    err.code = 'MODULE_NOT_FOUND';
+
+    assert.deepEqual(output, err);
+  });
 });
