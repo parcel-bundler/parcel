@@ -431,6 +431,11 @@ class Bundler extends EventEmitter {
       asset.parentDeps.add(dep);
     }
 
+    // Detect circular bundles
+    if (parentBundles.has(asset.parentBundle)) {
+      return;
+    }
+
     if (asset.parentBundle) {
       // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
       if (asset.parentBundle !== bundle) {
@@ -440,13 +445,6 @@ class Bundler extends EventEmitter {
         );
         return;
       } else return;
-    }
-
-
-      // Detect circular bundles
-      if (parentBundles.has(asset.parentBundle)) {
-        return;
-      }
     }
 
     if (!bundle) {
@@ -489,10 +487,11 @@ class Bundler extends EventEmitter {
   }
 
   moveAssetToBundle(asset, commonBundle) {
-        // Never move the entry asset of a bundle, as it was explicitly requested to be placed in a separate bundle.
+    // Never move the entry asset of a bundle, as it was explicitly requested to be placed in a separate bundle.
     if (asset.parentBundle.entryAsset === asset) {
       return;
     }
+
     // We only move the asset if it's not already part of the common bundle.
     // Same goes for the dependencies of the asset.
     if (asset.parentBundle !== commonBundle) {
