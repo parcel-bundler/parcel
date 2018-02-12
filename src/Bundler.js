@@ -328,6 +328,10 @@ class Bundler extends EventEmitter {
       let thrown = err;
 
       if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
+        if (dep.optional) {
+          return;
+        }
+
         thrown.message = `Cannot resolve dependency '${dep.name}'`;
 
         // Add absolute path to the error message if the dependency specifies a relative path
@@ -403,7 +407,10 @@ class Bundler extends EventEmitter {
           this.watch(dep.name, asset);
         } else {
           let assetDep = await this.resolveDep(asset, dep);
-          await this.loadAsset(assetDep);
+          if (assetDep) {
+            await this.loadAsset(assetDep);
+          }
+
           return assetDep;
         }
       })
