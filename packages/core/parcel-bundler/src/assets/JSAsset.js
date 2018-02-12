@@ -87,7 +87,7 @@ class JSAsset extends Asset {
   }
 
   collectDependencies() {
-    this.traverseFast(collectDependencies);
+    walk.ancestor(this.ast, collectDependencies, this);
   }
 
   async pretransform() {
