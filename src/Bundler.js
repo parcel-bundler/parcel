@@ -414,7 +414,7 @@ class Bundler extends EventEmitter {
   }
 
   moveAssetToBundle(asset, commonBundle) {
-    // We only move the asset it it's not already part of the common bundle.
+    // We only move the asset if it's not already part of the common bundle.
     // Same goes for the dependencies of the asset.
     if (asset.parentBundle !== commonBundle) {
       commonBundle.getSiblingBundle(asset.type).addAsset(asset);
