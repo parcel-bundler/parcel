@@ -8,7 +8,11 @@ describe('plugins', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'test.txt'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);
@@ -23,7 +27,11 @@ describe('plugins', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'test.txt'],
-      childBundles: []
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let output = run(b);

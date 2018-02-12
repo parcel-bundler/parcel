@@ -10,7 +10,7 @@ const fsVisitor = require('../visitors/fs');
 const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
-const config = require('../utils/config');
+const SourceMap = require('../SourceMap');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
@@ -26,6 +26,17 @@ class JSAsset extends Asset {
     this.isAstDirty = false;
     this.isES6Module = false;
     this.outputCode = null;
+    this.cacheData.env = {};
+  }
+
+  shouldInvalidate(cacheData) {
+    for (let key in cacheData.env) {
+      if (cacheData.env[key] !== process.env[key]) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   mightHaveDependencies() {
@@ -53,11 +64,9 @@ class JSAsset extends Asset {
     };
 
     // Check if there is a babel config file. If so, determine which parser plugins to enable
-    this.babelConfig =
-      (this.package && this.package.babel) ||
-      (await config.load(this.name, ['.babelrc', '.babelrc.js']));
+    this.babelConfig = await babel.getConfig(this);
     if (this.babelConfig) {
-      const file = new BabelFile({filename: this.name});
+      const file = new BabelFile(this.babelConfig);
       options.plugins.push(...file.parserOpts.plugins);
     }
 
@@ -66,7 +75,6 @@ class JSAsset extends Asset {
 
   async parse(code) {
     const options = await this.getParserOptions();
-
     return babylon.parse(code, options);
   }
 
@@ -79,7 +87,7 @@ class JSAsset extends Asset {
   }
 
   collectDependencies() {
-    this.traverseFast(collectDependencies);
+    walk.ancestor(this.ast, collectDependencies, this);
   }
 
   async pretransform() {
@@ -87,14 +95,16 @@ class JSAsset extends Asset {
   }
 
   async transform() {
-    if (this.dependencies.has('fs') && FS_RE.test(this.contents)) {
-      await this.parseIfNeeded();
-      this.traverse(fsVisitor);
-    }
+    if (this.options.target === 'browser') {
+      if (this.dependencies.has('fs') && FS_RE.test(this.contents)) {
+        await this.parseIfNeeded();
+        this.traverse(fsVisitor);
+      }
 
-    if (GLOBAL_RE.test(this.contents)) {
-      await this.parseIfNeeded();
-      walk.ancestor(this.ast, insertGlobals, this);
+      if (GLOBAL_RE.test(this.contents)) {
+        await this.parseIfNeeded();
+        walk.ancestor(this.ast, insertGlobals, this);
+      }
     }
 
     if (this.isES6Module) {
@@ -106,17 +116,59 @@ class JSAsset extends Asset {
     }
   }
 
-  generate() {
-    // TODO: source maps
-    let code = this.isAstDirty
-      ? generate(this.ast).code
-      : this.outputCode || this.contents;
+  async generate() {
+    let code;
+    if (this.isAstDirty) {
+      let opts = {
+        sourceMaps: this.options.sourceMaps,
+        sourceFileName: this.relativeName
+      };
+
+      let generated = generate(this.ast, opts, this.contents);
+
+      if (this.options.sourceMaps && generated.rawMappings) {
+        let rawMap = new SourceMap(generated.rawMappings, {
+          [this.relativeName]: this.contents
+        });
+
+        // Check if we already have a source map (e.g. from TypeScript or CoffeeScript)
+        // In that case, we need to map the original source map to the babel generated one.
+        if (this.sourceMap) {
+          this.sourceMap = await new SourceMap().extendSourceMap(
+            this.sourceMap,
+            rawMap
+          );
+        } else {
+          this.sourceMap = rawMap;
+        }
+      }
+
+      code = generated.code;
+    } else {
+      code = this.outputCode || this.contents;
+    }
+
+    if (this.options.sourceMaps && !this.sourceMap) {
+      this.sourceMap = new SourceMap().generateEmptyMap(
+        this.relativeName,
+        this.contents
+      );
+    }
+
     if (this.globals.size > 0) {
       code = Array.from(this.globals.values()).join('\n') + '\n' + code;
+      if (this.options.sourceMaps) {
+        if (!(this.sourceMap instanceof SourceMap)) {
+          this.sourceMap = await new SourceMap().addMap(this.sourceMap);
+        }
+
+        this.sourceMap.offset(this.globals.size);
+      }
     }
 
     return {
-      js: code
+      js: code,
+      map: this.sourceMap
     };
   }
 

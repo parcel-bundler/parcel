@@ -5,12 +5,19 @@ const emoji = require('./utils/emoji');
 
 class Logger {
   constructor(options) {
-    this.logLevel = typeof options.logLevel === 'number' ? options.logLevel : 3;
-    this.color =
-      typeof options.color === 'boolean' ? options.color : chalk.supportsColor;
-    this.chalk = new chalk.constructor({enabled: this.color});
     this.lines = 0;
     this.statusLine = null;
+    this.setOptions(options);
+  }
+
+  setOptions(options) {
+    this.logLevel =
+      options && typeof options.logLevel === 'number' ? options.logLevel : 3;
+    this.color =
+      options && typeof options.color === 'boolean'
+        ? options.color
+        : chalk.supportsColor;
+    this.chalk = new chalk.constructor({enabled: this.color});
   }
 
   write(message, persistent = false) {
@@ -18,7 +25,7 @@ class Logger {
       this.lines += message.split('\n').length;
     }
 
-    console.log(message);
+    this._log(message);
   }
 
   log(message) {
@@ -37,12 +44,16 @@ class Logger {
     this.write(this.chalk.bold(message), true);
   }
 
-  warn(message) {
+  warn(err) {
     if (this.logLevel < 2) {
       return;
     }
 
-    this.write(this.chalk.yellow(message));
+    let {message, stack} = prettyError(err, {color: this.color});
+    this.write(this.chalk.yellow(`${emoji.warning}  ${message}`));
+    if (stack) {
+      this.write(stack);
+    }
   }
 
   error(err) {
@@ -108,6 +119,32 @@ class Logger {
       this.lines++;
     }
   }
+
+  handleMessage(options) {
+    this[options.method](...options.args);
+  }
+
+  _log(message) {
+    console.log(message);
+  }
 }
 
-module.exports = Logger;
+// If we are in a worker, make a proxy class which will
+// send the logger calls to the main process via IPC.
+// These are handled in WorkerFarm and directed to handleMessage above.
+if (process.send) {
+  class LoggerProxy {}
+  for (let method of Object.getOwnPropertyNames(Logger.prototype)) {
+    LoggerProxy.prototype[method] = (...args) => {
+      process.send({
+        type: 'logger',
+        method,
+        args
+      });
+    };
+  }
+
+  module.exports = new LoggerProxy();
+} else {
+  module.exports = new Logger();
+}

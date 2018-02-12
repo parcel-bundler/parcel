@@ -1,10 +1,19 @@
+const http = require('http');
+const https = require('https');
 const WebSocket = require('ws');
 const prettyError = require('./utils/prettyError');
+const generateCertificate = require('./utils/generateCertificate');
+const logger = require('./Logger');
 
 class HMRServer {
-  async start() {
+  async start(options = {}) {
     await new Promise(resolve => {
-      this.wss = new WebSocket.Server({port: 0}, resolve);
+      let server = options.https
+        ? https.createServer(generateCertificate(options))
+        : http.createServer();
+
+      this.wss = new WebSocket.Server({server});
+      server.listen(options.hmrPort, resolve);
     });
 
     this.wss.on('connection', ws => {
@@ -57,9 +66,8 @@ class HMRServer {
         type: 'update',
         assets: assets.map(asset => {
           let deps = {};
-          for (let dep of asset.dependencies.values()) {
-            let mod = asset.depAssets.get(dep.name);
-            deps[dep.name] = mod.id;
+          for (let [dep, depAsset] of asset.depAssets) {
+            deps[dep.name] = depAsset.id;
           }
 
           return {
@@ -77,8 +85,7 @@ class HMRServer {
       // This gets triggered on page refresh, ignore this
       return;
     }
-    // TODO: Use logger to print errors
-    console.log(prettyError(err));
+    logger.log(err);
   }
 
   broadcast(msg) {

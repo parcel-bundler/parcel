@@ -2,6 +2,7 @@ const t = require('babel-types');
 const Path = require('path');
 const fs = require('fs');
 const template = require('babel-template');
+const logger = require('../Logger');
 
 const bufferTemplate = template('Buffer(CONTENT, ENC)');
 
@@ -20,17 +21,43 @@ module.exports = {
   },
 
   CallExpression(path, asset) {
-    if (referencesImport(path, 'fs', 'readFileSync')) {
+    // See https://github.com/defunctzombie/node-browser-resolve#skip
+    let ignore =
+      asset.package &&
+      asset.package.browser &&
+      asset.package.browser.fs === false;
+
+    if (!ignore && referencesImport(path, 'fs', 'readFileSync')) {
       let vars = {
         __dirname: Path.dirname(asset.name),
         __filename: asset.basename
       };
-      let [filename, ...args] = path
-        .get('arguments')
-        .map(arg => evaluate(arg, vars));
-      filename = Path.resolve(filename);
+      let filename, args, res;
 
-      let res = fs.readFileSync(filename, ...args);
+      try {
+        [filename, ...args] = path
+          .get('arguments')
+          .map(arg => evaluate(arg, vars));
+
+        filename = Path.resolve(filename);
+        res = fs.readFileSync(filename, ...args);
+      } catch (err) {
+        if (err instanceof NodeNotEvaluatedError) {
+          // Warn using a code frame
+          err.fileName = asset.name;
+          asset.generateErrorMessage(err);
+          logger.warn(err);
+          return;
+        }
+
+        // Add location info so we log a code frame with the error
+        err.loc =
+          path.node.arguments.length > 0
+            ? path.node.arguments[0].loc.start
+            : path.node.loc.start;
+        throw err;
+      }
+
       let replacementNode;
       if (Buffer.isBuffer(res)) {
         replacementNode = bufferTemplate({
@@ -147,6 +174,12 @@ function getBindingPath(path, name) {
   return binding && binding.path;
 }
 
+function NodeNotEvaluatedError(node) {
+  this.message = 'Cannot statically evaluate fs argument';
+  this.node = node;
+  this.loc = node.loc.start;
+}
+
 function evaluate(path, vars) {
   // Inline variables
   path.traverse({
@@ -159,8 +192,9 @@ function evaluate(path, vars) {
   });
 
   let res = path.evaluate();
+
   if (!res.confident) {
-    throw new Error('Could not statically evaluate fs call');
+    throw new NodeNotEvaluatedError(path.node);
   }
 
   return res.value;
