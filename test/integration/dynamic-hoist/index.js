@@ -1,3 +1,5 @@
+var common = require('./common');
+
 var a = import('./a');
 var b = import('./b');
 
