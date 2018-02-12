@@ -117,7 +117,7 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
-  it.only('should hoist common dependencies into a parent bundle', async function() {
+  it('should hoist common dependencies into a parent bundle', async function() {
     let b = await bundle(__dirname + '/integration/dynamic-hoist/index.js');
 
     assertBundleTree(b, {
