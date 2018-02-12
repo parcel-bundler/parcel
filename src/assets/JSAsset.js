@@ -95,12 +95,14 @@ class JSAsset extends Asset {
   }
 
   async transform() {
-    if (this.options.target === 'browser') {
+    if (this.options.bundleNodeModules) {
       if (this.dependencies.has('fs') && FS_RE.test(this.contents)) {
         await this.parseIfNeeded();
         this.traverse(fsVisitor);
       }
+    }
 
+    if (this.options.target === 'browser') {
       if (GLOBAL_RE.test(this.contents)) {
         await this.parseIfNeeded();
         walk.ancestor(this.ast, insertGlobals, this);
@@ -153,6 +155,10 @@ class JSAsset extends Asset {
         this.relativeName,
         this.contents
       );
+    }
+
+    if (code.startsWith('#!')) {
+      code = code.slice(code.indexOf('\n'));
     }
 
     if (this.globals.size > 0) {

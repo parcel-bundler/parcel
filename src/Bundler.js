@@ -84,6 +84,7 @@ class Bundler extends EventEmitter {
           ? false
           : typeof options.hmr === 'boolean' ? options.hmr : watch,
       https: options.https || false,
+      bundleNodeModules: options.bundleNodeModules || target === 'browser',
       logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
       mainFile: this.mainFile,
       hmrPort: options.hmrPort || 0,

@@ -1,4 +1,5 @@
 const types = require('babel-types');
+const path = require('path');
 const template = require('babel-template');
 const urlJoin = require('../utils/urlJoin');
 const isURL = require('../utils/is-url');
@@ -32,6 +33,25 @@ module.exports = {
 
   CallExpression(node, asset, ancestors) {
     let {callee, arguments: args} = node;
+
+    if (
+      args.length === 1 &&
+      types.isBinaryExpression(args[0], {operator: '+'})
+    ) {
+      const left = args[0].left;
+      const right = args[0].right;
+
+      if (
+        types.isIdentifier(left) &&
+        left.name === '__dirname' &&
+        types.isStringLiteral(right)
+      ) {
+        args[0] = node.arguments[0] = types.stringLiteral(
+          path.dirname(asset.name) + right.value
+        );
+        asset.isAstDirty = true;
+      }
+    }
 
     let isRequire =
       types.isIdentifier(callee) &&
@@ -87,7 +107,7 @@ module.exports = {
 };
 
 function addDependency(asset, node, opts = {}) {
-  if (asset.options.target !== 'browser') {
+  if (!asset.options.bundleNodeModules) {
     const isRelativeImport =
       node.value.startsWith('/') ||
       node.value.startsWith('./') ||
