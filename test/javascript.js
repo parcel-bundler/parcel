@@ -85,6 +85,17 @@ describe('javascript', function() {
     assert.equal(output(), 7);
   });
 
+  it('should support CommonJS requires with __dirname', async function() {
+    let b = await bundle(__dirname + '/integration/commonjs-dirname/index.js');
+
+    assert.equal(b.assets.size, 8);
+    assert.equal(b.childBundles.size, 1);
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
   it('should produce a JS bundle with default exports and no imports', async function() {
     let b = await bundle(__dirname + '/integration/es6-default-only/index.js');
 
