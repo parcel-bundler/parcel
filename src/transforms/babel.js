@@ -78,7 +78,7 @@ async function getBabelConfig(asset) {
   if (asset.isES6Module) {
     return {
       internal: true,
-      plugins: [require('babel-plugin-transform-es2015-modules-commonjs')]
+      plugins: [require('./commonjs')]
     };
   }
 
