@@ -111,6 +111,26 @@ describe('fs', function() {
 
       assert.equal(thrown, true);
     });
+
+    it('should import fs as an empty module', async function() {
+      let b = await bundle(__dirname + '/integration/fs-just-require/index.js');
+      let output = run(b);
+      assert.deepEqual(output, {});
+    });
+
+    it('should inline a file as a string when using path.join', async function() {
+      let b = await bundle(__dirname + '/integration/fs-pathjoin/index.js');
+      let output = run(b);
+      assert.equal(output, 'hello');
+    });
+
+    it('should inline a file with fs require inline and path require inline', async function() {
+      let b = await bundle(
+        __dirname + '/integration/fs-pathjoin-inline/index.js'
+      );
+      let output = run(b);
+      assert.equal(output, 'hello');
+    });
   });
 
   describe('--target=node', function() {

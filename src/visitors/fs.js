@@ -8,7 +8,10 @@ const bufferTemplate = template('Buffer(CONTENT, ENC)');
 
 module.exports = {
   AssignmentExpression(path) {
-    if (!isRequire(path.node.right, 'fs', 'readFileSync')) {
+    if (
+      !isRequire(path.node.right, 'fs', 'readFileSync') &&
+      !isRequire(path.node.right, 'path', 'join')
+    ) {
       return;
     }
 
@@ -181,12 +184,25 @@ function NodeNotEvaluatedError(node) {
 }
 
 function evaluate(path, vars) {
-  // Inline variables
+  // path.traverse will not begin on the root. This forces path itself to be visited.
+  const {node} = path;
+  path.replaceWith(t.parenthesizedExpression(node));
+  path.node.loc = node.loc;
+
+  // Inline variables and handle path.join
   path.traverse({
     Identifier: function(ident) {
       let key = ident.node.name;
       if (key in vars) {
         ident.replaceWith(t.valueToNode(vars[key]));
+      }
+    },
+    CallExpression: function(call) {
+      if (referencesImport(call, 'path', 'join')) {
+        const args = call.get('arguments').map(arg => evaluate(arg, vars));
+        const joined = Path.join(...args);
+
+        call.replaceWith(t.stringLiteral(joined));
       }
     }
   });
