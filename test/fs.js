@@ -111,73 +111,72 @@ describe('fs', function() {
 
       assert.equal(thrown, true);
     });
-  });
 
-  describe('--target=node', function() {
-    it('should leave an attempt to read a file unchanged', async function() {
-      let b = await bundle(__dirname + '/integration/fs/index.js', {
-        target: 'node'
-      });
-
-      assertBundleTree(b, {
-        name: 'index.js',
-        assets: ['index.js'],
-        childBundles: [
-          {
-            type: 'map'
-          }
-        ]
-      });
-
-      assert(fs.readFileSync(b.name).includes("require('fs')"));
-      assert(fs.readFileSync(b.name).includes('readFileSync'));
-
-      fs.writeFileSync(__dirname + '/dist/test.txt', 'hey');
+    it('should import fs as an empty module', async function() {
+      let b = await bundle(__dirname + '/integration/fs-just-require/index.js');
       let output = run(b);
-      assert.equal(output, 'hey');
-    });
-
-    it('should inline a files when bundling node_modules', async function() {
-      let b = await bundle(__dirname + '/integration/fs/index.js', {
-        target: 'node',
-        bundleNodeModules: true
-      });
-      let output = run(b);
-      assert.equal(output, 'hello');
+      assert.deepEqual(output, {});
     });
   });
 
-  describe('--target=electron', function() {
-    it('should leave an attempt to read a file unchanged', async function() {
-      let b = await bundle(__dirname + '/integration/fs/index.js', {
-        target: 'electron'
+  ['node', 'electron'].forEach(target => {
+    describe('--target=' + target, function() {
+      it('should leave an attempt to read a file unchanged', async function() {
+        let b = await bundle(__dirname + '/integration/fs/index.js', {
+          target: target
+        });
+
+        assertBundleTree(b, {
+          name: 'index.js',
+          assets: ['index.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        });
+
+        assert(fs.readFileSync(b.name).includes("require('fs')"));
+        assert(fs.readFileSync(b.name).includes('readFileSync'));
+
+        fs.writeFileSync(__dirname + '/dist/test.txt', 'hey');
+        let output = run(b);
+        assert.equal(output, 'hey');
       });
 
-      assertBundleTree(b, {
-        name: 'index.js',
-        assets: ['index.js'],
-        childBundles: [
+      it('should inline a files when bundling node_modules', async function() {
+        let b = await bundle(__dirname + '/integration/fs/index.js', {
+          target: target,
+          bundleNodeModules: true
+        });
+        let output = run(b);
+        assert.equal(output, 'hello');
+      });
+
+      it('should import fs as the fs module', async function() {
+        let b = await bundle(
+          __dirname + '/integration/fs-just-require/index.js',
           {
-            type: 'map'
+            target: target
           }
-        ]
+        );
+        let output = run(b);
+        assert.equal(typeof output.readFile, 'function');
+        assert.equal(output.readFile, require('fs').readFile);
       });
 
-      assert(fs.readFileSync(b.name).includes("require('fs')"));
-      assert(fs.readFileSync(b.name).includes('readFileSync'));
-
-      fs.writeFileSync(__dirname + '/dist/test.txt', 'hey');
-      let output = run(b);
-      assert.equal(output, 'hey');
-    });
-
-    it('should inline a files when bundling node_modules', async function() {
-      let b = await bundle(__dirname + '/integration/fs/index.js', {
-        target: 'electron',
-        bundleNodeModules: true
+      it('should import fs as the fs module even when bundling all dependencies', async function() {
+        let b = await bundle(
+          __dirname + '/integration/fs-just-require/index.js',
+          {
+            target: target,
+            bundleNodeModules: true
+          }
+        );
+        let output = run(b);
+        assert.equal(typeof output.readFile, 'function');
+        assert.equal(output.readFile, require('fs').readFile);
       });
-      let output = run(b);
-      assert.equal(output, 'hello');
     });
   });
 });

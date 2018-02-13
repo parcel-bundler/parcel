@@ -11,12 +11,15 @@ const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
 const SourceMap = require('../SourceMap');
+const nodeLibsBrowser = require('node-libs-browser');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
 const FS_RE = /\breadFileSync\b/;
 const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
 const WORKER_RE = /\bnew\s*Worker\s*\(/;
+
+const nativeModules = new Set(Object.keys(nodeLibsBrowser));
 
 class JSAsset extends Asset {
   constructor(name, pkg, options) {
@@ -27,6 +30,7 @@ class JSAsset extends Asset {
     this.isES6Module = false;
     this.outputCode = null;
     this.cacheData.env = {};
+    this.hasFsDependency = false;
   }
 
   shouldInvalidate(cacheData) {
@@ -90,13 +94,21 @@ class JSAsset extends Asset {
     walk.ancestor(this.ast, collectDependencies, this);
   }
 
+  addDependency(name, opts) {
+    if (name === 'fs') this.hasFsDependency = true;
+
+    if (this.options.target !== 'browser' && nativeModules.has(name)) return;
+
+    return super.addDependency(name, opts);
+  }
+
   async pretransform() {
     await babel(this);
   }
 
   async transform() {
     if (this.options.bundleNodeModules) {
-      if (this.dependencies.has('fs') && FS_RE.test(this.contents)) {
+      if (this.hasFsDependency && FS_RE.test(this.contents)) {
         await this.parseIfNeeded();
         this.traverse(fsVisitor);
       }
