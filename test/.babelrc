@@ -1,0 +1,8 @@
+{
+  "presets": [["env", {
+    "targets": {
+      "node": "current"
+    }
+  }]],
+  "ignore": ["integration", "input"]
+}

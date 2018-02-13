@@ -93,14 +93,18 @@ class Asset {
     return URL.format(parsed);
   }
 
-  async getConfig(filenames) {
+  async getConfig(filenames, opts = {}) {
     // Resolve the config file
-    let conf = await config.resolve(this.name, filenames);
+    let conf = await config.resolve(opts.path || this.name, filenames);
     if (conf) {
       // Add as a dependency so it is added to the watcher and invalidates
       // this asset when the config changes.
       this.addDependency(conf, {includedInParent: true});
-      return await config.load(this.name, filenames);
+      if (opts.load === false) {
+        return conf;
+      }
+
+      return await config.load(opts.path || this.name, filenames);
     }
 
     return null;

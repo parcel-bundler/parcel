@@ -51,13 +51,13 @@ describe('hmr', function() {
 
     fs.writeFileSync(
       __dirname + '/input/local.js',
-      'exports.a = 5; exports.b = 5;'
+      'exports.a = 5;\nexports.b = 5;'
     );
 
     let msg = json5.parse(await nextEvent(ws, 'message'));
     assert.equal(msg.type, 'update');
     assert.equal(msg.assets.length, 1);
-    assert.equal(msg.assets[0].generated.js, 'exports.a = 5; exports.b = 5;');
+    assert.equal(msg.assets[0].generated.js, 'exports.a = 5;\nexports.b = 5;');
     assert.deepEqual(msg.assets[0].deps, {});
   });
 
