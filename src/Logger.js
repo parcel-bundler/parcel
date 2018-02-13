@@ -127,6 +127,32 @@ class Logger {
   _log(message) {
     console.log(message);
   }
+
+  table(columns, table) {
+    let rowWidths = columns.map(h => h.name.length);
+    for (let row of table) {
+      let i = 0;
+      for (let item of row) {
+        rowWidths[i] = Math.max(rowWidths[i], require('grapheme-breaker').countBreaks(require('strip-ansi')('' + item)));
+        i++;
+      }
+    }
+
+    // this.log(this.chalk.bold(columns.map((h, i) => this._pad(this.chalk.blue(h.name), rowWidths[i] + 4, columns[i].align)).join('')));
+
+    for (let row of table) {
+      this.log(row.map((r, i) => this._pad('' + r, rowWidths[i] + (!columns[i + 1] || columns[i + 1].align === columns[i].align ? 4 : 0), columns[i].align)).join(''));
+    }
+  }
+
+  _pad(text, length, align = 'left') {
+    let pad = ' '.repeat(length - require('grapheme-breaker').countBreaks(require('strip-ansi')(text)));
+    if (align === 'right') {
+      return pad + text;
+    }
+
+    return text + pad;
+  }
 }
 
 // If we are in a worker, make a proxy class which will

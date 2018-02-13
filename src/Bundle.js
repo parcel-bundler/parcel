@@ -139,9 +139,9 @@ class Bundle {
 
     await packager.end();
     this.bundleTime = Date.now() - this.startTime;
-    for (let asset of this.assets) {
-      this.bundleTime += asset.buildTime;
-    }
+    // for (let asset of this.assets) {
+    //   this.bundleTime += asset.buildTime;
+    // }
   }
 
   async _addDeps(asset, packager, included) {

@@ -1,6 +1,10 @@
 const path = require('path');
 const prettifyTime = require('./prettifyTime');
-const sizeTypes = ['B', 'KiB', 'MiB', 'GiB'];
+const logger = require('../Logger');
+const emoji = require('./emoji');
+const filesize = require('filesize');
+
+const sizeTypes = ['B', 'kB', 'MB', 'GB'];
 
 function padEnd(text, length, character = ' ') {
   // Babel doesn't catch String.prototype.padEnd as being Node 8+
@@ -23,13 +27,16 @@ function writeRow(columnWidth, items) {
   return res;
 }
 
-function prettifySize(size) {
-  let type = 0;
-  while (size > 1024 && type < sizeTypes.length - 1) {
-    size = size / 1024;
-    type++;
+function prettifySize(size, largeSize) {
+  let isLarge = size > largeSize;
+  let res = filesize(size);
+  if (isLarge) {
+    res = logger.chalk.yellow(emoji.warning + '  ' + res);
+  } else {
+    res = logger.chalk.magenta(res);
   }
-  return `${type > 0 ? size.toFixed(2) : size} ${sizeTypes[type]}`;
+
+  return res;
 }
 
 function createBundlesArray(mainBundle) {
@@ -51,6 +58,11 @@ function getLargestBundleName(bundles) {
   return size;
 }
 
+function formatFilename(filename, color = logger.chalk.reset) {
+  let dir = path.relative(process.cwd(), path.dirname(filename));
+  return logger.chalk.dim(dir + (dir ? path.sep : '')) + color(path.basename(filename));
+}
+
 function bundleReport(mainBundle, detailed = false) {
   let report = 'Bundles created:\n';
   const bundles = createBundlesArray(mainBundle);
@@ -59,36 +71,35 @@ function bundleReport(mainBundle, detailed = false) {
   report += writeRow(columnWidths, ['Name', 'Size', 'Time']) + '\n';
   let totalSize = 0;
   let totalTime = 0;
+  let rows = [];
   for (let bundle of bundles) {
     totalSize += bundle.totalSize;
     totalTime += bundle.bundleTime;
-    report +=
-      writeRow(columnWidths, [
-        path.basename(bundle.name),
-        prettifySize(bundle.totalSize),
-        prettifyTime(bundle.bundleTime)
-      ]) + '\n';
-    if (detailed) {
-      const assetColumnWidths = [...columnWidths];
-      assetColumnWidths[0] = assetColumnWidths[0] - 2;
-      for (let asset of bundle.assets) {
-        report +=
-          '--' +
-          writeRow(assetColumnWidths, [
-            asset.relativeName,
-            prettifySize(asset.bundledSize),
-            prettifyTime(asset.buildTime)
-          ]) +
-          '\n';
+    rows.push([
+      formatFilename(bundle.name, logger.chalk.cyan.bold),
+      logger.chalk.bold(prettifySize(bundle.totalSize, 1024 * 1024)),
+      logger.chalk.green.bold(prettifyTime(bundle.bundleTime))
+    ]);
+
+    if (detailed && bundle.assets.size > 1) {
+      let largestAssets = Array.from(bundle.assets).sort((a, b) => b.bundledSize - a.bundledSize).slice(0, 10);
+      for (let asset of largestAssets) {
+        rows.push([
+          (asset === largestAssets[largestAssets.length - 1] ? '└' : '├') + '── ' + formatFilename(asset.name),
+          logger.chalk.dim(prettifySize(asset.bundledSize)),
+          logger.chalk.dim(logger.chalk.green(prettifyTime(asset.buildTime)))
+        ]);
+      }
+
+      if (bundle !== bundles[bundles.length - 1]) {
+        rows.push([]);
       }
     }
   }
-  report += '\n';
-  report += writeRow(columnWidths, [
-    'Totals: ',
-    prettifySize(totalSize),
-    prettifyTime(totalTime)
-  ]);
+
+  logger.log('');
+  logger.table([{name: 'Bundle'}, {name: 'Size', align: 'right'}, {name: 'Time', align: 'right'}], rows);
+  // logger.log('\n');
   return report;
 }
 
