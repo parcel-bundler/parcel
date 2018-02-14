@@ -6,8 +6,7 @@ const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const sanitizeFilename = require('sanitize-filename');
 const config = require('./utils/config');
-
-let ASSET_ID = 1;
+const normalize = require('normalize-path');
 
 /**
  * An Asset represents a file in the dependency tree. Assets can have multiple
@@ -17,10 +16,11 @@ let ASSET_ID = 1;
  */
 class Asset {
   constructor(name, pkg, options) {
-    this.id = ASSET_ID++;
     this.name = name;
     this.basename = path.basename(this.name);
     this.relativeName = path.relative(options.rootDir, this.name);
+    let idhash = md5(normalize(this.relativeName));
+    this.id = parseInt(idhash.substring(idhash.length - 5, idhash.length), 16);
     this.package = pkg || {};
     this.options = options;
     this.encoding = 'utf8';
