@@ -2,6 +2,8 @@ const chalk = require('chalk');
 const readline = require('readline');
 const prettyError = require('./utils/prettyError');
 const emoji = require('./utils/emoji');
+const {countBreaks} = require('grapheme-breaker');
+const stripAnsi = require('strip-ansi');
 
 class Logger {
   constructor(options) {
@@ -129,30 +131,48 @@ class Logger {
   }
 
   table(columns, table) {
-    let rowWidths = columns.map(h => h.name.length);
+    // Measure column widths
+    let colWidths = [];
     for (let row of table) {
       let i = 0;
       for (let item of row) {
-        rowWidths[i] = Math.max(rowWidths[i], require('grapheme-breaker').countBreaks(require('strip-ansi')('' + item)));
+        colWidths[i] = Math.max(colWidths[i] || 0, stringWidth(item));
         i++;
       }
     }
 
-    // this.log(this.chalk.bold(columns.map((h, i) => this._pad(this.chalk.blue(h.name), rowWidths[i] + 4, columns[i].align)).join('')));
-
+    // Render rows
     for (let row of table) {
-      this.log(row.map((r, i) => this._pad('' + r, rowWidths[i] + (!columns[i + 1] || columns[i + 1].align === columns[i].align ? 4 : 0), columns[i].align)).join(''));
+      this.log(
+        row
+          .map((r, i) => {
+            // Add padding between columns unless the alignment is the opposite to the
+            // next column and pad to the column width.
+            let padding =
+              !columns[i + 1] || columns[i + 1].align === columns[i].align
+                ? 4
+                : 0;
+            return pad(r, colWidths[i] + padding, columns[i].align);
+          })
+          .join('')
+      );
     }
   }
+}
 
-  _pad(text, length, align = 'left') {
-    let pad = ' '.repeat(length - require('grapheme-breaker').countBreaks(require('strip-ansi')(text)));
-    if (align === 'right') {
-      return pad + text;
-    }
-
-    return text + pad;
+// Pad a string with spaces on either side
+function pad(text, length, align = 'left') {
+  let pad = ' '.repeat(length - stringWidth(text));
+  if (align === 'right') {
+    return pad + text;
   }
+
+  return text + pad;
+}
+
+// Count visible characters in a string
+function stringWidth(string) {
+  return countBreaks(stripAnsi('' + string));
 }
 
 // If we are in a worker, make a proxy class which will
