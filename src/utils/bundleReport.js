@@ -44,6 +44,7 @@ function createBundlesArray(mainBundle) {
   for (let bundle of mainBundle.childBundles) {
     bundles = bundles.concat(createBundlesArray(bundle));
   }
+  bundles.sort((a, b) => b.totalSize - a.totalSize);
   return bundles;
 }
 
@@ -82,13 +83,48 @@ function bundleReport(mainBundle, detailed = false) {
     ]);
 
     if (detailed && bundle.assets.size > 1) {
-      let largestAssets = Array.from(bundle.assets).sort((a, b) => b.bundledSize - a.bundledSize).slice(0, 10);
+      let assets = Array.from(bundle.assets).filter(a => a.type === bundle.type).sort((a, b) => b.bundledSize - a.bundledSize);
+      let modules = {};
+      let duplicates = new Set;
+      for (let asset of assets) {
+        if (asset.bundledSize && asset.package && asset.package.name) {
+          if (modules[asset.package.name] && modules[asset.package.name].some(a => a.package.version !== asset.package.version)) {
+            for (let a of modules[asset.package.name]) {
+              duplicates.add(a);
+            }
+            duplicates.add(asset);
+          }
+
+          if (!modules[asset.package.name]) {
+            modules[asset.package.name] = [];
+          }
+          modules[asset.package.name].push(asset);
+        }
+      }
+
+      let largestAssets = assets.slice(0, 10);
+      // for (let asset of duplicates) {
+      //   if (asset.bundledSize) {
+      //     largestAssets.add(asset);
+      //   }
+      // }
+
       for (let asset of largestAssets) {
+        let filename = asset.name;
+        // if (duplicates.has(asset)) {
+        //   filename = filename.replace('node_modules' + path.sep + asset.package.name, 'node_modules' + path.sep + logger.chalk.reset.red.bold(asset.package.name));
+        //   // filename += ' 🚨';
+        // }
+
         rows.push([
-          (asset === largestAssets[largestAssets.length - 1] ? '└' : '├') + '── ' + formatFilename(asset.name),
+          (asset == assets[assets.length - 1] ? '└' : '├') + '── ' + formatFilename(filename, logger.chalk.reset),
           logger.chalk.dim(prettifySize(asset.bundledSize)),
           logger.chalk.dim(logger.chalk.green(prettifyTime(asset.buildTime)))
         ]);
+      }
+
+      if (assets.length > largestAssets.length) {
+        rows.push(['└── ' + logger.chalk.dim(`+ ${assets.length - largestAssets.length} more assets`)]);
       }
 
       if (bundle !== bundles[bundles.length - 1]) {
