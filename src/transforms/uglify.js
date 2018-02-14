@@ -1,5 +1,4 @@
 const {minify} = require('uglify-es');
-const logger = require('../Logger');
 
 module.exports = async function(asset) {
   await asset.parseIfNeeded();
@@ -22,13 +21,6 @@ module.exports = async function(asset) {
   let result = minify(code, options);
   if (result.error) {
     throw result.error;
-  }
-
-  // Log all warnings
-  if (result.warnings) {
-    result.warnings.forEach(warning => {
-      logger.warn('[uglify] ' + warning);
-    });
   }
 
   // babel-generator did our code generation for us, so remove the old AST
