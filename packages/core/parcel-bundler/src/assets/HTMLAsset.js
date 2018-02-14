@@ -67,7 +67,7 @@ class HTMLAsset extends Asset {
   }
 
   parse(code) {
-    let res = parse(code);
+    let res = parse(code, {lowerCaseAttributeNames: true});
     res.walk = api.walk;
     res.match = api.match;
     return res;
