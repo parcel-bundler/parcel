@@ -27,8 +27,8 @@ class RawPackager extends Packager {
     await fs.writeFile(name, contents);
   }
 
-  async getSize() {
-    return this.size;
+  getSize() {
+    return this.size || 0;
   }
 
   end() {}

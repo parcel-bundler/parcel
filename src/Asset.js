@@ -38,6 +38,7 @@ class Asset {
     this.bundles = new Set();
     this.cacheData = {};
     this.buildTime = 0;
+    this.bundledSize = 0;
   }
 
   shouldInvalidate() {
