@@ -205,9 +205,9 @@ class Bundler extends EventEmitter {
       let time = prettifyTime(buildTime);
       logger.status(emoji.success, `Built in ${time}.`, 'green');
       if (!this.watcher) {
-        // logger.log(bundleReport(bundle, this.options.detailedReport));
         bundleReport(bundle, this.options.detailedReport);
       }
+
       this.emit('bundled', bundle);
       return bundle;
     } catch (err) {
