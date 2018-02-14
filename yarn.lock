@@ -825,7 +825,7 @@ block-stream@*:
   dependencies:
     inherits "~2.0.0"
 
-bluebird@^3.0.5, bluebird@^3.4.1:
+bluebird@^3.0.5:
   version "3.5.1"
   resolved "https://npm.cubos.io/bluebird/-/bluebird-3.5.1.tgz#d9551f9de98f1fcda1e683d17ee91a0602ee2eb9"
 
@@ -4014,12 +4014,6 @@ npm-path@^2.0.2:
   resolved "https://registry.yarnpkg.com/npm-path/-/npm-path-2.0.4.tgz#c641347a5ff9d6a09e4d9bce5580c4f505278e64"
   dependencies:
     which "^1.2.10"
-
-npm-programmatic@^0.0.10:
-  version "0.0.10"
-  resolved "https://registry.yarnpkg.com/npm-programmatic/-/npm-programmatic-0.0.10.tgz#9765820505d03083e57c6a7729bed515997a61c9"
-  dependencies:
-    bluebird "^3.4.1"
 
 npm-run-path@^2.0.0:
   version "2.0.2"

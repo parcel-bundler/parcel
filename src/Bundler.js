@@ -16,7 +16,7 @@ const config = require('./utils/config');
 const emoji = require('./utils/emoji');
 const loadEnv = require('./utils/env');
 const PromiseQueue = require('./utils/PromiseQueue');
-const npm = require('npm-programmatic');
+const installPackage = require('./utils/installPackage');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -335,9 +335,8 @@ class Bundler extends EventEmitter {
           try {
             try {
               logger.status(emoji.progress, `Installing ${dep.name}...`);
-              await npm.install([dep.name], {
-                cwd: Path.dirname(asset.name)
-              });
+              let dir = Path.dirname(asset.name);
+              await installPackage(dir, [dep.name], true, false);
             } catch (npmError) {
               logger.error(npmError.message);
             }

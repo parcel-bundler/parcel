@@ -3,8 +3,9 @@ const config = require('./config');
 const path = require('path');
 const promisify = require('./promisify');
 const resolve = promisify(require('resolve'));
+const commandExists = require('command-exists').sync;
 
-async function install(dir, modules, installPeers = true) {
+async function install(dir, modules, installPeers = true, saveDev = true) {
   let location = await config.resolve(dir, ['yarn.lock', 'package.json']);
 
   return new Promise((resolve, reject) => {
@@ -13,11 +14,17 @@ async function install(dir, modules, installPeers = true) {
       cwd: location ? path.dirname(location) : dir
     };
 
-    if (location && path.basename(location) === 'yarn.lock') {
-      install = spawn('yarn', ['add', ...modules, '--dev'], options);
-    } else {
-      install = spawn('npm', ['install', ...modules, '--save-dev'], options);
+    let args = ['add', ...modules];
+    if (saveDev) {
+      args.push('-D');
     }
+
+    let command = 'npm';
+    if (commandExists('yarn')) {
+      command = 'yarn';
+    }
+
+    install = spawn(command, args, options);
 
     install.stdout.pipe(process.stdout);
     install.stderr.pipe(process.stderr);
