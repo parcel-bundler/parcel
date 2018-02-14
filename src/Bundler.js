@@ -16,6 +16,7 @@ const config = require('./utils/config');
 const emoji = require('./utils/emoji');
 const loadEnv = require('./utils/env');
 const PromiseQueue = require('./utils/PromiseQueue');
+const npm = require('npm-programmatic');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -328,26 +329,43 @@ class Bundler extends EventEmitter {
       let thrown = err;
 
       if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
-        if (dep.optional) {
-          return;
+        let isLocalFile = dep.name.startsWith('.');
+
+        if (!isLocalFile) {
+          try {
+            try {
+              logger.status(emoji.progress, `Installing ${dep.name}...`);
+              await npm.install([dep.name], {
+                cwd: Path.dirname(asset.name)
+              });
+            } catch (npmError) {
+              logger.error(npmError.message);
+            }
+
+            return await this.resolveAsset(dep.name, asset.name);
+          } catch (e) {
+            if (dep.optional) {
+              return;
+            }
+
+            thrown.message = `Cannot resolve dependency '${dep.name}'`;
+
+            // Add absolute path to the error message if the dependency specifies a relative path
+            if (isLocalFile) {
+              const absPath = Path.resolve(Path.dirname(asset.name), dep.name);
+              err.message += ` at '${absPath}'`;
+            }
+
+            // Generate a code frame where the dependency was used
+            if (dep.loc) {
+              await asset.loadIfNeeded();
+              thrown.loc = dep.loc;
+              thrown = asset.generateErrorMessage(thrown);
+            }
+
+            thrown.fileName = asset.name;
+          }
         }
-
-        thrown.message = `Cannot resolve dependency '${dep.name}'`;
-
-        // Add absolute path to the error message if the dependency specifies a relative path
-        if (dep.name.startsWith('.')) {
-          const absPath = Path.resolve(Path.dirname(asset.name), dep.name);
-          err.message += ` at '${absPath}'`;
-        }
-
-        // Generate a code frame where the dependency was used
-        if (dep.loc) {
-          await asset.loadIfNeeded();
-          thrown.loc = dep.loc;
-          thrown = asset.generateErrorMessage(thrown);
-        }
-
-        thrown.fileName = asset.name;
       }
       throw thrown;
     }
