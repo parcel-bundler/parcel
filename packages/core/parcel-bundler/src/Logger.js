@@ -2,6 +2,8 @@ const chalk = require('chalk');
 const readline = require('readline');
 const prettyError = require('./utils/prettyError');
 const emoji = require('./utils/emoji');
+const {countBreaks} = require('grapheme-breaker');
+const stripAnsi = require('strip-ansi');
 
 class Logger {
   constructor(options) {
@@ -127,6 +129,46 @@ class Logger {
   _log(message) {
     console.log(message);
   }
+
+  table(columns, table) {
+    // Measure column widths
+    let colWidths = [];
+    for (let row of table) {
+      let i = 0;
+      for (let item of row) {
+        colWidths[i] = Math.max(colWidths[i] || 0, stringWidth(item));
+        i++;
+      }
+    }
+
+    // Render rows
+    for (let row of table) {
+      let items = row.map((item, i) => {
+        // Add padding between columns unless the alignment is the opposite to the
+        // next column and pad to the column width.
+        let padding =
+          !columns[i + 1] || columns[i + 1].align === columns[i].align ? 4 : 0;
+        return pad(item, colWidths[i] + padding, columns[i].align);
+      });
+
+      this.log(items.join(''));
+    }
+  }
+}
+
+// Pad a string with spaces on either side
+function pad(text, length, align = 'left') {
+  let pad = ' '.repeat(length - stringWidth(text));
+  if (align === 'right') {
+    return pad + text;
+  }
+
+  return text + pad;
+}
+
+// Count visible characters in a string
+function stringWidth(string) {
+  return countBreaks(stripAnsi('' + string));
 }
 
 // If we are in a worker, make a proxy class which will

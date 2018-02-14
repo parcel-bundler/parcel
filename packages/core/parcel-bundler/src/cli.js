@@ -94,6 +94,10 @@ program
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
     /^(node|browser|electron)$/
   )
+  .option(
+    '--detailed-report',
+    'print a detailed build report after a completed build'
+  )
   .action(bundle);
 
 program
