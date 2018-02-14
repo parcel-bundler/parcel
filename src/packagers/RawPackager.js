@@ -23,10 +23,12 @@ class RawPackager extends Packager {
       contents = await fs.readFile(contents ? contents.path : asset.name);
     }
 
+    this.size = contents.length;
     await fs.writeFile(name, contents);
-    this.bundle.addAssetSize(asset, {
-      bytesWritten: (await fs.stat(name)).size
-    });
+  }
+
+  async getSize() {
+    return this.size;
   }
 
   end() {}

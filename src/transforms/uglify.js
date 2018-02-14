@@ -1,5 +1,4 @@
 const {minify} = require('uglify-es');
-const logger = require('../Logger');
 
 module.exports = async function(asset) {
   await asset.parseIfNeeded();

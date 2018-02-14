@@ -37,6 +37,7 @@ class Asset {
     this.parentBundle = null;
     this.bundles = new Set();
     this.cacheData = {};
+    this.buildTime = 0;
   }
 
   shouldInvalidate() {
