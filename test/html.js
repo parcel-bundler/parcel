@@ -11,6 +11,11 @@ describe('html', function() {
       assets: ['index.html'],
       childBundles: [
         {
+          type: 'png',
+          assets: ['100x100.png'],
+          childBundles: []
+        },
+        {
           type: 'svg',
           assets: ['icons.svg'],
           childBundles: []
