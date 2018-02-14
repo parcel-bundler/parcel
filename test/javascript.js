@@ -85,6 +85,17 @@ describe('javascript', function() {
     assert.equal(output(), 7);
   });
 
+  it('should support CommonJS requires with __dirname', async function() {
+    let b = await bundle(__dirname + '/integration/commonjs-dirname/index.js');
+
+    assert.equal(b.assets.size, 8);
+    assert.equal(b.childBundles.size, 1);
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
   it('should produce a JS bundle with default exports and no imports', async function() {
     let b = await bundle(__dirname + '/integration/es6-default-only/index.js');
 
@@ -482,6 +493,50 @@ describe('javascript', function() {
 
     assert.equal(typeof output.test, 'function');
     assert.equal(output.test(), 'pkg-browser-multiple');
+  });
+
+  it('should not resolve the browser field before main when bundling for node', async function() {
+    let b = await bundle(__dirname + '/integration/resolve-entries/node.js', {
+      target: 'node',
+      bundleNodeModules: true
+    });
+
+    assertBundleTree(b, {
+      name: 'node.js',
+      assets: ['node.js', 'node-module.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'pkg-node');
+  });
+
+  it('should not resolve advanced browser resolution when bundling for node', async function() {
+    let b = await bundle(
+      __dirname + '/integration/resolve-entries/node-multiple.js',
+      {target: 'node', bundleNodeModules: true}
+    );
+
+    assertBundleTree(b, {
+      name: 'node-multiple.js',
+      assets: ['node-multiple.js', 'projected.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'pkg-node-multiple');
   });
 
   it('should resolve the module field before main', async function() {
