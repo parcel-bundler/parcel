@@ -82,6 +82,10 @@ program
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
     /^(node|browser|electron)$/
   )
+  .option(
+    '--rev',
+    "appends the last 8 characters of the MD5 hash of the bundles' contents to their filename"
+  )
   .action(bundle);
 
 program
