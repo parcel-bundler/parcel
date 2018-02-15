@@ -23,6 +23,7 @@ class Logger {
   }
 
   write(message, persistent = false) {
+    message = message instanceof Error ? prettyError(message).message : message;
     if (!persistent) {
       this.lines += message.split('\n').length;
     }
