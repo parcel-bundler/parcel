@@ -81,11 +81,11 @@ class HMRServer {
   }
 
   handleSocketError(err) {
-    if (err.code === 'ECONNRESET') {
+    if (err.error.code === 'ECONNRESET') {
       // This gets triggered on page refresh, ignore this
       return;
     }
-    logger.log(err);
+    logger.warn(err);
   }
 
   broadcast(msg) {
