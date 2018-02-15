@@ -4,14 +4,21 @@ const path = require('path');
 const promisify = require('./promisify');
 const resolve = promisify(require('resolve'));
 const commandExists = require('command-exists').sync;
+const logger = require('../Logger');
+const fs = require('./fs');
 
 async function install(dir, modules, installPeers = true, saveDev = true) {
-  let location = await config.resolve(dir, ['yarn.lock', 'package.json']);
+  let configFileLocation = await config.resolve(dir, [
+    'yarn.lock',
+    'package.json'
+  ]);
 
-  return new Promise((resolve, reject) => {
+  let projectRootLocation = path.dirname(configFileLocation) || dir;
+
+  return new Promise(async (resolve, reject) => {
     let install;
     let options = {
-      cwd: location ? path.dirname(location) : dir
+      cwd: projectRootLocation
     };
 
     let args = ['add', ...modules];
@@ -21,7 +28,14 @@ async function install(dir, modules, installPeers = true, saveDev = true) {
 
     let command = 'npm';
     if (commandExists('yarn')) {
-      command = 'yarn';
+      if (await fs.exists(path.join(projectRootLocation, 'yarn.lock'))) {
+        command = 'yarn';
+      } else {
+        //todo: implement these flags
+        logger.warn(
+          "Using NPM instead of Yarn. No 'yarn.lock' found in project directory, use the --yarn or --npm flags to manually specify which package manager to use."
+        );
+      }
     }
 
     install = spawn(command, args, options);
