@@ -239,11 +239,11 @@ describe('css', function() {
     await bundle(__dirname + '/input/index.css');
 
     // cssnext was installed
-    let package = require('./input/package.json');
-    assert(package.devDependencies['postcss-cssnext']);
+    let pkg = require('./input/package.json');
+    assert(pkg.devDependencies['postcss-cssnext']);
 
     // peer dependency caniuse-lite was installed
-    assert(package.devDependencies['caniuse-lite']);
+    assert(pkg.devDependencies['caniuse-lite']);
 
     // cssnext is applied
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
@@ -259,11 +259,11 @@ describe('css', function() {
     await bundle(__dirname + '/input/index.css');
 
     // cssnext was installed
-    let package = require('./input/package.json');
-    assert(package.devDependencies['postcss-cssnext']);
+    let pkg = require('./input/package.json');
+    assert(pkg.devDependencies['postcss-cssnext']);
 
     // peer dependency caniuse-lite was installed
-    assert(package.devDependencies['caniuse-lite']);
+    assert(pkg.devDependencies['caniuse-lite']);
 
     // appveyor is not currently writing to the yarn.lock file and will require further investigation
     // let lockfile = fs.readFileSync(__dirname + '/input/yarn.lock', 'utf8');

@@ -51,13 +51,13 @@ function loadBundle(bundle) {
     return bundles[bundle];
   }
 
-  var type = bundle.match(/\.(.+)$/)[1].toLowerCase();
+  var type = (bundle.substring(bundle.lastIndexOf('.') + 1, bundle.length) || bundle).toLowerCase();
   var bundleLoader = bundleLoaders[type];
   if (bundleLoader) {
     return bundles[bundle] = bundleLoader(getBundleURL() + bundle)
       .then(function (resolved) {
         if (resolved) {
-          module.bundle.modules[id] = [function (require,module) {
+          module.bundle.modules[id] = [function (require, module) {
             module.exports = resolved;
           }, {}];
         }

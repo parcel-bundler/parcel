@@ -22,6 +22,10 @@ class Packager {
     throw new Error('Must be implemented by subclasses');
   }
 
+  getSize() {
+    return this.dest.bytesWritten;
+  }
+
   async end() {
     await this.dest.end();
   }

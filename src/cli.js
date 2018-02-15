@@ -23,10 +23,14 @@ program
     'set the hostname of HMR websockets, defaults to location.hostname of current window'
   )
   .option('--https', 'serves files over HTTPS')
-  .option('-o, --open', 'automatically open in default browser')
+  .option('--open', 'automatically open in default browser')
   .option(
     '-d, --out-dir <path>',
     'set the output directory. defaults to "dist"'
+  )
+  .option(
+    '-o, --out-file <filename>',
+    'set the output filename for the application entry point.'
   )
   .option(
     '--public-url <url>',
@@ -51,6 +55,10 @@ program
     'set the output directory. defaults to "dist"'
   )
   .option(
+    '-o, --out-file <filename>',
+    'set the output filename for the application entry point.'
+  )
+  .option(
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
@@ -72,6 +80,10 @@ program
     'set the output directory. defaults to "dist"'
   )
   .option(
+    '-o, --out-file <filename>',
+    'set the output filename for the application entry point.'
+  )
+  .option(
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
@@ -81,6 +93,10 @@ program
     '-t, --target <target>',
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
     /^(node|browser|electron)$/
+  )
+  .option(
+    '--detailed-report',
+    'print a detailed build report after a completed build'
   )
   .action(bundle);
 

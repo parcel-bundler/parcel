@@ -6,7 +6,7 @@ const render = require('posthtml-render');
 const posthtmlTransform = require('../transforms/posthtml');
 const isURL = require('../utils/is-url');
 
-// A list of all attributes that should produce a dependency
+// A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
 const ATTRS = {
   src: [
@@ -21,7 +21,42 @@ const ATTRS = {
   ],
   href: ['link', 'a'],
   poster: ['video'],
-  'xlink:href': ['use']
+  'xlink:href': ['use'],
+  content: ['meta']
+};
+
+// A list of metadata that should produce a dependency
+// Based on:
+// - http://schema.org/
+// - http://ogp.me
+// - https://developer.twitter.com/en/docs/tweets/optimize-with-cards/overview/markup
+// - https://msdn.microsoft.com/en-us/library/dn255024.aspx
+const META = {
+  property: [
+    'og:image',
+    'og:image:url',
+    'og:image:secure_url',
+    'og:audio',
+    'og:audio:secure_url',
+    'og:video',
+    'og:video:secure_url'
+  ],
+  name: [
+    'twitter:image',
+    'msapplication-square150x150logo',
+    'msapplication-square310x310logo',
+    'msapplication-square70x70logo',
+    'msapplication-wide310x150logo',
+    'msapplication-TileImage'
+  ],
+  itemprop: [
+    'image',
+    'logo',
+    'screenshot',
+    'thumbnailUrl',
+    'contentUrl',
+    'downloadUrl'
+  ]
 };
 
 class HTMLAsset extends Asset {
@@ -32,7 +67,7 @@ class HTMLAsset extends Asset {
   }
 
   parse(code) {
-    let res = parse(code);
+    let res = parse(code, {lowerCaseAttributeNames: true});
     res.walk = api.walk;
     res.match = api.match;
     return res;
@@ -60,6 +95,17 @@ class HTMLAsset extends Asset {
   collectDependencies() {
     this.ast.walk(node => {
       if (node.attrs) {
+        if (node.tag === 'meta') {
+          if (
+            !Object.keys(node.attrs).some(attr => {
+              let values = META[attr];
+              return values && values.includes(node.attrs[attr]);
+            })
+          ) {
+            return node;
+          }
+        }
+
         for (let attr in node.attrs) {
           if (node.tag === 'img' && attr === 'srcset') {
             node.attrs[attr] = this.collectSrcSetDependencies(node.attrs[attr]);
