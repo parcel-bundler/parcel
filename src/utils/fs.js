@@ -8,7 +8,7 @@ exports.stat = promisify(fs.stat);
 exports.readdir = promisify(fs.readdir);
 exports.unlink = promisify(fs.unlink);
 
-exports.exists = function(filename) {
+exports.exists = filename => {
   return new Promise(resolve => {
     fs.exists(filename, resolve);
   });
