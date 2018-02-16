@@ -17,6 +17,7 @@ const emoji = require('./utils/emoji');
 const loadEnv = require('./utils/env');
 const PromiseQueue = require('./utils/PromiseQueue');
 const bundleReport = require('./utils/bundleReport');
+const packageHasher = require('./utils/packageHasher');
 const prettifyTime = require('./utils/prettifyTime');
 
 /**
@@ -205,9 +206,10 @@ class Bundler extends EventEmitter {
       let buildTime = Date.now() - startTime;
       let time = prettifyTime(buildTime);
       logger.status(emoji.success, `Built in ${time}.`, 'green');
-      if (!this.watcher) {
-        bundleReport(bundle, this.options.detailedReport);
-      }
+      // if (!this.watcher) {
+        // bundleReport(bundle, this.options.detailedReport);
+      // }
+      await packageHasher(bundle, this.options.detailedReport);
 
       this.emit('bundled', bundle);
       return bundle;

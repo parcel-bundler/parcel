@@ -37,6 +37,7 @@
     "is-url": "^1.2.2",
     "js-yaml": "^3.10.0",
     "json5": "^0.5.1",
+    "md5-file": "^3.2.3",
     "micromatch": "^3.0.4",
     "mkdirp": "^0.5.1",
     "node-forge": "^0.7.1",
@@ -98,12 +99,10 @@
     "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
     "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
     "prepublish": "yarn build",
-    "minify":
-      "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
+    "minify": "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
     "precommit": "npm run lint && lint-staged",
     "lint": "eslint .",
-    "postinstall":
-      "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
+    "postinstall": "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
   },
   "bin": {
     "parcel": "bin/cli.js"
@@ -112,7 +111,10 @@
     "node": ">= 6.0.0"
   },
   "lint-staged": {
-    "*.{js,json,md}": ["prettier --write", "git add"]
+    "*.{js,json,md}": [
+      "prettier --write",
+      "git add"
+    ]
   },
   "collective": {
     "type": "opencollective",
