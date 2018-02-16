@@ -444,6 +444,42 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
+  it('should support requiring GLSL files', async function() {
+    let b = await bundle(__dirname + '/integration/glsl/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: [
+        'index.js',
+        'local.glsl',
+        'local.vert',
+        'local.tesc',
+        'local.tese',
+        'local.geom',
+        'local.frag',
+        'local.comp'
+      ],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let shader = fs.readFileSync(
+      __dirname + '/integration/glsl/local.glsl',
+      'utf8'
+    );
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.ok(
+      output().reduce((acc, requiredShader) => {
+        return acc && shader === requiredShader;
+      }, true)
+    );
+  });
+
   it('should resolve the browser field before main', async function() {
     let b = await bundle(__dirname + '/integration/resolve-entries/browser.js');
 
