@@ -335,7 +335,7 @@ class Bundler extends EventEmitter {
       if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
         let isLocalFile = dep.name.startsWith('.');
         // Attempt to install missing npm dependencies
-        if (!isLocalFile) {
+        if (!isLocalFile && this.options.watch) {
           logger.status(emoji.progress, `Installing ${dep.name}...`);
           let dir = Path.dirname(asset.name);
           await installPackage(dir, [dep.name], false, false);
