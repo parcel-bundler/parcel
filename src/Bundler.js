@@ -17,6 +17,7 @@ const emoji = require('./utils/emoji');
 const loadEnv = require('./utils/env');
 const PromiseQueue = require('./utils/PromiseQueue');
 const bundleReport = require('./utils/bundleReport');
+const packageHasher = require('./utils/packageHasher');
 const prettifyTime = require('./utils/prettifyTime');
 
 /**
@@ -208,6 +209,7 @@ class Bundler extends EventEmitter {
       if (!this.watcher) {
         bundleReport(bundle, this.options.detailedReport);
       }
+      await packageHasher(bundle, this.options.detailedReport);
 
       this.emit('bundled', bundle);
       return bundle;
