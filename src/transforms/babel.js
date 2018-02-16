@@ -21,7 +21,8 @@ const JSX_EXTENSIONS = {
 
 const JSX_PRAGMA = {
   react: 'React.createElement',
-  preact: 'h'
+  preact: 'h',
+  hyperapp: 'h'
 };
 
 async function babelTransform(asset) {
