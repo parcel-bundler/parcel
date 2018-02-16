@@ -22,6 +22,7 @@ const JSX_EXTENSIONS = {
 const JSX_PRAGMA = {
   react: 'React.createElement',
   preact: 'h',
+  nervjs: 'Nerv.createElement',
   hyperapp: 'h'
 };
 

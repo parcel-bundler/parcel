@@ -3,7 +3,7 @@ const semver = require('semver');
 
 const DEFAULT_ENGINES = {
   browsers: ['> 1%', 'last 2 versions', 'Firefox ESR'],
-  node: '>= 6'
+  node: '6'
 };
 
 /**
