@@ -1,6 +1,6 @@
 {
   "name": "parcel-bundler",
-  "version": "1.5.1",
+  "version": "1.6.1",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
   "license": "MIT",
@@ -8,6 +8,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "files": ["bin/", "lib/", "src/", "index.js"],
   "dependencies": {
     "babel-code-frame": "^6.26.0",
     "babel-core": "^6.25.0",
