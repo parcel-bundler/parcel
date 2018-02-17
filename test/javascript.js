@@ -449,16 +449,7 @@ describe('javascript', function() {
 
     assertBundleTree(b, {
       name: 'index.js',
-      assets: [
-        'index.js',
-        'local.glsl',
-        'local.vert',
-        'local.tesc',
-        'local.tese',
-        'local.geom',
-        'local.frag',
-        'local.comp'
-      ],
+      assets: ['index.js', 'local.glsl', 'local.vert', 'local.frag'],
       childBundles: [
         {
           type: 'map'

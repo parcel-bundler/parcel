@@ -40,11 +40,7 @@ class Parser {
 
     this.registerExtension('glsl', './assets/GLSLAsset');
     this.registerExtension('vert', './assets/GLSLAsset');
-    this.registerExtension('tesc', './assets/GLSLAsset');
-    this.registerExtension('tese', './assets/GLSLAsset');
-    this.registerExtension('geom', './assets/GLSLAsset');
     this.registerExtension('frag', './assets/GLSLAsset');
-    this.registerExtension('comp', './assets/GLSLAsset');
 
     let extensions = options.extensions || {};
     for (let ext in extensions) {
