@@ -1,9 +1,0 @@
-.DS_Store
-yarn.lock
-package-lock.json
-test
-coverage
-.nyc_output
-.cache
-dist
-.babelrc
