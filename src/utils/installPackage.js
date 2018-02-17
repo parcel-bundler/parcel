@@ -7,7 +7,13 @@ const commandExists = require('command-exists').sync;
 const logger = require('../Logger');
 const fs = require('./fs');
 
-async function install(dir, modules, installPeers = true, saveDev = true) {
+async function install(
+  dir,
+  modules,
+  installPeers = true,
+  saveDev = true,
+  packageManager
+) {
   let projectRootLocation = dir;
 
   let configFileLocation = await config.resolve(dir, [
@@ -29,19 +35,26 @@ async function install(dir, modules, installPeers = true, saveDev = true) {
       args.push('-D');
     }
 
-    let command = 'npm';
-    if (commandExists('yarn')) {
-      if (await fs.exists(path.join(projectRootLocation, 'yarn.lock'))) {
-        command = 'yarn';
-      } else {
-        //todo: implement these flags
-        logger.warn(
-          "Using NPM instead of Yarn. No 'yarn.lock' found in project directory, use the --yarn or --npm flags to manually specify which package manager to use."
-        );
+    let packageManagerToUse;
+    if (packageManager) {
+      packageManagerToUse = packageManager;
+    } else {
+      // If no package manager specified, try to figure out which one to use:
+      // Default to npm
+      packageManagerToUse = 'npm';
+      // If the yarn command exists and we find a yarn.lock, use yarn
+      if (commandExists('yarn')) {
+        if (await fs.exists(path.join(projectRootLocation, 'yarn.lock'))) {
+          packageManagerToUse = 'yarn';
+        } else {
+          logger.warn(
+            "Using NPM instead of Yarn. No 'yarn.lock' found in project directory, use the --package-manager flag to explicitly specify which package manager to use."
+          );
+        }
       }
     }
 
-    install = spawn(command, args, options);
+    install = spawn(packageManagerToUse, args, options);
 
     install.stdout.pipe(process.stdout);
     install.stderr.pipe(process.stderr);
