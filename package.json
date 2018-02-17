@@ -8,6 +8,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "files": ["bin/", "lib/", "src/", "index.js"],
   "dependencies": {
     "babel-code-frame": "^6.26.0",
     "babel-core": "^6.25.0",
