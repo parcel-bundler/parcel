@@ -1,3 +1,3 @@
-if (process.version.match(/^v(\d+)\.\d+\.\d+$/)[1] < 8) {
+if (parseInt(process.versions.node, 10) < 8) {
   require('babel-register');
 }
