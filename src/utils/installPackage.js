@@ -30,11 +30,6 @@ async function install(
       cwd: projectRootLocation
     };
 
-    let args = ['add', ...modules];
-    if (saveDev) {
-      args.push('-D');
-    }
-
     let packageManagerToUse;
     if (packageManager) {
       packageManagerToUse = packageManager;
@@ -52,6 +47,19 @@ async function install(
           );
         }
       }
+    }
+
+    let commandToUse;
+    if (packageManagerToUse === 'npm') {
+      commandToUse = 'install';
+    } else {
+      commandToUse = 'add';
+    }
+
+    let args = [commandToUse, ...modules];
+
+    if (saveDev) {
+      args.push('-D');
     }
 
     install = spawn(packageManagerToUse, args, options);
