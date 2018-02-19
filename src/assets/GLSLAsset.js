@@ -1,5 +1,6 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
+const path = require('path');
 
 class GLSLAsset extends Asset {
   constructor(name, pkg, options) {
@@ -9,8 +10,8 @@ class GLSLAsset extends Asset {
 
   async parse() {
     const glslify = await localRequire('glslify', this.name);
-    const basedir = this.name.slice(0, this.name.lastIndexOf('/') + 1);
 
+    const basedir = path.dirname(this.name);
     const glsl = glslify(this.contents, {basedir});
 
     return new GLSLAst(glsl, {basedir});
@@ -21,11 +22,11 @@ class GLSLAsset extends Asset {
     const depper = glslifyDeps({cwd: this.ast.basedir});
 
     return new Promise(resolve => {
-      depper.add(this.name, (err, deps) => {
-        if (deps.length > 1) {
-          this.addDependency(deps[1].file, {includedInParent: true});
-          for (let dep of deps.slice(2)) {
-            this.addDependency(dep.file, {includedInParent: false});
+      depper.add(this.name, (err, assets) => {
+        for (const asset of assets) {
+          for (const dep of Object.keys(asset.deps)) {
+            const fullPath = path.normalize(asset.file + '/../' + dep);
+            this.addDependency(fullPath, {includedInParent: true});
           }
         }
 
