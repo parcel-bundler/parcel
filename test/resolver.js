@@ -295,6 +295,18 @@ describe('resolver', function() {
       assert.equal(resolved.pkg.name, 'foo');
     });
 
+    it('should apply a global module alias to a sub-file in a package', async function() {
+      let resolved = await resolver.resolve(
+        'aliased/bar',
+        path.join(rootDir, 'node_modules', 'package-alias', 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(rootDir, 'node_modules', 'foo', 'bar.js')
+      );
+      assert.equal(resolved.pkg.name, 'foo');
+    });
+
     it('should apply a module alias pointing to a file using the package.alias field', async function() {
       let resolved = await resolver.resolve(
         'aliased-file',
