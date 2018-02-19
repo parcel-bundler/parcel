@@ -6,10 +6,14 @@
 // anything defined in a previous bundle is accessed via the
 // orig method which is the require for previous bundles
 
+if (typeof require__HASH_ === 'undefined') {
+  var require__HASH_ = null;
+}
+
 // eslint-disable-next-line no-global-assign
-require = (function (modules, cache, entry) {
+require__HASH_ = (function (modules, cache, entry) {
   // Save the require from previous bundle to this closure if any
-  var previousRequire = typeof require === "function" && require;
+  var previousRequire = typeof require__HASH_ === "function" && require__HASH_;
 
   function newRequire(name, jumped) {
     if (!cache[name]) {
@@ -17,7 +21,7 @@ require = (function (modules, cache, entry) {
         // if we cannot find the module within our internal map or
         // cache jump to the current global require ie. the last bundle
         // that was added to the page.
-        var currentRequire = typeof require === "function" && require;
+        var currentRequire = typeof require__HASH_ === "function" && require__HASH_;
         if (!jumped && currentRequire) {
           return currentRequire(name, true);
         }
@@ -44,11 +48,11 @@ require = (function (modules, cache, entry) {
 
     return cache[name].exports;
 
-    function localRequire(x){
+    function localRequire(x) {
       return newRequire(localRequire.resolve(x));
     }
 
-    function resolve(x){
+    function resolve(x) {
       return modules[name][1][x] || x;
     }
   }

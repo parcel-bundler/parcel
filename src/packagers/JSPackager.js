@@ -3,6 +3,7 @@ const path = require('path');
 const Packager = require('./Packager');
 const urlJoin = require('../utils/urlJoin');
 const lineCounter = require('../utils/lineCounter');
+const md5 = require('../utils/md5');
 
 const prelude = {
   source: fs
@@ -15,6 +16,20 @@ const prelude = {
 };
 
 class JSPackager extends Packager {
+  constructor(bundle, bundler) {
+    super(bundle, bundler);
+
+    // Get uppermost hash
+    let pBundle = bundle;
+    while (pBundle.parentBundle && pBundle.parentBundle.type === 'js') {
+      pBundle = pBundle.parentBundle;
+    }
+
+    if (pBundle.entryAsset) {
+      this.entryHash = md5(pBundle.entryAsset.name);
+    }
+  }
+
   async start() {
     this.first = true;
     this.dedupe = new Map();
@@ -29,6 +44,9 @@ class JSPackager extends Packager {
         };process.env.HMR_HOSTNAME=${JSON.stringify(
           this.options.hmrHostname
         )};` + preludeCode;
+    }
+    if (this.entryHash) {
+      preludeCode = preludeCode.replace(/_HASH_/g, this.entryHash);
     }
     await this.dest.write(preludeCode + '({');
     this.lineOffset = lineCounter(preludeCode);

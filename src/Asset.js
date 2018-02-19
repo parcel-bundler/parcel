@@ -41,6 +41,21 @@ class Asset {
     this.bundledSize = 0;
   }
 
+  topHash() {
+    let pBundle = this.parentBundle;
+    if (pBundle) {
+      while (pBundle.parentBundle && pBundle.parentBundle.type === this.type) {
+        pBundle = pBundle.parentBundle;
+      }
+
+      if (pBundle.entryAsset) {
+        return md5(pBundle.entryAsset.name);
+      }
+    }
+
+    return md5(this.name);
+  }
+
   shouldInvalidate() {
     return false;
   }
