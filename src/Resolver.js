@@ -109,7 +109,7 @@ class Resolver {
 
       default:
         // Module
-        return filename;
+        return path.normalize(filename);
     }
   }
 
@@ -130,7 +130,7 @@ class Resolver {
       return {path: builtins[filename]};
     }
 
-    let parts = filename.split('/');
+    let parts = filename.split(path.sep);
     let root = path.parse(dir).root;
 
     while (dir !== root) {
@@ -298,7 +298,7 @@ class Resolver {
       alias = aliases[filename];
       if (alias == null) {
         // If it didn't match, try only the module name.
-        let parts = filename.split('/');
+        let parts = filename.split(path.sep);
         alias = aliases[parts[0]];
         if (typeof alias === 'string') {
           // Append the filename back onto the aliased module.
