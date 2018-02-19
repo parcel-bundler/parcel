@@ -180,7 +180,7 @@ describe('resolver', function() {
           rootDir,
           'node_modules',
           'package-main-directory',
-          'lib',
+          'nested',
           'index.js'
         )
       );
