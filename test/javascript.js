@@ -458,7 +458,7 @@ describe('javascript', function() {
     });
 
     let shader = fs.readFileSync(
-      __dirname + '/integration/glsl/local.glsl',
+      __dirname + '/integration/glsl/compiled.glsl',
       'utf8'
     );
 

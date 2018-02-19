@@ -1,8 +1,10 @@
 #version 300 es
 
-#pragma glslify: test = require('./lib.glsl')
+void someUniqFunction() {
+}
 
 precision mediump float;
+#define GLSLIFY 1
 
 void main() {
 }
