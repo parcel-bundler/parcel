@@ -102,12 +102,21 @@ describe('rust', function() {
 
   it('should use wasm-gc to minify output', async function() {
     this.timeout(500000);
+
+    // Store the size of not minified bundle in order to test it against
+    // the size of minified one.
     let b = await bundle(__dirname + '/integration/rust/index.js', {
+      minify: false,
+      sourceMaps: false
+    });
+    const size = fs.statSync(Array.from(b.childBundles)[0].name).size;
+
+    let bMinified = await bundle(__dirname + '/integration/rust/index.js', {
       minify: true,
       sourceMaps: false
     });
 
-    assertBundleTree(b, {
+    const bundleTree = {
       name: 'index.js',
       assets: [
         'bundle-loader.js',
@@ -122,12 +131,16 @@ describe('rust', function() {
           childBundles: []
         }
       ]
-    });
+    };
 
-    var res = await run(b);
+    assertBundleTree(b, bundleTree);
+    assertBundleTree(bMinified, bundleTree);
+
+    var res = await run(bMinified);
     assert.equal(res, 5);
 
-    // assert that it is smaller
-    assert(fs.statSync(Array.from(b.childBundles)[0].name).size < 200);
+    const sizeMinified = fs.statSync(Array.from(bMinified.childBundles)[0].name)
+      .size;
+    assert(sizeMinified < size);
   });
 });
