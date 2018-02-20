@@ -16,6 +16,8 @@ const config = require('./utils/config');
 const emoji = require('./utils/emoji');
 const loadEnv = require('./utils/env');
 const PromiseQueue = require('./utils/PromiseQueue');
+const bundleReport = require('./utils/bundleReport');
+const prettifyTime = require('./utils/prettifyTime');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -70,6 +72,7 @@ class Bundler extends EventEmitter {
     const target = options.target || 'browser';
     return {
       outDir: Path.resolve(options.outDir || 'dist'),
+      outFile: options.outFile || '',
       publicURL: publicURL,
       watch: watch,
       cache: typeof options.cache === 'boolean' ? options.cache : true,
@@ -90,7 +93,8 @@ class Bundler extends EventEmitter {
       rootDir: Path.dirname(this.mainFile),
       sourceMaps:
         typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
-      hmrHostname: options.hmrHostname || ''
+      hmrHostname: options.hmrHostname || '',
+      detailedReport: options.detailedReport || false
     };
   }
 
@@ -197,11 +201,11 @@ class Bundler extends EventEmitter {
       this.unloadOrphanedAssets();
 
       let buildTime = Date.now() - startTime;
-      let time =
-        buildTime < 1000
-          ? `${buildTime}ms`
-          : `${(buildTime / 1000).toFixed(2)}s`;
+      let time = prettifyTime(buildTime);
       logger.status(emoji.success, `Built in ${time}.`, 'green');
+      if (!this.watcher) {
+        bundleReport(bundle, this.options.detailedReport);
+      }
 
       this.emit('bundled', bundle);
       return bundle;
@@ -326,6 +330,10 @@ class Bundler extends EventEmitter {
       let thrown = err;
 
       if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
+        if (dep.optional) {
+          return;
+        }
+
         thrown.message = `Cannot resolve dependency '${dep.name}'`;
 
         // Add absolute path to the error message if the dependency specifies a relative path
@@ -371,6 +379,7 @@ class Bundler extends EventEmitter {
     asset.processed = true;
 
     // First try the cache, otherwise load and compile in the background
+    let startTime = Date.now();
     let processed = this.cache && (await this.cache.read(asset.name));
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
       processed = await this.farm.run(asset.name, asset.package, this.options);
@@ -379,6 +388,7 @@ class Bundler extends EventEmitter {
       }
     }
 
+    asset.buildTime = Date.now() - startTime;
     asset.generated = processed.generated;
     asset.hash = processed.hash;
 
@@ -401,7 +411,10 @@ class Bundler extends EventEmitter {
           this.watch(dep.name, asset);
         } else {
           let assetDep = await this.resolveDep(asset, dep);
-          await this.loadAsset(assetDep);
+          if (assetDep) {
+            await this.loadAsset(assetDep);
+          }
+
           return assetDep;
         }
       })
@@ -559,9 +572,9 @@ class Bundler extends EventEmitter {
   }
 
   async serve(port = 1234, https = false) {
-    let server = await Server.serve(this, port, https);
+    this.server = await Server.serve(this, port, https);
     this.bundle();
-    return server;
+    return this.server;
   }
 }
 

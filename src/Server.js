@@ -10,8 +10,27 @@ serveStatic.mime.define({
   'application/wasm': ['wasm']
 });
 
+function setHeaders(res) {
+  enableCors(res);
+}
+
+function enableCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET, HEAD, PUT, PATCH, POST, DELETE'
+  );
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, Content-Type'
+  );
+}
+
 function middleware(bundler) {
-  const serve = serveStatic(bundler.options.outDir, {index: false});
+  const serve = serveStatic(bundler.options.outDir, {
+    index: false,
+    setHeaders: setHeaders
+  });
 
   return function(req, res, next) {
     // Wait for the bundler to finish bundling if needed

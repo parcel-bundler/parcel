@@ -1,0 +1,8 @@
+{
+  "name": "foo",
+  "browserify": {
+    "transform": [
+      "babelify"
+    ]
+  }
+}

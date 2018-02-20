@@ -99,4 +99,11 @@ describe('typescript', function() {
     let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(!js.includes('/* test comment */'));
   });
+
+  it('should support compiling JSX', async function() {
+    await bundle(__dirname + '/integration/typescript-jsx/index.tsx');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('React.createElement("div"'));
+  });
 });
