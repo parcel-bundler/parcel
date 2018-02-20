@@ -5,7 +5,7 @@ module.exports = async function(asset) {
   await asset.parseIfNeeded();
 
   // Convert AST into JS
-  let code = (await asset.generate()).js;
+  let source = (await asset.generate()).js;
 
   let customConfig = await asset.getConfig(['.uglifyrc']);
   let options = {
@@ -20,26 +20,26 @@ module.exports = async function(asset) {
     options = Object.assign(options, customConfig);
   }
 
-  let result = minify(code, options);
+  let {code, map, error} = minify(source, options);
 
-  if (result.error) {
-    throw result.error;
+  if (error) {
+    throw error;
   }
 
-  if (result.map) {
-    result.map = await new SourceMap().addMap(JSON.parse(result.map));
+  if (map) {
+    map = await new SourceMap().addMap(JSON.parse(map));
     if (asset.sourceMap) {
       asset.sourceMap = await new SourceMap().extendSourceMap(
         asset.sourceMap,
-        result.map
+        map
       );
     } else {
-      asset.sourceMap = result.map;
+      asset.sourceMap = map;
     }
   }
 
   // babel-generator did our code generation for us, so remove the old AST
   asset.ast = null;
-  asset.outputCode = result.code;
+  asset.outputCode = code;
   asset.isAstDirty = false;
 };
