@@ -191,6 +191,10 @@ class SourceMap {
       throw new Error('Column numbers must be >= 0');
     }
 
+    if (this.mappings.length < 1) {
+      return undefined;
+    }
+
     let startIndex = 0;
     let stopIndex = this.mappings.length - 1;
     let middleIndex = Math.floor((stopIndex + startIndex) / 2);
@@ -208,7 +212,7 @@ class SourceMap {
     }
 
     if (this.mappings[middleIndex][key].line !== line) {
-      return [this.mappings[this.mappings.length - 1]];
+      return middleIndex;
     }
 
     while (
