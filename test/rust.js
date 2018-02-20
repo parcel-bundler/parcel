@@ -4,7 +4,7 @@ const fs = require('fs');
 const commandExists = require('command-exists');
 
 describe('rust', function() {
-  if (!commandExists.sync('rustup')) {
+  if (typeof WebAssembly === 'undefined' || !commandExists.sync('rustup')) {
     // eslint-disable-next-line no-console
     console.log(
       'Skipping Rust tests. Install https://www.rustup.rs/ to run them.'

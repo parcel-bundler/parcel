@@ -603,4 +603,112 @@ describe('javascript', function() {
     let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(json.includes('{a:1,b:{c:2}}'));
   });
+
+  it('should support compiling with babel using .babelrc config', async function() {
+    await bundle(__dirname + '/integration/babel/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('class Foo {}'));
+    assert(file.includes('class Bar {}'));
+  });
+
+  it('should compile with babel with default engines if no config', async function() {
+    await bundle(__dirname + '/integration/babel-default/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
+  it('should support compiling with babel using browserlist', async function() {
+    await bundle(__dirname + '/integration/babel-browserslist/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
+  it('should not compile node_modules by default', async function() {
+    await bundle(__dirname + '/integration/babel-node-modules/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
+  it('should compile node_modules if legacy browserify options are found', async function() {
+    await bundle(
+      __dirname + '/integration/babel-node-modules-browserify/index.js'
+    );
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
+  it('should compile node_modules with browserslist to app target', async function() {
+    await bundle(
+      __dirname + '/integration/babel-node-modules-browserslist/index.js'
+    );
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
+  it('should support compiling JSX', async function() {
+    await bundle(__dirname + '/integration/jsx/index.jsx');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('React.createElement("div"'));
+  });
+
+  it('should support compiling JSX in JS files with React dependency', async function() {
+    await bundle(__dirname + '/integration/jsx-react/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('React.createElement("div"'));
+  });
+
+  it('should support compiling JSX in JS files with Preact dependency', async function() {
+    await bundle(__dirname + '/integration/jsx-preact/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('h("div"'));
+  });
+
+  it('should support compiling JSX in JS files with Nerv dependency', async function() {
+    await bundle(__dirname + '/integration/jsx-nervjs/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('Nerv.createElement("div"'));
+  });
+  
+  it('should support compiling JSX in JS files with Hyperapp dependency', async function() {
+    await bundle(__dirname + '/integration/jsx-hyperapp/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('h("div"'));
+  });
+
+  it('should support optional dependencies in try...catch blocks', async function() {
+    let b = await bundle(__dirname + '/integration/optional-dep/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+
+    let err = new Error('Cannot find module "optional-dep"');
+    err.code = 'MODULE_NOT_FOUND';
+
+    assert.deepEqual(output, err);
+  });
 });
