@@ -5,6 +5,26 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.6.2] - 2018-02-19
+
+### Added
+
+* JSX support for Nerv [Details](https://github.com/parcel-bundler/parcel/commit/1e1297509c50016b16ac6d9f9ec67bf9f63ec4db)
+* Add JSX support for Hyperapp. [Details](https://github.com/parcel-bundler/parcel/commit/246edd4fdc2682704ea9b19d97bd4fbf5f72c017)
+
+### Fixed
+
+* Fix babel handling for node: DEFAULT_ENGINES [Details](https://github.com/parcel-bundler/parcel/commit/c7ba56a96d2a135d6b95ec458789e5831e1c0828)
+* Remove unnecessary files from npm [Details](https://github.com/parcel-bundler/parcel/commit/6d9e68cbdb06f2c8a05ba31fbc9dde01f0f83d96)
+* Use babel-register for tests only with node < 8 [Details](https://github.com/parcel-bundler/parcel/commit/83d4e3b3d7357a1765c2dfc3f802f9ca983ec08b)
+* remove call to window.location [Details](https://github.com/parcel-bundler/parcel/commit/6e0a7f678b3938f0c59f0a5f0a77c32b9dd48fb5)
+
+## [1.6.1] - 2018-02-15
+
+### Fixed
+
+* Update HMRServer handleSocketError for ErrorEvent [Details](https://github.com/parcel-bundler/parcel/commit/52aec8a44d26dc1a1b54fc7131668caa374df9d9)
+
 ## [1.6.0] - 2018-02-15
 
 ### Added
