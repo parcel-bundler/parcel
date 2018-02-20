@@ -37,6 +37,12 @@ or with npm:
 npm install -g parcel-bundler
 ```
 
+For MacOS users, `fsevents` is an optional dependency that enables FSEvents for the file watcher. If not installed, polling will be used.
+
+```
+yarn global add fsevents
+```
+
 2. Parcel can take any type of file as an entry point, but an HTML or JavaScript file is a good place to start. If you link your main JavaScript file in the HTML using a relative path, Parcel will also process it for you, and replace the reference with a URL to the output file.
 
 ```html
