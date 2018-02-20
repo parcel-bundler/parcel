@@ -1,6 +1,5 @@
 const {minify} = require('uglify-es');
 const SourceMap = require('../SourceMap');
-const logger = require('../Logger');
 
 module.exports = async function(asset) {
   await asset.parseIfNeeded();
@@ -37,13 +36,6 @@ module.exports = async function(asset) {
     } else {
       asset.sourceMap = result.map;
     }
-  }
-
-  // Log all warnings
-  if (result.warnings) {
-    result.warnings.forEach(warning => {
-      logger.warn('[uglify] ' + warning);
-    });
   }
 
   // babel-generator did our code generation for us, so remove the old AST
