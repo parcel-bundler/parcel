@@ -20,26 +20,26 @@ module.exports = async function(asset) {
     options = Object.assign(options, customConfig);
   }
 
-  let {code, map, error} = minify(source, options);
+  let result = minify(source, options);
 
-  if (error) {
-    throw error;
+  if (result.error) {
+    throw result.error;
   }
 
-  if (map) {
-    map = await new SourceMap().addMap(JSON.parse(map));
+  if (result.map) {
+    result.map = await new SourceMap().addMap(JSON.parse(result.map));
     if (asset.sourceMap) {
       asset.sourceMap = await new SourceMap().extendSourceMap(
         asset.sourceMap,
-        map
+        result.map
       );
     } else {
-      asset.sourceMap = map;
+      asset.sourceMap = result.map;
     }
   }
 
   // babel-generator did our code generation for us, so remove the old AST
   asset.ast = null;
-  asset.outputCode = code;
+  asset.outputCode = result.code;
   asset.isAstDirty = false;
 };
