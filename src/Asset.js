@@ -200,7 +200,7 @@ class Asset {
       const packageName = sanitizeFilename(this.package.name, {
         replacement: '-'
       });
-      return packageName + ext;
+      return md5(packageName) + ext;
     }
 
     // If this is the entry point of the root bundle, use the original filename
