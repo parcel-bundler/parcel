@@ -49,6 +49,8 @@ describe('hmr', function() {
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
+    const buildEnd = nextEvent(b, 'buildEnd');
+
     fs.writeFileSync(
       __dirname + '/input/local.js',
       'exports.a = 5;\nexports.b = 5;'
@@ -59,6 +61,8 @@ describe('hmr', function() {
     assert.equal(msg.assets.length, 1);
     assert.equal(msg.assets[0].generated.js, 'exports.a = 5;\nexports.b = 5;');
     assert.deepEqual(msg.assets[0].deps, {});
+
+    await buildEnd;
   });
 
   it('should not enable HMR for --target=node', async function() {
@@ -90,6 +94,8 @@ describe('hmr', function() {
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
+    const buildEnd = nextEvent(b, 'buildEnd');
+
     fs.writeFileSync(
       __dirname + '/input/local.js',
       'exports.a = 5; exports.b = 5;'
@@ -100,6 +106,8 @@ describe('hmr', function() {
     assert.equal(msg.assets.length, 1);
     assert.equal(msg.assets[0].generated.js, 'exports.a = 5; exports.b = 5;');
     assert.deepEqual(msg.assets[0].deps, {});
+
+    await buildEnd;
   });
 
   it('should emit an HMR update for all new dependencies along with the changed file', async function() {
@@ -110,6 +118,8 @@ describe('hmr', function() {
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
+    const buildEnd = nextEvent(b, 'buildEnd');
+
     fs.writeFileSync(
       __dirname + '/input/local.js',
       'require("fs"); exports.a = 5; exports.b = 5;'
@@ -118,6 +128,8 @@ describe('hmr', function() {
     let msg = json5.parse(await nextEvent(ws, 'message'));
     assert.equal(msg.type, 'update');
     assert.equal(msg.assets.length, 2);
+
+    await buildEnd;
   });
 
   it('should emit an HMR error on bundle failure', async function() {
@@ -127,6 +139,8 @@ describe('hmr', function() {
     await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
+
+    const buildEnd = nextEvent(b, 'buildEnd');
 
     fs.writeFileSync(
       __dirname + '/input/local.js',
@@ -146,6 +160,8 @@ describe('hmr', function() {
       msg.error.stack,
       '> 1 | require("fs"; exports.a = 5; exports.b = 5;\n    |             ^'
     );
+
+    await buildEnd;
   });
 
   it('should emit an HMR error to new connections after a bundle failure', async function() {
@@ -174,6 +190,8 @@ describe('hmr', function() {
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
+    const firstBuildEnd = nextEvent(b, 'buildEnd');
+
     fs.writeFileSync(
       __dirname + '/input/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
@@ -182,6 +200,10 @@ describe('hmr', function() {
     let msg = JSON.parse(await nextEvent(ws, 'message'));
     assert.equal(msg.type, 'error');
 
+    await firstBuildEnd;
+
+    const secondBuildEnd = nextEvent(b, 'buildEnd');
+
     fs.writeFileSync(
       __dirname + '/input/local.js',
       'require("fs"); exports.a = 5; exports.b = 5;'
@@ -189,6 +211,8 @@ describe('hmr', function() {
 
     let msg2 = JSON.parse(await nextEvent(ws, 'message'));
     assert.equal(msg2.type, 'error-resolved');
+
+    await secondBuildEnd;
   });
 
   it('should accept HMR updates in the runtime', async function() {
