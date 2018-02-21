@@ -7,24 +7,16 @@ const commandExists = require('command-exists').sync;
 const logger = require('../Logger');
 const fs = require('./fs');
 
-async function install(
+function install(
   dir,
   modules,
   installPeers = true,
   saveDev = true,
   packageManager
 ) {
-  let projectRootLocation = dir;
-
-  let configFileLocation = await config.resolve(dir, [
-    'yarn.lock',
-    'package.json'
-  ]);
-
-  if (configFileLocation)
-    projectRootLocation = path.dirname(configFileLocation);
-
   return new Promise(async (resolve, reject) => {
+    let projectRootLocation = dir;
+
     let install;
     let options = {
       cwd: projectRootLocation
