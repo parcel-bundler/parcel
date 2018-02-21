@@ -92,9 +92,7 @@ async function install(
 }
 
 async function installPeerDependencies(dir, name) {
-  let basedir = path.dirname(dir);
-
-  const [resolved] = await resolve(name, {basedir});
+  const [resolved] = await resolve(name, {basedir: dir});
   const pkg = await config.load(resolved, ['package.json']);
   const peers = pkg.peerDependencies || {};
 
