@@ -8,33 +8,35 @@ module.exports = async function(asset) {
   let source = (await asset.generate()).js;
 
   let customConfig = await asset.getConfig(['.uglifyrc']);
-  let sourceMap = asset.options.sourceMap && new SourceMap();
   let options = {
     warnings: true,
     mangle: {
       toplevel: true
-    },
-    output: sourceMap
-      ? {
-          source_map: {
-            add(source, gen_line, gen_col, orig_line, orig_col, name) {
-              sourceMap.addMapping({
-                source,
-                name,
-                original: {
-                  line: orig_line,
-                  column: orig_col
-                },
-                generated: {
-                  line: gen_line,
-                  column: gen_col
-                }
-              });
-            }
-          }
-        }
-      : {}
+    }
   };
+
+  let sourceMap;
+  if (asset.options.sourceMap) {
+    sourceMap = new SourceMap();
+    options.output = {
+      source_map: {
+        add(source, gen_line, gen_col, orig_line, orig_col, name) {
+          sourceMap.addMapping({
+            source,
+            name,
+            original: {
+              line: orig_line,
+              column: orig_col
+            },
+            generated: {
+              line: gen_line,
+              column: gen_col
+            }
+          });
+        }
+      }
+    };
+  }
 
   if (customConfig) {
     options = Object.assign(options, customConfig);
