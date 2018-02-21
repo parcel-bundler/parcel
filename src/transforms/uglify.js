@@ -12,9 +12,31 @@ module.exports = async function(asset) {
     warnings: true,
     mangle: {
       toplevel: true
-    },
-    sourceMap: asset.options.sourceMaps ? {filename: asset.relativeName} : false
+    }
   };
+
+  let sourceMap;
+  if (asset.options.sourceMap) {
+    sourceMap = new SourceMap();
+    options.output = {
+      source_map: {
+        add(source, gen_line, gen_col, orig_line, orig_col, name) {
+          sourceMap.addMapping({
+            source,
+            name,
+            original: {
+              line: orig_line,
+              column: orig_col
+            },
+            generated: {
+              line: gen_line,
+              column: gen_col
+            }
+          });
+        }
+      }
+    };
+  }
 
   if (customConfig) {
     options = Object.assign(options, customConfig);
@@ -26,15 +48,14 @@ module.exports = async function(asset) {
     throw result.error;
   }
 
-  if (result.map) {
-    result.map = await new SourceMap().addMap(JSON.parse(result.map));
+  if (sourceMap) {
     if (asset.sourceMap) {
       asset.sourceMap = await new SourceMap().extendSourceMap(
         asset.sourceMap,
-        result.map
+        sourceMap
       );
     } else {
-      asset.sourceMap = result.map;
+      asset.sourceMap = sourceMap;
     }
   }
 

@@ -200,8 +200,8 @@ class SourceMap {
     let middleIndex = Math.floor((stopIndex + startIndex) / 2);
 
     while (
-      this.mappings[middleIndex][key].line !== line &&
-      startIndex < stopIndex
+      startIndex < stopIndex &&
+      this.mappings[middleIndex][key].line !== line
     ) {
       if (line < this.mappings[middleIndex][key].line) {
         stopIndex = middleIndex - 1;
@@ -211,8 +211,9 @@ class SourceMap {
       middleIndex = Math.floor((stopIndex + startIndex) / 2);
     }
 
-    if (this.mappings[middleIndex][key].line !== line) {
-      return middleIndex;
+    let mapping = this.mappings[middleIndex];
+    if (!mapping || mapping[key].line !== line) {
+      return this.mappings.length - 1;
     }
 
     while (
@@ -221,6 +222,7 @@ class SourceMap {
     ) {
       middleIndex--;
     }
+
     while (
       middleIndex < this.mappings.length - 1 &&
       this.mappings[middleIndex + 1][key].line === line &&
@@ -228,6 +230,7 @@ class SourceMap {
     ) {
       middleIndex++;
     }
+
     return middleIndex;
   }
 
