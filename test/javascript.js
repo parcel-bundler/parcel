@@ -628,6 +628,14 @@ describe('javascript', function() {
     assert(!file.includes('class Bar {}'));
   });
 
+  it('should support splitting babel-polyfill using browserlist', async function() {
+    await bundle(__dirname + '/integration/babel-polyfill/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('async function Bar() {}'));
+    assert(!file.includes('regenerator'));
+  });
+
   it('should not compile node_modules by default', async function() {
     await bundle(__dirname + '/integration/babel-node-modules/index.js');
 
@@ -683,7 +691,7 @@ describe('javascript', function() {
     let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('Nerv.createElement("div"'));
   });
-  
+
   it('should support compiling JSX in JS files with Hyperapp dependency', async function() {
     await bundle(__dirname + '/integration/jsx-hyperapp/index.js');
 
