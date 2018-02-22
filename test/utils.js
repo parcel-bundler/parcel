@@ -8,15 +8,20 @@ const WebSocket = require('ws');
 const Module = require('module');
 const md5 = require('../src/utils/md5');
 
-beforeEach(function() {
-  rimraf.sync(
-    path.join(__dirname, 'dist/', calculateTestKey(this.currentTest))
-  );
+before(function() {
+  fs.mkdirSync(__dirname + '/input');
 });
 
 after(function() {
   rimraf.sync(path.join(__dirname, 'dist'));
   rimraf.sync(path.join(__dirname, '.cache'));
+  rimraf.sync(path.join(__dirname, 'input'));
+});
+
+beforeEach(function() {
+  rimraf.sync(
+    path.join(__dirname, 'dist/', calculateTestKey(this.currentTest))
+  );
 });
 
 function calculateTestKey(test) {

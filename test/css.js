@@ -1,6 +1,12 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundler, bundle, run, assertBundleTree} = require('./utils');
+const {
+  bundler,
+  bundle,
+  run,
+  assertBundleTree,
+  calculateTestKey
+} = require('./utils');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 const rimraf = require('rimraf');
@@ -276,13 +282,14 @@ describe('css', function() {
   });
 
   it('should automatically install postcss plugins with npm if needed', async function() {
-    rimraf.sync(__dirname + '/input');
-    await ncp(__dirname + '/integration/autoinstall/npm', __dirname + '/input');
-    let b = bundler(__dirname + '/input/index.css', this.test);
+    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    rimraf.sync(inputDir);
+    await ncp(__dirname + '/integration/autoinstall/npm', inputDir);
+    let b = bundler(inputDir + '/index.css', this.test);
     await b.bundle();
 
     // cssnext was installed
-    let pkg = require('./input/package.json');
+    let pkg = require(inputDir + '/package.json');
     assert(pkg.devDependencies['postcss-cssnext']);
 
     // peer dependency caniuse-lite was installed
@@ -294,23 +301,21 @@ describe('css', function() {
   });
 
   it('should automatically install postcss plugins with yarn if needed', async function() {
-    rimraf.sync(__dirname + '/input');
-    await ncp(
-      __dirname + '/integration/autoinstall/yarn',
-      __dirname + '/input'
-    );
-    let b = bundler(__dirname + '/input/index.css', this.test);
+    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    rimraf.sync(inputDir);
+    await ncp(__dirname + '/integration/autoinstall/yarn', inputDir);
+    let b = bundler(inputDir + '/index.css', this.test);
     await b.bundle();
 
     // cssnext was installed
-    let pkg = require('./input/package.json');
+    let pkg = require(inputDir + '/package.json');
     assert(pkg.devDependencies['postcss-cssnext']);
 
     // peer dependency caniuse-lite was installed
     assert(pkg.devDependencies['caniuse-lite']);
 
     // appveyor is not currently writing to the yarn.lock file and will require further investigation
-    // let lockfile = fs.readFileSync(__dirname + '/input/yarn.lock', 'utf8');
+    // let lockfile = fs.readFileSync(inputDir + '/yarn.lock', 'utf8');
     // assert(lockfile.includes('postcss-cssnext'));
 
     // cssnext is applied

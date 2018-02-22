@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const {bundler, run, sleep} = require('./utils');
+const {bundler, run, sleep, calculateTestKey} = require('./utils');
 const rimraf = require('rimraf');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
@@ -11,7 +11,8 @@ const json5 = require('json5');
 describe('hmr', function() {
   let b, ws;
   beforeEach(function() {
-    rimraf.sync(__dirname + '/input');
+    let inputDir = __dirname + `/input/${calculateTestKey(this.currentTest)}`;
+    rimraf.sync(inputDir);
   });
 
   afterEach(function(done) {
@@ -42,9 +43,10 @@ describe('hmr', function() {
   }
 
   it('should emit an HMR update for the file that changed', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', this.test, {
       watch: true,
       hmr: true
     });
@@ -54,10 +56,7 @@ describe('hmr', function() {
 
     const buildEnd = nextEvent(b, 'buildEnd');
 
-    fs.writeFileSync(
-      __dirname + '/input/local.js',
-      'exports.a = 5;\nexports.b = 5;'
-    );
+    fs.writeFileSync(inputDir + '/local.js', 'exports.a = 5;\nexports.b = 5;');
 
     let msg = json5.parse(await nextEvent(ws, 'message'));
     assert.equal(msg.type, 'update');
@@ -69,9 +68,10 @@ describe('hmr', function() {
   });
 
   it('should not enable HMR for --target=node', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', this.test, {
       watch: true,
       hmr: true,
       target: 'node'
@@ -86,9 +86,10 @@ describe('hmr', function() {
   });
 
   it('should enable HMR for --target=electron', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', this.test, {
       watch: true,
       hmr: true,
       target: 'electron'
@@ -99,10 +100,7 @@ describe('hmr', function() {
 
     const buildEnd = nextEvent(b, 'buildEnd');
 
-    fs.writeFileSync(
-      __dirname + '/input/local.js',
-      'exports.a = 5; exports.b = 5;'
-    );
+    fs.writeFileSync(inputDir + '/local.js', 'exports.a = 5; exports.b = 5;');
 
     let msg = json5.parse(await nextEvent(ws, 'message'));
     assert.equal(msg.type, 'update');
@@ -114,9 +112,10 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR update for all new dependencies along with the changed file', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', this.test, {
       watch: true,
       hmr: true
     });
@@ -127,7 +126,7 @@ describe('hmr', function() {
     const buildEnd = nextEvent(b, 'buildEnd');
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"); exports.a = 5; exports.b = 5;'
     );
 
@@ -139,9 +138,10 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR error on bundle failure', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', this.test, {
       watch: true,
       hmr: true
     });
@@ -152,7 +152,7 @@ describe('hmr', function() {
     const buildEnd = nextEvent(b, 'buildEnd');
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
 
@@ -161,8 +161,8 @@ describe('hmr', function() {
     assert.equal(
       msg.error.message,
       `${path.join(
-        __dirname,
-        '/input/local.js'
+        inputDir,
+        '/local.js'
       )}:1:12: Unexpected token, expected , (1:12)`
     );
     assert.equal(
@@ -174,16 +174,17 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR error to new connections after a bundle failure', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', this.test, {
       watch: true,
       hmr: true
     });
     await b.bundle();
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
     await nextEvent(b, 'buildEnd');
@@ -195,9 +196,10 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR error-resolved on build after error', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', this.test, {
       watch: true,
       hmr: true
     });
@@ -208,7 +210,7 @@ describe('hmr', function() {
     const firstBuildEnd = nextEvent(b, 'buildEnd');
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
 
@@ -220,7 +222,7 @@ describe('hmr', function() {
     const secondBuildEnd = nextEvent(b, 'buildEnd');
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"); exports.a = 5; exports.b = 5;'
     );
 
@@ -231,9 +233,10 @@ describe('hmr', function() {
   });
 
   it('should accept HMR updates in the runtime', async function() {
-    await ncp(__dirname + '/integration/hmr', __dirname + '/input');
+    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    await ncp(__dirname + '/integration/hmr', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', this.test, {
       watch: true,
       hmr: true
     });
@@ -248,19 +251,17 @@ describe('hmr', function() {
 
     assert.deepEqual(outputs, [3]);
 
-    fs.writeFileSync(
-      __dirname + '/input/local.js',
-      'exports.a = 5; exports.b = 5;'
-    );
+    fs.writeFileSync(inputDir + '/local.js', 'exports.a = 5; exports.b = 5;');
 
     await nextEvent(b, 'bundled');
     assert.deepEqual(outputs, [3, 10]);
   });
 
   it('should call dispose and accept callbacks', async function() {
-    await ncp(__dirname + '/integration/hmr-callbacks', __dirname + '/input');
+    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    await ncp(__dirname + '/integration/hmr-callbacks', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', this.test, {
       watch: true,
       hmr: true
     });
@@ -279,10 +280,7 @@ describe('hmr', function() {
 
     assert.deepEqual(outputs, [3]);
 
-    fs.writeFileSync(
-      __dirname + '/input/local.js',
-      'exports.a = 5; exports.b = 5;'
-    );
+    fs.writeFileSync(inputDir + '/local.js', 'exports.a = 5; exports.b = 5;');
 
     await nextEvent(b, 'bundled');
     assert.notEqual(moduleId, undefined);
@@ -295,9 +293,10 @@ describe('hmr', function() {
   });
 
   it('should work across bundles', async function() {
-    await ncp(__dirname + '/integration/hmr-dynamic', __dirname + '/input');
+    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    await ncp(__dirname + '/integration/hmr-dynamic', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', this.test, {
       watch: true,
       hmr: true
     });
@@ -313,10 +312,7 @@ describe('hmr', function() {
     await sleep(50);
     assert.deepEqual(outputs, [3]);
 
-    fs.writeFileSync(
-      __dirname + '/input/local.js',
-      'exports.a = 5; exports.b = 5;'
-    );
+    fs.writeFileSync(inputDir + '/local.js', 'exports.a = 5; exports.b = 5;');
 
     await nextEvent(b, 'bundled');
     await sleep(50);
@@ -324,9 +320,10 @@ describe('hmr', function() {
   });
 
   it('should log emitted errors', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', this.test, {
       watch: true,
       hmr: true
     });
@@ -342,7 +339,7 @@ describe('hmr', function() {
     });
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
     await nextEvent(b, 'buildEnd');
@@ -353,9 +350,10 @@ describe('hmr', function() {
   });
 
   it('should log when errors resolve', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', this.test, {
       watch: true,
       hmr: true
     });
@@ -374,13 +372,13 @@ describe('hmr', function() {
     });
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
     await nextEvent(b, 'buildEnd');
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"); exports.a = 5; exports.b = 5;'
     );
     await nextEvent(b, 'buildEnd');

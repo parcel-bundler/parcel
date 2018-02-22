@@ -7,7 +7,6 @@ const ncp = promisify(require('ncp'));
 const generateCertificate = require('../src/utils/generateCertificate');
 
 const cachePath = path.join(__dirname, '.cache');
-const inputPath = path.join(__dirname, '/input');
 
 const cacheOptions = {
   cacheDir: cachePath,
@@ -17,7 +16,6 @@ const cacheOptions = {
 describe('generateCertificate', () => {
   beforeEach(() => {
     rimraf.sync(cachePath);
-    rimraf.sync(inputPath);
   });
 
   it('should support loading cached certificate', async () => {
