@@ -365,7 +365,7 @@ describe('javascript', function() {
       delegate: {
         getImplicitDependencies(asset) {
           if (asset.basename === 'index.js') {
-            return [{name: __dirname + '/integration/css/index.css'}];
+            return [{name: '../css/index.css'}];
           }
         }
       }
@@ -683,7 +683,7 @@ describe('javascript', function() {
     let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('Nerv.createElement("div"'));
   });
-  
+
   it('should support compiling JSX in JS files with Hyperapp dependency', async function() {
     await bundle(__dirname + '/integration/jsx-hyperapp/index.js');
 
