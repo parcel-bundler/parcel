@@ -40,7 +40,7 @@ describe('rust', function() {
     assert.equal(res, 5);
 
     // not minified
-    assert(fs.statSync(Array.from(b.childBundles)[0].name).size > 200);
+    assert(fs.statSync(Array.from(b.childBundles)[0].name).size > 500);
   });
 
   it('should support rust files with dependencies via rustc', async function() {

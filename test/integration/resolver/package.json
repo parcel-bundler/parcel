@@ -1,0 +1,8 @@
+{
+  "name": "resolver",
+  "alias": {
+    "aliased": "foo",
+    "aliased-file": "./bar.js",
+    "something": "./nested/test.js"
+  }
+}

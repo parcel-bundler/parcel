@@ -116,4 +116,36 @@ describe('sourcemaps', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 14);
   });
+
+  it('should create a valid sourcemap for a minified js bundle with requires', async function() {
+    let b = await bundle(
+      __dirname + '/integration/sourcemap-nested-minified/index.js',
+      {
+        minify: true
+      }
+    );
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'local.js', 'util.js'],
+      childBundles: [
+        {
+          name: 'index.map',
+          type: 'map'
+        }
+      ]
+    });
+
+    let raw = fs
+      .readFileSync(path.join(__dirname, '/dist/index.js'))
+      .toString();
+    let map = fs
+      .readFileSync(path.join(__dirname, '/dist/index.map'))
+      .toString();
+    mapValidator(raw, map);
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 14);
+  });
 });
