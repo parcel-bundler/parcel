@@ -92,7 +92,7 @@
     "typescript": "^2.6.2"
   },
   "scripts": {
-    "test": "node -v && cross-env NODE_ENV=test mocha",
+    "test": "cross-env NODE_ENV=test mocha",
     "test-coverage": "rm -rf coverage/* && nyc yarn test",
     "report-coverage": "nyc report --reporter=lcov && codecov",
     "test-ci": "yarn test-coverage && yarn report-coverage",
