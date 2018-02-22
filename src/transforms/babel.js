@@ -65,7 +65,7 @@ async function getConfig(asset) {
     let internal = config.internal;
     delete config.internal;
     Object.defineProperty(config, 'internal', {
-      value: internal
+      value: internal, configurable: true
     });
   }
 
