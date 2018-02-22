@@ -3,21 +3,66 @@ const config = require('./config');
 const path = require('path');
 const promisify = require('./promisify');
 const resolve = promisify(require('resolve'));
+const commandExists = require('command-exists').sync;
+const logger = require('../Logger');
+const fs = require('./fs');
 
-async function install(dir, modules, installPeers = true) {
-  let location = await config.resolve(dir, ['yarn.lock', 'package.json']);
+async function install(
+  dir,
+  modules,
+  installPeers = true,
+  saveDev = true,
+  packageManager
+) {
+  let projectRootLocation = dir;
 
-  return new Promise((resolve, reject) => {
+  let configFileLocation = await config.resolve(dir, [
+    'yarn.lock',
+    'package.json'
+  ]);
+
+  if (configFileLocation)
+    projectRootLocation = path.dirname(configFileLocation);
+
+  return new Promise(async (resolve, reject) => {
     let install;
     let options = {
-      cwd: location ? path.dirname(location) : dir
+      cwd: projectRootLocation
     };
 
-    if (location && path.basename(location) === 'yarn.lock') {
-      install = spawn('yarn', ['add', ...modules, '--dev'], options);
+    let packageManagerToUse;
+    if (packageManager) {
+      packageManagerToUse = packageManager;
     } else {
-      install = spawn('npm', ['install', ...modules, '--save-dev'], options);
+      // If no package manager specified, try to figure out which one to use:
+      // Default to npm
+      packageManagerToUse = 'npm';
+      // If the yarn command exists and we find a yarn.lock, use yarn
+      if (commandExists('yarn')) {
+        if (await fs.exists(path.join(projectRootLocation, 'yarn.lock'))) {
+          packageManagerToUse = 'yarn';
+        } else {
+          logger.warn(
+            "Using NPM instead of Yarn. No 'yarn.lock' found in project directory, use the --package-manager flag to explicitly specify which package manager to use."
+          );
+        }
+      }
     }
+
+    let commandToUse;
+    if (packageManagerToUse === 'npm') {
+      commandToUse = 'install';
+    } else {
+      commandToUse = 'add';
+    }
+
+    let args = [commandToUse, ...modules];
+
+    if (saveDev) {
+      args.push('-D');
+    }
+
+    install = spawn(packageManagerToUse, args, options);
 
     install.stdout.pipe(process.stdout);
     install.stderr.pipe(process.stderr);

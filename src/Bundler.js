@@ -16,6 +16,7 @@ const config = require('./utils/config');
 const emoji = require('./utils/emoji');
 const loadEnv = require('./utils/env');
 const PromiseQueue = require('./utils/PromiseQueue');
+const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 
@@ -94,7 +95,9 @@ class Bundler extends EventEmitter {
       sourceMaps:
         typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
       hmrHostname: options.hmrHostname || '',
-      detailedReport: options.detailedReport || false
+      detailedReport: options.detailedReport || false,
+      autoinstall: (options.autoinstall || false) && !isProduction,
+      packageManager: options.packageManager
     };
   }
 
@@ -330,6 +333,20 @@ class Bundler extends EventEmitter {
       let thrown = err;
 
       if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
+        let isLocalFile = dep.name.startsWith('.');
+        // Attempt to install missing npm dependencies
+        if (!isLocalFile && this.options.autoinstall) {
+          logger.status(emoji.progress, `Installing ${dep.name}...`);
+          await installPackage(
+            Path.dirname(asset.name),
+            [dep.name],
+            false,
+            false,
+            this.options.packageManager
+          );
+          return await this.resolveAsset(dep.name, asset.name);
+        }
+
         if (dep.optional) {
           return;
         }
@@ -337,7 +354,7 @@ class Bundler extends EventEmitter {
         thrown.message = `Cannot resolve dependency '${dep.name}'`;
 
         // Add absolute path to the error message if the dependency specifies a relative path
-        if (dep.name.startsWith('.')) {
+        if (isLocalFile) {
           const absPath = Path.resolve(Path.dirname(asset.name), dep.name);
           err.message += ` at '${absPath}'`;
         }
