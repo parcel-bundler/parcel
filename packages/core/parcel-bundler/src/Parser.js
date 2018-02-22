@@ -53,7 +53,7 @@ class Parser {
   }
 
   findParser(filename) {
-    if (glob.hasMagic(filename)) {
+    if (/[*+{}]/.test(filename) && glob.hasMagic(filename)) {
       return GlobAsset;
     }
 
