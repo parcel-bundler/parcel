@@ -8,10 +8,15 @@ const WebSocket = require('ws');
 const Module = require('module');
 const md5 = require('../src/utils/md5');
 
-beforeEach(async function() {
+beforeEach(function() {
   rimraf.sync(
     path.join(__dirname, 'dist/', calculateTestKey(this.currentTest))
   );
+});
+
+after(function() {
+  rimraf.sync(path.join(__dirname, 'dist'));
+  rimraf.sync(path.join(__dirname, '.cache'));
 });
 
 function calculateTestKey(test) {
