@@ -115,8 +115,9 @@ describe('FSCache', function() {
       ]
     });
 
-    // delay and update dependency
-    await sleep(50);
+    // update dependency
+    // OS X rounds stats.mtime to seconds, delay 1sec
+    await sleep(1000);
     await fs.writeFile(filePath, 'world');
 
     const cached = await cache.read(__filename);
