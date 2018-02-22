@@ -6,7 +6,10 @@ const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('sourcemaps', function() {
   it('should create a valid sourcemap as a child of a JS bundle', async function() {
-    let b = await bundle(__dirname + '/integration/sourcemap/index.js');
+    let b = await bundle(
+      __dirname + '/integration/sourcemap/index.js',
+      this.test
+    );
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -20,10 +23,10 @@ describe('sourcemaps', function() {
     });
 
     let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
+      .readFileSync(path.join(b.entryAsset.options.outDir, '/index.js'))
       .toString();
     let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
+      .readFileSync(path.join(b.entryAsset.options.outDir, '/index.map'))
       .toString();
     mapValidator(raw, map);
 
@@ -34,7 +37,8 @@ describe('sourcemaps', function() {
 
   it('should create a valid sourcemap as a child of a TS bundle', async function() {
     let b = await bundle(
-      __dirname + '/integration/sourcemap-typescript/index.ts'
+      __dirname + '/integration/sourcemap-typescript/index.ts',
+      this.test
     );
 
     assertBundleTree(b, {
@@ -49,10 +53,10 @@ describe('sourcemaps', function() {
     });
 
     let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
+      .readFileSync(path.join(b.entryAsset.options.outDir, '/index.js'))
       .toString();
     let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
+      .readFileSync(path.join(b.entryAsset.options.outDir, '/index.map'))
       .toString();
     mapValidator(raw, map);
 
@@ -63,7 +67,8 @@ describe('sourcemaps', function() {
 
   it('should create a valid sourcemap as a child of a nested TS bundle', async function() {
     let b = await bundle(
-      __dirname + '/integration/sourcemap-typescript-nested/index.ts'
+      __dirname + '/integration/sourcemap-typescript-nested/index.ts',
+      this.test
     );
 
     assertBundleTree(b, {
@@ -78,10 +83,10 @@ describe('sourcemaps', function() {
     });
 
     let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
+      .readFileSync(path.join(b.entryAsset.options.outDir, '/index.js'))
       .toString();
     let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
+      .readFileSync(path.join(b.entryAsset.options.outDir, '/index.map'))
       .toString();
     mapValidator(raw, map);
 
@@ -91,7 +96,10 @@ describe('sourcemaps', function() {
   });
 
   it('should create a valid sourcemap for a js file with requires', async function() {
-    let b = await bundle(__dirname + '/integration/sourcemap-nested/index.js');
+    let b = await bundle(
+      __dirname + '/integration/sourcemap-nested/index.js',
+      this.test
+    );
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -105,10 +113,10 @@ describe('sourcemaps', function() {
     });
 
     let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
+      .readFileSync(path.join(b.entryAsset.options.outDir, '/index.js'))
       .toString();
     let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
+      .readFileSync(path.join(b.entryAsset.options.outDir, '/index.map'))
       .toString();
     mapValidator(raw, map);
 
@@ -120,6 +128,7 @@ describe('sourcemaps', function() {
   it('should create a valid sourcemap for a minified js bundle with requires', async function() {
     let b = await bundle(
       __dirname + '/integration/sourcemap-nested-minified/index.js',
+      this.test,
       {
         minify: true
       }
@@ -137,10 +146,10 @@ describe('sourcemaps', function() {
     });
 
     let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
+      .readFileSync(path.join(b.entryAsset.options.outDir, '/index.js'))
       .toString();
     let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
+      .readFileSync(path.join(b.entryAsset.options.outDir, '/index.map'))
       .toString();
     mapValidator(raw, map);
 

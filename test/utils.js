@@ -6,42 +6,44 @@ const fs = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
 const Module = require('module');
+const md5 = require('../src/utils/md5');
 
 beforeEach(async function() {
-  // Test run in a single process, creating and deleting the same file(s)
-  // Windows needs a delay for the file handles to be released before deleting
-  // is possible. Without a delay, rimraf fails on `beforeEach` for `/dist`
-  if (process.platform === 'win32') {
-    await sleep(50);
-  }
-  // Unix based systems also need a delay but only half as much as windows
-  await sleep(50);
-  rimraf.sync(path.join(__dirname, 'dist'));
+  rimraf.sync(
+    path.join(__dirname, 'dist/', calculateTestKey(this.currentTest))
+  );
 });
+
+function calculateTestKey(test) {
+  return md5(`${test.file}#${test.title}`);
+}
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function bundler(file, opts) {
+function bundler(file, test, opts) {
+  const testKey = calculateTestKey(test);
   return new Bundler(
     file,
     Object.assign(
       {
-        outDir: path.join(__dirname, 'dist'),
         watch: false,
         cache: false,
         killWorkers: false,
         hmr: false,
-        logLevel: 0
+        logLevel: 0,
+        cacheDir: path.join(__dirname, '/.cache/', testKey),
+        outDir: path.join(__dirname, '/dist/', testKey),
+        publicURL: '/dist'
       },
       opts
     )
   );
 }
 
-function bundle(file, opts) {
-  return bundler(file, opts).bundle();
+function bundle(file, test, opts) {
+  return bundler(file, test, opts).bundle();
 }
 
 function prepareBrowserContext(bundle, globals) {
@@ -58,7 +60,9 @@ function prepareBrowserContext(bundle, globals) {
             setTimeout(function() {
               if (el.tag === 'script') {
                 vm.runInContext(
-                  fs.readFileSync(path.join(__dirname, 'dist', el.src)),
+                  fs.readFileSync(
+                    path.join(bundle.entryAsset.options.outDir, el.src)
+                  ),
                   ctx
                 );
               }
@@ -81,8 +85,11 @@ function prepareBrowserContext(bundle, globals) {
         return Promise.resolve({
           arrayBuffer() {
             return Promise.resolve(
-              new Uint8Array(fs.readFileSync(path.join(__dirname, 'dist', url)))
-                .buffer
+              new Uint8Array(
+                fs.readFileSync(
+                  path.join(bundle.entryAsset.options.outDir, url)
+                )
+              ).buffer
             );
           }
         });
@@ -202,3 +209,4 @@ exports.run = run;
 exports.assertBundleTree = assertBundleTree;
 exports.nextBundle = nextBundle;
 exports.deferred = deferred;
+exports.calculateTestKey = calculateTestKey;

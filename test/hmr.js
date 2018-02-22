@@ -44,7 +44,10 @@ describe('hmr', function() {
   it('should emit an HMR update for the file that changed', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {
+      watch: true,
+      hmr: true
+    });
     await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
@@ -68,7 +71,7 @@ describe('hmr', function() {
   it('should not enable HMR for --target=node', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
-    b = bundler(__dirname + '/input/index.js', {
+    b = bundler(__dirname + '/input/index.js', this.test, {
       watch: true,
       hmr: true,
       target: 'node'
@@ -85,7 +88,7 @@ describe('hmr', function() {
   it('should enable HMR for --target=electron', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
-    b = bundler(__dirname + '/input/index.js', {
+    b = bundler(__dirname + '/input/index.js', this.test, {
       watch: true,
       hmr: true,
       target: 'electron'
@@ -113,7 +116,10 @@ describe('hmr', function() {
   it('should emit an HMR update for all new dependencies along with the changed file', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {
+      watch: true,
+      hmr: true
+    });
     await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
@@ -135,7 +141,10 @@ describe('hmr', function() {
   it('should emit an HMR error on bundle failure', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {
+      watch: true,
+      hmr: true
+    });
     await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
@@ -167,7 +176,10 @@ describe('hmr', function() {
   it('should emit an HMR error to new connections after a bundle failure', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {
+      watch: true,
+      hmr: true
+    });
     await b.bundle();
 
     fs.writeFileSync(
@@ -185,7 +197,10 @@ describe('hmr', function() {
   it('should emit an HMR error-resolved on build after error', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {
+      watch: true,
+      hmr: true
+    });
     await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
@@ -218,7 +233,10 @@ describe('hmr', function() {
   it('should accept HMR updates in the runtime', async function() {
     await ncp(__dirname + '/integration/hmr', __dirname + '/input');
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {
+      watch: true,
+      hmr: true
+    });
     let bundle = await b.bundle();
     let outputs = [];
 
@@ -242,7 +260,10 @@ describe('hmr', function() {
   it('should call dispose and accept callbacks', async function() {
     await ncp(__dirname + '/integration/hmr-callbacks', __dirname + '/input');
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {
+      watch: true,
+      hmr: true
+    });
     let bundle = await b.bundle();
     let outputs = [];
     let moduleId = '';
@@ -276,7 +297,10 @@ describe('hmr', function() {
   it('should work across bundles', async function() {
     await ncp(__dirname + '/integration/hmr-dynamic', __dirname + '/input');
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {
+      watch: true,
+      hmr: true
+    });
     let bundle = await b.bundle();
     let outputs = [];
 
@@ -302,7 +326,10 @@ describe('hmr', function() {
   it('should log emitted errors', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {
+      watch: true,
+      hmr: true
+    });
     let bundle = await b.bundle();
 
     let logs = [];
@@ -328,7 +355,10 @@ describe('hmr', function() {
   it('should log when errors resolve', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {
+      watch: true,
+      hmr: true
+    });
     let bundle = await b.bundle();
 
     let logs = [];

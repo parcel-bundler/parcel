@@ -21,7 +21,7 @@ describe('watcher', function() {
   it('should rebuild on file change', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {watch: true});
     let bundle = await b.bundle();
     let output = run(bundle);
     assert.equal(output(), 3);
@@ -39,7 +39,7 @@ describe('watcher', function() {
   it('should re-generate bundle tree when files change', async function() {
     await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
 
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {watch: true});
     let bundle = await b.bundle();
 
     assertBundleTree(bundle, {
@@ -115,13 +115,14 @@ describe('watcher', function() {
 
   it('should only re-package bundles that changed', async function() {
     await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {watch: true});
 
     await b.bundle();
     let mtimes = fs
-      .readdirSync(__dirname + '/dist')
+      .readdirSync(b.options.outDir)
       .map(
-        f => (fs.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000) | 0
+        f =>
+          (fs.statSync(b.options.outDir + '/' + f).mtime.getTime() / 1000) | 0
       );
 
     await sleep(1100); // mtime only has second level precision
@@ -132,9 +133,10 @@ describe('watcher', function() {
 
     await nextBundle(b);
     let newMtimes = fs
-      .readdirSync(__dirname + '/dist')
+      .readdirSync(b.options.outDir)
       .map(
-        f => (fs.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000) | 0
+        f =>
+          (fs.statSync(b.options.outDir + '/' + f).mtime.getTime() / 1000) | 0
       );
     assert.deepEqual(mtimes.sort().slice(0, 2), newMtimes.sort().slice(0, 2));
     assert.notEqual(mtimes[mtimes.length - 1], newMtimes[newMtimes.length - 1]);
@@ -142,7 +144,7 @@ describe('watcher', function() {
 
   it('should unload assets that are orphaned', async function() {
     await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {watch: true});
 
     let bundle = await b.bundle();
     assertBundleTree(bundle, {
@@ -227,10 +229,10 @@ describe('watcher', function() {
 
   it('should recompile all assets when a config file changes', async function() {
     await ncp(__dirname + '/integration/babel', __dirname + '/input');
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    b = bundler(__dirname + '/input/index.js', this.test, {watch: true});
 
     await b.bundle();
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(b.options.outDir + '/index.js', 'utf8');
     assert(file.includes('class Foo {}'));
     assert(file.includes('class Bar {}'));
 
@@ -242,7 +244,7 @@ describe('watcher', function() {
     fs.writeFileSync(__dirname + '/input/.babelrc', JSON.stringify(babelrc));
 
     await nextBundle(b);
-    file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    file = fs.readFileSync(b.options.outDir + '/index.js', 'utf8');
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });

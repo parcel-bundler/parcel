@@ -4,15 +4,18 @@ const {bundler, nextBundle} = require('./utils');
 
 describe('bundler', function() {
   it('should bundle once before exporting middleware', async function() {
-    let b = bundler(__dirname + '/integration/bundler-middleware/index.js');
+    let b = bundler(
+      __dirname + '/integration/bundler-middleware/index.js',
+      this.test
+    );
     b.middleware();
 
     await nextBundle(b);
     assert(b.mainAsset);
   });
 
-  it('should defer bundling if a bundle is pending', async () => {
-    const b = bundler(__dirname + '/integration/html/index.html');
+  it('should defer bundling if a bundle is pending', async function() {
+    const b = bundler(__dirname + '/integration/html/index.html', this.test);
     b.pending = true; // bundle in progress
     const spy = sinon.spy(b, 'bundle');
 
@@ -29,16 +32,16 @@ describe('bundler', function() {
     assert(spy.calledTwice);
   });
 
-  it('should enforce asset type path to be a string', () => {
-    const b = bundler(__dirname + '/integration/html/index.html');
+  it('should enforce asset type path to be a string', function() {
+    const b = bundler(__dirname + '/integration/html/index.html', this.test);
 
     assert.throws(() => {
       b.addAssetType('.ext', {});
     }, 'should be a module path');
   });
 
-  it('should enforce setup before bundling', () => {
-    const b = bundler(__dirname + '/integration/html/index.html');
+  it('should enforce setup before bundling', function() {
+    const b = bundler(__dirname + '/integration/html/index.html', this.test);
     b.farm = true; // truthy
 
     assert.throws(() => {

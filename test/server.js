@@ -39,26 +39,40 @@ describe('server', function() {
   }
 
   it('should serve files', async function() {
-    let b = bundler(__dirname + '/integration/commonjs/index.js');
+    let b = bundler(
+      __dirname + '/integration/commonjs/index.js',
+      this.test,
+      {}
+    );
     server = await b.serve(0);
 
     let data = await get('/dist/index.js');
-    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
+    assert.equal(data, fs.readFileSync(b.options.outDir + '/index.js', 'utf8'));
   });
 
   it('should serve a default page if the main bundle is an HTML asset', async function() {
-    let b = bundler(__dirname + '/integration/html/index.html');
+    let b = bundler(__dirname + '/integration/html/index.html', this.test, {});
     server = await b.serve(0);
 
     let data = await get('/');
-    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+    assert.equal(
+      data,
+      fs.readFileSync(b.options.outDir + '/index.html', 'utf8')
+    );
 
     data = await get('/foo/bar');
-    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+    assert.equal(
+      data,
+      fs.readFileSync(b.options.outDir + '/index.html', 'utf8')
+    );
   });
 
   it('should serve a 404 if the file does not exist', async function() {
-    let b = bundler(__dirname + '/integration/commonjs/index.js');
+    let b = bundler(
+      __dirname + '/integration/commonjs/index.js',
+      this.test,
+      {}
+    );
     server = await b.serve(0);
 
     let threw = false;
@@ -72,7 +86,7 @@ describe('server', function() {
   });
 
   it('should serve a 500 if the bundler errored', async function() {
-    let b = bundler(__dirname + '/integration/html/index.html');
+    let b = bundler(__dirname + '/integration/html/index.html', this.test, {});
     server = await b.serve(0);
 
     b.errored = true;
@@ -89,10 +103,14 @@ describe('server', function() {
   });
 
   it('should support HTTPS', async function() {
-    let b = bundler(__dirname + '/integration/commonjs/index.js');
+    let b = bundler(
+      __dirname + '/integration/commonjs/index.js',
+      this.test,
+      {}
+    );
     server = await b.serve(0, true);
 
     let data = await get('/dist/index.js', https);
-    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
+    assert.equal(data, fs.readFileSync(b.options.outDir + '/index.js', 'utf8'));
   });
 });
