@@ -9,7 +9,6 @@ const {
 } = require('./utils');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
-const rimraf = require('rimraf');
 
 describe('css', function() {
   it('should produce two bundles when importing a CSS file', async function() {
@@ -263,7 +262,6 @@ describe('css', function() {
 
   it('should automatically install postcss plugins with npm if needed', async function() {
     let inputDir = __dirname + `/input/${generateTimeKey()}`;
-    rimraf.sync(inputDir);
     await ncp(__dirname + '/integration/autoinstall/npm', inputDir);
     let b = bundler(inputDir + '/index.css');
     await b.bundle();
@@ -282,7 +280,6 @@ describe('css', function() {
 
   it('should automatically install postcss plugins with yarn if needed', async function() {
     let inputDir = __dirname + `/input/${generateTimeKey()}`;
-    rimraf.sync(inputDir);
     await ncp(__dirname + '/integration/autoinstall/yarn', inputDir);
     let b = bundler(inputDir + '/index.css');
     await b.bundle();
