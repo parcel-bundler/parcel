@@ -38,7 +38,7 @@ describe('hmr', function() {
   }
 
   it('should emit an HMR update for the file that changed', async function() {
-    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
     b = bundler(inputDir + '/index.js', {
@@ -63,7 +63,7 @@ describe('hmr', function() {
   });
 
   it('should not enable HMR for --target=node', async function() {
-    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
     b = bundler(inputDir + '/index.js', {
@@ -81,7 +81,7 @@ describe('hmr', function() {
   });
 
   it('should enable HMR for --target=electron', async function() {
-    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
     b = bundler(inputDir + '/index.js', {
@@ -107,7 +107,7 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR update for all new dependencies along with the changed file', async function() {
-    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
     b = bundler(inputDir + '/index.js', {
@@ -133,7 +133,7 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR error on bundle failure', async function() {
-    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
     b = bundler(inputDir + '/index.js', {
@@ -169,7 +169,7 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR error to new connections after a bundle failure', async function() {
-    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
     b = bundler(inputDir + '/index.js', {
@@ -191,7 +191,7 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR error-resolved on build after error', async function() {
-    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
     b = bundler(inputDir + '/index.js', {
@@ -228,7 +228,7 @@ describe('hmr', function() {
   });
 
   it('should accept HMR updates in the runtime', async function() {
-    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
     await ncp(__dirname + '/integration/hmr', inputDir);
 
     b = bundler(inputDir + '/index.js', {
@@ -253,7 +253,7 @@ describe('hmr', function() {
   });
 
   it('should call dispose and accept callbacks', async function() {
-    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
     await ncp(__dirname + '/integration/hmr-callbacks', inputDir);
 
     b = bundler(inputDir + '/index.js', {
@@ -288,7 +288,7 @@ describe('hmr', function() {
   });
 
   it('should work across bundles', async function() {
-    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
     await ncp(__dirname + '/integration/hmr-dynamic', inputDir);
 
     b = bundler(inputDir + '/index.js', {
@@ -315,7 +315,7 @@ describe('hmr', function() {
   });
 
   it('should log emitted errors', async function() {
-    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
     b = bundler(inputDir + '/index.js', {
@@ -345,7 +345,7 @@ describe('hmr', function() {
   });
 
   it('should log when errors resolve', async function() {
-    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
     b = bundler(inputDir + '/index.js', {
