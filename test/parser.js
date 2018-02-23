@@ -5,8 +5,7 @@ const {bundle, assertBundleTree} = require('./utils');
 describe('parser', function() {
   it('should support case-insensitive file extension', async function() {
     let b = await bundle(
-      __dirname + '/integration/parser-case-insensitive-ext/index.html',
-      this.test
+      __dirname + '/integration/parser-case-insensitive-ext/index.html'
     );
 
     assertBundleTree(b, {

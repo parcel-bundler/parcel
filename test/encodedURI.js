@@ -4,10 +4,7 @@ const {bundle, assertBundleTree} = require('./utils');
 
 describe('encodedURI', function() {
   it('should support bundling files which names in encoded URI', async function() {
-    let b = await bundle(
-      __dirname + '/integration/encodedURI/index.html',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/encodedURI/index.html');
 
     assertBundleTree(b, {
       name: 'index.html',

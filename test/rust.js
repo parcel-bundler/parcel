@@ -14,7 +14,7 @@ describe('rust', function() {
 
   it('should generate a wasm file from a rust file with rustc', async function() {
     this.timeout(500000);
-    let b = await bundle(__dirname + '/integration/rust/index.js', this.test);
+    let b = await bundle(__dirname + '/integration/rust/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -45,11 +45,7 @@ describe('rust', function() {
 
   it('should support rust files with dependencies via rustc', async function() {
     this.timeout(500000);
-    let b = bundler(
-      __dirname + '/integration/rust-deps/index.js',
-      this.test,
-      {}
-    );
+    let b = bundler(__dirname + '/integration/rust-deps/index.js');
     let bundle = await b.bundle();
 
     assertBundleTree(bundle, {
@@ -78,10 +74,7 @@ describe('rust', function() {
 
   it('should generate a wasm file from a rust file with cargo', async function() {
     this.timeout(500000);
-    let b = await bundle(
-      __dirname + '/integration/rust-cargo/src/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/rust-cargo/src/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -112,20 +105,16 @@ describe('rust', function() {
 
     // Store the size of not minified bundle in order to test it against
     // the size of minified one.
-    let b = await bundle(__dirname + '/integration/rust/index.js', this.test, {
+    let b = await bundle(__dirname + '/integration/rust/index.js', {
       minify: false,
       sourceMaps: false
     });
     const size = fs.statSync(Array.from(b.childBundles)[0].name).size;
 
-    let bMinified = await bundle(
-      __dirname + '/integration/rust/index.js',
-      this.test,
-      {
-        minify: true,
-        sourceMaps: false
-      }
-    );
+    let bMinified = await bundle(__dirname + '/integration/rust/index.js', {
+      minify: true,
+      sourceMaps: false
+    });
 
     const bundleTree = {
       name: 'index.js',

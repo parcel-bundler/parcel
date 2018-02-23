@@ -6,10 +6,7 @@ const {mkdirp} = require('../src/utils/fs');
 
 describe('javascript', function() {
   it('should produce a basic JS bundle with CommonJS requires', async function() {
-    let b = await bundle(
-      __dirname + '/integration/commonjs/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/commonjs/index.js');
 
     assert.equal(b.assets.size, 8);
     assert.equal(b.childBundles.size, 1);
@@ -20,7 +17,7 @@ describe('javascript', function() {
   });
 
   it('should produce a basic JS bundle with ES6 imports', async function() {
-    let b = await bundle(__dirname + '/integration/es6/index.js', this.test);
+    let b = await bundle(__dirname + '/integration/es6/index.js');
 
     assert.equal(b.assets.size, 8);
     assert.equal(b.childBundles.size, 1);
@@ -32,13 +29,9 @@ describe('javascript', function() {
   });
 
   it('should bundle node_modules on --target=browser', async function() {
-    let b = await bundle(
-      __dirname + '/integration/node_require/main.js',
-      this.test,
-      {
-        target: 'browser'
-      }
-    );
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'browser'
+    });
 
     assertBundleTree(b, {
       name: 'main.js',
@@ -51,13 +44,9 @@ describe('javascript', function() {
   });
 
   it('should not bundle node_modules on --target=node', async function() {
-    let b = await bundle(
-      __dirname + '/integration/node_require/main.js',
-      this.test,
-      {
-        target: 'node'
-      }
-    );
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'node'
+    });
 
     assertBundleTree(b, {
       name: 'main.js',
@@ -76,13 +65,9 @@ describe('javascript', function() {
   });
 
   it('should not bundle node_modules on --target=electron', async function() {
-    let b = await bundle(
-      __dirname + '/integration/node_require/main.js',
-      this.test,
-      {
-        target: 'electron'
-      }
-    );
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'electron'
+    });
 
     assertBundleTree(b, {
       name: 'main.js',
@@ -101,10 +86,7 @@ describe('javascript', function() {
   });
 
   it('should produce a JS bundle with default exports and no imports', async function() {
-    let b = await bundle(
-      __dirname + '/integration/es6-default-only/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/es6-default-only/index.js');
 
     assert.equal(b.assets.size, 1);
     assert.equal(b.childBundles.size, 1);
@@ -116,10 +98,7 @@ describe('javascript', function() {
   });
 
   it('should split bundles when a dynamic import is used', async function() {
-    let b = await bundle(
-      __dirname + '/integration/dynamic/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/dynamic/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -145,10 +124,7 @@ describe('javascript', function() {
   });
 
   it('should support bundling workers', async function() {
-    let b = await bundle(
-      __dirname + '/integration/workers/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/workers/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -179,8 +155,7 @@ describe('javascript', function() {
 
   it('should dynamic import files which import raw files', async function() {
     let b = await bundle(
-      __dirname + '/integration/dynamic-references-raw/index.js',
-      this.test
+      __dirname + '/integration/dynamic-references-raw/index.js'
     );
 
     assertBundleTree(b, {
@@ -210,10 +185,7 @@ describe('javascript', function() {
   });
 
   it('should return all exports as an object when using ES modules', async function() {
-    let b = await bundle(
-      __dirname + '/integration/dynamic-esm/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/dynamic-esm/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -239,10 +211,7 @@ describe('javascript', function() {
   });
 
   it('should hoist common dependencies into a parent bundle', async function() {
-    let b = await bundle(
-      __dirname + '/integration/dynamic-hoist/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/dynamic-hoist/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -283,7 +252,7 @@ describe('javascript', function() {
   });
 
   it('should support requiring JSON files', async function() {
-    let b = await bundle(__dirname + '/integration/json/index.js', this.test);
+    let b = await bundle(__dirname + '/integration/json/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -301,7 +270,7 @@ describe('javascript', function() {
   });
 
   it('should support requiring JSON5 files', async function() {
-    let b = await bundle(__dirname + '/integration/json5/index.js', this.test);
+    let b = await bundle(__dirname + '/integration/json5/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -319,10 +288,7 @@ describe('javascript', function() {
   });
 
   it('should support importing a URL to a raw asset', async function() {
-    let b = await bundle(
-      __dirname + '/integration/import-raw/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/import-raw/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -348,13 +314,9 @@ describe('javascript', function() {
   });
 
   it('should minify JS in production mode', async function() {
-    let b = await bundle(
-      __dirname + '/integration/uglify/index.js',
-      this.test,
-      {
-        production: true
-      }
-    );
+    let b = await bundle(__dirname + '/integration/uglify/index.js', {
+      production: true
+    });
 
     let output = run(b);
     assert.equal(typeof output, 'function');
@@ -365,13 +327,9 @@ describe('javascript', function() {
   });
 
   it('should use uglify config', async function() {
-    let b = await bundle(
-      __dirname + '/integration/uglify-config/index.js',
-      this.test,
-      {
-        production: true
-      }
-    );
+    let b = await bundle(__dirname + '/integration/uglify-config/index.js', {
+      production: true
+    });
 
     let js = fs.readFileSync(b.entryAsset.options.outDir + '/index.js', 'utf8');
     assert(!js.includes('console.log'));
@@ -379,10 +337,7 @@ describe('javascript', function() {
   });
 
   it('should insert global variables when needed', async function() {
-    let b = await bundle(
-      __dirname + '/integration/globals/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/globals/index.js');
 
     let output = run(b);
     assert.deepEqual(output(), {
@@ -394,24 +349,21 @@ describe('javascript', function() {
   });
 
   it('should insert environment variables', async function() {
-    let b = await bundle(__dirname + '/integration/env/index.js', this.test);
+    let b = await bundle(__dirname + '/integration/env/index.js');
 
     let output = run(b);
     assert.equal(output(), 'test:test');
   });
 
   it('should insert environment variables from a file', async function() {
-    let b = await bundle(
-      __dirname + '/integration/env-file/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/env-file/index.js');
 
     let output = run(b);
     assert.equal(output, 'bartest');
   });
 
   it('should support adding implicit dependencies', async function() {
-    let b = await bundle(__dirname + '/integration/json/index.js', this.test, {
+    let b = await bundle(__dirname + '/integration/json/index.js', {
       delegate: {
         getImplicitDependencies(asset) {
           if (asset.basename === 'index.js') {
@@ -441,7 +393,7 @@ describe('javascript', function() {
   });
 
   it('should support requiring YAML files', async function() {
-    let b = await bundle(__dirname + '/integration/yaml/index.js', this.test);
+    let b = await bundle(__dirname + '/integration/yaml/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -459,7 +411,7 @@ describe('javascript', function() {
   });
 
   it('should support requiring TOML files', async function() {
-    let b = await bundle(__dirname + '/integration/toml/index.js', this.test);
+    let b = await bundle(__dirname + '/integration/toml/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -477,7 +429,7 @@ describe('javascript', function() {
   });
 
   it('should support requiring CoffeeScript files', async function() {
-    let b = await bundle(__dirname + '/integration/coffee/index.js', this.test);
+    let b = await bundle(__dirname + '/integration/coffee/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -495,10 +447,7 @@ describe('javascript', function() {
   });
 
   it('should resolve the browser field before main', async function() {
-    let b = await bundle(
-      __dirname + '/integration/resolve-entries/browser.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/resolve-entries/browser.js');
 
     assertBundleTree(b, {
       name: 'browser.js',
@@ -518,8 +467,7 @@ describe('javascript', function() {
 
   it('should resolve advanced browser resolution', async function() {
     let b = await bundle(
-      __dirname + '/integration/resolve-entries/browser-multiple.js',
-      this.test
+      __dirname + '/integration/resolve-entries/browser-multiple.js'
     );
 
     assertBundleTree(b, {
@@ -540,8 +488,7 @@ describe('javascript', function() {
 
   it('should resolve the module field before main', async function() {
     let b = await bundle(
-      __dirname + '/integration/resolve-entries/module-field.js',
-      this.test
+      __dirname + '/integration/resolve-entries/module-field.js'
     );
 
     assertBundleTree(b, {
@@ -562,8 +509,7 @@ describe('javascript', function() {
 
   it('should resolve the jsnext:main field before main', async function() {
     let b = await bundle(
-      __dirname + '/integration/resolve-entries/jsnext-field.js',
-      this.test
+      __dirname + '/integration/resolve-entries/jsnext-field.js'
     );
 
     assertBundleTree(b, {
@@ -584,8 +530,7 @@ describe('javascript', function() {
 
   it('should resolve the module field before jsnext:main', async function() {
     let b = await bundle(
-      __dirname + '/integration/resolve-entries/both-fields.js',
-      this.test
+      __dirname + '/integration/resolve-entries/both-fields.js'
     );
 
     assertBundleTree(b, {
@@ -606,8 +551,7 @@ describe('javascript', function() {
 
   it('should resolve the main field', async function() {
     let b = await bundle(
-      __dirname + '/integration/resolve-entries/main-field.js',
-      this.test
+      __dirname + '/integration/resolve-entries/main-field.js'
     );
 
     assertBundleTree(b, {
@@ -627,13 +571,9 @@ describe('javascript', function() {
   });
 
   it('should minify JSON files', async function() {
-    let b = await bundle(
-      __dirname + '/integration/uglify-json/index.json',
-      this.test,
-      {
-        production: true
-      }
-    );
+    let b = await bundle(__dirname + '/integration/uglify-json/index.json', {
+      production: true
+    });
 
     let json = fs.readFileSync(
       b.entryAsset.options.outDir + '/index.js',
@@ -643,13 +583,9 @@ describe('javascript', function() {
   });
 
   it('should minify JSON5 files', async function() {
-    let b = await bundle(
-      __dirname + '/integration/uglify-json5/index.json5',
-      this.test,
-      {
-        production: true
-      }
-    );
+    let b = await bundle(__dirname + '/integration/uglify-json5/index.json5', {
+      production: true
+    });
 
     let json = fs.readFileSync(
       b.entryAsset.options.outDir + '/index.js',
@@ -659,7 +595,7 @@ describe('javascript', function() {
   });
 
   it('should minify YAML for production', async function() {
-    let b = await bundle(__dirname + '/integration/yaml/index.js', this.test, {
+    let b = await bundle(__dirname + '/integration/yaml/index.js', {
       production: true
     });
 
@@ -671,7 +607,7 @@ describe('javascript', function() {
   });
 
   it('should minify TOML for production', async function() {
-    let b = await bundle(__dirname + '/integration/toml/index.js', this.test, {
+    let b = await bundle(__dirname + '/integration/toml/index.js', {
       production: true
     });
 
@@ -683,7 +619,7 @@ describe('javascript', function() {
   });
 
   it('should support compiling with babel using .babelrc config', async function() {
-    let b = await bundle(__dirname + '/integration/babel/index.js', this.test);
+    let b = await bundle(__dirname + '/integration/babel/index.js');
 
     let file = fs.readFileSync(
       b.entryAsset.options.outDir + '/index.js',
@@ -694,10 +630,7 @@ describe('javascript', function() {
   });
 
   it('should compile with babel with default engines if no config', async function() {
-    let b = await bundle(
-      __dirname + '/integration/babel-default/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/babel-default/index.js');
 
     let file = fs.readFileSync(
       b.entryAsset.options.outDir + '/index.js',
@@ -709,8 +642,7 @@ describe('javascript', function() {
 
   it('should support compiling with babel using browserlist', async function() {
     let b = await bundle(
-      __dirname + '/integration/babel-browserslist/index.js',
-      this.test
+      __dirname + '/integration/babel-browserslist/index.js'
     );
 
     let file = fs.readFileSync(
@@ -723,8 +655,7 @@ describe('javascript', function() {
 
   it('should not compile node_modules by default', async function() {
     let b = await bundle(
-      __dirname + '/integration/babel-node-modules/index.js',
-      this.test
+      __dirname + '/integration/babel-node-modules/index.js'
     );
 
     let file = fs.readFileSync(
@@ -737,8 +668,7 @@ describe('javascript', function() {
 
   it('should compile node_modules if legacy browserify options are found', async function() {
     let b = await bundle(
-      __dirname + '/integration/babel-node-modules-browserify/index.js',
-      this.test
+      __dirname + '/integration/babel-node-modules-browserify/index.js'
     );
 
     let file = fs.readFileSync(
@@ -751,8 +681,7 @@ describe('javascript', function() {
 
   it('should compile node_modules with browserslist to app target', async function() {
     let b = await bundle(
-      __dirname + '/integration/babel-node-modules-browserslist/index.js',
-      this.test
+      __dirname + '/integration/babel-node-modules-browserslist/index.js'
     );
 
     let file = fs.readFileSync(
@@ -764,7 +693,7 @@ describe('javascript', function() {
   });
 
   it('should support compiling JSX', async function() {
-    let b = await bundle(__dirname + '/integration/jsx/index.jsx', this.test);
+    let b = await bundle(__dirname + '/integration/jsx/index.jsx');
 
     let file = fs.readFileSync(
       b.entryAsset.options.outDir + '/index.js',
@@ -774,10 +703,7 @@ describe('javascript', function() {
   });
 
   it('should support compiling JSX in JS files with React dependency', async function() {
-    let b = await bundle(
-      __dirname + '/integration/jsx-react/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/jsx-react/index.js');
 
     let file = fs.readFileSync(
       b.entryAsset.options.outDir + '/index.js',
@@ -787,10 +713,7 @@ describe('javascript', function() {
   });
 
   it('should support compiling JSX in JS files with Preact dependency', async function() {
-    let b = await bundle(
-      __dirname + '/integration/jsx-preact/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/jsx-preact/index.js');
 
     let file = fs.readFileSync(
       b.entryAsset.options.outDir + '/index.js',
@@ -800,10 +723,7 @@ describe('javascript', function() {
   });
 
   it('should support compiling JSX in JS files with Nerv dependency', async function() {
-    let b = await bundle(
-      __dirname + '/integration/jsx-nervjs/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/jsx-nervjs/index.js');
 
     let file = fs.readFileSync(
       b.entryAsset.options.outDir + '/index.js',
@@ -813,10 +733,7 @@ describe('javascript', function() {
   });
 
   it('should support compiling JSX in JS files with Hyperapp dependency', async function() {
-    let b = await bundle(
-      __dirname + '/integration/jsx-hyperapp/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/jsx-hyperapp/index.js');
 
     let file = fs.readFileSync(
       b.entryAsset.options.outDir + '/index.js',
@@ -826,10 +743,7 @@ describe('javascript', function() {
   });
 
   it('should support optional dependencies in try...catch blocks', async function() {
-    let b = await bundle(
-      __dirname + '/integration/optional-dep/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/optional-dep/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',

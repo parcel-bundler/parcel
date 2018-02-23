@@ -6,10 +6,7 @@ const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('sourcemaps', function() {
   it('should create a valid sourcemap as a child of a JS bundle', async function() {
-    let b = await bundle(
-      __dirname + '/integration/sourcemap/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/sourcemap/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -37,8 +34,7 @@ describe('sourcemaps', function() {
 
   it('should create a valid sourcemap as a child of a TS bundle', async function() {
     let b = await bundle(
-      __dirname + '/integration/sourcemap-typescript/index.ts',
-      this.test
+      __dirname + '/integration/sourcemap-typescript/index.ts'
     );
 
     assertBundleTree(b, {
@@ -67,8 +63,7 @@ describe('sourcemaps', function() {
 
   it('should create a valid sourcemap as a child of a nested TS bundle', async function() {
     let b = await bundle(
-      __dirname + '/integration/sourcemap-typescript-nested/index.ts',
-      this.test
+      __dirname + '/integration/sourcemap-typescript-nested/index.ts'
     );
 
     assertBundleTree(b, {
@@ -96,10 +91,7 @@ describe('sourcemaps', function() {
   });
 
   it('should create a valid sourcemap for a js file with requires', async function() {
-    let b = await bundle(
-      __dirname + '/integration/sourcemap-nested/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/sourcemap-nested/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -128,7 +120,6 @@ describe('sourcemaps', function() {
   it('should create a valid sourcemap for a minified js bundle with requires', async function() {
     let b = await bundle(
       __dirname + '/integration/sourcemap-nested-minified/index.js',
-      this.test,
       {
         minify: true
       }

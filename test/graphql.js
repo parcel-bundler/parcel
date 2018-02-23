@@ -4,10 +4,7 @@ const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('graphql', function() {
   it('should support requiring graphql files', async function() {
-    let b = await bundle(
-      __dirname + '/integration/graphql/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/graphql/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',

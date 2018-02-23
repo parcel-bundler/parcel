@@ -7,18 +7,13 @@ const {
   assertBundleTree,
   sleep,
   nextBundle,
-  calculateTestKey
+  generateTimeKey
 } = require('./utils');
-const rimraf = require('rimraf');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 
 describe('watcher', function() {
   let b;
-  beforeEach(function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.currentTest)}`;
-    rimraf.sync(inputDir);
-  });
 
   afterEach(function() {
     if (b) {
@@ -27,10 +22,10 @@ describe('watcher', function() {
   });
 
   it('should rebuild on file change', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(inputDir + '/index.js', this.test, {watch: true});
+    b = bundler(inputDir + '/index.js', {watch: true});
     let bundle = await b.bundle();
     let output = run(bundle);
     assert.equal(output(), 3);
@@ -43,10 +38,10 @@ describe('watcher', function() {
   });
 
   it('should re-generate bundle tree when files change', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/dynamic-hoist', inputDir);
 
-    b = bundler(inputDir + '/index.js', this.test, {watch: true});
+    b = bundler(inputDir + '/index.js', {watch: true});
     let bundle = await b.bundle();
 
     assertBundleTree(bundle, {
@@ -121,9 +116,9 @@ describe('watcher', function() {
   });
 
   it('should only re-package bundles that changed', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/dynamic-hoist', inputDir);
-    b = bundler(inputDir + '/index.js', this.test, {watch: true});
+    b = bundler(inputDir + '/index.js', {watch: true});
 
     await b.bundle();
     let mtimes = fs
@@ -151,9 +146,9 @@ describe('watcher', function() {
   });
 
   it('should unload assets that are orphaned', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/dynamic-hoist', inputDir);
-    b = bundler(inputDir + '/index.js', this.test, {watch: true});
+    b = bundler(inputDir + '/index.js', {watch: true});
 
     let bundle = await b.bundle();
     assertBundleTree(bundle, {
@@ -237,9 +232,9 @@ describe('watcher', function() {
   });
 
   it('should recompile all assets when a config file changes', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/babel', inputDir);
-    b = bundler(inputDir + '/index.js', this.test, {watch: true});
+    b = bundler(inputDir + '/index.js', {watch: true});
 
     await b.bundle();
     let file = fs.readFileSync(b.options.outDir + '/index.js', 'utf8');

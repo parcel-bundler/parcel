@@ -4,7 +4,7 @@ const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('glob', function() {
   it('should require a glob of files', async function() {
-    let b = await bundle(__dirname + '/integration/glob/index.js', this.test);
+    let b = await bundle(__dirname + '/integration/glob/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -22,10 +22,7 @@ describe('glob', function() {
   });
 
   it('should require nested directories with a glob', async function() {
-    let b = await bundle(
-      __dirname + '/integration/glob-deep/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/glob-deep/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -43,10 +40,7 @@ describe('glob', function() {
   });
 
   it('should support importing a glob of CSS files', async function() {
-    let b = await bundle(
-      __dirname + '/integration/glob-css/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/glob-css/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',

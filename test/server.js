@@ -39,11 +39,7 @@ describe('server', function() {
   }
 
   it('should serve files', async function() {
-    let b = bundler(
-      __dirname + '/integration/commonjs/index.js',
-      this.test,
-      {}
-    );
+    let b = bundler(__dirname + '/integration/commonjs/index.js');
     server = await b.serve(0);
 
     let data = await get('/dist/index.js');
@@ -51,7 +47,7 @@ describe('server', function() {
   });
 
   it('should serve a default page if the main bundle is an HTML asset', async function() {
-    let b = bundler(__dirname + '/integration/html/index.html', this.test, {});
+    let b = bundler(__dirname + '/integration/html/index.html');
     server = await b.serve(0);
 
     let data = await get('/');
@@ -68,11 +64,7 @@ describe('server', function() {
   });
 
   it('should serve a 404 if the file does not exist', async function() {
-    let b = bundler(
-      __dirname + '/integration/commonjs/index.js',
-      this.test,
-      {}
-    );
+    let b = bundler(__dirname + '/integration/commonjs/index.js');
     server = await b.serve(0);
 
     let threw = false;
@@ -86,7 +78,7 @@ describe('server', function() {
   });
 
   it('should serve a 500 if the bundler errored', async function() {
-    let b = bundler(__dirname + '/integration/html/index.html', this.test, {});
+    let b = bundler(__dirname + '/integration/html/index.html');
     server = await b.serve(0);
 
     b.errored = true;
@@ -103,11 +95,7 @@ describe('server', function() {
   });
 
   it('should support HTTPS', async function() {
-    let b = bundler(
-      __dirname + '/integration/commonjs/index.js',
-      this.test,
-      {}
-    );
+    let b = bundler(__dirname + '/integration/commonjs/index.js');
     server = await b.serve(0, true);
 
     let data = await get('/dist/index.js', https);

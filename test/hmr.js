@@ -1,8 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const {bundler, run, sleep, calculateTestKey} = require('./utils');
-const rimraf = require('rimraf');
+const {bundler, run, sleep, generateTimeKey} = require('./utils');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 const WebSocket = require('ws');
@@ -10,10 +9,6 @@ const json5 = require('json5');
 
 describe('hmr', function() {
   let b, ws;
-  beforeEach(function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.currentTest)}`;
-    rimraf.sync(inputDir);
-  });
 
   afterEach(function(done) {
     let finalise = () => {
@@ -43,10 +38,10 @@ describe('hmr', function() {
   }
 
   it('should emit an HMR update for the file that changed', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(inputDir + '/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true
     });
@@ -68,10 +63,10 @@ describe('hmr', function() {
   });
 
   it('should not enable HMR for --target=node', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(inputDir + '/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true,
       target: 'node'
@@ -86,10 +81,10 @@ describe('hmr', function() {
   });
 
   it('should enable HMR for --target=electron', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(inputDir + '/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true,
       target: 'electron'
@@ -112,10 +107,10 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR update for all new dependencies along with the changed file', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(inputDir + '/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true
     });
@@ -138,10 +133,10 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR error on bundle failure', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(inputDir + '/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true
     });
@@ -174,10 +169,10 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR error to new connections after a bundle failure', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(inputDir + '/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true
     });
@@ -196,10 +191,10 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR error-resolved on build after error', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(inputDir + '/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true
     });
@@ -233,10 +228,10 @@ describe('hmr', function() {
   });
 
   it('should accept HMR updates in the runtime', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/hmr', inputDir);
 
-    b = bundler(inputDir + '/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true
     });
@@ -258,10 +253,10 @@ describe('hmr', function() {
   });
 
   it('should call dispose and accept callbacks', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/hmr-callbacks', inputDir);
 
-    b = bundler(inputDir + '/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true
     });
@@ -293,10 +288,10 @@ describe('hmr', function() {
   });
 
   it('should work across bundles', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/hmr-dynamic', inputDir);
 
-    b = bundler(inputDir + '/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true
     });
@@ -320,10 +315,10 @@ describe('hmr', function() {
   });
 
   it('should log emitted errors', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(inputDir + '/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true
     });
@@ -350,10 +345,10 @@ describe('hmr', function() {
   });
 
   it('should log when errors resolve', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
     await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(inputDir + '/index.js', this.test, {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true
     });

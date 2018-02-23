@@ -6,34 +6,34 @@ const fs = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
 const Module = require('module');
-const md5 = require('../src/utils/md5');
 
 before(function() {
+  cleanEnvironment();
   fs.mkdirSync(__dirname + '/input');
 });
 
 after(function() {
+  cleanEnvironment();
+});
+
+function cleanEnvironment() {
   rimraf.sync(path.join(__dirname, 'dist'));
   rimraf.sync(path.join(__dirname, '.cache'));
   rimraf.sync(path.join(__dirname, 'input'));
-});
+}
 
-beforeEach(function() {
-  rimraf.sync(
-    path.join(__dirname, 'dist/', calculateTestKey(this.currentTest))
-  );
-});
-
-function calculateTestKey(test) {
-  return md5(`${test.file}#${test.title}`);
+function generateTimeKey() {
+  return `${Date.now()}#${Math.round(Math.random() * 1000)}`;
 }
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function bundler(file, test, opts) {
-  const testKey = calculateTestKey(test);
+function bundler(file, opts) {
+  // Create a key based on current time
+  // and random number (in case 2 tests run at the exact same time)
+  const timeKey = generateTimeKey();
   return new Bundler(
     file,
     Object.assign(
@@ -43,8 +43,8 @@ function bundler(file, test, opts) {
         killWorkers: false,
         hmr: false,
         logLevel: 0,
-        cacheDir: path.join(__dirname, '/.cache/', testKey),
-        outDir: path.join(__dirname, '/dist/', testKey),
+        cacheDir: path.join(__dirname, '/.cache/', timeKey),
+        outDir: path.join(__dirname, '/dist/', timeKey),
         publicURL: '/dist'
       },
       opts
@@ -52,8 +52,8 @@ function bundler(file, test, opts) {
   );
 }
 
-function bundle(file, test, opts) {
-  return bundler(file, test, opts).bundle();
+function bundle(file, opts) {
+  return bundler(file, opts).bundle();
 }
 
 function prepareBrowserContext(bundle, globals) {
@@ -219,4 +219,4 @@ exports.run = run;
 exports.assertBundleTree = assertBundleTree;
 exports.nextBundle = nextBundle;
 exports.deferred = deferred;
-exports.calculateTestKey = calculateTestKey;
+exports.generateTimeKey = generateTimeKey;

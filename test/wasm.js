@@ -7,10 +7,7 @@ describe('wasm', function() {
   }
 
   it('should preload a wasm file for a sync require', async function() {
-    let b = await bundle(
-      __dirname + '/integration/wasm-sync/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/wasm-sync/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -38,10 +35,7 @@ describe('wasm', function() {
   });
 
   it('should load a wasm file asynchronously with dynamic import', async function() {
-    let b = await bundle(
-      __dirname + '/integration/wasm-async/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/wasm-async/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -68,10 +62,7 @@ describe('wasm', function() {
   });
 
   it('should load a wasm file in parallel with a dynamic JS import', async function() {
-    let b = await bundle(
-      __dirname + '/integration/wasm-dynamic/index.js',
-      this.test
-    );
+    let b = await bundle(__dirname + '/integration/wasm-dynamic/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',

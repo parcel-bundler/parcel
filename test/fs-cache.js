@@ -1,9 +1,8 @@
 const assert = require('assert');
 const path = require('path');
-const rimraf = require('rimraf');
 const fs = require('../src/utils/fs');
 const promisify = require('../src/utils/promisify');
-const {sleep, calculateTestKey} = require('./utils');
+const {sleep, generateTimeKey} = require('./utils');
 const ncp = promisify(require('ncp'));
 const FSCache = require('../src/FSCache');
 
@@ -14,15 +13,8 @@ const getMTime = async file => {
 };
 
 describe('FSCache', function() {
-  beforeEach(function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.currentTest)}`;
-    let cacheDir = __dirname + `/.cache/${calculateTestKey(this.currentTest)}`;
-    rimraf.sync(cacheDir);
-    rimraf.sync(inputDir);
-  });
-
   it('should create directory on ensureDirExists', async function() {
-    let cacheDir = __dirname + `/.cache/${calculateTestKey(this.test)}`;
+    let cacheDir = __dirname + `/.cache/${generateTimeKey(this.test)}`;
     let exists = await fs.exists(cacheDir);
     assert(!exists);
 
@@ -34,7 +26,7 @@ describe('FSCache', function() {
   });
 
   it('should cache resources', async function() {
-    let cacheDir = __dirname + `/.cache/${calculateTestKey(this.test)}`;
+    let cacheDir = __dirname + `/.cache/${generateTimeKey(this.test)}`;
     const cache = new FSCache({cacheDir});
     await cache.write(__filename, {a: 'test', b: 1, dependencies: []});
 
@@ -44,7 +36,7 @@ describe('FSCache', function() {
   });
 
   it('should return null for invalidated resources', async function() {
-    let cacheDir = __dirname + `/.cache/${calculateTestKey(this.test)}`;
+    let cacheDir = __dirname + `/.cache/${generateTimeKey(this.test)}`;
     const cache = new FSCache({cacheDir});
     cache.invalidate(__filename);
 
@@ -53,7 +45,7 @@ describe('FSCache', function() {
   });
 
   it('should remove file on delete', async function() {
-    let cacheDir = __dirname + `/.cache/${calculateTestKey(this.test)}`;
+    let cacheDir = __dirname + `/.cache/${generateTimeKey(this.test)}`;
     let cache = new FSCache({cacheDir});
     await cache.write(__filename, {a: 'test', b: 1, dependencies: []});
     await cache.delete(__filename);
@@ -63,7 +55,7 @@ describe('FSCache', function() {
   });
 
   it('should remove from invalidated on write', async function() {
-    let cacheDir = __dirname + `/.cache/${calculateTestKey(this.test)}`;
+    let cacheDir = __dirname + `/.cache/${generateTimeKey(this.test)}`;
     const cache = new FSCache({cacheDir});
     cache.invalidate(__filename);
 
@@ -75,7 +67,7 @@ describe('FSCache', function() {
   });
 
   it('should include mtime for dependencies included in parent', async function() {
-    let cacheDir = __dirname + `/.cache/${calculateTestKey(this.test)}`;
+    let cacheDir = __dirname + `/.cache/${generateTimeKey(this.test)}`;
     const cache = new FSCache({cacheDir});
     const mtime = await getMTime(__filename);
 
@@ -99,8 +91,8 @@ describe('FSCache', function() {
   });
 
   it('should invalidate when dependency included in parent changes', async function() {
-    let inputDir = __dirname + `/input/${calculateTestKey(this.test)}`;
-    let cacheDir = __dirname + `/.cache/${calculateTestKey(this.test)}`;
+    let inputDir = __dirname + `/input/${generateTimeKey(this.test)}`;
+    let cacheDir = __dirname + `/.cache/${generateTimeKey(this.test)}`;
 
     const cache = new FSCache({cacheDir});
     await ncp(__dirname + '/integration/fs', inputDir);
@@ -125,7 +117,7 @@ describe('FSCache', function() {
   });
 
   it('should return null on read error', async function() {
-    let cacheDir = __dirname + `/.cache/${calculateTestKey(this.test)}`;
+    let cacheDir = __dirname + `/.cache/${generateTimeKey(this.test)}`;
     const cache = new FSCache({cacheDir});
     const cached = await cache.read(
       path.join(__dirname, '/does/not/exist.txt')
@@ -135,7 +127,7 @@ describe('FSCache', function() {
   });
 
   it('should continue without throwing on write error', async function() {
-    let cacheDir = __dirname + `/.cache/${calculateTestKey(this.test)}`;
+    let cacheDir = __dirname + `/.cache/${generateTimeKey(this.test)}`;
     const cache = new FSCache({cacheDir});
     const filePath = path.join(__dirname, '/does/not/exist.txt');
 
