@@ -22,6 +22,11 @@ class Logger {
     this.chalk = new chalk.constructor({enabled: this.color});
   }
 
+  writeRaw(message) {
+    this.lines += message.split('\n').length - 1;
+    process.stdout.write(message);
+  }
+
   write(message, persistent = false) {
     if (!persistent) {
       this.lines += message.split('\n').length;

@@ -5,7 +5,6 @@ const promisify = require('./promisify');
 const resolve = promisify(require('resolve'));
 const commandExists = require('command-exists').sync;
 const logger = require('../Logger');
-const fs = require('./fs');
 
 async function install(
   dir,
@@ -21,13 +20,20 @@ async function install(
     'package.json'
   ]);
 
-  if (configFileLocation)
+  if (configFileLocation) {
     projectRootLocation = path.dirname(configFileLocation);
+  }
 
   return new Promise(async (resolve, reject) => {
     let install;
     let options = {
-      cwd: projectRootLocation
+      cwd: projectRootLocation,
+      env: Object.assign(
+        {
+          FORCE_COLOR: logger.color
+        },
+        process.env
+      )
     };
 
     let packageManagerToUse;
@@ -39,7 +45,10 @@ async function install(
       packageManagerToUse = 'npm';
       // If the yarn command exists and we find a yarn.lock, use yarn
       if (commandExists('yarn')) {
-        if (await fs.exists(path.join(projectRootLocation, 'yarn.lock'))) {
+        if (
+          !configFileLocation ||
+          path.basename(configFileLocation) === 'yarn.lock'
+        ) {
           packageManagerToUse = 'yarn';
         } else {
           logger.warn(
@@ -64,8 +73,9 @@ async function install(
 
     install = spawn(packageManagerToUse, args, options);
 
-    install.stdout.pipe(process.stdout);
-    install.stderr.pipe(process.stderr);
+    // install.stdout.pipe(process.stdout);
+    install.stdout.setEncoding('utf8').on('data', d => logger.writeRaw(d));
+    install.stderr.setEncoding('utf8').on('data', d => logger.writeRaw(d));
 
     install.on('close', async code => {
       if (code !== 0) {
@@ -86,6 +96,7 @@ async function install(
         );
       }
 
+      logger.clear();
       resolve();
     });
   });
