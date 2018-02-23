@@ -30,6 +30,7 @@
     "cssnano": "^3.10.0",
     "deasync": "^0.1.12",
     "dotenv": "^5.0.0",
+    "fb-watchman": "^2.0.0",
     "filesize": "^3.6.0",
     "get-port": "^3.2.0",
     "glob": "^7.1.2",
