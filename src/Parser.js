@@ -69,7 +69,9 @@ class Parser {
   getAsset(filename, pkg, options = {}) {
     let Asset = this.findParser(filename);
     options.parser = this;
-    return new Asset(filename, pkg, options);
+    const asset = new Asset(filename, pkg, options);
+    asset.sendRequest = require('./worker').sendRequest;
+    return asset;
   }
 }
 

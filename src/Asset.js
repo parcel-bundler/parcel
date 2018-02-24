@@ -82,14 +82,27 @@ class Asset {
     }
 
     const parsed = URL.parse(url);
-    const resolved = path.resolve(path.dirname(from), parsed.pathname);
+
+    let asset;
+    this.sendRequest(
+      {
+        type: 'bundlerCall',
+        mainFile: this.options.mainFile,
+        method: 'resolveAsset',
+        args: [parsed.pathname, from]
+      },
+      data => {
+        asset = data;
+      }
+    );
+    require('deasync').loopWhile(() => !asset);
     this.addDependency(
-      './' + path.relative(path.dirname(this.name), resolved),
+      './' + path.relative(path.dirname(this.name), asset.name),
       Object.assign({dynamic: true}, opts)
     );
 
     parsed.pathname = this.options.parser
-      .getAsset(resolved, this.package, this.options)
+      .getAsset(asset.name, asset.package, this.options)
       .generateBundleName();
 
     return URL.format(parsed);
