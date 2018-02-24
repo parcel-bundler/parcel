@@ -89,9 +89,9 @@ class Asset {
       Object.assign({dynamic: true}, opts)
     );
 
-    const pkgPath = syncPromise(config.resolve(resolved, ['package.json']));
-    const pkg = syncPromise(config.load(pkgPath, ['package.json']));
-    pkg.pkgfile = pkgPath;
+    const pkgfile = syncPromise(config.resolve(resolved, ['package.json']));
+    const pkg = syncPromise(config.load(pkgfile, ['package.json']));
+    pkg.pkgfile = pkgfile;
 
     parsed.pathname = this.options.parser
       .getAsset(resolved, pkg, this.options)
