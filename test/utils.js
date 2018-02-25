@@ -1,10 +1,11 @@
-const Bundler = require('../');
+const Bundler = require('../src/Bundler');
 const rimraf = require('rimraf');
 const assert = require('assert');
 const vm = require('vm');
 const fs = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
+const Module = require('module');
 
 beforeEach(async function() {
   // Test run in a single process, creating and deleting the same file(s)
@@ -43,7 +44,7 @@ function bundle(file, opts) {
   return bundler(file, opts).bundle();
 }
 
-function run(bundle, globals, opts = {}) {
+function prepareBrowserContext(bundle, globals) {
   // for testing dynamic imports
   const fakeDocument = {
     createElement(tag) {
@@ -92,6 +93,44 @@ function run(bundle, globals, opts = {}) {
 
   ctx.window = ctx;
 
+  return ctx;
+}
+
+function prepareNodeContext(bundle, globals) {
+  var mod = new Module(bundle.name);
+  mod.paths = [path.dirname(bundle.name) + '/node_modules'];
+
+  return Object.assign(
+    {
+      module: mod,
+      __filename: bundle.name,
+      __dirname: path.dirname(bundle.name),
+      require: function(path) {
+        return mod.require(path);
+      },
+      process: process
+    },
+    globals
+  );
+}
+
+function run(bundle, globals, opts = {}) {
+  var ctx;
+  switch (bundle.entryAsset.options.target) {
+    case 'browser':
+      ctx = prepareBrowserContext(bundle, globals);
+      break;
+    case 'node':
+      ctx = prepareNodeContext(bundle, globals);
+      break;
+    case 'electron':
+      ctx = Object.assign(
+        prepareBrowserContext(bundle, globals),
+        prepareNodeContext(bundle, globals)
+      );
+      break;
+  }
+
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(bundle.name), ctx);
 
@@ -108,7 +147,7 @@ function assertBundleTree(bundle, tree) {
   }
 
   if (tree.type) {
-    assert.equal(bundle.type, tree.type);
+    assert.equal(bundle.type.toLowerCase(), tree.type.toLowerCase());
   }
 
   if (tree.assets) {

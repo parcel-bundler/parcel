@@ -1,1 +1,2 @@
 --timeout 25000
+--require ./test/babel-register

@@ -80,7 +80,7 @@ describe('typescript', function() {
     );
 
     assert.equal(b.assets.size, 2);
-    assert.equal(b.childBundles.size, 0);
+    assert.equal(b.childBundles.size, 1);
 
     let output = run(b);
     assert.equal(typeof output.count, 'function');
@@ -98,5 +98,12 @@ describe('typescript', function() {
 
     let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(!js.includes('/* test comment */'));
+  });
+
+  it('should support compiling JSX', async function() {
+    await bundle(__dirname + '/integration/typescript-jsx/index.tsx');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('React.createElement("div"'));
   });
 });

@@ -2,6 +2,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const {bundle, run, assertBundleTree} = require('./utils');
+const {mkdirp} = require('../src/utils/fs');
 
 describe('javascript', function() {
   it('should produce a basic JS bundle with CommonJS requires', async function() {
@@ -27,7 +28,64 @@ describe('javascript', function() {
     assert.equal(output.default(), 3);
   });
 
-  it('should produce a JS bundle with default exorts and no imports', async function() {
+  it('should bundle node_modules on --target=browser', async function() {
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'browser'
+    });
+
+    assertBundleTree(b, {
+      name: 'main.js',
+      assets: ['main.js', 'local.js', 'index.js']
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
+  it('should not bundle node_modules on --target=node', async function() {
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'node'
+    });
+
+    assertBundleTree(b, {
+      name: 'main.js',
+      assets: ['main.js', 'local.js']
+    });
+
+    await mkdirp(__dirname + '/dist/node_modules/testmodule');
+    fs.writeFileSync(
+      __dirname + '/dist/node_modules/testmodule/index.js',
+      'exports.a = 5;'
+    );
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 7);
+  });
+
+  it('should not bundle node_modules on --target=electron', async function() {
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'electron'
+    });
+
+    assertBundleTree(b, {
+      name: 'main.js',
+      assets: ['main.js', 'local.js']
+    });
+
+    await mkdirp(__dirname + '/dist/node_modules/testmodule');
+    fs.writeFileSync(
+      __dirname + '/dist/node_modules/testmodule/index.js',
+      'exports.a = 5;'
+    );
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 7);
+  });
+
+  it('should produce a JS bundle with default exports and no imports', async function() {
     let b = await bundle(__dirname + '/integration/es6-default-only/index.js');
 
     assert.equal(b.assets.size, 1);
@@ -307,7 +365,7 @@ describe('javascript', function() {
       delegate: {
         getImplicitDependencies(asset) {
           if (asset.basename === 'index.js') {
-            return [{name: __dirname + '/integration/css/index.css'}];
+            return [{name: '../css/index.css'}];
           }
         }
       }
@@ -338,6 +396,24 @@ describe('javascript', function() {
     assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.yaml'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
+  it('should support requiring TOML files', async function() {
+    let b = await bundle(__dirname + '/integration/toml/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'local.toml'],
       childBundles: [
         {
           type: 'map'
@@ -508,5 +584,131 @@ describe('javascript', function() {
 
     let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(json.includes('{test:"test"}'));
+  });
+
+  it('should minify YAML for production', async function() {
+    await bundle(__dirname + '/integration/yaml/index.js', {
+      production: true
+    });
+
+    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(json.includes('{a:1,b:{c:2}}'));
+  });
+
+  it('should minify TOML for production', async function() {
+    await bundle(__dirname + '/integration/toml/index.js', {
+      production: true
+    });
+
+    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(json.includes('{a:1,b:{c:2}}'));
+  });
+
+  it('should support compiling with babel using .babelrc config', async function() {
+    await bundle(__dirname + '/integration/babel/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('class Foo {}'));
+    assert(file.includes('class Bar {}'));
+  });
+
+  it('should compile with babel with default engines if no config', async function() {
+    await bundle(__dirname + '/integration/babel-default/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
+  it('should support compiling with babel using browserlist', async function() {
+    await bundle(__dirname + '/integration/babel-browserslist/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
+  it('should not compile node_modules by default', async function() {
+    await bundle(__dirname + '/integration/babel-node-modules/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
+  it('should compile node_modules if legacy browserify options are found', async function() {
+    await bundle(
+      __dirname + '/integration/babel-node-modules-browserify/index.js'
+    );
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
+  it('should compile node_modules with browserslist to app target', async function() {
+    await bundle(
+      __dirname + '/integration/babel-node-modules-browserslist/index.js'
+    );
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
+  it('should support compiling JSX', async function() {
+    await bundle(__dirname + '/integration/jsx/index.jsx');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('React.createElement("div"'));
+  });
+
+  it('should support compiling JSX in JS files with React dependency', async function() {
+    await bundle(__dirname + '/integration/jsx-react/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('React.createElement("div"'));
+  });
+
+  it('should support compiling JSX in JS files with Preact dependency', async function() {
+    await bundle(__dirname + '/integration/jsx-preact/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('h("div"'));
+  });
+
+  it('should support compiling JSX in JS files with Nerv dependency', async function() {
+    await bundle(__dirname + '/integration/jsx-nervjs/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('Nerv.createElement("div"'));
+  });
+
+  it('should support compiling JSX in JS files with Hyperapp dependency', async function() {
+    await bundle(__dirname + '/integration/jsx-hyperapp/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('h("div"'));
+  });
+
+  it('should support optional dependencies in try...catch blocks', async function() {
+    let b = await bundle(__dirname + '/integration/optional-dep/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+
+    let err = new Error('Cannot find module "optional-dep"');
+    err.code = 'MODULE_NOT_FOUND';
+
+    assert.deepEqual(output, err);
   });
 });

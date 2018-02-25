@@ -5,6 +5,67 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.6.2] - 2018-02-19
+
+### Added
+
+* JSX support for Nerv [Details](https://github.com/parcel-bundler/parcel/commit/1e1297509c50016b16ac6d9f9ec67bf9f63ec4db)
+* Add JSX support for Hyperapp. [Details](https://github.com/parcel-bundler/parcel/commit/246edd4fdc2682704ea9b19d97bd4fbf5f72c017)
+
+### Fixed
+
+* Fix babel handling for node: DEFAULT_ENGINES [Details](https://github.com/parcel-bundler/parcel/commit/c7ba56a96d2a135d6b95ec458789e5831e1c0828)
+* Remove unnecessary files from npm [Details](https://github.com/parcel-bundler/parcel/commit/6d9e68cbdb06f2c8a05ba31fbc9dde01f0f83d96)
+* Use babel-register for tests only with node < 8 [Details](https://github.com/parcel-bundler/parcel/commit/83d4e3b3d7357a1765c2dfc3f802f9ca983ec08b)
+* remove call to window.location [Details](https://github.com/parcel-bundler/parcel/commit/6e0a7f678b3938f0c59f0a5f0a77c32b9dd48fb5)
+
+## [1.6.1] - 2018-02-15
+
+### Fixed
+
+* Update HMRServer handleSocketError for ErrorEvent [Details](https://github.com/parcel-bundler/parcel/commit/52aec8a44d26dc1a1b54fc7131668caa374df9d9)
+
+## [1.6.0] - 2018-02-15
+
+### Added
+
+* Automatically transpile dependencies with babel-preset-env [Details](https://github.com/parcel-bundler/parcel/commit/665e6b1b81e279f5efa5840c99c565a6befcf8d5)
+* Add no-config support for jsx [Details](https://github.com/parcel-bundler/parcel/commit/5e224bd7f03d71e84512400329542424acf136b5)
+* Add "--target=node" and "--target=electron" option to produce Node/electron friendly bundles [Details](https://github.com/parcel-bundler/parcel/commit/420ed63ed18c6a09e8b25754d0142b3b87ebcd71)
+* Log bundle metrics [Details](https://github.com/parcel-bundler/parcel/commit/6deec80b3491dc5ac690da6550323b51deec6530)
+* Node 6 support [Details](https://github.com/parcel-bundler/parcel/commit/95a6ebfd82ad29a8edb091943950f257320a04c9)
+* Add WebManifestAsset to handle W3C webmanifest [Details](https://github.com/parcel-bundler/parcel/commit/1d49e4789a4556455ee43bda23fe903f6966f5b9)
+* Add support for optional dependencies [Details](https://github.com/parcel-bundler/parcel/commit/47f252bfea604e1e9090076c573cfd6b0e91a077)
+* support svg `<use>` elements [Details](https://github.com/parcel-bundler/parcel/commit/f9be8201130c27e7498b98a5b873e9ac1a7c8e98)
+* Auto-install peerDependencies [Details](https://github.com/parcel-bundler/parcel/commit/93315f2b2860b7d3a66ff3af1f3d4ef958f3510e)
+* Inject HTML tag if missing [Details](https://github.com/parcel-bundler/parcel/commit/5a3732296f8ca1c6c46fc9f8f3de54f67221fa2d)
+* Add JSON5 support [Details](https://github.com/parcel-bundler/parcel/commit/9310641bcd11f891657fb02f2e3acd641153a99b)
+* Implement support for `<img srcset="...">` [Details](https://github.com/parcel-bundler/parcel/commit/29ac70b0cdf5174237996dd26d59891a5a543bbf)
+* Add `.toml` asset support [Details](https://github.com/parcel-bundler/parcel/commit/55b96406644f9f84b34dab2f98c3a6e5d61c7045)
+* Warn instead of error when an fs call cannot be evaluated [Details](https://github.com/parcel-bundler/parcel/commit/6d23efd81bd7e2467fd063c15a5fa5610a568f60)
+* Add support for HTML meta assets [Details](https://github.com/parcel-bundler/parcel/commit/c1d8d756cf044dfe0077a92770d31591ba270180)
+* Add `--out-file` option [Details](https://github.com/parcel-bundler/parcel/commit/96162771397909367479e0af49c52eb228704a5c)
+* Add Access-Control header for CORS [Details](https://github.com/parcel-bundler/parcel/commit/1c761fd5683d9bf195ee5eb6fd04bd494ecb6162)
+
+### Fixed
+
+* Remove `-h` alias for `hmr-port` option [Details](https://github.com/parcel-bundler/parcel/commit/c2022b3ee5d62449bebb03589847c389f0cebda6)
+* Add 'id' to the module variable [Details](https://github.com/parcel-bundler/parcel/commit/8d51fdcf650088e586a48babce318354113e974b)
+* Preserve asset's search and hash [Details](https://github.com/parcel-bundler/parcel/commit/d7098ce5664c3b04edf291bf96187db8a3434c5b)
+* Always add bundle-loader module to the bundle [Details](https://github.com/parcel-bundler/parcel/commit/deba5ef50c5fd630dd7d983b4359b743c4b719a9)
+* Launch https websocket server is --https [Details](https://github.com/parcel-bundler/parcel/commit/391e17f60fb4bf5a73ddd352883647fe6541d1cc)
+* Fix PromiseQueue returning null when there are no jobs [Details](https://github.com/parcel-bundler/parcel/commit/f27d2695e1a709a7f7fc665c8287c3fa4a0ebec1)
+* Correctly serialize YAML to JS [Details](https://github.com/parcel-bundler/parcel/commit/58f89002fc719e0b54216f367ec7e04130412c16)
+* Update parser to treat file extensions as case-insensitive [Details](https://github.com/parcel-bundler/parcel/commit/ab713a32a5053c48f83c6503016880369ea65c18)
+* Add babel-template and babel-types to package.json [Details](https://github.com/parcel-bundler/parcel/commit/74d70f8467ab131b67f85bf821610234a9c5b1a9)
+* Improve Code Coverage [Details](https://github.com/parcel-bundler/parcel/commit/fc641fa7988c8c93fd152d45ef94857fb1662f90)
+* Safe cssnano transforms by default [Details](https://github.com/parcel-bundler/parcel/commit/fddfdb907f393991a68ca15e48cf02a600e84840)
+* Make sure bundles is an array in loadBundlesLazy [Details](https://github.com/parcel-bundler/parcel/commit/e3fcfa0148d8ccb06577701d91ea066e21842c6e)
+* Bump dependencies [Details](https://github.com/parcel-bundler/parcel/commit/13864d17058a2018e083ce1c2688026779a95694)
+* Allows for dots in lazyloaded file names [Details](https://github.com/parcel-bundler/parcel/commit/dc4313579b9dffd429b59c880b9fe22ba4d460d7)
+* Add missing packages for pnpm to work [Details](https://github.com/parcel-bundler/parcel/commit/d3ae5f69eb3a44b4ca94b36ba2e7033fc69872a3)
+* pass lowerCaseAttributeNames: true to posthtml-parser (fix version bump) [Details](https://github.com/parcel-bundler/parcel/commit/1d2f82d2e1b76efe9b806f77fde5dcf1e1b0b063)
+
 ## [1.5.1] - 2018-01-25
 
 ### Added

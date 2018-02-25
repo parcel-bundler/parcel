@@ -53,7 +53,7 @@ npm install -g parcel-bundler
 parcel index.html
 ```
 
-4. Now open http://localhost:1234/ in your browser. If needed, you can also override the default port with the -p option.
+4. Now open http://localhost:1234/ in your browser. If needed, you can also override the default port with the `-p` option. Add `--open` to automatically open a browser.
 
 See [parceljs.org](https://parceljs.org) for more documentation!
 

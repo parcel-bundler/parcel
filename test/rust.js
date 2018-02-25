@@ -4,7 +4,7 @@ const fs = require('fs');
 const commandExists = require('command-exists');
 
 describe('rust', function() {
-  if (!commandExists.sync('rustup')) {
+  if (typeof WebAssembly === 'undefined' || !commandExists.sync('rustup')) {
     // eslint-disable-next-line no-console
     console.log(
       'Skipping Rust tests. Install https://www.rustup.rs/ to run them.'
@@ -40,7 +40,7 @@ describe('rust', function() {
     assert.equal(res, 5);
 
     // not minified
-    assert(fs.statSync(Array.from(b.childBundles)[0].name).size > 200);
+    assert(fs.statSync(Array.from(b.childBundles)[0].name).size > 500);
   });
 
   it('should support rust files with dependencies via rustc', async function() {
@@ -102,12 +102,21 @@ describe('rust', function() {
 
   it('should use wasm-gc to minify output', async function() {
     this.timeout(500000);
+
+    // Store the size of not minified bundle in order to test it against
+    // the size of minified one.
     let b = await bundle(__dirname + '/integration/rust/index.js', {
+      minify: false,
+      sourceMaps: false
+    });
+    const size = fs.statSync(Array.from(b.childBundles)[0].name).size;
+
+    let bMinified = await bundle(__dirname + '/integration/rust/index.js', {
       minify: true,
       sourceMaps: false
     });
 
-    assertBundleTree(b, {
+    const bundleTree = {
       name: 'index.js',
       assets: [
         'bundle-loader.js',
@@ -122,12 +131,16 @@ describe('rust', function() {
           childBundles: []
         }
       ]
-    });
+    };
 
-    var res = await run(b);
+    assertBundleTree(b, bundleTree);
+    assertBundleTree(bMinified, bundleTree);
+
+    var res = await run(bMinified);
     assert.equal(res, 5);
 
-    // assert that it is smaller
-    assert(fs.statSync(Array.from(b.childBundles)[0].name).size < 200);
+    const sizeMinified = fs.statSync(Array.from(bMinified.childBundles)[0].name)
+      .size;
+    assert(sizeMinified < size);
   });
 });
