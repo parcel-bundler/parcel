@@ -91,7 +91,8 @@ class Bundler extends EventEmitter {
       mainFile: this.mainFile,
       hmrPort: options.hmrPort || 0,
       rootDir: Path.dirname(this.mainFile),
-      sourceMaps: typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
+      sourceMaps:
+        typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
       hmrHostname: options.hmrHostname || '',
       treeshaking: options.treeshaking || false,
       detailedReport: options.detailedReport || false
@@ -391,7 +392,6 @@ class Bundler extends EventEmitter {
     asset.buildTime = Date.now() - startTime;
     asset.generated = processed.generated;
     asset.hash = processed.hash;
-    asset.ast = processed.ast ? JSON.parse(processed.ast) : null;
     asset.usedImports = processed.usedImports;
 
     // Call the delegate to get implicit dependencies

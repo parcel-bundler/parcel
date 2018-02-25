@@ -60,9 +60,7 @@ module.exports = async function(asset) {
   }
 
   // babel-generator did our code generation for us, so remove the old AST
-  if (!asset.options.treeshaking) {
-    asset.ast = null;
-  }
+  asset.ast = null;
   asset.outputCode = result.code;
   asset.isAstDirty = false;
 };

@@ -144,10 +144,6 @@ class Asset {
   }
 
   async process() {
-    if (this.options.treeshaking) {
-      // make sure there is an ast
-      this.parseIfNeeded();
-    }
     if (!this.generated) {
       await this.loadIfNeeded();
       await this.pretransform();

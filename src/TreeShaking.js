@@ -1,5 +1,11 @@
 const traverse = require('babel-traverse').default;
 const Path = require('path');
+const babylon = require('babylon');
+
+function generateAst(asset) {
+  const code = asset.generated ? asset.generated.js : asset.contents;
+  return babylon.parse(code, {});
+}
 
 function getRequiredExports(asset, parents) {
   const requiredExports = new Set();
@@ -48,7 +54,7 @@ function exportVisitor(asset, requiredExports) {
 
 function treeShakeExports(asset, parents) {
   if (!asset.ast) {
-    return false;
+    asset.ast = generateAst(asset);
   }
 
   const requiredExports = getRequiredExports(asset, parents);
@@ -118,7 +124,7 @@ function importVisitor(asset) {
 
 function getUsedImports(asset) {
   if (!asset.ast) {
-    return;
+    asset.ast = generateAst(asset);
   }
   traverse(asset.ast, importVisitor(asset));
 }
