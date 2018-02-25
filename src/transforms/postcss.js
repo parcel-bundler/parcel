@@ -51,7 +51,15 @@ async function getConfig(asset) {
 
   if (asset.options.minify) {
     config.plugins.push(
-      cssnano((await asset.getConfig(['cssnano.config.js'])) || {})
+      cssnano(
+        (await asset.getConfig(['cssnano.config.js'])) || {
+          // Only enable safe css transforms by default.
+          // See: https://github.com/parcel-bundler/parcel/issues/698
+          // Note: Remove when upgrading cssnano to v4
+          // See: https://github.com/ben-eb/cssnano/releases/tag/v4.0.0-rc.0
+          safe: true
+        }
+      )
     );
   }
 

@@ -30,7 +30,7 @@ module.exports = {
     asset.isES6Module = true;
   },
 
-  CallExpression(node, asset) {
+  CallExpression(node, asset, ancestors) {
     let {callee, arguments: args} = node;
 
     let isRequire =
@@ -40,7 +40,8 @@ module.exports = {
       types.isStringLiteral(args[0]);
 
     if (isRequire) {
-      addDependency(asset, args[0]);
+      let optional = ancestors.some(a => types.isTryStatement(a)) || undefined;
+      addDependency(asset, args[0], {optional});
       return;
     }
 
@@ -86,6 +87,15 @@ module.exports = {
 };
 
 function addDependency(asset, node, opts = {}) {
+  if (asset.options.target !== 'browser') {
+    const isRelativeImport =
+      node.value.startsWith('/') ||
+      node.value.startsWith('./') ||
+      node.value.startsWith('../');
+
+    if (!isRelativeImport) return;
+  }
+
   opts.loc = node.loc && node.loc.start;
   asset.addDependency(node.value, opts);
 }

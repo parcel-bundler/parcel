@@ -21,6 +21,7 @@ class Parser {
     this.registerExtension('json5', './assets/JSONAsset');
     this.registerExtension('yaml', './assets/YAMLAsset');
     this.registerExtension('yml', './assets/YAMLAsset');
+    this.registerExtension('toml', './assets/TOMLAsset');
     this.registerExtension('gql', './assets/GraphqlAsset');
     this.registerExtension('graphql', './assets/GraphqlAsset');
 
@@ -48,15 +49,15 @@ class Parser {
       ext = '.' + ext;
     }
 
-    this.extensions[ext] = parser;
+    this.extensions[ext.toLowerCase()] = parser;
   }
 
   findParser(filename) {
-    if (glob.hasMagic(filename)) {
+    if (/[*+{}]/.test(filename) && glob.hasMagic(filename)) {
       return GlobAsset;
     }
 
-    let extension = path.extname(filename);
+    let extension = path.extname(filename).toLowerCase();
     let parser = this.extensions[extension] || RawAsset;
     if (typeof parser === 'string') {
       parser = this.extensions[extension] = require(parser);

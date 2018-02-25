@@ -11,6 +11,11 @@ describe('html', function() {
       assets: ['index.html'],
       childBundles: [
         {
+          type: 'png',
+          assets: ['100x100.png'],
+          childBundles: []
+        },
+        {
           type: 'svg',
           assets: ['icons.svg'],
           childBundles: []
@@ -464,7 +469,7 @@ describe('html', function() {
       ]
     });
   });
-    
+
   it('should support webmanifest', async function() {
     let b = await bundle(__dirname + '/integration/webmanifest/index.html');
 

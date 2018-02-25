@@ -19,6 +19,8 @@ class Bundle {
     this.siblingBundlesMap = new Map();
     this.offsets = new Map();
     this.treeEdges = new Set();
+    this.totalSize = 0;
+    this.bundleTime = 0;
   }
 
   static createWithAsset(asset, parentBundle) {
@@ -154,6 +156,7 @@ class Bundle {
     let Packager = bundler.packagers.get(this.type);
     let packager = new Packager(this, bundler);
 
+    let startTime = Date.now();
     await packager.start();
 
     let included = new Set();
@@ -162,6 +165,11 @@ class Bundle {
     }
 
     await packager.end();
+
+    this.bundleTime = Date.now() - startTime;
+    for (let asset of this.assets) {
+      this.bundleTime += asset.buildTime;
+    }
   }
 
   async _addDeps(asset, packager, included) {
@@ -176,6 +184,12 @@ class Bundle {
     }
 
     await packager.addAsset(asset);
+    this.addAssetSize(asset, packager.getSize() - this.totalSize);
+  }
+
+  addAssetSize(asset, size) {
+    asset.bundledSize = size;
+    this.totalSize += size;
   }
 
   getParents() {
