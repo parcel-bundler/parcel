@@ -438,8 +438,10 @@ class Bundler extends EventEmitter {
     if (asset.parentBundle) {
       // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
       if (asset.parentBundle !== bundle) {
-        let commonBundle = bundle.findCommonAncestor(asset.parentBundle);
-        this.moveAssetToBundle(asset, commonBundle);
+        this.moveAssetToBundle(
+          asset,
+          bundle.findCommonAncestor(asset.parentBundle)
+        );
         return;
       }
 
