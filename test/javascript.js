@@ -241,6 +241,14 @@ describe('javascript', function() {
           ]
         },
         {
+          assets: ['c.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
           type: 'map'
         }
       ]
@@ -248,7 +256,7 @@ describe('javascript', function() {
 
     let output = run(b);
     assert.equal(typeof output, 'function');
-    assert.equal(await output(), 7);
+    assert.equal(await output(), 11);
   });
 
   it('should support requiring JSON files', async function() {
