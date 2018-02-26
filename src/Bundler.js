@@ -439,14 +439,7 @@ class Bundler extends EventEmitter {
       // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
       if (asset.parentBundle !== bundle) {
         let commonBundle = bundle.findCommonAncestor(asset.parentBundle);
-        if (
-          asset.parentBundle !== commonBundle &&
-          asset.parentBundle.type === commonBundle.type
-        ) {
-          this.moveAssetToBundle(asset, commonBundle);
-          return;
-        }
-      } else {
+        this.moveAssetToBundle(asset, commonBundle);
         return;
       }
 
@@ -501,20 +494,27 @@ class Bundler extends EventEmitter {
       return;
     }
 
-    for (let bundle of Array.from(asset.bundles)) {
-      bundle.removeAsset(asset);
-      commonBundle.getSiblingBundle(bundle.type).addAsset(asset);
-    }
+    // We only move the asset if it's not already part of the common bundle.
+    // Same goes for the dependencies of the asset.
+    if (asset.parentBundle !== commonBundle) {
+      commonBundle.getSiblingBundle(asset.type).addAsset(asset);
 
-    let oldBundle = asset.parentBundle;
-    asset.parentBundle = commonBundle;
+      let oldBundle = asset.parentBundle;
+      asset.parentBundle = commonBundle;
 
-    // Move all dependencies as well
-    for (let child of asset.depAssets.values()) {
-      if (child.parentBundle === oldBundle) {
-        this.moveAssetToBundle(child, commonBundle);
+      // Move all dependencies as well
+      for (let child of asset.depAssets.values()) {
+        if (child.parentBundle === oldBundle) {
+          this.moveAssetToBundle(child, commonBundle);
+        }
       }
     }
+
+    // While the asset could already be inside the common bundle, it's still
+    // possible that other bundles referencing the asset, too. Remove these references.
+    Array.from(asset.bundles)
+      .filter(bundle => bundle !== commonBundle)
+      .forEach(bundle => bundle.removeAsset(asset));
   }
 
   *findOrphanAssets() {
