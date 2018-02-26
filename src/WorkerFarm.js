@@ -9,7 +9,10 @@ let shared = null;
 class WorkerFarm extends Farm {
   constructor(options) {
     let opts = {
-      maxConcurrentWorkers: getNumWorkers()
+      maxConcurrentWorkers: getNumWorkers(),
+      maxConcurrentCallsPerWorker: process.env.PARCEL_WORKER_CALLS
+        ? parseInt(process.env.PARCEL_WORKER_CALLS)
+        : 10
     };
 
     let workerPath =
