@@ -11,6 +11,7 @@ const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
 const SourceMap = require('../SourceMap');
+const TreeShaking = require('../TreeShaking');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
@@ -109,6 +110,10 @@ class JSAsset extends Asset {
 
     if (this.isES6Module) {
       await babel(this);
+    }
+
+    if (this.options.treeshaking) {
+      TreeShaking.getUsedImports(this);
     }
 
     if (this.options.minify) {

@@ -94,6 +94,7 @@ class Bundler extends EventEmitter {
       sourceMaps:
         typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
       hmrHostname: options.hmrHostname || '',
+      treeshaking: options.treeshaking || false,
       detailedReport: options.detailedReport || false
     };
   }
@@ -391,6 +392,7 @@ class Bundler extends EventEmitter {
     asset.buildTime = Date.now() - startTime;
     asset.generated = processed.generated;
     asset.hash = processed.hash;
+    asset.usedImports = processed.usedImports;
 
     // Call the delegate to get implicit dependencies
     let dependencies = processed.dependencies;

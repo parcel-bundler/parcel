@@ -21,7 +21,8 @@ exports.run = async function(path, pkg, options, isWarmUp, callback) {
       dependencies: Array.from(asset.dependencies.values()),
       generated: asset.generated,
       hash: asset.hash,
-      cacheData: asset.cacheData
+      cacheData: asset.cacheData,
+      usedImports: asset.usedImports
     });
   } catch (err) {
     let returned = err;

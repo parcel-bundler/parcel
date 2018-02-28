@@ -18,6 +18,7 @@ class Bundle {
     this.siblingBundles = new Set();
     this.siblingBundlesMap = new Map();
     this.offsets = new Map();
+    this.treeEdges = new Set();
     this.totalSize = 0;
     this.bundleTime = 0;
   }
@@ -34,9 +35,40 @@ class Bundle {
     return bundle;
   }
 
+  mapEdges(asset) {
+    for (let dep of asset.dependencies.keys()) {
+      let depName = Path.join(Path.dirname(asset.name), `${dep}.${asset.type}`);
+      let edge = `${asset.name} -> ${depName}`;
+      if (!this.treeEdges.has(edge)) {
+        this.treeEdges.add(edge);
+      }
+    }
+  }
+
+  getAssetByName(assetName) {
+    for (let asset of this.assets) {
+      if (asset.name === assetName) {
+        return asset;
+      }
+    }
+    return null;
+  }
+
+  getAssetParents(asset) {
+    let parents = [];
+    for (let edge of this.treeEdges) {
+      let [parent, child] = edge.split(' -> ');
+      if (child === asset.name) {
+        parents.push(parent);
+      }
+    }
+    return parents.map(parentName => this.getAssetByName(parentName));
+  }
+
   addAsset(asset) {
     asset.bundles.add(this);
     this.assets.add(asset);
+    this.mapEdges(asset);
   }
 
   removeAsset(asset) {

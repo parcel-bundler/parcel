@@ -37,6 +37,7 @@ class Asset {
     this.parentBundle = null;
     this.bundles = new Set();
     this.cacheData = {};
+    this.usedImports = new Map();
     this.buildTime = 0;
     this.bundledSize = 0;
   }
@@ -151,7 +152,6 @@ class Asset {
       this.generated = await this.generate();
       this.hash = this.generateHash();
     }
-
     return this.generated;
   }
 
