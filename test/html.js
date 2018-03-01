@@ -27,7 +27,7 @@ describe('html', function() {
         },
         {
           type: 'js',
-          assets: ['bundle-loader.js', 'raw-loader.js', 'index.js'],
+          assets: ['bundle-loader.js', 'text-loader.js', 'index.js'],
           childBundles: [
             {
               type: 'map'
@@ -48,7 +48,7 @@ describe('html', function() {
               assets: [
                 'bundle-loader.js',
                 'bundle-url.js',
-                'raw-loader.js',
+                'text-loader.js',
                 'index.js'
               ],
               childBundles: [

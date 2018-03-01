@@ -35,7 +35,7 @@ class JSPackager extends Packager {
   }
 
   async addAsset(asset) {
-    if (!asset.generated || this.dedupe.has(asset.generated.js)) {
+    if (this.dedupe.has(asset.generated.js)) {
       return;
     }
 
@@ -138,6 +138,7 @@ class JSPackager extends Packager {
     }
 
     if (bundleLoader) {
+      await bundleLoader.process();
       await this.addAssetToBundle(bundleLoader);
     } else {
       return;
