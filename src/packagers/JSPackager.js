@@ -35,7 +35,7 @@ class JSPackager extends Packager {
   }
 
   async addAsset(asset) {
-    if (this.dedupe.has(asset.generated.js)) {
+    if (!asset.generated || this.dedupe.has(asset.generated.js)) {
       return;
     }
 
