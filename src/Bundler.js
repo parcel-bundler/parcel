@@ -93,7 +93,8 @@ class Bundler extends EventEmitter {
       rootDir: Path.dirname(this.mainFile),
       sourceMaps:
         typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
-      hmrHostname: options.hmrHostname || '',
+      hmrHostname:
+        options.hmrHostname || options.target === 'electron' ? 'localhost' : '',
       detailedReport: options.detailedReport || false
     };
   }
