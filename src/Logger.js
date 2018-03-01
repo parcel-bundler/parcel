@@ -4,6 +4,7 @@ const prettyError = require('./utils/prettyError');
 const emoji = require('./utils/emoji');
 const {countBreaks} = require('grapheme-breaker');
 const stripAnsi = require('strip-ansi');
+const Spinner = require('./utils/Spinner');
 
 class Logger {
   constructor(options) {
@@ -111,9 +112,26 @@ class Logger {
       this.statusLine = this.lines;
     }
 
+    if (message) {
+      this.statusMessage = message;
+    }
+
+    if (Array.isArray(emoji)) {
+      if (!this.spinner) {
+        this.spinner = new Spinner(emoji);
+        this.spinner.on('spinnerUpdate', this.status.bind(this));
+      } else {
+        this.spinner.spinnerSymbols = emoji;
+      }
+      emoji = this.spinner.currentSymbol.symbol;
+    } else if (this.spinner && message) {
+      this.spinner.stop();
+      this.spinner = null;
+    }
+
     this.writeLine(
       this.statusLine,
-      this.chalk[color].bold(`${emoji}  ${message}`)
+      this.chalk[color].bold(`${emoji}  ${this.statusMessage}`)
     );
 
     if (!hasStatusLine) {

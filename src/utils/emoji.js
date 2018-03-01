@@ -6,3 +6,6 @@ exports.progress = supportsEmoji ? '⏳' : '∞';
 exports.success = supportsEmoji ? '✨' : '√';
 exports.error = supportsEmoji ? '🚨' : '×';
 exports.warning = supportsEmoji ? '⚠️' : '‼';
+exports.progressSpinner = supportsEmoji
+  ? ['🕛', '🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕘', '🕙', '🕚', '🕛']
+  : ['▘', '▝', '▗', '▖'];
