@@ -4,6 +4,7 @@ const prettyError = require('./utils/prettyError');
 const emoji = require('./utils/emoji');
 const {countBreaks} = require('grapheme-breaker');
 const stripAnsi = require('strip-ansi');
+const plugins = require('./Plugins');
 
 class Logger {
   constructor(options) {
@@ -186,7 +187,7 @@ if (process.send) {
     };
   }
 
-  module.exports = new LoggerProxy();
+  module.exports = new (plugins.apply(LoggerProxy))();
 } else {
-  module.exports = new Logger();
+  module.exports = new (plugins.apply(Logger))();
 }
