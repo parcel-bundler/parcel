@@ -138,13 +138,19 @@ class Bundler extends EventEmitter {
     }
 
     try {
-      let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
-      for (let dep in deps) {
-        if (dep.startsWith('parcel-plugin-')) {
-          let plugin = await localRequire(dep, this.mainFile);
-          await plugin(this);
-        }
-      }
+      let deps = Object.keys(
+        Object.assign({}, pkg.dependencies, pkg.devDependencies)
+      ).filter(dep => dep.startsWith('parcel-plugin-'));
+      await Promise.all(
+        deps.map(async dep => {
+          try {
+            let plugin = await localRequire(dep, this.mainFile);
+            await plugin(this);
+          } catch (err) {
+            logger.warn(err);
+          }
+        })
+      );
     } catch (err) {
       logger.warn(err);
     }
