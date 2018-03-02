@@ -3,16 +3,7 @@ const path = require('path');
 const Packager = require('./Packager');
 const urlJoin = require('../utils/urlJoin');
 const lineCounter = require('../utils/lineCounter');
-
-const prelude = {
-  source: fs
-    .readFileSync(path.join(__dirname, '../builtins/prelude.js'), 'utf8')
-    .trim(),
-  minified: fs
-    .readFileSync(path.join(__dirname, '../builtins/prelude.min.js'), 'utf8')
-    .trim()
-    .replace(/;$/, '')
-};
+const {minify} = require('uglify-es');
 
 class JSPackager extends Packager {
   async start() {
@@ -21,7 +12,7 @@ class JSPackager extends Packager {
     this.bundleLoaders = new Set();
     this.externalModules = new Set();
 
-    let preludeCode = this.options.minify ? prelude.minified : prelude.source;
+    let preludeCode = this.getPreludeCode();
     if (this.options.target === 'electron') {
       preludeCode =
         `process.env.HMR_PORT=${
@@ -32,6 +23,37 @@ class JSPackager extends Packager {
     }
     await this.dest.write(preludeCode + '({');
     this.lineOffset = lineCounter(preludeCode);
+  }
+
+  getPreludeCode() {
+    return this.options.minify
+      ? this.getMinifiedPreludeCode()
+      : this.getSourcePreludeCode();
+  }
+
+  getSourcePreludeCode() {
+    if (!this.cachedPrelude) {
+      const preludePath = path.join(__dirname, '../builtins/prelude.js');
+      this.cachedPrelude = fs.readFileSync(preludePath, 'utf8').trim();
+    }
+    return this.cachedPrelude;
+  }
+
+  getMinifiedPreludeCode() {
+    if (!this.cachedMinPrelude) {
+      const preludePath = path.join(__dirname, '../builtins/prelude.min.js');
+      if (fs.existsSync(preludePath)) {
+        this.cachedMinPrelude = fs.readFileSync(preludePath, 'utf8');
+      } else {
+        let result = minify(this.getSourcePreludeCode());
+        if (result.error) {
+          throw result.error;
+        }
+        this.cachedMinPrelude = result.code;
+      }
+      this.cachedMinPrelude = this.cachedMinPrelude.trim().replace(/;$/, '');
+    }
+    return this.cachedMinPrelude;
   }
 
   async addAsset(asset) {
