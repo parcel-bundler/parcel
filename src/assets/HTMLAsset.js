@@ -58,6 +58,7 @@ const META = {
     'downloadUrl'
   ]
 };
+const URL_RE = /url\s*\("?(?![a-z]+:)/;
 
 class HTMLAsset extends Asset {
   constructor(name, pkg, options) {
@@ -92,6 +93,24 @@ class HTMLAsset extends Asset {
     return newSources.join(',');
   }
 
+  collectInlineStyleDependencies(inlineStyle) {
+    const styles = inlineStyle
+      .split(/;/)
+      .filter(style => !/^[\n\s]*$/.test(style));
+
+    styles.forEach((style, index) => {
+      if (URL_RE.test(style)) {
+        let matchArr = /\((.*?)\)/.exec(style);
+        let path = matchArr.length > 1 ? matchArr[1].replace(/'|"/g, '') : null;
+        if (path) {
+          let assetPath = this.processSingleDependency(path);
+          styles[index] = style.replace(path, assetPath);
+        }
+      }
+    });
+    return styles.join(';');
+  }
+
   collectDependencies() {
     this.ast.walk(node => {
       if (node.attrs) {
@@ -107,6 +126,13 @@ class HTMLAsset extends Asset {
         }
 
         for (let attr in node.attrs) {
+          if (attr === 'style' && URL_RE.test(node.attrs[attr])) {
+            node.attrs[attr] = this.collectInlineStyleDependencies(
+              node.attrs[attr]
+            );
+            this.isAstDirty = true;
+          }
+
           if (node.tag === 'img' && attr === 'srcset') {
             node.attrs[attr] = this.collectSrcSetDependencies(node.attrs[attr]);
             this.isAstDirty = true;
