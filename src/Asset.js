@@ -6,6 +6,7 @@ const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const sanitizeFilename = require('sanitize-filename');
 const config = require('./utils/config');
+const syncPromise = require('./utils/syncPromise');
 
 let ASSET_ID = 1;
 
@@ -88,8 +89,12 @@ class Asset {
       Object.assign({dynamic: true}, opts)
     );
 
+    const pkgfile = syncPromise(config.resolve(resolved, ['package.json']));
+    const pkg = syncPromise(config.load(pkgfile, ['package.json']));
+    pkg.pkgfile = pkgfile;
+
     parsed.pathname = this.options.parser
-      .getAsset(resolved, this.package, this.options)
+      .getAsset(resolved, pkg, this.options)
       .generateBundleName();
 
     return URL.format(parsed);
