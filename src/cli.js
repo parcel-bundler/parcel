@@ -137,16 +137,14 @@ if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
 program.parse(args);
 
 async function bundle(main, command) {
-  // Require bundler here so the help command is fast
-  const Bundler = require('../');
-
   if (command.name() === 'build') {
     process.env.NODE_ENV = 'production';
   } else {
     process.env.NODE_ENV = process.env.NODE_ENV || 'development';
   }
 
-  const bundler = new Bundler(main, command);
+  // Require bundler here so the help command is fast
+  const bundler = await require('../')(main, command);
 
   if (command.name() === 'serve') {
     const server = await bundler.serve(command.port || 1234, command.https);

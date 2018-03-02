@@ -2,6 +2,7 @@ const Packager = require('./Packager');
 const posthtml = require('posthtml');
 const path = require('path');
 const urlJoin = require('../utils/urlJoin');
+const plugins = require('../Plugins');
 
 // https://www.w3.org/TR/html5/dom.html#metadata-content-2
 const metadataContent = new Set([
@@ -96,4 +97,4 @@ function findBundleInsertIndex(content) {
   return 0;
 }
 
-module.exports = HTMLPackager;
+module.exports = plugins.apply(HTMLPackager);

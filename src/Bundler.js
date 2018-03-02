@@ -11,13 +11,12 @@ const Server = require('./Server');
 const {EventEmitter} = require('events');
 const logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
-const localRequire = require('./utils/localRequire');
-const config = require('./utils/config');
 const emoji = require('./utils/emoji');
 const loadEnv = require('./utils/env');
 const PromiseQueue = require('./utils/PromiseQueue');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
+const plugins = require('./Plugins');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -131,23 +130,8 @@ class Bundler extends EventEmitter {
     this.bundleLoaders[type] = path;
   }
 
-  async loadPlugins() {
-    let pkg = await config.load(this.mainFile, ['package.json']);
-    if (!pkg) {
-      return;
-    }
-
-    try {
-      let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
-      for (let dep in deps) {
-        if (dep.startsWith('parcel-plugin-')) {
-          let plugin = await localRequire(dep, this.mainFile);
-          await plugin(this);
-        }
-      }
-    } catch (err) {
-      logger.warn(err);
-    }
+  async legacyPlugin() {
+    // no-op - mixed in by plugins
   }
 
   async bundle() {
@@ -238,7 +222,7 @@ class Bundler extends EventEmitter {
       return;
     }
 
-    await this.loadPlugins();
+    await this.legacyPlugin();
     await loadEnv(this.mainFile);
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
@@ -579,6 +563,6 @@ class Bundler extends EventEmitter {
   }
 }
 
-module.exports = Bundler;
+module.exports = plugins.apply(Bundler);
 Bundler.Asset = require('./Asset');
 Bundler.Packager = require('./packagers/Packager');
