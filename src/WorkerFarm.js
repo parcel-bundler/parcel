@@ -9,11 +9,16 @@ let shared = null;
 class WorkerFarm extends Farm {
   constructor(options) {
     let opts = {
-      maxConcurrentWorkers: getNumWorkers(),
-      maxConcurrentCallsPerWorker: process.env.PARCEL_WORKER_CALLS
-        ? parseInt(process.env.PARCEL_WORKER_CALLS)
-        : 10
+      maxConcurrentWorkers: getNumWorkers()
     };
+
+    if (!isNaN(process.env.PARCEL_WORKER_CALLS)) {
+      opts.maxConcurrentCallsPerWorker = isFinite(
+        process.env.PARCEL_WORKER_CALLS
+      )
+        ? parseInt(process.env.PARCEL_WORKER_CALLS, 10)
+        : Infinity;
+    }
 
     let workerPath =
       parseInt(process.versions.node, 10) < 8
