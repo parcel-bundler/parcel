@@ -50,7 +50,6 @@
     "posthtml-parser": "^0.4.0",
     "posthtml-render": "^1.1.0",
     "resolve": "^1.4.0",
-    "sanitize-filename": "^1.6.1",
     "semver": "^5.4.1",
     "serialize-to-js": "^1.1.1",
     "serve-static": "^1.12.4",
