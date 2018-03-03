@@ -80,12 +80,9 @@ function* iterateBundles(bundle) {
 function prettifySize(size, isLarge) {
   let res = filesize(size);
   if (isLarge) {
-    res = logger.chalk.yellow(emoji.warning + '  ' + res);
-  } else {
-    res = logger.chalk.magenta(res);
+    return logger.chalk.yellow(emoji.warning + '  ' + res);
   }
-
-  return res;
+  return logger.chalk.magenta(res);
 }
 
 function formatFilename(filename, color = logger.chalk.reset) {

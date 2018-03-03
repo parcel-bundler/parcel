@@ -92,10 +92,9 @@ class Bundler extends EventEmitter {
       hmrPort: options.hmrPort || 0,
       rootDir: Path.dirname(this.mainFile),
       sourceMaps:
-        typeof options.sourceMaps === 'boolean'
-          ? options.sourceMaps
-          : !isProduction,
-      hmrHostname: options.hmrHostname || '',
+        typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
+      hmrHostname:
+        options.hmrHostname || options.target === 'electron' ? 'localhost' : '',
       detailedReport: options.detailedReport || false
     };
   }
@@ -574,9 +573,9 @@ class Bundler extends EventEmitter {
   }
 
   async serve(port = 1234, https = false) {
-    let server = await Server.serve(this, port, https);
+    this.server = await Server.serve(this, port, https);
     this.bundle();
-    return server;
+    return this.server;
   }
 }
 

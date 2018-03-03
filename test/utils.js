@@ -1,4 +1,4 @@
-const Bundler = require('../');
+const Bundler = require('../src/Bundler');
 const rimraf = require('rimraf');
 const assert = require('assert');
 const vm = require('vm');
