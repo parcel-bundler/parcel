@@ -94,14 +94,17 @@ class HTMLAsset extends Asset {
   }
 
   collectInlineStyleDependencies(inlineStyle) {
+    // split inline styles to rule array and filter the non-epmty ones
     const styles = inlineStyle
       .split(/;/)
       .filter(style => !/^[\n\s]*$/.test(style));
 
     styles.forEach((style, index) => {
       if (URL_RE.test(style)) {
-        let matchArr = /\((.*?)\)/.exec(style);
-        let path = matchArr.length > 1 ? matchArr[1].replace(/'|"/g, '') : null;
+        // match the url string, like "background: url('urlString')";
+        let matchArr = /\(['"]?(.*?)['"]?\)/.exec(style);
+        let path = matchArr.length > 1 ? matchArr[1] : null;
+        // collect the dependencies and replace the origin path
         if (path) {
           let assetPath = this.processSingleDependency(path);
           styles[index] = style.replace(path, assetPath);
