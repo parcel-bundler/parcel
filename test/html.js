@@ -470,6 +470,24 @@ describe('html', function() {
     });
   });
 
+  it('should collect inline-style dependencies', async function() {
+    let b = await bundle(
+      __dirname + '/integration/html-inline-style/index.html'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'png',
+          assets: ['100x100.png'],
+          childBundles: []
+        }
+      ]
+    });
+  });
+
   it('should support webmanifest', async function() {
     let b = await bundle(__dirname + '/integration/webmanifest/index.html');
 
