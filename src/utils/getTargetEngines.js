@@ -110,7 +110,7 @@ async function loadBabelrc(asset, path) {
         Array.isArray(plugin) &&
         (plugin[0] === 'env' || plugin[0] === '@babel/env')
     );
-    if (env && env[1].targets) {
+    if (env && env[1] && env[1].targets) {
       return env[1].targets;
     }
   }
