@@ -1,11 +1,9 @@
 const spawn = require('cross-spawn');
 const config = require('./config');
-const path = require('path');
 const promisify = require('./promisify');
 const resolve = promisify(require('resolve'));
 const commandExists = require('command-exists').sync;
 const logger = require('../Logger');
-const fs = require('./fs');
 
 function install(
   dir,
@@ -20,6 +18,9 @@ function install(
       cwd: dir
     };
 
+    // Attempt to resolve the yarn lockfile
+    let yarnLockFile = await config.resolve(dir, ['yarn.lock']);
+
     let packageManagerToUse;
     if (packageManager) {
       packageManagerToUse = packageManager;
@@ -29,7 +30,7 @@ function install(
       packageManagerToUse = 'npm';
       // If the yarn command exists and we find a yarn.lock, use yarn
       if (commandExists('yarn')) {
-        if (await fs.exists(path.join(dir, 'yarn.lock'))) {
+        if (yarnLockFile) {
           packageManagerToUse = 'yarn';
         } else {
           logger.warn(
