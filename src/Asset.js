@@ -5,6 +5,7 @@ const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const config = require('./utils/config');
+const logger = require('./Logger');
 
 let ASSET_ID = 1;
 
@@ -81,15 +82,24 @@ class Asset {
     }
 
     const parsed = URL.parse(url);
-    const resolved = path.resolve(path.dirname(from), parsed.pathname);
-    this.addDependency(
-      './' + path.relative(path.dirname(this.name), resolved),
-      Object.assign({dynamic: true}, opts)
-    );
 
-    parsed.pathname = this.options.parser
-      .getAsset(resolved, this.package, this.options)
-      .generateBundleName();
+    // external src?
+    if (parsed.pathname.startsWith('/')) {
+      // warn if the file does not exist
+      if (!fs.existsSync(path.join(this.options.outDir, parsed.pathname))) {
+        logger.warn(`'${from}: Cannot find '${parsed.pathname}'`);
+      }
+    } else {
+      const resolved = path.resolve(path.dirname(from), parsed.pathname);
+      this.addDependency(
+        './' + path.relative(path.dirname(this.name), resolved),
+        Object.assign({dynamic: true}, opts)
+      );
+
+      parsed.pathname = this.options.parser
+        .getAsset(resolved, this.package, this.options)
+        .generateBundleName();
+    }
 
     return URL.format(parsed);
   }

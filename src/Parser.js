@@ -1,5 +1,6 @@
 const path = require('path');
 const RawAsset = require('./assets/RawAsset');
+const ExternalAsset = require('./assets/ExternalAsset');
 const GlobAsset = require('./assets/GlobAsset');
 const glob = require('glob');
 
@@ -53,6 +54,10 @@ class Parser {
   }
 
   findParser(filename) {
+    if (filename && filename.startsWith('external://')) {
+      return ExternalAsset;
+    }
+
     if (/[*+{}]/.test(filename) && glob.hasMagic(filename)) {
       return GlobAsset;
     }

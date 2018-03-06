@@ -60,13 +60,23 @@ class Resolver {
     // Resolve aliases in the parent module for this file.
     filename = await this.loadAlias(filename, dir);
 
+    // Check external
+    const external = await this.loadExternal(filename, dir);
+
     let resolved;
-    if (path.isAbsolute(filename)) {
-      // load as file
-      resolved = await this.loadRelative(filename, extensions);
+
+    if (external) {
+      // We create a virtual path that will trigger the Parser to create an
+      // ExternalAsset, which will then apply the "external" information
+      resolved = {path: 'external://' + JSON.stringify(external)};
     } else {
-      // load node_modules
-      resolved = await this.loadNodeModules(filename, dir, extensions);
+      if (path.isAbsolute(filename)) {
+        // load as file
+        resolved = await this.loadRelative(filename, extensions);
+      } else {
+        // load node_modules
+        resolved = await this.loadNodeModules(filename, dir, extensions);
+      }
     }
 
     if (!resolved) {
@@ -278,6 +288,24 @@ class Resolver {
     return filename;
   }
 
+  resolveExternals(filename, pkg) {
+    // First resolve local package externals, then project global ones.
+    // note: DON'T chain resolving externals! (not like alias)
+    return (
+      this.resolvePackageExternals(filename, pkg) ||
+      this.resolvePackageExternals(filename, this.rootPackage)
+    );
+  }
+
+  resolvePackageExternals(filename, pkg) {
+    // Resolve aliases in the package.alias and package.browser fields.
+    if (pkg) {
+      return this.getAlias(filename, pkg.pkgdir, pkg.externals);
+    }
+
+    return null;
+  }
+
   getAlias(filename, dir, aliases) {
     if (!filename || !aliases || typeof aliases !== 'object') {
       return null;
@@ -345,6 +373,17 @@ class Resolver {
     // Load the local package, and resolve aliases
     let pkg = await this.findPackage(dir);
     return this.resolveAliases(filename, pkg);
+  }
+
+  async loadExternal(filename, dir) {
+    // Load the root project's package.json file if we haven't already
+    if (!this.rootPackage) {
+      this.rootPackage = await this.findPackage(this.options.rootDir);
+    }
+
+    // Load the local package, and resolve externals
+    let pkg = await this.findPackage(dir);
+    return this.resolveExternals(filename, pkg);
   }
 }
 
