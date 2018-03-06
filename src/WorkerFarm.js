@@ -12,7 +12,12 @@ class WorkerFarm extends Farm {
       maxConcurrentWorkers: getNumWorkers()
     };
 
-    super(opts, require.resolve('./worker'));
+    let workerPath =
+      parseInt(process.versions.node, 10) < 8
+        ? require.resolve('../lib/worker')
+        : require.resolve('../src/worker');
+
+    super(opts, workerPath);
 
     this.localWorker = this.promisifyWorker(require('./worker'));
     this.remoteWorker = this.promisifyWorker(this.setup(['init', 'run']));
