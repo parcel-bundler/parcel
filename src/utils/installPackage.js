@@ -5,14 +5,16 @@ const resolve = promisify(require('resolve'));
 const commandExists = require('command-exists').sync;
 const logger = require('../Logger');
 
-function install(
-  dir,
-  modules,
-  installPeers = true,
-  saveDev = true,
-  packageManager
-) {
+function install(config) {
   return new Promise(async (resolve, reject) => {
+    let {
+      dir,
+      modules,
+      installPeers = true,
+      saveDev = true,
+      packageManager
+    } = config;
+
     let install;
     let options = {
       cwd: dir
@@ -93,7 +95,7 @@ async function installPeerDependencies(dir, name) {
   }
 
   if (modules.length) {
-    await install(dir, modules, false);
+    await install({dir: dir, modules: modules, installPeers: false});
   }
 }
 
