@@ -7,7 +7,7 @@ const primraf = promisify(rimraf);
 const ncp = promisify(require('ncp'));
 const inputDirPath = __dirname + '/input';
 
-describe.only('autoinstall', function() {
+describe('autoinstall', function() {
   before(async function() {
     // Setup (clear the input dir and move integration test in)
     await primraf(inputDirPath, {});
