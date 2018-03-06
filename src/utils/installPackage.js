@@ -15,11 +15,9 @@ function install(
   packageManager
 ) {
   return new Promise(async (resolve, reject) => {
-    let projectRootLocation = dir;
-
     let install;
     let options = {
-      cwd: projectRootLocation
+      cwd: dir
     };
 
     let packageManagerToUse;
@@ -31,7 +29,7 @@ function install(
       packageManagerToUse = 'npm';
       // If the yarn command exists and we find a yarn.lock, use yarn
       if (commandExists('yarn')) {
-        if (await fs.exists(path.join(projectRootLocation, 'yarn.lock'))) {
+        if (await fs.exists(path.join(dir, 'yarn.lock'))) {
           packageManagerToUse = 'yarn';
         } else {
           logger.warn(
