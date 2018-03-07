@@ -1,40 +1,27 @@
 const spawn = require('cross-spawn');
 const config = require('./config');
-const path = require('path');
 const promisify = require('./promisify');
 const resolve = promisify(require('resolve'));
 const commandExists = require('command-exists').sync;
 const logger = require('../Logger');
 
-async function install(
-  dir,
-  modules,
-  installPeers = true,
-  saveDev = true,
-  packageManager
-) {
-  let projectRootLocation = dir;
-
-  let configFileLocation = await config.resolve(dir, [
-    'yarn.lock',
-    'package.json'
-  ]);
-
-  if (configFileLocation) {
-    projectRootLocation = path.dirname(configFileLocation);
-  }
-
+function install(configObj) {
   return new Promise(async (resolve, reject) => {
+    let {
+      dir,
+      modules,
+      installPeers = true,
+      saveDev = true,
+      packageManager
+    } = configObj;
+
     let install;
     let options = {
-      cwd: projectRootLocation,
-      env: Object.assign(
-        {
-          FORCE_COLOR: logger.color
-        },
-        process.env
-      )
+      cwd: dir
     };
+
+    // Attempt to resolve the yarn lockfile
+    let yarnLockFile = await config.resolve(dir, ['yarn.lock']);
 
     let packageManagerToUse;
     if (packageManager) {
@@ -45,10 +32,7 @@ async function install(
       packageManagerToUse = 'npm';
       // If the yarn command exists and we find a yarn.lock, use yarn
       if (commandExists('yarn')) {
-        if (
-          !configFileLocation ||
-          path.basename(configFileLocation) === 'yarn.lock'
-        ) {
+        if (yarnLockFile) {
           packageManagerToUse = 'yarn';
         } else {
           logger.warn(
@@ -73,9 +57,8 @@ async function install(
 
     install = spawn(packageManagerToUse, args, options);
 
-    // install.stdout.pipe(process.stdout);
-    install.stdout.setEncoding('utf8').on('data', d => logger.writeRaw(d));
-    install.stderr.setEncoding('utf8').on('data', d => logger.writeRaw(d));
+    install.stdout.pipe(process.stdout);
+    install.stderr.pipe(process.stderr);
 
     install.on('close', async code => {
       if (code !== 0) {
@@ -96,16 +79,13 @@ async function install(
         );
       }
 
-      logger.clear();
       resolve();
     });
   });
 }
 
 async function installPeerDependencies(dir, name) {
-  let basedir = path.dirname(dir);
-
-  const [resolved] = await resolve(name, {basedir});
+  const [resolved] = await resolve(name, {basedir: dir});
   const pkg = await config.load(resolved, ['package.json']);
   const peers = pkg.peerDependencies || {};
 
@@ -115,7 +95,7 @@ async function installPeerDependencies(dir, name) {
   }
 
   if (modules.length) {
-    await install(dir, modules, false);
+    await install({dir: dir, modules: modules, installPeers: false});
   }
 }
 

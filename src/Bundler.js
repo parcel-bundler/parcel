@@ -334,14 +334,19 @@ class Bundler extends EventEmitter {
       let thrown = err;
 
       if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
+        // Check if dependency is a local file
         let isLocalFile = /^[/~.]/.test(dep.name);
-        let fromNodeModules = asset.name.includes(
-          `${Path.sep}node_modules${Path.sep}`
-        );
-
         // Attempt to install missing npm dependencies
-        if (!isLocalFile && !fromNodeModules && this.options.autoinstall) {
-          return await this.installDep(asset, dep);
+        if (!isLocalFile && this.options.autoinstall) {
+          logger.status(emoji.progress, `Installing ${dep.name}...`);
+          await installPackage({
+            dir: Path.dirname(asset.name),
+            modules: [dep.name],
+            installPeers: false,
+            saveDev: false,
+            packageManager: this.options.packageManager
+          });
+          return await this.resolveAsset(dep.name, asset.name);
         }
 
         if (dep.optional) {
@@ -356,41 +361,17 @@ class Bundler extends EventEmitter {
           err.message += ` at '${absPath}'`;
         }
 
-        await this.throwDepError(asset, dep, thrown);
+        // Generate a code frame where the dependency was used
+        if (dep.loc) {
+          await asset.loadIfNeeded();
+          thrown.loc = dep.loc;
+          thrown = asset.generateErrorMessage(thrown);
+        }
+
+        thrown.fileName = asset.name;
       }
       throw thrown;
     }
-  }
-
-  async installDep(asset, dep) {
-    let moduleName = Path.normalize(dep.name).split(Path.sep)[0];
-    logger.status(emoji.progress, `Installing ${moduleName}...`);
-
-    try {
-      await installPackage(
-        asset.name,
-        [moduleName],
-        false,
-        false,
-        this.options.packageManager
-      );
-    } catch (err) {
-      await this.throwDepError(asset, dep, err);
-    }
-
-    return await this.resolveAsset(dep.name, asset.name);
-  }
-
-  async throwDepError(asset, dep, err) {
-    // Generate a code frame where the dependency was used
-    if (dep.loc) {
-      await asset.loadIfNeeded();
-      err.loc = dep.loc;
-      err = asset.generateErrorMessage(err);
-    }
-
-    err.fileName = asset.name;
-    throw err;
   }
 
   async processAsset(asset, isRebuild) {
