@@ -339,13 +339,13 @@ class Bundler extends EventEmitter {
         // Attempt to install missing npm dependencies
         if (!isLocalFile && this.options.autoinstall) {
           logger.status(emoji.progress, `Installing ${dep.name}...`);
-          await installPackage(
-            Path.dirname(asset.name),
-            [dep.name],
-            false,
-            false,
-            this.options.packageManager
-          );
+          await installPackage({
+            dir: Path.dirname(asset.name),
+            modules: [dep.name],
+            installPeers: false,
+            saveDev: false,
+            packageManager: this.options.packageManager
+          });
           return await this.resolveAsset(dep.name, asset.name);
         }
 
