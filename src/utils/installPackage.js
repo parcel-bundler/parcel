@@ -5,7 +5,7 @@ const resolve = promisify(require('resolve'));
 const commandExists = require('command-exists').sync;
 const logger = require('../Logger');
 
-function install(config) {
+function install(configObj) {
   return new Promise(async (resolve, reject) => {
     let {
       dir,
@@ -13,7 +13,7 @@ function install(config) {
       installPeers = true,
       saveDev = true,
       packageManager
-    } = config;
+    } = configObj;
 
     let install;
     let options = {
