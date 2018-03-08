@@ -23,7 +23,10 @@ program
     'set the hostname of HMR websockets, defaults to location.hostname of current window'
   )
   .option('--https', 'serves files over HTTPS')
-  .option('--open', 'automatically open in default browser')
+  .option(
+    '--open [browser]',
+    'automatically open in specified browser, defaults to default browser'
+  )
   .option(
     '-d, --out-dir <path>',
     'set the output directory. defaults to "dist"'
@@ -151,10 +154,11 @@ async function bundle(main, command) {
   if (command.name() === 'serve') {
     const server = await bundler.serve(command.port || 1234, command.https);
     if (command.open) {
-      require('opn')(
+      require('./openInBrowser')(
         `${command.https ? 'https' : 'http'}://localhost:${
           server.address().port
-        }`
+        }`,
+        command.open
       );
     }
   } else {
