@@ -2,86 +2,27 @@ const spawn = require('cross-spawn');
 const config = require('./config');
 const promisify = require('./promisify');
 const resolve = promisify(require('resolve'));
-const commandExists = require('command-exists').sync;
+const commandExists = require('command-exists');
 const logger = require('../Logger');
 
-function install(configObj) {
-  return new Promise(async (resolve, reject) => {
-    let {
-      dir,
-      modules,
-      installPeers = true,
-      saveDev = true,
-      packageManager
-    } = configObj;
+async function install(configObj) {
+  let {
+    dir: cwd,
+    modules,
+    installPeers = true,
+    saveDev = true,
+    packageManager
+  } = configObj;
 
-    let install;
-    let options = {
-      cwd: dir
-    };
+  packageManager = packageManager || (await determinePackageManager(cwd));
+  let commandToUse = packageManager === 'npm' ? 'install' : 'add';
+  let args = [commandToUse, ...modules, saveDev ? '-D' : null];
 
-    // Attempt to resolve the yarn lockfile
-    let yarnLockFile = await config.resolve(dir, ['yarn.lock']);
+  await run(packageManager, args, {cwd});
 
-    let packageManagerToUse;
-    if (packageManager) {
-      packageManagerToUse = packageManager;
-    } else {
-      // If no package manager specified, try to figure out which one to use:
-      // Default to npm
-      packageManagerToUse = 'npm';
-      // If the yarn command exists and we find a yarn.lock, use yarn
-      if (commandExists('yarn')) {
-        if (yarnLockFile) {
-          packageManagerToUse = 'yarn';
-        } else {
-          logger.warn(
-            "Using NPM instead of Yarn. No 'yarn.lock' found in project directory, use the --package-manager flag to explicitly specify which package manager to use."
-          );
-        }
-      }
-    }
-
-    let commandToUse;
-    if (packageManagerToUse === 'npm') {
-      commandToUse = 'install';
-    } else {
-      commandToUse = 'add';
-    }
-
-    let args = [commandToUse, ...modules];
-
-    if (saveDev) {
-      args.push('-D');
-    }
-
-    install = spawn(packageManagerToUse, args, options);
-
-    install.stdout.pipe(process.stdout);
-    install.stderr.pipe(process.stderr);
-
-    install.on('close', async code => {
-      if (code !== 0) {
-        return reject(new Error(`Failed to install ${modules.join(', ')}.`));
-      }
-
-      if (!installPeers) {
-        return resolve();
-      }
-
-      try {
-        await Promise.all(modules.map(m => installPeerDependencies(dir, m)));
-      } catch (err) {
-        return reject(
-          new Error(
-            `Failed to install peerDependencies for ${modules.join(', ')}.`
-          )
-        );
-      }
-
-      resolve();
-    });
-  });
+  if (installPeers) {
+    await Promise.all(modules.map(m => installPeerDependencies(cwd, m)));
+  }
 }
 
 async function installPeerDependencies(dir, name) {
@@ -95,8 +36,54 @@ async function installPeerDependencies(dir, name) {
   }
 
   if (modules.length) {
-    await install({dir: dir, modules: modules, installPeers: false});
+    await install({dir, modules, installPeers: false});
   }
+}
+
+async function determinePackageManager(cwd) {
+  let yarnLockFile = await config.resolve(cwd, ['yarn.lock']);
+  let yarnCommandExists = await checkForYarnCommand();
+
+  // If the yarn command exists and we find a yarn lockfile, use yarn
+  if (yarnCommandExists) {
+    if (yarnLockFile) {
+      return 'yarn';
+    } else {
+      logger.warn(
+        "Using NPM instead of Yarn. No 'yarn.lock' found in project directory, use the --package-manager flag to explicitly specify which package manager to use."
+      );
+    }
+  }
+
+  return 'npm';
+}
+
+async function checkForYarnCommand() {
+  try {
+    return await commandExists('yarn');
+  } catch (err) {
+    return false;
+  }
+}
+
+function run(...args) {
+  return new Promise((resolve, reject) => {
+    // Spawn the process
+    let childProcess = spawn(...args);
+
+    // Setup outputs
+    childProcess.stdout.pipe(process.stdout);
+    childProcess.stderr.pipe(process.stderr);
+
+    // Resolve the promise when the process finishes
+    childProcess.on('close', statusCode => {
+      if (statusCode === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Install failure: ${args}`));
+      }
+    });
+  });
 }
 
 module.exports = install;

@@ -336,42 +336,51 @@ class Bundler extends EventEmitter {
       if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
         // Check if dependency is a local file
         let isLocalFile = /^[/~.]/.test(dep.name);
-        // Attempt to install missing npm dependencies
+
+        // If it's not a local file, attempt to install the dep
         if (!isLocalFile && this.options.autoinstall) {
-          logger.status(emoji.progress, `Installing ${dep.name}...`);
-          await installPackage({
-            dir: Path.dirname(asset.name),
-            modules: [dep.name],
-            installPeers: false,
-            saveDev: false,
-            packageManager: this.options.packageManager
-          });
-          return await this.resolveAsset(dep.name, asset.name);
+          let dir = Path.dirname(asset.name);
+          return await this.installDep(dep, dir);
         }
 
+        // If the dep is optional, return before we throw
         if (dep.optional) {
           return;
         }
 
-        thrown.message = `Cannot resolve dependency '${dep.name}'`;
-
-        // Add absolute path to the error message if the dependency specifies a relative path
-        if (isLocalFile) {
-          const absPath = Path.resolve(Path.dirname(asset.name), dep.name);
-          err.message += ` at '${absPath}'`;
-        }
-
-        // Generate a code frame where the dependency was used
-        if (dep.loc) {
-          await asset.loadIfNeeded();
-          thrown.loc = dep.loc;
-          thrown = asset.generateErrorMessage(thrown);
-        }
-
-        thrown.fileName = asset.name;
+        thrown = await Bundler.generateDepError(asset, dep, thrown);
       }
       throw thrown;
     }
+  }
+
+  async installDep(dep, dir) {
+    logger.status(emoji.progress, `Installing ${dep.name}...`);
+
+    await installPackage({
+      dir,
+      modules: [dep.name],
+      installPeers: false,
+      saveDev: false,
+      packageManager: this.options.packageManager
+    });
+
+    return await this.resolveAsset(dep.name, dir);
+  }
+
+  static async generateDepError(asset, dep, err) {
+    // Set the error message
+    err.message = `Cannot resolve dependency '${dep.name}'`;
+
+    // Generate a code frame where the dependency was used
+    if (dep.loc) {
+      await asset.loadIfNeeded();
+      err.loc = dep.loc;
+      err = asset.generateErrorMessage(err);
+    }
+    err.fileName = asset.name;
+
+    return err;
   }
 
   async processAsset(asset, isRebuild) {
