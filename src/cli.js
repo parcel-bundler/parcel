@@ -23,6 +23,8 @@ program
     'set the hostname of HMR websockets, defaults to location.hostname of current window'
   )
   .option('--https', 'serves files over HTTPS')
+  .option('--cert <path>', 'path to certificate to use with HTTPS')
+  .option('--key <path>', 'path to private key to use with HTTPS')
   .option('--open', 'automatically open in default browser')
   .option(
     '-d, --out-dir <path>',
@@ -144,6 +146,15 @@ async function bundle(main, command) {
     process.env.NODE_ENV = 'production';
   } else {
     process.env.NODE_ENV = process.env.NODE_ENV || 'development';
+  }
+
+  if (command.https && command.cert && command.key) {
+    command.https = {
+      cert: command.cert,
+      key: command.key
+    };
+    delete command.cert;
+    delete command.key;
   }
 
   const bundler = new Bundler(main, command);
