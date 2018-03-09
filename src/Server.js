@@ -51,6 +51,11 @@ function middleware(bundler) {
       } else {
         // Otherwise, serve the file from the dist folder
         req.url = req.url.slice(bundler.options.publicURL.length);
+        // If we're serving an html bundle, and the requested path has not file
+        // extension, serve the index.html. Otherwise go to the file server.
+        if (bundler.mainAsset.type === 'html' && path.extname(req.url) == "") {
+          return sendIndex();
+        }
         return serve(req, res, send404);
       }
     }

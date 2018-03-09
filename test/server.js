@@ -106,4 +106,18 @@ describe('server', function() {
     let data = await get('/dist/index.js', https);
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
   });
+
+  it('should serve static assets as well as html', async function() {
+    let b = bundler(__dirname + '/integration/html/index.html', {
+      publicUrl: '/'
+    });
+    server = await b.serve(0);
+    // When accessing / we should get the index page.
+    let data = await get('/');
+    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+    // When accessing /hello.txt we should get txt document.
+    fs.writeFileSync(__dirname + '/dist/hello.txt', 'hello');
+    data = await get('/hello.txt');
+    assert.equal(data, 'hello');
+  });
 });
