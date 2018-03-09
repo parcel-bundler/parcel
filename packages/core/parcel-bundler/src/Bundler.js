@@ -94,7 +94,8 @@ class Bundler extends EventEmitter {
       sourceMaps:
         typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
       hmrHostname:
-        options.hmrHostname || options.target === 'electron' ? 'localhost' : '',
+        options.hmrHostname ||
+        (options.target === 'electron' ? 'localhost' : ''),
       detailedReport: options.detailedReport || false
     };
   }
