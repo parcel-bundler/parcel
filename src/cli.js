@@ -129,7 +129,7 @@ program.on('--help', function() {
 });
 
 // Make serve the default command
-var args = process.argv;
+const args = process.argv;
 if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
   args.splice(2, 0, 'serve');
 }
