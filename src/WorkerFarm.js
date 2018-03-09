@@ -3,11 +3,12 @@ const os = require('os');
 const Farm = require('worker-farm/lib/farm');
 const promisify = require('./utils/promisify');
 const logger = require('./Logger');
+const Asset = require('./Asset');
 
 let shared = null;
 
 class WorkerFarm extends Farm {
-  constructor(options) {
+  constructor(options, bundler) {
     let opts = {
       maxConcurrentWorkers: getNumWorkers()
     };
@@ -24,12 +25,34 @@ class WorkerFarm extends Farm {
 
     this.started = false;
     this.warmWorkers = 0;
-    this.init(options);
+    this.bundlers = new Map();
+    this.init(options, bundler);
   }
 
-  init(options) {
+  init(options, bundler) {
     this.localWorker.init(options);
     this.initRemoteWorkers(options);
+    if (bundler) {
+      this.bundlers.set(options.mainFile, bundler);
+    }
+  }
+
+  async bundlerCall(options) {
+    if (!options.mainFile || !options.method) {
+      return;
+    }
+    const bundler = this.bundlers.get(options.mainFile);
+    if (bundler) {
+      let res = await bundler[options.method](...options.args);
+      if (res instanceof Asset) {
+        return {
+          name: res.name,
+          package: res.package
+        };
+      }
+      return res;
+    }
+    return;
   }
 
   promisifyWorker(worker) {
@@ -48,6 +71,7 @@ class WorkerFarm extends Farm {
 
     let promises = [];
     for (let i = 0; i < this.options.maxConcurrentWorkers; i++) {
+      options.childId = i;
       promises.push(this.remoteWorker.init(options));
     }
 
@@ -57,15 +81,42 @@ class WorkerFarm extends Farm {
     }
   }
 
+  async handleRequest(data) {
+    let result;
+    switch (data.type) {
+      case 'logger':
+        if (this.shouldUseRemoteWorkers()) {
+          logger.handleMessage(data);
+        }
+        break;
+      case 'bundlerCall':
+        result = await this.bundlerCall(data);
+        break;
+    }
+    return result
+      ? {
+          id: data.id,
+          type: data.type,
+          result
+        }
+      : null;
+  }
+
   receive(data) {
     if (data.event) {
       this.emit(data.event, ...data.args);
-    } else if (data.type === 'logger') {
-      if (this.shouldUseRemoteWorkers()) {
-        logger.handleMessage(data);
-      }
     } else if (this.children[data.child]) {
-      super.receive(data);
+      if (data.type) {
+        this.handleRequest(data)
+          .then(result => {
+            if (result) {
+              this.children[data.child].send(result);
+            }
+          })
+          .catch(() => {});
+      } else {
+        super.receive(data);
+      }
     }
   }
 
@@ -109,10 +160,10 @@ class WorkerFarm extends Farm {
     shared = null;
   }
 
-  static getShared(options) {
+  static getShared(options, bundler) {
     if (!shared) {
-      shared = new WorkerFarm(options);
-    } else {
+      shared = new WorkerFarm(options, bundler);
+    } else if (options) {
       shared.init(options);
     }
 

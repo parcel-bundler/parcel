@@ -261,7 +261,7 @@ class Bundler extends EventEmitter {
       this.options.hmrPort = await this.hmr.start(this.options);
     }
 
-    this.farm = WorkerFarm.getShared(this.options);
+    this.farm = WorkerFarm.getShared(this.options, this);
   }
 
   stop() {
