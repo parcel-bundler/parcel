@@ -36,7 +36,8 @@ async function getConfig(asset) {
         collapseWhitespace: 'conservative',
         minifyCss: {
           safe: true
-        }
+        },
+        minifySvg: false
       };
 
     config.plugins.push(htmlnano(htmlNanoConfig));
