@@ -101,12 +101,30 @@ describe('server', function() {
       publicUrl: '/'
     });
     server = await b.serve(0);
+
     // When accessing / we should get the index page.
     let data = await get('/');
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+
     // When accessing /hello.txt we should get txt document.
     fs.writeFileSync(__dirname + '/dist/hello.txt', 'hello');
     data = await get('/hello.txt');
+    assert.equal(data, 'hello');
+  });
+
+  it('should serve files without extension', async function() {
+    let b = bundler(__dirname + '/integration/html/index.html', {
+      publicUrl: '/'
+    });
+    server = await b.serve(0);
+
+    // When accessing / we should get the index page.
+    let data = await get('/');
+    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+
+    // When accessing /hello we should get txt document.
+    fs.writeFileSync(__dirname + '/dist/hello', 'hello');
+    data = await get('/hello');
     assert.equal(data, 'hello');
   });
 });
