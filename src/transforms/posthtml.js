@@ -33,7 +33,10 @@ async function getConfig(asset) {
   if (asset.options.minify) {
     const htmlNanoConfig = asset.package.htmlnano ||
       (await asset.getConfig(['.htmlnanorc', '.htmlnanorc.js'])) || {
-        collapseWhitespace: 'conservative'
+        collapseWhitespace: 'conservative',
+        minifyCss: {
+          safe: true
+        }
       };
 
     config.plugins.push(htmlnano(htmlNanoConfig));
