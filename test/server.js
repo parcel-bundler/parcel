@@ -47,13 +47,18 @@ describe('server', function() {
   });
 
   it('should serve a default page if the main bundle is an HTML asset', async function() {
-    let b = bundler(__dirname + '/integration/html/index.html');
+    let b = bundler(__dirname + '/integration/html/index.html', {
+      publicURL: '/foo/bar/boo'
+    });
     server = await b.serve(0);
 
     let data = await get('/');
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
 
-    data = await get('/foo/bar');
+    data = await get('/foo/bar/');
+    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+
+    data = await get('/foo/bar/boo/');
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
   });
 

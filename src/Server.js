@@ -5,6 +5,7 @@ const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
 const generateCertificate = require('./utils/generateCertificate');
 const logger = require('./Logger');
+const path = require('path');
 
 serveStatic.mime.define({
   'application/wasm': ['wasm']
@@ -41,19 +42,20 @@ function middleware(bundler) {
     }
 
     function respond() {
+      // Error occured send 500
       if (bundler.errored) {
         return send500();
-      } else if (
-        !req.url.startsWith(bundler.options.publicURL) ||
-        req.url === bundler.options.publicURL
-      ) {
-        // If the URL doesn't start with the public path or is the public path, send the main HTML bundle
-        return sendIndex();
-      } else {
-        // Otherwise, serve the file from the dist folder
-        req.url = req.url.slice(bundler.options.publicURL.length);
-        return serve(req, res, send404);
       }
+
+      // Send index if requested URL is below or equal to publicURL
+      const relative = path.relative(bundler.options.publicURL, req.url);
+      if (relative === '' || relative.startsWith('..')) {
+        return sendIndex();
+      }
+
+      // Otherwise, serve the file from the dist folder
+      req.url = req.url.slice(bundler.options.publicURL.length);
+      return serve(req, res, send404);
     }
 
     function sendIndex() {
