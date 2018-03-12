@@ -8,8 +8,11 @@
 
 // eslint-disable-next-line no-global-assign
 require = (function (modules, cache, entry) {
+  var isNode = typeof global === 'object' && (global.__parcel_require || (global.__parcel_require = require))
   // Save the require from previous bundle to this closure if any
-  var previousRequire = typeof require === "function" && require;
+  var previousRequire = isNode
+    ? global.__parcel_require
+    : typeof require === "function" && require;
 
   function newRequire(name, jumped) {
     if (!cache[name]) {
@@ -17,7 +20,9 @@ require = (function (modules, cache, entry) {
         // if we cannot find the module within our internal map or
         // cache jump to the current global require ie. the last bundle
         // that was added to the page.
-        var currentRequire = typeof require === "function" && require;
+        var currentRequire = isNode
+          ? global.__parcel_require
+          : typeof require === "function" && require;
         if (!jumped && currentRequire) {
           return currentRequire(name, true);
         }
@@ -26,7 +31,7 @@ require = (function (modules, cache, entry) {
         // previous one is saved to 'previousRequire'. Repeat this as
         // many times as there are bundles until the module is found or
         // we exhaust the require chain.
-        if (previousRequire) {
+        if (previousRequire && !(typeof name === 'number' && isNode && !previousRequire.isParcelRequire)) {
           return previousRequire(name, true);
         }
 
@@ -70,5 +75,8 @@ require = (function (modules, cache, entry) {
   }
 
   // Override the current require with this new one
+  if(isNode) {
+    global.__parcel_require = newRequire
+  }
   return newRequire;
 })

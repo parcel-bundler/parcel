@@ -108,7 +108,9 @@ function prepareNodeContext(bundle, globals) {
       require: function(path) {
         return mod.require(path);
       },
-      process: process
+      process: process,
+      setTimeout: setTimeout,
+      global: global
     },
     globals
   );

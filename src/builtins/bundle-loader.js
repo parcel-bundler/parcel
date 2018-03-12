@@ -10,7 +10,7 @@ function loadBundlesLazy(bundles) {
   try {
     return Promise.resolve(require(id));
   } catch (err) {
-    if (err.code === 'MODULE_NOT_FOUND') {
+    if (err.code === 'MODULE_NOT_FOUND' || (typeof id === 'number' && err.message === 'path must be a string')) {
       return new LazyPromise(function (resolve, reject) {
         loadBundles(bundles)
           .then(resolve, reject);
