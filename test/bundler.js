@@ -1,4 +1,5 @@
 const assert = require('assert');
+const sinon = require('sinon');
 const {bundler, nextBundle} = require('./utils');
 
 describe('bundler', function() {
@@ -8,5 +9,44 @@ describe('bundler', function() {
 
     await nextBundle(b);
     assert(b.mainAsset);
+  });
+
+  it('should defer bundling if a bundle is pending', async () => {
+    const b = bundler(__dirname + '/integration/html/index.html');
+    b.pending = true; // bundle in progress
+    const spy = sinon.spy(b, 'bundle');
+
+    // first bundle, with existing bundle pending
+    const bundlePromise = b.bundle();
+
+    // simulate bundle finished
+    b.pending = false;
+    b.emit('buildEnd');
+
+    // wait for bundle to complete
+    await bundlePromise;
+
+    assert(spy.calledTwice);
+  });
+
+  it('should enforce asset type path to be a string', () => {
+    const b = bundler(__dirname + '/integration/html/index.html');
+
+    assert.throws(() => {
+      b.addAssetType('.ext', {});
+    }, 'should be a module path');
+  });
+
+  it('should enforce setup before bundling', () => {
+    const b = bundler(__dirname + '/integration/html/index.html');
+    b.farm = true; // truthy
+
+    assert.throws(() => {
+      b.addAssetType('.ext', __filename);
+    }, 'before bundling');
+
+    assert.throws(() => {
+      b.addPackager('type', 'packager');
+    }, 'before bundling');
   });
 });

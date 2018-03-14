@@ -1,25 +1,22 @@
-const Bundler = require('../');
+const Bundler = require('../src/Bundler');
 const rimraf = require('rimraf');
 const assert = require('assert');
 const vm = require('vm');
 const fs = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
+const Module = require('module');
 
-beforeEach(function(done) {
-  const finalize = () => {
-    rimraf.sync(path.join(__dirname, 'dist'));
-    done();
-  };
-
+beforeEach(async function() {
   // Test run in a single process, creating and deleting the same file(s)
   // Windows needs a delay for the file handles to be released before deleting
   // is possible. Without a delay, rimraf fails on `beforeEach` for `/dist`
   if (process.platform === 'win32') {
-    sleep(50).then(finalize);
-  } else {
-    finalize();
+    await sleep(50);
   }
+  // Unix based systems also need a delay but only half as much as windows
+  await sleep(50);
+  rimraf.sync(path.join(__dirname, 'dist'));
 });
 
 function sleep(ms) {
@@ -47,7 +44,7 @@ function bundle(file, opts) {
   return bundler(file, opts).bundle();
 }
 
-function run(bundle, globals) {
+function prepareBrowserContext(bundle, globals) {
   // for testing dynamic imports
   const fakeDocument = {
     createElement(tag) {
@@ -79,16 +76,69 @@ function run(bundle, globals) {
       document: fakeDocument,
       WebSocket,
       console,
-      location: {hostname: 'localhost'}
+      location: {hostname: 'localhost'},
+      fetch(url) {
+        return Promise.resolve({
+          arrayBuffer() {
+            return Promise.resolve(
+              new Uint8Array(fs.readFileSync(path.join(__dirname, 'dist', url)))
+                .buffer
+            );
+          }
+        });
+      }
     },
     globals
   );
 
   ctx.window = ctx;
 
+  return ctx;
+}
+
+function prepareNodeContext(bundle, globals) {
+  var mod = new Module(bundle.name);
+  mod.paths = [path.dirname(bundle.name) + '/node_modules'];
+
+  return Object.assign(
+    {
+      module: mod,
+      __filename: bundle.name,
+      __dirname: path.dirname(bundle.name),
+      require: function(path) {
+        return mod.require(path);
+      },
+      process: process
+    },
+    globals
+  );
+}
+
+function run(bundle, globals, opts = {}) {
+  var ctx;
+  switch (bundle.entryAsset.options.target) {
+    case 'browser':
+      ctx = prepareBrowserContext(bundle, globals);
+      break;
+    case 'node':
+      ctx = prepareNodeContext(bundle, globals);
+      break;
+    case 'electron':
+      ctx = Object.assign(
+        prepareBrowserContext(bundle, globals),
+        prepareNodeContext(bundle, globals)
+      );
+      break;
+  }
+
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(bundle.name), ctx);
-  return ctx.require(bundle.entryAsset.id);
+
+  if (opts.require !== false) {
+    return ctx.require(bundle.entryAsset.id);
+  }
+
+  return ctx;
 }
 
 function assertBundleTree(bundle, tree) {
@@ -97,7 +147,7 @@ function assertBundleTree(bundle, tree) {
   }
 
   if (tree.type) {
-    assert.equal(bundle.type, tree.type);
+    assert.equal(bundle.type.toLowerCase(), tree.type.toLowerCase());
   }
 
   if (tree.assets) {
@@ -132,9 +182,23 @@ function nextBundle(b) {
   });
 }
 
+function deferred() {
+  let resolve, reject;
+  let promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  promise.resolve = resolve;
+  promise.reject = reject;
+
+  return promise;
+}
+
 exports.sleep = sleep;
 exports.bundler = bundler;
 exports.bundle = bundle;
 exports.run = run;
 exports.assertBundleTree = assertBundleTree;
 exports.nextBundle = nextBundle;
+exports.deferred = deferred;

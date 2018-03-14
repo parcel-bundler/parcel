@@ -6,7 +6,7 @@ const render = require('posthtml-render');
 const posthtmlTransform = require('../transforms/posthtml');
 const isURL = require('../utils/is-url');
 
-// A list of all attributes that should produce a dependency
+// A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
 const ATTRS = {
   src: [
@@ -19,8 +19,45 @@ const ATTRS = {
     'iframe',
     'embed'
   ],
+  srcset: ['img', 'source'],
   href: ['link', 'a'],
-  poster: ['video']
+  poster: ['video'],
+  'xlink:href': ['use'],
+  content: ['meta']
+};
+
+// A list of metadata that should produce a dependency
+// Based on:
+// - http://schema.org/
+// - http://ogp.me
+// - https://developer.twitter.com/en/docs/tweets/optimize-with-cards/overview/markup
+// - https://msdn.microsoft.com/en-us/library/dn255024.aspx
+const META = {
+  property: [
+    'og:image',
+    'og:image:url',
+    'og:image:secure_url',
+    'og:audio',
+    'og:audio:secure_url',
+    'og:video',
+    'og:video:secure_url'
+  ],
+  name: [
+    'twitter:image',
+    'msapplication-square150x150logo',
+    'msapplication-square310x310logo',
+    'msapplication-square70x70logo',
+    'msapplication-wide310x150logo',
+    'msapplication-TileImage'
+  ],
+  itemprop: [
+    'image',
+    'logo',
+    'screenshot',
+    'thumbnailUrl',
+    'contentUrl',
+    'downloadUrl'
+  ]
 };
 
 class HTMLAsset extends Asset {
@@ -31,15 +68,52 @@ class HTMLAsset extends Asset {
   }
 
   parse(code) {
-    let res = parse(code);
+    let res = parse(code, {lowerCaseAttributeNames: true});
     res.walk = api.walk;
     res.match = api.match;
     return res;
   }
 
+  processSingleDependency(path) {
+    let assetPath = this.addURLDependency(decodeURIComponent(path));
+    if (!isURL(assetPath)) {
+      assetPath = urlJoin(this.options.publicURL, assetPath);
+    }
+    return assetPath;
+  }
+
+  collectSrcSetDependencies(srcset) {
+    const newSources = [];
+    for (const source of srcset.split(',')) {
+      const pair = source.trim().split(' ');
+      if (pair.length === 0) continue;
+      pair[0] = this.processSingleDependency(pair[0]);
+      newSources.push(pair.join(' '));
+    }
+    return newSources.join(',');
+  }
+
+  getAttrDepHandler(attr) {
+    if (attr === 'srcset') {
+      return this.collectSrcSetDependencies;
+    }
+    return this.processSingleDependency;
+  }
+
   collectDependencies() {
     this.ast.walk(node => {
       if (node.attrs) {
+        if (node.tag === 'meta') {
+          if (
+            !Object.keys(node.attrs).some(attr => {
+              let values = META[attr];
+              return values && values.includes(node.attrs[attr]);
+            })
+          ) {
+            return node;
+          }
+        }
+
         for (let attr in node.attrs) {
           let elements = ATTRS[attr];
           // Check for virtual paths
@@ -47,11 +121,8 @@ class HTMLAsset extends Asset {
             continue;
           }
           if (elements && elements.includes(node.tag)) {
-            let assetPath = this.addURLDependency(decodeURIComponent(node.attrs[attr]));
-            if (!isURL(assetPath)) {
-              assetPath = urlJoin(this.options.publicURL, assetPath);
-            }
-            node.attrs[attr] = assetPath;
+            let depHandler = this.getAttrDepHandler(attr);
+            node.attrs[attr] = depHandler.call(this, node.attrs[attr]);
             this.isAstDirty = true;
           }
         }

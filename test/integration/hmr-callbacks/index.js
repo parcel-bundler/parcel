@@ -6,10 +6,13 @@ function run() {
 
 run();
 
+// eslint-disable-next-line no-undef
+reportModuleId(module.id);
+
 module.hot.dispose(function () {
-  output('dispose');
+  output('dispose-' + module.id);
 });
 
 module.hot.accept(function () {
-  output('accept');
+  output('accept-' + module.id);
 });

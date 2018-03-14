@@ -1,7 +1,7 @@
 var global = (1, eval)('this');
 var OldModule = module.bundle.Module;
-function Module() {
-  OldModule.call(this);
+function Module(moduleName) {
+  OldModule.call(this, moduleName);
   this.hot = {
     accept: function (fn) {
       this._acceptCallback = fn || function () {};
@@ -14,8 +14,11 @@ function Module() {
 
 module.bundle.Module = Module;
 
-if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
-  var ws = new WebSocket('ws://' + window.location.hostname + ':{{HMR_PORT}}/');
+var parent = module.bundle.parent;
+if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
+  var hostname = process.env.HMR_HOSTNAME || location.hostname;
+  var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
   ws.onmessage = function(event) {
     var data = JSON.parse(event.data);
 
@@ -34,7 +37,7 @@ if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
     if (data.type === 'reload') {
       ws.close();
       ws.onclose = function () {
-        window.location.reload();
+        location.reload();
       }
     }
 
@@ -43,7 +46,7 @@ if (!module.bundle.parent && typeof WebSocket !== 'undefined') {
     }
 
     if (data.type === 'error') {
-      console.error('[parcel] 🚨  ' + data.error.message + '\n' + 'data.error.stack');
+      console.error('[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack);
     }
   };
 }

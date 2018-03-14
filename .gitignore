@@ -12,3 +12,11 @@ lib
 .vscode/
 .idea/
 *.min.js
+test/integration/**/target
+test/integration/**/Cargo.lock
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

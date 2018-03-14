@@ -15,7 +15,23 @@ class Bundle {
     this.entryAsset = null;
     this.assets = new Set();
     this.childBundles = new Set();
-    this.siblingBundles = new Map();
+    this.siblingBundles = new Set();
+    this.siblingBundlesMap = new Map();
+    this.offsets = new Map();
+    this.totalSize = 0;
+    this.bundleTime = 0;
+  }
+
+  static createWithAsset(asset, parentBundle) {
+    let bundle = new Bundle(
+      asset.type,
+      Path.join(asset.options.outDir, asset.generateBundleName()),
+      parentBundle
+    );
+
+    bundle.entryAsset = asset;
+    bundle.addAsset(asset);
+    return bundle;
   }
 
   addAsset(asset) {
@@ -28,28 +44,46 @@ class Bundle {
     this.assets.delete(asset);
   }
 
+  addOffset(asset, line) {
+    this.offsets.set(asset, line);
+  }
+
+  getOffset(asset) {
+    return this.offsets.get(asset) || 0;
+  }
+
   getSiblingBundle(type) {
     if (!type || type === this.type) {
       return this;
     }
 
-    if (!this.siblingBundles.has(type)) {
-      let bundle = this.createChildBundle(
+    if (!this.siblingBundlesMap.has(type)) {
+      let bundle = new Bundle(
         type,
         Path.join(
           Path.dirname(this.name),
           Path.basename(this.name, Path.extname(this.name)) + '.' + type
-        )
+        ),
+        this
       );
-      this.siblingBundles.set(type, bundle);
+
+      this.childBundles.add(bundle);
+      this.siblingBundles.add(bundle);
+      this.siblingBundlesMap.set(type, bundle);
     }
 
-    return this.siblingBundles.get(type);
+    return this.siblingBundlesMap.get(type);
   }
 
-  createChildBundle(type, name) {
-    let bundle = new Bundle(type, name, this);
+  createChildBundle(entryAsset) {
+    let bundle = Bundle.createWithAsset(entryAsset, this);
     this.childBundles.add(bundle);
+    return bundle;
+  }
+
+  createSiblingBundle(entryAsset) {
+    let bundle = this.createChildBundle(entryAsset);
+    this.siblingBundles.add(bundle);
     return bundle;
   }
 
@@ -66,15 +100,23 @@ class Bundle {
     newHashes.set(this.name, hash);
 
     let promises = [];
+    let mappings = [];
     if (!oldHashes || oldHashes.get(this.name) !== hash) {
       promises.push(this._package(bundler));
     }
 
     for (let bundle of this.childBundles.values()) {
-      promises.push(bundle.package(bundler, oldHashes, newHashes));
+      if (bundle.type === 'map') {
+        mappings.push(bundle);
+      } else {
+        promises.push(bundle.package(bundler, oldHashes, newHashes));
+      }
     }
 
     await Promise.all(promises);
+    for (let bundle of mappings) {
+      await bundle.package(bundler, oldHashes, newHashes);
+    }
     return newHashes;
   }
 
@@ -82,6 +124,7 @@ class Bundle {
     let Packager = bundler.packagers.get(this.type);
     let packager = new Packager(this, bundler);
 
+    let startTime = Date.now();
     await packager.start();
 
     let included = new Set();
@@ -90,6 +133,11 @@ class Bundle {
     }
 
     await packager.end();
+
+    this.bundleTime = Date.now() - startTime;
+    for (let asset of this.assets) {
+      this.bundleTime += asset.buildTime;
+    }
   }
 
   async _addDeps(asset, packager, included) {
@@ -104,6 +152,12 @@ class Bundle {
     }
 
     await packager.addAsset(asset);
+    this.addAssetSize(asset, packager.getSize() - this.totalSize);
+  }
+
+  addAssetSize(asset, size) {
+    asset.bundledSize = size;
+    this.totalSize += size;
   }
 
   getParents() {

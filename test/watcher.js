@@ -49,16 +49,28 @@ describe('watcher', function() {
         'common.js',
         'common-dep.js',
         'bundle-loader.js',
-        'bundle-url.js'
+        'bundle-url.js',
+        'js-loader.js'
       ],
       childBundles: [
         {
           assets: ['a.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['b.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -73,15 +85,26 @@ describe('watcher', function() {
     bundle = await nextBundle(b);
     assertBundleTree(bundle, {
       name: 'index.js',
-      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js'],
+      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
         {
           assets: ['a.js', 'common.js', 'common-dep.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['b.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -101,7 +124,7 @@ describe('watcher', function() {
         f => (fs.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000) | 0
       );
 
-    await sleep(1000); // mtime only has second level precision
+    await sleep(1100); // mtime only has second level precision
     fs.writeFileSync(
       __dirname + '/input/b.js',
       'module.exports = require("./common")'
@@ -129,16 +152,28 @@ describe('watcher', function() {
         'common.js',
         'common-dep.js',
         'bundle-loader.js',
-        'bundle-url.js'
+        'bundle-url.js',
+        'js-loader.js'
       ],
       childBundles: [
         {
           assets: ['a.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['b.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
         }
       ]
     });
@@ -154,15 +189,32 @@ describe('watcher', function() {
     bundle = await nextBundle(b);
     assertBundleTree(bundle, {
       name: 'index.js',
-      assets: ['index.js', 'common.js', 'bundle-loader.js', 'bundle-url.js'],
+      assets: [
+        'index.js',
+        'common.js',
+        'bundle-loader.js',
+        'bundle-url.js',
+        'js-loader.js'
+      ],
       childBundles: [
         {
           assets: ['a.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           assets: ['b.js'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
         }
       ]
     });

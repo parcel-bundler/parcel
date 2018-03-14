@@ -1,6 +1,8 @@
 # Test against the latest version of this Node.js version
 environment:
-  nodejs_version: "8"
+  matrix:
+    - nodejs_version: "6"
+    - nodejs_version: "8"
 
 # Install scripts. (runs after repo cloning)
 install:
@@ -8,6 +10,14 @@ install:
   - ps: Install-Product node $env:nodejs_version
   # install modules
   - yarn install
+
+  # Install Rust and Cargo
+  # (Based on from https://github.com/rust-lang/libc/blob/master/appveyor.yml)
+  - curl -sSf -o rustup-init.exe https://win.rustup.rs
+  - rustup-init.exe -y
+  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
+  - rustc -Vv
+  - cargo -V
 
 # Post-install test scripts.
 test_script:
