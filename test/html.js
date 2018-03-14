@@ -470,6 +470,34 @@ describe('html', function() {
     });
   });
 
+  it('should detect srcset attribute of source element', async function() {
+    let b = await bundle(
+      __dirname + '/integration/html-source-srcset/index.html'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'png',
+          assets: ['100x100.png'],
+          childBundles: []
+        },
+        {
+          type: 'png',
+          assets: ['200x200.png'],
+          childBundles: []
+        },
+        {
+          type: 'png',
+          assets: ['300x300.png'],
+          childBundles: []
+        }
+      ]
+    });
+  });
+
   it('should support webmanifest', async function() {
     let b = await bundle(__dirname + '/integration/webmanifest/index.html');
 
