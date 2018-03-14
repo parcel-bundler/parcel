@@ -294,7 +294,10 @@ class Bundler extends EventEmitter {
     let asset = this.parser.getAsset(path, pkg, this.options);
     this.loadedAssets.set(path, asset);
 
-    this.watch(path, asset);
+    if (!path.startsWith('external://')) {
+      this.watch(path, asset);
+    }
+
     return asset;
   }
 
