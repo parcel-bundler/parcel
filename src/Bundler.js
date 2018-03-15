@@ -92,10 +92,10 @@ class Bundler extends EventEmitter {
       hmrPort: options.hmrPort || 0,
       rootDir: Path.dirname(this.mainFile),
       sourceMaps:
-        typeof options.sourceMaps === 'boolean'
-          ? options.sourceMaps
-          : !isProduction,
-      hmrHostname: options.hmrHostname || '',
+        typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
+      hmrHostname:
+        options.hmrHostname ||
+        (options.target === 'electron' ? 'localhost' : ''),
       detailedReport: options.detailedReport || false
     };
   }

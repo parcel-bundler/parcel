@@ -365,7 +365,7 @@ describe('javascript', function() {
       delegate: {
         getImplicitDependencies(asset) {
           if (asset.basename === 'index.js') {
-            return [{name: __dirname + '/integration/css/index.css'}];
+            return [{name: '../css/index.css'}];
           }
         }
       }

@@ -137,12 +137,12 @@ class SourceMap {
 
   async extendSourceMap(original, extension) {
     if (!(extension instanceof SourceMap)) {
-      throw new Error(
-        '[SOURCEMAP] Type of extension should be a SourceMap instance!'
-      );
+      extension = await new SourceMap().addMap(extension);
+    }
+    if (!(original instanceof SourceMap)) {
+      original = await this.getConsumer(original);
     }
 
-    original = await this.getConsumer(original);
     extension.eachMapping(mapping => {
       let originalMapping = original.originalPositionFor({
         line: mapping.original.line,
@@ -180,6 +180,90 @@ class SourceMap {
     }
 
     return this;
+  }
+
+  findClosest(line, column, key = 'original') {
+    if (line < 1) {
+      throw new Error('Line numbers must be >= 1');
+    }
+
+    if (column < 0) {
+      throw new Error('Column numbers must be >= 0');
+    }
+
+    if (this.mappings.length < 1) {
+      return undefined;
+    }
+
+    let startIndex = 0;
+    let stopIndex = this.mappings.length - 1;
+    let middleIndex = Math.floor((stopIndex + startIndex) / 2);
+
+    while (
+      startIndex < stopIndex &&
+      this.mappings[middleIndex][key].line !== line
+    ) {
+      if (line < this.mappings[middleIndex][key].line) {
+        stopIndex = middleIndex - 1;
+      } else if (line > this.mappings[middleIndex][key].line) {
+        startIndex = middleIndex + 1;
+      }
+      middleIndex = Math.floor((stopIndex + startIndex) / 2);
+    }
+
+    let mapping = this.mappings[middleIndex];
+    if (!mapping || mapping[key].line !== line) {
+      return this.mappings.length - 1;
+    }
+
+    while (
+      middleIndex >= 1 &&
+      this.mappings[middleIndex - 1][key].line === line
+    ) {
+      middleIndex--;
+    }
+
+    while (
+      middleIndex < this.mappings.length - 1 &&
+      this.mappings[middleIndex + 1][key].line === line &&
+      column > this.mappings[middleIndex][key].column
+    ) {
+      middleIndex++;
+    }
+
+    return middleIndex;
+  }
+
+  originalPositionFor(generatedPosition) {
+    let index = this.findClosest(
+      generatedPosition.line,
+      generatedPosition.column,
+      'generated'
+    );
+    return {
+      source: this.mappings[index].source,
+      name: this.mappings[index].name,
+      line: this.mappings[index].original.line,
+      column: this.mappings[index].original.column
+    };
+  }
+
+  generatedPositionFor(originalPosition) {
+    let index = this.findClosest(
+      originalPosition.line,
+      originalPosition.column,
+      'original'
+    );
+    return {
+      source: this.mappings[index].source,
+      name: this.mappings[index].name,
+      line: this.mappings[index].generated.line,
+      column: this.mappings[index].generated.column
+    };
+  }
+
+  sourceContentFor(fileName) {
+    return this.sources[fileName];
   }
 
   offset(lineOffset = 0, columnOffset = 0) {
