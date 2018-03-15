@@ -240,7 +240,7 @@ async function getEnvConfig(asset, isSourceModule) {
 
 const envCache = new Map();
 
-async function getEnvPlugins(targets, useBuiltIns) {
+async function getEnvPlugins(targets, useBuiltIns = false) {
   if (!targets) {
     return null;
   }
