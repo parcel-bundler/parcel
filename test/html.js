@@ -16,11 +16,6 @@ describe('html', function() {
           childBundles: []
         },
         {
-          type: 'svg',
-          assets: ['icons.svg'],
-          childBundles: []
-        },
-        {
           type: 'css',
           assets: ['index.css'],
           childBundles: []
