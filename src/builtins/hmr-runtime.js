@@ -4,7 +4,7 @@ function Module(moduleName) {
   OldModule.call(this, moduleName);
   this.hot = {
     accept: function (fn) {
-      this._acceptCallback = fn || function () {};
+      this._acceptCallback = fn || function () { };
     },
     dispose: function (fn) {
       this._disposeCallback = fn;
@@ -14,22 +14,23 @@ function Module(moduleName) {
 
 module.bundle.Module = Module;
 
+var hasHmrOnThisPage = typeof global['hasParcelHmr'] !== 'undefined';
 var parent = module.bundle.parent;
-if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
+if (!hasHmrOnThisPage && (!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
+  global['hasParcelHmr'] = true;
   var hostname = process.env.HMR_HOSTNAME || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
   var ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
-  ws.onmessage = function(event) {
+  ws.onmessage = function (event) {
     var data = JSON.parse(event.data);
-
     if (data.type === 'update') {
       data.assets.forEach(function (asset) {
-        hmrApply(global.require, asset);
+        hmrApply(global['require_' + asset.topHash], asset);
       });
 
       data.assets.forEach(function (asset) {
         if (!asset.isNew) {
-          hmrAccept(global.require, asset.id);
+          hmrAccept(global['require_' + asset.topHash], asset.id, asset.topHash);
         }
       });
     }
@@ -91,14 +92,14 @@ function hmrApply(bundle, asset) {
   }
 }
 
-function hmrAccept(bundle, id) {
+function hmrAccept(bundle, id, topHash) {
   var modules = bundle.modules;
   if (!modules) {
     return;
   }
 
   if (!modules[id] && bundle.parent) {
-    return hmrAccept(bundle.parent, id);
+    return hmrAccept(bundle.parent, id, topHash);
   }
 
   var cached = bundle.cache[id];
@@ -115,7 +116,7 @@ function hmrAccept(bundle, id) {
     return true;
   }
 
-  return getParents(global.require, id).some(function (id) {
-    return hmrAccept(global.require, id)
+  return getParents(global['require_' + topHash], id).some(function (id) {
+    return hmrAccept(global['require_' + topHash], id, topHash)
   });
 }

@@ -73,7 +73,8 @@ class HMRServer {
           return {
             id: asset.id,
             generated: asset.generated,
-            deps: deps
+            deps: deps,
+            topHash: asset.topHash()
           };
         })
       });
