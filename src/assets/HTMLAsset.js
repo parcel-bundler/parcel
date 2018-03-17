@@ -19,9 +19,9 @@ const ATTRS = {
     'iframe',
     'embed'
   ],
-  href: ['link', 'a'],
+  href: ['link', 'a', 'use'],
   poster: ['video'],
-  'xlink:href': ['use'],
+  'xlink:href': ['use'], // Deprecated since SVG 2, throws error in svgo
   content: ['meta']
 };
 
