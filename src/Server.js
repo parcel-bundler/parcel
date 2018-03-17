@@ -89,7 +89,7 @@ async function serve(bundler, port, useHTTPS = false) {
   } else if (typeof useHTTPS === 'boolean') {
     server = https.createServer(generateCertificate(bundler.options), handler);
   } else {
-    server = https.createServer(getCertificate(useHTTPS), handler);
+    server = https.createServer(await getCertificate(useHTTPS), handler);
   }
 
   let freePort = await getPort({port});

@@ -8,14 +8,14 @@ const logger = require('./Logger');
 
 class HMRServer {
   async start(options = {}) {
-    await new Promise(resolve => {
+    await new Promise(async resolve => {
       let server;
       if (!options.https) {
         server = http.createServer();
       } else if (typeof options.https === 'boolean') {
         server = https.createServer(generateCertificate(options));
       } else {
-        server = https.createServer(getCertificate(options.https));
+        server = https.createServer(await getCertificate(options.https));
       }
 
       this.wss = new WebSocket.Server({server});

@@ -17,7 +17,7 @@ describe('getCertificate', () => {
       path.join(__dirname, '/integration/https', 'primary.crt')
     );
 
-    const retrieved = getCertificate(https);
+    const retrieved = await getCertificate(https);
 
     assert.equal(retrieved.cert.toString(), cert.toString());
     assert.equal(retrieved.key.toString(), key.toString());

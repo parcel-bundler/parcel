@@ -1,8 +1,10 @@
-const fs = require('fs');
+const fs = require('./fs');
 
-function getCertificate(options) {
-  const key = fs.existsSync(options.key) && fs.readFileSync(options.key);
-  const cert = fs.existsSync(options.cert) && fs.readFileSync(options.cert);
+async function getCertificate(options) {
+  const key =
+    (await fs.exists(options.key)) && (await fs.readFile(options.key));
+  const cert =
+    (await fs.exists(options.cert)) && (await fs.readFile(options.cert));
   if (!key || !cert) {
     throw 'Certificate and/or key not found';
   }
