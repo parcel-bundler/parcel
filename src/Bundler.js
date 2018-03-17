@@ -4,7 +4,11 @@ const Parser = require('./Parser');
 const WorkerFarm = require('./WorkerFarm');
 const Path = require('path');
 const Bundle = require('./Bundle');
-const {FSWatcher} = require('chokidar');
+const Watcher = process.env.PARCEL_WATCHMAN
+  ? require('./Watchman')
+  : require('chokidar').FSWatcher.bind(null, {
+      useFsEvents: process.env.NODE_ENV !== 'test'
+    });
 const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
@@ -200,7 +204,7 @@ class Bundler extends EventEmitter {
       this.bundleHashes = await bundle.package(this, this.bundleHashes);
 
       // Unload any orphaned assets
-      this.unloadOrphanedAssets();
+      await this.unloadOrphanedAssets();
 
       let buildTime = Date.now() - startTime;
       let time = prettifyTime(buildTime);
@@ -229,7 +233,7 @@ class Bundler extends EventEmitter {
 
       // If not in watch mode, stop the worker farm so we don't keep the process running.
       if (!this.watcher && this.options.killWorkers) {
-        this.stop();
+        await this.stop();
       }
     }
   }
@@ -247,13 +251,10 @@ class Bundler extends EventEmitter {
     this.options.env = process.env;
 
     if (this.options.watch) {
-      // FS events on macOS are flakey in the tests, which write lots of files very quickly
-      // See https://github.com/paulmillr/chokidar/issues/612
-      this.watcher = new FSWatcher({
-        useFsEvents: process.env.NODE_ENV !== 'test'
-      });
+      this.watcher = new Watcher(this.options.rootDir);
+      if (process.env.PARCEL_WATCHMAN) await this.watcher.init();
 
-      this.watcher.on('change', this.onChange.bind(this));
+      await this.watcher.on('change', this.onChange.bind(this));
     }
 
     if (this.options.hmr) {
@@ -264,13 +265,13 @@ class Bundler extends EventEmitter {
     this.farm = WorkerFarm.getShared(this.options);
   }
 
-  stop() {
+  async stop() {
     if (this.farm) {
       this.farm.end();
     }
 
     if (this.watcher) {
-      this.watcher.close();
+      await this.watcher.close();
     }
 
     if (this.hmr) {
@@ -294,24 +295,24 @@ class Bundler extends EventEmitter {
     let asset = this.parser.getAsset(path, pkg, this.options);
     this.loadedAssets.set(path, asset);
 
-    this.watch(path, asset);
+    await this.watch(path, asset);
     return asset;
   }
 
-  watch(path, asset) {
+  async watch(path, asset) {
     if (!this.watcher) {
       return;
     }
 
     if (!this.watchedAssets.has(path)) {
-      this.watcher.add(path);
+      await this.watcher.add(path);
       this.watchedAssets.set(path, new Set());
     }
 
     this.watchedAssets.get(path).add(asset);
   }
 
-  unwatch(path, asset) {
+  async unwatch(path, asset) {
     if (!this.watchedAssets.has(path)) {
       return;
     }
@@ -321,7 +322,7 @@ class Bundler extends EventEmitter {
 
     if (watched.size === 0) {
       this.watchedAssets.delete(path);
-      this.watcher.unwatch(path);
+      await this.watcher.unwatch(path);
     }
   }
 
@@ -410,7 +411,7 @@ class Bundler extends EventEmitter {
           // This dependency is already included in the parent's generated output,
           // so no need to load it. We map the name back to the parent asset so
           // that changing it triggers a recompile of the parent.
-          this.watch(dep.name, asset);
+          await this.watch(dep.name, asset);
         } else {
           let assetDep = await this.resolveDep(asset, dep);
           if (assetDep) {
@@ -527,21 +528,21 @@ class Bundler extends EventEmitter {
     }
   }
 
-  unloadOrphanedAssets() {
+  async unloadOrphanedAssets() {
     for (let asset of this.findOrphanAssets()) {
-      this.unloadAsset(asset);
+      await this.unloadAsset(asset);
     }
   }
 
-  unloadAsset(asset) {
+  async unloadAsset(asset) {
     this.loadedAssets.delete(asset.name);
     if (this.watcher) {
-      this.unwatch(asset.name, asset);
+      await this.unwatch(asset.name, asset);
 
       // Unwatch all included dependencies that map to this asset
       for (let dep of asset.dependencies.values()) {
         if (dep.includedInParent) {
-          this.unwatch(dep.name, asset);
+          await this.unwatch(dep.name, asset);
         }
       }
     }
