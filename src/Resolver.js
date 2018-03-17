@@ -130,7 +130,7 @@ class Resolver {
       return {path: builtins[filename]};
     }
 
-    let parts = filename.split(path.sep);
+    let parts = this.getModuleParts(filename);
     let root = path.parse(dir).root;
 
     while (dir !== root) {
@@ -298,7 +298,7 @@ class Resolver {
       alias = aliases[filename];
       if (alias == null) {
         // If it didn't match, try only the module name.
-        let parts = filename.split(path.sep);
+        let parts = this.getModuleParts(filename);
         alias = aliases[parts[0]];
         if (typeof alias === 'string') {
           // Append the filename back onto the aliased module.
@@ -345,6 +345,23 @@ class Resolver {
     // Load the local package, and resolve aliases
     let pkg = await this.findPackage(dir);
     return this.resolveAliases(filename, pkg);
+  }
+
+  getModuleParts(name) {
+    let scopeMatch = name.match(/^(@[^/]+\/[^/@]+)(?:\/([^@]+))?/);
+
+    // if it is a scoped module
+    if (scopeMatch) {
+      // if it is a file inside the module (@scope/module/dir/file)
+      if (scopeMatch[2]) {
+        // ["@scope/module", "dir", "file"]
+        return [scopeMatch[1]].concat(scopeMatch[2].split(path.sep));
+      }
+
+      return [scopeMatch[1]];
+    }
+
+    return name.split(path.sep);
   }
 }
 

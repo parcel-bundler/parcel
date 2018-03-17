@@ -198,6 +198,30 @@ describe('resolver', function() {
       );
       assert.equal(resolved.pkg.name, 'foo');
     });
+
+    it('should resolve a scoped module', async function() {
+      let resolved = await resolver.resolve(
+        '@scope/pkg',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.resolve(rootDir, 'node_modules/@scope/pkg/index.js')
+      );
+      assert.equal(resolved.pkg.name, 'scope-pkg');
+    });
+
+    it('should resolve a file inside a scoped module', async function() {
+      let resolved = await resolver.resolve(
+        '@scope/pkg/foo/bar',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.resolve(rootDir, 'node_modules/@scope/pkg/foo/bar.js')
+      );
+      assert.equal(resolved.pkg.name, 'scope-pkg');
+    });
   });
 
   describe('aliases', function() {
