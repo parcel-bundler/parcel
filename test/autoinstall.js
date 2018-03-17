@@ -14,59 +14,43 @@ describe('autoinstall', function() {
     await ncp(__dirname + '/integration/babel-default', inputDirPath);
   });
 
-  describe('direct install', function() {
-    it('should install lodash using npm', async function() {
-      let pkgName = 'lodash';
+  it('should install lodash using npm and save dev dependency to package.json', async function() {
+    let pkgName = 'lodash';
 
-      // Run install:
-      await install({
-        dir: inputDirPath,
-        modules: [pkgName],
-        saveDev: true,
-        packageManager: 'npm'
-      });
-
-      /// Assert:
-      assert(
-        fs.existsSync(
-          inputDirPath + '/node_modules/' + pkgName,
-          'lodash is installed after running install()'
-        )
-      );
-
-      let pkg = fs.readFileSync(inputDirPath + '/package.json');
-      pkg = JSON.parse(pkg);
-
-      assert(pkg.devDependencies[pkgName], 'lodash is saved as a dev dep');
+    await install({
+      dir: inputDirPath,
+      modules: [pkgName],
+      saveDev: true,
+      packageManager: 'npm'
     });
 
-    it('should install lodash using yarn', async function() {
-      let pkgName = 'lodash';
+    let expectedModulePath = inputDirPath + '/node_modules/' + pkgName;
+    assert(fs.existsSync(expectedModulePath), 'lodash is in node_modules');
 
-      // Run install:
-      await install({
-        dir: inputDirPath,
-        modules: [pkgName],
-        saveDev: true,
-        packageManager: 'yarn'
-      });
-
-      /// Assert:
-      assert(
-        fs.existsSync(
-          inputDirPath + '/node_modules/' + pkgName,
-          'lodash is installed after running install()'
-        )
-      );
-
-      let pkg = fs.readFileSync(inputDirPath + '/package.json');
-      pkg = JSON.parse(pkg);
-
-      assert(pkg.devDependencies[pkgName], 'lodash is saved as a dev dep');
-    });
+    let pkg = fs.readFileSync(inputDirPath + '/package.json');
+    pkg = JSON.parse(pkg);
+    assert(pkg.devDependencies[pkgName], 'lodash is saved as a dev dep');
   });
 
-  afterEach(function() {
-    rimraf.sync(inputDirPath);
+  it('should install lodash using yarn and save dev dependency to package.json', async function() {
+    let pkgName = 'lodash';
+
+    await install({
+      dir: inputDirPath,
+      modules: [pkgName],
+      saveDev: true,
+      packageManager: 'yarn'
+    });
+
+    let expectedModulePath = inputDirPath + '/node_modules/' + pkgName;
+    assert(fs.existsSync(expectedModulePath), 'lodash is in node_modules');
+
+    let pkg = fs.readFileSync(inputDirPath + '/package.json');
+    pkg = JSON.parse(pkg);
+    assert(pkg.devDependencies[pkgName], 'lodash is saved as a dev dep');
+  });
+
+  afterEach(async function() {
+    await primraf(inputDirPath);
   });
 });
