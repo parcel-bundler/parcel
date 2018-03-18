@@ -21,7 +21,6 @@ const ATTRS = {
   ],
   href: ['link', 'a'],
   poster: ['video'],
-  'xlink:href': ['use'],
   content: ['meta']
 };
 
@@ -90,6 +89,24 @@ class HTMLAsset extends Asset {
       newSources.push(pair.join(' '));
     }
     return newSources.join(',');
+  }
+
+  svgDependencyWalker(tree) {
+    tree.walk(node => {
+      if (node.attrs) {
+        if (node.tag === 'use') {
+          for (let attr in node.attrs) {
+            if (attr === 'href' || attr === 'xlink:href') {
+              node.attrs[attr] = this.processSingleDependency(node.attrs[attr]);
+              this.isAstDirty = true;
+            }
+          }
+        }
+      }
+
+      return node;
+    });
+    return tree;
   }
 
   collectDependencies() {

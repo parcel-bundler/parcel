@@ -23,12 +23,12 @@ async function getConfig(asset) {
       '.posthtmlrc.js',
       'posthtml.config.js'
     ]));
-  if (!config && !asset.options.minify) {
-    return;
-  }
 
   config = config || {};
-  config.plugins = await loadPlugins(config.plugins, asset.name);
+  config.plugins = [
+    asset.svgDependencyWalker.bind(asset),
+    ...(await loadPlugins(config.plugins, asset.name))
+  ];
 
   if (asset.options.minify) {
     const htmlNanoConfig = asset.package.htmlnano ||
