@@ -4,6 +4,7 @@ const serveStatic = require('serve-static');
 const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
 const generateCertificate = require('./utils/generateCertificate');
+const getCertificate = require('./utils/getCertificate');
 const logger = require('./Logger');
 
 serveStatic.mime.define({
@@ -82,9 +83,14 @@ function middleware(bundler) {
 
 async function serve(bundler, port, useHTTPS = false) {
   let handler = middleware(bundler);
-  let server = useHTTPS
-    ? https.createServer(generateCertificate(bundler.options), handler)
-    : http.createServer(handler);
+  let server;
+  if (!useHTTPS) {
+    server = http.createServer(handler);
+  } else if (typeof useHTTPS === 'boolean') {
+    server = https.createServer(generateCertificate(bundler.options), handler);
+  } else {
+    server = https.createServer(await getCertificate(useHTTPS), handler);
+  }
 
   let freePort = await getPort({port});
   server.listen(freePort);
