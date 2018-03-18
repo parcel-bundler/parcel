@@ -17,9 +17,7 @@ describe('autoinstall', function() {
   it('should install lodash using npm and save dev dependency to package.json', async function() {
     let pkgName = 'lodash';
 
-    await install({
-      dir: inputDirPath,
-      modules: [pkgName],
+    await install([pkgName], inputDirPath + '/test.js', {
       saveDev: true,
       packageManager: 'npm'
     });
@@ -35,9 +33,7 @@ describe('autoinstall', function() {
   it('should install lodash using yarn and save dev dependency to package.json', async function() {
     let pkgName = 'lodash';
 
-    await install({
-      dir: inputDirPath,
-      modules: [pkgName],
+    await install([pkgName], inputDirPath + '/test.js', {
       saveDev: true,
       packageManager: 'yarn'
     });
