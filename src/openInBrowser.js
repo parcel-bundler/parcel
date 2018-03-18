@@ -1,13 +1,13 @@
 const opn = require('opn');
 
-const openInBrowser = (url, browser) => {
+const openInBrowser = async (url, browser) => {
   try {
     const options = typeof browser === 'string' ? {app: browser} : undefined;
 
-    opn(url, options).catch(() => {}); // Prevent `unhandledRejection` error.
-    return true;
+    await opn(url, options);
   } catch (err) {
-    return false;
+    console.error(`Unexpected error while opening in browser: ${browser}`);
+    console.error(err);
   }
 };
 
