@@ -19,9 +19,10 @@ const ATTRS = {
     'iframe',
     'embed'
   ],
-  href: ['link', 'a'],
+  href: ['link', 'a', 'use'],
+  srcset: ['img', 'source'],
   poster: ['video'],
-  'xlink:href': ['use'],
+  'xlink:href': ['use'], // Deprecated since SVG 2, throws error in svgo
   content: ['meta']
 };
 
@@ -92,6 +93,13 @@ class HTMLAsset extends Asset {
     return newSources.join(',');
   }
 
+  getAttrDepHandler(attr) {
+    if (attr === 'srcset') {
+      return this.collectSrcSetDependencies;
+    }
+    return this.processSingleDependency;
+  }
+
   collectDependencies() {
     this.ast.walk(node => {
       if (node.attrs) {
@@ -107,18 +115,14 @@ class HTMLAsset extends Asset {
         }
 
         for (let attr in node.attrs) {
-          if (node.tag === 'img' && attr === 'srcset') {
-            node.attrs[attr] = this.collectSrcSetDependencies(node.attrs[attr]);
-            this.isAstDirty = true;
-            continue;
-          }
           let elements = ATTRS[attr];
           // Check for virtual paths
           if (node.tag === 'a' && node.attrs[attr].lastIndexOf('.') < 1) {
             continue;
           }
           if (elements && elements.includes(node.tag)) {
-            node.attrs[attr] = this.processSingleDependency(node.attrs[attr]);
+            let depHandler = this.getAttrDepHandler(attr);
+            node.attrs[attr] = depHandler.call(this, node.attrs[attr]);
             this.isAstDirty = true;
           }
         }
