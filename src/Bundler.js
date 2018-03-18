@@ -98,8 +98,7 @@ class Bundler extends EventEmitter {
         options.hmrHostname ||
         (options.target === 'electron' ? 'localhost' : ''),
       detailedReport: options.detailedReport || false,
-      autoinstall: (options.autoinstall || false) && !isProduction,
-      packageManager: options.packageManager
+      autoinstall: (options.autoinstall || false) && !isProduction
     };
   }
 
@@ -372,10 +371,7 @@ class Bundler extends EventEmitter {
   async installDep(asset, dep) {
     let [moduleName] = this.resolver.getModuleParts(dep.name);
     try {
-      await installPackage([moduleName], asset.name, {
-        saveDev: false,
-        packageManager: this.options.packageManager
-      });
+      await installPackage([moduleName], asset.name, {saveDev: false});
     } catch (err) {
       await this.throwDepError(asset, dep, err);
     }
