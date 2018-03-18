@@ -348,20 +348,13 @@ class Resolver {
   }
 
   getModuleParts(name) {
-    let scopeMatch = name.match(/^(@[^/]+\/[^/@]+)(?:\/([^@]+))?/);
-
-    // if it is a scoped module
-    if (scopeMatch) {
-      // if it is a file inside the module (@scope/module/dir/file)
-      if (scopeMatch[2]) {
-        // ["@scope/module", "dir", "file"]
-        return [scopeMatch[1]].concat(scopeMatch[2].split(path.sep));
-      }
-
-      return [scopeMatch[1]];
+    let parts = path.normalize(name).split(path.sep);
+    if (parts[0].charAt(0) === '@') {
+      // Scoped module (e.g. @scope/module). Merge the first two parts back together.
+      parts.splice(0, 2, `${parts[0]}/${parts[1]}`);
     }
 
-    return name.split(path.sep);
+    return parts;
   }
 }
 
