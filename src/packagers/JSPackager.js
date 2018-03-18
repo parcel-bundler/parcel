@@ -69,8 +69,19 @@ class JSPackager extends Packager {
           !this.bundle.assets.has(mod) &&
           (!this.bundle.parentBundle || this.bundle.parentBundle.type !== 'js')
         ) {
-          this.externalModules.add(mod);
-          this.bundleLoaders.add(mod.type);
+          if (this.options.bundleLoaders[mod.type]) {
+            this.externalModules.add(mod);
+            this.bundleLoaders.add(mod.type);
+          } else {
+            const pathToAsset = urlJoin(
+              this.options.publicURL,
+              mod.generateBundleName()
+            );
+            await this.writeModule(
+              mod.id,
+              `module.exports=${JSON.stringify(pathToAsset)};`
+            );
+          }
         }
       }
     }
