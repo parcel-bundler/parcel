@@ -13,7 +13,7 @@ async function localRequire(name, path, triedInstall = false) {
       resolved = resolve.sync(name, {basedir});
     } catch (e) {
       if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
-        await install({dir: basedir, modules: [name]});
+        await install([name], path);
         return localRequire(name, path, true);
       }
       throw e;

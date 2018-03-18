@@ -94,7 +94,8 @@ class Bundler extends EventEmitter {
       rootDir: Path.dirname(this.mainFile),
       sourceMaps:
         typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
-      hmrHostname: options.hmrHostname ||
+      hmrHostname:
+        options.hmrHostname ||
         (options.target === 'electron' ? 'localhost' : ''),
       detailedReport: options.detailedReport || false,
       autoinstall: (options.autoinstall || false) && !isProduction,
@@ -327,7 +328,7 @@ class Bundler extends EventEmitter {
     }
   }
 
-  async resolveDep(asset, dep) {
+  async resolveDep(asset, dep, install = true) {
     try {
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
@@ -336,11 +337,18 @@ class Bundler extends EventEmitter {
       if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
         // Check if dependency is a local file
         let isLocalFile = /^[/~.]/.test(dep.name);
+        let fromNodeModules = asset.name.includes(
+          `${Path.sep}node_modules${Path.sep}`
+        );
 
         // If it's not a local file, attempt to install the dep
-        if (!isLocalFile && this.options.autoinstall) {
-          let dir = Path.dirname(asset.name);
-          return await this.installDep(dep, dir);
+        if (
+          !isLocalFile &&
+          !fromNodeModules &&
+          this.options.autoinstall &&
+          install
+        ) {
+          return await this.installDep(asset, dep);
         }
 
         // If the dep is optional, return before we throw
@@ -348,39 +356,43 @@ class Bundler extends EventEmitter {
           return;
         }
 
-        thrown = await Bundler.generateDepError(asset, dep, thrown);
+        thrown.message = `Cannot resolve dependency '${dep.name}'`;
+        if (isLocalFile) {
+          const absPath = Path.resolve(Path.dirname(asset.name), dep.name);
+          thrown.message += ` at '${absPath}'`;
+        }
+
+        await this.throwDepError(asset, dep, thrown);
       }
+
       throw thrown;
     }
   }
 
-  async installDep(dep, dir) {
-    logger.status(emoji.progress, `Installing ${dep.name}...`);
+  async installDep(asset, dep) {
+    let [moduleName] = this.resolver.getModuleParts(dep.name);
+    try {
+      await installPackage([moduleName], asset.name, {
+        saveDev: false,
+        packageManager: this.options.packageManager
+      });
+    } catch (err) {
+      await this.throwDepError(asset, dep, err);
+    }
 
-    await installPackage({
-      dir,
-      modules: [dep.name],
-      installPeers: false,
-      saveDev: false,
-      packageManager: this.options.packageManager
-    });
-
-    return await this.resolveAsset(dep.name, dir);
+    return await this.resolveDep(asset, dep, false);
   }
 
-  static async generateDepError(asset, dep, err) {
-    // Set the error message
-    err.message = `Cannot resolve dependency '${dep.name}'`;
-
+  async throwDepError(asset, dep, err) {
     // Generate a code frame where the dependency was used
     if (dep.loc) {
       await asset.loadIfNeeded();
       err.loc = dep.loc;
       err = asset.generateErrorMessage(err);
     }
-    err.fileName = asset.name;
 
-    return err;
+    err.fileName = asset.name;
+    throw err;
   }
 
   async processAsset(asset, isRebuild) {
