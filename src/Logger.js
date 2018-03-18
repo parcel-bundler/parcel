@@ -23,7 +23,13 @@ class Logger {
   }
 
   countLines(message) {
-    return message.split('\n').reduce((p, line) => p + Math.ceil((line.length || 1) / process.stdout.columns), 0);
+    return message.split('\n').reduce((p, line) => {
+      if (process.stdout.columns) {
+        return p + Math.ceil((line.length || 1) / process.stdout.columns);
+      }
+
+      return p + 1;
+    }, 0);
   }
 
   writeRaw(message) {
