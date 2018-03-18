@@ -148,13 +148,11 @@ async function bundle(main, command) {
     process.env.NODE_ENV = process.env.NODE_ENV || 'development';
   }
 
-  if (command.https && command.cert && command.key) {
+  if (command.cert && command.key) {
     command.https = {
       cert: command.cert,
       key: command.key
     };
-    delete command.cert;
-    delete command.key;
   }
 
   const bundler = new Bundler(main, command);
