@@ -25,7 +25,10 @@ program
   .option('--https', 'serves files over HTTPS')
   .option('--cert <path>', 'path to certificate to use with HTTPS')
   .option('--key <path>', 'path to private key to use with HTTPS')
-  .option('--open', 'automatically open in default browser')
+  .option(
+    '--open [browser]',
+    'automatically open in specified browser, defaults to default browser'
+  )
   .option(
     '-d, --out-dir <path>',
     'set the output directory. defaults to "dist"'
@@ -162,10 +165,11 @@ async function bundle(main, command) {
   if (command.name() === 'serve') {
     const server = await bundler.serve(command.port || 1234, command.https);
     if (command.open) {
-      require('opn')(
+      await require('./utils/openInBrowser')(
         `${command.https ? 'https' : 'http'}://localhost:${
           server.address().port
-        }`
+        }`,
+        command.open
       );
     }
   } else {
