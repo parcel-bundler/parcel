@@ -161,7 +161,8 @@ async function bundle(main, command) {
     command.https = {
       cert: command.cert,
       key: command.key
-  };
+    };
+  }
 
   const bundler = new Bundler(main, command);
 
