@@ -23,6 +23,8 @@ program
     'set the hostname of HMR websockets, defaults to location.hostname of current window'
   )
   .option('--https', 'serves files over HTTPS')
+  .option('--cert <path>', 'path to certificate to use with HTTPS')
+  .option('--key <path>', 'path to private key to use with HTTPS')
   .option('--open', 'automatically open in default browser')
   .option(
     '-d, --out-dir <path>',
@@ -39,6 +41,7 @@ program
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
+  .option('--no-autoinstall', 'disable autoinstall')
   .option(
     '-t, --target [target]',
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
@@ -75,6 +78,7 @@ program
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
+  .option('--no-autoinstall', 'disable autoinstall')
   .option(
     '-t, --target [target]',
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
@@ -150,7 +154,14 @@ async function bundle(main, command) {
   if (command.stdin) {
     process.stdin.on('end', () => process.exit(0));
     process.stdin.resume();
+  
   }
+  
+  if (command.cert && command.key) {
+    command.https = {
+      cert: command.cert,
+      key: command.key
+  };
 
   const bundler = new Bundler(main, command);
 
