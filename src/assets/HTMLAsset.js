@@ -4,6 +4,7 @@ const api = require('posthtml/lib/api');
 const urlJoin = require('../utils/urlJoin');
 const render = require('posthtml-render');
 const posthtmlTransform = require('../transforms/posthtml');
+const htmlnanoTransform = require('../transforms/htmlnano');
 const isURL = require('../utils/is-url');
 
 // A list of all attributes that may produce a dependency
@@ -19,9 +20,10 @@ const ATTRS = {
     'iframe',
     'embed'
   ],
-  href: ['link', 'a'],
+  href: ['link', 'a', 'use'],
   srcset: ['img', 'source'],
   poster: ['video'],
+  'xlink:href': ['use'],
   content: ['meta']
 };
 
@@ -92,24 +94,6 @@ class HTMLAsset extends Asset {
     return newSources.join(',');
   }
 
-  svgDependencyWalker(tree) {
-    tree.walk(node => {
-      if (node.attrs) {
-        if (node.tag === 'use') {
-          for (let attr in node.attrs) {
-            if (attr === 'href' || attr === 'xlink:href') {
-              node.attrs[attr] = this.processSingleDependency(node.attrs[attr]);
-              this.isAstDirty = true;
-            }
-          }
-        }
-      }
-
-      return node;
-    });
-    return tree;
-  }
-
   getAttrDepHandler(attr) {
     if (attr === 'srcset') {
       return this.collectSrcSetDependencies;
@@ -151,6 +135,12 @@ class HTMLAsset extends Asset {
 
   async pretransform() {
     await posthtmlTransform(this);
+  }
+
+  async transform() {
+    if (this.options.minify) {
+      await htmlnanoTransform(this);
+    }
   }
 
   generate() {
