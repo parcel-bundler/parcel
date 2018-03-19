@@ -6,10 +6,11 @@ const fs = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
 const Module = require('module');
+const mkdirp = require('mkdirp');
 
 before(function() {
   cleanEnvironment();
-  fs.mkdirSync(__dirname + '/input');
+  mkdirp.sync(__dirname + '/input');
 });
 
 after(function() {
