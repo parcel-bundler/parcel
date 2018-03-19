@@ -87,13 +87,13 @@ describe('stylus', function() {
     assert.equal(output(), 2);
 
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
-    assert(/url\("[0-9a-f]+\.woff2"\)/.test(css));
+    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
 
     assert(
       fs.existsSync(
-        __dirname + '/dist/' + css.match(/url\("([0-9a-f]+\.woff2)"\)/)[1]
+        __dirname + '/dist/' + css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
       )
     );
   });
