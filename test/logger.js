@@ -87,7 +87,7 @@ describe('Logger', () => {
   });
 
   it('should reset on clear', () => {
-    const l = new Logger.constructor({color: true});
+    const l = new Logger.constructor({color: true, isTest: false});
     stub(l);
 
     l.lines = 10;
