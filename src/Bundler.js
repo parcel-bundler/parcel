@@ -45,6 +45,10 @@ class Bundler extends EventEmitter {
       'css',
       require.resolve('./builtins/loaders/css-loader')
     );
+    this.addBundleLoader(
+      'html',
+      require.resolve('./builtins/loaders/text-loader')
+    );
     this.addBundleLoader('js', require.resolve('./builtins/loaders/js-loader'));
 
     this.pending = false;

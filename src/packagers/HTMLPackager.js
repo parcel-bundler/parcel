@@ -1,6 +1,8 @@
 const Packager = require('./Packager');
 const posthtml = require('posthtml');
 const path = require('path');
+const fs = require('../utils/fs');
+const url = require('url');
 const urlJoin = require('../utils/urlJoin');
 
 // https://www.w3.org/TR/html5/dom.html#metadata-content-2
@@ -16,6 +18,8 @@ const metadataContent = new Set([
 ]);
 
 class HTMLPackager extends Packager {
+  setup() {}
+
   async addAsset(asset) {
     let html = asset.generated.html || '';
 
@@ -31,8 +35,23 @@ class HTMLPackager extends Packager {
       ).process(html, {sync: true}).html;
     }
 
-    await this.dest.write(html);
+    let name = this.bundle.name;
+    if (asset !== this.bundle.entryAsset) {
+      name = url.resolve(
+        path.join(path.dirname(this.bundle.name), asset.generateBundleName()),
+        ''
+      );
+    }
+
+    this.size = html.length;
+    await fs.writeFile(name, html);
   }
+
+  getSize() {
+    return this.size || 0;
+  }
+
+  end() {}
 
   addBundlesToTree(bundles, tree) {
     const head = find(tree, 'head');

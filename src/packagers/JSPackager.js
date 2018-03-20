@@ -138,6 +138,7 @@ class JSPackager extends Packager {
     }
 
     if (bundleLoader) {
+      await bundleLoader.process();
       await this.addAssetToBundle(bundleLoader);
     } else {
       return;
