@@ -64,6 +64,9 @@ const META = {
 const OPTIONS = {
   a: {
     href: {entry: true}
+  },
+  iframe: {
+    src: {entry: true}
   }
 };
 
