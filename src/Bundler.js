@@ -16,6 +16,7 @@ const config = require('./utils/config');
 const emoji = require('./utils/emoji');
 const loadEnv = require('./utils/env');
 const PromiseQueue = require('./utils/PromiseQueue');
+const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 
@@ -96,7 +97,8 @@ class Bundler extends EventEmitter {
       hmrHostname:
         options.hmrHostname ||
         (options.target === 'electron' ? 'localhost' : ''),
-      detailedReport: options.detailedReport || false
+      detailedReport: options.detailedReport || false,
+      autoinstall: (options.autoinstall || false) && !isProduction
     };
   }
 
@@ -325,36 +327,68 @@ class Bundler extends EventEmitter {
     }
   }
 
-  async resolveDep(asset, dep) {
+  async resolveDep(asset, dep, install = true) {
     try {
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
       let thrown = err;
 
       if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
+        // Check if dependency is a local file
+        let isLocalFile = /^[/~.]/.test(dep.name);
+        let fromNodeModules = asset.name.includes(
+          `${Path.sep}node_modules${Path.sep}`
+        );
+
+        // If it's not a local file, attempt to install the dep
+        if (
+          !isLocalFile &&
+          !fromNodeModules &&
+          this.options.autoinstall &&
+          install
+        ) {
+          return await this.installDep(asset, dep);
+        }
+
+        // If the dep is optional, return before we throw
         if (dep.optional) {
           return;
         }
 
         thrown.message = `Cannot resolve dependency '${dep.name}'`;
-
-        // Add absolute path to the error message if the dependency specifies a relative path
-        if (dep.name.startsWith('.')) {
+        if (isLocalFile) {
           const absPath = Path.resolve(Path.dirname(asset.name), dep.name);
-          err.message += ` at '${absPath}'`;
+          thrown.message += ` at '${absPath}'`;
         }
 
-        // Generate a code frame where the dependency was used
-        if (dep.loc) {
-          await asset.loadIfNeeded();
-          thrown.loc = dep.loc;
-          thrown = asset.generateErrorMessage(thrown);
-        }
-
-        thrown.fileName = asset.name;
+        await this.throwDepError(asset, dep, thrown);
       }
+
       throw thrown;
     }
+  }
+
+  async installDep(asset, dep) {
+    let [moduleName] = this.resolver.getModuleParts(dep.name);
+    try {
+      await installPackage([moduleName], asset.name, {saveDev: false});
+    } catch (err) {
+      await this.throwDepError(asset, dep, err);
+    }
+
+    return await this.resolveDep(asset, dep, false);
+  }
+
+  async throwDepError(asset, dep, err) {
+    // Generate a code frame where the dependency was used
+    if (dep.loc) {
+      await asset.loadIfNeeded();
+      err.loc = dep.loc;
+      err = asset.generateErrorMessage(err);
+    }
+
+    err.fileName = asset.name;
+    throw err;
   }
 
   async processAsset(asset, isRebuild) {

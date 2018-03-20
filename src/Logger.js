@@ -22,9 +22,24 @@ class Logger {
     this.chalk = new chalk.constructor({enabled: this.color});
   }
 
+  countLines(message) {
+    return message.split('\n').reduce((p, line) => {
+      if (process.stdout.columns) {
+        return p + Math.ceil((line.length || 1) / process.stdout.columns);
+      }
+
+      return p + 1;
+    }, 0);
+  }
+
+  writeRaw(message) {
+    this.lines += this.countLines(message) - 1;
+    process.stdout.write(message);
+  }
+
   write(message, persistent = false) {
     if (!persistent) {
-      this.lines += message.split('\n').length;
+      this.lines += this.countLines(message);
     }
 
     this._log(message);
