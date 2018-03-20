@@ -106,4 +106,24 @@ describe('typescript', function() {
     let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('React.createElement("div"'));
   });
+
+  it('should use esModuleInterop by default', async function() {
+    let b = await bundle(
+      __dirname + '/integration/typescript-interop/index.ts'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.ts', 'commonjs-module.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'test passed');
+  });
 });
