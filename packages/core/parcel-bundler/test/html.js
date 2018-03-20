@@ -519,4 +519,19 @@ describe('html', function() {
       ]
     });
   });
+
+  it('should bundle svg files correctly', async function() {
+    let b = await bundle(__dirname + '/integration/html-svg/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'svg',
+          assets: ['file.svg']
+        }
+      ]
+    });
+  });
 });

@@ -4,6 +4,7 @@ const api = require('posthtml/lib/api');
 const urlJoin = require('../utils/urlJoin');
 const render = require('posthtml-render');
 const posthtmlTransform = require('../transforms/posthtml');
+const htmlnanoTransform = require('../transforms/htmlnano');
 const isURL = require('../utils/is-url');
 
 // A list of all attributes that may produce a dependency
@@ -22,7 +23,7 @@ const ATTRS = {
   href: ['link', 'a', 'use'],
   srcset: ['img', 'source'],
   poster: ['video'],
-  'xlink:href': ['use'], // Deprecated since SVG 2, throws error in svgo
+  'xlink:href': ['use'],
   content: ['meta']
 };
 
@@ -134,6 +135,12 @@ class HTMLAsset extends Asset {
 
   async pretransform() {
     await posthtmlTransform(this);
+  }
+
+  async transform() {
+    if (this.options.minify) {
+      await htmlnanoTransform(this);
+    }
   }
 
   generate() {
