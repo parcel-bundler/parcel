@@ -148,7 +148,7 @@ class Asset {
       await this.getDependencies();
       await this.transform();
       this.generated = await this.generate();
-      this.hash = this.generateHash();
+      this.hash = await this.generateHash();
     }
 
     return this.generated;
