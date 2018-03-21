@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const http = require('http');
 const https = require('https');
 const serveStatic = require('serve-static');
@@ -33,6 +35,7 @@ function middleware(bundler) {
     index: false,
     setHeaders: setHeaders
   });
+  const root = path.resolve(bundler.options.outDir);
 
   return function(req, res, next) {
     // Wait for the bundler to finish bundling if needed
@@ -45,13 +48,20 @@ function middleware(bundler) {
     function respond() {
       if (bundler.errored) {
         return send500();
-      } else if (!req.url.startsWith(bundler.options.publicURL)) {
-        // If the URL doesn't start with the public path, send the main HTML bundle
-        return sendIndex();
       } else {
-        // Otherwise, serve the file from the dist folder
-        req.url = req.url.slice(bundler.options.publicURL.length);
-        return serve(req, res, send404);
+        // If the url starts with the publicURL, remove it
+        if (req.url.startsWith(bundler.options.publicURL)) {
+          req.url = req.url.slice(bundler.options.publicURL.length);
+        }
+        // Resolve to the canonical path of the resource
+        const resource = path.resolve(path.join(root, req.url));
+        if (resource === root || !fs.existsSync(resource)) {
+          // If we're asking for the root, or the requested resource doesn't exist, send the index
+          sendIndex();
+        } else {
+          // Otherwise send the resource
+          return serve(req, res, send404);
+        }
       }
     }
 
