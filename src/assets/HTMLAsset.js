@@ -61,6 +61,16 @@ const META = {
   ]
 };
 
+// Options to be passed to `addURLDependency` for certain tags + attributes
+const OPTIONS = {
+  a: {
+    href: {entry: true}
+  },
+  iframe: {
+    src: {entry: true}
+  }
+};
+
 class HTMLAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
@@ -75,20 +85,20 @@ class HTMLAsset extends Asset {
     return res;
   }
 
-  processSingleDependency(path) {
-    let assetPath = this.addURLDependency(decodeURIComponent(path));
+  processSingleDependency(path, opts) {
+    let assetPath = this.addURLDependency(decodeURIComponent(path), opts);
     if (!isURL(assetPath)) {
       assetPath = urlJoin(this.options.publicURL, assetPath);
     }
     return assetPath;
   }
 
-  collectSrcSetDependencies(srcset) {
+  collectSrcSetDependencies(srcset, opts) {
     const newSources = [];
     for (const source of srcset.split(',')) {
       const pair = source.trim().split(' ');
       if (pair.length === 0) continue;
-      pair[0] = this.processSingleDependency(pair[0]);
+      pair[0] = this.processSingleDependency(pair[0], opts);
       newSources.push(pair.join(' '));
     }
     return newSources.join(',');
@@ -121,9 +131,15 @@ class HTMLAsset extends Asset {
           if (node.tag === 'a' && node.attrs[attr].lastIndexOf('.') < 1) {
             continue;
           }
+
           if (elements && elements.includes(node.tag)) {
             let depHandler = this.getAttrDepHandler(attr);
-            node.attrs[attr] = depHandler.call(this, node.attrs[attr]);
+            let options = OPTIONS[node.tag];
+            node.attrs[attr] = depHandler.call(
+              this,
+              node.attrs[attr],
+              options && options[attr]
+            );
             this.isAstDirty = true;
           }
         }

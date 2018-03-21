@@ -91,6 +91,59 @@ class Bundle {
     return this.assets.size === 0;
   }
 
+  getBundleNameMap(contentHash, hashes = new Map()) {
+    let hashedName = this.getHashedBundleName(contentHash);
+    hashes.set(Path.basename(this.name), hashedName);
+    this.name = Path.join(Path.dirname(this.name), hashedName);
+
+    for (let child of this.childBundles.values()) {
+      child.getBundleNameMap(contentHash, hashes);
+    }
+
+    return hashes;
+  }
+
+  getHashedBundleName(contentHash) {
+    // If content hashing is enabled, generate a hash from all assets in the bundle.
+    // Otherwise, use a hash of the filename so it remains consistent across builds.
+    let ext = Path.extname(this.name);
+    let hash = (contentHash
+      ? this.getHash()
+      : Path.basename(this.name, ext)
+    ).slice(-8);
+    let entryAsset = this.entryAsset || this.parentBundle.entryAsset;
+    let name = Path.basename(entryAsset.name, Path.extname(entryAsset.name));
+    let isMainEntry = entryAsset.name === entryAsset.options.mainFile;
+    let isEntry =
+      isMainEntry || Array.from(entryAsset.parentDeps).some(dep => dep.entry);
+
+    // If this is the main entry file, use the output file option as the name if provided.
+    if (isMainEntry && entryAsset.options.outFile) {
+      name = entryAsset.options.outFile;
+    }
+
+    // If this is an entry asset, don't hash. Return a relative path
+    // from the main file so we keep the original file paths.
+    if (isEntry) {
+      return Path.join(
+        Path.relative(
+          Path.dirname(entryAsset.options.mainFile),
+          Path.dirname(entryAsset.name)
+        ),
+        name + ext
+      );
+    }
+
+    // If this is an index file, use the parent directory name instead
+    // which is probably more descriptive.
+    if (name === 'index') {
+      name = Path.basename(Path.dirname(entryAsset.name));
+    }
+
+    // Add the content hash and extension.
+    return name + '.' + hash + ext;
+  }
+
   async package(bundler, oldHashes, newHashes = new Map()) {
     if (this.isEmpty) {
       return newHashes;
@@ -125,6 +178,7 @@ class Bundle {
     let packager = new Packager(this, bundler);
 
     let startTime = Date.now();
+    await packager.setup();
     await packager.start();
 
     let included = new Set();

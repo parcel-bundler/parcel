@@ -98,7 +98,11 @@ class Bundler extends EventEmitter {
         options.hmrHostname ||
         (options.target === 'electron' ? 'localhost' : ''),
       detailedReport: options.detailedReport || false,
-      autoinstall: (options.autoinstall || false) && !isProduction
+      autoinstall: (options.autoinstall || false) && !isProduction,
+      contentHash:
+        typeof options.contentHash === 'boolean'
+          ? options.contentHash
+          : isProduction
     };
   }
 
@@ -198,8 +202,14 @@ class Bundler extends EventEmitter {
       }
 
       // Create a new bundle tree and package everything up.
-      let bundle = this.createBundleTree(this.mainAsset);
-      this.bundleHashes = await bundle.package(this, this.bundleHashes);
+      this.mainBundle = this.createBundleTree(this.mainAsset);
+      this.bundleNameMap = this.mainBundle.getBundleNameMap(
+        this.options.contentHash
+      );
+      this.bundleHashes = await this.mainBundle.package(
+        this,
+        this.bundleHashes
+      );
 
       // Unload any orphaned assets
       this.unloadOrphanedAssets();
@@ -208,11 +218,11 @@ class Bundler extends EventEmitter {
       let time = prettifyTime(buildTime);
       logger.status(emoji.success, `Built in ${time}.`, 'green');
       if (!this.watcher) {
-        bundleReport(bundle, this.options.detailedReport);
+        bundleReport(this.mainBundle, this.options.detailedReport);
       }
 
-      this.emit('bundled', bundle);
-      return bundle;
+      this.emit('bundled', this.mainBundle);
+      return this.mainBundle;
     } catch (err) {
       this.errored = true;
       logger.error(err);
