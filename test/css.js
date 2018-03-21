@@ -137,12 +137,12 @@ describe('css', function() {
     let output = run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
-
+    
     let css = fs.readFileSync(
       b.entryAsset.options.outDir + '/index.css',
       'utf8'
     );
-    assert(/url\("[0-9a-f]+\.woff2"\)/.test(css));
+    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
     assert(css.includes('url("data:image/gif;base64,quotes")'));
@@ -154,7 +154,7 @@ describe('css', function() {
       fs.existsSync(
         b.entryAsset.options.outDir +
           '/' +
-          css.match(/url\("([0-9a-f]+\.woff2)"\)/)[1]
+          css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
       )
     );
   });
@@ -192,7 +192,7 @@ describe('css', function() {
       b.entryAsset.options.outDir + '/index.css',
       'utf8'
     );
-    assert(/url\([0-9a-f]+\.woff2\)/.test(css), 'woff ext found in css');
+    assert(/url\(test\.[0-9a-f]+\.woff2\)/.test(css), 'woff ext found in css');
     assert(css.includes('url(http://google.com)'), 'url() found');
     assert(css.includes('.index'), '.index found');
     assert(css.includes('url("data:image/gif;base64,quotes")'));
@@ -204,7 +204,7 @@ describe('css', function() {
       fs.existsSync(
         b.entryAsset.options.outDir +
           '/' +
-          css.match(/url\(([0-9a-f]+\.woff2)\)/)[1]
+          css.match(/url\((test\.[0-9a-f]+\.woff2)\)/)[1]
       )
     );
   });

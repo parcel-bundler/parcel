@@ -1,18 +1,37 @@
 const fs = require('fs');
 const promisify = require('../utils/promisify');
+const path = require('path');
+const {mkdirp} = require('../utils/fs');
 
 class Packager {
   constructor(bundle, bundler) {
     this.bundle = bundle;
     this.bundler = bundler;
     this.options = bundler.options;
-    this.setup();
   }
 
-  setup() {
+  async setup() {
+    // Create sub-directories if needed
+    if (this.bundle.name.includes(path.sep)) {
+      await mkdirp(path.dirname(this.bundle.name));
+    }
+
     this.dest = fs.createWriteStream(this.bundle.name);
     this.dest.write = promisify(this.dest.write.bind(this.dest));
     this.dest.end = promisify(this.dest.end.bind(this.dest));
+  }
+
+  async write(string) {
+    await this.dest.write(this.replaceBundleNames(string));
+  }
+
+  replaceBundleNames(string) {
+    // Replace temporary bundle names in the output with the final content-hashed names.
+    for (let [name, map] of this.bundler.bundleNameMap) {
+      string = string.split(name).join(map);
+    }
+
+    return string;
   }
 
   async start() {}

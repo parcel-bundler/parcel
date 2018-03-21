@@ -20,6 +20,10 @@ class Logger {
         ? options.color
         : chalk.supportsColor;
     this.chalk = new chalk.constructor({enabled: this.color});
+    this.isTest =
+      options && typeof options.isTest === 'boolean'
+        ? options.isTest
+        : process.env.NODE_ENV === 'test';
   }
 
   countLines(message) {
@@ -87,7 +91,7 @@ class Logger {
   }
 
   clear() {
-    if (!this.color) {
+    if (!this.color || this.isTest) {
       return;
     }
 
