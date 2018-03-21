@@ -4,14 +4,35 @@ const serveStatic = require('serve-static');
 const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
 const generateCertificate = require('./utils/generateCertificate');
+const getCertificate = require('./utils/getCertificate');
 const logger = require('./Logger');
+const path = require('path');
 
 serveStatic.mime.define({
   'application/wasm': ['wasm']
 });
 
+function setHeaders(res) {
+  enableCors(res);
+}
+
+function enableCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET, HEAD, PUT, PATCH, POST, DELETE'
+  );
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, Content-Type'
+  );
+}
+
 function middleware(bundler) {
-  const serve = serveStatic(bundler.options.outDir, {index: false});
+  const serve = serveStatic(bundler.options.outDir, {
+    index: false,
+    setHeaders: setHeaders
+  });
 
   return function(req, res, next) {
     // Wait for the bundler to finish bundling if needed
@@ -36,8 +57,8 @@ function middleware(bundler) {
 
     function sendIndex() {
       // If the main asset is an HTML file, serve it
-      if (bundler.mainAsset.type === 'html') {
-        req.url = `/${bundler.mainAsset.generateBundleName()}`;
+      if (bundler.mainBundle.type === 'html') {
+        req.url = `/${path.basename(bundler.mainBundle.name)}`;
         serve(req, res, send404);
       } else {
         send404();
@@ -63,9 +84,14 @@ function middleware(bundler) {
 
 async function serve(bundler, port, useHTTPS = false) {
   let handler = middleware(bundler);
-  let server = useHTTPS
-    ? https.createServer(generateCertificate(bundler.options), handler)
-    : http.createServer(handler);
+  let server;
+  if (!useHTTPS) {
+    server = http.createServer(handler);
+  } else if (typeof useHTTPS === 'boolean') {
+    server = https.createServer(generateCertificate(bundler.options), handler);
+  } else {
+    server = https.createServer(await getCertificate(useHTTPS), handler);
+  }
 
   let freePort = await getPort({port});
   server.listen(freePort);

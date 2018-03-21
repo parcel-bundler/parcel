@@ -131,7 +131,7 @@ describe('css', function() {
     assert.equal(output(), 2);
 
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
-    assert(/url\("[0-9a-f]+\.woff2"\)/.test(css));
+    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
     assert(css.includes('url("data:image/gif;base64,quotes")'));
@@ -141,7 +141,7 @@ describe('css', function() {
 
     assert(
       fs.existsSync(
-        __dirname + '/dist/' + css.match(/url\("([0-9a-f]+\.woff2)"\)/)[1]
+        __dirname + '/dist/' + css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
       )
     );
   });
@@ -161,6 +161,9 @@ describe('css', function() {
           childBundles: []
         },
         {
+          type: 'map'
+        },
+        {
           type: 'woff2',
           assets: ['test.woff2'],
           childBundles: []
@@ -173,7 +176,7 @@ describe('css', function() {
     assert.equal(output(), 2);
 
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
-    assert(/url\([0-9a-f]+\.woff2\)/.test(css), 'woff ext found in css');
+    assert(/url\(test\.[0-9a-f]+\.woff2\)/.test(css), 'woff ext found in css');
     assert(css.includes('url(http://google.com)'), 'url() found');
     assert(css.includes('.index'), '.index found');
     assert(css.includes('url("data:image/gif;base64,quotes")'));
@@ -183,7 +186,7 @@ describe('css', function() {
 
     assert(
       fs.existsSync(
-        __dirname + '/dist/' + css.match(/url\(([0-9a-f]+\.woff2)\)/)[1]
+        __dirname + '/dist/' + css.match(/url\((test\.[0-9a-f]+\.woff2)\)/)[1]
       )
     );
   });
@@ -239,11 +242,11 @@ describe('css', function() {
     await bundle(__dirname + '/input/index.css');
 
     // cssnext was installed
-    let package = require('./input/package.json');
-    assert(package.devDependencies['postcss-cssnext']);
+    let pkg = require('./input/package.json');
+    assert(pkg.devDependencies['postcss-cssnext']);
 
     // peer dependency caniuse-lite was installed
-    assert(package.devDependencies['caniuse-lite']);
+    assert(pkg.devDependencies['caniuse-lite']);
 
     // cssnext is applied
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
@@ -259,11 +262,11 @@ describe('css', function() {
     await bundle(__dirname + '/input/index.css');
 
     // cssnext was installed
-    let package = require('./input/package.json');
-    assert(package.devDependencies['postcss-cssnext']);
+    let pkg = require('./input/package.json');
+    assert(pkg.devDependencies['postcss-cssnext']);
 
     // peer dependency caniuse-lite was installed
-    assert(package.devDependencies['caniuse-lite']);
+    assert(pkg.devDependencies['caniuse-lite']);
 
     // appveyor is not currently writing to the yarn.lock file and will require further investigation
     // let lockfile = fs.readFileSync(__dirname + '/input/yarn.lock', 'utf8');

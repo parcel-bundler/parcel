@@ -4,7 +4,6 @@ const fs = require('./utils/fs');
 const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
-const sanitizeFilename = require('sanitize-filename');
 const config = require('./utils/config');
 
 let ASSET_ID = 1;
@@ -37,6 +36,8 @@ class Asset {
     this.parentBundle = null;
     this.bundles = new Set();
     this.cacheData = {};
+    this.buildTime = 0;
+    this.bundledSize = 0;
   }
 
   shouldInvalidate() {
@@ -93,14 +94,18 @@ class Asset {
     return URL.format(parsed);
   }
 
-  async getConfig(filenames) {
+  async getConfig(filenames, opts = {}) {
     // Resolve the config file
-    let conf = await config.resolve(this.name, filenames);
+    let conf = await config.resolve(opts.path || this.name, filenames);
     if (conf) {
       // Add as a dependency so it is added to the watcher and invalidates
       // this asset when the config changes.
       this.addDependency(conf, {includedInParent: true});
-      return await config.load(this.name, filenames);
+      if (opts.load === false) {
+        return conf;
+      }
+
+      return await config.load(opts.path || this.name, filenames);
     }
 
     return null;
@@ -143,7 +148,7 @@ class Asset {
       await this.getDependencies();
       await this.transform();
       this.generated = await this.generate();
-      this.hash = this.generateHash();
+      this.hash = await this.generateHash();
     }
 
     return this.generated;
@@ -170,28 +175,9 @@ class Asset {
   }
 
   generateBundleName() {
-    // Resolve the main file of the package.json
-    let main =
-      this.package && this.package.main
-        ? path.resolve(path.dirname(this.package.pkgfile), this.package.main)
-        : null;
-    let ext = '.' + this.type;
-
-    // If this asset is main file of the package, use the sanitized package name
-    if (this.name === main) {
-      const packageName = sanitizeFilename(this.package.name, {
-        replacement: '-'
-      });
-      return packageName + ext;
-    }
-
-    // If this is the entry point of the root bundle, use the original filename
-    if (this.name === this.options.mainFile) {
-      return path.basename(this.name, path.extname(this.name)) + ext;
-    }
-
-    // Otherwise generate a unique name
-    return md5(this.name) + ext;
+    // Generate a unique name. This will be replaced with a nicer
+    // name later as part of content hashing.
+    return md5(this.name) + '.' + this.type;
   }
 
   generateErrorMessage(err) {

@@ -16,6 +16,9 @@ const config = require('./utils/config');
 const emoji = require('./utils/emoji');
 const loadEnv = require('./utils/env');
 const PromiseQueue = require('./utils/PromiseQueue');
+const installPackage = require('./utils/installPackage');
+const bundleReport = require('./utils/bundleReport');
+const prettifyTime = require('./utils/prettifyTime');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -70,6 +73,7 @@ class Bundler extends EventEmitter {
     const target = options.target || 'browser';
     return {
       outDir: Path.resolve(options.outDir || 'dist'),
+      outFile: options.outFile || '',
       publicURL: publicURL,
       watch: watch,
       cache: typeof options.cache === 'boolean' ? options.cache : true,
@@ -89,10 +93,16 @@ class Bundler extends EventEmitter {
       hmrPort: options.hmrPort || 0,
       rootDir: Path.dirname(this.mainFile),
       sourceMaps:
-        typeof options.sourceMaps === 'boolean'
-          ? options.sourceMaps
-          : !isProduction,
-      hmrHostname: options.hmrHostname || ''
+        typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
+      hmrHostname:
+        options.hmrHostname ||
+        (options.target === 'electron' ? 'localhost' : ''),
+      detailedReport: options.detailedReport || false,
+      autoinstall: (options.autoinstall || false) && !isProduction,
+      contentHash:
+        typeof options.contentHash === 'boolean'
+          ? options.contentHash
+          : isProduction
     };
   }
 
@@ -192,21 +202,27 @@ class Bundler extends EventEmitter {
       }
 
       // Create a new bundle tree and package everything up.
-      let bundle = this.createBundleTree(this.mainAsset);
-      this.bundleHashes = await bundle.package(this, this.bundleHashes);
+      this.mainBundle = this.createBundleTree(this.mainAsset);
+      this.bundleNameMap = this.mainBundle.getBundleNameMap(
+        this.options.contentHash
+      );
+      this.bundleHashes = await this.mainBundle.package(
+        this,
+        this.bundleHashes
+      );
 
       // Unload any orphaned assets
       this.unloadOrphanedAssets();
 
       let buildTime = Date.now() - startTime;
-      let time =
-        buildTime < 1000
-          ? `${buildTime}ms`
-          : `${(buildTime / 1000).toFixed(2)}s`;
+      let time = prettifyTime(buildTime);
       logger.status(emoji.success, `Built in ${time}.`, 'green');
+      if (!this.watcher) {
+        bundleReport(this.mainBundle, this.options.detailedReport);
+      }
 
-      this.emit('bundled', bundle);
-      return bundle;
+      this.emit('bundled', this.mainBundle);
+      return this.mainBundle;
     } catch (err) {
       this.errored = true;
       logger.error(err);
@@ -321,32 +337,68 @@ class Bundler extends EventEmitter {
     }
   }
 
-  async resolveDep(asset, dep) {
+  async resolveDep(asset, dep, install = true) {
     try {
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
       let thrown = err;
 
       if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
+        // Check if dependency is a local file
+        let isLocalFile = /^[/~.]/.test(dep.name);
+        let fromNodeModules = asset.name.includes(
+          `${Path.sep}node_modules${Path.sep}`
+        );
+
+        // If it's not a local file, attempt to install the dep
+        if (
+          !isLocalFile &&
+          !fromNodeModules &&
+          this.options.autoinstall &&
+          install
+        ) {
+          return await this.installDep(asset, dep);
+        }
+
+        // If the dep is optional, return before we throw
+        if (dep.optional) {
+          return;
+        }
+
         thrown.message = `Cannot resolve dependency '${dep.name}'`;
-
-        // Add absolute path to the error message if the dependency specifies a relative path
-        if (dep.name.startsWith('.')) {
+        if (isLocalFile) {
           const absPath = Path.resolve(Path.dirname(asset.name), dep.name);
-          err.message += ` at '${absPath}'`;
+          thrown.message += ` at '${absPath}'`;
         }
 
-        // Generate a code frame where the dependency was used
-        if (dep.loc) {
-          await asset.loadIfNeeded();
-          thrown.loc = dep.loc;
-          thrown = asset.generateErrorMessage(thrown);
-        }
-
-        thrown.fileName = asset.name;
+        await this.throwDepError(asset, dep, thrown);
       }
+
       throw thrown;
     }
+  }
+
+  async installDep(asset, dep) {
+    let [moduleName] = this.resolver.getModuleParts(dep.name);
+    try {
+      await installPackage([moduleName], asset.name, {saveDev: false});
+    } catch (err) {
+      await this.throwDepError(asset, dep, err);
+    }
+
+    return await this.resolveDep(asset, dep, false);
+  }
+
+  async throwDepError(asset, dep, err) {
+    // Generate a code frame where the dependency was used
+    if (dep.loc) {
+      await asset.loadIfNeeded();
+      err.loc = dep.loc;
+      err = asset.generateErrorMessage(err);
+    }
+
+    err.fileName = asset.name;
+    throw err;
   }
 
   async processAsset(asset, isRebuild) {
@@ -373,6 +425,7 @@ class Bundler extends EventEmitter {
     asset.processed = true;
 
     // First try the cache, otherwise load and compile in the background
+    let startTime = Date.now();
     let processed = this.cache && (await this.cache.read(asset.name));
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
       processed = await this.farm.run(asset.name, asset.package, this.options);
@@ -381,6 +434,7 @@ class Bundler extends EventEmitter {
       }
     }
 
+    asset.buildTime = Date.now() - startTime;
     asset.generated = processed.generated;
     asset.hash = processed.hash;
 
@@ -403,7 +457,10 @@ class Bundler extends EventEmitter {
           this.watch(dep.name, asset);
         } else {
           let assetDep = await this.resolveDep(asset, dep);
-          await this.loadAsset(assetDep);
+          if (assetDep) {
+            await this.loadAsset(assetDep);
+          }
+
           return assetDep;
         }
       })
@@ -561,9 +618,9 @@ class Bundler extends EventEmitter {
   }
 
   async serve(port = 1234, https = false) {
-    let server = await Server.serve(this, port, https);
+    this.server = await Server.serve(this, port, https);
     this.bundle();
-    return server;
+    return this.server;
   }
 }
 
