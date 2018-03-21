@@ -23,7 +23,12 @@ program
     'set the hostname of HMR websockets, defaults to location.hostname of current window'
   )
   .option('--https', 'serves files over HTTPS')
-  .option('--open', 'automatically open in default browser')
+  .option('--cert <path>', 'path to certificate to use with HTTPS')
+  .option('--key <path>', 'path to private key to use with HTTPS')
+  .option(
+    '--open [browser]',
+    'automatically open in specified browser, defaults to default browser'
+  )
   .option(
     '-d, --out-dir <path>',
     'set the output directory. defaults to "dist"'
@@ -39,6 +44,7 @@ program
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
+  .option('--no-autoinstall', 'disable autoinstall')
   .option(
     '-t, --target [target]',
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
@@ -62,9 +68,19 @@ program
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
+  .option(
+    '--hmr-port <port>',
+    'set the port to serve HMR websockets, defaults to random',
+    parseInt
+  )
+  .option(
+    '--hmr-hostname <hostname>',
+    'set the hostname of HMR websockets, defaults to location.hostname of current window'
+  )
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
+  .option('--no-autoinstall', 'disable autoinstall')
   .option(
     '-t, --target [target]',
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
@@ -89,6 +105,7 @@ program
   )
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
+  .option('--no-source-maps', 'disable sourcemaps')
   .option(
     '-t, --target <target>',
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
@@ -136,15 +153,23 @@ async function bundle(main, command) {
     process.env.NODE_ENV = process.env.NODE_ENV || 'development';
   }
 
+  if (command.cert && command.key) {
+    command.https = {
+      cert: command.cert,
+      key: command.key
+    };
+  }
+
   const bundler = new Bundler(main, command);
 
   if (command.name() === 'serve') {
     const server = await bundler.serve(command.port || 1234, command.https);
     if (command.open) {
-      require('opn')(
+      await require('./utils/openInBrowser')(
         `${command.https ? 'https' : 'http'}://localhost:${
           server.address().port
-        }`
+        }`,
+        command.open
       );
     }
   } else {

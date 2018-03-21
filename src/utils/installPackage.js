@@ -1,54 +1,55 @@
-const spawn = require('cross-spawn');
 const config = require('./config');
-const path = require('path');
 const promisify = require('./promisify');
 const resolve = promisify(require('resolve'));
+const commandExists = require('command-exists');
+const logger = require('../Logger');
+const emoji = require('./emoji');
+const pipeSpawn = require('./pipeSpawn');
+const PromiseQueue = require('./PromiseQueue');
+const path = require('path');
+const fs = require('./fs');
 
-async function install(dir, modules, installPeers = true) {
-  let location = await config.resolve(dir, ['yarn.lock', 'package.json']);
+async function install(modules, filepath, options = {}) {
+  let {installPeers = true, saveDev = true, packageManager} = options;
 
-  return new Promise((resolve, reject) => {
-    let install;
-    let options = {
-      cwd: location ? path.dirname(location) : dir
-    };
+  logger.status(emoji.progress, `Installing ${modules.join(', ')}...`);
 
-    if (location && path.basename(location) === 'yarn.lock') {
-      install = spawn('yarn', ['add', ...modules, '--dev'], options);
-    } else {
-      install = spawn('npm', ['install', ...modules, '--save-dev'], options);
-    }
+  let packageLocation = await config.resolve(filepath, ['package.json']);
+  let cwd = packageLocation ? path.dirname(packageLocation) : process.cwd();
 
-    install.stdout.pipe(process.stdout);
-    install.stderr.pipe(process.stderr);
+  if (!packageManager) {
+    packageManager = await determinePackageManager(filepath);
+  }
 
-    install.on('close', async code => {
-      if (code !== 0) {
-        return reject(new Error(`Failed to install ${modules.join(', ')}.`));
-      }
+  let commandToUse = packageManager === 'npm' ? 'install' : 'add';
+  let args = [commandToUse, ...modules];
+  if (saveDev) {
+    args.push('-D');
+  } else if (packageManager === 'npm') {
+    args.push('--save');
+  }
 
-      if (!installPeers) {
-        return resolve();
-      }
+  // npm doesn't auto-create a package.json when installing,
+  // so create an empty one if needed.
+  if (packageManager === 'npm' && !packageLocation) {
+    await fs.writeFile(path.join(cwd, 'package.json'), '{}');
+  }
 
-      try {
-        await Promise.all(modules.map(m => installPeerDependencies(dir, m)));
-      } catch (err) {
-        return reject(
-          new Error(
-            `Failed to install peerDependencies for ${modules.join(', ')}.`
-          )
-        );
-      }
+  try {
+    await pipeSpawn(packageManager, args, {cwd});
+  } catch (err) {
+    throw new Error(`Failed to install ${modules.join(', ')}.`);
+  }
 
-      resolve();
-    });
-  });
+  if (installPeers) {
+    await Promise.all(
+      modules.map(m => installPeerDependencies(filepath, m, options))
+    );
+  }
 }
 
-async function installPeerDependencies(dir, name) {
-  let basedir = path.dirname(dir);
-
+async function installPeerDependencies(filepath, name, options) {
+  let basedir = path.dirname(filepath);
   const [resolved] = await resolve(name, {basedir});
   const pkg = await config.load(resolved, ['package.json']);
   const peers = pkg.peerDependencies || {};
@@ -59,8 +60,47 @@ async function installPeerDependencies(dir, name) {
   }
 
   if (modules.length) {
-    await install(dir, modules, false);
+    await install(
+      modules,
+      filepath,
+      Object.assign({}, options, {installPeers: false})
+    );
   }
 }
 
-module.exports = install;
+async function determinePackageManager(filepath) {
+  let configFile = await config.resolve(filepath, [
+    'yarn.lock',
+    'package-lock.json'
+  ]);
+  let hasYarn = await checkForYarnCommand();
+
+  // If Yarn isn't available, or there is a package-lock.json file, use npm.
+  let configName = configFile && path.basename(configFile);
+  if (!hasYarn || configName === 'package-lock.json') {
+    return 'npm';
+  }
+
+  return 'yarn';
+}
+
+let hasYarn = null;
+async function checkForYarnCommand() {
+  if (hasYarn != null) {
+    return hasYarn;
+  }
+
+  try {
+    hasYarn = await commandExists('yarn');
+  } catch (err) {
+    hasYarn = false;
+  }
+
+  return hasYarn;
+}
+
+let queue = new PromiseQueue(install, {maxConcurrent: 1, retry: false});
+module.exports = function(...args) {
+  queue.add(...args);
+  return queue.run();
+};

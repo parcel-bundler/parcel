@@ -100,7 +100,7 @@ describe('server', function() {
     let data = await get('/dist/index.js', https);
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
   });
-
+  
   it('should serve static assets as well as html', async function() {
     let b = bundler(__dirname + '/integration/html/index.html', {
       publicUrl: '/'
@@ -131,5 +131,16 @@ describe('server', function() {
     fs.writeFileSync(__dirname + '/dist/hello', 'hello');
     data = await get('/hello');
     assert.equal(data, 'hello');
+  });
+  
+  it('should support HTTPS via custom certificate', async function() {
+    let b = bundler(__dirname + '/integration/commonjs/index.js');
+    server = await b.serve(0, {
+      key: __dirname + '/integration/https/private.pem',
+      cert: __dirname + '/integration/https/primary.crt'
+    });
+
+    let data = await get('/dist/index.js', https);
+    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
   });
 });

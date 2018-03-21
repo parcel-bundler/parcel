@@ -131,7 +131,7 @@ describe('css', function() {
     assert.equal(output(), 2);
 
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
-    assert(/url\("[0-9a-f]+\.woff2"\)/.test(css));
+    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
     assert(css.includes('url("data:image/gif;base64,quotes")'));
@@ -141,7 +141,7 @@ describe('css', function() {
 
     assert(
       fs.existsSync(
-        __dirname + '/dist/' + css.match(/url\("([0-9a-f]+\.woff2)"\)/)[1]
+        __dirname + '/dist/' + css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
       )
     );
   });
@@ -161,6 +161,9 @@ describe('css', function() {
           childBundles: []
         },
         {
+          type: 'map'
+        },
+        {
           type: 'woff2',
           assets: ['test.woff2'],
           childBundles: []
@@ -173,7 +176,7 @@ describe('css', function() {
     assert.equal(output(), 2);
 
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
-    assert(/url\([0-9a-f]+\.woff2\)/.test(css), 'woff ext found in css');
+    assert(/url\(test\.[0-9a-f]+\.woff2\)/.test(css), 'woff ext found in css');
     assert(css.includes('url(http://google.com)'), 'url() found');
     assert(css.includes('.index'), '.index found');
     assert(css.includes('url("data:image/gif;base64,quotes")'));
@@ -183,7 +186,7 @@ describe('css', function() {
 
     assert(
       fs.existsSync(
-        __dirname + '/dist/' + css.match(/url\(([0-9a-f]+\.woff2)\)/)[1]
+        __dirname + '/dist/' + css.match(/url\((test\.[0-9a-f]+\.woff2)\)/)[1]
       )
     );
   });
