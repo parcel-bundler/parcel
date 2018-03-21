@@ -6,6 +6,7 @@ const serverErrors = require('./utils/customErrors').serverErrors;
 const generateCertificate = require('./utils/generateCertificate');
 const getCertificate = require('./utils/getCertificate');
 const logger = require('./Logger');
+const path = require('path');
 
 serveStatic.mime.define({
   'application/wasm': ['wasm']
@@ -56,8 +57,8 @@ function middleware(bundler) {
 
     function sendIndex() {
       // If the main asset is an HTML file, serve it
-      if (bundler.mainAsset.type === 'html') {
-        req.url = `/${bundler.mainAsset.generateBundleName()}`;
+      if (bundler.mainBundle.type === 'html') {
+        req.url = `/${path.basename(bundler.mainBundle.name)}`;
         serve(req, res, send404);
       } else {
         send404();

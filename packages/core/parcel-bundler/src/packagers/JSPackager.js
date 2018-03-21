@@ -30,7 +30,7 @@ class JSPackager extends Packager {
           this.options.hmrHostname
         )};` + preludeCode;
     }
-    await this.dest.write(preludeCode + '({');
+    await this.write(preludeCode + '({');
     this.lineOffset = lineCounter(preludeCode);
   }
 
@@ -101,7 +101,7 @@ class JSPackager extends Packager {
     wrapped += ']';
 
     this.first = false;
-    await this.dest.write(wrapped);
+    await this.write(wrapped);
 
     // Use the pre-computed line count from the source map if possible
     let lineCount = map && map.lineCount ? map.lineCount : lineCounter(code);
@@ -198,10 +198,10 @@ class JSPackager extends Packager {
       entry.push(this.bundle.entryAsset.id);
     }
 
-    await this.dest.write('},{},' + JSON.stringify(entry) + ')');
+    await this.write('},{},' + JSON.stringify(entry) + ')');
     if (this.options.sourceMaps) {
       // Add source map url
-      await this.dest.write(
+      await this.write(
         `\n//# sourceMappingURL=${urlJoin(
           this.options.publicURL,
           path.basename(this.bundle.name, '.js') + '.map'
