@@ -4,6 +4,7 @@ const api = require('posthtml/lib/api');
 const urlJoin = require('../utils/urlJoin');
 const render = require('posthtml-render');
 const posthtmlTransform = require('../transforms/posthtml');
+const htmlnanoTransform = require('../transforms/htmlnano');
 const isURL = require('../utils/is-url');
 
 // A list of all attributes that may produce a dependency
@@ -22,7 +23,7 @@ const ATTRS = {
   href: ['link', 'a', 'use'],
   srcset: ['img', 'source'],
   poster: ['video'],
-  'xlink:href': ['use'], // Deprecated since SVG 2, throws error in svgo
+  'xlink:href': ['use'],
   content: ['meta']
 };
 
@@ -60,6 +61,16 @@ const META = {
   ]
 };
 
+// Options to be passed to `addURLDependency` for certain tags + attributes
+const OPTIONS = {
+  a: {
+    href: {entry: true}
+  },
+  iframe: {
+    src: {entry: true}
+  }
+};
+
 class HTMLAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
@@ -74,20 +85,20 @@ class HTMLAsset extends Asset {
     return res;
   }
 
-  processSingleDependency(path) {
-    let assetPath = this.addURLDependency(decodeURIComponent(path));
+  processSingleDependency(path, opts) {
+    let assetPath = this.addURLDependency(decodeURIComponent(path), opts);
     if (!isURL(assetPath)) {
       assetPath = urlJoin(this.options.publicURL, assetPath);
     }
     return assetPath;
   }
 
-  collectSrcSetDependencies(srcset) {
+  collectSrcSetDependencies(srcset, opts) {
     const newSources = [];
     for (const source of srcset.split(',')) {
       const pair = source.trim().split(' ');
       if (pair.length === 0) continue;
-      pair[0] = this.processSingleDependency(pair[0]);
+      pair[0] = this.processSingleDependency(pair[0], opts);
       newSources.push(pair.join(' '));
     }
     return newSources.join(',');
@@ -120,9 +131,15 @@ class HTMLAsset extends Asset {
           if (node.tag === 'a' && node.attrs[attr].lastIndexOf('.') < 1) {
             continue;
           }
+
           if (elements && elements.includes(node.tag)) {
             let depHandler = this.getAttrDepHandler(attr);
-            node.attrs[attr] = depHandler.call(this, node.attrs[attr]);
+            let options = OPTIONS[node.tag];
+            node.attrs[attr] = depHandler.call(
+              this,
+              node.attrs[attr],
+              options && options[attr]
+            );
             this.isAstDirty = true;
           }
         }
@@ -134,6 +151,12 @@ class HTMLAsset extends Asset {
 
   async pretransform() {
     await posthtmlTransform(this);
+  }
+
+  async transform() {
+    if (this.options.minify) {
+      await htmlnanoTransform(this);
+    }
   }
 
   generate() {

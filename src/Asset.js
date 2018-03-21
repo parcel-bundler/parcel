@@ -148,7 +148,7 @@ class Asset {
       await this.getDependencies();
       await this.transform();
       this.generated = await this.generate();
-      this.hash = this.generateHash();
+      this.hash = await this.generateHash();
     }
 
     return this.generated;
@@ -175,27 +175,9 @@ class Asset {
   }
 
   generateBundleName() {
-    const ext = '.' + this.type;
-
-    const isEntryPoint = this.name === this.options.mainFile;
-
-    // If this is the entry point of the root bundle, use outFile filename if provided
-    if (isEntryPoint && this.options.outFile) {
-      return (
-        path.basename(
-          this.options.outFile,
-          path.extname(this.options.outFile)
-        ) + ext
-      );
-    }
-
-    // If this is the entry point of the root bundle, use the original filename
-    if (isEntryPoint) {
-      return path.basename(this.name, path.extname(this.name)) + ext;
-    }
-
-    // Otherwise generate a unique name
-    return md5(this.name) + ext;
+    // Generate a unique name. This will be replaced with a nicer
+    // name later as part of content hashing.
+    return md5(this.name) + '.' + this.type;
   }
 
   generateErrorMessage(err) {

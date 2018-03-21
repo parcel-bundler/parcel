@@ -31,7 +31,7 @@ class HTMLPackager extends Packager {
       ).process(html, {sync: true}).html;
     }
 
-    await this.dest.write(html);
+    await this.write(html);
   }
 
   addBundlesToTree(bundles, tree) {
