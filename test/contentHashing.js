@@ -20,7 +20,7 @@ describe('content hashing', function() {
     );
     let regex = new RegExp(
       `<link rel="stylesheet" href="[/\\\\]{1}dist[/\\\\]{1}(${path.basename(
-        b.entryAsset.options.outDir
+        inputDir
       )}\\.[a-f0-9]+\\.css)">`
     );
     let filename = html.match(regex)[1];
