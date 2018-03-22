@@ -22,7 +22,7 @@ class CSSPackager extends Packager {
       css = `@media ${media.join(', ')} {\n${css.trim()}\n}\n`;
     }
 
-    await this.dest.write(css);
+    await this.write(css);
   }
 }
 
