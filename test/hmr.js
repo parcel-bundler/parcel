@@ -360,4 +360,67 @@ describe('hmr', function() {
     assert(logs[0].trim().startsWith('[parcel] 🚨'));
     assert(logs[1].trim().startsWith('[parcel] ✨'));
   });
+
+  it('should make a secure connection', async function() {
+    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+
+    b = bundler(__dirname + '/input/index.js', {
+      watch: true,
+      hmr: true,
+      https: true
+    });
+    await b.bundle();
+
+    ws = new WebSocket('wss://localhost:' + b.options.hmrPort, {
+      rejectUnauthorized: false
+    });
+
+    const buildEnd = nextEvent(b, 'buildEnd');
+
+    fs.writeFileSync(
+      __dirname + '/input/local.js',
+      'exports.a = 5;\nexports.b = 5;'
+    );
+
+    let msg = json5.parse(await nextEvent(ws, 'message'));
+    assert.equal(msg.type, 'update');
+    assert.equal(msg.assets.length, 1);
+    assert.equal(msg.assets[0].generated.js, 'exports.a = 5;\nexports.b = 5;');
+    assert.deepEqual(msg.assets[0].deps, {});
+
+    await buildEnd;
+  });
+
+  it('should make a secure connection with custom certificate', async function() {
+    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+
+    b = bundler(__dirname + '/input/index.js', {
+      watch: true,
+      hmr: true,
+      https: {
+        key: __dirname + '/integration/https/private.pem',
+        cert: __dirname + '/integration/https/primary.crt'
+      }
+    });
+    await b.bundle();
+
+    ws = new WebSocket('wss://localhost:' + b.options.hmrPort, {
+      rejectUnauthorized: false
+    });
+
+    const buildEnd = nextEvent(b, 'buildEnd');
+
+    fs.writeFileSync(
+      __dirname + '/input/local.js',
+      'exports.a = 5;\nexports.b = 5;'
+    );
+
+    let msg = json5.parse(await nextEvent(ws, 'message'));
+    assert.equal(msg.type, 'update');
+    assert.equal(msg.assets.length, 1);
+    assert.equal(msg.assets[0].generated.js, 'exports.a = 5;\nexports.b = 5;');
+    assert.deepEqual(msg.assets[0].deps, {});
+
+    await buildEnd;
+  });
 });

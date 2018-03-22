@@ -1,5 +1,6 @@
 const Asset = require('../Asset');
 const urlJoin = require('../utils/urlJoin');
+const md5 = require('../utils/md5');
 
 class RawAsset extends Asset {
   // Don't load raw assets. They will be copied by the RawPackager directly.
@@ -20,6 +21,10 @@ class RawAsset extends Asset {
     return {
       js: `module.exports=${JSON.stringify(pathToAsset)};`
     };
+  }
+
+  async generateHash() {
+    return await md5.file(this.name);
   }
 }
 

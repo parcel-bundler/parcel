@@ -65,7 +65,9 @@ module.exports = {
       matchesPattern(callee, serviceWorkerPattern);
 
     if (isRegisterServiceWorker) {
-      addURLDependency(asset, args[0]);
+      // Treat service workers as an entry point so filenames remain consistent across builds.
+      // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
+      addURLDependency(asset, args[0], {entry: true});
       return;
     }
   },
@@ -88,11 +90,7 @@ module.exports = {
 
 function addDependency(asset, node, opts = {}) {
   if (asset.options.target !== 'browser') {
-    const isRelativeImport =
-      node.value.startsWith('/') ||
-      node.value.startsWith('./') ||
-      node.value.startsWith('../');
-
+    const isRelativeImport = /^[/~.]/.test(node.value);
     if (!isRelativeImport) return;
   }
 
@@ -100,8 +98,10 @@ function addDependency(asset, node, opts = {}) {
   asset.addDependency(node.value, opts);
 }
 
-function addURLDependency(asset, node) {
-  let assetPath = asset.addURLDependency(node.value);
+function addURLDependency(asset, node, opts = {}) {
+  opts.loc = node.loc && node.loc.start;
+
+  let assetPath = asset.addURLDependency(node.value, opts);
   if (!isURL(assetPath)) {
     assetPath = urlJoin(asset.options.publicURL, assetPath);
   }
