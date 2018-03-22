@@ -47,13 +47,18 @@ describe('server', function() {
   });
 
   it('should serve a default page if the main bundle is an HTML asset', async function() {
-    let b = bundler(__dirname + '/integration/html/index.html');
+    let b = bundler(__dirname + '/integration/html/index.html', {
+      publicURL: '/foo/bar/boo'
+    });
     server = await b.serve(0);
 
     let data = await get('/');
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
 
-    data = await get('/foo/bar');
+    data = await get('/foo/bar/');
+    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+
+    data = await get('/foo/bar/boo/');
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
   });
 
@@ -95,7 +100,39 @@ describe('server', function() {
     let data = await get('/dist/index.js', https);
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
   });
+  
+  it('should serve static assets as well as html', async function() {
+    let b = bundler(__dirname + '/integration/html/index.html', {
+      publicUrl: '/'
+    });
+    server = await b.serve(0);
 
+    // When accessing / we should get the index page.
+    let data = await get('/');
+    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+
+    // When accessing /hello.txt we should get txt document.
+    fs.writeFileSync(__dirname + '/dist/hello.txt', 'hello');
+    data = await get('/hello.txt');
+    assert.equal(data, 'hello');
+  });
+
+  it('should serve files without extension', async function() {
+    let b = bundler(__dirname + '/integration/html/index.html', {
+      publicUrl: '/'
+    });
+    server = await b.serve(0);
+
+    // When accessing / we should get the index page.
+    let data = await get('/');
+    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+
+    // When accessing /hello we should get txt document.
+    fs.writeFileSync(__dirname + '/dist/hello', 'hello');
+    data = await get('/hello');
+    assert.equal(data, 'hello');
+  });
+  
   it('should support HTTPS via custom certificate', async function() {
     let b = bundler(__dirname + '/integration/commonjs/index.js');
     server = await b.serve(0, {
