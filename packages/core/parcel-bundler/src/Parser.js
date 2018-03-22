@@ -38,6 +38,10 @@ class Parser {
 
     this.registerExtension('webmanifest', './assets/WebManifestAsset');
 
+    this.registerExtension('glsl', './assets/GLSLAsset');
+    this.registerExtension('vert', './assets/GLSLAsset');
+    this.registerExtension('frag', './assets/GLSLAsset');
+
     let extensions = options.extensions || {};
     for (let ext in extensions) {
       this.registerExtension(ext, extensions[ext]);
