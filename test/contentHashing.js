@@ -19,7 +19,7 @@ describe('content hashing', function() {
 
     let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
     let filename = html.match(
-      /<link rel="stylesheet" href="[/\\]{1}dist[/\\]{1}(input\.[a-f0-9]+\.css)">/
+      /<link rel="stylesheet" href="[/\\]{1}(input\.[a-f0-9]+\.css)">/
     )[1];
     assert(fs.existsSync(__dirname + '/dist/' + filename));
 
@@ -34,7 +34,7 @@ describe('content hashing', function() {
 
     html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
     let newFilename = html.match(
-      /<link rel="stylesheet" href="[/\\]{1}dist[/\\]{1}(input\.[a-f0-9]+\.css)">/
+      /<link rel="stylesheet" href="[/\\]{1}(input\.[a-f0-9]+\.css)">/
     )[1];
     assert(fs.existsSync(__dirname + '/dist/' + newFilename));
 
@@ -49,7 +49,7 @@ describe('content hashing', function() {
     });
 
     let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
-    let filename = js.match(/\/dist\/(test\.[0-9a-f]+\.txt)/)[1];
+    let filename = js.match(/\/(test\.[0-9a-f]+\.txt)/)[1];
     assert(fs.existsSync(__dirname + '/dist/' + filename));
 
     fs.writeFileSync(__dirname + '/input/test.txt', 'hello world');
@@ -59,7 +59,7 @@ describe('content hashing', function() {
     });
 
     js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
-    let newFilename = js.match(/\/dist\/(test\.[0-9a-f]+\.txt)/)[1];
+    let newFilename = js.match(/\/(test\.[0-9a-f]+\.txt)/)[1];
     assert(fs.existsSync(__dirname + '/dist/' + newFilename));
 
     assert.notEqual(filename, newFilename);
