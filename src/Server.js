@@ -45,8 +45,12 @@ function middleware(bundler) {
     function respond() {
       if (bundler.errored) {
         return send500();
-      } else if (!req.url.startsWith(bundler.options.publicURL)) {
-        // If the URL doesn't start with the public path, send the main HTML bundle
+      } else if (
+        !req.url.startsWith(bundler.options.publicURL) ||
+        path.extname(req.url) === ''
+      ) {
+        // If the URL doesn't start with the public path, or the URL doesn't
+        // have a file extension, send the main HTML bundle.
         return sendIndex();
       } else {
         // Otherwise, serve the file from the dist folder
