@@ -5,4 +5,5 @@
 precision mediump float;
 
 void main() {
+  test();
 }

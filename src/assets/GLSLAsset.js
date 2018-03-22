@@ -1,6 +1,8 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const path = require('path');
+const promisify = require('../utils/promisify');
+const Resolver = require('../Resolver');
 
 class GLSLAsset extends Asset {
   constructor(name, pkg, options) {
@@ -9,43 +11,51 @@ class GLSLAsset extends Asset {
   }
 
   async parse() {
-    const glslify = await localRequire('glslify', this.name);
+    const glslifyDeps = await localRequire('glslify-deps', this.name);
 
-    const basedir = path.dirname(this.name);
-    const glsl = glslify(this.contents, {basedir});
+    // Use the Parcel resolver rather than the default glslify one.
+    // This adds support for parcel features like alises, and tilde paths.
+    const resolver = new Resolver({
+      extensions: ['.glsl', '.vert', '.frag'],
+      rootDir: this.options.rootDir
+    });
 
-    return new GLSLAst(glsl, {basedir});
+    // Parse and collect dependencies with glslify-deps
+    let cwd = path.dirname(this.name);
+    let depper = glslifyDeps({
+      cwd,
+      resolve: async (target, opts, next) => {
+        try {
+          let res = await resolver.resolve(
+            target,
+            path.join(opts.basedir, 'index')
+          );
+          next(null, res.path);
+        } catch (err) {
+          next(err);
+        }
+      }
+    });
+
+    return await promisify(depper.inline.bind(depper))(this.contents, cwd);
   }
 
-  async collectDependencies() {
-    const glslifyDeps = require('glslify-deps');
-    const depper = glslifyDeps({cwd: this.ast.basedir});
-
-    return new Promise(resolve => {
-      depper.add(this.name, (err, assets) => {
-        for (const asset of assets) {
-          for (const dep of Object.keys(asset.deps)) {
-            const fullPath = path.normalize(asset.file + '/../' + dep);
-            this.addDependency(fullPath, {includedInParent: true});
-          }
-        }
-
-        resolve();
-      });
-    });
+  collectDependencies() {
+    for (let dep of this.ast) {
+      if (!dep.entry) {
+        this.addDependency(dep.file, {includedInParent: true});
+      }
+    }
   }
 
   async generate() {
-    return {
-      js: `module.exports=${JSON.stringify(this.ast.glsl)};`
-    };
-  }
-}
+    // Generate the bundled glsl file
+    const glslifyBundle = await localRequire('glslify-bundle', this.name);
+    let glsl = glslifyBundle(this.ast);
 
-class GLSLAst {
-  constructor(glsl, opts) {
-    this.glsl = glsl;
-    this.basedir = opts.basedir;
+    return {
+      js: `module.exports=${JSON.stringify(glsl)};`
+    };
   }
 }
 
