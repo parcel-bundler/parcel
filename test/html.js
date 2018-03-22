@@ -142,7 +142,7 @@ describe('html', function() {
 
     let html = fs.readFileSync(__dirname + '/dist/index.html');
     assert(
-      /<link rel="stylesheet" href="[/\\]{1}dist[/\\]{1}html-css\.[a-f0-9]+\.css">/.test(
+      /<link rel="stylesheet" href="[/\\]{1}html-css\.[a-f0-9]+\.css">/.test(
         html
       )
     );
@@ -174,7 +174,7 @@ describe('html', function() {
 
     let html = fs.readFileSync(__dirname + '/dist/index.html');
     assert(
-      /<html>\s*<link rel="stylesheet" href="[/\\]{1}dist[/\\]{1}html-css-head\.[a-f0-9]+\.css">\s*<body>/.test(
+      /<html>\s*<link rel="stylesheet" href="[/\\]{1}html-css-head\.[a-f0-9]+\.css">\s*<body>/.test(
         html
       )
     );
@@ -212,9 +212,7 @@ describe('html', function() {
     });
 
     let html = fs.readFileSync(__dirname + '/dist/index.html');
-    assert(
-      /<script src="[/\\]{1}dist[/\\]{1}html-css-js\.[a-f0-9]+\.js">/.test(html)
-    );
+    assert(/<script src="[/\\]{1}html-css-js\.[a-f0-9]+\.js">/.test(html));
   });
 
   it('should insert sibling bundles at correct location in tree when optional elements are absent', async function() {
@@ -249,7 +247,7 @@ describe('html', function() {
 
     let html = fs.readFileSync(__dirname + '/dist/index.html');
     assert(
-      /<\/script>\s*<link rel="stylesheet" href="[/\\]{1}dist[/\\]{1}html-css-optional-elements\.[a-f0-9]+\.css"><h1>Hello/.test(
+      /<\/script>\s*<link rel="stylesheet" href="[/\\]{1}html-css-optional-elements\.[a-f0-9]+\.css"><h1>Hello/.test(
         html
       )
     );

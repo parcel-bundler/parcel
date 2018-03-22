@@ -42,7 +42,7 @@ describe('server', function() {
     let b = bundler(__dirname + '/integration/commonjs/index.js');
     server = await b.serve(0);
 
-    let data = await get('/dist/index.js');
+    let data = await get('/index.js');
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
   });
 
@@ -63,7 +63,7 @@ describe('server', function() {
 
     let threw = false;
     try {
-      await get('/dist/fake.js');
+      await get('/fake.js');
     } catch (err) {
       threw = true;
     }
@@ -92,7 +92,7 @@ describe('server', function() {
     let b = bundler(__dirname + '/integration/commonjs/index.js');
     server = await b.serve(0, true);
 
-    let data = await get('/dist/index.js', https);
+    let data = await get('/index.js', https);
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
   });
 
@@ -103,7 +103,17 @@ describe('server', function() {
       cert: __dirname + '/integration/https/primary.crt'
     });
 
-    let data = await get('/dist/index.js', https);
+    let data = await get('/index.js', https);
+    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
+  });
+
+  it('should support setting a public url', async function() {
+    let b = bundler(__dirname + '/integration/commonjs/index.js', {
+      publicUrl: '/dist'
+    });
+    server = await b.serve(0);
+
+    let data = await get('/dist/index.js');
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
   });
 

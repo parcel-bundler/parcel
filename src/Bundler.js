@@ -64,10 +64,7 @@ class Bundler extends EventEmitter {
   normalizeOptions(options) {
     const isProduction =
       options.production || process.env.NODE_ENV === 'production';
-    const publicURL =
-      options.publicUrl ||
-      options.publicURL ||
-      '/' + Path.basename(options.outDir || 'dist');
+    const publicURL = options.publicUrl || options.publicURL || '/';
     const watch =
       typeof options.watch === 'boolean' ? options.watch : !isProduction;
     const target = options.target || 'browser';

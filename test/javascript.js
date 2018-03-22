@@ -307,8 +307,8 @@ describe('javascript', function() {
 
     let output = run(b);
     assert.equal(typeof output, 'function');
-    assert(/^\/dist\/test\.[0-9a-f]+\.txt$/.test(output()));
-    assert(fs.existsSync(__dirname + output()));
+    assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
+    assert(fs.existsSync(__dirname + '/dist/' + output()));
   });
 
   it('should minify JS in production mode', async function() {
