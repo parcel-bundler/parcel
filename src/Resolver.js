@@ -41,7 +41,10 @@ class Resolver {
     }
 
     // Get file extensions to search
-    let extensions = Object.keys(this.options.extensions);
+    let extensions = Array.isArray(this.options.extensions)
+      ? this.options.extensions.slice()
+      : Object.keys(this.options.extensions);
+
     if (parent) {
       // parent's extension given high priority
       const parentExt = path.extname(parent);
