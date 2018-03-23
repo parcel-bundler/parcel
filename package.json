@@ -83,6 +83,7 @@
     "nib": "^1.1.2",
     "node-sass": "^4.7.2",
     "nyc": "^11.1.0",
+    "parcel-vue-component-compiler": "^3.0.1",
     "postcss-modules": "^0.8.0",
     "posthtml-include": "^1.1.0",
     "prettier": "^1.9.1",
@@ -90,7 +91,8 @@
     "sinon": "^4.2.2",
     "sourcemap-validator": "^1.0.6",
     "stylus": "^0.54.5",
-    "typescript": "^2.7.0"
+    "typescript": "^2.7.0",
+    "vue": "^2.5.16"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
