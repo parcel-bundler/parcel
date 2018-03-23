@@ -2,6 +2,7 @@ const CSSAsset = require('./CSSAsset');
 const localRequire = require('../utils/localRequire');
 const promisify = require('../utils/promisify');
 const path = require('path');
+const os = require('os');
 
 class SASSAsset extends CSSAsset {
   async parse(code) {
@@ -16,7 +17,7 @@ class SASSAsset extends CSSAsset {
     opts.includePaths = (opts.includePaths || []).concat(
       path.dirname(this.name)
     );
-    opts.data = code;
+    opts.data = opts.data ? (opts.data + os.EOL + code) : code;
     opts.indentedSyntax =
       typeof opts.indentedSyntax === 'boolean'
         ? opts.indentedSyntax
