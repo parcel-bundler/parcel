@@ -1,14 +1,6 @@
 const Asset = require('../Asset');
 const HTMLAsset = require('./HTMLAsset');
-
-const load = require('pug-load');
-const lexer = require('pug-lexer');
-const parser = require('pug-parser');
-const walk = require('pug-walk');
-const linker = require('pug-linker');
-const generateCode = require('pug-code-gen');
-const wrap = require('pug-runtime/wrap');
-const filters = require('pug-filters');
+const localRequire = require('../utils/localRequire');
 
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
@@ -39,7 +31,13 @@ class PugAsset extends Asset {
     this.type = 'html';
   }
 
-  parse(code) {
+  async parse(code) {
+    const load = await localRequire('pug-load', this.name);
+    const lexer = await localRequire('pug-lexer', this.name);
+    const parser = await localRequire('pug-parser', this.name);
+    const linker = await localRequire('pug-linker', this.name);
+    const filters = await localRequire('pug-filters', this.name);
+
     let ast = load.string(code, {
       lex: lexer,
       parse: parser,
@@ -52,7 +50,9 @@ class PugAsset extends Asset {
     return ast;
   }
 
-  collectDependencies() {
+  async collectDependencies() {
+    const walk = await localRequire('pug-walk', this.name);
+
     walk(this.ast, node => {
       this.recursiveCollect(node);
 
@@ -87,7 +87,10 @@ class PugAsset extends Asset {
     return this.generated;
   }
 
-  generate() {
+  async generate() {
+    const generateCode = await localRequire('pug-code-gen', this.name);
+    const wrap = await localRequire('pug-runtime/wrap', this.name);
+
     const result = generateCode(this.ast, {
       compileDebug: false,
       pretty: !this.options.minify
