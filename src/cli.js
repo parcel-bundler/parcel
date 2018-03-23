@@ -51,6 +51,11 @@ program
     /^(node|browser|electron)$/
   )
   .option('-V, --version', 'output the version number')
+  .option(
+    '--log-level <level>',
+    'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
+    /^([0-3])$/
+  )
   .action(bundle);
 
 program
@@ -86,6 +91,11 @@ program
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
     /^(node|browser|electron)$/
   )
+  .option(
+    '--log-level <level>',
+    'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
+    /^([0-3])$/
+  )
   .action(bundle);
 
 program
@@ -114,6 +124,11 @@ program
   .option(
     '--detailed-report',
     'print a detailed build report after a completed build'
+  )
+  .option(
+    '--log-level <level>',
+    'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
+    /^([0-3])$/
   )
   .action(bundle);
 
