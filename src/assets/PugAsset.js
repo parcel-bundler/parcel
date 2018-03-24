@@ -2,29 +2,6 @@ const Asset = require('../Asset');
 const HTMLAsset = require('./HTMLAsset');
 const localRequire = require('../utils/localRequire');
 
-// A list of all attributes that may produce a dependency
-// Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
-const ATTRS = {
-  src: [
-    'script',
-    'img',
-    'audio',
-    'video',
-    'source',
-    'track',
-    'iframe',
-    'embed'
-  ],
-  href: ['link', 'a', 'use'],
-  srcset: ['img', 'source'],
-  poster: ['video'],
-  'xlink:href': ['use'],
-  content: ['meta']
-};
-
-// A regex to detect if a variable is a 'pure' string (no evaluation needed)
-const PURE_STRING_REGEX = /(^"([^"]+)"$)|(^'([^']+)'$)/g;
-
 class PugAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
@@ -38,6 +15,9 @@ class PugAsset extends Asset {
     const linker = await localRequire('pug-linker', this.name);
     const filters = await localRequire('pug-filters', this.name);
 
+    this.config =
+      (await this.getConfig(['.pugrc', '.pugrc.js', 'pug.config.js'])) || {};
+
     let ast = load.string(code, {
       lex: lexer,
       parse: parser,
@@ -45,7 +25,7 @@ class PugAsset extends Asset {
     });
 
     ast = linker(ast);
-    ast = filters.handleFilters(ast);
+    ast = filters.handleFilters(ast, this.config.filters || {});
 
     return ast;
   }
@@ -55,22 +35,6 @@ class PugAsset extends Asset {
 
     walk(this.ast, node => {
       this.recursiveCollect(node);
-
-      if (node.type === 'Tag') {
-        if (node.attrs) {
-          for (const attr of node.attrs) {
-            const elements = ATTRS[attr.name];
-            if (elements && elements.indexOf(node.name) > -1) {
-              if (PURE_STRING_REGEX.test(attr.val)) {
-                this.addURLDependency(
-                  attr.val.substring(1, attr.val.length - 1)
-                );
-              }
-            }
-          }
-        }
-      }
-
       return node;
     });
   }
@@ -97,10 +61,6 @@ class PugAsset extends Asset {
     });
 
     return {html: wrap(result)()};
-  }
-
-  shouldInvalidate() {
-    return false;
   }
 
   recursiveCollect(node) {
