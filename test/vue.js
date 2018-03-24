@@ -63,14 +63,11 @@ describe('vue', function() {
       type: 'html',
       childBundles: [
         {
-          assets: ['index.js', 'pre-processors.vue', 'logo.png', 'vue.esm.js'],
+          assets: ['index.js', 'pre-processors.vue', 'vue.esm.js'],
           type: 'js',
           childBundles: [
             {
               type: 'map'
-            },
-            {
-              type: 'png'
             }
           ]
         }
