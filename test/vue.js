@@ -16,10 +16,10 @@ describe('vue', function() {
             'index.js',
             'App.vue',
             'basic.vue',
-            'inject-style-client.js',
-            'list-to-styles.js',
+            // 'inject-style-client.js',
+            // 'list-to-styles.js',
             'logo.png',
-            'normalize-component.js',
+            // 'normalize-component.js',
             'vue.esm.js'
           ],
           type: 'js',

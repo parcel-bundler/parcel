@@ -3,68 +3,37 @@ const localRequire = require('../utils/localRequire');
 
 class VueAsset extends JSAsset {
   async parse(code) {
-    const vueCompiler = await localRequire(
-      'parcel-vue-component-compiler',
+    const vueTemplateCompiler = await localRequire(
+      'vue-template-compiler',
       this.name
     );
+    const vue = await localRequire('@vue/component-compiler-utils', this.name);
 
-    let scopeId = vueCompiler.generateScopeId(
-      this.name,
-      code,
-      this.options.production
-    );
-    let options = {
-      style: null,
-      template: null,
-      assemble: null
-    };
+    const descriptor = vue.parse({
+      source: code,
+      needMap: this.sourceMap === true // true
+    });
 
-    let descriptor = vueCompiler.parse(code, this.name, {needMap: true});
-    let render = descriptor.template
-      ? vueCompiler.compileTemplate(
-          {
-            code: descriptor.template.content,
-            descriptor: descriptor.template
-          },
-          this.name,
-          Object.assign({scopeId}, options.template)
-        )
-      : null;
-    let styles = descriptor.styles
-      .map(it => {
-        return vueCompiler.compileStyle(
-          {
-            code: it.content,
-            descriptor: it
-          },
-          this.name,
-          Object.assign({scopeId}, options.style)
-        );
-      })
-      .map((style, i) => ({
-        descriptor: descriptor.styles[i],
-        code: style.code,
-        map: style.map,
-        modules: style.modules
-      }));
+    let js = descriptor.script.content.trim();
 
-    this.contents = vueCompiler.assemble(
-      {
-        styles,
-        render: {
-          code: render && render.code,
-          descriptor: descriptor.template
-        },
-        script: {
-          code: descriptor.script && descriptor.script.content,
-          descriptor: descriptor.script
-        },
-        customBlocks: []
-      },
-      this.name,
-      {scopeId},
-      options.assemble
-    );
+    if (descriptor.template) {
+      let template = vue.compileTemplate({
+        source: descriptor.template.content,
+        filename: this.name,
+        compiler: vueTemplateCompiler
+      });
+      js = template.code + '\n' + js;
+    }
+
+    if (descriptor.styles) {
+      /*let css = */ descriptor.styles
+        .map(style => style.content.trim())
+        .join('');
+      // TODO: add this css as a css asset
+      // this.addDependency(css);
+    }
+
+    this.contents = js;
     return await super.parse(this.contents);
   }
 }
