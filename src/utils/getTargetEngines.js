@@ -37,7 +37,8 @@ async function getTargetEngines(asset, isTargetApp) {
       if (Array.isArray(pkg.browserslist)) {
         targets.browsers = pkg.browserslist;
       } else {
-        targets.browsers = pkg.browserslist[process.env.NODE_ENV];
+        targets.browsers =
+          pkg.browserslist[process.env.NODE_ENV || 'development'];
       }
     } else {
       let browserslist = await loadBrowserslist(asset, path);
