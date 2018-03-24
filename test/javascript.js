@@ -628,6 +628,19 @@ describe('javascript', function() {
     assert(!file.includes('class Bar {}'));
   });
 
+  it('should support compiling with babel using browserslist for different environments', async function() {
+    let file;
+    await bundle(
+      __dirname +
+        '/integration/babel-browserslist-multiple-environments/index.js',
+      {
+        production: true
+      }
+    );
+    file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(/{?prop1.*,?prop2.*,?prop3.*}?=?p;/.test(file) === false);
+  });
+
   it('should not compile node_modules by default', async function() {
     await bundle(__dirname + '/integration/babel-node-modules/index.js');
 

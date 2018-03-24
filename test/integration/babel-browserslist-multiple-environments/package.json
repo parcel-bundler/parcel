@@ -1,0 +1,7 @@
+{
+  "name": "parcel-test-browser-browserslist",
+  "browserslist": {
+    "development": "chrome 65",
+    "production": "ie 10"
+  }
+}
