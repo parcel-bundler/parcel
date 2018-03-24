@@ -23,7 +23,6 @@ class VueAsset extends JSAsset {
     }
 
     let js = descriptor.script.content.trim();
-
     if (descriptor.template) {
       let template = vue.compileTemplate({
         source: descriptor.template.content,
@@ -40,7 +39,7 @@ class VueAsset extends JSAsset {
             // TODO: actually support other languages...
             throw new Error(`Unsupported language: ${style.lang}`);
           }
-          style.content.trim();
+          return style.content.trim();
         })
         .join('');
       // TODO: add this css as a css asset
