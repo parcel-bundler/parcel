@@ -14,7 +14,9 @@ class Logger {
 
   setOptions(options) {
     this.logLevel =
-      options && typeof options.logLevel === 'number' ? options.logLevel : 3;
+      options && isNaN(options.logLevel) === false
+        ? Number(options.logLevel)
+        : 3;
     this.color =
       options && typeof options.color === 'boolean'
         ? options.color
