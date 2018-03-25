@@ -50,27 +50,33 @@ class VueAsset extends Asset {
     );
 
     let result = [];
-    let html = generated.find(r => r.type === 'html');
-    let template = vue.compileTemplate({
-      source: html.value,
-      filename: this.name,
-      compiler: vueTemplateCompiler
-    });
 
     // Combine JS output. This is because the CSS asset generates some JS for HMR.
     // TODO: deal with export for CSS modules too
     let js = generated
       .filter(r => r.type === 'js')
       .reduce((p, r) => (p += r.value), '');
-    js += `\nObject.assign(exports.default || module.exports, (function () {
-      ${template.code}
-      return {render, staticRenderFns, _compiled: true};
-    })())\n`;
 
-    result.push({
-      type: 'js',
-      value: js
-    });
+    let html = generated.find(r => r.type === 'html');
+    if (html) {
+      let template = vue.compileTemplate({
+        source: html.value,
+        filename: this.name,
+        compiler: vueTemplateCompiler
+      });
+
+      js += `\nObject.assign(exports.default || module.exports, (function () {
+        ${template.code}
+        return {render, staticRenderFns, _compiled: true};
+      })())\n`;
+    }
+
+    if (js) {
+      result.push({
+        type: 'js',
+        value: js
+      });
+    }
 
     // TODO: combine source maps for the above changes
     let map = generated.find(r => r.type === 'map');
@@ -83,10 +89,12 @@ class VueAsset extends Asset {
     let css = generated
       .filter(r => r.type === 'css')
       .reduce((p, r) => (p += r.value), '');
-    result.push({
-      type: 'css',
-      value: css
-    });
+    if (css) {
+      result.push({
+        type: 'css',
+        value: css
+      });
+    }
 
     return result;
   }
