@@ -8,11 +8,14 @@ class VueAsset extends Asset {
   }
 
   async generate() {
+    // Is being used in component-compiler-utils, errors if not installed...
+    await localRequire('vue-template-compiler', this.name);
     const vue = await localRequire('@vue/component-compiler-utils', this.name);
 
     let descriptor = vue.parse({
       source: this.contents,
-      needMap: false //this.options.sourceMaps
+      needMap: this.options.sourceMaps == true,
+      filename: this.relativeName // Used for sourcemaps
     });
 
     let parts = [];
@@ -26,7 +29,7 @@ class VueAsset extends Asset {
     if (descriptor.template) {
       parts.push({
         type: descriptor.template.lang || 'html',
-        value: descriptor.template.content
+        value: descriptor.template.content.trim()
       });
     }
 
@@ -34,7 +37,7 @@ class VueAsset extends Asset {
       for (let style of descriptor.styles) {
         parts.push({
           type: style.lang || 'css',
-          value: style.content
+          value: style.content.trim()
         });
       }
     }
@@ -43,11 +46,12 @@ class VueAsset extends Asset {
   }
 
   async postProcess(generated) {
-    const vue = await localRequire('@vue/component-compiler-utils', this.name);
+    // Is being used in component-compiler-utils, errors if not installed...
     const vueTemplateCompiler = await localRequire(
       'vue-template-compiler',
       this.name
     );
+    const vue = await localRequire('@vue/component-compiler-utils', this.name);
 
     let result = [];
 
@@ -61,8 +65,9 @@ class VueAsset extends Asset {
     if (html) {
       let template = vue.compileTemplate({
         source: html.value,
-        filename: this.name,
-        compiler: vueTemplateCompiler
+        filename: this.relativeName,
+        compiler: vueTemplateCompiler,
+        isProduction: this.options.production === true
       });
 
       js += `\nObject.assign(exports.default || module.exports, (function () {

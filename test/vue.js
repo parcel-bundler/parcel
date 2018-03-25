@@ -16,6 +16,9 @@ describe('vue', function() {
           type: 'js',
           childBundles: [
             {
+              type: 'css'
+            },
+            {
               type: 'map'
             }
           ]
@@ -66,6 +69,36 @@ describe('vue', function() {
           assets: ['index.js', 'pre-processors.vue', 'vue.esm.js'],
           type: 'js',
           childBundles: [
+            {
+              type: 'map'
+            },
+            {
+              type: 'css'
+            }
+          ]
+        }
+      ]
+    });
+  });
+
+  it('should produce a basic production vue bundle', async function() {
+    let b = await bundle(__dirname + '/integration/vue-basic/index.html', {
+      production: true
+    });
+
+    assert.equal(b.assets.size, 1);
+    assert.equal(b.childBundles.size, 1);
+
+    assertBundleTree(b, {
+      type: 'html',
+      childBundles: [
+        {
+          assets: ['index.js', 'Basic.vue', 'vue.esm.js'],
+          type: 'js',
+          childBundles: [
+            {
+              type: 'css'
+            },
             {
               type: 'map'
             }
