@@ -14,9 +14,14 @@ class Pipeline {
   async process(path, pkg, options) {
     let asset = this.parser.getAsset(path, pkg, options);
     let generated = await this.processAsset(asset);
+    let generatedMap = {};
+    for (let rendition of generated) {
+      generatedMap[rendition.type] = rendition.value;
+    }
+
     return {
       dependencies: Array.from(asset.dependencies.values()),
-      generated,
+      generated: generatedMap,
       hash: asset.hash,
       cacheData: asset.cacheData
     };
@@ -30,12 +35,12 @@ class Pipeline {
     }
 
     let inputType = path.extname(asset.name).slice(1);
-    let generated = {};
+    let generated = [];
 
     for (let rendition of this.iterateRenditions(asset)) {
       let {type, value} = rendition;
       if (typeof value !== 'string' || rendition.final) {
-        generated[type] = value;
+        generated.push(rendition);
         continue;
       }
 
@@ -51,12 +56,20 @@ class Pipeline {
         subAsset.dependencies = asset.dependencies;
 
         let processed = await this.processAsset(subAsset);
-        Object.assign(generated, processed);
+        generated = generated.concat(processed);
         Object.assign(asset.cacheData, subAsset.cacheData);
         asset.hash = md5(asset.hash + subAsset.hash);
       } else {
-        generated[type] = value;
+        generated.push(rendition);
       }
+    }
+
+    // Post process. This allows assets a chance to modify the output produced by sub-asset types.
+    asset.generated = generated;
+    try {
+      generated = await asset.postProcess(generated);
+    } catch (err) {
+      throw asset.generateErrorMessage(err);
     }
 
     return generated;

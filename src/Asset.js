@@ -161,6 +161,10 @@ class Asset {
     return this.generated;
   }
 
+  async postProcess(generated) {
+    return generated;
+  }
+
   generateHash() {
     return objectHash(this.generated);
   }
