@@ -24,7 +24,10 @@ async function getConfig(asset) {
       '.postcssrc.js',
       'postcss.config.js'
     ]));
-  if (!config && !asset.options.minify) {
+
+  let enableModules =
+    asset.options.rendition && asset.options.rendition.modules;
+  if (!config && !asset.options.minify && !enableModules) {
     return;
   }
 
@@ -44,7 +47,7 @@ async function getConfig(asset) {
 
   config.plugins = await loadPlugins(config.plugins, asset.name);
 
-  if (config.modules) {
+  if (config.modules || enableModules) {
     let postcssModules = await localRequire('postcss-modules', asset.name);
     config.plugins.push(postcssModules(postcssModulesConfig));
   }

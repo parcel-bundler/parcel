@@ -47,7 +47,8 @@ class VueAsset extends Asset {
       for (let style of descriptor.styles) {
         parts.push({
           type: style.lang || 'css',
-          value: style.content.trim()
+          value: style.content.trim(),
+          modules: !!style.module
         });
       }
     }
@@ -63,11 +64,9 @@ class VueAsset extends Asset {
 
     // Combine JS output. This is because the CSS asset generates some JS for HMR.
     // TODO: deal with export for CSS modules too
-    let js = generated
-      .filter(r => r.type === 'js')
-      .reduce((p, r) => (p += r.value), '');
-
+    let js = this.ast.script ? generated[0].value : '';
     js += this.compileTemplate(generated, scopeId);
+    js += this.compileCSSModules(generated);
 
     if (js) {
       result.push({
@@ -117,7 +116,33 @@ class VueAsset extends Asset {
           return {render, staticRenderFns, _compiled: true, _scopeId: ${JSON.stringify(
             scopeId
           )}};
-        })())
+        })());
+      `;
+    }
+
+    return '';
+  }
+
+  compileCSSModules(generated) {
+    let cssRenditions = generated.filter(r => r.type === 'css');
+    let cssModulesCode = '';
+    this.ast.styles.forEach((style, index) => {
+      if (style.module) {
+        let cssModules = cssRenditions[index].cssModules;
+        let name = style.module === true ? '$style' : style.module;
+        cssModulesCode += `\nthis[${JSON.stringify(name)}] = ${JSON.stringify(
+          cssModules
+        )};`;
+      }
+    });
+
+    if (cssModulesCode) {
+      return `
+        (function () {
+          function beforeCreate(){${cssModulesCode}\n}
+          var opts = exports.default || module.exports;
+          opts.beforeCreate = opts.beforeCreate ? opts.beforeCreate.concat(beforeCreate) : [beforeCreate];
+        })()
       `;
     }
 
