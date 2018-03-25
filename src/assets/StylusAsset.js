@@ -6,9 +6,13 @@ const syncPromise = require('../utils/syncPromise');
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
 class StylusAsset extends CSSAsset {
+  async installParserDependencies() {
+    await localRequire('stylus', this.name);
+  }
+
   async parse(code) {
     // stylus should be installed locally in the module that's being required
-    let stylus = await localRequire('stylus', this.name);
+    let stylus = await localRequire('stylus', this.name, true);
     let opts =
       this.package.stylus ||
       (await this.getConfig(['.stylusrc', '.stylusrc.js']));
@@ -41,9 +45,10 @@ class StylusAsset extends CSSAsset {
 async function createEvaluator(asset) {
   const Evaluator = await localRequire(
     'stylus/lib/visitor/evaluator',
-    asset.name
+    asset.name,
+    true
   );
-  const utils = await localRequire('stylus/lib/utils', asset.name);
+  const utils = await localRequire('stylus/lib/utils', asset.name, true);
   const resolver = new Resolver(asset.options);
 
   // This is a custom stylus evaluator that extends stylus with support for the node

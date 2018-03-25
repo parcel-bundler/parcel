@@ -5,9 +5,13 @@ const path = require('path');
 const os = require('os');
 
 class SASSAsset extends CSSAsset {
+  async installParserDependencies() {
+    await localRequire('node-sass', this.name);
+  }
+
   async parse(code) {
     // node-sass should be installed locally in the module that's being required
-    let sass = await localRequire('node-sass', this.name);
+    let sass = await localRequire('node-sass', this.name, true);
     let render = promisify(sass.render.bind(sass));
 
     let opts =
@@ -17,7 +21,7 @@ class SASSAsset extends CSSAsset {
     opts.includePaths = (opts.includePaths || []).concat(
       path.dirname(this.name)
     );
-    opts.data = opts.data ? (opts.data + os.EOL + code) : code;
+    opts.data = opts.data ? opts.data + os.EOL + code : code;
     opts.indentedSyntax =
       typeof opts.indentedSyntax === 'boolean'
         ? opts.indentedSyntax

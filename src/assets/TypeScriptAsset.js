@@ -2,9 +2,13 @@ const JSAsset = require('./JSAsset');
 const localRequire = require('../utils/localRequire');
 
 class TypeScriptAsset extends JSAsset {
+  async installParserDependencies() {
+    await localRequire('typescript', this.name);
+  }
+
   async parse(code) {
     // require typescript, installed locally in the app
-    let typescript = await localRequire('typescript', this.name);
+    let typescript = await localRequire('typescript', this.name, true);
     let transpilerOptions = {
       compilerOptions: {
         module: typescript.ModuleKind.CommonJS,

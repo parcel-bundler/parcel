@@ -7,8 +7,12 @@ class GraphqlAsset extends Asset {
     this.type = 'js';
   }
 
+  async installParserDependencies() {
+    await localRequire('graphql-tag', this.name);
+  }
+
   async parse(code) {
-    let gql = await localRequire('graphql-tag', this.name);
+    let gql = await localRequire('graphql-tag', this.name, true);
     return gql(code);
   }
 

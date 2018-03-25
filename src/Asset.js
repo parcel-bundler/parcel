@@ -119,6 +119,10 @@ class Asset {
     return await fs.readFile(this.name, this.encoding);
   }
 
+  async installParserDependencies() {
+    // do nothing by default
+  }
+
   parse() {
     // do nothing by default
   }

@@ -2537,7 +2537,7 @@ glsl-resolve@0.0.1:
     resolve "^0.6.1"
     xtend "^2.1.2"
 
-glsl-token-assignments@^2.0.0:
+glsl-token-assignments@^2.0.2:
   version "2.0.2"
   resolved "https://registry.yarnpkg.com/glsl-token-assignments/-/glsl-token-assignments-2.0.2.tgz#a5d82ab78499c2e8a6b83cb69495e6e665ce019f"
 
@@ -2547,28 +2547,23 @@ glsl-token-defines@^1.0.0:
   dependencies:
     glsl-tokenizer "^2.0.0"
 
-glsl-token-depth@^1.1.0, glsl-token-depth@^1.1.1:
+glsl-token-depth@^1.1.1:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/glsl-token-depth/-/glsl-token-depth-1.1.2.tgz#23c5e30ee2bd255884b4a28bc850b8f791e95d84"
 
 glsl-token-descope@^1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/glsl-token-descope/-/glsl-token-descope-1.0.2.tgz#0fc90ab326186b82f597b2e77dc9e21efcd32076"
-  dependencies:
-    glsl-token-assignments "^2.0.0"
-    glsl-token-depth "^1.1.0"
-    glsl-token-properties "^1.0.0"
-    glsl-token-scope "^1.1.0"
 
 glsl-token-inject-block@^1.0.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/glsl-token-inject-block/-/glsl-token-inject-block-1.1.0.tgz#e1015f5980c1091824adaa2625f1dfde8bd00034"
 
-glsl-token-properties@^1.0.0:
+glsl-token-properties@^1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/glsl-token-properties/-/glsl-token-properties-1.0.1.tgz#483dc3d839f0d4b5c6171d1591f249be53c28a9e"
 
-glsl-token-scope@^1.1.0, glsl-token-scope@^1.1.1:
+glsl-token-scope@^1.1.1:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/glsl-token-scope/-/glsl-token-scope-1.1.2.tgz#a1728e78df24444f9cb93fd18ef0f75503a643b1"
 

@@ -2,9 +2,13 @@ const JSAsset = require('./JSAsset');
 const localRequire = require('../utils/localRequire');
 
 class CoffeeScriptAsset extends JSAsset {
+  async installParserDependencies() {
+    await localRequire('coffeescript', this.name);
+  }
+
   async parse(code) {
     // require coffeescript, installed locally in the app
-    let coffee = await localRequire('coffeescript', this.name);
+    let coffee = await localRequire('coffeescript', this.name, true);
 
     // Transpile Module using CoffeeScript and parse result as ast format through babylon
     let transpiled = coffee.compile(code, {
