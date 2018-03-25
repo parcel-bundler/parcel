@@ -15,7 +15,8 @@ class VueAsset extends Asset {
     let descriptor = vue.parse({
       source: this.contents,
       needMap: this.options.sourceMaps == true,
-      filename: this.relativeName // Used for sourcemaps
+      filename: this.relativeName, // Used for sourcemaps
+      sourceRoot: this.options.rootDir // Used for sourcemaps
     });
 
     let parts = [];
@@ -40,6 +41,13 @@ class VueAsset extends Asset {
           value: style.content.trim()
         });
       }
+    }
+
+    if (this.options.sourceMaps == true && descriptor.script.map) {
+      parts.push({
+        type: 'map',
+        value: descriptor.script.map
+      });
     }
 
     return parts;
@@ -70,6 +78,10 @@ class VueAsset extends Asset {
         isProduction: this.options.production === true
       });
 
+      if (Array.isArray(template.errors) && template.errors.length >= 1) {
+        throw new Error(template.errors[0]);
+      }
+
       js += `\nObject.assign(exports.default || module.exports, (function () {
         ${template.code}
         return {render, staticRenderFns, _compiled: true};
@@ -83,7 +95,8 @@ class VueAsset extends Asset {
       });
     }
 
-    // TODO: combine source maps for the above changes
+    // TODO: combine in case of multiple js parts?
+    // Unfortunately compileTemplate currently doesn't generate sourcemaps
     let map = generated.find(r => r.type === 'map');
     if (map) {
       result.push(map);

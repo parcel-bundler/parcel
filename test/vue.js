@@ -39,13 +39,17 @@ describe('vue', function() {
       type: 'html',
       childBundles: [
         {
-          assets: ['index.js', 'App.vue', 'logo.png', 'vue.esm.js'],
+          assets: ['index.js', 'App.vue', 'vue.esm.js'],
           type: 'js',
           childBundles: [
+            {
+              type: 'css'
+            },
             {
               type: 'map'
             },
             {
+              assets: ['logo.png'],
               type: 'png'
             }
           ]
