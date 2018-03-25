@@ -26,7 +26,7 @@ class Asset {
     this.type = path.extname(this.name).slice(1);
 
     this.processed = false;
-    this.contents = null;
+    this.contents = options.rendition ? options.rendition.value : null;
     this.ast = null;
     this.generated = null;
     this.hash = null;
@@ -58,6 +58,13 @@ class Asset {
   }
 
   async getDependencies() {
+    if (
+      this.options.rendition &&
+      this.options.rendition.hasDependencies === false
+    ) {
+      return;
+    }
+
     await this.loadIfNeeded();
 
     if (this.contents && this.mightHaveDependencies()) {
@@ -152,6 +159,10 @@ class Asset {
     }
 
     return this.generated;
+  }
+
+  async postProcess(generated) {
+    return generated;
   }
 
   generateHash() {

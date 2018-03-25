@@ -27,6 +27,7 @@ class JSAsset extends Asset {
     this.isES6Module = false;
     this.outputCode = null;
     this.cacheData.env = {};
+    this.sourceMap = options.rendition ? options.rendition.sourceMap : null;
   }
 
   shouldInvalidate(cacheData) {

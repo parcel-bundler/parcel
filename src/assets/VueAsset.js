@@ -1,53 +1,102 @@
-const JSAsset = require('./JSAsset');
+const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 
-class VueAsset extends JSAsset {
-  async parse(code) {
+class VueAsset extends Asset {
+  constructor(name, pkg, options) {
+    super(name, pkg, options);
+    this.type = 'js';
+  }
+
+  async generate() {
+    const vue = await localRequire('@vue/component-compiler-utils', this.name);
+
+    let descriptor = vue.parse({
+      source: this.contents,
+      needMap: false //this.options.sourceMaps
+    });
+
+    let parts = [];
+    if (descriptor.script) {
+      parts.push({
+        type: descriptor.script.lang || 'js',
+        value: descriptor.script.content
+      });
+    }
+
+    if (descriptor.template) {
+      parts.push({
+        type: descriptor.template.lang || 'html',
+        value: descriptor.template.content
+      });
+    }
+
+    if (descriptor.styles) {
+      for (let style of descriptor.styles) {
+        parts.push({
+          type: style.lang || 'css',
+          value: style.content
+        });
+      }
+    }
+
+    return parts;
+  }
+
+  async postProcess(generated) {
+    const vue = await localRequire('@vue/component-compiler-utils', this.name);
     const vueTemplateCompiler = await localRequire(
       'vue-template-compiler',
       this.name
     );
-    const vue = await localRequire('@vue/component-compiler-utils', this.name);
 
-    const descriptor = vue.parse({
-      source: code,
-      needMap: this.sourceMap === true // true
-    });
+    let result = [];
 
-    if (
-      descriptor.script.lang &&
-      descriptor.script.lang.toLowerCase() !== 'javascript'
-    ) {
-      // TODO: actually support other languages...
-      // throw new Error(`Unsupported language: ${descriptor.script.lang}`)
-    }
+    // Combine JS output. This is because the CSS asset generates some JS for HMR.
+    // TODO: deal with export for CSS modules too
+    let js = generated
+      .filter(r => r.type === 'js')
+      .reduce((p, r) => (p += r.value), '');
 
-    let js = descriptor.script.content.trim();
-    if (descriptor.template) {
+    let html = generated.find(r => r.type === 'html');
+    if (html) {
       let template = vue.compileTemplate({
-        source: descriptor.template.content,
+        source: html.value,
         filename: this.name,
         compiler: vueTemplateCompiler
       });
-      js = template.code + '\n' + js;
+
+      js += `\nObject.assign(exports.default || module.exports, (function () {
+        ${template.code}
+        return {render, staticRenderFns, _compiled: true};
+      })())\n`;
     }
 
-    if (descriptor.styles) {
-      /*let css = */ descriptor.styles
-        .map(style => {
-          if (style.lang && style.lang.toLowerCase() !== 'css') {
-            // TODO: actually support other languages...
-            throw new Error(`Unsupported language: ${style.lang}`);
-          }
-          return style.content.trim();
-        })
-        .join('');
-      // TODO: add this css as a css asset
-      // this.addDependency(css);
+    if (js) {
+      result.push({
+        type: 'js',
+        value: js
+      });
     }
 
-    this.contents = js;
-    return await super.parse(this.contents);
+    // TODO: combine source maps for the above changes
+    let map = generated.find(r => r.type === 'map');
+    if (map) {
+      result.push(map);
+    }
+
+    // Combine CSS outputs
+    // TODO: process with vue.compileStyle for scoped CSS transform
+    let css = generated
+      .filter(r => r.type === 'css')
+      .reduce((p, r) => (p += r.value), '');
+    if (css) {
+      result.push({
+        type: 'css',
+        value: css
+      });
+    }
+
+    return result;
   }
 }
 

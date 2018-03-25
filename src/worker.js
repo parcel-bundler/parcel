@@ -1,10 +1,10 @@
 require('v8-compile-cache');
-const Parser = require('./Parser');
+const Pipeline = require('./Pipeline');
 
-let parser;
+let pipeline;
 
 exports.init = function(options, callback) {
-  parser = new Parser(options || {});
+  pipeline = new Pipeline(options || {});
   Object.assign(process.env, options.env || {});
   process.env.HMR_PORT = options.hmrPort;
   process.env.HMR_HOSTNAME = options.hmrHostname;
@@ -14,22 +14,11 @@ exports.init = function(options, callback) {
 exports.run = async function(path, pkg, options, isWarmUp, callback) {
   try {
     options.isWarmUp = isWarmUp;
-    var asset = parser.getAsset(path, pkg, options);
-    await asset.process();
+    var result = await pipeline.process(path, pkg, options);
 
-    callback(null, {
-      dependencies: Array.from(asset.dependencies.values()),
-      generated: asset.generated,
-      hash: asset.hash,
-      cacheData: asset.cacheData
-    });
+    callback(null, result);
   } catch (err) {
     let returned = err;
-
-    if (asset) {
-      returned = asset.generateErrorMessage(returned);
-    }
-
     returned.fileName = path;
     callback(returned);
   }

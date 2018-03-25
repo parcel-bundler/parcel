@@ -160,8 +160,7 @@ class HTMLAsset extends Asset {
   }
 
   generate() {
-    let html = this.isAstDirty ? render(this.ast) : this.contents;
-    return {html};
+    return this.isAstDirty ? render(this.ast) : this.contents;
   }
 }
 
