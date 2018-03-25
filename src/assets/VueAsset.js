@@ -14,16 +14,17 @@ class VueAsset extends Asset {
 
     let descriptor = vue.parse({
       source: this.contents,
-      needMap: this.options.sourceMaps === true,
+      needMap: this.options.sourceMaps,
       filename: this.relativeName, // Used for sourcemaps
-      sourceRoot: this.options.rootDir // Used for sourcemaps
+      sourceRoot: '' // Used for sourcemaps. Override so it doesn't use cwd
     });
 
     let parts = [];
     if (descriptor.script) {
       parts.push({
         type: descriptor.script.lang || 'js',
-        value: descriptor.script.content
+        value: descriptor.script.content,
+        sourceMap: descriptor.script.map
       });
     }
 
@@ -41,13 +42,6 @@ class VueAsset extends Asset {
           value: style.content.trim()
         });
       }
-    }
-
-    if (this.options.sourceMaps === true && descriptor.script.map) {
-      parts.push({
-        type: 'map',
-        value: descriptor.script.map
-      });
     }
 
     return parts;
