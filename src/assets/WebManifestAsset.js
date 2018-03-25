@@ -31,9 +31,7 @@ class WebManifestAsset extends Asset {
   }
 
   generate() {
-    return {
-      webmanifest: JSON.stringify(this.ast)
-    };
+    return JSON.stringify(this.ast);
   }
 }
 
