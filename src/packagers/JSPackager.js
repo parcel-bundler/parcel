@@ -163,7 +163,11 @@ class JSPackager extends Packager {
     if (this.externalModules.size > 0) {
       let preload = [];
       for (let mod of this.externalModules) {
-        preload.push([mod.generateBundleName(), mod.id]);
+        // Find the bundle that has the module as its entry point
+        let bundle = Array.from(mod.bundles).find(b => b.entryAsset === mod);
+        if (bundle) {
+          preload.push([path.basename(bundle.name), mod.id]);
+        }
       }
 
       if (this.bundle.entryAsset) {

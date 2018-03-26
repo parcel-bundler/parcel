@@ -180,6 +180,20 @@ class Asset {
     return md5(this.name) + '.' + this.type;
   }
 
+  replaceBundleNames(bundleNameMap) {
+    for (let key in this.generated) {
+      let value = this.generated[key];
+      if (typeof value === 'string') {
+        // Replace temporary bundle names in the output with the final content-hashed names.
+        for (let [name, map] of bundleNameMap) {
+          value = value.split(name).join(map);
+        }
+
+        this.generated[key] = value;
+      }
+    }
+  }
+
   generateErrorMessage(err) {
     return err;
   }
