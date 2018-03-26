@@ -1,3 +1,5 @@
+var OVERLAY_ID = '__parcel__error__overlay__';
+
 var global = (1, eval)('this');
 var OldModule = module.bundle.Module;
 function Module(moduleName) {
@@ -43,12 +45,74 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
     if (data.type === 'error-resolved') {
       console.log('[parcel] ✨ Error resolved');
+
+      removeErrorOverlay();
     }
 
     if (data.type === 'error') {
       console.error('[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack);
+
+      removeErrorOverlay();
+
+      var overlay = createErrorOverlay(data);
+      document.body.append(overlay);
     }
   };
+}
+
+function removeErrorOverlay() {
+  var overlay = document.getElementById(OVERLAY_ID);
+  if (overlay) {
+    overlay.remove();
+  }
+}
+
+function createErrorOverlay(data) {
+  var overlay = document.createElement('div');
+  var message = document.createElement('div');
+  var pre = document.createElement('pre');
+  var err = document.createElement('span');
+  var errorIcon = document.createElement('span')
+
+  overlay.id = OVERLAY_ID;
+
+  overlay.append(err);
+  overlay.append(errorIcon);
+  overlay.append(message);
+  overlay.append(pre);
+
+  err.innerText = 'ERROR';
+  errorIcon.innerText = '🚨';
+  message.innerText = data.error.message;
+  pre.innerText = data.error.stack;
+
+  overlay.style.background = 'black';
+  overlay.style.fontSize = '16';
+  overlay.style.color = 'white';
+  overlay.style.position = 'fixed';
+  overlay.style.height = '100%';
+  overlay.style.width = '100%';
+  overlay.style.top = '0';
+  overlay.style.left = '0';
+  overlay.style.padding = '30px';
+  overlay.style.opacity = '0.85';
+  overlay.style.fontFamily = 'Menlo, Consolas, monospace';
+  overlay.style.zIndex = '9999';
+
+  err.style.background = 'red';
+  err.style.padding = '2px 4px';
+  err.style.borderRadius = '2px';
+
+  errorIcon.style.top = '2px';
+  errorIcon.style.marginLeft = '5px';
+  errorIcon.style.position = 'relative';
+
+  message.style.fontSize = '18';
+  message.style.fontWeight = 'bold';
+  message.style.marginTop = '20px';
+
+  return overlay;
+
 }
 
 function getParents(bundle, id) {
