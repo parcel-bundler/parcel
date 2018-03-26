@@ -60,13 +60,22 @@ class VueAsset extends Asset {
     let result = [];
 
     let hasScoped = this.ast.styles.some(s => s.scoped);
-    let scopeId = hasScoped ? `data-v-${md5(this.name).slice(-6)}` : null;
+    let id = md5(this.name).slice(-6);
+    let scopeId = hasScoped ? `data-v-${id}` : null;
+    let optsVar = '$' + id;
 
-    // Combine JS output. This is because the CSS asset generates some JS for HMR.
-    // TODO: deal with export for CSS modules too
+    // Generate JS output.
     let js = this.ast.script ? generated[0].value : '';
-    js += this.compileTemplate(generated, scopeId);
-    js += this.compileCSSModules(generated);
+    js += `
+      var ${optsVar} = exports.default || module.exports;
+      if (typeof ${optsVar} === 'function') {
+        ${optsVar} = ${optsVar}.options;
+      }
+    `;
+
+    js += this.compileTemplate(generated, scopeId, optsVar);
+    js += this.compileCSSModules(generated, optsVar);
+    js += this.compileHMR(generated, optsVar);
 
     if (js) {
       result.push({
@@ -93,7 +102,7 @@ class VueAsset extends Asset {
     return result;
   }
 
-  compileTemplate(generated, scopeId) {
+  compileTemplate(generated, scopeId, optsVar) {
     let html = generated.find(r => r.type === 'html');
     if (html) {
       let template = this.vue.compileTemplate({
@@ -111,11 +120,15 @@ class VueAsset extends Asset {
       }
 
       return `
-        Object.assign(exports.default || module.exports, (function () {
+        /* template */
+        Object.assign(${optsVar}, (function () {
           ${template.code}
-          return {render, staticRenderFns, _compiled: true, _scopeId: ${JSON.stringify(
-            scopeId
-          )}};
+          return {
+            render: render,
+            staticRenderFns: staticRenderFns,
+            _compiled: true,
+            _scopeId: ${JSON.stringify(scopeId)}
+          };
         })());
       `;
     }
@@ -123,25 +136,23 @@ class VueAsset extends Asset {
     return '';
   }
 
-  compileCSSModules(generated) {
+  compileCSSModules(generated, optsVar) {
     let cssRenditions = generated.filter(r => r.type === 'css');
     let cssModulesCode = '';
     this.ast.styles.forEach((style, index) => {
       if (style.module) {
-        let cssModules = cssRenditions[index].cssModules;
+        let cssModules = JSON.stringify(cssRenditions[index].cssModules);
         let name = style.module === true ? '$style' : style.module;
-        cssModulesCode += `\nthis[${JSON.stringify(name)}] = ${JSON.stringify(
-          cssModules
-        )};`;
+        cssModulesCode += `\nthis[${JSON.stringify(name)}] = ${cssModules};`;
       }
     });
 
     if (cssModulesCode) {
       return `
+        /* css modules */
         (function () {
           function beforeCreate(){${cssModulesCode}\n}
-          var opts = exports.default || module.exports;
-          opts.beforeCreate = opts.beforeCreate ? opts.beforeCreate.concat(beforeCreate) : [beforeCreate];
+          ${optsVar}.beforeCreate = ${optsVar}.beforeCreate ? ${optsVar}.beforeCreate.concat(beforeCreate) : [beforeCreate];
         })()
       `;
     }
@@ -172,6 +183,43 @@ class VueAsset extends Asset {
 
       return p + css;
     }, '');
+  }
+
+  compileHMR(generated, optsVar) {
+    if (!this.options.hmr) {
+      return '';
+    }
+
+    this.addDependency('vue-hot-reload-api');
+    this.addDependency('vue');
+
+    let cssHMR = '';
+    if (this.ast.styles.length) {
+      cssHMR = `
+        var reloadCSS = require('_css_loader');
+        module.hot.dispose(reloadCSS);
+        module.hot.accept(reloadCSS);
+      `;
+    }
+
+    return `
+    /* hot reload */
+    (function () {
+      if (module.hot) {
+        var api = require('vue-hot-reload-api');
+        api.install(require('vue'));
+        if (api.compatible) {
+          module.hot.accept();
+          if (!module.hot.data) {
+            api.createRecord('${optsVar}', ${optsVar});
+          } else {
+            api.reload('${optsVar}', ${optsVar});
+          }
+        }
+
+        ${cssHMR}
+      }
+    })()`;
   }
 }
 

@@ -1,15 +1,22 @@
 var global = (1, eval)('this');
 var OldModule = module.bundle.Module;
+var hotData = null;
+
 function Module(moduleName) {
   OldModule.call(this, moduleName);
   this.hot = {
+    data: hotData,
+    _acceptCallbacks: [],
+    _disposeCallbacks: [],
     accept: function (fn) {
-      this._acceptCallback = fn || function () {};
+      this._acceptCallbacks.push(fn || function () {});
     },
     dispose: function (fn) {
-      this._disposeCallback = fn;
+      this._disposeCallbacks.push(fn);
     }
   };
+
+  hotData = null;
 }
 
 module.bundle.Module = Module;
@@ -102,16 +109,25 @@ function hmrAccept(bundle, id) {
   }
 
   var cached = bundle.cache[id];
-  if (cached && cached.hot._disposeCallback) {
-    cached.hot._disposeCallback();
+  hotData = {};
+  if (cached) {
+    cached.hot.data = hotData;
+  }
+
+  if (cached && cached.hot._disposeCallbacks.length) {
+    cached.hot._acceptCallbacks.forEach(function (cb) {
+      cb(hotData);
+    });
   }
 
   delete bundle.cache[id];
   bundle(id);
 
   cached = bundle.cache[id];
-  if (cached && cached.hot && cached.hot._acceptCallback) {
-    cached.hot._acceptCallback();
+  if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
+    cached.hot._acceptCallbacks.forEach(function (cb) {
+      cb();
+    });
     return true;
   }
 
