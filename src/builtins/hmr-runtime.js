@@ -1,11 +1,10 @@
 var global = (1, eval)('this');
 var OldModule = module.bundle.Module;
-var hotData = null;
 
 function Module(moduleName) {
   OldModule.call(this, moduleName);
   this.hot = {
-    data: hotData,
+    data: module.bundle.hotData,
     _acceptCallbacks: [],
     _disposeCallbacks: [],
     accept: function (fn) {
@@ -16,7 +15,7 @@ function Module(moduleName) {
     }
   };
 
-  hotData = null;
+  module.bundle.hotData = null;
 }
 
 module.bundle.Module = Module;
@@ -109,14 +108,14 @@ function hmrAccept(bundle, id) {
   }
 
   var cached = bundle.cache[id];
-  hotData = {};
+  bundle.hotData = {};
   if (cached) {
-    cached.hot.data = hotData;
+    cached.hot.data = bundle.hotData;
   }
 
-  if (cached && cached.hot._disposeCallbacks.length) {
-    cached.hot._acceptCallbacks.forEach(function (cb) {
-      cb(hotData);
+  if (cached && cached.hot && cached.hot._disposeCallbacks.length) {
+    cached.hot._disposeCallbacks.forEach(function (cb) {
+      cb(bundle.hotData);
     });
   }
 
