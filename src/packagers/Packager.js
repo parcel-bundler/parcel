@@ -22,16 +22,7 @@ class Packager {
   }
 
   async write(string) {
-    await this.dest.write(this.replaceBundleNames(string));
-  }
-
-  replaceBundleNames(string) {
-    // Replace temporary bundle names in the output with the final content-hashed names.
-    for (let [name, map] of this.bundler.bundleNameMap) {
-      string = string.split(name).join(map);
-    }
-
-    return string;
+    await this.dest.write(string);
   }
 
   async start() {}
