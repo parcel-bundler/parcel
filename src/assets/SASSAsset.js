@@ -5,14 +5,14 @@ const path = require('path');
 const os = require('os');
 
 class SASSAsset extends CSSAsset {
-  async installParserDependencies() {
-    await super.installParserDependencies();
-    await localRequire('node-sass', this.name);
+  constructor(name, pkg, options) {
+    super(name, pkg, options);
+    this.parserDependencies = ['node-sass'];
   }
 
   async parse(code) {
     // node-sass should be installed locally in the module that's being required
-    let sass = await localRequire('node-sass', this.name, true);
+    let sass = localRequire('node-sass', this.name);
     let render = promisify(sass.render.bind(sass));
 
     let opts =

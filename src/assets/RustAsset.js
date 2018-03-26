@@ -40,9 +40,6 @@ class RustAsset extends Asset {
   }
 
   async parse() {
-    // Checks if rust is installed otherwise throw error
-    await this.installRust();
-
     // See if there is a Cargo config in the project
     let cargoConfig = await this.getConfig(['Cargo.toml']);
     let cargoDir;

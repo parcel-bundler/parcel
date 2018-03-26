@@ -1,4 +1,5 @@
 const localRequire = require('../utils/localRequire');
+const install = require('../utils/installPackage');
 const loadPlugins = require('../utils/loadPlugins');
 const postcss = require('postcss');
 const cssnano = require('cssnano');
@@ -49,11 +50,10 @@ async function getConfig(asset, installPlugins = false) {
   );
 
   if (config.modules) {
-    let postcssModules = await localRequire(
-      'postcss-modules',
-      asset.name,
-      !installPlugins
-    );
+    if (installPlugins) {
+      await install(['postcss-modules'], asset.name);
+    }
+    let postcssModules = localRequire('postcss-modules', asset.name);
     config.plugins.push(postcssModules(postcssModulesConfig));
   }
 

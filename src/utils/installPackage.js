@@ -8,9 +8,17 @@ const pipeSpawn = require('./pipeSpawn');
 const PromiseQueue = require('./PromiseQueue');
 const path = require('path');
 const fs = require('./fs');
+const localRequire = require('./localRequire');
 
 async function install(modules, filepath, options = {}) {
   let {installPeers = true, saveDev = true, packageManager} = options;
+
+  if (options.filterInstalled !== false) {
+    modules = filterInstalled(modules, filepath);
+  }
+  if (modules.length === 0) {
+    return;
+  }
 
   logger.status(emoji.progress, `Installing ${modules.join(', ')}...`);
 
@@ -46,6 +54,19 @@ async function install(modules, filepath, options = {}) {
       modules.map(m => installPeerDependencies(filepath, m, options))
     );
   }
+}
+
+function filterInstalled(modules, filepath) {
+  return modules.filter(m => {
+    try {
+      localRequire(m, filepath);
+    } catch (e) {
+      if (e.code === 'MODULE_NOT_FOUND') {
+        return true;
+      }
+    }
+    return false;
+  });
 }
 
 async function installPeerDependencies(filepath, name, options) {

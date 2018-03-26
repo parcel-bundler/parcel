@@ -8,17 +8,16 @@ class GLSLAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'js';
-  }
-
-  async installParserDependencies() {
-    await localRequire('glslify-deps', this.name);
-    await localRequire('glslify-bundle', this.name);
-    await localRequire('glsl-token-properties', this.name);
-    await localRequire('glsl-token-assignments', this.name);
+    this.parserDependencies = [
+      'glslify-deps',
+      'glslify-bundle',
+      'glsl-token-properties',
+      'glsl-token-assignments'
+    ];
   }
 
   async parse() {
-    const glslifyDeps = await localRequire('glslify-deps', this.name, true);
+    const glslifyDeps = localRequire('glslify-deps', this.name);
 
     // Use the Parcel resolver rather than the default glslify one.
     // This adds support for parcel features like alises, and tilde paths.
@@ -57,7 +56,7 @@ class GLSLAsset extends Asset {
 
   async generate() {
     // Generate the bundled glsl file
-    const glslifyBundle = await localRequire('glslify-bundle', this.name, true);
+    const glslifyBundle = localRequire('glslify-bundle', this.name);
     let glsl = glslifyBundle(this.ast);
 
     return {

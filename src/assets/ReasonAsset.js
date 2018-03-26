@@ -3,12 +3,13 @@ const fs = require('../utils/fs');
 const localRequire = require('../utils/localRequire');
 
 class ReasonAsset extends JSAsset {
-  async installParserDependencies() {
-    await localRequire('bsb-js', this.name);
+  constructor(name, pkg, options) {
+    super(name, pkg, options);
+    this.parserDependencies = ['bsb-js'];
   }
 
   async parse() {
-    const bsb = await localRequire('bsb-js', this.name, true);
+    const bsb = localRequire('bsb-js', this.name);
 
     // This runs BuckleScript - the Reason to JS compiler.
     // Other Asset types use `localRequire` but the `bsb-js` package already
