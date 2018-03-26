@@ -6,6 +6,7 @@ const os = require('os');
 
 class SASSAsset extends CSSAsset {
   async installParserDependencies() {
+    await super.installParserDependencies();
     await localRequire('node-sass', this.name);
   }
 

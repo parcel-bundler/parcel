@@ -1,14 +1,29 @@
 const localRequire = require('./localRequire');
 
-module.exports = async function loadPlugins(plugins, relative) {
+module.exports = async function loadPlugins(
+  plugins,
+  relative,
+  installPlugins = false
+) {
   if (Array.isArray(plugins)) {
     return await Promise.all(
-      plugins.map(async p => await loadPlugin(p, relative)).filter(Boolean)
+      plugins
+        .map(
+          async p =>
+            await loadPlugin(p, relative, {
+              install: installPlugins
+            })
+        )
+        .filter(Boolean)
     );
   } else if (typeof plugins === 'object') {
     let mapPlugins = await Promise.all(
       Object.keys(plugins).map(
-        async p => await loadPlugin(p, relative, plugins[p])
+        async p =>
+          await loadPlugin(p, relative, {
+            install: installPlugins,
+            pluginOptions: plugins[p]
+          })
       )
     );
     return mapPlugins.filter(Boolean);
@@ -17,17 +32,17 @@ module.exports = async function loadPlugins(plugins, relative) {
   }
 };
 
-async function loadPlugin(plugin, relative, options) {
+async function loadPlugin(plugin, relative, options = {}) {
   if (typeof plugin === 'string') {
-    plugin = await localRequire(plugin, relative);
-    plugin = plugin.default || plugin;
-
     if (typeof options !== 'object') {
       options = {};
     }
 
-    if (Object.keys(options).length > 0) {
-      plugin = plugin(options);
+    plugin = await localRequire(plugin, relative, !options.install);
+    plugin = plugin.default || plugin;
+
+    if (Object.keys(options.pluginOptions).length > 0) {
+      plugin = plugin(options.pluginOptions);
     }
 
     plugin = plugin.default || plugin;

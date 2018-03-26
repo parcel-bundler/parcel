@@ -78,6 +78,10 @@ class HTMLAsset extends Asset {
     this.isAstDirty = false;
   }
 
+  async installParserDependencies() {
+    await posthtmlTransform.getConfig(this, true);
+  }
+
   parse(code) {
     let res = parse(code, {lowerCaseAttributeNames: true});
     res.walk = api.walk;

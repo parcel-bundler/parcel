@@ -7,6 +7,7 @@ const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
 class StylusAsset extends CSSAsset {
   async installParserDependencies() {
+    await super.installParserDependencies();
     await localRequire('stylus', this.name);
   }
 

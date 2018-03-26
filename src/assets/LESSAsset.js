@@ -4,6 +4,7 @@ const promisify = require('../utils/promisify');
 
 class LESSAsset extends CSSAsset {
   async installParserDependencies() {
+    await super.installParserDependencies();
     await localRequire('less', this.name);
   }
 
