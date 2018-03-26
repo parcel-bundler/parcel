@@ -629,7 +629,20 @@ describe('javascript', function() {
   });
 
   it('should support compiling with babel using browserslist for different environments', async function() {
+    // Transpiled destructuring, like r = p.prop1, o = p.prop2, a = p.prop3;
+    const prodRegExp = /\w ?= ?\w\.prop1, ?\w ?= ?\w\.prop2, ?\w ?= ?\w\.prop3;/;
+    // ES6 Destructuring, like in the source;
+    const devRegExp = /const ?{prop1, ?prop2, ?prop3} ?= ?.*/;
     let file;
+    // Dev build test
+    await bundle(
+      __dirname +
+        '/integration/babel-browserslist-multiple-environments/index.js'
+    );
+    file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(devRegExp.test(file) === true);
+    assert(prodRegExp.test(file) === false);
+    // Prod build test
     await bundle(
       __dirname +
         '/integration/babel-browserslist-multiple-environments/index.js',
@@ -638,7 +651,8 @@ describe('javascript', function() {
       }
     );
     file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
-    assert(/{?prop1.*,?prop2.*,?prop3.*}?=?p;/.test(file) === false);
+    assert(prodRegExp.test(file) === true);
+    assert(devRegExp.test(file) === false);
   });
 
   it('should not compile node_modules by default', async function() {
