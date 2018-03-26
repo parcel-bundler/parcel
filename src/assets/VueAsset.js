@@ -105,11 +105,13 @@ class VueAsset extends Asset {
   compileTemplate(generated, scopeId, optsVar) {
     let html = generated.find(r => r.type === 'html');
     if (html) {
+      let isFunctional = this.ast.template.attrs.functional;
       let template = this.vue.compileTemplate({
         source: html.value,
         filename: this.relativeName,
         compiler: this.vueTemplateCompiler,
         isProduction: this.options.production,
+        isFunctional,
         compilerOptions: {
           scopeId
         }
@@ -127,7 +129,8 @@ class VueAsset extends Asset {
             render: render,
             staticRenderFns: staticRenderFns,
             _compiled: true,
-            _scopeId: ${JSON.stringify(scopeId)}
+            _scopeId: ${JSON.stringify(scopeId)},
+            functional: ${JSON.stringify(isFunctional)}
           };
         })());
       `;
@@ -148,13 +151,32 @@ class VueAsset extends Asset {
     });
 
     if (cssModulesCode) {
-      return `
-        /* css modules */
-        (function () {
-          function beforeCreate(){${cssModulesCode}\n}
-          ${optsVar}.beforeCreate = ${optsVar}.beforeCreate ? ${optsVar}.beforeCreate.concat(beforeCreate) : [beforeCreate];
-        })()
-      `;
+      cssModulesCode = `function hook(){${cssModulesCode}\n}`;
+
+      let isFunctional =
+        this.ast.template && this.ast.template.attrs.functional;
+      if (isFunctional) {
+        return `
+          /* css modules */
+          (function () {
+            ${cssModulesCode}
+            ${optsVar}._injectStyles = hook;
+            var originalRender = ${optsVar}.render;
+            ${optsVar}.render = function (h, context) {
+              hook.call(context);
+              return originalRender(h, context);
+            };
+          })();
+        `;
+      } else {
+        return `
+          /* css modules */
+          (function () {
+            ${cssModulesCode}
+            ${optsVar}.beforeCreate = ${optsVar}.beforeCreate ? ${optsVar}.beforeCreate.concat(hook) : [hook];
+          })();
+        `;
+      }
     }
 
     return '';
@@ -202,6 +224,8 @@ class VueAsset extends Asset {
       `;
     }
 
+    let isFunctional = this.ast.template && this.ast.template.attrs.functional;
+
     return `
     /* hot reload */
     (function () {
@@ -213,13 +237,15 @@ class VueAsset extends Asset {
           if (!module.hot.data) {
             api.createRecord('${optsVar}', ${optsVar});
           } else {
-            api.reload('${optsVar}', ${optsVar});
+            api.${
+              isFunctional ? 'rerender' : 'reload'
+            }('${optsVar}', ${optsVar});
           }
         }
 
         ${cssHMR}
       }
-    })()`;
+    })();`;
   }
 }
 
