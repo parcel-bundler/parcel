@@ -310,7 +310,8 @@ describe('hmr', function() {
       console: {
         error(msg) {
           logs.push(msg);
-        }
+        },
+        clear() {}
       }
     });
 
@@ -339,7 +340,8 @@ describe('hmr', function() {
         },
         log(msg) {
           logs.push(msg);
-        }
+        },
+        clear() {}
       }
     });
 
