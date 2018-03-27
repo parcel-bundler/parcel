@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title></title>
+    <script>(function() {
+  console.log('This is coffee script');
+
+}).call(this);
+
+    </script>
+  </head>
+</html>
