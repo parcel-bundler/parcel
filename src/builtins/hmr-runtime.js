@@ -55,7 +55,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       removeErrorOverlay();
 
       var overlay = createErrorOverlay(data);
-      document.body.append(overlay);
+      document.body.appendChild(overlay);
     }
   };
 }
@@ -69,47 +69,22 @@ function removeErrorOverlay() {
 
 function createErrorOverlay(data) {
   var overlay = document.createElement('div');
-  var message = document.createElement('div');
-  var pre = document.createElement('pre');
-  var err = document.createElement('span');
-  var errorIcon = document.createElement('span')
-
   overlay.id = OVERLAY_ID;
 
-  overlay.append(err);
-  overlay.append(errorIcon);
-  overlay.append(message);
-  overlay.append(pre);
-
-  err.innerText = 'ERROR';
-  errorIcon.innerText = '🚨';
+  // html encode message and stack trace
+  var message = document.createElement('div');
+  var stackTrace = document.createElement('pre');
   message.innerText = data.error.message;
-  pre.innerText = data.error.stack;
+  stackTrace.innerText = data.error.stack;
 
-  overlay.style.background = 'black';
-  overlay.style.fontSize = '16';
-  overlay.style.color = 'white';
-  overlay.style.position = 'fixed';
-  overlay.style.height = '100%';
-  overlay.style.width = '100%';
-  overlay.style.top = '0';
-  overlay.style.left = '0';
-  overlay.style.padding = '30px';
-  overlay.style.opacity = '0.85';
-  overlay.style.fontFamily = 'Menlo, Consolas, monospace';
-  overlay.style.zIndex = '9999';
-
-  err.style.background = 'red';
-  err.style.padding = '2px 4px';
-  err.style.borderRadius = '2px';
-
-  errorIcon.style.top = '2px';
-  errorIcon.style.marginLeft = '5px';
-  errorIcon.style.position = 'relative';
-
-  message.style.fontSize = '18';
-  message.style.fontWeight = 'bold';
-  message.style.marginTop = '20px';
+  overlay.innerHTML = (
+    '<div style="background: black; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; opacity: 0.85; font-family: Menlo, Consolas, monospace; z-index: 9999;">' +
+      '<span style="background: red; padding: 2px 4px; border-radius: 2px;">ERROR</span>' +
+      '<span style="top: 2px; margin-left: 5px; position: relative;">🚨</span>' +
+      '<div style="font-size: 18px; font-weight: bold; margin-top: 20px;">' + message.innerHTML + '</div>' +
+      '<pre>' + stackTrace.innerHTML + '</pre>' +
+    '</div>'
+  );
 
   return overlay;
 
