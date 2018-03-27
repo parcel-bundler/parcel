@@ -2,7 +2,7 @@ const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const promisify = require('../utils/promisify');
 
-class LESSAsset extends CSSAsset {
+class LESSAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'css';

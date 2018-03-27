@@ -1,4 +1,3 @@
-// const CSSAsset = require('./CSSAsset');
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const Resolver = require('../Resolver');
