@@ -41,6 +41,12 @@ async function getTargetEngines(asset, isTargetApp) {
           pkg.browserslist[
             asset.options.production ? 'production' : 'development'
           ];
+        if (typeof targets.browsers === 'string') {
+          // Split browserslist string to array
+          targets.browsers = targets.browsers
+            .split(',')
+            .map(entry => entry.trim());
+        }
       }
     } else {
       let browserslist = await loadBrowserslist(asset, path);
@@ -105,6 +111,10 @@ async function loadBrowserslist(asset, path) {
       browsers =
         browsers[asset.options.production ? 'production' : 'development'] ||
         browsers.defaults;
+      if (typeof browsers === 'string') {
+        // Split browserslist string to array
+        browsers = browsers.split(',').map(entry => entry.trim());
+      }
     }
 
     return browsers;
