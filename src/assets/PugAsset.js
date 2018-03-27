@@ -1,3 +1,5 @@
+const path = require('path');
+
 const Asset = require('../Asset');
 const HTMLAsset = require('./HTMLAsset');
 const localRequire = require('../utils/localRequire');
@@ -8,42 +10,14 @@ class PugAsset extends Asset {
     this.type = 'html';
   }
 
-  async parse(code) {
-    const load = await localRequire('pug-load', this.name);
-    const lexer = await localRequire('pug-lexer', this.name);
-    const parser = await localRequire('pug-parser', this.name);
-    const linker = await localRequire('pug-linker', this.name);
-    const filters = await localRequire('pug-filters', this.name);
-
-    this.config =
-      (await this.getConfig(['.pugrc', '.pugrc.js', 'pug.config.js'])) || {};
-
-    let ast = load.string(code, {
-      lex: lexer,
-      parse: parser,
-      filename: this.name
-    });
-
-    ast = linker(ast);
-    ast = filters.handleFilters(ast, this.config.filters || {});
-
-    return ast;
-  }
-
-  async collectDependencies() {
-    const walk = await localRequire('pug-walk', this.name);
-
-    walk(this.ast, node => {
-      this.recursiveCollect(node);
-      return node;
-    });
-  }
-
   async process() {
     await super.process();
 
     const htmlAsset = new HTMLAsset(this.name, this.package, this.options);
+
     htmlAsset.contents = this.generated.html;
+    htmlAsset.dependencies = new Map([...this.dependencies]);
+
     await htmlAsset.process();
 
     Object.assign(this, htmlAsset);
@@ -52,32 +26,30 @@ class PugAsset extends Asset {
   }
 
   async generate() {
-    const generateCode = await localRequire('pug-code-gen', this.name);
-    const wrap = await localRequire('pug-runtime/wrap', this.name);
+    const pug = await localRequire('pug', this.name);
+    const config =
+      (await this.getConfig(['.pugrc', '.pugrc.js', 'pug.config.js'])) || {};
 
-    const result = generateCode(this.ast, {
+    const compiled = pug.compile(this.contents, {
       compileDebug: false,
-      pretty: !this.options.minify
+      filename: this.name,
+      basedir: path.dirname(this.name),
+      pretty: !this.options.minify,
+      templateName: path.basename(this.basename, path.extname(this.basename)),
+      filters: config.filters,
+      filterOptions: config.filterOptions,
+      filterAliases: config.filterAliases
     });
 
-    return {html: wrap(result)()};
-  }
-
-  recursiveCollect(node) {
-    if (node.type === 'Block') {
-      node.nodes.forEach(n => this.recursiveCollect(n));
-    } else {
-      if (
-        node.filename &&
-        node.filename !== this.name &&
-        !this.dependencies.has(node.filename)
-      ) {
-        this.addDependency(node.filename, {
-          name: node.filename,
+    if (compiled.dependencies) {
+      compiled.dependencies.forEach(item => {
+        this.addDependency(item, {
           includedInParent: true
         });
-      }
+      });
     }
+
+    return {html: compiled()};
   }
 }
 
