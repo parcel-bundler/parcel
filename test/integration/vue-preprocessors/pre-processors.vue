@@ -6,14 +6,12 @@ body
   color primary-color
 </style>
 
-<!--
 <style lang="sass">
 $red: red;
 h1 {
-  color: $red;
+  background: $red;
 }
 </style>
--->
 
 <style lang="less">
 @green: green;
