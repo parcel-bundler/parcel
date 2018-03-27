@@ -311,6 +311,23 @@ describe('hmr', function() {
         error(msg) {
           logs.push(msg);
         }
+      },
+      document: {
+        getElementById() {
+          return {
+            remove() {
+              return null;
+            }
+          };
+        },
+        createElement() {
+          return {};
+        },
+        body: {
+          appendChild() {
+            return null;
+          }
+        }
       }
     });
 
@@ -339,6 +356,23 @@ describe('hmr', function() {
         },
         log(msg) {
           logs.push(msg);
+        }
+      },
+      document: {
+        getElementById() {
+          return {
+            remove() {
+              return null;
+            }
+          };
+        },
+        createElement() {
+          return {};
+        },
+        body: {
+          appendChild() {
+            return null;
+          }
         }
       }
     });
