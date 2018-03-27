@@ -1,6 +1,7 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const md5 = require('../utils/md5');
+const {minify} = require('uglify-es');
 
 class VueAsset extends Asset {
   constructor(name, pkg, options) {
@@ -66,16 +67,27 @@ class VueAsset extends Asset {
 
     // Generate JS output.
     let js = this.ast.script ? generated[0].value : '';
-    js += `
+    let supplemental = `
       var ${optsVar} = exports.default || module.exports;
       if (typeof ${optsVar} === 'function') {
         ${optsVar} = ${optsVar}.options;
       }
     `;
 
-    js += this.compileTemplate(generated, scopeId, optsVar);
-    js += this.compileCSSModules(generated, optsVar);
-    js += this.compileHMR(generated, optsVar);
+    supplemental += this.compileTemplate(generated, scopeId, optsVar);
+    supplemental += this.compileCSSModules(generated, optsVar);
+    supplemental += this.compileHMR(generated, optsVar);
+
+    if (this.options.minify && supplemental) {
+      let {code, error} = minify(supplemental, {toplevel: true});
+      if (error) {
+        throw error;
+      }
+
+      supplemental = code;
+    }
+
+    js += supplemental;
 
     if (js) {
       result.push({
