@@ -27,7 +27,7 @@ class Asset {
     this.type = path.extname(this.name).slice(1);
 
     this.processed = false;
-    this.contents = null;
+    this.contents = options.rendition ? options.rendition.value : null;
     this.ast = null;
     this.generated = null;
     this.hash = null;
@@ -59,6 +59,13 @@ class Asset {
   }
 
   async getDependencies() {
+    if (
+      this.options.rendition &&
+      this.options.rendition.hasDependencies === false
+    ) {
+      return;
+    }
+
     await this.loadIfNeeded();
 
     if (this.contents && this.mightHaveDependencies()) {
@@ -164,6 +171,10 @@ class Asset {
     return this.generated;
   }
 
+  async postProcess(generated) {
+    return generated;
+  }
+
   generateHash() {
     return objectHash(this.generated);
   }
@@ -188,6 +199,20 @@ class Asset {
     // Generate a unique name. This will be replaced with a nicer
     // name later as part of content hashing.
     return md5(this.name) + '.' + this.type;
+  }
+
+  replaceBundleNames(bundleNameMap) {
+    for (let key in this.generated) {
+      let value = this.generated[key];
+      if (typeof value === 'string') {
+        // Replace temporary bundle names in the output with the final content-hashed names.
+        for (let [name, map] of bundleNameMap) {
+          value = value.split(name).join(map);
+        }
+
+        this.generated[key] = value;
+      }
+    }
   }
 
   generateErrorMessage(err) {

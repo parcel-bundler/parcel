@@ -1,29 +1,36 @@
-const JSAsset = require('./JSAsset');
+const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 
-class CoffeeScriptAsset extends JSAsset {
+class CoffeeScriptAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
+    this.type = 'js';
     this.parserDependencies = ['coffeescript'];
   }
 
-  async parse(code) {
+  async generate() {
     // require coffeescript, installed locally in the app
     let coffee = localRequire('coffeescript', this.name);
 
     // Transpile Module using CoffeeScript and parse result as ast format through babylon
-    let transpiled = coffee.compile(code, {
+    let transpiled = coffee.compile(this.contents, {
       sourceMap: this.options.sourceMaps
     });
 
+    let sourceMap;
     if (transpiled.sourceMap) {
-      this.sourceMap = transpiled.sourceMap.generate();
-      this.sourceMap.sources = [this.relativeName];
-      this.sourceMap.sourcesContent = [this.contents];
+      sourceMap = transpiled.sourceMap.generate();
+      sourceMap.sources = [this.relativeName];
+      sourceMap.sourcesContent = [this.contents];
     }
 
-    this.contents = this.options.sourceMaps ? transpiled.js : transpiled;
-    return await super.parse(this.contents);
+    return [
+      {
+        type: 'js',
+        value: this.options.sourceMaps ? transpiled.js : transpiled,
+        sourceMap
+      }
+    ];
   }
 }
 

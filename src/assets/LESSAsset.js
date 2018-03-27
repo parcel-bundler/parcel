@@ -1,10 +1,11 @@
-const CSSAsset = require('./CSSAsset');
+const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const promisify = require('../utils/promisify');
 
 class LESSAsset extends CSSAsset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
+    this.type = 'css';
     this.parserDependencies = ['less'];
   }
 
@@ -20,15 +21,23 @@ class LESSAsset extends CSSAsset {
     opts.filename = this.name;
     opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
 
-    let res = await render(code, opts);
-    res.render = () => res.css;
-    return res;
+    return await render(code, opts);
   }
 
   collectDependencies() {
     for (let dep of this.ast.imports) {
       this.addDependency(dep, {includedInParent: true});
     }
+  }
+
+  generate() {
+    return [
+      {
+        type: 'css',
+        value: this.ast.css,
+        hasDependencies: false
+      }
+    ];
   }
 }
 
