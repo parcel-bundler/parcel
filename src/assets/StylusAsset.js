@@ -1,13 +1,15 @@
-const CSSAsset = require('./CSSAsset');
+// const CSSAsset = require('./CSSAsset');
+const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const Resolver = require('../Resolver');
 const syncPromise = require('../utils/syncPromise');
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
-class StylusAsset extends CSSAsset {
+class StylusAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
+    this.type = 'css';
     this.parserDependencies = ['stylus'];
   }
 
@@ -31,8 +33,14 @@ class StylusAsset extends CSSAsset {
     return style;
   }
 
-  collectDependencies() {
-    // Do nothing. Dependencies are collected by our custom evaluator.
+  generate() {
+    return [
+      {
+        type: 'css',
+        value: this.ast.render(),
+        hasDependencies: false
+      }
+    ];
   }
 
   generateErrorMessage(err) {
