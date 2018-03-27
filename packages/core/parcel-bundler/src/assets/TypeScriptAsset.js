@@ -1,8 +1,13 @@
-const JSAsset = require('./JSAsset');
+const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 
-class TypeScriptAsset extends JSAsset {
-  async parse(code) {
+class TypeScriptAsset extends Asset {
+  constructor(name, pkg, options) {
+    super(name, pkg, options);
+    this.type = 'js';
+  }
+
+  async generate() {
     // require typescript, installed locally in the app
     let typescript = await localRequire('typescript', this.name);
     let transpilerOptions = {
@@ -30,13 +35,16 @@ class TypeScriptAsset extends JSAsset {
     transpilerOptions.compilerOptions.sourceMap = this.options.sourceMaps;
 
     // Transpile Module using TypeScript and parse result as ast format through babylon
-    let transpiled = typescript.transpileModule(code, transpilerOptions);
-    this.sourceMap = transpiled.sourceMapText;
+    let transpiled = typescript.transpileModule(
+      this.contents,
+      transpilerOptions
+    );
+    let sourceMap = transpiled.sourceMapText;
 
-    if (this.sourceMap) {
-      this.sourceMap = JSON.parse(this.sourceMap);
-      this.sourceMap.sources = [this.relativeName];
-      this.sourceMap.sourcesContent = [this.contents];
+    if (sourceMap) {
+      sourceMap = JSON.parse(sourceMap);
+      sourceMap.sources = [this.relativeName];
+      sourceMap.sourcesContent = [this.contents];
 
       // Remove the source map URL
       let content = transpiled.outputText;
@@ -46,8 +54,13 @@ class TypeScriptAsset extends JSAsset {
       );
     }
 
-    this.contents = transpiled.outputText;
-    return await super.parse(this.contents);
+    return [
+      {
+        type: 'js',
+        value: transpiled.outputText,
+        sourceMap
+      }
+    ];
   }
 }
 
