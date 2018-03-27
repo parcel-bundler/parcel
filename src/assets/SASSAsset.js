@@ -1,10 +1,15 @@
-const CSSAsset = require('./CSSAsset');
+const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const promisify = require('../utils/promisify');
 const path = require('path');
 const os = require('os');
 
-class SASSAsset extends CSSAsset {
+class SASSAsset extends Asset {
+  constructor(name, pkg, options) {
+    super(name, pkg, options);
+    this.type = 'css';
+  }
+
   async parse(code) {
     // node-sass should be installed locally in the module that's being required
     let sass = await localRequire('node-sass', this.name);
@@ -17,7 +22,7 @@ class SASSAsset extends CSSAsset {
     opts.includePaths = (opts.includePaths || []).concat(
       path.dirname(this.name)
     );
-    opts.data = opts.data ? (opts.data + os.EOL + code) : code;
+    opts.data = opts.data ? opts.data + os.EOL + code : code;
     opts.indentedSyntax =
       typeof opts.indentedSyntax === 'boolean'
         ? opts.indentedSyntax
@@ -30,15 +35,23 @@ class SASSAsset extends CSSAsset {
       }
     });
 
-    let res = await render(opts);
-    res.render = () => res.css.toString();
-    return res;
+    return await render(opts);
   }
 
   collectDependencies() {
     for (let dep of this.ast.stats.includedFiles) {
       this.addDependency(dep, {includedInParent: true});
     }
+  }
+
+  generate() {
+    return [
+      {
+        type: 'css',
+        value: this.ast.css.toString(),
+        hasDependencies: false
+      }
+    ];
   }
 }
 
