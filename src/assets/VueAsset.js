@@ -96,8 +96,6 @@ class VueAsset extends Asset {
       });
     }
 
-    // TODO: combine in case of multiple js parts?
-    // Unfortunately compileTemplate currently doesn't generate sourcemaps
     let map = generated.find(r => r.type === 'map');
     if (map) {
       result.push(map);

@@ -8,6 +8,7 @@ describe('vue', function() {
 
     assertBundleTree(b, {
       type: 'js',
+      assets: ['Basic.vue'],
       childBundles: [
         {
           type: 'css'
@@ -30,6 +31,7 @@ describe('vue', function() {
 
     assertBundleTree(b, {
       type: 'js',
+      assets: ['App.vue'],
       childBundles: [
         {
           type: 'css'
@@ -57,6 +59,7 @@ describe('vue', function() {
 
     assertBundleTree(b, {
       type: 'js',
+      assets: ['pre-processors.vue'],
       childBundles: [
         {
           type: 'css'
@@ -88,6 +91,7 @@ describe('vue', function() {
 
     assertBundleTree(b, {
       type: 'js',
+      assets: ['functional.vue'],
       childBundles: [
         {
           type: 'css'
@@ -114,6 +118,7 @@ describe('vue', function() {
 
     assertBundleTree(b, {
       type: 'js',
+      assets: ['App.vue'],
       childBundles: [
         {
           type: 'css'
@@ -139,6 +144,7 @@ describe('vue', function() {
 
     assertBundleTree(b, {
       type: 'js',
+      assets: ['App.vue'],
       childBundles: [
         {
           type: 'css'
@@ -163,6 +169,47 @@ describe('vue', function() {
     assert(contents.includes('.' + ctx.$style.red));
   });
 
+  it('should bundle nested components dynamically', async function() {
+    let b = await bundle(
+      __dirname + '/integration/vue-nested-components/testcomp.vue'
+    );
+
+    assertBundleTree(b, {
+      type: 'js',
+      assets: [
+        'testcomp.vue',
+        'bundle-loader.js',
+        'bundle-url.js',
+        'css-loader.js',
+        'js-loader.js'
+      ],
+      childBundles: [
+        {
+          type: 'js',
+          assets: ['insidecomp.vue'],
+          childBundles: [
+            {
+              type: 'css'
+            },
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b).default;
+    assert.equal(typeof output.render, 'function');
+    assert.deepEqual(output.staticRenderFns, []);
+    assert.equal(output._compiled, true);
+
+    assert.equal(typeof output.components.InsideComp, 'function');
+  });
+
   it('should produce a basic production vue bundle', async function() {
     let b = await bundle(__dirname + '/integration/vue-basic/Basic.vue', {
       production: true
@@ -170,6 +217,7 @@ describe('vue', function() {
 
     assertBundleTree(b, {
       type: 'js',
+      assets: ['Basic.vue'],
       childBundles: [
         {
           type: 'css'
