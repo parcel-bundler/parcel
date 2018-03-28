@@ -711,4 +711,28 @@ describe('javascript', function() {
 
     assert.deepEqual(output, err);
   });
+
+  it('should ignore require if it is defined in the scope', async function() {
+    let b = await bundle(__dirname + '/integration/require-scope/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+
+    assert.equal(typeof output.test, 'object');
+
+    let failed = Object.keys(output.test).some(
+      key => output.test[key] !== 'test passed'
+    );
+
+    assert.equal(failed, false);
+  });
 });
