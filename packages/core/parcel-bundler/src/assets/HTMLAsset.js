@@ -24,7 +24,8 @@ const ATTRS = {
   srcset: ['img', 'source'],
   poster: ['video'],
   'xlink:href': ['use'],
-  content: ['meta']
+  content: ['meta'],
+  data: ['object']
 };
 
 // A list of metadata that should produce a dependency
