@@ -6,7 +6,11 @@ module.exports = function loadJSBundle(bundle) {
       if (err) {
         reject(err);
       } else {
-        resolve(data);
+        // wait for the next event loop iteration, so we are sure
+        // the current module is fully loaded
+        setImmediate(function() {
+          resolve(data);
+        });
       }
     });
   })
