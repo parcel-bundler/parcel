@@ -679,12 +679,9 @@ describe('javascript', function() {
       assert(devRegExp.test(file) === true);
       assert(prodRegExp.test(file) === false);
       // Prod build test
-      await bundle(
-        __dirname + '/integration/babel-browserslist-multiple-env/index.js',
-        {
-          production: true
-        }
-      );
+      await bundle(__dirname + projectBasePath + '/index.js', {
+        production: true
+      });
       file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
       assert(prodRegExp.test(file) === true);
       assert(devRegExp.test(file) === false);
