@@ -19,7 +19,8 @@ describe('autoinstall', function() {
 
     await install([pkgName], inputDirPath + '/test.js', {
       saveDev: true,
-      packageManager: 'npm'
+      packageManager: 'npm',
+      filterInstalled: false
     });
 
     let expectedModulePath = inputDirPath + '/node_modules/' + pkgName;
@@ -35,7 +36,8 @@ describe('autoinstall', function() {
 
     await install([pkgName], inputDirPath + '/test.js', {
       saveDev: true,
-      packageManager: 'yarn'
+      packageManager: 'yarn',
+      filterInstalled: false
     });
 
     let expectedModulePath = inputDirPath + '/node_modules/' + pkgName;

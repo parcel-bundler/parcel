@@ -6,6 +6,7 @@ class ReasonAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'js';
+    this.parserDependencies = ['bsb-js'];
   }
 
   async generate() {

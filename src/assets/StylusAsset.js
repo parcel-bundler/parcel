@@ -1,4 +1,3 @@
-// const CSSAsset = require('./CSSAsset');
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const Resolver = require('../Resolver');
@@ -10,11 +9,12 @@ class StylusAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'css';
+    this.parserDependencies = ['stylus'];
   }
 
   async parse(code) {
     // stylus should be installed locally in the module that's being required
-    let stylus = await localRequire('stylus', this.name);
+    let stylus = localRequire('stylus', this.name);
     let opts =
       this.package.stylus ||
       (await this.getConfig(['.stylusrc', '.stylusrc.js']));
@@ -51,11 +51,8 @@ class StylusAsset extends Asset {
 }
 
 async function createEvaluator(asset) {
-  const Evaluator = await localRequire(
-    'stylus/lib/visitor/evaluator',
-    asset.name
-  );
-  const utils = await localRequire('stylus/lib/utils', asset.name);
+  const Evaluator = localRequire('stylus/lib/visitor/evaluator', asset.name);
+  const utils = localRequire('stylus/lib/utils', asset.name);
   const resolver = new Resolver(asset.options);
 
   // This is a custom stylus evaluator that extends stylus with support for the node

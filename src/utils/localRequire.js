@@ -1,10 +1,9 @@
 const {dirname} = require('path');
 const resolve = require('resolve');
-const install = require('./installPackage');
 
 const cache = new Map();
 
-async function localRequire(name, path, triedInstall = false) {
+function localRequire(name, path) {
   let basedir = dirname(path);
   let key = basedir + ':' + name;
   let resolved = cache.get(key);
@@ -12,10 +11,6 @@ async function localRequire(name, path, triedInstall = false) {
     try {
       resolved = resolve.sync(name, {basedir});
     } catch (e) {
-      if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
-        await install([name], path);
-        return localRequire(name, path, true);
-      }
       throw e;
     }
     cache.set(key, resolved);

@@ -5,6 +5,7 @@ const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const config = require('./utils/config');
+const install = require('./utils/installPackage');
 
 let ASSET_ID = 1;
 
@@ -124,6 +125,15 @@ class Asset {
 
   async load() {
     return await fs.readFile(this.name, this.encoding);
+  }
+
+  async installParserDependencies() {
+    if (
+      Array.isArray(this.parserDependencies) &&
+      this.parserDependencies.length > 0
+    ) {
+      await install(this.parserDependencies, this.name);
+    }
   }
 
   parse() {

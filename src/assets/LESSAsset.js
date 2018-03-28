@@ -6,11 +6,12 @@ class LESSAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'css';
+    this.parserDependencies = ['less'];
   }
 
   async parse(code) {
     // less should be installed locally in the module that's being required
-    let less = await localRequire('less', this.name);
+    let less = localRequire('less', this.name);
     let render = promisify(less.render.bind(less));
 
     let opts =

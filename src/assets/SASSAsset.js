@@ -8,11 +8,12 @@ class SASSAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'css';
+    this.parserDependencies = ['node-sass'];
   }
 
   async parse(code) {
     // node-sass should be installed locally in the module that's being required
-    let sass = await localRequire('node-sass', this.name);
+    let sass = localRequire('node-sass', this.name);
     let render = promisify(sass.render.bind(sass));
 
     let opts =

@@ -144,7 +144,7 @@ class Bundler extends EventEmitter {
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
       for (let dep in deps) {
         if (dep.startsWith('parcel-plugin-')) {
-          let plugin = await localRequire(dep, this.mainFile);
+          let plugin = localRequire(dep, this.mainFile);
           await plugin(this);
         }
       }
@@ -435,6 +435,7 @@ class Bundler extends EventEmitter {
     let startTime = Date.now();
     let processed = this.cache && (await this.cache.read(asset.name));
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
+      await asset.installParserDependencies();
       processed = await this.farm.run(asset.name, asset.package, this.options);
       if (this.cache) {
         this.cache.write(asset.name, processed);

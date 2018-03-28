@@ -38,7 +38,7 @@ async function babelTransform(asset) {
   // otherwise require a local version from the package we're compiling.
   let babel = config.internal
     ? require('babel-core')
-    : await localRequire('babel-core', asset.name);
+    : localRequire('babel-core', asset.name);
 
   // TODO: support other versions of babel
   if (parseInt(babel.version, 10) !== 6) {

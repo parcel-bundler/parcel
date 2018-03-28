@@ -5,11 +5,12 @@ class TypeScriptAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'js';
+    this.parserDependencies = ['typescript'];
   }
 
   async generate() {
     // require typescript, installed locally in the app
-    let typescript = await localRequire('typescript', this.name);
+    let typescript = localRequire('typescript', this.name);
     let transpilerOptions = {
       compilerOptions: {
         module: typescript.ModuleKind.CommonJS,

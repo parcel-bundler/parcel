@@ -23,6 +23,11 @@ class RustAsset extends Asset {
     this.type = 'wasm';
   }
 
+  async installParserDependencies() {
+    // Install rust toolchain and target if needed
+    await this.installRust();
+  }
+
   process() {
     // We don't want to process this asset if the worker is in a warm up phase
     // since the asset will also be processed by the main process, which
@@ -35,9 +40,6 @@ class RustAsset extends Asset {
   }
 
   async parse() {
-    // Install rust toolchain and target if needed
-    await this.installRust();
-
     // See if there is a Cargo config in the project
     let cargoConfig = await this.getConfig(['Cargo.toml']);
     let cargoDir;

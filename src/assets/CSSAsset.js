@@ -22,6 +22,10 @@ class CSSAsset extends Asset {
     );
   }
 
+  async installParserDependencies() {
+    await postcssTransform.getConfig(this, true);
+  }
+
   parse(code) {
     let root = postcss.parse(code, {from: this.name, to: this.name});
     return new CSSAst(code, root);

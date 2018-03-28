@@ -5,10 +5,11 @@ class GraphqlAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'js';
+    this.parserDependencies = ['graphql-tag'];
   }
 
   async parse(code) {
-    let gql = await localRequire('graphql-tag', this.name);
+    let gql = localRequire('graphql-tag', this.name);
     return gql(code);
   }
 

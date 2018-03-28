@@ -5,11 +5,12 @@ class CoffeeScriptAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'js';
+    this.parserDependencies = ['coffeescript'];
   }
 
   async generate() {
     // require coffeescript, installed locally in the app
-    let coffee = await localRequire('coffeescript', this.name);
+    let coffee = localRequire('coffeescript', this.name);
 
     // Transpile Module using CoffeeScript and parse result as ast format through babylon
     let transpiled = coffee.compile(this.contents, {
