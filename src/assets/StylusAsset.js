@@ -50,13 +50,30 @@ class StylusAsset extends Asset {
   }
 }
 
+function getResolverExtensions(options) {
+  if (!options || !options.extensions) {
+    return [];
+  }
+
+  let extensions = Array.isArray(options.extensions)
+    ? options.extensions.slice()
+    : Object.keys(options.extensions);
+
+  // Sort to give .styl files priority
+  return extensions.sort(e => (e === '.styl' ? -1 : 1));
+}
+
 async function createEvaluator(asset) {
   const Evaluator = await localRequire(
     'stylus/lib/visitor/evaluator',
     asset.name
   );
   const utils = await localRequire('stylus/lib/utils', asset.name);
-  const resolver = new Resolver(asset.options);
+  const resolver = new Resolver(
+    Object.assign({}, asset.options, {
+      extensions: getResolverExtensions(asset.options)
+    })
+  );
 
   // This is a custom stylus evaluator that extends stylus with support for the node
   // require resolution algorithm. It also adds all dependencies to the parcel asset
