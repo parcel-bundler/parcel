@@ -9,17 +9,16 @@ const logger = require('./Logger');
 class HMRServer {
   async start(options = {}) {
     await new Promise(async resolve => {
-      let server;
       if (!options.https) {
-        server = http.createServer();
+        this.server = http.createServer();
       } else if (typeof options.https === 'boolean') {
-        server = https.createServer(generateCertificate(options));
+        this.server = https.createServer(generateCertificate(options));
       } else {
-        server = https.createServer(await getCertificate(options.https));
+        this.server = https.createServer(await getCertificate(options.https));
       }
 
-      this.wss = new WebSocket.Server({server});
-      server.listen(options.hmrPort, resolve);
+      this.wss = new WebSocket.Server({server: this.server});
+      this.server.listen(options.hmrPort, resolve);
     });
 
     this.wss.on('connection', ws => {
@@ -36,6 +35,7 @@ class HMRServer {
 
   stop() {
     this.wss.close();
+    this.server.close();
   }
 
   emitError(err) {
