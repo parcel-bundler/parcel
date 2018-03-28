@@ -97,8 +97,38 @@ describe('javascript', function() {
     assert.equal(output.default(), 3);
   });
 
-  it('should split bundles when a dynamic import is used', async function() {
-    let b = await bundle(__dirname + '/integration/dynamic/index.js');
+  it('should split bundles when a dynamic import is used with --target=browser', async function() {
+    let b = await bundle(__dirname + '/integration/dynamic/index.js', {
+      target: 'browser'
+    });
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
+      childBundles: [
+        {
+          type: 'map'
+        },
+        {
+          assets: ['local.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
+
+  it('should split bundles when a dynamic import is used with --target=node', async function() {
+    let b = await bundle(__dirname + '/integration/dynamic/index.js', {
+      target: 'node'
+    });
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -641,7 +671,7 @@ describe('javascript', function() {
       // Transpiled destructuring, like r = p.prop1, o = p.prop2, a = p.prop3;
       const prodRegExp = /\w ?= ?\w\.prop1, ?\w ?= ?\w\.prop2, ?\w ?= ?\w\.prop3;/;
       // ES6 Destructuring, like in the source;
-      const devRegExp = /const ?{prop1, ?prop2, ?prop3} ?= ?.*/;
+      const devRegExp = /const ?{\s*prop1,\s*prop2,\s*prop3\s*} ?= ?.*/;
       let file;
       // Dev build test
       await bundle(__dirname + projectBasePath + '/index.js');

@@ -12,9 +12,42 @@ describe('rust', function() {
     return;
   }
 
-  it('should generate a wasm file from a rust file with rustc', async function() {
+  it('should generate a wasm file from a rust file with rustc with --target=browser', async function() {
     this.timeout(500000);
     let b = await bundle(__dirname + '/integration/rust/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: [
+        'bundle-loader.js',
+        'bundle-url.js',
+        'index.js',
+        'wasm-loader.js'
+      ],
+      childBundles: [
+        {
+          type: 'wasm',
+          assets: ['add.rs'],
+          childBundles: []
+        },
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    var res = await run(b);
+    assert.equal(res, 5);
+
+    // not minified
+    assert(fs.statSync(Array.from(b.childBundles)[0].name).size > 500);
+  });
+
+  it('should generate a wasm file from a rust file with rustc with --target=node', async function() {
+    this.timeout(500000);
+    let b = await bundle(__dirname + '/integration/rust/index.js', {
+      target: 'node'
+    });
 
     assertBundleTree(b, {
       name: 'index.js',
