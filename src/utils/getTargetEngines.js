@@ -34,20 +34,7 @@ async function getTargetEngines(asset, isTargetApp) {
     ) {
       targets.browsers = engines.browsers;
     } else if (pkg && pkg.browserslist) {
-      if (Array.isArray(pkg.browserslist)) {
-        targets.browsers = pkg.browserslist;
-      } else {
-        targets.browsers =
-          pkg.browserslist[
-            asset.options.production ? 'production' : 'development'
-          ];
-        if (typeof targets.browsers === 'string') {
-          // Split browserslist string to array
-          targets.browsers = targets.browsers
-            .split(',')
-            .map(entry => entry.trim());
-        }
-      }
+      targets.browsers = pkg.browserslist;
     } else {
       let browserslist = await loadBrowserslist(asset, path);
       if (browserslist) {
@@ -79,7 +66,19 @@ async function getTargetEngines(asset, isTargetApp) {
 
   // Parse browser targets
   if (targets.browsers) {
-    targets.browsers = browserslist(targets.browsers).sort();
+    if (
+      typeof targets.browsers === 'object' &&
+      !Array.isArray(targets.browsers)
+    ) {
+      let env = asset.options.production
+        ? 'production'
+        : process.env.NODE_ENV || 'development';
+      targets.browsers = targets.browsers[env] || targets.browsers.defaults;
+    }
+
+    if (targets.browsers) {
+      targets.browsers = browserslist(targets.browsers).sort();
+    }
   }
 
   // Dont compile if we couldn't find any targets
@@ -105,19 +104,9 @@ async function loadBrowserslist(asset, path) {
     path,
     load: false
   });
-  if (config) {
-    let browsers = browserslist.readConfig(config);
-    if (typeof browsers === 'object' && !Array.isArray(browsers)) {
-      browsers =
-        browsers[asset.options.production ? 'production' : 'development'] ||
-        browsers.defaults;
-      if (typeof browsers === 'string') {
-        // Split browserslist string to array
-        browsers = browsers.split(',').map(entry => entry.trim());
-      }
-    }
 
-    return browsers;
+  if (config) {
+    return browserslist.readConfig(config);
   }
 }
 
