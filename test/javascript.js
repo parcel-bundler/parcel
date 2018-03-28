@@ -628,6 +628,38 @@ describe('javascript', function() {
     assert(!file.includes('class Bar {}'));
   });
 
+  it('should support compiling with babel using browserslist for different environments', async function() {
+    async function testBrowserListMultipleEnv(projectBasePath) {
+      // Transpiled destructuring, like r = p.prop1, o = p.prop2, a = p.prop3;
+      const prodRegExp = /\w ?= ?\w\.prop1, ?\w ?= ?\w\.prop2, ?\w ?= ?\w\.prop3;/;
+      // ES6 Destructuring, like in the source;
+      const devRegExp = /const ?{prop1, ?prop2, ?prop3} ?= ?.*/;
+      let file;
+      // Dev build test
+      await bundle(__dirname + projectBasePath + '/index.js');
+      file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+      assert(devRegExp.test(file) === true);
+      assert(prodRegExp.test(file) === false);
+      // Prod build test
+      await bundle(
+        __dirname + '/integration/babel-browserslist-multiple-env/index.js',
+        {
+          production: true
+        }
+      );
+      file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+      assert(prodRegExp.test(file) === true);
+      assert(devRegExp.test(file) === false);
+    }
+
+    await testBrowserListMultipleEnv(
+      '/integration/babel-browserslist-multiple-env'
+    );
+    await testBrowserListMultipleEnv(
+      '/integration/babel-browserslist-multiple-env-as-string'
+    );
+  });
+
   it('should not compile node_modules by default', async function() {
     await bundle(__dirname + '/integration/babel-node-modules/index.js');
 

@@ -34,7 +34,20 @@ async function getTargetEngines(asset, isTargetApp) {
     ) {
       targets.browsers = engines.browsers;
     } else if (pkg && pkg.browserslist) {
-      targets.browsers = pkg.browserslist;
+      if (Array.isArray(pkg.browserslist)) {
+        targets.browsers = pkg.browserslist;
+      } else {
+        targets.browsers =
+          pkg.browserslist[
+            asset.options.production ? 'production' : 'development'
+          ];
+        if (typeof targets.browsers === 'string') {
+          // Split browserslist string to array
+          targets.browsers = targets.browsers
+            .split(',')
+            .map(entry => entry.trim());
+        }
+      }
     } else {
       let browserslist = await loadBrowserslist(asset, path);
       if (browserslist) {
@@ -95,7 +108,13 @@ async function loadBrowserslist(asset, path) {
   if (config) {
     let browsers = browserslist.readConfig(config);
     if (typeof browsers === 'object' && !Array.isArray(browsers)) {
-      browsers = browsers[process.env.NODE_ENV] || browsers.defaults;
+      browsers =
+        browsers[asset.options.production ? 'production' : 'development'] ||
+        browsers.defaults;
+      if (typeof browsers === 'string') {
+        // Split browserslist string to array
+        browsers = browsers.split(',').map(entry => entry.trim());
+      }
     }
 
     return browsers;

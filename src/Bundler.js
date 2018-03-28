@@ -73,6 +73,7 @@ class Bundler extends EventEmitter {
       outDir: Path.resolve(options.outDir || 'dist'),
       outFile: options.outFile || '',
       publicURL: publicURL,
+      production: isProduction,
       watch: watch,
       cache: typeof options.cache === 'boolean' ? options.cache : true,
       cacheDir: Path.resolve(options.cacheDir || '.cache'),
