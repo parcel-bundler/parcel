@@ -108,7 +108,7 @@ describe('FSCache', () => {
     });
 
     // delay and update dependency
-    await sleep(50);
+    await sleep(1000);
     await fs.writeFile(filePath, 'world');
 
     const cached = await cache.read(__filename);

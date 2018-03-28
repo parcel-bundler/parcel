@@ -26,7 +26,7 @@ class Asset {
     this.type = path.extname(this.name).slice(1);
 
     this.processed = false;
-    this.contents = null;
+    this.contents = options.rendition ? options.rendition.value : null;
     this.ast = null;
     this.generated = null;
     this.hash = null;
@@ -58,6 +58,13 @@ class Asset {
   }
 
   async getDependencies() {
+    if (
+      this.options.rendition &&
+      this.options.rendition.hasDependencies === false
+    ) {
+      return;
+    }
+
     await this.loadIfNeeded();
 
     if (this.contents && this.mightHaveDependencies()) {
@@ -148,10 +155,14 @@ class Asset {
       await this.getDependencies();
       await this.transform();
       this.generated = await this.generate();
-      this.hash = this.generateHash();
+      this.hash = await this.generateHash();
     }
 
     return this.generated;
+  }
+
+  async postProcess(generated) {
+    return generated;
   }
 
   generateHash() {
@@ -175,27 +186,23 @@ class Asset {
   }
 
   generateBundleName() {
-    const ext = '.' + this.type;
+    // Generate a unique name. This will be replaced with a nicer
+    // name later as part of content hashing.
+    return md5(this.name) + '.' + this.type;
+  }
 
-    const isEntryPoint = this.name === this.options.mainFile;
+  replaceBundleNames(bundleNameMap) {
+    for (let key in this.generated) {
+      let value = this.generated[key];
+      if (typeof value === 'string') {
+        // Replace temporary bundle names in the output with the final content-hashed names.
+        for (let [name, map] of bundleNameMap) {
+          value = value.split(name).join(map);
+        }
 
-    // If this is the entry point of the root bundle, use outFile filename if provided
-    if (isEntryPoint && this.options.outFile) {
-      return (
-        path.basename(
-          this.options.outFile,
-          path.extname(this.options.outFile)
-        ) + ext
-      );
+        this.generated[key] = value;
+      }
     }
-
-    // If this is the entry point of the root bundle, use the original filename
-    if (isEntryPoint) {
-      return path.basename(this.name, path.extname(this.name)) + ext;
-    }
-
-    // Otherwise generate a unique name
-    return md5(this.name) + ext;
   }
 
   generateErrorMessage(err) {
