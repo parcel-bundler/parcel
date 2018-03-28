@@ -1,28 +1,11 @@
 const path = require('path');
-
 const Asset = require('../Asset');
-const HTMLAsset = require('./HTMLAsset');
 const localRequire = require('../utils/localRequire');
 
 class PugAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
     this.type = 'html';
-  }
-
-  async process() {
-    await super.process();
-
-    const htmlAsset = new HTMLAsset(this.name, this.package, this.options);
-
-    htmlAsset.contents = this.generated.html;
-    htmlAsset.dependencies = new Map([...this.dependencies]);
-
-    await htmlAsset.process();
-
-    Object.assign(this, htmlAsset);
-
-    return this.generated;
   }
 
   async generate() {
@@ -42,14 +25,14 @@ class PugAsset extends Asset {
     });
 
     if (compiled.dependencies) {
-      compiled.dependencies.forEach(item => {
+      for (let item of compiled.dependencies) {
         this.addDependency(item, {
           includedInParent: true
         });
-      });
+      }
     }
 
-    return {html: compiled()};
+    return compiled();
   }
 }
 
