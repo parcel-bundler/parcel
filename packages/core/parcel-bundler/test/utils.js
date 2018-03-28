@@ -46,6 +46,10 @@ function bundle(file, opts) {
 
 function prepareBrowserContext(bundle, globals) {
   // for testing dynamic imports
+  const fakeElement = {
+    remove() {}
+  };
+
   const fakeDocument = {
     createElement(tag) {
       return {tag};
@@ -68,6 +72,16 @@ function prepareBrowserContext(bundle, globals) {
           }
         }
       ];
+    },
+
+    getElementById() {
+      return fakeElement;
+    },
+
+    body: {
+      appendChild() {
+        return null;
+      }
     }
   };
 
