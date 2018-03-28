@@ -1,6 +1,6 @@
 {
   "name": "parcel-bundler",
-  "version": "1.6.2",
+  "version": "1.7.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
   "license": "MIT",
@@ -63,8 +63,10 @@
     "ws": "^4.0.0"
   },
   "devDependencies": {
+    "@vue/component-compiler-utils": "^1.0.0",
     "babel-cli": "^6.26.0",
     "babel-plugin-transform-async-super": "^1.0.0",
+    "babel-polyfill": "^6.26.0",
     "babel-register": "^6.26.0",
     "bsb-js": "^1.0.1",
     "codecov": "^3.0.0",
@@ -88,11 +90,14 @@
     "postcss-modules": "^0.8.0",
     "posthtml-include": "^1.1.0",
     "prettier": "^1.9.1",
+    "pug": "^2.0.3",
     "rimraf": "^2.6.1",
     "sinon": "^4.2.2",
     "sourcemap-validator": "^1.0.6",
     "stylus": "^0.54.5",
-    "typescript": "^2.7.0"
+    "typescript": "^2.7.0",
+    "vue": "^2.5.16",
+    "vue-template-compiler": "^2.5.16"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",

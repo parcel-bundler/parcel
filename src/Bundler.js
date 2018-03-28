@@ -37,15 +37,13 @@ class Bundler extends EventEmitter {
     this.delegate = options.delegate || {};
     this.bundleLoaders = {};
 
-    this.addBundleLoader(
-      'wasm',
-      require.resolve('./builtins/loaders/wasm-loader')
-    );
-    this.addBundleLoader(
-      'css',
-      require.resolve('./builtins/loaders/css-loader')
-    );
-    this.addBundleLoader('js', require.resolve('./builtins/loaders/js-loader'));
+    const loadersPath = `./builtins/loaders/${
+      options.target === 'node' ? 'node' : 'browser'
+    }/`;
+
+    this.addBundleLoader('wasm', require.resolve(loadersPath + 'wasm-loader'));
+    this.addBundleLoader('css', require.resolve(loadersPath + 'css-loader'));
+    this.addBundleLoader('js', require.resolve(loadersPath + 'js-loader'));
 
     this.pending = false;
     this.loadedAssets = new Map();
@@ -69,6 +67,7 @@ class Bundler extends EventEmitter {
       typeof options.watch === 'boolean' ? options.watch : !isProduction;
     const target = options.target || 'browser';
     return {
+      production: isProduction,
       outDir: Path.resolve(options.outDir || 'dist'),
       outFile: options.outFile || '',
       publicURL: publicURL,
