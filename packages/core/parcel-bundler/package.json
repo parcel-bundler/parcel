@@ -63,6 +63,7 @@
     "ws": "^4.0.0"
   },
   "devDependencies": {
+    "@vue/component-compiler-utils": "^1.0.0",
     "babel-cli": "^6.26.0",
     "babel-plugin-transform-async-super": "^1.0.0",
     "babel-register": "^6.26.0",
@@ -91,7 +92,9 @@
     "sinon": "^4.2.2",
     "sourcemap-validator": "^1.0.6",
     "stylus": "^0.54.5",
-    "typescript": "^2.7.0"
+    "typescript": "^2.7.0",
+    "vue": "^2.5.16",
+    "vue-template-compiler": "^2.5.16"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",

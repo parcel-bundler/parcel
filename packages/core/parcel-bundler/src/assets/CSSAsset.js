@@ -119,7 +119,8 @@ class CSSAsset extends Asset {
     return [
       {
         type: 'css',
-        value: css
+        value: css,
+        cssModules: this.cssModules
       },
       {
         type: 'js',
