@@ -123,7 +123,8 @@ function prepareNodeContext(bundle, globals) {
       },
       console,
       process: process,
-      setTimeout: setTimeout
+      setTimeout: setTimeout,
+      setImmediate: setImmediate
     },
     globals
   );
