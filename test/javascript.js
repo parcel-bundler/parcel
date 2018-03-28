@@ -671,7 +671,7 @@ describe('javascript', function() {
       // Transpiled destructuring, like r = p.prop1, o = p.prop2, a = p.prop3;
       const prodRegExp = /\w ?= ?\w\.prop1, ?\w ?= ?\w\.prop2, ?\w ?= ?\w\.prop3;/;
       // ES6 Destructuring, like in the source;
-      const devRegExp = /const ?{prop1, ?prop2, ?prop3} ?= ?.*/;
+      const devRegExp = /const ?{\s*prop1,\s*prop2,\s*prop3\s*} ?= ?.*/;
       let file;
       // Dev build test
       await bundle(__dirname + projectBasePath + '/index.js');

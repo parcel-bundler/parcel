@@ -7,12 +7,10 @@
 // orig method which is the require for previous bundles
 
 // eslint-disable-next-line no-global-assign
-require = (function (modules, cache, entry) {
-  var isNode = typeof global === 'object' && (global.__parcel_require || (global.__parcel_require = require))
+parcelRequire = (function (modules, cache, entry) {
   // Save the require from previous bundle to this closure if any
-  var previousRequire = isNode
-    ? global.__parcel_require
-    : typeof require === "function" && require;
+  var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
+  var nodeRequire = typeof require === 'function' && require;
 
   function newRequire(name, jumped) {
     if (!cache[name]) {
@@ -20,9 +18,7 @@ require = (function (modules, cache, entry) {
         // if we cannot find the module within our internal map or
         // cache jump to the current global require ie. the last bundle
         // that was added to the page.
-        var currentRequire = isNode
-          ? global.__parcel_require
-          : typeof require === "function" && require;
+        var currentRequire = typeof parcelRequire === 'function' && parcelRequire;
         if (!jumped && currentRequire) {
           return currentRequire(name, true);
         }
@@ -31,8 +27,13 @@ require = (function (modules, cache, entry) {
         // previous one is saved to 'previousRequire'. Repeat this as
         // many times as there are bundles until the module is found or
         // we exhaust the require chain.
-        if (previousRequire && !(typeof name === 'number' && isNode && !previousRequire.isParcelRequire)) {
+        if (previousRequire) {
           return previousRequire(name, true);
+        }
+
+        // Try the node require function if it exists.
+        if (nodeRequire && typeof name === 'string') {
+          return nodeRequire(name);
         }
 
         var err = new Error('Cannot find module \'' + name + '\'');
@@ -75,8 +76,5 @@ require = (function (modules, cache, entry) {
   }
 
   // Override the current require with this new one
-  if(isNode) {
-    global.__parcel_require = newRequire
-  }
   return newRequire;
 })

@@ -106,7 +106,6 @@ function prepareBrowserContext(bundle, globals) {
   );
 
   ctx.window = ctx;
-
   return ctx;
 }
 
@@ -114,7 +113,7 @@ function prepareNodeContext(bundle, globals) {
   var mod = new Module(bundle.name);
   mod.paths = [path.dirname(bundle.name) + '/node_modules'];
 
-  return Object.assign(
+  var ctx = Object.assign(
     {
       module: mod,
       __filename: bundle.name,
@@ -122,12 +121,15 @@ function prepareNodeContext(bundle, globals) {
       require: function(path) {
         return mod.require(path);
       },
+      console,
       process: process,
-      setTimeout: setTimeout,
-      global: global
+      setTimeout: setTimeout
     },
     globals
   );
+
+  ctx.global = ctx;
+  return ctx;
 }
 
 function run(bundle, globals, opts = {}) {
@@ -151,7 +153,7 @@ function run(bundle, globals, opts = {}) {
   vm.runInContext(fs.readFileSync(bundle.name), ctx);
 
   if (opts.require !== false) {
-    return ctx.require(bundle.entryAsset.id);
+    return ctx.parcelRequire(bundle.entryAsset.id);
   }
 
   return ctx;
