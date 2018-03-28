@@ -66,6 +66,7 @@
     "@vue/component-compiler-utils": "^1.0.0",
     "babel-cli": "^6.26.0",
     "babel-plugin-transform-async-super": "^1.0.0",
+    "babel-polyfill": "^6.26.0",
     "babel-register": "^6.26.0",
     "bsb-js": "^1.0.1",
     "codecov": "^3.0.0",
