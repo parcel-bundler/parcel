@@ -37,7 +37,8 @@ module.exports = {
       types.isIdentifier(callee) &&
       callee.name === 'require' &&
       args.length === 1 &&
-      types.isStringLiteral(args[0]);
+      types.isStringLiteral(args[0]) &&
+      !hasBinding(ancestors, 'require');
 
     if (isRequire) {
       let optional = ancestors.some(a => types.isTryStatement(a)) || undefined;
@@ -87,6 +88,33 @@ module.exports = {
     }
   }
 };
+
+function hasBinding(node, name) {
+  if (Array.isArray(node)) {
+    return node.some(ancestor => hasBinding(ancestor, name));
+  } else if (
+    types.isProgram(node) ||
+    types.isBlockStatement(node) ||
+    types.isBlock(node)
+  ) {
+    return node.body.some(statement => hasBinding(statement, name));
+  } else if (
+    types.isFunctionDeclaration(node) ||
+    types.isFunctionExpression(node) ||
+    types.isArrowFunctionExpression(node)
+  ) {
+    return (
+      (node.id !== null && node.id.name === name) ||
+      node.params.some(
+        param => types.isIdentifier(param) && param.name === name
+      )
+    );
+  } else if (types.isVariableDeclaration(node)) {
+    return node.declarations.some(declaration => declaration.id.name === name);
+  }
+
+  return false;
+}
 
 function addDependency(asset, node, opts = {}) {
   if (asset.options.target !== 'browser') {
