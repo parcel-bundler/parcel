@@ -7,6 +7,7 @@ const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 const WebSocket = require('ws');
 const json5 = require('json5');
+const sinon = require('sinon');
 
 describe('hmr', function() {
   let b, ws;
@@ -299,20 +300,26 @@ describe('hmr', function() {
     assert.deepEqual(outputs, [3, 10]);
   });
 
-  it('should log emitted errors', async function() {
+  it('should log emitted errors and show an error overlay', async function() {
     await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
 
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
     let bundle = await b.bundle();
 
     let logs = [];
-    run(bundle, {
-      console: {
-        error(msg) {
-          logs.push(msg);
+    let ctx = run(
+      bundle,
+      {
+        console: {
+          error(msg) {
+            logs.push(msg);
+          }
         }
-      }
-    });
+      },
+      {require: false}
+    );
+
+    let spy = sinon.spy(ctx.document.body, 'appendChild');
 
     fs.writeFileSync(
       __dirname + '/input/local.js',
@@ -323,6 +330,7 @@ describe('hmr', function() {
 
     assert.equal(logs.length, 1);
     assert(logs[0].trim().startsWith('[parcel] 🚨'));
+    assert(spy.calledOnce);
   });
 
   it('should log when errors resolve', async function() {
@@ -332,22 +340,32 @@ describe('hmr', function() {
     let bundle = await b.bundle();
 
     let logs = [];
-    run(bundle, {
-      console: {
-        error(msg) {
-          logs.push(msg);
-        },
-        log(msg) {
-          logs.push(msg);
+    let ctx = run(
+      bundle,
+      {
+        console: {
+          error(msg) {
+            logs.push(msg);
+          },
+          log(msg) {
+            logs.push(msg);
+          }
         }
-      }
-    });
+      },
+      {require: false}
+    );
+
+    let appendSpy = sinon.spy(ctx.document.body, 'appendChild');
+    let removeSpy = sinon.spy(ctx.document.getElementById('tmp'), 'remove');
 
     fs.writeFileSync(
       __dirname + '/input/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
     await nextEvent(b, 'buildEnd');
+    await sleep(50);
+
+    assert(appendSpy.called);
 
     fs.writeFileSync(
       __dirname + '/input/local.js',
@@ -355,6 +373,8 @@ describe('hmr', function() {
     );
     await nextEvent(b, 'buildEnd');
     await sleep(50);
+
+    assert(removeSpy.called);
 
     assert.equal(logs.length, 2);
     assert(logs[0].trim().startsWith('[parcel] 🚨'));
