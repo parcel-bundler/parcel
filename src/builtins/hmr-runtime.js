@@ -41,7 +41,6 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         }
       });
       // Clear the console after HMR
-      // Check if console.clear function is supported, absence of this caused tests to fail
       console.clear();
     }
 
