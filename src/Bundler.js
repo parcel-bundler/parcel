@@ -37,13 +37,18 @@ class Bundler extends EventEmitter {
     this.delegate = options.delegate || {};
     this.bundleLoaders = {};
 
-    const loadersPath = `./builtins/loaders/${
-      options.target === 'node' ? 'node' : 'browser'
-    }/`;
-
-    this.addBundleLoader('wasm', require.resolve(loadersPath + 'wasm-loader'));
-    this.addBundleLoader('css', require.resolve(loadersPath + 'css-loader'));
-    this.addBundleLoader('js', require.resolve(loadersPath + 'js-loader'));
+    this.addBundleLoader('wasm', {
+      browser: require.resolve('./builtins/loaders/browser/wasm-loader'),
+      node: require.resolve('./builtins/loaders/node/wasm-loader')
+    });
+    this.addBundleLoader('css', {
+      browser: require.resolve('./builtins/loaders/browser/css-loader'),
+      node: require.resolve('./builtins/loaders/node/css-loader')
+    });
+    this.addBundleLoader('js', {
+      browser: require.resolve('./builtins/loaders/browser/js-loader'),
+      node: require.resolve('./builtins/loaders/node/js-loader')
+    });
 
     this.pending = false;
     this.loadedAssets = new Map();
@@ -122,16 +127,28 @@ class Bundler extends EventEmitter {
     this.packagers.add(type, packager);
   }
 
-  addBundleLoader(type, path) {
-    if (typeof path !== 'string') {
-      throw new Error('Bundle loader should be a module path.');
+  addBundleLoader(type, paths) {
+    if (typeof paths === 'string') {
+      paths = {node: paths, browser: paths};
+    } else if (typeof paths !== 'object') {
+      throw new Error('Bundle loaders should be an object.');
+    }
+
+    for (const target in paths) {
+      if (target !== 'node' && target !== 'browser') {
+        throw new Error(`Unknown bundle loader target "${target}".`);
+      }
+
+      if (typeof paths[target] !== 'string') {
+        throw new Error('Bundle loader should be a string.');
+      }
     }
 
     if (this.farm) {
       throw new Error('Bundle loaders must be added before bundling.');
     }
 
-    this.bundleLoaders[type] = path;
+    this.bundleLoaders[type] = paths;
   }
 
   async loadPlugins() {
