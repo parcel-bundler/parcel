@@ -187,22 +187,33 @@ class Bundler extends EventEmitter {
       // Build the queued assets.
       let loadedAssets = await this.buildQueue.run();
 
-      // Emit an HMR update for any new assets (that don't have a parent bundle yet)
-      // plus the asset that actually changed.
-      if (this.hmr && !isInitialBundle) {
-        this.hmr.emitUpdate([...this.findOrphanAssets(), ...loadedAssets]);
-      }
+      // The changed assets are any that don't have a parent bundle yet
+      // plus the ones that were in the build queue.
+      let changedAssets = [...this.findOrphanAssets(), ...loadedAssets];
 
       // Invalidate bundles
       for (let asset of this.loadedAssets.values()) {
         asset.invalidateBundle();
       }
 
-      // Create a new bundle tree and package everything up.
+      // Create a new bundle tree
       this.mainBundle = this.createBundleTree(this.mainAsset);
+
+      // Generate the final bundle names, and replace references in the built assets.
       this.bundleNameMap = this.mainBundle.getBundleNameMap(
         this.options.contentHash
       );
+
+      for (let asset of changedAssets) {
+        asset.replaceBundleNames(this.bundleNameMap);
+      }
+
+      // Emit an HMR update if this is not the initial bundle.
+      if (this.hmr && !isInitialBundle) {
+        this.hmr.emitUpdate(changedAssets);
+      }
+
+      // Package everything up
       this.bundleHashes = await this.mainBundle.package(
         this,
         this.bundleHashes
