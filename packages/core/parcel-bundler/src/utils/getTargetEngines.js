@@ -66,7 +66,19 @@ async function getTargetEngines(asset, isTargetApp) {
 
   // Parse browser targets
   if (targets.browsers) {
-    targets.browsers = browserslist(targets.browsers).sort();
+    if (
+      typeof targets.browsers === 'object' &&
+      !Array.isArray(targets.browsers)
+    ) {
+      let env = asset.options.production
+        ? 'production'
+        : process.env.NODE_ENV || 'development';
+      targets.browsers = targets.browsers[env] || targets.browsers.defaults;
+    }
+
+    if (targets.browsers) {
+      targets.browsers = browserslist(targets.browsers).sort();
+    }
   }
 
   // Dont compile if we couldn't find any targets
@@ -92,13 +104,9 @@ async function loadBrowserslist(asset, path) {
     path,
     load: false
   });
-  if (config) {
-    let browsers = browserslist.readConfig(config);
-    if (typeof browsers === 'object' && !Array.isArray(browsers)) {
-      browsers = browsers[process.env.NODE_ENV] || browsers.defaults;
-    }
 
-    return browsers;
+  if (config) {
+    return browserslist.readConfig(config);
   }
 }
 
