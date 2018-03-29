@@ -1,0 +1,4 @@
+{
+  "name": "parcel-test-babel-polyfill-browserslist",
+  "browserslist": ["last 2 Chrome versions"]
+}

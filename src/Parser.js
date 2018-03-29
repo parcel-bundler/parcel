@@ -17,6 +17,7 @@ class Parser {
     this.registerExtension('ts', './assets/TypeScriptAsset');
     this.registerExtension('tsx', './assets/TypeScriptAsset');
     this.registerExtension('coffee', './assets/CoffeeScriptAsset');
+    this.registerExtension('vue', './assets/VueAsset');
     this.registerExtension('json', './assets/JSONAsset');
     this.registerExtension('json5', './assets/JSONAsset');
     this.registerExtension('yaml', './assets/YAMLAsset');
@@ -28,6 +29,7 @@ class Parser {
     this.registerExtension('css', './assets/CSSAsset');
     this.registerExtension('pcss', './assets/CSSAsset');
     this.registerExtension('styl', './assets/StylusAsset');
+    this.registerExtension('stylus', './assets/StylusAsset');
     this.registerExtension('less', './assets/LESSAsset');
     this.registerExtension('sass', './assets/SASSAsset');
     this.registerExtension('scss', './assets/SASSAsset');
