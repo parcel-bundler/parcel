@@ -15,9 +15,7 @@ class RawPackager extends Packager {
 
     // Create output path if not exist
     const dir = path.dirname(this.bundle.name);
-    if (!await fs.exists(dir)) {
-      await fs.mkdirp(dir);
-    }
+    await fs.mkdirp(dir);
 
     this.size = contents.length;
     await fs.writeFile(this.bundle.name, contents);
