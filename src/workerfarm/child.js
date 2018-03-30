@@ -14,10 +14,13 @@ async function handle(data) {
     result.type = 'result';
   } catch (e) {
     result.content = {
-      message: e.message
+      message: e.message,
+      stack: e.stack
     };
     Object.keys(e).forEach(key => {
-      result.content[key] = e[key];
+      if (key !== 'stack' || 'message') {
+        result.content[key] = e[key];
+      }
     });
     result.type = 'error';
   }
