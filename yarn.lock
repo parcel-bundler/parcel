@@ -1973,7 +1973,7 @@ entities@^1.1.1, entities@~1.1.1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/entities/-/entities-1.1.1.tgz#6e5c2d0a5621b5dadaecef80b90edfb5cd7772f0"
 
-errno@^0.1.1, errno@~0.1.7:
+errno@^0.1.1:
   version "0.1.7"
   resolved "https://registry.yarnpkg.com/errno/-/errno-0.1.7.tgz#4684d71779ad39af177e3f007996f7c67c852618"
   dependencies:
@@ -2611,38 +2611,25 @@ glsl-resolve@0.0.1:
     resolve "^0.6.1"
     xtend "^2.1.2"
 
-glsl-token-assignments@^2.0.0:
-  version "2.0.2"
-  resolved "https://registry.yarnpkg.com/glsl-token-assignments/-/glsl-token-assignments-2.0.2.tgz#a5d82ab78499c2e8a6b83cb69495e6e665ce019f"
-
 glsl-token-defines@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/glsl-token-defines/-/glsl-token-defines-1.0.0.tgz#cb892aa959936231728470d4f74032489697fa9d"
   dependencies:
     glsl-tokenizer "^2.0.0"
 
-glsl-token-depth@^1.1.0, glsl-token-depth@^1.1.1:
+glsl-token-depth@^1.1.1:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/glsl-token-depth/-/glsl-token-depth-1.1.2.tgz#23c5e30ee2bd255884b4a28bc850b8f791e95d84"
 
 glsl-token-descope@^1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/glsl-token-descope/-/glsl-token-descope-1.0.2.tgz#0fc90ab326186b82f597b2e77dc9e21efcd32076"
-  dependencies:
-    glsl-token-assignments "^2.0.0"
-    glsl-token-depth "^1.1.0"
-    glsl-token-properties "^1.0.0"
-    glsl-token-scope "^1.1.0"
 
 glsl-token-inject-block@^1.0.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/glsl-token-inject-block/-/glsl-token-inject-block-1.1.0.tgz#e1015f5980c1091824adaa2625f1dfde8bd00034"
 
-glsl-token-properties@^1.0.0:
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/glsl-token-properties/-/glsl-token-properties-1.0.1.tgz#483dc3d839f0d4b5c6171d1591f249be53c28a9e"
-
-glsl-token-scope@^1.1.0, glsl-token-scope@^1.1.1:
+glsl-token-scope@^1.1.1:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/glsl-token-scope/-/glsl-token-scope-1.1.2.tgz#a1728e78df24444f9cb93fd18ef0f75503a643b1"
 
@@ -3951,7 +3938,7 @@ lodash.values@~2.3.0:
   dependencies:
     lodash.keys "~2.3.0"
 
-lodash@^4.0.0, lodash@^4.17.4, lodash@^4.3.0, lodash@~4.17.4:
+lodash@^4.0.0, lodash@^4.17.4, lodash@^4.17.5, lodash@^4.3.0, lodash@~4.17.4:
   version "4.17.5"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.5.tgz#99a92d65c0272debe8c96b6057bc8fbfa3bed511"
 
@@ -6689,12 +6676,6 @@ wordwrap@~0.0.2:
 wordwrap@~1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/wordwrap/-/wordwrap-1.0.0.tgz#27584810891456a4171c8d0226441ade90cbcaeb"
-
-worker-farm@^1.5.2:
-  version "1.6.0"
-  resolved "https://registry.yarnpkg.com/worker-farm/-/worker-farm-1.6.0.tgz#aecc405976fab5a95526180846f0dba288f3a4a0"
-  dependencies:
-    errno "~0.1.7"
 
 wrap-ansi@^2.0.0:
   version "2.1.0"

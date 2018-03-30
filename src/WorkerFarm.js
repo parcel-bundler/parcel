@@ -1,30 +1,256 @@
 const {EventEmitter} = require('events');
 const os = require('os');
-const Farm = require('worker-farm/lib/farm');
 const promisify = require('./utils/promisify');
 const logger = require('./Logger');
+const fork = require('./workerfarm/fork');
 
 let shared = null;
 
-class WorkerFarm extends Farm {
+class WorkerFarm extends EventEmitter {
   constructor(options) {
-    let opts = {
-      maxConcurrentWorkers: getNumWorkers()
+    super();
+
+    this.options = {
+      maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
+      maxCallsPerWorker: Infinity,
+      maxConcurrentCallsPerWorker: 10,
+      maxConcurrentCalls: Infinity,
+      maxRetries: Infinity,
+      forcedKillTime: 100
     };
 
-    let workerPath =
+    this.path =
       parseInt(process.versions.node, 10) < 8
         ? require.resolve('../lib/worker')
         : require.resolve('../src/worker');
 
-    super(opts, workerPath);
-
     this.localWorker = this.promisifyWorker(require('./worker'));
-    this.remoteWorker = this.promisifyWorker(this.setup(['init', 'run']));
+    this.remoteWorker = this.promisifyWorker({
+      init: this.mkhandle('init'),
+      run: this.mkhandle('run')
+    });
 
     this.started = false;
+    this.childId = -1;
+    this.activeChildren = 0;
     this.warmWorkers = 0;
+    this.children = new Map();
+    this.callQueue = [];
+
     this.init(options);
+  }
+
+  mkhandle(method) {
+    return function() {
+      let args = Array.prototype.slice.call(arguments);
+      if (this.activeCalls >= this.options.maxConcurrentCalls) {
+        let err = new Error(
+          'Too many concurrent calls (' + this.activeCalls + ')'
+        );
+        if (typeof args[args.length - 1] == 'function') {
+          return process.nextTick(args[args.length - 1].bind(null, err));
+        }
+        throw err;
+      }
+      this.addCall({
+        method,
+        callback: args.pop(),
+        args: args,
+        retries: 0
+      });
+    }.bind(this);
+  }
+
+  onExit(childId) {
+    // delay this to give any sends a chance to finish
+    setTimeout(
+      function() {
+        let doQueue = false;
+        let child = this.children.get(childId);
+        if (child && child.activeCalls) {
+          child.calls.forEach(
+            function(call, i) {
+              if (!call) {
+                return;
+              } else if (call.retries >= this.options.maxRetries) {
+                this.receive({
+                  idx: i,
+                  child: childId,
+                  args: [
+                    new Error('cancel after ' + call.retries + ' retries!')
+                  ]
+                });
+              } else {
+                call.retries++;
+                this.callQueue.unshift(call);
+                doQueue = true;
+              }
+            }.bind(this)
+          );
+        }
+        this.stopChild(childId);
+        if (doQueue) {
+          this.processQueue();
+        }
+      }.bind(this),
+      10
+    );
+  }
+
+  startChild() {
+    this.childId++;
+
+    let forked = fork(this.path, this.options.workerOptions);
+    let id = this.childId;
+    let c = {
+      send: forked.send,
+      child: forked.child,
+      calls: [],
+      activeCalls: 0,
+      exitCode: null
+    };
+
+    forked.child.on('message', this.receive.bind(this));
+    forked.child.once(
+      'exit',
+      function(code) {
+        c.exitCode = code;
+        this.onExit(id);
+      }.bind(this)
+    );
+
+    this.activeChildren++;
+    this.children.set(id, c);
+  }
+
+  stopChild(childId) {
+    let child = this.children.get(childId);
+    if (child) {
+      child.send('die');
+      setTimeout(function() {
+        if (child.exitCode === null) {
+          child.child.kill('SIGKILL');
+        }
+      }, this.options.forcedKillTime);
+      this.children.delete(childId);
+      this.activeChildren--;
+    }
+  }
+
+  receive(data) {
+    let idx = data.idx;
+    let childId = data.child;
+    let args = data.args;
+    let child = this.children.get(childId);
+
+    if (!child) {
+      // Possibly premature child death
+      return;
+    }
+
+    if (data.event) {
+      this.emit(data.event, ...data.args);
+      return;
+    } else if (data.type === 'logger') {
+      if (this.shouldUseRemoteWorkers()) {
+        logger.handleMessage(data);
+      }
+      return;
+    }
+
+    let call = child.calls[idx];
+    if (!call) {
+      return console.error(`Worker Farm: Received message for unknown index 
+        for existing child. This should not happen!`);
+    }
+
+    if (args[0] && args[0].$error == '$error') {
+      let e = new Error(args[0].message);
+      // Copy properties to Error
+      Object.keys(e).forEach(function(key) {
+        e[key] = args[0][key];
+      });
+      throw e;
+    }
+
+    process.nextTick(function() {
+      call.callback.apply(null, args);
+    });
+
+    delete child.calls[idx];
+    child.activeCalls--;
+    this.activeCalls--;
+
+    if (
+      child.calls.length >= this.options.maxCallsPerWorker &&
+      !Object.keys(child.calls).length
+    ) {
+      // this child has finished its run, kill it
+      this.stopChild(childId);
+    }
+
+    // allow any outstanding calls to be processed
+    this.processQueue();
+  }
+
+  send(childId, call) {
+    let child = this.children.get(childId);
+    let idx = child.calls.length;
+
+    child.calls.push(call);
+    child.activeCalls++;
+    this.activeCalls++;
+
+    child.send({
+      idx: idx,
+      child: childId,
+      method: call.method,
+      args: call.args
+    });
+  }
+
+  processQueue() {
+    if (!this.callQueue.length) {
+      return this.ending && this.end();
+    }
+
+    if (this.activeChildren < this.options.maxConcurrentWorkers) {
+      this.startChild();
+    }
+
+    for (let [childId, child] of this.children.entries()) {
+      if (
+        child.activeCalls < this.options.maxConcurrentCallsPerWorker &&
+        child.calls.length < this.options.maxCallsPerWorker
+      ) {
+        this.send(childId, this.callQueue.shift());
+        if (!this.callQueue.length) {
+          return this.ending && this.end();
+        }
+      }
+    }
+
+    if (this.ending) {
+      this.end();
+    }
+  }
+
+  addCall(call) {
+    if (this.ending) {
+      return this.end(); // don't add anything new to the queue
+    }
+    this.callQueue.push(call);
+    this.processQueue();
+  }
+
+  async end() {
+    // Force kill all children
+    this.ending = true;
+    this.children.forEach(child => {
+      this.stopChild(child);
+    });
+    this.ending = false;
+    shared = null;
   }
 
   init(options) {
@@ -57,18 +283,6 @@ class WorkerFarm extends Farm {
     }
   }
 
-  receive(data) {
-    if (data.event) {
-      this.emit(data.event, ...data.args);
-    } else if (data.type === 'logger') {
-      if (this.shouldUseRemoteWorkers()) {
-        logger.handleMessage(data);
-      }
-    } else if (this.children[data.child]) {
-      super.receive(data);
-    }
-  }
-
   shouldUseRemoteWorkers() {
     return this.started && this.warmWorkers >= this.activeChildren;
   }
@@ -98,17 +312,6 @@ class WorkerFarm extends Farm {
     }
   }
 
-  end() {
-    // Force kill all children
-    this.ending = true;
-    for (let child in this.children) {
-      this.stopChild(child);
-    }
-
-    this.ending = false;
-    shared = null;
-  }
-
   static getShared(options) {
     if (!shared) {
       shared = new WorkerFarm(options);
@@ -118,24 +321,20 @@ class WorkerFarm extends Farm {
 
     return shared;
   }
-}
 
-for (let key in EventEmitter.prototype) {
-  WorkerFarm.prototype[key] = EventEmitter.prototype[key];
-}
+  static getNumWorkers() {
+    if (process.env.PARCEL_WORKERS) {
+      return parseInt(process.env.PARCEL_WORKERS, 10);
+    }
 
-function getNumWorkers() {
-  if (process.env.PARCEL_WORKERS) {
-    return parseInt(process.env.PARCEL_WORKERS, 10);
+    let cores;
+    try {
+      cores = require('physical-cpu-count');
+    } catch (err) {
+      cores = os.cpus().length;
+    }
+    return cores || 1;
   }
-
-  let cores;
-  try {
-    cores = require('physical-cpu-count');
-  } catch (err) {
-    cores = os.cpus().length;
-  }
-  return cores || 1;
 }
 
 module.exports = WorkerFarm;
