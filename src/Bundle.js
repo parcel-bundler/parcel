@@ -91,6 +91,14 @@ class Bundle {
     return this.assets.size === 0;
   }
 
+  get isIsolated() {
+    return (
+      this.entryAsset &&
+      this.entryAsset.parentDeps &&
+      Array.from(this.entryAsset.parentDeps.values()).some(dep => dep.isolated)
+    );
+  }
+
   getBundleNameMap(contentHash, hashes = new Map()) {
     if (this.name) {
       let hashedName = this.getHashedBundleName(contentHash);
