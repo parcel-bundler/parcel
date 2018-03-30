@@ -1,7 +1,7 @@
 const {EventEmitter} = require('events');
 const os = require('os');
-const logger = require('./Logger');
-const fork = require('./workerfarm/fork');
+const logger = require('../Logger');
+const fork = require('./fork');
 
 let shared = null;
 
@@ -20,8 +20,8 @@ class WorkerFarm extends EventEmitter {
 
     this.path =
       parseInt(process.versions.node, 10) < 8
-        ? require.resolve('../lib/worker')
-        : require.resolve('../src/worker');
+        ? require.resolve('../../lib/workerfarm/worker')
+        : require.resolve('../../src/workerfarm/worker');
 
     this.localWorker = require('./worker');
     this.remoteWorker = {
@@ -153,8 +153,7 @@ class WorkerFarm extends EventEmitter {
     } else if (type === 'result' || 'error') {
       let call = child.calls[idx];
       if (!call) {
-        return console.error(`Worker Farm: Received message for unknown index 
-            for existing child. This should not happen!`);
+        throw new Error(`Worker Farm: Received message for unknown index for existing child. This should not happen!`);
       }
 
       if (type === 'error') {

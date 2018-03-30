@@ -1,5 +1,5 @@
 require('v8-compile-cache');
-const Pipeline = require('./Pipeline');
+const Pipeline = require('../Pipeline');
 
 let pipeline;
 

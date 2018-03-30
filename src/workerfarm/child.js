@@ -25,7 +25,17 @@ async function handle(data) {
     };
     result.type = 'error';
   }
-  process.send(result);
+
+  process.send(result, err => {
+    if (err && err instanceof Error) {
+      if (err.code === 'ERR_IPC_CHANNEL_CLOSED') {
+        // Master process ended early, no need to worry master should be done with it anyway
+        // Close this process as it can no longer reach the master
+        console.warn('IPC Connection closed early, shutting down worker.');
+        return process.exit(0);
+      }
+    }
+  });
 }
 
 process.on('message', function(data) {
@@ -39,11 +49,4 @@ process.on('message', function(data) {
     return process.exit(0);
   }
   handle(data);
-});
-
-process.on('unhandledRejection', function(err) {
-  // ERR_IPC_CHANNEL_CLOSED happens when the worker is killed before it finishes processing
-  if (err.code !== 'ERR_IPC_CHANNEL_CLOSED') {
-    console.error('Unhandled promise rejection:', err.stack);
-  }
 });
