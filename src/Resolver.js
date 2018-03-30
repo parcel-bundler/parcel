@@ -213,16 +213,30 @@ class Resolver {
     pkg.pkgfile = file;
     pkg.pkgdir = dir;
 
+    // If the package has a `source` field, check if it is behind a symlink.
+    // If so, we treat the module as source code rather than a pre-compiled module.
+    if (pkg.source) {
+      let realpath = await fs.realpath(file);
+      if (realpath === file) {
+        delete pkg.source;
+      }
+    }
+
     this.packageCache.set(file, pkg);
     return pkg;
   }
 
   getPackageMain(pkg) {
     // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
-    // we use the "module" or "jsnext:main" field to get the full dependency tree if available
-    let main = [pkg.module, pkg['jsnext:main'], pkg.browser, pkg.main].find(
-      entry => typeof entry === 'string'
-    );
+    // we use the "module" or "jsnext:main" field to get the full dependency tree if available.
+    // If this is a linked module with a `source` field, use that as the entry point.
+    let main = [
+      pkg.source,
+      pkg.module,
+      pkg['jsnext:main'],
+      pkg.browser,
+      pkg.main
+    ].find(entry => typeof entry === 'string');
 
     // Default to index file if no main field find
     if (!main || main === '.' || main === './') {
@@ -269,16 +283,17 @@ class Resolver {
   }
 
   resolvePackageAliases(filename, pkg) {
-    // Resolve aliases in the package.alias and package.browser fields.
-    if (pkg) {
-      return (
-        this.getAlias(filename, pkg.pkgdir, pkg.alias) ||
-        this.getAlias(filename, pkg.pkgdir, pkg.browser) ||
-        filename
-      );
+    if (!pkg) {
+      return filename;
     }
 
-    return filename;
+    // Resolve aliases in the package.source, package.alias, and package.browser fields.
+    return (
+      this.getAlias(filename, pkg.pkgdir, pkg.source) ||
+      this.getAlias(filename, pkg.pkgdir, pkg.alias) ||
+      this.getAlias(filename, pkg.pkgdir, pkg.browser) ||
+      filename
+    );
   }
 
   getAlias(filename, dir, aliases) {
