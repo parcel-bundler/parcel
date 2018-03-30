@@ -1,46 +1,49 @@
 let $module;
 
-function handle(data) {
+async function handle(data) {
   let idx = data.idx;
   let child = data.child;
   let method = data.method;
   let args = data.args;
-  let callback = function() {
-    let _args = Array.prototype.slice.call(arguments);
-    if (_args[0] instanceof Error) {
-      let e = _args[0];
-      _args[0] = {
-        $error: '$error',
-        type: e.constructor.name,
-        message: e.message,
-        stack: e.stack
-      };
-      Object.keys(e).forEach(key => {
-        _args[0][key] = e[key];
-      });
-    }
-    process.send({idx: idx, child: child, args: _args});
+
+  let result = {
+    idx: idx,
+    child: child,
+    type: undefined,
+    data: undefined
   };
-  let exec;
-  if (method == null && typeof $module == 'function') {
-    exec = $module;
-  } else if (typeof $module[method] == 'function') {
-    exec = $module[method];
-  }
 
-  if (!exec) {
-    return console.error('NO SUCH METHOD:', method);
+  try {
+    result.content = await $module[method](...args);
+    result.type = 'result';
+  } catch (e) {
+    result.content = {
+      type: e.constructor.name,
+      message: e.message,
+      stack: e.stack,
+      fileName: e.fileName || null
+    };
+    result.type = 'error';
   }
-
-  exec.apply(null, args.concat([callback]));
+  process.send(result);
 }
 
 process.on('message', function(data) {
   if (!$module) {
-    return ($module = require(data.module));
+    if (data.module) {
+      $module = require(data.module);
+    }
+    return;
   }
-  if (data == 'die') {
+  if (data === 'die') {
     return process.exit(0);
   }
   handle(data);
+});
+
+process.on('unhandledRejection', function(err) {
+  // ERR_IPC_CHANNEL_CLOSED happens when the worker is killed before it finishes processing
+  if (err.code !== 'ERR_IPC_CHANNEL_CLOSED') {
+    console.error('Unhandled promise rejection:', err.stack);
+  }
 });

@@ -1,19 +1,16 @@
 const childProcess = require('child_process');
 const childModule = require.resolve('./child');
 
-function fork(forkModule, workerOptions) {
+function fork(forkModule) {
   // suppress --debug / --inspect flags while preserving others (like --harmony)
   let filteredArgs = process.execArgv.filter(
     v => !/^--(debug|inspect)/.test(v)
   );
-  let options = Object.assign(
-    {
-      execArgv: filteredArgs,
-      env: process.env,
-      cwd: process.cwd()
-    },
-    workerOptions
-  );
+  let options = {
+    execArgv: filteredArgs,
+    env: process.env,
+    cwd: process.cwd()
+  };
   let child = childProcess.fork(childModule, process.argv, options);
 
   child.on('error', function() {

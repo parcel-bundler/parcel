@@ -1,6 +1,5 @@
 const {EventEmitter} = require('events');
 const os = require('os');
-const promisify = require('./utils/promisify');
 const logger = require('./Logger');
 const fork = require('./workerfarm/fork');
 
@@ -24,11 +23,11 @@ class WorkerFarm extends EventEmitter {
         ? require.resolve('../lib/worker')
         : require.resolve('../src/worker');
 
-    this.localWorker = this.promisifyWorker(require('./worker'));
-    this.remoteWorker = this.promisifyWorker({
+    this.localWorker = require('./worker');
+    this.remoteWorker = {
       init: this.mkhandle('init'),
       run: this.mkhandle('run')
-    });
+    };
 
     this.started = false;
     this.childId = -1;
@@ -41,22 +40,18 @@ class WorkerFarm extends EventEmitter {
   }
 
   mkhandle(method) {
-    return function() {
-      let args = Array.prototype.slice.call(arguments);
+    return async function(...args) {
       if (this.activeCalls >= this.options.maxConcurrentCalls) {
-        let err = new Error(
-          'Too many concurrent calls (' + this.activeCalls + ')'
-        );
-        if (typeof args[args.length - 1] == 'function') {
-          return process.nextTick(args[args.length - 1].bind(null, err));
-        }
-        throw err;
+        throw new Error(`Too many concurrent calls (${this.activeCalls})`);
       }
-      this.addCall({
-        method,
-        callback: args.pop(),
-        args: args,
-        retries: 0
+      return new Promise((resolve, reject) => {
+        this.addCall({
+          method,
+          args: args,
+          retries: 0,
+          resolve,
+          reject
+        });
       });
     }.bind(this);
   }
@@ -100,7 +95,7 @@ class WorkerFarm extends EventEmitter {
   startChild() {
     this.childId++;
 
-    let forked = fork(this.path, this.options.workerOptions);
+    let forked = fork(this.path);
     let id = this.childId;
     let c = {
       send: forked.send,
@@ -140,57 +135,57 @@ class WorkerFarm extends EventEmitter {
   receive(data) {
     let idx = data.idx;
     let childId = data.child;
-    let args = data.args;
     let child = this.children.get(childId);
+    let type = data.type;
+    let content = data.content;
 
+    // Possibly premature child death
     if (!child) {
-      // Possibly premature child death
       return;
     }
 
-    if (data.event) {
-      this.emit(data.event, ...data.args);
-      return;
-    } else if (data.type === 'logger') {
+    if (type === 'logger') {
       if (this.shouldUseRemoteWorkers()) {
         logger.handleMessage(data);
       }
-      return;
+    } else if (type === 'event') {
+      this.emit(data.event, ...data.args);
+    } else if (type === 'result' || 'error') {
+      let call = child.calls[idx];
+      if (!call) {
+        return console.error(`Worker Farm: Received message for unknown index 
+            for existing child. This should not happen!`);
+      }
+
+      if (type === 'error') {
+        let error = new Error(content.message);
+        Object.keys(content).forEach(key => {
+          error[key] = content[key];
+        });
+        process.nextTick(function() {
+          call.reject(error);
+        });
+      } else {
+        process.nextTick(function() {
+          call.resolve(content);
+        });
+      }
+
+      delete child.calls[idx];
+      child.activeCalls--;
+      this.activeCalls--;
+
+      if (
+        child.calls.length >= this.options.maxCallsPerWorker &&
+        !Object.keys(child.calls).length
+      ) {
+        // this child has finished its run, kill it
+        this.stopChild(childId);
+      }
+
+      // allow any outstanding calls to be processed
+      this.processQueue();
     }
-
-    let call = child.calls[idx];
-    if (!call) {
-      return console.error(`Worker Farm: Received message for unknown index 
-        for existing child. This should not happen!`);
-    }
-
-    if (args[0] && args[0].$error == '$error') {
-      let e = new Error(args[0].message);
-      // Copy properties to Error
-      Object.keys(e).forEach(function(key) {
-        e[key] = args[0][key];
-      });
-      throw e;
-    }
-
-    process.nextTick(function() {
-      call.callback.apply(null, args);
-    });
-
-    delete child.calls[idx];
-    child.activeCalls--;
-    this.activeCalls--;
-
-    if (
-      child.calls.length >= this.options.maxCallsPerWorker &&
-      !Object.keys(child.calls).length
-    ) {
-      // this child has finished its run, kill it
-      this.stopChild(childId);
-    }
-
-    // allow any outstanding calls to be processed
-    this.processQueue();
   }
 
   send(childId, call) {
@@ -258,16 +253,6 @@ class WorkerFarm extends EventEmitter {
     this.initRemoteWorkers(options);
   }
 
-  promisifyWorker(worker) {
-    let res = {};
-
-    for (let key in worker) {
-      res[key] = promisify(worker[key].bind(worker));
-    }
-
-    return res;
-  }
-
   async initRemoteWorkers(options) {
     this.started = false;
     this.warmWorkers = 0;
@@ -298,14 +283,12 @@ class WorkerFarm extends EventEmitter {
       // Send the job to a remote worker in the background,
       // but use the result from the local worker - it will be faster.
       if (this.started) {
-        this.remoteWorker.run(...args, true).then(
-          () => {
+        this.remoteWorker
+          .run(...args, true)
+          .then(() => {
             this.warmWorkers++;
-          },
-          () => {
-            // ignore error
-          }
-        );
+          })
+          .catch(() => null);
       }
 
       return this.localWorker.run(...args, false);
