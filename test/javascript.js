@@ -723,6 +723,24 @@ describe('javascript', function() {
     assert(!file.includes('class Bar {}'));
   });
 
+  it('should compile node_modules when symlinked with a source field in package.json', async function() {
+    await bundle(__dirname + '/integration/babel-node-modules-source/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
+  it('should not compile node_modules with a source field in package.json when not symlinked', async function() {
+    await bundle(
+      __dirname + '/integration/babel-node-modules-source-unlinked/index.js'
+    );
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
   it('should support compiling JSX', async function() {
     await bundle(__dirname + '/integration/jsx/index.jsx');
 
