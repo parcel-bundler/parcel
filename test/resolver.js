@@ -295,6 +295,24 @@ describe('resolver', function() {
       assert.equal(resolved.pkg.name, 'package-alias');
     });
 
+    it('should alias a glob using the package.alias field', async function() {
+      let resolved = await resolver.resolve(
+        './lib/test',
+        path.join(rootDir, 'node_modules', 'package-alias-glob', 'index.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules',
+          'package-alias-glob',
+          'src',
+          'test.js'
+        )
+      );
+      assert.equal(resolved.pkg.name, 'package-alias-glob');
+    });
+
     it('should apply a module alias using the package.alias field in the root package', async function() {
       let resolved = await resolver.resolve(
         'aliased',
@@ -425,6 +443,24 @@ describe('resolver', function() {
       assert.equal(
         resolved.path,
         path.join(rootDir, 'node_modules', 'source-alias', 'source.js')
+      );
+      assert(resolved.pkg.source);
+    });
+
+    it('should use the source field as a glob alias when symlinked', async function() {
+      let resolved = await resolver.resolve(
+        'source-alias-glob',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules',
+          'source-alias-glob',
+          'src',
+          'test.js'
+        )
       );
       assert(resolved.pkg.source);
     });

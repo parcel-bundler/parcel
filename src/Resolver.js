@@ -2,8 +2,10 @@ const builtins = require('./builtins');
 const path = require('path');
 const glob = require('glob');
 const fs = require('./utils/fs');
+const micromatch = require('micromatch');
 
 const EMPTY_SHIM = require.resolve('./builtins/_empty');
+const GLOB_RE = /[*+{}]/;
 
 /**
  * This resolver implements a modified version of the node_modules resolution algorithm:
@@ -36,7 +38,7 @@ class Resolver {
     }
 
     // Check if this is a glob
-    if (/[*+{}]/.test(filename) && glob.hasMagic(filename)) {
+    if (GLOB_RE.test(filename) && glob.hasMagic(filename)) {
       return {path: path.resolve(path.dirname(parent), filename)};
     }
 
@@ -310,7 +312,7 @@ class Resolver {
         filename = './' + filename;
       }
 
-      alias = aliases[filename];
+      alias = this.lookupAlias(aliases, filename);
     } else {
       // It is a node_module. First try the entire filename as a key.
       alias = aliases[filename];
@@ -338,6 +340,24 @@ class Resolver {
 
     // Otherwise, assume the alias is a module
     return alias;
+  }
+
+  lookupAlias(aliases, filename) {
+    // First, try looking up the exact filename
+    let alias = aliases[filename];
+    if (alias != null) {
+      return alias;
+    }
+
+    // Otherwise, try replacing glob keys
+    for (let key in aliases) {
+      if (GLOB_RE.test(key)) {
+        let re = micromatch.makeRe(key, {capture: true});
+        if (re.test(filename)) {
+          return filename.replace(re, aliases[key]);
+        }
+      }
+    }
   }
 
   async findPackage(dir) {
