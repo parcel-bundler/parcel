@@ -595,6 +595,9 @@ class Bundler extends EventEmitter {
         if (asset.parentBundle.type === commonBundle.type) {
           this.moveAssetToBundle(asset, commonBundle);
           return;
+        } else if(bundle.isIsolated && asset.parentBundle.type === commonBundle.type) {
+          bundle.addAsset(asset);
+          return;
         }
       } else {
         return;
