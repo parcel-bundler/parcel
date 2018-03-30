@@ -1,9 +1,14 @@
-const JSAsset = require('./JSAsset');
+const Asset = require('../Asset');
 const fs = require('../utils/fs');
 const localRequire = require('../utils/localRequire');
 
-class ReasonAsset extends JSAsset {
-  async parse() {
+class ReasonAsset extends Asset {
+  constructor(name, pkg, options) {
+    super(name, pkg, options);
+    this.type = 'js';
+  }
+
+  async generate() {
     const bsb = await localRequire('bsb-js', this.name);
 
     // This runs BuckleScript - the Reason to JS compiler.
@@ -18,10 +23,7 @@ class ReasonAsset extends JSAsset {
     // BuckleScript configuration to simplify the file processing.
     const outputFile = this.name.replace(/\.(re|ml)$/, '.bs.js');
     const outputContent = await fs.readFile(outputFile);
-    this.contents = outputContent.toString();
-
-    // After loading the compiled JS source, use the normal JS behavior.
-    return await super.parse(this.contents);
+    return outputContent.toString();
   }
 }
 

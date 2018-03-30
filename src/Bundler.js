@@ -37,15 +37,13 @@ class Bundler extends EventEmitter {
     this.delegate = options.delegate || {};
     this.bundleLoaders = {};
 
-    this.addBundleLoader(
-      'wasm',
-      require.resolve('./builtins/loaders/wasm-loader')
-    );
-    this.addBundleLoader(
-      'css',
-      require.resolve('./builtins/loaders/css-loader')
-    );
-    this.addBundleLoader('js', require.resolve('./builtins/loaders/js-loader'));
+    const loadersPath = `./builtins/loaders/${
+      options.target === 'node' ? 'node' : 'browser'
+    }/`;
+
+    this.addBundleLoader('wasm', require.resolve(loadersPath + 'wasm-loader'));
+    this.addBundleLoader('css', require.resolve(loadersPath + 'css-loader'));
+    this.addBundleLoader('js', require.resolve(loadersPath + 'js-loader'));
 
     this.pending = false;
     this.loadedAssets = new Map();
@@ -69,6 +67,7 @@ class Bundler extends EventEmitter {
       typeof options.watch === 'boolean' ? options.watch : !isProduction;
     const target = options.target || 'browser';
     return {
+      production: isProduction,
       outDir: Path.resolve(options.outDir || 'dist'),
       outFile: options.outFile || '',
       publicURL: publicURL,
@@ -85,7 +84,7 @@ class Bundler extends EventEmitter {
           ? false
           : typeof options.hmr === 'boolean' ? options.hmr : watch,
       https: options.https || false,
-      logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
+      logLevel: isNaN(options.logLevel) ? 3 : options.logLevel,
       mainFile: this.mainFile,
       hmrPort: options.hmrPort || 0,
       rootDir: Path.dirname(this.mainFile),
@@ -187,22 +186,33 @@ class Bundler extends EventEmitter {
       // Build the queued assets.
       let loadedAssets = await this.buildQueue.run();
 
-      // Emit an HMR update for any new assets (that don't have a parent bundle yet)
-      // plus the asset that actually changed.
-      if (this.hmr && !isInitialBundle) {
-        this.hmr.emitUpdate([...this.findOrphanAssets(), ...loadedAssets]);
-      }
+      // The changed assets are any that don't have a parent bundle yet
+      // plus the ones that were in the build queue.
+      let changedAssets = [...this.findOrphanAssets(), ...loadedAssets];
 
       // Invalidate bundles
       for (let asset of this.loadedAssets.values()) {
         asset.invalidateBundle();
       }
 
-      // Create a new bundle tree and package everything up.
+      // Create a new bundle tree
       this.mainBundle = this.createBundleTree(this.mainAsset);
+
+      // Generate the final bundle names, and replace references in the built assets.
       this.bundleNameMap = this.mainBundle.getBundleNameMap(
         this.options.contentHash
       );
+
+      for (let asset of changedAssets) {
+        asset.replaceBundleNames(this.bundleNameMap);
+      }
+
+      // Emit an HMR update if this is not the initial bundle.
+      if (this.hmr && !isInitialBundle) {
+        this.hmr.emitUpdate(changedAssets);
+      }
+
+      // Package everything up
       this.bundleHashes = await this.mainBundle.package(
         this,
         this.bundleHashes
