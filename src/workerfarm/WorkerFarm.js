@@ -1,14 +1,11 @@
-const {EventEmitter} = require('events');
 const os = require('os');
 const logger = require('../Logger');
 const fork = require('./fork');
 
 let shared = null;
 
-class WorkerFarm extends EventEmitter {
+class WorkerFarm {
   constructor(options) {
-    super();
-
     this.options = {
       maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
       maxCallsPerWorker: Infinity,
@@ -25,7 +22,6 @@ class WorkerFarm extends EventEmitter {
 
     this.localWorker = require('./worker');
     this.remoteWorker = {
-      init: this.mkhandle('init'),
       run: this.mkhandle('run')
     };
 
@@ -92,11 +88,25 @@ class WorkerFarm extends EventEmitter {
     );
   }
 
-  startChild() {
+  async initRemoteWorker(childId) {
+    let child = this.children.get(childId);
+    await new Promise((resolve, reject) => {
+      this.send(childId, {
+        method: 'init',
+        args: [this.parcelOptions, childId],
+        retries: 0,
+        resolve,
+        reject
+      });
+    });
+    child.ready = true;
+  }
+
+  async startChild() {
     this.childId++;
 
-    let forked = fork(this.path);
     let id = this.childId;
+    let forked = fork(this.path);
     let c = {
       send: forked.send,
       child: forked.child,
@@ -116,6 +126,7 @@ class WorkerFarm extends EventEmitter {
 
     this.activeChildren++;
     this.children.set(id, c);
+    await this.initRemoteWorker(id);
   }
 
   stopChild(childId) {
@@ -148,12 +159,14 @@ class WorkerFarm extends EventEmitter {
       if (this.shouldUseRemoteWorkers()) {
         logger.handleMessage(data);
       }
-    } else if (type === 'event') {
-      this.emit(data.event, ...data.args);
+    } else if (type === 'request') {
+      this.processRequest(data, child);
     } else if (type === 'result' || 'error') {
       let call = child.calls[idx];
       if (!call) {
-        throw new Error(`Worker Farm: Received message for unknown index for existing child. This should not happen!`);
+        throw new Error(
+          `Worker Farm: Received message for unknown index for existing child. This should not happen!`
+        );
       }
 
       if (type === 'error') {
@@ -203,17 +216,18 @@ class WorkerFarm extends EventEmitter {
     });
   }
 
-  processQueue() {
+  async processQueue() {
+    if (this.activeChildren < this.options.maxConcurrentWorkers) {
+      await this.startChild();
+    }
+
     if (!this.callQueue.length) {
       return this.ending && this.end();
     }
 
-    if (this.activeChildren < this.options.maxConcurrentWorkers) {
-      this.startChild();
-    }
-
     for (let [childId, child] of this.children.entries()) {
       if (
+        child.ready &&
         child.activeCalls < this.options.maxConcurrentCallsPerWorker &&
         child.calls.length < this.options.maxCallsPerWorker
       ) {
@@ -226,6 +240,41 @@ class WorkerFarm extends EventEmitter {
 
     if (this.ending) {
       this.end();
+    }
+  }
+
+  async processRequest(request, child = false) {
+    let response = {
+      idx: request.idx
+    };
+    if (request.location) {
+      const mod = require(request.location);
+      try {
+        let func;
+        if (request.method) {
+          func = mod[request.method];
+        } else {
+          func = mod;
+        }
+        let result = await func(...request.args);
+        response.result = result;
+      } catch (e) {
+        response.error = {
+          type: e.constructor.name,
+          message: e.message,
+          stack: e.stack
+        };
+      }
+    }
+    if (child) {
+      child.send({
+        type: 'response',
+        method: 'respond',
+        args: [response]
+      });
+      child.send(response);
+    } else {
+      return response;
     }
   }
 
@@ -247,22 +296,25 @@ class WorkerFarm extends EventEmitter {
     shared = null;
   }
 
-  init(options) {
-    this.localWorker.init(options);
-    this.initRemoteWorkers(options);
+  init(options, reset = false) {
+    this.started = false;
+    this.parcelOptions = options;
+    this.localWorker.init(this.parcelOptions);
+    if (reset) {
+      this.resetRemoteWorkers();
+    } else {
+      this.started = true;
+    }
   }
 
-  async initRemoteWorkers(options) {
-    this.started = false;
-    this.warmWorkers = 0;
-
+  async resetRemoteWorkers() {
     let promises = [];
-    for (let i = 0; i < this.options.maxConcurrentWorkers; i++) {
-      promises.push(this.remoteWorker.init(options));
-    }
-
-    await Promise.all(promises);
-    if (this.options.maxConcurrentWorkers > 0) {
+    this.children.forEach((child, childId) => {
+      child.ready = false;
+      promises.push(this.initRemoteWorker(childId));
+    });
+    if (promises.length > 0) {
+      await Promise.all(promises);
       this.started = true;
     }
   }
@@ -296,9 +348,9 @@ class WorkerFarm extends EventEmitter {
 
   static getShared(options) {
     if (!shared) {
-      shared = new WorkerFarm(options);
-    } else {
-      shared.init(options);
+      shared = new WorkerFarm(options || {});
+    } else if (options) {
+      shared.init(options, true);
     }
 
     return shared;
