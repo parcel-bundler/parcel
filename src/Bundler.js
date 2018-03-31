@@ -66,9 +66,10 @@ class Bundler extends EventEmitter {
     const watch =
       typeof options.watch === 'boolean' ? options.watch : !isProduction;
     const target = options.target || 'browser';
+    const outDir = Path.resolve(options.outDir || 'dist');
     return {
       production: isProduction,
-      outDir: Path.resolve(options.outDir || 'dist'),
+      outDir: outDir,
       outFile: options.outFile || '',
       publicURL: publicURL,
       watch: watch,
@@ -90,7 +91,9 @@ class Bundler extends EventEmitter {
       rootDir: Path.dirname(this.mainFile),
       sourceMaps:
         typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
-      sourceRoot: options.sourceRoot,
+      sourceRoot: options.sourceRoot
+        ? Path.relative(outDir, Path.resolve(options.sourceRoot))
+        : undefined,
       hmrHostname:
         options.hmrHostname ||
         (options.target === 'electron' ? 'localhost' : ''),

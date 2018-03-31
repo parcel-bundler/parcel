@@ -43,7 +43,10 @@ program
   )
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
-  .option('--source-root <path>', 'set the URL root for sourcemaps')
+  .option(
+    '--source-root <path>',
+    'specifie the location for debugger to locate source'
+  )
   .option('--no-source-maps', 'disable sourcemaps')
   .option('--no-autoinstall', 'disable autoinstall')
   .option(
@@ -85,7 +88,10 @@ program
   )
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
-  .option('--source-root <path>', 'set the URL root for sourcemaps')
+  .option(
+    '--source-root <path>',
+    'specifie the location for debugger to locate source'
+  )
   .option('--no-source-maps', 'disable sourcemaps')
   .option('--no-autoinstall', 'disable autoinstall')
   .option(
@@ -117,7 +123,10 @@ program
   )
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
-  .option('--source-root <path>', 'set the URL root for sourcemaps')
+  .option(
+    '--source-root <path>',
+    'specifie the location for debugger to locate source'
+  )
   .option('--no-source-maps', 'disable sourcemaps')
   .option(
     '-t, --target <target>',
