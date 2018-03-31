@@ -24,13 +24,37 @@ class WorkerFarm {
     };
 
     this.started = false;
-    this.childId = -1;
+    this.childId = 0;
     this.activeChildren = 0;
     this.warmWorkers = 0;
     this.children = new Map();
     this.callQueue = [];
 
     this.init(options);
+
+    const filesize = require('filesize');
+    setInterval(() => {
+      if (this.activeChildren > 0) {
+        console.log(`
+          ================ STATS ================\n
+          activeChildren: ${this.activeChildren}\n
+          warmWorkers: ${this.warmWorkers}\n
+          callQueue: ${this.callQueue.length}\n
+          MemoryUsage: ${filesize(process.memoryUsage().heapUsed)}/${filesize(
+          process.memoryUsage().heapTotal
+        )}
+        `);
+        for (let [childId, child] of this.children.entries()) {
+          if (child.calls.size > 0) {
+            console.log(`
+            ============== CHILD ${childId} ==============
+            activeCalls: ${child.activeCalls}
+            Total calls: ${child.calls.size}
+          `);
+          }
+        }
+      }
+    }, 500);
   }
 
   mkhandle(method) {
@@ -49,40 +73,33 @@ class WorkerFarm {
 
   onExit(childId) {
     // delay this to give any sends a chance to finish
-    setTimeout(
-      function() {
-        let doQueue = false;
-        let child = this.children.get(childId);
-        if (child && child.activeCalls) {
-          child.calls.forEach(call => {
-            if (!call) {
-              return;
-            }
-            call.retries++;
-            this.callQueue.unshift(call);
-            doQueue = true;
-          });
+    setTimeout(() => {
+      let doQueue = false;
+      let child = this.children.get(childId);
+      if (child && child.activeCalls) {
+        for (let call of child.calls.values()) {
+          call.retries++;
+          this.callQueue.unshift(call);
+          doQueue = true;
         }
-        this.stopChild(childId);
-        if (doQueue) {
-          this.processQueue();
-        }
-      }.bind(this),
-      10
-    );
+      }
+      this.stopChild(childId);
+      if (doQueue) {
+        this.processQueue();
+      }
+    }, 10);
   }
 
   async startChild() {
-    this.childId++;
-
-    let id = this.childId;
+    let id = this.childId++;
     let forked = fork(this.path, id);
     let c = {
       send: forked.send,
       child: forked.child,
-      calls: [],
+      calls: new Map(),
       activeCalls: 0,
-      exitCode: null
+      exitCode: null,
+      callId: 0
     };
 
     forked.child.on('message', this.receive.bind(this));
@@ -102,7 +119,7 @@ class WorkerFarm {
     let child = this.children.get(childId);
     if (child) {
       child.send('die');
-      setTimeout(function() {
+      setTimeout(() => {
         if (child.exitCode === null) {
           child.child.kill('SIGKILL');
         }
@@ -131,7 +148,7 @@ class WorkerFarm {
     } else if (type === 'request') {
       this.processRequest(data, child);
     } else if (type === 'result' || 'error') {
-      let call = child.calls[idx];
+      let call = child.calls.get(idx);
       if (!call) {
         throw new Error(
           `Worker Farm: Received message for unknown index for existing child. This should not happen!`
@@ -143,16 +160,12 @@ class WorkerFarm {
         Object.keys(content).forEach(key => {
           error[key] = content[key];
         });
-        process.nextTick(function() {
-          call.reject(error);
-        });
+        process.nextTick(() => call.reject(error));
       } else {
-        process.nextTick(function() {
-          call.resolve(content);
-        });
+        process.nextTick(() => call.resolve(content));
       }
 
-      delete child.calls[idx];
+      child.calls.delete(idx);
       child.activeCalls--;
       this.activeCalls--;
 
@@ -163,9 +176,9 @@ class WorkerFarm {
 
   send(childId, call) {
     let child = this.children.get(childId);
-    let idx = child.calls.length;
+    let idx = child.callId++;
 
-    child.calls.push(call);
+    child.calls.set(idx, call);
     child.activeCalls++;
     this.activeCalls++;
 
@@ -279,7 +292,8 @@ class WorkerFarm {
     // Child process workers are slow to start (~600ms).
     // While we're waiting, just run on the main thread.
     // This significantly speeds up startup time.
-    if (this.shouldUseRemoteWorkers()) {
+    return this.remoteWorker.run(...args, false);
+    /*if (this.shouldUseRemoteWorkers()) {
       return this.remoteWorker.run(...args, false);
     } else {
       // Workers have started, but are not warmed up yet.
@@ -295,7 +309,7 @@ class WorkerFarm {
       }
 
       return this.localWorker.run(...args, false);
-    }
+    }*/
   }
 
   static getShared(options) {

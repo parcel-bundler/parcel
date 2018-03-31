@@ -42,12 +42,10 @@ async function handle(data) {
 }
 
 process.on('message', function(data) {
-  if (!$module) {
-    if (data.module) {
-      $module = require(data.module);
-      if (!isNaN(data.child) && $module.setId) {
-        $module.setId(data.child);
-      }
+  if (!$module && data.module) {
+    $module = require(data.module);
+    if (!isNaN(data.child) && $module.setId) {
+      $module.setId(data.child);
     }
     return;
   }

@@ -10,10 +10,21 @@ let shared;
 class Worker {
   constructor() {
     this.callQueue = [];
-    this.responseQueue = [];
-    this.currentCalls = 0;
+    this.responseQueue = new Map();
+    this.responseId = 0;
     this.activeCalls = 0;
     this.maxConcurrentCalls = 10;
+    const filesize = require('filesize');
+    setInterval(() => {
+      console.log(`
+          ================ WORKER STATS ================\n
+          callQueue: ${this.callQueue.length}\n
+          Active calls: ${this.activeCalls}\n
+          MemoryUsage: ${filesize(process.memoryUsage().heapUsed)}/${filesize(
+        process.memoryUsage().heapTotal
+      )}
+        `);
+    }, 500);
   }
 
   init(options) {
@@ -39,7 +50,6 @@ class Worker {
 
   // Keep in mind to make sure responses to these calls are JSON.Stringify safe
   async addCall(request) {
-    let idx = this.callQueue.length;
     let call = request;
     call.type = 'request';
     call.child = this.id;
@@ -49,27 +59,30 @@ class Worker {
     return new Promise((resolve, reject) => {
       call.resolve = resolve;
       call.reject = reject;
-      call.idx = idx;
       this.callQueue.push(call);
-      this.currentCalls++;
       this.processQueue();
     });
   }
 
   async send(call) {
-    call.idx = this.responseQueue.length;
-    this.responseQueue.push(call);
-    this.activeCalls++;
+    let idx = this.responseId++;
+    this.responseQueue.set(idx, call);
     let ipcPackage = {
-      idx: call.idx,
+      idx: idx,
       child: call.child,
       type: call.type,
       location: call.location,
       method: call.method,
       args: call.args
     };
+    this.activeCalls++;
     if (process.send) {
-      process.send(ipcPackage);
+      process.send(ipcPackage, err => {
+        if (err instanceof Error) {
+          err.message = 'Failed to send IPC Message to master process.';
+          throw err;
+        }
+      });
     } else {
       this.respond(await WorkerFarm.getShared().processRequest(ipcPackage));
     }
@@ -86,20 +99,19 @@ class Worker {
   }
 
   respond(response) {
-    let call = this.responseQueue[response.idx];
+    let call = this.responseQueue.get(response.idx);
+
     if (response.error) {
       let error = new Error(response.error.message);
       Object.keys(response.error).forEach(key => {
         error[key] = response.error[key];
       });
-      process.nextTick(function() {
-        call.reject(error);
-      });
+      process.nextTick(() => call.reject(error));
     } else {
-      call.resolve(response.result);
+      process.nextTick(() => call.resolve(response.result));
     }
-    delete this.responseQueue[response.idx];
-    this.currentCalls--;
+
+    this.responseQueue.delete(response.idx);
     this.activeCalls--;
     // Process the next call
     this.processQueue();
