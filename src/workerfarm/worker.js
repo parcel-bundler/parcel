@@ -14,10 +14,6 @@ class Worker {
     this.responseId = 0;
     this.activeCalls = 0;
     this.maxConcurrentCalls = 10;
-    console.log('Worker has spawned.');
-    setInterval(() => {
-      console.log(`Worker ${this.id ? this.id : 'local'} is still alive.`);
-    }, 10000);
   }
 
   init(options) {

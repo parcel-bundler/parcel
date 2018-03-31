@@ -268,8 +268,7 @@ class WorkerFarm {
     // Child process workers are slow to start (~600ms).
     // While we're waiting, just run on the main thread.
     // This significantly speeds up startup time.
-    return this.remoteWorker.run(...args, false);
-    /*if (this.shouldUseRemoteWorkers()) {
+    if (this.shouldUseRemoteWorkers()) {
       return this.remoteWorker.run(...args, false);
     } else {
       // Workers have started, but are not warmed up yet.
@@ -285,7 +284,7 @@ class WorkerFarm {
       }
 
       return this.localWorker.run(...args, false);
-    }*/
+    }
   }
 
   static getShared(options) {
