@@ -14,17 +14,10 @@ class Worker {
     this.responseId = 0;
     this.activeCalls = 0;
     this.maxConcurrentCalls = 10;
-    const filesize = require('filesize');
+    console.log('Worker has spawned.');
     setInterval(() => {
-      console.log(`
-          ================ WORKER STATS ================\n
-          callQueue: ${this.callQueue.length}\n
-          Active calls: ${this.activeCalls}\n
-          MemoryUsage: ${filesize(process.memoryUsage().heapUsed)}/${filesize(
-        process.memoryUsage().heapTotal
-      )}
-        `);
-    }, 500);
+      console.log(`Worker ${this.id ? this.id : 'local'} is still alive.`);
+    }, 10000);
   }
 
   init(options) {

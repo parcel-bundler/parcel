@@ -31,30 +31,6 @@ class WorkerFarm {
     this.callQueue = [];
 
     this.init(options);
-
-    const filesize = require('filesize');
-    setInterval(() => {
-      if (this.activeChildren > 0) {
-        console.log(`
-          ================ STATS ================\n
-          activeChildren: ${this.activeChildren}\n
-          warmWorkers: ${this.warmWorkers}\n
-          callQueue: ${this.callQueue.length}\n
-          MemoryUsage: ${filesize(process.memoryUsage().heapUsed)}/${filesize(
-          process.memoryUsage().heapTotal
-        )}
-        `);
-        for (let [childId, child] of this.children.entries()) {
-          if (child.calls.size > 0) {
-            console.log(`
-            ============== CHILD ${childId} ==============
-            activeCalls: ${child.activeCalls}
-            Total calls: ${child.calls.size}
-          `);
-          }
-        }
-      }
-    }, 500);
   }
 
   mkhandle(method) {
@@ -257,9 +233,9 @@ class WorkerFarm {
   async end() {
     // Force kill all children
     this.ending = true;
-    this.children.forEach(child => {
-      this.stopChild(child);
-    });
+    for (let childId of this.children.keys()) {
+      this.stopChild(childId);
+    }
     this.ending = false;
     shared = null;
   }
