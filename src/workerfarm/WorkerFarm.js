@@ -8,10 +8,7 @@ class WorkerFarm {
   constructor(options) {
     this.options = {
       maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
-      maxCallsPerWorker: Infinity,
       maxConcurrentCallsPerWorker: 10,
-      maxConcurrentCalls: Infinity,
-      maxRetries: Infinity,
       forcedKillTime: 100
     };
 
@@ -22,7 +19,8 @@ class WorkerFarm {
 
     this.localWorker = require('./worker');
     this.remoteWorker = {
-      run: this.mkhandle('run')
+      run: this.mkhandle('run'),
+      init: this.mkhandle('init')
     };
 
     this.started = false;
@@ -36,10 +34,7 @@ class WorkerFarm {
   }
 
   mkhandle(method) {
-    return async function(...args) {
-      if (this.activeCalls >= this.options.maxConcurrentCalls) {
-        throw new Error(`Too many concurrent calls (${this.activeCalls})`);
-      }
+    return function(...args) {
       return new Promise((resolve, reject) => {
         this.addCall({
           method,
@@ -59,25 +54,14 @@ class WorkerFarm {
         let doQueue = false;
         let child = this.children.get(childId);
         if (child && child.activeCalls) {
-          child.calls.forEach(
-            function(call, i) {
-              if (!call) {
-                return;
-              } else if (call.retries >= this.options.maxRetries) {
-                this.receive({
-                  idx: i,
-                  child: childId,
-                  args: [
-                    new Error('cancel after ' + call.retries + ' retries!')
-                  ]
-                });
-              } else {
-                call.retries++;
-                this.callQueue.unshift(call);
-                doQueue = true;
-              }
-            }.bind(this)
-          );
+          child.calls.forEach(call => {
+            if (!call) {
+              return;
+            }
+            call.retries++;
+            this.callQueue.unshift(call);
+            doQueue = true;
+          });
         }
         this.stopChild(childId);
         if (doQueue) {
@@ -88,25 +72,11 @@ class WorkerFarm {
     );
   }
 
-  async initRemoteWorker(childId) {
-    let child = this.children.get(childId);
-    await new Promise((resolve, reject) => {
-      this.send(childId, {
-        method: 'init',
-        args: [this.parcelOptions, childId],
-        retries: 0,
-        resolve,
-        reject
-      });
-    });
-    child.ready = true;
-  }
-
   async startChild() {
     this.childId++;
 
     let id = this.childId;
-    let forked = fork(this.path);
+    let forked = fork(this.path, id);
     let c = {
       send: forked.send,
       child: forked.child,
@@ -126,7 +96,6 @@ class WorkerFarm {
 
     this.activeChildren++;
     this.children.set(id, c);
-    await this.initRemoteWorker(id);
   }
 
   stopChild(childId) {
@@ -187,14 +156,6 @@ class WorkerFarm {
       child.activeCalls--;
       this.activeCalls--;
 
-      if (
-        child.calls.length >= this.options.maxCallsPerWorker &&
-        !Object.keys(child.calls).length
-      ) {
-        // this child has finished its run, kill it
-        this.stopChild(childId);
-      }
-
       // allow any outstanding calls to be processed
       this.processQueue();
     }
@@ -221,19 +182,13 @@ class WorkerFarm {
       await this.startChild();
     }
 
-    if (!this.callQueue.length) {
-      return this.ending && this.end();
-    }
-
-    for (let [childId, child] of this.children.entries()) {
-      if (
-        child.ready &&
-        child.activeCalls < this.options.maxConcurrentCallsPerWorker &&
-        child.calls.length < this.options.maxCallsPerWorker
-      ) {
-        this.send(childId, this.callQueue.shift());
-        if (!this.callQueue.length) {
-          return this.ending && this.end();
+    if (this.callQueue.length > 0) {
+      for (let [childId, child] of this.children.entries()) {
+        if (child.activeCalls < this.options.maxConcurrentCallsPerWorker) {
+          this.send(childId, this.callQueue.shift());
+          if (!this.callQueue.length) {
+            return this.ending && this.end();
+          }
         }
       }
     }
@@ -296,25 +251,22 @@ class WorkerFarm {
     shared = null;
   }
 
-  init(options, reset = false) {
-    this.started = false;
-    this.parcelOptions = options;
-    this.localWorker.init(this.parcelOptions);
-    if (reset) {
-      this.resetRemoteWorkers();
-    } else {
-      this.started = true;
-    }
+  init(options) {
+    this.localWorker.init(options);
+    this.initRemoteWorkers(options);
   }
 
-  async resetRemoteWorkers() {
+  async initRemoteWorkers(options) {
+    this.started = false;
+    this.warmWorkers = 0;
+
     let promises = [];
-    this.children.forEach((child, childId) => {
-      child.ready = false;
-      promises.push(this.initRemoteWorker(childId));
-    });
-    if (promises.length > 0) {
-      await Promise.all(promises);
+    for (let i = 0; i < this.options.maxConcurrentWorkers; i++) {
+      promises.push(this.remoteWorker.init(options));
+    }
+
+    await Promise.all(promises);
+    if (this.options.maxConcurrentWorkers > 0) {
       this.started = true;
     }
   }
@@ -350,7 +302,7 @@ class WorkerFarm {
     if (!shared) {
       shared = new WorkerFarm(options || {});
     } else if (options) {
-      shared.init(options, true);
+      shared.init(options);
     }
 
     return shared;

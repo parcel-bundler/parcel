@@ -14,8 +14,11 @@ async function handle(data) {
     result.type = 'result';
   } catch (e) {
     result.content = {
-      message: e.message
+      message: e.message,
+      stack: e.stack,
+      name: e.name
     };
+    // Add all custom codeFrame properties
     Object.keys(e).forEach(key => {
       result.content[key] = e[key];
     });
@@ -40,6 +43,9 @@ process.on('message', function(data) {
   if (!$module) {
     if (data.module) {
       $module = require(data.module);
+      if (!isNaN(data.child) && $module.setId) {
+        $module.setId(data.child);
+      }
     }
     return;
   }

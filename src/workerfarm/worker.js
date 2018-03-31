@@ -10,13 +10,13 @@ let shared;
 class Worker {
   constructor() {
     this.callQueue = [];
-    this.callPromises = [];
+    this.responseQueue = [];
     this.currentCalls = 0;
+    this.activeCalls = 0;
     this.maxConcurrentCalls = 10;
   }
 
-  init(options, childId) {
-    this.id = childId;
+  init(options) {
     this.pipeline = new Pipeline(options || {});
     Object.assign(process.env, options.env || {});
     process.env.HMR_PORT = options.hmrPort;
@@ -33,21 +33,46 @@ class Worker {
     }
   }
 
+  setId(childId) {
+    this.id = childId;
+  }
+
   // Keep in mind to make sure responses to these calls are JSON.Stringify safe
   async addCall(request) {
     let idx = this.callQueue.length;
     let call = request;
-    call.child = this.id;
-    call.idx = idx;
     call.type = 'request';
+    call.child = this.id;
     if (request.location) {
       call.location = Path.join(BASEPATH, request.location);
     }
     return new Promise((resolve, reject) => {
+      call.resolve = resolve;
+      call.reject = reject;
+      call.idx = idx;
       this.callQueue.push(call);
-      this.callPromises.push({resolve, reject, idx});
+      this.currentCalls++;
       this.processQueue();
     });
+  }
+
+  async send(call) {
+    call.idx = this.responseQueue.length;
+    this.responseQueue.push(call);
+    this.activeCalls++;
+    let ipcPackage = {
+      idx: call.idx,
+      child: call.child,
+      type: call.type,
+      location: call.location,
+      method: call.method,
+      args: call.args
+    };
+    if (process.send) {
+      process.send(ipcPackage);
+    } else {
+      this.respond(await WorkerFarm.getShared().processRequest(ipcPackage));
+    }
   }
 
   async processQueue() {
@@ -55,21 +80,13 @@ class Worker {
       return;
     }
 
-    if (this.currentCalls < this.maxConcurrentCalls) {
-      if (process.send) {
-        process.send(this.callQueue.shift());
-      } else {
-        this.respond(
-          await WorkerFarm.getShared().processRequest(this.callQueue.shift())
-        );
-      }
-
-      this.currentCalls++;
+    if (this.activeCalls < this.maxConcurrentCalls) {
+      this.send(this.callQueue.shift());
     }
   }
 
   respond(response) {
-    let call = this.callPromises[response.idx];
+    let call = this.responseQueue[response.idx];
     if (response.error) {
       let error = new Error(response.error.message);
       Object.keys(response.error).forEach(key => {
@@ -81,8 +98,9 @@ class Worker {
     } else {
       call.resolve(response.result);
     }
-    delete this.callPromises[response.idx];
+    delete this.responseQueue[response.idx];
     this.currentCalls--;
+    this.activeCalls--;
     // Process the next call
     this.processQueue();
   }
