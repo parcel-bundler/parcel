@@ -1,5 +1,8 @@
 const childProcess = require('child_process');
-const childModule = require.resolve('./child');
+const childModule =
+  parseInt(process.versions.node, 10) < 8
+    ? require.resolve('../../lib/workerfarm/child')
+    : require.resolve('../../src/workerfarm/child');
 
 function fork(forkModule, childId) {
   // suppress --debug / --inspect flags while preserving others (like --harmony)
