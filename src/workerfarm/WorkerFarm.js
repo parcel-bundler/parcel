@@ -33,8 +33,7 @@ class WorkerFarm extends EventEmitter {
 
     this.localWorker = require(this.options.workerPath);
     this.remoteWorker = {
-      run: this.mkhandle('run'),
-      init: this.mkhandle('init')
+      run: this.mkhandle('run')
     };
 
     this.init(options);
@@ -253,12 +252,33 @@ class WorkerFarm extends EventEmitter {
 
   async initRemoteWorkers(options) {
     this.started = false;
-    this.warmWorkers = 0;
     this.warmedup = false;
+    this.warmWorkers = 0;
 
+    // Start workers if there isn't enough workers already
+    if (this.activeChildren < this.options.maxConcurrentWorkers) {
+      let promises = [];
+      for (let i = 0; i < this.options.maxConcurrentWorkers; i++) {
+        promises.push(this.startChild());
+      }
+      await Promise.all(promises);
+    }
+
+    // Reliable way of initialising workers
     let promises = [];
-    for (let i = 0; i < this.options.maxConcurrentWorkers; i++) {
-      promises.push(this.remoteWorker.init(options));
+    for (let childId of this.children.keys()) {
+      promises.push(
+        new Promise((resolve, reject) => {
+          this.send(childId, {
+            method: 'init',
+            args: [options],
+            retries: 0,
+            type: 'request',
+            resolve,
+            reject
+          });
+        })
+      );
     }
 
     await Promise.all(promises);
