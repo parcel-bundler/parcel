@@ -1,34 +1,42 @@
+const {EventEmitter} = require('events');
 const os = require('os');
-const logger = require('../Logger');
 const fork = require('./fork');
+const errorUtils = require('./errorUtils');
 
 let shared = null;
 
-class WorkerFarm {
-  constructor(options) {
-    this.options = {
-      maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
-      maxConcurrentCallsPerWorker: 10,
-      forcedKillTime: 100
-    };
+class WorkerFarm extends EventEmitter {
+  constructor(options, farmOptions = {}) {
+    super();
+    this.options = Object.assign(
+      {
+        maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
+        maxConcurrentCallsPerWorker: 10,
+        forcedKillTime: 100,
+        warmWorkers: true,
+        useLocalWorker: true,
+        workerPath:
+          parseInt(process.versions.node, 10) < 8
+            ? require.resolve('../../lib/workerfarm/worker')
+            : require.resolve('../../src/workerfarm/worker')
+      },
+      farmOptions
+    );
 
-    this.path =
-      parseInt(process.versions.node, 10) < 8
-        ? require.resolve('../../lib/workerfarm/worker')
-        : require.resolve('../../src/workerfarm/worker');
+    this.started = false;
+    this.startedPromise = new Promise(resolve => this.once('started', resolve));
+    this.childId = 0;
+    this.activeChildren = 0;
+    this.warmWorkers = 0;
+    this.warmedup = false;
+    this.children = new Map();
+    this.callQueue = [];
 
-    this.localWorker = require('./worker');
+    this.localWorker = require(this.options.workerPath);
     this.remoteWorker = {
       run: this.mkhandle('run'),
       init: this.mkhandle('init')
     };
-
-    this.started = false;
-    this.childId = 0;
-    this.activeChildren = 0;
-    this.warmWorkers = 0;
-    this.children = new Map();
-    this.callQueue = [];
 
     this.init(options);
   }
@@ -40,6 +48,7 @@ class WorkerFarm {
           method,
           args: args,
           retries: 0,
+          type: 'request',
           resolve,
           reject
         });
@@ -68,7 +77,7 @@ class WorkerFarm {
 
   async startChild() {
     let id = this.childId++;
-    let forked = fork(this.path, id);
+    let forked = fork(this.options.workerPath, id);
     let c = {
       send: forked.send,
       child: forked.child,
@@ -111,19 +120,16 @@ class WorkerFarm {
     let child = this.children.get(childId);
     let type = data.type;
     let content = data.content;
+    let contentType = data.contentType;
 
     // Possibly premature child death
     if (!child) {
       return;
     }
 
-    if (type === 'logger') {
-      if (this.shouldUseRemoteWorkers()) {
-        logger.handleMessage(data);
-      }
-    } else if (type === 'request') {
+    if (type === 'request') {
       this.processRequest(data, child);
-    } else if (type === 'result' || 'error') {
+    } else if (type === 'response') {
       let call = child.calls.get(idx);
       if (!call) {
         throw new Error(
@@ -131,12 +137,8 @@ class WorkerFarm {
         );
       }
 
-      if (type === 'error') {
-        let error = new Error(content.message);
-        Object.keys(content).forEach(key => {
-          error[key] = content[key];
-        });
-        process.nextTick(() => call.reject(error));
+      if (contentType === 'error') {
+        process.nextTick(() => call.reject(errorUtils.jsonToError(content)));
       } else {
         process.nextTick(() => call.resolve(content));
       }
@@ -162,7 +164,8 @@ class WorkerFarm {
       idx: idx,
       child: childId,
       method: call.method,
-      args: call.args
+      args: call.args,
+      type: call.type
     });
   }
 
@@ -187,38 +190,42 @@ class WorkerFarm {
     }
   }
 
-  async processRequest(request, child = false) {
-    let response = {
-      idx: request.idx
+  async processRequest(data, child = false) {
+    let result = {
+      idx: data.idx,
+      type: 'response'
     };
-    if (request.location) {
-      const mod = require(request.location);
-      try {
-        let func;
-        if (request.method) {
-          func = mod[request.method];
-        } else {
-          func = mod;
-        }
-        let result = await func(...request.args);
-        response.result = result;
-      } catch (e) {
-        response.error = {
-          type: e.constructor.name,
-          message: e.message,
-          stack: e.stack
-        };
-      }
+
+    let method = data.method;
+    let args = data.args;
+    let location = data.location;
+    let awaitResponse = data.awaitResponse;
+
+    if (!location) {
+      throw new Error('Unknown request');
     }
-    if (child) {
-      child.send({
-        type: 'response',
-        method: 'respond',
-        args: [response]
-      });
-      child.send(response);
-    } else {
-      return response;
+
+    const mod = require(location);
+    try {
+      let func;
+      if (method) {
+        func = mod[method];
+      } else {
+        func = mod;
+      }
+      result.contentType = 'data';
+      result.content = await func(...args);
+    } catch (e) {
+      result.contentType = 'error';
+      result.content = errorUtils.errorToJson(e);
+    }
+
+    if (awaitResponse) {
+      if (child) {
+        child.send(result);
+      } else {
+        return result;
+      }
     }
   }
 
@@ -247,7 +254,9 @@ class WorkerFarm {
 
   async initRemoteWorkers(options) {
     this.started = false;
+    this.startedPromise = new Promise(resolve => this.once('started', resolve));
     this.warmWorkers = 0;
+    this.warmedup = false;
 
     let promises = [];
     for (let i = 0; i < this.options.maxConcurrentWorkers; i++) {
@@ -257,11 +266,38 @@ class WorkerFarm {
     await Promise.all(promises);
     if (this.options.maxConcurrentWorkers > 0) {
       this.started = true;
+      this.emit('started');
     }
   }
 
   shouldUseRemoteWorkers() {
-    return this.started && this.warmWorkers >= this.activeChildren;
+    return (
+      !this.options.useLocalWorker ||
+      (this.started && (this.warmedup || !this.options.warmWorkers))
+    );
+  }
+
+  async warmupWorker(...args) {
+    console.log('started listener count: ', this.listenerCount('started'));
+    // Workers have started, but are not warmed up yet.
+    // Send the job to a remote worker in the background,
+    // but use the result from the local worker - it will be faster.
+    if (!this.started) {
+      await this.startedPromise;
+    }
+
+    if (!this.shouldUseRemoteWorkers()) {
+      try {
+        await this.remoteWorker.run(...args, true);
+      } catch (e) {
+        // do nothing
+      }
+      this.warmWorkers++;
+      if (this.warmWorkers >= this.activeChildren && !this.warmedup) {
+        this.warmedup = true;
+        this.emit('warmedup');
+      }
+    }
   }
 
   async run(...args) {
@@ -269,18 +305,13 @@ class WorkerFarm {
     // While we're waiting, just run on the main thread.
     // This significantly speeds up startup time.
     if (this.shouldUseRemoteWorkers()) {
+      if (!this.started) {
+        await this.startedPromise;
+      }
       return this.remoteWorker.run(...args, false);
     } else {
-      // Workers have started, but are not warmed up yet.
-      // Send the job to a remote worker in the background,
-      // but use the result from the local worker - it will be faster.
-      if (this.started) {
-        this.remoteWorker
-          .run(...args, true)
-          .then(() => {
-            this.warmWorkers++;
-          })
-          .catch(() => null);
+      if (this.options.warmWorkers) {
+        this.warmupWorker(...args);
       }
 
       return this.localWorker.run(...args, false);

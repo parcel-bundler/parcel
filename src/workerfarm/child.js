@@ -1,56 +1,143 @@
-let $module;
+const errorUtils = require('./errorUtils');
 
-async function handle(data) {
-  let idx = data.idx;
-  let child = data.child;
-  let method = data.method;
-  let args = data.args;
-  let isResponse = data.type === 'response';
+class Child {
+  constructor() {
+    this.module = undefined;
+    this.childId = undefined;
 
-  let result = {idx, child};
-
-  try {
-    result.content = await $module[method](...args);
-    result.type = 'result';
-  } catch (e) {
-    result.content = {
-      message: e.message,
-      stack: e.stack,
-      name: e.name
-    };
-    // Add all custom codeFrame properties
-    Object.keys(e).forEach(key => {
-      if (key !== 'stack' || 'message') {
-        result.content[key] = e[key];
-      }
-    });
-    result.type = 'error';
+    this.callQueue = [];
+    this.responseQueue = new Map();
+    this.responseId = 0;
+    this.activeCalls = 0;
+    this.maxConcurrentCalls = 10;
   }
 
-  if (!isResponse) {
-    process.send(result, err => {
+  messageListener(data) {
+    if (data === 'die') {
+      return this.end();
+    }
+
+    if (data.module && !this.module) {
+      this.module = require(data.module);
+      this.childId = data.child;
+      if (this.module.setChildReference) {
+        this.module.setChildReference(this);
+      }
+      return;
+    }
+
+    let type = data.type;
+    if (type === 'response') {
+      return this.handleResponse(data);
+    } else if (type === 'request') {
+      return this.handleRequest(data);
+    }
+  }
+
+  async send(data) {
+    process.send(data, err => {
       if (err && err instanceof Error) {
         if (err.code === 'ERR_IPC_CHANNEL_CLOSED') {
-          // Master process ended early, no need to worry master should be done with it anyway
-          // Close this process as it can no longer reach the master
-          console.warn('IPC Connection closed early, shutting down worker.');
-          return process.exit(0);
+          // IPC connection closed
+          // no need to keep the worker running if it can't send or receive data
+          return this.end();
         }
       }
     });
   }
-}
 
-process.on('message', function(data) {
-  if (!$module && data.module) {
-    $module = require(data.module);
-    if (!isNaN(data.child) && $module.setId) {
-      $module.setId(data.child);
+  async handleRequest(data) {
+    let idx = data.idx;
+    let child = data.child;
+    let method = data.method;
+    let args = data.args;
+
+    let result = {idx, child, type: 'response'};
+
+    try {
+      result.contentType = 'data';
+      result.content = await this.module[method](...args);
+    } catch (e) {
+      result.contentType = 'error';
+      result.content = errorUtils.errorToJson(e);
     }
-    return;
+
+    this.send(result);
   }
-  if (data === 'die') {
+
+  async handleResponse(data) {
+    let idx = data.idx;
+    let contentType = data.contentType;
+    let content = data.content;
+    let call = this.responseQueue.get(idx);
+
+    if (contentType === 'error') {
+      process.nextTick(() => call.reject(errorUtils.jsonToError(content)));
+    } else {
+      process.nextTick(() => call.resolve(content));
+    }
+
+    this.responseQueue.delete(idx);
+    this.activeCalls--;
+    // Process the next call
+    this.processQueue();
+  }
+
+  // Keep in mind to make sure responses to these calls are JSON.Stringify safe
+  async addCall(request, awaitResponse = true) {
+    let call = request;
+    call.type = 'request';
+    call.child = this.childId;
+    call.awaitResponse = awaitResponse;
+
+    let promise;
+    if (awaitResponse) {
+      promise = new Promise((resolve, reject) => {
+        call.resolve = resolve;
+        call.reject = reject;
+      });
+    }
+
+    this.callQueue.push(call);
+    this.processQueue();
+
+    return promise;
+  }
+
+  async sendRequest(call) {
+    let idx;
+    if (call.awaitResponse) {
+      idx = this.responseId++;
+      this.responseQueue.set(idx, call);
+      this.activeCalls++;
+    }
+    this.send({
+      idx: idx,
+      child: call.child,
+      type: call.type,
+      location: call.location,
+      method: call.method,
+      args: call.args,
+      awaitResponse: call.awaitResponse
+    });
+  }
+
+  async processQueue() {
+    if (!this.callQueue.length) {
+      return;
+    }
+
+    if (this.activeCalls < this.maxConcurrentCalls) {
+      this.sendRequest(this.callQueue.shift());
+    }
+  }
+
+  end() {
     return process.exit(0);
   }
-  handle(data);
-});
+}
+
+let child = new Child();
+process.on('message', child.messageListener.bind(child));
+
+module.exports = child;
