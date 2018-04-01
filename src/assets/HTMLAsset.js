@@ -1,9 +1,12 @@
 const Asset = require('../Asset');
 const parse = require('posthtml-parser');
 const api = require('posthtml/lib/api');
+const postcss = require('postcss');
+const valueParser = require('postcss-value-parser');
 const urlJoin = require('../utils/urlJoin');
 const render = require('posthtml-render');
 const posthtmlTransform = require('../transforms/posthtml');
+const htmlnanoTransform = require('../transforms/htmlnano');
 const isURL = require('../utils/is-url');
 
 // A list of all attributes that may produce a dependency
@@ -19,10 +22,12 @@ const ATTRS = {
     'iframe',
     'embed'
   ],
-  href: ['link', 'a'],
+  href: ['link', 'a', 'use'],
+  srcset: ['img', 'source'],
   poster: ['video'],
   'xlink:href': ['use'],
-  content: ['meta']
+  content: ['meta'],
+  data: ['object']
 };
 
 // A list of metadata that should produce a dependency
@@ -60,6 +65,16 @@ const META = {
 };
 const URL_RE = /url\s*\("?(?![a-z]+:)/;
 
+// Options to be passed to `addURLDependency` for certain tags + attributes
+const OPTIONS = {
+  a: {
+    href: {entry: true}
+  },
+  iframe: {
+    src: {entry: true}
+  }
+};
+
 class HTMLAsset extends Asset {
   constructor(name, pkg, options) {
     super(name, pkg, options);
@@ -74,44 +89,70 @@ class HTMLAsset extends Asset {
     return res;
   }
 
-  processSingleDependency(path) {
-    let assetPath = this.addURLDependency(decodeURIComponent(path));
+  processSingleDependency(path, opts) {
+    let assetPath = this.addURLDependency(decodeURIComponent(path), opts);
     if (!isURL(assetPath)) {
       assetPath = urlJoin(this.options.publicURL, assetPath);
     }
     return assetPath;
   }
 
-  collectSrcSetDependencies(srcset) {
+  collectSrcSetDependencies(srcset, opts) {
     const newSources = [];
     for (const source of srcset.split(',')) {
       const pair = source.trim().split(' ');
       if (pair.length === 0) continue;
-      pair[0] = this.processSingleDependency(pair[0]);
+      pair[0] = this.processSingleDependency(pair[0], opts);
       newSources.push(pair.join(' '));
     }
     return newSources.join(',');
   }
 
   collectInlineStyleDependencies(inlineStyle) {
-    // split inline styles to rule array and filter the non-epmty ones
-    const styles = inlineStyle
-      .split(/;/)
-      .filter(style => !/^[\n\s]*$/.test(style));
+    const ast = postcss.parse(inlineStyle);
+    let isAstDirty = false;
 
-    styles.forEach((style, index) => {
-      if (URL_RE.test(style)) {
-        // match the url string, like "background: url('urlString')";
-        let matchArr = /\(['"]?(.*?)['"]?\)/.exec(style);
-        let path = matchArr.length > 1 ? matchArr[1] : null;
-        // collect the dependencies and replace the origin path
-        if (path) {
-          let assetPath = this.processSingleDependency(path);
-          styles[index] = style.replace(path, assetPath);
+    ast.walkDecls(decl => {
+      if (URL_RE.test(decl.value)) {
+        let parsed = valueParser(decl.value);
+        let dirty = false;
+
+        parsed.walk(node => {
+          if (
+            node.type === 'function' &&
+            node.value === 'url' &&
+            node.nodes.length
+          ) {
+            let url = this.processSingleDependency(node.nodes[0].value);
+            dirty = node.nodes[0].value !== url;
+            node.nodes[0].value = url;
+          }
+        });
+
+        if (dirty) {
+          isAstDirty = true;
+          decl.value = parsed.toString();
         }
       }
     });
-    return styles.join(';');
+
+    if (isAstDirty) {
+      let css = '';
+      postcss.stringify(ast, c => (css += c));
+      return css;
+    } else {
+      return null;
+    }
+  }
+
+  getAttrDepHandler(attr) {
+    if (attr === 'srcset') {
+      return this.collectSrcSetDependencies;
+    }
+    if (attr === 'style') {
+      return this.collectInlineStyleDependencies;
+    }
+    return this.processSingleDependency;
   }
 
   collectDependencies() {
@@ -129,26 +170,31 @@ class HTMLAsset extends Asset {
         }
 
         for (let attr in node.attrs) {
-          if (attr === 'style' && URL_RE.test(node.attrs[attr])) {
-            node.attrs[attr] = this.collectInlineStyleDependencies(
-              node.attrs[attr]
-            );
-            this.isAstDirty = true;
-          }
-
-          if (node.tag === 'img' && attr === 'srcset') {
-            node.attrs[attr] = this.collectSrcSetDependencies(node.attrs[attr]);
-            this.isAstDirty = true;
-            continue;
-          }
           let elements = ATTRS[attr];
           // Check for virtual paths
           if (node.tag === 'a' && node.attrs[attr].lastIndexOf('.') < 1) {
             continue;
           }
+
           if (elements && elements.includes(node.tag)) {
-            node.attrs[attr] = this.processSingleDependency(node.attrs[attr]);
+            let depHandler = this.getAttrDepHandler(attr);
+            let options = OPTIONS[node.tag];
+            node.attrs[attr] = depHandler.call(
+              this,
+              node.attrs[attr],
+              options && options[attr]
+            );
             this.isAstDirty = true;
+          }
+
+          // since every element might produce style dependecies
+          if (attr === 'style' && URL_RE.test(node.attrs[attr])) {
+            let depHandler = this.getAttrDepHandler(attr);
+            let dirtyInlineStyle = depHandler.call(this, node.attrs[attr]);
+            if (dirtyInlineStyle) {
+              node.attrs[attr] = dirtyInlineStyle;
+              this.isAstDirty = true;
+            }
           }
         }
       }
@@ -161,9 +207,14 @@ class HTMLAsset extends Asset {
     await posthtmlTransform(this);
   }
 
+  async transform() {
+    if (this.options.minify) {
+      await htmlnanoTransform(this);
+    }
+  }
+
   generate() {
-    let html = this.isAstDirty ? render(this.ast) : this.contents;
-    return {html};
+    return this.isAstDirty ? render(this.ast) : this.contents;
   }
 }
 

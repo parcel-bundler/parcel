@@ -69,8 +69,8 @@ describe('typescript', function() {
 
     let output = run(b);
     assert.equal(typeof output.getRaw, 'function');
-    assert(/^\/dist\/[0-9a-f]+\.txt$/.test(output.getRaw()));
-    assert(fs.existsSync(__dirname + output.getRaw()));
+    assert(/^\/test\.[0-9a-f]+\.txt$/.test(output.getRaw()));
+    assert(fs.existsSync(__dirname + '/dist/' + output.getRaw()));
   });
 
   it('should minify in production mode', async function() {
@@ -105,5 +105,25 @@ describe('typescript', function() {
 
     let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('React.createElement("div"'));
+  });
+
+  it('should use esModuleInterop by default', async function() {
+    let b = await bundle(
+      __dirname + '/integration/typescript-interop/index.ts'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.ts', 'commonjs-module.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'test passed');
   });
 });

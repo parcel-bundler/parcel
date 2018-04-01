@@ -42,7 +42,7 @@ describe('server', function() {
     let b = bundler(__dirname + '/integration/commonjs/index.js');
     server = await b.serve(0);
 
-    let data = await get('/dist/index.js');
+    let data = await get('/index.js');
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
   });
 
@@ -63,7 +63,7 @@ describe('server', function() {
 
     let threw = false;
     try {
-      await get('/dist/fake.js');
+      await get('/fake.js');
     } catch (err) {
       threw = true;
     }
@@ -92,7 +92,42 @@ describe('server', function() {
     let b = bundler(__dirname + '/integration/commonjs/index.js');
     server = await b.serve(0, true);
 
-    let data = await get('/dist/index.js', https);
+    let data = await get('/index.js', https);
     assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
+  });
+
+  it('should support HTTPS via custom certificate', async function() {
+    let b = bundler(__dirname + '/integration/commonjs/index.js');
+    server = await b.serve(0, {
+      key: __dirname + '/integration/https/private.pem',
+      cert: __dirname + '/integration/https/primary.crt'
+    });
+
+    let data = await get('/index.js', https);
+    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
+  });
+
+  it('should support setting a public url', async function() {
+    let b = bundler(__dirname + '/integration/commonjs/index.js', {
+      publicUrl: '/dist'
+    });
+    server = await b.serve(0);
+
+    let data = await get('/dist/index.js');
+    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
+  });
+
+  it('should serve static assets as well as html', async function() {
+    let b = bundler(__dirname + '/integration/html/index.html', {
+      publicUrl: '/'
+    });
+    server = await b.serve(0);
+    // When accessing / we should get the index page.
+    let data = await get('/');
+    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+    // When accessing /hello.txt we should get txt document.
+    fs.writeFileSync(__dirname + '/dist/hello.txt', 'hello');
+    data = await get('/hello.txt');
+    assert.equal(data, 'hello');
   });
 });

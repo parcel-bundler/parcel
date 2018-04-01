@@ -116,7 +116,18 @@ class CSSAsset extends Asset {
         'module.exports = ' + JSON.stringify(this.cssModules, false, 2) + ';';
     }
 
-    return {css, js};
+    return [
+      {
+        type: 'css',
+        value: css,
+        cssModules: this.cssModules
+      },
+      {
+        type: 'js',
+        value: js,
+        final: true
+      }
+    ];
   }
 
   generateErrorMessage(err) {

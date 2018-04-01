@@ -97,8 +97,38 @@ describe('javascript', function() {
     assert.equal(output.default(), 3);
   });
 
-  it('should split bundles when a dynamic import is used', async function() {
-    let b = await bundle(__dirname + '/integration/dynamic/index.js');
+  it('should split bundles when a dynamic import is used with --target=browser', async function() {
+    let b = await bundle(__dirname + '/integration/dynamic/index.js', {
+      target: 'browser'
+    });
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
+      childBundles: [
+        {
+          type: 'map'
+        },
+        {
+          assets: ['local.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
+
+  it('should split bundles when a dynamic import is used with --target=node', async function() {
+    let b = await bundle(__dirname + '/integration/dynamic/index.js', {
+      target: 'node'
+    });
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -307,8 +337,8 @@ describe('javascript', function() {
 
     let output = run(b);
     assert.equal(typeof output, 'function');
-    assert(/^\/dist\/[0-9a-f]+\.txt$/.test(output()));
-    assert(fs.existsSync(__dirname + output()));
+    assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
+    assert(fs.existsSync(__dirname + '/dist/' + output()));
   });
 
   it('should minify JS in production mode', async function() {
@@ -628,6 +658,43 @@ describe('javascript', function() {
     assert(!file.includes('class Bar {}'));
   });
 
+  it('should support splitting babel-polyfill using browserlist', async function() {
+    await bundle(__dirname + '/integration/babel-polyfill/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('async function Bar() {}'));
+    assert(!file.includes('regenerator'));
+  });
+
+  it('should support compiling with babel using browserslist for different environments', async function() {
+    async function testBrowserListMultipleEnv(projectBasePath) {
+      // Transpiled destructuring, like r = p.prop1, o = p.prop2, a = p.prop3;
+      const prodRegExp = /\w ?= ?\w\.prop1, ?\w ?= ?\w\.prop2, ?\w ?= ?\w\.prop3;/;
+      // ES6 Destructuring, like in the source;
+      const devRegExp = /const ?{\s*prop1,\s*prop2,\s*prop3\s*} ?= ?.*/;
+      let file;
+      // Dev build test
+      await bundle(__dirname + projectBasePath + '/index.js');
+      file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+      assert(devRegExp.test(file) === true);
+      assert(prodRegExp.test(file) === false);
+      // Prod build test
+      await bundle(__dirname + projectBasePath + '/index.js', {
+        production: true
+      });
+      file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+      assert(prodRegExp.test(file) === true);
+      assert(devRegExp.test(file) === false);
+    }
+
+    await testBrowserListMultipleEnv(
+      '/integration/babel-browserslist-multiple-env'
+    );
+    await testBrowserListMultipleEnv(
+      '/integration/babel-browserslist-multiple-env-as-string'
+    );
+  });
+
   it('should not compile node_modules by default', async function() {
     await bundle(__dirname + '/integration/babel-node-modules/index.js');
 
@@ -710,5 +777,29 @@ describe('javascript', function() {
     err.code = 'MODULE_NOT_FOUND';
 
     assert.deepEqual(output, err);
+  });
+
+  it('should ignore require if it is defined in the scope', async function() {
+    let b = await bundle(__dirname + '/integration/require-scope/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+
+    assert.equal(typeof output.test, 'object');
+
+    let failed = Object.keys(output.test).some(
+      key => output.test[key] !== 'test passed'
+    );
+
+    assert.equal(failed, false);
   });
 });

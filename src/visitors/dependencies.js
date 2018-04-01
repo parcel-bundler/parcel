@@ -37,7 +37,8 @@ module.exports = {
       types.isIdentifier(callee) &&
       callee.name === 'require' &&
       args.length === 1 &&
-      types.isStringLiteral(args[0]);
+      types.isStringLiteral(args[0]) &&
+      !hasBinding(ancestors, 'require');
 
     if (isRequire) {
       let optional = ancestors.some(a => types.isTryStatement(a)) || undefined;
@@ -65,7 +66,9 @@ module.exports = {
       matchesPattern(callee, serviceWorkerPattern);
 
     if (isRegisterServiceWorker) {
-      addURLDependency(asset, args[0]);
+      // Treat service workers as an entry point so filenames remain consistent across builds.
+      // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
+      addURLDependency(asset, args[0], {entry: true});
       return;
     }
   },
@@ -86,13 +89,36 @@ module.exports = {
   }
 };
 
+function hasBinding(node, name) {
+  if (Array.isArray(node)) {
+    return node.some(ancestor => hasBinding(ancestor, name));
+  } else if (
+    types.isProgram(node) ||
+    types.isBlockStatement(node) ||
+    types.isBlock(node)
+  ) {
+    return node.body.some(statement => hasBinding(statement, name));
+  } else if (
+    types.isFunctionDeclaration(node) ||
+    types.isFunctionExpression(node) ||
+    types.isArrowFunctionExpression(node)
+  ) {
+    return (
+      (node.id !== null && node.id.name === name) ||
+      node.params.some(
+        param => types.isIdentifier(param) && param.name === name
+      )
+    );
+  } else if (types.isVariableDeclaration(node)) {
+    return node.declarations.some(declaration => declaration.id.name === name);
+  }
+
+  return false;
+}
+
 function addDependency(asset, node, opts = {}) {
   if (asset.options.target !== 'browser') {
-    const isRelativeImport =
-      node.value.startsWith('/') ||
-      node.value.startsWith('./') ||
-      node.value.startsWith('../');
-
+    const isRelativeImport = /^[/~.]/.test(node.value);
     if (!isRelativeImport) return;
   }
 
@@ -100,8 +126,10 @@ function addDependency(asset, node, opts = {}) {
   asset.addDependency(node.value, opts);
 }
 
-function addURLDependency(asset, node) {
-  let assetPath = asset.addURLDependency(node.value);
+function addURLDependency(asset, node, opts = {}) {
+  opts.loc = node.loc && node.loc.start;
+
+  let assetPath = asset.addURLDependency(node.value, opts);
   if (!isURL(assetPath)) {
     assetPath = urlJoin(asset.options.publicURL, assetPath);
   }
