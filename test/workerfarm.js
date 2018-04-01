@@ -12,6 +12,8 @@ describe('WorkerFarm', () => {
       }
     );
 
+    await new Promise(resolve => workerfarm.once('started', resolve));
+
     assert.equal(await workerfarm.run(), 'pong');
 
     await workerfarm.end();
@@ -26,6 +28,8 @@ describe('WorkerFarm', () => {
         workerPath: require.resolve('./integration/workerfarm/echo.js')
       }
     );
+
+    await new Promise(resolve => workerfarm.once('started', resolve));
 
     for (let i = 0; i < 1000; i++) {
       assert.equal(await workerfarm.run(i), i);
@@ -44,6 +48,8 @@ describe('WorkerFarm', () => {
       workerPath: require.resolve('./integration/workerfarm/init.js')
     });
 
+    await new Promise(resolve => workerfarm.once('started', resolve));
+
     assert.equal((await workerfarm.run()).key, options.key);
 
     await workerfarm.end();
@@ -58,6 +64,8 @@ describe('WorkerFarm', () => {
         workerPath: require.resolve('./integration/workerfarm/echo.js')
       }
     );
+
+    await new Promise(resolve => workerfarm.once('started', resolve));
 
     for (let i = 0; i < 100; i++) {
       assert.equal(await workerfarm.run(i), i);
@@ -100,6 +108,8 @@ describe('WorkerFarm', () => {
       }
     );
 
+    await new Promise(resolve => workerfarm.once('started', resolve));
+
     assert.equal(await workerfarm.run(1, 2), 3);
 
     await workerfarm.end();
@@ -114,6 +124,8 @@ describe('WorkerFarm', () => {
         workerPath: require.resolve('./integration/workerfarm/ipc.js')
       }
     );
+
+    await new Promise(resolve => workerfarm.once('started', resolve));
 
     for (let i = 0; i < 1000; i++) {
       assert.equal(await workerfarm.run(1 + i, 2), 3 + i);
@@ -131,6 +143,8 @@ describe('WorkerFarm', () => {
         workerPath: require.resolve('./integration/workerfarm/ipc-pid.js')
       }
     );
+
+    await new Promise(resolve => workerfarm.once('started', resolve));
 
     let result = await workerfarm.run();
     assert.equal(result.length, 2);

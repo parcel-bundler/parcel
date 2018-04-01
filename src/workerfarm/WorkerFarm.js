@@ -24,7 +24,6 @@ class WorkerFarm extends EventEmitter {
     );
 
     this.started = false;
-    this.startedPromise = new Promise(resolve => this.once('started', resolve));
     this.childId = 0;
     this.activeChildren = 0;
     this.warmWorkers = 0;
@@ -254,7 +253,6 @@ class WorkerFarm extends EventEmitter {
 
   async initRemoteWorkers(options) {
     this.started = false;
-    this.startedPromise = new Promise(resolve => this.once('started', resolve));
     this.warmWorkers = 0;
     this.warmedup = false;
 
@@ -281,18 +279,14 @@ class WorkerFarm extends EventEmitter {
     // Workers have started, but are not warmed up yet.
     // Send the job to a remote worker in the background,
     // but use the result from the local worker - it will be faster.
-    if (!this.started) {
-      await this.startedPromise;
-    }
-
-    if (!this.shouldUseRemoteWorkers()) {
+    if (this.started) {
       try {
         await this.remoteWorker.run(...args, true);
       } catch (e) {
         // do nothing
       }
       this.warmWorkers++;
-      if (this.warmWorkers >= this.activeChildren && !this.warmedup) {
+      if (this.warmWorkers >= this.activeChildren) {
         this.warmedup = true;
         this.emit('warmedup');
       }
@@ -304,9 +298,6 @@ class WorkerFarm extends EventEmitter {
     // While we're waiting, just run on the main thread.
     // This significantly speeds up startup time.
     if (this.shouldUseRemoteWorkers()) {
-      if (!this.started) {
-        await this.startedPromise;
-      }
       return this.remoteWorker.run(...args, false);
     } else {
       if (this.options.warmWorkers) {
