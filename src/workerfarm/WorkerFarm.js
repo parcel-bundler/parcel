@@ -3,8 +3,12 @@ const os = require('os');
 const fork = require('./fork');
 const errorUtils = require('./errorUtils');
 
-let shared = null;
+const PARCEL_WORKER =
+  parseInt(process.versions.node, 10) < 8
+    ? require.resolve('../../lib/workerfarm/worker')
+    : require.resolve('../../src/workerfarm/worker');
 
+let shared = null;
 class WorkerFarm extends EventEmitter {
   constructor(options, farmOptions = {}) {
     super();
@@ -15,10 +19,7 @@ class WorkerFarm extends EventEmitter {
         forcedKillTime: 100,
         warmWorkers: true,
         useLocalWorker: true,
-        workerPath:
-          parseInt(process.versions.node, 10) < 8
-            ? require.resolve('../../lib/workerfarm/worker')
-            : require.resolve('../../src/workerfarm/worker')
+        workerPath: PARCEL_WORKER
       },
       farmOptions
     );
@@ -31,7 +32,9 @@ class WorkerFarm extends EventEmitter {
     this.children = new Map();
     this.callQueue = [];
 
-    this.localWorker = require(this.options.workerPath);
+    this.localWorker = require(PARCEL_WORKER === this.options.workerPath
+      ? './worker'
+      : this.options.workerPath);
     this.remoteWorker = {
       run: this.mkhandle('run')
     };
@@ -300,16 +303,16 @@ class WorkerFarm extends EventEmitter {
     // Send the job to a remote worker in the background,
     // but use the result from the local worker - it will be faster.
     if (this.started) {
-      try {
-        await this.remoteWorker.run(...args, true);
-      } catch (e) {
-        // do nothing
-      }
-      this.warmWorkers++;
-      if (this.warmWorkers >= this.activeChildren) {
-        this.warmedup = true;
-        this.emit('warmedup');
-      }
+      this.remoteWorker
+        .run(...args, true)
+        .then(() => {
+          this.warmWorkers++;
+          if (this.warmWorkers >= this.activeChildren) {
+            this.warmedup = true;
+            this.emit('warmedup');
+          }
+        })
+        .catch(() => {});
     }
   }
 
@@ -330,7 +333,7 @@ class WorkerFarm extends EventEmitter {
 
   static getShared(options) {
     if (!shared) {
-      shared = new WorkerFarm(options || {});
+      shared = new WorkerFarm(options);
     } else if (options) {
       shared.init(options);
     }
