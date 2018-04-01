@@ -75,7 +75,7 @@ describe('WorkerFarm', () => {
 
     assert(workerfarm.activeChildren > 0, 'Should have spawned workers.');
     assert(
-      workerfarm.warmWorkers > workerfarm.activeChildren,
+      workerfarm.warmWorkers >= workerfarm.activeChildren,
       'Should have warmed up workers.'
     );
 

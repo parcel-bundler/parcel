@@ -4,7 +4,7 @@ const Path = require('path');
 const child = require('./child');
 const WorkerFarm = require('./WorkerFarm');
 
-const BASEPATH = '..';
+const BASEPATH = '../';
 
 let pipeline;
 
@@ -33,7 +33,7 @@ async function addCall(request, awaitResponse = true) {
   if (process.send) {
     return child.addCall(request, awaitResponse);
   } else {
-    return await WorkerFarm.getShared().processRequest(request);
+    return WorkerFarm.getShared().processRequest(request);
   }
 }
 
