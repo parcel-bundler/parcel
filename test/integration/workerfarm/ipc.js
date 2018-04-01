@@ -6,11 +6,11 @@ function setChildReference(childRef) {
 }
 
 function run(a, b) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     child.addCall({
       location: '../../test/integration/workerfarm/master-sum.js',
       args: [a, b]
-    }).then(resolve).catch(e => console.error(e));
+    }).then(resolve).catch(reject);
   });
 }
 

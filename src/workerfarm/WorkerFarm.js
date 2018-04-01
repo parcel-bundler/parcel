@@ -278,7 +278,6 @@ class WorkerFarm extends EventEmitter {
   }
 
   async warmupWorker(...args) {
-    console.log('started listener count: ', this.listenerCount('started'));
     // Workers have started, but are not warmed up yet.
     // Send the job to a remote worker in the background,
     // but use the result from the local worker - it will be faster.
