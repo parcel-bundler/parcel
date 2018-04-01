@@ -81,7 +81,6 @@
     "husky": "^0.14.3",
     "less": "^3.0.1",
     "lint-staged": "^6.0.0",
-    "lodash": "^4.17.5",
     "mocha": "^3.5.0",
     "ncp": "^2.0.0",
     "nib": "^1.1.2",
@@ -100,7 +99,7 @@
     "vue-template-compiler": "^2.5.16"
   },
   "scripts": {
-    "test": "cross-env NODE_ENV=test mocha",
+    "test": "node -v && cross-env NODE_ENV=test mocha",
     "test-coverage": "rm -rf coverage/* && nyc yarn test",
     "report-coverage": "nyc report --reporter=lcov && codecov",
     "test-ci": "yarn test-coverage && yarn report-coverage",

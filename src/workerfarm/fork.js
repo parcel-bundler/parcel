@@ -1,7 +1,10 @@
 const childProcess = require('child_process');
-const childModule = require.resolve('./child');
+const childModule =
+  parseInt(process.versions.node, 10) < 8
+    ? require.resolve('../../lib/workerfarm/child')
+    : require.resolve('../../src/workerfarm/child');
 
-function fork(forkModule) {
+function fork(forkModule, childId) {
   // suppress --debug / --inspect flags while preserving others (like --harmony)
   let filteredArgs = process.execArgv.filter(
     v => !/^--(debug|inspect)/.test(v)
@@ -17,12 +20,12 @@ function fork(forkModule) {
     // this *should* be picked up by onExit and the operation requeued
   });
 
-  child.send({module: forkModule});
+  child.send({module: forkModule, child: childId});
 
   // return a send() function for this child
   return {
     send: child.send.bind(child),
-    child
+    child: child
   };
 }
 
