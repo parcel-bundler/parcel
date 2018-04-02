@@ -43,6 +43,17 @@ class Logger {
     process.stdout.write(message);
   }
 
+  chunkString(string, chunkSize) {
+    const amount = Math.ceil(string.length / chunkSize);
+    const chunks = new Array(amount);
+
+    for (let i = 0; i < amount; i++) {
+      chunks[i] = string.substr(i * chunkSize, chunkSize);
+    }
+
+    return chunks;
+  }
+
   write(message, persistent = false) {
     if (!persistent) {
       this.lines += this.countLines(message);
@@ -134,7 +145,10 @@ class Logger {
 
     this.writeLine(
       this.statusLine,
-      this.chalk[color].bold(`${emoji}  ${message}`)
+      this.chunkString(
+        this.chalk[color].bold(`${emoji}  ${message}`),
+        process.stdout.columns
+      ).join('\n')
     );
 
     if (!hasStatusLine) {
