@@ -42,6 +42,12 @@ module.exports = {
     }
   },
 
+  ThisExpression(path, asset) {
+    if (!path.scope.parent) {
+      path.replaceWith(getExportsIdentifier(asset));
+    }
+  },
+
   AssignmentExpression(path, asset) {
     let left = path.node.left;
     if (
