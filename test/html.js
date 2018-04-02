@@ -26,23 +26,9 @@ describe('html', function() {
           childBundles: []
         },
         {
-          type: 'js',
-          assets: ['index.js'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        },
-        {
           type: 'html',
           assets: ['other.html'],
           childBundles: [
-            {
-              type: 'css',
-              assets: ['index.css'],
-              childBundles: []
-            },
             {
               type: 'js',
               assets: ['index.js'],

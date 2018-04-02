@@ -92,9 +92,11 @@ class Bundle {
   }
 
   getBundleNameMap(contentHash, hashes = new Map()) {
-    let hashedName = this.getHashedBundleName(contentHash);
-    hashes.set(Path.basename(this.name), hashedName);
-    this.name = Path.join(Path.dirname(this.name), hashedName);
+    if (this.name) {
+      let hashedName = this.getHashedBundleName(contentHash);
+      hashes.set(Path.basename(this.name), hashedName);
+      this.name = Path.join(Path.dirname(this.name), hashedName);
+    }
 
     for (let child of this.childBundles.values()) {
       child.getBundleNameMap(contentHash, hashes);
@@ -113,9 +115,10 @@ class Bundle {
     ).slice(-8);
     let entryAsset = this.entryAsset || this.parentBundle.entryAsset;
     let name = Path.basename(entryAsset.name, Path.extname(entryAsset.name));
-    let isMainEntry = entryAsset.name === entryAsset.options.mainFile;
+    let isMainEntry = entryAsset.options.entryFiles[0] === entryAsset.name;
     let isEntry =
-      isMainEntry || Array.from(entryAsset.parentDeps).some(dep => dep.entry);
+      entryAsset.options.entryFiles.includes(entryAsset.name) ||
+      Array.from(entryAsset.parentDeps).some(dep => dep.entry);
 
     // If this is the main entry file, use the output file option as the name if provided.
     if (isMainEntry && entryAsset.options.outFile) {
@@ -127,7 +130,7 @@ class Bundle {
     if (isEntry) {
       return Path.join(
         Path.relative(
-          Path.dirname(entryAsset.options.mainFile),
+          entryAsset.options.rootDir,
           Path.dirname(entryAsset.name)
         ),
         name + ext
@@ -145,17 +148,16 @@ class Bundle {
   }
 
   async package(bundler, oldHashes, newHashes = new Map()) {
-    if (this.isEmpty) {
-      return newHashes;
-    }
-
-    let hash = this.getHash();
-    newHashes.set(this.name, hash);
-
     let promises = [];
     let mappings = [];
-    if (!oldHashes || oldHashes.get(this.name) !== hash) {
-      promises.push(this._package(bundler));
+
+    if (!this.isEmpty) {
+      let hash = this.getHash();
+      newHashes.set(this.name, hash);
+
+      if (!oldHashes || oldHashes.get(this.name) !== hash) {
+        promises.push(this._package(bundler));
+      }
     }
 
     for (let bundle of this.childBundles.values()) {
