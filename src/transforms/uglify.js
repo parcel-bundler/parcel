@@ -11,7 +11,7 @@ module.exports = async function(asset) {
   let options = {
     warnings: true,
     mangle: {
-      toplevel: true
+      // toplevel: true
     }
   };
 
