@@ -1,4 +1,4 @@
-const JSPackager = require('./JSPackager');
+const JSPackager = require('./JSConcatPackager');
 const CSSPackager = require('./CSSPackager');
 const HTMLPackager = require('./HTMLPackager');
 const SourceMapPackager = require('./SourceMapPackager');

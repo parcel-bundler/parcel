@@ -11,6 +11,7 @@ const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
 const SourceMap = require('../SourceMap');
+const hoist = require('../visitors/hoist');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
@@ -111,6 +112,9 @@ class JSAsset extends Asset {
     if (this.isES6Module) {
       await babel(this);
     }
+
+    await this.parseIfNeeded();
+    this.traverse(hoist);
 
     if (this.options.minify) {
       await uglify(this);

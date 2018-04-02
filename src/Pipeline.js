@@ -11,8 +11,10 @@ class Pipeline {
     this.parser = new Parser(options);
   }
 
-  async process(path, pkg, options) {
+  async process(path, id, pkg, options) {
     let asset = this.parser.getAsset(path, pkg, options);
+    asset.id = id;
+
     let generated = await this.processAsset(asset);
     let generatedMap = {};
     for (let rendition of generated) {

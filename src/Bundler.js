@@ -459,7 +459,12 @@ class Bundler extends EventEmitter {
     let startTime = Date.now();
     let processed = this.cache && (await this.cache.read(asset.name));
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
-      processed = await this.farm.run(asset.name, asset.package, this.options);
+      processed = await this.farm.run(
+        asset.name,
+        asset.id,
+        asset.package,
+        this.options
+      );
       if (this.cache) {
         this.cache.write(asset.name, processed);
       }
