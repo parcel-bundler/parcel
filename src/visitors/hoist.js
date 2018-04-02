@@ -15,10 +15,12 @@ module.exports = {
     }
 
     // Add variable that represents module.exports
-    let name = '$' + asset.id + '$exports';
     path.unshiftContainer('body', [
       t.variableDeclaration('var', [
-        t.variableDeclarator(t.identifier(name), t.objectExpression([]))
+        t.variableDeclarator(
+          getExportsIdentifier(asset),
+          t.objectExpression([])
+        )
       ])
     ]);
 
@@ -26,16 +28,28 @@ module.exports = {
   },
 
   MemberExpression(path, asset) {
-    if (matchesPattern(path.node, 'module.exports')) {
-      let name = '$' + asset.id + '$exports';
-      path.replaceWith(t.identifier(name));
+    if (
+      matchesPattern(path.node, 'module.exports') &&
+      !path.scope.hasBinding('module')
+    ) {
+      path.replaceWith(getExportsIdentifier(asset));
     }
   },
 
   ReferencedIdentifier(path, asset) {
-    if (path.node.name === 'exports') {
-      let name = '$' + asset.id + '$exports';
-      path.replaceWith(t.identifier(name));
+    if (path.node.name === 'exports' && !path.scope.hasBinding('exports')) {
+      path.replaceWith(getExportsIdentifier(asset));
+    }
+  },
+
+  AssignmentExpression(path, asset) {
+    let left = path.node.left;
+    if (
+      t.isIdentifier(left) &&
+      left.name === 'exports' &&
+      !path.scope.hasBinding('exports')
+    ) {
+      path.get('left').replaceWith(getExportsIdentifier(asset));
     }
   },
 
@@ -57,3 +71,7 @@ module.exports = {
     }
   }
 };
+
+function getExportsIdentifier(asset) {
+  return t.identifier('$' + asset.id + '$exports');
+}
