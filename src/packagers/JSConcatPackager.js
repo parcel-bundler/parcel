@@ -9,6 +9,7 @@ const prelude = fs
 
 class JSConcatPackager extends Packager {
   async start() {
+    this.addedAssets = new Set();
     this.exposedModules = new Set();
 
     await this.write(prelude + '(function (require) {\n');
@@ -19,6 +20,11 @@ class JSConcatPackager extends Packager {
   }
 
   async addAsset(asset) {
+    if (this.addedAssets.has(asset)) {
+      return;
+    }
+
+    this.addedAssets.add(asset);
     let js = asset.generated.js;
 
     // If this module is referenced by another bundle, it needs to be exposed externally.
@@ -26,7 +32,7 @@ class JSConcatPackager extends Packager {
       this.bundle.assets.has(this.bundler.loadedAssets.get(dep.parent))
     );
 
-    if (isExposed) {
+    if (isExposed || this.bundle.entryAsset === asset) {
       this.exposedModules.add(asset);
     }
 
