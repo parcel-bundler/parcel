@@ -118,9 +118,25 @@ module.exports = {
       !path.scope.hasBinding('require');
 
     if (isRequire) {
+      if (!asset.dependencies.has(args[0].value)) {
+        return;
+      }
+
       // Generate a variable name based on the current asset id and the module name to require.
       // This will be replaced by the final variable name of the resolved asset in the packager.
       let name = '$' + asset.id + '$require$' + t.toIdentifier(args[0].value);
+      path.replaceWith(t.identifier(name));
+    }
+
+    let isRequireResolve =
+      matchesPattern(callee, 'require.resolve') &&
+      args.length === 1 &&
+      t.isStringLiteral(args[0]) &&
+      !path.scope.hasBinding('require');
+
+    if (isRequireResolve) {
+      let name =
+        '$' + asset.id + '$require_resolve$' + t.toIdentifier(args[0].value);
       path.replaceWith(t.identifier(name));
     }
   }

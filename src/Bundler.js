@@ -492,6 +492,7 @@ class Bundler extends EventEmitter {
           // that changing it triggers a recompile of the parent.
           this.watch(dep.name, asset);
         } else {
+          dep.parent = asset.name;
           let assetDep = await this.resolveDep(asset, dep);
           if (assetDep) {
             await this.loadAsset(assetDep);
