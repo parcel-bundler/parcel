@@ -16,28 +16,38 @@ const EXPORTS_TEMPLATE = template('var NAME = {}');
 module.exports = {
   Program: {
     enter(path) {
-      let hasEval = false;
+      let shouldWrap = false;
       path.traverse({
         CallExpression(path) {
+          // If we see an `eval` call, wrap the module in a function.
+          // Otherwise, local variables accessed inside the eval won't work.
           let callee = path.node.callee;
           if (
             t.isIdentifier(callee) &&
             callee.name === 'eval' &&
             !path.scope.hasBinding('eval', true)
           ) {
-            hasEval = true;
+            shouldWrap = true;
+            path.stop();
+          }
+        },
+
+        ReturnStatement(path) {
+          // Wrap in a function if we see a top-level return statement.
+          if (path.getFunctionParent().isProgram()) {
+            shouldWrap = true;
             path.stop();
           }
         }
       });
 
-      path.scope.setData('hasEval', hasEval);
+      path.scope.setData('shouldWrap', shouldWrap);
     },
 
     exit(path, asset) {
       let scope = path.scope;
 
-      if (scope.getData('hasEval')) {
+      if (scope.getData('shouldWrap')) {
         path.replaceWith(
           t.program([
             WRAPPER_TEMPLATE({
@@ -70,12 +80,26 @@ module.exports = {
   },
 
   MemberExpression(path, asset) {
-    if (
-      matchesPattern(path.node, 'module.exports') &&
-      !path.scope.hasBinding('module') &&
-      !path.scope.getData('hasEval')
-    ) {
+    if (path.scope.hasBinding('module') || path.scope.getData('shouldWrap')) {
+      return;
+    }
+
+    if (matchesPattern(path.node, 'module.exports')) {
       path.replaceWith(getExportsIdentifier(asset));
+    }
+
+    if (matchesPattern(path.node, 'module.id')) {
+      path.replaceWith(t.numericLiteral(asset.id));
+    }
+
+    if (matchesPattern(path.node, 'module.hot')) {
+      path.replaceWith(t.identifier('null'));
+    }
+
+    if (matchesPattern(path.node, 'module.bundle.modules')) {
+      path.replaceWith(
+        t.memberExpression(t.identifier('require'), t.identifier('modules'))
+      );
     }
   },
 
@@ -83,14 +107,14 @@ module.exports = {
     if (
       path.node.name === 'exports' &&
       !path.scope.hasBinding('exports') &&
-      !path.scope.getData('hasEval')
+      !path.scope.getData('shouldWrap')
     ) {
       path.replaceWith(getExportsIdentifier(asset));
     }
   },
 
   ThisExpression(path, asset) {
-    if (!path.scope.parent && !path.scope.getData('hasEval')) {
+    if (!path.scope.parent && !path.scope.getData('shouldWrap')) {
       path.replaceWith(getExportsIdentifier(asset));
     }
   },
@@ -101,9 +125,22 @@ module.exports = {
       t.isIdentifier(left) &&
       left.name === 'exports' &&
       !path.scope.hasBinding('exports') &&
-      !path.scope.getData('hasEval')
+      !path.scope.getData('shouldWrap')
     ) {
       path.get('left').replaceWith(getExportsIdentifier(asset));
+    }
+  },
+
+  UnaryExpression(path) {
+    // Replace `typeof module` with "object"
+    if (
+      path.node.operator === 'typeof' &&
+      t.isIdentifier(path.node.argument) &&
+      path.node.argument.name === 'module' &&
+      !path.scope.hasBinding('module') &&
+      !path.scope.getData('shouldWrap')
+    ) {
+      path.replaceWith(t.stringLiteral('object'));
     }
   },
 
@@ -118,6 +155,7 @@ module.exports = {
       !path.scope.hasBinding('require');
 
     if (isRequire) {
+      // Ignore require calls that were ignored earlier.
       if (!asset.dependencies.has(args[0].value)) {
         return;
       }

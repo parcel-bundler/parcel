@@ -36,5 +36,6 @@ parcelRequire = (function (init) {
   }
 
   modules = init(localRequire);
+  localRequire.modules = modules;
   return localRequire;
 })
