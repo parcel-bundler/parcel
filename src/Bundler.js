@@ -521,10 +521,7 @@ class Bundler extends EventEmitter {
       // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
       if (asset.parentBundle !== bundle) {
         let commonBundle = bundle.findCommonAncestor(asset.parentBundle);
-        if (
-          asset.parentBundle !== commonBundle &&
-          asset.parentBundle.type === commonBundle.type
-        ) {
+        if (asset.parentBundle.type === commonBundle.type) {
           this.moveAssetToBundle(asset, commonBundle);
           return;
         }
@@ -538,13 +535,24 @@ class Bundler extends EventEmitter {
       }
     }
 
+    let isEntryAsset =
+      asset.parentBundle && asset.parentBundle.entryAsset === asset;
+
     if (!bundle) {
       // Create the root bundle if it doesn't exist
       bundle = Bundle.createWithAsset(asset);
     } else if (dep && dep.dynamic) {
+      if (isEntryAsset) {
+        return;
+      }
+
       // Create a new bundle for dynamic imports
       bundle = bundle.createChildBundle(asset);
     } else if (asset.type && !this.packagers.has(asset.type)) {
+      if (isEntryAsset) {
+        return;
+      }
+
       // No packager is available for this asset type. Create a new bundle with only this asset.
       bundle.createSiblingBundle(asset);
     } else {
@@ -579,7 +587,10 @@ class Bundler extends EventEmitter {
 
   moveAssetToBundle(asset, commonBundle) {
     // Never move the entry asset of a bundle, as it was explicitly requested to be placed in a separate bundle.
-    if (asset.parentBundle.entryAsset === asset) {
+    if (
+      asset.parentBundle.entryAsset === asset ||
+      asset.parentBundle === commonBundle
+    ) {
       return;
     }
 
