@@ -85,7 +85,7 @@ class JSConcatPackager extends Packager {
 
     js = js.trim() + '\n';
 
-    await this.write(js);
+    await this.write(`// ${asset.name}\n${js}`);
   }
 
   getBundleSpecifier(bundle) {
