@@ -13,9 +13,10 @@ class RawPackager extends Packager {
       contents = await fs.readFile(contents ? contents.path : asset.name);
     }
 
-    // Create output path if not exist
-    const dir = path.dirname(this.bundle.name);
-    await fs.mkdirp(dir);
+    // Create sub-directories if needed
+    if (this.bundle.name.includes(path.sep)) {
+      await mkdirp(path.dirname(this.bundle.name));
+    }
 
     this.size = contents.length;
     await fs.writeFile(this.bundle.name, contents);
