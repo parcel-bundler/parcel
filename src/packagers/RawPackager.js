@@ -15,7 +15,7 @@ class RawPackager extends Packager {
 
     // Create sub-directories if needed
     if (this.bundle.name.includes(path.sep)) {
-      await mkdirp(path.dirname(this.bundle.name));
+      await fs.mkdirp(path.dirname(this.bundle.name));
     }
 
     this.size = contents.length;
