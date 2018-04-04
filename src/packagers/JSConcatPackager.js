@@ -30,10 +30,6 @@ class JSConcatPackager extends Packager {
       return;
     }
 
-    console.log('\n\n');
-    console.log(asset.name, asset.exports);
-    console.log('\n\n');
-
     this.addedAssets.add(asset);
     this.exports.set(asset.id, asset.exports);
     let js = asset.generated.js;
@@ -159,23 +155,34 @@ class JSConcatPackager extends Packager {
     await this.write('});');
 
     super.write(
-      this.buffer.replace(
-        /\$parcel\$expand_exports\(([\d]+),([\d]+)\)/,
-        (_, from, to) => {
-          const exports = this.exports.get(Number(from));
+      this.buffer
+        .replace(
+          /\$parcel\$expand_exports\(([\d]+),([\d]+)\)/g,
+          (_, from, to) => {
+            const exports = this.exports.get(Number(from));
 
-          if (!exports) {
-            throw new Error();
+            if (!exports) {
+              throw new Error();
+            }
+
+            return exports
+              .map(
+                name =>
+                  `var $${to}$named_export$${name} = $${from}$named_export$${name}`
+              )
+              .join('\n');
+          }
+        )
+        .replace(/\$([\d]+)\$named_export\$([^ ]+) =/g, (binding, id, name) => {
+          const exportBinding = `$${id}$exports`;
+
+          // if there is at least two occurences of the exports binding
+          if (this.buffer.split(exportBinding).length > 2) {
+            return `${binding} ${exportBinding}.${name} =`;
           }
 
-          return exports
-            .map(
-              name =>
-                `var $${to}$named_export$${name} = $${from}$named_export$${name}`
-            )
-            .join('\n');
-        }
-      )
+          return binding;
+        })
     );
   }
 }
