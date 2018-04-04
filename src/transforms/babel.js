@@ -82,10 +82,11 @@ async function getBabelConfig(asset) {
     return {
       internal: true,
       plugins: [
+        /**
         [
           require('babel-plugin-transform-es2015-modules-commonjs'),
           {allowTopLevelThis: true}
-        ]
+        ]**/
       ]
     };
   }

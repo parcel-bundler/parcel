@@ -11,7 +11,13 @@ const WRAPPER_TEMPLATE = template(`
   }).call({});
 `);
 
+const BREAK_COMMON_JS = true;
+
 const EXPORTS_TEMPLATE = template('var NAME = {}');
+const EXPORT_ALL_TEMPLATE = template('Object.assign(EXPORTS, SOURCE)');
+const NAMED_EXPORT_TEMPLATE = BREAK_COMMON_JS
+  ? template('var NAME = INIT')
+  : template('var NAME = (EXPORTS.BINDING = INIT)');
 
 module.exports = {
   Program: {
@@ -57,13 +63,17 @@ module.exports = {
           ])
         );
       } else {
+        let namedExport = getNamedExportIdentifierName(asset);
+
         // Re-crawl scope so we are sure to have all bindings.
         scope.crawl();
 
         // Rename each binding in the top-level scope to something unique.
         for (let name in scope.bindings) {
-          let newName = '$' + asset.id + '$var$' + name;
-          scope.rename(name, newName);
+          if (name.indexOf(namedExport) === -1) {
+            let newName = '$' + asset.id + '$var$' + name;
+            scope.rename(name, newName);
+          }
         }
 
         // Add variable that represents module.exports
@@ -177,9 +187,124 @@ module.exports = {
         '$' + asset.id + '$require_resolve$' + t.toIdentifier(args[0].value);
       path.replaceWith(t.identifier(name));
     }
+  },
+  ExportAllDeclaration(path, asset) {
+    if (BREAK_COMMON_JS) {
+      path.replaceWith(
+        t.identifier(
+          '$' +
+            asset.id +
+            '$expand_exports$' +
+            t.toIdentifier(path.node.source.value)
+        )
+      );
+    } else {
+      path.replaceWith(
+        EXPORT_ALL_TEMPLATE({
+          EXPORTS: t.identifier('$' + asset.id + '$exports'),
+          SOURCE: t.identifier(
+            '$' +
+              asset.id +
+              '$require$' +
+              t.toIdentifier(path.node.source.value)
+          )
+        })
+      );
+    }
+  },
+  ImportDeclaration(path, asset) {
+    let {source, specifiers} = path.node;
+
+    if (source && specifiers.length > 0) {
+      if (BREAK_COMMON_JS) {
+        path.replaceWith(
+          t.variableDeclaration(
+            'var',
+            specifiers.map(specifier =>
+              t.variableDeclarator(
+                specifier.local,
+                t.identifier(
+                  '$' +
+                    asset.id +
+                    '$named_import$' +
+                    t.toIdentifier(source.value) +
+                    '$' +
+                    specifier.imported.name
+                )
+              )
+            )
+          )
+        );
+      } else {
+        path.replaceWith(
+          t.variableDeclaration(
+            'var',
+            specifiers.map(specifier =>
+              t.variableDeclarator(
+                specifier.local,
+                t.memberExpression(
+                  t.identifier(
+                    '$' + asset.id + '$require$' + t.toIdentifier(source.value)
+                  ),
+                  specifier.imported
+                )
+              )
+            )
+          )
+        );
+      }
+    }
+  },
+  ExportNamedDeclaration(path, asset) {
+    let {declaration, source, specifiers} = path.node;
+
+    if (!source) {
+      let declarations;
+
+      if (declaration) {
+        declarations = declaration.declarations.map(decl => {
+          asset.exports.push(decl.id.name);
+
+          return getNamedExportVarDecl(asset, decl.id, decl.init);
+        });
+      } else if (specifiers.length > 0) {
+        declarations = t.variableDeclaration(
+          'var',
+          specifiers.map(specifier => {
+            asset.exports.push(specifier.exported.name);
+
+            return getNamedExportVarDecl(
+              asset,
+              specifier.exported,
+              specifier.local
+            );
+          })
+        );
+      }
+
+      if (declarations.length) {
+        path.replaceWith(t.variableDeclaration('var', declarations));
+      }
+    }
   }
 };
 
+function getNamedExportVarDecl(asset, name, init) {
+  let varName = getNamedExportIdentifierName(asset, name);
+
+  return NAMED_EXPORT_TEMPLATE({
+    NAME: t.identifier(varName),
+    EXPORTS: getExportsIdentifier(asset),
+    BINDING: name,
+    INIT: init
+  }).declarations[0];
+}
+
+function getNamedExportIdentifierName(asset, name = '') {
+  name = t.isIdentifier(name) ? name.name : name;
+
+  return '$' + asset.id + '$named_export$' + name;
+}
 function getExportsIdentifier(asset) {
   return t.identifier('$' + asset.id + '$exports');
 }

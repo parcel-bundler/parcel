@@ -470,6 +470,12 @@ class Bundler extends EventEmitter {
       }
     }
 
+    if (processed.generated['@reflect']) {
+      Object.assign(asset, processed.generated['@reflect']);
+
+      delete processed.generated['@reflect'];
+    }
+
     asset.buildTime = Date.now() - startTime;
     asset.generated = processed.generated;
     asset.hash = processed.hash;
