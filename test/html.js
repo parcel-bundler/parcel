@@ -520,6 +520,27 @@ describe('html', function() {
     });
   });
 
+  it('should support transforming webmanifest', async function() {
+    let b = await bundle(
+      __dirname + '/integration/webmanifest-transform/index.html'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'webmanifest',
+          assets: ['manifest.webmanifest']
+        }
+      ]
+    });
+
+    const childBundles = Array.from(b.childBundles);
+    const manifest = fs.readFileSync(childBundles[0].name);
+    assert(manifest.includes('Foo'));
+  });
+
   it('should bundle svg files correctly', async function() {
     let b = await bundle(__dirname + '/integration/html-svg/index.html');
 
