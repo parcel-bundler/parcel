@@ -31,7 +31,7 @@ class JSConcatPackager extends Packager {
     }
 
     this.addedAssets.add(asset);
-    this.exports.set(asset.id, asset.exports);
+    this.exports.set(asset.id, asset.cacheData.exports);
     let js = asset.generated.js;
 
     // If this module is referenced by another bundle, it needs to be exposed externally.

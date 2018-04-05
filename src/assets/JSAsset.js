@@ -28,8 +28,8 @@ class JSAsset extends Asset {
     this.isES6Module = false;
     this.outputCode = null;
     this.cacheData.env = {};
+    this.cacheData.exports = [];
     this.sourceMap = options.rendition ? options.rendition.sourceMap : null;
-    this.exports = [];
   }
 
   shouldInvalidate(cacheData) {
@@ -174,10 +174,7 @@ class JSAsset extends Asset {
 
     return {
       js: code,
-      map: this.sourceMap,
-      '@reflect': {
-        exports: this.exports
-      }
+      map: this.sourceMap
     };
   }
 

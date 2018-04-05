@@ -257,7 +257,7 @@ module.exports = {
 
       if (declaration) {
         declarations = declaration.declarations.map(decl => {
-          asset.exports.push(decl.id.name);
+          asset.cacheData.exports.push(decl.id.name);
 
           return getNamedExportVarDecl(asset, decl.id, decl.init);
         });
@@ -265,7 +265,7 @@ module.exports = {
         declarations = t.variableDeclaration(
           'var',
           specifiers.map(specifier => {
-            asset.exports.push(specifier.exported.name);
+            asset.cacheData.exports.push(specifier.exported.name);
 
             return getNamedExportVarDecl(
               asset,
