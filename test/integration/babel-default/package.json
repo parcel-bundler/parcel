@@ -1,3 +1,4 @@
 {
-  "name": "parcel-test-browser-browserslist"
+  "name": "parcel-test-browser-browserslist",
+  "private": true
 }
