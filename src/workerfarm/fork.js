@@ -22,9 +22,16 @@ function fork(forkModule, childId) {
 
   child.send({module: forkModule, child: childId});
 
+  // Delay data being send to the child with a tick, prevents win32 deadlock
+  function send(data) {
+    process.nextTick(() => {
+      child.send(data);
+    });
+  }
+
   // return a send() function for this child
   return {
-    send: child.send.bind(child),
+    send: send.bind(child),
     child: child
   };
 }
