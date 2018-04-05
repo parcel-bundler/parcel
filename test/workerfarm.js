@@ -38,19 +38,26 @@ describe('WorkerFarm', () => {
     await workerfarm.end();
   });
 
-  it('Should initialise workers', async () => {
+  it('Should consistently initialise workers, even after 100 re-inits', async () => {
     let options = {
-      key: 'value'
+      key: 0
     };
+
     let workerfarm = new WorkerFarm(options, {
-      warmWorkers: true,
+      warmWorkers: false,
       useLocalWorker: false,
       workerPath: require.resolve('./integration/workerfarm/init.js')
     });
 
-    await new Promise(resolve => workerfarm.once('started', resolve));
-
-    assert.equal((await workerfarm.run()).key, options.key);
+    for (let i = 0; i < 100; i++) {
+      options.key = i;
+      workerfarm.init(options);
+      await new Promise(resolve => workerfarm.once('started', resolve));
+      for (let i = 0; i < workerfarm.activeChildren; i++) {
+        assert.equal((await workerfarm.run()).key, options.key);
+      }
+      assert.equal(workerfarm.shouldUseRemoteWorkers(), true);
+    }
 
     await workerfarm.end();
   });
