@@ -12,8 +12,6 @@ let shared = null;
 class WorkerFarm extends EventEmitter {
   constructor(options, farmOptions = {}) {
     super();
-    console.log(process.platform);
-    console.log();
     this.options = Object.assign(
       {
         maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
