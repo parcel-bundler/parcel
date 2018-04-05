@@ -1,13 +1,12 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundle} = require('./utils');
-const rimraf = require('rimraf');
+const {bundle, removeDirectory} = require('./utils');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 
 describe('content hashing', function() {
-  beforeEach(function() {
-    rimraf.sync(__dirname + '/input');
+  beforeEach(async function() {
+    await removeDirectory(__dirname + '/input');
   });
 
   it('should update content hash when content changes', async function() {

@@ -1,9 +1,8 @@
 const assert = require('assert');
 const path = require('path');
-const rimraf = require('rimraf');
 const fs = require('../src/utils/fs');
 const promisify = require('../src/utils/promisify');
-const {sleep} = require('./utils');
+const {sleep, removeDirectory} = require('./utils');
 const ncp = promisify(require('ncp'));
 const FSCache = require('../src/FSCache');
 
@@ -17,9 +16,9 @@ const getMTime = async file => {
 };
 
 describe('FSCache', () => {
-  beforeEach(() => {
-    rimraf.sync(cachePath);
-    rimraf.sync(inputPath);
+  beforeEach(async () => {
+    await removeDirectory(cachePath);
+    await removeDirectory(inputPath);
   });
 
   it('should create directory on ensureDirExists', async () => {

@@ -1,8 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const {bundler, run, sleep} = require('./utils');
-const rimraf = require('rimraf');
+const {bundler, run, sleep, removeDirectory} = require('./utils');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 const WebSocket = require('ws');
@@ -11,8 +10,8 @@ const sinon = require('sinon');
 
 describe('hmr', function() {
   let b, ws;
-  beforeEach(function() {
-    rimraf.sync(__dirname + '/input');
+  beforeEach(async function() {
+    await removeDirectory(__dirname + '/input');
   });
 
   afterEach(function(done) {

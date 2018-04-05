@@ -1,16 +1,15 @@
 const assert = require('assert');
 const install = require('../src/utils/installPackage');
 const fs = require('fs');
-const rimraf = require('rimraf');
+const {removeDirectory} = require('./utils');
 const promisify = require('../src/utils/promisify');
-const primraf = promisify(rimraf);
 const ncp = promisify(require('ncp'));
 const inputDirPath = __dirname + '/input';
 
 describe('autoinstall', function() {
   beforeEach(async function() {
     // Setup (clear the input dir and move integration test in)
-    await primraf(inputDirPath, {});
+    await removeDirectory(inputDirPath, {});
     await ncp(__dirname + '/integration/babel-default', inputDirPath);
   });
 
@@ -47,6 +46,6 @@ describe('autoinstall', function() {
   });
 
   afterEach(async function() {
-    await primraf(inputDirPath);
+    await removeDirectory(inputDirPath);
   });
 });

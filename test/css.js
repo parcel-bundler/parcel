@@ -1,9 +1,8 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree, removeDirectory} = require('./utils');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
-const rimraf = require('rimraf');
 
 describe('css', function() {
   it('should produce two bundles when importing a CSS file', async function() {
@@ -237,7 +236,7 @@ describe('css', function() {
   });
 
   it('should automatically install postcss plugins with npm if needed', async function() {
-    rimraf.sync(__dirname + '/input');
+    await removeDirectory(__dirname + '/input');
     await ncp(__dirname + '/integration/autoinstall/npm', __dirname + '/input');
     await bundle(__dirname + '/input/index.css');
 
@@ -254,7 +253,7 @@ describe('css', function() {
   });
 
   it('should automatically install postcss plugins with yarn if needed', async function() {
-    rimraf.sync(__dirname + '/input');
+    await removeDirectory(__dirname + '/input');
     await ncp(
       __dirname + '/integration/autoinstall/yarn',
       __dirname + '/input'

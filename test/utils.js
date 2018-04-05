@@ -1,5 +1,7 @@
 const Bundler = require('../src/Bundler');
+const promisify = require('../src/utils/promisify');
 const rimraf = require('rimraf');
+const removeDirectory = promisify(rimraf);
 const assert = require('assert');
 const vm = require('vm');
 const fs = require('fs');
@@ -8,15 +10,7 @@ const WebSocket = require('ws');
 const Module = require('module');
 
 beforeEach(async function() {
-  // Test run in a single process, creating and deleting the same file(s)
-  // Windows needs a delay for the file handles to be released before deleting
-  // is possible. Without a delay, rimraf fails on `beforeEach` for `/dist`
-  if (process.platform === 'win32') {
-    await sleep(50);
-  }
-  // Unix based systems also need a delay but only half as much as windows
-  await sleep(50);
-  rimraf.sync(path.join(__dirname, 'dist'));
+  await removeDirectory(path.join(__dirname, 'dist', '*'));
 });
 
 function sleep(ms) {
@@ -214,6 +208,7 @@ function deferred() {
   return promise;
 }
 
+exports.removeDirectory = removeDirectory;
 exports.sleep = sleep;
 exports.bundler = bundler;
 exports.bundle = bundle;

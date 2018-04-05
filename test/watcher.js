@@ -1,15 +1,21 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const {bundler, run, assertBundleTree, sleep, nextBundle} = require('./utils');
-const rimraf = require('rimraf');
+const {
+  bundler,
+  run,
+  assertBundleTree,
+  sleep,
+  nextBundle,
+  removeDirectory
+} = require('./utils');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 
 describe('watcher', function() {
   let b;
-  beforeEach(function() {
-    rimraf.sync(__dirname + '/input');
+  beforeEach(async function() {
+    await removeDirectory(__dirname + '/input');
   });
 
   afterEach(function() {
