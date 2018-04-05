@@ -11,14 +11,26 @@ class JSConcatPackager extends Packager {
   async start() {
     this.addedAssets = new Set();
     this.exposedModules = new Set();
-    this.exports = new Map();
-    this.buffer = '';
 
-    await this.write(prelude + '(function (require) {\n');
-  }
+    for (let asset of this.bundle.assets) {
+      // If this module is referenced by another bundle, it needs to be exposed externally.
+      let isExposed = !Array.from(asset.parentDeps).every(dep =>
+        this.bundle.assets.has(this.bundler.loadedAssets.get(dep.parent))
+      );
 
-  async write(string) {
-    this.buffer += string;
+      if (
+        isExposed ||
+        (this.bundle.entryAsset === asset && this.bundle.parentBundle)
+      ) {
+        this.exposedModules.add(asset);
+      }
+    }
+
+    if (this.exposedModules.size > 0) {
+      await this.write(prelude + '(function (require) {\n');
+    } else {
+      await this.write('(function () {\n');
+    }
   }
 
   getExportIdentifier(asset) {
@@ -31,17 +43,7 @@ class JSConcatPackager extends Packager {
     }
 
     this.addedAssets.add(asset);
-    this.exports.set(asset.id, asset.cacheData.exports);
     let js = asset.generated.js;
-
-    // If this module is referenced by another bundle, it needs to be exposed externally.
-    let isExposed = !Array.from(asset.parentDeps).every(dep =>
-      this.bundle.assets.has(this.bundler.loadedAssets.get(dep.parent))
-    );
-
-    if (isExposed || this.bundle.entryAsset === asset) {
-      this.exposedModules.add(asset);
-    }
 
     for (let [dep, mod] of asset.depAssets) {
       let depName = '$' + asset.id + '$require$' + t.toIdentifier(dep.name);
@@ -53,7 +55,6 @@ class JSConcatPackager extends Packager {
       }
 
       js = js.split(depName).join(moduleName);
-
 
       if (dep.isES6Import) {
         if (mod.cacheData.isES6Module) {
@@ -164,9 +165,9 @@ class JSConcatPackager extends Packager {
       }
 
       await this.write(`return {${exposed.join(', ')}};\n`);
+    } else {
+      await this.write('})();');
     }
-
-    await this.write('});');
 
     // super.write(
     //   this.buffer
