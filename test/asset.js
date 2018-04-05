@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const Asset = require('../src/Asset');
-const {bundle} = require('./utils');
+const {bundle, tmpPath} = require('./utils');
 
 describe('Asset', () => {
   it('should include default implementations', async () => {
@@ -27,7 +27,7 @@ describe('Asset', () => {
       outFile
     });
 
-    assert(fs.existsSync(__dirname + `/dist/${outFile}.html`));
+    assert(fs.existsSync(tmpPath('dist', `${outFile}.html`)));
   });
 
   describe('addURLDependency', () => {

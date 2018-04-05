@@ -10,8 +10,12 @@ const WebSocket = require('ws');
 const Module = require('module');
 
 beforeEach(async function() {
-  await removeDirectory(path.join(__dirname, 'dist', '*'));
+  await removeDirectory(tmpPath('dist'));
 });
+
+function tmpPath(...args) {
+  return path.join(__dirname, ...args);
+}
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -22,7 +26,7 @@ function bundler(file, opts) {
     file,
     Object.assign(
       {
-        outDir: path.join(__dirname, 'dist'),
+        outDir: tmpPath('dist'),
         watch: false,
         cache: false,
         killWorkers: false,
@@ -55,10 +59,7 @@ function prepareBrowserContext(bundle, globals) {
           appendChild(el) {
             setTimeout(function() {
               if (el.tag === 'script') {
-                vm.runInContext(
-                  fs.readFileSync(path.join(__dirname, 'dist', el.src)),
-                  ctx
-                );
+                vm.runInContext(fs.readFileSync(tmpPath('dist', el.src)), ctx);
               }
 
               el.onload();
@@ -89,8 +90,7 @@ function prepareBrowserContext(bundle, globals) {
         return Promise.resolve({
           arrayBuffer() {
             return Promise.resolve(
-              new Uint8Array(fs.readFileSync(path.join(__dirname, 'dist', url)))
-                .buffer
+              new Uint8Array(fs.readFileSync(tmpPath('dist', url))).buffer
             );
           }
         });
@@ -209,6 +209,7 @@ function deferred() {
 }
 
 exports.removeDirectory = removeDirectory;
+exports.tmpPath = tmpPath;
 exports.sleep = sleep;
 exports.bundler = bundler;
 exports.bundle = bundle;

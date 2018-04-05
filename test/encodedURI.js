@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundle, assertBundleTree} = require('./utils');
+const {bundle, assertBundleTree, tmpPath} = require('./utils');
 
 describe('encodedURI', function() {
   it('should support bundling files which names in encoded URI', async function() {
@@ -18,8 +18,8 @@ describe('encodedURI', function() {
       ]
     });
 
-    let files = fs.readdirSync(__dirname + '/dist');
-    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    let files = fs.readdirSync(tmpPath('dist'));
+    let html = fs.readFileSync(tmpPath('dist', 'index.html'));
     for (let file of files) {
       if (file !== 'index.html') {
         assert(html.includes(file));

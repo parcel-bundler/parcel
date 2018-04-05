@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree, tmpPath} = require('./utils');
 const {mkdirp} = require('../src/utils/fs');
 
 describe('javascript', function() {
@@ -53,9 +53,9 @@ describe('javascript', function() {
       assets: ['main.js', 'local.js']
     });
 
-    await mkdirp(__dirname + '/dist/node_modules/testmodule');
+    await mkdirp(tmpPath('dist', 'node_modules', 'testmodule'));
     fs.writeFileSync(
-      __dirname + '/dist/node_modules/testmodule/index.js',
+      tmpPath('dist', 'node_modules', 'testmodule', 'index.js'),
       'exports.a = 5;'
     );
 
@@ -74,9 +74,9 @@ describe('javascript', function() {
       assets: ['main.js', 'local.js']
     });
 
-    await mkdirp(__dirname + '/dist/node_modules/testmodule');
+    await mkdirp(tmpPath('dist', 'node_modules', 'testmodule'));
     fs.writeFileSync(
-      __dirname + '/dist/node_modules/testmodule/index.js',
+      tmpPath('dist', 'node_modules', 'testmodule', 'index.js'),
       'exports.a = 5;'
     );
 
@@ -338,7 +338,7 @@ describe('javascript', function() {
     let output = run(b);
     assert.equal(typeof output, 'function');
     assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
-    assert(fs.existsSync(__dirname + '/dist/' + output()));
+    assert(fs.existsSync(tmpPath('dist', output())));
   });
 
   it('should minify JS in production mode', async function() {
@@ -350,7 +350,7 @@ describe('javascript', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
 
-    let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let js = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(!js.includes('local.a'));
   });
 
@@ -359,7 +359,7 @@ describe('javascript', function() {
       production: true
     });
 
-    let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let js = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(!js.includes('console.log'));
     assert(!js.includes('// This is a comment'));
   });
@@ -603,7 +603,7 @@ describe('javascript', function() {
       production: true
     });
 
-    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let json = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(json.includes('{test:"test"}'));
   });
 
@@ -612,7 +612,7 @@ describe('javascript', function() {
       production: true
     });
 
-    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let json = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(json.includes('{test:"test"}'));
   });
 
@@ -621,7 +621,7 @@ describe('javascript', function() {
       production: true
     });
 
-    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let json = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 
@@ -630,14 +630,14 @@ describe('javascript', function() {
       production: true
     });
 
-    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let json = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 
   it('should support compiling with babel using .babelrc config', async function() {
     await bundle(__dirname + '/integration/babel/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(file.includes('class Foo {}'));
     assert(file.includes('class Bar {}'));
   });
@@ -645,7 +645,7 @@ describe('javascript', function() {
   it('should compile with babel with default engines if no config', async function() {
     await bundle(__dirname + '/integration/babel-default/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
@@ -653,7 +653,7 @@ describe('javascript', function() {
   it('should support compiling with babel using browserlist', async function() {
     await bundle(__dirname + '/integration/babel-browserslist/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
@@ -661,7 +661,7 @@ describe('javascript', function() {
   it('should support splitting babel-polyfill using browserlist', async function() {
     await bundle(__dirname + '/integration/babel-polyfill/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(file.includes('async function Bar() {}'));
     assert(!file.includes('regenerator'));
   });
@@ -675,14 +675,14 @@ describe('javascript', function() {
       let file;
       // Dev build test
       await bundle(__dirname + projectBasePath + '/index.js');
-      file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+      file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
       assert(devRegExp.test(file) === true);
       assert(prodRegExp.test(file) === false);
       // Prod build test
       await bundle(__dirname + projectBasePath + '/index.js', {
         production: true
       });
-      file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+      file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
       assert(prodRegExp.test(file) === true);
       assert(devRegExp.test(file) === false);
     }
@@ -698,7 +698,7 @@ describe('javascript', function() {
   it('should not compile node_modules by default', async function() {
     await bundle(__dirname + '/integration/babel-node-modules/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
@@ -708,7 +708,7 @@ describe('javascript', function() {
       __dirname + '/integration/babel-node-modules-browserify/index.js'
     );
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
@@ -718,7 +718,7 @@ describe('javascript', function() {
       __dirname + '/integration/babel-node-modules-browserslist/index.js'
     );
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
@@ -726,35 +726,35 @@ describe('javascript', function() {
   it('should support compiling JSX', async function() {
     await bundle(__dirname + '/integration/jsx/index.jsx');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(file.includes('React.createElement("div"'));
   });
 
   it('should support compiling JSX in JS files with React dependency', async function() {
     await bundle(__dirname + '/integration/jsx-react/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(file.includes('React.createElement("div"'));
   });
 
   it('should support compiling JSX in JS files with Preact dependency', async function() {
     await bundle(__dirname + '/integration/jsx-preact/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(file.includes('h("div"'));
   });
 
   it('should support compiling JSX in JS files with Nerv dependency', async function() {
     await bundle(__dirname + '/integration/jsx-nervjs/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(file.includes('Nerv.createElement("div"'));
   });
 
   it('should support compiling JSX in JS files with Hyperapp dependency', async function() {
     await bundle(__dirname + '/integration/jsx-hyperapp/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(file.includes('h("div"'));
   });
 

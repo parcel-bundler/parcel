@@ -1,5 +1,5 @@
 const assert = require('assert');
-const {bundle, assertBundleTree, run} = require('./utils');
+const {bundle, assertBundleTree, run, tmpPath} = require('./utils');
 const fs = require('fs');
 
 describe('vue', function() {
@@ -76,7 +76,7 @@ describe('vue', function() {
     assert.deepEqual(output.data(), {msg: 'Hello from coffee!'});
 
     let contents = fs.readFileSync(
-      __dirname + '/dist/pre-processors.css',
+      tmpPath('dist', 'pre-processors.css'),
       'utf8'
     );
     assert(contents.includes('color: #999'));
@@ -109,7 +109,7 @@ describe('vue', function() {
     output._injectStyles.call(ctx);
     assert.equal(typeof ctx.$style.red, 'string');
 
-    let contents = fs.readFileSync(__dirname + '/dist/functional.css', 'utf8');
+    let contents = fs.readFileSync(tmpPath('dist', 'functional.css'), 'utf8');
     assert(contents.includes('.' + ctx.$style.red));
   });
 
@@ -135,7 +135,7 @@ describe('vue', function() {
     assert(/^data-v-[0-9a-h]{6}$/.test(output._scopeId));
     assert.deepEqual(output.data(), {ok: true});
 
-    let contents = fs.readFileSync(__dirname + '/dist/App.css', 'utf8');
+    let contents = fs.readFileSync(tmpPath('dist', 'App.css'), 'utf8');
     assert(contents.includes(`.test[${output._scopeId}]`));
   });
 
@@ -165,7 +165,7 @@ describe('vue', function() {
     output.beforeCreate[0].call(ctx);
     assert.equal(typeof ctx.$style.red, 'string');
 
-    let contents = fs.readFileSync(__dirname + '/dist/App.css', 'utf8');
+    let contents = fs.readFileSync(tmpPath('dist', 'App.css'), 'utf8');
     assert(contents.includes('.' + ctx.$style.red));
   });
 

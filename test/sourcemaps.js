@@ -1,8 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const mapValidator = require('sourcemap-validator');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree, tmpPath} = require('./utils');
 
 describe('sourcemaps', function() {
   it('should create a valid sourcemap as a child of a JS bundle', async function() {
@@ -19,12 +18,8 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
-      .toString();
-    let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
-      .toString();
+    let raw = fs.readFileSync(tmpPath('dist', 'index.js')).toString();
+    let map = fs.readFileSync(tmpPath('dist', 'index.map')).toString();
     mapValidator(raw, map);
 
     let output = run(b);
@@ -48,12 +43,8 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
-      .toString();
-    let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
-      .toString();
+    let raw = fs.readFileSync(tmpPath('dist', 'index.js')).toString();
+    let map = fs.readFileSync(tmpPath('dist', 'index.map')).toString();
     mapValidator(raw, map);
 
     let output = run(b);
@@ -77,12 +68,8 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
-      .toString();
-    let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
-      .toString();
+    let raw = fs.readFileSync(tmpPath('dist', 'index.js')).toString();
+    let map = fs.readFileSync(tmpPath('dist', 'index.map')).toString();
     mapValidator(raw, map);
 
     let output = run(b);
@@ -104,12 +91,8 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
-      .toString();
-    let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
-      .toString();
+    let raw = fs.readFileSync(tmpPath('dist', 'index.js')).toString();
+    let map = fs.readFileSync(tmpPath('dist', 'index.map')).toString();
     mapValidator(raw, map);
 
     let output = run(b);
@@ -136,12 +119,8 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
-      .toString();
-    let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
-      .toString();
+    let raw = fs.readFileSync(tmpPath('dist', 'index.js')).toString();
+    let map = fs.readFileSync(tmpPath('dist', 'index.map')).toString();
     mapValidator(raw, map);
 
     let output = run(b);

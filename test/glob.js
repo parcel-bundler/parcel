@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree, tmpPath} = require('./utils');
 
 describe('glob', function() {
   it('should require a glob of files', async function() {
@@ -61,7 +61,7 @@ describe('glob', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(tmpPath('dist', 'index.css'), 'utf8');
     assert(css.includes('.local'));
     assert(css.includes('.other'));
     assert(css.includes('.index'));

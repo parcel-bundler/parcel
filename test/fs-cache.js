@@ -2,12 +2,9 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('../src/utils/fs');
 const promisify = require('../src/utils/promisify');
-const {sleep, removeDirectory} = require('./utils');
+const {sleep, removeDirectory, tmpPath} = require('./utils');
 const ncp = promisify(require('ncp'));
 const FSCache = require('../src/FSCache');
-
-const cachePath = path.join(__dirname, '.cache');
-const inputPath = path.join(__dirname, '/input');
 
 const getMTime = async file => {
   const stat = await fs.stat(file);
@@ -17,23 +14,23 @@ const getMTime = async file => {
 
 describe('FSCache', () => {
   beforeEach(async () => {
-    await removeDirectory(cachePath);
-    await removeDirectory(inputPath);
+    await removeDirectory(tmpPath('.cache'));
+    await removeDirectory(tmpPath('input'));
   });
 
   it('should create directory on ensureDirExists', async () => {
-    let exists = await fs.exists(cachePath);
+    let exists = await fs.exists(tmpPath('.cache'));
     assert(!exists);
 
-    const cache = new FSCache({cacheDir: cachePath});
+    const cache = new FSCache({cacheDir: tmpPath('.cache')});
     await cache.ensureDirExists();
 
-    exists = await fs.exists(cachePath);
+    exists = await fs.exists(tmpPath('.cache'));
     assert(exists);
   });
 
   it('should cache resources', async () => {
-    const cache = new FSCache({cacheDir: cachePath});
+    const cache = new FSCache({cacheDir: tmpPath('.cache')});
     await cache.write(__filename, {a: 'test', b: 1, dependencies: []});
 
     let cached = await cache.read(__filename);
@@ -42,7 +39,7 @@ describe('FSCache', () => {
   });
 
   it('should return null for invalidated resources', async () => {
-    const cache = new FSCache({cacheDir: cachePath});
+    const cache = new FSCache({cacheDir: tmpPath('.cache')});
     cache.invalidate(__filename);
 
     let cached = await cache.read(__filename);
@@ -50,7 +47,7 @@ describe('FSCache', () => {
   });
 
   it('should remove file on delete', async () => {
-    let cache = new FSCache({cacheDir: cachePath});
+    let cache = new FSCache({cacheDir: tmpPath('.cache')});
     await cache.write(__filename, {a: 'test', b: 1, dependencies: []});
     await cache.delete(__filename);
 
@@ -59,7 +56,7 @@ describe('FSCache', () => {
   });
 
   it('should remove from invalidated on write', async () => {
-    const cache = new FSCache({cacheDir: cachePath});
+    const cache = new FSCache({cacheDir: tmpPath('.cache')});
     cache.invalidate(__filename);
 
     assert(cache.invalidated.has(__filename));
@@ -70,7 +67,7 @@ describe('FSCache', () => {
   });
 
   it('should include mtime for dependencies included in parent', async () => {
-    const cache = new FSCache({cacheDir: cachePath});
+    const cache = new FSCache({cacheDir: tmpPath('.cache')});
     const mtime = await getMTime(__filename);
 
     await cache.write(__filename, {
@@ -93,9 +90,9 @@ describe('FSCache', () => {
   });
 
   it('should invalidate when dependency included in parent changes', async () => {
-    const cache = new FSCache({cacheDir: cachePath});
-    await ncp(__dirname + '/integration/fs', inputPath);
-    const filePath = path.join(inputPath, 'test.txt');
+    const cache = new FSCache({cacheDir: tmpPath('.cache')});
+    await ncp(__dirname + '/integration/fs', tmpPath('input'));
+    const filePath = tmpPath('input', 'test.txt');
 
     await cache.write(__filename, {
       dependencies: [
@@ -115,7 +112,7 @@ describe('FSCache', () => {
   });
 
   it('should return null on read error', async () => {
-    const cache = new FSCache({cacheDir: cachePath});
+    const cache = new FSCache({cacheDir: tmpPath('.cache')});
     const cached = await cache.read(
       path.join(__dirname, '/does/not/exist.txt')
     );
@@ -124,7 +121,7 @@ describe('FSCache', () => {
   });
 
   it('should continue without throwing on write error', async () => {
-    const cache = new FSCache({cacheDir: cachePath});
+    const cache = new FSCache({cacheDir: tmpPath('.cache')});
     const filePath = path.join(__dirname, '/does/not/exist.txt');
 
     assert.doesNotThrow(async () => {

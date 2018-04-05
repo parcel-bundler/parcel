@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundle, assertBundleTree} = require('./utils');
+const {bundle, assertBundleTree, tmpPath} = require('./utils');
 
 describe('parser', function() {
   it('should support case-insensitive file extension', async function() {
@@ -54,8 +54,8 @@ describe('parser', function() {
       ]
     });
 
-    let files = fs.readdirSync(__dirname + '/dist');
-    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    let files = fs.readdirSync(tmpPath('dist'));
+    let html = fs.readFileSync(tmpPath('dist', 'index.html'));
     for (let file of files) {
       let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {

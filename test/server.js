@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundler} = require('./utils');
+const {bundler, tmpPath} = require('./utils');
 const http = require('http');
 const https = require('https');
 
@@ -43,7 +43,7 @@ describe('server', function() {
     server = await b.serve(0);
 
     let data = await get('/index.js');
-    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
+    assert.equal(data, fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8'));
   });
 
   it('should serve a default page if the main bundle is an HTML asset', async function() {
@@ -51,10 +51,10 @@ describe('server', function() {
     server = await b.serve(0);
 
     let data = await get('/');
-    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+    assert.equal(data, fs.readFileSync(tmpPath('dist', 'index.html'), 'utf8'));
 
     data = await get('/foo/bar');
-    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+    assert.equal(data, fs.readFileSync(tmpPath('dist', 'index.html'), 'utf8'));
   });
 
   it('should serve a 404 if the file does not exist', async function() {
@@ -93,7 +93,7 @@ describe('server', function() {
     server = await b.serve(0, true);
 
     let data = await get('/index.js', https);
-    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
+    assert.equal(data, fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8'));
   });
 
   it('should support HTTPS via custom certificate', async function() {
@@ -104,7 +104,7 @@ describe('server', function() {
     });
 
     let data = await get('/index.js', https);
-    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
+    assert.equal(data, fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8'));
   });
 
   it('should support setting a public url', async function() {
@@ -114,7 +114,7 @@ describe('server', function() {
     server = await b.serve(0);
 
     let data = await get('/dist/index.js');
-    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.js', 'utf8'));
+    assert.equal(data, fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8'));
   });
 
   it('should serve static assets as well as html', async function() {
@@ -124,9 +124,9 @@ describe('server', function() {
     server = await b.serve(0);
     // When accessing / we should get the index page.
     let data = await get('/');
-    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+    assert.equal(data, fs.readFileSync(tmpPath('dist', 'index.html'), 'utf8'));
     // When accessing /hello.txt we should get txt document.
-    fs.writeFileSync(__dirname + '/dist/hello.txt', 'hello');
+    fs.writeFileSync(tmpPath('dist', 'hello.txt'), 'hello');
     data = await get('/hello.txt');
     assert.equal(data, 'hello');
   });

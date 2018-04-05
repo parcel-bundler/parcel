@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree, tmpPath} = require('./utils');
 
 describe('typescript', function() {
   it('should produce a ts bundle using ES6 imports', async function() {
@@ -70,7 +70,7 @@ describe('typescript', function() {
     let output = run(b);
     assert.equal(typeof output.getRaw, 'function');
     assert(/^\/test\.[0-9a-f]+\.txt$/.test(output.getRaw()));
-    assert(fs.existsSync(__dirname + '/dist/' + output.getRaw()));
+    assert(fs.existsSync(tmpPath('dist', output.getRaw())));
   });
 
   it('should minify in production mode', async function() {
@@ -86,7 +86,7 @@ describe('typescript', function() {
     assert.equal(typeof output.count, 'function');
     assert.equal(output.count(), 3);
 
-    let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let js = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(!js.includes('local.a'));
   });
 
@@ -96,14 +96,14 @@ describe('typescript', function() {
     let output = run(b);
     assert.equal(output, 2);
 
-    let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let js = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(!js.includes('/* test comment */'));
   });
 
   it('should support compiling JSX', async function() {
     await bundle(__dirname + '/integration/typescript-jsx/index.tsx');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(tmpPath('dist', 'index.js'), 'utf8');
     assert(file.includes('React.createElement("div"'));
   });
 
