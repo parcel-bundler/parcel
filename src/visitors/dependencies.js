@@ -11,19 +11,19 @@ const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 module.exports = {
   ImportDeclaration(node, asset) {
     asset.isES6Module = true;
-    addDependency(asset, node.source);
+    addDependency(asset, node.source, {isES6Import: true});
   },
 
   ExportNamedDeclaration(node, asset) {
     asset.isES6Module = true;
     if (node.source) {
-      addDependency(asset, node.source);
+      addDependency(asset, node.source, {isES6Import: true});
     }
   },
 
   ExportAllDeclaration(node, asset) {
     asset.isES6Module = true;
-    addDependency(asset, node.source);
+    addDependency(asset, node.source, {isES6Import: true});
   },
 
   ExportDefaultDeclaration(node, asset) {
