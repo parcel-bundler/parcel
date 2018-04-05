@@ -54,13 +54,27 @@ class JSConcatPackager extends Packager {
 
       js = js.split(depName).join(moduleName);
 
-      js = js
-        // $[asset.id]$named_import$a_js => $[module.id]$named_exports
-        .split('$' + asset.id + '$named_import$' + t.toIdentifier(dep.name))
-        .join('$' + mod.id + '$named_export')
-        // $[asset.id]$expand_exports$a_js => $parcel$expand_exports([module.id])
-        .split('$' + asset.id + '$expand_exports$' + t.toIdentifier(dep.name))
-        .join('$parcel$expand_exports(' + mod.id + ',' + asset.id + ')');
+
+      if (dep.isES6Import) {
+        if (mod.cacheData.isES6Module) {
+          js = js
+            .split('$' + asset.id + '$import$' + t.toIdentifier(dep.name))
+            .join('$' + mod.id + '$export');
+        } else {
+          js = js
+            .split(
+              '$' +
+                asset.id +
+                '$import$' +
+                t.toIdentifier(dep.name) +
+                '$default'
+            )
+            .join('$' + mod.id + '$exports');
+          js = js
+            .split('$' + asset.id + '$import$' + t.toIdentifier(dep.name) + '$')
+            .join('$' + mod.id + '$exports.');
+        }
+      }
 
       let depResolve =
         '$' + asset.id + '$require_resolve$' + t.toIdentifier(dep.name);
@@ -85,7 +99,7 @@ class JSConcatPackager extends Packager {
 
     js = js.trim() + '\n';
 
-    await this.write(`// ${asset.name}\n${js}`);
+    await this.write(`\n/* ASSET: ${asset.name} */\n${js}`);
   }
 
   getBundleSpecifier(bundle) {
@@ -154,36 +168,36 @@ class JSConcatPackager extends Packager {
 
     await this.write('});');
 
-    super.write(
-      this.buffer
-        .replace(
-          /\$parcel\$expand_exports\(([\d]+),([\d]+)\)/g,
-          (_, from, to) => {
-            const exports = this.exports.get(Number(from));
-
-            if (!exports) {
-              throw new Error();
-            }
-
-            return exports
-              .map(
-                name =>
-                  `var $${to}$named_export$${name} = $${from}$named_export$${name}`
-              )
-              .join('\n');
-          }
-        )
-        .replace(/\$([\d]+)\$named_export\$([^ ]+) =/g, (binding, id, name) => {
-          const exportBinding = `$${id}$exports`;
-
-          // if there is at least two occurences of the exports binding
-          if (this.buffer.split(exportBinding).length > 2) {
-            return `${binding} ${exportBinding}.${name} =`;
-          }
-
-          return binding;
-        })
-    );
+    // super.write(
+    //   this.buffer
+    //     .replace(
+    //       /\$parcel\$expand_exports\(([\d]+),([\d]+)\)/g,
+    //       (_, from, to) => {
+    //         const exports = this.exports.get(Number(from));
+    //
+    //         if (!exports) {
+    //           throw new Error();
+    //         }
+    //
+    //         return exports
+    //           .map(
+    //             name =>
+    //               `var $${to}$named_export$${name} = $${from}$named_export$${name}`
+    //           )
+    //           .join('\n');
+    //       }
+    //     )
+    //     .replace(/\$([\d]+)\$named_export\$([^ ]+) =/g, (binding, id, name) => {
+    //       const exportBinding = `$${id}$exports`;
+    //
+    //       // if there is at least two occurences of the exports binding
+    //       if (this.buffer.split(exportBinding).length > 2) {
+    //         return `${binding} ${exportBinding}.${name} =`;
+    //       }
+    //
+    //       return binding;
+    //     })
+    // );
   }
 }
 
