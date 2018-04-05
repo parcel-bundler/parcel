@@ -22,12 +22,12 @@ describe('Asset', () => {
   });
 
   it('should support overriding the filename of the root bundle', async function() {
-    const outFile = 'custom-out-file.html';
+    const outFile = 'custom-out-file';
     await bundle(__dirname + '/integration/html/index.html', {
       outFile
     });
 
-    assert(fs.existsSync(__dirname, `/dist/${outFile}`));
+    assert(fs.existsSync(__dirname + `/dist/${outFile}.html`));
   });
 
   describe('addURLDependency', () => {
