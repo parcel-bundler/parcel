@@ -31,9 +31,11 @@ describe('WorkerFarm', () => {
 
     await new Promise(resolve => workerfarm.once('started', resolve));
 
+    let promises = [];
     for (let i = 0; i < 1000; i++) {
-      assert.equal(await workerfarm.run(i), i);
+      promises.push(workerfarm.run(i));
     }
+    await Promise.all(promises);
 
     await workerfarm.end();
   });
@@ -157,6 +159,33 @@ describe('WorkerFarm', () => {
     assert.equal(result.length, 2);
     assert.equal(result[1], process.pid);
     assert.notEqual(result[0], process.pid);
+
+    await workerfarm.end();
+  });
+
+  it('Should handle 10 big concurrent requests without any issue', async () => {
+    // This emulates the node.js ipc bug for win32
+    let workerfarm = new WorkerFarm(
+      {},
+      {
+        warmWorkers: false,
+        useLocalWorker: false,
+        workerPath: require.resolve('./integration/workerfarm/echo.js')
+      }
+    );
+
+    await new Promise(resolve => workerfarm.once('started', resolve));
+
+    let bigData = [];
+    for (let i = 0; i < 10000; i++) {
+      bigData.push('This is some big data');
+    }
+
+    let promises = [];
+    for (let i = 0; i < 10; i++) {
+      promises.push(workerfarm.run(bigData));
+    }
+    await Promise.all(promises);
 
     await workerfarm.end();
   });
