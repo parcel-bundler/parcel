@@ -473,6 +473,7 @@ class Bundler extends EventEmitter {
     asset.buildTime = Date.now() - startTime;
     asset.generated = processed.generated;
     asset.hash = processed.hash;
+    asset.cacheData.exports = processed.cacheData.exports;
 
     // Call the delegate to get implicit dependencies
     let dependencies = processed.dependencies;
