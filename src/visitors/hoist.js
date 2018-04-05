@@ -217,24 +217,18 @@ module.exports = {
 
     if (source && specifiers.length > 0) {
       if (BREAK_COMMON_JS) {
-        path.replaceWith(
-          t.variableDeclaration(
-            'var',
-            specifiers.map(specifier =>
-              t.variableDeclarator(
-                specifier.local,
-                t.identifier(
-                  '$' +
-                    asset.id +
-                    '$named_import$' +
-                    t.toIdentifier(source.value) +
-                    '$' +
-                    specifier.imported.name
-                )
-              )
-            )
+        specifiers.forEach(specifier =>
+          path.scope.rename(
+            specifier.local.name,
+            '$' +
+              asset.id +
+              '$named_import$' +
+              t.toIdentifier(source.value) +
+              '$' +
+              specifier.imported.name
           )
         );
+        path.remove();
       } else {
         path.replaceWith(
           t.variableDeclaration(
