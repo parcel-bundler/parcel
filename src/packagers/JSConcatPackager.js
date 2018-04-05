@@ -3,14 +3,22 @@ const t = require('babel-types');
 const path = require('path');
 const fs = require('fs');
 
+const concat = require('../transforms/concat');
+
 const prelude = fs
   .readFileSync(path.join(__dirname, '../builtins/prelude2.js'), 'utf8')
   .trim();
 
 class JSConcatPackager extends Packager {
+  async write(string) {
+    this.buffer += string;
+  }
+
   async start() {
     this.addedAssets = new Set();
     this.exposedModules = new Set();
+    this.buffer = '';
+    this.exports = new Map();
 
     for (let asset of this.bundle.assets) {
       // If this module is referenced by another bundle, it needs to be exposed externally.
@@ -43,6 +51,10 @@ class JSConcatPackager extends Packager {
     }
 
     this.addedAssets.add(asset);
+    this.exports.set(
+      asset.id,
+      Object.keys(asset.cacheData.exports).map(k => asset.cacheData.exports[k])
+    );
     let js = asset.generated.js;
 
     for (let [dep, mod] of asset.depAssets) {
@@ -53,6 +65,14 @@ class JSConcatPackager extends Packager {
       if (!this.bundle.assets.has(mod)) {
         moduleName = `require(${mod.id})`;
       }
+
+      js = js
+        // $[asset.id]$named_import$a_js => $[module.id]$named_exports
+        .split('$' + asset.id + '$named_import$' + t.toIdentifier(dep.name))
+        .join('$' + mod.id + '$named_export')
+        // $[asset.id]$expand_exports$a_js => $parcel$expand_exports([module.id])
+        .split('$' + asset.id + '$expand_exports$' + t.toIdentifier(dep.name))
+        .join('$parcel$expand_exports(' + mod.id + ',' + asset.id + ')');
 
       js = js.split(depName).join(moduleName);
 
@@ -169,6 +189,7 @@ class JSConcatPackager extends Packager {
       await this.write('})();');
     }
 
+    super.write(concat(this.buffer, this.exports));
     // super.write(
     //   this.buffer
     //     .replace(

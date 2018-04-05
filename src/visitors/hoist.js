@@ -316,28 +316,14 @@ module.exports = {
   },
 
   ExportAllDeclaration(path, asset) {
-    // if (BREAK_COMMON_JS) {
-    //   path.replaceWith(
-    //     t.identifier(
-    //       '$' +
-    //         asset.id +
-    //         '$expand_exports$' +
-    //         t.toIdentifier(path.node.source.value)
-    //     )
-    //   );
-    // } else {
-    //   path.replaceWith(
-    //     EXPORT_ALL_TEMPLATE({
-    //       EXPORTS: t.identifier('$' + asset.id + '$exports'),
-    //       SOURCE: t.identifier(
-    //         '$' +
-    //           asset.id +
-    //           '$require$' +
-    //           t.toIdentifier(path.node.source.value)
-    //       )
-    //     })
-    //   );
-    // }
+    path.replaceWith(
+      t.identifier(
+        '$' +
+          asset.id +
+          '$expand_exports$' +
+          t.toIdentifier(path.node.source.value)
+      )
+    );
 
     asset.cacheData.isES6Module = true;
   }
@@ -347,13 +333,13 @@ function addExport(asset, path, local, exported) {
   asset.cacheData.exports[getName(asset, 'export', exported.name)] =
     exported.name;
 
-  path.insertAfter(
+  /*path.insertAfter(
     EXPORT_ASSIGN_TEMPLATE({
       EXPORTS: getExportsIdentifier(asset),
       NAME: t.identifier(local.name),
       LOCAL: getIdentifier(asset, 'export', exported.name)
     })
-  );
+  );*/
 
   path.scope.rename(local.name, getName(asset, 'export', exported.name));
 }
