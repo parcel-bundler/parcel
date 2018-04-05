@@ -12,10 +12,14 @@ let shared = null;
 class WorkerFarm extends EventEmitter {
   constructor(options, farmOptions = {}) {
     super();
+    console.log(process.platform);
+    console.log();
     this.options = Object.assign(
       {
         maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
-        maxConcurrentCallsPerWorker: 10,
+        // Run ipc calls on windows sequential, this could in theory slow down parcel
+        // But is the only reliable way to workaround https://github.com/nodejs/node/issues/7657
+        maxConcurrentCallsPerWorker: /^win/.test(process.platform) ? 1 : 10,
         forcedKillTime: 100,
         warmWorkers: true,
         useLocalWorker: true,
