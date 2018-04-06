@@ -5,16 +5,18 @@ const removeDirectory = promisify(rimraf);
 const assert = require('assert');
 const vm = require('vm');
 const fs = require('fs');
+const {mkdirp} = require('../src/utils/fs');
 const path = require('path');
 const WebSocket = require('ws');
 const Module = require('module');
 
 beforeEach(async function() {
+  await mkdirp(tmpPath());
   await removeDirectory(tmpPath('dist'));
 });
 
 function tmpPath(...args) {
-  return path.join(__dirname, ...args);
+  return path.join(__dirname, '..', 'tmp', ...args);
 }
 
 function sleep(ms) {
