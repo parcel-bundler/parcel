@@ -9,18 +9,30 @@ const {mkdirp} = require('../src/utils/fs');
 const path = require('path');
 const WebSocket = require('ws');
 const Module = require('module');
+const crypto = require('crypto');
+
+let currentTestHash = null;
 
 beforeEach(async function() {
-  await mkdirp(tmpPath());
   await clearTmpDirectory();
+
+  currentTestHash = crypto.randomBytes(16).toString('hex');
+  await mkdirp(tmpPath());
 });
 
 afterEach(async function() {
+  currentTestHash = null;
   await clearTmpDirectory();
 });
 
 function tmpPath(...args) {
-  return path.join(__dirname, '..', 'tmp', ...args);
+  if (!currentTestHash) {
+    throw new Error(
+      'tmpPath() has to be called inside a test or in before/after hooks'
+    );
+  }
+
+  return path.join(__dirname, '..', 'tmp', currentTestHash, ...args);
 }
 
 function clearTmpDirectory() {
