@@ -23,7 +23,7 @@ module.exports = {
 
   ExportAllDeclaration(node, asset) {
     asset.isES6Module = true;
-    addDependency(asset, node.source, {isES6Import: true});
+    addDependency(asset, node.source, {isES6Import: true, isExportAll: true});
   },
 
   ExportDefaultDeclaration(node, asset) {

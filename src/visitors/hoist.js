@@ -316,14 +316,7 @@ module.exports = {
   },
 
   ExportAllDeclaration(path, asset) {
-    path.replaceWith(
-      t.identifier(
-        '$' +
-          asset.id +
-          '$expand_exports$' +
-          t.toIdentifier(path.node.source.value)
-      )
-    );
+    path.remove();
 
     asset.cacheData.isES6Module = true;
   }

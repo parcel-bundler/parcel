@@ -3,16 +3,16 @@ const t = require('babel-types');
 const path = require('path');
 const fs = require('fs');
 
-const concat = require('../transforms/concat');
+// const concat = require('../transforms/concat');
 
 const prelude = fs
   .readFileSync(path.join(__dirname, '../builtins/prelude2.js'), 'utf8')
   .trim();
 
 class JSConcatPackager extends Packager {
-  async write(string) {
-    this.buffer += string;
-  }
+  // async write(string) {
+  //   this.buffer += string;
+  // }
 
   async start() {
     this.addedAssets = new Set();
@@ -51,10 +51,6 @@ class JSConcatPackager extends Packager {
     }
 
     this.addedAssets.add(asset);
-    this.exports.set(
-      asset.id,
-      Object.keys(asset.cacheData.exports).map(k => asset.cacheData.exports[k])
-    );
     let js = asset.generated.js;
 
     for (let [dep, mod] of asset.depAssets) {
@@ -66,15 +62,21 @@ class JSConcatPackager extends Packager {
         moduleName = `require(${mod.id})`;
       }
 
-      js = js
-        // $[asset.id]$named_import$a_js => $[module.id]$named_exports
-        .split('$' + asset.id + '$named_import$' + t.toIdentifier(dep.name))
-        .join('$' + mod.id + '$named_export')
-        // $[asset.id]$expand_exports$a_js => $parcel$expand_exports([module.id])
-        .split('$' + asset.id + '$expand_exports$' + t.toIdentifier(dep.name))
-        .join('$parcel$expand_exports(' + mod.id + ',' + asset.id + ')');
-
       js = js.split(depName).join(moduleName);
+
+      // If this was an ES6 export all (e.g. export * from 'foo'), resolve to the original exports.
+      if (dep.isExportAll) {
+        for (let exp in mod.cacheData.exports) {
+          asset.cacheData.exports[
+            '$' + asset.id + '$export$' + mod.cacheData.exports[exp]
+          ] =
+            mod.cacheData.exports[exp];
+          this.exports.set(
+            '$' + asset.id + '$export$' + mod.cacheData.exports[exp],
+            exp
+          );
+        }
+      }
 
       if (dep.isES6Import) {
         if (mod.cacheData.isES6Module) {
@@ -116,6 +118,11 @@ class JSConcatPackager extends Packager {
       }
 
       js = js.split(depResolve).join(resolved);
+    }
+
+    // Replace all re-exported variables
+    for (let [name, replacement] of this.exports) {
+      js = js.split(name).join(replacement);
     }
 
     js = js.trim() + '\n';
@@ -189,7 +196,7 @@ class JSConcatPackager extends Packager {
       await this.write('})();');
     }
 
-    super.write(concat(this.buffer, this.exports));
+    // super.write(concat(this.buffer, this.exports));
     // super.write(
     //   this.buffer
     //     .replace(
