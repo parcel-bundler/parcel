@@ -12,11 +12,19 @@ const Module = require('module');
 
 beforeEach(async function() {
   await mkdirp(tmpPath());
-  await removeDirectory(tmpPath('dist'));
+  await clearTmpDirectory();
+});
+
+afterEach(async function() {
+  await clearTmpDirectory();
 });
 
 function tmpPath(...args) {
   return path.join(__dirname, '..', 'tmp', ...args);
+}
+
+function clearTmpDirectory() {
+  return removeDirectory(path.join(__dirname, '..', 'tmp', '*'));
 }
 
 function sleep(ms) {

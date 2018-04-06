@@ -6,7 +6,6 @@ const {
   assertBundleTree,
   sleep,
   nextBundle,
-  removeDirectory,
   tmpPath
 } = require('./utils');
 const promisify = require('../src/utils/promisify');
@@ -14,9 +13,6 @@ const ncp = promisify(require('ncp'));
 
 describe('watcher', function() {
   let b;
-  beforeEach(async function() {
-    await removeDirectory(tmpPath('input'));
-  });
 
   afterEach(function() {
     if (b) {

@@ -1,12 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
-const {
-  bundle,
-  run,
-  assertBundleTree,
-  removeDirectory,
-  tmpPath
-} = require('./utils');
+const {bundle, run, assertBundleTree, tmpPath} = require('./utils');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 
@@ -242,7 +236,6 @@ describe('css', function() {
   });
 
   it('should automatically install postcss plugins with npm if needed', async function() {
-    await removeDirectory(tmpPath('input'));
     await ncp(__dirname + '/integration/autoinstall/npm', tmpPath('input'));
     await bundle(tmpPath('input', 'index.css'));
 
@@ -259,7 +252,6 @@ describe('css', function() {
   });
 
   it('should automatically install postcss plugins with yarn if needed', async function() {
-    await removeDirectory(tmpPath('input'));
     await ncp(__dirname + '/integration/autoinstall/yarn', tmpPath('input'));
     await bundle(tmpPath('input', 'index.css'));
 

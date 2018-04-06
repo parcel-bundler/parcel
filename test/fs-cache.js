@@ -2,7 +2,7 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('../src/utils/fs');
 const promisify = require('../src/utils/promisify');
-const {sleep, removeDirectory, tmpPath} = require('./utils');
+const {sleep, tmpPath} = require('./utils');
 const ncp = promisify(require('ncp'));
 const FSCache = require('../src/FSCache');
 
@@ -13,11 +13,6 @@ const getMTime = async file => {
 };
 
 describe('FSCache', () => {
-  beforeEach(async () => {
-    await removeDirectory(tmpPath('.cache'));
-    await removeDirectory(tmpPath('input'));
-  });
-
   it('should create directory on ensureDirExists', async () => {
     let exists = await fs.exists(tmpPath('.cache'));
     assert(!exists);

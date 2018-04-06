@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundler, run, sleep, removeDirectory, tmpPath} = require('./utils');
+const {bundler, run, sleep, tmpPath} = require('./utils');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 const WebSocket = require('ws');
@@ -9,9 +9,6 @@ const sinon = require('sinon');
 
 describe('hmr', function() {
   let b, ws;
-  beforeEach(async function() {
-    await removeDirectory(tmpPath('input'));
-  });
 
   afterEach(function(done) {
     let finalise = () => {

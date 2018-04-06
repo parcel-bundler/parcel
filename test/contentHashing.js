@@ -1,14 +1,10 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundle, removeDirectory, tmpPath} = require('./utils');
+const {bundle, tmpPath} = require('./utils');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 
 describe('content hashing', function() {
-  beforeEach(async function() {
-    await removeDirectory(tmpPath('input'));
-  });
-
   it('should update content hash when content changes', async function() {
     await ncp(__dirname + '/integration/html-css', tmpPath('input'));
 

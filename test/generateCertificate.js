@@ -4,14 +4,9 @@ const fs = require('../src/utils/fs');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 const generateCertificate = require('../src/utils/generateCertificate');
-const {removeDirectory, tmpPath} = require('./utils');
+const {tmpPath} = require('./utils');
 
 describe('generateCertificate', () => {
-  beforeEach(async () => {
-    await removeDirectory(tmpPath('.cache'));
-    await removeDirectory(tmpPath('input'));
-  });
-
   it('should support loading cached certificate', async () => {
     await ncp(path.join(__dirname, '/integration/https'), tmpPath('.cache'));
 
