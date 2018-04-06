@@ -22,18 +22,38 @@ function fork(forkModule, childId) {
 
   child.send({module: forkModule, child: childId});
 
-  // Delay data being send to the child with a tick, prevents win32 deadlock
+  let sendQueue = [];
+  let processQueue = true;
+
   function send(data) {
-    process.nextTick(() => {
-      child.send(data);
+    if (!processQueue) {
+      sendQueue.push(data);
+      return;
+    }
+
+    let result = child.send(data, error => {
+      if (error) {
+        // This isn't good let's just throw it, bundler will catch it...
+        throw error;
+      }
+
+      processQueue = true;
+
+      if (sendQueue.length > 0) {
+        let queueCopy = sendQueue.slice(0);
+        sendQueue = [];
+        queueCopy.forEach(entry => send(entry));
+      }
     });
+
+    if (!result || /^win/.test(process.platform)) {
+      // Queue is handling too much messages throttle it
+      processQueue = false;
+    }
   }
 
   // return a send() function for this child
-  return {
-    send: send.bind(child),
-    child: child
-  };
+  return {send, child};
 }
 
 module.exports = fork;
