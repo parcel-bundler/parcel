@@ -20,21 +20,18 @@ function fork(forkModule, childId) {
     // this *should* be picked up by onExit and the operation requeued
   });
 
-  child.send({module: forkModule, child: childId});
-
   let sendQueue = [];
   let processQueue = true;
 
   function send(data) {
     if (!processQueue) {
-      sendQueue.push(data);
-      return;
+      return sendQueue.push(data);
     }
 
     let result = child.send(data, error => {
-      if (error) {
-        // This isn't good let's just throw it, bundler will catch it...
-        throw error;
+      if (error && error instanceof Error) {
+        // Ignore this, the workerfarm handles child errors
+        return;
       }
 
       processQueue = true;
@@ -52,7 +49,9 @@ function fork(forkModule, childId) {
     }
   }
 
-  // return a send() function for this child
+  send({module: forkModule, child: childId});
+
+  // return a send function for this child
   return {send, child};
 }
 

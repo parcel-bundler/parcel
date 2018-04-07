@@ -57,6 +57,13 @@ class WorkerFarm extends EventEmitter {
     }.bind(this);
   }
 
+  onError(error, childId) {
+    // Handle ipc errors
+    if (error.code === 'ERR_IPC_CHANNEL_CLOSED') {
+      return this.stopChild(childId);
+    }
+  }
+
   onExit(childId) {
     // delay this to give any sends a chance to finish
     setTimeout(() => {
@@ -85,17 +92,18 @@ class WorkerFarm extends EventEmitter {
       calls: new Map(),
       activeCalls: 0,
       exitCode: null,
-      callId: 0
+      callId: 0,
+      id
     };
 
     forked.child.on('message', this.receive.bind(this));
-    forked.child.once(
-      'exit',
-      function(code) {
-        c.exitCode = code;
-        this.onExit(id);
-      }.bind(this)
-    );
+    forked.child.once('exit', code => {
+      c.exitCode = code;
+      this.onExit(id);
+    });
+    forked.child.on('error', err => {
+      this.onError(err, id);
+    });
 
     this.activeChildren++;
     this.children.set(id, c);
