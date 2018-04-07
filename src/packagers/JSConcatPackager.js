@@ -72,6 +72,9 @@ class JSConcatPackager extends Packager {
 
       // If this was an ES6 export all (e.g. export * from 'foo'), resolve to the original exports.
       if (dep.isExportAll) {
+        asset.cacheData.exports[`$${asset.id}$exports`] = `$${mod.id}$exports`;
+        this.exports.set(`$${asset.id}$exports`, `$${mod.id}$exports`);
+
         for (let exp in mod.cacheData.exports) {
           asset.cacheData.exports[
             '$' + asset.id + '$export$' + mod.cacheData.exports[exp]
@@ -203,36 +206,6 @@ class JSConcatPackager extends Packager {
     }
 
     super.write(concat(this.buffer, this.exports, this.moduleMap));
-    // super.write(
-    //   this.buffer
-    //     .replace(
-    //       /\$parcel\$expand_exports\(([\d]+),([\d]+)\)/g,
-    //       (_, from, to) => {
-    //         const exports = this.exports.get(Number(from));
-    //
-    //         if (!exports) {
-    //           throw new Error();
-    //         }
-    //
-    //         return exports
-    //           .map(
-    //             name =>
-    //               `var $${to}$named_export$${name} = $${from}$named_export$${name}`
-    //           )
-    //           .join('\n');
-    //       }
-    //     )
-    //     .replace(/\$([\d]+)\$named_export\$([^ ]+) =/g, (binding, id, name) => {
-    //       const exportBinding = `$${id}$exports`;
-    //
-    //       // if there is at least two occurences of the exports binding
-    //       if (this.buffer.split(exportBinding).length > 2) {
-    //         return `${binding} ${exportBinding}.${name} =`;
-    //       }
-    //
-    //       return binding;
-    //     })
-    // );
   }
 }
 

@@ -12,7 +12,6 @@ const WRAPPER_TEMPLATE = template(`
 `);
 
 const EXPORT_ASSIGN_TEMPLATE = template('EXPORTS.NAME = LOCAL');
-const EXPORT_ALL_TEMPLATE = template('$parcel$expand_exports(ID, SOURCE)');
 const REQUIRE_CALL_TEMPLATE = template('$parcel$require(ID, SOURCE)');
 
 module.exports = {
@@ -341,13 +340,7 @@ module.exports = {
   },
 
   ExportAllDeclaration(path, asset) {
-    path.replaceWith(
-      EXPORT_ALL_TEMPLATE({
-        ID: t.numericLiteral(asset.id),
-        SOURCE: t.stringLiteral(path.node.source.value)
-      })
-    );
-
+    path.remove();
     asset.cacheData.isES6Module = true;
   }
 };

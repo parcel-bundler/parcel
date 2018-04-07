@@ -10,45 +10,66 @@ const EXPORT_RE = /^\$([\d]+)\$export\$(.+)$/;
 // TODO: source-map
 
 module.exports = (code, exports, moduleMap) => {
-  const ast = babylon.parse(code);
-  let replacements = {};
-  let aliases = {};
+  let ast = babylon.parse(code);
   let addedExports = new Set();
+  let commentedBindings = new Set();
 
   let resolveModule = (id, name) => moduleMap.get(id)[name];
+
+  function replaceExportNode(id, name, path) {
+    function tail(symbol) {
+      // if the symbol is in the scope there is not need to remap it
+      if (path.scope.hasBinding(symbol)) {
+        return t.identifier(symbol);
+      }
+
+      // if we have an export alias for this symbol
+      if (exports.has(symbol)) {
+        /* recursively lookup the symbol
+         * this is needed when we have deep export wildcards, like in the following: 
+         * - a.js
+         *   > export * from './b'
+         * - b.js
+         *   > export * from './c'
+         * - c.js in es6
+         *   > export * from 'lodash'
+         * - c.js in cjs
+         *   > module.exports = require('lodash')
+         */
+        let node = tail(exports.get(symbol));
+
+        if (node) {
+          return node;
+        }
+      }
+
+      return null;
+    }
+    let node = tail(`$${id}$export$${name}`);
+
+    if (!node) {
+      // if there is no named export then lookup for a CommonJS export
+      let commonJs = `$${id}$exports`;
+      node = tail(commonJs);
+
+      // if we have a CommonJS export return $id$exports.name
+      if (node) {
+        return t.memberExpression(node, t.identifier(name));
+      }
+
+      // if there is no binding for the symbol it'll probably fail at runtime
+      throw new Error(`Cannot find export "${name}" in module ${id}`);
+    }
+
+    return node;
+  }
 
   traverse(ast, {
     CallExpression(path) {
       let {arguments: args, callee} = path.node;
 
-      if (!t.isIdentifier(callee)) {
-        return;
-      }
-
-      if (callee.name === '$parcel$expand_exports') {
-        let [id, source] = args;
-
-        if (
-          args.length !== 2 ||
-          !t.isNumericLiteral(id) ||
-          !t.isStringLiteral(source)
-        ) {
-          throw new Error(
-            'invariant: invalid signature, expected : $parcel$expand_exports(number, string)'
-          );
-        }
-
-        let sourceId = resolveModule(id.value, source.value);
-
-        if (typeof sourceId === 'undefined') {
-          throw new Error(`Cannot find module "${source.value}"`);
-        }
-
-        let alias = aliases[id.value] || (aliases[id.value] = new Set());
-
-        alias.add(sourceId);
-        path.remove();
-      } else if (callee.name === '$parcel$require') {
+      // each require('module') call gets replaced with $parcel$require(id, 'module')
+      if (t.isIdentifier(callee, {name: '$parcel$require'})) {
         let [id, name] = args;
 
         if (
@@ -77,22 +98,16 @@ module.exports = (code, exports, moduleMap) => {
         return;
       }
 
-      if (replacements.hasOwnProperty(name)) {
-        path.replaceWith(t.identifier(replacements[name]));
-
-        return;
-      }
-
       let match = name.match(EXPORTS_RE);
 
       if (match) {
-        let id = Number(match[1]);
-        let alias = aliases[id];
+        // let id = Number(match[1]);
 
         if (!path.scope.hasBinding(name) && !addedExports.has(name)) {
           let {bindings} = path.scope;
 
           addedExports.add(name);
+
           path.getStatementParent().insertBefore(
             t.variableDeclaration('var', [
               t.variableDeclarator(
@@ -107,27 +122,37 @@ module.exports = (code, exports, moduleMap) => {
                       }
 
                       let matchedId = Number(match[1]);
+                      let exportName = match[2];
+                      // TODO: match correct id
+                      let expr = replaceExportNode(matchedId, exportName, path);
 
-                      if (
-                        matchedId !== id &&
-                        (!alias || !alias.has(matchedId))
-                      ) {
+                      if (expr === null) {
                         return null;
                       }
 
                       let binding = bindings[key];
-                      let exportName = t.identifier(match[2]);
 
                       if (binding.constant) {
-                        return t.objectProperty(exportName, t.identifier(key));
+                        return t.objectProperty(t.identifier(exportName), expr);
                       } else {
+                        if (!commentedBindings.has(binding)) {
+                          commentedBindings.add(binding);
+                          binding.constantViolations.forEach(path =>
+                            path
+                              .getFunctionParent()
+                              .addComment(
+                                'leading',
+                                ` bailout: mutates ${generate(expr).code}`,
+                                '\n'
+                              )
+                          );
+                        }
+
                         return t.objectMethod(
                           'get',
-                          exportName,
+                          t.identifier(exportName),
                           [],
-                          t.blockStatement([
-                            t.returnStatement(t.identifier(key))
-                          ])
+                          t.blockStatement([t.returnStatement(expr)])
                         );
                       }
                     })
@@ -136,6 +161,22 @@ module.exports = (code, exports, moduleMap) => {
               )
             ])
           );
+        }
+
+        return;
+      }
+
+      match = name.match(EXPORT_RE);
+
+      if (match && !path.scope.hasBinding(name) && !addedExports.has(name)) {
+        let id = Number(match[1]);
+        let exportName = match[2];
+        let node = replaceExportNode(id, exportName, path);
+
+        addedExports.add(name);
+
+        if (node !== undefined) {
+          path.replaceWith(node);
         }
       }
     }
