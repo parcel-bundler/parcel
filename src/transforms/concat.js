@@ -57,7 +57,7 @@ module.exports = (code, exports, moduleMap) => {
           !t.isStringLiteral(name)
         ) {
           throw new Error(
-            'invariant: invalid signature, expected : $parcel$require(string)'
+            'invariant: invalid signature, expected : $parcel$require(number, string)'
           );
         }
 
