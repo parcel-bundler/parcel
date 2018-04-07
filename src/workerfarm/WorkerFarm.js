@@ -171,23 +171,20 @@ class WorkerFarm extends EventEmitter {
   }
 
   async processQueue() {
+    if (this.ending || !this.callQueue.length) return;
+
     if (this.activeChildren < this.options.maxConcurrentWorkers) {
       await this.startChild();
     }
 
-    if (this.callQueue.length > 0) {
-      for (let [childId, child] of this.children.entries()) {
+    for (let [childId, child] of this.children.entries()) {
+      if (this.callQueue.length) {
         if (child.activeCalls < this.options.maxConcurrentCallsPerWorker) {
           this.send(childId, this.callQueue.shift());
-          if (!this.callQueue.length) {
-            return this.ending && this.end();
-          }
         }
+      } else {
+        break;
       }
-    }
-
-    if (this.ending) {
-      this.end();
     }
   }
 
@@ -231,15 +228,12 @@ class WorkerFarm extends EventEmitter {
   }
 
   addCall(call) {
-    if (this.ending) {
-      return this.end(); // don't add anything new to the queue
-    }
+    if (this.ending) return; // don't add anything new to the queue
     this.callQueue.push(call);
     this.processQueue();
   }
 
   async end() {
-    // Force kill all children
     this.ending = true;
     for (let childId of this.children.keys()) {
       this.stopChild(childId);
