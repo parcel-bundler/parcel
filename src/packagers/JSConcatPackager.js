@@ -3,22 +3,23 @@ const t = require('babel-types');
 const path = require('path');
 const fs = require('fs');
 
-// const concat = require('../transforms/concat');
+const concat = require('../transforms/concat');
 
 const prelude = fs
   .readFileSync(path.join(__dirname, '../builtins/prelude2.js'), 'utf8')
   .trim();
 
 class JSConcatPackager extends Packager {
-  // async write(string) {
-  //   this.buffer += string;
-  // }
+  async write(string) {
+    this.buffer += string;
+  }
 
   async start() {
     this.addedAssets = new Set();
     this.exposedModules = new Set();
     this.buffer = '';
     this.exports = new Map();
+    this.moduleMap = new Map();
 
     for (let asset of this.bundle.assets) {
       // If this module is referenced by another bundle, it needs to be exposed externally.
@@ -52,10 +53,15 @@ class JSConcatPackager extends Packager {
 
     this.addedAssets.add(asset);
     let js = asset.generated.js;
+    let deps = {};
+
+    this.moduleMap.set(asset.id, deps);
 
     for (let [dep, mod] of asset.depAssets) {
       let depName = '$' + asset.id + '$require$' + t.toIdentifier(dep.name);
       let moduleName = this.getExportIdentifier(mod);
+
+      deps[dep.name] = mod.id;
 
       // If this module is not in the current bundle, generate a `require` call for it.
       if (!this.bundle.assets.has(mod)) {
@@ -196,7 +202,7 @@ class JSConcatPackager extends Packager {
       await this.write('})();');
     }
 
-    // super.write(concat(this.buffer, this.exports));
+    super.write(concat(this.buffer, this.exports, this.moduleMap));
     // super.write(
     //   this.buffer
     //     .replace(
