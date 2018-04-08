@@ -15,10 +15,10 @@ class SASSAsset extends Asset {
     let sass = await localRequire('node-sass', this.name);
     let render = promisify(sass.render.bind(sass));
 
-    let opts =
-      this.package.sass ||
-      (await this.getConfig(['.sassrc', '.sassrc.js'])) ||
-      {};
+    let opts = Object.assign(
+      {},
+      this.package.sass || (await this.getConfig(['.sassrc', '.sassrc.js']))
+    );
     opts.includePaths = (opts.includePaths || []).concat(
       path.dirname(this.name)
     );
