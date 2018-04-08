@@ -281,28 +281,46 @@ module.exports = {
 
     if (source) {
       for (let specifier of specifiers) {
+        let local, exported;
+
+        if (t.isExportDefaultSpecifier(specifier)) {
+          local = getIdentifier(asset, 'import', source.value, 'default');
+          exported = specifier.exported;
+        } else if (t.isExportNamespaceSpecifier(specifier)) {
+          local = getIdentifier(asset, 'require', source.value);
+          exported = specifier.exported;
+        } else if (t.isExportSpecifier(specifier)) {
+          local = getIdentifier(
+            asset,
+            'import',
+            source.value,
+            specifier.local.name
+          );
+          exported = specifier.exported;
+        }
+
         // Create a variable to re-export from the imported module.
         path.insertAfter(
           t.variableDeclaration('var', [
             t.variableDeclarator(
-              getIdentifier(asset, 'export', specifier.exported.name),
-              getIdentifier(asset, 'import', source.value, specifier.local.name)
+              getIdentifier(asset, 'export', exported.name),
+              local
             )
           ])
         );
 
-        path.insertAfter(
-          EXPORT_ASSIGN_TEMPLATE({
-            EXPORTS: getExportsIdentifier(asset),
-            NAME: t.identifier(specifier.exported.name),
-            LOCAL: getIdentifier(
-              asset,
-              'import',
-              source.value,
-              specifier.local.name
-            )
-          })
-        );
+        if (path.scope.hasGlobal('module') || path.scope.hasGlobal('exports')) {
+          path.insertAfter(
+            EXPORT_ASSIGN_TEMPLATE({
+              EXPORTS: getExportsIdentifier(asset),
+              NAME: t.identifier(exported.name),
+              LOCAL: local
+            })
+          );
+        }
+
+        asset.cacheData.exports[getName(asset, 'export', exported.name)] =
+          exported.name;
       }
 
       path.remove();
