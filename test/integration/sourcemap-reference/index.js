@@ -1,1 +1,1 @@
-import './package.json';
+import './data.json';
