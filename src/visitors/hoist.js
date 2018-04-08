@@ -309,27 +309,9 @@ module.exports = {
     } else if (declaration) {
       path.replaceWith(declaration);
 
-      if (
-        t.isFunctionDeclaration(declaration) ||
-        t.isClassDeclaration(declaration)
-      ) {
-        addExport(asset, path, declaration.id, declaration.id);
-      } else if (t.isVariableDeclaration(declaration)) {
-        for (let d of declaration.declarations) {
-          if (t.isIdentifier(d.id)) {
-            addExport(asset, path, d.id, d.id);
-          } else if (t.isObjectPattern(d.id)) {
-            for (let prop of d.id.properties) {
-              if (t.isAssignmentPattern(prop.value)) {
-                // TODO
-              } else if (t.isRestProperty(prop)) {
-                // TODO
-              }
-            }
-          } else if (t.isArrayPattern(d.id) && d.id.elements) {
-            // TODO
-          }
-        }
+      let identifiers = t.getBindingIdentifiers(declaration);
+      for (let id in identifiers) {
+        addExport(asset, path, identifiers[id], identifiers[id]);
       }
     } else if (specifiers.length > 0) {
       for (let specifier of specifiers) {
