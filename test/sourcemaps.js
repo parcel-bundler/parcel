@@ -29,8 +29,19 @@ describe('sourcemaps', function() {
     mapValidator(raw, map);
     let mapObject = JSON.parse(map);
     assert(
-      mapObject.sourceRoot === b.options.rootDir,
-      'bundleRoot should be equal to rootDir'
+      mapObject.sourceRoot ===
+        path.relative(b.options.outDir, b.options.rootDir),
+      'sourceRoot should be the root of the source files, relative to the output directory.'
+    );
+    assert(
+      fs.existsSync(
+        path.resolve(
+          b.options.outDir,
+          mapObject.sourceRoot,
+          mapObject.sources[0]
+        )
+      ),
+      'combining sourceRoot and sources object should resolve to the original file'
     );
 
     let output = run(bu);
