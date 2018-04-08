@@ -206,7 +206,11 @@ class Bundle {
     }
 
     await packager.addAsset(asset);
-    this.addAssetSize(asset, packager.getSize() - this.totalSize);
+
+    const assetSize = packager.getSize() - this.totalSize;
+    if (assetSize > 0) {
+      this.addAssetSize(asset, assetSize);
+    }
   }
 
   addAssetSize(asset, size) {
