@@ -148,7 +148,8 @@ class JSPackager extends Packager {
     for (let bundleType of this.bundleLoaders) {
       let loader = this.options.bundleLoaders[bundleType];
       if (loader) {
-        let asset = await this.bundler.getAsset(loader);
+        let target = this.options.target === 'node' ? 'node' : 'browser';
+        let asset = await this.bundler.getAsset(loader[target]);
         await this.addAssetToBundle(asset);
         loads +=
           'b.register(' +
