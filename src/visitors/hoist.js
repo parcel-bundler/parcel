@@ -242,7 +242,11 @@ module.exports = {
     let {declaration} = path.node;
     let identifier = getIdentifier(asset, 'export', 'default');
 
-    if (t.isExpression(declaration)) {
+    if (t.isIdentifier(declaration)) {
+      // Rename the variable being exported.
+      path.remove();
+      path.scope.rename(declaration.name, identifier.name);
+    } else if (t.isExpression(declaration)) {
       // Declare a variable to hold the exported value.
       path.replaceWith(
         t.variableDeclaration('var', [
