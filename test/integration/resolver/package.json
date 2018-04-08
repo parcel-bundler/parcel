@@ -1,5 +1,6 @@
 {
   "name": "resolver",
+  "private": true,
   "alias": {
     "aliased": "foo",
     "aliased-file": "./bar.js",
