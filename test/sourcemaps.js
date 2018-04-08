@@ -165,42 +165,4 @@ describe('sourcemaps', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 14);
   });
-
-  it('should create a valid sourcemap reference for a child bundle', async function() {
-    let b = await bundle(
-      __dirname + '/integration/sourcemap-reference/index.html'
-    );
-
-    assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'js',
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
-
-    let jsOutput = fs
-      .readFileSync(Array.from(b.childBundles)[0].name)
-      .toString();
-
-    let sourcemapReference = path.join(
-      __dirname,
-      '/dist/',
-      jsOutput.substring(jsOutput.lastIndexOf('//# sourceMappingURL') + 22)
-    );
-    assert(
-      fs.existsSync(path.join(sourcemapReference)),
-      'referenced sourcemap should exist'
-    );
-
-    let map = fs.readFileSync(path.join(sourcemapReference)).toString();
-    mapValidator(jsOutput, map);
-  });
 });
