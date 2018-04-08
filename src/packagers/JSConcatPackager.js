@@ -53,15 +53,12 @@ class JSConcatPackager extends Packager {
 
     this.addedAssets.add(asset);
     let js = asset.generated.js;
-    let deps = {};
 
-    this.moduleMap.set(asset.id, deps);
+    this.moduleMap.set(asset.id, asset);
 
     for (let [dep, mod] of asset.depAssets) {
       let depName = '$' + asset.id + '$require$' + t.toIdentifier(dep.name);
       let moduleName = this.getExportIdentifier(mod);
-
-      deps[dep.name] = mod.id;
 
       // If this module is not in the current bundle, generate a `require` call for it.
       if (!this.bundle.assets.has(mod)) {
@@ -72,17 +69,17 @@ class JSConcatPackager extends Packager {
 
       // If this was an ES6 export all (e.g. export * from 'foo'), resolve to the original exports.
       if (dep.isExportAll) {
-        asset.cacheData.exports[`$${asset.id}$exports`] = `$${mod.id}$exports`;
-        this.exports.set(`$${asset.id}$exports`, `$${mod.id}$exports`);
+        // asset.cacheData.exports[`$${asset.id}$exports`] = `$${mod.id}$exports`;
+        // this.exports.set(`$${asset.id}$exports`, `$${mod.id}$exports`);
 
         for (let exp in mod.cacheData.exports) {
-          asset.cacheData.exports[
-            '$' + asset.id + '$export$' + mod.cacheData.exports[exp]
-          ] =
-            mod.cacheData.exports[exp];
+          let key = '$' + asset.id + '$export$' + mod.cacheData.exports[exp];
+          asset.cacheData.exports[key] = mod.cacheData.exports[exp];
           this.exports.set(
-            '$' + asset.id + '$export$' + mod.cacheData.exports[exp],
-            exp
+            key,
+            this.exports.get(
+              '$' + mod.id + '$export$' + mod.cacheData.exports[exp]
+            ) || exp
           );
         }
       }
@@ -130,13 +127,15 @@ class JSConcatPackager extends Packager {
     }
 
     // Replace all re-exported variables
-    for (let [name, replacement] of this.exports) {
-      js = js.split(name).join(replacement);
-    }
 
     js = js.trim() + '\n';
 
-    await this.write(`\n/* ASSET: ${asset.name} */\n${js}`);
+    await this.write(
+      `\n/* ASSET: ${asset.id} - ${path.relative(
+        this.options.rootDir,
+        asset.name
+      )} */\n${js}`
+    );
   }
 
   getBundleSpecifier(bundle) {

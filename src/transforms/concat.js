@@ -14,7 +14,10 @@ module.exports = (code, exports, moduleMap) => {
   let addedExports = new Set();
   let commentedBindings = new Set();
 
-  let resolveModule = (id, name) => moduleMap.get(id)[name];
+  let resolveModule = (id, name) => {
+    let module = moduleMap.get(id);
+    return module.depAssets.get(module.dependencies.get(name)).id;
+  };
 
   function replaceExportNode(id, name, path) {
     function tail(symbol) {
@@ -26,7 +29,7 @@ module.exports = (code, exports, moduleMap) => {
       // if we have an export alias for this symbol
       if (exports.has(symbol)) {
         /* recursively lookup the symbol
-         * this is needed when we have deep export wildcards, like in the following: 
+         * this is needed when we have deep export wildcards, like in the following:
          * - a.js
          *   > export * from './b'
          * - b.js
@@ -122,7 +125,7 @@ module.exports = (code, exports, moduleMap) => {
         // let id = Number(match[1]);
 
         if (!path.scope.hasBinding(name) && !addedExports.has(name)) {
-          let {bindings} = path.scope;
+          let exports = moduleMap.get(+match[1]).cacheData.exports;
 
           addedExports.add(name);
 
@@ -131,24 +134,19 @@ module.exports = (code, exports, moduleMap) => {
               t.variableDeclarator(
                 t.identifier(name),
                 t.objectExpression(
-                  Object.keys(bindings)
+                  Object.keys(exports)
                     .map(key => {
-                      let match = key.match(EXPORT_RE);
-
-                      if (!match) {
+                      let binding = path.scope.getBinding(key);
+                      if (!binding) {
                         return null;
                       }
 
-                      let matchedId = Number(match[1]);
-                      let exportName = match[2];
-                      // TODO: match correct id
-                      let expr = replaceExportNode(matchedId, exportName, path);
+                      let exportName = exports[key];
+                      let expr = replaceExportNode(+match[1], exportName, path);
 
                       if (expr === null) {
                         return null;
                       }
-
-                      let binding = bindings[key];
 
                       if (binding.constant) {
                         return t.objectProperty(t.identifier(exportName), expr);
