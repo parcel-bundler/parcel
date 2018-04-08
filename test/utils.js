@@ -154,7 +154,11 @@ function run(bundle, globals, opts = {}) {
   vm.runInContext(fs.readFileSync(bundle.name), ctx);
 
   if (opts.require !== false) {
-    return ctx.parcelRequire(bundle.entryAsset.id);
+    if (ctx.parcelRequire) {
+      return ctx.parcelRequire(bundle.entryAsset.id);
+    } else {
+      return ctx.output;
+    }
   }
 
   return ctx;
