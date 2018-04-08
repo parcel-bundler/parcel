@@ -91,6 +91,24 @@ module.exports = (code, exports, moduleMap) => {
         path.replaceWith(t.identifier(`$${mod}$exports`));
       }
     },
+    MemberExpression(path) {
+      if (!path.isReferenced()) {
+        return;
+      }
+
+      let {object, property} = path.node;
+      if (!t.isIdentifier(object) || !t.isIdentifier(property)) {
+        return;
+      }
+
+      let match = object.name.match(EXPORTS_RE);
+      if (match) {
+        let exportName = '$' + match[1] + '$export$' + property.name;
+        if (path.scope.hasBinding(exportName)) {
+          path.replaceWith(t.identifier(exportName));
+        }
+      }
+    },
     Identifier(path) {
       let {name} = path.node;
 
