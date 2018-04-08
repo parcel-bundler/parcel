@@ -18,6 +18,7 @@ module.exports = {
   Program: {
     enter(path, asset) {
       asset.cacheData.exports = {};
+      asset.cacheData.wildcards = [];
 
       let shouldWrap = false;
       path.traverse({
@@ -344,8 +345,9 @@ module.exports = {
   },
 
   ExportAllDeclaration(path, asset) {
-    path.remove();
+    asset.cacheData.wildcards.push(path.node.source.value);
     asset.cacheData.isES6Module = true;
+    path.remove();
   }
 };
 

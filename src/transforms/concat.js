@@ -9,7 +9,7 @@ const EXPORT_RE = /^\$([\d]+)\$export\$(.+)$/;
 // TODO: minify
 // TODO: source-map
 
-module.exports = (code, exports, moduleMap) => {
+module.exports = (code, exports, moduleMap, wildcards) => {
   let ast = babylon.parse(code);
   let addedExports = new Set();
   let commentedBindings = new Set();
@@ -20,16 +20,18 @@ module.exports = (code, exports, moduleMap) => {
   };
 
   function replaceExportNode(id, name, path) {
-    function tail(symbol) {
+    function tail(id, symbol) {
+      let computedSymbol = symbol(id);
+
       // if the symbol is in the scope there is not need to remap it
-      if (path.scope.hasBinding(symbol)) {
-        return t.identifier(symbol);
+      if (path.scope.hasBinding(computedSymbol)) {
+        return t.identifier(computedSymbol);
       }
 
-      // if we have an export alias for this symbol
-      if (exports.has(symbol)) {
+      // if there is a wildcard for the module
+      if (wildcards.has(id)) {
         /* recursively lookup the symbol
-         * this is needed when we have deep export wildcards, like in the following:
+         * this is needed when there is deep export wildcards, like in the following:
          * - a.js
          *   > export * from './b'
          * - b.js
@@ -39,23 +41,24 @@ module.exports = (code, exports, moduleMap) => {
          * - c.js in cjs
          *   > module.exports = require('lodash')
          */
-        let node = tail(exports.get(symbol));
+        let node = null;
 
-        if (node) {
-          return node;
-        }
+        wildcards
+          .get(id)
+          .find(name => (node = tail(resolveModule(id, name), symbol)));
+
+        return node;
       }
 
       return null;
     }
-    let node = tail(`$${id}$export$${name}`);
+    let node = tail(id, id => `$${id}$export$${name}`);
 
     if (!node) {
       // if there is no named export then lookup for a CommonJS export
-      let commonJs = `$${id}$exports`;
-      node = tail(commonJs);
+      node = tail(id, id => `$${id}$exports`);
 
-      // if we have a CommonJS export return $id$exports.name
+      // if there is a CommonJS export return $id$exports.name
       if (node) {
         return t.memberExpression(node, t.identifier(name));
       }
