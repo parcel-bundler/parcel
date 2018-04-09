@@ -71,34 +71,6 @@ module.exports = {
             scope.rename(name, newName);
           }
         }
-
-        // Add variable that represents module.exports if it is referenced.
-        if (scope.hasGlobal(getExportsIdentifier(asset).name)) {
-          path.unshiftContainer('body', [
-            t.variableDeclaration('var', [
-              t.variableDeclarator(
-                getExportsIdentifier(asset),
-                t.objectExpression([])
-              )
-            ])
-          ]);
-        } else if (Object.keys(asset.cacheData.exports).length > 0) {
-          /*path.pushContainer('body', [
-            t.variableDeclaration('var', [
-              t.variableDeclarator(
-                getExportsIdentifier(asset),
-                t.objectExpression(
-                  Object.values(asset.cacheData.exports).map(k =>
-                    t.objectProperty(
-                      t.identifier(k),
-                      getIdentifier(asset, 'export', k)
-                    )
-                  )
-                )
-              )
-            ])
-          ]);*/
-        }
       }
 
       path.stop();
@@ -354,16 +326,6 @@ module.exports = {
 function addExport(asset, path, local, exported) {
   asset.cacheData.exports[getName(asset, 'export', exported.name)] =
     exported.name;
-
-  if (path.scope.hasGlobal('module') || path.scope.hasGlobal('exports')) {
-    path.insertAfter(
-      EXPORT_ASSIGN_TEMPLATE({
-        EXPORTS: getExportsIdentifier(asset),
-        NAME: t.identifier(local.name),
-        LOCAL: getIdentifier(asset, 'export', exported.name)
-      })
-    );
-  }
 
   path.scope.rename(local.name, getName(asset, 'export', exported.name));
 }

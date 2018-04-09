@@ -20,6 +20,22 @@ module.exports = (code, exports, moduleMap, wildcards) => {
   };
 
   function replaceExportNode(id, name, path) {
+    path = getOuterStatement(path);
+
+    let node = tail(id, id => `$${id}$export$${name}`);
+
+    if (!node) {
+      // if there is no named export then lookup for a CommonJS export
+      node = tail(id, id => `$${id}$exports`) || t.identifier(`$${id}$exports`);
+
+      // if there is a CommonJS export return $id$exports.name
+      if (node) {
+        return t.memberExpression(node, t.identifier(name));
+      }
+    }
+
+    return node;
+
     function tail(id, symbol) {
       let computedSymbol = symbol(id);
 
@@ -52,22 +68,6 @@ module.exports = (code, exports, moduleMap, wildcards) => {
 
       return null;
     }
-    let node = tail(id, id => `$${id}$export$${name}`);
-
-    if (!node) {
-      // if there is no named export then lookup for a CommonJS export
-      node = tail(id, id => `$${id}$exports`);
-
-      // if there is a CommonJS export return $id$exports.name
-      if (node) {
-        return t.memberExpression(node, t.identifier(name));
-      }
-
-      // if there is no binding for the symbol it'll probably fail at runtime
-      throw new Error(`Cannot find export "${name}" in module ${id}`);
-    }
-
-    return node;
   }
 
   traverse(ast, {
@@ -125,14 +125,12 @@ module.exports = (code, exports, moduleMap, wildcards) => {
       let match = name.match(EXPORTS_RE);
 
       if (match) {
-        // let id = Number(match[1]);
-
         if (!path.scope.hasBinding(name) && !addedExports.has(name)) {
           let exports = moduleMap.get(+match[1]).cacheData.exports;
 
           addedExports.add(name);
 
-          path.getStatementParent().insertBefore(
+          getOuterStatement(path).insertBefore(
             t.variableDeclaration('var', [
               t.variableDeclarator(
                 t.identifier(name),
@@ -194,7 +192,7 @@ module.exports = (code, exports, moduleMap, wildcards) => {
 
         addedExports.add(name);
 
-        if (node !== undefined) {
+        if (node) {
           path.replaceWith(node);
         }
       }
@@ -203,3 +201,30 @@ module.exports = (code, exports, moduleMap, wildcards) => {
 
   return generate(ast, code).code;
 };
+
+function getOuterStatement(path) {
+  if (validate(path)) {
+    return path;
+  }
+
+  return path.findParent(validate);
+
+  function validate(path) {
+    if (!t.isStatement(path.node) || t.isBlockStatement(path.node)) {
+      return false;
+    }
+
+    // TODO: use scope?
+    let outerBlocks = 0;
+
+    path.findParent(parent => {
+      if (t.isBlockStatement(parent.node)) {
+        outerBlocks++;
+      }
+
+      return false;
+    });
+
+    return outerBlocks === 1;
+  }
+}
