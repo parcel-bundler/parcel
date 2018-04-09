@@ -94,11 +94,14 @@ class JSPackager extends Packager {
   }
 
   async writeModule(id, code, deps = {}, map) {
-    let wrapped = this.first ? '' : ',';
-    wrapped +=
-      id + ':[function(require,module,exports) {\n' + (code || '') + '\n},';
-    wrapped += JSON.stringify(deps);
-    wrapped += ']';
+    let wrapped =
+      (this.first ? '' : ',') +
+      id +
+      ':[function(require,module,exports,global) {\n' +
+      (code || '') +
+      '\n},' +
+      JSON.stringify(deps) +
+      ']';
 
     this.first = false;
     await this.write(wrapped);
