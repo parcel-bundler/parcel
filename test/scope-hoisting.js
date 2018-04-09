@@ -320,6 +320,15 @@ describe.only('scope hoisting', function() {
       assert.equal(output, 5);
     });
 
+    it('inserts commonjs exports object in the right place', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/export-order/a.js'
+      );
+
+      let output = run(b);
+      assert.equal(output, 5);
+    });
+
     it('define exports in the outermost scope', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/commonjs/define-exports/a.js'
