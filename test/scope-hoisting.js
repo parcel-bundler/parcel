@@ -272,7 +272,7 @@ describe.only('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
-    it('supports hybrid ES6 + commonjs mpdules', async function() {
+    it('supports hybrid ES6 + commonjs modules', async function() {
       let b = await bundle(
         __dirname +
           '/integration/scope-hoisting/commonjs/es6-commonjs-hybrid/a.js'
@@ -280,6 +280,15 @@ describe.only('scope hoisting', function() {
 
       let output = run(b);
       assert.equal(output, 5);
+    });
+
+    it('define exports in the outermost scope', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/define-exports/a.js'
+      );
+
+      let output = run(b);
+      assert.equal(output, 'bar');
     });
   });
 });
