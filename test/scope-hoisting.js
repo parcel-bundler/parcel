@@ -257,7 +257,7 @@ describe.only('scope hoisting', function() {
       );
 
       let output = run(b);
-      assert.equal(output, 7);
+      assert.equal(output, 6);
     });
 
     it('supports require of es6 module re-exporting all exports from multiple modules', async function() {
