@@ -124,6 +124,16 @@ describe.only('scope hoisting', function() {
       assert.equal(output, 6);
     });
 
+    it('excludes default when re-exporting a module', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/es6/re-export-exclude-default/a.js'
+      );
+
+      let output = run(b);
+      assert.deepEqual(output, {b: undefined, foo: 3});
+    });
+
     it('supports multiple exports of the same variable', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/es6/multi-export/a.js'
@@ -288,6 +298,16 @@ describe.only('scope hoisting', function() {
 
       let output = run(b);
       assert.equal(output, 6);
+    });
+
+    it('excludes default when re-exporting a module', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/commonjs/require-re-export-exclude-default/a.js'
+      );
+
+      let output = run(b);
+      assert.deepEqual(output, {foo: 3});
     });
 
     it('supports hybrid ES6 + commonjs modules', async function() {

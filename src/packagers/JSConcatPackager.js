@@ -79,14 +79,15 @@ class JSConcatPackager extends Packager {
       // If this was an ES6 export all (e.g. export * from 'foo'), resolve to the original exports.
       if (dep.isExportAll) {
         for (let exp in mod.cacheData.exports) {
-          let key = '$' + asset.id + '$export$' + mod.cacheData.exports[exp];
-          asset.cacheData.exports[key] = mod.cacheData.exports[exp];
-          this.exports.set(
-            key,
-            this.exports.get(
-              '$' + mod.id + '$export$' + mod.cacheData.exports[exp]
-            ) || exp
-          );
+          let id = mod.cacheData.exports[exp];
+          if (id !== 'default') {
+            let key = '$' + asset.id + '$export$' + id;
+            asset.cacheData.exports[key] = id;
+            this.exports.set(
+              key,
+              this.exports.get('$' + mod.id + '$export$' + id) || exp
+            );
+          }
         }
       }
 

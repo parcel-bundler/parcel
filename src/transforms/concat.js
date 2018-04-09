@@ -49,7 +49,8 @@ module.exports = (code, exports, moduleMap, wildcards) => {
       }
 
       // if there is a wildcard for the module
-      if (wildcards.has(id)) {
+      // default exports are excluded from wildcard exports
+      if (wildcards.has(id) && name !== 'default') {
         /* recursively lookup the symbol
          * this is needed when there is deep export wildcards, like in the following:
          * - a.js
