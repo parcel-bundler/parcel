@@ -1,12 +1,13 @@
 node_modules/
 .DS_Store
 package-lock.json
-test/dist
-test/input
+/tmp
 coverage
 .nyc_output
 .cache
-dist
+/test/dist
+/test/input
+/dist
 lib
 !test/**/node_modules
 .vscode/

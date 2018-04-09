@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree, tmpPath} = require('./utils');
 
 describe('stylus', function() {
   it('should support requiring stylus files', async function() {
@@ -25,7 +25,7 @@ describe('stylus', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(tmpPath('dist', 'index.css'), 'utf8');
     assert(css.includes('.index'));
   });
 
@@ -53,7 +53,7 @@ describe('stylus', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(tmpPath('dist', 'index.css'), 'utf8');
     assert(css.includes('.index'));
     assert(css.includes('.a'));
     assert(css.includes('-webkit-box'));
@@ -86,14 +86,14 @@ describe('stylus', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(tmpPath('dist', 'index.css'), 'utf8');
     assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
 
     assert(
       fs.existsSync(
-        __dirname + '/dist/' + css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
+        tmpPath('dist', css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1])
       )
     );
   });
@@ -120,7 +120,7 @@ describe('stylus', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), '_index_g9mqo_1');
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(tmpPath('dist', 'index.css'), 'utf8');
     assert(css.includes('._index_g9mqo_1'));
   });
 });

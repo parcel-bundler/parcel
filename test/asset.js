@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const Asset = require('../src/Asset');
-const {bundle} = require('./utils');
+const {bundle, tmpPath} = require('./utils');
 
 describe('Asset', () => {
   it('should include default implementations', async () => {
@@ -22,12 +22,12 @@ describe('Asset', () => {
   });
 
   it('should support overriding the filename of the root bundle', async function() {
-    const outFile = 'custom-out-file.html';
+    const outFile = 'custom-out-file';
     await bundle(__dirname + '/integration/html/index.html', {
       outFile
     });
 
-    assert(fs.existsSync(__dirname, `/dist/${outFile}`));
+    assert(fs.existsSync(tmpPath('dist', `${outFile}.html`)));
   });
 
   describe('addURLDependency', () => {

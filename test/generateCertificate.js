@@ -1,41 +1,34 @@
 const assert = require('assert');
 const path = require('path');
-const rimraf = require('rimraf');
 const fs = require('../src/utils/fs');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 const generateCertificate = require('../src/utils/generateCertificate');
-
-const cachePath = path.join(__dirname, '.cache');
-const inputPath = path.join(__dirname, '/input');
-
-const cacheOptions = {
-  cacheDir: cachePath,
-  cache: true
-};
+const {tmpPath} = require('./utils');
 
 describe('generateCertificate', () => {
-  beforeEach(() => {
-    rimraf.sync(cachePath);
-    rimraf.sync(inputPath);
-  });
-
   it('should support loading cached certificate', async () => {
-    await ncp(path.join(__dirname, '/integration/https'), cachePath);
+    await ncp(path.join(__dirname, '/integration/https'), tmpPath('.cache'));
 
-    const key = await fs.readFile(path.join(cachePath, 'private.pem'));
-    const cert = await fs.readFile(path.join(cachePath, 'primary.crt'));
+    const key = await fs.readFile(tmpPath('.cache', 'private.pem'));
+    const cert = await fs.readFile(tmpPath('.cache', 'primary.crt'));
 
-    const generated = generateCertificate(cacheOptions);
+    const generated = generateCertificate({
+      cacheDir: tmpPath('.cache'),
+      cache: true
+    });
 
     assert.equal(generated.cert.toString(), cert.toString());
     assert.equal(generated.key.toString(), key.toString());
   });
 
   it('should support caching generated certificate', async () => {
-    generateCertificate(cacheOptions);
+    generateCertificate({
+      cacheDir: tmpPath('.cache'),
+      cache: true
+    });
 
-    assert(await fs.exists(path.join(cachePath, 'private.pem')));
-    assert(await fs.exists(path.join(cachePath, 'primary.crt')));
+    assert(await fs.exists(tmpPath('.cache', 'private.pem')));
+    assert(await fs.exists(tmpPath('.cache', 'primary.crt')));
   });
 });

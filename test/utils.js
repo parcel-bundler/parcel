@@ -1,23 +1,43 @@
 const Bundler = require('../src/Bundler');
+const promisify = require('../src/utils/promisify');
 const rimraf = require('rimraf');
+const removeDirectory = promisify(rimraf);
 const assert = require('assert');
 const vm = require('vm');
 const fs = require('fs');
+const {mkdirp} = require('../src/utils/fs');
 const path = require('path');
 const WebSocket = require('ws');
 const Module = require('module');
+const crypto = require('crypto');
+
+let currentTestHash = null;
 
 beforeEach(async function() {
-  // Test run in a single process, creating and deleting the same file(s)
-  // Windows needs a delay for the file handles to be released before deleting
-  // is possible. Without a delay, rimraf fails on `beforeEach` for `/dist`
-  if (process.platform === 'win32') {
-    await sleep(50);
-  }
-  // Unix based systems also need a delay but only half as much as windows
-  await sleep(50);
-  rimraf.sync(path.join(__dirname, 'dist'));
+  await clearTmpDirectory();
+
+  currentTestHash = crypto.randomBytes(16).toString('hex');
+  await mkdirp(tmpPath());
 });
+
+afterEach(async function() {
+  currentTestHash = null;
+  await clearTmpDirectory();
+});
+
+function tmpPath(...args) {
+  if (!currentTestHash) {
+    throw new Error(
+      'tmpPath() has to be called inside a test or in before/after hooks'
+    );
+  }
+
+  return path.join(__dirname, '..', 'tmp', currentTestHash, ...args);
+}
+
+function clearTmpDirectory() {
+  return removeDirectory(path.join(__dirname, '..', 'tmp', '*'));
+}
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -28,7 +48,7 @@ function bundler(file, opts) {
     file,
     Object.assign(
       {
-        outDir: path.join(__dirname, 'dist'),
+        outDir: tmpPath('dist'),
         watch: false,
         cache: false,
         killWorkers: false,
@@ -61,10 +81,7 @@ function prepareBrowserContext(bundle, globals) {
           appendChild(el) {
             setTimeout(function() {
               if (el.tag === 'script') {
-                vm.runInContext(
-                  fs.readFileSync(path.join(__dirname, 'dist', el.src)),
-                  ctx
-                );
+                vm.runInContext(fs.readFileSync(tmpPath('dist', el.src)), ctx);
               }
 
               el.onload();
@@ -95,8 +112,7 @@ function prepareBrowserContext(bundle, globals) {
         return Promise.resolve({
           arrayBuffer() {
             return Promise.resolve(
-              new Uint8Array(fs.readFileSync(path.join(__dirname, 'dist', url)))
-                .buffer
+              new Uint8Array(fs.readFileSync(tmpPath('dist', url))).buffer
             );
           }
         });
@@ -214,6 +230,8 @@ function deferred() {
   return promise;
 }
 
+exports.removeDirectory = removeDirectory;
+exports.tmpPath = tmpPath;
 exports.sleep = sleep;
 exports.bundler = bundler;
 exports.bundle = bundle;

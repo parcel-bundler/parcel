@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree, tmpPath} = require('./utils');
 
 describe('fs', function() {
   describe('--target=browser', function() {
@@ -132,7 +132,7 @@ describe('fs', function() {
       assert(fs.readFileSync(b.name).includes("require('fs')"));
       assert(fs.readFileSync(b.name).includes('readFileSync'));
 
-      fs.writeFileSync(__dirname + '/dist/test.txt', 'hey');
+      fs.writeFileSync(tmpPath('dist', 'test.txt'), 'hey');
       let output = run(b);
       assert.equal(output, 'hey');
     });
@@ -157,7 +157,7 @@ describe('fs', function() {
       assert(fs.readFileSync(b.name).includes("require('fs')"));
       assert(fs.readFileSync(b.name).includes('readFileSync'));
 
-      fs.writeFileSync(__dirname + '/dist/test.txt', 'hey');
+      fs.writeFileSync(tmpPath('dist', 'test.txt'), 'hey');
       let output = run(b);
       assert.equal(output, 'hey');
     });
