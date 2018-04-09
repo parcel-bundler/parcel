@@ -123,6 +123,24 @@ describe.only('scope hoisting', function() {
       let output = run(b);
       assert.equal(output, 6);
     });
+
+    it('supports multiple exports of the same variable', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/es6/multi-export/a.js'
+      );
+
+      let output = run(b);
+      assert.equal(output, 6);
+    });
+
+    it('supports live bindings of named exports', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/es6/live-bindings/a.js'
+      );
+
+      let output = run(b);
+      assert.equal(output, 8);
+    });
   });
 
   describe('commonjs', function() {
@@ -289,6 +307,15 @@ describe.only('scope hoisting', function() {
 
       let output = run(b);
       assert.equal(output, 'bar');
+    });
+
+    it('supports live bindings of named exports', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/live-bindings/a.js'
+      );
+
+      let output = run(b);
+      assert.equal(output, 8);
     });
   });
 });

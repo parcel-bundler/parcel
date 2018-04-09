@@ -217,8 +217,8 @@ module.exports = {
 
     if (t.isIdentifier(declaration)) {
       // Rename the variable being exported.
+      safeRename(path, declaration.name, identifier.name);
       path.remove();
-      path.scope.rename(declaration.name, identifier.name);
     } else if (t.isExpression(declaration)) {
       // Declare a variable to hold the exported value.
       path.replaceWith(
@@ -228,8 +228,8 @@ module.exports = {
       );
     } else {
       // Rename the declaration to the exported name.
+      safeRename(path, declaration.id.name, identifier.name);
       path.replaceWith(declaration);
-      path.scope.rename(declaration.id.name, identifier.name);
     }
 
     // Add assignment to exports object for namespace imports and commonjs.
@@ -324,10 +324,31 @@ module.exports = {
 };
 
 function addExport(asset, path, local, exported) {
-  asset.cacheData.exports[getName(asset, 'export', exported.name)] =
-    exported.name;
+  // Check if this identifier has already been exported.
+  // If so, create an export alias for it, otherwise, rename the local variable to an export.
+  if (asset.cacheData.exports[local.name]) {
+    asset.cacheData.exports[getName(asset, 'export', exported.name)] =
+      asset.cacheData.exports[local.name];
+  } else {
+    asset.cacheData.exports[getName(asset, 'export', exported.name)] =
+      exported.name;
+    path.scope.rename(local.name, getName(asset, 'export', exported.name));
+  }
+}
 
-  path.scope.rename(local.name, getName(asset, 'export', exported.name));
+function safeRename(path, from, to) {
+  // If the binding that we're renaming is constant, it's safe to rename it.
+  // Otherwise, create a new binding that references the original.
+  let binding = path.scope.getBinding(from);
+  if (binding && binding.constant) {
+    path.scope.rename(from, to);
+  } else {
+    path.insertAfter(
+      t.variableDeclaration('var', [
+        t.variableDeclarator(t.identifier(to), t.identifier(from))
+      ])
+    );
+  }
 }
 
 function getName(asset, type, ...rest) {

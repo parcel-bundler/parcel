@@ -58,6 +58,13 @@ class JSConcatPackager extends Packager {
     this.moduleMap.set(asset.id, asset);
     this.wildcards.set(asset.id, asset.cacheData.wildcards);
 
+    for (let key in asset.cacheData.exports) {
+      let local = '$' + asset.id + '$export$' + asset.cacheData.exports[key];
+      if (key !== local) {
+        this.exports.set(key, local);
+      }
+    }
+
     for (let [dep, mod] of asset.depAssets) {
       let depName = '$' + asset.id + '$require$' + t.toIdentifier(dep.name);
       let moduleName = this.getExportIdentifier(mod);

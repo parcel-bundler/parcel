@@ -44,6 +44,10 @@ module.exports = (code, exports, moduleMap, wildcards) => {
         return t.identifier(computedSymbol);
       }
 
+      if (exports.has(computedSymbol)) {
+        return t.identifier(exports.get(computedSymbol));
+      }
+
       // if there is a wildcard for the module
       if (wildcards.has(id)) {
         /* recursively lookup the symbol
@@ -126,7 +130,7 @@ module.exports = (code, exports, moduleMap, wildcards) => {
 
       if (match) {
         if (!path.scope.hasBinding(name) && !addedExports.has(name)) {
-          let exports = moduleMap.get(+match[1]).cacheData.exports;
+          let moduleExports = moduleMap.get(+match[1]).cacheData.exports;
 
           addedExports.add(name);
 
@@ -135,14 +139,16 @@ module.exports = (code, exports, moduleMap, wildcards) => {
               t.variableDeclarator(
                 t.identifier(name),
                 t.objectExpression(
-                  Object.keys(exports)
+                  Object.keys(moduleExports)
                     .map(key => {
-                      let binding = path.scope.getBinding(key);
+                      let binding = path.scope.getBinding(
+                        exports.get(key) || key
+                      );
                       if (!binding) {
                         return null;
                       }
 
-                      let exportName = exports[key];
+                      let exportName = key.match(EXPORT_RE)[2];
                       let expr = replaceExportNode(+match[1], exportName, path);
 
                       if (expr === null) {
