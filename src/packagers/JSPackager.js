@@ -205,13 +205,16 @@ class JSPackager extends Packager {
 
     await this.write('},{},' + JSON.stringify(entry) + ')');
     if (this.options.sourceMaps) {
-      // Add source map url
-      await this.write(
-        `\n//# sourceMappingURL=${urlJoin(
-          this.options.publicURL,
-          path.basename(this.bundle.name, '.js') + '.map'
-        )}`
-      );
+      // Add source map url if a map bundle exists
+      let mapBundle = this.bundle.siblingBundlesMap.get('map');
+      if (mapBundle) {
+        await this.write(
+          `\n//# sourceMappingURL=${urlJoin(
+            this.options.publicURL,
+            path.basename(mapBundle.name)
+          )}`
+        );
+      }
     }
     await this.dest.end();
   }
