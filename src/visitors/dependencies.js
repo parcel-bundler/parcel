@@ -38,7 +38,8 @@ module.exports = {
       callee.name === 'require' &&
       args.length === 1 &&
       types.isStringLiteral(args[0]) &&
-      !hasBinding(ancestors, 'require');
+      !hasBinding(ancestors, 'require') &&
+      !hasNoOpParent(ancestors);
 
     if (isRequire) {
       let optional = ancestors.some(a => types.isTryStatement(a)) || undefined;
@@ -88,6 +89,19 @@ module.exports = {
     }
   }
 };
+
+function hasNoOpParent(ancestors) {
+  return ancestors.some(node => {
+    if (
+      types.isIfStatement(node) &&
+      types.isLiteral(node.test) &&
+      !node.test.value
+    ) {
+      // only ignore if it's in the consequent branch
+      return ancestors.indexOf(node.consequent) !== -1;
+    }
+  });
+}
 
 function hasBinding(node, name) {
   if (Array.isArray(node)) {
