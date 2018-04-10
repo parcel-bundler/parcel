@@ -346,5 +346,70 @@ describe.only('scope hoisting', function() {
       let output = run(b);
       assert.equal(output, 8);
     });
+
+    it('should wrap modules that use eval in a function', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/wrap-eval/a.js'
+      );
+
+      let output = run(b);
+      assert.equal(output, 4);
+    });
+
+    it('should wrap modules that have a top-level return', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/wrap-return/a.js'
+      );
+
+      let output = run(b);
+      assert.equal(output, 2);
+    });
+
+    it('supports assigning to this as exports object', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/this-reference/a.js'
+      );
+
+      let output = run(b);
+      assert.equal(output, 2);
+    });
+
+    it('supports assigning to this as exports object in wrapped module', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/commonjs/this-reference-wrapped/a.js'
+      );
+
+      let output = run(b);
+      assert.equal(output, 6);
+    });
+
+    it('supports module object properties', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/module-object/a.js'
+      );
+
+      // TODO: this test doesn't currently work in older browsers since babel
+      // replaces the typeof calls before we can get to them.
+      let output = run(b);
+      assert.equal(output.id, b.entryAsset.id);
+      assert.equal(output.hot, null);
+      assert.equal(output.type, 'object');
+      assert.deepEqual(output.exports, {});
+      assert.equal(output.exportsType, 'object');
+      assert.equal(output.require, 'function');
+    });
+
+    it('supports require.resolve calls', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/require-resolve/a.js'
+      );
+
+      let output = run(b);
+      assert.equal(
+        output,
+        Array.from(b.assets).find(a => a.name.endsWith('b.js')).id
+      );
+    });
   });
 });

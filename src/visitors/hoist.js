@@ -13,6 +13,10 @@ const WRAPPER_TEMPLATE = template(`
 
 const EXPORT_ASSIGN_TEMPLATE = template('EXPORTS.NAME = LOCAL');
 const REQUIRE_CALL_TEMPLATE = template('$parcel$require(ID, SOURCE)');
+const TYPEOF = {
+  module: 'object',
+  require: 'function'
+};
 
 module.exports = {
   Program: {
@@ -40,6 +44,14 @@ module.exports = {
           // Wrap in a function if we see a top-level return statement.
           if (path.getFunctionParent().isProgram()) {
             shouldWrap = true;
+            path.replaceWith(
+              t.returnStatement(
+                t.memberExpression(
+                  t.identifier('module'),
+                  t.identifier('exports')
+                )
+              )
+            );
             path.stop();
           }
         }
@@ -135,11 +147,11 @@ module.exports = {
     if (
       path.node.operator === 'typeof' &&
       t.isIdentifier(path.node.argument) &&
-      path.node.argument.name === 'module' &&
-      !path.scope.hasBinding('module') &&
+      TYPEOF[path.node.argument.name] &&
+      !path.scope.hasBinding(path.node.argument.name) &&
       !path.scope.getData('shouldWrap')
     ) {
-      path.replaceWith(t.stringLiteral('object'));
+      path.replaceWith(t.stringLiteral(TYPEOF[path.node.argument.name]));
     }
   },
 

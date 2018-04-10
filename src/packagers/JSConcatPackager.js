@@ -114,7 +114,7 @@ class JSConcatPackager extends Packager {
 
       let depResolve =
         '$' + asset.id + '$require_resolve$' + t.toIdentifier(dep.name);
-      let resolved = '' + asset.id;
+      let resolved = '' + mod.id;
 
       if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
         let bundles = [this.getBundleSpecifier(mod.parentBundle)];
