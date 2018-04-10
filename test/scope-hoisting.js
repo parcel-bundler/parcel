@@ -151,6 +151,15 @@ describe.only('scope hoisting', function() {
       let output = run(b);
       assert.equal(output, 8);
     });
+
+    it('supports dynamic import syntax for code splitting', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/es6/dynamic-import/a.js'
+      );
+
+      let output = await run(b).default;
+      assert.equal(output, 5);
+    });
   });
 
   describe('commonjs', function() {

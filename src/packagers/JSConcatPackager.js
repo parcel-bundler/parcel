@@ -21,6 +21,7 @@ class JSConcatPackager extends Packager {
     this.exports = new Map();
     this.wildcards = new Map();
     this.moduleMap = new Map();
+    this.needsPrelude = false;
 
     for (let asset of this.bundle.assets) {
       // If this module is referenced by another bundle, it needs to be exposed externally.
@@ -33,10 +34,22 @@ class JSConcatPackager extends Packager {
         (this.bundle.entryAsset === asset && this.bundle.parentBundle)
       ) {
         this.exposedModules.add(asset);
+        this.needsPrelude = true;
+      }
+
+      for (let mod of asset.depAssets.values()) {
+        if (!this.bundle.assets.has(mod)) {
+          this.needsPrelude = true;
+          break;
+        }
       }
     }
 
-    if (this.exposedModules.size > 0) {
+    if (this.needsPrelude) {
+      if (this.bundle.entryAsset) {
+        this.exposedModules.add(this.bundle.entryAsset);
+      }
+
       await this.write(prelude + '(function (require) {\n');
     } else {
       await this.write('(function () {\n');
@@ -200,13 +213,13 @@ class JSConcatPackager extends Packager {
   }
 
   async end() {
-    if (this.exposedModules.size > 0) {
+    if (this.needsPrelude) {
       let exposed = [];
       for (let m of this.exposedModules) {
         exposed.push(`${m.id}: ${this.getExportIdentifier(m)}`);
       }
 
-      await this.write(`return {${exposed.join(', ')}};\n`);
+      await this.write(`return {${exposed.join(', ')}};\n})`);
     } else {
       await this.write('})();');
     }
