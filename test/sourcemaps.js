@@ -2,13 +2,14 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const mapValidator = require('sourcemap-validator');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundler, bundle, run, assertBundleTree} = require('./utils');
 
 describe('sourcemaps', function() {
   it('should create a valid sourcemap as a child of a JS bundle', async function() {
-    let b = await bundle(__dirname + '/integration/sourcemap/index.js');
+    let b = bundler(__dirname + '/integration/sourcemap/index.js');
+    let bu = await b.bundle();
 
-    assertBundleTree(b, {
+    assertBundleTree(bu, {
       name: 'index.js',
       assets: ['index.js'],
       childBundles: [
@@ -26,8 +27,24 @@ describe('sourcemaps', function() {
       .readFileSync(path.join(__dirname, '/dist/index.map'))
       .toString();
     mapValidator(raw, map);
+    let mapObject = JSON.parse(map);
+    assert(
+      mapObject.sourceRoot ===
+        path.relative(b.options.outDir, b.options.rootDir),
+      'sourceRoot should be the root of the source files, relative to the output directory.'
+    );
+    assert(
+      fs.existsSync(
+        path.resolve(
+          b.options.outDir,
+          mapObject.sourceRoot,
+          mapObject.sources[0]
+        )
+      ),
+      'combining sourceRoot and sources object should resolve to the original file'
+    );
 
-    let output = run(b);
+    let output = run(bu);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 'hello world');
   });
@@ -147,5 +164,44 @@ describe('sourcemaps', function() {
     let output = run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 14);
+  });
+
+  it('should create a valid sourcemap reference for a child bundle', async function() {
+    let b = await bundle(
+      __dirname + '/integration/sourcemap-reference/index.html'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'js',
+          assets: ['index.js', 'data.json'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        }
+      ]
+    });
+
+    let jsOutput = fs
+      .readFileSync(Array.from(b.childBundles)[0].name)
+      .toString();
+
+    let sourcemapReference = path.join(
+      __dirname,
+      '/dist/',
+      jsOutput.substring(jsOutput.lastIndexOf('//# sourceMappingURL') + 22)
+    );
+    assert(
+      fs.existsSync(path.join(sourcemapReference)),
+      'referenced sourcemap should exist'
+    );
+
+    let map = fs.readFileSync(path.join(sourcemapReference)).toString();
+    mapValidator(jsOutput, map);
   });
 });
