@@ -54,6 +54,20 @@ module.exports = {
             );
             path.stop();
           }
+        },
+
+        ReferencedIdentifier(path) {
+          // We must wrap if `module` is referenced as a free identifier rather
+          // than a statically resolvable member expression.
+          if (
+            path.node.name === 'module' &&
+            (!path.parentPath.isMemberExpression() || path.parent.computed) &&
+            !path.scope.hasBinding('module') &&
+            !path.scope.getData('shouldWrap')
+          ) {
+            shouldWrap = true;
+            path.stop();
+          }
         }
       });
 

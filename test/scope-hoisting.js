@@ -1,7 +1,7 @@
 const assert = require('assert');
 const {bundle, run} = require('./utils');
 
-describe.only('scope hoisting', function() {
+describe('scope hoisting', function() {
   describe('es6', function() {
     it('supports default imports and exports of expressions', async function() {
       let b = await bundle(
@@ -372,6 +372,25 @@ describe.only('scope hoisting', function() {
 
       let output = run(b);
       assert.equal(output, 2);
+    });
+
+    it('should wrap modules that access `module` as a free variable', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/wrap-module/a.js'
+      );
+
+      let output = run(b);
+      assert.deepEqual(output, {exports: {foo: 2}});
+    });
+
+    it('should wrap modules that non-statically access `module`', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/commonjs/wrap-module-computed/a.js'
+      );
+
+      let output = run(b);
+      assert.deepEqual(output, {foo: 2});
     });
 
     it('supports assigning to this as exports object', async function() {
