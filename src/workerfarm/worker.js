@@ -11,6 +11,7 @@ let pipeline;
 function init(options) {
   pipeline = new Pipeline(options || {});
   Object.assign(process.env, options.env || {});
+  process.env.WORKER_TYPE = 'parcel-worker';
   process.env.HMR_PORT = options.hmrPort;
   process.env.HMR_HOSTNAME = options.hmrHostname;
 }
@@ -30,7 +31,7 @@ async function addCall(request, awaitResponse = true) {
   if (request.location) {
     request.location = Path.join(BASEPATH, request.location);
   }
-  if (process.send) {
+  if (process.send && process.env.WORKER_TYPE === 'parcel-worker') {
     return child.addCall(request, awaitResponse);
   } else {
     return WorkerFarm.getShared().processRequest(request);
