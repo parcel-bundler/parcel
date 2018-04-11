@@ -1,7 +1,7 @@
 const assert = require('assert');
 const {bundle, run} = require('./utils');
 
-describe('scope hoisting', function() {
+describe.only('scope hoisting', function() {
   describe('es6', function() {
     it('supports default imports and exports of expressions', async function() {
       let b = await bundle(
@@ -17,6 +17,16 @@ describe('scope hoisting', function() {
       let b = await bundle(
         __dirname +
           '/integration/scope-hoisting/es6/default-export-declaration/a.js'
+      );
+
+      let output = run(b);
+      assert.equal(output, 2);
+    });
+
+    it('supports default imports and exports of anonymous declarations', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/es6/default-export-anonymous/a.js'
       );
 
       let output = run(b);

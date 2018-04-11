@@ -245,11 +245,11 @@ module.exports = {
       // Rename the variable being exported.
       safeRename(path, declaration.name, identifier.name);
       path.remove();
-    } else if (t.isExpression(declaration)) {
+    } else if (t.isExpression(declaration) || !declaration.id) {
       // Declare a variable to hold the exported value.
       path.replaceWith(
         t.variableDeclaration('var', [
-          t.variableDeclarator(identifier, declaration)
+          t.variableDeclarator(identifier, t.toExpression(declaration))
         ])
       );
     } else {
