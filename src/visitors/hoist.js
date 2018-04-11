@@ -62,6 +62,10 @@ module.exports = {
           if (
             path.node.name === 'module' &&
             (!path.parentPath.isMemberExpression() || path.parent.computed) &&
+            !(
+              path.parentPath.isUnaryExpression() &&
+              path.parent.operator === 'typeof'
+            ) &&
             !path.scope.hasBinding('module') &&
             !path.scope.getData('shouldWrap')
           ) {
