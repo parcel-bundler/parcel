@@ -8,12 +8,14 @@ const BASEPATH = '../';
 
 let pipeline;
 
-function init(options) {
+function init(options, isLocal = false) {
   pipeline = new Pipeline(options || {});
   Object.assign(process.env, options.env || {});
-  process.env.WORKER_TYPE = 'parcel-worker';
   process.env.HMR_PORT = options.hmrPort;
   process.env.HMR_HOSTNAME = options.hmrHostname;
+  if (isLocal) {
+    process.env.WORKER_TYPE = 'parcel-worker';
+  }
 }
 
 async function run(path, pkg, options, isWarmUp) {

@@ -251,7 +251,7 @@ class WorkerFarm extends EventEmitter {
   }
 
   init(options) {
-    this.localWorker.init(options);
+    this.localWorker.init(options, true);
     this.initRemoteWorkers(options);
   }
 
