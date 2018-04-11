@@ -130,4 +130,14 @@ describe('server', function() {
     data = await get('/hello.txt');
     assert.equal(data, 'hello');
   });
+
+  it('should work with query parameters that contain a dot', async function() {
+    let b = bundler(__dirname + '/integration/html/index.html', {
+      publicUrl: '/'
+    });
+    server = await b.serve(0);
+
+    let data = await get('/?foo=bar.baz');
+    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+  });
 });
