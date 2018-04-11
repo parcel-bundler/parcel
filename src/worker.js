@@ -15,16 +15,13 @@ function init(options, isLocal = false) {
   }
 }
 
-exports.run = async function(path, id, pkg, options, isWarmUp, callback) {
+async function run(path, id, pkg, options, isWarmUp) {
   try {
     options.isWarmUp = isWarmUp;
-    var result = await pipeline.process(path, id, pkg, options);
-
-    callback(null, result);
-  } catch (err) {
-    let returned = err;
-    returned.fileName = path;
-    callback(returned);
+    return await pipeline.process(path, id, pkg, options);
+  } catch (e) {
+    e.fileName = path;
+    throw e;
   }
 }
 
