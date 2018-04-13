@@ -330,7 +330,10 @@ module.exports = {
     } else if (declaration) {
       path.replaceWith(declaration);
 
-      let identifiers = t.getBindingIdentifiers(declaration);
+      let identifiers = t.isIdentifier(declaration.id)
+        ? [declaration.id]
+        : t.getBindingIdentifiers(declaration);
+
       for (let id in identifiers) {
         addExport(asset, path, identifiers[id], identifiers[id]);
       }
