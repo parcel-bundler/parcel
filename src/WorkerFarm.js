@@ -12,6 +12,14 @@ class WorkerFarm extends Farm {
       maxConcurrentWorkers: getNumWorkers()
     };
 
+    if (!isNaN(process.env.PARCEL_WORKER_CALLS)) {
+      opts.maxConcurrentCallsPerWorker = isFinite(
+        process.env.PARCEL_WORKER_CALLS
+      )
+        ? parseInt(process.env.PARCEL_WORKER_CALLS, 10)
+        : Infinity;
+    }
+
     let workerPath =
       parseInt(process.versions.node, 10) < 8
         ? require.resolve('../lib/worker')
