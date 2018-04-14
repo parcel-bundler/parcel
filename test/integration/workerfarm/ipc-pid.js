@@ -9,7 +9,7 @@ function run() {
   let result = [process.pid];
   return new Promise((resolve, reject) => {
     child.addCall({
-      location: '../../test/integration/workerfarm/master-process-id.js',
+      location: require.resolve('./master-process-id.js'),
       args: []
     }).then((pid) => {
       result.push(pid)

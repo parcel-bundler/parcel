@@ -1,10 +1,7 @@
 require('v8-compile-cache');
-const Pipeline = require('../Pipeline');
-const Path = require('path');
-const child = require('./child');
-const WorkerFarm = require('./WorkerFarm');
-
-const BASEPATH = '../';
+const Pipeline = require('./Pipeline');
+const child = require('./workerfarm/child');
+const WorkerFarm = require('./workerfarm/WorkerFarm');
 
 let pipeline;
 
@@ -30,9 +27,6 @@ async function run(path, pkg, options, isWarmUp) {
 
 // request.location is a module path relative to src or lib
 async function addCall(request, awaitResponse = true) {
-  if (request.location) {
-    request.location = Path.join(BASEPATH, request.location);
-  }
   if (process.send && process.env.WORKER_TYPE === 'parcel-worker') {
     return child.addCall(request, awaitResponse);
   } else {

@@ -202,7 +202,7 @@ if (process.send && process.env.WORKER_TYPE === 'parcel-worker') {
     LoggerProxy.prototype[method] = (...args) => {
       worker.addCall(
         {
-          location: './Logger',
+          location: require.resolve('./Logger'),
           method,
           args
         },

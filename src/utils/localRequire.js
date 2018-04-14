@@ -1,6 +1,6 @@
 const {dirname} = require('path');
 const resolve = require('resolve');
-const worker = require('../workerfarm/worker');
+const worker = require('../worker');
 
 const cache = new Map();
 
@@ -14,7 +14,7 @@ async function localRequire(name, path, triedInstall = false) {
     } catch (e) {
       if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
         await worker.addCall({
-          location: './utils/installPackage.js',
+          location: require.resolve('./installPackage.js'),
           args: [[name], path]
         });
         return localRequire(name, path, true);

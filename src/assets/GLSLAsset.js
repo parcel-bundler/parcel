@@ -11,8 +11,6 @@ class GLSLAsset extends Asset {
   }
 
   async parse() {
-    await localRequire('glsl-token-properties', this.name);
-    await localRequire('glsl-token-assignments', this.name);
     const glslifyDeps = await localRequire('glslify-deps', this.name);
 
     // Use the Parcel resolver rather than the default glslify one.

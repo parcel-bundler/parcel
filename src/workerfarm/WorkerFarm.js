@@ -5,8 +5,8 @@ const errorUtils = require('./errorUtils');
 
 const PARCEL_WORKER =
   parseInt(process.versions.node, 10) < 8
-    ? require.resolve('../../lib/workerfarm/worker')
-    : require.resolve('../../src/workerfarm/worker');
+    ? require.resolve('../../lib/worker')
+    : require.resolve('../../src/worker');
 
 let shared = null;
 class WorkerFarm extends EventEmitter {
@@ -33,7 +33,7 @@ class WorkerFarm extends EventEmitter {
     this.callQueue = [];
 
     this.localWorker = require(PARCEL_WORKER === this.options.workerPath
-      ? './worker'
+      ? '../worker'
       : this.options.workerPath);
     this.remoteWorker = {
       run: this.mkhandle('run')
