@@ -101,6 +101,34 @@ module.exports = {
             scope.rename(name, newName);
           }
         }
+
+        // Add variable that represents module.exports if it is referenced.
+        if (scope.hasGlobal(getExportsIdentifier(asset).name)) {
+          path.unshiftContainer('body', [
+            t.variableDeclaration('var', [
+              t.variableDeclarator(
+                getExportsIdentifier(asset),
+                t.objectExpression([])
+              )
+            ])
+          ]);
+        } else if (Object.keys(asset.cacheData.exports).length > 0) {
+          /*path.pushContainer('body', [
+            t.variableDeclaration('var', [
+              t.variableDeclarator(
+                getExportsIdentifier(asset),
+                t.objectExpression(
+                  Object.values(asset.cacheData.exports).map(k =>
+                    t.objectProperty(
+                      t.identifier(k),
+                      getIdentifier(asset, 'export', k)
+                    )
+                  )
+                )
+              )
+            ])
+          ]);*/
+        }
       }
 
       path.stop();
@@ -245,9 +273,17 @@ module.exports = {
     let {declaration} = path.node;
     let identifier = getIdentifier(asset, 'export', 'default');
 
+    path.insertAfter(
+      EXPORT_ASSIGN_TEMPLATE({
+        EXPORTS: getExportsIdentifier(asset),
+        NAME: t.identifier('default'),
+        LOCAL: identifier
+      })
+    );
+
     if (t.isIdentifier(declaration)) {
       // Rename the variable being exported.
-      safeRename(path, declaration.name, identifier.name);
+      safeRename(asset, path, declaration.name, identifier.name);
       path.remove();
     } else if (t.isExpression(declaration) || !declaration.id) {
       // Declare a variable to hold the exported value.
@@ -258,20 +294,13 @@ module.exports = {
       );
     } else {
       // Rename the declaration to the exported name.
-      safeRename(path, declaration.id.name, identifier.name);
+      safeRename(asset, path, declaration.id.name, identifier.name);
       path.replaceWith(declaration);
     }
 
     // Add assignment to exports object for namespace imports and commonjs.
-    if (path.scope.hasGlobal('module') || path.scope.hasGlobal('exports')) {
-      path.insertAfter(
-        EXPORT_ASSIGN_TEMPLATE({
-          EXPORTS: getExportsIdentifier(asset),
-          NAME: t.identifier('default'),
-          LOCAL: identifier
-        })
-      );
-    }
+    // if (path.scope.hasGlobal('module') || path.scope.hasGlobal('exports')) {
+    // }
 
     asset.cacheData.exports[identifier.name] = 'default';
 
@@ -365,11 +394,23 @@ function addExport(asset, path, local, exported) {
   } else {
     asset.cacheData.exports[getName(asset, 'export', exported.name)] =
       exported.name;
+
+    let assignNode = EXPORT_ASSIGN_TEMPLATE({
+      EXPORTS: getExportsIdentifier(asset),
+      NAME: t.identifier(local.name),
+      LOCAL: getIdentifier(asset, 'export', exported.name)
+    });
+
+    // Get all the node paths mutating the export and insert a CommonJS assignement.
+    path.scope
+      .getBinding(local.name)
+      .constantViolations.concat(path)
+      .forEach(path => path.insertAfter(assignNode));
     path.scope.rename(local.name, getName(asset, 'export', exported.name));
   }
 }
 
-function safeRename(path, from, to) {
+function safeRename(asset, path, from, to) {
   // If the binding that we're renaming is constant, it's safe to rename it.
   // Otherwise, create a new binding that references the original.
   let binding = path.scope.getBinding(from);
@@ -381,6 +422,17 @@ function safeRename(path, from, to) {
         t.variableDeclarator(t.identifier(to), t.identifier(from))
       ])
     );
+
+    /*binding.constantViolations.forEach(path =>
+      path.insertAfter(
+        MUTATE_EXPORT_TEMPLATE({
+          LOCAL: t.identifier(from),
+          NAME: t.identifier('default'),
+          EXPORTS: getExportsIdentifier(asset),
+          EXPORT: t.identifier(to)
+        })
+      )
+    )*/
   }
 }
 

@@ -12,7 +12,6 @@ const EXPORT_RE = /^\$([\d]+)\$export\$(.+)$/;
 module.exports = (code, exports, moduleMap, wildcards) => {
   let ast = babylon.parse(code);
   let addedExports = new Set();
-  let commentedBindings = new Set();
 
   let resolveModule = (id, name) => {
     let module = moduleMap.get(id);
@@ -22,11 +21,11 @@ module.exports = (code, exports, moduleMap, wildcards) => {
   function replaceExportNode(id, name, path) {
     path = getOuterStatement(path);
 
-    let node = tail(id, id => `$${id}$export$${name}`);
+    let node = find(id, id => `$${id}$export$${name}`);
 
     if (!node) {
       // if there is no named export then lookup for a CommonJS export
-      node = tail(id, id => `$${id}$exports`) || t.identifier(`$${id}$exports`);
+      node = find(id, id => `$${id}$exports`) || t.identifier(`$${id}$exports`);
 
       // if there is a CommonJS export return $id$exports.name
       if (node) {
@@ -36,7 +35,7 @@ module.exports = (code, exports, moduleMap, wildcards) => {
 
     return node;
 
-    function tail(id, symbol) {
+    function find(id, symbol) {
       let computedSymbol = symbol(id);
 
       // if the symbol is in the scope there is not need to remap it
@@ -66,7 +65,7 @@ module.exports = (code, exports, moduleMap, wildcards) => {
 
         wildcards
           .get(id)
-          .find(name => (node = tail(resolveModule(id, name), symbol)));
+          .find(name => (node = find(resolveModule(id, name), symbol)));
 
         return node;
       }
@@ -93,7 +92,7 @@ module.exports = (code, exports, moduleMap, wildcards) => {
           );
         }
 
-        const mod = resolveModule(id.value, name.value);
+        let mod = resolveModule(id.value, name.value);
 
         if (typeof mod === 'undefined') {
           throw new Error(`Cannot find module "${name.value}"`);
@@ -129,66 +128,60 @@ module.exports = (code, exports, moduleMap, wildcards) => {
 
       let match = name.match(EXPORTS_RE);
 
-      if (match) {
-        if (!path.scope.hasBinding(name) && !addedExports.has(name)) {
+      /*if (match) {
+        if (!path.scope.hasBinding(name)) {
           let moduleExports = moduleMap.get(+match[1]).cacheData.exports;
 
-          addedExports.add(name);
+          getOuterStatement(path).scope.push({
+            id: t.identifier(name),
+            init: t.objectExpression(
+              Object.keys(moduleExports)
+                .map(key => {
+                  let binding = path.scope.getBinding(
+                    exports.get(key) || key
+                  );
+                  if (!binding) {
+                    return null;
+                  }
 
-          getOuterStatement(path).insertBefore(
-            t.variableDeclaration('var', [
-              t.variableDeclarator(
-                t.identifier(name),
-                t.objectExpression(
-                  Object.keys(moduleExports)
-                    .map(key => {
-                      let binding = path.scope.getBinding(
-                        exports.get(key) || key
-                      );
-                      if (!binding) {
-                        return null;
-                      }
+                  let exportName = key.match(EXPORT_RE)[2];
+                  let expr = replaceExportNode(+match[1], exportName, path);
 
-                      let exportName = key.match(EXPORT_RE)[2];
-                      let expr = replaceExportNode(+match[1], exportName, path);
+                  if (expr === null) {
+                    return null;
+                  }
 
-                      if (expr === null) {
-                        return null;
-                      }
+                  if (binding.constant) {
+                    return null;
+                  }
 
-                      if (binding.constant) {
-                        return t.objectProperty(t.identifier(exportName), expr);
-                      } else {
-                        if (!commentedBindings.has(binding)) {
-                          commentedBindings.add(binding);
-                          binding.constantViolations.forEach(path =>
-                            path
-                              .getFunctionParent()
-                              .addComment(
-                                'leading',
-                                ` bailout: mutates ${generate(expr).code}`,
-                                '\n'
-                              )
-                          );
-                        }
+                  if (!commentedBindings.has(binding)) {
+                    commentedBindings.add(binding);
+                    binding.constantViolations.forEach(path =>
+                      path
+                        .getFunctionParent()
+                        .addComment(
+                          'leading',
+                          ` bailout: mutates ${generate(expr).code}`,
+                          '\n'
+                        )
+                    );
+                  }
 
-                        return t.objectMethod(
-                          'get',
-                          t.identifier(exportName),
-                          [],
-                          t.blockStatement([t.returnStatement(expr)])
-                        );
-                      }
-                    })
-                    .filter(property => property !== null)
-                )
-              )
-            ])
-          );
+                  return t.objectMethod(
+                    'get',
+                    t.identifier(exportName),
+                    [],
+                    t.blockStatement([t.returnStatement(expr)])
+                  );
+                })
+                .filter(property => property !== null)
+            )
+          });
         }
 
         return;
-      }
+      }*/
 
       match = name.match(EXPORT_RE);
 
