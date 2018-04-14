@@ -16,10 +16,6 @@ function fork(forkModule, childId) {
   };
   let child = childProcess.fork(childModule, process.argv, options);
 
-  child.on('error', function() {
-    // this *should* be picked up by onExit and the operation requeued
-  });
-
   let sendQueue = [];
   let processQueue = true;
 
