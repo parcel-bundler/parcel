@@ -1,4 +1,5 @@
 const Packager = require('./Packager');
+const path = require('path');
 const fs = require('../utils/fs');
 
 class RawPackager extends Packager {
@@ -10,6 +11,11 @@ class RawPackager extends Packager {
     let contents = asset.generated[asset.type];
     if (!contents || (contents && contents.path)) {
       contents = await fs.readFile(contents ? contents.path : asset.name);
+    }
+
+    // Create sub-directories if needed
+    if (this.bundle.name.includes(path.sep)) {
+      await fs.mkdirp(path.dirname(this.bundle.name));
     }
 
     this.size = contents.length;
