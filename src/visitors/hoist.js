@@ -12,6 +12,9 @@ const WRAPPER_TEMPLATE = template(`
 `);
 
 const EXPORT_ASSIGN_TEMPLATE = template('EXPORTS.NAME = LOCAL');
+const EXPORT_ALL_TEMPLATE = template(
+  'var NAME = $parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE));'
+);
 const REQUIRE_CALL_TEMPLATE = template('$parcel$require(ID, SOURCE)');
 const TYPEOF = {
   module: 'object',
@@ -204,9 +207,16 @@ module.exports = {
   CallExpression(path, asset) {
     let {callee, arguments: args} = path.node;
 
+    if (t.isIdentifier(callee, {name: '$parcel$exportWildcard'})) {
+      // This hints Uglify and Babel that this CallExpression does not have any side-effects.
+      // This will make unsused CommonJS wildcards removed from the minified builds.
+      path.addComment('leading', '#__PURE__');
+
+      return;
+    }
+
     let isRequire =
-      t.isIdentifier(callee) &&
-      callee.name === 'require' &&
+      t.isIdentifier(callee, {name: 'require'}) &&
       args.length === 1 &&
       t.isStringLiteral(args[0]) &&
       !path.scope.hasBinding('require');
@@ -378,7 +388,28 @@ module.exports = {
   ExportAllDeclaration(path, asset) {
     asset.cacheData.wildcards.push(path.node.source.value);
     asset.cacheData.isES6Module = true;
-    path.remove();
+
+    let exportsName = getExportsIdentifier(asset);
+    let oldName = t.objectExpression([]);
+
+    // If the export is already define rename it so we can reassign it
+    // We need to do this because Uglify does not remove pure functions calls if they use a reassigned variable :
+    // var b = {}; b = pureCall(b) // not removed
+    // var b$0 = {}; var b = pureCall(b$0) // removed
+    if (path.scope.hasBinding(exportsName.name)) {
+      oldName = path.scope.generateDeclaredUidIdentifier(exportsName.name);
+
+      path.scope.rename(exportsName.name, oldName.name);
+    }
+
+    path.replaceWith(
+      EXPORT_ALL_TEMPLATE({
+        NAME: exportsName,
+        OLD_NAME: oldName,
+        SOURCE: t.stringLiteral(path.node.source.value),
+        ID: t.numericLiteral(asset.id)
+      })
+    );
   }
 };
 

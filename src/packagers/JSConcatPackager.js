@@ -52,7 +52,23 @@ class JSConcatPackager extends Packager {
 
       await this.write(prelude + '(function (require) {\n');
     } else {
-      await this.write('(function () {\n');
+      await this.write(`
+(function () {
+  function $parcel$exportWildcard(dest, source) {
+    Object.keys(source).forEach(function(key) {
+      if(key !== 'default') {
+        Object.defineProperty(dest, key, {
+          enumerable: true,
+          get() {
+            return source[key];
+          }
+        });
+      }
+    });
+
+    return dest;
+  }
+`);
     }
   }
 
