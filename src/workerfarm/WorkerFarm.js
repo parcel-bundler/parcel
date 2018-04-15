@@ -1,7 +1,7 @@
 const {EventEmitter} = require('events');
 const os = require('os');
-const fork = require('./fork');
 const errorUtils = require('./errorUtils');
+const Worker = require('./Worker');
 
 let shared = null;
 class WorkerFarm extends EventEmitter {
@@ -20,7 +20,6 @@ class WorkerFarm extends EventEmitter {
     );
 
     this.started = false;
-    this.childId = 0;
     this.warmWorkers = 0;
     this.children = new Map();
     this.callQueue = [];
@@ -40,7 +39,6 @@ class WorkerFarm extends EventEmitter {
           method,
           args: args,
           retries: 0,
-          type: 'request',
           resolve,
           reject
         });
@@ -75,91 +73,34 @@ class WorkerFarm extends EventEmitter {
   }
 
   startChild() {
-    let id = this.childId++;
-    let forked = fork(this.options.workerPath, id);
-    let c = {
-      send: forked.send,
-      child: forked.child,
-      calls: new Map(),
-      exitCode: null,
-      callId: 0,
-      id
-    };
+    let worker = new Worker(this.options.workerPath, this.options);
 
-    forked.child.on('message', this.receive.bind(this));
-    forked.child.once('exit', code => {
-      c.exitCode = code;
-      this.onExit(id);
-    });
-    forked.child.on('error', err => {
-      this.onError(err, id);
+    worker.on('request', data => {
+      this.processRequest(data, worker);
     });
 
-    this.children.set(id, c);
+    worker.on('response', () => {
+      // allow any outstanding calls to be processed
+      this.processQueue();
+    });
+
+    worker.once('exit', () => {
+      this.onExit(worker.id);
+    });
+
+    worker.on('error', err => {
+      this.onError(err, worker.id);
+    });
+
+    this.children.set(worker.id, worker);
   }
 
   stopChild(childId) {
     let child = this.children.get(childId);
     if (child) {
-      child.send('die');
-      setTimeout(() => {
-        if (child.exitCode === null) {
-          child.child.kill('SIGKILL');
-        }
-      }, this.options.forcedKillTime);
+      child.stop();
       this.children.delete(childId);
     }
-  }
-
-  receive(data) {
-    let idx = data.idx;
-    let childId = data.child;
-    let child = this.children.get(childId);
-    let type = data.type;
-    let content = data.content;
-    let contentType = data.contentType;
-
-    // Possibly premature child death
-    if (!child) {
-      return;
-    }
-
-    if (type === 'request') {
-      this.processRequest(data, child);
-    } else if (type === 'response') {
-      let call = child.calls.get(idx);
-      if (!call) {
-        throw new Error(
-          `Worker Farm: Received message for unknown index for existing child. This should not happen!`
-        );
-      }
-
-      if (contentType === 'error') {
-        call.reject(errorUtils.jsonToError(content));
-      } else {
-        call.resolve(content);
-      }
-
-      child.calls.delete(idx);
-
-      // allow any outstanding calls to be processed
-      this.processQueue();
-    }
-  }
-
-  send(childId, call) {
-    let child = this.children.get(childId);
-    let idx = child.callId++;
-
-    child.calls.set(idx, call);
-
-    child.send({
-      idx: idx,
-      child: childId,
-      method: call.method,
-      args: call.args,
-      type: call.type
-    });
   }
 
   async processQueue() {
@@ -169,13 +110,13 @@ class WorkerFarm extends EventEmitter {
       this.startChild();
     }
 
-    for (let [childId, child] of this.children.entries()) {
+    for (let child of this.children.values()) {
       if (!this.callQueue.length) {
         break;
       }
 
       if (child.calls.size < this.options.maxConcurrentCallsPerWorker) {
-        this.send(childId, this.callQueue.shift());
+        child.call(this.callQueue.shift());
       }
     }
   }
@@ -254,14 +195,13 @@ class WorkerFarm extends EventEmitter {
 
     // Reliable way of initialising workers
     let promises = [];
-    for (let childId of this.children.keys()) {
+    for (let child of this.children.values()) {
       promises.push(
         new Promise((resolve, reject) => {
-          this.send(childId, {
+          child.call({
             method: 'init',
             args: [options],
             retries: 0,
-            type: 'request',
             resolve,
             reject
           });

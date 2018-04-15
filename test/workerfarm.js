@@ -55,7 +55,7 @@ describe('WorkerFarm', () => {
       options.key = i;
       workerfarm.init(options);
       await new Promise(resolve => workerfarm.once('started', resolve));
-      for (let i = 0; i < workerfarm.activeChildren; i++) {
+      for (let i = 0; i < workerfarm.children.size; i++) {
         assert.equal((await workerfarm.run()).key, options.key);
       }
       assert.equal(workerfarm.shouldUseRemoteWorkers(), true);
@@ -82,9 +82,9 @@ describe('WorkerFarm', () => {
 
     await new Promise(resolve => workerfarm.once('warmedup', resolve));
 
-    assert(workerfarm.activeChildren > 0, 'Should have spawned workers.');
+    assert(workerfarm.children.size > 0, 'Should have spawned workers.');
     assert(
-      workerfarm.warmWorkers >= workerfarm.activeChildren,
+      workerfarm.warmWorkers >= workerfarm.children.size,
       'Should have warmed up workers.'
     );
 

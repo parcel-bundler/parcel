@@ -16,7 +16,7 @@ class Child {
       return this.end();
     }
 
-    if (data.module && !this.module) {
+    if (data.type === 'module' && data.module && !this.module) {
       this.module = require(data.module);
       this.childId = data.child;
       if (this.module.setChildReference) {
@@ -70,9 +70,9 @@ class Child {
     let call = this.responseQueue.get(idx);
 
     if (contentType === 'error') {
-      process.nextTick(() => call.reject(errorUtils.jsonToError(content)));
+      call.reject(errorUtils.jsonToError(content));
     } else {
-      process.nextTick(() => call.resolve(content));
+      call.resolve(content);
     }
 
     this.responseQueue.delete(idx);
