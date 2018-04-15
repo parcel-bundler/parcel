@@ -195,15 +195,19 @@ function stringWidth(string) {
 // If we are in a worker, make a proxy class which will
 // send the logger calls to the main process via IPC.
 // These are handled in WorkerFarm and directed to handleMessage above.
-if (process.send) {
+if (process.send && process.env.WORKER_TYPE === 'parcel-worker') {
+  const worker = require('./worker');
   class LoggerProxy {}
   for (let method of Object.getOwnPropertyNames(Logger.prototype)) {
     LoggerProxy.prototype[method] = (...args) => {
-      process.send({
-        type: 'logger',
-        method,
-        args
-      });
+      worker.addCall(
+        {
+          location: require.resolve('./Logger'),
+          method,
+          args
+        },
+        false
+      );
     };
   }
 
