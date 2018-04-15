@@ -14,7 +14,7 @@ class WorkerFarm extends EventEmitter {
         forcedKillTime: 100,
         warmWorkers: true,
         useLocalWorker: true,
-        workerPath: require.resolve('../worker')
+        workerPath: '../worker'
       },
       farmOptions
     );
