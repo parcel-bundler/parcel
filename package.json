@@ -59,7 +59,6 @@
     "tomlify-j0.4": "^3.0.0",
     "uglify-es": "^3.2.1",
     "v8-compile-cache": "^1.1.0",
-    "worker-farm": "^1.5.2",
     "ws": "^4.0.0"
   },
   "devDependencies": {
