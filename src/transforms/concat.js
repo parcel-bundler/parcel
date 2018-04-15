@@ -126,64 +126,7 @@ module.exports = (code, exports, moduleMap, wildcards) => {
         return;
       }
 
-      let match = name.match(EXPORTS_RE);
-
-      /*if (match) {
-        if (!path.scope.hasBinding(name)) {
-          let moduleExports = moduleMap.get(+match[1]).cacheData.exports;
-
-          getOuterStatement(path).scope.push({
-            id: t.identifier(name),
-            init: t.objectExpression(
-              Object.keys(moduleExports)
-                .map(key => {
-                  let binding = path.scope.getBinding(
-                    exports.get(key) || key
-                  );
-                  if (!binding) {
-                    return null;
-                  }
-
-                  let exportName = key.match(EXPORT_RE)[2];
-                  let expr = replaceExportNode(+match[1], exportName, path);
-
-                  if (expr === null) {
-                    return null;
-                  }
-
-                  if (binding.constant) {
-                    return null;
-                  }
-
-                  if (!commentedBindings.has(binding)) {
-                    commentedBindings.add(binding);
-                    binding.constantViolations.forEach(path =>
-                      path
-                        .getFunctionParent()
-                        .addComment(
-                          'leading',
-                          ` bailout: mutates ${generate(expr).code}`,
-                          '\n'
-                        )
-                    );
-                  }
-
-                  return t.objectMethod(
-                    'get',
-                    t.identifier(exportName),
-                    [],
-                    t.blockStatement([t.returnStatement(expr)])
-                  );
-                })
-                .filter(property => property !== null)
-            )
-          });
-        }
-
-        return;
-      }*/
-
-      match = name.match(EXPORT_RE);
+      let match = name.match(EXPORT_RE);
 
       if (match && !path.scope.hasBinding(name) && !addedExports.has(name)) {
         let id = Number(match[1]);
@@ -202,6 +145,7 @@ module.exports = (code, exports, moduleMap, wildcards) => {
   return generate(ast, code).code;
 };
 
+// Finds a parent statement in the bundle IIFE body
 function getOuterStatement(path) {
   if (validate(path)) {
     return path;

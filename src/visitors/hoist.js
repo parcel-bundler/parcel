@@ -113,7 +113,7 @@ module.exports = {
             ])
           ]);
         } else if (Object.keys(asset.cacheData.exports).length > 0) {
-          /*path.pushContainer('body', [
+          path.pushContainer('body', [
             t.variableDeclaration('var', [
               t.variableDeclarator(
                 getExportsIdentifier(asset),
@@ -127,7 +127,7 @@ module.exports = {
                 )
               )
             ])
-          ]);*/
+          ]);
         }
       }
 
@@ -273,6 +273,7 @@ module.exports = {
     let {declaration} = path.node;
     let identifier = getIdentifier(asset, 'export', 'default');
 
+    // Add assignment to exports object for namespace imports and commonjs.
     path.insertAfter(
       EXPORT_ASSIGN_TEMPLATE({
         EXPORTS: getExportsIdentifier(asset),
@@ -283,7 +284,7 @@ module.exports = {
 
     if (t.isIdentifier(declaration)) {
       // Rename the variable being exported.
-      safeRename(asset, path, declaration.name, identifier.name);
+      safeRename(path, declaration.name, identifier.name);
       path.remove();
     } else if (t.isExpression(declaration) || !declaration.id) {
       // Declare a variable to hold the exported value.
@@ -294,13 +295,9 @@ module.exports = {
       );
     } else {
       // Rename the declaration to the exported name.
-      safeRename(asset, path, declaration.id.name, identifier.name);
+      safeRename(path, declaration.id.name, identifier.name);
       path.replaceWith(declaration);
     }
-
-    // Add assignment to exports object for namespace imports and commonjs.
-    // if (path.scope.hasGlobal('module') || path.scope.hasGlobal('exports')) {
-    // }
 
     asset.cacheData.exports[identifier.name] = 'default';
 
@@ -410,7 +407,7 @@ function addExport(asset, path, local, exported) {
   }
 }
 
-function safeRename(asset, path, from, to) {
+function safeRename(path, from, to) {
   // If the binding that we're renaming is constant, it's safe to rename it.
   // Otherwise, create a new binding that references the original.
   let binding = path.scope.getBinding(from);
@@ -422,17 +419,6 @@ function safeRename(asset, path, from, to) {
         t.variableDeclarator(t.identifier(to), t.identifier(from))
       ])
     );
-
-    /*binding.constantViolations.forEach(path =>
-      path.insertAfter(
-        MUTATE_EXPORT_TEMPLATE({
-          LOCAL: t.identifier(from),
-          NAME: t.identifier('default'),
-          EXPORTS: getExportsIdentifier(asset),
-          EXPORT: t.identifier(to)
-        })
-      )
-    )*/
   }
 }
 
