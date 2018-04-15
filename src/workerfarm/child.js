@@ -53,7 +53,6 @@ class Child {
     let args = data.args;
 
     let result = {idx, child, type: 'response'};
-
     try {
       result.contentType = 'data';
       result.content = await this.module[method](...args);
