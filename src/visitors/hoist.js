@@ -392,7 +392,7 @@ module.exports = {
     let exportsName = getExportsIdentifier(asset);
     let oldName = t.objectExpression([]);
 
-    // If the export is already define rename it so we can reassign it
+    // If the export is already defined rename it so we can reassign it.
     // We need to do this because Uglify does not remove pure functions calls if they use a reassigned variable :
     // var b = {}; b = pureCall(b) // not removed
     // var b$0 = {}; var b = pureCall(b$0) // removed
