@@ -3,11 +3,6 @@ const os = require('os');
 const fork = require('./fork');
 const errorUtils = require('./errorUtils');
 
-const PARCEL_WORKER =
-  parseInt(process.versions.node, 10) < 8
-    ? require.resolve('../../lib/worker')
-    : require.resolve('../../src/worker');
-
 let shared = null;
 class WorkerFarm extends EventEmitter {
   constructor(options, farmOptions = {}) {
@@ -19,22 +14,18 @@ class WorkerFarm extends EventEmitter {
         forcedKillTime: 100,
         warmWorkers: true,
         useLocalWorker: true,
-        workerPath: PARCEL_WORKER
+        workerPath: require.resolve('../worker')
       },
       farmOptions
     );
 
     this.started = false;
     this.childId = 0;
-    this.activeChildren = 0;
     this.warmWorkers = 0;
-    this.warmedup = false;
     this.children = new Map();
     this.callQueue = [];
 
-    this.localWorker = require(PARCEL_WORKER === this.options.workerPath
-      ? '../worker'
-      : this.options.workerPath);
+    this.localWorker = require(this.options.workerPath);
     this.remoteWorker = {
       run: this.mkhandle('run')
     };
@@ -69,7 +60,7 @@ class WorkerFarm extends EventEmitter {
     setTimeout(() => {
       let doQueue = false;
       let child = this.children.get(childId);
-      if (child && child.activeCalls) {
+      if (child && child.calls.size) {
         for (let call of child.calls.values()) {
           call.retries++;
           this.callQueue.unshift(call);
@@ -83,14 +74,13 @@ class WorkerFarm extends EventEmitter {
     }, 10);
   }
 
-  async startChild() {
+  startChild() {
     let id = this.childId++;
     let forked = fork(this.options.workerPath, id);
     let c = {
       send: forked.send,
       child: forked.child,
       calls: new Map(),
-      activeCalls: 0,
       exitCode: null,
       callId: 0,
       id
@@ -105,7 +95,6 @@ class WorkerFarm extends EventEmitter {
       this.onError(err, id);
     });
 
-    this.activeChildren++;
     this.children.set(id, c);
   }
 
@@ -119,7 +108,6 @@ class WorkerFarm extends EventEmitter {
         }
       }, this.options.forcedKillTime);
       this.children.delete(childId);
-      this.activeChildren--;
     }
   }
 
@@ -147,14 +135,12 @@ class WorkerFarm extends EventEmitter {
       }
 
       if (contentType === 'error') {
-        process.nextTick(() => call.reject(errorUtils.jsonToError(content)));
+        call.reject(errorUtils.jsonToError(content));
       } else {
-        process.nextTick(() => call.resolve(content));
+        call.resolve(content);
       }
 
       child.calls.delete(idx);
-      child.activeCalls--;
-      this.activeCalls--;
 
       // allow any outstanding calls to be processed
       this.processQueue();
@@ -166,8 +152,6 @@ class WorkerFarm extends EventEmitter {
     let idx = child.callId++;
 
     child.calls.set(idx, call);
-    child.activeCalls++;
-    this.activeCalls++;
 
     child.send({
       idx: idx,
@@ -181,17 +165,17 @@ class WorkerFarm extends EventEmitter {
   async processQueue() {
     if (this.ending || !this.callQueue.length) return;
 
-    if (this.activeChildren < this.options.maxConcurrentWorkers) {
-      await this.startChild();
+    if (this.children.size < this.options.maxConcurrentWorkers) {
+      this.startChild();
     }
 
     for (let [childId, child] of this.children.entries()) {
-      if (this.callQueue.length) {
-        if (child.activeCalls < this.options.maxConcurrentCallsPerWorker) {
-          this.send(childId, this.callQueue.shift());
-        }
-      } else {
+      if (!this.callQueue.length) {
         break;
+      }
+
+      if (child.calls.size < this.options.maxConcurrentCallsPerWorker) {
+        this.send(childId, this.callQueue.shift());
       }
     }
   }
@@ -257,16 +241,15 @@ class WorkerFarm extends EventEmitter {
 
   async initRemoteWorkers(options) {
     this.started = false;
-    this.warmedup = false;
     this.warmWorkers = 0;
 
     // Start workers if there isn't enough workers already
-    if (this.activeChildren < this.options.maxConcurrentWorkers) {
-      let promises = [];
-      for (let i = 0; i < this.options.maxConcurrentWorkers; i++) {
-        promises.push(this.startChild());
-      }
-      await Promise.all(promises);
+    for (
+      let i = this.children.size;
+      i < this.options.maxConcurrentWorkers;
+      i++
+    ) {
+      this.startChild();
     }
 
     // Reliable way of initialising workers
@@ -296,7 +279,8 @@ class WorkerFarm extends EventEmitter {
   shouldUseRemoteWorkers() {
     return (
       !this.options.useLocalWorker ||
-      (this.started && (this.warmedup || !this.options.warmWorkers))
+      (this.started &&
+        (this.warmWorkers >= this.children.size || !this.options.warmWorkers))
     );
   }
 
@@ -309,8 +293,7 @@ class WorkerFarm extends EventEmitter {
         .run(...args, true)
         .then(() => {
           this.warmWorkers++;
-          if (this.warmWorkers >= this.activeChildren) {
-            this.warmedup = true;
+          if (this.warmWorkers >= this.children.size) {
             this.emit('warmedup');
           }
         })

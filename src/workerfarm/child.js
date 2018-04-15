@@ -8,7 +8,6 @@ class Child {
     this.callQueue = [];
     this.responseQueue = new Map();
     this.responseId = 0;
-    this.activeCalls = 0;
     this.maxConcurrentCalls = 10;
   }
 
@@ -77,7 +76,7 @@ class Child {
     }
 
     this.responseQueue.delete(idx);
-    this.activeCalls--;
+
     // Process the next call
     this.processQueue();
   }
@@ -108,7 +107,6 @@ class Child {
     if (call.awaitResponse) {
       idx = this.responseId++;
       this.responseQueue.set(idx, call);
-      this.activeCalls++;
     }
     this.send({
       idx: idx,
@@ -126,7 +124,7 @@ class Child {
       return;
     }
 
-    if (this.activeCalls < this.maxConcurrentCalls) {
+    if (this.responseQueue.size < this.maxConcurrentCalls) {
       this.sendRequest(this.callQueue.shift());
     }
   }
