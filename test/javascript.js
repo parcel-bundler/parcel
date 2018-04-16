@@ -802,4 +802,15 @@ describe('javascript', function() {
 
     assert.equal(failed, false);
   });
+
+  it('should not dedupe imports with same content but different dependency paths', async function() {
+    let b = await bundle(
+      __dirname + '/integration/import_same_content/index.js'
+    );
+
+    let output = run(b);
+    assert.equal(typeof output, 'object');
+    assert.equal(typeof output.default, 'function');
+    assert.equal(output.default(), 3);
+  });
 });
