@@ -5,6 +5,21 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2018-04-15
+
+## Fixed
+
+* Fix scoped plugin packages [Details](https://github.com/parcel-bundler/parcel/commit/9792f48a8f8e9a18ea3d46521f742b36ceffbd04)
+* Fix writing files in subfolders inside dist directory [Details](https://github.com/parcel-bundler/parcel/commit/0e1863bd348c03563f7e6d9a0ba0b1c07fcdbe12)
+* Update addBundleLoader to accept multiple targets [Details](https://github.com/parcel-bundler/parcel/commit/9f3f30a209c3a9e7534088065cfad16dcf4b9fff)
+* Fix sourcemap reference in JS output [Details](https://github.com/parcel-bundler/parcel/commit/28b87cf03425ca4214639bde9fbc334ed04d25b8)
+* Sourcemap sourceRoot [Details](https://github.com/parcel-bundler/parcel/commit/3b1a5853b83d0246b3b467b86619019f3884a08f)
+* Fix serving files with query params [Details](https://github.com/parcel-bundler/parcel/commit/3435c4c10c7234f292ac6809c5fbd680c6a915c8)
+* Give priority to styl files in StylusAsset resolver [Details](https://github.com/parcel-bundler/parcel/commit/89952d70dd98042ce86c39e066f3f4edd5afbaf3)
+* Bump dependencies [Details](https://github.com/parcel-bundler/parcel/commit/41895634469a958a0c98f8178a623f91380264fb)
+* Fix asset size always be zero when building vue project [Detailds](https://github.com/parcel-bundler/parcel/commit/25a054f30670ffd3ef12890fed145a0bf21c0883)
+* Custom workerfarm, BI-Directional IPC - run all npm/yarn installs on the main process [Details](https://github.com/parcel-bundler/parcel/commit/69625e057f350e5f7cbfd6e2f2b162180a289a67)
+
 ## [1.7.0] - 2018-03-28
 
 ### Added

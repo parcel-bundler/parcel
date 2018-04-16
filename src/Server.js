@@ -7,6 +7,7 @@ const generateCertificate = require('./utils/generateCertificate');
 const getCertificate = require('./utils/getCertificate');
 const logger = require('./Logger');
 const path = require('path');
+const url = require('url');
 
 serveStatic.mime.define({
   'application/wasm': ['wasm']
@@ -43,18 +44,19 @@ function middleware(bundler) {
     }
 
     function respond() {
+      let {pathname} = url.parse(req.url);
       if (bundler.errored) {
         return send500();
       } else if (
-        !req.url.startsWith(bundler.options.publicURL) ||
-        path.extname(req.url) === ''
+        !pathname.startsWith(bundler.options.publicURL) ||
+        path.extname(pathname) === ''
       ) {
         // If the URL doesn't start with the public path, or the URL doesn't
         // have a file extension, send the main HTML bundle.
         return sendIndex();
       } else {
         // Otherwise, serve the file from the dist folder
-        req.url = req.url.slice(bundler.options.publicURL.length);
+        req.url = pathname.slice(bundler.options.publicURL.length);
         return serve(req, res, send404);
       }
     }

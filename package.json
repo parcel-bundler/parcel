@@ -1,6 +1,6 @@
 {
   "name": "parcel-bundler",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
   "license": "MIT",
@@ -48,7 +48,7 @@
     "postcss-value-parser": "^3.3.0",
     "posthtml": "^0.11.2",
     "posthtml-parser": "^0.4.0",
-    "posthtml-render": "^1.1.0",
+    "posthtml-render": "^1.1.3",
     "resolve": "^1.4.0",
     "semver": "^5.4.1",
     "serialize-to-js": "^1.1.1",
@@ -59,7 +59,6 @@
     "tomlify-j0.4": "^3.0.0",
     "uglify-es": "^3.2.1",
     "v8-compile-cache": "^1.1.0",
-    "worker-farm": "^1.5.2",
     "ws": "^4.0.0"
   },
   "devDependencies": {
