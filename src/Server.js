@@ -111,13 +111,6 @@ async function serve(bundler, port, useHTTPS = false) {
 
     server.once('listening', () => {
       const _port = server.address().port;
-      const addon =
-        _port !== port
-          ? `${logger.chalk.yellow(
-              `configured port ${port} could not be used.`
-            )}`
-          : '';
-
       const protocol = useHTTPS ? 'https' : 'http';
       const localAddr = `${logger.chalk.cyan(
         `${protocol}://localhost:${_port}`
@@ -129,7 +122,9 @@ async function serve(bundler, port, useHTTPS = false) {
       logger.persistent('Server running at');
       logger.persistent(`Local:             ${localAddr}`);
       logger.persistent(`On Your Network:   ${localIpAddr}`);
-      logger.persistent(addon);
+      if (_port !== port) {
+        logger.persistent(`${logger.chalk.yellow(`configured port ${port} could not be used.`)}`);
+      }
 
       resolve(server);
     });
