@@ -8,6 +8,7 @@ const getCertificate = require('./utils/getCertificate');
 const logger = require('./Logger');
 const path = require('path');
 const url = require('url');
+const ip = require('ip');
 
 serveStatic.mime.define({
   'application/wasm': ['wasm']
@@ -109,18 +110,26 @@ async function serve(bundler, port, useHTTPS = false) {
     });
 
     server.once('listening', () => {
-      let addon =
-        server.address().port !== port
-          ? `- ${logger.chalk.yellow(
+      const _port = server.address().port;
+      const addon =
+        _port !== port
+          ? `${logger.chalk.yellow(
               `configured port ${port} could not be used.`
             )}`
           : '';
 
-      logger.persistent(
-        `Server running at ${logger.chalk.cyan(
-          `${useHTTPS ? 'https' : 'http'}://localhost:${server.address().port}`
-        )} ${addon}`
-      );
+      const protocol = useHTTPS ? 'https' : 'http';
+      const localAddr = `${logger.chalk.cyan(
+        `${protocol}://localhost:${_port}`
+      )}`;
+      const localIpAddr = `${logger.chalk.cyan(
+        `${protocol}://${ip.address()}:${_port}`
+      )}`;
+
+      logger.persistent('Server running at\n');
+      logger.persistent(`Local:             ${localAddr}\n`);
+      logger.persistent(`On Your Network:   ${localIpAddr}\n`);
+      logger.persistent(addon);
 
       resolve(server);
     });
