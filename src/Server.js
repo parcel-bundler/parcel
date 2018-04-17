@@ -126,9 +126,9 @@ async function serve(bundler, port, useHTTPS = false) {
         `${protocol}://${ip.address()}:${_port}`
       )}`;
 
-      logger.persistent('Server running at\n');
-      logger.persistent(`Local:             ${localAddr}\n`);
-      logger.persistent(`On Your Network:   ${localIpAddr}\n`);
+      logger.persistent('Server running at');
+      logger.persistent(`Local:             ${localAddr}`);
+      logger.persistent(`On Your Network:   ${localIpAddr}`);
       logger.persistent(addon);
 
       resolve(server);
