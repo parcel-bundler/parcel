@@ -6,15 +6,6 @@ class RawAsset extends Asset {
   // Don't load raw assets. They will be copied by the RawPackager directly.
   load() {}
 
-  async process() {
-    if (!this.generated) {
-      this.generated = await this.generate();
-      this.hash = await this.generateHash();
-    }
-
-    return this.generated;
-  }
-
   generate() {
     // Don't return a URL to the JS bundle if there is a bundle loader defined for this asset type.
     // This will cause the actual asset to be automatically preloaded prior to the JS bundle running.

@@ -45,7 +45,7 @@ class Asset {
   }
 
   async loadIfNeeded() {
-    if (this.contents === null) {
+    if (this.contents == null) {
       this.contents = await this.load();
     }
   }
@@ -151,16 +151,10 @@ class Asset {
   async process() {
     if (!this.generated) {
       await this.loadIfNeeded();
-      if (this.contents) {
-        await this.pretransform();
-        await this.getDependencies();
-        await this.transform();
-        this.generated = await this.generate();
-      } else {
-        this.generated = {
-          [this.type]: this.contents
-        };
-      }
+      await this.pretransform();
+      await this.getDependencies();
+      await this.transform();
+      this.generated = await this.generate();
       this.hash = await this.generateHash();
     }
 
