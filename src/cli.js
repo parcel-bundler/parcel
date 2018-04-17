@@ -177,8 +177,8 @@ async function bundle(main, command) {
   }
 
   const bundler = new Bundler(main, command);
-
-  if (command.name() === 'serve') {
+  const mainFileExtension = main.split('.').pop();
+  if (command.name() === 'serve' && mainFileExtension === 'html') {
     const server = await bundler.serve(command.port || 1234, command.https);
     if (command.open) {
       await require('./utils/openInBrowser')(
