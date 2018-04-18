@@ -45,8 +45,7 @@ function bundler(file, opts) {
         hmr: false,
         logLevel: 0,
         cacheDir: path.join(__dirname, '/.cache/', timeKey),
-        outDir: path.join(__dirname, '/dist/', timeKey),
-        publicURL: '/dist'
+        outDir: path.join(__dirname, '/dist/', timeKey)
       },
       opts
     )

@@ -21,10 +21,10 @@ describe('sourcemaps', function() {
     });
 
     let raw = fs
-      .readFileSync(path.join(b.entryAsset.options.outDir, '/index.js'))
+      .readFileSync(path.join(b.options.outDir, '/index.js'))
       .toString();
     let map = fs
-      .readFileSync(path.join(b.entryAsset.options.outDir, '/index.map'))
+      .readFileSync(path.join(b.options.outDir, '/index.map'))
       .toString();
     mapValidator(raw, map);
     let mapObject = JSON.parse(map);
@@ -192,12 +192,12 @@ describe('sourcemaps', function() {
       .toString();
 
     let sourcemapReference = path.join(
-      __dirname,
-      '/dist/',
+      b.entryAsset.options.outDir,
+      '/',
       jsOutput.substring(jsOutput.lastIndexOf('//# sourceMappingURL') + 22)
     );
     assert(
-      fs.existsSync(path.join(sourcemapReference)),
+      fs.existsSync(sourcemapReference),
       'referenced sourcemap should exist'
     );
 

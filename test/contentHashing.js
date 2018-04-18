@@ -19,7 +19,7 @@ describe('content hashing', function() {
       'utf8'
     );
     let regex = new RegExp(
-      `<link rel="stylesheet" href="[/\\\\]{1}dist[/\\\\]{1}(${path.basename(
+      `<link rel="stylesheet" href="[/\\\\]{1}(${path.basename(
         inputDir
       )}\\.[a-f0-9]+\\.css)">`
     );
@@ -48,7 +48,7 @@ describe('content hashing', function() {
     });
 
     let js = fs.readFileSync(b.entryAsset.options.outDir + '/index.js', 'utf8');
-    let filename = js.match(/\/dist\/(test\.[0-9a-f]+\.txt)/)[1];
+    let filename = js.match(/\/(test\.[0-9a-f]+\.txt)/)[1];
     assert(fs.existsSync(b.entryAsset.options.outDir + '/' + filename));
 
     fs.writeFileSync(inputDir + '/test.txt', 'hello world');

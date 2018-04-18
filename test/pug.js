@@ -37,8 +37,8 @@ describe('pug', function() {
       ]
     });
 
-    const files = fs.readdirSync(__dirname + '/dist');
-    const html = fs.readFileSync(__dirname + '/dist/index.html');
+    const files = fs.readdirSync(b.entryAsset.options.outDir);
+    const html = fs.readFileSync(b.entryAsset.options.outDir + '/index.html');
     for (const file of files) {
       const ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {
@@ -57,7 +57,10 @@ describe('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
+    const html = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.html',
+      'utf-8'
+    );
     const expect = fs.readFileSync(
       __dirname + '/integration/pug-include-extends/expect.html',
       'utf-8'
@@ -74,7 +77,10 @@ describe('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
+    const html = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.html',
+      'utf-8'
+    );
 
     assert(/src="\/?100x100.*.png"/.test(html));
   });
@@ -87,7 +93,10 @@ describe('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
+    const html = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.html',
+      'utf-8'
+    );
     assert(html.includes('Greetings, Parcel'));
   });
 
@@ -99,7 +108,10 @@ describe('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
+    const html = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.html',
+      'utf-8'
+    );
     assert(html.includes('FILTERED: Hello!'));
   });
 
@@ -113,7 +125,10 @@ describe('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
+    const html = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.html',
+      'utf-8'
+    );
 
     assert(html.includes('Minified'));
   });

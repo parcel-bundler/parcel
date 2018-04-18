@@ -684,9 +684,12 @@ describe('javascript', function() {
   });
 
   it('should support splitting babel-polyfill using browserlist', async function() {
-    await bundle(__dirname + '/integration/babel-polyfill/index.js');
+    let b = await bundle(__dirname + '/integration/babel-polyfill/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(file.includes('async function Bar() {}'));
     assert(!file.includes('regenerator'));
   });
@@ -699,15 +702,15 @@ describe('javascript', function() {
       const devRegExp = /const ?{\s*prop1,\s*prop2,\s*prop3\s*} ?= ?.*/;
       let file;
       // Dev build test
-      await bundle(__dirname + projectBasePath + '/index.js');
-      file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+      let b = await bundle(__dirname + projectBasePath + '/index.js');
+      file = fs.readFileSync(b.entryAsset.options.outDir + '/index.js', 'utf8');
       assert(devRegExp.test(file) === true);
       assert(prodRegExp.test(file) === false);
       // Prod build test
-      await bundle(__dirname + projectBasePath + '/index.js', {
+      b = await bundle(__dirname + projectBasePath + '/index.js', {
         production: true
       });
-      file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+      file = fs.readFileSync(b.entryAsset.options.outDir + '/index.js', 'utf8');
       assert(prodRegExp.test(file) === true);
       assert(devRegExp.test(file) === false);
     }

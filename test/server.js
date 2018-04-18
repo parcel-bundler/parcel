@@ -120,10 +120,7 @@ describe('server', function() {
     server = await b.serve(0);
 
     let data = await get('/dist/index.js');
-    assert.equal(
-      data,
-      fs.readFileSync(b.options.outDir + '/dist/index.js', 'utf8')
-    );
+    assert.equal(data, fs.readFileSync(b.options.outDir + '/index.js', 'utf8'));
   });
 
   it('should serve static assets as well as html', async function() {
@@ -150,6 +147,9 @@ describe('server', function() {
     server = await b.serve(0);
 
     let data = await get('/?foo=bar.baz');
-    assert.equal(data, fs.readFileSync(__dirname + '/dist/index.html', 'utf8'));
+    assert.equal(
+      data,
+      fs.readFileSync(b.options.outDir + '/index.html', 'utf8')
+    );
   });
 });
