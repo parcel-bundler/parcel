@@ -550,4 +550,20 @@ describe('html', function() {
       ]
     });
   });
+
+  it('should resolve assets containing spaces', async function() {
+    let b = await bundle(__dirname + '/integration/resolve-spaces/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'html',
+          assets: ['other page.html'],
+          childBundles: []
+        }
+      ]
+    });
+  });
 });
