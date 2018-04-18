@@ -1,8 +1,13 @@
-const CSSAsset = require('./CSSAsset');
+const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const promisify = require('../utils/promisify');
 
-class LESSAsset extends CSSAsset {
+class LESSAsset extends Asset {
+  constructor(name, pkg, options) {
+    super(name, pkg, options);
+    this.type = 'css';
+  }
+
   async parse(code) {
     // less should be installed locally in the module that's being required
     let less = await localRequire('less', this.name);
@@ -15,15 +20,23 @@ class LESSAsset extends CSSAsset {
     opts.filename = this.name;
     opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
 
-    let res = await render(code, opts);
-    res.render = () => res.css;
-    return res;
+    return await render(code, opts);
   }
 
   collectDependencies() {
     for (let dep of this.ast.imports) {
       this.addDependency(dep, {includedInParent: true});
     }
+  }
+
+  generate() {
+    return [
+      {
+        type: 'css',
+        value: this.ast.css,
+        hasDependencies: false
+      }
+    ];
   }
 }
 

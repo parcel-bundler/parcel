@@ -58,7 +58,7 @@ describe('content hashing', function() {
     });
 
     js = fs.readFileSync(b.entryAsset.options.outDir + '/index.js', 'utf8');
-    let newFilename = js.match(/\/dist\/(test\.[0-9a-f]+\.txt)/)[1];
+    let newFilename = js.match(/\/(test\.[0-9a-f]+\.txt)/)[1];
     assert(fs.existsSync(b.entryAsset.options.outDir + '/' + newFilename));
 
     assert.notEqual(filename, newFilename);

@@ -73,9 +73,11 @@ function LazyPromise(executor) {
 }
 
 LazyPromise.prototype.then = function (onSuccess, onError) {
-  return this.promise || (this.promise = new Promise(this.executor).then(onSuccess, onError));
+  if (this.promise === null) this.promise = new Promise(this.executor)
+  return this.promise.then(onSuccess, onError)
 };
 
 LazyPromise.prototype.catch = function (onError) {
-  return this.promise || (this.promise = new Promise(this.executor).catch(onError));
+  if (this.promise === null) this.promise = new Promise(this.executor)
+  return this.promise.catch(onError)
 };

@@ -1,7 +1,7 @@
 const fs = require('./utils/fs');
 const Resolver = require('./Resolver');
 const Parser = require('./Parser');
-const WorkerFarm = require('./WorkerFarm');
+const WorkerFarm = require('./workerfarm/WorkerFarm');
 const Path = require('path');
 const Bundle = require('./Bundle');
 const {FSWatcher} = require('chokidar');
@@ -37,15 +37,18 @@ class Bundler extends EventEmitter {
     this.delegate = options.delegate || {};
     this.bundleLoaders = {};
 
-    this.addBundleLoader(
-      'wasm',
-      require.resolve('./builtins/loaders/wasm-loader')
-    );
-    this.addBundleLoader(
-      'css',
-      require.resolve('./builtins/loaders/css-loader')
-    );
-    this.addBundleLoader('js', require.resolve('./builtins/loaders/js-loader'));
+    this.addBundleLoader('wasm', {
+      browser: require.resolve('./builtins/loaders/browser/wasm-loader'),
+      node: require.resolve('./builtins/loaders/node/wasm-loader')
+    });
+    this.addBundleLoader('css', {
+      browser: require.resolve('./builtins/loaders/browser/css-loader'),
+      node: require.resolve('./builtins/loaders/node/css-loader')
+    });
+    this.addBundleLoader('js', {
+      browser: require.resolve('./builtins/loaders/browser/js-loader'),
+      node: require.resolve('./builtins/loaders/node/js-loader')
+    });
 
     this.pending = false;
     this.loadedAssets = new Map();
@@ -64,14 +67,12 @@ class Bundler extends EventEmitter {
   normalizeOptions(options) {
     const isProduction =
       options.production || process.env.NODE_ENV === 'production';
-    const publicURL =
-      options.publicUrl ||
-      options.publicURL ||
-      '/' + Path.basename(options.outDir || 'dist');
+    const publicURL = options.publicUrl || options.publicURL || '/';
     const watch =
       typeof options.watch === 'boolean' ? options.watch : !isProduction;
     const target = options.target || 'browser';
     return {
+      production: isProduction,
       outDir: Path.resolve(options.outDir || 'dist'),
       outFile: options.outFile || '',
       publicURL: publicURL,
@@ -88,7 +89,7 @@ class Bundler extends EventEmitter {
           ? false
           : typeof options.hmr === 'boolean' ? options.hmr : watch,
       https: options.https || false,
-      logLevel: typeof options.logLevel === 'number' ? options.logLevel : 3,
+      logLevel: isNaN(options.logLevel) ? 3 : options.logLevel,
       mainFile: this.mainFile,
       hmrPort: options.hmrPort || 0,
       rootDir: Path.dirname(this.mainFile),
@@ -126,16 +127,28 @@ class Bundler extends EventEmitter {
     this.packagers.add(type, packager);
   }
 
-  addBundleLoader(type, path) {
-    if (typeof path !== 'string') {
-      throw new Error('Bundle loader should be a module path.');
+  addBundleLoader(type, paths) {
+    if (typeof paths === 'string') {
+      paths = {node: paths, browser: paths};
+    } else if (typeof paths !== 'object') {
+      throw new Error('Bundle loaders should be an object.');
+    }
+
+    for (const target in paths) {
+      if (target !== 'node' && target !== 'browser') {
+        throw new Error(`Unknown bundle loader target "${target}".`);
+      }
+
+      if (typeof paths[target] !== 'string') {
+        throw new Error('Bundle loader should be a string.');
+      }
     }
 
     if (this.farm) {
       throw new Error('Bundle loaders must be added before bundling.');
     }
 
-    this.bundleLoaders[type] = path;
+    this.bundleLoaders[type] = paths;
   }
 
   async loadPlugins() {
@@ -147,7 +160,8 @@ class Bundler extends EventEmitter {
     try {
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
       for (let dep in deps) {
-        if (dep.startsWith('parcel-plugin-')) {
+        const pattern = /^(@.*\/)?parcel-plugin-.+/;
+        if (pattern.test(dep)) {
           let plugin = await localRequire(dep, this.mainFile);
           await plugin(this);
         }
@@ -190,22 +204,33 @@ class Bundler extends EventEmitter {
       // Build the queued assets.
       let loadedAssets = await this.buildQueue.run();
 
-      // Emit an HMR update for any new assets (that don't have a parent bundle yet)
-      // plus the asset that actually changed.
-      if (this.hmr && !isInitialBundle) {
-        this.hmr.emitUpdate([...this.findOrphanAssets(), ...loadedAssets]);
-      }
+      // The changed assets are any that don't have a parent bundle yet
+      // plus the ones that were in the build queue.
+      let changedAssets = [...this.findOrphanAssets(), ...loadedAssets];
 
       // Invalidate bundles
       for (let asset of this.loadedAssets.values()) {
         asset.invalidateBundle();
       }
 
-      // Create a new bundle tree and package everything up.
+      // Create a new bundle tree
       this.mainBundle = this.createBundleTree(this.mainAsset);
+
+      // Generate the final bundle names, and replace references in the built assets.
       this.bundleNameMap = this.mainBundle.getBundleNameMap(
         this.options.contentHash
       );
+
+      for (let asset of changedAssets) {
+        asset.replaceBundleNames(this.bundleNameMap);
+      }
+
+      // Emit an HMR update if this is not the initial bundle.
+      if (this.hmr && !isInitialBundle) {
+        this.hmr.emitUpdate(changedAssets);
+      }
+
+      // Package everything up
       this.bundleHashes = await this.mainBundle.package(
         this,
         this.bundleHashes

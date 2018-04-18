@@ -70,7 +70,7 @@ describe('typescript', function() {
 
     let output = run(b);
     assert.equal(typeof output.getRaw, 'function');
-    assert(/^\/dist\/test\.[0-9a-f]+\.txt$/.test(output.getRaw()));
+    assert(/^\/test\.[0-9a-f]+\.txt$/.test(output.getRaw()));
     assert(
       fs.existsSync(
         b.entryAsset.options.outDir + '/' + Path.basename(output.getRaw())

@@ -107,8 +107,7 @@ describe('FSCache', function() {
       ]
     });
 
-    // update dependency
-    // OS X rounds stats.mtime to seconds, delay 1sec
+    // delay and update dependency
     await sleep(1000);
     await fs.writeFile(filePath, 'world');
 

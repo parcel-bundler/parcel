@@ -5,6 +5,66 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2018-04-15
+
+## Fixed
+
+* Fix scoped plugin packages [Details](https://github.com/parcel-bundler/parcel/commit/9792f48a8f8e9a18ea3d46521f742b36ceffbd04)
+* Fix writing files in subfolders inside dist directory [Details](https://github.com/parcel-bundler/parcel/commit/0e1863bd348c03563f7e6d9a0ba0b1c07fcdbe12)
+* Update addBundleLoader to accept multiple targets [Details](https://github.com/parcel-bundler/parcel/commit/9f3f30a209c3a9e7534088065cfad16dcf4b9fff)
+* Fix sourcemap reference in JS output [Details](https://github.com/parcel-bundler/parcel/commit/28b87cf03425ca4214639bde9fbc334ed04d25b8)
+* Sourcemap sourceRoot [Details](https://github.com/parcel-bundler/parcel/commit/3b1a5853b83d0246b3b467b86619019f3884a08f)
+* Fix serving files with query params [Details](https://github.com/parcel-bundler/parcel/commit/3435c4c10c7234f292ac6809c5fbd680c6a915c8)
+* Give priority to styl files in StylusAsset resolver [Details](https://github.com/parcel-bundler/parcel/commit/89952d70dd98042ce86c39e066f3f4edd5afbaf3)
+* Bump dependencies [Details](https://github.com/parcel-bundler/parcel/commit/41895634469a958a0c98f8178a623f91380264fb)
+* Fix asset size always be zero when building vue project [Detailds](https://github.com/parcel-bundler/parcel/commit/25a054f30670ffd3ef12890fed145a0bf21c0883)
+* Custom workerfarm, BI-Directional IPC - run all npm/yarn installs on the main process [Details](https://github.com/parcel-bundler/parcel/commit/69625e057f350e5f7cbfd6e2f2b162180a289a67)
+
+## [1.7.0] - 2018-03-28
+
+### Added
+
+* Add `.vue` file support [Details](https://github.com/parcel-bundler/parcel/commit/ba93b875f9503646b175890501d199b022ba54b9)
+* New faster resolver supporting absolute and tilde paths, and aliases [Details](https://github.com/parcel-bundler/parcel/commit/32c38e599161372cd47924f0f4cf2aae32eb5b83)
+* Content hash output file names in production [Details](https://github.com/parcel-bundler/parcel/commit/76fa1edb69af12853743f04488b2b925c058c328)
+* Automatically install missing dependencies that you `require` in your code [Details](https://github.com/parcel-bundler/parcel/commit/fc654d76dc5b5691219ba441985bcf71178c1cf3)
+* Production sourcemaps support via uglify [Details](https://github.com/parcel-bundler/parcel/commit/d9f3c259c08770ee370ed2b50909c333f9557bdf)
+* Add Pug and Jade support [Details](https://github.com/parcel-bundler/parcel/commit/09a959d31bcaa9329f591bace573e2956ce27c7c)
+* Add GLSL assets support [Details](https://github.com/parcel-bundler/parcel/commit/01e7c448f5f3a4ccdb832448ab549fdc2acebc92)
+* Add overlay for build errors when using HMR [Details](https://github.com/parcel-bundler/parcel/commit/32c796dde989f7a76a8a6c332edf8c77940bd189)
+* Implement pipelines to compose multiple asset types together [Details](https://github.com/parcel-bundler/parcel/commit/8a95f70ff04da6cc32c92278155b112cb37105f0)
+* Add --hmr-port and --hmr-hostname options to parcel watch [Details](https://github.com/parcel-bundler/parcel/commit/cafb6ef8f96f0159f22de9e3eb89773709ec9e50)
+* Add support for specifying SSL certificate & key [Details](https://github.com/parcel-bundler/parcel/commit/e7f9c64016b3f5dc53230bddf36d0d04b0389590)
+* Allow specifying which browser to open with `--open` option [Details](https://github.com/parcel-bundler/parcel/commit/9858937e187b2c1d7ce27fcdfb944b168063aab4)
+* Add `data` config option so it is possible to include global scss variables [Details](https://github.com/parcel-bundler/parcel/commit/86045d3b81062ddd0e66075182f237d6f7ba883e)
+* Add `--log-level` option [Details](https://github.com/parcel-bundler/parcel/commit/fc041d03c36bf41ea73c398e8d177de1a456e796)
+* Add support for data attr of object element [Details](https://github.com/parcel-bundler/parcel/commit/6e8ae0d97c8bb1114b3b53cf6ce0a082b066e51d)
+* Add useBuiltIns babel-preset-env option [Details](https://github.com/parcel-bundler/parcel/commit/e26d443c3f9327bae3e89a08517789ce00bcf1f0)
+* Support code splitting and loading WASM with --target=node [Details](https://github.com/parcel-bundler/parcel/commit/9d6061c2ede15af601764ec102389ba8f3f5f790)
+
+### Fixed
+
+* Fix hmr runtime error [Details](https://github.com/parcel-bundler/parcel/commit/842b9d8ddc449ca5e9b0b2b324229dd6c85b5c27)
+* Add server reference to bundler [Details](https://github.com/parcel-bundler/parcel/commit/a24247155e1a21f431d39c9c1c66a782d4353e5f)
+* Fix error when no "targets" options in .babelrc [Details](https://github.com/parcel-bundler/parcel/commit/69f7c6d2211ddc30dfbdfb4a8567da4542f094f1)
+* Refactor prettifySize [Details](https://github.com/parcel-bundler/parcel/commit/f897bf72819ea0a3bfe6522fc5aa73f47b84f6c2)
+* Fix property descriptor of config.internal in transforms/babel.js [Details](https://github.com/parcel-bundler/parcel/commit/eaf51d01462b353aeaf78ebe80d797477ae1938d)
+* only transform safe cssnano minifiers [Details](https://github.com/parcel-bundler/parcel/commit/55814c0da0be226924d6f3077d0c2d5f62cc8335)
+* fix electon hmr bug [Details](https://github.com/parcel-bundler/parcel/commit/88630f2a7aebf141ae060f9dc6edaa1dc2089f37)
+* Fix HMR hostname in browser [Details](https://github.com/parcel-bundler/parcel/commit/0dc062f77e36a19297dac542be33cded04580e89)
+* Fix srcset not working for `source` element [Details](https://github.com/parcel-bundler/parcel/commit/c469751e145a426fee2f1de27ccb2a747c7f5d1e)
+* Update htmlnano [Details](https://github.com/parcel-bundler/parcel/commit/a7b72f25e275a596e98716cdc15d78fdb23f9992)
+* Fix svg dependencies not being found when using minification [Details](https://github.com/parcel-bundler/parcel/commit/e3c90c40f2d7d951b1d6e59f8455d0071a539163)
+* Set TypeScript option esModuleInterop to true by default [Details](https://github.com/parcel-bundler/parcel/commit/800268435a8465660f8569f7ba30a94c2b1f75a1)
+* HTML bundle serving bug [Details](https://github.com/parcel-bundler/parcel/commit/43cab32ece825e9d38b3abe55fa0fde06052864d)
+* Change default public-url to / [Details](https://github.com/parcel-bundler/parcel/commit/3d704c69835f2e7e663dd982851d6a11587f5596)
+* Make --help same as help command [Details](https://github.com/parcel-bundler/parcel/commit/59c8d8d57c0a5b7432a37ac5b011f43455e7e228)
+* Make -h same as help command [Details](https://github.com/parcel-bundler/parcel/commit/96f1e4abcefe0c5bc127d15a2d8041972f679568)
+* Close hmr server when HMRServer.stop() is called [Details](https://github.com/parcel-bundler/parcel/commit/4bd32f2f52dc7fec7af15d4b45a7582926bd27a6)
+* Fix methods of LazyPromise [Details](https://github.com/parcel-bundler/parcel/commit/74438d43ed88954c3be9da290df648ff6df1463c)
+* Ignore require if it is defined as a local variable [Details](https://github.com/parcel-bundler/parcel/commit/12b649b914901ea0c92700288e57b68da55aafd4)
+* Check browserslist prop in package.json for environments [Details](https://github.com/parcel-bundler/parcel/commit/39e4f7a254ae639c67410e6c4daa7de8e557bd33)
+
 ## [1.6.2] - 2018-02-19
 
 ### Added

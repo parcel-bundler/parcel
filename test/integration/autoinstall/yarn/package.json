@@ -1,3 +1,4 @@
 {
-  "name": "parcel-test-autoinstall-yarn"
+  "name": "parcel-test-autoinstall-yarn",
+  "private": true
 }

@@ -278,10 +278,8 @@ class SourceMap {
     }
   }
 
-  stringify(file) {
-    let generator = new SourceMapGenerator({
-      file: file
-    });
+  stringify(file, sourceRoot) {
+    let generator = new SourceMapGenerator({file, sourceRoot});
 
     this.eachMapping(mapping => generator.addMapping(mapping));
     Object.keys(this.sources).forEach(sourceName =>
