@@ -12,6 +12,10 @@ const resolver = new Resolver({
 });
 
 describe('resolver', function() {
+  before(async () => {
+    resolver.options.rootPackage = await resolver.findPackage(rootDir);
+  });
+
   describe('file paths', function() {
     it('should resolve a relative path with an extension', async function() {
       let resolved = await resolver.resolve(

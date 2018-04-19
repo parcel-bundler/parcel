@@ -7,6 +7,7 @@ const Asset = require('../Asset');
 const babylon = require('babylon');
 const insertGlobals = require('../visitors/globals');
 const fsVisitor = require('../visitors/fs');
+const externalsVisitor = require('../visitors/externals');
 const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
@@ -106,6 +107,10 @@ class JSAsset extends Asset {
         await this.parseIfNeeded();
         walk.ancestor(this.ast, insertGlobals, this);
       }
+    }
+
+    if (this.options.rootPackage && this.options.rootPackage.externals) {
+      walk.ancestor(this.ast, externalsVisitor, this);
     }
 
     if (this.isES6Module) {

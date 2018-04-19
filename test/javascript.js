@@ -802,4 +802,42 @@ describe('javascript', function() {
 
     assert.equal(failed, false);
   });
+
+  it('should ignore false externals', async function() {
+    let b = await bundle(
+      __dirname + '/integration/javascript-externals-ignore/index.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('var React = React'));
+  });
+
+  it('should resolve externals', async function() {
+    let b = await bundle(
+      __dirname + '/integration/javascript-externals-variable/index.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('var React = externalReact'));
+  });
 });
