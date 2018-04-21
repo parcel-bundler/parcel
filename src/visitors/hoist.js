@@ -13,7 +13,7 @@ const WRAPPER_TEMPLATE = template(`
 
 const EXPORT_ASSIGN_TEMPLATE = template('EXPORTS.NAME = LOCAL');
 const EXPORT_ALL_TEMPLATE = template(
-  'var NAME = $parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE));'
+  '$parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE))'
 );
 const REQUIRE_CALL_TEMPLATE = template('$parcel$require(ID, SOURCE)');
 const TYPEOF = {
@@ -105,17 +105,19 @@ module.exports = {
           }
         }
 
-        // Add variable that represents module.exports if it is referenced.
-        if (scope.hasGlobal(getExportsIdentifier(asset).name)) {
+        let exportsIdentifier = getExportsIdentifier(asset);
+
+        // Add variable that represents module.exports if it is referenced and not declared.
+        if (
+          scope.hasGlobal(exportsIdentifier.name) &&
+          !scope.hasBinding(exportsIdentifier.name)
+        ) {
           path.unshiftContainer('body', [
             t.variableDeclaration('var', [
-              t.variableDeclarator(
-                getExportsIdentifier(asset),
-                t.objectExpression([])
-              )
+              t.variableDeclarator(exportsIdentifier, t.objectExpression([]))
             ])
           ]);
-        } else if (Object.keys(asset.cacheData.exports).length > 0) {
+        } /* else if (Object.keys(asset.cacheData.exports).length > 0) {
           path.pushContainer('body', [
             t.variableDeclaration('var', [
               t.variableDeclarator(
@@ -131,7 +133,7 @@ module.exports = {
               )
             ])
           ]);
-        }
+        }*/
       }
 
       path.stop();
@@ -269,10 +271,10 @@ module.exports = {
           )
         );
       } else if (t.isImportNamespaceSpecifier(specifier)) {
-        path.scope.rename(
-          specifier.local.name,
-          getName(asset, 'require', path.node.source.value)
-        );
+        path.scope.push({
+          id: specifier.local,
+          init: t.identifier(getName(asset, 'require', path.node.source.value))
+        });
       }
     }
 
@@ -336,6 +338,14 @@ module.exports = {
             specifier.local.name
           );
           exported = specifier.exported;
+
+          path.insertAfter(
+            EXPORT_ASSIGN_TEMPLATE({
+              EXPORTS: getExportsIdentifier(asset),
+              NAME: exported,
+              LOCAL: local
+            })
+          );
         }
 
         // Create a variable to re-export from the imported module.
@@ -393,7 +403,7 @@ module.exports = {
     let oldName = t.objectExpression([]);
 
     // If the export is already defined rename it so we can reassign it.
-    // We need to do this because Uglify does not remove pure functions calls if they use a reassigned variable :
+    // We need to do this because Uglify does not remove pure calls if they use a reassigned variable :
     // var b = {}; b = pureCall(b) // not removed
     // var b$0 = {}; var b = pureCall(b$0) // removed
     if (path.scope.hasBinding(exportsName.name)) {
@@ -402,21 +412,22 @@ module.exports = {
       path.scope.rename(exportsName.name, oldName.name);
     }
 
-    path.replaceWith(
-      EXPORT_ALL_TEMPLATE({
-        NAME: exportsName,
+    path.scope.push({
+      id: exportsName,
+      init: EXPORT_ALL_TEMPLATE({
         OLD_NAME: oldName,
         SOURCE: t.stringLiteral(path.node.source.value),
         ID: t.numericLiteral(asset.id)
-      })
-    );
+      }).expression
+    });
+    path.remove();
   }
 };
 
 function addExport(asset, path, local, exported) {
   // Check if this identifier has already been exported.
   // If so, create an export alias for it, otherwise, rename the local variable to an export.
-  if (asset.cacheData.exports[local.name]) {
+  if (asset.cacheData.exports[exported.name]) {
     asset.cacheData.exports[getName(asset, 'export', exported.name)] =
       asset.cacheData.exports[local.name];
   } else {
@@ -425,8 +436,8 @@ function addExport(asset, path, local, exported) {
 
     let assignNode = EXPORT_ASSIGN_TEMPLATE({
       EXPORTS: getExportsIdentifier(asset),
-      NAME: t.identifier(local.name),
-      LOCAL: getIdentifier(asset, 'export', exported.name)
+      NAME: t.identifier(exported.name),
+      LOCAL: getIdentifier(asset, 'export', local.name)
     });
 
     // Get all the node paths mutating the export and insert a CommonJS assignement.
@@ -434,7 +445,7 @@ function addExport(asset, path, local, exported) {
       .getBinding(local.name)
       .constantViolations.concat(path)
       .forEach(path => path.insertAfter(assignNode));
-    path.scope.rename(local.name, getName(asset, 'export', exported.name));
+    path.scope.rename(local.name, getName(asset, 'export', local.name));
   }
 }
 

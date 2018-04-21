@@ -1,2 +1,4 @@
-export * as c from './c';
+import * as c from './c';
+
+export {c};
 export var baz = 1;

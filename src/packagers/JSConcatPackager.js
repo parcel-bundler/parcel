@@ -215,7 +215,8 @@ class JSConcatPackager extends Packager {
 
     let loader = this.options.bundleLoaders[bundleType];
     if (loader) {
-      let asset = await this.bundler.getAsset(loader);
+      let target = this.options.target === 'node' ? 'node' : 'browser';
+      let asset = await this.bundler.getAsset(loader[target]);
       if (!this.bundle.assets.has(asset)) {
         await this.addAssetToBundle(asset);
         await this.write(
