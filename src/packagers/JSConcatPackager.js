@@ -56,7 +56,7 @@ class JSConcatPackager extends Packager {
 (function () {
   function $parcel$exportWildcard(dest, source) {
     Object.keys(source).forEach(function(key) {
-      if(key === 'default' || key === "__esModule") return;
+      if(key === "default" || key === "__esModule") return;
       Object.defineProperty(dest, key, {
         enumerable: true,
         get: function get() {
