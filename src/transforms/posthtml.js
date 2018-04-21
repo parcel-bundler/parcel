@@ -29,5 +29,12 @@ async function getConfig(asset) {
   config = config || {};
   config.plugins = await loadPlugins(config.plugins, asset.name);
   config.skipParse = true;
+
+  // for posthtml-include dependencies
+  config.addDependencyTo = {
+    addDependency : function (src) {
+      asset.addDependency(src, {includedInParent : true });
+    }
+  }
   return config;
 }
