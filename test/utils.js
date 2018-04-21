@@ -12,11 +12,13 @@ beforeEach(async function() {
   // Windows needs a delay for the file handles to be released before deleting
   // is possible. Without a delay, rimraf fails on `beforeEach` for `/dist`
   if (process.platform === 'win32') {
-    await sleep(50);
+    await sleep(100);
   }
   // Unix based systems also need a delay but only half as much as windows
   await sleep(50);
-  rimraf.sync(path.join(__dirname, 'dist'));
+  await new Promise((resolve, reject) =>
+    rimraf(path.join(__dirname, 'dist'), err => (err ? reject(err) : resolve()))
+  );
 });
 
 function sleep(ms) {
