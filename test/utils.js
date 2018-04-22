@@ -12,19 +12,7 @@ beforeEach(async function() {
   // Windows needs a delay for the file handles to be released before deleting
   // is possible. Without a delay, rimraf fails on `beforeEach` for `/dist`
   if (process.platform === 'win32') {
-    let count = 0;
-    let retry = 10;
-
-    await sleep(100);
-
-    while (count++ < retry) {
-      try {
-        rimraf.sync(path.join(__dirname, 'dist'));
-        break;
-      } catch (_) {
-        continue;
-      }
-    }
+    await sleep(50);
   }
   // Unix based systems also need a delay but only half as much as windows
   await sleep(50);
@@ -166,11 +154,7 @@ function run(bundle, globals, opts = {}) {
   vm.runInContext(fs.readFileSync(bundle.name), ctx);
 
   if (opts.require !== false) {
-    if (ctx.parcelRequire) {
-      return ctx.parcelRequire(bundle.entryAsset.id);
-    } else {
-      return ctx.output;
-    }
+    return ctx.parcelRequire(bundle.entryAsset.id);
   }
 
   return ctx;
