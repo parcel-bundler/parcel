@@ -209,11 +209,7 @@ module.exports = {
   CallExpression(path, asset) {
     let {callee, arguments: args} = path.node;
 
-    if (
-      t.isIdentifier(callee, {name: '$parcel$exportWildcard'}) ||
-      (asset.package.sideEffects === false &&
-        t.isProgram(path.getStatementParent().parent)) // is it in a top-level statement?
-    ) {
+    if (t.isIdentifier(callee, {name: '$parcel$exportWildcard'})) {
       // This hints Uglify and Babel that this CallExpression does not have any side-effects.
       // This will make unsused CommonJS wildcards removed from the minified builds.
       path.addComment('leading', '#__PURE__');
