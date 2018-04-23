@@ -189,4 +189,30 @@ describe('WorkerFarm', () => {
 
     await workerfarm.end();
   });
+
+  it('Should be possible to inject a function into a running workerfarms workers', async () => {
+    let workerfarm = new WorkerFarm(
+      {},
+      {
+        warmWorkers: false,
+        useLocalWorker: false,
+        workerPath: require.resolve('./integration/workerfarm/ping.js')
+      }
+    );
+
+    await new Promise(resolve => workerfarm.once('started', resolve));
+
+    assert.equal(await workerfarm.run(), 'pong');
+
+    workerfarm.registerWorkerFunctions(
+      require.resolve('./integration/workerfarm/echo.js'),
+      ['echo']
+    );
+
+    for (let i = 0; i < 25; i++) {
+      assert.equal(await workerfarm.echo('ping'), 'ping');
+    }
+
+    await workerfarm.end();
+  });
 });

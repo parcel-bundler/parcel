@@ -27,7 +27,7 @@ class Worker extends EventEmitter {
     this.fork(forkModule);
   }
 
-  fork(forkModule) {
+  fork() {
     let filteredArgs = process.execArgv.filter(
       v => !/^--(debug|inspect)/.test(v)
     );
@@ -39,11 +39,6 @@ class Worker extends EventEmitter {
     };
 
     this.child = childProcess.fork(childModule, process.argv, options);
-    this.send({
-      type: 'module',
-      module: forkModule,
-      child: this.id
-    });
 
     this.child.on('message', this.receive.bind(this));
 

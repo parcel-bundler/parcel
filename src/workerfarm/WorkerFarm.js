@@ -13,8 +13,7 @@ class WorkerFarm extends EventEmitter {
         maxConcurrentCallsPerWorker: 10,
         forcedKillTime: 100,
         warmWorkers: true,
-        useLocalWorker: true,
-        workerPath: '../worker'
+        useLocalWorker: true
       },
       farmOptions
     );
@@ -24,8 +23,14 @@ class WorkerFarm extends EventEmitter {
     this.children = new Map();
     this.callQueue = [];
 
-    this.localWorker = require(this.options.workerPath);
-    this.run = this.mkhandle('run');
+    this.workerFunctions = {};
+
+    this.localWorker = require('./childBootstrap');
+
+    this.registerWorkerFunctions(this.options.workerPath || '../worker', [
+      'run',
+      'init'
+    ]);
 
     this.init(options);
   }
@@ -78,6 +83,32 @@ class WorkerFarm extends EventEmitter {
     }.bind(this);
   }
 
+  registerWorkerFunctions(workerPath, functions) {
+    if (!Array.isArray(functions)) return;
+    this.workerFunctions[workerPath] = this.workerFunctions[workerPath]
+      ? this.workerFunctions[workerPath].concat(functions)
+      : functions;
+
+    functions.forEach(f => {
+      if (!this[f]) {
+        this[f] = this.mkhandle(f);
+      }
+    });
+
+    this.localWorker.addFunctions({
+      [workerPath]: functions
+    });
+
+    for (let child of this.children.values()) {
+      child.send({
+        type: 'workerFunctions',
+        functions: {
+          [workerPath]: functions
+        }
+      });
+    }
+  }
+
   onError(error, childId) {
     // Handle ipc errors
     if (error.code === 'ERR_IPC_CHANNEL_CLOSED') {
@@ -105,7 +136,13 @@ class WorkerFarm extends EventEmitter {
   }
 
   startChild() {
-    let worker = new Worker(this.options.workerPath, this.options);
+    let worker = new Worker('./childBootstrap', this.options);
+
+    worker.send({
+      type: 'workerFunctions',
+      functions: this.workerFunctions,
+      child: worker.id
+    });
 
     worker.on('request', data => {
       this.processRequest(data, worker);
@@ -208,6 +245,7 @@ class WorkerFarm extends EventEmitter {
   }
 
   init(options) {
+    this.localWorker.addFunctions(this.workerFunctions);
     this.localWorker.init(options, true);
     this.initRemoteWorkers(options);
   }

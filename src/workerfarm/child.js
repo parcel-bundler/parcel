@@ -1,14 +1,16 @@
 const errorUtils = require('./errorUtils');
+const childBootstrap = require('./childBootstrap');
 
 class Child {
   constructor() {
-    this.module = undefined;
     this.childId = undefined;
 
     this.callQueue = [];
     this.responseQueue = new Map();
     this.responseId = 0;
     this.maxConcurrentCalls = 10;
+
+    childBootstrap.setChildReference(this);
   }
 
   messageListener(data) {
@@ -16,11 +18,10 @@ class Child {
       return this.end();
     }
 
-    if (data.type === 'module' && data.module && !this.module) {
-      this.module = require(data.module);
-      this.childId = data.child;
-      if (this.module.setChildReference) {
-        this.module.setChildReference(this);
+    if (data.type === 'workerFunctions' && data.functions) {
+      childBootstrap.addFunctions(data.functions);
+      if (data.child !== undefined) {
+        this.childId = data.child;
       }
       return;
     }
@@ -54,7 +55,7 @@ class Child {
     let result = {idx, child, type: 'response'};
     try {
       result.contentType = 'data';
-      result.content = await this.module[method](...args);
+      result.content = await childBootstrap[method](...args);
     } catch (e) {
       result.contentType = 'error';
       result.content = errorUtils.errorToJson(e);
