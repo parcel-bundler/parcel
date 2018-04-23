@@ -33,7 +33,7 @@ class WorkerFarm extends EventEmitter {
   callPromiseFactory(resolve, reject, method, args) {
     return this.addCall({
       method,
-      args: [...args, false],
+      args: args,
       retries: 0,
       resolve,
       reject
@@ -66,14 +66,14 @@ class WorkerFarm extends EventEmitter {
       // This significantly speeds up startup time.
       if (this.shouldUseRemoteWorkers()) {
         return new Promise((resolve, reject) => {
-          this.callPromiseFactory(resolve, reject, method, args);
+          this.callPromiseFactory(resolve, reject, method, [...args, false]);
         });
       } else {
         if (this.options.warmWorkers) {
           this.warmupWorker(method, args);
         }
 
-        return this.localWorker.run(...args, false);
+        return this.localWorker[method](...args, false);
       }
     }.bind(this);
   }
