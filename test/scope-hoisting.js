@@ -135,13 +135,18 @@ describe.only('scope hoisting', function() {
     });
 
     it('excludes default when re-exporting a module', async function() {
-      let b = await bundle(
-        __dirname +
-          '/integration/scope-hoisting/es6/re-export-exclude-default/a.js'
-      );
+      let threw = false;
+      try {
+        await bundle(
+          __dirname +
+            '/integration/scope-hoisting/es6/re-export-exclude-default/a.js'
+        );
+      } catch (err) {
+        threw = true;
+        assert.equal(err.message, "b.js does not export 'default'");
+      }
 
-      let output = run(b);
-      assert.deepEqual(output, {b: undefined, foo: 3});
+      assert(threw);
     });
 
     it('supports multiple exports of the same variable', async function() {

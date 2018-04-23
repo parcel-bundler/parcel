@@ -139,6 +139,11 @@ module.exports = (code, exports, moduleMap, wildcards) => {
           path.replaceWith(node);
         }
       }
+    },
+    ReferencedIdentifier(path) {
+      if (exports.has(path.node.name)) {
+        path.replaceWith(t.identifier(exports.get(path.node.name)));
+      }
     }
   });
 

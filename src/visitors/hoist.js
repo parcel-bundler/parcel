@@ -148,6 +148,7 @@ module.exports = {
 
     if (matchesPattern(path.node, 'module.exports')) {
       path.replaceWith(getExportsIdentifier(asset));
+      asset.cacheData.isCommonJS = true;
     }
 
     if (matchesPattern(path.node, 'module.id')) {
@@ -172,12 +173,14 @@ module.exports = {
       !path.scope.getData('shouldWrap')
     ) {
       path.replaceWith(getExportsIdentifier(asset));
+      asset.cacheData.isCommonJS = true;
     }
   },
 
   ThisExpression(path, asset) {
     if (!path.scope.parent && !path.scope.getData('shouldWrap')) {
       path.replaceWith(getExportsIdentifier(asset));
+      asset.cacheData.isCommonJS = true;
     }
   },
 
@@ -190,6 +193,7 @@ module.exports = {
       !path.scope.getData('shouldWrap')
     ) {
       path.get('left').replaceWith(getExportsIdentifier(asset));
+      asset.cacheData.isCommonJS = true;
     }
   },
 
@@ -252,24 +256,26 @@ module.exports = {
   },
 
   ImportDeclaration(path, asset) {
+    let dep = asset.dependencies.get(path.node.source.value);
+    let ids = dep.ids || (dep.ids = {});
+
     // For each specifier, rename the local variables to point to the imported name.
     // This will be replaced by the final variable name of the resolved asset in the packager.
     for (let specifier of path.node.specifiers) {
       if (t.isImportDefaultSpecifier(specifier)) {
-        path.scope.rename(
-          specifier.local.name,
-          getName(asset, 'import', path.node.source.value, 'default')
-        );
+        let name = getName(asset, 'import', path.node.source.value, 'default');
+        ids['default'] = name;
+        path.scope.rename(specifier.local.name, name);
       } else if (t.isImportSpecifier(specifier)) {
-        path.scope.rename(
-          specifier.local.name,
-          getName(
-            asset,
-            'import',
-            path.node.source.value,
-            specifier.imported.name
-          )
+        let name = getName(
+          asset,
+          'import',
+          path.node.source.value,
+          specifier.imported.name
         );
+
+        ids[specifier.imported.name] = name;
+        path.scope.rename(specifier.local.name, name);
       } else if (t.isImportNamespaceSpecifier(specifier)) {
         path.scope.push({
           id: specifier.local,
@@ -321,12 +327,16 @@ module.exports = {
     let {declaration, source, specifiers} = path.node;
 
     if (source) {
+      let dep = asset.dependencies.get(path.node.source.value);
+      let ids = dep.ids || (dep.ids = {});
+
       for (let specifier of specifiers) {
         let local, exported;
 
         if (t.isExportDefaultSpecifier(specifier)) {
           local = getIdentifier(asset, 'import', source.value, 'default');
           exported = specifier.exported;
+          ids['default'] = local.name;
         } else if (t.isExportNamespaceSpecifier(specifier)) {
           local = getIdentifier(asset, 'require', source.value);
           exported = specifier.exported;
@@ -346,6 +356,8 @@ module.exports = {
               LOCAL: local
             })
           );
+
+          ids[specifier.local.name] = local.name;
         }
 
         // Create a variable to re-export from the imported module.

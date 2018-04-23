@@ -119,24 +119,25 @@ class JSConcatPackager extends Packager {
         }
       }
 
-      if (dep.isES6Import) {
-        if (mod.cacheData.isES6Module) {
-          js = js
-            .split('$' + asset.id + '$import$' + t.toIdentifier(dep.name))
-            .join('$' + mod.id + '$export');
-        } else {
-          js = js
-            .split(
-              '$' +
-                asset.id +
-                '$import$' +
-                t.toIdentifier(dep.name) +
-                '$default'
-            )
-            .join('$' + mod.id + '$exports');
-          js = js
-            .split('$' + asset.id + '$import$' + t.toIdentifier(dep.name) + '$')
-            .join('$' + mod.id + '$exports.');
+      if (dep.isES6Import && dep.ids) {
+        for (let id in dep.ids) {
+          let name = '$' + mod.id + '$export$' + id;
+          if (mod.cacheData.exports[name]) {
+            this.exports.set(dep.ids[id], name);
+          } else if (mod.cacheData.isCommonJS) {
+            if (id === 'default') {
+              name = '$' + mod.id + '$exports';
+            }
+
+            this.exports.set(dep.ids[id], name);
+          } else {
+            throw new Error(
+              `${path.relative(
+                this.options.rootDir,
+                mod.name
+              )} does not export '${id}'`
+            );
+          }
         }
       }
 
