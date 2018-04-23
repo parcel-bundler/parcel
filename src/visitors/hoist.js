@@ -11,6 +11,7 @@ const WRAPPER_TEMPLATE = template(`
   }).call({});
 `);
 
+const IMPORT_TEMPLATE = template('$parcel$import(ID, SOURCE, NAME)');
 const EXPORT_ASSIGN_TEMPLATE = template('EXPORTS.NAME = LOCAL');
 const EXPORT_ALL_TEMPLATE = template(
   '$parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE))'
@@ -38,6 +39,7 @@ module.exports = {
             callee.name === 'eval' &&
             !path.scope.hasBinding('eval', true)
           ) {
+            asset.cacheData.isCommonJS = true;
             shouldWrap = true;
             path.stop();
           }
@@ -47,6 +49,7 @@ module.exports = {
           // Wrap in a function if we see a top-level return statement.
           if (path.getFunctionParent().isProgram()) {
             shouldWrap = true;
+            asset.cacheData.isCommonJS = true;
             path.replaceWith(
               t.returnStatement(
                 t.memberExpression(
@@ -72,6 +75,7 @@ module.exports = {
             !path.scope.hasBinding('module') &&
             !path.scope.getData('shouldWrap')
           ) {
+            asset.cacheData.isCommonJS = true;
             shouldWrap = true;
             path.stop();
           }
@@ -117,23 +121,7 @@ module.exports = {
               t.variableDeclarator(exportsIdentifier, t.objectExpression([]))
             ])
           ]);
-        } /* else if (Object.keys(asset.cacheData.exports).length > 0) {
-          path.pushContainer('body', [
-            t.variableDeclaration('var', [
-              t.variableDeclarator(
-                getExportsIdentifier(asset),
-                t.objectExpression(
-                  Object.values(asset.cacheData.exports).map(k =>
-                    t.objectProperty(
-                      t.identifier(k),
-                      getIdentifier(asset, 'export', k)
-                    )
-                  )
-                )
-              )
-            ])
-          ]);
-        }*/
+        }
       }
 
       path.stop();
@@ -213,12 +201,17 @@ module.exports = {
   CallExpression(path, asset) {
     let {callee, arguments: args} = path.node;
 
-    if (t.isIdentifier(callee, {name: '$parcel$exportWildcard'})) {
-      // This hints Uglify and Babel that this CallExpression does not have any side-effects.
-      // This will make unsused CommonJS wildcards removed from the minified builds.
-      path.addComment('leading', '#__PURE__');
+    if (t.isIdentifier(callee)) {
+      if (
+        callee.name === '$parcel$exportWildcard' ||
+        callee.name === '$parcel$interopDefault'
+      ) {
+        // This hints Uglify and Babel that this CallExpression does not have any side-effects.
+        // This will make unsused CommonJS wildcards removed from the minified builds.
+        path.addComment('leading', '#__PURE__');
 
-      return;
+        return;
+      }
     }
 
     let isRequire =
@@ -256,30 +249,36 @@ module.exports = {
   },
 
   ImportDeclaration(path, asset) {
-    let dep = asset.dependencies.get(path.node.source.value);
-    let ids = dep.ids || (dep.ids = {});
-
     // For each specifier, rename the local variables to point to the imported name.
     // This will be replaced by the final variable name of the resolved asset in the packager.
     for (let specifier of path.node.specifiers) {
       if (t.isImportDefaultSpecifier(specifier)) {
-        let name = getName(asset, 'import', path.node.source.value, 'default');
-        ids['default'] = name;
-        path.scope.rename(specifier.local.name, name);
-      } else if (t.isImportSpecifier(specifier)) {
-        let name = getName(
-          asset,
-          'import',
-          path.node.source.value,
-          specifier.imported.name
+        rewriteBinding(
+          path,
+          specifier.local,
+          IMPORT_TEMPLATE({
+            ID: t.numericLiteral(asset.id),
+            NAME: t.stringLiteral('default'),
+            SOURCE: path.node.source
+          })
         );
-
-        ids[specifier.imported.name] = name;
-        path.scope.rename(specifier.local.name, name);
+      } else if (t.isImportSpecifier(specifier)) {
+        rewriteBinding(
+          path,
+          specifier.local,
+          IMPORT_TEMPLATE({
+            ID: t.numericLiteral(asset.id),
+            SOURCE: path.node.source,
+            NAME: t.stringLiteral(specifier.imported.name)
+          })
+        );
       } else if (t.isImportNamespaceSpecifier(specifier)) {
         path.scope.push({
           id: specifier.local,
-          init: t.identifier(getName(asset, 'require', path.node.source.value))
+          init: REQUIRE_CALL_TEMPLATE({
+            ID: t.numericLiteral(asset.id),
+            SOURCE: path.node.source
+          }).expression
         });
       }
     }
@@ -294,7 +293,7 @@ module.exports = {
     // Add assignment to exports object for namespace imports and commonjs.
     path.insertAfter(
       EXPORT_ASSIGN_TEMPLATE({
-        EXPORTS: getExportsIdentifier(asset),
+        EXPORTS: getExportsIdentifier(asset, path.scope),
         NAME: t.identifier('default'),
         LOCAL: identifier
       })
@@ -327,37 +326,37 @@ module.exports = {
     let {declaration, source, specifiers} = path.node;
 
     if (source) {
-      let dep = asset.dependencies.get(path.node.source.value);
-      let ids = dep.ids || (dep.ids = {});
-
       for (let specifier of specifiers) {
         let local, exported;
 
         if (t.isExportDefaultSpecifier(specifier)) {
-          local = getIdentifier(asset, 'import', source.value, 'default');
+          local = IMPORT_TEMPLATE({
+            ID: t.numericLiteral(asset.id),
+            SOURCE: source,
+            NAME: t.stringLiteral('default')
+          });
           exported = specifier.exported;
-          ids['default'] = local.name;
         } else if (t.isExportNamespaceSpecifier(specifier)) {
-          local = getIdentifier(asset, 'require', source.value);
+          local = REQUIRE_CALL_TEMPLATE({
+            ID: t.numericLiteral(asset.id),
+            SOURCE: source
+          });
           exported = specifier.exported;
         } else if (t.isExportSpecifier(specifier)) {
-          local = getIdentifier(
-            asset,
-            'import',
-            source.value,
-            specifier.local.name
-          );
+          local = IMPORT_TEMPLATE({
+            ID: t.numericLiteral(asset.id),
+            SOURCE: source,
+            NAME: t.stringLiteral(specifier.local.name)
+          });
           exported = specifier.exported;
 
           path.insertAfter(
             EXPORT_ASSIGN_TEMPLATE({
-              EXPORTS: getExportsIdentifier(asset),
+              EXPORTS: getExportsIdentifier(asset, path.scope),
               NAME: exported,
-              LOCAL: local
+              LOCAL: local.expression
             })
           );
-
-          ids[specifier.local.name] = local.name;
         }
 
         // Create a variable to re-export from the imported module.
@@ -365,7 +364,7 @@ module.exports = {
           t.variableDeclaration('var', [
             t.variableDeclarator(
               getIdentifier(asset, 'export', exported.name),
-              local
+              local.expression
             )
           ])
         );
@@ -373,7 +372,7 @@ module.exports = {
         if (path.scope.hasGlobal('module') || path.scope.hasGlobal('exports')) {
           path.insertAfter(
             EXPORT_ASSIGN_TEMPLATE({
-              EXPORTS: getExportsIdentifier(asset),
+              EXPORTS: getExportsIdentifier(asset, path.scope),
               NAME: t.identifier(exported.name),
               LOCAL: local
             })
@@ -447,7 +446,7 @@ function addExport(asset, path, local, exported) {
       exported.name;
 
     let assignNode = EXPORT_ASSIGN_TEMPLATE({
-      EXPORTS: getExportsIdentifier(asset),
+      EXPORTS: getExportsIdentifier(asset, path.scope),
       NAME: t.identifier(exported.name),
       LOCAL: getIdentifier(asset, 'export', local.name)
     });
@@ -495,6 +494,27 @@ function getIdentifier(asset, type, ...rest) {
   return t.identifier(getName(asset, type, ...rest));
 }
 
-function getExportsIdentifier(asset) {
-  return getIdentifier(asset, 'exports');
+function getExportsIdentifier(asset, scope) {
+  if (scope && scope.getData('shouldWrap')) {
+    return t.identifier('exports');
+  } else {
+    return getIdentifier(asset, 'exports');
+  }
+}
+
+// Replaces all references to a Binding by a replacement node.
+function rewriteBinding(path, init, replacement) {
+  let newName = path.scope.generateDeclaredUidIdentifier(init.name);
+
+  path.insertBefore(
+    t.variableDeclaration('var', [
+      t.variableDeclarator(
+        newName,
+        t.isExpressionStatement(replacement)
+          ? replacement.expression
+          : replacement
+      )
+    ])
+  );
+  path.scope.rename(init.name, newName.name);
 }

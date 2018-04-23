@@ -1,5 +1,4 @@
 const Packager = require('./Packager');
-const t = require('babel-types');
 const path = require('path');
 const fs = require('fs');
 
@@ -8,6 +7,10 @@ const concat = require('../transforms/concat');
 const prelude = fs
   .readFileSync(path.join(__dirname, '../builtins/prelude2.js'), 'utf8')
   .trim();
+const helpers =
+  fs
+    .readFileSync(path.join(__dirname, '../builtins/helpers.js'), 'utf8')
+    .trim() + '\n';
 
 class JSConcatPackager extends Packager {
   async write(string) {
@@ -50,24 +53,9 @@ class JSConcatPackager extends Packager {
         this.exposedModules.add(this.bundle.entryAsset);
       }
 
-      await this.write(prelude + '(function (require) {\n');
+      await this.write(prelude + '(function (require) {\n' + helpers);
     } else {
-      await this.write(`
-(function () {
-  function $parcel$exportWildcard(dest, source) {
-    Object.keys(source).forEach(function(key) {
-      if(key === "default" || key === "__esModule") return;
-      Object.defineProperty(dest, key, {
-        enumerable: true,
-        get: function get() {
-          return source[key];
-        }
-      });
-    });
-
-    return dest;
-  }
-`);
+      await this.write('(function () {\n' + helpers);
     }
   }
 
@@ -93,7 +81,7 @@ class JSConcatPackager extends Packager {
       }
     }
 
-    for (let [dep, mod] of asset.depAssets) {
+    /* for (let [dep, mod] of asset.depAssets) {
       let depName = '$' + asset.id + '$require$' + t.toIdentifier(dep.name);
       let moduleName = this.getExportIdentifier(mod);
 
@@ -102,7 +90,7 @@ class JSConcatPackager extends Packager {
         moduleName = `require(${mod.id})`;
       }
 
-      js = js.split(depName).join(moduleName);
+      // js = js.split(depName).join(moduleName);
 
       // If this was an ES6 export all (e.g. export * from 'foo'), resolve to the original exports.
       if (dep.isExportAll) {
@@ -121,16 +109,17 @@ class JSConcatPackager extends Packager {
 
       if (dep.isES6Import && dep.ids) {
         for (let id in dep.ids) {
+          id = id.slice(1)
           let name = '$' + mod.id + '$export$' + id;
           if (mod.cacheData.exports[name]) {
-            this.exports.set(dep.ids[id], name);
+            this.exports.set(depName, name);
           } else if (mod.cacheData.isCommonJS) {
             if (id === 'default') {
-              name = '$' + mod.id + '$exports';
+              name = '(/*#__PURE__* /$parcel$interopDefault($' + mod.id + '$exports))';
             }
 
-            this.exports.set(dep.ids[id], name);
-          } else {
+            this.exports.set(depName, name);
+          } else if(false) {
             throw new Error(
               `${path.relative(
                 this.options.rootDir,
@@ -160,7 +149,7 @@ class JSConcatPackager extends Packager {
       }
 
       js = js.split(depResolve).join(resolved);
-    }
+  }*/
 
     // Replace all re-exported variables
 

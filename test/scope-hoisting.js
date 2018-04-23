@@ -176,7 +176,7 @@ describe.only('scope hoisting', function() {
       assert.equal(output, 5);
     });
 
-    it('supports not exports function arguments', async function() {
+    it('should not export function arguments', async function() {
       let b = await bundle(
         __dirname +
           '/integration/scope-hoisting/es6/export-binding-identifiers/a.js'
@@ -184,6 +184,16 @@ describe.only('scope hoisting', function() {
 
       let output = run(b);
       assert.deepEqual(output, ['test']);
+    });
+
+    it('supports import default CommonJS interop', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/es6/import-commonjs-default/a.js'
+      );
+
+      let output = run(b);
+      assert.deepEqual(output, 'foobar');
     });
   });
 

@@ -1,4 +1,5 @@
 const babylon = require('babylon');
+const template = require('babel-template');
 const t = require('babel-types');
 const traverse = require('babel-traverse').default;
 const generate = require('babel-generator').default;
@@ -6,19 +7,20 @@ const generate = require('babel-generator').default;
 const EXPORTS_RE = /^\$([\d]+)\$exports$/;
 const EXPORT_RE = /^\$([\d]+)\$export\$(.+)$/;
 
+const DEFAULT_INTEROP_TEMPLATE = template('$parcel$interopDefault(MODULE)');
+
 // TODO: minify
 // TODO: source-map
 
 module.exports = (code, exports, moduleMap, wildcards) => {
   let ast = babylon.parse(code);
-  let addedExports = new Set();
 
   let resolveModule = (id, name) => {
     let module = moduleMap.get(id);
-    return module.depAssets.get(module.dependencies.get(name)).id;
+    return module.depAssets.get(module.dependencies.get(name));
   };
 
-  function replaceExportNode(id, name, path) {
+  function replaceExportNode(id, name, path, commonJsAsMemberExpr = true) {
     path = getOuterStatement(path);
 
     let node = find(id, id => `$${id}$export$${name}`);
@@ -29,7 +31,11 @@ module.exports = (code, exports, moduleMap, wildcards) => {
 
       // if there is a CommonJS export return $id$exports.name
       if (node) {
-        return t.memberExpression(node, t.identifier(name));
+        if (commonJsAsMemberExpr) {
+          return t.memberExpression(node, t.identifier(name));
+        } else {
+          return node;
+        }
       }
     }
 
@@ -80,25 +86,54 @@ module.exports = (code, exports, moduleMap, wildcards) => {
 
       // each require('module') call gets replaced with $parcel$require(id, 'module')
       if (t.isIdentifier(callee, {name: '$parcel$require'})) {
-        let [id, name] = args;
+        let [id, source] = args;
 
         if (
           args.length !== 2 ||
           !t.isNumericLiteral(id) ||
-          !t.isStringLiteral(name)
+          !t.isStringLiteral(source)
         ) {
           throw new Error(
             'invariant: invalid signature, expected : $parcel$require(number, string)'
           );
         }
 
-        let mod = resolveModule(id.value, name.value);
+        let mod = resolveModule(id.value, source.value).id;
 
         if (typeof mod === 'undefined') {
-          throw new Error(`Cannot find module "${name.value}"`);
+          throw new Error(`Cannot find module "${source.value}"`);
         }
 
         path.replaceWith(t.identifier(`$${mod}$exports`));
+      } else if (t.isIdentifier(callee, {name: '$parcel$import'})) {
+        let [id, source, name] = args;
+
+        if (
+          args.length !== 3 ||
+          !t.isNumericLiteral(id) ||
+          !t.isStringLiteral(source) ||
+          !t.isStringLiteral(name)
+        ) {
+          throw new Error(
+            'invariant: invalid signature, expected : $parcel$import(number, string, string)'
+          );
+        }
+
+        let mod = resolveModule(id.value, source.value);
+
+        if (typeof mod === 'undefined') {
+          throw new Error(`Cannot find module "${source.value}"`);
+        }
+
+        if (name.value === 'default' && mod.cacheData.isCommonJS) {
+          path.replaceWith(
+            DEFAULT_INTEROP_TEMPLATE({
+              MODULE: replaceExportNode(mod.id, name.value, path, false)
+            })
+          );
+        } else {
+          path.replaceWith(replaceExportNode(mod.id, name.value, path));
+        }
       }
     },
     MemberExpression(path) {
@@ -128,16 +163,16 @@ module.exports = (code, exports, moduleMap, wildcards) => {
 
       let match = name.match(EXPORT_RE);
 
-      if (match && !path.scope.hasBinding(name) && !addedExports.has(name)) {
+      if (match && !path.scope.hasBinding(name)) {
         let id = Number(match[1]);
         let exportName = match[2];
         let node = replaceExportNode(id, exportName, path);
 
-        addedExports.add(name);
-
         if (node) {
           path.replaceWith(node);
         }
+      } else if (EXPORTS_RE.test(name) && !path.scope.hasBinding(name)) {
+        path.replaceWith(t.objectExpression([]));
       }
     },
     ReferencedIdentifier(path) {
