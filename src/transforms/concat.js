@@ -12,7 +12,7 @@ const DEFAULT_INTEROP_TEMPLATE = template('$parcel$interopDefault(MODULE)');
 // TODO: minify
 // TODO: source-map
 
-module.exports = (code, exports, moduleMap, wildcards) => {
+module.exports = (code, exports, moduleMap) => {
   let ast = babylon.parse(code);
 
   let resolveModule = (id, name) => {
@@ -51,29 +51,6 @@ module.exports = (code, exports, moduleMap, wildcards) => {
 
       if (exports.has(computedSymbol)) {
         return t.identifier(exports.get(computedSymbol));
-      }
-
-      // if there is a wildcard for the module
-      // default exports are excluded from wildcard exports
-      if (wildcards.has(id) && name !== 'default') {
-        /* recursively lookup the symbol
-         * this is needed when there is deep export wildcards, like in the following:
-         * - a.js
-         *   > export * from './b'
-         * - b.js
-         *   > export * from './c'
-         * - c.js in es6
-         *   > export * from 'lodash'
-         * - c.js in cjs
-         *   > module.exports = require('lodash')
-         */
-        let node = null;
-
-        wildcards
-          .get(id)
-          .find(name => (node = find(resolveModule(id, name), symbol)));
-
-        return node;
       }
 
       return null;
