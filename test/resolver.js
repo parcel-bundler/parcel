@@ -419,7 +419,7 @@ describe('resolver', function() {
           err.message,
           "Cannot find module 'xyz' from '" + rootDir + "'"
         );
-        assert.equal(err.code, 'NODE_MODULE_NOT_FOUND');
+        assert.equal(err.code, 'MODULE_NOT_FOUND');
       }
 
       assert(threw, 'Did not throw');
@@ -435,7 +435,7 @@ describe('resolver', function() {
           err.message,
           "Cannot find module 'xyz/test/file' from '" + rootDir + "'"
         );
-        assert.equal(err.code, 'NODE_MODULE_NOT_FOUND');
+        assert.equal(err.code, 'MODULE_NOT_FOUND');
       }
 
       assert(threw, 'Did not throw');

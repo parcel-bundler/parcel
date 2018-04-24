@@ -371,25 +371,14 @@ class Bundler extends EventEmitter {
         return;
       }
 
-      if (err.code === 'NODE_MODULE_NOT_FOUND' && install) {
-        let resolved;
-        if (dep.name.indexOf('/') > -1) {
-          // Check if module exists, prevents infinite install loop
-          try {
-            resolved = await this.resolver.resolve(
-              dep.name.substring(0, dep.name.indexOf('/')),
-              asset.name
-            );
-          } catch (e) {
-            // Do nothing
-          }
-        }
-        if (!resolved) {
+      if (err.code === 'MODULE_NOT_FOUND') {
+        if (
+          install &&
+          ['.', '/', '~'].indexOf(dep.name.substring(0, 1)) === -1
+        ) {
           return await this.installDep(asset, dep);
         }
-      }
 
-      if (err.code === 'MODULE_NOT_FOUND' || 'NODE_MODULE_NOT_FOUND') {
         await this.throwDepError(asset, dep, err);
       }
 
@@ -399,10 +388,24 @@ class Bundler extends EventEmitter {
 
   async installDep(asset, dep) {
     let [moduleName] = this.resolver.getModuleParts(dep.name);
+
+    let resolved;
+    // Check if module exists, prevents useless installs
     try {
-      await installPackage([moduleName], asset.name, {saveDev: false});
-    } catch (err) {
-      await this.throwDepError(asset, dep, err);
+      resolved = await this.resolver.findNodeModulePath(
+        moduleName,
+        Path.dirname(asset.name)
+      );
+    } catch (e) {
+      // Do nothing
+    }
+
+    if (!resolved) {
+      try {
+        await installPackage([moduleName], asset.name, {saveDev: false});
+      } catch (err) {
+        await this.throwDepError(asset, dep, err);
+      }
     }
 
     return await this.resolveDep(asset, dep, false);

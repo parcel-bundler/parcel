@@ -796,7 +796,7 @@ describe('javascript', function() {
         'dont-autoinstall-resolve-fails'
       )}'`
     );
-    assert.equal(error.code, 'NODE_MODULE_NOT_FOUND');
+    assert.equal(error.code, 'MODULE_NOT_FOUND');
   });
 
   it('should ignore require if it is defined in the scope', async function() {
