@@ -35,23 +35,13 @@ class WorkerFarm extends EventEmitter {
     this.init(options);
   }
 
-  callPromiseFactory(resolve, reject, method, args) {
-    return this.addCall({
-      method,
-      args: args,
-      retries: 0,
-      resolve,
-      reject
-    });
-  }
-
   warmupWorker(method, args) {
     // Workers have started, but are not warmed up yet.
     // Send the job to a remote worker in the background,
     // but use the result from the local worker - it will be faster.
     if (this.started) {
       let promise = new Promise((resolve, reject) => {
-        this.callPromiseFactory(resolve, reject, method, [...args, true]);
+        this.addCall(resolve, reject, method, [...args, true]);
       });
       promise
         .then(() => {
@@ -71,7 +61,7 @@ class WorkerFarm extends EventEmitter {
       // This significantly speeds up startup time.
       if (this.shouldUseRemoteWorkers()) {
         return new Promise((resolve, reject) => {
-          this.callPromiseFactory(resolve, reject, method, [...args, false]);
+          this.addCall(resolve, reject, method, [...args, false]);
         });
       } else {
         if (this.options.warmWorkers) {
@@ -229,9 +219,15 @@ class WorkerFarm extends EventEmitter {
     }
   }
 
-  addCall(call) {
+  addCall(resolve, reject, method, args) {
     if (this.ending) return; // don't add anything new to the queue
-    this.callQueue.push(call);
+    this.callQueue.push({
+      method,
+      args: args,
+      retries: 0,
+      resolve,
+      reject
+    });
     this.processQueue();
   }
 
