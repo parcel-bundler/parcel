@@ -419,7 +419,23 @@ describe('resolver', function() {
           err.message,
           "Cannot find module 'xyz' from '" + rootDir + "'"
         );
-        assert.equal(err.code, 'MODULE_NOT_FOUND');
+        assert.equal(err.code, 'NODE_MODULE_NOT_FOUND');
+      }
+
+      assert(threw, 'Did not throw');
+    });
+
+    it('should throw when a subfile of a node_module cannot be resolved', async function() {
+      let threw = false;
+      try {
+        await resolver.resolve('xyz/test/file', path.join(rootDir, 'foo.js'));
+      } catch (err) {
+        threw = true;
+        assert.equal(
+          err.message,
+          "Cannot find module 'xyz/test/file' from '" + rootDir + "'"
+        );
+        assert.equal(err.code, 'NODE_MODULE_NOT_FOUND');
       }
 
       assert(threw, 'Did not throw');

@@ -64,7 +64,8 @@ class Resolver {
     filename = await this.loadAlias(filename, dir);
 
     let resolved;
-    if (path.isAbsolute(filename)) {
+    let isRelativeFile = path.isAbsolute(filename);
+    if (isRelativeFile) {
       // load as file
       resolved = await this.loadRelative(filename, extensions);
     } else {
@@ -73,10 +74,8 @@ class Resolver {
     }
 
     if (!resolved) {
-      let err = new Error(
-        "Cannot find module '" + input + "' from '" + dir + "'"
-      );
-      err.code = 'MODULE_NOT_FOUND';
+      let err = new Error(`Cannot find module '${input}' from '${dir}'`);
+      err.code = isRelativeFile ? 'MODULE_NOT_FOUND' : 'NODE_MODULE_NOT_FOUND';
       throw err;
     }
 

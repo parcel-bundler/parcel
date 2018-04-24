@@ -366,40 +366,34 @@ class Bundler extends EventEmitter {
     try {
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
-      let thrown = err;
-
-      if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
-        // Check if dependency is a local file
-        let isLocalFile = /^[/~.]/.test(dep.name);
-        let fromNodeModules = asset.name.includes(
-          `${Path.sep}node_modules${Path.sep}`
-        );
-
-        // If it's not a local file, attempt to install the dep
-        if (
-          !isLocalFile &&
-          !fromNodeModules &&
-          this.options.autoinstall &&
-          install
-        ) {
-          return await this.installDep(asset, dep);
-        }
-
-        // If the dep is optional, return before we throw
-        if (dep.optional) {
-          return;
-        }
-
-        thrown.message = `Cannot resolve dependency '${dep.name}'`;
-        if (isLocalFile) {
-          const absPath = Path.resolve(Path.dirname(asset.name), dep.name);
-          thrown.message += ` at '${absPath}'`;
-        }
-
-        await this.throwDepError(asset, dep, thrown);
+      // If the dep is optional, return before we throw
+      if (dep.optional) {
+        return;
       }
 
-      throw thrown;
+      if (err.code === 'NODE_MODULE_NOT_FOUND' && install) {
+        let resolved;
+        if (dep.name.indexOf('/') > -1) {
+          // Check if module exists, prevents infinite install loop
+          try {
+            resolved = await this.resolver.resolve(
+              dep.name.substring(0, dep.name.indexOf('/')),
+              asset.name
+            );
+          } catch (e) {
+            // Do nothing
+          }
+        }
+        if (!resolved) {
+          return await this.installDep(asset, dep);
+        }
+      }
+
+      if (err.code === 'MODULE_NOT_FOUND' || 'NODE_MODULE_NOT_FOUND') {
+        await this.throwDepError(asset, dep, err);
+      }
+
+      throw err;
     }
   }
 
