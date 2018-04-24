@@ -790,7 +790,11 @@ describe('javascript', function() {
     }
     assert.equal(
       error.message,
-      `Cannot find module 'vue/thisDoesNotExist' from '${__dirname}/integration/dont-autoinstall-resolve-fails'`
+      `Cannot find module 'vue/thisDoesNotExist' from '${path.join(
+        __dirname,
+        'integration',
+        'dont-autoinstall-resolve-fails'
+      )}'`
     );
     assert.equal(error.code, 'NODE_MODULE_NOT_FOUND');
   });
