@@ -111,6 +111,9 @@ module.exports = (code, exports, moduleMap) => {
         } else {
           path.replaceWith(replaceExportNode(mod.id, name.value, path));
         }
+      } else if (t.isIdentifier(callee, {name: '$parcel$interopDefault'})) {
+        // This hints Uglify and Babel that this CallExpression does not have any side-effects.
+        path.addComment('leading', '#__PURE__');
       }
     },
     MemberExpression(path) {
