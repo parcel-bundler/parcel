@@ -124,8 +124,8 @@ class CSSAsset extends Asset {
       },
       {
         type: 'js',
-        value: js,
-        final: true
+        value: js
+        // final: true
       }
     ];
   }
