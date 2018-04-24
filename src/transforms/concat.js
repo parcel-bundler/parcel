@@ -15,6 +15,7 @@ const DEFAULT_INTEROP_TEMPLATE = template('$parcel$interopDefault(MODULE)');
 module.exports = packager => {
   let {buffer: code, exports, moduleMap, wildcards} = packager;
   let ast = babylon.parse(code);
+  let rootPath;
 
   let resolveModule = (id, name) => {
     let module = moduleMap.get(id);
@@ -22,7 +23,9 @@ module.exports = packager => {
   };
 
   function replaceExportNode(id, name, path, commonJsAsMemberExpr = true) {
-    path = getOuterStatement(path);
+    if (!rootPath) {
+      rootPath = getOuterStatement(path);
+    }
 
     let node = find(id, id => `$${id}$export$${name}`);
 
@@ -42,7 +45,7 @@ module.exports = packager => {
       let computedSymbol = symbol(id);
 
       // if the symbol is in the scope there is not need to remap it
-      if (path.scope.hasBinding(computedSymbol)) {
+      if (rootPath.scope.hasBinding(computedSymbol)) {
         return t.identifier(computedSymbol);
       }
 
@@ -158,7 +161,7 @@ module.exports = packager => {
         let mapped = moduleMap.get(id.value);
         let dep = mapped.dependencies.get(source.value);
         let mod = mapped.depAssets.get(dep);
-        let bundles;
+        let bundles = mod.id;
 
         if (dep.dynamic && packager.bundle.childBundles.has(mod.parentBundle)) {
           bundles = [packager.getBundleSpecifier(mod.parentBundle)];
@@ -172,7 +175,7 @@ module.exports = packager => {
           bundles.push(mod.id);
         }
 
-        path.replaceWith(toNode(bundles || mod.id));
+        path.replaceWith(toNode(bundles));
       }
     },
     MemberExpression(path) {
@@ -190,6 +193,10 @@ module.exports = packager => {
         let exportName = '$' + match[1] + '$export$' + property.name;
         if (path.scope.hasBinding(exportName)) {
           path.replaceWith(t.identifier(exportName));
+        }
+
+        if (!rootPath) {
+          rootPath = getOuterStatement(path);
         }
       }
     },
@@ -209,6 +216,10 @@ module.exports = packager => {
 
         if (node) {
           path.replaceWith(node);
+        } else {
+          throw new Error(
+            `Cannot find export "${exportName}" in module "${id}"`
+          );
         }
       } else if (EXPORTS_RE.test(name) && !path.scope.hasBinding(name)) {
         path.replaceWith(t.objectExpression([]));
@@ -218,6 +229,41 @@ module.exports = packager => {
       if (exports.has(path.node.name)) {
         path.replaceWith(t.identifier(exports.get(path.node.name)));
       }
+    },
+    exit(path) {
+      if (!rootPath || !path.isProgram()) {
+        return;
+      }
+
+      path = rootPath;
+      path.scope.crawl();
+      Object.keys(path.scope.bindings)
+        .filter(name => EXPORTS_RE.test(name))
+        .forEach(name => {
+          let binding = path.scope.getBinding(name);
+          // Is there any references which aren't also simple assignments?
+          let bailout = binding.referencePaths.some(
+            ({parentPath}) =>
+              !parentPath.isMemberExpression() ||
+              !parentPath.parentPath.isAssignmentExpression()
+          );
+
+          // Is so skip.
+          if (bailout) {
+            return;
+          }
+
+          // Remove each assignement from the code
+          binding.referencePaths.forEach(({parentPath}) => {
+            if (parentPath.isMemberExpression()) {
+              console.log('Removing binding', name);
+
+              parentPath.parentPath.remove();
+            } else {
+              throw new Error('Unknown exports path type');
+            }
+          });
+        });
     }
   });
 
