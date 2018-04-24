@@ -23,7 +23,6 @@ class JSConcatPackager extends Packager {
     this.exposedModules = new Set();
     this.buffer = '';
     this.exports = new Map();
-    this.wildcards = new Map();
     this.moduleMap = new Map();
     this.needsPrelude = false;
 
@@ -73,7 +72,6 @@ class JSConcatPackager extends Packager {
     let js = asset.generated.js;
 
     this.moduleMap.set(asset.id, asset);
-    this.wildcards.set(asset.id, asset.cacheData.wildcards);
 
     for (let key in asset.cacheData.exports) {
       let local = '$' + asset.id + '$export$' + asset.cacheData.exports[key];
