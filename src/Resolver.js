@@ -185,7 +185,7 @@ class Resolver {
       pkg = await this.readPackage(dir);
 
       // First try loading package.main as a file, then try as a directory.
-      let main = this.getPackageMain(pkg);
+      let main = await this.getPackageMain(pkg);
       let res =
         (await this.loadAsFile(main, extensions, pkg)) ||
         (await this.loadDirectory(main, extensions, pkg));
@@ -217,19 +217,29 @@ class Resolver {
     return pkg;
   }
 
-  getPackageMain(pkg) {
+  async getPackageMain(pkg) {
     // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
     // we use the "module" or "jsnext:main" field to get the full dependency tree if available
-    let main = [pkg.module, pkg['jsnext:main'], pkg.browser, pkg.main].find(
-      entry => typeof entry === 'string'
-    );
+    const entries = [pkg.module, pkg['jsnext:main'], pkg.browser, pkg.main]
+      .filter(entry => typeof entry === 'string')
+      .map(entry => path.resolve(pkg.pkgdir, entry));
 
-    // Default to index file if no main field find
-    if (!main || main === '.' || main === './') {
-      main = 'index';
+    // main is the first entry that exists
+    for (let i = 0; i < entries.length; ++i) {
+      const entry = entries[i];
+
+      try {
+        const stat = await fs.stat(entry);
+        if (stat.isDirectory()) return path.resolve(entry, 'index');
+        return entry;
+      } catch (e) {
+        // Entry doesn't exist
+        continue;
+      }
     }
 
-    return path.resolve(pkg.pkgdir, main);
+    // fallback to default index if no main can be found
+    return path.resolve(pkg.pkgdir, 'index');
   }
 
   async loadAsFile(file, extensions, pkg) {
