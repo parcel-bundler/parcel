@@ -643,9 +643,7 @@ class Bundler extends EventEmitter {
   }
 
   async serve(port = 1234, https = false) {
-    if (this.options.target === 'browser') {
-      this.server = await Server.serve(this, port, https);
-    }
+    this.server = await Server.serve(this, port, https);
     this.bundle();
     return this.server;
   }
