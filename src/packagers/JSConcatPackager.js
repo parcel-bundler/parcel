@@ -1,4 +1,5 @@
 const Packager = require('./Packager');
+const {minify} = require('uglify-es');
 const path = require('path');
 const fs = require('fs');
 
@@ -228,7 +229,29 @@ class JSConcatPackager extends Packager {
       await this.write('})();');
     }
 
-    super.write(concat(this.buffer, this.exports, this.moduleMap));
+    let output = concat(this.buffer, this.exports, this.moduleMap);
+
+    if (this.options.minify) {
+      let result = minify(output, {
+        warnings: true,
+        compress: {
+          passes: 3,
+          unsafe: true,
+          pure_getters: true
+        },
+        mangle: {
+          eval: true
+        }
+      });
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      output = result.code;
+    }
+
+    super.write(output);
   }
 }
 
