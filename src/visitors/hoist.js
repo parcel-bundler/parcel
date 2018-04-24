@@ -17,6 +17,9 @@ const EXPORT_ALL_TEMPLATE = template(
   '$parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE))'
 );
 const REQUIRE_CALL_TEMPLATE = template('$parcel$require(ID, SOURCE)');
+const REQUIRE_RESOLVE_CALL_TEMPLATE = template(
+  '$parcel$require$resolve(ID, SOURCE)'
+);
 const TYPEOF = {
   module: 'object',
   require: 'function'
@@ -211,13 +214,16 @@ module.exports = {
       }
     }
 
-    let isRequire =
-      t.isIdentifier(callee, {name: 'require'}) &&
-      args.length === 1 &&
-      t.isStringLiteral(args[0]) &&
-      !path.scope.hasBinding('require');
+    let ignore =
+      args.length !== 1 ||
+      !t.isStringLiteral(args[0]) ||
+      path.scope.hasBinding('require');
 
-    if (isRequire) {
+    if (ignore) {
+      return;
+    }
+
+    if (t.isIdentifier(callee, {name: 'require'})) {
       // Ignore require calls that were ignored earlier.
       if (!asset.dependencies.has(args[0].value)) {
         return;
@@ -234,14 +240,14 @@ module.exports = {
       );
     }
 
-    let isRequireResolve =
-      matchesPattern(callee, 'require.resolve') &&
-      args.length === 1 &&
-      t.isStringLiteral(args[0]) &&
-      !path.scope.hasBinding('require');
-
-    if (isRequireResolve) {
-      path.replaceWith(getIdentifier(asset, 'require_resolve', args[0].value));
+    if (matchesPattern(callee, 'require.resolve')) {
+      // path.replaceWith(getIdentifier(asset, 'require_resolve', args[0].value));
+      path.replaceWith(
+        REQUIRE_RESOLVE_CALL_TEMPLATE({
+          ID: t.numericLiteral(asset.id),
+          SOURCE: args[0]
+        })
+      );
     }
   },
 

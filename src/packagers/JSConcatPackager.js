@@ -14,7 +14,7 @@ const helpers =
     .trim() + '\n';
 
 class JSConcatPackager extends Packager {
-  async write(string) {
+  write(string) {
     this.buffer += string;
   }
 
@@ -54,9 +54,9 @@ class JSConcatPackager extends Packager {
         this.exposedModules.add(this.bundle.entryAsset);
       }
 
-      await this.write(prelude + '(function (require) {\n' + helpers);
+      this.write(prelude + '(function (require) {\n' + helpers);
     } else {
-      await this.write('(function () {\n' + helpers);
+      this.write('(function () {\n' + helpers);
     }
   }
 
@@ -152,11 +152,23 @@ class JSConcatPackager extends Packager {
       js = js.split(depResolve).join(resolved);
   }*/
 
+    for (let [dep, mod] of asset.depAssets) {
+      if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
+        for (let child of mod.parentBundle.siblingBundles) {
+          if (!child.isEmpty) {
+            await this.addBundleLoader(child.type);
+          }
+        }
+
+        await this.addBundleLoader(mod.type);
+      }
+    }
+
     // Replace all re-exported variables
 
     js = js.trim() + '\n';
 
-    await this.write(
+    this.write(
       `\n/* ASSET: ${asset.id} - ${path.relative(
         this.options.rootDir,
         asset.name
@@ -199,7 +211,7 @@ class JSConcatPackager extends Packager {
     }
 
     if (bundleLoader) {
-      await this.addAssetToBundle(bundleLoader);
+      this.addAssetToBundle(bundleLoader);
     } else {
       return;
     }
@@ -209,8 +221,8 @@ class JSConcatPackager extends Packager {
       let target = this.options.target === 'node' ? 'node' : 'browser';
       let asset = await this.bundler.getAsset(loader[target]);
       if (!this.bundle.assets.has(asset)) {
-        await this.addAssetToBundle(asset);
-        await this.write(
+        this.addAssetToBundle(asset);
+        this.write(
           `${this.getExportIdentifier(bundleLoader)}.register(${JSON.stringify(
             bundleType
           )},${this.getExportIdentifier(asset)});\n`
@@ -226,12 +238,12 @@ class JSConcatPackager extends Packager {
         exposed.push(`${m.id}: ${this.getExportIdentifier(m)}`);
       }
 
-      await this.write(`return {${exposed.join(', ')}};\n})`);
+      this.write(`return {${exposed.join(', ')}};\n})`);
     } else {
-      await this.write('})();');
+      this.write('})();');
     }
 
-    let output = concat(this.buffer, this.exports, this.moduleMap);
+    let output = concat(this);
 
     if (this.options.minify) {
       let result = minify(output, {

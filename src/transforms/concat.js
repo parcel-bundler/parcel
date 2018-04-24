@@ -12,7 +12,8 @@ const DEFAULT_INTEROP_TEMPLATE = template('$parcel$interopDefault(MODULE)');
 // TODO: minify
 // TODO: source-map
 
-module.exports = (code, exports, moduleMap, wildcards) => {
+module.exports = packager => {
+  let {buffer: code, exports, moduleMap, wildcards} = packager;
   let ast = babylon.parse(code);
 
   let resolveModule = (id, name) => {
@@ -30,12 +31,8 @@ module.exports = (code, exports, moduleMap, wildcards) => {
       node = find(id, id => `$${id}$exports`) || t.identifier(`$${id}$exports`);
 
       // if there is a CommonJS export return $id$exports.name
-      if (node) {
-        if (commonJsAsMemberExpr) {
-          return t.memberExpression(node, t.identifier(name));
-        } else {
-          return node;
-        }
+      if (commonJsAsMemberExpr) {
+        return t.memberExpression(node, t.identifier(name));
       }
     }
 
@@ -84,8 +81,12 @@ module.exports = (code, exports, moduleMap, wildcards) => {
     CallExpression(path) {
       let {arguments: args, callee} = path.node;
 
+      if (!t.isIdentifier(callee)) {
+        return;
+      }
+
       // each require('module') call gets replaced with $parcel$require(id, 'module')
-      if (t.isIdentifier(callee, {name: '$parcel$require'})) {
+      if (callee.name === '$parcel$require') {
         let [id, source] = args;
 
         if (
@@ -101,11 +102,13 @@ module.exports = (code, exports, moduleMap, wildcards) => {
         let mod = resolveModule(id.value, source.value).id;
 
         if (typeof mod === 'undefined') {
-          throw new Error(`Cannot find module "${source.value}"`);
+          throw new Error(
+            `Cannot find module "${source.value}" in asset ${id.value}`
+          );
         }
 
         path.replaceWith(t.identifier(`$${mod}$exports`));
-      } else if (t.isIdentifier(callee, {name: '$parcel$import'})) {
+      } else if (callee.name === '$parcel$import') {
         let [id, source, name] = args;
 
         if (
@@ -122,7 +125,9 @@ module.exports = (code, exports, moduleMap, wildcards) => {
         let mod = resolveModule(id.value, source.value);
 
         if (typeof mod === 'undefined') {
-          throw new Error(`Cannot find module "${source.value}"`);
+          throw new Error(
+            `Cannot find module "${source.value}" in asset ${id.value}`
+          );
         }
 
         if (name.value === 'default' && mod.cacheData.isCommonJS) {
@@ -134,9 +139,40 @@ module.exports = (code, exports, moduleMap, wildcards) => {
         } else {
           path.replaceWith(replaceExportNode(mod.id, name.value, path));
         }
-      } else if (t.isIdentifier(callee, {name: '$parcel$interopDefault'})) {
+      } else if (callee.name === '$parcel$interopDefault') {
         // This hints Uglify and Babel that this CallExpression does not have any side-effects.
         path.addComment('leading', '#__PURE__');
+      } else if (callee.name === '$parcel$require$resolve') {
+        let [id, source] = args;
+
+        if (
+          args.length !== 2 ||
+          !t.isNumericLiteral(id) ||
+          !t.isStringLiteral(source)
+        ) {
+          throw new Error(
+            'invariant: invalid signature, expected : $parcel$require$resolve(number, string)'
+          );
+        }
+
+        let mapped = moduleMap.get(id.value);
+        let dep = mapped.dependencies.get(source.value);
+        let mod = mapped.depAssets.get(dep);
+        let bundles;
+
+        if (dep.dynamic && packager.bundle.childBundles.has(mod.parentBundle)) {
+          bundles = [packager.getBundleSpecifier(mod.parentBundle)];
+
+          for (let child of mod.parentBundle.siblingBundles) {
+            if (!child.isEmpty) {
+              bundles.push(packager.getBundleSpecifier(child));
+            }
+          }
+
+          bundles.push(mod.id);
+        }
+
+        path.replaceWith(toNode(bundles || mod.id));
       }
     },
     MemberExpression(path) {
@@ -213,5 +249,17 @@ function getOuterStatement(path) {
     });
 
     return outerBlocks === 1;
+  }
+}
+
+function toNode(object) {
+  if (typeof object === 'string') {
+    return t.stringLiteral(object);
+  } else if (typeof object === 'number') {
+    return t.numericLiteral(object);
+  } else if (Array.isArray(object)) {
+    return t.arrayExpression(object.map(toNode));
+  } else {
+    throw new Error('Cannot serialize unsupported object type to AST');
   }
 }
