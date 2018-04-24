@@ -23,7 +23,6 @@ class Resolver {
     this.options = options;
     this.cache = new Map();
     this.packageCache = new Map();
-    this.rootPackage = null;
   }
 
   async resolve(input, parent) {
@@ -58,6 +57,14 @@ class Resolver {
     // If this isn't the entrypoint, resolve the input file to an absolute path
     if (parent) {
       filename = this.resolveFilename(filename, dir);
+    }
+
+    // Check if it is an external module and can be ignored
+    if ((await this.isExternal(filename)) !== undefined) {
+      return {
+        path: null,
+        pkg: null
+      };
     }
 
     // Resolve aliases in the parent module for this file.
@@ -264,7 +271,7 @@ class Resolver {
     // First resolve local package aliases, then project global ones.
     return this.resolvePackageAliases(
       this.resolvePackageAliases(filename, pkg),
-      this.rootPackage
+      this.options.rootPackage
     );
   }
 
@@ -340,14 +347,17 @@ class Resolver {
   }
 
   async loadAlias(filename, dir) {
-    // Load the root project's package.json file if we haven't already
-    if (!this.rootPackage) {
-      this.rootPackage = await this.findPackage(this.options.rootDir);
-    }
-
     // Load the local package, and resolve aliases
     let pkg = await this.findPackage(dir);
     return this.resolveAliases(filename, pkg);
+  }
+
+  async isExternal(filename) {
+    return (
+      this.options.rootPackage &&
+      this.options.rootPackage.externals &&
+      this.options.rootPackage.externals[filename]
+    );
   }
 
   getModuleParts(name) {

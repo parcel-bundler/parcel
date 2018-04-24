@@ -196,6 +196,10 @@ class Bundler extends EventEmitter {
       // If this is the initial bundle, ensure the output directory exists, and resolve the main asset.
       if (isInitialBundle) {
         await fs.mkdirp(this.options.outDir);
+        this.options.rootPackage = await this.resolver.findPackage(
+          this.options.rootDir
+        );
+        this.resolver.options.rootPackage = this.options.rootPackage;
 
         this.mainAsset = await this.resolveAsset(this.mainFile);
         this.buildQueue.add(this.mainAsset);
@@ -324,6 +328,8 @@ class Bundler extends EventEmitter {
 
   async resolveAsset(name, parent) {
     let {path, pkg} = await this.resolver.resolve(name, parent);
+    if (!path) return null;
+
     if (this.loadedAssets.has(path)) {
       return this.loadedAssets.get(path);
     }

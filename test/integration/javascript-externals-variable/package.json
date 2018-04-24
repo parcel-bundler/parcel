@@ -1,0 +1,8 @@
+{
+  "name": "externals-test",
+  "version": "1.0.0",
+  "description": "",
+  "externals": {
+    "react": "externalReact"
+  }
+}
