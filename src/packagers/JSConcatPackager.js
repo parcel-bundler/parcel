@@ -211,7 +211,7 @@ class JSConcatPackager extends Packager {
     }
 
     if (bundleLoader) {
-      this.addAssetToBundle(bundleLoader);
+      await this.addAssetToBundle(bundleLoader);
     } else {
       return;
     }
@@ -221,7 +221,7 @@ class JSConcatPackager extends Packager {
       let target = this.options.target === 'node' ? 'node' : 'browser';
       let asset = await this.bundler.getAsset(loader[target]);
       if (!this.bundle.assets.has(asset)) {
-        this.addAssetToBundle(asset);
+        await this.addAssetToBundle(asset);
         this.write(
           `${this.getExportIdentifier(bundleLoader)}.register(${JSON.stringify(
             bundleType
