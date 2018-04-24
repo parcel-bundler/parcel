@@ -202,10 +202,7 @@ module.exports = {
     let {callee, arguments: args} = path.node;
 
     if (t.isIdentifier(callee)) {
-      if (
-        callee.name === '$parcel$exportWildcard' ||
-        callee.name === '$parcel$interopDefault'
-      ) {
+      if (callee.name === '$parcel$exportWildcard') {
         // This hints Uglify and Babel that this CallExpression does not have any side-effects.
         // This will make unsused CommonJS wildcards removed from the minified builds.
         path.addComment('leading', '#__PURE__');
@@ -504,17 +501,17 @@ function getExportsIdentifier(asset, scope) {
 
 // Replaces all references to a Binding by a replacement node.
 function rewriteBinding(path, init, replacement) {
-  let newName = path.scope.generateDeclaredUidIdentifier(init.name);
+  let newName = path.scope.generateUidIdentifier(init.name);
+  let node = t.variableDeclaration('var', [
+    t.variableDeclarator(
+      newName,
+      t.isExpressionStatement(replacement)
+        ? replacement.expression
+        : replacement
+    )
+  ]);
+  let [nodePath] = path.insertBefore(node);
 
-  path.insertBefore(
-    t.variableDeclaration('var', [
-      t.variableDeclarator(
-        newName,
-        t.isExpressionStatement(replacement)
-          ? replacement.expression
-          : replacement
-      )
-    ])
-  );
+  path.scope.registerBinding('var', nodePath);
   path.scope.rename(init.name, newName.name);
 }
