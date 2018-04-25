@@ -178,12 +178,8 @@ async function bundle(main, command) {
 
   const bundler = new Bundler(main, command);
 
-  console.log(command.target);
-
-  if (
-    (command.name() === 'serve' && command.target === undefined) ||
-    'browser'
-  ) {
+  command.target = command.target || 'browser';
+  if (command.name() === 'serve' && command.target === 'browser') {
     const server = await bundler.serve(command.port || 1234, command.https);
     if (server && command.open) {
       await require('./utils/openInBrowser')(
