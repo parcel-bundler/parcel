@@ -33,7 +33,7 @@ class LESSAsset extends Asset {
     return [
       {
         type: 'css',
-        value: this.ast.css,
+        value: this.ast ? this.ast.css : '',
         hasDependencies: false
       }
     ];

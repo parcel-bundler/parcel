@@ -48,7 +48,7 @@ class SASSAsset extends Asset {
     return [
       {
         type: 'css',
-        value: this.ast.css.toString(),
+        value: this.ast ? this.ast.css.toString() : '',
         hasDependencies: false
       }
     ];
