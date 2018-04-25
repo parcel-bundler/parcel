@@ -393,9 +393,10 @@ class Bundler extends EventEmitter {
     // Check if module exists, prevents useless installs
     try {
       let dir = Path.dirname(asset.name);
-      resolved =
-        (await this.resolver.loadAlias(moduleName, dir)) ||
-        (await this.resolver.findNodeModulePath(moduleName, dir));
+      resolved = await this.resolver.loadAlias(moduleName, dir);
+      if (!resolved || resolved === moduleName) {
+        resolved = await this.resolver.findNodeModulePath(moduleName, dir);
+      }
     } catch (e) {
       // Do nothing
     }
