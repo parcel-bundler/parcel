@@ -1,0 +1,7 @@
+{
+  "name": "alias-install",
+  "private": true,
+  "alias": {
+    "aliasVue": "vue"
+  }
+}

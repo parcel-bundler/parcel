@@ -799,6 +799,26 @@ describe('javascript', function() {
     assert.equal(error.code, 'MODULE_NOT_FOUND');
   });
 
+  it('Should not autoinstall if resolve failed on aliased module', async function() {
+    let error;
+    try {
+      await bundle(
+        __dirname + '/integration/dont-autoinstall-resolve-alias-fails/index.js'
+      );
+    } catch (err) {
+      error = err;
+    }
+    assert.equal(
+      error.message,
+      `Cannot find module 'aliasVue/thisDoesNotExist' from '${path.join(
+        __dirname,
+        'integration',
+        'dont-autoinstall-resolve-alias-fails'
+      )}'`
+    );
+    assert.equal(error.code, 'MODULE_NOT_FOUND');
+  });
+
   it('should ignore require if it is defined in the scope', async function() {
     let b = await bundle(__dirname + '/integration/require-scope/index.js');
 
