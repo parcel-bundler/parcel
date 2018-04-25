@@ -25,24 +25,44 @@ class WorkerFarm extends EventEmitter {
     this.callQueue = [];
 
     this.localWorker = require(this.options.workerPath);
-    this.remoteWorker = {
-      run: this.mkhandle('run')
-    };
+    this.run = this.mkhandle('run');
 
     this.init(options);
   }
 
+  warmupWorker(method, args) {
+    // Workers have started, but are not warmed up yet.
+    // Send the job to a remote worker in the background,
+    // but use the result from the local worker - it will be faster.
+    if (this.started) {
+      let promise = this.addCall(method, [...args, true]);
+      if (promise) {
+        promise
+          .then(() => {
+            this.warmWorkers++;
+            if (this.warmWorkers >= this.children.size) {
+              this.emit('warmedup');
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }
+
   mkhandle(method) {
     return function(...args) {
-      return new Promise((resolve, reject) => {
-        this.addCall({
-          method,
-          args: args,
-          retries: 0,
-          resolve,
-          reject
-        });
-      });
+      // Child process workers are slow to start (~600ms).
+      // While we're waiting, just run on the main thread.
+      // This significantly speeds up startup time.
+      if (this.shouldUseRemoteWorkers()) {
+        return this.addCall(method, [...args, false]);
+      } else {
+        if (this.options.warmWorkers) {
+          this.warmupWorker(method, args);
+        }
+
+        return this.localWorker[method](...args, false);
+      }
     }.bind(this);
   }
 
@@ -160,10 +180,19 @@ class WorkerFarm extends EventEmitter {
     }
   }
 
-  addCall(call) {
+  addCall(method, args) {
     if (this.ending) return; // don't add anything new to the queue
-    this.callQueue.push(call);
-    this.processQueue();
+
+    return new Promise((resolve, reject) => {
+      this.callQueue.push({
+        method,
+        args: args,
+        retries: 0,
+        resolve,
+        reject
+      });
+      this.processQueue();
+    });
   }
 
   async end() {
@@ -222,38 +251,6 @@ class WorkerFarm extends EventEmitter {
       (this.started &&
         (this.warmWorkers >= this.children.size || !this.options.warmWorkers))
     );
-  }
-
-  async warmupWorker(...args) {
-    // Workers have started, but are not warmed up yet.
-    // Send the job to a remote worker in the background,
-    // but use the result from the local worker - it will be faster.
-    if (this.started) {
-      this.remoteWorker
-        .run(...args, true)
-        .then(() => {
-          this.warmWorkers++;
-          if (this.warmWorkers >= this.children.size) {
-            this.emit('warmedup');
-          }
-        })
-        .catch(() => {});
-    }
-  }
-
-  async run(...args) {
-    // Child process workers are slow to start (~600ms).
-    // While we're waiting, just run on the main thread.
-    // This significantly speeds up startup time.
-    if (this.shouldUseRemoteWorkers()) {
-      return this.remoteWorker.run(...args, false);
-    } else {
-      if (this.options.warmWorkers) {
-        this.warmupWorker(...args);
-      }
-
-      return this.localWorker.run(...args, false);
-    }
   }
 
   static getShared(options) {
