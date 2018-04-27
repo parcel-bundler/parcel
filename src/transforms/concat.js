@@ -71,7 +71,7 @@ module.exports = packager => {
 
         wildcards
           .get(id)
-          .find(name => (node = find(resolveModule(id, name), symbol)));
+          .find(name => (node = find(resolveModule(id, name).id, symbol)));
 
         return node;
       }
