@@ -172,4 +172,18 @@ describe('sass', function() {
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('._index_1a1ih_1'));
   });
+
+  it('should support advanced import syntax', async function() {
+    let b = await bundle(
+      __dirname + '/integration/sass-advanced-import/index.sass'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.css',
+      assets: ['index.sass']
+    });
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('color: blue;'));
+  });
 });
