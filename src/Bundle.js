@@ -21,7 +21,6 @@ class Bundle {
     this.totalSize = 0;
     this.bundleTime = 0;
     this.isolated = options.isolated;
-    this.dynamic = options.dynamic;
   }
 
   static createWithAsset(asset, parentBundle, options) {
