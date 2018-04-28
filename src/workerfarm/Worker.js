@@ -111,9 +111,8 @@ class Worker extends EventEmitter {
     } else if (type === 'response') {
       let call = this.calls.get(idx);
       if (!call) {
-        throw new Error(
-          `Worker Farm: Received message for unknown index for existing child. This should not happen!`
-        );
+        // Return for unknown calls, these might accur if a third party process uses workers
+        return;
       }
 
       if (contentType === 'error') {
