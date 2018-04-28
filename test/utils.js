@@ -23,6 +23,14 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function normalizeOptions(opts = {}) {
+  if (opts.scopeHoist === undefined) {
+    opts.scopeHoist = false;
+  }
+
+  return opts;
+}
+
 function bundler(file, opts) {
   return new Bundler(
     file,
@@ -35,13 +43,13 @@ function bundler(file, opts) {
         hmr: false,
         logLevel: 0
       },
-      opts
+      normalizeOptions(opts)
     )
   );
 }
 
 function bundle(file, opts) {
-  return bundler(file, opts).bundle();
+  return bundler(file, normalizeOptions(opts)).bundle();
 }
 
 function prepareBrowserContext(bundle, globals) {

@@ -1,5 +1,8 @@
 const assert = require('assert');
-const {bundle, run} = require('./utils');
+const {bundle: _bundle, run} = require('./utils');
+
+const bundle = (name, opts = {}) =>
+  _bundle(name, Object.assign({scopeHoist: true}, opts));
 
 describe.only('scope hoisting', function() {
   describe('es6', function() {
