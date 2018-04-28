@@ -18,6 +18,9 @@ module.exports = packager => {
   let ast = babylon.parse(code);
   let rootPath;
 
+  // Share $parcel$interopDefault variables between modules
+  let interops = new Map();
+
   let resolveModule = (id, name) => {
     let module = moduleMap.get(id);
     return module.depAssets.get(module.dependencies.get(name));
@@ -134,13 +137,41 @@ module.exports = packager => {
         }
 
         let node = replaceExportNode(mod.id, name.value, path);
+        let interop = false;
 
         // If the module has any CommonJS reference, it still can have export/import statements.
         if (mod.cacheData.isCommonJS) {
           if (name.value === 'default') {
-            node = DEFAULT_INTEROP_TEMPLATE({
-              MODULE: t.isMemberExpression(node) ? node.object : node
-            });
+            node = t.isMemberExpression(node) ? node.object : node;
+            interop = true;
+
+            let nodeName =
+              replace.value && t.isIdentifier(node) ? node.name : null;
+            let {id} = path.parent;
+
+            if (nodeName !== null && interops.has(nodeName)) {
+              let name = t.identifier(interops.get(nodeName));
+
+              // Rename references to the variables to the cached interop name.
+              path.scope
+                .getBinding(id.name)
+                .referencePaths.forEach(reference =>
+                  reference.replaceWith(
+                    t.memberExpression(name, t.identifier('d'))
+                  )
+                );
+              path.scope.removeBinding(id.name);
+              path.parentPath.remove();
+
+              return;
+            } else {
+              node = DEFAULT_INTEROP_TEMPLATE({MODULE: node});
+
+              // Save the variable name of the interop call for further use.
+              if (nodeName !== null) {
+                interops.set(nodeName, id.name);
+              }
+            }
           }
         } else if (!t.isIdentifier(node)) {
           let relativePath = relative(packager.options.rootDir, mod.name);
@@ -155,27 +186,38 @@ module.exports = packager => {
             );
           }
 
-          let {name} = path.parent.id;
-          let binding = path.scope.getBinding(name);
+          let {id} = path.parent;
+          let binding = path.scope.getBinding(id.name);
 
-          binding.referencePaths.forEach(reference =>
-            reference.replaceWith(node)
-          );
-          binding.path.remove();
-          path.scope.removeBinding(name);
+          if (interop) {
+            path.replaceWith(node);
 
-          if (t.isIdentifier(node)) {
-            exports.set(name, node.name);
+            binding.referencePaths.forEach(reference =>
+              reference.replaceWith(t.memberExpression(id, t.identifier('d')))
+            );
+          } else {
+            path.scope.removeBinding(id.name);
+
+            binding.path.remove();
+            binding.referencePaths.forEach(reference =>
+              reference.replaceWith(node)
+            );
+
+            if (t.isIdentifier(node)) {
+              exports.set(id.name, node.name);
+            }
           }
         } else {
           path.replaceWith(node);
         }
       } else if (
-        callee.name === '$parcel$interopDefault' ||
-        callee.name === '$parcel$exportWildcard'
+        (callee.name === '$parcel$interopDefault' ||
+          callee.name === '$parcel$exportWildcard') &&
+        !path.getData('markAsPure')
       ) {
         // This hints Uglify and Babel that this CallExpression does not have any side-effects.
         path.addComment('leading', '#__PURE__');
+        path.setData('markAsPure', true);
       } else if (callee.name === '$parcel$require$resolve') {
         let [id, source] = args;
 

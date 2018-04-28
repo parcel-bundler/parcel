@@ -2,8 +2,8 @@
 
 function $parcel$interopDefault(a) {
   return a && a.__esModule
-    ? a.default
-    : a;
+    ? {d: a.default}
+    : {d: a};
 }
 
 function $parcel$exportWildcard(dest, source) {
