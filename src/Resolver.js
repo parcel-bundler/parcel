@@ -27,7 +27,7 @@ class Resolver {
   }
 
   async resolve(input, parent) {
-    let filename = decodeURIComponent(input);
+    let filename = input;
 
     // Check the cache first
     let key = this.getCacheKey(filename, parent);

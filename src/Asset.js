@@ -87,10 +87,11 @@ class Asset {
       from = this.name;
     }
 
-    const parsed = URL.parse(url);
+    const parsed = URL.parse(decodeURIComponent(url));
     const resolved = path.resolve(path.dirname(from), parsed.pathname);
     this.addDependency(
-      './' + path.relative(path.dirname(this.name), resolved),
+      './' +
+        path.relative(path.dirname(this.name), decodeURIComponent(resolved)),
       Object.assign({dynamic: true}, opts)
     );
 

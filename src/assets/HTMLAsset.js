@@ -87,7 +87,7 @@ class HTMLAsset extends Asset {
   }
 
   processSingleDependency(path, opts) {
-    let assetPath = this.addURLDependency(decodeURIComponent(path), opts);
+    let assetPath = this.addURLDependency(path, opts);
     if (!isURL(assetPath)) {
       assetPath = urlJoin(this.options.publicURL, assetPath);
     }
