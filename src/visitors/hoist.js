@@ -256,25 +256,29 @@ module.exports = {
     // This will be replaced by the final variable name of the resolved asset in the packager.
     for (let specifier of path.node.specifiers) {
       if (t.isImportDefaultSpecifier(specifier)) {
-        rewriteBinding(
-          path,
-          specifier.local,
-          IMPORT_TEMPLATE({
-            ID: t.numericLiteral(asset.id),
-            NAME: t.stringLiteral('default'),
-            SOURCE: path.node.source
-          })
-        );
+        let {expression} = IMPORT_TEMPLATE({
+          ID: t.numericLiteral(asset.id),
+          NAME: t.stringLiteral('default'),
+          SOURCE: path.node.source
+        });
+
+        path.scope
+          .getBinding(specifier.local.name)
+          .referencePaths.forEach(reference =>
+            reference.replaceWith(expression)
+          );
       } else if (t.isImportSpecifier(specifier)) {
-        rewriteBinding(
-          path,
-          specifier.local,
-          IMPORT_TEMPLATE({
-            ID: t.numericLiteral(asset.id),
-            SOURCE: path.node.source,
-            NAME: t.stringLiteral(specifier.imported.name)
-          })
-        );
+        let {expression} = IMPORT_TEMPLATE({
+          ID: t.numericLiteral(asset.id),
+          SOURCE: path.node.source,
+          NAME: t.stringLiteral(specifier.imported.name)
+        });
+
+        path.scope
+          .getBinding(specifier.local.name)
+          .referencePaths.forEach(reference =>
+            reference.replaceWith(expression)
+          );
       } else if (t.isImportNamespaceSpecifier(specifier)) {
         path.scope.push({
           id: specifier.local,
@@ -439,27 +443,27 @@ module.exports = {
 };
 
 function addExport(asset, path, local, exported) {
+  let identifier = getIdentifier(asset, 'export', exported.name);
+  let assignNode = EXPORT_ASSIGN_TEMPLATE({
+    EXPORTS: getExportsIdentifier(asset, path.scope),
+    NAME: t.identifier(exported.name),
+    LOCAL: identifier
+  });
+
+  path.scope
+    .getBinding(local.name)
+    .constantViolations.concat(path)
+    .forEach(path => path.insertAfter(assignNode));
+
   // Check if this identifier has already been exported.
   // If so, create an export alias for it, otherwise, rename the local variable to an export.
-  if (asset.cacheData.exports[exported.name]) {
-    asset.cacheData.exports[getName(asset, 'export', exported.name)] =
+  if (asset.cacheData.exports[local.name]) {
+    asset.cacheData.exports[identifier.name] =
       asset.cacheData.exports[local.name];
   } else {
-    asset.cacheData.exports[getName(asset, 'export', exported.name)] =
-      exported.name;
-
-    let assignNode = EXPORT_ASSIGN_TEMPLATE({
-      EXPORTS: getExportsIdentifier(asset, path.scope),
-      NAME: t.identifier(exported.name),
-      LOCAL: getIdentifier(asset, 'export', local.name)
-    });
-
+    asset.cacheData.exports[identifier.name] = exported.name;
     // Get all the node paths mutating the export and insert a CommonJS assignement.
-    path.scope
-      .getBinding(local.name)
-      .constantViolations.concat(path)
-      .forEach(path => path.insertAfter(assignNode));
-    path.scope.rename(local.name, getName(asset, 'export', local.name));
+    path.scope.rename(local.name, identifier.name);
   }
 }
 
@@ -503,21 +507,4 @@ function getExportsIdentifier(asset, scope) {
   } else {
     return getIdentifier(asset, 'exports');
   }
-}
-
-// Replaces all references to a Binding by a replacement node.
-function rewriteBinding(path, init, replacement) {
-  let newName = path.scope.generateUidIdentifier(init.name);
-  let node = t.variableDeclaration('var', [
-    t.variableDeclarator(
-      newName,
-      t.isExpressionStatement(replacement)
-        ? replacement.expression
-        : replacement
-    )
-  ]);
-  let [nodePath] = path.insertBefore(node);
-
-  path.scope.registerBinding('var', nodePath);
-  path.scope.rename(init.name, newName.name);
 }

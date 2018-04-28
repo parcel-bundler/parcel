@@ -1,3 +1,4 @@
+const {relative} = require('path');
 const babylon = require('babylon');
 const template = require('babel-template');
 const t = require('babel-types');
@@ -22,7 +23,7 @@ module.exports = packager => {
     return module.depAssets.get(module.dependencies.get(name));
   };
 
-  function replaceExportNode(id, name, path, commonJsAsMemberExpr = true) {
+  function replaceExportNode(id, name, path) {
     if (!rootPath) {
       rootPath = getOuterStatement(path);
     }
@@ -34,9 +35,7 @@ module.exports = packager => {
       node = find(id, id => `$${id}$exports`) || t.identifier(`$${id}$exports`);
 
       // if there is a CommonJS export return $id$exports.name
-      if (commonJsAsMemberExpr) {
-        return t.memberExpression(node, t.identifier(name));
-      }
+      return t.memberExpression(node, t.identifier(name));
     }
 
     return node;
@@ -102,7 +101,7 @@ module.exports = packager => {
           );
         }
 
-        let mod = resolveModule(id.value, source.value).id;
+        let mod = resolveModule(id.value, source.value);
 
         if (typeof mod === 'undefined') {
           throw new Error(
@@ -110,7 +109,7 @@ module.exports = packager => {
           );
         }
 
-        path.replaceWith(t.identifier(`$${mod}$exports`));
+        path.replaceWith(t.identifier(`$${mod.id}$exports`));
       } else if (callee.name === '$parcel$import') {
         let [id, source, name] = args;
 
@@ -133,16 +132,28 @@ module.exports = packager => {
           );
         }
 
-        if (name.value === 'default' && mod.cacheData.isCommonJS) {
+        let node = replaceExportNode(mod.id, name.value, path);
+
+        // If the module has any CommonJS reference, it still can have export/import statements.
+        if (mod.cacheData.isCommonJS) {
           path.replaceWith(
-            DEFAULT_INTEROP_TEMPLATE({
-              MODULE: replaceExportNode(mod.id, name.value, path, false)
-            })
+            name.value === 'default'
+              ? DEFAULT_INTEROP_TEMPLATE({
+                  MODULE: t.isMemberExpression(node) ? node.object : node
+                })
+              : node
           );
+        } else if (t.isIdentifier(node)) {
+          path.replaceWith(node);
         } else {
-          path.replaceWith(replaceExportNode(mod.id, name.value, path));
+          let relativePath = relative(packager.options.rootDir, mod.name);
+
+          throw new Error(`${relativePath} does not export '${name.value}'`);
         }
-      } else if (callee.name === '$parcel$interopDefault') {
+      } else if (
+        callee.name === '$parcel$interopDefault' ||
+        callee.name === '$parcel$exportWildcard'
+      ) {
         // This hints Uglify and Babel that this CallExpression does not have any side-effects.
         path.addComment('leading', '#__PURE__');
       } else if (callee.name === '$parcel$require$resolve') {
@@ -230,47 +241,84 @@ module.exports = packager => {
         path.replaceWith(t.identifier(exports.get(path.node.name)));
       }
     },
-    exit(path) {
-      if (!rootPath || !path.isProgram()) {
-        return;
-      }
+    Program: {
+      // A small optimization to remove unused CommonJS exports as sometimes Uglify doesn't remove them.
+      exit(path) {
+        if (!(path = rootPath)) {
+          return;
+        }
 
-      path = rootPath;
-      path.scope.crawl();
-      Object.keys(path.scope.bindings)
-        .filter(name => EXPORTS_RE.test(name))
-        .forEach(name => {
-          let binding = path.scope.getBinding(name);
-          // Is there any references which aren't also simple assignments?
-          let bailout = binding.referencePaths.some(
-            ({parentPath}) =>
-              !parentPath.isMemberExpression() ||
-              !parentPath.parentPath.isAssignmentExpression()
-          );
+        // Recrawl to get all bindings.
+        path.scope.crawl();
 
-          // Is so skip.
-          if (bailout) {
+        Object.keys(path.scope.bindings).forEach(name => {
+          let binding = getUnusedBinding(path, name);
+
+          // If it is not safe to remove the binding don't touch it.
+          if (!binding) {
             return;
           }
 
-          // Remove each assignement from the code
+          // Remove the binding and all references to it.
+          binding.path.remove();
           binding.referencePaths.forEach(({parentPath}) => {
             if (parentPath.isMemberExpression()) {
-              console.log('Removing binding', name);
-
-              parentPath.parentPath.remove();
-            } else {
-              throw new Error('Unknown exports path type');
+              if (!parentPath.parentPath.removed) {
+                parentPath.parentPath.remove();
+              }
             }
           });
         });
+      }
     }
   });
 
   return generate(ast, code).code;
 };
 
-// Finds a parent statement in the bundle IIFE body
+// Check if a binding is safe to remove and returns it if it is.
+function getUnusedBinding(path, name) {
+  if (!EXPORTS_RE.test(name)) {
+    return null;
+  }
+
+  let binding = path.scope.getBinding(name);
+  // Is there any references which aren't simple assignments?
+  let bailout = binding.referencePaths.some(
+    path => !isExportAssignment(path) && !isUnusedWildcard(path)
+  );
+
+  if (bailout) {
+    return null;
+  } else {
+    return binding;
+  }
+
+  function isExportAssignment({parentPath}) {
+    return (
+      // match "path.any = any;"
+      parentPath.isMemberExpression() &&
+      parentPath.parentPath.isAssignmentExpression() &&
+      parentPath.parentPath.node.left === parentPath.node
+    );
+  }
+
+  function isUnusedWildcard(path) {
+    let {parent, parentPath} = path;
+
+    return (
+      // match "var $id$exports = $parcel$exportWildcard(any, path);"
+      t.isCallExpression(parent) &&
+      t.isIdentifier(parent.callee, {name: '$parcel$exportWildcard'}) &&
+      parent.arguments[1] === path.node &&
+      parentPath.parentPath.isVariableDeclarator() &&
+      // check if the $id$exports variable is used
+      getUnusedBinding(path, parentPath.parent.id.name) !== null
+    );
+  }
+}
+
+// Finds a parent statement in the bundle IIFE body.
 function getOuterStatement(path) {
   if (validate(path)) {
     return path;
