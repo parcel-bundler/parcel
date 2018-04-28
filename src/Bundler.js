@@ -32,7 +32,7 @@ class Bundler extends EventEmitter {
 
     this.resolver = new Resolver(this.options);
     this.parser = new Parser(this.options);
-    this.packagers = new PackagerRegistry();
+    this.packagers = new PackagerRegistry(this.options);
     this.cache = this.options.cache ? new FSCache(this.options) : null;
     this.delegate = options.delegate || {};
     this.bundleLoaders = {};
@@ -71,6 +71,10 @@ class Bundler extends EventEmitter {
     const watch =
       typeof options.watch === 'boolean' ? options.watch : !isProduction;
     const target = options.target || 'browser';
+    const hmr =
+      target === 'node'
+        ? false
+        : typeof options.hmr === 'boolean' ? options.hmr : watch;
     return {
       production: isProduction,
       outDir: Path.resolve(options.outDir || 'dist'),
@@ -84,10 +88,7 @@ class Bundler extends EventEmitter {
       minify:
         typeof options.minify === 'boolean' ? options.minify : isProduction,
       target: target,
-      hmr:
-        target === 'node'
-          ? false
-          : typeof options.hmr === 'boolean' ? options.hmr : watch,
+      hmr: hmr,
       https: options.https || false,
       logLevel: isNaN(options.logLevel) ? 3 : options.logLevel,
       mainFile: this.mainFile,
@@ -103,6 +104,7 @@ class Bundler extends EventEmitter {
         typeof options.autoinstall === 'boolean'
           ? options.autoinstall
           : !isProduction,
+      scopeHoist: options.scopeHoist !== undefined ? options.scopeHoist : !hmr,
       contentHash:
         typeof options.contentHash === 'boolean'
           ? options.contentHash

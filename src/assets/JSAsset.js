@@ -114,9 +114,11 @@ class JSAsset extends Asset {
     }
 
     await this.parseIfNeeded();
-    this.traverse(hoist);
 
-    if (this.options.minify) {
+    if (this.options.scopeHoist) {
+      this.traverse(hoist);
+    } else if (this.options.minify) {
+      // We minify in the Packager if scope hoisting is enabled
       await uglify(this);
     }
   }

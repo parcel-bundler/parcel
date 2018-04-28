@@ -41,7 +41,10 @@ class Pipeline {
 
     for (let rendition of this.iterateRenditions(asset)) {
       let {type, value} = rendition;
-      if (typeof value !== 'string' || rendition.final) {
+      if (
+        typeof value !== 'string' ||
+        (!asset.options.scopeHoist && rendition.final)
+      ) {
         generated.push(rendition);
         continue;
       }

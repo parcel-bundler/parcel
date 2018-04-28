@@ -18,12 +18,9 @@ class RawAsset extends Asset {
       this.generateBundleName()
     );
 
-    return [
-      {
-        type: 'js',
-        value: `module.exports=${JSON.stringify(pathToAsset)};`
-      }
-    ];
+    return {
+      js: `module.exports=${JSON.stringify(pathToAsset)};`
+    };
   }
 
   async generateHash() {
