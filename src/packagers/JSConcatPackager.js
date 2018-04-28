@@ -82,76 +82,6 @@ class JSConcatPackager extends Packager {
       }
     }
 
-    /* for (let [dep, mod] of asset.depAssets) {
-      let depName = '$' + asset.id + '$require$' + t.toIdentifier(dep.name);
-      let moduleName = this.getExportIdentifier(mod);
-
-      // If this module is not in the current bundle, generate a `require` call for it.
-      if (!this.bundle.assets.has(mod)) {
-        moduleName = `require(${mod.id})`;
-      }
-
-      // js = js.split(depName).join(moduleName);
-
-      // If this was an ES6 export all (e.g. export * from 'foo'), resolve to the original exports.
-      if (dep.isExportAll) {
-        for (let exp in mod.cacheData.exports) {
-          let id = mod.cacheData.exports[exp];
-          if (id !== 'default') {
-            let key = '$' + asset.id + '$export$' + id;
-            asset.cacheData.exports[key] = id;
-            this.exports.set(
-              key,
-              this.exports.get('$' + mod.id + '$export$' + id) || exp
-            );
-          }
-        }
-      }
-
-      if (dep.isES6Import && dep.ids) {
-        for (let id in dep.ids) {
-          id = id.slice(1)
-          let name = '$' + mod.id + '$export$' + id;
-          if (mod.cacheData.exports[name]) {
-            this.exports.set(depName, name);
-          } else if (mod.cacheData.isCommonJS) {
-            if (id === 'default') {
-              name = '(/*#__PURE__* /$parcel$interopDefault($' + mod.id + '$exports))';
-            }
-
-            this.exports.set(depName, name);
-          } else if(false) {
-            throw new Error(
-              `${path.relative(
-                this.options.rootDir,
-                mod.name
-              )} does not export '${id}'`
-            );
-          }
-        }
-      }
-
-      let depResolve =
-        '$' + asset.id + '$require_resolve$' + t.toIdentifier(dep.name);
-      let resolved = '' + mod.id;
-
-      if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
-        let bundles = [this.getBundleSpecifier(mod.parentBundle)];
-        for (let child of mod.parentBundle.siblingBundles) {
-          if (!child.isEmpty) {
-            bundles.push(this.getBundleSpecifier(child));
-            await this.addBundleLoader(child.type);
-          }
-        }
-
-        bundles.push(mod.id);
-        resolved = JSON.stringify(bundles);
-        await this.addBundleLoader(mod.type);
-      }
-
-      js = js.split(depResolve).join(resolved);
-  }*/
-
     for (let [dep, mod] of asset.depAssets) {
       if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
         for (let child of mod.parentBundle.siblingBundles) {
@@ -163,8 +93,6 @@ class JSConcatPackager extends Packager {
         await this.addBundleLoader(mod.type);
       }
     }
-
-    // Replace all re-exported variables
 
     js = js.trim() + '\n';
 
