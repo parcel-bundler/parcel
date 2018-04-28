@@ -11,7 +11,9 @@ const WRAPPER_TEMPLATE = template(`
   }).call({});
 `);
 
-const IMPORT_TEMPLATE = template('$parcel$import(ID, SOURCE, NAME)');
+const IMPORT_TEMPLATE = template(
+  '$parcel$import(ID, SOURCE, NAME, REPLACE_VAR)'
+);
 const EXPORT_ASSIGN_TEMPLATE = template('EXPORTS.NAME = LOCAL');
 const EXPORT_ALL_TEMPLATE = template(
   '$parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE))'
@@ -256,29 +258,27 @@ module.exports = {
     // This will be replaced by the final variable name of the resolved asset in the packager.
     for (let specifier of path.node.specifiers) {
       if (t.isImportDefaultSpecifier(specifier)) {
-        let {expression} = IMPORT_TEMPLATE({
+        let {expression: init} = IMPORT_TEMPLATE({
           ID: t.numericLiteral(asset.id),
           NAME: t.stringLiteral('default'),
-          SOURCE: path.node.source
+          SOURCE: path.node.source,
+          REPLACE_VAR: t.booleanLiteral(true)
         });
+        let id = path.scope.generateUidIdentifier(specifier.local.name);
 
-        path.scope
-          .getBinding(specifier.local.name)
-          .referencePaths.forEach(reference =>
-            reference.replaceWith(expression)
-          );
+        path.scope.push({id, init});
+        path.scope.rename(specifier.local.name, id.name);
       } else if (t.isImportSpecifier(specifier)) {
-        let {expression} = IMPORT_TEMPLATE({
+        let {expression: init} = IMPORT_TEMPLATE({
           ID: t.numericLiteral(asset.id),
           SOURCE: path.node.source,
-          NAME: t.stringLiteral(specifier.imported.name)
+          NAME: t.stringLiteral(specifier.imported.name),
+          REPLACE_VAR: t.booleanLiteral(true)
         });
+        let id = path.scope.generateUidIdentifier(specifier.local.name);
 
-        path.scope
-          .getBinding(specifier.local.name)
-          .referencePaths.forEach(reference =>
-            reference.replaceWith(expression)
-          );
+        path.scope.push({id, init});
+        path.scope.rename(specifier.local.name, id.name);
       } else if (t.isImportNamespaceSpecifier(specifier)) {
         path.scope.push({
           id: specifier.local,
@@ -340,7 +340,8 @@ module.exports = {
           local = IMPORT_TEMPLATE({
             ID: t.numericLiteral(asset.id),
             SOURCE: source,
-            NAME: t.stringLiteral('default')
+            NAME: t.stringLiteral('default'),
+            REPLACE_VAR: t.booleanLiteral(false)
           });
           exported = specifier.exported;
         } else if (t.isExportNamespaceSpecifier(specifier)) {
@@ -353,7 +354,8 @@ module.exports = {
           local = IMPORT_TEMPLATE({
             ID: t.numericLiteral(asset.id),
             SOURCE: source,
-            NAME: t.stringLiteral(specifier.local.name)
+            NAME: t.stringLiteral(specifier.local.name),
+            REPLACE_VAR: t.booleanLiteral(false)
           });
           exported = specifier.exported;
 

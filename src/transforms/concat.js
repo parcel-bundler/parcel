@@ -111,16 +111,17 @@ module.exports = packager => {
 
         path.replaceWith(t.identifier(`$${mod.id}$exports`));
       } else if (callee.name === '$parcel$import') {
-        let [id, source, name] = args;
+        let [id, source, name, replace] = args;
 
         if (
-          args.length !== 3 ||
+          args.length !== 4 ||
           !t.isNumericLiteral(id) ||
           !t.isStringLiteral(source) ||
-          !t.isStringLiteral(name)
+          !t.isStringLiteral(name) ||
+          !t.isBooleanLiteral(replace)
         ) {
           throw new Error(
-            'invariant: invalid signature, expected : $parcel$import(number, string, string)'
+            'invariant: invalid signature, expected : $parcel$import(number, string, string, boolean)'
           );
         }
 
@@ -136,19 +137,38 @@ module.exports = packager => {
 
         // If the module has any CommonJS reference, it still can have export/import statements.
         if (mod.cacheData.isCommonJS) {
-          path.replaceWith(
-            name.value === 'default'
-              ? DEFAULT_INTEROP_TEMPLATE({
-                  MODULE: t.isMemberExpression(node) ? node.object : node
-                })
-              : node
-          );
-        } else if (t.isIdentifier(node)) {
-          path.replaceWith(node);
-        } else {
+          if (name.value === 'default') {
+            node = DEFAULT_INTEROP_TEMPLATE({
+              MODULE: t.isMemberExpression(node) ? node.object : node
+            });
+          }
+        } else if (!t.isIdentifier(node)) {
           let relativePath = relative(packager.options.rootDir, mod.name);
 
           throw new Error(`${relativePath} does not export '${name.value}'`);
+        }
+
+        if (replace.value) {
+          if (!path.parentPath.isVariableDeclarator()) {
+            throw new Error(
+              'invariant: "replace" used outside of a VariableDeclarator'
+            );
+          }
+
+          let {name} = path.parent.id;
+          let binding = path.scope.getBinding(name);
+
+          binding.referencePaths.forEach(reference =>
+            reference.replaceWith(node)
+          );
+          binding.path.remove();
+          path.scope.removeBinding(name);
+
+          if (t.isIdentifier(node)) {
+            exports.set(name, node.name);
+          }
+        } else {
+          path.replaceWith(node);
         }
       } else if (
         callee.name === '$parcel$interopDefault' ||
