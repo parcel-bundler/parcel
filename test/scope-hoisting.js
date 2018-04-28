@@ -198,6 +198,15 @@ describe.only('scope hoisting', function() {
       let output = run(b);
       assert.deepEqual(output, 'foobar');
     });
+
+    it('supports exporting an import', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/es6/re-export-var/a.js'
+      );
+
+      let output = run(b);
+      assert.deepEqual(output, 'foobar');
+    });
   });
 
   describe('commonjs', function() {
