@@ -53,6 +53,28 @@ class Resolver {
 
     extensions.unshift('');
 
+    // Resolve the module directory or local file path
+    let module = await this.resolveModule(filename, parent);
+    let resolved;
+
+    if (module.moduleDir) {
+      resolved = await this.loadNodeModules(module, extensions);
+    } else if (module.filePath) {
+      resolved = await this.loadRelative(module.filePath, extensions);
+    }
+
+    if (!resolved) {
+      let dir = parent ? path.dirname(parent) : process.cwd();
+      let err = new Error(`Cannot find module '${input}' from '${dir}'`);
+      err.code = 'MODULE_NOT_FOUND';
+      throw err;
+    }
+
+    this.cache.set(key, resolved);
+    return resolved;
+  }
+
+  async resolveModule(filename, parent) {
     let dir = parent ? path.dirname(parent) : process.cwd();
 
     // If this isn't the entrypoint, resolve the input file to an absolute path
@@ -63,22 +85,30 @@ class Resolver {
     // Resolve aliases in the parent module for this file.
     filename = await this.loadAlias(filename, dir);
 
-    let resolved;
+    // Return just the file path if this is a file, not in node_modules
     if (path.isAbsolute(filename)) {
-      // load as file
-      resolved = await this.loadRelative(filename, extensions);
-    } else {
-      // load node_modules
-      resolved = await this.loadNodeModules(filename, dir, extensions);
+      return {
+        filePath: filename
+      };
     }
 
+    // Resolve the module in node_modules
+    let resolved;
+    try {
+      resolved = await this.findNodeModulePath(filename, dir);
+    } catch (err) {
+      // ignore
+    }
+
+    // If we couldn't resolve the node_modules path, just return the module name info
     if (!resolved) {
-      let err = new Error(`Cannot find module '${input}' from '${dir}'`);
-      err.code = 'MODULE_NOT_FOUND';
-      throw err;
+      let parts = this.getModuleParts(filename);
+      resolved = {
+        moduleName: parts[0],
+        subPath: parts[1]
+      };
     }
 
-    this.cache.set(key, resolved);
     return resolved;
   }
 
@@ -126,9 +156,8 @@ class Resolver {
   }
 
   async findNodeModulePath(filename, dir) {
-    // Check if this is a builtin module
     if (builtins[filename]) {
-      return builtins[filename];
+      return {filePath: builtins[filename]};
     }
 
     let parts = this.getModuleParts(filename);
@@ -146,6 +175,8 @@ class Resolver {
         let stats = await fs.stat(moduleDir);
         if (stats.isDirectory()) {
           return {
+            moduleName: parts[0],
+            subPath: parts[1],
             moduleDir: moduleDir,
             filePath: path.join(dir, 'node_modules', filename)
           };
@@ -159,29 +190,20 @@ class Resolver {
     }
   }
 
-  async loadNodeModules(filename, dir, extensions) {
-    // Check if this is a builtin module
-    if (builtins[filename]) {
-      return {path: builtins[filename]};
-    }
-
-    let parts = this.getModuleParts(filename);
-
+  async loadNodeModules(module, extensions) {
     try {
-      let {moduleDir, filePath} = await this.findNodeModulePath(filename, dir);
-
       // If a module was specified as a module sub-path (e.g. some-module/some/path),
       // it is likely a file. Try loading it as a file first.
-      if (parts.length > 1) {
-        let pkg = await this.readPackage(moduleDir);
-        let res = await this.loadAsFile(filePath, extensions, pkg);
+      if (module.subPath) {
+        let pkg = await this.readPackage(module.moduleDir);
+        let res = await this.loadAsFile(module.filePath, extensions, pkg);
         if (res) {
           return res;
         }
       }
 
       // Otherwise, load as a directory.
-      return await this.loadDirectory(filePath, extensions);
+      return await this.loadDirectory(module.filePath, extensions);
     } catch (e) {
       // ignore
     }

@@ -779,7 +779,7 @@ describe('javascript', function() {
     assert.deepEqual(output, err);
   });
 
-  it('Should not autoinstall if resolve failed on installed module', async function() {
+  it('should not autoinstall if resolve failed on installed module', async function() {
     let error;
     try {
       await bundle(
@@ -790,16 +790,12 @@ describe('javascript', function() {
     }
     assert.equal(
       error.message,
-      `Cannot find module 'vue/thisDoesNotExist' from '${path.join(
-        __dirname,
-        'integration',
-        'dont-autoinstall-resolve-fails'
-      )}'`
+      `Cannot resolve dependency 'vue/thisDoesNotExist'`
     );
     assert.equal(error.code, 'MODULE_NOT_FOUND');
   });
 
-  it('Should not autoinstall if resolve failed on aliased module', async function() {
+  it('should not autoinstall if resolve failed on aliased module', async function() {
     let error;
     try {
       await bundle(
@@ -810,11 +806,7 @@ describe('javascript', function() {
     }
     assert.equal(
       error.message,
-      `Cannot find module 'aliasVue/thisDoesNotExist' from '${path.join(
-        __dirname,
-        'integration',
-        'dont-autoinstall-resolve-alias-fails'
-      )}'`
+      `Cannot resolve dependency 'aliasVue/thisDoesNotExist'`
     );
     assert.equal(error.code, 'MODULE_NOT_FOUND');
   });
