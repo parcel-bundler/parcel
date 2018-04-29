@@ -67,8 +67,26 @@ class VueAsset extends Asset {
 
     // Generate JS output.
     let js = this.ast.script ? generated[0].value : '';
-    let supplemental = `
-      var ${optsVar} = exports.default || module.exports;
+    let supplemental
+
+    if(this.options.scopeHoist) {
+      let exportVar = `$${this.id}$export$default`
+
+      if(js.indexOf(exportVar) === -1) {
+        supplemental = `
+          var ${exportVar} = {};
+          var ${optsVar} = ${exportVar};
+        `
+      }
+      else {
+        optsVar = exportVar
+      }
+    }
+    else {
+      supplemental = `var ${optsVar} = exports.default || module.exports;`
+    }
+
+    supplemental += `
       if (typeof ${optsVar} === 'function') {
         ${optsVar} = ${optsVar}.options;
       }
