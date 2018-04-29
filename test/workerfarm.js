@@ -7,14 +7,15 @@ describe('WorkerFarm', () => {
       {},
       {
         warmWorkers: false,
-        useLocalWorker: false,
-        workerPath: require.resolve('./integration/workerfarm/ping.js')
+        useLocalWorker: false
       }
     );
 
-    await new Promise(resolve => workerfarm.once('started', resolve));
-
-    assert.equal(await workerfarm.run(), 'pong');
+    let runHandle = workerfarm.mkhandle(
+      require.resolve('./integration/workerfarm/ping.js'),
+      'run'
+    );
+    assert.equal(await runHandle(), 'pong');
 
     await workerfarm.end();
   });
@@ -24,16 +25,17 @@ describe('WorkerFarm', () => {
       {},
       {
         warmWorkers: false,
-        useLocalWorker: false,
-        workerPath: require.resolve('./integration/workerfarm/echo.js')
+        useLocalWorker: false
       }
     );
 
-    await new Promise(resolve => workerfarm.once('started', resolve));
-
+    let runHandle = workerfarm.mkhandle(
+      require.resolve('./integration/workerfarm/echo.js'),
+      'run'
+    );
     let promises = [];
     for (let i = 0; i < 1000; i++) {
-      promises.push(workerfarm.run(i));
+      promises.push(runHandle(i));
     }
     await Promise.all(promises);
 
@@ -47,16 +49,19 @@ describe('WorkerFarm', () => {
 
     let workerfarm = new WorkerFarm(options, {
       warmWorkers: false,
-      useLocalWorker: false,
-      workerPath: require.resolve('./integration/workerfarm/init.js')
+      useLocalWorker: false
     });
+
+    let runHandle = workerfarm.mkhandle(
+      require.resolve('./integration/workerfarm/init.js'),
+      'run'
+    );
 
     for (let i = 0; i < 100; i++) {
       options.key = i;
       workerfarm.init(options);
-      await new Promise(resolve => workerfarm.once('started', resolve));
       for (let i = 0; i < workerfarm.children.size; i++) {
-        assert.equal((await workerfarm.run()).key, options.key);
+        assert.equal((await runHandle()).key, options.key);
       }
       assert.equal(workerfarm.shouldUseRemoteWorkers(), true);
     }
@@ -69,15 +74,17 @@ describe('WorkerFarm', () => {
       {},
       {
         warmWorkers: true,
-        useLocalWorker: true,
-        workerPath: require.resolve('./integration/workerfarm/echo.js')
+        useLocalWorker: true
       }
     );
 
-    await new Promise(resolve => workerfarm.once('started', resolve));
+    let runHandle = workerfarm.mkhandle(
+      require.resolve('./integration/workerfarm/echo.js'),
+      'run'
+    );
 
     for (let i = 0; i < 100; i++) {
-      assert.equal(await workerfarm.run(i), i);
+      assert.equal(await runHandle(i), i);
     }
 
     await new Promise(resolve => workerfarm.once('warmedup', resolve));
@@ -96,12 +103,16 @@ describe('WorkerFarm', () => {
       {},
       {
         warmWorkers: true,
-        useLocalWorker: true,
-        workerPath: require.resolve('./integration/workerfarm/echo.js')
+        useLocalWorker: true
       }
     );
 
-    assert.equal(await workerfarm.run('hello world'), 'hello world');
+    let runHandle = workerfarm.mkhandle(
+      require.resolve('./integration/workerfarm/echo.js'),
+      'run'
+    );
+
+    assert.equal(await runHandle('hello world'), 'hello world');
     assert.equal(workerfarm.shouldUseRemoteWorkers(), false);
 
     await workerfarm.end();
@@ -112,14 +123,16 @@ describe('WorkerFarm', () => {
       {},
       {
         warmWorkers: false,
-        useLocalWorker: false,
-        workerPath: require.resolve('./integration/workerfarm/ipc.js')
+        useLocalWorker: false
       }
     );
 
-    await new Promise(resolve => workerfarm.once('started', resolve));
+    let runHandle = workerfarm.mkhandle(
+      require.resolve('./integration/workerfarm/ipc.js'),
+      'run'
+    );
 
-    assert.equal(await workerfarm.run(1, 2), 3);
+    assert.equal(await runHandle(1, 2), 3);
 
     await workerfarm.end();
   });
@@ -129,15 +142,17 @@ describe('WorkerFarm', () => {
       {},
       {
         warmWorkers: false,
-        useLocalWorker: false,
-        workerPath: require.resolve('./integration/workerfarm/ipc.js')
+        useLocalWorker: false
       }
     );
 
-    await new Promise(resolve => workerfarm.once('started', resolve));
+    let runHandle = workerfarm.mkhandle(
+      require.resolve('./integration/workerfarm/ipc.js'),
+      'run'
+    );
 
     for (let i = 0; i < 1000; i++) {
-      assert.equal(await workerfarm.run(1 + i, 2), 3 + i);
+      assert.equal(await runHandle(1 + i, 2), 3 + i);
     }
 
     await workerfarm.end();
@@ -148,14 +163,15 @@ describe('WorkerFarm', () => {
       {},
       {
         warmWorkers: false,
-        useLocalWorker: false,
-        workerPath: require.resolve('./integration/workerfarm/ipc-pid.js')
+        useLocalWorker: false
       }
     );
 
-    await new Promise(resolve => workerfarm.once('started', resolve));
-
-    let result = await workerfarm.run();
+    let runHandle = workerfarm.mkhandle(
+      require.resolve('./integration/workerfarm/ipc-pid.js'),
+      'run'
+    );
+    let result = await runHandle();
     assert.equal(result.length, 2);
     assert.equal(result[1], process.pid);
     assert.notEqual(result[0], process.pid);
@@ -169,49 +185,24 @@ describe('WorkerFarm', () => {
       {},
       {
         warmWorkers: false,
-        useLocalWorker: false,
-        workerPath: require.resolve('./integration/workerfarm/echo.js')
+        useLocalWorker: false
       }
     );
-
-    await new Promise(resolve => workerfarm.once('started', resolve));
 
     let bigData = [];
     for (let i = 0; i < 10000; i++) {
       bigData.push('This is some big data');
     }
 
+    let runHandle = workerfarm.mkhandle(
+      require.resolve('./integration/workerfarm/echo.js'),
+      'run'
+    );
     let promises = [];
     for (let i = 0; i < 10; i++) {
-      promises.push(workerfarm.run(bigData));
+      promises.push(runHandle(bigData));
     }
     await Promise.all(promises);
-
-    await workerfarm.end();
-  });
-
-  it('Should be possible to inject a function into a running workerfarms workers', async () => {
-    let workerfarm = new WorkerFarm(
-      {},
-      {
-        warmWorkers: false,
-        useLocalWorker: false,
-        workerPath: require.resolve('./integration/workerfarm/ping.js')
-      }
-    );
-
-    await new Promise(resolve => workerfarm.once('started', resolve));
-
-    assert.equal(await workerfarm.run(), 'pong');
-
-    workerfarm.registerWorkerFunctions(
-      require.resolve('./integration/workerfarm/echo.js'),
-      ['echo']
-    );
-
-    for (let i = 0; i < 25; i++) {
-      assert.equal(await workerfarm.echo('ping'), 'ping');
-    }
 
     await workerfarm.end();
   });

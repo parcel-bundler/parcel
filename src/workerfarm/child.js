@@ -1,5 +1,4 @@
 const errorUtils = require('./errorUtils');
-const childBootstrap = require('./childBootstrap');
 
 class Child {
   constructor() {
@@ -9,8 +8,7 @@ class Child {
     this.responseQueue = new Map();
     this.responseId = 0;
     this.maxConcurrentCalls = 10;
-
-    childBootstrap.setChildReference(this);
+    this.options = {};
   }
 
   messageListener(data) {
@@ -18,19 +16,16 @@ class Child {
       return this.end();
     }
 
-    if (data.type === 'workerFunctions' && data.functions) {
-      childBootstrap.addFunctions(data.functions);
-      if (data.child !== undefined) {
-        this.childId = data.child;
-      }
-      return;
-    }
-
     let type = data.type;
-    if (type === 'response') {
-      return this.handleResponse(data);
-    } else if (type === 'request') {
-      return this.handleRequest(data);
+    switch (type) {
+      case 'init':
+        this.options = data.options;
+        this.childId = data.child;
+        return;
+      case 'response':
+        return this.handleResponse(data);
+      case 'request':
+        return this.handleRequest(data);
     }
   }
 
@@ -51,11 +46,19 @@ class Child {
     let child = data.child;
     let method = data.method;
     let args = data.args;
+    let location = data.location;
 
     let result = {idx, child, type: 'response'};
     try {
       result.contentType = 'data';
-      result.content = await childBootstrap[method](...args);
+      let worker = require(location);
+      if (worker.setChildReference) {
+        worker.setChildReference(this);
+      }
+      if (worker.init) {
+        worker.init(this.options);
+      }
+      result.content = await worker[method](...args);
     } catch (e) {
       result.contentType = 'error';
       result.content = errorUtils.errorToJson(e);
