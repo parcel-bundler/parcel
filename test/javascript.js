@@ -779,6 +779,38 @@ describe('javascript', function() {
     assert.deepEqual(output, err);
   });
 
+  it('should not autoinstall if resolve failed on installed module', async function() {
+    let error;
+    try {
+      await bundle(
+        __dirname + '/integration/dont-autoinstall-resolve-fails/index.js'
+      );
+    } catch (err) {
+      error = err;
+    }
+    assert.equal(
+      error.message,
+      `Cannot resolve dependency 'vue/thisDoesNotExist'`
+    );
+    assert.equal(error.code, 'MODULE_NOT_FOUND');
+  });
+
+  it('should not autoinstall if resolve failed on aliased module', async function() {
+    let error;
+    try {
+      await bundle(
+        __dirname + '/integration/dont-autoinstall-resolve-alias-fails/index.js'
+      );
+    } catch (err) {
+      error = err;
+    }
+    assert.equal(
+      error.message,
+      `Cannot resolve dependency 'aliasVue/thisDoesNotExist'`
+    );
+    assert.equal(error.code, 'MODULE_NOT_FOUND');
+  });
+
   it('should ignore require if it is defined in the scope', async function() {
     let b = await bundle(__dirname + '/integration/require-scope/index.js');
 
