@@ -7,6 +7,7 @@ module.exports = async function(asset) {
   const htmlNanoConfig = asset.package.htmlnano ||
     (await asset.getConfig(['.htmlnanorc', '.htmlnanorc.js'])) || {
       collapseWhitespace: 'conservative',
+      removeRedundantAttributes: false,
       minifyCss: {
         safe: true
       }
