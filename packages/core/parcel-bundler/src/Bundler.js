@@ -99,7 +99,10 @@ class Bundler extends EventEmitter {
         options.hmrHostname ||
         (options.target === 'electron' ? 'localhost' : ''),
       detailedReport: options.detailedReport || false,
-      autoinstall: (options.autoinstall || false) && !isProduction,
+      autoinstall:
+        typeof options.autoinstall === 'boolean'
+          ? options.autoinstall
+          : !isProduction,
       contentHash:
         typeof options.contentHash === 'boolean'
           ? options.contentHash
@@ -366,16 +369,17 @@ class Bundler extends EventEmitter {
     try {
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
-      let thrown = err;
+      // If the dep is optional, return before we throw
+      if (dep.optional) {
+        return;
+      }
 
-      if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
-        // Check if dependency is a local file
+      if (err.code === 'MODULE_NOT_FOUND') {
         let isLocalFile = /^[/~.]/.test(dep.name);
         let fromNodeModules = asset.name.includes(
           `${Path.sep}node_modules${Path.sep}`
         );
 
-        // If it's not a local file, attempt to install the dep
         if (
           !isLocalFile &&
           !fromNodeModules &&
@@ -385,30 +389,32 @@ class Bundler extends EventEmitter {
           return await this.installDep(asset, dep);
         }
 
-        // If the dep is optional, return before we throw
-        if (dep.optional) {
-          return;
-        }
-
-        thrown.message = `Cannot resolve dependency '${dep.name}'`;
+        err.message = `Cannot resolve dependency '${dep.name}'`;
         if (isLocalFile) {
           const absPath = Path.resolve(Path.dirname(asset.name), dep.name);
-          thrown.message += ` at '${absPath}'`;
+          err.message += ` at '${absPath}'`;
         }
 
-        await this.throwDepError(asset, dep, thrown);
+        await this.throwDepError(asset, dep, err);
       }
 
-      throw thrown;
+      throw err;
     }
   }
 
   async installDep(asset, dep) {
-    let [moduleName] = this.resolver.getModuleParts(dep.name);
-    try {
-      await installPackage([moduleName], asset.name, {saveDev: false});
-    } catch (err) {
-      await this.throwDepError(asset, dep, err);
+    // Check if module exists, prevents useless installs
+    let resolved = await this.resolver.resolveModule(dep.name, asset.name);
+
+    // If the module resolved (i.e. wasn't a local file), but the module directory wasn't found, install it.
+    if (resolved.moduleName && !resolved.moduleDir) {
+      try {
+        await installPackage([resolved.moduleName], asset.name, {
+          saveDev: false
+        });
+      } catch (err) {
+        await this.throwDepError(asset, dep, err);
+      }
     }
 
     return await this.resolveDep(asset, dep, false);
