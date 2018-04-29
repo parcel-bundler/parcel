@@ -40,17 +40,17 @@ class WorkerFarm extends EventEmitter {
     // Send the job to a remote worker in the background,
     // but use the result from the local worker - it will be faster.
     if (this.started) {
-      let promise = new Promise((resolve, reject) => {
-        this.addCall(resolve, reject, method, [...args, true]);
-      });
-      promise
-        .then(() => {
-          this.warmWorkers++;
-          if (this.warmWorkers >= this.children.size) {
-            this.emit('warmedup');
-          }
-        })
-        .catch(() => {});
+      let promise = this.addCall(method, [...args, true]);
+      if (promise) {
+        promise
+          .then(() => {
+            this.warmWorkers++;
+            if (this.warmWorkers >= this.children.size) {
+              this.emit('warmedup');
+            }
+          })
+          .catch(() => {});
+      }
     }
   }
 
@@ -60,9 +60,7 @@ class WorkerFarm extends EventEmitter {
       // While we're waiting, just run on the main thread.
       // This significantly speeds up startup time.
       if (this.shouldUseRemoteWorkers()) {
-        return new Promise((resolve, reject) => {
-          this.addCall(resolve, reject, method, [...args, false]);
-        });
+        return this.addCall(method, [...args, false]);
       } else {
         if (this.options.warmWorkers) {
           this.warmupWorker(method, args);
@@ -219,16 +217,19 @@ class WorkerFarm extends EventEmitter {
     }
   }
 
-  addCall(resolve, reject, method, args) {
+  addCall(method, args) {
     if (this.ending) return; // don't add anything new to the queue
-    this.callQueue.push({
-      method,
-      args: args,
-      retries: 0,
-      resolve,
-      reject
+
+    return new Promise((resolve, reject) => {
+      this.callQueue.push({
+        method,
+        args: args,
+        retries: 0,
+        resolve,
+        reject
+      });
+      this.processQueue();
     });
-    this.processQueue();
   }
 
   async end() {

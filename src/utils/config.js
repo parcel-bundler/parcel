@@ -39,9 +39,9 @@ async function load(filepath, filenames, root = path.parse(filepath).root) {
         return require(configFile);
       }
 
-      let configStream = await fs.readFile(configFile);
+      let configContent = (await fs.readFile(configFile)).toString();
       let parse = PARSERS[extname] || PARSERS.json;
-      return parse(configStream.toString());
+      return configContent ? parse(configContent) : null;
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {
         existsCache.delete(configFile);
