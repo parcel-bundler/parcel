@@ -2,19 +2,24 @@ const Path = require('path');
 const types = require('babel-types');
 const matchesPattern = require('./matches-pattern');
 
+const genRequire = (asset, name, module = name) => {
+  asset.addDependency(module)
+
+  if(asset.options.scopeHoist) {
+    return `var ${name} = $parcel$require(${asset.id}, ${JSON.stringify(module)})`
+  }
+  else {
+    return `var ${name} = require(${JSON.stringify(module)})`
+  }
+}
+
 const VARS = {
-  process: asset => {
-    asset.addDependency('process');
-    return 'var process = require("process");';
-  },
+  process: asset => genRequire(asset, 'process') + ';',
   global: () => 'var global = (1,eval)("this");',
   __dirname: asset =>
     `var __dirname = ${JSON.stringify(Path.dirname(asset.name))};`,
   __filename: asset => `var __filename = ${JSON.stringify(asset.name)};`,
-  Buffer: asset => {
-    asset.addDependency('buffer');
-    return 'var Buffer = require("buffer").Buffer;';
-  }
+  Buffer: asset => `${genRequire(asset, 'Buffer', 'buffer')}.Buffer;`
 };
 
 module.exports = {
