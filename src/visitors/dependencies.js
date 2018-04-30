@@ -150,7 +150,7 @@ function evaluateExpression(node) {
 }
 
 function addDependency(asset, node, opts = {}) {
-  if (asset.options.target !== 'browser') {
+  if (asset.options.target !== 'browser' && !asset.options.bundleAll) {
     const isRelativeImport = /^[/~.]/.test(node.value);
     if (!isRelativeImport) return;
   }

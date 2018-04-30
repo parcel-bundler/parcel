@@ -104,6 +104,7 @@ class Bundler extends EventEmitter {
       minify:
         typeof options.minify === 'boolean' ? options.minify : isProduction,
       target: target,
+      bundleAll: options.bundleAll || false,
       hmr:
         target === 'node'
           ? false

@@ -104,7 +104,7 @@ class JSAsset extends Asset {
   }
 
   async transform() {
-    if (this.options.target === 'browser') {
+    if (this.options.target === 'browser' || this.options.bundleAll) {
       if (this.dependencies.has('fs') && FS_RE.test(this.contents)) {
         await this.parseIfNeeded();
         this.traverse(fsVisitor);
