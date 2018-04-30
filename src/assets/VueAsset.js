@@ -67,13 +67,13 @@ class VueAsset extends Asset {
 
     // Generate JS output.
     let js = this.ast.script ? generated[0].value : '';
-    let supplemental
+    let supplemental = ''
 
     if(this.options.scopeHoist) {
       let exportVar = `$${this.id}$export$default`
 
       if(js.indexOf(exportVar) === -1) {
-        supplemental = `
+        supplemental += `
           var ${exportVar} = {};
           var ${optsVar} = ${exportVar};
         `
@@ -83,7 +83,7 @@ class VueAsset extends Asset {
       }
     }
     else {
-      supplemental = `var ${optsVar} = exports.default || module.exports;`
+      supplemental += `var ${optsVar} = exports.default || module.exports;`
     }
 
     supplemental += `
@@ -96,7 +96,7 @@ class VueAsset extends Asset {
     supplemental += this.compileCSSModules(generated, optsVar);
     supplemental += this.compileHMR(generated, optsVar);
 
-    if (this.options.minify && supplemental) {
+    if (this.options.minify && !this.options.scopeHoist && supplemental) {
       let {code, error} = minify(supplemental, {toplevel: true});
       if (error) {
         throw error;
