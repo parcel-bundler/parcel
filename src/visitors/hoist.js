@@ -1,6 +1,7 @@
 const matchesPattern = require('./matches-pattern');
 const t = require('babel-types');
 const template = require('babel-template');
+const rename = require('./renamer')
 
 const WRAPPER_TEMPLATE = template(`
   var NAME = (function () {
@@ -106,13 +107,16 @@ module.exports = {
         // Re-crawl scope so we are sure to have all bindings.
         scope.crawl();
 
+        let bindings = {}
         // Rename each binding in the top-level scope to something unique.
         for (let name in scope.bindings) {
           if (!name.startsWith('$' + asset.id)) {
             let newName = '$' + asset.id + '$var$' + name;
-            scope.rename(name, newName);
+            bindings[name] = newName
           }
         }
+
+        rename(scope, bindings)
 
         let exportsIdentifier = getExportsIdentifier(asset);
 
