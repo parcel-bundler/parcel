@@ -1,7 +1,7 @@
 const matchesPattern = require('./matches-pattern');
 const t = require('babel-types');
 const template = require('babel-template');
-const rename = require('./renamer')
+const rename = require('./renamer');
 
 const WRAPPER_TEMPLATE = template(`
   var NAME = (function () {
@@ -33,6 +33,7 @@ module.exports = {
     enter(path, asset) {
       asset.cacheData.exports = {};
       asset.cacheData.wildcards = [];
+      asset.renamings = new Map();
 
       let shouldWrap = false;
       path.traverse({
@@ -104,19 +105,23 @@ module.exports = {
           ])
         );
       } else {
+        let bindings = {};
+
+        asset.renamings.forEach(
+          (oldName, newName) => (bindings[oldName] = newName)
+        );
         // Re-crawl scope so we are sure to have all bindings.
         scope.crawl();
 
-        let bindings = {}
         // Rename each binding in the top-level scope to something unique.
         for (let name in scope.bindings) {
-          if (!name.startsWith('$' + asset.id)) {
+          if (!name.startsWith('$' + asset.id) && !(name in bindings)) {
             let newName = '$' + asset.id + '$var$' + name;
-            bindings[name] = newName
+            bindings[name] = newName;
           }
         }
 
-        rename(scope, bindings)
+        rename(scope, bindings);
 
         let exportsIdentifier = getExportsIdentifier(asset);
 
@@ -214,9 +219,14 @@ module.exports = {
       !t.isStringLiteral(args[0]) ||
       path.scope.hasBinding('require');
 
-    if(asset.package && asset.package.sideEffects === false && !path.scope.parent && !path.getData('markAsPure')) {
-      path.setData('markAsPure', true)
-      path.addComment('leading', '#__PURE__')
+    if (
+      asset.package &&
+      asset.package.sideEffects === false &&
+      !path.scope.parent &&
+      !path.getData('markAsPure')
+    ) {
+      path.setData('markAsPure', true);
+      path.addComment('leading', '#__PURE__');
     }
     if (ignore) {
       return;
@@ -264,7 +274,9 @@ module.exports = {
         let id = path.scope.generateUidIdentifier(specifier.local.name);
 
         path.scope.push({id, init});
-        path.scope.rename(specifier.local.name, id.name);
+        path.scope
+          .getBinding(specifier.local.name)
+          .referencePaths.forEach(path => path.replaceWith(id));
       } else if (t.isImportSpecifier(specifier)) {
         let {expression: init} = IMPORT_TEMPLATE({
           ID: t.numericLiteral(asset.id),
@@ -275,7 +287,9 @@ module.exports = {
         let id = path.scope.generateUidIdentifier(specifier.local.name);
 
         path.scope.push({id, init});
-        path.scope.rename(specifier.local.name, id.name);
+        path.scope
+          .getBinding(specifier.local.name)
+          .referencePaths.forEach(path => path.replaceWith(id));
       } else if (t.isImportNamespaceSpecifier(specifier)) {
         path.scope.push({
           id: specifier.local,
@@ -305,7 +319,7 @@ module.exports = {
 
     if (t.isIdentifier(declaration)) {
       // Rename the variable being exported.
-      safeRename(path, declaration.name, identifier.name);
+      safeRename(path, asset, declaration.name, identifier.name);
       path.remove();
     } else if (t.isExpression(declaration) || !declaration.id) {
       // Declare a variable to hold the exported value.
@@ -316,7 +330,7 @@ module.exports = {
       );
     } else {
       // Rename the declaration to the exported name.
-      safeRename(path, declaration.id.name, identifier.name);
+      safeRename(path, asset, declaration.id.name, identifier.name);
       path.replaceWith(declaration);
     }
 
@@ -426,7 +440,7 @@ module.exports = {
     if (path.scope.hasBinding(exportsName.name)) {
       oldName = path.scope.generateDeclaredUidIdentifier(exportsName.name);
 
-      path.scope.rename(exportsName.name, oldName.name);
+      fastRename(exportsName.name, oldName.name);
     }
 
     path.scope.push({
@@ -441,6 +455,26 @@ module.exports = {
   }
 };
 
+// Doesn't actually rename, schedules the renaming at the end of the traversal
+function fastRename(scope, asset, oldName, newName) {
+  if (asset.renamings.has(oldName)) {
+    asset.renamings.set(newName, asset.renamings.get(oldName));
+    asset.renamings.delete(oldName);
+  } else {
+    asset.renamings.set(newName, oldName);
+  }
+}
+
+function resolveRename(asset, name, cache = Array.from(asset.renamings)) {
+  let resolved = cache.find(entry => entry[1] === name);
+
+  if (resolved) {
+    return resolveRename(asset, resolved[0], cache);
+  }
+
+  return name;
+}
+
 function addExport(asset, path, local, exported) {
   let identifier = getIdentifier(asset, 'export', exported.name);
   let assignNode = EXPORT_ASSIGN_TEMPLATE({
@@ -454,24 +488,30 @@ function addExport(asset, path, local, exported) {
     .constantViolations.concat(path)
     .forEach(path => path.insertAfter(assignNode));
 
+  let localName = getName(asset, 'export', local.name);
+
+  if (!asset.cacheData.exports[localName]) {
+    localName = resolveRename(asset, local.name);
+  }
+
   // Check if this identifier has already been exported.
   // If so, create an export alias for it, otherwise, rename the local variable to an export.
-  if (asset.cacheData.exports[local.name]) {
+  if (asset.cacheData.exports[localName]) {
     asset.cacheData.exports[identifier.name] =
-      asset.cacheData.exports[local.name];
+      asset.cacheData.exports[localName];
   } else {
     asset.cacheData.exports[identifier.name] = exported.name;
     // Get all the node paths mutating the export and insert a CommonJS assignement.
-    path.scope.rename(local.name, identifier.name);
+    fastRename(path.scope, asset, local.name, identifier.name);
   }
 }
 
-function safeRename(path, from, to) {
+function safeRename(path, asset, from, to) {
   // If the binding that we're renaming is constant, it's safe to rename it.
   // Otherwise, create a new binding that references the original.
   let binding = path.scope.getBinding(from);
   if (binding && binding.constant) {
-    path.scope.rename(from, to);
+    fastRename(path.scope, asset, from, to);
   } else {
     path.insertAfter(
       t.variableDeclaration('var', [

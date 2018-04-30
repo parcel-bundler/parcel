@@ -273,13 +273,12 @@ module.exports = packager => {
         }
       }
     },
-    Identifier(path) {
+    ReferencedIdentifier(path) {
       let {name} = path.node;
 
       if (typeof name !== 'string') {
         return;
       }
-
       let match = name.match(EXPORT_RE);
 
       if (match && !path.scope.hasBinding(name)) {
@@ -295,30 +294,26 @@ module.exports = packager => {
           );
         }
 
-        return
+        return;
       }
-      
-      match = name.match(EXPORTS_RE)
+
+      match = name.match(EXPORTS_RE);
 
       if (match && !path.scope.hasBinding(name)) {
         let id = Number(match[1]);
 
-        if(moduleMap.has(id)) {
+        if (moduleMap.has(id)) {
           path.replaceWith(t.objectExpression([]));
-        }
-        else {
+        } else {
           path.replaceWith(
-            t.callExpression(
-              t.identifier('require'),
-              [t.numericLiteral(id)]
-            )
-          )
-          // throw new Error(`Module ${id} not found`)
+            t.callExpression(t.identifier('require'), [t.numericLiteral(id)])
+          );
         }
+
+        return;
       }
-    },
-    ReferencedIdentifier(path) {
-      if (exports.has(path.node.name)) {
+
+      if (exports.has(name)) {
         path.replaceWith(t.identifier(exports.get(path.node.name)));
       }
     },

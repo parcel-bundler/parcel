@@ -1,41 +1,45 @@
 // A fork of babel-traverse Renamer class, optimized for renaming multiple bindings
 // https://github.com/babel/babel/blob/v6.26.3/packages/babel-traverse/src/scope/lib/renamer.js
 
-const t = require('babel-types')
+const t = require('babel-types');
 
 const renameVisitor = {
-  ReferencedIdentifier({ node }, states) {
+  ReferencedIdentifier(path, states) {
     states.find(state => {
-      if (node.name === state.oldName) {
-        node.name = state.newName;
+      if (
+        path.node.name === state.oldName &&
+        path.scope.bindingIdentifierEquals(
+          state.oldName,
+          state.binding.identifier
+        )
+      ) {
+        path.node.name = state.newName;
 
-        return true
+        return true;
       }
-    })
+    });
   },
-
-  Scope(path, states) {
-    states.find(state => {
-      if (!path.scope.bindingIdentifierEquals(state.oldName, state.binding.identifier)) {
-        path.skip();
-
-        return true
-      }
-    })
-  },
-
   'AssignmentExpression|Declaration'(path, states) {
     let ids = path.getOuterBindingIdentifiers();
 
     states.find(state => {
-      for (let name in ids) {
-        if (name === state.oldName) {
-          ids[name].name = state.newName;
-
-          return true
-        }
+      if (
+        !path.scope.bindingIdentifierEquals(
+          state.oldName,
+          state.binding.identifier
+        )
+      ) {
+        return;
       }
-    })
+
+      let id = ids[state.oldName];
+
+      if (id) {
+        id.name = state.newName;
+
+        return true;
+      }
+    });
   }
 };
 
@@ -47,7 +51,8 @@ class Renamer {
   }
 
   maybeConvertFromExportDeclaration(parentDeclar) {
-    let exportDeclar = parentDeclar.parentPath.isExportDeclaration() && parentDeclar.parentPath;
+    let exportDeclar =
+      parentDeclar.parentPath.isExportDeclaration() && parentDeclar.parentPath;
 
     if (!exportDeclar) {
       return;
@@ -56,11 +61,17 @@ class Renamer {
     // build specifiers that point back to this export declaration
     let isDefault = exportDeclar.isExportDefaultDeclaration();
 
-    if (isDefault && (parentDeclar.isFunctionDeclaration() ||
-      parentDeclar.isClassDeclaration()) && !parentDeclar.node.id) {
+    if (
+      isDefault &&
+      (parentDeclar.isFunctionDeclaration() ||
+        parentDeclar.isClassDeclaration()) &&
+      !parentDeclar.node.id
+    ) {
       // Ensure that default class and function exports have a name so they have a identifier to
       // reference from the export specifier list.
-      parentDeclar.node.id = parentDeclar.scope.generateUidIdentifier("default");
+      parentDeclar.node.id = parentDeclar.scope.generateUidIdentifier(
+        'default'
+      );
     }
 
     let bindingIdentifiers = parentDeclar.getOuterBindingIdentifiers();
@@ -68,9 +79,11 @@ class Renamer {
 
     for (let name in bindingIdentifiers) {
       let localName = name === this.oldName ? this.newName : name;
-      let exportedName = isDefault ? "default" : name;
+      let exportedName = isDefault ? 'default' : name;
 
-      specifiers.push(t.exportSpecifier(t.identifier(localName), t.identifier(exportedName)));
+      specifiers.push(
+        t.exportSpecifier(t.identifier(localName), t.identifier(exportedName))
+      );
     }
 
     if (specifiers.length) {
@@ -88,25 +101,26 @@ class Renamer {
 
   prepare() {
     let {path} = this.binding;
-    let parentDeclar = path.find((path) => path.isDeclaration() || path.isFunctionExpression());
+    let parentDeclar = path.find(
+      path => path.isDeclaration() || path.isFunctionExpression()
+    );
 
     if (parentDeclar) {
       this.maybeConvertFromExportDeclaration(parentDeclar);
     }
 
-    return this
+    return this;
   }
 
   rename() {
     let {binding, oldName, newName} = this;
-    let {scope } = binding;
-    // scope.traverse(scope.block, renameVisitor, this);
-    scope.removeOwnBinding(oldName);
+    let {scope} = binding;
 
+    scope.removeOwnBinding(oldName);
     scope.bindings[newName] = binding;
     this.binding.identifier.name = newName;
 
-    if (binding.type === "hoisted") {
+    if (binding.type === 'hoisted') {
       // https://github.com/babel/babel/issues/2435
       // todo: hoist and convert function to a let
     }
@@ -116,12 +130,20 @@ class Renamer {
 module.exports = (scope, names) => {
   let renamers = Object.keys(names).map(oldName => {
     let binding = scope.getBinding(oldName);
-    let newName = names[oldName]
 
-    return new Renamer(binding, oldName, newName).prepare()
-  })
+    if (!binding) {
+      throw new Error(`Cannot find variable ${oldName}`);
+    }
+    let newName = names[oldName];
 
-  scope.traverse(scope.block, renameVisitor, renamers)
+    return new Renamer(binding, oldName, newName).prepare();
+  });
 
-  renamers.forEach(renamer => renamer.rename(scope))
-}
+  if (!renamers.length) {
+    return;
+  }
+
+  scope.traverse(scope.block, renameVisitor, renamers);
+
+  renamers.forEach(renamer => renamer.rename(scope));
+};
