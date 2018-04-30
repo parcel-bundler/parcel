@@ -162,11 +162,19 @@ class JSConcatPackager extends Packager {
   async end() {
     if (this.needsPrelude) {
       let exposed = [];
+      let prepareModule = [];
       for (let m of this.exposedModules) {
+        if(m.cacheData.isES6Module) {
+          prepareModule.push(`${this.getExportIdentifier(m)}.__esModule = true;`)
+        }
+
         exposed.push(`${m.id}: ${this.getExportIdentifier(m)}`);
       }
 
-      this.write(`return {${exposed.join(', ')}};\n})`);
+      this.write(`
+        ${prepareModule.join('\n')}
+        return {${exposed.join(', ')}};
+      })`);
     } else {
       this.write('})();');
     }

@@ -294,8 +294,27 @@ module.exports = packager => {
             `Cannot find export "${exportName}" in module "${id}"`
           );
         }
-      } else if (EXPORTS_RE.test(name) && !path.scope.hasBinding(name)) {
-        path.replaceWith(t.objectExpression([]));
+
+        return
+      }
+      
+      match = name.match(EXPORTS_RE)
+
+      if (match && !path.scope.hasBinding(name)) {
+        let id = Number(match[1]);
+
+        if(moduleMap.has(id)) {
+          path.replaceWith(t.objectExpression([]));
+        }
+        else {
+          path.replaceWith(
+            t.callExpression(
+              t.identifier('require'),
+              [t.numericLiteral(id)]
+            )
+          )
+          // throw new Error(`Module ${id} not found`)
+        }
       }
     },
     ReferencedIdentifier(path) {
