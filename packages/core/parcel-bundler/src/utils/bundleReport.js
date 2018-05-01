@@ -71,7 +71,10 @@ function bundleReport(mainBundle, detailed = false) {
 module.exports = bundleReport;
 
 function* iterateBundles(bundle) {
-  yield bundle;
+  if (!bundle.isEmpty) {
+    yield bundle;
+  }
+
   for (let child of bundle.childBundles) {
     yield* iterateBundles(child);
   }

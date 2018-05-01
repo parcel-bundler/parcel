@@ -23,23 +23,9 @@ describe('parser', function() {
           childBundles: []
         },
         {
-          type: 'js',
-          assets: ['index.js'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        },
-        {
           type: 'html',
           assets: ['other.HTM'],
           childBundles: [
-            {
-              type: 'css',
-              assets: ['index.cSs'],
-              childBundles: []
-            },
             {
               type: 'js',
               assets: ['index.js'],

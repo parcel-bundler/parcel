@@ -6,7 +6,7 @@ const version = require('../package.json').version;
 program.version(version);
 
 program
-  .command('serve [input]')
+  .command('serve [input...]')
   .description('starts a development server')
   .option(
     '-p, --port <port>',
@@ -60,7 +60,7 @@ program
   .action(bundle);
 
 program
-  .command('watch [input]')
+  .command('watch [input...]')
   .description('starts the bundler in watch mode')
   .option(
     '-d, --out-dir <path>',
@@ -101,7 +101,7 @@ program
   .action(bundle);
 
 program
-  .command('build [input]')
+  .command('build [input...]')
   .description('bundles for production')
   .option(
     '-d, --out-dir <path>',

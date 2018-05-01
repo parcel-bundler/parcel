@@ -1,6 +1,6 @@
 const assert = require('assert');
 const sinon = require('sinon');
-const {bundler, nextBundle} = require('./utils');
+const {assertBundleTree, bundle, bundler, nextBundle} = require('./utils');
 
 describe('bundler', function() {
   it('should bundle once before exporting middleware', async function() {
@@ -8,7 +8,7 @@ describe('bundler', function() {
     b.middleware();
 
     await nextBundle(b);
-    assert(b.mainAsset);
+    assert(b.entryAssets);
   });
 
   it('should defer bundling if a bundle is pending', async () => {
@@ -48,5 +48,52 @@ describe('bundler', function() {
     assert.throws(() => {
       b.addPackager('type', 'packager');
     }, 'before bundling');
+  });
+
+  it('should support multiple entry points', async function() {
+    let b = await bundle([
+      __dirname + '/integration/multi-entry/one.html',
+      __dirname + '/integration/multi-entry/two.html'
+    ]);
+
+    assertBundleTree(b, [
+      {
+        type: 'html',
+        assets: ['one.html'],
+        childBundles: [
+          {
+            type: 'js',
+            assets: ['shared.js']
+          }
+        ]
+      },
+      {
+        type: 'html',
+        assets: ['two.html'],
+        childBundles: []
+      }
+    ]);
+  });
+
+  it('should support multiple entry points as a glob', async function() {
+    let b = await bundle(__dirname + '/integration/multi-entry/*.html');
+
+    assertBundleTree(b, [
+      {
+        type: 'html',
+        assets: ['one.html'],
+        childBundles: [
+          {
+            type: 'js',
+            assets: ['shared.js']
+          }
+        ]
+      },
+      {
+        type: 'html',
+        assets: ['two.html'],
+        childBundles: []
+      }
+    ]);
   });
 });
