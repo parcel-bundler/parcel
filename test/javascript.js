@@ -376,6 +376,13 @@ describe('javascript', function() {
     });
   });
 
+  it('should handle re-declaration of the global constant', async function() {
+    let b = await bundle(__dirname + '/integration/global-redeclare/index.js');
+
+    let output = run(b);
+    assert.deepEqual(output(), false);
+  });
+
   it('should insert environment variables', async function() {
     let b = await bundle(__dirname + '/integration/env/index.js');
 
