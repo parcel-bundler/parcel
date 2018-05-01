@@ -164,8 +164,10 @@ class JSConcatPackager extends Packager {
       let exposed = [];
       let prepareModule = [];
       for (let m of this.exposedModules) {
-        if(m.cacheData.isES6Module) {
-          prepareModule.push(`${this.getExportIdentifier(m)}.__esModule = true;`)
+        if (m.cacheData.isES6Module) {
+          prepareModule.push(
+            `${this.getExportIdentifier(m)}.__esModule = true;`
+          );
         }
 
         exposed.push(`${m.id}: ${this.getExportIdentifier(m)}`);
@@ -201,7 +203,7 @@ class JSConcatPackager extends Packager {
       output = result.code;
     }
 
-    super.write(output);
+    await super.write(output);
   }
 }
 
