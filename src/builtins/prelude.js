@@ -11,6 +11,7 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   // Save the require from previous bundle to this closure if any
   var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
   var nodeRequire = typeof require === 'function' && require;
+  var builtinModules = nodeRequire && new Set(nodeRequire('module').builtinModules);
 
   function newRequire(name, jumped) {
     if (!cache[name]) {
@@ -55,6 +56,8 @@ parcelRequire = (function (modules, cache, entry, globalName) {
     }
 
     function resolve(x){
+      // Make sure that local modules never override builtin node modules.
+      if (builtinModules && builtinModules.has(x)) return x;
       return modules[name][1][x] || x;
     }
   }
