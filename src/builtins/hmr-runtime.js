@@ -1,6 +1,11 @@
 var OVERLAY_ID = '__parcel__error__overlay__';
 
-var global = (1, eval)('this');
+var global =
+  typeof global === 'object'
+    ? global
+    : typeof window === 'object'
+      ? window
+      : typeof self === 'object' ? self : this;
 var OldModule = module.bundle.Module;
 
 function Module(moduleName) {
@@ -9,10 +14,10 @@ function Module(moduleName) {
     data: module.bundle.hotData,
     _acceptCallbacks: [],
     _disposeCallbacks: [],
-    accept: function (fn) {
-      this._acceptCallbacks.push(fn || function () {});
+    accept: function(fn) {
+      this._acceptCallbacks.push(fn || function() {});
     },
-    dispose: function (fn) {
+    dispose: function(fn) {
       this._disposeCallbacks.push(fn);
     }
   };
@@ -26,16 +31,18 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = process.env.HMR_HOSTNAME || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
+  var ws = new WebSocket(
+    protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/'
+  );
   ws.onmessage = function(event) {
     var data = JSON.parse(event.data);
 
     if (data.type === 'update') {
-      data.assets.forEach(function (asset) {
+      data.assets.forEach(function(asset) {
         hmrApply(global.parcelRequire, asset);
       });
 
-      data.assets.forEach(function (asset) {
+      data.assets.forEach(function(asset) {
         if (!asset.isNew) {
           hmrAccept(global.parcelRequire, asset.id);
         }
@@ -46,9 +53,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
     if (data.type === 'reload') {
       ws.close();
-      ws.onclose = function () {
+      ws.onclose = function() {
         location.reload();
-      }
+      };
     }
 
     if (data.type === 'error-resolved') {
@@ -58,7 +65,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     }
 
     if (data.type === 'error') {
-      console.error('[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack);
+      console.error(
+        '[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack
+      );
 
       removeErrorOverlay();
 
@@ -85,17 +94,19 @@ function createErrorOverlay(data) {
   message.innerText = data.error.message;
   stackTrace.innerText = data.error.stack;
 
-  overlay.innerHTML = (
+  overlay.innerHTML =
     '<div style="background: black; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; opacity: 0.85; font-family: Menlo, Consolas, monospace; z-index: 9999;">' +
-      '<span style="background: red; padding: 2px 4px; border-radius: 2px;">ERROR</span>' +
-      '<span style="top: 2px; margin-left: 5px; position: relative;">🚨</span>' +
-      '<div style="font-size: 18px; font-weight: bold; margin-top: 20px;">' + message.innerHTML + '</div>' +
-      '<pre>' + stackTrace.innerHTML + '</pre>' +
-    '</div>'
-  );
+    '<span style="background: red; padding: 2px 4px; border-radius: 2px;">ERROR</span>' +
+    '<span style="top: 2px; margin-left: 5px; position: relative;">🚨</span>' +
+    '<div style="font-size: 18px; font-weight: bold; margin-top: 20px;">' +
+    message.innerHTML +
+    '</div>' +
+    '<pre>' +
+    stackTrace.innerHTML +
+    '</pre>' +
+    '</div>';
 
   return overlay;
-
 }
 
 function getParents(bundle, id) {
@@ -155,7 +166,7 @@ function hmrAccept(bundle, id) {
   }
 
   if (cached && cached.hot && cached.hot._disposeCallbacks.length) {
-    cached.hot._disposeCallbacks.forEach(function (cb) {
+    cached.hot._disposeCallbacks.forEach(function(cb) {
       cb(bundle.hotData);
     });
   }
@@ -165,13 +176,13 @@ function hmrAccept(bundle, id) {
 
   cached = bundle.cache[id];
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
-    cached.hot._acceptCallbacks.forEach(function (cb) {
+    cached.hot._acceptCallbacks.forEach(function(cb) {
       cb();
     });
     return true;
   }
 
-  return getParents(global.parcelRequire, id).some(function (id) {
-    return hmrAccept(global.parcelRequire, id)
+  return getParents(global.parcelRequire, id).some(function(id) {
+    return hmrAccept(global.parcelRequire, id);
   });
 }
