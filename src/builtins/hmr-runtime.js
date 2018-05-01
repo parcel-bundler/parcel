@@ -40,6 +40,8 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
           hmrAccept(global.parcelRequire, asset.id);
         }
       });
+      // Clear the console after HMR
+      console.clear();
     }
 
     if (data.type === 'reload') {

@@ -82,6 +82,32 @@ describe('sass', function() {
     assert(css.includes('.base'));
   });
 
+  it('should support requiring empty scss files', async function() {
+    let b = await bundle(__dirname + '/integration/scss-empty/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.scss'],
+      childBundles: [
+        {
+          type: 'map'
+        },
+        {
+          name: 'index.css',
+          assets: ['index.scss'],
+          childBundles: []
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert.equal(css, '');
+  });
+
   it('should support linking to assets with url() from scss', async function() {
     let b = await bundle(__dirname + '/integration/scss-url/index.js');
 
@@ -145,5 +171,19 @@ describe('sass', function() {
 
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('._index_1a1ih_1'));
+  });
+
+  it('should support advanced import syntax', async function() {
+    let b = await bundle(
+      __dirname + '/integration/sass-advanced-import/index.sass'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.css',
+      assets: ['index.sass']
+    });
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('color: blue;'));
   });
 });

@@ -276,6 +276,16 @@ describe('html', function() {
     );
   });
 
+  it('should not minify default values inside HTML in production mode', async function() {
+    await bundle(__dirname + '/integration/htmlnano-defaults-form/index.html', {
+      production: true
+    });
+
+    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
+    assert(html.includes('<input type="text">'));
+    assert(!html.includes('\n'));
+  });
+
   it('should not prepend the public path to assets with remote URLs', async function() {
     await bundle(__dirname + '/integration/html/index.html');
 
@@ -531,6 +541,22 @@ describe('html', function() {
         {
           type: 'svg',
           assets: ['file.svg'],
+          childBundles: []
+        }
+      ]
+    });
+  });
+
+  it('should resolve assets containing spaces', async function() {
+    let b = await bundle(__dirname + '/integration/resolve-spaces/index.html');
+
+    assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'html',
+          assets: ['other page.html'],
           childBundles: []
         }
       ]

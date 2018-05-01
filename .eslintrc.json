@@ -11,6 +11,7 @@
     "es6": true
   },
   "globals": {
-    "parcelRequire": true
+    "parcelRequire": true,
+    "define": true
   }
 }

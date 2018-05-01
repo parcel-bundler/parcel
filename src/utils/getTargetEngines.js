@@ -3,7 +3,7 @@ const semver = require('semver');
 const Path = require('path');
 
 const DEFAULT_ENGINES = {
-  browsers: ['> 1%', 'last 2 versions', 'Firefox ESR'],
+  browsers: ['> 0.25%'],
   node: '6'
 };
 

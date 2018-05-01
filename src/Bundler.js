@@ -1,7 +1,7 @@
 const fs = require('./utils/fs');
 const Resolver = require('./Resolver');
 const Parser = require('./Parser');
-const WorkerFarm = require('./WorkerFarm');
+const WorkerFarm = require('./workerfarm/WorkerFarm');
 const Path = require('path');
 const Bundle = require('./Bundle');
 const {FSWatcher} = require('chokidar');
@@ -40,13 +40,18 @@ class Bundler extends EventEmitter {
     this.delegate = options.delegate || {};
     this.bundleLoaders = {};
 
-    const loadersPath = `./builtins/loaders/${
-      options.target === 'node' ? 'node' : 'browser'
-    }/`;
-
-    this.addBundleLoader('wasm', require.resolve(loadersPath + 'wasm-loader'));
-    this.addBundleLoader('css', require.resolve(loadersPath + 'css-loader'));
-    this.addBundleLoader('js', require.resolve(loadersPath + 'js-loader'));
+    this.addBundleLoader('wasm', {
+      browser: require.resolve('./builtins/loaders/browser/wasm-loader'),
+      node: require.resolve('./builtins/loaders/node/wasm-loader')
+    });
+    this.addBundleLoader('css', {
+      browser: require.resolve('./builtins/loaders/browser/css-loader'),
+      node: require.resolve('./builtins/loaders/node/css-loader')
+    });
+    this.addBundleLoader('js', {
+      browser: require.resolve('./builtins/loaders/browser/js-loader'),
+      node: require.resolve('./builtins/loaders/node/js-loader')
+    });
 
     this.pending = false;
     this.loadedAssets = new Map();
@@ -114,7 +119,11 @@ class Bundler extends EventEmitter {
         options.hmrHostname ||
         (options.target === 'electron' ? 'localhost' : ''),
       detailedReport: options.detailedReport || false,
-      autoinstall: (options.autoinstall || false) && !isProduction,
+      global: options.global,
+      autoinstall:
+        typeof options.autoinstall === 'boolean'
+          ? options.autoinstall
+          : !isProduction,
       contentHash:
         typeof options.contentHash === 'boolean'
           ? options.contentHash
@@ -142,16 +151,28 @@ class Bundler extends EventEmitter {
     this.packagers.add(type, packager);
   }
 
-  addBundleLoader(type, path) {
-    if (typeof path !== 'string') {
-      throw new Error('Bundle loader should be a module path.');
+  addBundleLoader(type, paths) {
+    if (typeof paths === 'string') {
+      paths = {node: paths, browser: paths};
+    } else if (typeof paths !== 'object') {
+      throw new Error('Bundle loaders should be an object.');
+    }
+
+    for (const target in paths) {
+      if (target !== 'node' && target !== 'browser') {
+        throw new Error(`Unknown bundle loader target "${target}".`);
+      }
+
+      if (typeof paths[target] !== 'string') {
+        throw new Error('Bundle loader should be a string.');
+      }
     }
 
     if (this.farm) {
       throw new Error('Bundle loaders must be added before bundling.');
     }
 
-    this.bundleLoaders[type] = path;
+    this.bundleLoaders[type] = paths;
   }
 
   async loadPlugins() {
@@ -164,7 +185,8 @@ class Bundler extends EventEmitter {
     try {
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
       for (let dep in deps) {
-        if (dep.startsWith('parcel-plugin-')) {
+        const pattern = /^(@.*\/)?parcel-plugin-.+/;
+        if (pattern.test(dep)) {
           let plugin = await localRequire(dep, relative);
           await plugin(this);
         }
@@ -381,16 +403,17 @@ class Bundler extends EventEmitter {
     try {
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
-      let thrown = err;
+      // If the dep is optional, return before we throw
+      if (dep.optional) {
+        return;
+      }
 
-      if (thrown.message.indexOf(`Cannot find module '${dep.name}'`) === 0) {
-        // Check if dependency is a local file
+      if (err.code === 'MODULE_NOT_FOUND') {
         let isLocalFile = /^[/~.]/.test(dep.name);
         let fromNodeModules = asset.name.includes(
           `${Path.sep}node_modules${Path.sep}`
         );
 
-        // If it's not a local file, attempt to install the dep
         if (
           !isLocalFile &&
           !fromNodeModules &&
@@ -400,30 +423,32 @@ class Bundler extends EventEmitter {
           return await this.installDep(asset, dep);
         }
 
-        // If the dep is optional, return before we throw
-        if (dep.optional) {
-          return;
-        }
-
-        thrown.message = `Cannot resolve dependency '${dep.name}'`;
+        err.message = `Cannot resolve dependency '${dep.name}'`;
         if (isLocalFile) {
           const absPath = Path.resolve(Path.dirname(asset.name), dep.name);
-          thrown.message += ` at '${absPath}'`;
+          err.message += ` at '${absPath}'`;
         }
 
-        await this.throwDepError(asset, dep, thrown);
+        await this.throwDepError(asset, dep, err);
       }
 
-      throw thrown;
+      throw err;
     }
   }
 
   async installDep(asset, dep) {
-    let [moduleName] = this.resolver.getModuleParts(dep.name);
-    try {
-      await installPackage([moduleName], asset.name, {saveDev: false});
-    } catch (err) {
-      await this.throwDepError(asset, dep, err);
+    // Check if module exists, prevents useless installs
+    let resolved = await this.resolver.resolveModule(dep.name, asset.name);
+
+    // If the module resolved (i.e. wasn't a local file), but the module directory wasn't found, install it.
+    if (resolved.moduleName && !resolved.moduleDir) {
+      try {
+        await installPackage([resolved.moduleName], asset.name, {
+          saveDev: false
+        });
+      } catch (err) {
+        await this.throwDepError(asset, dep, err);
+      }
     }
 
     return await this.resolveDep(asset, dep, false);

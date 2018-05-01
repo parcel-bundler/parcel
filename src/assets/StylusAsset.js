@@ -56,7 +56,11 @@ async function createEvaluator(asset) {
     asset.name
   );
   const utils = await localRequire('stylus/lib/utils', asset.name);
-  const resolver = new Resolver(asset.options);
+  const resolver = new Resolver(
+    Object.assign({}, asset.options, {
+      extensions: ['.styl', '.css']
+    })
+  );
 
   // This is a custom stylus evaluator that extends stylus with support for the node
   // require resolution algorithm. It also adds all dependencies to the parcel asset

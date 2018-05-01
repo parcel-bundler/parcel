@@ -148,7 +148,8 @@ class JSPackager extends Packager {
     for (let bundleType of this.bundleLoaders) {
       let loader = this.options.bundleLoaders[bundleType];
       if (loader) {
-        let asset = await this.bundler.getAsset(loader);
+        let target = this.options.target === 'node' ? 'node' : 'browser';
+        let asset = await this.bundler.getAsset(loader[target]);
         await this.addAssetToBundle(asset);
         loads +=
           'b.register(' +
@@ -202,15 +203,24 @@ class JSPackager extends Packager {
       entry.push(this.bundle.entryAsset.id);
     }
 
-    await this.write('},{},' + JSON.stringify(entry) + ')');
+    await this.dest.write(
+      '},{},' +
+        JSON.stringify(entry) +
+        ', ' +
+        JSON.stringify(this.options.global || null) +
+        ')'
+    );
     if (this.options.sourceMaps) {
-      // Add source map url
-      await this.write(
-        `\n//# sourceMappingURL=${urlJoin(
-          this.options.publicURL,
-          path.basename(this.bundle.name, '.js') + '.map'
-        )}`
-      );
+      // Add source map url if a map bundle exists
+      let mapBundle = this.bundle.siblingBundlesMap.get('map');
+      if (mapBundle) {
+        await this.write(
+          `\n//# sourceMappingURL=${urlJoin(
+            this.options.publicURL,
+            path.basename(mapBundle.name)
+          )}`
+        );
+      }
     }
     await this.dest.end();
   }

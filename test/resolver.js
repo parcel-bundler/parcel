@@ -295,6 +295,24 @@ describe('resolver', function() {
       assert.equal(resolved.pkg.name, 'package-alias');
     });
 
+    it('should alias a glob using the package.alias field', async function() {
+      let resolved = await resolver.resolve(
+        './lib/test',
+        path.join(rootDir, 'node_modules', 'package-alias-glob', 'index.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules',
+          'package-alias-glob',
+          'src',
+          'test.js'
+        )
+      );
+      assert.equal(resolved.pkg.name, 'package-alias-glob');
+    });
+
     it('should apply a module alias using the package.alias field in the root package', async function() {
       let resolved = await resolver.resolve(
         'aliased',
@@ -392,6 +410,62 @@ describe('resolver', function() {
     });
   });
 
+  describe('source field', function() {
+    it('should use the source field when symlinked', async function() {
+      let resolved = await resolver.resolve(
+        'source',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(rootDir, 'node_modules', 'source', 'source.js')
+      );
+      assert(resolved.pkg.source);
+    });
+
+    it('should not use the source field when not symlinked', async function() {
+      let resolved = await resolver.resolve(
+        'source-not-symlinked',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(rootDir, 'node_modules', 'source-not-symlinked', 'dist.js')
+      );
+      assert(!resolved.pkg.source);
+    });
+
+    it('should use the source field as an alias when symlinked', async function() {
+      let resolved = await resolver.resolve(
+        'source-alias/dist',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(rootDir, 'node_modules', 'source-alias', 'source.js')
+      );
+      assert(resolved.pkg.source);
+    });
+
+    it('should use the source field as a glob alias when symlinked', async function() {
+      let resolved = await resolver.resolve(
+        'source-alias-glob',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules',
+          'source-alias-glob',
+          'src',
+          'test.js'
+        )
+      );
+      assert(resolved.pkg.source);
+    });
+  });
+
   describe('error handling', function() {
     it('should throw when a relative path cannot be resolved', async function() {
       let threw = false;
@@ -418,6 +492,22 @@ describe('resolver', function() {
         assert.equal(
           err.message,
           "Cannot find module 'xyz' from '" + rootDir + "'"
+        );
+        assert.equal(err.code, 'MODULE_NOT_FOUND');
+      }
+
+      assert(threw, 'Did not throw');
+    });
+
+    it('should throw when a subfile of a node_module cannot be resolved', async function() {
+      let threw = false;
+      try {
+        await resolver.resolve('xyz/test/file', path.join(rootDir, 'foo.js'));
+      } catch (err) {
+        threw = true;
+        assert.equal(
+          err.message,
+          "Cannot find module 'xyz/test/file' from '" + rootDir + "'"
         );
         assert.equal(err.code, 'MODULE_NOT_FOUND');
       }

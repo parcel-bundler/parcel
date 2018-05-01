@@ -723,6 +723,24 @@ describe('javascript', function() {
     assert(!file.includes('class Bar {}'));
   });
 
+  it('should compile node_modules when symlinked with a source field in package.json', async function() {
+    await bundle(__dirname + '/integration/babel-node-modules-source/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
+  it('should not compile node_modules with a source field in package.json when not symlinked', async function() {
+    await bundle(
+      __dirname + '/integration/babel-node-modules-source-unlinked/index.js'
+    );
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
   it('should support compiling JSX', async function() {
     await bundle(__dirname + '/integration/jsx/index.jsx');
 
@@ -779,6 +797,38 @@ describe('javascript', function() {
     assert.deepEqual(output, err);
   });
 
+  it('should not autoinstall if resolve failed on installed module', async function() {
+    let error;
+    try {
+      await bundle(
+        __dirname + '/integration/dont-autoinstall-resolve-fails/index.js'
+      );
+    } catch (err) {
+      error = err;
+    }
+    assert.equal(
+      error.message,
+      `Cannot resolve dependency 'vue/thisDoesNotExist'`
+    );
+    assert.equal(error.code, 'MODULE_NOT_FOUND');
+  });
+
+  it('should not autoinstall if resolve failed on aliased module', async function() {
+    let error;
+    try {
+      await bundle(
+        __dirname + '/integration/dont-autoinstall-resolve-alias-fails/index.js'
+      );
+    } catch (err) {
+      error = err;
+    }
+    assert.equal(
+      error.message,
+      `Cannot resolve dependency 'aliasVue/thisDoesNotExist'`
+    );
+    assert.equal(error.code, 'MODULE_NOT_FOUND');
+  });
+
   it('should ignore require if it is defined in the scope', async function() {
     let b = await bundle(__dirname + '/integration/require-scope/index.js');
 
@@ -801,5 +851,34 @@ describe('javascript', function() {
     );
 
     assert.equal(failed, false);
+  });
+
+  it('should expose to CommonJS entry point', async function() {
+    let b = await bundle(__dirname + '/integration/entry-point/index.js');
+
+    let module = {};
+    run(b, {module, exports: {}});
+    assert.equal(module.exports(), 'Test!');
+  });
+
+  it('should expose to RequireJS entry point', async function() {
+    let b = await bundle(__dirname + '/integration/entry-point/index.js');
+    let test;
+    const mockDefine = function(f) {
+      test = f();
+    };
+    mockDefine.amd = true;
+
+    run(b, {define: mockDefine});
+    assert.equal(test(), 'Test!');
+  });
+
+  it('should expose variable with --browser-global', async function() {
+    let b = await bundle(__dirname + '/integration/entry-point/index.js', {
+      global: 'testing'
+    });
+
+    const ctx = run(b, null, {require: false});
+    assert.equal(ctx.window.testing(), 'Test!');
   });
 });
