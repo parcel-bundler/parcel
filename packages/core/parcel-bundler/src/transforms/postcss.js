@@ -31,7 +31,7 @@ async function getConfig(asset) {
     return;
   }
 
-  config = config || {};
+  config = Object.assign({}, config);
 
   let postcssModulesConfig = {
     getJSON: (filename, json) => (asset.cssModules = json)

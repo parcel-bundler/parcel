@@ -13,10 +13,10 @@ class LESSAsset extends Asset {
     let less = await localRequire('less', this.name);
     let render = promisify(less.render.bind(less));
 
-    let opts =
-      this.package.less ||
-      (await this.getConfig(['.lessrc', '.lessrc.js'])) ||
-      {};
+    let opts = Object.assign(
+      {},
+      this.package.less || (await this.getConfig(['.lessrc', '.lessrc.js']))
+    );
     opts.filename = this.name;
     opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
 
