@@ -7,7 +7,7 @@ const VARS = {
     asset.addDependency('process');
     return 'var process = require("process");';
   },
-  global: () => 'var global = (1,eval)("this");',
+  global: () => 'var global = typeof global === "object" ? global : typeof window === "object" ? window :typeof self === "object" ? self : this;',
   __dirname: asset =>
     `var __dirname = ${JSON.stringify(Path.dirname(asset.name))};`,
   __filename: asset => `var __filename = ${JSON.stringify(asset.name)};`,
