@@ -1,5 +1,6 @@
 const Path = require('path');
 const types = require('babel-types');
+const morph = require('../utils/morph');
 
 const VARS = {
   process: asset => {
@@ -8,7 +9,11 @@ const VARS = {
   },
   global: () => 'var global = arguments[3];',
   __dirname: asset =>
-    `var __dirname = ${JSON.stringify(Path.dirname(asset.name))};`,
+    (asset.options.target === 'browser'
+      ? `var __dirname = ${JSON.stringify(Path.dirname(asset.name))};`
+      : `var __path = require("path");` +
+        `let __dirname2 = __path.join(__dirname, ${JSON.stringify(Path.relative(asset.options.outDir, Path.dirname(asset.name)))});`
+    ),
   __filename: asset => `var __filename = ${JSON.stringify(asset.name)};`,
   Buffer: asset => {
     asset.addDependency('buffer');
@@ -30,6 +35,15 @@ module.exports = {
       types.isReferenced(node, parent)
     ) {
       asset.globals.set(node.name, VARS[node.name](asset));
+      // Replace __dirname variable access with __dirname2 for non-browser targets
+      // Browser targets have __dirname defined above -- see VARS -- but for the
+      // relocatable __dirname redirect to work for non-browser targets, it needed
+      // a different name so it doesn't clobber the node builtin __dirname variable.
+      if (node.name === '__dirname' && asset.options.target !== 'browser') {
+        let val = types.identifier('__dirname2');
+        morph(node, val);
+        asset.isAstDirty = true;
+      }
     }
   },
 
