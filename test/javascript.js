@@ -53,9 +53,9 @@ describe('javascript', function() {
       assets: ['main.js', 'local.js']
     });
 
-    await mkdirp(__dirname + '/dist/node_modules/testmodule');
+    await mkdirp(b.entryAsset.options.outDir + '/node_modules/testmodule');
     fs.writeFileSync(
-      __dirname + '/dist/node_modules/testmodule/index.js',
+      b.entryAsset.options.outDir + '/node_modules/testmodule/index.js',
       'exports.a = 5;'
     );
 
@@ -74,9 +74,9 @@ describe('javascript', function() {
       assets: ['main.js', 'local.js']
     });
 
-    await mkdirp(__dirname + '/dist/node_modules/testmodule');
+    await mkdirp(b.entryAsset.options.outDir + '/node_modules/testmodule');
     fs.writeFileSync(
-      __dirname + '/dist/node_modules/testmodule/index.js',
+      b.entryAsset.options.outDir + '/node_modules/testmodule/index.js',
       'exports.a = 5;'
     );
 
@@ -338,7 +338,9 @@ describe('javascript', function() {
     let output = run(b);
     assert.equal(typeof output, 'function');
     assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
-    assert(fs.existsSync(__dirname + '/dist/' + output()));
+    assert(
+      fs.existsSync(b.entryAsset.options.outDir + '/' + path.basename(output()))
+    );
   });
 
   it('should minify JS in production mode', async function() {
@@ -350,16 +352,16 @@ describe('javascript', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
 
-    let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let js = fs.readFileSync(b.entryAsset.options.outDir + '/index.js', 'utf8');
     assert(!js.includes('local.a'));
   });
 
   it('should use uglify config', async function() {
-    await bundle(__dirname + '/integration/uglify-config/index.js', {
+    let b = await bundle(__dirname + '/integration/uglify-config/index.js', {
       production: true
     });
 
-    let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let js = fs.readFileSync(b.entryAsset.options.outDir + '/index.js', 'utf8');
     assert(!js.includes('console.log'));
     assert(!js.includes('// This is a comment'));
   });
@@ -606,69 +608,95 @@ describe('javascript', function() {
   });
 
   it('should minify JSON files', async function() {
-    await bundle(__dirname + '/integration/uglify-json/index.json', {
+    let b = await bundle(__dirname + '/integration/uglify-json/index.json', {
       production: true
     });
 
-    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let json = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(json.includes('{test:"test"}'));
   });
 
   it('should minify JSON5 files', async function() {
-    await bundle(__dirname + '/integration/uglify-json5/index.json5', {
+    let b = await bundle(__dirname + '/integration/uglify-json5/index.json5', {
       production: true
     });
 
-    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let json = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(json.includes('{test:"test"}'));
   });
 
   it('should minify YAML for production', async function() {
-    await bundle(__dirname + '/integration/yaml/index.js', {
+    let b = await bundle(__dirname + '/integration/yaml/index.js', {
       production: true
     });
 
-    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let json = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 
   it('should minify TOML for production', async function() {
-    await bundle(__dirname + '/integration/toml/index.js', {
+    let b = await bundle(__dirname + '/integration/toml/index.js', {
       production: true
     });
 
-    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let json = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 
   it('should support compiling with babel using .babelrc config', async function() {
-    await bundle(__dirname + '/integration/babel/index.js');
+    let b = await bundle(__dirname + '/integration/babel/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(file.includes('class Foo {}'));
     assert(file.includes('class Bar {}'));
   });
 
   it('should compile with babel with default engines if no config', async function() {
-    await bundle(__dirname + '/integration/babel-default/index.js');
+    let b = await bundle(__dirname + '/integration/babel-default/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
 
   it('should support compiling with babel using browserlist', async function() {
-    await bundle(__dirname + '/integration/babel-browserslist/index.js');
+    let b = await bundle(
+      __dirname + '/integration/babel-browserslist/index.js'
+    );
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
 
   it('should support splitting babel-polyfill using browserlist', async function() {
-    await bundle(__dirname + '/integration/babel-polyfill/index.js');
+    let b = await bundle(__dirname + '/integration/babel-polyfill/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(file.includes('async function Bar() {}'));
     assert(!file.includes('regenerator'));
   });
@@ -681,15 +709,15 @@ describe('javascript', function() {
       const devRegExp = /const ?{\s*prop1,\s*prop2,\s*prop3\s*} ?= ?.*/;
       let file;
       // Dev build test
-      await bundle(__dirname + projectBasePath + '/index.js');
-      file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+      let b = await bundle(__dirname + projectBasePath + '/index.js');
+      file = fs.readFileSync(b.entryAsset.options.outDir + '/index.js', 'utf8');
       assert(devRegExp.test(file) === true);
       assert(prodRegExp.test(file) === false);
       // Prod build test
-      await bundle(__dirname + projectBasePath + '/index.js', {
+      b = await bundle(__dirname + projectBasePath + '/index.js', {
         production: true
       });
-      file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+      file = fs.readFileSync(b.entryAsset.options.outDir + '/index.js', 'utf8');
       assert(prodRegExp.test(file) === true);
       assert(devRegExp.test(file) === false);
     }
@@ -703,29 +731,40 @@ describe('javascript', function() {
   });
 
   it('should not compile node_modules by default', async function() {
-    await bundle(__dirname + '/integration/babel-node-modules/index.js');
+    let b = await bundle(
+      __dirname + '/integration/babel-node-modules/index.js'
+    );
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
 
   it('should compile node_modules if legacy browserify options are found', async function() {
-    await bundle(
+    let b = await bundle(
       __dirname + '/integration/babel-node-modules-browserify/index.js'
     );
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
 
   it('should compile node_modules with browserslist to app target', async function() {
-    await bundle(
+    let b = await bundle(
       __dirname + '/integration/babel-node-modules-browserslist/index.js'
     );
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
@@ -749,37 +788,52 @@ describe('javascript', function() {
   });
 
   it('should support compiling JSX', async function() {
-    await bundle(__dirname + '/integration/jsx/index.jsx');
+    let b = await bundle(__dirname + '/integration/jsx/index.jsx');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(file.includes('React.createElement("div"'));
   });
 
   it('should support compiling JSX in JS files with React dependency', async function() {
-    await bundle(__dirname + '/integration/jsx-react/index.js');
+    let b = await bundle(__dirname + '/integration/jsx-react/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(file.includes('React.createElement("div"'));
   });
 
   it('should support compiling JSX in JS files with Preact dependency', async function() {
-    await bundle(__dirname + '/integration/jsx-preact/index.js');
+    let b = await bundle(__dirname + '/integration/jsx-preact/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(file.includes('h("div"'));
   });
 
   it('should support compiling JSX in JS files with Nerv dependency', async function() {
-    await bundle(__dirname + '/integration/jsx-nervjs/index.js');
+    let b = await bundle(__dirname + '/integration/jsx-nervjs/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(file.includes('Nerv.createElement("div"'));
   });
 
   it('should support compiling JSX in JS files with Hyperapp dependency', async function() {
-    await bundle(__dirname + '/integration/jsx-hyperapp/index.js');
+    let b = await bundle(__dirname + '/integration/jsx-hyperapp/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.js',
+      'utf8'
+    );
     assert(file.includes('h("div"'));
   });
 

@@ -61,7 +61,10 @@ describe('glob', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.css',
+      'utf8'
+    );
     assert(css.includes('.local'));
     assert(css.includes('.other'));
     assert(css.includes('.index'));

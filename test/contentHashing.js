@@ -1,66 +1,65 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundle} = require('./utils');
-const rimraf = require('rimraf');
+const {bundle, generateTimeKey} = require('./utils');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
+const path = require('path');
 
 describe('content hashing', function() {
-  beforeEach(function() {
-    rimraf.sync(__dirname + '/input');
-  });
-
   it('should update content hash when content changes', async function() {
-    await ncp(__dirname + '/integration/html-css', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/html-css', inputDir);
 
-    await bundle(__dirname + '/input/index.html', {
+    let b = await bundle(inputDir + '/index.html', {
       production: true
     });
 
-    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
-    let filename = html.match(
-      /<link rel="stylesheet" href="[/\\]{1}(input\.[a-f0-9]+\.css)">/
-    )[1];
-    assert(fs.existsSync(__dirname + '/dist/' + filename));
-
-    fs.writeFileSync(
-      __dirname + '/input/index.css',
-      'body { background: green }'
+    let html = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.html',
+      'utf8'
     );
+    let regex = new RegExp(
+      `<link rel="stylesheet" href="[/\\\\]{1}(${path.basename(
+        inputDir
+      )}\\.[a-f0-9]+\\.css)">`
+    );
+    let filename = html.match(regex)[1];
+    assert(fs.existsSync(b.entryAsset.options.outDir + '/' + filename));
 
-    await bundle(__dirname + '/input/index.html', {
+    fs.writeFileSync(inputDir + '/index.css', 'body { background: green }');
+
+    b = await bundle(inputDir + '/index.html', {
       production: true
     });
 
-    html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
-    let newFilename = html.match(
-      /<link rel="stylesheet" href="[/\\]{1}(input\.[a-f0-9]+\.css)">/
-    )[1];
-    assert(fs.existsSync(__dirname + '/dist/' + newFilename));
+    html = fs.readFileSync(b.entryAsset.options.outDir + '/index.html', 'utf8');
+    let newFilename = html.match(regex)[1];
+    assert(fs.existsSync(b.entryAsset.options.outDir + '/' + newFilename));
 
     assert.notEqual(filename, newFilename);
   });
 
   it('should update content hash when raw asset changes', async function() {
-    await ncp(__dirname + '/integration/import-raw', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/import-raw', inputDir);
 
-    await bundle(__dirname + '/input/index.js', {
+    let b = await bundle(inputDir + '/index.js', {
       production: true
     });
 
-    let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let js = fs.readFileSync(b.entryAsset.options.outDir + '/index.js', 'utf8');
     let filename = js.match(/\/(test\.[0-9a-f]+\.txt)/)[1];
-    assert(fs.existsSync(__dirname + '/dist/' + filename));
+    assert(fs.existsSync(b.entryAsset.options.outDir + '/' + filename));
 
-    fs.writeFileSync(__dirname + '/input/test.txt', 'hello world');
+    fs.writeFileSync(inputDir + '/test.txt', 'hello world');
 
-    await bundle(__dirname + '/input/index.js', {
+    b = await bundle(inputDir + '/index.js', {
       production: true
     });
 
-    js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    js = fs.readFileSync(b.entryAsset.options.outDir + '/index.js', 'utf8');
     let newFilename = js.match(/\/(test\.[0-9a-f]+\.txt)/)[1];
-    assert(fs.existsSync(__dirname + '/dist/' + newFilename));
+    assert(fs.existsSync(b.entryAsset.options.outDir + '/' + newFilename));
 
     assert.notEqual(filename, newFilename);
   });

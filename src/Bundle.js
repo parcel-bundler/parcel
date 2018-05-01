@@ -122,7 +122,10 @@ class Bundle {
 
     // If this is the main entry file, use the output file option as the name if provided.
     if (isMainEntry && entryAsset.options.outFile) {
-      name = entryAsset.options.outFile;
+      name = entryAsset.options.outFile.substring(
+        0,
+        entryAsset.options.outFile.lastIndexOf('.')
+      );
     }
 
     // If this is an entry asset, don't hash. Return a relative path

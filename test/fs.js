@@ -132,7 +132,7 @@ describe('fs', function() {
       assert(fs.readFileSync(b.name).includes("require('fs')"));
       assert(fs.readFileSync(b.name).includes('readFileSync'));
 
-      fs.writeFileSync(__dirname + '/dist/test.txt', 'hey');
+      fs.writeFileSync(b.entryAsset.options.outDir + '/test.txt', 'hey');
       let output = run(b);
       assert.equal(output, 'hey');
     });
@@ -157,7 +157,7 @@ describe('fs', function() {
       assert(fs.readFileSync(b.name).includes("require('fs')"));
       assert(fs.readFileSync(b.name).includes('readFileSync'));
 
-      fs.writeFileSync(__dirname + '/dist/test.txt', 'hey');
+      fs.writeFileSync(b.entryAsset.options.outDir + '/test.txt', 'hey');
       let output = run(b);
       assert.equal(output, 'hey');
     });

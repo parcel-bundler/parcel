@@ -1,9 +1,14 @@
-const assert = require('assert');
+const assert = require('assert'); 
 const fs = require('fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {
+  bundler,
+  bundle,
+  run,
+  assertBundleTree,
+  generateTimeKey
+} = require('./utils');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
-const rimraf = require('rimraf');
 
 describe('css', function() {
   it('should produce two bundles when importing a CSS file', async function() {
@@ -96,7 +101,10 @@ describe('css', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.css',
+      'utf8'
+    );
     assert(css.includes('.local'));
     assert(css.includes('.other'));
     assert(/@media print {\s*.other/.test(css));
@@ -129,8 +137,11 @@ describe('css', function() {
     let output = run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
-
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    
+    let css = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.css',
+      'utf8'
+    );
     assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
@@ -141,7 +152,9 @@ describe('css', function() {
 
     assert(
       fs.existsSync(
-        __dirname + '/dist/' + css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
+        b.entryAsset.options.outDir +
+          '/' +
+          css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
       )
     );
   });
@@ -175,7 +188,10 @@ describe('css', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.css',
+      'utf8'
+    );
     assert(/url\(test\.[0-9a-f]+\.woff2\)/.test(css), 'woff ext found in css');
     assert(css.includes('url(http://google.com)'), 'url() found');
     assert(css.includes('.index'), '.index found');
@@ -186,7 +202,9 @@ describe('css', function() {
 
     assert(
       fs.existsSync(
-        __dirname + '/dist/' + css.match(/url\((test\.[0-9a-f]+\.woff2)\)/)[1]
+        b.entryAsset.options.outDir +
+          '/' +
+          css.match(/url\((test\.[0-9a-f]+\.woff2)\)/)[1]
       )
     );
   });
@@ -217,7 +235,10 @@ describe('css', function() {
 
     let cssClass = value.match(/(_index_[0-9a-z]+_1)/)[1];
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.css',
+      'utf8'
+    );
     assert(css.includes(`.${cssClass}`));
   });
 
@@ -230,50 +251,52 @@ describe('css', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.css',
+      'utf8'
+    );
     assert(css.includes('.local'));
     assert(css.includes('.index'));
     assert(!css.includes('\n'));
   });
 
   it('should automatically install postcss plugins with npm if needed', async function() {
-    rimraf.sync(__dirname + '/input');
-    await ncp(__dirname + '/integration/autoinstall/npm', __dirname + '/input');
-    await bundle(__dirname + '/input/index.css');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/autoinstall/npm', inputDir);
+    let b = bundler(inputDir + '/index.css');
+    await b.bundle();
 
     // cssnext was installed
-    let pkg = require('./input/package.json');
+    let pkg = require(inputDir + '/package.json');
     assert(pkg.devDependencies['postcss-cssnext']);
 
     // peer dependency caniuse-lite was installed
     assert(pkg.devDependencies['caniuse-lite']);
 
     // cssnext is applied
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(b.options.outDir + '/index.css', 'utf8');
     assert(css.includes('rgba'));
   });
 
   it('should automatically install postcss plugins with yarn if needed', async function() {
-    rimraf.sync(__dirname + '/input');
-    await ncp(
-      __dirname + '/integration/autoinstall/yarn',
-      __dirname + '/input'
-    );
-    await bundle(__dirname + '/input/index.css');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/autoinstall/yarn', inputDir);
+    let b = bundler(inputDir + '/index.css');
+    await b.bundle();
 
     // cssnext was installed
-    let pkg = require('./input/package.json');
+    let pkg = require(inputDir + '/package.json');
     assert(pkg.devDependencies['postcss-cssnext']);
 
     // peer dependency caniuse-lite was installed
     assert(pkg.devDependencies['caniuse-lite']);
 
     // appveyor is not currently writing to the yarn.lock file and will require further investigation
-    // let lockfile = fs.readFileSync(__dirname + '/input/yarn.lock', 'utf8');
+    // let lockfile = fs.readFileSync(inputDir + '/yarn.lock', 'utf8');
     // assert(lockfile.includes('postcss-cssnext'));
 
     // cssnext is applied
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(b.options.outDir + '/index.css', 'utf8');
     assert(css.includes('rgba'));
   });
 });

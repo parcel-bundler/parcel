@@ -1,8 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const {bundler, run, sleep} = require('./utils');
-const rimraf = require('rimraf');
+const {bundler, run, sleep, generateTimeKey} = require('./utils');
 const promisify = require('../src/utils/promisify');
 const ncp = promisify(require('ncp'));
 const WebSocket = require('ws');
@@ -11,9 +10,6 @@ const sinon = require('sinon');
 
 describe('hmr', function() {
   let b, ws;
-  beforeEach(function() {
-    rimraf.sync(__dirname + '/input');
-  });
 
   afterEach(function(done) {
     let finalise = () => {
@@ -43,19 +39,20 @@ describe('hmr', function() {
   }
 
   it('should emit an HMR update for the file that changed', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(inputDir + '/index.js', {
+      watch: true,
+      hmr: true
+    });
     await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
     const buildEnd = nextEvent(b, 'buildEnd');
 
-    fs.writeFileSync(
-      __dirname + '/input/local.js',
-      'exports.a = 5;\nexports.b = 5;'
-    );
+    fs.writeFileSync(inputDir + '/local.js', 'exports.a = 5;\nexports.b = 5;');
 
     let msg = json5.parse(await nextEvent(ws, 'message'));
     assert.equal(msg.type, 'update');
@@ -67,9 +64,10 @@ describe('hmr', function() {
   });
 
   it('should not enable HMR for --target=node', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true,
       target: 'node'
@@ -84,9 +82,10 @@ describe('hmr', function() {
   });
 
   it('should enable HMR for --target=electron', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true,
       target: 'electron'
@@ -97,10 +96,7 @@ describe('hmr', function() {
 
     const buildEnd = nextEvent(b, 'buildEnd');
 
-    fs.writeFileSync(
-      __dirname + '/input/local.js',
-      'exports.a = 5; exports.b = 5;'
-    );
+    fs.writeFileSync(inputDir + '/local.js', 'exports.a = 5; exports.b = 5;');
 
     let msg = json5.parse(await nextEvent(ws, 'message'));
     assert.equal(msg.type, 'update');
@@ -112,9 +108,13 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR update for all new dependencies along with the changed file', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(inputDir + '/index.js', {
+      watch: true,
+      hmr: true
+    });
     await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
@@ -122,7 +122,7 @@ describe('hmr', function() {
     const buildEnd = nextEvent(b, 'buildEnd');
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"); exports.a = 5; exports.b = 5;'
     );
 
@@ -134,9 +134,13 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR error on bundle failure', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(inputDir + '/index.js', {
+      watch: true,
+      hmr: true
+    });
     await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
@@ -144,7 +148,7 @@ describe('hmr', function() {
     const buildEnd = nextEvent(b, 'buildEnd');
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
 
@@ -153,8 +157,8 @@ describe('hmr', function() {
     assert.equal(
       msg.error.message,
       `${path.join(
-        __dirname,
-        '/input/local.js'
+        inputDir,
+        '/local.js'
       )}:1:12: Unexpected token, expected , (1:12)`
     );
     assert.equal(
@@ -166,13 +170,17 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR error to new connections after a bundle failure', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(inputDir + '/index.js', {
+      watch: true,
+      hmr: true
+    });
     await b.bundle();
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
     await nextEvent(b, 'buildEnd');
@@ -184,9 +192,13 @@ describe('hmr', function() {
   });
 
   it('should emit an HMR error-resolved on build after error', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(inputDir + '/index.js', {
+      watch: true,
+      hmr: true
+    });
     await b.bundle();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
@@ -194,7 +206,7 @@ describe('hmr', function() {
     const firstBuildEnd = nextEvent(b, 'buildEnd');
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
 
@@ -206,7 +218,7 @@ describe('hmr', function() {
     const secondBuildEnd = nextEvent(b, 'buildEnd');
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"); exports.a = 5; exports.b = 5;'
     );
 
@@ -217,9 +229,13 @@ describe('hmr', function() {
   });
 
   it('should accept HMR updates in the runtime', async function() {
-    await ncp(__dirname + '/integration/hmr', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/hmr', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(inputDir + '/index.js', {
+      watch: true,
+      hmr: true
+    });
     let bundle = await b.bundle();
     let outputs = [];
 
@@ -231,19 +247,20 @@ describe('hmr', function() {
 
     assert.deepEqual(outputs, [3]);
 
-    fs.writeFileSync(
-      __dirname + '/input/local.js',
-      'exports.a = 5; exports.b = 5;'
-    );
+    fs.writeFileSync(inputDir + '/local.js', 'exports.a = 5; exports.b = 5;');
 
     await nextEvent(b, 'bundled');
     assert.deepEqual(outputs, [3, 10]);
   });
 
   it('should call dispose and accept callbacks', async function() {
-    await ncp(__dirname + '/integration/hmr-callbacks', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/hmr-callbacks', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(inputDir + '/index.js', {
+      watch: true,
+      hmr: true
+    });
     let bundle = await b.bundle();
     let outputs = [];
     let moduleId = '';
@@ -259,10 +276,7 @@ describe('hmr', function() {
 
     assert.deepEqual(outputs, [3]);
 
-    fs.writeFileSync(
-      __dirname + '/input/local.js',
-      'exports.a = 5; exports.b = 5;'
-    );
+    fs.writeFileSync(inputDir + '/local.js', 'exports.a = 5; exports.b = 5;');
 
     await nextEvent(b, 'bundled');
     assert.notEqual(moduleId, undefined);
@@ -275,9 +289,13 @@ describe('hmr', function() {
   });
 
   it('should work across bundles', async function() {
-    await ncp(__dirname + '/integration/hmr-dynamic', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/hmr-dynamic', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(inputDir + '/index.js', {
+      watch: true,
+      hmr: true
+    });
     let bundle = await b.bundle();
     let outputs = [];
 
@@ -290,10 +308,7 @@ describe('hmr', function() {
     await sleep(50);
     assert.deepEqual(outputs, [3]);
 
-    fs.writeFileSync(
-      __dirname + '/input/local.js',
-      'exports.a = 5; exports.b = 5;'
-    );
+    fs.writeFileSync(inputDir + '/local.js', 'exports.a = 5; exports.b = 5;');
 
     await nextEvent(b, 'bundled');
     await sleep(50);
@@ -301,9 +316,13 @@ describe('hmr', function() {
   });
 
   it('should log emitted errors and show an error overlay', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(inputDir + '/index.js', {
+      watch: true,
+      hmr: true
+    });
     let bundle = await b.bundle();
 
     let logs = [];
@@ -323,7 +342,7 @@ describe('hmr', function() {
     let spy = sinon.spy(ctx.document.body, 'appendChild');
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
     await nextEvent(b, 'buildEnd');
@@ -335,9 +354,13 @@ describe('hmr', function() {
   });
 
   it('should log when errors resolve', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
+    b = bundler(inputDir + '/index.js', {
+      watch: true,
+      hmr: true
+    });
     let bundle = await b.bundle();
 
     let logs = [];
@@ -361,7 +384,7 @@ describe('hmr', function() {
     let removeSpy = sinon.spy(ctx.document.getElementById('tmp'), 'remove');
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
     await nextEvent(b, 'buildEnd');
@@ -370,7 +393,7 @@ describe('hmr', function() {
     assert(appendSpy.called);
 
     fs.writeFileSync(
-      __dirname + '/input/local.js',
+      inputDir + '/local.js',
       'require("fs"); exports.a = 5; exports.b = 5;'
     );
     await nextEvent(b, 'buildEnd');
@@ -384,9 +407,10 @@ describe('hmr', function() {
   });
 
   it('should make a secure connection', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true,
       https: true
@@ -399,10 +423,7 @@ describe('hmr', function() {
 
     const buildEnd = nextEvent(b, 'buildEnd');
 
-    fs.writeFileSync(
-      __dirname + '/input/local.js',
-      'exports.a = 5;\nexports.b = 5;'
-    );
+    fs.writeFileSync(inputDir + '/local.js', 'exports.a = 5;\nexports.b = 5;');
 
     let msg = json5.parse(await nextEvent(ws, 'message'));
     assert.equal(msg.type, 'update');
@@ -414,9 +435,10 @@ describe('hmr', function() {
   });
 
   it('should make a secure connection with custom certificate', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    let inputDir = __dirname + `/input/${generateTimeKey()}`;
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {
+    b = bundler(inputDir + '/index.js', {
       watch: true,
       hmr: true,
       https: {
@@ -432,10 +454,7 @@ describe('hmr', function() {
 
     const buildEnd = nextEvent(b, 'buildEnd');
 
-    fs.writeFileSync(
-      __dirname + '/input/local.js',
-      'exports.a = 5;\nexports.b = 5;'
-    );
+    fs.writeFileSync(inputDir + '/local.js', 'exports.a = 5;\nexports.b = 5;');
 
     let msg = json5.parse(await nextEvent(ws, 'message'));
     assert.equal(msg.type, 'update');

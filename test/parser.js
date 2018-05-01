@@ -40,8 +40,8 @@ describe('parser', function() {
       ]
     });
 
-    let files = fs.readdirSync(__dirname + '/dist');
-    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    let files = fs.readdirSync(b.entryAsset.options.outDir);
+    let html = fs.readFileSync(b.entryAsset.options.outDir + '/index.html');
     for (let file of files) {
       let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {

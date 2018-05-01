@@ -25,7 +25,10 @@ describe('less', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.css',
+      'utf8'
+    );
     assert(css.includes('.index'));
   });
 
@@ -51,7 +54,10 @@ describe('less', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.css',
+      'utf8'
+    );
     assert(css.includes('.index'));
     assert(css.includes('.base'));
   });
@@ -108,15 +114,20 @@ describe('less', function() {
     let output = run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
-
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    
+    let css = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.css',
+      'utf8'
+    );
     assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
 
     assert(
       fs.existsSync(
-        __dirname + '/dist/' + css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
+        b.entryAsset.options.outDir +
+          '/' +
+          css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
       )
     );
   });
@@ -143,7 +154,10 @@ describe('less', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), '_index_ku5n8_1');
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = fs.readFileSync(
+      b.entryAsset.options.outDir + '/index.css',
+      'utf8'
+    );
     assert(css.includes('._index_ku5n8_1'));
   });
 });

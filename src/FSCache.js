@@ -47,7 +47,8 @@ class FSCache {
       await fs.writeFile(this.getCacheFile(filename), JSON.stringify(data));
       this.invalidated.delete(filename);
     } catch (err) {
-      logger.error('Error writing to cache', err);
+      err.message = 'Error writing to cache';
+      logger.error(err);
     }
   }
 

@@ -11,7 +11,7 @@ describe('bundler', function() {
     assert(b.entryAssets);
   });
 
-  it('should defer bundling if a bundle is pending', async () => {
+  it('should defer bundling if a bundle is pending', async function() {
     const b = bundler(__dirname + '/integration/html/index.html');
     b.pending = true; // bundle in progress
     const spy = sinon.spy(b, 'bundle');
@@ -29,7 +29,7 @@ describe('bundler', function() {
     assert(spy.calledTwice);
   });
 
-  it('should enforce asset type path to be a string', () => {
+  it('should enforce asset type path to be a string', function() {
     const b = bundler(__dirname + '/integration/html/index.html');
 
     assert.throws(() => {
@@ -37,7 +37,7 @@ describe('bundler', function() {
     }, 'should be a module path');
   });
 
-  it('should enforce setup before bundling', () => {
+  it('should enforce setup before bundling', function() {
     const b = bundler(__dirname + '/integration/html/index.html');
     b.farm = true; // truthy
 
