@@ -173,7 +173,11 @@ module.exports = packager => {
               }
             }
           }
-        } else if (!t.isIdentifier(node)) {
+        } else if (
+          mod.cacheData.isES6Module &&
+          !t.isIdentifier(node) &&
+          moduleMap.has(mod.id)
+        ) {
           let relativePath = relative(packager.options.rootDir, mod.name);
 
           throw new Error(`${relativePath} does not export '${name.value}'`);
