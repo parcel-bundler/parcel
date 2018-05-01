@@ -4,14 +4,10 @@ const htmlnano = require('htmlnano');
 module.exports = async function(asset) {
   await asset.parseIfNeeded();
 
-  const htmlNanoConfig = asset.package.htmlnano ||
-    (await asset.getConfig(['.htmlnanorc', '.htmlnanorc.js'])) || {
-      collapseWhitespace: 'conservative',
-      removeRedundantAttributes: false,
-      minifyCss: {
-        safe: true
-      }
-    };
+  const htmlNanoConfig =
+    asset.package.htmlnano ||
+    (await asset.getConfig(['.htmlnanorc', '.htmlnanorc.js'])) ||
+    {};
 
   let res = await posthtml([htmlnano(htmlNanoConfig)]).process(asset.ast, {
     skipParse: true

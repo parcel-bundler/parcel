@@ -1,5 +1,6 @@
 {
   mergeStyles: true,
   minifySvg: false,
-  minifyJson: true
+  minifyJson: true,
+  collapseWhitespace: "all"
 }
