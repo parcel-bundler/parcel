@@ -1,6 +1,5 @@
 var OVERLAY_ID = '__parcel__error__overlay__';
 
-var global = (1, eval)('this');
 var OldModule = module.bundle.Module;
 
 function Module(moduleName) {
