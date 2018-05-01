@@ -2,8 +2,10 @@ const builtins = require('./builtins');
 const path = require('path');
 const glob = require('glob');
 const fs = require('./utils/fs');
+const micromatch = require('micromatch');
 
 const EMPTY_SHIM = require.resolve('./builtins/_empty');
+const GLOB_RE = /[*+{}]/;
 
 /**
  * This resolver implements a modified version of the node_modules resolution algorithm:
@@ -36,7 +38,7 @@ class Resolver {
     }
 
     // Check if this is a glob
-    if (/[*+{}]/.test(filename) && glob.hasMagic(filename)) {
+    if (GLOB_RE.test(filename) && glob.hasMagic(filename)) {
       return {path: path.resolve(path.dirname(parent), filename)};
     }
 
@@ -251,16 +253,30 @@ class Resolver {
     pkg.pkgfile = file;
     pkg.pkgdir = dir;
 
+    // If the package has a `source` field, check if it is behind a symlink.
+    // If so, we treat the module as source code rather than a pre-compiled module.
+    if (pkg.source) {
+      let realpath = await fs.realpath(file);
+      if (realpath === file) {
+        delete pkg.source;
+      }
+    }
+
     this.packageCache.set(file, pkg);
     return pkg;
   }
 
   getPackageMain(pkg) {
     // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
-    // we use the "module" or "jsnext:main" field to get the full dependency tree if available
-    let main = [pkg.module, pkg['jsnext:main'], pkg.browser, pkg.main].find(
-      entry => typeof entry === 'string'
-    );
+    // we use the "module" or "jsnext:main" field to get the full dependency tree if available.
+    // If this is a linked module with a `source` field, use that as the entry point.
+    let main = [
+      pkg.source,
+      pkg.module,
+      pkg['jsnext:main'],
+      pkg.browser,
+      pkg.main
+    ].find(entry => typeof entry === 'string');
 
     // Default to index file if no main field find
     if (!main || main === '.' || main === './') {
@@ -307,16 +323,17 @@ class Resolver {
   }
 
   resolvePackageAliases(filename, pkg) {
-    // Resolve aliases in the package.alias and package.browser fields.
-    if (pkg) {
-      return (
-        this.getAlias(filename, pkg.pkgdir, pkg.alias) ||
-        this.getAlias(filename, pkg.pkgdir, pkg.browser) ||
-        filename
-      );
+    if (!pkg) {
+      return filename;
     }
 
-    return filename;
+    // Resolve aliases in the package.source, package.alias, and package.browser fields.
+    return (
+      this.getAlias(filename, pkg.pkgdir, pkg.source) ||
+      this.getAlias(filename, pkg.pkgdir, pkg.alias) ||
+      this.getAlias(filename, pkg.pkgdir, pkg.browser) ||
+      filename
+    );
   }
 
   getAlias(filename, dir, aliases) {
@@ -333,7 +350,7 @@ class Resolver {
         filename = './' + filename;
       }
 
-      alias = aliases[filename];
+      alias = this.lookupAlias(aliases, filename);
     } else {
       // It is a node_module. First try the entire filename as a key.
       alias = aliases[filename];
@@ -361,6 +378,24 @@ class Resolver {
 
     // Otherwise, assume the alias is a module
     return alias;
+  }
+
+  lookupAlias(aliases, filename) {
+    // First, try looking up the exact filename
+    let alias = aliases[filename];
+    if (alias != null) {
+      return alias;
+    }
+
+    // Otherwise, try replacing glob keys
+    for (let key in aliases) {
+      if (GLOB_RE.test(key)) {
+        let re = micromatch.makeRe(key, {capture: true});
+        if (re.test(filename)) {
+          return filename.replace(re, aliases[key]);
+        }
+      }
+    }
   }
 
   async findPackage(dir) {

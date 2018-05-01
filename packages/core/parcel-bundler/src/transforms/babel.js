@@ -89,9 +89,18 @@ async function getBabelConfig(asset) {
     return asset.babelConfig;
   }
 
-  let babelrc = await getBabelRc(asset);
-  let envConfig = await getEnvConfig(asset, !!babelrc);
-  let jsxConfig = getJSXConfig(asset, !!babelrc);
+  // Consider the module source code rather than precompiled if the resolver
+  // used the `source` field, or it is not in node_modules.
+  let isSource =
+    !!(asset.package && asset.package.source) ||
+    !asset.name.includes(NODE_MODULES);
+
+  // Try to resolve a .babelrc file. If one is found, consider the module source code.
+  let babelrc = await getBabelRc(asset, isSource);
+  isSource = isSource || !!babelrc;
+
+  let envConfig = await getEnvConfig(asset, isSource);
+  let jsxConfig = getJSXConfig(asset, isSource);
 
   // Merge the babel-preset-env config and the babelrc if needed
   if (babelrc && !shouldIgnoreBabelrc(asset.name, babelrc)) {
@@ -162,8 +171,9 @@ function getPluginName(p) {
  * Finds a .babelrc for an asset. By default, .babelrc files inside node_modules are not used.
  * However, there are some exceptions:
  *   - if `browserify.transforms` includes "babelify" in package.json (for legacy module compat)
+ *   - the `source` field in package.json is used by the resolver
  */
-async function getBabelRc(asset) {
+async function getBabelRc(asset, isSource) {
   // Support legacy browserify packages
   let browserify = asset.package && asset.package.browserify;
   if (browserify && Array.isArray(browserify.transform)) {
@@ -182,7 +192,7 @@ async function getBabelRc(asset) {
   }
 
   // If this asset is not in node_modules, always use the .babelrc
-  if (!asset.name.includes(NODE_MODULES)) {
+  if (isSource) {
     return await findBabelRc(asset);
   }
 
@@ -224,7 +234,7 @@ async function getEnvConfig(asset, isSourceModule) {
 
   // If this is the app module, the source and target will be the same, so just compile everything.
   // Otherwise, load the source engines and generate a babel-present-env config.
-  if (asset.name.includes(NODE_MODULES) && !isSourceModule) {
+  if (!isSourceModule) {
     let sourceEngines = await getTargetEngines(asset, false);
     let sourceEnv = (await getEnvPlugins(sourceEngines, false)) || targetEnv;
 
@@ -264,7 +274,7 @@ async function getEnvPlugins(targets, useBuiltIns = false) {
  */
 function getJSXConfig(asset, isSourceModule) {
   // Don't enable JSX in node_modules
-  if (asset.name.includes(NODE_MODULES) && !isSourceModule) {
+  if (!isSourceModule) {
     return null;
   }
 
