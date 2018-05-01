@@ -838,9 +838,9 @@ describe('javascript', function() {
   it('should expose to CommonJS entry point', async function() {
     let b = await bundle(__dirname + '/integration/entry-point/index.js');
 
-    delete require.cache[require.resolve(b.name)];
-    const test = require(b.name);
-    assert.equal(test(), 'Test!');
+    let module = {};
+    run(b, {module, exports: {}});
+    assert.equal(module.exports(), 'Test!');
   });
 
   it('should expose to RequireJS entry point', async function() {
