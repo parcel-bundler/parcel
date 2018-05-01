@@ -41,6 +41,7 @@ program
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
+  .option('--global <variable>', 'expose your module through a global variable')
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
@@ -73,6 +74,7 @@ program
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
+  .option('--global <variable>', 'expose your module through a global variable')
   .option(
     '--hmr-port <port>',
     'set the port to serve HMR websockets, defaults to random',
@@ -113,6 +115,7 @@ program
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
+  .option('--global <variable>', 'expose your module through a global variable')
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')

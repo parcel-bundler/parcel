@@ -834,4 +834,33 @@ describe('javascript', function() {
 
     assert.equal(failed, false);
   });
+
+  it('should expose to CommonJS entry point', async function() {
+    let b = await bundle(__dirname + '/integration/entry-point/index.js');
+
+    delete require.cache[require.resolve(b.name)];
+    const test = require(b.name);
+    assert.equal(test(), 'Test!');
+  });
+
+  it('should expose to RequireJS entry point', async function() {
+    let b = await bundle(__dirname + '/integration/entry-point/index.js');
+    let test;
+    const mockDefine = function(f) {
+      test = f();
+    };
+    mockDefine.amd = true;
+
+    run(b, {define: mockDefine});
+    assert.equal(test(), 'Test!');
+  });
+
+  it('should expose variable with --browser-global', async function() {
+    let b = await bundle(__dirname + '/integration/entry-point/index.js', {
+      global: 'testing'
+    });
+
+    const ctx = run(b, null, {require: false});
+    assert.equal(ctx.window.testing(), 'Test!');
+  });
 });
