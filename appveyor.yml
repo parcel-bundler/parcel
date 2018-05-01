@@ -19,6 +19,11 @@ install:
   - rustc -Vv
   - cargo -V
 
+  # Restore symlinks from git
+  # https://github.com/appveyor/ci/issues/650
+  - cmd: git config core.symlinks true
+  - cmd: git reset --hard
+
 # Post-install test scripts.
 test_script:
   # Output useful info for debugging.
