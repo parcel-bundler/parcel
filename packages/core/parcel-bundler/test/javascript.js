@@ -542,28 +542,7 @@ describe('javascript', function() {
     assert.equal(output.test(), 'pkg-es6-module');
   });
 
-  it('should resolve the jsnext:main field before main', async function() {
-    let b = await bundle(
-      __dirname + '/integration/resolve-entries/jsnext-field.js'
-    );
-
-    assertBundleTree(b, {
-      name: 'jsnext-field.js',
-      assets: ['jsnext-field.js', 'jsnext.module.js'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
-
-    let output = run(b);
-
-    assert.equal(typeof output.test, 'function');
-    assert.equal(output.test(), 'pkg-jsnext-module');
-  });
-
-  it('should resolve the module field before jsnext:main', async function() {
+  it('should resolve the module field before main', async function() {
     let b = await bundle(
       __dirname + '/integration/resolve-entries/both-fields.js'
     );
