@@ -268,15 +268,11 @@ class Resolver {
 
   getPackageMain(pkg) {
     // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
-    // we use the "module" or "jsnext:main" field to get the full dependency tree if available.
+    // we use the "module" or "browser" field to get the full dependency tree if available.
     // If this is a linked module with a `source` field, use that as the entry point.
-    let main = [
-      pkg.source,
-      pkg.module,
-      pkg['jsnext:main'],
-      pkg.browser,
-      pkg.main
-    ].find(entry => typeof entry === 'string');
+    let main = [pkg.source, pkg.module, pkg.browser, pkg.main].find(
+      entry => typeof entry === 'string'
+    );
 
     // Default to index file if no main field find
     if (!main || main === '.' || main === './') {
