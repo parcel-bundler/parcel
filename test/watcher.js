@@ -70,17 +70,32 @@ describe('watcher', function() {
           ]
         },
         {
+          assets: ['c.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
           type: 'map'
         }
       ]
     });
 
     let output = run(bundle);
-    assert.equal(await output(), 7);
+    assert.equal(await output(), 11);
 
-    // change b.js so that it no longer depends on common.js.
+    // change b.js and index.js so they no longer depend on common.js.
     // This should cause common.js and dependencies to no longer be hoisted to the root bundle.
     fs.writeFileSync(__dirname + '/input/b.js', 'module.exports = 5;');
+    fs.writeFileSync(
+      __dirname + '/input/index.js',
+      fs
+        .readFileSync(__dirname + '/input/index.js')
+        .toString()
+        .replace("var common = require('./common');", '')
+    );
 
     bundle = await nextBundle(b);
     assertBundleTree(bundle, {
@@ -88,7 +103,7 @@ describe('watcher', function() {
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
         {
-          assets: ['a.js', 'common.js', 'common-dep.js'],
+          assets: ['a.js'],
           childBundles: [
             {
               type: 'map'
@@ -104,13 +119,21 @@ describe('watcher', function() {
           ]
         },
         {
+          assets: ['c.js', 'common.js', 'common-dep.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
           type: 'map'
         }
       ]
     });
 
     output = run(bundle);
-    assert.equal(await output(), 8);
+    assert.equal(await output(), 12);
   });
 
   it('should only re-package bundles that changed', async function() {
@@ -173,13 +196,21 @@ describe('watcher', function() {
           ]
         },
         {
+          assets: ['c.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
           type: 'map'
         }
       ]
     });
 
     let output = run(bundle);
-    assert.equal(await output(), 7);
+    assert.equal(await output(), 11);
 
     assert(b.loadedAssets.has(path.join(__dirname, '/input/common-dep.js')));
 
@@ -214,13 +245,21 @@ describe('watcher', function() {
           ]
         },
         {
+          assets: ['c.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
           type: 'map'
         }
       ]
     });
 
     output = run(bundle);
-    assert.equal(await output(), 13);
+    assert.equal(await output(), 17);
 
     assert(!b.loadedAssets.has(path.join(__dirname, '/input/common-dep.js')));
   });
