@@ -76,7 +76,7 @@ class Watcher {
 
         for (let dir of children) {
           count += this.watchedDirectories.get(dir);
-          this.watcher.unwatch(dir);
+          this.watcher._closePath(dir);
           this.watchedDirectories.delete(dir);
         }
 
