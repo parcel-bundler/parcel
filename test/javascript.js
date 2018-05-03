@@ -507,7 +507,11 @@ describe('javascript', function() {
 
     assertBundleTree(b, {
       name: 'browser-multiple.js',
-      assets: ['browser-multiple.js', 'projected-module.js'],
+      assets: [
+        'browser-multiple.js',
+        'projected-module.js',
+        'browser-entry.js'
+      ],
       childBundles: [
         {
           type: 'map'
@@ -515,10 +519,12 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let {test: output} = run(b);
 
-    assert.equal(typeof output.test, 'function');
-    assert.equal(output.test(), 'pkg-browser-multiple');
+    assert.equal(typeof output.projected.test, 'function');
+    assert.equal(typeof output.entry.test, 'function');
+    assert.equal(output.projected.test(), 'pkg-browser-multiple');
+    assert.equal(output.entry.test(), 'pkg-browser-multiple browser-entry');
   });
 
   it('should resolve the module field before main', async function() {
