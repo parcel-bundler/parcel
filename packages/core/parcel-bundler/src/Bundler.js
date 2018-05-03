@@ -4,7 +4,7 @@ const Parser = require('./Parser');
 const WorkerFarm = require('./workerfarm/WorkerFarm');
 const Path = require('path');
 const Bundle = require('./Bundle');
-const {FSWatcher} = require('chokidar');
+const Watcher = require('./Watcher');
 const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
@@ -107,7 +107,9 @@ class Bundler extends EventEmitter {
       hmr:
         target === 'node'
           ? false
-          : typeof options.hmr === 'boolean' ? options.hmr : watch,
+          : typeof options.hmr === 'boolean'
+            ? options.hmr
+            : watch,
       https: options.https || false,
       logLevel: isNaN(options.logLevel) ? 3 : options.logLevel,
       entryFiles: this.entryFiles,
@@ -321,12 +323,7 @@ class Bundler extends EventEmitter {
     this.options.env = process.env;
 
     if (this.options.watch) {
-      // FS events on macOS are flakey in the tests, which write lots of files very quickly
-      // See https://github.com/paulmillr/chokidar/issues/612
-      this.watcher = new FSWatcher({
-        useFsEvents: process.env.NODE_ENV !== 'test'
-      });
-
+      this.watcher = new Watcher();
       this.watcher.on('change', this.onChange.bind(this));
     }
 
@@ -344,7 +341,7 @@ class Bundler extends EventEmitter {
     }
 
     if (this.watcher) {
-      this.watcher.close();
+      this.watcher.stop();
     }
 
     if (this.hmr) {
@@ -378,7 +375,7 @@ class Bundler extends EventEmitter {
     }
 
     if (!this.watchedAssets.has(path)) {
-      this.watcher.add(path);
+      this.watcher.watch(path);
       this.watchedAssets.set(path, new Set());
     }
 
