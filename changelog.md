@@ -5,9 +5,39 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2018-05-03
+
+### Added
+
+* Add support for multiple entry points [Details](https://github.com/parcel-bundler/parcel/commit/7cbbeef2bf5b6e2d83af55344218da72006d325c)
+* Support source field in package.json to enable babel on symlinked modules [Details](https://github.com/parcel-bundler/parcel/commit/d517132890318586c0ccd45905dc66bf52425844)
+* Expose modules as UMD [Details](https://github.com/parcel-bundler/parcel/commit/2af3fe3bb6d241d077f216c4bb711c59aa4069d0)
+* Use parcel's resolver for sass imports [Details](https://github.com/parcel-bundler/parcel/commit/31190cff9444f8907bb1e854db1af1be68363f39)
+* Update default browser engines to > 0.25% marketshare [Details](https://github.com/parcel-bundler/parcel/commit/e9b249cdc3b9b819c324077c61bd94ac9c429ce3)
+* Ignore dependencies in falsy branches [Details](https://github.com/parcel-bundler/parcel/commit/a176dedc3ec60e88f8899614377d3f1fabe54ef7)
+* Clear the console in browser on each HMR [Details](https://github.com/parcel-bundler/parcel/commit/1a688cd7684262d55f37eebe6993506f3040ecf6)
+* Watch directories instead of individual files to fix EMFILE errors [Details](https://github.com/parcel-bundler/parcel/commit/d67b76c8c62792f37ca5e5071be533198093f1ae)
+
+### Fixed
+
+* Prevent build from breaking when .scss file is empty [Details](https://github.com/parcel-bundler/parcel/commit/7a2ba16de58a11f84e37b62537c4a1cc54f3f478)
+* Handle empty config files [Details](https://github.com/parcel-bundler/parcel/commit/11a788247c4e4d2abfba33d56e47c8422b75c447)
+* Update dependency with security vuln [Details](https://github.com/parcel-bundler/parcel/commit/06999a08f252b40344f75c5956c04c107d5502f5)
+* Minor change to mkHandle in workerfarm [Details](https://github.com/parcel-bundler/parcel/commit/0d984a563f72798cc0c08e9a27bc0e6e077a0b47)
+* Don't start server if target isn't browser [Details](https://github.com/parcel-bundler/parcel/commit/9064b3b6b34cba08d6c33e5d88298485b1ee87f7)
+* Let worker return early instead of throw on unknown messages [Details](https://github.com/parcel-bundler/parcel/commit/3fe54a690bc8a33ddf0f458893ba108af3329db3)
+* change default behaviour to keep default values of HTML form elements [Details](https://github.com/parcel-bundler/parcel/commit/ac3f8ca61b5045d3a3e77a136befe0ac48f81176)
+* Fix autoinstall infinite loop [Details](https://github.com/parcel-bundler/parcel/commit/19b9fc67878f189df3a8b8e104245ddcb644436d)
+* Allow spaces in filenames [Details](https://github.com/parcel-bundler/parcel/commit/fb6912da20b377be33ea82442579a0244f27ad37)
+* Update deps [Details](https://github.com/parcel-bundler/parcel/commit/ec98a951393587a6e1002035c56b3e41134be844)
+* Fix reference pass error in package config [Details](https://github.com/parcel-bundler/parcel/commit/a36b9124b559d65a724da74f2611a15d3122626f)
+* Remove `eval` usage. Fixes CSP cases. [Details](https://github.com/parcel-bundler/parcel/commit/b032b859a1bcc4f3e734576c704afb52821235fc)
+* Remove jsnext:main [Details](https://github.com/parcel-bundler/parcel/commit/f75941c3cfeb189578e3f2f9579dc9909da1d7c0)
+* fix for outFile option; respect file-extension [Details](https://github.com/parcel-bundler/parcel/commit/55e27e0b9f83f3588685de8bcba18167e49c3b1f)
+
 ## [1.7.1] - 2018-04-15
 
-## Fixed
+### Fixed
 
 * Fix scoped plugin packages [Details](https://github.com/parcel-bundler/parcel/commit/9792f48a8f8e9a18ea3d46521f742b36ceffbd04)
 * Fix writing files in subfolders inside dist directory [Details](https://github.com/parcel-bundler/parcel/commit/0e1863bd348c03563f7e6d9a0ba0b1c07fcdbe12)
