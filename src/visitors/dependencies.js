@@ -1,5 +1,6 @@
 const types = require('babel-types');
 const template = require('babel-template');
+const traverse = require('babel-traverse').default;
 const urlJoin = require('../utils/urlJoin');
 const isURL = require('../utils/is-url');
 const matchesPattern = require('./matches-pattern');
@@ -38,7 +39,8 @@ module.exports = {
       callee.name === 'require' &&
       args.length === 1 &&
       types.isStringLiteral(args[0]) &&
-      !hasBinding(ancestors, 'require');
+      !hasBinding(ancestors, 'require') &&
+      !isInFalsyBranch(ancestors);
 
     if (isRequire) {
       let optional = ancestors.some(a => types.isTryStatement(a)) || undefined;
@@ -114,6 +116,37 @@ function hasBinding(node, name) {
   }
 
   return false;
+}
+
+function isInFalsyBranch(ancestors) {
+  // Check if any ancestors are if statements
+  return ancestors.some((node, index) => {
+    if (types.isIfStatement(node)) {
+      let res = evaluateExpression(node.test);
+      if (res && res.confident) {
+        // If the test is truthy, exclude the dep if it is in the alternate branch.
+        // If the test if falsy, exclude the dep if it is in the consequent branch.
+        let child = ancestors[index + 1];
+        return res.value ? child === node.alternate : child === node.consequent;
+      }
+    }
+  });
+}
+
+function evaluateExpression(node) {
+  // Wrap the node in a standalone program so we can traverse it
+  node = types.file(types.program([types.expressionStatement(node)]));
+
+  // Find the first expression and evaluate it.
+  let res = null;
+  traverse(node, {
+    Expression(path) {
+      res = path.evaluate();
+      path.stop();
+    }
+  });
+
+  return res;
 }
 
 function addDependency(asset, node, opts = {}) {

@@ -783,6 +783,23 @@ describe('javascript', function() {
     assert.deepEqual(output, err);
   });
 
+  it('should support excluding dependencies in falsy branches', async function() {
+    let b = await bundle(__dirname + '/integration/falsy-dep/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'true-alternate.js', 'true-consequent.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(output, 2);
+  });
+
   it('should not autoinstall if resolve failed on installed module', async function() {
     let error;
     try {
