@@ -16,6 +16,16 @@ class Watcher {
     });
 
     this.watchedDirectories = new Map();
+
+    // Only close the watcher after the ready event is emitted
+    this.ready = false;
+    this.stopped = false;
+    this.watcher.once('ready', () => {
+      this.ready = true;
+      if (this.stopped) {
+        this.watcher.close();
+      }
+    });
   }
 
   /**
@@ -117,7 +127,10 @@ class Watcher {
    * Stop watching all paths
    */
   stop() {
-    this.watcher.close();
+    this.stopped = true;
+    if (this.ready) {
+      this.watcher.close();
+    }
   }
 }
 
