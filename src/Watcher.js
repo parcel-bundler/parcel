@@ -12,7 +12,8 @@ class Watcher {
     this.shouldWatchDirs = process.env.NODE_ENV !== 'test';
     this.watcher = new FSWatcher({
       useFsEvents: this.shouldWatchDirs,
-      ignoreInitial: true
+      ignoreInitial: true,
+      ignored: /\.cache|\.git/
     });
 
     this.watchedDirectories = new Map();
