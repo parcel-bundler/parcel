@@ -122,7 +122,13 @@ class Bundle {
 
     // If this is the main entry file, use the output file option as the name if provided.
     if (isMainEntry && entryAsset.options.outFile) {
-      name = entryAsset.options.outFile;
+      let extname = Path.extname(entryAsset.options.outFile);
+      if (extname) {
+        ext = this.entryAsset ? extname : ext;
+        name = Path.basename(entryAsset.options.outFile, extname);
+      } else {
+        name = entryAsset.options.outFile;
+      }
     }
 
     // If this is an entry asset, don't hash. Return a relative path
