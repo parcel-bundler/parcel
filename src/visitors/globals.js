@@ -13,7 +13,12 @@ const VARS = {
   Buffer: asset => {
     asset.addDependency('buffer');
     return 'var Buffer = require("buffer").Buffer;';
-  }
+  },
+  // Prevent AMD defines from working when loading UMD bundles.
+  // Ideally the CommonJS check would come before the AMD check, but many
+  // existing modules do the checks the opposite way leading to modules
+  // not exporting anything to Parcel.
+  define: () => 'var define;'
 };
 
 module.exports = {
