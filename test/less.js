@@ -56,6 +56,35 @@ describe('less', function() {
     assert(css.includes('.base'));
   });
 
+  it('should support advanced less imports', async function() {
+    let b = await bundle(
+      __dirname + '/integration/less-advanced-import/index.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.less'],
+      childBundles: [
+        {
+          type: 'map'
+        },
+        {
+          name: 'index.css',
+          assets: ['index.less'],
+          childBundles: []
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('.index'));
+    assert(css.includes('.base'));
+  });
+
   it('should support requiring empty less files', async function() {
     let b = await bundle(__dirname + '/integration/less-empty/index.js');
 
