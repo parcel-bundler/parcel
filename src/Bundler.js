@@ -4,7 +4,7 @@ const Parser = require('./Parser');
 const WorkerFarm = require('./workerfarm/WorkerFarm');
 const Path = require('path');
 const Bundle = require('./Bundle');
-const {FSWatcher} = require('chokidar');
+const Watcher = require('./Watcher');
 const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
@@ -19,15 +19,18 @@ const PromiseQueue = require('./utils/PromiseQueue');
 const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
+const getRootDir = require('./utils/getRootDir');
+const glob = require('glob');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
  * creates the bundle tree, and manages the worker farm, cache, and file watcher.
  */
 class Bundler extends EventEmitter {
-  constructor(main, options = {}) {
+  constructor(entryFiles, options = {}) {
     super();
-    this.mainFile = Path.resolve(main || '');
+
+    this.entryFiles = this.normalizeEntries(entryFiles);
     this.options = this.normalizeOptions(options);
 
     this.resolver = new Resolver(this.options);
@@ -64,6 +67,23 @@ class Bundler extends EventEmitter {
     logger.setOptions(this.options);
   }
 
+  normalizeEntries(entryFiles) {
+    // Support passing a single file
+    if (entryFiles && !Array.isArray(entryFiles)) {
+      entryFiles = [entryFiles];
+    }
+
+    // If no entry files provided, resolve the entry point from the current directory.
+    if (!entryFiles || entryFiles.length === 0) {
+      entryFiles = [process.cwd()];
+    }
+
+    // Match files as globs
+    return entryFiles
+      .reduce((p, m) => p.concat(glob.sync(m, {nonull: true})), [])
+      .map(f => Path.resolve(f));
+  }
+
   normalizeOptions(options) {
     const isProduction =
       options.production || process.env.NODE_ENV === 'production';
@@ -74,7 +94,9 @@ class Bundler extends EventEmitter {
     const hmr =
       target === 'node'
         ? false
-        : typeof options.hmr === 'boolean' ? options.hmr : watch;
+        : typeof options.hmr === 'boolean'
+          ? options.hmr
+          : watch;
     return {
       production: isProduction,
       outDir: Path.resolve(options.outDir || 'dist'),
@@ -91,15 +113,16 @@ class Bundler extends EventEmitter {
       hmr: hmr,
       https: options.https || false,
       logLevel: isNaN(options.logLevel) ? 3 : options.logLevel,
-      mainFile: this.mainFile,
+      entryFiles: this.entryFiles,
       hmrPort: options.hmrPort || 0,
-      rootDir: Path.dirname(this.mainFile),
+      rootDir: getRootDir(this.entryFiles),
       sourceMaps:
         typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
       hmrHostname:
         options.hmrHostname ||
         (options.target === 'electron' ? 'localhost' : ''),
       detailedReport: options.detailedReport || false,
+      global: options.global,
       autoinstall:
         typeof options.autoinstall === 'boolean'
           ? options.autoinstall
@@ -157,7 +180,8 @@ class Bundler extends EventEmitter {
   }
 
   async loadPlugins() {
-    let pkg = await config.load(this.mainFile, ['package.json']);
+    let relative = Path.join(this.options.rootDir, 'index');
+    let pkg = await config.load(relative, ['package.json']);
     if (!pkg) {
       return;
     }
@@ -167,7 +191,7 @@ class Bundler extends EventEmitter {
       for (let dep in deps) {
         const pattern = /^(@.*\/)?parcel-plugin-.+/;
         if (pattern.test(dep)) {
-          let plugin = await localRequire(dep, this.mainFile);
+          let plugin = await localRequire(dep, relative);
           await plugin(this);
         }
       }
@@ -186,7 +210,7 @@ class Bundler extends EventEmitter {
       });
     }
 
-    let isInitialBundle = !this.mainAsset;
+    let isInitialBundle = !this.entryAssets;
     let startTime = Date.now();
     this.pending = true;
     this.errored = false;
@@ -202,8 +226,12 @@ class Bundler extends EventEmitter {
       if (isInitialBundle) {
         await fs.mkdirp(this.options.outDir);
 
-        this.mainAsset = await this.resolveAsset(this.mainFile);
-        this.buildQueue.add(this.mainAsset);
+        this.entryAssets = new Set();
+        for (let entry of this.entryFiles) {
+          let asset = await this.resolveAsset(entry);
+          this.buildQueue.add(asset);
+          this.entryAssets.add(asset);
+        }
       }
 
       // Build the queued assets.
@@ -218,8 +246,16 @@ class Bundler extends EventEmitter {
         asset.invalidateBundle();
       }
 
-      // Create a new bundle tree
-      this.mainBundle = this.createBundleTree(this.mainAsset);
+      // Create a root bundle to hold all of the entry assets, and add them to the tree.
+      this.mainBundle = new Bundle();
+      for (let asset of this.entryAssets) {
+        this.createBundleTree(asset, this.mainBundle);
+      }
+
+      // If there is only one child bundle, replace the root with that bundle.
+      if (this.mainBundle.childBundles.size === 1) {
+        this.mainBundle = Array.from(this.mainBundle.childBundles)[0];
+      }
 
       // Generate the final bundle names, and replace references in the built assets.
       this.bundleNameMap = this.mainBundle.getBundleNameMap(
@@ -282,19 +318,14 @@ class Bundler extends EventEmitter {
     }
 
     await this.loadPlugins();
-    await loadEnv(this.mainFile);
+    await loadEnv(Path.join(this.options.rootDir, 'index'));
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
     this.options.bundleLoaders = this.bundleLoaders;
     this.options.env = process.env;
 
     if (this.options.watch) {
-      // FS events on macOS are flakey in the tests, which write lots of files very quickly
-      // See https://github.com/paulmillr/chokidar/issues/612
-      this.watcher = new FSWatcher({
-        useFsEvents: process.env.NODE_ENV !== 'test'
-      });
-
+      this.watcher = new Watcher();
       this.watcher.on('change', this.onChange.bind(this));
     }
 
@@ -312,7 +343,7 @@ class Bundler extends EventEmitter {
     }
 
     if (this.watcher) {
-      this.watcher.close();
+      this.watcher.stop();
     }
 
     if (this.hmr) {
@@ -346,7 +377,7 @@ class Bundler extends EventEmitter {
     }
 
     if (!this.watchedAssets.has(path)) {
-      this.watcher.add(path);
+      this.watcher.watch(path);
       this.watchedAssets.set(path, new Set());
     }
 
@@ -516,7 +547,7 @@ class Bundler extends EventEmitter {
     });
   }
 
-  createBundleTree(asset, dep, bundle, parentBundles = new Set()) {
+  createBundleTree(asset, bundle, dep, parentBundles = new Set()) {
     if (dep) {
       asset.parentDeps.add(dep);
     }
@@ -542,10 +573,8 @@ class Bundler extends EventEmitter {
     let isEntryAsset =
       asset.parentBundle && asset.parentBundle.entryAsset === asset;
 
-    if (!bundle) {
-      // Create the root bundle if it doesn't exist
-      bundle = Bundle.createWithAsset(asset);
-    } else if (dep && dep.dynamic) {
+    if ((dep && dep.dynamic) || !bundle.type) {
+      // If the asset is already the entry asset of a bundle, don't create a duplicate.
       if (isEntryAsset) {
         return;
       }
@@ -553,6 +582,7 @@ class Bundler extends EventEmitter {
       // Create a new bundle for dynamic imports
       bundle = bundle.createChildBundle(asset);
     } else if (asset.type && !this.packagers.has(asset.type)) {
+      // If the asset is already the entry asset of a bundle, don't create a duplicate.
       if (isEntryAsset) {
         return;
       }
@@ -582,7 +612,7 @@ class Bundler extends EventEmitter {
     parentBundles.add(bundle);
 
     for (let [dep, assetDep] of asset.depAssets) {
-      this.createBundleTree(assetDep, dep, bundle, parentBundles);
+      this.createBundleTree(assetDep, bundle, dep, parentBundles);
     }
 
     parentBundles.delete(bundle);

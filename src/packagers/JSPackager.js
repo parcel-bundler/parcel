@@ -203,7 +203,13 @@ class JSPackager extends Packager {
       entry.push(this.bundle.entryAsset.id);
     }
 
-    await this.write('},{},' + JSON.stringify(entry) + ')');
+    await this.dest.write(
+      '},{},' +
+        JSON.stringify(entry) +
+        ', ' +
+        JSON.stringify(this.options.global || null) +
+        ')'
+    );
     if (this.options.sourceMaps) {
       // Add source map url if a map bundle exists
       let mapBundle = this.bundle.siblingBundlesMap.get('map');

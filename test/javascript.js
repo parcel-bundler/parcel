@@ -376,6 +376,13 @@ describe('javascript', function() {
     });
   });
 
+  it('should handle re-declaration of the global constant', async function() {
+    let b = await bundle(__dirname + '/integration/global-redeclare/index.js');
+
+    let output = run(b);
+    assert.deepEqual(output(), false);
+  });
+
   it('should insert environment variables', async function() {
     let b = await bundle(__dirname + '/integration/env/index.js');
 
@@ -500,7 +507,11 @@ describe('javascript', function() {
 
     assertBundleTree(b, {
       name: 'browser-multiple.js',
-      assets: ['browser-multiple.js', 'projected-module.js'],
+      assets: [
+        'browser-multiple.js',
+        'projected-module.js',
+        'browser-entry.js'
+      ],
       childBundles: [
         {
           type: 'map'
@@ -508,10 +519,12 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let {test: output} = run(b);
 
-    assert.equal(typeof output.test, 'function');
-    assert.equal(output.test(), 'pkg-browser-multiple');
+    assert.equal(typeof output.projected.test, 'function');
+    assert.equal(typeof output.entry.test, 'function');
+    assert.equal(output.projected.test(), 'pkg-browser-multiple');
+    assert.equal(output.entry.test(), 'pkg-browser-multiple browser-entry');
   });
 
   it('should resolve the module field before main', async function() {
@@ -535,28 +548,7 @@ describe('javascript', function() {
     assert.equal(output.test(), 'pkg-es6-module');
   });
 
-  it('should resolve the jsnext:main field before main', async function() {
-    let b = await bundle(
-      __dirname + '/integration/resolve-entries/jsnext-field.js'
-    );
-
-    assertBundleTree(b, {
-      name: 'jsnext-field.js',
-      assets: ['jsnext-field.js', 'jsnext.module.js'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
-
-    let output = run(b);
-
-    assert.equal(typeof output.test, 'function');
-    assert.equal(output.test(), 'pkg-jsnext-module');
-  });
-
-  it('should resolve the module field before jsnext:main', async function() {
+  it('should resolve the module field before main', async function() {
     let b = await bundle(
       __dirname + '/integration/resolve-entries/both-fields.js'
     );
@@ -723,6 +715,24 @@ describe('javascript', function() {
     assert(!file.includes('class Bar {}'));
   });
 
+  it('should compile node_modules when symlinked with a source field in package.json', async function() {
+    await bundle(__dirname + '/integration/babel-node-modules-source/index.js');
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(!file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
+  it('should not compile node_modules with a source field in package.json when not symlinked', async function() {
+    await bundle(
+      __dirname + '/integration/babel-node-modules-source-unlinked/index.js'
+    );
+
+    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    assert(file.includes('class Foo {}'));
+    assert(!file.includes('class Bar {}'));
+  });
+
   it('should support compiling JSX', async function() {
     await bundle(__dirname + '/integration/jsx/index.jsx');
 
@@ -779,6 +789,23 @@ describe('javascript', function() {
     assert.deepEqual(output, err);
   });
 
+  it('should support excluding dependencies in falsy branches', async function() {
+    let b = await bundle(__dirname + '/integration/falsy-dep/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'true-alternate.js', 'true-consequent.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(output, 2);
+  });
+
   it('should not autoinstall if resolve failed on installed module', async function() {
     let error;
     try {
@@ -833,5 +860,34 @@ describe('javascript', function() {
     );
 
     assert.equal(failed, false);
+  });
+
+  it('should expose to CommonJS entry point', async function() {
+    let b = await bundle(__dirname + '/integration/entry-point/index.js');
+
+    let module = {};
+    run(b, {module, exports: {}});
+    assert.equal(module.exports(), 'Test!');
+  });
+
+  it('should expose to RequireJS entry point', async function() {
+    let b = await bundle(__dirname + '/integration/entry-point/index.js');
+    let test;
+    const mockDefine = function(f) {
+      test = f();
+    };
+    mockDefine.amd = true;
+
+    run(b, {define: mockDefine});
+    assert.equal(test(), 'Test!');
+  });
+
+  it('should expose variable with --browser-global', async function() {
+    let b = await bundle(__dirname + '/integration/entry-point/index.js', {
+      global: 'testing'
+    });
+
+    const ctx = run(b, null, {require: false});
+    assert.equal(ctx.window.testing(), 'Test!');
   });
 });

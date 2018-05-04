@@ -6,7 +6,7 @@ const version = require('../package.json').version;
 program.version(version);
 
 program
-  .command('serve [input]')
+  .command('serve [input...]')
   .description('starts a development server')
   .option(
     '-p, --port <port>',
@@ -41,6 +41,7 @@ program
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
+  .option('--global <variable>', 'expose your module through a global variable')
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
@@ -59,7 +60,7 @@ program
   .action(bundle);
 
 program
-  .command('watch [input]')
+  .command('watch [input...]')
   .description('starts the bundler in watch mode')
   .option(
     '-d, --out-dir <path>',
@@ -73,6 +74,7 @@ program
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
+  .option('--global <variable>', 'expose your module through a global variable')
   .option(
     '--hmr-port <port>',
     'set the port to serve HMR websockets, defaults to random',
@@ -99,7 +101,7 @@ program
   .action(bundle);
 
 program
-  .command('build [input]')
+  .command('build [input...]')
   .description('bundles for production')
   .option(
     '-d, --out-dir <path>',
@@ -113,6 +115,7 @@ program
     '--public-url <url>',
     'set the public URL to serve on. defaults to the same as the --out-dir option'
   )
+  .option('--global <variable>', 'expose your module through a global variable')
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')

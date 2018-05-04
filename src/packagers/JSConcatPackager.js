@@ -35,7 +35,9 @@ class JSConcatPackager extends Packager {
 
       if (
         isExposed ||
-        (this.bundle.entryAsset === asset && this.bundle.parentBundle)
+        (this.bundle.entryAsset === asset &&
+          this.bundle.parentBundle &&
+          this.bundle.parentBundle.childBundles.size !== 1)
       ) {
         this.exposedModules.add(asset);
         this.needsPrelude = true;

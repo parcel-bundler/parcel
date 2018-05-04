@@ -7,6 +7,7 @@ const Asset = require('../Asset');
 const babylon = require('babylon');
 const insertGlobals = require('../visitors/globals');
 const fsVisitor = require('../visitors/fs');
+const envVisitor = require('../visitors/env');
 const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const uglify = require('../transforms/uglify');
@@ -14,6 +15,7 @@ const SourceMap = require('../SourceMap');
 const hoist = require('../visitors/hoist');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
+const ENV_RE = /\b(?:process\.env)\b/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer)\b/;
 const FS_RE = /\breadFileSync\b/;
 const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
@@ -94,6 +96,12 @@ class JSAsset extends Asset {
 
   async pretransform() {
     await babel(this);
+
+    // Inline environment variables
+    if (ENV_RE.test(this.contents)) {
+      await this.parseIfNeeded();
+      this.traverseFast(envVisitor);
+    }
   }
 
   async transform() {

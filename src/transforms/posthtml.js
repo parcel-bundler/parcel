@@ -26,7 +26,7 @@ async function getConfig(asset) {
     return;
   }
 
-  config = config || {};
+  config = Object.assign({}, config);
   config.plugins = await loadPlugins(config.plugins, asset.name);
   config.skipParse = true;
   return config;
