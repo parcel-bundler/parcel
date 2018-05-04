@@ -16,6 +16,14 @@ class SourceMapPackager extends Packager {
 
   async end() {
     let file = path.basename(this.bundle.name);
+
+    for (let sourceMap of this.bundle.parentBundle.sourceMaps) {
+      this.sourceMap = await new SourceMap().extendSourceMap(
+        this.sourceMap,
+        sourceMap
+      );
+    }
+
     await this.write(
       this.sourceMap.stringify(
         file,

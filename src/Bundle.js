@@ -14,6 +14,7 @@ class Bundle {
     this.parentBundle = parent;
     this.entryAsset = null;
     this.assets = new Set();
+    this.sourceMaps = [];
     this.childBundles = new Set();
     this.siblingBundles = new Set();
     this.siblingBundlesMap = new Map();
@@ -42,6 +43,10 @@ class Bundle {
   removeAsset(asset) {
     asset.bundles.delete(this);
     this.assets.delete(asset);
+  }
+
+  extendSourceMap(...sourceMaps) {
+    this.sourceMaps.push(...sourceMaps);
   }
 
   addOffset(asset, line) {

@@ -3,7 +3,10 @@ const {minify} = require('uglify-es');
 const path = require('path');
 const fs = require('fs');
 
+const SourceMap = require('../SourceMap');
 const concat = require('../transforms/concat');
+const lineCounter = require('../utils/lineCounter');
+const urlJoin = require('../utils/urlJoin');
 
 const prelude = fs
   .readFileSync(path.join(__dirname, '../builtins/prelude2.js'), 'utf8')
@@ -14,14 +17,16 @@ const helpers =
     .trim() + '\n';
 
 class JSConcatPackager extends Packager {
-  write(string) {
-    this.buffer += string;
+  write(string, lineCount = lineCounter(string)) {
+    this.lineOffset += lineCount - 1;
+    this.contents += string;
   }
 
   async start() {
     this.addedAssets = new Set();
     this.exposedModules = new Set();
-    this.buffer = '';
+    this.contents = '';
+    this.lineOffset = 1;
     this.exports = new Map();
     this.wildcards = new Map();
     this.moduleMap = new Map();
@@ -72,7 +77,7 @@ class JSConcatPackager extends Packager {
     }
 
     this.addedAssets.add(asset);
-    let js = asset.generated.js;
+    let {js, map} = asset.generated;
 
     this.moduleMap.set(asset.id, asset);
     this.wildcards.set(asset.id, asset.cacheData.wildcards);
@@ -98,11 +103,13 @@ class JSConcatPackager extends Packager {
 
     js = js.trim() + '\n';
 
+    this.bundle.addOffset(asset, this.lineOffset + 1);
     this.write(
       `\n/* ASSET: ${asset.id} - ${path.relative(
         this.options.rootDir,
         asset.name
-      )} */\n${js}`
+      )} */\n${js}`,
+      map && map.lineCount ? map.lineCount : undefined
     );
   }
 
@@ -183,10 +190,20 @@ class JSConcatPackager extends Packager {
       this.write('})();');
     }
 
-    let output = concat(this);
+    let result = concat(this);
+    let {sourceMaps} = this.options;
+    let {code: output, rawMappings} = result;
+
+    if (sourceMaps && rawMappings) {
+      this.bundle.extendSourceMap(
+        new SourceMap(rawMappings, {
+          [this.bundle.name]: this.contents
+        })
+      );
+    }
 
     if (this.options.minify) {
-      let result = minify(output, {
+      let opts = {
         warnings: true,
         compress: {
           passes: 3,
@@ -196,13 +213,51 @@ class JSConcatPackager extends Packager {
         mangle: {
           eval: true
         }
-      });
+      };
+
+      if (sourceMaps) {
+        let sourceMap = new SourceMap();
+
+        opts.output = {
+          source_map: {
+            add(source, gen_line, gen_col, orig_line, orig_col, name) {
+              sourceMap.addMapping({
+                source,
+                name,
+                original: {
+                  line: orig_line,
+                  column: orig_col
+                },
+                generated: {
+                  line: gen_line,
+                  column: gen_col
+                }
+              });
+            }
+          }
+        };
+
+        this.bundle.extendSourceMap(sourceMap);
+      }
+
+      let result = minify(output, opts);
 
       if (result.error) {
         throw result.error;
       }
 
       output = result.code;
+    }
+
+    if (sourceMaps) {
+      // Add source map url if a map bundle exists
+      let mapBundle = this.bundle.siblingBundlesMap.get('map');
+      if (mapBundle) {
+        output += `\n//# sourceMappingURL=${urlJoin(
+          this.options.publicURL,
+          path.basename(mapBundle.name)
+        )}`;
+      }
     }
 
     await super.write(output);

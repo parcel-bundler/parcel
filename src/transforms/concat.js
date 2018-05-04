@@ -10,11 +10,8 @@ const EXPORT_RE = /^\$([\d]+)\$export\$(.+)$/;
 
 const DEFAULT_INTEROP_TEMPLATE = template('$parcel$interopDefault(MODULE)');
 
-// TODO: minify
-// TODO: source-map
-
 module.exports = packager => {
-  let {buffer: code, exports, moduleMap, wildcards} = packager;
+  let {contents: code, exports, moduleMap, wildcards} = packager;
   let ast = babylon.parse(code);
   let rootPath;
 
@@ -353,7 +350,12 @@ module.exports = packager => {
     }
   });
 
-  return generate(ast, code).code;
+  let opts = {
+    sourceMaps: packager.options.sourceMaps,
+    sourceFileName: packager.bundle.name
+  };
+
+  return generate(ast, opts, code);
 };
 
 // Check if a binding is safe to remove and returns it if it is.
