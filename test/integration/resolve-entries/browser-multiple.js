@@ -1,13 +1,7 @@
-const projected = require('./pkg-browser-multiple/projected')
+const required = require('./pkg-browser-multiple/projected')
 
-if(projected.test() !== 'pkg-browser-multiple') {
+if(required.test() !== 'pkg-browser-multiple') {
     throw new Error('Invalid module')
 }
 
-const entry = require('./pkg-browser-multiple')
-
-if(entry.test() !== 'pkg-browser-multiple browser-entry') {
-    throw new Error('Invalid module')
-}
-
-export const test = {projected, entry}
+export const test = required.test
