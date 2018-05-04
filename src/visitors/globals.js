@@ -19,7 +19,12 @@ const VARS = {
   __dirname: asset =>
     `var __dirname = ${JSON.stringify(Path.dirname(asset.name))};`,
   __filename: asset => `var __filename = ${JSON.stringify(asset.name)};`,
-  Buffer: asset => `${genRequire(asset, 'Buffer', 'buffer')}.Buffer;`
+  Buffer: asset => `${genRequire(asset, 'Buffer', 'buffer')}.Buffer;`,
+  // Prevent AMD defines from working when loading UMD bundles.
+  // Ideally the CommonJS check would come before the AMD check, but many
+  // existing modules do the checks the opposite way leading to modules
+  // not exporting anything to Parcel.
+  define: () => 'var define;'
 };
 
 module.exports = {

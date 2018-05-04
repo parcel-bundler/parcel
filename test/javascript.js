@@ -884,4 +884,16 @@ describe('javascript', function() {
     const ctx = run(b, null, {require: false});
     assert.equal(ctx.window.testing(), 'Test!');
   });
+
+  it('should set `define` to undefined so AMD checks in UMD modules do not pass', async function() {
+    let b = await bundle(__dirname + '/integration/define-amd/index.js');
+    let test;
+    const mockDefine = function(f) {
+      test = f();
+    };
+    mockDefine.amd = true;
+
+    run(b, {define: mockDefine});
+    assert.equal(test, 2);
+  });
 });
