@@ -17,13 +17,10 @@ module.exports = async function(asset) {
 };
 
 async function getConfig(asset) {
-  let config =
-    asset.package.postcss ||
-    (await asset.getConfig([
-      '.postcssrc',
-      '.postcssrc.js',
-      'postcss.config.js'
-    ]));
+  let config = await asset.getConfig(
+    ['.postcssrc', '.postcssrc.js', 'postcss.config.js'],
+    {packageKey: 'postcss'}
+  );
 
   let enableModules =
     asset.options.rendition && asset.options.rendition.modules;

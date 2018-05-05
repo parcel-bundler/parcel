@@ -21,8 +21,8 @@ const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
 const WORKER_RE = /\bnew\s*Worker\s*\(/;
 
 class JSAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'js';
     this.globals = new Map();
     this.isAstDirty = false;
@@ -106,8 +106,15 @@ class JSAsset extends Asset {
   async transform() {
     if (this.options.target === 'browser') {
       if (this.dependencies.has('fs') && FS_RE.test(this.contents)) {
-        await this.parseIfNeeded();
-        this.traverse(fsVisitor);
+        // Check if we should ignore fs calls
+        // See https://github.com/defunctzombie/node-browser-resolve#skip
+        let pkg = await this.getPackage();
+        let ignore = pkg && pkg.browser && pkg.browser.fs === false;
+
+        if (!ignore) {
+          await this.parseIfNeeded();
+          this.traverse(fsVisitor);
+        }
       }
 
       if (GLOBAL_RE.test(this.contents)) {

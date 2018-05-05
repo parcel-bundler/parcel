@@ -15,12 +15,11 @@ let ASSET_ID = 1;
  * for subclasses to implement.
  */
 class Asset {
-  constructor(name, pkg, options) {
+  constructor(name, options) {
     this.id = ASSET_ID++;
     this.name = name;
     this.basename = path.basename(this.name);
     this.relativeName = path.relative(options.rootDir, this.name);
-    this.package = pkg || {};
     this.options = options;
     this.encoding = 'utf8';
     this.type = path.extname(this.name).slice(1);
@@ -98,13 +97,28 @@ class Asset {
     );
 
     parsed.pathname = this.options.parser
-      .getAsset(resolved, this.package, this.options)
+      .getAsset(resolved, this.options)
       .generateBundleName();
 
     return URL.format(parsed);
   }
 
+  async getPackage() {
+    if (!this._package) {
+      this._package = await this.getConfig(['package.json']);
+    }
+
+    return this._package;
+  }
+
   async getConfig(filenames, opts = {}) {
+    if (opts.packageKey) {
+      let pkg = await this.getPackage();
+      if (pkg && pkg[opts.packageKey]) {
+        return pkg[opts.packageKey];
+      }
+    }
+
     // Resolve the config file
     let conf = await config.resolve(opts.path || this.name, filenames);
     if (conf) {

@@ -2,8 +2,8 @@ const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 
 class CoffeeScriptAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'js';
   }
 

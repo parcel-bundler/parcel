@@ -357,12 +357,16 @@ class Bundler extends EventEmitter {
   }
 
   async resolveAsset(name, parent) {
-    let {path, pkg} = await this.resolver.resolve(name, parent);
+    let {path} = await this.resolver.resolve(name, parent);
+    return this.getLoadedAsset(path);
+  }
+
+  getLoadedAsset(path) {
     if (this.loadedAssets.has(path)) {
       return this.loadedAssets.get(path);
     }
 
-    let asset = this.parser.getAsset(path, pkg, this.options);
+    let asset = this.parser.getAsset(path, this.options);
     this.loadedAssets.set(path, asset);
 
     this.watch(path, asset);
@@ -490,7 +494,7 @@ class Bundler extends EventEmitter {
     let startTime = Date.now();
     let processed = this.cache && (await this.cache.read(asset.name));
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
-      processed = await this.farm.run(asset.name, asset.package, this.options);
+      processed = await this.farm.run(asset.name);
       if (this.cache) {
         this.cache.write(asset.name, processed);
       }
