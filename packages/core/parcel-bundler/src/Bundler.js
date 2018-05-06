@@ -402,6 +402,10 @@ class Bundler extends EventEmitter {
 
   async resolveDep(asset, dep, install = true) {
     try {
+      if (dep.resolved) {
+        return this.getLoadedAsset(dep.resolved);
+      }
+
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
       // If the dep is optional, return before we throw
@@ -493,11 +497,10 @@ class Bundler extends EventEmitter {
     // First try the cache, otherwise load and compile in the background
     let startTime = Date.now();
     let processed = this.cache && (await this.cache.read(asset.name));
+    let cacheMiss = false;
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
       processed = await this.farm.run(asset.name);
-      if (this.cache) {
-        this.cache.write(asset.name, processed);
-      }
+      cacheMiss = true;
     }
 
     asset.buildTime = Date.now() - startTime;
@@ -538,8 +541,13 @@ class Bundler extends EventEmitter {
       let assetDep = assetDeps[i];
       if (assetDep) {
         asset.depAssets.set(dep, assetDep);
+        dep.resolved = assetDep.name;
       }
     });
+
+    if (this.cache && cacheMiss) {
+      this.cache.write(asset.name, processed);
+    }
   }
 
   createBundleTree(asset, bundle, dep, parentBundles = new Set()) {
