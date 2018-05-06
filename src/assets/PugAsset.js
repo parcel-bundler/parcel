@@ -3,8 +3,8 @@ const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 
 class PugAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'html';
   }
 

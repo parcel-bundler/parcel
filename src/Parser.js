@@ -75,10 +75,10 @@ class Parser {
     return parser;
   }
 
-  getAsset(filename, pkg, options = {}) {
+  getAsset(filename, options = {}) {
     let Asset = this.findParser(filename);
     options.parser = this;
-    return new Asset(filename, pkg, options);
+    return new Asset(filename, options);
   }
 }
 
