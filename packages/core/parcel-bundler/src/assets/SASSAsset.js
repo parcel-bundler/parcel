@@ -7,8 +7,8 @@ const Resolver = require('../Resolver');
 const syncPromise = require('../utils/syncPromise');
 
 class SASSAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'css';
   }
 
@@ -21,10 +21,9 @@ class SASSAsset extends Asset {
       rootDir: this.options.rootDir
     });
 
-    let opts = Object.assign(
-      {},
-      this.package.sass || (await this.getConfig(['.sassrc', '.sassrc.js']))
-    );
+    let opts =
+      (await this.getConfig(['.sassrc', '.sassrc.js'], {packageKey: 'sass'})) ||
+      {};
     opts.includePaths = (opts.includePaths || []).concat(
       path.dirname(this.name)
     );

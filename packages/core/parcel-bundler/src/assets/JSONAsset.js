@@ -4,8 +4,8 @@ const json5 = require('json5');
 const {minify} = require('uglify-es');
 
 class JSONAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'js';
   }
 

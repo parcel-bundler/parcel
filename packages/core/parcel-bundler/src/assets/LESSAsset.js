@@ -3,8 +3,8 @@ const localRequire = require('../utils/localRequire');
 const promisify = require('../utils/promisify');
 
 class LESSAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'css';
   }
 
@@ -13,10 +13,9 @@ class LESSAsset extends Asset {
     let less = await localRequire('less', this.name);
     let render = promisify(less.render.bind(less));
 
-    let opts = Object.assign(
-      {},
-      this.package.less || (await this.getConfig(['.lessrc', '.lessrc.js']))
-    );
+    let opts =
+      (await this.getConfig(['.lessrc', '.lessrc.js'], {packageKey: 'less'})) ||
+      {};
     opts.filename = this.name;
     opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
 

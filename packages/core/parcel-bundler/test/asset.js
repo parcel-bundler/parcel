@@ -5,7 +5,7 @@ const {bundle} = require('./utils');
 
 describe('Asset', () => {
   it('should include default implementations', async () => {
-    const a = new Asset(__filename, undefined, {rootDir: '/root/dir'});
+    const a = new Asset(__filename, {rootDir: '/root/dir'});
     Object.assign(a, {
       type: 'type',
       contents: 'contents'
@@ -30,6 +30,11 @@ describe('Asset', () => {
     assert(fs.existsSync(__dirname, `/dist/${outFile}`));
   });
 
+  it('should have backward compatibility for package field', function() {
+    let a = new Asset(__filename, {rootDir: '/root/dir'});
+    assert.equal(a.package.name, 'parcel-bundler');
+  });
+
   describe('addURLDependency', () => {
     const bundleName = 'xyz';
     const options = {
@@ -42,7 +47,7 @@ describe('Asset', () => {
         }
       }
     };
-    const asset = new Asset('test', undefined, options);
+    const asset = new Asset('test', options);
 
     it('should ignore urls', () => {
       const url = 'https://parceljs.org/assets.html';

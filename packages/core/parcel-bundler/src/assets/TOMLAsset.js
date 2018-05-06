@@ -3,8 +3,8 @@ const toml = require('toml');
 const serializeObject = require('../utils/serializeObject');
 
 class TOMLAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'js';
   }
 

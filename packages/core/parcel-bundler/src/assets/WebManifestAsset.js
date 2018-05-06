@@ -1,8 +1,8 @@
 const Asset = require('../Asset');
 
 class WebManifestAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'webmanifest';
   }
 

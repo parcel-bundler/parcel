@@ -9,8 +9,8 @@ const IMPORT_RE = /@import/;
 const PROTOCOL_RE = /^[a-z]+:/;
 
 class CSSAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'css';
   }
 

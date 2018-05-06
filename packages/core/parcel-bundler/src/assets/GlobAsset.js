@@ -4,8 +4,8 @@ const micromatch = require('micromatch');
 const path = require('path');
 
 class GlobAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = null; // allows this asset to be included in any type bundle
   }
 
