@@ -5,6 +5,8 @@ const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const config = require('./utils/config');
+const syncPromise = require('./utils/syncPromise');
+const logger = require('./Logger');
 
 let ASSET_ID = 1;
 
@@ -101,6 +103,13 @@ class Asset {
       .generateBundleName();
 
     return URL.format(parsed);
+  }
+
+  get package() {
+    logger.warn(
+      '`asset.package` is deprecated. Please use `await asset.getPackage()` instead.'
+    );
+    return syncPromise(this.getPackage());
   }
 
   async getPackage() {
