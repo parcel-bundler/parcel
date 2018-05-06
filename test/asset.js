@@ -30,6 +30,11 @@ describe('Asset', () => {
     assert(fs.existsSync(__dirname, `/dist/${outFile}`));
   });
 
+  it('should have backward compatibility for package field', function() {
+    let a = new Asset(__filename, {rootDir: '/root/dir'});
+    assert.equal(a.package.name, 'parcel-bundler');
+  });
+
   describe('addURLDependency', () => {
     const bundleName = 'xyz';
     const options = {
