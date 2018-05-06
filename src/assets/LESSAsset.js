@@ -1,7 +1,50 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const promisify = require('../utils/promisify');
-const getLessFileManager = require('../visitors/lessFileManager');
+const Resolver = require('../Resolver');
+const syncPromise = require('../utils/syncPromise');
+const fs = require('../utils/fs');
+const path = require('path');
+
+const getLessFileManager = function(less, options) {
+  const FileManager = less.FileManager;
+  const resolver = new Resolver({
+    extensions: ['.css', '.less'],
+    rootDir: options.rootDir
+  });
+
+  function LessFileManager() {}
+
+  LessFileManager.prototype = new FileManager();
+
+  LessFileManager.prototype.resolve = async function(
+    filename,
+    currentDirectory
+  ) {
+    return (await resolver.resolve(
+      filename,
+      path.join(currentDirectory, 'index')
+    )).path;
+  };
+
+  LessFileManager.prototype.loadFile = async function(
+    filename,
+    currentDirectory
+  ) {
+    filename = await this.resolve(filename, currentDirectory);
+    let contents = (await fs.readFile(filename)).toString();
+    return {contents, filename};
+  };
+
+  LessFileManager.prototype.loadFileSync = function(
+    filename,
+    currentDirectory
+  ) {
+    return syncPromise(this.loadFile(filename, currentDirectory));
+  };
+
+  return LessFileManager;
+};
 
 class LESSAsset extends Asset {
   constructor(name, options) {
