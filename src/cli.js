@@ -84,6 +84,7 @@ program
     '--hmr-hostname <hostname>',
     'set the hostname of HMR websockets, defaults to location.hostname of current window'
   )
+  .option('--stdin', 'exit the process when stdin is closed')
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
@@ -172,6 +173,12 @@ async function bundle(main, command) {
     process.env.NODE_ENV = process.env.NODE_ENV || 'development';
   }
 
+  if (command.stdin) {
+    process.stdin.on('end', () => process.exit(0));
+    process.stdin.resume();
+  
+  }
+  
   if (command.cert && command.key) {
     command.https = {
       cert: command.cert,
