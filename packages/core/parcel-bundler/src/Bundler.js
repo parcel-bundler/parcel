@@ -559,10 +559,10 @@ class Bundler extends EventEmitter {
       // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
       if (asset.parentBundle !== bundle) {
         let commonBundle = bundle.findCommonAncestor(asset.parentBundle);
-        if (
-          asset.parentBundle !== commonBundle &&
-          asset.parentBundle.type === commonBundle.type
-        ) {
+
+        // If the common bundle's type matches the asset's, move the asset to the common bundle.
+        // Otherwise, proceed with adding the asset to the new bundle below.
+        if (asset.parentBundle.type === commonBundle.type) {
           this.moveAssetToBundle(asset, commonBundle);
           return;
         }
@@ -627,7 +627,10 @@ class Bundler extends EventEmitter {
 
   moveAssetToBundle(asset, commonBundle) {
     // Never move the entry asset of a bundle, as it was explicitly requested to be placed in a separate bundle.
-    if (asset.parentBundle.entryAsset === asset) {
+    if (
+      asset.parentBundle.entryAsset === asset ||
+      asset.parentBundle === commonBundle
+    ) {
       return;
     }
 
