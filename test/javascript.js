@@ -281,6 +281,38 @@ describe('javascript', function() {
     assert.equal(await output(), 7);
   });
 
+  it('should not duplicate a module which is already in a parent bundle', async function() {
+    let b = await bundle(__dirname + '/integration/dynamic-hoist-dup/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: [
+        'index.js',
+        'common.js',
+        'bundle-loader.js',
+        'bundle-url.js',
+        'js-loader.js'
+      ],
+      childBundles: [
+        {
+          assets: ['a.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 5);
+  });
+
   it('should support requiring JSON files', async function() {
     let b = await bundle(__dirname + '/integration/json/index.js');
 
