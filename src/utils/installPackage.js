@@ -9,7 +9,30 @@ const PromiseQueue = require('./PromiseQueue');
 const path = require('path');
 const fs = require('./fs');
 
+const MAX_ATTEMPTS = 2;
+
+function warnSkipped(skipped) {
+  if (skipped.length > 0) {
+    logger.warn(`Skipped ${skipped.join(', ')}.`);
+  }
+}
+
+let failedInstalls = {};
 async function install(modules, filepath, options = {}) {
+  let skippedInstalls = [];
+  modules = modules.filter(module => {
+    if (failedInstalls[module] && failedInstalls[module] >= MAX_ATTEMPTS) {
+      skippedInstalls.push(module);
+      return false;
+    }
+    return true;
+  });
+
+  if (modules.length === 0) {
+    warnSkipped(skippedInstalls);
+    return;
+  }
+
   let {installPeers = true, saveDev = true, packageManager} = options;
 
   logger.status(emoji.progress, `Installing ${modules.join(', ')}...`);
@@ -37,7 +60,13 @@ async function install(modules, filepath, options = {}) {
 
   try {
     await pipeSpawn(packageManager, args, {cwd});
+    warnSkipped(skippedInstalls);
   } catch (err) {
+    modules.forEach(module => {
+      failedInstalls[module] = failedInstalls[module]
+        ? failedInstalls[module] + 1
+        : 1;
+    });
     throw new Error(`Failed to install ${modules.join(', ')}.`);
   }
 
