@@ -160,6 +160,7 @@ module.exports = packager => {
                     t.memberExpression(name, t.identifier('d'))
                   )
                 );
+              // Remove the binding and its definition.
               path.scope.removeBinding(id.name);
               path.parentPath.remove();
 
@@ -266,8 +267,12 @@ module.exports = packager => {
       }
 
       let match = object.name.match(EXPORTS_RE);
+
+      // If it's a $id$exports.name expression.
       if (match) {
         let exportName = '$' + match[1] + '$export$' + property.name;
+
+        // Check if $id$export$name exists and if so, replace the node by it.
         if (path.scope.hasBinding(exportName)) {
           path.replaceWith(t.identifier(exportName));
         }
@@ -283,42 +288,43 @@ module.exports = packager => {
       if (typeof name !== 'string') {
         return;
       }
+
+      // If it's a renamed export replace it with its alias.
+      if (exports.has(name)) {
+        path.replaceWith(t.identifier(exports.get(path.node.name)));
+      }
+
       let match = name.match(EXPORT_RE);
 
+      // If it's an undefined $id$export$name identifier.
       if (match && !path.scope.hasBinding(name)) {
         let id = Number(match[1]);
         let exportName = match[2];
-        let node = replaceExportNode(id, exportName, path);
 
-        if (node) {
-          path.replaceWith(node);
-        } else {
-          throw new Error(
-            `Cannot find export "${exportName}" in module "${id}"`
-          );
-        }
+        // Check if there is a wildcard or an alias (Identifier), else use CommonJS (MemberExpression).
+        path.replaceWith(replaceExportNode(id, exportName, path));
 
         return;
       }
 
       match = name.match(EXPORTS_RE);
 
+      // If it's an undefined $id$exports identifier.
       if (match && !path.scope.hasBinding(name)) {
         let id = Number(match[1]);
 
+        // If the id is in the bundle it may just be empty, replace with {}.
         if (id in assets) {
           path.replaceWith(t.objectExpression([]));
-        } else {
+        }
+        // Else it should be required from another bundle, replace with require(id).
+        else {
           path.replaceWith(
             t.callExpression(t.identifier('require'), [t.numericLiteral(id)])
           );
         }
 
         return;
-      }
-
-      if (exports.has(name)) {
-        path.replaceWith(t.identifier(exports.get(path.node.name)));
       }
     },
     Program: {
@@ -431,6 +437,7 @@ function getOuterStatement(path) {
   }
 }
 
+// Turns plain objects into AST nodes.
 function toNode(object) {
   if (typeof object === 'string') {
     return t.stringLiteral(object);
