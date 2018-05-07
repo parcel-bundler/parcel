@@ -220,8 +220,8 @@ module.exports = {
       path.scope.hasBinding('require');
 
     if (
-      asset.package &&
-      asset.package.sideEffects === false &&
+      asset._package &&
+      asset._package.sideEffects === false &&
       !path.scope.parent &&
       !path.getData('markAsPure')
     ) {
