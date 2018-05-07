@@ -5,8 +5,8 @@ const promisify = require('../utils/promisify');
 const Resolver = require('../Resolver');
 
 class GLSLAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'js';
   }
 

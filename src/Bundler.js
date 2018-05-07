@@ -359,12 +359,16 @@ class Bundler extends EventEmitter {
   }
 
   async resolveAsset(name, parent) {
-    let {path, pkg} = await this.resolver.resolve(name, parent);
+    let {path} = await this.resolver.resolve(name, parent);
+    return this.getLoadedAsset(path);
+  }
+
+  getLoadedAsset(path) {
     if (this.loadedAssets.has(path)) {
       return this.loadedAssets.get(path);
     }
 
-    let asset = this.parser.getAsset(path, pkg, this.options);
+    let asset = this.parser.getAsset(path, this.options);
     this.loadedAssets.set(path, asset);
 
     this.watch(path, asset);
@@ -400,6 +404,10 @@ class Bundler extends EventEmitter {
 
   async resolveDep(asset, dep, install = true) {
     try {
+      if (dep.resolved) {
+        return this.getLoadedAsset(dep.resolved);
+      }
+
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
       // If the dep is optional, return before we throw
@@ -491,16 +499,10 @@ class Bundler extends EventEmitter {
     // First try the cache, otherwise load and compile in the background
     let startTime = Date.now();
     let processed = this.cache && (await this.cache.read(asset.name));
+    let cacheMiss = false;
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
-      processed = await this.farm.run(
-        asset.name,
-        asset.id,
-        asset.package,
-        this.options
-      );
-      if (this.cache) {
-        this.cache.write(asset.name, processed);
-      }
+      processed = await this.farm.run(asset.name, asset.id);
+      cacheMiss = true;
     }
 
     asset.buildTime = Date.now() - startTime;
@@ -543,8 +545,13 @@ class Bundler extends EventEmitter {
       let assetDep = assetDeps[i];
       if (assetDep) {
         asset.depAssets.set(dep, assetDep);
+        dep.resolved = assetDep.name;
       }
     });
+
+    if (this.cache && cacheMiss) {
+      this.cache.write(asset.name, processed);
+    }
   }
 
   createBundleTree(asset, bundle, dep, parentBundles = new Set()) {
@@ -556,6 +563,9 @@ class Bundler extends EventEmitter {
       // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
       if (asset.parentBundle !== bundle) {
         let commonBundle = bundle.findCommonAncestor(asset.parentBundle);
+
+        // If the common bundle's type matches the asset's, move the asset to the common bundle.
+        // Otherwise, proceed with adding the asset to the new bundle below.
         if (asset.parentBundle.type === commonBundle.type) {
           this.moveAssetToBundle(asset, commonBundle);
           return;

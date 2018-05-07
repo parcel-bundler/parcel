@@ -11,8 +11,13 @@ class Pipeline {
     this.parser = new Parser(options);
   }
 
-  async process(path, id, pkg, options) {
-    let asset = this.parser.getAsset(path, pkg, options);
+  async process(path, id, isWarmUp) {
+    let options = this.options;
+    if (isWarmUp) {
+      options = Object.assign({isWarmUp}, options);
+    }
+
+    let asset = this.parser.getAsset(path, options);
     asset.id = id;
 
     let generated = await this.processAsset(asset);
@@ -56,7 +61,7 @@ class Pipeline {
       );
       if (!(asset instanceof AssetType)) {
         let opts = Object.assign({rendition}, asset.options);
-        let subAsset = new AssetType(asset.name, asset.package, opts);
+        let subAsset = new AssetType(asset.name, opts);
         subAsset.id = asset.id;
         subAsset.contents = value;
         subAsset.dependencies = asset.dependencies;

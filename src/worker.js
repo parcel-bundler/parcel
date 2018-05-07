@@ -15,10 +15,9 @@ function init(options, isLocal = false) {
   }
 }
 
-async function run(path, id, pkg, options, isWarmUp) {
+async function run(path, id, isWarmUp) {
   try {
-    options.isWarmUp = isWarmUp;
-    return await pipeline.process(path, id, pkg, options);
+    return await pipeline.process(path, id, isWarmUp);
   } catch (e) {
     e.fileName = path;
     throw e;

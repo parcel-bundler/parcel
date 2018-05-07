@@ -84,6 +84,9 @@ program
     '--hmr-hostname <hostname>',
     'set the hostname of HMR websockets, defaults to location.hostname of current window'
   )
+  .option('--https', 'listen on HTTPS for HMR connections')
+  .option('--cert <path>', 'path to certificate to use with HTTPS')
+  .option('--key <path>', 'path to private key to use with HTTPS')
   .option('--no-hmr', 'disable hot module replacement')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')

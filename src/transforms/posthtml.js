@@ -15,13 +15,10 @@ module.exports = async function(asset) {
 };
 
 async function getConfig(asset) {
-  let config =
-    asset.package.posthtml ||
-    (await asset.getConfig([
-      '.posthtmlrc',
-      '.posthtmlrc.js',
-      'posthtml.config.js'
-    ]));
+  let config = await asset.getConfig(
+    ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
+    {packageKey: 'posthtml'}
+  );
   if (!config && !asset.options.minify) {
     return;
   }

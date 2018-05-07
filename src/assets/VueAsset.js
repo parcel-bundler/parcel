@@ -4,8 +4,8 @@ const md5 = require('../utils/md5');
 const {minify} = require('uglify-es');
 
 class VueAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'js';
   }
 
@@ -67,23 +67,21 @@ class VueAsset extends Asset {
 
     // Generate JS output.
     let js = this.ast.script ? generated[0].value : '';
-    let supplemental = ''
+    let supplemental = '';
 
-    if(this.options.scopeHoist) {
-      let exportVar = `$${this.id}$export$default`
+    if (this.options.scopeHoist) {
+      let exportVar = `$${this.id}$export$default`;
 
-      if(js.indexOf(exportVar) === -1) {
+      if (js.indexOf(exportVar) === -1) {
         supplemental += `
           var ${exportVar} = {};
           var ${optsVar} = ${exportVar};
-        `
+        `;
+      } else {
+        optsVar = exportVar;
       }
-      else {
-        optsVar = exportVar
-      }
-    }
-    else {
-      supplemental += `var ${optsVar} = exports.default || module.exports;`
+    } else {
+      supplemental += `var ${optsVar} = exports.default || module.exports;`;
     }
 
     supplemental += `
