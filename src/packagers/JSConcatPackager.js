@@ -28,8 +28,6 @@ class JSConcatPackager extends Packager {
     this.contents = '';
     this.lineOffset = 1;
     this.exports = new Map();
-    this.wildcards = new Map();
-    this.moduleMap = new Map();
     this.needsPrelude = false;
 
     for (let asset of this.bundle.assets) {
@@ -78,9 +76,6 @@ class JSConcatPackager extends Packager {
 
     this.addedAssets.add(asset);
     let {js, map} = asset.generated;
-
-    this.moduleMap.set(asset.id, asset);
-    this.wildcards.set(asset.id, asset.cacheData.wildcards);
 
     for (let key in asset.cacheData.exports) {
       let local = '$' + asset.id + '$export$' + asset.cacheData.exports[key];

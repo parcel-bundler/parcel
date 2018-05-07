@@ -11,15 +11,19 @@ const EXPORT_RE = /^\$([\d]+)\$export\$(.+)$/;
 const DEFAULT_INTEROP_TEMPLATE = template('$parcel$interopDefault(MODULE)');
 
 module.exports = packager => {
-  let {contents: code, exports, moduleMap, wildcards} = packager;
-  let ast = babylon.parse(code);
   let rootPath;
-
+  let {contents: code, exports, addedAssets} = packager;
+  let ast = babylon.parse(code);
   // Share $parcel$interopDefault variables between modules
   let interops = new Map();
+  let assets = Array.from(addedAssets).reduce((acc, asset) => {
+    acc[asset.id] = asset;
+
+    return acc;
+  }, {});
 
   let resolveModule = (id, name) => {
-    let module = moduleMap.get(id);
+    let module = assets[id];
     return module.depAssets.get(module.dependencies.get(name));
   };
 
@@ -52,9 +56,8 @@ module.exports = packager => {
         return t.identifier(exports.get(computedSymbol));
       }
 
-      // if there is a wildcard for the module
       // default exports are excluded from wildcard exports
-      if (wildcards.has(id) && name !== 'default') {
+      if (id in assets && name !== 'default') {
         /* recursively lookup the symbol
          * this is needed when there is deep export wildcards, like in the following:
          * - a.js
@@ -68,9 +71,9 @@ module.exports = packager => {
          */
         let node = null;
 
-        wildcards
-          .get(id)
-          .find(name => (node = find(resolveModule(id, name).id, symbol)));
+        assets[id].cacheData.wildcards.find(
+          name => (node = find(resolveModule(id, name).id, symbol))
+        );
 
         return node;
       }
@@ -173,7 +176,7 @@ module.exports = packager => {
         } else if (
           mod.cacheData.isES6Module &&
           !t.isIdentifier(node) &&
-          moduleMap.has(mod.id)
+          mod.id in assets
         ) {
           let relativePath = relative(packager.options.rootDir, mod.name);
 
@@ -232,7 +235,7 @@ module.exports = packager => {
           );
         }
 
-        let mapped = moduleMap.get(id.value);
+        let mapped = assets[id.value];
         let dep = mapped.dependencies.get(source.value);
         let mod = mapped.depAssets.get(dep);
         let bundles = mod.id;
@@ -303,7 +306,7 @@ module.exports = packager => {
       if (match && !path.scope.hasBinding(name)) {
         let id = Number(match[1]);
 
-        if (moduleMap.has(id)) {
+        if (id in assets) {
           path.replaceWith(t.objectExpression([]));
         } else {
           path.replaceWith(
