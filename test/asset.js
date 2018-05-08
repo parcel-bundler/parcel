@@ -1,5 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 const Asset = require('../src/Asset');
 const {bundle} = require('./utils');
 
@@ -75,6 +76,20 @@ describe('Asset', () => {
         asset.addURLDependency('foo?bar#baz'),
         `${bundleName}?bar#baz`
       );
+    });
+
+    it('should resolve slash', () => {
+      asset.dependencies.clear();
+      assert.strictEqual(asset.addURLDependency('/foo'), bundleName);
+      const key = path.resolve('/root/dir/foo');
+      assert(asset.dependencies.has(key));
+    });
+
+    it('should resolve tilde', () => {
+      asset.dependencies.clear();
+      assert.strictEqual(asset.addURLDependency('~/foo'), bundleName);
+      const key = path.normalize('/root/dir/foo');
+      assert(asset.dependencies.has(key));
     });
   });
 });
