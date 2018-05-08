@@ -22,14 +22,14 @@ class FSCache {
     );
   }
 
-  async ensureDirExists() {
-    await fs.mkdirp(this.dir);
+  async ensureDirExists(dir = this.dir) {
+    await fs.mkdirp(dir);
     this.dirExists = true;
   }
 
   getCacheFile(filename) {
     let hash = md5(this.optionsHash + filename);
-    return path.join(this.dir, hash + '.json');
+    return path.join(this.dir, hash.substring(0, 2), hash + '.json');
   }
 
   async getLastModified(filename) {
@@ -56,9 +56,10 @@ class FSCache {
 
   async write(filename, data) {
     try {
-      await this.ensureDirExists();
+      let cacheFile = this.getCacheFile(filename);
+      await this.ensureDirExists(path.dirname(cacheFile));
       await this.writeDepMtimes(data);
-      await fs.writeFile(this.getCacheFile(filename), JSON.stringify(data));
+      await fs.writeFile(cacheFile, JSON.stringify(data));
       this.invalidated.delete(filename);
     } catch (err) {
       logger.error(`Error writing to cache: ${err.message}`);
