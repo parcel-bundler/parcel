@@ -124,19 +124,20 @@ class JSAsset extends Asset {
       }
     }
 
-    if (this.isES6Module) {
-      await babel(this);
-    }
-
-    await this.parseIfNeeded();
-
     if (this.options.scopeHoist) {
+      await this.parseIfNeeded();
       await this.getPackage();
 
       this.traverse(hoist);
-    } else if (this.options.minify) {
+    } else {
+      if (this.isES6Module) {
+        await babel(this);
+      }
+
       // We minify in the Packager if scope hoisting is enabled
-      await uglify(this);
+      if (this.options.minify) {
+        await uglify(this);
+      }
     }
   }
 

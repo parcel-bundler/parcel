@@ -79,15 +79,10 @@ babelTransform.getConfig = getConfig;
 async function getBabelConfig(asset) {
   // If asset is marked as an ES6 modules, this is a second pass after dependencies are extracted.
   // Just compile modules to CommonJS.
-  if (asset.isES6Module && !asset.options.scopeHoist) {
+  if (asset.isES6Module) {
     return {
       internal: true,
-      plugins: [
-        [
-          require('babel-plugin-transform-es2015-modules-commonjs'),
-          {allowTopLevelThis: true}
-        ]
-      ]
+      plugins: [require('babel-plugin-transform-es2015-modules-commonjs')]
     };
   }
 
