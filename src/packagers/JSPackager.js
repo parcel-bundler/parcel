@@ -104,7 +104,11 @@ class JSPackager extends Packager {
     await this.write(wrapped);
 
     // Use the pre-computed line count from the source map if possible
-    let lineCount = map && map.lineCount ? map.lineCount : lineCounter(code);
+    let lineCount = code
+      ? map && map.lineCount
+        ? map.lineCount
+        : lineCounter(code)
+      : 0;
     this.lineOffset += 1 + lineCount;
   }
 

@@ -7,7 +7,10 @@ const isURL = require('./utils/is-url');
 const config = require('./utils/config');
 const syncPromise = require('./utils/syncPromise');
 const logger = require('./Logger');
+const Polymorph = require('./utils/Polymorph');
 
+// lazy require it to prevent circual deps
+let localRequire;
 let ASSET_ID = 1;
 
 /**
@@ -39,10 +42,16 @@ class Asset {
     this.cacheData = {};
     this.buildTime = 0;
     this.bundledSize = 0;
+
+    this.init(name, options);
   }
 
-  shouldInvalidate() {
-    return false;
+  require(name) {
+    if (!localRequire) {
+      localRequire = require('./utils/localRequire');
+    }
+
+    return localRequire(name, this.name);
   }
 
   async loadIfNeeded() {
@@ -56,6 +65,7 @@ class Asset {
     if (!this.ast) {
       this.ast = await this.parse(this.contents);
     }
+    return this.ast;
   }
 
   async getDependencies() {
@@ -70,7 +80,7 @@ class Asset {
 
     if (this.contents && this.mightHaveDependencies()) {
       await this.parseIfNeeded();
-      await this.collectDependencies();
+      await this.collectDependencies(this.ast);
     }
   }
 
@@ -144,55 +154,17 @@ class Asset {
     return null;
   }
 
-  mightHaveDependencies() {
-    return true;
-  }
-
-  async load() {
-    return await fs.readFile(this.name, this.encoding);
-  }
-
-  parse() {
-    // do nothing by default
-  }
-
-  collectDependencies() {
-    // do nothing by default
-  }
-
-  async pretransform() {
-    // do nothing by default
-  }
-
-  async transform() {
-    // do nothing by default
-  }
-
-  async generate() {
-    return {
-      [this.type]: this.contents
-    };
-  }
-
   async process() {
     if (!this.generated) {
       await this.loadIfNeeded();
-      await this.pretransform();
-      await this.getDependencies();
-      await this.transform();
-      this.generated = await this.generate();
+      await this.pretransform(this.ast);
+      await this.getDependencies(this.ast);
+      await this.transform(this.ast);
+      this.generated = await this.generate(this.ast);
       this.hash = await this.generateHash();
     }
 
     return this.generated;
-  }
-
-  async postProcess(generated) {
-    return generated;
-  }
-
-  generateHash() {
-    return objectHash(this.generated);
   }
 
   invalidate() {
@@ -230,10 +202,95 @@ class Asset {
       }
     }
   }
+}
 
-  generateErrorMessage(err) {
-    return err;
+let reduce = (a, b) => a || b;
+let noop = x => x;
+
+function map(ast) {
+  if (typeof ast === 'undefined') {
+    return ast;
+  } else {
+    return (this.ast = ast);
   }
 }
+
+Polymorph(Asset, {
+  unique: [
+    'parse',
+    {
+      name: 'load',
+      default() {
+        return fs.readFile(this.name, this.encoding);
+      }
+    },
+    {
+      // TODO: move to postProcess and generate to morphMultiple
+      name: 'postProcess',
+      default: noop
+    },
+    {
+      name: 'generate',
+      default() {
+        return {
+          [this.type]: this.contents
+        };
+      }
+    }
+  ],
+  multiple: [
+    {
+      name: 'init',
+      async: true
+    },
+    {
+      name: 'collectDependencies',
+      async: true
+    },
+    {
+      name: 'generateHash',
+      async: true,
+      seed: '',
+      reduce: (acc, hash) => {
+        if (hash) {
+          return hash;
+        }
+
+        return acc;
+      },
+      default() {
+        if (this.generated) {
+          return objectHash(this.generated);
+        }
+      }
+    },
+    {
+      name: 'pretransform',
+      async: true,
+      map
+    },
+    {
+      name: 'transform',
+      async: true,
+      map
+    },
+    {
+      name: 'shouldInvalidate',
+      seed: false,
+      reduce
+    },
+    {
+      name: 'mightHaveDependencies',
+      seed: false,
+      default: () => true,
+      reduce
+    },
+    {
+      name: 'generateErrorMessage',
+      default: noop,
+      reduce
+    }
+  ]
+});
 
 module.exports = Asset;

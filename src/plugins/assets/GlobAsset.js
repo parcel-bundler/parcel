@@ -1,16 +1,12 @@
-const Asset = require('../Asset');
 const glob = require('glob');
 const micromatch = require('micromatch');
 const path = require('path');
 
-class GlobAsset extends Asset {
-  constructor(name, options) {
-    super(name, options);
-    this.type = null; // allows this asset to be included in any type bundle
-  }
+const GlobAsset = {
+  type: null,
 
-  async load() {
-    let regularExpressionSafeName = this.name;
+  async load(state) {
+    let regularExpressionSafeName = state.name;
     if (process.platform === 'win32')
       regularExpressionSafeName = regularExpressionSafeName.replace(/\\/g, '/');
 
@@ -28,20 +24,24 @@ class GlobAsset extends Asset {
         .filter(Boolean)
         .reduce((a, p) => a.concat(p.split('/')), []);
       let relative =
-        './' + path.relative(path.dirname(this.name), file.normalize('NFC'));
+        './' + path.relative(path.dirname(state.name), file.normalize('NFC'));
       set(matches, parts, relative);
-      this.addDependency(relative);
+      state.addDependency(relative);
     }
 
     return matches;
-  }
+  },
 
-  generate() {
+  parse(contents) {
+    return generate(contents);
+  },
+
+  generate(contents) {
     return {
-      js: 'module.exports = ' + generate(this.contents) + ';'
+      js: 'module.exports = ' + contents + ';'
     };
   }
-}
+};
 
 function generate(matches, indent = '') {
   if (typeof matches === 'string') {
@@ -81,4 +81,8 @@ function set(obj, path, value) {
   obj[path[path.length - 1]] = value;
 }
 
-module.exports = GlobAsset;
+module.exports = {
+  Asset: {
+    'internal/glob': GlobAsset
+  }
+};

@@ -1,46 +1,40 @@
-// const CSSAsset = require('./CSSAsset');
-const Asset = require('../Asset');
-const localRequire = require('../utils/localRequire');
-const Resolver = require('../Resolver');
-const syncPromise = require('../utils/syncPromise');
+const Resolver = require('../../Resolver');
+const syncPromise = require('../../utils/syncPromise');
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
-class StylusAsset extends Asset {
-  constructor(name, options) {
-    super(name, options);
-    this.type = 'css';
-  }
+const StylusAsset = {
+  type: 'css',
 
-  async parse(code) {
+  async parse(code, state) {
     // stylus should be installed locally in the module that's being required
-    let stylus = await localRequire('stylus', this.name);
-    let opts = await this.getConfig(['.stylusrc', '.stylusrc.js'], {
+    let stylus = await state.require('stylus');
+    let opts = await state.getConfig(['.stylusrc', '.stylusrc.js'], {
       packageKey: 'stylus'
     });
     let style = stylus(code, opts);
-    style.set('filename', this.name);
+    style.set('filename', state.name);
     style.set('include css', true);
-    style.set('Evaluator', await createEvaluator(this));
+    style.set('Evaluator', await createEvaluator(state));
 
     // Setup a handler for the URL function so we add dependencies for linked assets.
     style.define('url', node => {
-      let filename = this.addURLDependency(node.val, node.filename);
+      let filename = state.addURLDependency(node.val, node.filename);
       return new stylus.nodes.Literal(`url(${JSON.stringify(filename)})`);
     });
 
     return style;
-  }
+  },
 
-  generate() {
+  generate(ast) {
     return [
       {
         type: 'css',
-        value: this.ast.render(),
+        value: ast.render(),
         hasDependencies: false
       }
     ];
-  }
+  },
 
   generateErrorMessage(err) {
     let index = err.message.indexOf('\n');
@@ -48,14 +42,11 @@ class StylusAsset extends Asset {
     err.message = err.message.slice(0, index);
     return err;
   }
-}
+};
 
 async function createEvaluator(asset) {
-  const Evaluator = await localRequire(
-    'stylus/lib/visitor/evaluator',
-    asset.name
-  );
-  const utils = await localRequire('stylus/lib/utils', asset.name);
+  const Evaluator = await asset.require('stylus/lib/visitor/evaluator');
+  const utils = await asset.require('stylus/lib/utils');
   const resolver = new Resolver(
     Object.assign({}, asset.options, {
       extensions: ['.styl', '.css']
@@ -113,4 +104,9 @@ async function createEvaluator(asset) {
   return CustomEvaluator;
 }
 
-module.exports = StylusAsset;
+module.exports = {
+  Asset: {
+    styl: StylusAsset,
+    stylus: StylusAsset
+  }
+};

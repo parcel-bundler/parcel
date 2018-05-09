@@ -3,17 +3,19 @@ const loadPlugins = require('../utils/loadPlugins');
 const postcss = require('postcss');
 const cssnano = require('cssnano');
 
-module.exports = async function(asset) {
+module.exports = async function(ast, asset, getCSSAst) {
   let config = await getConfig(asset);
   if (!config) {
-    return;
+    return ast;
   }
 
-  await asset.parseIfNeeded();
-  let res = await postcss(config.plugins).process(asset.getCSSAst(), config);
+  ast = getCSSAst(await asset.parseIfNeeded());
+  let res = await postcss(config.plugins).process(ast, config);
 
-  asset.ast.css = res.css;
-  asset.ast.dirty = false;
+  ast.css = res.css;
+  ast.dirty = false;
+
+  return ast;
 };
 
 async function getConfig(asset) {

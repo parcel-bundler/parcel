@@ -1,15 +1,9 @@
-const Asset = require('../Asset');
-const localRequire = require('../utils/localRequire');
+const TypeScriptAsset = {
+  type: 'js',
 
-class TypeScriptAsset extends Asset {
-  constructor(name, options) {
-    super(name, options);
-    this.type = 'js';
-  }
-
-  async generate() {
+  async parse(code, state) {
     // require typescript, installed locally in the app
-    let typescript = await localRequire('typescript', this.name);
+    let typescript = await state.require('typescript');
     let transpilerOptions = {
       compilerOptions: {
         module: typescript.ModuleKind.CommonJS,
@@ -19,10 +13,10 @@ class TypeScriptAsset extends Asset {
         // see https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-7.html
         esModuleInterop: true
       },
-      fileName: this.relativeName
+      fileName: state.relativeName
     };
 
-    let tsconfig = await this.getConfig(['tsconfig.json']);
+    let tsconfig = await state.getConfig(['tsconfig.json']);
 
     // Overwrite default if config is found
     if (tsconfig) {
@@ -32,23 +26,20 @@ class TypeScriptAsset extends Asset {
       );
     }
     transpilerOptions.compilerOptions.noEmit = false;
-    transpilerOptions.compilerOptions.sourceMap = this.options.sourceMaps;
+    transpilerOptions.compilerOptions.sourceMap = state.options.sourceMaps;
 
     // Transpile Module using TypeScript and parse result as ast format through babylon
-    let transpiled = typescript.transpileModule(
-      this.contents,
-      transpilerOptions
-    );
-    let sourceMap = transpiled.sourceMapText;
+    return typescript.transpileModule(code, transpilerOptions);
+  },
 
+  async generate({outputText: content, sourceMapText: sourceMap}, state) {
     if (sourceMap) {
       sourceMap = JSON.parse(sourceMap);
-      sourceMap.sources = [this.relativeName];
-      sourceMap.sourcesContent = [this.contents];
+      sourceMap.sources = [state.relativeName];
+      sourceMap.sourcesContent = [state.contents];
 
       // Remove the source map URL
-      let content = transpiled.outputText;
-      transpiled.outputText = content.substring(
+      content = content.substring(
         0,
         content.lastIndexOf('//# sourceMappingURL')
       );
@@ -57,11 +48,16 @@ class TypeScriptAsset extends Asset {
     return [
       {
         type: 'js',
-        value: transpiled.outputText,
+        value: content,
         sourceMap
       }
     ];
   }
-}
+};
 
-module.exports = TypeScriptAsset;
+module.exports = {
+  Asset: {
+    ts: TypeScriptAsset,
+    tsx: TypeScriptAsset
+  }
+};

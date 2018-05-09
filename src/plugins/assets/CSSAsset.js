@@ -1,34 +1,30 @@
-const Asset = require('../Asset');
 const postcss = require('postcss');
 const valueParser = require('postcss-value-parser');
-const postcssTransform = require('../transforms/postcss');
+const postcssTransform = require('../../transforms/postcss');
 const CssSyntaxError = require('postcss/lib/css-syntax-error');
 
 const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
 const PROTOCOL_RE = /^[a-z]+:/;
 
-class CSSAsset extends Asset {
-  constructor(name, options) {
-    super(name, options);
-    this.type = 'css';
-  }
+const CSSAsset = {
+  type: 'css',
 
-  mightHaveDependencies() {
+  mightHaveDependencies(state) {
     return (
-      !/\.css$/.test(this.name) ||
-      IMPORT_RE.test(this.contents) ||
-      URL_RE.test(this.contents)
+      !/\.css$/.test(state.name) ||
+      IMPORT_RE.test(state.contents) ||
+      URL_RE.test(state.contents)
     );
-  }
+  },
 
-  parse(code) {
-    let root = postcss.parse(code, {from: this.name, to: this.name});
+  parse(code, state) {
+    let root = postcss.parse(code, {from: state.name, to: state.name});
     return new CSSAst(code, root);
-  }
+  },
 
-  collectDependencies() {
-    this.ast.root.walkAtRules('import', rule => {
+  collectDependencies(ast, state) {
+    ast.root.walkAtRules('import', rule => {
       let params = valueParser(rule.params).nodes;
       let [name, ...media] = params;
       let dep;
@@ -51,13 +47,13 @@ class CSSAsset extends Asset {
       }
 
       media = valueParser.stringify(media).trim();
-      this.addDependency(dep, {media, loc: rule.source.start});
+      state.addDependency(dep, {media, loc: rule.source.start});
 
       rule.remove();
-      this.ast.dirty = true;
+      ast.dirty = true;
     });
 
-    this.ast.root.walkDecls(decl => {
+    ast.root.walkDecls(decl => {
       if (URL_RE.test(decl.value)) {
         let parsed = valueParser(decl.value);
         let dirty = false;
@@ -68,7 +64,7 @@ class CSSAsset extends Asset {
             node.value === 'url' &&
             node.nodes.length
           ) {
-            let url = this.addURLDependency(node.nodes[0].value, {
+            let url = state.addURLDependency(node.nodes[0].value, {
               loc: decl.source.start
             });
             dirty = node.nodes[0].value !== url;
@@ -78,31 +74,22 @@ class CSSAsset extends Asset {
 
         if (dirty) {
           decl.value = parsed.toString();
-          this.ast.dirty = true;
+          ast.dirty = true;
         }
       }
     });
-  }
+  },
 
-  async transform() {
-    await postcssTransform(this);
-  }
+  transform(ast, state) {
+    return postcssTransform(ast, state, getCSSAst);
+  },
 
-  getCSSAst() {
-    // Converts the ast to a CSS ast if needed, so we can apply postcss transforms.
-    if (!(this.ast instanceof CSSAst)) {
-      this.ast = CSSAsset.prototype.parse.call(this, this.ast.render());
-    }
-
-    return this.ast.root;
-  }
-
-  generate() {
-    let css = this.ast ? this.ast.render() : this.contents;
+  generate(ast, state) {
+    let css = ast ? (ast.render ? ast.render() : ast.css) : state.contents;
 
     let js = '';
-    if (this.options.hmr) {
-      this.addDependency('_css_loader');
+    if (state.options.hmr) {
+      state.addDependency('_css_loader');
 
       js = `
         var reloadCSS = require('_css_loader');
@@ -111,16 +98,16 @@ class CSSAsset extends Asset {
       `;
     }
 
-    if (this.cssModules) {
+    if (state.cssModules) {
       js +=
-        'module.exports = ' + JSON.stringify(this.cssModules, false, 2) + ';';
+        'module.exports = ' + JSON.stringify(state.cssModules, false, 2) + ';';
     }
 
     return [
       {
         type: 'css',
         value: css,
-        cssModules: this.cssModules
+        cssModules: state.cssModules
       },
       {
         type: 'js',
@@ -128,16 +115,16 @@ class CSSAsset extends Asset {
         final: true
       }
     ];
-  }
+  },
 
-  generateErrorMessage(err) {
+  generateErrorMessage(err, state) {
     // Wrap the error in a CssSyntaxError if needed so we can generate a code frame
     if (err.loc && !err.showSourceCode) {
       err = new CssSyntaxError(
         err.message,
         err.loc.line,
         err.loc.column,
-        this.contents
+        state.contents
       );
     }
 
@@ -154,6 +141,15 @@ class CSSAsset extends Asset {
 
     return err;
   }
+};
+
+function getCSSAst(ast, state) {
+  // Converts the ast to a CSS ast if needed, so we can apply postcss transforms.
+  if (!(ast instanceof CSSAst)) {
+    ast = CSSAsset.parse(ast.render(), state);
+  }
+
+  return ast.root;
 }
 
 class CSSAst {
@@ -173,4 +169,9 @@ class CSSAst {
   }
 }
 
-module.exports = CSSAsset;
+module.exports = {
+  Asset: {
+    css: CSSAsset,
+    pcss: CSSAsset
+  }
+};

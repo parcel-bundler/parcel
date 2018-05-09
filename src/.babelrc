@@ -4,6 +4,6 @@
       "node": "6"
     }
   }]],
-  "plugins": ["transform-async-super"],
+  "plugins": ["transform-async-super", "transform-object-rest-spread"],
   "ignore": ["builtins"]
 }

@@ -27,7 +27,7 @@ const JSX_PRAGMA = {
   hyperapp: 'h'
 };
 
-async function babelTransform(asset) {
+async function babelTransform(ast, asset) {
   let config = await getConfig(asset);
   if (!config) {
     return;
@@ -46,11 +46,14 @@ async function babelTransform(asset) {
     throw new Error(`Unsupported babel version: ${babel.version}`);
   }
 
-  let res = babel.transformFromAst(asset.ast, asset.contents, config);
+  ast = asset.ast;
+  let res = babel.transformFromAst(ast, asset.contents, config);
   if (!res.ignored) {
-    asset.ast = res.ast;
+    ast = res.ast;
     asset.isAstDirty = true;
   }
+
+  return ast;
 }
 
 module.exports = babelTransform;

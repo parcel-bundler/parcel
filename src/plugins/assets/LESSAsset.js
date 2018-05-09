@@ -1,47 +1,43 @@
-const Asset = require('../Asset');
-const localRequire = require('../utils/localRequire');
-const promisify = require('../utils/promisify');
-const Resolver = require('../Resolver');
-const syncPromise = require('../utils/syncPromise');
-const fs = require('../utils/fs');
+const promisify = require('../../utils/promisify');
+const Resolver = require('../../Resolver');
+const syncPromise = require('../../utils/syncPromise');
+const fs = require('../../utils/fs');
 const path = require('path');
 
-class LESSAsset extends Asset {
-  constructor(name, options) {
-    super(name, options);
-    this.type = 'css';
-  }
+const LESSAsset = {
+  type: 'css',
 
-  async parse(code) {
+  async parse(code, state) {
     // less should be installed locally in the module that's being required
-    let less = await localRequire('less', this.name);
+    let less = await state.require('less');
     let render = promisify(less.render.bind(less));
 
     let opts =
-      (await this.getConfig(['.lessrc', '.lessrc.js'], {packageKey: 'less'})) ||
-      {};
-    opts.filename = this.name;
-    opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
+      (await state.getConfig(['.lessrc', '.lessrc.js'], {
+        packageKey: 'less'
+      })) || {};
+    opts.filename = state.name;
+    opts.plugins = (opts.plugins || []).concat(urlPlugin(state));
 
     return await render(code, opts);
-  }
+  },
 
-  collectDependencies() {
-    for (let dep of this.ast.imports) {
-      this.addDependency(dep, {includedInParent: true});
+  collectDependencies(ast, state) {
+    for (let dep of ast.imports) {
+      state.addDependency(dep, {includedInParent: true});
     }
-  }
+  },
 
-  generate() {
+  generate(ast) {
     return [
       {
         type: 'css',
-        value: this.ast ? this.ast.css : '',
+        value: ast ? ast.css : '',
         hasDependencies: false
       }
     ];
   }
-}
+};
 
 function urlPlugin(asset) {
   return {
@@ -93,4 +89,8 @@ function getFileManager(less, options) {
   return LessFileManager;
 }
 
-module.exports = LESSAsset;
+module.exports = {
+  Asset: {
+    less: LESSAsset
+  }
+};

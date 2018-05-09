@@ -1,17 +1,17 @@
 const loadPlugins = require('../utils/loadPlugins');
 const posthtml = require('posthtml');
 
-module.exports = async function(asset) {
-  let config = await getConfig(asset);
+module.exports = async function(ast, state) {
+  let config = await getConfig(state);
   if (!config) {
     return;
   }
 
-  await asset.parseIfNeeded();
-  let res = await posthtml(config.plugins).process(asset.ast, config);
+  ast = await state.parseIfNeeded();
+  let res = await posthtml(config.plugins).process(ast, config);
 
-  asset.ast = res.tree;
-  asset.isAstDirty = true;
+  state.isAstDirty = true;
+  return res.tree;
 };
 
 async function getConfig(asset) {

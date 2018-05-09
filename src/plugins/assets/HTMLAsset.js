@@ -1,11 +1,10 @@
-const Asset = require('../Asset');
 const parse = require('posthtml-parser');
 const api = require('posthtml/lib/api');
-const urlJoin = require('../utils/urlJoin');
+const urlJoin = require('../../utils/urlJoin');
 const render = require('posthtml-render');
-const posthtmlTransform = require('../transforms/posthtml');
-const htmlnanoTransform = require('../transforms/htmlnano');
-const isURL = require('../utils/is-url');
+const posthtmlTransform = require('../../transforms/posthtml');
+const htmlnanoTransform = require('../../transforms/htmlnano');
+const isURL = require('../../utils/is-url');
 
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
@@ -72,48 +71,22 @@ const OPTIONS = {
   }
 };
 
-class HTMLAsset extends Asset {
-  constructor(name, options) {
-    super(name, options);
-    this.type = 'html';
-    this.isAstDirty = false;
-  }
+const HTMLAsset = {
+  type: 'html',
+
+  init: () => ({
+    isAstDirty: false
+  }),
 
   parse(code) {
     let res = parse(code, {lowerCaseAttributeNames: true});
     res.walk = api.walk;
     res.match = api.match;
     return res;
-  }
+  },
 
-  processSingleDependency(path, opts) {
-    let assetPath = this.addURLDependency(path, opts);
-    if (!isURL(assetPath)) {
-      assetPath = urlJoin(this.options.publicURL, assetPath);
-    }
-    return assetPath;
-  }
-
-  collectSrcSetDependencies(srcset, opts) {
-    const newSources = [];
-    for (const source of srcset.split(',')) {
-      const pair = source.trim().split(' ');
-      if (pair.length === 0) continue;
-      pair[0] = this.processSingleDependency(pair[0], opts);
-      newSources.push(pair.join(' '));
-    }
-    return newSources.join(',');
-  }
-
-  getAttrDepHandler(attr) {
-    if (attr === 'srcset') {
-      return this.collectSrcSetDependencies;
-    }
-    return this.processSingleDependency;
-  }
-
-  collectDependencies() {
-    this.ast.walk(node => {
+  collectDependencies(ast, state) {
+    ast.walk(node => {
       if (node.attrs) {
         if (node.tag === 'meta') {
           if (
@@ -134,35 +107,68 @@ class HTMLAsset extends Asset {
           }
 
           if (elements && elements.includes(node.tag)) {
-            let depHandler = this.getAttrDepHandler(attr);
+            let depHandler = getAttrDepHandler(attr);
             let options = OPTIONS[node.tag];
-            node.attrs[attr] = depHandler.call(
-              this,
+            node.attrs[attr] = depHandler(
+              state,
               node.attrs[attr],
               options && options[attr]
             );
-            this.isAstDirty = true;
+            state.isAstDirty = true;
           }
         }
       }
 
       return node;
     });
-  }
+  },
 
-  async pretransform() {
-    await posthtmlTransform(this);
-  }
+  generate(ast, state) {
+    return {
+      html: state.isAstDirty ? render(ast) : state.contents
+    };
+  },
 
-  async transform() {
-    if (this.options.minify) {
-      await htmlnanoTransform(this);
+  pretransform(ast, state) {
+    return posthtmlTransform(ast, state);
+  },
+
+  transform(ast, state) {
+    if (state.options.minify) {
+      return htmlnanoTransform(ast, state);
     }
   }
+};
 
-  generate() {
-    return this.isAstDirty ? render(this.ast) : this.contents;
+function processSingleDependency(asset, path, opts) {
+  let assetPath = asset.addURLDependency(path, opts);
+  if (!isURL(assetPath)) {
+    assetPath = urlJoin(asset.options.publicURL, assetPath);
   }
+  return assetPath;
 }
 
-module.exports = HTMLAsset;
+function collectSrcSetDependencies(asset, srcset, opts) {
+  const newSources = [];
+  for (const source of srcset.split(',')) {
+    const pair = source.trim().split(' ');
+    if (pair.length === 0) continue;
+    pair[0] = processSingleDependency(asset, pair[0], opts);
+    newSources.push(pair.join(' '));
+  }
+  return newSources.join(',');
+}
+
+function getAttrDepHandler(attr) {
+  if (attr === 'srcset') {
+    return collectSrcSetDependencies;
+  }
+  return processSingleDependency;
+}
+
+module.exports = {
+  Asset: {
+    html: HTMLAsset,
+    htm: HTMLAsset
+  }
+};

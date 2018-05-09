@@ -5,7 +5,7 @@ module.exports = async function(asset) {
   await asset.parseIfNeeded();
 
   // Convert AST into JS
-  let source = (await asset.generate()).js;
+  let source = (await asset.generate(asset.ast)).js;
 
   let customConfig = await asset.getConfig(['.uglifyrc']);
   let options = {
@@ -60,7 +60,8 @@ module.exports = async function(asset) {
   }
 
   // babel-generator did our code generation for us, so remove the old AST
-  asset.ast = null;
   asset.outputCode = result.code;
   asset.isAstDirty = false;
+
+  return null;
 };

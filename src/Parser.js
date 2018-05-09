@@ -1,78 +1,79 @@
 const path = require('path');
-const RawAsset = require('./assets/RawAsset');
-const GlobAsset = require('./assets/GlobAsset');
+const Asset = require('./Asset');
 const glob = require('glob');
+const loadPlugin = require('./Plugins');
 
 class Parser {
-  constructor(options = {}) {
-    this.extensions = {};
+  constructor() {
+    this.assets = new Map();
 
-    this.registerExtension('js', './assets/JSAsset');
-    this.registerExtension('jsx', './assets/JSAsset');
-    this.registerExtension('es6', './assets/JSAsset');
-    this.registerExtension('jsm', './assets/JSAsset');
-    this.registerExtension('mjs', './assets/JSAsset');
-    this.registerExtension('ml', './assets/ReasonAsset');
-    this.registerExtension('re', './assets/ReasonAsset');
-    this.registerExtension('ts', './assets/TypeScriptAsset');
-    this.registerExtension('tsx', './assets/TypeScriptAsset');
-    this.registerExtension('coffee', './assets/CoffeeScriptAsset');
-    this.registerExtension('vue', './assets/VueAsset');
-    this.registerExtension('json', './assets/JSONAsset');
-    this.registerExtension('json5', './assets/JSONAsset');
-    this.registerExtension('yaml', './assets/YAMLAsset');
-    this.registerExtension('yml', './assets/YAMLAsset');
-    this.registerExtension('toml', './assets/TOMLAsset');
-    this.registerExtension('gql', './assets/GraphqlAsset');
-    this.registerExtension('graphql', './assets/GraphqlAsset');
-
-    this.registerExtension('css', './assets/CSSAsset');
-    this.registerExtension('pcss', './assets/CSSAsset');
-    this.registerExtension('styl', './assets/StylusAsset');
-    this.registerExtension('stylus', './assets/StylusAsset');
-    this.registerExtension('less', './assets/LESSAsset');
-    this.registerExtension('sass', './assets/SASSAsset');
-    this.registerExtension('scss', './assets/SASSAsset');
-
-    this.registerExtension('html', './assets/HTMLAsset');
-    this.registerExtension('htm', './assets/HTMLAsset');
-    this.registerExtension('rs', './assets/RustAsset');
-
-    this.registerExtension('webmanifest', './assets/WebManifestAsset');
-
-    this.registerExtension('glsl', './assets/GLSLAsset');
-    this.registerExtension('vert', './assets/GLSLAsset');
-    this.registerExtension('frag', './assets/GLSLAsset');
-
-    this.registerExtension('jade', './assets/PugAsset');
-    this.registerExtension('pug', './assets/PugAsset');
-
-    let extensions = options.extensions || {};
-    for (let ext in extensions) {
-      this.registerExtension(ext, extensions[ext]);
-    }
+    require('fs')
+      .readdirSync(__dirname + '/plugins/assets')
+      .forEach(name => loadPlugin(require(`./plugins/assets/${name}`), this));
   }
 
-  registerExtension(ext, parser) {
-    if (!ext.startsWith('.')) {
-      ext = '.' + ext;
+  composeAssets(extension, components, type) {
+    let Base = this.assets.get(extension);
+
+    if (!Base) {
+      Base = Asset.getPolymorphClone();
+
+      this.assets.set(extension, Base);
     }
 
-    this.extensions[ext.toLowerCase()] = parser;
+    let states = new WeakMap();
+
+    if (typeof type !== 'undefined') {
+      Base.prototype.init.extend(function() {
+        this.type = type;
+      });
+    }
+
+    components.forEach(({method, name}) =>
+      Base.prototype[name].extend(function(...args) {
+        let state = states.get(this);
+
+        if (!state) {
+          states.set(this, (state = {}));
+
+          // Proxy Asset base method and properties to state
+          getAllProperties(this).forEach(name => {
+            if (name in Base.prototype) {
+              state[name] = (...args) => this[name](...args);
+            } else {
+              Object.defineProperty(state, name, {
+                get: () => this[name],
+                set() {
+                  throw new Error(`Asset property "${name}" is readonly`);
+                }
+              });
+            }
+          });
+        }
+
+        let result = method(...args, state);
+
+        if (name === 'init' && result) {
+          Object.assign(state, result);
+        }
+
+        return result;
+      })
+    );
   }
 
   findParser(filename) {
     if (/[*+{}]/.test(filename) && glob.hasMagic(filename)) {
-      return GlobAsset;
+      return this.assets.get('.internal/glob');
     }
 
     let extension = path.extname(filename).toLowerCase();
-    let parser = this.extensions[extension] || RawAsset;
-    if (typeof parser === 'string') {
-      parser = this.extensions[extension] = require(parser);
+
+    if (this.assets.has(extension)) {
+      return this.assets.get(extension);
     }
 
-    return parser;
+    return this.assets.get('.internal/raw');
   }
 
   getAsset(filename, options = {}) {
@@ -80,6 +81,20 @@ class Parser {
     options.parser = this;
     return new Asset(filename, options);
   }
+}
+
+function getAllProperties(object) {
+  let properties = Object.keys(object);
+
+  while ((object = Object.getPrototypeOf(object))) {
+    if (object === Object.prototype) {
+      break;
+    }
+
+    properties.push(...Object.getOwnPropertyNames(object));
+  }
+
+  return [...new Set(properties)];
 }
 
 module.exports = Parser;
