@@ -2679,6 +2679,11 @@ glsl-token-depth@^1.1.0, glsl-token-depth@^1.1.1:
 glsl-token-descope@^1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/glsl-token-descope/-/glsl-token-descope-1.0.2.tgz#0fc90ab326186b82f597b2e77dc9e21efcd32076"
+  dependencies:
+    glsl-token-assignments "^2.0.0"
+    glsl-token-depth "^1.1.0"
+    glsl-token-properties "^1.0.0"
+    glsl-token-scope "^1.1.0"
 
 glsl-token-inject-block@^1.0.0:
   version "1.1.0"
