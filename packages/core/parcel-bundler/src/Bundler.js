@@ -495,7 +495,7 @@ class Bundler extends EventEmitter {
     asset.processed = true;
 
     // First try the cache, otherwise load and compile in the background
-    let startTime = Date.now();
+    asset.startTime = Date.now();
     let processed = this.cache && (await this.cache.read(asset.name));
     let cacheMiss = false;
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
@@ -503,7 +503,8 @@ class Bundler extends EventEmitter {
       cacheMiss = true;
     }
 
-    asset.buildTime = Date.now() - startTime;
+    asset.endTime = Date.now();
+    asset.buildTime = asset.endTime - asset.startTime;
     asset.generated = processed.generated;
     asset.hash = processed.hash;
 
