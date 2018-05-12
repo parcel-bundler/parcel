@@ -121,10 +121,7 @@ class Watcher {
    * Add an event handler
    */
   on(event, callback) {
-    this.watcher.on(event, ev => {
-      console.log(ev);
-      callback(ev);
-    });
+    this.watcher.on(event, callback);
   }
 
   /**
