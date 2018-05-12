@@ -13,6 +13,9 @@ const generate = require('babel-generator').default;
 const terser = require('../transforms/terser');
 const SourceMap = require('../SourceMap');
 const hoist = require('../scope-hoisting/hoist');
+const path = require('path');
+const fs = require('../utils/fs');
+const logger = require('../Logger');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -105,6 +108,25 @@ class JSAsset extends Asset {
   }
 
   async pretransform() {
+    // Get original sourcemap if there is any
+    let sourceMapLine = this.contents.lastIndexOf('//# sourceMappingURL=');
+    if (sourceMapLine > -1) {
+      let sourceMapReference = this.contents.substring(sourceMapLine + 21);
+      this.contents = this.contents.substring(0, sourceMapLine);
+
+      try {
+        this.sourceMap = JSON.parse(
+          await fs.readFile(
+            path.join(path.dirname(this.name), sourceMapReference)
+          )
+        );
+      } catch (e) {
+        logger.warn(
+          `Could not load existing sourcemap of ${this.relativeName}.`
+        );
+      }
+    }
+
     await babel(this);
 
     // Inline environment variables

@@ -1,0 +1,19 @@
+{
+  "version": 3,
+  "sources": [
+    "sum.js"
+  ],
+  "names": [
+    "sum",
+    "a",
+    "b",
+    "module",
+    "exports"
+  ],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,SAASA,GAAT,CAAaC,CAAb,EAAgBC,CAAhB,EAAmB;AACjB,SAAOD,IAAIC,CAAX;AACD;;AAEDC,OAAOC,OAAP,GAAiBJ,GAAjB",
+  "file": "sum.map",
+  "sourceRoot": '',
+  "sourcesContent": [
+    "function sum(a, b) {\n  return a + b;\n}\n\nmodule.exports = sum;\n\n"
+  ]
+}

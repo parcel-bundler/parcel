@@ -204,4 +204,40 @@ describe('sourcemaps', function() {
     let map = (await fs.readFile(path.join(sourcemapReference))).toString();
     mapValidator(jsOutput, map);
   });
+
+  it('should load existing sourcemaps of libraries', async function() {
+    let b = await bundle(
+      __dirname + '/integration/sourcemap-existing/index.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'sum.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let jsOutput = fs.readFileSync(b.name).toString();
+
+    let sourcemapReference = path.join(
+      __dirname,
+      '/dist/',
+      jsOutput.substring(jsOutput.lastIndexOf('//# sourceMappingURL') + 22)
+    );
+
+    assert(
+      fs.existsSync(path.join(sourcemapReference)),
+      'referenced sourcemap should exist'
+    );
+
+    let map = fs.readFileSync(path.join(sourcemapReference)).toString();
+    assert(
+      map.indexOf('return a + b;') > -1,
+      'Sourcemap should contain the existing sourcemap'
+    );
+    mapValidator(jsOutput, map);
+  });
 });
