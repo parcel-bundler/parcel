@@ -252,7 +252,6 @@ describe('watcher', function() {
       __dirname + '/integration/commonjs-with-symlinks',
       __dirname + '/input'
     );
-
     b = bundler(__dirname + '/input/index.js', {watch: true});
     let bundle = await b.bundle();
     let output = run(bundle);

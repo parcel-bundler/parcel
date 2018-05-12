@@ -11,6 +11,7 @@ exports.realpath = promisify(fs.realpath);
 
 exports.lstatSync = fs.lstatSync;
 exports.realpathSync = fs.realpathSync;
+exports.existsSync = fs.existsSync;
 
 exports.exists = function(filename) {
   return new Promise(resolve => {
