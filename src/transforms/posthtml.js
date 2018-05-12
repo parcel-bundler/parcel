@@ -23,6 +23,12 @@ async function getConfig(asset) {
     return;
   }
 
+  if (config && config.plugins && config.plugins['posthtml-include']) {
+    config.plugins['posthtml-include'].addDependencyTo = {
+      addDependency: src => asset.addDependency(src, {includedInParent: true})
+    };
+  }
+
   config = Object.assign({}, config);
   config.plugins = await loadPlugins(config.plugins, asset.name);
   config.skipParse = true;
