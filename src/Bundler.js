@@ -380,8 +380,8 @@ class Bundler extends EventEmitter {
       return;
     }
 
-    if (fs.lstatSync(asset.name).isSymbolicLink()) {
-      this.watchedSymlinks.set(fs.realpathSync(asset.name), asset.name);
+    if (fs.lstatSync(path).isSymbolicLink()) {
+      this.watchedSymlinks.set(fs.realpathSync(path), path);
     }
 
     if (!this.watchedAssets.has(path)) {
