@@ -13,6 +13,7 @@ class Watcher {
     this.watcher = new FSWatcher({
       useFsEvents: this.shouldWatchDirs,
       ignoreInitial: true,
+      ignorePermissionErrors: true,
       ignored: /\.cache|\.git/
     });
 
