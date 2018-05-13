@@ -87,6 +87,10 @@ class VueAsset extends Asset {
       supplemental = code;
     }
 
+    if (supplemental) {
+      supplemental = `(function(){${supplemental}})();`;
+    }
+
     js += supplemental;
 
     if (js) {
