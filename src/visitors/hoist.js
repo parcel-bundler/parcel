@@ -143,6 +143,14 @@ module.exports = {
     }
   },
 
+  DirectiveLiteral(path) {
+    // Remove 'use strict' directives, since modules are concatenated - one strict mode
+    // module should not apply to all other modules in the same scope.
+    if (path.node.value === 'use strict') {
+      path.parentPath.remove();
+    }
+  },
+
   MemberExpression(path, asset) {
     if (path.scope.hasBinding('module') || path.scope.getData('shouldWrap')) {
       return;
