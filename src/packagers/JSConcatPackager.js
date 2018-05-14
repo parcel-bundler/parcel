@@ -216,6 +216,29 @@ class JSConcatPackager extends Packager {
       this.write(loads);
     }
 
+    if (this.bundle.entryAsset) {
+      let entryExports = this.getExportIdentifier(this.bundle.entryAsset);
+
+      this.write(`
+        if (typeof exports === "object" && typeof module !== "undefined") {
+          // CommonJS
+          module.exports = ${entryExports};
+        } else if (typeof define === "function" && define.amd) {
+          // RequireJS
+          define(function () {
+            return ${entryExports};
+          });
+        } ${
+          this.options.global
+            ? `else {
+          // <script>
+          this[${JSON.stringify(this.options.global)}] = ${entryExports};
+        }`
+            : ''
+        }
+      `);
+    }
+
     if (this.needsPrelude) {
       let exposed = [];
       let prepareModule = [];
