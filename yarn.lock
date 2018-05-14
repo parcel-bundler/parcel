@@ -2686,7 +2686,6 @@ glsl-token-defines@^1.0.0:
     glsl-tokenizer "^2.0.0"
 
 glsl-token-depth@^1.1.0, glsl-token-depth@^1.1.1:
-glsl-token-depth@^1.1.1:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/glsl-token-depth/-/glsl-token-depth-1.1.2.tgz#23c5e30ee2bd255884b4a28bc850b8f791e95d84"
 
@@ -2707,7 +2706,7 @@ glsl-token-properties@^1.0.0:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/glsl-token-properties/-/glsl-token-properties-1.0.1.tgz#483dc3d839f0d4b5c6171d1591f249be53c28a9e"
 
-glsl-token-scope@^1.1.1:
+glsl-token-scope@^1.1.0, glsl-token-scope@^1.1.1:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/glsl-token-scope/-/glsl-token-scope-1.1.2.tgz#a1728e78df24444f9cb93fd18ef0f75503a643b1"
 
