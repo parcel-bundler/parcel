@@ -54,7 +54,8 @@ class Pipeline {
       // Find an asset type for the rendition type.
       // If the asset is not already an instance of this asset type, process it.
       let AssetType = this.parser.findParser(
-        asset.name.slice(0, -inputType.length) + type
+        asset.name.slice(0, -inputType.length) + type,
+        true
       );
       if (!(asset instanceof AssetType)) {
         let opts = Object.assign({}, asset.options, {rendition});
