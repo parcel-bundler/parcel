@@ -177,6 +177,20 @@ module.exports = {
       path.replaceWith(getExportsIdentifier(asset));
       asset.cacheData.isCommonJS = true;
     }
+
+    if (path.node.name === 'global' && !path.scope.hasBinding('global')) {
+      path.replaceWith(t.identifier('$parcel$global'));
+      asset.globals.delete('global');
+    }
+
+    let globalCode = asset.globals.get(path.node.name);
+    if (globalCode) {
+      path.scope
+        .getProgramParent()
+        .path.unshiftContainer('body', [template(globalCode)()]);
+
+      asset.globals.delete(path.node.name);
+    }
   },
 
   ThisExpression(path, asset) {
@@ -240,7 +254,6 @@ module.exports = {
 
       // Generate a variable name based on the current asset id and the module name to require.
       // This will be replaced by the final variable name of the resolved asset in the packager.
-      // path.replaceWith(getIdentifier(asset, 'require', args[0].value));
       path.replaceWith(
         REQUIRE_CALL_TEMPLATE({
           ID: t.numericLiteral(asset.id),
@@ -250,7 +263,6 @@ module.exports = {
     }
 
     if (matchesPattern(callee, 'require.resolve')) {
-      // path.replaceWith(getIdentifier(asset, 'require_resolve', args[0].value));
       path.replaceWith(
         REQUIRE_RESOLVE_CALL_TEMPLATE({
           ID: t.numericLiteral(asset.id),

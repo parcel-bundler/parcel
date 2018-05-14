@@ -1,25 +1,20 @@
 const Path = require('path');
 const types = require('babel-types');
 
-const genRequire = (asset, name, module = name) => {
-  asset.addDependency(module);
-
-  if (asset.options.scopeHoist) {
-    return `var ${name} = $parcel$require(${asset.id}, ${JSON.stringify(
-      module
-    )})`;
-  } else {
-    return `var ${name} = require(${JSON.stringify(module)})`;
-  }
-};
-
 const VARS = {
-  process: asset => genRequire(asset, 'process') + ';',
-  global: () => 'var global = arguments[3];',
+  process: asset => {
+    asset.addDependency('process');
+    return 'var process = require("process");';
+  },
+  global: asset =>
+    `var global = arguments[${asset.options.scopeHoist ? 0 : 3}];`,
   __dirname: asset =>
     `var __dirname = ${JSON.stringify(Path.dirname(asset.name))};`,
   __filename: asset => `var __filename = ${JSON.stringify(asset.name)};`,
-  Buffer: asset => `${genRequire(asset, 'Buffer', 'buffer')}.Buffer;`,
+  Buffer: asset => {
+    asset.addDependency('buffer');
+    return 'var Buffer = require("buffer").Buffer;';
+  },
   // Prevent AMD defines from working when loading UMD bundles.
   // Ideally the CommonJS check would come before the AMD check, but many
   // existing modules do the checks the opposite way leading to modules
