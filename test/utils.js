@@ -23,14 +23,6 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function normalizeOptions(opts = {}) {
-  if (opts.scopeHoist === undefined) {
-    opts.scopeHoist = false;
-  }
-
-  return opts;
-}
-
 function bundler(file, opts) {
   return new Bundler(
     file,
@@ -43,13 +35,13 @@ function bundler(file, opts) {
         hmr: false,
         logLevel: 0
       },
-      normalizeOptions(opts)
+      opts
     )
   );
 }
 
 function bundle(file, opts) {
-  return bundler(file, normalizeOptions(opts)).bundle();
+  return bundler(file, opts).bundle();
 }
 
 function prepareBrowserContext(bundle, globals) {
@@ -93,8 +85,11 @@ function prepareBrowserContext(bundle, globals) {
     }
   };
 
+  var exports = {};
   var ctx = Object.assign(
     {
+      exports,
+      module: {exports},
       document: fakeDocument,
       WebSocket,
       console,
@@ -124,6 +119,7 @@ function prepareNodeContext(bundle, globals) {
   var ctx = Object.assign(
     {
       module: mod,
+      exports: module.exports,
       __filename: bundle.name,
       __dirname: path.dirname(bundle.name),
       require: function(path) {
@@ -164,8 +160,11 @@ function run(bundle, globals, opts = {}) {
   if (opts.require !== false) {
     if (ctx.parcelRequire) {
       return ctx.parcelRequire(bundle.entryAsset.id);
-    } else {
+    } else if (ctx.output) {
       return ctx.output;
+    }
+    if (ctx.module) {
+      return ctx.module.exports;
     }
   }
 
