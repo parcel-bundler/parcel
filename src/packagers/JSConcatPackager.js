@@ -7,6 +7,7 @@ const SourceMap = require('../SourceMap');
 const concat = require('../transforms/concat');
 const lineCounter = require('../utils/lineCounter');
 const urlJoin = require('../utils/urlJoin');
+const config = require('../utils/config');
 
 const prelude = fs
   .readFileSync(path.join(__dirname, '../builtins/prelude2.js'), 'utf8')
@@ -274,6 +275,11 @@ class JSConcatPackager extends Packager {
     }
 
     if (this.options.minify) {
+      let customConfig = await config.load(
+        path.join(this.options.rootDir, 'index'),
+        ['.uglifyrc']
+      );
+
       let opts = {
         warnings: true,
         compress: {
@@ -285,6 +291,10 @@ class JSConcatPackager extends Packager {
           eval: true
         }
       };
+
+      if (customConfig) {
+        Object.assign(opts, customConfig);
+      }
 
       if (sourceMaps) {
         let sourceMap = new SourceMap();
