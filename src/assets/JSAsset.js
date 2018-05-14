@@ -99,7 +99,7 @@ class JSAsset extends Asset {
     await babel(this);
 
     // Inline environment variables
-    if (ENV_RE.test(this.contents)) {
+    if (this.options.target === 'browser' && ENV_RE.test(this.contents)) {
       await this.parseIfNeeded();
       this.traverseFast(envVisitor);
     }

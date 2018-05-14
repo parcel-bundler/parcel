@@ -415,10 +415,33 @@ describe('javascript', function() {
     assert.deepEqual(output(), false);
   });
 
-  it('should insert environment variables', async function() {
-    let b = await bundle(__dirname + '/integration/env/index.js');
+  it('should not insert environment variables on --target=node', async function() {
+    let b = await bundle(__dirname + '/integration/env/index.js', {
+      target: 'node'
+    });
 
     let output = run(b);
+    assert.ok(output.toString().indexOf('process.env') > -1);
+    assert.equal(output(), 'test:test');
+  });
+
+  it('should not insert environment variables on --target=electron', async function() {
+    let b = await bundle(__dirname + '/integration/env/index.js', {
+      target: 'electron'
+    });
+
+    let output = run(b);
+    assert.ok(output.toString().indexOf('process.env') > -1);
+    assert.equal(output(), 'test:test');
+  });
+
+  it('should insert environment variables on --target=browser', async function() {
+    let b = await bundle(__dirname + '/integration/env/index.js', {
+      target: 'browser'
+    });
+
+    let output = run(b);
+    assert.ok(output.toString().indexOf('process.env') === -1);
     assert.equal(output(), 'test:test');
   });
 
