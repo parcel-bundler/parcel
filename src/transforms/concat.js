@@ -9,6 +9,7 @@ const EXPORTS_RE = /^\$([\d]+)\$exports$/;
 const EXPORT_RE = /^\$([\d]+)\$export\$(.+)$/;
 
 const DEFAULT_INTEROP_TEMPLATE = template('$parcel$interopDefault(MODULE)');
+const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 
 module.exports = packager => {
   let rootPath;
@@ -106,13 +107,19 @@ module.exports = packager => {
 
         let mod = resolveModule(id.value, source.value);
 
-        if (typeof mod === 'undefined') {
-          throw new Error(
-            `Cannot find module "${source.value}" in asset ${id.value}`
-          );
+        if (!mod) {
+          if (assets[id.value].dependencies.get(source.value).optional) {
+            path.replaceWith(
+              THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)})
+            );
+          } else {
+            throw new Error(
+              `Cannot find module "${source.value}" in asset ${id.value}`
+            );
+          }
+        } else {
+          path.replaceWith(t.identifier(`$${mod.id}$exports`));
         }
-
-        path.replaceWith(t.identifier(`$${mod.id}$exports`));
       } else if (callee.name === '$parcel$import') {
         let [id, source, name, replace] = args;
 

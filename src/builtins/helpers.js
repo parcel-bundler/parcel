@@ -1,5 +1,3 @@
-/* eslint-disable no-unused-vars */
-
 function $parcel$interopDefault(a) {
   return a && a.__esModule
     ? {d: a.default}
@@ -22,3 +20,11 @@ function $parcel$exportWildcard(dest, source) {
 
   return dest;
 }
+
+function $parcel$missingModule(name) {
+  var err = new Error("Cannot find module '" + name + "'");
+  err.code = 'MODULE_NOT_FOUND';
+  throw err;
+}
+
+var $parcel$global = this;
