@@ -502,9 +502,11 @@ class Bundler extends EventEmitter {
     let cacheMiss = false;
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
       processed = await this.farm.run(asset.name, asset.id);
+      processed.id = asset.id;
       cacheMiss = true;
     }
 
+    asset.id = processed.id;
     asset.buildTime = Date.now() - startTime;
     asset.generated = processed.generated;
     asset.hash = processed.hash;
