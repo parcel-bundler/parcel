@@ -57,7 +57,7 @@ class Pipeline {
         asset.name.slice(0, -inputType.length) + type
       );
       if (!(asset instanceof AssetType)) {
-        let opts = Object.assign({rendition}, asset.options);
+        let opts = Object.assign({}, asset.options, {rendition});
         let subAsset = new AssetType(asset.name, opts);
         subAsset.id = asset.id;
         subAsset.contents = value;

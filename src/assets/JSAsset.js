@@ -30,7 +30,8 @@ class JSAsset extends Asset {
     this.isES6Module = false;
     this.outputCode = null;
     this.cacheData.env = {};
-    this.sourceMap = options.rendition ? options.rendition.sourceMap : null;
+    this.rendition = options.rendition;
+    this.sourceMap = this.rendition ? this.rendition.sourceMap : null;
   }
 
   shouldInvalidate(cacheData) {
@@ -142,6 +143,9 @@ class JSAsset extends Asset {
   }
 
   async generate() {
+    let enableSourceMaps =
+      this.options.sourceMaps &&
+      (!this.rendition || !!this.rendition.sourceMap);
     let code;
     if (this.isAstDirty) {
       let opts = {
@@ -151,7 +155,7 @@ class JSAsset extends Asset {
 
       let generated = generate(this.ast, opts, this.contents);
 
-      if (this.options.sourceMaps && generated.rawMappings) {
+      if (enableSourceMaps && generated.rawMappings) {
         let rawMap = new SourceMap(generated.rawMappings, {
           [this.relativeName]: this.contents
         });
@@ -173,7 +177,7 @@ class JSAsset extends Asset {
       code = this.outputCode || this.contents;
     }
 
-    if (this.options.sourceMaps && !this.sourceMap) {
+    if (enableSourceMaps && !this.sourceMap) {
       this.sourceMap = new SourceMap().generateEmptyMap(
         this.relativeName,
         this.contents
@@ -182,7 +186,7 @@ class JSAsset extends Asset {
 
     if (this.globals.size > 0) {
       code = Array.from(this.globals.values()).join('\n') + '\n' + code;
-      if (this.options.sourceMaps) {
+      if (enableSourceMaps) {
         if (!(this.sourceMap instanceof SourceMap)) {
           this.sourceMap = await new SourceMap().addMap(this.sourceMap);
         }
