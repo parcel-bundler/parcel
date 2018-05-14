@@ -70,15 +70,15 @@ class VueAsset extends Asset {
     let supplemental = '';
 
     if (this.options.scopeHoist) {
-      let exportVar = `$${this.id}$export$default`;
+      optsVar = `$${this.id}$export$default`;
 
-      if (js.indexOf(exportVar) === -1) {
-        supplemental += `
-          var ${exportVar} = {};
-          var ${optsVar} = ${exportVar};
-        `;
-      } else {
-        optsVar = exportVar;
+      if (!js.includes(optsVar)) {
+        optsVar = `$${this.id}$exports`;
+        if (!js.includes(optsVar)) {
+          supplemental += `
+            var ${optsVar} = {};
+          `;
+        }
       }
     } else {
       supplemental += `var ${optsVar} = exports.default || module.exports;`;
