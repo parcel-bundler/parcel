@@ -35,6 +35,10 @@ parcelRequire = (function (init) {
     throw err;
   }
 
+  localRequire.register = function register(id, exports) {
+    modules[id] = exports;
+  };
+
   modules = init(localRequire);
   localRequire.modules = modules;
   return localRequire;

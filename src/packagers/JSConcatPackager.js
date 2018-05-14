@@ -25,16 +25,18 @@ class JSConcatPackager extends Packager {
   async start() {
     this.addedAssets = new Set();
     this.exposedModules = new Set();
+    this.externalModules = new Set();
     this.contents = '';
     this.lineOffset = 1;
     this.exports = new Map();
     this.needsPrelude = false;
 
     for (let asset of this.bundle.assets) {
-      // If this module is referenced by another bundle, it needs to be exposed externally.
-      let isExposed = !Array.from(asset.parentDeps).every(dep =>
-        this.bundle.assets.has(this.bundler.loadedAssets.get(dep.parent))
-      );
+      // If this module is referenced by another JS bundle, it needs to be exposed externally.
+      let isExposed = !Array.from(asset.parentDeps).every(dep => {
+        let depAsset = this.bundler.loadedAssets.get(dep.parent);
+        return this.bundle.assets.has(depAsset) || depAsset.type !== 'js';
+      });
 
       if (
         isExposed ||
@@ -47,7 +49,10 @@ class JSConcatPackager extends Packager {
       }
 
       for (let mod of asset.depAssets.values()) {
-        if (!this.bundle.assets.has(mod)) {
+        if (
+          !this.bundle.assets.has(mod) &&
+          this.options.bundleLoaders[asset.type]
+        ) {
           this.needsPrelude = true;
           break;
         }
@@ -92,18 +97,37 @@ class JSConcatPackager extends Packager {
           }
         }
 
-        await this.addBundleLoader(mod.type);
+        await this.addBundleLoader(mod.type, true);
+      } else {
+        // If the dep isn't in this bundle, add it to the list of external modules to preload.
+        // Only do this if this is the root JS bundle, otherwise they will have already been
+        // loaded in parallel with this bundle as part of a dynamic import.
+        if (
+          !this.bundle.assets.has(mod) &&
+          (!this.bundle.parentBundle || this.bundle.parentBundle.type !== 'js')
+        ) {
+          this.externalModules.add(mod);
+          await this.addBundleLoader(mod.type);
+        }
       }
+    }
+
+    if (this.bundle.entryAsset === asset && this.externalModules.size > 0) {
+      js = `
+        function $parcel$entry() {
+          ${js.trim()}
+        }
+      `;
     }
 
     js = js.trim() + '\n';
 
     this.bundle.addOffset(asset, this.lineOffset + 1);
     this.write(
-      `\n/* ASSET: ${asset.id} - ${path.relative(
+      `\n// ASSET: ${asset.id} - ${path.relative(
         this.options.rootDir,
         asset.name
-      )} */\n${js}`,
+      )}\n${js}`,
       map && map.lineCount ? map.lineCount : undefined
     );
   }
@@ -134,11 +158,16 @@ class JSConcatPackager extends Packager {
     await this.addAsset(asset);
   }
 
-  async addBundleLoader(bundleType) {
+  async addBundleLoader(bundleType, dynamic) {
+    let loader = this.options.bundleLoaders[bundleType];
+    if (!loader) {
+      return;
+    }
+
     let bundleLoader = this.bundler.loadedAssets.get(
       require.resolve('../builtins/bundle-loader')
     );
-    if (!bundleLoader) {
+    if (!bundleLoader && !dynamic) {
       bundleLoader = await this.bundler.getAsset('_bundle_loader');
     }
 
@@ -148,22 +177,45 @@ class JSConcatPackager extends Packager {
       return;
     }
 
-    let loader = this.options.bundleLoaders[bundleType];
-    if (loader) {
-      let target = this.options.target === 'node' ? 'node' : 'browser';
-      let asset = await this.bundler.getAsset(loader[target]);
-      if (!this.bundle.assets.has(asset)) {
-        await this.addAssetToBundle(asset);
-        this.write(
-          `${this.getExportIdentifier(bundleLoader)}.register(${JSON.stringify(
-            bundleType
-          )},${this.getExportIdentifier(asset)});\n`
-        );
-      }
+    let target = this.options.target === 'node' ? 'node' : 'browser';
+    let asset = await this.bundler.getAsset(loader[target]);
+    if (!this.bundle.assets.has(asset)) {
+      await this.addAssetToBundle(asset);
+      this.write(
+        `${this.getExportIdentifier(bundleLoader)}.register(${JSON.stringify(
+          bundleType
+        )},${this.getExportIdentifier(asset)});\n`
+      );
     }
   }
 
   async end() {
+    // Preload external modules before running entry point if needed
+    if (this.externalModules.size > 0) {
+      let bundleLoader = this.bundler.loadedAssets.get(
+        require.resolve('../builtins/bundle-loader')
+      );
+
+      let preload = [];
+      for (let mod of this.externalModules) {
+        // Find the bundle that has the module as its entry point
+        let bundle = Array.from(mod.bundles).find(b => b.entryAsset === mod);
+        if (bundle) {
+          preload.push([path.basename(bundle.name), mod.id]);
+        }
+      }
+
+      let loads = `${this.getExportIdentifier(
+        bundleLoader
+      )}.load(${JSON.stringify(preload)})`;
+      if (this.bundle.entryAsset) {
+        loads += '.then($parcel$entry)';
+      }
+
+      loads += ';';
+      this.write(loads);
+    }
+
     if (this.needsPrelude) {
       let exposed = [];
       let prepareModule = [];

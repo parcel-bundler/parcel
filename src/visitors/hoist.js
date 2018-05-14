@@ -169,10 +169,8 @@ module.exports = {
       path.replaceWith(t.identifier('null'));
     }
 
-    if (matchesPattern(path.node, 'module.bundle.modules')) {
-      path.replaceWith(
-        t.memberExpression(t.identifier('require'), t.identifier('modules'))
-      );
+    if (matchesPattern(path.node, 'module.bundle')) {
+      path.replaceWith(t.identifier('require'));
     }
   },
 
