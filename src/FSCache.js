@@ -9,7 +9,8 @@ const logger = require('./Logger');
 const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target'];
 
 class FSCache {
-  constructor(options) {
+  constructor(options = {}) {
+    this.options = options;
     this.dir = path.resolve(options.cacheDir || '.cache');
     this.dirExists = false;
     this.invalidated = new Set();
@@ -71,6 +72,12 @@ class FSCache {
   }
 
   async read(filename) {
+    const isWebExtensionManifest =
+      this.options.webExtension && path.basename(filename) === 'manifest.json';
+    if (isWebExtensionManifest) {
+      return null;
+    }
+
     if (this.invalidated.has(filename)) {
       return null;
     }

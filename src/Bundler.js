@@ -129,7 +129,9 @@ class Bundler extends EventEmitter {
       contentHash:
         typeof options.contentHash === 'boolean'
           ? options.contentHash
-          : isProduction
+          : isProduction,
+      webExtension:
+        typeof options.webExtension === 'boolean' ? options.webExtension : false
     };
   }
 
