@@ -46,10 +46,7 @@ class Pipeline {
 
     for (let rendition of this.iterateRenditions(asset)) {
       let {type, value} = rendition;
-      if (
-        typeof value !== 'string' ||
-        (!asset.options.scopeHoist && rendition.final)
-      ) {
+      if (typeof value !== 'string' || rendition.final) {
         generated.push(rendition);
         continue;
       }
@@ -104,7 +101,8 @@ class Pipeline {
       yield {
         type,
         value: asset.generated[type],
-        final: true
+        // for scope hoisting, we need to post process all JS
+        final: !(type === 'js' && this.options.scopeHoist)
       };
     }
   }
