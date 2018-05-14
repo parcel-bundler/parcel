@@ -343,13 +343,17 @@ module.exports = packager => {
 
           // Remove the binding and all references to it.
           binding.path.remove();
-          binding.referencePaths.forEach(({parentPath}) => {
-            if (parentPath.isMemberExpression()) {
-              if (!parentPath.parentPath.removed) {
-                parentPath.parentPath.remove();
+          binding.referencePaths
+            .concat(binding.constantViolations)
+            .forEach(path => {
+              if (path.parentPath.isMemberExpression()) {
+                if (!path.parentPath.parentPath.removed) {
+                  path.parentPath.parentPath.remove();
+                }
+              } else if (path.isAssignmentExpression()) {
+                path.remove();
               }
-            }
-          });
+            });
         });
       }
     }
@@ -365,11 +369,19 @@ module.exports = packager => {
 
 // Check if a binding is safe to remove and returns it if it is.
 function getUnusedBinding(path, name) {
+  let binding = path.scope.getBinding(name);
+
+  if (
+    binding.referencePaths.length === 0 &&
+    (binding.path.isPureish() || name.startsWith('$parcel'))
+  ) {
+    return binding;
+  }
+
   if (!EXPORTS_RE.test(name)) {
     return null;
   }
 
-  let binding = path.scope.getBinding(name);
   // Is there any references which aren't simple assignments?
   let bailout = binding.referencePaths.some(
     path => !isExportAssignment(path) && !isUnusedWildcard(path)
@@ -381,12 +393,12 @@ function getUnusedBinding(path, name) {
     return binding;
   }
 
-  function isExportAssignment({parentPath}) {
+  function isExportAssignment(path) {
     return (
       // match "path.any = any;"
-      parentPath.isMemberExpression() &&
-      parentPath.parentPath.isAssignmentExpression() &&
-      parentPath.parentPath.node.left === parentPath.node
+      path.parentPath.isMemberExpression() &&
+      path.parentPath.parentPath.isAssignmentExpression() &&
+      path.parentPath.parentPath.node.left === path.parentPath.node
     );
   }
 
