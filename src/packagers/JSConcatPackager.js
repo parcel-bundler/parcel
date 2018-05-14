@@ -63,11 +63,9 @@ class JSConcatPackager extends Packager {
       if (this.bundle.entryAsset) {
         this.exposedModules.add(this.bundle.entryAsset);
       }
-
-      this.write(prelude + '(function (require) {\n' + helpers);
-    } else {
-      this.write('(function () {\n' + helpers);
     }
+
+    this.write(helpers);
   }
 
   getExportIdentifier(asset) {
@@ -255,15 +253,18 @@ class JSConcatPackager extends Packager {
       this.write(`
         ${prepareModule.join('\n')}
         return {${exposed.join(', ')}};
-      })`);
-    } else {
-      this.write('})();');
+      `);
     }
 
-    let result = concat(this);
-    let {sourceMaps} = this.options;
-    let {code: output, rawMappings} = result;
+    let {code: output, rawMappings} = concat(this);
 
+    if (this.needsPrelude) {
+      output = prelude + '(function (require) {\n' + output + '\n});';
+    } else {
+      output = '(function () {\n' + output + '\n})();';
+    }
+
+    let {sourceMaps} = this.options;
     if (sourceMaps && rawMappings) {
       this.bundle.extendSourceMap(
         new SourceMap(rawMappings, {

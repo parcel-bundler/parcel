@@ -12,9 +12,10 @@ const DEFAULT_INTEROP_TEMPLATE = template('$parcel$interopDefault(MODULE)');
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 
 module.exports = packager => {
-  let rootPath;
   let {contents: code, exports, addedAssets} = packager;
-  let ast = babylon.parse(code);
+  let ast = babylon.parse(code, {
+    allowReturnOutsideFunction: true
+  });
   // Share $parcel$interopDefault variables between modules
   let interops = new Map();
   let assets = Array.from(addedAssets).reduce((acc, asset) => {
@@ -29,10 +30,6 @@ module.exports = packager => {
   };
 
   function replaceExportNode(id, name, path) {
-    if (!rootPath) {
-      rootPath = getOuterStatement(path);
-    }
-
     let node = find(id, id => `$${id}$export$${name}`);
 
     if (!node) {
@@ -49,7 +46,7 @@ module.exports = packager => {
       let computedSymbol = symbol(id);
 
       // if the symbol is in the scope there is not need to remap it
-      if (rootPath.scope.hasBinding(computedSymbol)) {
+      if (path.scope.getProgramParent().hasBinding(computedSymbol)) {
         return t.identifier(computedSymbol);
       }
 
@@ -260,7 +257,7 @@ module.exports = packager => {
           bundles.push(mod.id);
         }
 
-        path.replaceWith(toNode(bundles));
+        path.replaceWith(t.valueToNode(bundles));
       }
     },
     MemberExpression(path) {
@@ -282,10 +279,6 @@ module.exports = packager => {
         // Check if $id$export$name exists and if so, replace the node by it.
         if (path.scope.hasBinding(exportName)) {
           path.replaceWith(t.identifier(exportName));
-        }
-
-        if (!rootPath) {
-          rootPath = getOuterStatement(path);
         }
       }
     },
@@ -337,10 +330,6 @@ module.exports = packager => {
     Program: {
       // A small optimization to remove unused CommonJS exports as sometimes Uglify doesn't remove them.
       exit(path) {
-        if (!(path = rootPath)) {
-          return;
-        }
-
         // Recrawl to get all bindings.
         path.scope.crawl();
 
@@ -413,46 +402,5 @@ function getUnusedBinding(path, name) {
       // check if the $id$exports variable is used
       getUnusedBinding(path, parentPath.parent.id.name) !== null
     );
-  }
-}
-
-// Finds a parent statement in the bundle IIFE body.
-function getOuterStatement(path) {
-  if (validate(path)) {
-    return path;
-  }
-
-  return path.findParent(validate);
-
-  function validate(path) {
-    if (!t.isStatement(path.node) || t.isBlockStatement(path.node)) {
-      return false;
-    }
-
-    // TODO: use scope?
-    let outerBlocks = 0;
-
-    path.findParent(parent => {
-      if (t.isBlockStatement(parent.node)) {
-        outerBlocks++;
-      }
-
-      return false;
-    });
-
-    return outerBlocks === 1;
-  }
-}
-
-// Turns plain objects into AST nodes.
-function toNode(object) {
-  if (typeof object === 'string') {
-    return t.stringLiteral(object);
-  } else if (typeof object === 'number') {
-    return t.numericLiteral(object);
-  } else if (Array.isArray(object)) {
-    return t.arrayExpression(object.map(toNode));
-  } else {
-    throw new Error('Cannot serialize unsupported object type to AST');
   }
 }
