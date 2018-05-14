@@ -2502,9 +2502,9 @@ fstream@^1.0.0, fstream@^1.0.2:
     mkdirp ">=0.5 0"
     rimraf "2"
 
-fswatcher-child@^0.0.3:
-  version "0.0.3"
-  resolved "https://registry.yarnpkg.com/fswatcher-child/-/fswatcher-child-0.0.3.tgz#60d03f2781b8070ee1a1d76985e40a49aa0c38cd"
+fswatcher-child@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/fswatcher-child/-/fswatcher-child-1.0.0.tgz#8d24790182cab856861e38f08e77b11729339fa5"
   dependencies:
     chokidar "^2.0.3"
 
@@ -2675,24 +2675,38 @@ glsl-resolve@0.0.1:
     resolve "^0.6.1"
     xtend "^2.1.2"
 
+glsl-token-assignments@^2.0.0:
+  version "2.0.2"
+  resolved "https://registry.yarnpkg.com/glsl-token-assignments/-/glsl-token-assignments-2.0.2.tgz#a5d82ab78499c2e8a6b83cb69495e6e665ce019f"
+ 
 glsl-token-defines@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/glsl-token-defines/-/glsl-token-defines-1.0.0.tgz#cb892aa959936231728470d4f74032489697fa9d"
   dependencies:
     glsl-tokenizer "^2.0.0"
-
+ 
+glsl-token-depth@^1.1.0, glsl-token-depth@^1.1.1:
 glsl-token-depth@^1.1.1:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/glsl-token-depth/-/glsl-token-depth-1.1.2.tgz#23c5e30ee2bd255884b4a28bc850b8f791e95d84"
-
+ 
 glsl-token-descope@^1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/glsl-token-descope/-/glsl-token-descope-1.0.2.tgz#0fc90ab326186b82f597b2e77dc9e21efcd32076"
-
+  dependencies:
+    glsl-token-assignments "^2.0.0"
+    glsl-token-depth "^1.1.0"
+    glsl-token-properties "^1.0.0"
+    glsl-token-scope "^1.1.0"
+ 
 glsl-token-inject-block@^1.0.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/glsl-token-inject-block/-/glsl-token-inject-block-1.1.0.tgz#e1015f5980c1091824adaa2625f1dfde8bd00034"
-
+ 
+glsl-token-properties@^1.0.0:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/glsl-token-properties/-/glsl-token-properties-1.0.1.tgz#483dc3d839f0d4b5c6171d1591f249be53c28a9e"
+ 
 glsl-token-scope@^1.1.1:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/glsl-token-scope/-/glsl-token-scope-1.1.2.tgz#a1728e78df24444f9cb93fd18ef0f75503a643b1"
