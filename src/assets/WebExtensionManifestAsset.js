@@ -44,10 +44,15 @@ class WebExtensionManifestAsset extends Asset {
       return;
     }
 
-    const node = this.ast[nodeName];
-    if (node.js) {
-      node.js = this.processMultipleDependencies(node.js);
-      this.isAstDirty = true;
+    const contentScriptsNode = this.ast[nodeName];
+    if (!Array.isArray(contentScriptsNode)) {
+      return;
+    }
+    for (const script of contentScriptsNode) {
+      if (script.js) {
+        script.js = this.processMultipleDependencies(script.js);
+        this.isAstDirty = true;
+      }
     }
   }
 
