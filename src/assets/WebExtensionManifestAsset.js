@@ -53,6 +53,10 @@ class WebExtensionManifestAsset extends Asset {
         script.js = this.processMultipleDependencies(script.js);
         this.isAstDirty = true;
       }
+      if (script.css) {
+        script.css = this.processMultipleDependencies(script.css);
+        this.isAstDirty = true;
+      }
     }
   }
 
@@ -66,6 +70,22 @@ class WebExtensionManifestAsset extends Asset {
       node.default_popup = this.processSingleDependency(node.default_popup);
       this.isAstDirty = true;
     }
+    if (node.default_icon) {
+      node.default_icon = this.processSingleDependency(node.default_icon);
+      this.isAstDirty = true;
+    }
+  }
+
+  processIcons(nodeName) {
+    if (nodeName !== 'icons') {
+      return;
+    }
+
+    const iconsNode = this.ast[nodeName];
+    for (const size of Object.keys(iconsNode)) {
+      iconsNode[size] = this.processSingleDependency(iconsNode[size]);
+      this.isAstDirty = true;
+    }
   }
 
   collectDependencies() {
@@ -73,6 +93,7 @@ class WebExtensionManifestAsset extends Asset {
       this.processBackground(nodeName);
       this.processContentScripts(nodeName);
       this.processBrowserOrPageAction(nodeName);
+      this.processIcons(nodeName);
     }
   }
 
