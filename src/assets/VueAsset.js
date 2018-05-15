@@ -88,7 +88,7 @@ class VueAsset extends Asset {
     }
 
     if (supplemental) {
-      supplemental = `(function(){${supplemental}})();`;
+      supplemental = `\n(function(){${supplemental}})();`;
     }
 
     js += supplemental;
