@@ -1004,15 +1004,15 @@ describe('javascript', function() {
     const {rootDir} = b.entryAsset.options;
     const dedupedAssets = Array.from(b.offsets.keys()).map(asset => asset.name);
     assert.equal(dedupedAssets.length, 2);
-    assert(dedupedAssets.includes(`${rootDir}/index.js`));
+    assert(dedupedAssets.includes(path.join(rootDir, 'index.js')));
     assert(
-      dedupedAssets.includes(`${rootDir}/hello1.js`) ||
-        dedupedAssets.includes(`${rootDir}/hello2.js`)
+      dedupedAssets.includes(path.join(rootDir, 'hello1.js')) ||
+        dedupedAssets.includes(path.join(rootDir, 'hello2.js'))
     );
     assert(
       !(
-        dedupedAssets.includes(`${rootDir}/hello1.js`) &&
-        dedupedAssets.includes(`${rootDir}/hello2.js`)
+        dedupedAssets.includes(path.join(rootDir, 'hello1.js')) &&
+        dedupedAssets.includes(path.join(rootDir, 'hello2.js'))
       )
     );
 
