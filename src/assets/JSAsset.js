@@ -104,7 +104,7 @@ class JSAsset extends Asset {
   }
 
   async transform() {
-    if (this.options.target === 'browser') {
+    if (this.options.target === 'browser' || this.options.bundleAll) {
       if (this.dependencies.has('fs') && FS_RE.test(this.contents)) {
         // Check if we should ignore fs calls
         // See https://github.com/defunctzombie/node-browser-resolve#skip
