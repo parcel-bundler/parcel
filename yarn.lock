@@ -2502,9 +2502,9 @@ fstream@^1.0.0, fstream@^1.0.2:
     mkdirp ">=0.5 0"
     rimraf "2"
 
-fswatcher-child@^1.0.2:
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/fswatcher-child/-/fswatcher-child-1.0.2.tgz#e37dc2177ded60659cfbc0c89897b124efbc706b"
+fswatcher-child@^1.0.3:
+  version "1.0.3"
+  resolved "https://registry.yarnpkg.com/fswatcher-child/-/fswatcher-child-1.0.3.tgz#c89076126a3004909f6f68c0ea5c9d9143b237fd"
   dependencies:
     chokidar "^2.0.3"
 
