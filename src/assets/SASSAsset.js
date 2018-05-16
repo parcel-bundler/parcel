@@ -24,6 +24,19 @@ class SASSAsset extends Asset {
     let opts =
       (await this.getConfig(['.sassrc', '.sassrc.js'], {packageKey: 'sass'})) ||
       {};
+    if (this.options.sourceMaps) {
+      Object.assign(opts, {
+        sourceMap: true,
+        // outFile is required when setting sourceMap to true:
+        // https://github.com/sass/node-sass#sourcemap
+        outFile: this.basename.replace(path.extname(this.basename), '.css'),
+        sourceMapRoot: path.dirname(this.relativeName),
+        // Omit sourcemap url as this will be injected
+        // when writing to disc in the css packager
+        omitSourceMapUrl: true,
+        sourceMapContents: true
+      });
+    }
     opts.includePaths = (opts.includePaths || []).concat(
       path.dirname(this.name)
     );
@@ -64,13 +77,16 @@ class SASSAsset extends Asset {
   }
 
   generate() {
-    return [
-      {
-        type: 'css',
-        value: this.ast ? this.ast.css.toString() : '',
-        hasDependencies: false
-      }
-    ];
+    let value = this.ast ? this.ast.css.toString() : '';
+    let sourceMap = this.ast && this.ast.map;
+    if (sourceMap) {
+      sourceMap = JSON.parse(sourceMap.toString());
+    }
+
+    return {
+      css: value,
+      map: sourceMap
+    };
   }
 }
 

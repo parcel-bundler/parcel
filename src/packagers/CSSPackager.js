@@ -1,4 +1,6 @@
+const path = require('path');
 const Packager = require('./Packager');
+const urlJoin = require('../utils/urlJoin');
 
 class CSSPackager extends Packager {
   async addAsset(asset) {
@@ -23,6 +25,20 @@ class CSSPackager extends Packager {
     }
 
     await this.write(css);
+  }
+
+  async end() {
+    if (this.options.sourceMaps) {
+      let mapBundle = this.bundle.siblingBundlesMap.get('map');
+      if (mapBundle) {
+        await this.write(
+          `\n/*# sourceMappingURL=${urlJoin(
+            this.options.publicURL,
+            path.basename(mapBundle.name)
+          )}*/`
+        );
+      }
+    }
   }
 }
 
