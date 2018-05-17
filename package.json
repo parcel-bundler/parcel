@@ -57,7 +57,7 @@
     "strip-ansi": "^4.0.0",
     "toml": "^2.3.3",
     "tomlify-j0.4": "^3.0.0",
-    "uglify-es": "^3.2.1",
+    "terser": "^3.7.3",
     "v8-compile-cache": "^2.0.0",
     "ws": "^5.1.1"
   },
@@ -105,7 +105,7 @@
     "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
     "prepublish": "yarn build",
     "minify":
-      "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
+      "terser -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
     "precommit": "npm run lint && lint-staged",
     "lint": "eslint .",
     "postinstall":

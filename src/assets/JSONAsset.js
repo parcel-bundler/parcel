@@ -1,7 +1,7 @@
 const Asset = require('../Asset');
 const path = require('path');
 const json5 = require('json5');
-const {minify} = require('uglify-es');
+const {minify} = require('terser');
 
 class JSONAsset extends Asset {
   constructor(name, options) {
