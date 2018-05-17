@@ -149,6 +149,7 @@ class Asset {
   }
 
   async load() {
+    logger.verbose(`Loading ${this.basename} from the filesystem...`);
     return await fs.readFile(this.name, this.encoding);
   }
 
@@ -177,9 +178,13 @@ class Asset {
   async process() {
     if (!this.generated) {
       await this.loadIfNeeded();
+      logger.verbose(`PreTransforming ${this.basename}...`);
       await this.pretransform();
+      logger.verbose(`Getting dependencies of ${this.basename}...`);
       await this.getDependencies();
+      logger.verbose(`Transforming ${this.basename}...`);
       await this.transform();
+      logger.verbose(`Generating ${this.basename}...`);
       this.generated = await this.generate();
       this.hash = await this.generateHash();
     }
