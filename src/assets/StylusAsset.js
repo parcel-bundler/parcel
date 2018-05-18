@@ -18,7 +18,7 @@ class StylusAsset extends Asset {
       packageKey: 'stylus'
     });
     let style = stylus(code, opts);
-    let deps = await getDependencies(code, this)
+    let deps = await getDependencies(code, this);
     style.set('filename', this.name);
     style.set('include css', true);
     style.set('Evaluator', await createEvaluator(this, deps));
@@ -50,15 +50,14 @@ class StylusAsset extends Asset {
   }
 }
 
-
 async function getDependencies(code, asset) {
   const [Parser, DepsResolver] = await Promise.all(
     ['parser', 'visitor/deps-resolver'].map(dep =>
       localRequire('stylus/lib/' + dep, asset.name)
     )
-  )
+  );
 
-  let deps = new Map()
+  let deps = new Map();
   let resolver = new Resolver(
     Object.assign({}, asset.options, {
       extensions: ['.styl', '.css']
@@ -69,8 +68,8 @@ async function getDependencies(code, asset) {
     visitImport(imported) {
       let path = imported.path.first.string;
 
-      if(!deps.has(path)) {
-        deps.set(path, resolver.resolve(path, asset.name).then(m => m.path))
+      if (!deps.has(path)) {
+        deps.set(path, resolver.resolve(path, asset.name).then(m => m.path));
       }
     }
   }
@@ -78,23 +77,21 @@ async function getDependencies(code, asset) {
   let options = {
     cache: true,
     filename: asset.name
-  }
-  let parser = new Parser(code, options)
-  let ast = parser.parse()
+  };
+  let parser = new Parser(code, options);
+  let ast = parser.parse();
 
-  new ImportVisitor(ast, options).visit(ast)
+  new ImportVisitor(ast, options).visit(ast);
 
   // Return a map with all await'd paths
   return new Map(
     await Promise.all(
-      Array
-        .from(deps.entries())
-        .map(async ([path, resolved]) => [
-          path,
-          await resolved.catch(() => null)
-        ])
-      )
-  )
+      Array.from(deps.entries()).map(async ([path, resolved]) => [
+        path,
+        await resolved.catch(() => null)
+      ])
+    )
+  );
 }
 
 async function createEvaluator(asset, deps) {
@@ -111,16 +108,15 @@ async function createEvaluator(asset, deps) {
       let node = this.visit(imported.path).first;
       let path = node.string;
       if (node.name !== 'url' && path && !URL_RE.test(path)) {
-        let resolved = deps.get(path)
+        let resolved = deps.get(path);
 
         // First try resolving using the node require resolution algorithm.
         // This allows stylus files in node_modules to be resolved properly.
         // If we find something, update the AST so stylus gets the absolute path to load later.
-        if(resolved) {
-          node.string = resolved
+        if (resolved) {
+          node.string = resolved;
           asset.addDependency(node.string, {includedInParent: true});
-        }
-        else {
+        } else {
           // If we couldn't resolve, try the normal stylus resolver.
           // We just need to do this to keep track of the dependencies - stylus does the real work.
 

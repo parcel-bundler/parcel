@@ -83,7 +83,7 @@ class FSCache {
 
       let json = await fs.readFile(cacheFile);
       let data = JSON.parse(json);
-      if (!await this.checkDepMtimes(data)) {
+      if (!(await this.checkDepMtimes(data))) {
         return null;
       }
 
