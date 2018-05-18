@@ -4,7 +4,6 @@ const promisify = require('../utils/promisify');
 const path = require('path');
 const os = require('os');
 const Resolver = require('../Resolver');
-const syncPromise = require('../utils/syncPromise');
 
 class SASSAsset extends Asset {
   constructor(name, options) {
@@ -41,17 +40,12 @@ class SASSAsset extends Asset {
     });
 
     opts.importer = (url, prev, done) => {
-      let resolved;
-      try {
-        resolved = syncPromise(
-          resolver.resolve(url, prev === 'stdin' ? this.name : prev)
-        ).path;
-      } catch (e) {
-        resolved = url;
-      }
-      return done({
-        file: resolved
-      });
+      resolver
+        .resolve(url, prev === 'stdin' ? this.name : prev)
+        .then(resolved => resolved.path)
+        .catch(() => url)
+        .then(file => done({file}))
+        .catch(err => done(normalizeError(err)));
     };
 
     return await render(opts);
@@ -75,3 +69,18 @@ class SASSAsset extends Asset {
 }
 
 module.exports = SASSAsset;
+
+// Ensures an error inherits from Error
+function normalizeError(err) {
+  let message = 'Unknown error';
+
+  if (err) {
+    if (err instanceof Error) {
+      return err;
+    }
+
+    message = err.stack || err.message || err;
+  }
+
+  return new Error(message);
+}
