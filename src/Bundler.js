@@ -380,7 +380,12 @@ class Bundler extends EventEmitter {
       return;
     }
     if ((await fs.exists(path)) && (await fs.lstat(path)).isSymbolicLink()) {
-      this.watchedSymlinks.set(await fs.realpath(path), path);
+      let realPath = await fs.realpath(path);
+      if (!this.watchedSymlinks.has(path)) {
+        this.watchedSymlinks.set(realPath, new Set());
+      }
+      this.watchedSymlinks.get(realPath).add(path);
+      path = await fs.realpath(path);
     }
 
     if (!this.watchedAssets.has(path)) {
@@ -403,8 +408,13 @@ class Bundler extends EventEmitter {
       this.watchedAssets.delete(path);
       this.watcher.unwatch(path);
 
-      for (let [realPath, linkPath] of this.watchedSymlinks.entries()) {
-        if (linkPath == path) {
+      for (let [realPath, linkedPaths] of this.watchedSymlinks.entries()) {
+        for (let linkedpath of linkedPaths) {
+          if (linkedpath === path) {
+            this.watchedSymlinks.get(realPath).delete(linkedpath);
+          }
+        }
+        if (this.watchedSymlinks.get(realPath).size === 0) {
           this.watchedSymlinks.delete(realPath);
         }
       }
@@ -691,7 +701,7 @@ class Bundler extends EventEmitter {
 
   async onChange(path) {
     if (this.watchedSymlinks.has(path)) {
-      path = this.watchedSymlinks.get(path);
+      this.watchedSymlinks.get(path).forEach(symlink => this.onChange(symlink));
     }
 
     let assets = this.watchedAssets.get(path);
