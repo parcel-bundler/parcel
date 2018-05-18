@@ -375,12 +375,12 @@ class Bundler extends EventEmitter {
     return asset;
   }
 
-  watch(path, asset) {
+  async watch(path, asset) {
     if (!this.watcher) {
       return;
     }
-    if (fs.existsSync(path) && fs.lstatSync(path).isSymbolicLink()) {
-      this.watchedSymlinks.set(fs.realpathSync(path), path);
+    if ((await fs.exists(path)) && (await fs.lstat(path)).isSymbolicLink()) {
+      this.watchedSymlinks.set(await fs.realpath(path), path);
     }
 
     if (!this.watchedAssets.has(path)) {
