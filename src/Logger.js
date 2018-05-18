@@ -47,6 +47,10 @@ class Logger {
   }
 
   write(message, persistent = false) {
+    if (this.logLevel > 3) {
+      return this.verbose(message);
+    }
+
     if (!persistent) {
       this.lines += this.countLines(message);
     }
@@ -76,7 +80,7 @@ class Logger {
       this.logFile.write(message + '\n');
     }
 
-    this.write(message);
+    this._log(message);
   }
 
   log(message) {
