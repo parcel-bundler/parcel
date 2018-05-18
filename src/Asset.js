@@ -86,7 +86,7 @@ class Asset {
     }
 
     if (typeof from === 'object') {
-      opts = from;
+      opts = Object.assign({}, from);
       from = this.name;
     }
 
