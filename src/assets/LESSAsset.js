@@ -2,7 +2,6 @@ const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const promisify = require('../utils/promisify');
 const Resolver = require('../Resolver');
-const syncPromise = require('../utils/syncPromise');
 const fs = require('../utils/fs');
 const path = require('path');
 
@@ -72,21 +71,24 @@ function getFileManager(less, options) {
   });
 
   class LessFileManager extends less.FileManager {
-    async resolve(filename, currentDirectory) {
-      return (await resolver.resolve(
-        filename,
-        path.join(currentDirectory, 'index')
-      )).path;
+    supportsSync() {
+      return false;
     }
 
-    async loadFile(filename, currentDirectory) {
-      filename = await this.resolve(filename, currentDirectory);
-      let contents = await fs.readFile(filename, 'utf8');
-      return {contents, filename};
-    }
-
-    loadFileSync(filename, currentDirectory) {
-      return syncPromise(this.loadFile(filename, currentDirectory));
+    loadFile(filename, currentDirectory, options, environment, callback) {
+      resolver
+        .resolve(filename, path.join(currentDirectory, 'index'))
+        .then(resolved => resolved.path)
+        .catch(e => callback(e))
+        .then(filename => {
+          fs
+            .readFile(filename, 'utf8')
+            .then(contents => {
+              callback(null, {contents, filename});
+            })
+            .catch(e => callback(e));
+        })
+        .catch(e => callback(e));
     }
   }
 
