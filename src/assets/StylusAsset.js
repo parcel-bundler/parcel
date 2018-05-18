@@ -2,7 +2,6 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const Resolver = require('../Resolver');
-const syncPromise = require('../utils/syncPromise');
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
@@ -19,9 +18,10 @@ class StylusAsset extends Asset {
       packageKey: 'stylus'
     });
     let style = stylus(code, opts);
+    let deps = await getDependencies(code, this)
     style.set('filename', this.name);
     style.set('include css', true);
-    style.set('Evaluator', await createEvaluator(this));
+    style.set('Evaluator', await createEvaluator(this, deps));
 
     // Setup a handler for the URL function so we add dependencies for linked assets.
     style.define('url', node => {
@@ -50,18 +50,59 @@ class StylusAsset extends Asset {
   }
 }
 
-async function createEvaluator(asset) {
-  const Evaluator = await localRequire(
-    'stylus/lib/visitor/evaluator',
-    asset.name
-  );
-  const utils = await localRequire('stylus/lib/utils', asset.name);
-  const resolver = new Resolver(
+
+async function getDependencies(code, asset) {
+  const [Parser, DepsResolver] = await Promise.all(
+    ['parser', 'visitor/deps-resolver'].map(dep =>
+      localRequire('stylus/lib/' + dep, asset.name)
+    )
+  )
+
+  let deps = new Map()
+  let resolver = new Resolver(
     Object.assign({}, asset.options, {
       extensions: ['.styl', '.css']
     })
   );
 
+  class ImportVisitor extends DepsResolver {
+    visitImport(imported) {
+      let path = imported.path.first.string;
+
+      if(!deps.has(path)) {
+        deps.set(path, resolver.resolve(path, asset.name).then(m => m.path))
+      }
+    }
+  }
+
+  let options = {
+    cache: true,
+    filename: asset.name
+  }
+  let parser = new Parser(code, options)
+  let ast = parser.parse()
+
+  new ImportVisitor(ast, options).visit(ast)
+
+  // Return a map with all await'd paths
+  return new Map(
+    await Promise.all(
+      Array
+        .from(deps.entries())
+        .map(async ([path, resolved]) => [
+          path,
+          await resolved.catch(() => null)
+        ])
+      )
+  )
+}
+
+async function createEvaluator(asset, deps) {
+  const Evaluator = await localRequire(
+    'stylus/lib/visitor/evaluator',
+    asset.name
+  );
+  const utils = await localRequire('stylus/lib/utils', asset.name);
   // This is a custom stylus evaluator that extends stylus with support for the node
   // require resolution algorithm. It also adds all dependencies to the parcel asset
   // tree so the file watcher works correctly, etc.
@@ -70,15 +111,16 @@ async function createEvaluator(asset) {
       let node = this.visit(imported.path).first;
       let path = node.string;
       if (node.name !== 'url' && path && !URL_RE.test(path)) {
-        try {
-          // First try resolving using the node require resolution algorithm.
-          // This allows stylus files in node_modules to be resolved properly.
-          // If we find something, update the AST so stylus gets the absolute path to load later.
-          node.string = syncPromise(
-            resolver.resolve(path, imported.filename)
-          ).path;
+        let resolved = deps.get(path)
+
+        // First try resolving using the node require resolution algorithm.
+        // This allows stylus files in node_modules to be resolved properly.
+        // If we find something, update the AST so stylus gets the absolute path to load later.
+        if(resolved) {
+          node.string = resolved
           asset.addDependency(node.string, {includedInParent: true});
-        } catch (err) {
+        }
+        else {
           // If we couldn't resolve, try the normal stylus resolver.
           // We just need to do this to keep track of the dependencies - stylus does the real work.
 
