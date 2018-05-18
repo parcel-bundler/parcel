@@ -71,24 +71,23 @@ function getFileManager(less, options) {
   });
 
   class LessFileManager extends less.FileManager {
+    supports() {
+      return true;
+    }
+
     supportsSync() {
       return false;
     }
 
-    loadFile(filename, currentDirectory, options, environment, callback) {
-      resolver
-        .resolve(filename, path.join(currentDirectory, 'index'))
-        .then(resolved => resolved.path)
-        .catch(e => callback(e))
-        .then(filename => {
-          fs
-            .readFile(filename, 'utf8')
-            .then(contents => {
-              callback(null, {contents, filename});
-            })
-            .catch(e => callback(e));
-        })
-        .catch(e => callback(e));
+    async loadFile(filename, currentDirectory) {
+      let resolved = await resolver.resolve(
+        filename,
+        path.join(currentDirectory, 'index')
+      );
+      return {
+        contents: await fs.readFile(resolved.path, 'utf8'),
+        filename: resolved.path
+      };
     }
   }
 
