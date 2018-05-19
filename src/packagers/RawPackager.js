@@ -8,7 +8,7 @@ class RawPackager extends Packager {
   setup() {}
 
   async addAsset(asset) {
-    let contents = asset.generated[asset.type];
+    let contents = asset.generated[this.bundle.type];
     if (!contents || (contents && contents.path)) {
       contents = await fs.readFile(contents ? contents.path : asset.name);
     }
