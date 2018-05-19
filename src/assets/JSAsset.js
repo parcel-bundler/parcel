@@ -130,6 +130,41 @@ class JSAsset extends Asset {
       await this.getPackage();
 
       this.traverse(hoist);
+      this.isAstDirty = true;
+
+      // let asset = this;
+      // let plugin = function () {
+      //   return {
+      //     visitor: {
+      //       Program(path) {
+      //         // path.traverse(hoist, asset);
+      //         asset.traverse(hoist);
+      //         path.stop();
+      //       }
+      //     }
+      //   }
+      // }
+
+      if (this.contents.includes('createListView')) {
+        console.log((await this.generate()).js);
+      }
+
+      // if (this.options.minify) {
+        // await uglify(this);
+        let res = require('babel-core').transformFromAst(this.ast, this.contents, {
+          babelrc: false,
+          code: false,
+          filename: 'jhi',
+          // plugins: [plugin],
+          presets: [[require('babel-preset-minify'), {
+            // mangle: true,
+            deadcode: false
+          }]]
+        });
+
+        this.ast = res.ast;
+        this.isAstDirty = true;
+      // }
     } else {
       if (this.isES6Module) {
         await babel(this);
@@ -150,7 +185,9 @@ class JSAsset extends Asset {
     if (this.isAstDirty) {
       let opts = {
         sourceMaps: this.options.sourceMaps,
-        sourceFileName: this.relativeName
+        sourceFileName: this.relativeName,
+        minified: true,
+        comments: false
       };
 
       let generated = generate(this.ast, opts, this.contents);
@@ -174,7 +211,7 @@ class JSAsset extends Asset {
 
       code = generated.code;
     } else {
-      code = this.outputCode || this.contents;
+      code = this.outputCode != null ? this.outputCode : this.contents;
     }
 
     if (enableSourceMaps && !this.sourceMap) {

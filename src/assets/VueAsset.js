@@ -73,11 +73,13 @@ class VueAsset extends Asset {
       optsVar = `$${this.id}$export$default`;
 
       if (!js.includes(optsVar)) {
-        optsVar = `$${this.id}$exports`;
-        if (!js.includes(optsVar)) {
+        let v = `$${this.id}$exports`;
+        if (!js.includes(v)) {
           supplemental += `
             var ${optsVar} = {};
           `;
+        } else {
+          optsVar = v;
         }
       }
     } else {

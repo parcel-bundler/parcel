@@ -5,7 +5,7 @@ const t = require('babel-types');
 
 const renameVisitor = {
   ReferencedIdentifier(path, states) {
-    states.find(state => {
+    states.forEach(state => {
       if (
         path.node.name === state.oldName &&
         path.scope.bindingIdentifierEquals(
@@ -22,7 +22,7 @@ const renameVisitor = {
   'AssignmentExpression|Declaration'(path, states) {
     let ids = path.getOuterBindingIdentifiers();
 
-    states.find(state => {
+    states.forEach(state => {
       if (
         !path.scope.bindingIdentifierEquals(
           state.oldName,
@@ -128,22 +128,52 @@ class Renamer {
 }
 
 module.exports = (scope, names) => {
-  let renamers = Object.keys(names).map(oldName => {
-    let binding = scope.getBinding(oldName);
+  // let renamers = Object.keys(names).map(oldName => {
+  //   let binding = scope.getBinding(oldName);
 
-    if (!binding) {
-      throw new Error(`Cannot find variable ${oldName}`);
-    }
+  //   if (!binding) {
+  //     throw new Error(`Cannot find variable ${oldName}`);
+  //   }
+  //   let newName = names[oldName];
+
+  //   return new Renamer(binding, oldName, newName).prepare();
+  // });
+
+  // if (!renamers.length) {
+  //   return;
+  // }
+
+  // scope.traverse(scope.block, renameVisitor, renamers);
+
+  // renamers.forEach(renamer => renamer.rename(scope));
+  for (let oldName in names) {
+    let i = 0;
     let newName = names[oldName];
 
-    return new Renamer(binding, oldName, newName).prepare();
-  });
+    let binding = scope.getBinding(oldName);
+    for (let violation of binding.constantViolations) {
+      let bindingIds = violation.getBindingIdentifierPaths(true, false);
+      for (let name in bindingIds) {
+        if (name === oldName) {
+          for (let idPath of bindingIds[name]) {
+            idPath.node.name = newName;
+          }
+        }
+      }
+    }
 
-  if (!renamers.length) {
-    return;
+    for (let path of binding.referencePaths) {
+      if (newName.endsWith('createListView')) {
+        console.log(path.parent.type)
+      }
+      if (path.node.name === oldName) {
+        path.node.name = newName;
+      }
+    }
+
+    binding.identifier.name = newName;
+
+    scope.bindings[newName] = binding;
+    delete scope.bindings[oldName];
   }
-
-  scope.traverse(scope.block, renameVisitor, renamers);
-
-  renamers.forEach(renamer => renamer.rename(scope));
 };

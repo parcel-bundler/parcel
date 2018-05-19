@@ -61,7 +61,7 @@ class JSConcatPackager extends Packager {
     }
 
     if (this.needsPrelude) {
-      if (this.bundle.entryAsset) {
+      if (this.bundle.entryAsset && this.options.bundleLoaders[this.bundle.entryAsset.type]) {
         this.exposedModules.add(this.bundle.entryAsset);
       }
     }
@@ -103,7 +103,8 @@ class JSConcatPackager extends Packager {
         // loaded in parallel with this bundle as part of a dynamic import.
         if (
           !this.bundle.assets.has(mod) &&
-          (!this.bundle.parentBundle || this.bundle.parentBundle.type !== 'js')
+          (!this.bundle.parentBundle || this.bundle.parentBundle.type !== 'js') &&
+          this.options.bundleLoaders[mod.type]
         ) {
           this.externalModules.add(mod);
           await this.addBundleLoader(mod.type);
@@ -274,61 +275,109 @@ class JSConcatPackager extends Packager {
       );
     }
 
-    if (this.options.minify) {
-      let customConfig = await config.load(
-        path.join(this.options.rootDir, 'index'),
-        ['.uglifyrc']
-      );
+    // if (this.options.minify) {
+    //   let customConfig = await config.load(
+    //     path.join(this.options.rootDir, 'index'),
+    //     ['.uglifyrc']
+    //   );
 
-      let opts = {
-        warnings: true,
-        compress: {
-          passes: 3,
-          unsafe: true,
-          pure_getters: true
-        },
-        mangle: {
-          eval: true
-        }
-      };
+    //   let false_by_default = true;
+    //   let opts = {
+    //     compress: {
+    //       // arguments     : !false_by_default,
+    //       booleans      : !false_by_default,
+    //       collapse_vars : !false_by_default,
+    //       comparisons   : !false_by_default,
+    //       conditionals  : !false_by_default,
+    //       dead_code     : true,
+    //       drop_console  : false,
+    //       drop_debugger : !false_by_default,
+    //       evaluate      : !false_by_default,
+    //       expression    : false,
+    //       global_defs   : {},
+    //       hoist_funs    : false,
+    //       hoist_props   : !false_by_default,
+    //       hoist_vars    : false,
+    //       ie8           : false,
+    //       if_return     : !false_by_default,
+    //       inline        : !false_by_default,
+    //       join_vars     : !false_by_default,
+    //       keep_fargs    : true,
+    //       keep_fnames   : false,
+    //       keep_infinity : false,
+    //       loops         : !false_by_default,
+    //       negate_iife   : !false_by_default,
+    //       passes        : 1,
+    //       properties    : !false_by_default,
+    //       pure_getters  : !false_by_default && "strict",
+    //       pure_funcs    : null,
+    //       reduce_funcs  : !false_by_default,
+    //       reduce_vars   : !false_by_default,
+    //       sequences     : !false_by_default,
+    //       side_effects  : !false_by_default,
+    //       switches      : !false_by_default,
+    //       top_retain    : null,
+    //       // toplevel      : !!(options && options["top_retain"]),
+    //       typeofs       : !false_by_default,
+    //       unsafe        : false,
+    //       unsafe_comps  : false,
+    //       unsafe_Function: false,
+    //       unsafe_math   : false,
+    //       unsafe_proto  : false,
+    //       unsafe_regexp : false,
+    //       unsafe_undefined: false,
+    //       unused        : !false_by_default,
+    //       warnings      : false
+    //     },
+    //     mangle: true
+    //     // warnings: true,
+    //     // compress: {
+    //     //   passes: 3,
+    //     //   unsafe: true,
+    //     //   pure_getters: true
+    //     // },
+    //     // mangle: {
+    //     //   eval: true
+    //     // }
+    //   };
 
-      if (customConfig) {
-        Object.assign(opts, customConfig);
-      }
+    //   if (customConfig) {
+    //     Object.assign(opts, customConfig);
+    //   }
 
-      if (sourceMaps) {
-        let sourceMap = new SourceMap();
+    //   if (sourceMaps) {
+    //     let sourceMap = new SourceMap();
 
-        opts.output = {
-          source_map: {
-            add(source, gen_line, gen_col, orig_line, orig_col, name) {
-              sourceMap.addMapping({
-                source,
-                name,
-                original: {
-                  line: orig_line,
-                  column: orig_col
-                },
-                generated: {
-                  line: gen_line,
-                  column: gen_col
-                }
-              });
-            }
-          }
-        };
+    //     opts.output = {
+    //       source_map: {
+    //         add(source, gen_line, gen_col, orig_line, orig_col, name) {
+    //           sourceMap.addMapping({
+    //             source,
+    //             name,
+    //             original: {
+    //               line: orig_line,
+    //               column: orig_col
+    //             },
+    //             generated: {
+    //               line: gen_line,
+    //               column: gen_col
+    //             }
+    //           });
+    //         }
+    //       }
+    //     };
 
-        this.bundle.extendSourceMap(sourceMap);
-      }
+    //     this.bundle.extendSourceMap(sourceMap);
+    //   }
 
-      let result = minify(output, opts);
+    //   let result = minify(output, opts);
 
-      if (result.error) {
-        throw result.error;
-      }
+    //   if (result.error) {
+    //     throw result.error;
+    //   }
 
-      output = result.code;
-    }
+    //   output = result.code;
+    // }
 
     if (sourceMaps) {
       // Add source map url if a map bundle exists

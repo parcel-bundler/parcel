@@ -246,6 +246,8 @@ class Bundler extends EventEmitter {
         asset.invalidateBundle();
       }
 
+      logger.status(emoji.progress, `Producing bundles...`);
+
       // Create a root bundle to hold all of the entry assets, and add them to the tree.
       this.mainBundle = new Bundle();
       for (let asset of this.entryAssets) {
@@ -270,6 +272,8 @@ class Bundler extends EventEmitter {
       if (this.hmr && !isInitialBundle) {
         this.hmr.emitUpdate(changedAssets);
       }
+
+      logger.status(emoji.progress, `Packaging...`);
 
       // Package everything up
       this.bundleHashes = await this.mainBundle.package(
@@ -338,13 +342,13 @@ class Bundler extends EventEmitter {
   }
 
   stop() {
-    if (this.farm) {
-      this.farm.end();
-    }
+    // if (this.farm) {
+    //   this.farm.end();
+    // }
 
-    if (this.watcher) {
-      this.watcher.stop();
-    }
+    // if (this.watcher) {
+    //   this.watcher.stop();
+    // }
 
     if (this.hmr) {
       this.hmr.stop();

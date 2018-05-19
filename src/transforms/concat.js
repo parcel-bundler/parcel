@@ -13,6 +13,7 @@ const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 
 module.exports = packager => {
   let {contents: code, exports, addedAssets} = packager;
+  // console.log(code)
   let ast = babylon.parse(code, {
     allowReturnOutsideFunction: true
   });
@@ -35,6 +36,8 @@ module.exports = packager => {
     if (!node) {
       // if there is no named export then lookup for a CommonJS export
       node = find(id, id => `$${id}$exports`) || t.identifier(`$${id}$exports`);
+
+      console.trace('HIER ' + node.name + '.' + name)
 
       // if there is a CommonJS export return $id$exports.name
       return t.memberExpression(node, t.identifier(name));
@@ -80,6 +83,8 @@ module.exports = packager => {
     }
   }
 
+  console.time('concat');
+
   traverse(ast, {
     CallExpression(path) {
       let {arguments: args, callee} = path.node;
@@ -119,13 +124,15 @@ module.exports = packager => {
         }
       } else if (callee.name === '$parcel$import') {
         let [id, source, name, replace] = args;
+        
+        replace = path.get('arguments.3').evaluate();
 
         if (
           args.length !== 4 ||
           !t.isNumericLiteral(id) ||
           !t.isStringLiteral(source) ||
-          !t.isStringLiteral(name) ||
-          !t.isBooleanLiteral(replace)
+          !t.isStringLiteral(name)// ||
+          // !t.isBooleanLiteral(replace)
         ) {
           throw new Error(
             'invariant: invalid signature, expected : $parcel$import(number, string, string, boolean)'
@@ -333,38 +340,121 @@ module.exports = packager => {
         // Recrawl to get all bindings.
         path.scope.crawl();
 
-        Object.keys(path.scope.bindings).forEach(name => {
-          let binding = getUnusedBinding(path, name);
+        // Object.keys(path.scope.bindings).forEach(name => {
+        //   let binding = getUnusedBinding(path, name);
 
-          // If it is not safe to remove the binding don't touch it.
-          if (!binding) {
-            return;
+        //   // If it is not safe to remove the binding don't touch it.
+        //   if (!binding) {
+        //     return;
+        //   }
+
+        //   // Remove the binding and all references to it.
+        //   binding.path.remove();
+        //   binding.referencePaths
+        //     .concat(binding.constantViolations)
+        //     .forEach(path => {
+        //       if (path.parentPath.isMemberExpression()) {
+        //         if (!path.parentPath.parentPath.removed) {
+        //           path.parentPath.parentPath.remove();
+        //         }
+        //       } else if (path.isAssignmentExpression()) {
+        //         path.remove();
+        //       }
+        //     });
+
+        //   path.scope.removeBinding(name);
+        // });
+        return;
+
+        let Charset = require('babel-plugin-minify-mangle-names/lib/charset');
+        let charset = new Charset(false);
+        charset.sort();
+
+        let rename = require('../visitors/renamer');
+        let bindings = {};
+        let newNames = new Set;
+        let size = 0;
+
+        let binds = Object.keys(path.scope.bindings).sort((a, b) => path.scope.bindings[b].referencePaths.length - path.scope.bindings[a].referencePaths.length);
+
+        let scope = path.scope.getProgramParent();
+
+        for (let oldName of binds) {
+          let i = 0;
+          let newName;
+
+          do {
+            newName = charset.getIdentifier(i++);
+          } while (!t.isValidIdentifier(newName) || newNames.has(newName) || !canRename(scope, path.scope.bindings[oldName], newName));
+          bindings[oldName] = newName;
+          newNames.add(newName);
+
+          let binding = path.scope.getBinding(oldName);
+          for (let violation of binding.constantViolations) {
+            let bindingIds = violation.getBindingIdentifierPaths(true, false);
+            for (let name in bindingIds) {
+              if (name === oldName) {
+                for (let idPath of bindingIds[name]) {
+                  idPath.node.name = newName;
+                }
+              }
+            }
           }
 
-          // Remove the binding and all references to it.
-          binding.path.remove();
-          binding.referencePaths
-            .concat(binding.constantViolations)
-            .forEach(path => {
-              if (path.parentPath.isMemberExpression()) {
-                if (!path.parentPath.parentPath.removed) {
-                  path.parentPath.parentPath.remove();
-                }
-              } else if (path.isAssignmentExpression()) {
-                path.remove();
-              }
-            });
-        });
+          for (let path of binding.referencePaths) {
+            if (path.node.name === oldName) {
+              path.node.name = newName;
+            }
+          }
+
+          binding.identifier.name = newName;
+
+          path.scope.bindings[newName] = binding;
+          delete path.scope.bindings[oldName];
+        }
+        
+        // console.log(bindings)
+        // rename(path.scope, bindings);
       }
     }
   });
 
+  function canRename(scope, binding, newName) {
+    for (let i = 0; i < binding.referencePaths.length; i++) {
+      const ref = binding.referencePaths[i];
+      if (ref.scope.hasBinding(newName) || ref.scope.hasReference(newName)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  console.timeEnd('concat');
+
+  console.time('minify');
+  // let tmp = require('babel-core').transformFromAst(ast, code, {
+  //   babelrc: false,
+  //   code: false,
+  //   filename: 'jhi',
+  //   plugins: [/*[require('babel-plugin-minify-mangle-names'), {topLevel: true}], */require('babel-plugin-minify-dead-code-elimination')]
+  // });
+
+  // ast = tmp.ast;
+  console.timeEnd('minify');
+
   let opts = {
     sourceMaps: packager.options.sourceMaps,
-    sourceFileName: packager.bundle.name
+    sourceFileName: packager.bundle.name,
+    minified: true,
+    comments: false
   };
 
-  return generate(ast, opts, code);
+  console.time('generate');
+  let res = generate(ast, opts, code);
+  console.timeEnd('generate');
+  console.log('\n\n');
+  return res;
 };
 
 // Check if a binding is safe to remove and returns it if it is.
