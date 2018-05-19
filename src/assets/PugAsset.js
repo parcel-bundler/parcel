@@ -32,7 +32,7 @@ class PugAsset extends Asset {
       }
     }
 
-    return compiled();
+    return compiled(config.locals);
   }
 }
 
