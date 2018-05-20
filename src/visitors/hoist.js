@@ -114,21 +114,14 @@ module.exports = {
         scope.crawl();
 
         // Rename each binding in the top-level scope to something unique.
-        let has = false;
         for (let name in scope.bindings) {
           if (!name.startsWith('$' + asset.id) && !(name in bindings)) {
             let newName = '$' + asset.id + '$var$' + name;
             bindings[name] = newName;
-            if (newName.endsWith('var$createListView'))
-              has = newName;
           }
         }
 
         rename(scope, bindings);
-
-        if (has) {
-          // console.log(asset.name, scope.bindings[has])
-        }
 
         let exportsIdentifier = getExportsIdentifier(asset);
 

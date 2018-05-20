@@ -340,31 +340,33 @@ module.exports = packager => {
         // Recrawl to get all bindings.
         path.scope.crawl();
 
-        // Object.keys(path.scope.bindings).forEach(name => {
-        //   let binding = getUnusedBinding(path, name);
+        Object.keys(path.scope.bindings).forEach(name => {
+          let binding = getUnusedBinding(path, name);
 
-        //   // If it is not safe to remove the binding don't touch it.
-        //   if (!binding) {
-        //     return;
-        //   }
+          // If it is not safe to remove the binding don't touch it.
+          if (!binding) {
+            return;
+          }
 
-        //   // Remove the binding and all references to it.
-        //   binding.path.remove();
-        //   binding.referencePaths
-        //     .concat(binding.constantViolations)
-        //     .forEach(path => {
-        //       if (path.parentPath.isMemberExpression()) {
-        //         if (!path.parentPath.parentPath.removed) {
-        //           path.parentPath.parentPath.remove();
-        //         }
-        //       } else if (path.isAssignmentExpression()) {
-        //         path.remove();
-        //       }
-        //     });
+          // Remove the binding and all references to it.
+          binding.path.remove();
+          binding.referencePaths
+            .concat(binding.constantViolations)
+            .forEach(path => {
+              if (path.parentPath.isMemberExpression()) {
+                if (path.parentPath.parentPath.parentPath.isSequenceExpression() && path.parentPath.parentPath.parent.expressions.length === 1) {
+                  path.parentPath.parentPath.parentPath.remove();
+                }
+                else if (!path.parentPath.parentPath.removed) {
+                  path.parentPath.parentPath.remove();
+                }
+              } else if (path.isAssignmentExpression()) {
+                path.remove();
+              }
+            });
 
-        //   path.scope.removeBinding(name);
-        // });
-        return;
+          path.scope.removeBinding(name);
+        });
 
         let Charset = require('babel-plugin-minify-mangle-names/lib/charset');
         let charset = new Charset(false);

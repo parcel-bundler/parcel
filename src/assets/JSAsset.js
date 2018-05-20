@@ -84,6 +84,15 @@ class JSAsset extends Asset {
   }
 
   traverse(visitor) {
+    // Create a babel File object if one hasn't been created yet.
+    // This is needed so that cached NodePath objects get a `hub` object on them.
+    // Plugins like babel-minify depend on this to get the original source code string.
+    if (!this.babelFile) {
+      this.babelFile = new BabelFile(this.babelConfig || {});
+      this.babelFile.addCode(this.contents);
+      this.babelFile.addAst(this.ast);
+    }
+
     return traverse(this.ast, visitor, null, this);
   }
 

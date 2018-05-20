@@ -163,9 +163,6 @@ module.exports = (scope, names) => {
     }
 
     for (let path of binding.referencePaths) {
-      if (newName.endsWith('createListView')) {
-        console.log(path.parent.type)
-      }
       if (path.node.name === oldName) {
         path.node.name = newName;
       }
