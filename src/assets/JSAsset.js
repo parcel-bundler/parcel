@@ -146,9 +146,7 @@ class JSAsset extends Asset {
           babelrc: false,
           code: false,
           filename: 'jhi',
-          presets: [[require('babel-preset-minify'), {
-            deadcode: false
-          }]]
+          presets: [require('babel-preset-minify')]
         });
 
         this.ast = res.ast;

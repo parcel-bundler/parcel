@@ -4,6 +4,7 @@ const template = require('babel-template');
 const t = require('babel-types');
 const traverse = require('babel-traverse').default;
 const generate = require('babel-generator').default;
+const treeShake = require('../scope-hoisting/shake');
 const mangleScope = require('../scope-hoisting/mangler');
 
 const EXPORTS_RE = /^\$([\d]+)\$exports$/;
@@ -365,60 +366,16 @@ module.exports = packager => {
     Program: {
       // A small optimization to remove unused CommonJS exports as sometimes Uglify doesn't remove them.
       exit(path) {
-        // Recrawl to get all bindings.
-        path.scope.crawl();
+        treeShake(path.scope);
 
-        Object.keys(path.scope.bindings).forEach(name => {
-          let binding = getUnusedBinding(path, name);
-
-          // If it is not safe to remove the binding don't touch it.
-          if (!binding) {
-            return;
-          }
-
-          // Remove the binding and all references to it.
-          binding.path.remove();
-          binding.referencePaths
-            .concat(binding.constantViolations)
-            .forEach(path => {
-              if (path.parentPath.isMemberExpression()) {
-                if (path.parentPath.parentPath.parentPath.isSequenceExpression() && path.parentPath.parentPath.parent.expressions.length === 1) {
-                  path.parentPath.parentPath.parentPath.remove();
-                }
-                else if (!path.parentPath.parentPath.removed) {
-                  path.parentPath.parentPath.remove();
-                }
-              } else if (path.isAssignmentExpression()) {
-                path.remove();
-              }
-            });
-
-          path.scope.removeBinding(name);
-        });
-
-        if (!packager.options.minify) {
-          return;
+        if (packager.options.minify) {
+          mangleScope(path.scope);
         }
-
-        mangleScope(path.scope);
       }
     }
   });
 
   console.timeEnd('concat');
-
-  console.time('minify');
-  if (packager.options.minify) {
-    let tmp = require('babel-core').transformFromAst(ast, code, {
-      babelrc: false,
-      code: false,
-      filename: 'jhi',
-      plugins: [require('babel-plugin-minify-dead-code-elimination')]
-    });
-
-    ast = tmp.ast;
-  }
-  console.timeEnd('minify');
 
   let opts = {
     sourceMaps: packager.options.sourceMaps,
@@ -433,53 +390,3 @@ module.exports = packager => {
   console.log('\n\n');
   return res;
 };
-
-// Check if a binding is safe to remove and returns it if it is.
-function getUnusedBinding(path, name) {
-  let binding = path.scope.getBinding(name);
-
-  if (
-    binding.referencePaths.length === 0 &&
-    (binding.path.isPureish() || name.startsWith('$parcel'))
-  ) {
-    return binding;
-  }
-
-  if (!EXPORTS_RE.test(name)) {
-    return null;
-  }
-
-  // Is there any references which aren't simple assignments?
-  let bailout = binding.referencePaths.some(
-    path => !isExportAssignment(path) && !isUnusedWildcard(path)
-  );
-
-  if (bailout) {
-    return null;
-  } else {
-    return binding;
-  }
-
-  function isExportAssignment(path) {
-    return (
-      // match "path.any = any;"
-      path.parentPath.isMemberExpression() &&
-      path.parentPath.parentPath.isAssignmentExpression() &&
-      path.parentPath.parentPath.node.left === path.parentPath.node
-    );
-  }
-
-  function isUnusedWildcard(path) {
-    let {parent, parentPath} = path;
-
-    return (
-      // match "var $id$exports = $parcel$exportWildcard(any, path);"
-      t.isCallExpression(parent) &&
-      t.isIdentifier(parent.callee, {name: '$parcel$exportWildcard'}) &&
-      parent.arguments[1] === path.node &&
-      parentPath.parentPath.isVariableDeclarator() &&
-      // check if the $id$exports variable is used
-      getUnusedBinding(path, parentPath.parent.id.name) !== null
-    );
-  }
-}
