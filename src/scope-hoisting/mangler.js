@@ -1,5 +1,5 @@
 const Charset = require('babel-plugin-minify-mangle-names/lib/charset');
-const rename = require('../visitors/renamer');
+const rename = require('./renamer');
 const t = require('babel-types');
 
 /**
