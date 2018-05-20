@@ -217,9 +217,8 @@ class JSConcatPackager extends Packager {
       this.write(loads);
     }
 
-    if (this.bundle.entryAsset) {
-      let entryExports = this.getExportIdentifier(this.bundle.entryAsset);
-
+    let entryExports = this.bundle.entryAsset && this.getExportIdentifier(this.bundle.entryAsset);
+    if (entryExports && this.bundle.entryAsset.generated.js.includes(entryExports)) {
       this.write(`
         if (typeof exports === "object" && typeof module !== "undefined") {
           // CommonJS
