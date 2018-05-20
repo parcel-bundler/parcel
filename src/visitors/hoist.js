@@ -310,7 +310,7 @@ module.exports = {
         path.scope.push({id, init});
         path.scope
           .getBinding(specifier.local.name)
-          .referencePaths.forEach(path => path.replaceWith(id));
+          .referencePaths.forEach(path => path.replaceWith(t.clone(id)));
       } else if (t.isImportSpecifier(specifier)) {
         let {expression: init} = IMPORT_TEMPLATE({
           ID: t.numericLiteral(asset.id),
@@ -323,7 +323,7 @@ module.exports = {
         path.scope.push({id, init});
         path.scope
           .getBinding(specifier.local.name)
-          .referencePaths.forEach(path => path.replaceWith(id));
+          .referencePaths.forEach(path => path.replaceWith(t.clone(id)));
       } else if (t.isImportNamespaceSpecifier(specifier)) {
         path.scope.push({
           id: specifier.local,
@@ -520,7 +520,7 @@ function addExport(asset, path, local, exported) {
   path.scope
     .getBinding(local.name)
     .constantViolations.concat(path)
-    .forEach(path => path.insertAfter(assignNode));
+    .forEach(path => path.insertAfter(t.cloneDeep(assignNode)));
 
   let localName = getName(asset, 'export', local.name);
 
