@@ -10,8 +10,9 @@ const urlJoin = require('../utils/urlJoin');
 const config = require('../utils/config');
 
 const prelude = fs
-  .readFileSync(path.join(__dirname, '../builtins/prelude2.js'), 'utf8')
-  .trim();
+  .readFileSync(path.join(__dirname, '../builtins/prelude2.min.js'), 'utf8')
+  .trim()
+  .replace(/;$/, '');
 const helpers =
   fs
     .readFileSync(path.join(__dirname, '../builtins/helpers.js'), 'utf8')
@@ -260,10 +261,14 @@ class JSConcatPackager extends Packager {
 
     let {code: output, rawMappings} = concat(this);
 
+    if (!this.options.minify) {
+      output = '\n' + output + '\n';
+    }
+
     if (this.needsPrelude) {
-      output = prelude + '(function (require) {\n' + output + '\n});';
+      output = prelude + '(function (require) {' + output + '});';
     } else {
-      output = '(function () {\n' + output + '\n})();';
+      output = '(function () {' + output + '})();';
     }
 
     let {sourceMaps} = this.options;
