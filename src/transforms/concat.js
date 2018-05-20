@@ -4,6 +4,7 @@ const template = require('babel-template');
 const t = require('babel-types');
 const traverse = require('babel-traverse').default;
 const generate = require('babel-generator').default;
+const mangleScope = require('../scope-hoisting/mangler');
 
 const EXPORTS_RE = /^\$([\d]+)\$exports$/;
 const EXPORT_RE = /^\$([\d]+)\$export\$(.+)$/;
@@ -399,69 +400,10 @@ module.exports = packager => {
           return;
         }
 
-        let Charset = require('babel-plugin-minify-mangle-names/lib/charset');
-        let charset = new Charset(false);
-        charset.sort();
-
-        let rename = require('../visitors/renamer');
-        let bindings = {};
-        let newNames = new Set;
-        let size = 0;
-
-        let binds = Object.keys(path.scope.bindings).sort((a, b) => path.scope.bindings[b].referencePaths.length - path.scope.bindings[a].referencePaths.length);
-
-        let scope = path.scope.getProgramParent();
-
-        for (let oldName of binds) {
-          let i = 0;
-          let newName;
-
-          do {
-            newName = charset.getIdentifier(i++);
-          } while (!t.isValidIdentifier(newName) || newNames.has(newName) || !canRename(scope, path.scope.bindings[oldName], newName));
-          bindings[oldName] = newName;
-          newNames.add(newName);
-
-          let binding = path.scope.getBinding(oldName);
-          for (let violation of binding.constantViolations) {
-            let bindingIds = violation.getBindingIdentifierPaths(true, false);
-            for (let name in bindingIds) {
-              if (name === oldName) {
-                for (let idPath of bindingIds[name]) {
-                  idPath.node.name = newName;
-                }
-              }
-            }
-          }
-
-          for (let path of binding.referencePaths) {
-            if (path.node.name === oldName) {
-              path.node.name = newName;
-            }
-          }
-
-          binding.identifier.name = newName;
-
-          path.scope.bindings[newName] = binding;
-          delete path.scope.bindings[oldName];
-        }
-        
-        // console.log(bindings)
-        // rename(path.scope, bindings);
+        mangleScope(path.scope);
       }
     }
   });
-
-  function canRename(scope, binding, newName) {
-    for (let i = 0; i < binding.referencePaths.length; i++) {
-      const ref = binding.referencePaths[i];
-      if (ref.scope.hasBinding(newName) || ref.scope.hasReference(newName)) {
-        return false;
-      }
-    }
-
-    return true;
-  }
 
   console.timeEnd('concat');
 

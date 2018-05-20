@@ -142,14 +142,11 @@ class JSAsset extends Asset {
       this.isAstDirty = true;
 
       if (this.options.minify) {
-        // await uglify(this);
         let res = require('babel-core').transformFromAst(this.ast, this.contents, {
           babelrc: false,
           code: false,
           filename: 'jhi',
-          // plugins: [plugin],
           presets: [[require('babel-preset-minify'), {
-            // mangle: true,
             deadcode: false
           }]]
         });
@@ -162,7 +159,6 @@ class JSAsset extends Asset {
         await babel(this);
       }
 
-      // We minify in the Packager if scope hoisting is enabled
       if (this.options.minify) {
         await uglify(this);
       }
