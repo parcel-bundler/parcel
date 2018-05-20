@@ -267,25 +267,52 @@ module.exports = packager => {
         path.replaceWith(t.valueToNode(bundles));
       }
     },
-    MemberExpression(path) {
-      if (!path.isReferenced()) {
-        return;
+    VariableDeclarator: {
+      exit(path) {
+        // Replace references to declarations like `var x = require('x')`
+        // with the final export identifier instead.
+        // This allows us to potentially replace accesses to e.g. `x.foo` with
+        // a variable like `$id$export$foo` later, avoiding the exports object altogether.
+        let {id, init} = path.node;
+        if (!t.isIdentifier(init)) {
+          return;
+        }
+
+        if (EXPORTS_RE.test(init.name)) {
+          let binding = path.scope.getBinding(id.name);
+          if (!binding.constant) {
+            return;
+          }
+
+          for (let ref of binding.referencePaths) {
+            ref.replaceWith(t.identifier(init.name));
+          }
+
+          path.remove();
+        }
       }
+    },
+    MemberExpression: {
+      exit(path) {
+        if (!path.isReferenced()) {
+          return;
+        }
 
-      let {object, property} = path.node;
-      if (!t.isIdentifier(object) || !t.isIdentifier(property)) {
-        return;
-      }
+        let {object, property} = path.node;
+        if (!t.isIdentifier(object) || !t.isIdentifier(property)) {
+          return;
+        }
 
-      let match = object.name.match(EXPORTS_RE);
+        let match = object.name.match(EXPORTS_RE);
 
-      // If it's a $id$exports.name expression.
-      if (match) {
-        let exportName = '$' + match[1] + '$export$' + property.name;
+        // If it's a $id$exports.name expression.
+        if (match) {
+          let exportName = '$' + match[1] + '$export$' + property.name;
 
-        // Check if $id$export$name exists and if so, replace the node by it.
-        if (path.scope.hasBinding(exportName)) {
-          path.replaceWith(t.identifier(exportName));
+          // Check if $id$export$name exists and if so, replace the node by it.
+          if (path.scope.hasBinding(exportName)) {
+            path.replaceWith(t.identifier(exportName));
+          }
         }
       }
     },
@@ -368,6 +395,10 @@ module.exports = packager => {
           path.scope.removeBinding(name);
         });
 
+        if (!packager.options.minify) {
+          return;
+        }
+
         let Charset = require('babel-plugin-minify-mangle-names/lib/charset');
         let charset = new Charset(false);
         charset.sort();
@@ -435,21 +466,23 @@ module.exports = packager => {
   console.timeEnd('concat');
 
   console.time('minify');
-  // let tmp = require('babel-core').transformFromAst(ast, code, {
-  //   babelrc: false,
-  //   code: false,
-  //   filename: 'jhi',
-  //   plugins: [/*[require('babel-plugin-minify-mangle-names'), {topLevel: true}], */require('babel-plugin-minify-dead-code-elimination')]
-  // });
+  if (packager.options.minify) {
+    let tmp = require('babel-core').transformFromAst(ast, code, {
+      babelrc: false,
+      code: false,
+      filename: 'jhi',
+      plugins: [require('babel-plugin-minify-dead-code-elimination')]
+    });
 
-  // ast = tmp.ast;
+    ast = tmp.ast;
+  }
   console.timeEnd('minify');
 
   let opts = {
     sourceMaps: packager.options.sourceMaps,
     sourceFileName: packager.bundle.name,
-    minified: true,
-    comments: false
+    minified: packager.options.minify,
+    comments: !packager.options.minify
   };
 
   console.time('generate');

@@ -141,24 +141,7 @@ class JSAsset extends Asset {
       this.traverse(hoist);
       this.isAstDirty = true;
 
-      // let asset = this;
-      // let plugin = function () {
-      //   return {
-      //     visitor: {
-      //       Program(path) {
-      //         // path.traverse(hoist, asset);
-      //         asset.traverse(hoist);
-      //         path.stop();
-      //       }
-      //     }
-      //   }
-      // }
-
-      if (this.contents.includes('createListView')) {
-        console.log((await this.generate()).js);
-      }
-
-      // if (this.options.minify) {
+      if (this.options.minify) {
         // await uglify(this);
         let res = require('babel-core').transformFromAst(this.ast, this.contents, {
           babelrc: false,
@@ -173,7 +156,7 @@ class JSAsset extends Asset {
 
         this.ast = res.ast;
         this.isAstDirty = true;
-      // }
+      }
     } else {
       if (this.isES6Module) {
         await babel(this);
@@ -195,8 +178,8 @@ class JSAsset extends Asset {
       let opts = {
         sourceMaps: this.options.sourceMaps,
         sourceFileName: this.relativeName,
-        minified: true,
-        comments: false
+        minified: this.options.minify,
+        comments: !this.options.minify
       };
 
       let generated = generate(this.ast, opts, this.contents);

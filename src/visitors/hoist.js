@@ -218,6 +218,21 @@ module.exports = {
       path.get('left').replaceWith(getExportsIdentifier(asset));
       asset.cacheData.isCommonJS = true;
     }
+
+    // If we can statically evaluate the name of a CommonJS export, create an ES6-style export for it.
+    // This allows us to remove the CommonJS export object completely in many cases.
+    if (t.isMemberExpression(left) && t.isIdentifier(left.object, {name: 'exports'}) && 
+      ((t.isIdentifier(left.property) && !left.computed) || t.isStringLiteral(left.property))
+    ) {
+      let name = t.isIdentifier(left.property) ? left.property.name : left.property.value;
+      let identifier = getIdentifier(asset, 'export', name);
+      
+      path.insertBefore(t.variableDeclaration('var', [
+        t.variableDeclarator(identifier, path.node.right)
+      ]));
+
+      path.get('right').replaceWith(identifier);
+    }
   },
 
   UnaryExpression(path) {
