@@ -17,7 +17,7 @@ function treeShake(scope) {
 
     // Recrawl to get all bindings.
     scope.crawl();
-    for (let name in scope.bindings) {
+    Object.keys(scope.bindings).forEach(name => {
       let binding = getUnusedBinding(scope.path, name);
 
       // If it is not safe to remove the binding don't touch it.
@@ -44,7 +44,7 @@ function treeShake(scope) {
 
       scope.removeBinding(name);
       removed = true;
-    }
+    });
   } while (removed);
 }
 
