@@ -23,14 +23,18 @@ async function getConfig(asset) {
     return;
   }
 
-  if (config && config.plugins && config.plugins['posthtml-include']) {
-    config.plugins['posthtml-include'].addDependencyTo = {
-      addDependency: src => asset.addDependency(src, {includedInParent: true})
-    };
-  }
-
   config = Object.assign({}, config);
-  config.plugins = await loadPlugins(config.plugins, asset.name);
+  const plugins = config.plugins;
+  if (typeof plugins === 'object') {
+    const depConfig = {
+      addDependencyTo: {
+        addDependency: name =>
+          asset.addDependency(name, {includedInParent: true})
+      }
+    };
+    Object.keys(plugins).forEach(p => Object.assign(plugins[p], depConfig));
+  }
+  config.plugins = await loadPlugins(plugins, asset.name);
   config.skipParse = true;
   return config;
 }
