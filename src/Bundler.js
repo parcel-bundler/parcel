@@ -324,6 +324,10 @@ class Bundler extends EventEmitter {
 
     if (this.options.watch) {
       this.watcher = new Watcher();
+      // Wait for ready event for reliable testing on watcher
+      if (process.env.NODE_ENV === 'test' && !this.watcher.ready) {
+        await new Promise(resolve => this.watcher.once('ready', resolve));
+      }
       this.watcher.on('change', this.onChange.bind(this));
     }
 
