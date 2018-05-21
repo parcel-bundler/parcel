@@ -39,8 +39,6 @@ module.exports = packager => {
       // if there is no named export then lookup for a CommonJS export
       node = find(id, id => `$${id}$exports`) || t.identifier(`$${id}$exports`);
 
-      console.trace('HIER ' + node.name + '.' + name)
-
       // if there is a CommonJS export return $id$exports.name
       return t.memberExpression(node, t.identifier(name));
     }
