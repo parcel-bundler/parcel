@@ -24,6 +24,10 @@ class JSConcatPackager extends Packager {
     this.contents += string;
   }
 
+  getSize() {
+    return this.contents.length;
+  }
+
   async start() {
     this.addedAssets = new Set();
     this.exposedModules = new Set();
@@ -269,6 +273,8 @@ class JSConcatPackager extends Packager {
     } else {
       output = '(function () {' + output + '})();';
     }
+
+    this.bundle.totalSize = output.length;
 
     let {sourceMaps} = this.options;
     if (sourceMaps && rawMappings) {
