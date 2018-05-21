@@ -72,40 +72,40 @@ function getUnusedBinding(path, name) {
   } else {
     return binding;
   }
+}
 
-  function isPure(binding) {
-    if (binding.referenced) {
-      return false;
-    }
-
-    if (binding.path.isVariableDeclarator() && binding.path.get('id').isIdentifier()) {
-      let init = binding.path.get('init');
-      return init.isPure() || init.isIdentifier() || init.isThisExpression();
-    }
-
-    return binding.path.isPure();
+function isPure(binding) {
+  if (binding.referenced) {
+    return false;
   }
 
-  function isExportAssignment(path) {
-    return (
-      // match "path.any = any;"
-      path.parentPath.isMemberExpression() &&
-      path.parentPath.parentPath.isAssignmentExpression() &&
-      path.parentPath.parentPath.node.left === path.parentPath.node
-    );
+  if (binding.path.isVariableDeclarator() && binding.path.get('id').isIdentifier()) {
+    let init = binding.path.get('init');
+    return init.isPure() || init.isIdentifier() || init.isThisExpression();
   }
 
-  function isUnusedWildcard(path) {
-    let {parent, parentPath} = path;
+  return binding.path.isPure();
+}
 
-    return (
-      // match "var $id$exports = $parcel$exportWildcard(any, path);"
-      t.isCallExpression(parent) &&
-      t.isIdentifier(parent.callee, {name: '$parcel$exportWildcard'}) &&
-      parent.arguments[1] === path.node &&
-      parentPath.parentPath.isVariableDeclarator() &&
-      // check if the $id$exports variable is used
-      getUnusedBinding(path, parentPath.parent.id.name) !== null
-    );
-  }
+function isExportAssignment(path) {
+  return (
+    // match "path.any = any;"
+    path.parentPath.isMemberExpression() &&
+    path.parentPath.parentPath.isAssignmentExpression() &&
+    path.parentPath.parentPath.node.left === path.parentPath.node
+  );
+}
+
+function isUnusedWildcard(path) {
+  let {parent, parentPath} = path;
+
+  return (
+    // match "var $id$exports = $parcel$exportWildcard(any, path);"
+    t.isCallExpression(parent) &&
+    t.isIdentifier(parent.callee, {name: '$parcel$exportWildcard'}) &&
+    parent.arguments[1] === path.node &&
+    parentPath.parentPath.isVariableDeclarator() &&
+    // check if the $id$exports variable is used
+    getUnusedBinding(path, parentPath.parent.id.name) !== null
+  );
 }
