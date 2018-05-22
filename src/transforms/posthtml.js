@@ -24,7 +24,17 @@ async function getConfig(asset) {
   }
 
   config = Object.assign({}, config);
-  config.plugins = await loadPlugins(config.plugins, asset.name);
+  const plugins = config.plugins;
+  if (typeof plugins === 'object') {
+    const depConfig = {
+      addDependencyTo: {
+        addDependency: name =>
+          asset.addDependency(name, {includedInParent: true})
+      }
+    };
+    Object.keys(plugins).forEach(p => Object.assign(plugins[p], depConfig));
+  }
+  config.plugins = await loadPlugins(plugins, asset.name);
   config.skipParse = true;
   return config;
 }

@@ -102,6 +102,16 @@ describe('html', function() {
     });
   });
 
+  it('should add dependencies referenced by posthtml-include', async () => {
+    const b = await bundle(
+      __dirname + '/integration/posthtml-assets/index.html'
+    );
+    const asset = b.assets.values().next().value;
+    const other = __dirname + '/integration/posthtml-assets/other.html';
+    assert(asset.dependencies.has(other));
+    assert(asset.dependencies.get(other).includedInParent);
+  });
+
   it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
     let b = await bundle(__dirname + '/integration/html-css/index.html');
 
