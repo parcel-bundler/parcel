@@ -379,21 +379,22 @@ class Bundler extends EventEmitter {
     if (!this.watcher) {
       return;
     }
-    if ((await fs.exists(path)) && (await fs.lstat(path)).isSymbolicLink()) {
-      let realPath = await fs.realpath(path);
-      if (!this.watchedSymlinks.has(path)) {
-        this.watchedSymlinks.set(realPath, new Set());
+    
+    if (await fs.exists(path)) {
+      if ((await fs.lstat(path)).isSymbolicLink()) {
+        let realPath = await fs.realpath(path);
+        if (!this.watchedSymlinks.has(realPath)) {
+          this.watchedSymlinks.set(realPath, new Set());
+        }
+        this.watchedSymlinks.get(realPath).add(path);
+        path = realPath;
       }
-      this.watchedSymlinks.get(realPath).add(path);
-      path = await fs.realpath(path);
+      if (!this.watchedAssets.has(path)) {
+        this.watcher.watch(path);
+        this.watchedAssets.set(path, new Set());
+      }
+      this.watchedAssets.get(path).add(asset);
     }
-
-    if (!this.watchedAssets.has(path)) {
-      this.watcher.watch(path);
-      this.watchedAssets.set(path, new Set());
-    }
-
-    this.watchedAssets.get(path).add(asset);
   }
 
   unwatch(path, asset) {
@@ -701,7 +702,7 @@ class Bundler extends EventEmitter {
 
   async onChange(path) {
     if (this.watchedSymlinks.has(path)) {
-      this.watchedSymlinks.get(path).forEach(symlink => this.onChange(symlink));
+      return this.watchedSymlinks.get(path).forEach(symlink => this.onChange(symlink));
     }
 
     let assets = this.watchedAssets.get(path);
