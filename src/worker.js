@@ -5,7 +5,7 @@ const WorkerFarm = require('./workerfarm/WorkerFarm');
 
 let pipeline;
 
-function init(options, isLocal = false) {
+function init(options = {}, isLocal = false) {
   pipeline = new Pipeline(options || {});
   Object.assign(process.env, options.env || {});
   process.env.HMR_PORT = options.hmrPort;
