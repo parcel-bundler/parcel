@@ -156,11 +156,14 @@ describe('FSCache', () => {
       ]
     });
 
+    let cached = await cache.read(__filename);
+    assert(cached !== null);
+
     // delay and update dependency
     await sleep(1000);
     await fs.writeFile(filePath, 'world');
 
-    const cached = await cache.read(__filename);
+    cached = await cache.read(__filename);
     assert.equal(cached, null);
   });
 });
