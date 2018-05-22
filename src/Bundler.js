@@ -387,6 +387,7 @@ class Bundler extends EventEmitter {
       if ((await fs.lstat(path)).isSymbolicLink()) {
         path = await fs.realpath(path);
       }
+
       if (!this.watchedAssets.has(path)) {
         this.watcher.watch(path);
         this.watchedAssets.set(path, new Set());
@@ -400,10 +401,8 @@ class Bundler extends EventEmitter {
       return;
     }
 
-    if (await fs.exists(path)) {
-      if ((await fs.lstat(path)).isSymbolicLink()) {
-        path = await fs.realpath(path);
-      }
+    if ((await fs.exists(path)) && (await fs.lstat(path)).isSymbolicLink()) {
+      path = await fs.realpath(path);
     }
 
     let watched = this.watchedAssets.get(path);
