@@ -30,19 +30,29 @@ class FSCache {
     return path.join(this.dir, hash + '.json');
   }
 
-  purifyPath(filePath) {
-    if (filePath[filePath.length - 1] === '*') {
-      filePath = path.dirname(filePath);
+  async getLastModified(location) {
+    if (location[location.length - 1] === '*') {
+      location = path.dirname(location);
     }
-    return filePath;
+    let stats = await fs.stat(location);
+    let mtime = stats.mtime.getTime();
+    if (stats.isDirectory()) {
+      let files = await fs.readdir(location);
+      for (let file of files) {
+        let fileStats = await fs.stat(path.join(location, file));
+        if (fileStats.mtime > mtime) {
+          mtime = fileStats.mtime;
+        }
+      }
+    }
+    return mtime;
   }
 
   async writeDepMtimes(data) {
     // Write mtimes for each dependent file that is already compiled into this asset
     for (let dep of data.dependencies) {
       if (dep.includedInParent) {
-        let stats = await fs.stat(this.purifyPath(dep.name));
-        dep.mtime = stats.mtime.getTime();
+        dep.mtime = await this.getLastModified(dep.name);
       }
     }
   }
@@ -65,8 +75,8 @@ class FSCache {
     // If any of them changed, invalidate.
     for (let dep of data.dependencies) {
       if (dep.includedInParent) {
-        let stats = await fs.stat(this.purifyPath(dep.name));
-        if (stats.mtime > dep.mtime) {
+        let mtime = await this.getLastModified(dep.name);
+        if (mtime > dep.mtime) {
           return false;
         }
       }
