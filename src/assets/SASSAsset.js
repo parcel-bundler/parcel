@@ -38,7 +38,9 @@ class SASSAsset extends Asset {
       }
     });
 
-    opts.importer = (url, prev, done) => {
+    opts.importer = opts.importer || [];
+    opts.importer = Array.isArray(opts.importer) ? opts.importer : [opts.importer];
+    opts.importer.push((url, prev, done) => {
       let resolved;
       try {
         resolved = syncPromise(
@@ -50,7 +52,7 @@ class SASSAsset extends Asset {
       return done({
         file: resolved
       });
-    };
+    });
 
     return await render(opts);
   }
