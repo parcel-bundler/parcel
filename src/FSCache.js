@@ -40,7 +40,7 @@ class FSCache {
       let files = await fs.readdir(location);
       for (let file of files) {
         let fileStats = await fs.stat(path.join(location, file));
-        if (fileStats.mtime > mtime) {
+        if (fileStats.isFile() && fileStats.mtime > mtime) {
           mtime = fileStats.mtime;
         }
       }
