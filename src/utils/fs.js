@@ -8,6 +8,7 @@ exports.stat = promisify(fs.stat);
 exports.readdir = promisify(fs.readdir);
 exports.unlink = promisify(fs.unlink);
 exports.realpath = promisify(fs.realpath);
+exports.lstat = promisify(fs.lstat);
 
 exports.exists = function(filename) {
   return new Promise(resolve => {

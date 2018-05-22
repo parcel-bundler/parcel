@@ -249,4 +249,24 @@ describe('watcher', function() {
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
+
+  it('should rebuild if the file behind a symlink changes', async function() {
+    await ncp(
+      __dirname + '/integration/commonjs-with-symlinks',
+      __dirname + '/input'
+    );
+    b = bundler(__dirname + '/input/index.js', {watch: true});
+    let bundle = await b.bundle();
+    let output = run(bundle);
+    assert.equal(output(), 3);
+
+    fs.writeFileSync(
+      __dirname + '/input/local.js',
+      'exports.a = 5; exports.b = 5;'
+    );
+
+    bundle = await nextBundle(b);
+    output = run(bundle);
+    assert.equal(output(), 10);
+  });
 });
