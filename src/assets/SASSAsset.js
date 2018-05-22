@@ -43,9 +43,9 @@ class SASSAsset extends Asset {
     opts.importer = (url, prev, done) => {
       let resolved;
       try {
-        if (!url.match(/^(~|\.\/|\/)/)) {
+        if (!url.test(/^(~|\.\/|\/)/)) {
           url = './' + url;
-        } else if (!url.match(/^(~\/|\.\/|\/)/)) {
+        } else if (!url.test(/^(~\/|\.\/|\/)/)) {
           url = url.substring(1);
         }
         resolved = syncPromise(
