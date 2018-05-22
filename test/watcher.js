@@ -252,10 +252,10 @@ describe('watcher', function() {
 
   it('should rebuild if the file behind a symlink changes', async function() {
     await ncp(
-      __dirname + '/integration/commonjs-with-symlinks',
+      __dirname + '/integration/commonjs-with-symlinks/',
       __dirname + '/input'
     );
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    b = bundler(__dirname + '/input/src/index.js', {watch: true});
     let bundle = await b.bundle();
     let output = run(bundle);
     assert.equal(output(), 3);

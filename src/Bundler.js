@@ -56,7 +56,6 @@ class Bundler extends EventEmitter {
     this.pending = false;
     this.loadedAssets = new Map();
     this.watchedAssets = new Map();
-    this.watchedSymlinks = new Map();
 
     this.farm = null;
     this.watcher = null;
@@ -383,15 +382,10 @@ class Bundler extends EventEmitter {
     if (!this.watcher) {
       return;
     }
-    
+
     if (await fs.exists(path)) {
       if ((await fs.lstat(path)).isSymbolicLink()) {
-        let realPath = await fs.realpath(path);
-        if (!this.watchedSymlinks.has(realPath)) {
-          this.watchedSymlinks.set(realPath, new Set());
-        }
-        this.watchedSymlinks.get(realPath).add(path);
-        path = realPath;
+        path = await fs.realpath(path);
       }
       if (!this.watchedAssets.has(path)) {
         this.watcher.watch(path);
@@ -401,9 +395,15 @@ class Bundler extends EventEmitter {
     }
   }
 
-  unwatch(path, asset) {
+  async unwatch(path, asset) {
     if (!this.watchedAssets.has(path)) {
       return;
+    }
+
+    if (await fs.exists(path)) {
+      if ((await fs.lstat(path)).isSymbolicLink()) {
+        path = await fs.realpath(path);
+      }
     }
 
     let watched = this.watchedAssets.get(path);
@@ -412,17 +412,6 @@ class Bundler extends EventEmitter {
     if (watched.size === 0) {
       this.watchedAssets.delete(path);
       this.watcher.unwatch(path);
-
-      for (let [realPath, linkedPaths] of this.watchedSymlinks.entries()) {
-        for (let linkedpath of linkedPaths) {
-          if (linkedpath === path) {
-            this.watchedSymlinks.get(realPath).delete(linkedpath);
-          }
-        }
-        if (this.watchedSymlinks.get(realPath).size === 0) {
-          this.watchedSymlinks.delete(realPath);
-        }
-      }
     }
   }
 
@@ -706,10 +695,6 @@ class Bundler extends EventEmitter {
   }
 
   async onChange(path) {
-    if (this.watchedSymlinks.has(path)) {
-      return this.watchedSymlinks.get(path).forEach(symlink => this.onChange(symlink));
-    }
-
     let assets = this.watchedAssets.get(path);
     if (!assets || !assets.size) {
       return;
