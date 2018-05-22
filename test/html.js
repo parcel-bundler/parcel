@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
-const {bundle, assertBundleTree} = require('./utils');
+const {bundle, assertBundleTree, bundler} = require('./utils');
 
 describe('html', function() {
   it('should support bundling HTML', async function() {
@@ -80,6 +80,29 @@ describe('html', function() {
 
     let html = fs.readFileSync(__dirname + '/dist/index.html');
     assert(html.includes('<h1>Other page</h1>'));
+  });
+
+  it('should watch resource with posthtml-include', async function() {
+    let b = bundler(__dirname + '/integration/posthtml-include/index.html', {
+      watch: true
+    });
+
+    await b.bundle();
+
+    fs.writeFileSync(
+      __dirname + '/integration/posthtml-include/other.html',
+      '<div>Changed content</div>'
+    );
+
+    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    assert(html.includes('<div>Changed content</div>'));
+
+    fs.writeFileSync(
+      __dirname + '/integration/posthtml-include/other.html',
+      '<h1>Other page</h1>'
+    );
+
+    b.stop();
   });
 
   it('should find assets inside posthtml', async function() {
