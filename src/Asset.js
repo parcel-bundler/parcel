@@ -91,8 +91,8 @@ class Asset {
     }
 
     const parsed = URL.parse(url);
-    let depName = null;
-    let resolved = null;
+    let depName;
+    let resolved;
     let dir = path.dirname(from);
     const filename = decodeURIComponent(parsed.pathname);
 
