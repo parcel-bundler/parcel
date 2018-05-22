@@ -67,9 +67,7 @@ class FSCache {
       await fs.writeFile(this.getCacheFile(filename), JSON.stringify(data));
       this.invalidated.delete(filename);
     } catch (err) {
-      if (process.env.NODE_ENV !== 'test') {
-        logger.error(`Error writing to cache: ${err.message}`);
-      }
+      logger.error(`Error writing to cache: ${err.message}`);
     }
   }
 
