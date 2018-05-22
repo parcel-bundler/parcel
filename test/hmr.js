@@ -54,6 +54,10 @@ describe('hmr', function() {
 
     const buildEnd = nextEvent(b, 'buildEnd');
 
+    if (process.platform === 'win32') {
+      await sleep(100);
+    }
+
     fs.writeFileSync(
       __dirname + '/input/local.js',
       'exports.a = 5;\nexports.b = 5;'
@@ -99,6 +103,10 @@ describe('hmr', function() {
 
     const buildEnd = nextEvent(b, 'buildEnd');
 
+    if (process.platform === 'win32') {
+      await sleep(100);
+    }
+
     fs.writeFileSync(
       __dirname + '/input/local.js',
       'exports.a = 5; exports.b = 5;'
@@ -123,6 +131,10 @@ describe('hmr', function() {
 
     const buildEnd = nextEvent(b, 'buildEnd');
 
+    if (process.platform === 'win32') {
+      await sleep(100);
+    }
+
     fs.writeFileSync(
       __dirname + '/input/local.js',
       'require("fs"); exports.a = 5; exports.b = 5;'
@@ -144,6 +156,10 @@ describe('hmr', function() {
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
     const buildEnd = nextEvent(b, 'buildEnd');
+
+    if (process.platform === 'win32') {
+      await sleep(100);
+    }
 
     fs.writeFileSync(
       __dirname + '/input/local.js',
@@ -173,6 +189,10 @@ describe('hmr', function() {
     b = bundler(__dirname + '/input/index.js', {watch: true, hmr: true});
     await b.bundle();
 
+    if (process.platform === 'win32') {
+      await sleep(100);
+    }
+
     fs.writeFileSync(
       __dirname + '/input/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
@@ -194,6 +214,10 @@ describe('hmr', function() {
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
     const firstBuildEnd = nextEvent(b, 'buildEnd');
+
+    if (process.platform === 'win32') {
+      await sleep(100);
+    }
 
     fs.writeFileSync(
       __dirname + '/input/local.js',
@@ -233,6 +257,10 @@ describe('hmr', function() {
 
     assert.deepEqual(outputs, [3]);
 
+    if (process.platform === 'win32') {
+      await sleep(100);
+    }
+
     fs.writeFileSync(
       __dirname + '/input/local.js',
       'exports.a = 5; exports.b = 5;'
@@ -260,6 +288,10 @@ describe('hmr', function() {
     });
 
     assert.deepEqual(outputs, [3]);
+
+    if (process.platform === 'win32') {
+      await sleep(100);
+    }
 
     fs.writeFileSync(
       __dirname + '/input/local.js',
@@ -292,6 +324,10 @@ describe('hmr', function() {
     await sleep(50);
     assert.deepEqual(outputs, [3]);
 
+    if (process.platform === 'win32') {
+      await sleep(100);
+    }
+
     fs.writeFileSync(
       __dirname + '/input/local.js',
       'exports.a = 5; exports.b = 5;'
@@ -323,6 +359,10 @@ describe('hmr', function() {
     );
 
     let spy = sinon.spy(ctx.document.body, 'appendChild');
+
+    if (process.platform === 'win32') {
+      await sleep(100);
+    }
 
     fs.writeFileSync(
       __dirname + '/input/local.js',
@@ -361,6 +401,10 @@ describe('hmr', function() {
 
     let appendSpy = sinon.spy(ctx.document.body, 'appendChild');
     let removeSpy = sinon.spy(ctx.document.getElementById('tmp'), 'remove');
+
+    if (process.platform === 'win32') {
+      await sleep(100);
+    }
 
     fs.writeFileSync(
       __dirname + '/input/local.js',
@@ -401,6 +445,10 @@ describe('hmr', function() {
 
     const buildEnd = nextEvent(b, 'buildEnd');
 
+    if (process.platform === 'win32') {
+      await sleep(100);
+    }
+
     fs.writeFileSync(
       __dirname + '/input/local.js',
       'exports.a = 5;\nexports.b = 5;'
@@ -433,6 +481,10 @@ describe('hmr', function() {
     });
 
     const buildEnd = nextEvent(b, 'buildEnd');
+
+    if (process.platform === 'win32') {
+      await sleep(100);
+    }
 
     fs.writeFileSync(
       __dirname + '/input/local.js',

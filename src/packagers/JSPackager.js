@@ -119,7 +119,7 @@ class JSPackager extends Packager {
 
     // Add all dependencies as well
     for (let child of asset.depAssets.values()) {
-      await this.addAssetToBundle(child, this.bundle);
+      await this.addAssetToBundle(child);
     }
 
     await this.addAsset(asset);
