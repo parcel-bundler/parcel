@@ -18,16 +18,20 @@ class StylusAsset extends Asset {
       packageKey: 'stylus'
     });
     let style = stylus(code, opts);
-    let deps = await getDependencies(code, this);
     style.set('filename', this.name);
     style.set('include css', true);
-    style.set('Evaluator', await createEvaluator(this, deps));
-
     // Setup a handler for the URL function so we add dependencies for linked assets.
     style.define('url', node => {
       let filename = this.addURLDependency(node.val, node.filename);
       return new stylus.nodes.Literal(`url(${JSON.stringify(filename)})`);
     });
+    style.set(
+      'Evaluator',
+      await createEvaluator(
+        this,
+        await getDependencies(code, this, style.options)
+      )
+    );
 
     return style;
   }
@@ -50,20 +54,14 @@ class StylusAsset extends Asset {
   }
 }
 
-async function getDependencies(code, asset) {
-  const [Parser, DepsResolver] = await Promise.all(
-    ['parser', 'visitor/deps-resolver'].map(dep =>
+async function getDependencies(code, asset, options) {
+  const [Parser, DepsResolver, nodes] = await Promise.all(
+    ['parser', 'visitor/deps-resolver', 'nodes'].map(dep =>
       localRequire('stylus/lib/' + dep, asset.name)
     )
   );
 
-  let deps = new Map();
-  let resolver = new Resolver(
-    Object.assign({}, asset.options, {
-      extensions: ['.styl', '.css']
-    })
-  );
-
+  nodes.filename = asset.name;
   class ImportVisitor extends DepsResolver {
     visitImport(imported) {
       let path = imported.path.first.string;
@@ -74,12 +72,14 @@ async function getDependencies(code, asset) {
     }
   }
 
-  let options = {
-    cache: true,
-    filename: asset.name
-  };
   let parser = new Parser(code, options);
   let ast = parser.parse();
+  let deps = new Map();
+  let resolver = new Resolver(
+    Object.assign({}, asset.options, {
+      extensions: ['.styl', '.css']
+    })
+  );
 
   new ImportVisitor(ast, options).visit(ast);
 
