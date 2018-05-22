@@ -383,17 +383,13 @@ class Bundler extends EventEmitter {
       return;
     }
 
-    if (await fs.exists(path)) {
-      if ((await fs.lstat(path)).isSymbolicLink()) {
-        path = await fs.realpath(path);
-      }
+    path = await fs.realpath(path);
 
-      if (!this.watchedAssets.has(path)) {
-        this.watcher.watch(path);
-        this.watchedAssets.set(path, new Set());
-      }
-      this.watchedAssets.get(path).add(asset);
+    if (!this.watchedAssets.has(path)) {
+      this.watcher.watch(path);
+      this.watchedAssets.set(path, new Set());
     }
+    this.watchedAssets.get(path).add(asset);
   }
 
   async unwatch(path, asset) {
@@ -401,9 +397,7 @@ class Bundler extends EventEmitter {
       return;
     }
 
-    if ((await fs.exists(path)) && (await fs.lstat(path)).isSymbolicLink()) {
-      path = await fs.realpath(path);
-    }
+    path = await fs.realpath(path);
 
     let watched = this.watchedAssets.get(path);
     watched.delete(asset);
