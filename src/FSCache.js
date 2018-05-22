@@ -30,7 +30,7 @@ class FSCache {
     let hash = md5(this.optionsHash + filename);
     return path.join(this.dir, hash + '.json');
   }
-
+  
   async getLastModified(filename) {
     let mtime = 0;
     if (isGlob(filename)) {
@@ -67,7 +67,9 @@ class FSCache {
       await fs.writeFile(this.getCacheFile(filename), JSON.stringify(data));
       this.invalidated.delete(filename);
     } catch (err) {
-      logger.error(`Error writing to cache: ${err.message}`);
+      if (process.env.NODE_ENV !== 'test') {
+        logger.error(`Error writing to cache: ${err.message}`);
+      }
     }
   }
 
