@@ -43,6 +43,11 @@ class SASSAsset extends Asset {
     opts.importer.push((url, prev, done) => {
       let resolved;
       try {
+        if (!/^(~|\.\/|\/)/.test(url)) {
+          url = './' + url;
+        } else if (!/^(~\/|\.\/|\/)/.test(url)) {
+          url = url.substring(1);
+        }
         resolved = syncPromise(
           resolver.resolve(url, prev === 'stdin' ? this.name : prev)
         ).path;
