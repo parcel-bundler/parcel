@@ -25,13 +25,7 @@ class StylusAsset extends Asset {
       let filename = this.addURLDependency(node.val, node.filename);
       return new stylus.nodes.Literal(`url(${JSON.stringify(filename)})`);
     });
-    style.set(
-      'Evaluator',
-      await createEvaluator(
-        this,
-        await getDependencies(code, this, style.options)
-      )
-    );
+    style.set('Evaluator', await createEvaluator(code, this, style.options));
 
     return style;
   }
@@ -94,7 +88,8 @@ async function getDependencies(code, asset, options) {
   );
 }
 
-async function createEvaluator(asset, deps) {
+async function createEvaluator(code, asset, options) {
+  const deps = await getDependencies(code, asset, options);
   const Evaluator = await localRequire(
     'stylus/lib/visitor/evaluator',
     asset.name
