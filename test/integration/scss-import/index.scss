@@ -1,5 +1,7 @@
-@import 'base';
+@import 'foo';
+@import './bar.scss';
 
 .index {
-  color: $base;
+  color: $foo;
+  background-color: $bar;
 }
