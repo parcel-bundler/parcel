@@ -39,7 +39,7 @@ class SASSAsset extends Asset {
     });
 
     opts.importer = opts.importer || [];
-    opts.importer = Array.isArray(opts.importer) ? [].concat(opts.importer) : [opts.importer];
+    opts.importer = Array.isArray(opts.importer) ? opts.importer : [opts.importer];
     opts.importer.push((url, prev, done) => {
       let resolved;
       try {
