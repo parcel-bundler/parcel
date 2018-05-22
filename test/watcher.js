@@ -239,6 +239,9 @@ describe('watcher', function() {
       fs.readFileSync(__dirname + '/input/.babelrc', 'utf8')
     );
     babelrc.presets[0][1].targets.browsers.push('IE >= 11');
+
+    await sleep(100);
+
     fs.writeFileSync(__dirname + '/input/.babelrc', JSON.stringify(babelrc));
 
     await nextBundle(b);

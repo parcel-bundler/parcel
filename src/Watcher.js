@@ -1,4 +1,4 @@
-const {FSWatcher} = require('chokidar');
+const FSWatcher = require('fswatcher-child');
 const Path = require('path');
 
 /**
@@ -13,20 +13,12 @@ class Watcher {
     this.watcher = new FSWatcher({
       useFsEvents: this.shouldWatchDirs,
       ignoreInitial: true,
+      ignorePermissionErrors: true,
       ignored: /\.cache|\.git/
     });
 
     this.watchedDirectories = new Map();
-
-    // Only close the watcher after the ready event is emitted
-    this.ready = false;
     this.stopped = false;
-    this.watcher.once('ready', () => {
-      this.ready = true;
-      if (this.stopped) {
-        this.watcher.close();
-      }
-    });
   }
 
   /**
@@ -125,13 +117,18 @@ class Watcher {
   }
 
   /**
+   * Add an event handler
+   */
+  once(event, callback) {
+    this.watcher.once(event, callback);
+  }
+
+  /**
    * Stop watching all paths
    */
   stop() {
     this.stopped = true;
-    if (this.ready) {
-      this.watcher.close();
-    }
+    this.watcher.close();
   }
 }
 
