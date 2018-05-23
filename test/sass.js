@@ -79,7 +79,8 @@ describe('sass', function() {
 
     let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('.index'));
-    assert(css.includes('.base'));
+    assert(css.includes('.foo'));
+    assert(css.includes('.bar'));
   });
 
   it('should support requiring empty scss files', async function() {
@@ -183,7 +184,10 @@ describe('sass', function() {
       assets: ['index.sass']
     });
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
-    assert(css.includes('color: blue;'));
+    let css = fs
+      .readFileSync(__dirname + '/dist/index.css', 'utf8')
+      .replace(/\s+/g, ' ');
+    assert(css.includes('.foo { color: blue;'));
+    assert(css.includes('.bar { color: green;'));
   });
 });

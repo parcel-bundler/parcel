@@ -36,15 +36,17 @@ class SASSAsset extends Asset {
         return new sass.types.String(`url(${JSON.stringify(filename)})`);
       }
     });
-
-    opts.importer = (url, prev, done) => {
+    
+    opts.importer = opts.importer || [];
+    opts.importer = Array.isArray(opts.importer) ? opts.importer : [opts.importer];
+    opts.importer.push((url, prev, done) => {
       resolver
         .resolve(url, prev === 'stdin' ? this.name : prev)
         .then(resolved => resolved.path)
         .catch(() => url)
         .then(file => done({file}))
         .catch(err => done(normalizeError(err)));
-    };
+    });
 
     return await render(opts);
   }
