@@ -38,12 +38,9 @@ class FSCache {
         strict: true,
         nodir: true
       });
-      for (let file of files) {
-        let fileStats = await fs.stat(file);
-        if (fileStats.mtime > mtime) {
-          mtime = fileStats.mtime.getTime();
-        }
-      }
+      mtime = (await Promise.all(
+        files.map(file => fs.stat(file).then(({mtime}) => mtime.getTime()))
+      )).reduce((a, b) => Math.max(a, b), 0);
     } else {
       let stats = await fs.stat(filename);
       mtime = stats.mtime.getTime();
