@@ -10,10 +10,11 @@ const childModule =
 let WORKER_ID = 0;
 
 class Worker extends EventEmitter {
-  constructor(forkModule, options) {
+  constructor(options, workerOptions) {
     super();
 
     this.options = options;
+    this.workerOptions = workerOptions;
     this.id = WORKER_ID++;
 
     this.sendQueue = [];
@@ -24,10 +25,10 @@ class Worker extends EventEmitter {
     this.callId = 0;
     this.stopped = false;
 
-    this.fork(forkModule);
+    this.fork();
   }
 
-  fork(forkModule) {
+  fork() {
     let filteredArgs = process.execArgv.filter(
       v => !/^--(debug|inspect)/.test(v)
     );
@@ -39,11 +40,6 @@ class Worker extends EventEmitter {
     };
 
     this.child = childProcess.fork(childModule, process.argv, options);
-    this.send({
-      type: 'module',
-      module: forkModule,
-      child: this.id
-    });
 
     this.child.on('message', this.receive.bind(this));
 
@@ -55,6 +51,10 @@ class Worker extends EventEmitter {
     this.child.on('error', err => {
       this.emit('error', err);
     });
+
+    if (this.workerOptions) {
+      this.init();
+    }
   }
 
   send(data) {
@@ -92,7 +92,8 @@ class Worker extends EventEmitter {
       idx: idx,
       child: this.id,
       method: call.method,
-      args: call.args
+      args: call.args,
+      location: call.location
     });
   }
 
@@ -124,6 +125,19 @@ class Worker extends EventEmitter {
       this.calls.delete(idx);
       this.emit('response', data);
     }
+  }
+
+  setWorkerOptions(workerOptions) {
+    this.workerOptions = workerOptions;
+    this.init();
+  }
+
+  init() {
+    this.send({
+      type: 'init',
+      child: this.id,
+      options: this.workerOptions
+    });
   }
 
   stop() {

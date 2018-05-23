@@ -13,8 +13,7 @@ class WorkerFarm extends EventEmitter {
         maxConcurrentCallsPerWorker: 10,
         forcedKillTime: 100,
         warmWorkers: true,
-        useLocalWorker: true,
-        workerPath: '../worker'
+        useLocalWorker: true
       },
       farmOptions
     );
@@ -24,18 +23,15 @@ class WorkerFarm extends EventEmitter {
     this.children = new Map();
     this.callQueue = [];
 
-    this.localWorker = require(this.options.workerPath);
-    this.run = this.mkhandle('run');
-
     this.init(options);
   }
 
-  warmupWorker(method, args) {
+  warmupWorker(location, method, args) {
     // Workers have started, but are not warmed up yet.
     // Send the job to a remote worker in the background,
     // but use the result from the local worker - it will be faster.
     if (this.started) {
-      let promise = this.addCall(method, [...args, true]);
+      let promise = this.addCall(location, method, [...args, true]);
       if (promise) {
         promise
           .then(() => {
@@ -49,19 +45,19 @@ class WorkerFarm extends EventEmitter {
     }
   }
 
-  mkhandle(method) {
+  mkhandle(location, method) {
     return function(...args) {
       // Child process workers are slow to start (~600ms).
       // While we're waiting, just run on the main thread.
       // This significantly speeds up startup time.
       if (this.shouldUseRemoteWorkers()) {
-        return this.addCall(method, [...args, false]);
+        return this.addCall(location, method, [...args, false]);
       } else {
         if (this.options.warmWorkers) {
-          this.warmupWorker(method, args);
+          this.warmupWorker(location, method, args);
         }
 
-        return this.localWorker[method](...args, false);
+        return require(location)[method](...args, false);
       }
     }.bind(this);
   }
@@ -93,7 +89,7 @@ class WorkerFarm extends EventEmitter {
   }
 
   startChild() {
-    let worker = new Worker(this.options.workerPath, this.options);
+    let worker = new Worker(this.options, this.workerOptions);
 
     worker.on('request', data => {
       this.processRequest(data, worker);
@@ -180,11 +176,12 @@ class WorkerFarm extends EventEmitter {
     }
   }
 
-  addCall(method, args) {
+  addCall(location, method, args) {
     if (this.ending) return; // don't add anything new to the queue
 
     return new Promise((resolve, reject) => {
       this.callQueue.push({
+        location,
         method,
         args: args,
         retries: 0,
@@ -205,13 +202,13 @@ class WorkerFarm extends EventEmitter {
   }
 
   init(options) {
-    this.localWorker.init(options, true);
+    this.workerOptions = options;
+    require('../worker').init(options, true);
     this.initRemoteWorkers(options);
   }
 
-  async initRemoteWorkers(options) {
+  initRemoteWorkers(options) {
     this.started = false;
-    this.warmWorkers = 0;
 
     // Start workers if there isn't enough workers already
     for (
@@ -223,22 +220,10 @@ class WorkerFarm extends EventEmitter {
     }
 
     // Reliable way of initialising workers
-    let promises = [];
     for (let child of this.children.values()) {
-      promises.push(
-        new Promise((resolve, reject) => {
-          child.call({
-            method: 'init',
-            args: [options],
-            retries: 0,
-            resolve,
-            reject
-          });
-        })
-      );
+      child.setWorkerOptions(options);
     }
 
-    await Promise.all(promises);
     if (this.options.maxConcurrentWorkers > 0) {
       this.started = true;
       this.emit('started');

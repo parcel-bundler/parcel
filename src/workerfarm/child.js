@@ -2,13 +2,13 @@ const errorUtils = require('./errorUtils');
 
 class Child {
   constructor() {
-    this.module = undefined;
     this.childId = undefined;
 
     this.callQueue = [];
     this.responseQueue = new Map();
     this.responseId = 0;
     this.maxConcurrentCalls = 10;
+    this.options = {};
   }
 
   messageListener(data) {
@@ -16,20 +16,16 @@ class Child {
       return this.end();
     }
 
-    if (data.type === 'module' && data.module && !this.module) {
-      this.module = require(data.module);
-      this.childId = data.child;
-      if (this.module.setChildReference) {
-        this.module.setChildReference(this);
-      }
-      return;
-    }
-
     let type = data.type;
-    if (type === 'response') {
-      return this.handleResponse(data);
-    } else if (type === 'request') {
-      return this.handleRequest(data);
+    switch (type) {
+      case 'init':
+        this.options = data.options;
+        this.childId = data.child;
+        return;
+      case 'response':
+        return this.handleResponse(data);
+      case 'request':
+        return this.handleRequest(data);
     }
   }
 
@@ -50,11 +46,19 @@ class Child {
     let child = data.child;
     let method = data.method;
     let args = data.args;
+    let location = data.location;
 
     let result = {idx, child, type: 'response'};
     try {
       result.contentType = 'data';
-      result.content = await this.module[method](...args);
+      let worker = require(location);
+      if (worker.setChildReference) {
+        worker.setChildReference(this);
+      }
+      if (worker.init) {
+        worker.init(this.options);
+      }
+      result.content = await worker[method](...args);
     } catch (e) {
       result.contentType = 'error';
       result.content = errorUtils.errorToJson(e);

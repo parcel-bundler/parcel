@@ -337,6 +337,7 @@ class Bundler extends EventEmitter {
     }
 
     this.farm = WorkerFarm.getShared(this.options);
+    this.farm.run = this.farm.mkhandle(require.resolve('./worker'), 'run');
   }
 
   stop() {
