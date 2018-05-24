@@ -55,6 +55,10 @@ program
     '-A, --bundle-all',
     'for node or electron targets, bundle all dependencies into standalone output'
   )
+  .option(
+    '-i, --ignore <modules>',
+    'comma-separated list of modules to ignore. useful for ignoring conditional requires such as "lib-cov"'
+  )
   .option('-V, --version', 'output the version number')
   .option(
     '--log-level <level>',
@@ -102,6 +106,10 @@ program
     'for node or electron targets, bundle all dependencies into standalone output'
   )
   .option(
+    '-i, --ignore <modules>',
+    'comma-separated list of modules to ignore. useful for ignoring conditional requires such as "lib-cov"'
+  )
+  .option(
     '--log-level <level>',
     'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
     /^([0-3])$/
@@ -135,6 +143,10 @@ program
   .option(
     '-A, --bundle-all',
     'for node or electron targets, bundle all dependencies into standalone output'
+  )
+  .option(
+    '-i, --ignore <modules>',
+    'comma-separated list of modules to ignore. useful for ignoring conditional requires such as "lib-cov"'
   )
   .option(
     '--detailed-report',

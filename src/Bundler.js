@@ -105,6 +105,7 @@ class Bundler extends EventEmitter {
         typeof options.minify === 'boolean' ? options.minify : isProduction,
       target: target,
       bundleAll: options.bundleAll || false,
+      ignore: options.ignore ? new Set(options.ignore.split(',')) : new Set(),
       hmr:
         target === 'node'
           ? false
@@ -399,6 +400,11 @@ class Bundler extends EventEmitter {
 
   async resolveDep(asset, dep, install = true) {
     try {
+      // Check for ignored modules
+      if (this.options.ignore.has(dep.name)) {
+        return;
+      }
+
       return await this.resolveAsset(dep.name, asset.name);
     } catch (err) {
       // If the dep is optional, return before we throw
