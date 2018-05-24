@@ -69,8 +69,7 @@ class FSCache {
     // If any of them changed, invalidate.
     for (let dep of data.dependencies) {
       if (dep.includedInParent) {
-        let mtime = await this.getLastModified(dep.name);
-        if (mtime > dep.mtime) {
+        if ((await this.getLastModified(dep.name)) > dep.mtime) {
           return false;
         }
       }
