@@ -4,7 +4,7 @@ const md5 = require('./utils/md5');
 const objectHash = require('./utils/objectHash');
 const pkg = require('../package.json');
 const logger = require('./Logger');
-const {isGlob, glob} = require('./utils/glob');
+const {isGlob} = require('./utils/glob');
 
 // These keys can affect the output, so if they differ, the cache should not match
 const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target'];
@@ -32,20 +32,9 @@ class FSCache {
   }
 
   async getLastModified(filename) {
-    let mtime = 0;
-    if (isGlob(filename)) {
-      let files = await glob(filename, {
-        strict: true,
-        nodir: true
-      });
-      mtime = (await Promise.all(
-        files.map(file => fs.stat(file).then(({mtime}) => mtime.getTime()))
-      )).reduce((a, b) => Math.max(a, b), 0);
-    } else {
-      let stats = await fs.stat(filename);
-      mtime = stats.mtime.getTime();
-    }
-    return mtime;
+    if (isGlob(filename)) return 0;
+    let stats = await fs.stat(filename);
+    return stats.mtime.getTime();
   }
 
   async writeDepMtimes(data) {

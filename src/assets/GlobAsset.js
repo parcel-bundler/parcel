@@ -9,6 +9,10 @@ class GlobAsset extends Asset {
     this.type = null; // allows this asset to be included in any type bundle
   }
 
+  shouldInvalidate() {
+    return true;
+  }
+
   async load() {
     let regularExpressionSafeName = this.name;
     if (process.platform === 'win32')
