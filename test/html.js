@@ -1,6 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const {bundle, assertBundleTree} = require('./utils');
+const path = require('path');
 
 describe('html', function() {
   it('should support bundling HTML', async function() {
@@ -107,7 +108,10 @@ describe('html', function() {
       __dirname + '/integration/posthtml-assets/index.html'
     );
     const asset = b.assets.values().next().value;
-    const other = __dirname + '/integration/posthtml-assets/other.html';
+    const other = path.join(
+      __dirname,
+      '/integration/posthtml-assets/other.html'
+    );
     assert(asset.dependencies.has(other));
     assert(asset.dependencies.get(other).includedInParent);
   });
