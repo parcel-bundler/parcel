@@ -1,5 +1,6 @@
 const Asset = require('../Asset');
-const glob = require('glob');
+const promisify = require('../utils/promisify');
+const glob = promisify(require('glob'));
 const micromatch = require('micromatch');
 const path = require('path');
 
@@ -14,7 +15,7 @@ class GlobAsset extends Asset {
     if (process.platform === 'win32')
       regularExpressionSafeName = regularExpressionSafeName.replace(/\\/g, '/');
 
-    let files = glob.sync(regularExpressionSafeName, {
+    let files = await glob(regularExpressionSafeName, {
       strict: true,
       nodir: true
     });
