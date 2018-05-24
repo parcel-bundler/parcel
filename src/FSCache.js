@@ -32,20 +32,16 @@ class FSCache {
   }
 
   async getLastModified(filename) {
-    let mtime = 0;
     if (isGlob(filename)) {
       let files = await glob(filename, {
         strict: true,
         nodir: true
       });
-      mtime = (await Promise.all(
+      return (await Promise.all(
         files.map(file => fs.stat(file).then(({mtime}) => mtime.getTime()))
       )).reduce((a, b) => Math.max(a, b), 0);
-    } else {
-      let stats = await fs.stat(filename);
-      mtime = stats.mtime.getTime();
     }
-    return mtime;
+    return (await fs.stat(filename)).mtime.getTime();
   }
 
   async writeDepMtimes(data) {
