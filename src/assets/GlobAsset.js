@@ -1,5 +1,5 @@
 const Asset = require('../Asset');
-const glob = require('glob');
+const {glob} = require('../utils/glob');
 const micromatch = require('micromatch');
 const path = require('path');
 
@@ -9,12 +9,16 @@ class GlobAsset extends Asset {
     this.type = null; // allows this asset to be included in any type bundle
   }
 
+  shouldInvalidate() {
+    return true;
+  }
+
   async load() {
     let regularExpressionSafeName = this.name;
     if (process.platform === 'win32')
       regularExpressionSafeName = regularExpressionSafeName.replace(/\\/g, '/');
 
-    let files = glob.sync(regularExpressionSafeName, {
+    let files = await glob(regularExpressionSafeName, {
       strict: true,
       nodir: true
     });

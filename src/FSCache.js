@@ -4,6 +4,7 @@ const md5 = require('./utils/md5');
 const objectHash = require('./utils/objectHash');
 const pkg = require('../package.json');
 const logger = require('./Logger');
+const {isGlob} = require('./utils/glob');
 
 // These keys can affect the output, so if they differ, the cache should not match
 const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target'];
@@ -30,16 +31,17 @@ class FSCache {
     return path.join(this.dir, hash + '.json');
   }
 
+  async getLastModified(filename) {
+    if (isGlob(filename)) return 0;
+    let stats = await fs.stat(filename);
+    return stats.mtime.getTime();
+  }
+
   async writeDepMtimes(data) {
     // Write mtimes for each dependent file that is already compiled into this asset
     for (let dep of data.dependencies) {
       if (dep.includedInParent) {
-        let depPath = dep.name;
-        if (depPath[depPath.length - 1] === '*') {
-          depPath = path.dirname(depPath);
-        }
-        let stats = await fs.stat(depPath);
-        dep.mtime = stats.mtime.getTime();
+        dep.mtime = await this.getLastModified(dep.name);
       }
     }
   }
@@ -60,8 +62,8 @@ class FSCache {
     // If any of them changed, invalidate.
     for (let dep of data.dependencies) {
       if (dep.includedInParent) {
-        let stats = await fs.stat(dep.name);
-        if (stats.mtime > dep.mtime) {
+        let mtime = await this.getLastModified(dep.name);
+        if (mtime > dep.mtime) {
           return false;
         }
       }
