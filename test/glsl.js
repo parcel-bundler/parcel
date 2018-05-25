@@ -1,5 +1,5 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('glsl', function() {
@@ -16,12 +16,12 @@ describe('glsl', function() {
       ]
     });
 
-    let shader = fs.readFileSync(
+    let shader = await fs.readFile(
       __dirname + '/integration/glsl/compiled.glsl',
       'utf8'
     );
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.ok(
       output().reduce((acc, requiredShader) => {

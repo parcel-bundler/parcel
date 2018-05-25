@@ -1,5 +1,5 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 const path = require('path');
 const {bundle, run, assertBundleTree} = require('./utils');
 const {mkdirp} = require('../src/utils/fs');
@@ -11,7 +11,7 @@ describe('javascript', function() {
     assert.equal(b.assets.size, 8);
     assert.equal(b.childBundles.size, 1);
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
@@ -22,7 +22,7 @@ describe('javascript', function() {
     assert.equal(b.assets.size, 8);
     assert.equal(b.childBundles.size, 1);
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'object');
     assert.equal(typeof output.default, 'function');
     assert.equal(output.default(), 3);
@@ -38,7 +38,7 @@ describe('javascript', function() {
       assets: ['main.js', 'local.js', 'index.js']
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
@@ -54,12 +54,12 @@ describe('javascript', function() {
     });
 
     await mkdirp(__dirname + '/dist/node_modules/testmodule');
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/dist/node_modules/testmodule/index.js',
       'exports.a = 5;'
     );
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 7);
   });
@@ -75,12 +75,12 @@ describe('javascript', function() {
     });
 
     await mkdirp(__dirname + '/dist/node_modules/testmodule');
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/dist/node_modules/testmodule/index.js',
       'exports.a = 5;'
     );
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 7);
   });
@@ -91,7 +91,7 @@ describe('javascript', function() {
     assert.equal(b.assets.size, 1);
     assert.equal(b.childBundles.size, 1);
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'object');
     assert.equal(typeof output.default, 'function');
     assert.equal(output.default(), 3);
@@ -120,7 +120,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 3);
   });
@@ -148,7 +148,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 3);
   });
@@ -209,7 +209,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 3);
   });
@@ -235,7 +235,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b).default;
+    let output = (await run(b)).default;
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 3);
   });
@@ -276,7 +276,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 7);
   });
@@ -308,7 +308,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 5);
   });
@@ -326,7 +326,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
@@ -344,7 +344,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
@@ -367,10 +367,10 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
-    assert(fs.existsSync(__dirname + '/dist/' + output()));
+    assert(await fs.exists(__dirname + '/dist/' + output()));
   });
 
   it('should minify JS in production mode', async function() {
@@ -378,11 +378,11 @@ describe('javascript', function() {
       production: true
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
 
-    let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let js = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(!js.includes('local.a'));
   });
 
@@ -391,7 +391,7 @@ describe('javascript', function() {
       production: true
     });
 
-    let js = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let js = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(!js.includes('console.log'));
     assert(!js.includes('// This is a comment'));
   });
@@ -399,7 +399,7 @@ describe('javascript', function() {
   it('should insert global variables when needed', async function() {
     let b = await bundle(__dirname + '/integration/globals/index.js');
 
-    let output = run(b);
+    let output = await run(b);
     assert.deepEqual(output(), {
       dir: path.join(__dirname, '/integration/globals'),
       file: path.join(__dirname, '/integration/globals/index.js'),
@@ -411,7 +411,7 @@ describe('javascript', function() {
   it('should handle re-declaration of the global constant', async function() {
     let b = await bundle(__dirname + '/integration/global-redeclare/index.js');
 
-    let output = run(b);
+    let output = await run(b);
     assert.deepEqual(output(), false);
   });
 
@@ -420,7 +420,7 @@ describe('javascript', function() {
       target: 'node'
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.ok(output.toString().indexOf('process.env') > -1);
     assert.equal(output(), 'test:test');
   });
@@ -430,7 +430,7 @@ describe('javascript', function() {
       target: 'electron'
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.ok(output.toString().indexOf('process.env') > -1);
     assert.equal(output(), 'test:test');
   });
@@ -440,7 +440,7 @@ describe('javascript', function() {
       target: 'browser'
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.ok(output.toString().indexOf('process.env') === -1);
     assert.equal(output(), 'test:test');
   });
@@ -448,7 +448,7 @@ describe('javascript', function() {
   it('should insert environment variables from a file', async function() {
     let b = await bundle(__dirname + '/integration/env-file/index.js');
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(output, 'bartest');
   });
 
@@ -477,7 +477,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
@@ -495,7 +495,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
@@ -513,7 +513,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
@@ -531,7 +531,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
@@ -549,7 +549,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
 
     assert.equal(typeof output.test, 'function');
     assert.equal(output.test(), 'pkg-browser');
@@ -574,7 +574,7 @@ describe('javascript', function() {
       ]
     });
 
-    let {test: output} = run(b);
+    let {test: output} = await run(b);
 
     assert.equal(typeof output.projected.test, 'function');
     assert.equal(typeof output.entry.test, 'function');
@@ -597,7 +597,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
 
     assert.equal(typeof output.test, 'function');
     assert.equal(output.test(), 'pkg-es6-module');
@@ -618,7 +618,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
 
     assert.equal(typeof output.test, 'function');
     assert.equal(output.test(), 'pkg-es6-module');
@@ -639,7 +639,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
 
     assert.equal(typeof output.test, 'function');
     assert.equal(output.test(), 'pkg-main-module');
@@ -650,7 +650,7 @@ describe('javascript', function() {
       production: true
     });
 
-    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let json = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(json.includes('{test:"test"}'));
   });
 
@@ -659,7 +659,7 @@ describe('javascript', function() {
       production: true
     });
 
-    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let json = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(json.includes('{test:"test"}'));
   });
 
@@ -668,7 +668,7 @@ describe('javascript', function() {
       production: true
     });
 
-    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let json = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 
@@ -677,14 +677,14 @@ describe('javascript', function() {
       production: true
     });
 
-    let json = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let json = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 
   it('should support compiling with babel using .babelrc config', async function() {
     await bundle(__dirname + '/integration/babel/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('class Foo {}'));
     assert(file.includes('class Bar {}'));
   });
@@ -692,7 +692,7 @@ describe('javascript', function() {
   it('should compile with babel with default engines if no config', async function() {
     await bundle(__dirname + '/integration/babel-default/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
@@ -700,7 +700,7 @@ describe('javascript', function() {
   it('should support compiling with babel using browserlist', async function() {
     await bundle(__dirname + '/integration/babel-browserslist/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
@@ -708,7 +708,7 @@ describe('javascript', function() {
   it('should support splitting babel-polyfill using browserlist', async function() {
     await bundle(__dirname + '/integration/babel-polyfill/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('async function Bar() {}'));
     assert(!file.includes('regenerator'));
   });
@@ -722,14 +722,14 @@ describe('javascript', function() {
       let file;
       // Dev build test
       await bundle(__dirname + projectBasePath + '/index.js');
-      file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+      file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
       assert(devRegExp.test(file) === true);
       assert(prodRegExp.test(file) === false);
       // Prod build test
       await bundle(__dirname + projectBasePath + '/index.js', {
         production: true
       });
-      file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+      file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
       assert(prodRegExp.test(file) === true);
       assert(devRegExp.test(file) === false);
     }
@@ -745,7 +745,7 @@ describe('javascript', function() {
   it('should not compile node_modules by default', async function() {
     await bundle(__dirname + '/integration/babel-node-modules/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
@@ -755,7 +755,7 @@ describe('javascript', function() {
       __dirname + '/integration/babel-node-modules-browserify/index.js'
     );
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
@@ -765,7 +765,7 @@ describe('javascript', function() {
       __dirname + '/integration/babel-node-modules-browserslist/index.js'
     );
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
@@ -773,7 +773,7 @@ describe('javascript', function() {
   it('should compile node_modules when symlinked with a source field in package.json', async function() {
     await bundle(__dirname + '/integration/babel-node-modules-source/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
@@ -783,7 +783,7 @@ describe('javascript', function() {
       __dirname + '/integration/babel-node-modules-source-unlinked/index.js'
     );
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });
@@ -791,35 +791,35 @@ describe('javascript', function() {
   it('should support compiling JSX', async function() {
     await bundle(__dirname + '/integration/jsx/index.jsx');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('React.createElement("div"'));
   });
 
   it('should support compiling JSX in JS files with React dependency', async function() {
     await bundle(__dirname + '/integration/jsx-react/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('React.createElement("div"'));
   });
 
   it('should support compiling JSX in JS files with Preact dependency', async function() {
     await bundle(__dirname + '/integration/jsx-preact/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('h("div"'));
   });
 
   it('should support compiling JSX in JS files with Nerv dependency', async function() {
     await bundle(__dirname + '/integration/jsx-nervjs/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('Nerv.createElement("div"'));
   });
 
   it('should support compiling JSX in JS files with Hyperapp dependency', async function() {
     await bundle(__dirname + '/integration/jsx-hyperapp/index.js');
 
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('h("div"'));
   });
 
@@ -836,7 +836,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
 
     let err = new Error('Cannot find module "optional-dep"');
     err.code = 'MODULE_NOT_FOUND';
@@ -857,7 +857,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(output, 2);
   });
 
@@ -906,7 +906,7 @@ describe('javascript', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
 
     assert.equal(typeof output.test, 'object');
 
@@ -921,7 +921,7 @@ describe('javascript', function() {
     let b = await bundle(__dirname + '/integration/entry-point/index.js');
 
     let module = {};
-    run(b, {module, exports: {}});
+    await run(b, {module, exports: {}});
     assert.equal(module.exports(), 'Test!');
   });
 
@@ -933,7 +933,7 @@ describe('javascript', function() {
     };
     mockDefine.amd = true;
 
-    run(b, {define: mockDefine});
+    await run(b, {define: mockDefine});
     assert.equal(test(), 'Test!');
   });
 
@@ -942,7 +942,7 @@ describe('javascript', function() {
       global: 'testing'
     });
 
-    const ctx = run(b, null, {require: false});
+    const ctx = await run(b, null, {require: false});
     assert.equal(ctx.window.testing(), 'Test!');
   });
 
@@ -954,7 +954,7 @@ describe('javascript', function() {
     };
     mockDefine.amd = true;
 
-    run(b, {define: mockDefine});
+    await run(b, {define: mockDefine});
     assert.equal(test, 2);
   });
 });

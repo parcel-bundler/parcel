@@ -16,7 +16,7 @@ describe('graphql', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.deepEqual(
       output().definitions,

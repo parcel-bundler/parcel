@@ -1,5 +1,5 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 const {bundle, assertBundleTree} = require('./utils');
 const path = require('path');
 
@@ -44,8 +44,8 @@ describe('html', function() {
       ]
     });
 
-    let files = fs.readdirSync(__dirname + '/dist');
-    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    let files = await fs.readdir(__dirname + '/dist');
+    let html = await fs.readFile(__dirname + '/dist/index.html');
     for (let file of files) {
       let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {
@@ -79,7 +79,7 @@ describe('html', function() {
       childBundles: []
     });
 
-    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    let html = await fs.readFile(__dirname + '/dist/index.html');
     assert(html.includes('<h1>Other page</h1>'));
   });
 
@@ -140,7 +140,7 @@ describe('html', function() {
       ]
     });
 
-    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    let html = await fs.readFile(__dirname + '/dist/index.html');
     assert(
       /<link rel="stylesheet" href="[/\\]{1}html-css\.[a-f0-9]+\.css">/.test(
         html
@@ -172,7 +172,7 @@ describe('html', function() {
       ]
     });
 
-    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    let html = await fs.readFile(__dirname + '/dist/index.html');
     assert(
       /<html>\s*<link rel="stylesheet" href="[/\\]{1}html-css-head\.[a-f0-9]+\.css">\s*<body>/.test(
         html
@@ -211,7 +211,7 @@ describe('html', function() {
       ]
     });
 
-    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    let html = await fs.readFile(__dirname + '/dist/index.html');
     assert(/<script src="[/\\]{1}html-css-js\.[a-f0-9]+\.js">/.test(html));
   });
 
@@ -245,7 +245,7 @@ describe('html', function() {
       ]
     });
 
-    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    let html = await fs.readFile(__dirname + '/dist/index.html');
     assert(
       /<\/script>\s*<link rel="stylesheet" href="[/\\]{1}html-css-optional-elements\.[a-f0-9]+\.css"><h1>Hello/.test(
         html
@@ -258,7 +258,7 @@ describe('html', function() {
       production: true
     });
 
-    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
     assert(html.includes('Other page'));
     assert(!html.includes('\n'));
   });
@@ -268,7 +268,7 @@ describe('html', function() {
       production: true
     });
 
-    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
 
     // mergeStyles
     assert(
@@ -295,7 +295,7 @@ describe('html', function() {
       production: true
     });
 
-    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
     assert(html.includes('<input type="text">'));
     assert(!html.includes('\n'));
   });
@@ -303,7 +303,7 @@ describe('html', function() {
   it('should not prepend the public path to assets with remote URLs', async function() {
     await bundle(__dirname + '/integration/html/index.html');
 
-    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
     assert(
       html.includes('<script src="https://unpkg.com/parcel-bundler"></script>')
     );
@@ -312,7 +312,7 @@ describe('html', function() {
   it('should not prepend the public path to hash links', async function() {
     await bundle(__dirname + '/integration/html/index.html');
 
-    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
     assert(html.includes('<a href="#hash_link">'));
   });
 
@@ -337,11 +337,11 @@ describe('html', function() {
   it('should not update root/main file in the bundles', async function() {
     await bundle(__dirname + '/integration/html-root/index.html');
 
-    let files = fs.readdirSync(__dirname + '/dist');
+    let files = await fs.readdir(__dirname + '/dist');
 
     for (let file of files) {
       if (file !== 'index.html' && file.endsWith('.html')) {
-        let html = fs.readFileSync(__dirname + '/dist/' + file);
+        let html = await fs.readFile(__dirname + '/dist/' + file);
         assert(html.includes('index.html'));
       }
     }
@@ -352,7 +352,7 @@ describe('html', function() {
       production: true
     });
 
-    let html = fs.readFileSync(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
     assert(/<i>hello<\/i> <i>world<\/i>/.test(html));
   });
 

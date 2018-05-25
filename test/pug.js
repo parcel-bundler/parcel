@@ -1,5 +1,5 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 const {bundle, assertBundleTree} = require('./utils');
 
 describe('pug', function() {
@@ -37,8 +37,8 @@ describe('pug', function() {
       ]
     });
 
-    const files = fs.readdirSync(__dirname + '/dist');
-    const html = fs.readFileSync(__dirname + '/dist/index.html');
+    const files = await fs.readdir(__dirname + '/dist');
+    const html = await fs.readFile(__dirname + '/dist/index.html');
     for (const file of files) {
       const ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {
@@ -57,8 +57,8 @@ describe('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
-    const expect = fs.readFileSync(
+    const html = await fs.readFile(__dirname + '/dist/index.html', 'utf-8');
+    const expect = await fs.readFile(
       __dirname + '/integration/pug-include-extends/expect.html',
       'utf-8'
     );
@@ -74,7 +74,7 @@ describe('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
+    const html = await fs.readFile(__dirname + '/dist/index.html', 'utf-8');
 
     assert(/src="\/?100x100.*.png"/.test(html));
   });
@@ -87,7 +87,7 @@ describe('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
+    const html = await fs.readFile(__dirname + '/dist/index.html', 'utf-8');
     assert(html.includes('Greetings, Parcel'));
   });
 
@@ -99,7 +99,7 @@ describe('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
+    const html = await fs.readFile(__dirname + '/dist/index.html', 'utf-8');
     assert(html.includes('FILTERED: Hello!'));
   });
 
@@ -113,7 +113,7 @@ describe('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
+    const html = await fs.readFile(__dirname + '/dist/index.html', 'utf-8');
 
     assert(html.includes('Minified'));
   });

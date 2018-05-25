@@ -1,5 +1,5 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('less', function() {
@@ -21,11 +21,11 @@ describe('less', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('.index'));
   });
 
@@ -47,11 +47,11 @@ describe('less', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('.index'));
     assert(css.includes('.base'));
   });
@@ -76,11 +76,11 @@ describe('less', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('.index'));
     assert(css.includes('.base'));
   });
@@ -103,11 +103,11 @@ describe('less', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert.equal(css, '');
   });
 
@@ -134,17 +134,17 @@ describe('less', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
 
     assert(
-      fs.existsSync(
+      await fs.exists(
         __dirname + '/dist/' + css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
       )
     );
@@ -168,11 +168,11 @@ describe('less', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), '_index_ku5n8_1');
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('._index_ku5n8_1'));
   });
 });

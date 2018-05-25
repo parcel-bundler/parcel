@@ -1,6 +1,6 @@
 const assert = require('assert');
 const {bundle, bundler, run, assertBundleTree} = require('./utils');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 const commandExists = require('command-exists');
 
 describe('rust', function() {
@@ -36,11 +36,11 @@ describe('rust', function() {
       ]
     });
 
-    var res = await run(b);
+    var res = await await run(b);
     assert.equal(res, 5);
 
     // not minified
-    assert(fs.statSync(Array.from(b.childBundles)[0].name).size > 500);
+    assert((await fs.stat(Array.from(b.childBundles)[0].name).size) > 500);
   });
 
   it('should generate a wasm file from a rust file with rustc with --target=node', async function() {
@@ -69,11 +69,11 @@ describe('rust', function() {
       ]
     });
 
-    var res = await run(b);
+    var res = await await run(b);
     assert.equal(res, 5);
 
     // not minified
-    assert(fs.statSync(Array.from(b.childBundles)[0].name).size > 500);
+    assert((await fs.stat(Array.from(b.childBundles)[0].name).size) > 500);
   });
 
   it('should support rust files with dependencies via rustc', async function() {
@@ -101,7 +101,7 @@ describe('rust', function() {
       ]
     });
 
-    var res = await run(bundle);
+    var res = await await run(bundle);
     assert.equal(res, 10);
   });
 
@@ -129,7 +129,7 @@ describe('rust', function() {
       ]
     });
 
-    var res = await run(b);
+    var res = await await run(b);
     assert.equal(res, 5);
   });
 
@@ -142,7 +142,7 @@ describe('rust', function() {
       minify: false,
       sourceMaps: false
     });
-    const size = fs.statSync(Array.from(b.childBundles)[0].name).size;
+    const size = await fs.stat(Array.from(b.childBundles)[0].name).size;
 
     let bMinified = await bundle(__dirname + '/integration/rust/index.js', {
       minify: true,
@@ -169,11 +169,12 @@ describe('rust', function() {
     assertBundleTree(b, bundleTree);
     assertBundleTree(bMinified, bundleTree);
 
-    var res = await run(bMinified);
+    var res = await await run(bMinified);
     assert.equal(res, 5);
 
-    const sizeMinified = fs.statSync(Array.from(bMinified.childBundles)[0].name)
-      .size;
+    const sizeMinified = await fs.stat(
+      Array.from(bMinified.childBundles)[0].name
+    ).size;
     assert(sizeMinified < size);
   });
 });

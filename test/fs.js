@@ -1,49 +1,49 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('fs', function() {
   describe('--target=browser', function() {
     it('should inline a file as a string', async function() {
       let b = await bundle(__dirname + '/integration/fs/index.js');
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 'hello');
     });
 
     it('should inline a file as a buffer', async function() {
       let b = await bundle(__dirname + '/integration/fs-buffer/index.js');
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output.constructor.name, 'Buffer');
       assert.equal(output.length, 5);
     });
 
     it('should inline a file with fs require alias', async function() {
       let b = await bundle(__dirname + '/integration/fs-alias/index.js');
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 'hello');
     });
 
     it('should inline a file with fs require inline', async function() {
       let b = await bundle(__dirname + '/integration/fs-inline/index.js');
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 'hello');
     });
 
     it('should inline a file with fs require assignment', async function() {
       let b = await bundle(__dirname + '/integration/fs-assign/index.js');
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 'hello');
     });
 
     it('should inline a file with fs require assignment alias', async function() {
       let b = await bundle(__dirname + '/integration/fs-assign-alias/index.js');
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 'hello');
     });
 
     it('should inline a file with fs require destructure', async function() {
       let b = await bundle(__dirname + '/integration/fs-destructure/index.js');
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 'hello');
     });
 
@@ -51,7 +51,7 @@ describe('fs', function() {
       let b = await bundle(
         __dirname + '/integration/fs-destructure-assign/index.js'
       );
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 'hello');
     });
 
@@ -71,7 +71,7 @@ describe('fs', function() {
         ]
       });
 
-      let output = run(b);
+      let output = await run(b);
 
       assert.equal(typeof output.test, 'function');
       assert.equal(output.test(), 'test-pkg-ignore-fs-ok');
@@ -85,7 +85,7 @@ describe('fs', function() {
       let thrown = false;
 
       try {
-        run(b);
+        await run(b);
       } catch (e) {
         assert.equal(e.message, 'require(...).readFileSync is not a function');
 
@@ -102,7 +102,7 @@ describe('fs', function() {
       let thrown = false;
 
       try {
-        run(b);
+        await run(b);
       } catch (e) {
         assert.equal(e.message, 'require(...).readFileSync is not a function');
 
@@ -129,11 +129,11 @@ describe('fs', function() {
         ]
       });
 
-      assert(fs.readFileSync(b.name).includes("require('fs')"));
-      assert(fs.readFileSync(b.name).includes('readFileSync'));
+      assert((await fs.readFile(b.name)).includes("require('fs')"));
+      assert((await fs.readFile(b.name)).includes('readFileSync'));
 
-      fs.writeFileSync(__dirname + '/dist/test.txt', 'hey');
-      let output = run(b);
+      await fs.writeFile(__dirname + '/dist/test.txt', 'hey');
+      let output = await run(b);
       assert.equal(output, 'hey');
     });
   });
@@ -154,11 +154,11 @@ describe('fs', function() {
         ]
       });
 
-      assert(fs.readFileSync(b.name).includes("require('fs')"));
-      assert(fs.readFileSync(b.name).includes('readFileSync'));
+      assert((await fs.readFile(b.name)).includes("require('fs')"));
+      assert((await fs.readFile(b.name)).includes('readFileSync'));
 
-      fs.writeFileSync(__dirname + '/dist/test.txt', 'hey');
-      let output = run(b);
+      await fs.writeFile(__dirname + '/dist/test.txt', 'hey');
+      let output = await run(b);
       assert.equal(output, 'hey');
     });
   });

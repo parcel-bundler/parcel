@@ -15,7 +15,7 @@ describe('plugins', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(output, 'hello world');
   });
 
@@ -34,7 +34,7 @@ describe('plugins', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(output, 'hello world');
   });
 });

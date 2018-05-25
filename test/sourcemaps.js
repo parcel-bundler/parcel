@@ -1,5 +1,5 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 const path = require('path');
 const mapValidator = require('sourcemap-validator');
 const {bundler, bundle, run, assertBundleTree} = require('./utils');
@@ -20,12 +20,12 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
-      .toString();
-    let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
-      .toString();
+    let raw = (await fs.readFile(
+      path.join(__dirname, '/dist/index.js')
+    )).toString();
+    let map = (await fs.readFile(
+      path.join(__dirname, '/dist/index.map')
+    )).toString();
     mapValidator(raw, map);
     let mapObject = JSON.parse(map);
     assert(
@@ -34,7 +34,7 @@ describe('sourcemaps', function() {
       'sourceRoot should be the root of the source files, relative to the output directory.'
     );
     assert(
-      fs.existsSync(
+      await fs.exists(
         path.resolve(
           b.options.outDir,
           mapObject.sourceRoot,
@@ -44,7 +44,7 @@ describe('sourcemaps', function() {
       'combining sourceRoot and sources object should resolve to the original file'
     );
 
-    let output = run(bu);
+    let output = await run(bu);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 'hello world');
   });
@@ -65,15 +65,15 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
-      .toString();
-    let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
-      .toString();
+    let raw = (await fs.readFile(
+      path.join(__dirname, '/dist/index.js')
+    )).toString();
+    let map = (await fs.readFile(
+      path.join(__dirname, '/dist/index.map')
+    )).toString();
     mapValidator(raw, map);
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output.env, 'function');
     assert.equal(output.env(), process.env.NODE_ENV);
   });
@@ -94,15 +94,15 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
-      .toString();
-    let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
-      .toString();
+    let raw = (await fs.readFile(
+      path.join(__dirname, '/dist/index.js')
+    )).toString();
+    let map = (await fs.readFile(
+      path.join(__dirname, '/dist/index.map')
+    )).toString();
     mapValidator(raw, map);
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output.env, 'function');
     assert.equal(output.env(), process.env.NODE_ENV);
   });
@@ -121,15 +121,15 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
-      .toString();
-    let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
-      .toString();
+    let raw = (await fs.readFile(
+      path.join(__dirname, '/dist/index.js')
+    )).toString();
+    let map = (await fs.readFile(
+      path.join(__dirname, '/dist/index.map')
+    )).toString();
     mapValidator(raw, map);
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 14);
   });
@@ -153,15 +153,15 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = fs
-      .readFileSync(path.join(__dirname, '/dist/index.js'))
-      .toString();
-    let map = fs
-      .readFileSync(path.join(__dirname, '/dist/index.map'))
-      .toString();
+    let raw = (await fs.readFile(
+      path.join(__dirname, '/dist/index.js')
+    )).toString();
+    let map = (await fs.readFile(
+      path.join(__dirname, '/dist/index.map')
+    )).toString();
     mapValidator(raw, map);
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 14);
   });
@@ -187,9 +187,9 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let jsOutput = fs
-      .readFileSync(Array.from(b.childBundles)[0].name)
-      .toString();
+    let jsOutput = (await fs.readFile(
+      Array.from(b.childBundles)[0].name
+    )).toString();
 
     let sourcemapReference = path.join(
       __dirname,
@@ -197,11 +197,11 @@ describe('sourcemaps', function() {
       jsOutput.substring(jsOutput.lastIndexOf('//# sourceMappingURL') + 22)
     );
     assert(
-      fs.existsSync(path.join(sourcemapReference)),
+      await fs.exists(path.join(sourcemapReference)),
       'referenced sourcemap should exist'
     );
 
-    let map = fs.readFileSync(path.join(sourcemapReference)).toString();
+    let map = (await fs.readFile(path.join(sourcemapReference))).toString();
     mapValidator(jsOutput, map);
   });
 });

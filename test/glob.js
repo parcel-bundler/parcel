@@ -1,5 +1,5 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('glob', function() {
@@ -16,7 +16,7 @@ describe('glob', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 3);
   });
@@ -34,7 +34,7 @@ describe('glob', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 13);
   });
@@ -57,11 +57,11 @@ describe('glob', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('.local'));
     assert(css.includes('.other'));
     assert(css.includes('.index'));
