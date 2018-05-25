@@ -207,7 +207,7 @@ class Bundler extends EventEmitter {
         });
       });
     }
-    this.emit('bundlestart', this.entryFiles)
+    this.emit('buildStart', this.entryFiles)
     
     let isInitialBundle = !this.entryAssets;
     let startTime = Date.now();
