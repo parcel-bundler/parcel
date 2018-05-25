@@ -142,7 +142,7 @@ describe('rust', function() {
       minify: false,
       sourceMaps: false
     });
-    const size = await fs.stat(Array.from(b.childBundles)[0].name).size;
+    const size = (await fs.stat(Array.from(b.childBundles)[0].name)).size;
 
     let bMinified = await bundle(__dirname + '/integration/rust/index.js', {
       minify: true,
