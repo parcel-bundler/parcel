@@ -9,7 +9,7 @@ describe('sourcemaps', function() {
     let b = bundler(__dirname + '/integration/sourcemap/index.js');
     let bu = await b.bundle();
 
-    assertBundleTree(bu, {
+    await assertBundleTree(bu, {
       name: 'index.js',
       assets: ['index.js'],
       childBundles: [
@@ -54,7 +54,7 @@ describe('sourcemaps', function() {
       __dirname + '/integration/sourcemap-typescript/index.ts'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.ts'],
       childBundles: [
@@ -83,7 +83,7 @@ describe('sourcemaps', function() {
       __dirname + '/integration/sourcemap-typescript-nested/index.ts'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.ts', 'local.ts'],
       childBundles: [
@@ -110,7 +110,7 @@ describe('sourcemaps', function() {
   it('should create a valid sourcemap for a js file with requires', async function() {
     let b = await bundle(__dirname + '/integration/sourcemap-nested/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.js', 'util.js'],
       childBundles: [
@@ -142,7 +142,7 @@ describe('sourcemaps', function() {
       }
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.js', 'util.js'],
       childBundles: [
@@ -171,7 +171,7 @@ describe('sourcemaps', function() {
       __dirname + '/integration/sourcemap-reference/index.html'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.html'],
       childBundles: [

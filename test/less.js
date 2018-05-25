@@ -6,7 +6,7 @@ describe('less', function() {
   it('should support requiring less files', async function() {
     let b = await bundle(__dirname + '/integration/less/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.less'],
       childBundles: [
@@ -32,7 +32,7 @@ describe('less', function() {
   it('should support less imports', async function() {
     let b = await bundle(__dirname + '/integration/less-import/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.less'],
       childBundles: [
@@ -61,7 +61,7 @@ describe('less', function() {
       __dirname + '/integration/less-advanced-import/index.js'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.less'],
       childBundles: [
@@ -88,7 +88,7 @@ describe('less', function() {
   it('should support requiring empty less files', async function() {
     let b = await bundle(__dirname + '/integration/less-empty/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.less'],
       childBundles: [
@@ -114,7 +114,7 @@ describe('less', function() {
   it('should support linking to assets with url() from less', async function() {
     let b = await bundle(__dirname + '/integration/less-url/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.less'],
       childBundles: [
@@ -153,7 +153,7 @@ describe('less', function() {
   it('should support transforming less with postcss', async function() {
     let b = await bundle(__dirname + '/integration/less-postcss/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.less'],
       childBundles: [

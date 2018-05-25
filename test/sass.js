@@ -6,7 +6,7 @@ describe('sass', function() {
   it('should support requiring sass files', async function() {
     let b = await bundle(__dirname + '/integration/sass/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.sass'],
       childBundles: [
@@ -32,7 +32,7 @@ describe('sass', function() {
   it('should support requiring scss files', async function() {
     let b = await bundle(__dirname + '/integration/scss/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.scss'],
       childBundles: [
@@ -58,7 +58,7 @@ describe('sass', function() {
   it('should support scss imports', async function() {
     let b = await bundle(__dirname + '/integration/scss-import/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.scss'],
       childBundles: [
@@ -86,7 +86,7 @@ describe('sass', function() {
   it('should support requiring empty scss files', async function() {
     let b = await bundle(__dirname + '/integration/scss-empty/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.scss'],
       childBundles: [
@@ -112,7 +112,7 @@ describe('sass', function() {
   it('should support linking to assets with url() from scss', async function() {
     let b = await bundle(__dirname + '/integration/scss-url/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.scss'],
       childBundles: [
@@ -151,7 +151,7 @@ describe('sass', function() {
   it('should support transforming scss with postcss', async function() {
     let b = await bundle(__dirname + '/integration/scss-postcss/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.scss'],
       childBundles: [
@@ -179,7 +179,7 @@ describe('sass', function() {
       __dirname + '/integration/sass-advanced-import/index.sass'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.css',
       assets: ['index.sass']
     });

@@ -6,7 +6,7 @@ describe('stylus', function() {
   it('should support requiring stylus files', async function() {
     let b = await bundle(__dirname + '/integration/stylus/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.styl'],
       childBundles: [
@@ -34,7 +34,7 @@ describe('stylus', function() {
 
     // a.styl shouldn't be included as a dependency that we can see.
     // stylus takes care of inlining it.
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.styl'],
       childBundles: [
@@ -62,7 +62,7 @@ describe('stylus', function() {
   it('should support linking to assets with url() from stylus', async function() {
     let b = await bundle(__dirname + '/integration/stylus-url/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.styl'],
       childBundles: [
@@ -101,7 +101,7 @@ describe('stylus', function() {
   it('should support transforming stylus with postcss', async function() {
     let b = await bundle(__dirname + '/integration/stylus-postcss/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.styl'],
       childBundles: [

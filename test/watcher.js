@@ -48,7 +48,7 @@ describe('watcher', function() {
     b = bundler(__dirname + '/input/index.js', {watch: true});
     let bundle = await b.bundle();
 
-    assertBundleTree(bundle, {
+    await assertBundleTree(bundle, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -89,7 +89,7 @@ describe('watcher', function() {
     await fs.writeFile(__dirname + '/input/b.js', 'module.exports = 5;');
 
     bundle = await nextBundle(b);
-    assertBundleTree(bundle, {
+    await assertBundleTree(bundle, {
       name: 'index.js',
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
@@ -149,7 +149,7 @@ describe('watcher', function() {
     b = bundler(__dirname + '/input/index.js', {watch: true});
 
     let bundle = await b.bundle();
-    assertBundleTree(bundle, {
+    await assertBundleTree(bundle, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -191,7 +191,7 @@ describe('watcher', function() {
     await fs.writeFile(__dirname + '/input/common.js', 'module.exports = 5;');
 
     bundle = await nextBundle(b);
-    assertBundleTree(bundle, {
+    await assertBundleTree(bundle, {
       name: 'index.js',
       assets: [
         'index.js',

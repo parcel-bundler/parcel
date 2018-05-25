@@ -13,7 +13,7 @@ describe('wasm', function() {
           target
         });
 
-        assertBundleTree(b, {
+        await assertBundleTree(b, {
           name: 'index.js',
           assets: [
             'index.js',
@@ -43,7 +43,7 @@ describe('wasm', function() {
           target
         });
 
-        assertBundleTree(b, {
+        await assertBundleTree(b, {
           name: 'index.js',
           assets: [
             'index.js',
@@ -72,7 +72,7 @@ describe('wasm', function() {
           target
         });
 
-        assertBundleTree(b, {
+        await assertBundleTree(b, {
           name: 'index.js',
           assets: [
             'index.js',

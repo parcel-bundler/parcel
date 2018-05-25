@@ -5,7 +5,7 @@ describe('plugins', function() {
   it('should load plugins and apply custom asset type', async function() {
     let b = await bundle(__dirname + '/integration/plugins/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'test.txt'],
       childBundles: [
@@ -24,7 +24,7 @@ describe('plugins', function() {
       __dirname + '/integration/plugins/sub-folder/index.js'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'test.txt'],
       childBundles: [

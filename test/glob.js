@@ -6,7 +6,7 @@ describe('glob', function() {
   it('should require a glob of files', async function() {
     let b = await bundle(__dirname + '/integration/glob/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', '*.js', 'a.js', 'b.js'],
       childBundles: [
@@ -24,7 +24,7 @@ describe('glob', function() {
   it('should require nested directories with a glob', async function() {
     let b = await bundle(__dirname + '/integration/glob-deep/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', '*.js', 'a.js', 'b.js', 'c.js', 'z.js'],
       childBundles: [
@@ -42,7 +42,7 @@ describe('glob', function() {
   it('should support importing a glob of CSS files', async function() {
     let b = await bundle(__dirname + '/integration/glob-css/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css', '*.css', 'other.css', 'local.css'],
       childBundles: [

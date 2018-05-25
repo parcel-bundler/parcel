@@ -16,7 +16,7 @@ describe('rust', function() {
     this.timeout(500000);
     let b = await bundle(__dirname + '/integration/rust/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: [
         'bundle-loader.js',
@@ -40,7 +40,7 @@ describe('rust', function() {
     assert.equal(res, 5);
 
     // not minified
-    assert((await fs.stat(Array.from(b.childBundles)[0].name).size) > 500);
+    assert((await fs.stat(Array.from(b.childBundles)[0].name)).size > 500);
   });
 
   it('should generate a wasm file from a rust file with rustc with --target=node', async function() {
@@ -49,7 +49,7 @@ describe('rust', function() {
       target: 'node'
     });
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: [
         'bundle-loader.js',
@@ -69,11 +69,11 @@ describe('rust', function() {
       ]
     });
 
-    var res = await await run(b);
+    var res = await run(b);
     assert.equal(res, 5);
 
     // not minified
-    assert((await fs.stat(Array.from(b.childBundles)[0].name).size) > 500);
+    assert((await fs.stat(Array.from(b.childBundles)[0].name)).size > 500);
   });
 
   it('should support rust files with dependencies via rustc', async function() {
@@ -81,7 +81,7 @@ describe('rust', function() {
     let b = bundler(__dirname + '/integration/rust-deps/index.js');
     let bundle = await b.bundle();
 
-    assertBundleTree(bundle, {
+    await assertBundleTree(bundle, {
       name: 'index.js',
       assets: [
         'bundle-loader.js',
@@ -101,7 +101,7 @@ describe('rust', function() {
       ]
     });
 
-    var res = await await run(bundle);
+    var res = await run(bundle);
     assert.equal(res, 10);
   });
 
@@ -109,7 +109,7 @@ describe('rust', function() {
     this.timeout(500000);
     let b = await bundle(__dirname + '/integration/rust-cargo/src/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: [
         'bundle-loader.js',
@@ -129,7 +129,7 @@ describe('rust', function() {
       ]
     });
 
-    var res = await await run(b);
+    var res = await run(b);
     assert.equal(res, 5);
   });
 
@@ -166,15 +166,15 @@ describe('rust', function() {
       ]
     };
 
-    assertBundleTree(b, bundleTree);
-    assertBundleTree(bMinified, bundleTree);
+    await assertBundleTree(b, bundleTree);
+    await assertBundleTree(bMinified, bundleTree);
 
-    var res = await await run(bMinified);
+    var res = await run(bMinified);
     assert.equal(res, 5);
 
-    const sizeMinified = await fs.stat(
+    const sizeMinified = (await fs.stat(
       Array.from(bMinified.childBundles)[0].name
-    ).size;
+    )).size;
     assert(sizeMinified < size);
   });
 });

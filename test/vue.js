@@ -6,7 +6,7 @@ describe('vue', function() {
   it('should produce a basic vue bundle', async function() {
     let b = await bundle(__dirname + '/integration/vue-basic/Basic.vue');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: ['Basic.vue'],
       childBundles: [
@@ -29,7 +29,7 @@ describe('vue', function() {
   it('should produce a vue bundle with dependencies', async function() {
     let b = await bundle(__dirname + '/integration/vue-dependencies/App.vue');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: ['App.vue'],
       childBundles: [
@@ -57,7 +57,7 @@ describe('vue', function() {
       __dirname + '/integration/vue-preprocessors/pre-processors.vue'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: ['pre-processors.vue'],
       childBundles: [
@@ -89,7 +89,7 @@ describe('vue', function() {
       __dirname + '/integration/vue-functional/functional.vue'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: ['functional.vue'],
       childBundles: [
@@ -119,7 +119,7 @@ describe('vue', function() {
   it('should produce a vue bundle using scoped styles', async function() {
     let b = await bundle(__dirname + '/integration/vue-scoped/App.vue');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: ['App.vue'],
       childBundles: [
@@ -145,7 +145,7 @@ describe('vue', function() {
   it('should produce a vue bundle using CSS modules', async function() {
     let b = await bundle(__dirname + '/integration/vue-css-modules/App.vue');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: ['App.vue'],
       childBundles: [
@@ -177,7 +177,7 @@ describe('vue', function() {
       __dirname + '/integration/vue-nested-components/testcomp.vue'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: [
         'testcomp.vue',
@@ -218,7 +218,7 @@ describe('vue', function() {
       production: true
     });
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: ['Basic.vue'],
       childBundles: [

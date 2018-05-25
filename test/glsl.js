@@ -6,7 +6,7 @@ describe('glsl', function() {
   it('should support requiring GLSL files via glslify', async function() {
     let b = await bundle(__dirname + '/integration/glsl/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.glsl', 'local.vert', 'local.frag'],
       childBundles: [

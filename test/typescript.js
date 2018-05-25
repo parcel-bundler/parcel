@@ -52,7 +52,7 @@ describe('typescript', function() {
   it('should support importing a URL to a raw asset', async function() {
     let b = await bundle(__dirname + '/integration/typescript-raw/index.ts');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.ts', 'test.txt'],
       childBundles: [
@@ -112,7 +112,7 @@ describe('typescript', function() {
       __dirname + '/integration/typescript-interop/index.ts'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.ts', 'commonjs-module.js'],
       childBundles: [

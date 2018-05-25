@@ -6,7 +6,7 @@ describe('graphql', function() {
   it('should support requiring graphql files', async function() {
     let b = await bundle(__dirname + '/integration/graphql/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.graphql'],
       childBundles: [

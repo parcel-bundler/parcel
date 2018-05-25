@@ -6,7 +6,7 @@ describe('encodedURI', function() {
   it('should support bundling files which names in encoded URI', async function() {
     let b = await bundle(__dirname + '/integration/encodedURI/index.html');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.html'],
       childBundles: [

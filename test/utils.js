@@ -205,7 +205,9 @@ async function assertBundleTree(bundle, tree) {
       childBundles.length,
       'expected number of child bundles mismatched'
     );
-    childBundles.forEach((b, i) => assertBundleTree(children[i], b));
+    await Promise.all(
+      childBundles.map((b, i) => assertBundleTree(children[i], b))
+    );
   }
 
   if (/js|css/.test(bundle.type)) {

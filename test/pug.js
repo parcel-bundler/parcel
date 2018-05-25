@@ -6,7 +6,7 @@ describe('pug', function() {
   it('should support bundling HTML', async function() {
     const b = await bundle(__dirname + '/integration/pug/index.pug');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.pug'],
       childBundles: [
@@ -52,7 +52,7 @@ describe('pug', function() {
       __dirname + '/integration/pug-include-extends/index.pug'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.pug']
     });
@@ -69,7 +69,7 @@ describe('pug', function() {
   it('should support variables', async function() {
     const b = await bundle(__dirname + '/integration/pug-var/index.pug');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.pug']
     });
@@ -82,7 +82,7 @@ describe('pug', function() {
   it('should support mixins', async function() {
     const b = await bundle(__dirname + '/integration/pug-mixins/index.pug');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.pug']
     });
@@ -94,7 +94,7 @@ describe('pug', function() {
   it('should support filters', async function() {
     const b = await bundle(__dirname + '/integration/pug-filters/index.pug');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.pug']
     });
@@ -108,7 +108,7 @@ describe('pug', function() {
       production: true
     });
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.pug']
     });

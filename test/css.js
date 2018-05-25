@@ -6,7 +6,7 @@ describe('css', function() {
   it('should produce two bundles when importing a CSS file', async function() {
     let b = await bundle(__dirname + '/integration/css/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css', 'local.js', 'local.css'],
       childBundles: [
@@ -29,7 +29,7 @@ describe('css', function() {
   it('should support loading a CSS bundle along side dynamic imports', async function() {
     let b = await bundle(__dirname + '/integration/dynamic-css/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -73,7 +73,7 @@ describe('css', function() {
   it('should support importing CSS from a CSS file', async function() {
     let b = await bundle(__dirname + '/integration/css-import/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css', 'other.css', 'local.css'],
       childBundles: [
@@ -103,7 +103,7 @@ describe('css', function() {
   it('should support linking to assets with url() from CSS', async function() {
     let b = await bundle(__dirname + '/integration/css-url/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css'],
       childBundles: [
@@ -148,7 +148,7 @@ describe('css', function() {
       production: true
     });
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css'],
       childBundles: [
@@ -191,7 +191,7 @@ describe('css', function() {
   it('should support transforming with postcss', async function() {
     let b = await bundle(__dirname + '/integration/postcss/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css'],
       childBundles: [

@@ -8,7 +8,7 @@ describe('parser', function() {
       __dirname + '/integration/parser-case-insensitive-ext/index.html'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.html'],
       childBundles: [
