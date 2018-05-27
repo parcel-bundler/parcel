@@ -12,6 +12,8 @@ const WRAPPER_TEMPLATE = template(`
   }).call({});
 `);
 
+const ESMODULE_TEMPLATE = template(`exports.__esModule = true;`);
+
 const IMPORT_TEMPLATE = template(
   '$parcel$import(ID, SOURCE, NAME, REPLACE_VAR)'
 );
@@ -96,6 +98,12 @@ module.exports = {
       let scope = path.scope;
 
       if (scope.getData('shouldWrap')) {
+        if (asset.cacheData.isES6Module) {
+          path.unshiftContainer('body', [
+            ESMODULE_TEMPLATE()
+          ]);
+        }
+
         path.replaceWith(
           t.program([
             WRAPPER_TEMPLATE({
