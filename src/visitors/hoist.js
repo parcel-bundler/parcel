@@ -14,9 +14,6 @@ const WRAPPER_TEMPLATE = template(`
 
 const ESMODULE_TEMPLATE = template(`exports.__esModule = true;`);
 
-const IMPORT_TEMPLATE = template(
-  '$parcel$import(ID, SOURCE, NAME, REPLACE_VAR)'
-);
 const EXPORT_ASSIGN_TEMPLATE = template('EXPORTS.NAME = LOCAL');
 const EXPORT_ALL_TEMPLATE = template(
   '$parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE))'
