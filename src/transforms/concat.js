@@ -10,73 +10,132 @@ const mangleScope = require('../scope-hoisting/mangler');
 const EXPORTS_RE = /^\$([\d]+)\$exports$/;
 const EXPORT_RE = /^\$([\d]+)\$export\$(.+)$/;
 
-const DEFAULT_INTEROP_TEMPLATE = template('$parcel$interopDefault(MODULE)');
+const DEFAULT_INTEROP_TEMPLATE = template('var NAME = $parcel$interopDefault(MODULE)');
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 
 module.exports = packager => {
   let {contents: code, exports, addedAssets} = packager;
-  // console.log(code)
+  let replacements = new Map;
   let ast = babylon.parse(code, {
     allowReturnOutsideFunction: true
   });
   // Share $parcel$interopDefault variables between modules
   let interops = new Map();
+  let imports = new Map;
+
   let assets = Array.from(addedAssets).reduce((acc, asset) => {
     acc[asset.id] = asset;
 
     return acc;
   }, {});
 
-  let resolveModule = (id, name) => {
+  // Build a mapping of all imported identifiers to replace.
+  for (let asset of addedAssets) {
+    for (let name in asset.cacheData.imports) {
+      let imp = asset.cacheData.imports[name];
+      imports.set(name, [resolveModule(asset.id, imp[0]), imp[1]]);
+    }
+  }
+
+  function resolveModule(id, name) {
     let module = assets[id];
     return module.depAssets.get(module.dependencies.get(name));
-  };
+  }
 
-  function replaceExportNode(id, name, path) {
-    let node = find(id, id => `$${id}$export$${name}`);
+  function findExportModule(id, name) {
+    let module = assets[id];
+    let exp = module && module.cacheData.exports[name];
 
-    if (!node) {
-      // if there is no named export then lookup for a CommonJS export
-      node = find(id, id => `$${id}$exports`) || t.identifier(`$${id}$exports`);
+    // If this is a re-export, find the original module.
+    if (Array.isArray(exp)) {
+      let mod = resolveModule(id, exp[0]);
+      return findExportModule(mod.id, exp[1]);
+    }
+
+    // If this module exports wildcards, resolve the original module.
+    // Default exports are excluded from wildcard exports.
+    let wildcards = module && module.cacheData.wildcards;
+    if (wildcards && name !== 'default') {
+      for (let source of wildcards) {
+        let m = findExportModule(resolveModule(id, source).id, name);
+        if (m) {
+          return m;
+        }
+      }
+    }
+
+    // If this is a wildcard import, resolve to the exports object.
+    if (module && name === '*') {
+      exp = `$${id}$exports`;
+    }
+
+    if (replacements.has(exp)) {
+      exp = replacements.get(exp);
+    }
+
+    return exp;
+  }
+
+  function replaceExportNode(mod, originalName, path) {
+    let id = mod.id;
+    let res = findExportModule(id, originalName);
+    let node;
+
+    if (res) {
+      node = find(id, res);
+    }
+
+    // If the module is not in this bundle, create a `require` call for it.
+    if (!node && !assets[id]) {
+      node = t.callExpression(t.identifier('require'), [t.numericLiteral(id)]);
+      return t.memberExpression(node, t.identifier(originalName));
+    }
+
+    // If this is an ES6 module, throw an error if we cannot resolve the module
+    if (!node && !mod.cacheData.isCommonJS) {
+      let relativePath = relative(packager.options.rootDir, mod.name);
+      throw new Error(`${relativePath} does not export '${originalName}'`);
+    }
+
+    // If it is CommonJS, look for an exports object.
+    if (!node && mod.cacheData.isCommonJS) {
+      node = find(id, `$${id}$exports`);
+      if (!node) {
+        return null;
+      }
+
+      // Handle interop for default imports of CommonJS modules.
+      if (mod.cacheData.isCommonJS && originalName === 'default') {
+        let name = `$${id}$interop$default`;
+        if (!interops.has(node.name)) {
+          let [decl] = path.getStatementParent().insertBefore(DEFAULT_INTEROP_TEMPLATE({
+            NAME: t.identifier(name),
+            MODULE: node
+          }));
+
+          path.scope.getBinding(node.name).reference(decl.get('declarations.0.init'));
+          path.scope.registerDeclaration(decl);
+
+          interops.set(name, node.name);
+        }
+
+        return t.memberExpression(t.identifier(name), t.identifier('d'));
+      }
 
       // if there is a CommonJS export return $id$exports.name
-      return t.memberExpression(node, t.identifier(name));
+      return t.memberExpression(node, t.identifier(originalName));
     }
 
     return node;
 
     function find(id, symbol) {
-      let computedSymbol = symbol(id);
+      if (replacements.has(symbol)) {
+        symbol = replacements.get(symbol);
+      }
 
       // if the symbol is in the scope there is not need to remap it
-      if (path.scope.getProgramParent().hasBinding(computedSymbol)) {
-        return t.identifier(computedSymbol);
-      }
-
-      if (exports.has(computedSymbol)) {
-        return t.identifier(exports.get(computedSymbol));
-      }
-
-      // default exports are excluded from wildcard exports
-      if (id in assets && name !== 'default') {
-        /* recursively lookup the symbol
-         * this is needed when there is deep export wildcards, like in the following:
-         * - a.js
-         *   > export * from './b'
-         * - b.js
-         *   > export * from './c'
-         * - c.js in es6
-         *   > export * from 'lodash'
-         * - c.js in cjs
-         *   > module.exports = require('lodash')
-         */
-        let node = null;
-
-        assets[id].cacheData.wildcards.find(
-          name => (node = find(resolveModule(id, name).id, symbol))
-        );
-
-        return node;
+      if (path.scope.getProgramParent().hasBinding(symbol)) {
+        return t.identifier(symbol);
       }
 
       return null;
@@ -120,120 +179,10 @@ module.exports = packager => {
             );
           }
         } else {
-          path.replaceWith(t.identifier(`$${mod.id}$exports`));
+          let name = `$${mod.id}$exports`;
+          let id = t.identifier(replacements.get(name) || name);
+          path.replaceWith(id);
         }
-      } else if (callee.name === '$parcel$import') {
-        let [id, source, name, replace] = args;
-        
-        replace = path.get('arguments.3').evaluate();
-
-        if (
-          args.length !== 4 ||
-          !t.isNumericLiteral(id) ||
-          !t.isStringLiteral(source) ||
-          !t.isStringLiteral(name)// ||
-          // !t.isBooleanLiteral(replace)
-        ) {
-          throw new Error(
-            'invariant: invalid signature, expected : $parcel$import(number, string, string, boolean)'
-          );
-        }
-
-        let mod = resolveModule(id.value, source.value);
-
-        if (typeof mod === 'undefined') {
-          throw new Error(
-            `Cannot find module "${source.value}" in asset ${id.value}`
-          );
-        }
-
-        let node = replaceExportNode(mod.id, name.value, path);
-        let interop = false;
-
-        // If the module has any CommonJS reference, it still can have export/import statements.
-        if (mod.cacheData.isCommonJS) {
-          if (name.value === 'default') {
-            node = t.isMemberExpression(node) ? node.object : node;
-            interop = true;
-
-            let nodeName =
-              replace.value && t.isIdentifier(node) ? node.name : null;
-            let {id} = path.parent;
-
-            if (nodeName !== null && interops.has(nodeName)) {
-              let name = t.identifier(interops.get(nodeName));
-
-              // Rename references to the variables to the cached interop name.
-              path.scope
-                .getBinding(id.name)
-                .referencePaths.forEach(reference =>
-                  reference.replaceWith(
-                    t.memberExpression(name, t.identifier('d'))
-                  )
-                );
-              // Remove the binding and its definition.
-              path.scope.removeBinding(id.name);
-              path.parentPath.remove();
-
-              return;
-            } else {
-              node = DEFAULT_INTEROP_TEMPLATE({MODULE: node});
-
-              // Save the variable name of the interop call for further use.
-              if (nodeName !== null) {
-                interops.set(nodeName, id.name);
-              }
-            }
-          }
-        } else if (
-          mod.cacheData.isES6Module &&
-          !t.isIdentifier(node) &&
-          mod.id in assets
-        ) {
-          let relativePath = relative(packager.options.rootDir, mod.name);
-
-          throw new Error(`${relativePath} does not export '${name.value}'`);
-        }
-
-        if (replace.value) {
-          if (!path.parentPath.isVariableDeclarator()) {
-            throw new Error(
-              'invariant: "replace" used outside of a VariableDeclarator'
-            );
-          }
-
-          let {id} = path.parent;
-          let binding = path.scope.getBinding(id.name);
-
-          if (interop) {
-            path.replaceWith(node);
-
-            binding.referencePaths.forEach(reference =>
-              reference.replaceWith(t.memberExpression(id, t.identifier('d')))
-            );
-          } else {
-            path.scope.removeBinding(id.name);
-
-            binding.path.remove();
-            binding.referencePaths.forEach(reference =>
-              reference.replaceWith(node)
-            );
-
-            if (t.isIdentifier(node)) {
-              exports.set(id.name, node.name);
-            }
-          }
-        } else {
-          path.replaceWith(node);
-        }
-      } else if (
-        (callee.name === '$parcel$interopDefault' ||
-          callee.name === '$parcel$exportWildcard') &&
-        !path.getData('markAsPure')
-      ) {
-        // This hints Uglify and Babel that this CallExpression does not have any side-effects.
-        path.addComment('leading', '#__PURE__');
-        path.setData('markAsPure', true);
       } else if (callee.name === '$parcel$require$resolve') {
         let [id, source] = args;
 
@@ -288,6 +237,7 @@ module.exports = packager => {
             ref.replaceWith(t.identifier(init.name));
           }
 
+          replacements.set(id.name, init.name);
           path.remove();
         }
       }
@@ -307,11 +257,11 @@ module.exports = packager => {
 
         // If it's a $id$exports.name expression.
         if (match) {
-          let exportName = '$' + match[1] + '$export$' + property.name;
+          let exp = findExportModule(match[1], property.name, path);
 
           // Check if $id$export$name exists and if so, replace the node by it.
-          if (path.scope.hasBinding(exportName)) {
-            path.replaceWith(t.identifier(exportName));
+          if (exp) {
+            path.replaceWith(t.identifier(exp));
           }
         }
       }
@@ -323,25 +273,14 @@ module.exports = packager => {
         return;
       }
 
-      // If it's a renamed export replace it with its alias.
-      if (exports.has(name)) {
-        path.replaceWith(t.identifier(exports.get(path.node.name)));
-      }
-
-      let match = name.match(EXPORT_RE);
-
-      // If it's an undefined $id$export$name identifier.
-      if (match && !path.scope.hasBinding(name)) {
-        let id = Number(match[1]);
-        let exportName = match[2];
-
-        // Check if there is a wildcard or an alias (Identifier), else use CommonJS (MemberExpression).
-        path.replaceWith(replaceExportNode(id, exportName, path));
-
+      if (imports.has(name)) {
+        let imp = imports.get(name);
+        let node = replaceExportNode(imp[0], imp[1], path);
+        path.replaceWith(node);
         return;
       }
 
-      match = name.match(EXPORTS_RE);
+      let match = name.match(EXPORTS_RE);
 
       // If it's an undefined $id$exports identifier.
       if (match && !path.scope.hasBinding(name)) {
@@ -351,14 +290,6 @@ module.exports = packager => {
         if (id in assets) {
           path.replaceWith(t.objectExpression([]));
         }
-        // Else it should be required from another bundle, replace with require(id).
-        else {
-          path.replaceWith(
-            t.callExpression(t.identifier('require'), [t.numericLiteral(id)])
-          );
-        }
-
-        return;
       }
     },
     Program: {
