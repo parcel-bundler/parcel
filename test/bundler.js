@@ -56,7 +56,7 @@ describe('bundler', function() {
       __dirname + '/integration/multi-entry/two.html'
     ]);
 
-    assertBundleTree(b, [
+    await assertBundleTree(b, [
       {
         type: 'html',
         assets: ['one.html'],
@@ -78,7 +78,7 @@ describe('bundler', function() {
   it('should support multiple entry points as a glob', async function() {
     let b = await bundle(__dirname + '/integration/multi-entry/*.html');
 
-    assertBundleTree(b, [
+    await assertBundleTree(b, [
       {
         type: 'html',
         assets: ['one.html'],

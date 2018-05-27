@@ -13,7 +13,7 @@ describe('wasm', function() {
           target
         });
 
-        assertBundleTree(b, {
+        await assertBundleTree(b, {
           name: 'index.js',
           assets: [
             'index.js',
@@ -34,7 +34,7 @@ describe('wasm', function() {
         });
 
         let promise = deferred();
-        run(b, {output: promise.resolve}, {require: false});
+        await run(b, {output: promise.resolve}, {require: false});
         assert.equal(await promise, 5);
       });
 
@@ -43,7 +43,7 @@ describe('wasm', function() {
           target
         });
 
-        assertBundleTree(b, {
+        await assertBundleTree(b, {
           name: 'index.js',
           assets: [
             'index.js',
@@ -63,7 +63,7 @@ describe('wasm', function() {
           ]
         });
 
-        var res = run(b);
+        var res = await run(b);
         assert.equal(await res, 5);
       });
 
@@ -72,7 +72,7 @@ describe('wasm', function() {
           target
         });
 
-        assertBundleTree(b, {
+        await assertBundleTree(b, {
           name: 'index.js',
           assets: [
             'index.js',
@@ -102,7 +102,7 @@ describe('wasm', function() {
           ]
         });
 
-        var res = run(b);
+        var res = await run(b);
         assert.equal(await res, 5);
       });
     });

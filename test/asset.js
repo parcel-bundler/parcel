@@ -1,5 +1,5 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 const path = require('path');
 const Asset = require('../src/Asset');
 const {bundle} = require('./utils');
@@ -28,7 +28,7 @@ describe('Asset', () => {
       outFile
     });
 
-    assert(fs.existsSync(__dirname, `/dist/${outFile}`));
+    assert(await fs.exists(__dirname, `/dist/${outFile}`));
   });
 
   it('should have backward compatibility for package field', function() {
