@@ -486,5 +486,14 @@ describe('scope hoisting', function() {
         Array.from(b.assets).find(a => a.name.endsWith('b.js')).id
       );
     });
+
+    it('supports requiring a re-exported ES6 import', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/re-export-var/a.js'
+      );
+
+      let output = run(b);
+      assert.deepEqual(output, 'foobar');
+    });
   });
 });
