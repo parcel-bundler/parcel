@@ -2,7 +2,7 @@ const fs = require('fs');
 const assert = require('assert');
 const lineCounter = require('../src/utils/lineCounter');
 
-describe.only('line counter', () => {
+describe('line counter', () => {
   it('counts number of lines of a string', () => {
     const input = ` line 1
       line 2
