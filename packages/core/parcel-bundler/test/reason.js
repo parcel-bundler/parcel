@@ -8,7 +8,7 @@ describe('reason', function() {
     assert.equal(b.assets.size, 2);
     assert.equal(b.childBundles.size, 1);
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
