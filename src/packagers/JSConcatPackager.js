@@ -65,6 +65,10 @@ class JSConcatPackager extends Packager {
       }
     }
 
+    if (this.bundle.entryAsset) {
+      this.markUsedExports(this.bundle.entryAsset);
+    }
+
     if (this.needsPrelude) {
       if (this.bundle.entryAsset && this.options.bundleLoaders[this.bundle.entryAsset.type]) {
         this.exposedModules.add(this.bundle.entryAsset);
@@ -72,6 +76,31 @@ class JSConcatPackager extends Packager {
     }
 
     this.write(helpers);
+  }
+
+  markUsedExports(asset) {
+    if (asset.usedExports) {
+      return;
+    }
+
+    asset.usedExports = new Set;
+
+    for (let identifier in asset.cacheData.imports) {
+      let [source, name] = asset.cacheData.imports[identifier];
+      let dep = asset.depAssets.get(asset.dependencies.get(source));
+      this.markUsed(dep, name);
+    }
+  }
+
+  markUsed(mod, id) {
+    let exp = mod.cacheData.exports[id];
+    if (Array.isArray(exp)) {
+      let depMod = mod.depAssets.get(mod.dependencies.get(exp[0]));
+      return this.markUsed(depMod, exp[1]);
+    }
+
+    this.markUsedExports(mod);
+    mod.usedExports.add(id);
   }
 
   getExportIdentifier(asset) {
@@ -82,15 +111,13 @@ class JSConcatPackager extends Packager {
     if (this.addedAssets.has(asset)) {
       return;
     }
-
     this.addedAssets.add(asset);
     let {js, map} = asset.generated;
 
-    for (let key in asset.cacheData.exports) {
-      let local = '$' + asset.id + '$export$' + asset.cacheData.exports[key];
-      if (key !== local) {
-        this.exports.set(key, local);
-      }
+    // If the asset's package has the sideEffects: false flag set, and there are no used
+    // exports marked, exclude the asset from the bundle.
+    if (asset.cacheData.sideEffects === false && (!asset.usedExports || asset.usedExports.size === 0)) {
+      return;
     }
 
     for (let [dep, mod] of asset.depAssets) {

@@ -207,6 +207,38 @@ describe('scope hoisting', function() {
       let output = run(b);
       assert.deepEqual(output, 'foobar');
     });
+
+    it('keeps side effects by default', async function () {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/es6/side-effects/a.js'
+      );
+
+      let called = false;
+      let output = run(b, {
+        sideEffect: () => {
+          called = true;
+        }
+      });
+
+      assert(called, 'side effect not called');
+      assert.deepEqual(output, 4);
+    });
+
+    it('supports the package.json sideEffects: false flag', async function () {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/es6/side-effects-false/a.js'
+      );
+
+      let called = false;
+      let output = run(b, {
+        sideEffect: () => {
+          called = true;
+        }
+      });
+
+      assert(!called, 'side effect called');
+      assert.deepEqual(output, 4);
+    });
   });
 
   describe('commonjs', function() {
