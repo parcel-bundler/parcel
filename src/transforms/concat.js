@@ -12,6 +12,7 @@ const EXPORT_RE = /^\$([\d]+)\$export\$(.+)$/;
 
 const DEFAULT_INTEROP_TEMPLATE = template('var NAME = $parcel$interopDefault(MODULE)');
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
+const REQUIRE_TEMPLATE = template('require(ID)');
 
 module.exports = packager => {
   let {contents: code, exports, addedAssets} = packager;
@@ -87,7 +88,7 @@ module.exports = packager => {
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && !assets[id]) {
-      node = t.callExpression(t.identifier('require'), [t.numericLiteral(id)]);
+      node = REQUIRE_TEMPLATE({ID: t.numericLiteral(id)});
       return t.memberExpression(node, t.identifier(originalName));
     }
 
@@ -179,9 +180,15 @@ module.exports = packager => {
             );
           }
         } else {
-          let name = `$${mod.id}$exports`;
-          let id = t.identifier(replacements.get(name) || name);
-          path.replaceWith(id);
+          let node;
+          if (assets[mod.id]) {
+            let name = `$${mod.id}$exports`;
+            node = t.identifier(replacements.get(name) || name);
+          } else {
+            node = REQUIRE_TEMPLATE({ID: t.numericLiteral(mod.id)});
+          }
+
+          path.replaceWith(node);
         }
       } else if (callee.name === '$parcel$require$resolve') {
         let [id, source] = args;
