@@ -33,7 +33,7 @@ module.exports = {
       asset.cacheData.imports = asset.cacheData.imports || Object.create(null);
       asset.cacheData.exports = asset.cacheData.exports || Object.create(null);
       asset.cacheData.wildcards = asset.cacheData.wildcards || [];
-      asset.cacheData.sideEffects = asset._package.sideEffects;
+      asset.cacheData.sideEffects = asset._package && asset._package.sideEffects;
 
       let shouldWrap = false;
       path.traverse({
