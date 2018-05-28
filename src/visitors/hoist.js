@@ -33,7 +33,8 @@ module.exports = {
       asset.cacheData.imports = asset.cacheData.imports || Object.create(null);
       asset.cacheData.exports = asset.cacheData.exports || Object.create(null);
       asset.cacheData.wildcards = asset.cacheData.wildcards || [];
-      asset.cacheData.sideEffects = asset._package && asset._package.sideEffects;
+      asset.cacheData.sideEffects =
+        asset._package && asset._package.sideEffects;
 
       let shouldWrap = false;
       path.traverse({
@@ -97,9 +98,7 @@ module.exports = {
 
       if (scope.getData('shouldWrap')) {
         if (asset.cacheData.isES6Module) {
-          path.unshiftContainer('body', [
-            ESMODULE_TEMPLATE()
-          ]);
+          path.unshiftContainer('body', [ESMODULE_TEMPLATE()]);
         }
 
         path.replaceWith(
@@ -221,17 +220,24 @@ module.exports = {
 
     // If we can statically evaluate the name of a CommonJS export, create an ES6-style export for it.
     // This allows us to remove the CommonJS export object completely in many cases.
-    if (t.isMemberExpression(left) && t.isIdentifier(left.object, {name: 'exports'}) && 
-      ((t.isIdentifier(left.property) && !left.computed) || t.isStringLiteral(left.property))
+    if (
+      t.isMemberExpression(left) &&
+      t.isIdentifier(left.object, {name: 'exports'}) &&
+      ((t.isIdentifier(left.property) && !left.computed) ||
+        t.isStringLiteral(left.property))
     ) {
-      let name = t.isIdentifier(left.property) ? left.property.name : left.property.value;
+      let name = t.isIdentifier(left.property)
+        ? left.property.name
+        : left.property.value;
       let identifier = getExportIdentifier(asset, name);
-      
+
       if (!path.scope.hasBinding(identifier.name)) {
         asset.cacheData.exports[name] = identifier.name;
-        path.insertBefore(t.variableDeclaration('var', [
-          t.variableDeclarator(t.clone(identifier), path.node.right)
-        ]));
+        path.insertBefore(
+          t.variableDeclaration('var', [
+            t.variableDeclarator(t.clone(identifier), path.node.right)
+          ])
+        );
 
         path.get('right').replaceWith(identifier);
       }
@@ -298,7 +304,10 @@ module.exports = {
       if (t.isImportDefaultSpecifier(specifier)) {
         asset.cacheData.imports[id.name] = [path.node.source.value, 'default'];
       } else if (t.isImportSpecifier(specifier)) {
-        asset.cacheData.imports[id.name] = [path.node.source.value, specifier.imported.name];
+        asset.cacheData.imports[id.name] = [
+          path.node.source.value,
+          specifier.imported.name
+        ];
       } else if (t.isImportNamespaceSpecifier(specifier)) {
         asset.cacheData.imports[id.name] = [path.node.source.value, '*'];
       }
@@ -342,7 +351,7 @@ module.exports = {
           t.variableDeclarator(identifier, t.toExpression(declaration))
         ])
       );
-      
+
       path.scope.registerDeclaration(path);
     } else {
       // Rename the declaration to the exported name.
@@ -370,11 +379,15 @@ module.exports = {
         } else if (t.isExportNamespaceSpecifier(specifier)) {
           asset.cacheData.exports[exported.name] = [source.value, '*'];
         } else if (t.isExportSpecifier(specifier)) {
-          asset.cacheData.exports[exported.name] = [source.value, specifier.local.name];
+          asset.cacheData.exports[exported.name] = [
+            source.value,
+            specifier.local.name
+          ];
         }
 
         let id = getIdentifier(asset, 'import', exported.name);
-        asset.cacheData.imports[id.name] = asset.cacheData.exports[exported.name];
+        asset.cacheData.imports[id.name] =
+          asset.cacheData.exports[exported.name];
 
         path.insertAfter(
           EXPORT_ASSIGN_TEMPLATE({
@@ -451,7 +464,8 @@ function addExport(asset, path, local, exported) {
   let identifier = getExportIdentifier(asset, exported.name);
 
   if (asset.cacheData.imports[local.name]) {
-    asset.cacheData.exports[exported.name] = asset.cacheData.imports[local.name];
+    asset.cacheData.exports[exported.name] =
+      asset.cacheData.imports[local.name];
     identifier = t.identifier(local.name);
   }
 
@@ -470,16 +484,15 @@ function addExport(asset, path, local, exported) {
 
   let constantViolations = scope
     .getBinding(local.name)
-    .constantViolations.concat(path)
+    .constantViolations.concat(path);
 
   if (!asset.cacheData.exports[exported.name]) {
     asset.cacheData.exports[exported.name] = identifier.name;
   }
-  
+
   fastRename(scope, asset, local.name, identifier.name);
 
-  constantViolations
-    .forEach(path => path.insertAfter(t.cloneDeep(assignNode)));
+  constantViolations.forEach(path => path.insertAfter(t.cloneDeep(assignNode)));
 }
 
 function safeRename(path, asset, from, to) {

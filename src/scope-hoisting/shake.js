@@ -4,7 +4,7 @@ const EXPORTS_RE = /^\$([\d]+)\$exports$/;
 
 /**
  * This is a small small implementation of dead code removal specialized to handle
- * removing unused exports. All other dead code removal happens in workers on each 
+ * removing unused exports. All other dead code removal happens in workers on each
  * individual file by babel-minify.
  */
 function treeShake(scope) {
@@ -32,7 +32,10 @@ function treeShake(scope) {
         .forEach(path => {
           if (path.parentPath.isMemberExpression()) {
             let parent = path.parentPath.parentPath;
-            if (parent.parentPath.isSequenceExpression() && parent.parent.expressions.length === 1) {
+            if (
+              parent.parentPath.isSequenceExpression() &&
+              parent.parent.expressions.length === 1
+            ) {
               parent.parentPath.remove();
             } else if (!parent.removed) {
               parent.remove();
@@ -79,7 +82,10 @@ function isPure(binding) {
     return false;
   }
 
-  if (binding.path.isVariableDeclarator() && binding.path.get('id').isIdentifier()) {
+  if (
+    binding.path.isVariableDeclarator() &&
+    binding.path.get('id').isIdentifier()
+  ) {
     let init = binding.path.get('init');
     return init.isPure() || init.isIdentifier() || init.isThisExpression();
   }

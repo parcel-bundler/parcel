@@ -10,19 +10,21 @@ const mangleScope = require('../scope-hoisting/mangler');
 const EXPORTS_RE = /^\$([\d]+)\$exports$/;
 const EXPORT_RE = /^\$([\d]+)\$export\$(.+)$/;
 
-const DEFAULT_INTEROP_TEMPLATE = template('var NAME = $parcel$interopDefault(MODULE)');
+const DEFAULT_INTEROP_TEMPLATE = template(
+  'var NAME = $parcel$interopDefault(MODULE)'
+);
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 const REQUIRE_TEMPLATE = template('require(ID)');
 
 module.exports = packager => {
   let {contents: code, exports, addedAssets} = packager;
-  let replacements = new Map;
+  let replacements = new Map();
   let ast = babylon.parse(code, {
     allowReturnOutsideFunction: true
   });
   // Share $parcel$interopDefault variables between modules
   let interops = new Map();
-  let imports = new Map;
+  let imports = new Map();
 
   let assets = Array.from(addedAssets).reduce((acc, asset) => {
     acc[asset.id] = asset;
@@ -109,12 +111,16 @@ module.exports = packager => {
       if (mod.cacheData.isCommonJS && originalName === 'default') {
         let name = `$${id}$interop$default`;
         if (!interops.has(node.name)) {
-          let [decl] = path.getStatementParent().insertBefore(DEFAULT_INTEROP_TEMPLATE({
-            NAME: t.identifier(name),
-            MODULE: node
-          }));
+          let [decl] = path.getStatementParent().insertBefore(
+            DEFAULT_INTEROP_TEMPLATE({
+              NAME: t.identifier(name),
+              MODULE: node
+            })
+          );
 
-          path.scope.getBinding(node.name).reference(decl.get('declarations.0.init'));
+          path.scope
+            .getBinding(node.name)
+            .reference(decl.get('declarations.0.init'));
           path.scope.registerDeclaration(decl);
 
           interops.set(name, node.name);

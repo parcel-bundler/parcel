@@ -28,8 +28,16 @@ class SASSAsset extends Asset {
       path.dirname(this.name)
     );
     opts.data = opts.data ? opts.data + os.EOL + code : code;
-    let type = this.options.rendition ? this.options.rendition.type : path.extname(this.name).toLowerCase().replace('.','');
-    opts.indentedSyntax = typeof opts.indentedSyntax === 'boolean' ? opts.indentedSyntax : type === 'sass';
+    let type = this.options.rendition
+      ? this.options.rendition.type
+      : path
+          .extname(this.name)
+          .toLowerCase()
+          .replace('.', '');
+    opts.indentedSyntax =
+      typeof opts.indentedSyntax === 'boolean'
+        ? opts.indentedSyntax
+        : type === 'sass';
 
     opts.functions = Object.assign({}, opts.functions, {
       url: node => {
@@ -39,7 +47,9 @@ class SASSAsset extends Asset {
     });
 
     opts.importer = opts.importer || [];
-    opts.importer = Array.isArray(opts.importer) ? opts.importer : [opts.importer];
+    opts.importer = Array.isArray(opts.importer)
+      ? opts.importer
+      : [opts.importer];
     opts.importer.push((url, prev, done) => {
       let resolved;
       try {

@@ -70,7 +70,10 @@ class JSConcatPackager extends Packager {
     }
 
     if (this.needsPrelude) {
-      if (this.bundle.entryAsset && this.options.bundleLoaders[this.bundle.entryAsset.type]) {
+      if (
+        this.bundle.entryAsset &&
+        this.options.bundleLoaders[this.bundle.entryAsset.type]
+      ) {
         this.exposedModules.add(this.bundle.entryAsset);
       }
     }
@@ -83,7 +86,7 @@ class JSConcatPackager extends Packager {
       return;
     }
 
-    asset.usedExports = new Set;
+    asset.usedExports = new Set();
 
     for (let identifier in asset.cacheData.imports) {
       let [source, name] = asset.cacheData.imports[identifier];
@@ -116,7 +119,10 @@ class JSConcatPackager extends Packager {
 
     // If the asset's package has the sideEffects: false flag set, and there are no used
     // exports marked, exclude the asset from the bundle.
-    if (asset.cacheData.sideEffects === false && (!asset.usedExports || asset.usedExports.size === 0)) {
+    if (
+      asset.cacheData.sideEffects === false &&
+      (!asset.usedExports || asset.usedExports.size === 0)
+    ) {
       return;
     }
 
@@ -135,7 +141,8 @@ class JSConcatPackager extends Packager {
         // loaded in parallel with this bundle as part of a dynamic import.
         if (
           !this.bundle.assets.has(mod) &&
-          (!this.bundle.parentBundle || this.bundle.parentBundle.type !== 'js') &&
+          (!this.bundle.parentBundle ||
+            this.bundle.parentBundle.type !== 'js') &&
           this.options.bundleLoaders[mod.type]
         ) {
           this.externalModules.add(mod);
@@ -248,8 +255,13 @@ class JSConcatPackager extends Packager {
       this.write(loads);
     }
 
-    let entryExports = this.bundle.entryAsset && this.getExportIdentifier(this.bundle.entryAsset);
-    if (entryExports && this.bundle.entryAsset.generated.js.includes(entryExports)) {
+    let entryExports =
+      this.bundle.entryAsset &&
+      this.getExportIdentifier(this.bundle.entryAsset);
+    if (
+      entryExports &&
+      this.bundle.entryAsset.generated.js.includes(entryExports)
+    ) {
       this.write(`
         if (typeof exports === "object" && typeof module !== "undefined") {
           // CommonJS

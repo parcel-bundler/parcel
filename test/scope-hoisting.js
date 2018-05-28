@@ -208,7 +208,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
-    it('keeps side effects by default', async function () {
+    it('keeps side effects by default', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/es6/side-effects/a.js'
       );
@@ -224,7 +224,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 4);
     });
 
-    it('supports the package.json sideEffects: false flag', async function () {
+    it('supports the package.json sideEffects: false flag', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/es6/side-effects-false/a.js'
       );
@@ -528,7 +528,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
-    it('supports object pattern requires', async function () {
+    it('supports object pattern requires', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/commonjs/object-pattern/a.js'
       );
