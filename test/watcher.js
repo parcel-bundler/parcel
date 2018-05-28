@@ -1,15 +1,21 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
+const nodeFS = require('fs');
 const path = require('path');
-const {bundler, run, assertBundleTree, sleep, nextBundle} = require('./utils');
-const rimraf = require('rimraf');
-const promisify = require('../src/utils/promisify');
-const ncp = promisify(require('ncp'));
+const {
+  bundler,
+  run,
+  assertBundleTree,
+  sleep,
+  nextBundle,
+  rimraf,
+  ncp
+} = require('./utils');
 
 describe('watcher', function() {
   let b;
-  beforeEach(function() {
-    rimraf.sync(__dirname + '/input');
+  beforeEach(async function() {
+    await rimraf(__dirname + '/input');
   });
 
   afterEach(function() {
@@ -23,16 +29,16 @@ describe('watcher', function() {
 
     b = bundler(__dirname + '/input/index.js', {watch: true});
     let bundle = await b.bundle();
-    let output = run(bundle);
+    let output = await run(bundle);
     assert.equal(output(), 3);
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'exports.a = 5; exports.b = 5;'
     );
 
     bundle = await nextBundle(b);
-    output = run(bundle);
+    output = await run(bundle);
     assert.equal(output(), 10);
   });
 
@@ -42,7 +48,7 @@ describe('watcher', function() {
     b = bundler(__dirname + '/input/index.js', {watch: true});
     let bundle = await b.bundle();
 
-    assertBundleTree(bundle, {
+    await assertBundleTree(bundle, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -75,15 +81,15 @@ describe('watcher', function() {
       ]
     });
 
-    let output = run(bundle);
+    let output = await run(bundle);
     assert.equal(await output(), 7);
 
     // change b.js so that it no longer depends on common.js.
     // This should cause common.js and dependencies to no longer be hoisted to the root bundle.
-    fs.writeFileSync(__dirname + '/input/b.js', 'module.exports = 5;');
+    await fs.writeFile(__dirname + '/input/b.js', 'module.exports = 5;');
 
     bundle = await nextBundle(b);
-    assertBundleTree(bundle, {
+    await assertBundleTree(bundle, {
       name: 'index.js',
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
@@ -109,7 +115,7 @@ describe('watcher', function() {
       ]
     });
 
-    output = run(bundle);
+    output = await run(bundle);
     assert.equal(await output(), 8);
   });
 
@@ -118,24 +124,22 @@ describe('watcher', function() {
     b = bundler(__dirname + '/input/index.js', {watch: true});
 
     await b.bundle();
-    let mtimes = fs
-      .readdirSync(__dirname + '/dist')
-      .map(
-        f => (fs.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000) | 0
-      );
+    let mtimes = (await fs.readdir(__dirname + '/dist')).map(
+      f =>
+        (nodeFS.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000) | 0
+    );
 
     await sleep(1100); // mtime only has second level precision
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/b.js',
       'module.exports = require("./common")'
     );
 
     await nextBundle(b);
-    let newMtimes = fs
-      .readdirSync(__dirname + '/dist')
-      .map(
-        f => (fs.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000) | 0
-      );
+    let newMtimes = (await fs.readdir(__dirname + '/dist')).map(
+      f =>
+        (nodeFS.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000) | 0
+    );
     assert.deepEqual(mtimes.sort().slice(0, 2), newMtimes.sort().slice(0, 2));
     assert.notEqual(mtimes[mtimes.length - 1], newMtimes[newMtimes.length - 1]);
   });
@@ -145,7 +149,7 @@ describe('watcher', function() {
     b = bundler(__dirname + '/input/index.js', {watch: true});
 
     let bundle = await b.bundle();
-    assertBundleTree(bundle, {
+    await assertBundleTree(bundle, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -178,16 +182,16 @@ describe('watcher', function() {
       ]
     });
 
-    let output = run(bundle);
+    let output = await run(bundle);
     assert.equal(await output(), 7);
 
     assert(b.loadedAssets.has(path.join(__dirname, '/input/common-dep.js')));
 
     // Get rid of common-dep.js
-    fs.writeFileSync(__dirname + '/input/common.js', 'module.exports = 5;');
+    await fs.writeFile(__dirname + '/input/common.js', 'module.exports = 5;');
 
     bundle = await nextBundle(b);
-    assertBundleTree(bundle, {
+    await assertBundleTree(bundle, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -219,7 +223,7 @@ describe('watcher', function() {
       ]
     });
 
-    output = run(bundle);
+    output = await run(bundle);
     assert.equal(await output(), 13);
 
     assert(!b.loadedAssets.has(path.join(__dirname, '/input/common-dep.js')));
@@ -230,22 +234,22 @@ describe('watcher', function() {
     b = bundler(__dirname + '/input/index.js', {watch: true});
 
     await b.bundle();
-    let file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('class Foo {}'));
     assert(file.includes('class Bar {}'));
 
     // Change babelrc, should recompile both files
     let babelrc = JSON.parse(
-      fs.readFileSync(__dirname + '/input/.babelrc', 'utf8')
+      await fs.readFile(__dirname + '/input/.babelrc', 'utf8')
     );
     babelrc.presets[0][1].targets.browsers.push('IE >= 11');
 
     await sleep(100);
 
-    fs.writeFileSync(__dirname + '/input/.babelrc', JSON.stringify(babelrc));
+    await fs.writeFile(__dirname + '/input/.babelrc', JSON.stringify(babelrc));
 
     await nextBundle(b);
-    file = fs.readFileSync(__dirname + '/dist/index.js', 'utf8');
+    file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(!file.includes('class Foo {}'));
     assert(!file.includes('class Bar {}'));
   });

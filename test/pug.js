@@ -1,12 +1,12 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 const {bundle, assertBundleTree} = require('./utils');
 
 describe('pug', function() {
   it('should support bundling HTML', async function() {
     const b = await bundle(__dirname + '/integration/pug/index.pug');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.pug'],
       childBundles: [
@@ -37,8 +37,8 @@ describe('pug', function() {
       ]
     });
 
-    const files = fs.readdirSync(__dirname + '/dist');
-    const html = fs.readFileSync(__dirname + '/dist/index.html');
+    const files = await fs.readdir(__dirname + '/dist');
+    const html = await fs.readFile(__dirname + '/dist/index.html');
     for (const file of files) {
       const ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {
@@ -52,13 +52,13 @@ describe('pug', function() {
       __dirname + '/integration/pug-include-extends/index.pug'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
-    const expect = fs.readFileSync(
+    const html = await fs.readFile(__dirname + '/dist/index.html', 'utf-8');
+    const expect = await fs.readFile(
       __dirname + '/integration/pug-include-extends/expect.html',
       'utf-8'
     );
@@ -69,12 +69,12 @@ describe('pug', function() {
   it('should support variables', async function() {
     const b = await bundle(__dirname + '/integration/pug-var/index.pug');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
+    const html = await fs.readFile(__dirname + '/dist/index.html', 'utf-8');
 
     assert(/src="\/?100x100.*.png"/.test(html));
   });
@@ -82,24 +82,24 @@ describe('pug', function() {
   it('should support mixins', async function() {
     const b = await bundle(__dirname + '/integration/pug-mixins/index.pug');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
+    const html = await fs.readFile(__dirname + '/dist/index.html', 'utf-8');
     assert(html.includes('Greetings, Parcel'));
   });
 
   it('should support filters', async function() {
     const b = await bundle(__dirname + '/integration/pug-filters/index.pug');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
+    const html = await fs.readFile(__dirname + '/dist/index.html', 'utf-8');
     assert(html.includes('FILTERED: Hello!'));
   });
 
@@ -108,12 +108,12 @@ describe('pug', function() {
       production: true
     });
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.pug']
     });
 
-    const html = fs.readFileSync(__dirname + '/dist/index.html', 'utf-8');
+    const html = await fs.readFile(__dirname + '/dist/index.html', 'utf-8');
 
     assert(html.includes('Minified'));
   });

@@ -1,12 +1,12 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('sass', function() {
   it('should support requiring sass files', async function() {
     let b = await bundle(__dirname + '/integration/sass/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.sass'],
       childBundles: [
@@ -21,18 +21,18 @@ describe('sass', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('.index'));
   });
 
   it('should support requiring scss files', async function() {
     let b = await bundle(__dirname + '/integration/scss/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.scss'],
       childBundles: [
@@ -47,18 +47,18 @@ describe('sass', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('.index'));
   });
 
   it('should support scss imports', async function() {
     let b = await bundle(__dirname + '/integration/scss-import/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.scss'],
       childBundles: [
@@ -73,11 +73,11 @@ describe('sass', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('.index'));
     assert(css.includes('.foo'));
     assert(css.includes('.bar'));
@@ -86,7 +86,7 @@ describe('sass', function() {
   it('should support requiring empty scss files', async function() {
     let b = await bundle(__dirname + '/integration/scss-empty/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.scss'],
       childBundles: [
@@ -101,18 +101,18 @@ describe('sass', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert.equal(css, '');
   });
 
   it('should support linking to assets with url() from scss', async function() {
     let b = await bundle(__dirname + '/integration/scss-url/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.scss'],
       childBundles: [
@@ -132,17 +132,17 @@ describe('sass', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
 
     assert(
-      fs.existsSync(
+      await fs.exists(
         __dirname + '/dist/' + css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
       )
     );
@@ -151,7 +151,7 @@ describe('sass', function() {
   it('should support transforming scss with postcss', async function() {
     let b = await bundle(__dirname + '/integration/scss-postcss/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.scss'],
       childBundles: [
@@ -166,11 +166,11 @@ describe('sass', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), '_index_1a1ih_1');
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('._index_1a1ih_1'));
   });
 
@@ -179,14 +179,15 @@ describe('sass', function() {
       __dirname + '/integration/sass-advanced-import/index.sass'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.css',
       assets: ['index.sass']
     });
 
-    let css = fs
-      .readFileSync(__dirname + '/dist/index.css', 'utf8')
-      .replace(/\s+/g, ' ');
+    let css = (await fs.readFile(
+      __dirname + '/dist/index.css',
+      'utf8'
+    )).replace(/\s+/g, ' ');
     assert(css.includes('.foo { color: blue;'));
     assert(css.includes('.bar { color: green;'));
   });

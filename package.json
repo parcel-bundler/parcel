@@ -106,12 +106,12 @@
     "test-coverage": "rm -rf coverage/* && nyc yarn test",
     "report-coverage": "nyc report --reporter=lcov && codecov",
     "test-ci": "yarn test-coverage && yarn report-coverage",
-    "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
+    "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
     "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
     "prepublish": "yarn build",
     "minify": "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
     "precommit": "npm run lint && lint-staged",
-    "lint": "eslint . && prettier './{src,bin,test}/**/*.{js,json,md}' --list-different",
+    "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
     "postinstall": "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
   },
   "bin": {
