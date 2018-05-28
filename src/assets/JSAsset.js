@@ -140,26 +140,14 @@ class JSAsset extends Asset {
 
       this.traverse(hoist);
       this.isAstDirty = true;
-
-      if (this.options.minify) {
-        let res = require('babel-core').transformFromAst(this.ast, this.contents, {
-          babelrc: false,
-          code: false,
-          filename: 'jhi',
-          presets: [require('babel-preset-minify')]
-        });
-
-        this.ast = res.ast;
-        this.isAstDirty = true;
-      }
     } else {
       if (this.isES6Module) {
         await babel(this);
       }
+    }
 
-      if (this.options.minify) {
-        await uglify(this);
-      }
+    if (this.options.minify) {
+      await uglify(this);
     }
   }
 

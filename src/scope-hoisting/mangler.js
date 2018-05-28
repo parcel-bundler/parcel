@@ -1,6 +1,7 @@
-const Charset = require('babel-plugin-minify-mangle-names/lib/charset');
 const rename = require('./renamer');
 const t = require('babel-types');
+
+const CHARSET = ("abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ$_").split("");
 
 /**
  * This is a very specialized mangler designer to mangle only names in the top-level scope.
@@ -8,9 +9,6 @@ const t = require('babel-types');
  * mangle the top-level scope until scope hoisting is complete in the packager.
  */
 function mangleScope(scope) {
-  let charset = new Charset(false);
-  charset.sort();
-
   let bindings = {};
   let newNames = new Set;
 
@@ -23,7 +21,7 @@ function mangleScope(scope) {
     let newName = '';
 
     do {
-      newName = charset.getIdentifier(i++);
+      newName = getIdentifier(i++);
     } while (newNames.has(newName)   || !canRename(scope, scope.bindings[oldName], newName));
 
     bindings[oldName] = newName;
@@ -31,6 +29,19 @@ function mangleScope(scope) {
   }
 
   rename(scope, bindings);
+}
+
+function getIdentifier(num) {
+  let ret = '';
+  num++;
+
+  do {
+    num--;
+    ret += CHARSET[num % CHARSET.length];
+    num = Math.floor(num / CHARSET.length);
+  } while (num > 0);
+
+  return ret;
 }
 
 function canRename(scope, binding, newName) {

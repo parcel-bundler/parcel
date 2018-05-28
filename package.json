@@ -21,7 +21,6 @@
     "babel-plugin-transform-es2015-modules-commonjs": "^6.26.0",
     "babel-plugin-transform-react-jsx": "^6.24.1",
     "babel-preset-env": "^1.7.0",
-    "babel-preset-minify": "^0.4.3",
     "babel-template": "^6.26.0",
     "babel-traverse": "^6.26.0",
     "babel-types": "^6.26.0",
