@@ -12,7 +12,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/es6/default-export-expression/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -22,7 +22,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/es6/default-export-declaration/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -32,7 +32,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/es6/default-export-anonymous/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -42,7 +42,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/es6/default-export-variable/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -52,7 +52,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/es6/named-export-declaration/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -61,7 +61,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/es6/named-export-variable/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -70,7 +70,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/es6/renamed-import/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -79,7 +79,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/es6/renamed-export/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -88,7 +88,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/es6/import-namespace/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -97,7 +97,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/es6/re-export-all/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 6);
     });
 
@@ -106,7 +106,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/es6/re-export-multiple/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 7);
     });
 
@@ -115,7 +115,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/es6/re-export-named/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 3);
     });
 
@@ -124,7 +124,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/es6/re-export-default/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 3);
     });
 
@@ -133,7 +133,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/es6/re-export-namespace/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 6);
     });
 
@@ -157,7 +157,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/es6/multi-export/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 6);
     });
 
@@ -166,7 +166,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/es6/live-bindings/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 8);
     });
 
@@ -175,7 +175,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/es6/dynamic-import/a.js'
       );
 
-      let output = await run(b).default;
+      let output = await await run(b).default;
       assert.equal(output, 5);
     });
 
@@ -185,7 +185,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/es6/export-binding-identifiers/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.deepEqual(output, ['test']);
     });
 
@@ -195,7 +195,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/es6/import-commonjs-default/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.deepEqual(output, 'foobar');
     });
 
@@ -204,7 +204,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/es6/re-export-var/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.deepEqual(output, 'foobar');
     });
 
@@ -214,7 +214,7 @@ describe('scope hoisting', function() {
       );
 
       let called = false;
-      let output = run(b, {
+      let output = await run(b, {
         sideEffect: () => {
           called = true;
         }
@@ -230,7 +230,7 @@ describe('scope hoisting', function() {
       );
 
       let called = false;
-      let output = run(b, {
+      let output = await run(b, {
         sideEffect: () => {
           called = true;
         }
@@ -247,7 +247,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/commonjs/require/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -256,7 +256,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/commonjs/default-import/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -265,7 +265,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/commonjs/named-import/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -274,7 +274,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/commonjs/import-namespace/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -284,7 +284,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/require-default-export-expression/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -294,7 +294,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/require-default-export-declaration/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -304,7 +304,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/require-default-export-variable/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -314,7 +314,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/require-named-export-declaration/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -324,7 +324,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/require-named-export-variable/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -334,7 +334,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/require-renamed-export/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -344,7 +344,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/require-re-export-all/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 6);
     });
 
@@ -354,7 +354,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/require-re-export-multiple/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 7);
     });
 
@@ -364,7 +364,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/require-re-export-named/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 3);
     });
 
@@ -374,7 +374,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/require-re-export-default/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 3);
     });
 
@@ -384,7 +384,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/require-re-export-namespace/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 6);
     });
 
@@ -394,7 +394,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/require-re-export-exclude-default/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.deepEqual(output, {foo: 3});
     });
 
@@ -404,7 +404,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/es6-commonjs-hybrid/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 5);
     });
 
@@ -413,7 +413,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/commonjs/export-order/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 5);
     });
 
@@ -422,7 +422,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/commonjs/define-exports/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 'bar');
     });
 
@@ -431,7 +431,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/commonjs/live-bindings/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 8);
     });
 
@@ -440,7 +440,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/commonjs/wrap-eval/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 4);
     });
 
@@ -449,7 +449,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/commonjs/wrap-return/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -458,7 +458,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/commonjs/wrap-module/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.deepEqual(output, {exports: {foo: 2}});
     });
 
@@ -468,7 +468,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/wrap-module-computed/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.deepEqual(output, {foo: 2});
     });
 
@@ -477,7 +477,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/commonjs/this-reference/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 2);
     });
 
@@ -487,7 +487,7 @@ describe('scope hoisting', function() {
           '/integration/scope-hoisting/commonjs/this-reference-wrapped/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output, 6);
     });
 
@@ -498,7 +498,7 @@ describe('scope hoisting', function() {
 
       // TODO: this test doesn't currently work in older browsers since babel
       // replaces the typeof calls before we can get to them.
-      let output = run(b);
+      let output = await run(b);
       assert.equal(output.id, b.entryAsset.id);
       assert.equal(output.hot, null);
       assert.equal(output.type, 'object');
@@ -512,7 +512,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/commonjs/require-resolve/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.equal(
         output,
         Array.from(b.assets).find(a => a.name.endsWith('b.js')).id
@@ -524,7 +524,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/commonjs/re-export-var/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.deepEqual(output, 'foobar');
     });
 
@@ -533,7 +533,7 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/commonjs/object-pattern/a.js'
       );
 
-      let output = run(b);
+      let output = await run(b);
       assert.deepEqual(output, 5);
     });
   });

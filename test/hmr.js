@@ -1,19 +1,16 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 const path = require('path');
-const {bundler, run, sleep} = require('./utils');
-const rimraf = require('rimraf');
-const promisify = require('../src/utils/promisify');
-const ncp = promisify(require('ncp'));
+const {bundler, run, sleep, rimraf, ncp} = require('./utils');
 const WebSocket = require('ws');
 const json5 = require('json5');
 const sinon = require('sinon');
 
 describe('hmr', function() {
   let b, ws, stub;
-  beforeEach(function() {
+  beforeEach(async function() {
     stub = sinon.stub(console, 'clear');
-    rimraf.sync(__dirname + '/input');
+    await rimraf(__dirname + '/input');
   });
 
   afterEach(function(done) {
@@ -58,7 +55,7 @@ describe('hmr', function() {
       await sleep(100);
     }
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'exports.a = 5;\nexports.b = 5;'
     );
@@ -107,7 +104,7 @@ describe('hmr', function() {
       await sleep(100);
     }
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'exports.a = 5; exports.b = 5;'
     );
@@ -135,7 +132,7 @@ describe('hmr', function() {
       await sleep(100);
     }
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'require("fs"); exports.a = 5; exports.b = 5;'
     );
@@ -161,7 +158,7 @@ describe('hmr', function() {
       await sleep(100);
     }
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
@@ -193,7 +190,7 @@ describe('hmr', function() {
       await sleep(100);
     }
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
@@ -219,7 +216,7 @@ describe('hmr', function() {
       await sleep(100);
     }
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
@@ -231,7 +228,7 @@ describe('hmr', function() {
 
     const secondBuildEnd = nextEvent(b, 'buildEnd');
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'require("fs"); exports.a = 5; exports.b = 5;'
     );
@@ -249,7 +246,7 @@ describe('hmr', function() {
     let bundle = await b.bundle();
     let outputs = [];
 
-    run(bundle, {
+    await run(bundle, {
       output(o) {
         outputs.push(o);
       }
@@ -261,7 +258,7 @@ describe('hmr', function() {
       await sleep(100);
     }
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'exports.a = 5; exports.b = 5;'
     );
@@ -278,7 +275,7 @@ describe('hmr', function() {
     let outputs = [];
     let moduleId = '';
 
-    run(bundle, {
+    await run(bundle, {
       reportModuleId(id) {
         moduleId = id;
       },
@@ -293,7 +290,7 @@ describe('hmr', function() {
       await sleep(100);
     }
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'exports.a = 5; exports.b = 5;'
     );
@@ -315,7 +312,7 @@ describe('hmr', function() {
     let bundle = await b.bundle();
     let outputs = [];
 
-    run(bundle, {
+    await run(bundle, {
       output(o) {
         outputs.push(o);
       }
@@ -328,7 +325,7 @@ describe('hmr', function() {
       await sleep(100);
     }
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'exports.a = 5; exports.b = 5;'
     );
@@ -345,7 +342,7 @@ describe('hmr', function() {
     let bundle = await b.bundle();
 
     let logs = [];
-    let ctx = run(
+    let ctx = await run(
       bundle,
       {
         console: {
@@ -364,7 +361,7 @@ describe('hmr', function() {
       await sleep(100);
     }
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
@@ -383,7 +380,7 @@ describe('hmr', function() {
     let bundle = await b.bundle();
 
     let logs = [];
-    let ctx = run(
+    let ctx = await run(
       bundle,
       {
         console: {
@@ -406,7 +403,7 @@ describe('hmr', function() {
       await sleep(100);
     }
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
@@ -415,7 +412,7 @@ describe('hmr', function() {
 
     assert(appendSpy.called);
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'require("fs"); exports.a = 5; exports.b = 5;'
     );
@@ -449,7 +446,7 @@ describe('hmr', function() {
       await sleep(100);
     }
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'exports.a = 5;\nexports.b = 5;'
     );
@@ -486,7 +483,7 @@ describe('hmr', function() {
       await sleep(100);
     }
 
-    fs.writeFileSync(
+    await fs.writeFile(
       __dirname + '/input/local.js',
       'exports.a = 5;\nexports.b = 5;'
     );

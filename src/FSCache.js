@@ -34,7 +34,11 @@ class FSCache {
     // Write mtimes for each dependent file that is already compiled into this asset
     for (let dep of data.dependencies) {
       if (dep.includedInParent) {
-        let stats = await fs.stat(dep.name);
+        let depPath = dep.name;
+        if (depPath[depPath.length - 1] === '*') {
+          depPath = path.dirname(depPath);
+        }
+        let stats = await fs.stat(depPath);
         dep.mtime = stats.mtime.getTime();
       }
     }
@@ -47,7 +51,7 @@ class FSCache {
       await fs.writeFile(this.getCacheFile(filename), JSON.stringify(data));
       this.invalidated.delete(filename);
     } catch (err) {
-      logger.error('Error writing to cache', err);
+      logger.error(`Error writing to cache: ${err.message}`);
     }
   }
 
@@ -83,7 +87,7 @@ class FSCache {
 
       let json = await fs.readFile(cacheFile);
       let data = JSON.parse(json);
-      if (!await this.checkDepMtimes(data)) {
+      if (!(await this.checkDepMtimes(data))) {
         return null;
       }
 

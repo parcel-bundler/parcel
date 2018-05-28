@@ -38,9 +38,16 @@ class SASSAsset extends Asset {
       }
     });
 
-    opts.importer = (url, prev, done) => {
+    opts.importer = opts.importer || [];
+    opts.importer = Array.isArray(opts.importer) ? opts.importer : [opts.importer];
+    opts.importer.push((url, prev, done) => {
       let resolved;
       try {
+        if (!/^(~|\.\/|\/)/.test(url)) {
+          url = './' + url;
+        } else if (!/^(~\/|\.\/|\/)/.test(url)) {
+          url = url.substring(1);
+        }
         resolved = syncPromise(
           resolver.resolve(url, prev === 'stdin' ? this.name : prev)
         ).path;
@@ -50,7 +57,7 @@ class SASSAsset extends Asset {
       return done({
         file: resolved
       });
-    };
+    });
 
     return await render(opts);
   }

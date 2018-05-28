@@ -9,6 +9,8 @@ class Child {
     this.responseQueue = new Map();
     this.responseId = 0;
     this.maxConcurrentCalls = 10;
+
+    process.env.PARCEL_WORKER_TYPE = 'remote-worker';
   }
 
   messageListener(data) {

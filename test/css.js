@@ -1,15 +1,12 @@
 const assert = require('assert');
-const fs = require('fs');
-const {bundle, run, assertBundleTree} = require('./utils');
-const promisify = require('../src/utils/promisify');
-const ncp = promisify(require('ncp'));
-const rimraf = require('rimraf');
+const fs = require('../src/utils/fs');
+const {bundle, run, assertBundleTree, rimraf, ncp} = require('./utils');
 
 describe('css', function() {
   it('should produce two bundles when importing a CSS file', async function() {
     let b = await bundle(__dirname + '/integration/css/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css', 'local.js', 'local.css'],
       childBundles: [
@@ -24,7 +21,7 @@ describe('css', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
@@ -32,7 +29,7 @@ describe('css', function() {
   it('should support loading a CSS bundle along side dynamic imports', async function() {
     let b = await bundle(__dirname + '/integration/dynamic-css/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -68,7 +65,7 @@ describe('css', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 3);
   });
@@ -76,7 +73,7 @@ describe('css', function() {
   it('should support importing CSS from a CSS file', async function() {
     let b = await bundle(__dirname + '/integration/css-import/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css', 'other.css', 'local.css'],
       childBundles: [
@@ -92,11 +89,11 @@ describe('css', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('.local'));
     assert(css.includes('.other'));
     assert(/@media print {\s*.other/.test(css));
@@ -106,7 +103,7 @@ describe('css', function() {
   it('should support linking to assets with url() from CSS', async function() {
     let b = await bundle(__dirname + '/integration/css-url/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css'],
       childBundles: [
@@ -126,11 +123,11 @@ describe('css', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
@@ -140,7 +137,7 @@ describe('css', function() {
     assert(css.includes('.no-quote'));
 
     assert(
-      fs.existsSync(
+      await fs.exists(
         __dirname + '/dist/' + css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
       )
     );
@@ -151,7 +148,7 @@ describe('css', function() {
       production: true
     });
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css'],
       childBundles: [
@@ -171,11 +168,11 @@ describe('css', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(/url\(test\.[0-9a-f]+\.woff2\)/.test(css), 'woff ext found in css');
     assert(css.includes('url(http://google.com)'), 'url() found');
     assert(css.includes('.index'), '.index found');
@@ -185,7 +182,7 @@ describe('css', function() {
     assert(css.includes('.no-quote'));
 
     assert(
-      fs.existsSync(
+      await fs.exists(
         __dirname + '/dist/' + css.match(/url\((test\.[0-9a-f]+\.woff2)\)/)[1]
       )
     );
@@ -194,7 +191,7 @@ describe('css', function() {
   it('should support transforming with postcss', async function() {
     let b = await bundle(__dirname + '/integration/postcss/index.js');
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'index.css'],
       childBundles: [
@@ -209,7 +206,7 @@ describe('css', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
 
     let value = output();
@@ -217,7 +214,7 @@ describe('css', function() {
 
     let cssClass = value.match(/(_index_[0-9a-z]+_1)/)[1];
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes(`.${cssClass}`));
   });
 
@@ -226,18 +223,18 @@ describe('css', function() {
       production: true
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
 
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('.local'));
     assert(css.includes('.index'));
     assert(!css.includes('\n'));
   });
 
   it('should automatically install postcss plugins with npm if needed', async function() {
-    rimraf.sync(__dirname + '/input');
+    await rimraf(__dirname + '/input');
     await ncp(__dirname + '/integration/autoinstall/npm', __dirname + '/input');
     await bundle(__dirname + '/input/index.css');
 
@@ -249,12 +246,12 @@ describe('css', function() {
     assert(pkg.devDependencies['caniuse-lite']);
 
     // cssnext is applied
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('rgba'));
   });
 
   it('should automatically install postcss plugins with yarn if needed', async function() {
-    rimraf.sync(__dirname + '/input');
+    await rimraf(__dirname + '/input');
     await ncp(
       __dirname + '/integration/autoinstall/yarn',
       __dirname + '/input'
@@ -269,11 +266,11 @@ describe('css', function() {
     assert(pkg.devDependencies['caniuse-lite']);
 
     // appveyor is not currently writing to the yarn.lock file and will require further investigation
-    // let lockfile = fs.readFileSync(__dirname + '/input/yarn.lock', 'utf8');
+    // let lockfile = await fs.readFile(__dirname + '/input/yarn.lock', 'utf8');
     // assert(lockfile.includes('postcss-cssnext'));
 
     // cssnext is applied
-    let css = fs.readFileSync(__dirname + '/dist/index.css', 'utf8');
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('rgba'));
   });
 });
