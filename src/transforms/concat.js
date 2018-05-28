@@ -209,14 +209,15 @@ module.exports = packager => {
         let bundles = mod.id;
 
         if (dep.dynamic && packager.bundle.childBundles.has(mod.parentBundle)) {
-          bundles = [packager.getBundleSpecifier(mod.parentBundle)];
+          bundles = [];
 
           for (let child of mod.parentBundle.siblingBundles) {
-            if (!child.isEmpty) {
+            if (!child.isEmpty && packager.options.bundleLoaders[child.type]) {
               bundles.push(packager.getBundleSpecifier(child));
             }
           }
 
+          bundles.push(packager.getBundleSpecifier(mod.parentBundle));
           bundles.push(mod.id);
         }
 
