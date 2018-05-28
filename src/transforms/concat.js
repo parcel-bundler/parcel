@@ -8,7 +8,6 @@ const treeShake = require('../scope-hoisting/shake');
 const mangleScope = require('../scope-hoisting/mangler');
 
 const EXPORTS_RE = /^\$([\d]+)\$exports$/;
-const EXPORT_RE = /^\$([\d]+)\$export\$(.+)$/;
 
 const DEFAULT_INTEROP_TEMPLATE = template(
   'var NAME = $parcel$interopDefault(MODULE)'
@@ -17,7 +16,7 @@ const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 const REQUIRE_TEMPLATE = template('require(ID)');
 
 module.exports = packager => {
-  let {contents: code, exports, addedAssets} = packager;
+  let {contents: code, addedAssets} = packager;
   let replacements = new Map();
   let ast = babylon.parse(code, {
     allowReturnOutsideFunction: true

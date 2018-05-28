@@ -1,5 +1,3 @@
-const t = require('babel-types');
-
 function renameBindings(scope, names) {
   for (let oldName in names) {
     let newName = names[oldName];

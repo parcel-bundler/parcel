@@ -1,13 +1,10 @@
 const Packager = require('./Packager');
-const {minify} = require('uglify-es');
 const path = require('path');
 const fs = require('fs');
-
 const SourceMap = require('../SourceMap');
 const concat = require('../transforms/concat');
 const lineCounter = require('../utils/lineCounter');
 const urlJoin = require('../utils/urlJoin');
-const config = require('../utils/config');
 
 const prelude = fs
   .readFileSync(path.join(__dirname, '../builtins/prelude2.min.js'), 'utf8')
@@ -34,7 +31,6 @@ class JSConcatPackager extends Packager {
     this.externalModules = new Set();
     this.contents = '';
     this.lineOffset = 1;
-    this.exports = new Map();
     this.needsPrelude = false;
 
     for (let asset of this.bundle.assets) {

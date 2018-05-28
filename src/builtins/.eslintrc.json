@@ -8,6 +8,6 @@
   },
   "rules": {
     "no-global-assign": 1,
-    "no-unused-vars": 1
+    "no-unused-vars": 0
   }
 }
