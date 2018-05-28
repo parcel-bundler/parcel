@@ -1,5 +1,4 @@
 const Asset = require('../Asset');
-const parse = require('posthtml-parser');
 const api = require('posthtml/lib/api');
 const urlJoin = require('../utils/urlJoin');
 const render = require('posthtml-render');
@@ -79,8 +78,8 @@ class HTMLAsset extends Asset {
     this.isAstDirty = false;
   }
 
-  parse(code) {
-    let res = parse(code, {lowerCaseAttributeNames: true});
+  async parse(code) {
+    let res = await posthtmlTransform.parse(code, this);
     res.walk = api.walk;
     res.match = api.match;
     return res;
@@ -151,7 +150,7 @@ class HTMLAsset extends Asset {
   }
 
   async pretransform() {
-    await posthtmlTransform(this);
+    await posthtmlTransform.transform(this);
   }
 
   async transform() {
