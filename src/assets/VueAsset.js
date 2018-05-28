@@ -69,17 +69,18 @@ class VueAsset extends Asset {
     let js = this.ast.script ? generated[0].value : '';
     let supplemental = '';
 
+    // TODO: make it possible to process this code with the normal scope hoister
     if (this.options.scopeHoist) {
       optsVar = `$${this.id}$export$default`;
 
       if (!js.includes(optsVar)) {
-        let v = `$${this.id}$exports`;
-        if (!js.includes(v)) {
+        optsVar = `$${this.id}$exports`;
+        if (!js.includes(optsVar)) {
           supplemental += `
             var ${optsVar} = {};
           `;
-        } else {
-          optsVar = v;
+
+          this.cacheData.isCommonJS = true;
         }
       }
     } else {

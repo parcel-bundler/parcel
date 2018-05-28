@@ -63,10 +63,10 @@ class Pipeline {
         subAsset.id = asset.id;
         subAsset.contents = value;
         subAsset.dependencies = asset.dependencies;
+        subAsset.cacheData = Object.assign(asset.cacheData, subAsset.cacheData);
 
         let processed = await this.processAsset(subAsset);
         generated = generated.concat(processed);
-        Object.assign(asset.cacheData, subAsset.cacheData);
         asset.hash = md5(asset.hash + subAsset.hash);
       } else {
         generated.push(rendition);
