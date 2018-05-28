@@ -40,6 +40,11 @@ class SASSAsset extends Asset {
     opts.importer = opts.importer || [];
     opts.importer = Array.isArray(opts.importer) ? opts.importer : [opts.importer];
     opts.importer.push((url, prev, done) => {
+      if (!/^(~|\.\/|\/)/.test(url)) {
+        url = './' + url;
+      } else if (!/^(~\/|\.\/|\/)/.test(url)) {
+        url = url.substring(1);
+      }
       resolver
         .resolve(url, prev === 'stdin' ? this.name : prev)
         .then(resolved => resolved.path)
