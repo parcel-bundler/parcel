@@ -44,7 +44,7 @@ class SASSAsset extends Asset {
         return new sass.types.String(`url(${JSON.stringify(filename)})`);
       }
     });
-    
+
     opts.importer = opts.importer || [];
     opts.importer = Array.isArray(opts.importer)
       ? opts.importer
