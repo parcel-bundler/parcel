@@ -227,17 +227,43 @@ module.exports = packager => {
           return;
         }
 
-        if (EXPORTS_RE.test(init.name)) {
-          let binding = path.scope.getBinding(id.name);
+        let match = init.name.match(EXPORTS_RE);
+        if (!match) {
+          return;
+        }
+
+        // Replace patterns like `var {x} = require('y')` with e.g. `$id$export$x`.
+        if (t.isObjectPattern(id)) {
+          for (let p of path.get('id.properties')) {
+            let {computed, key, value} = p.node;
+            if (computed || !t.isIdentifier(key) || !t.isIdentifier(value)) {
+              continue;
+            }
+
+            let exp = findExportModule(match[1], key.name, path);
+            if (exp) {
+              replace(value.name, exp, p);
+            }
+          }
+
+          if (id.properties.length === 0) {
+            path.remove();
+          }
+        } else if (t.isIdentifier(id)) {
+          replace(id.name, init.name, path);
+        }
+
+        function replace(id, init, path) {
+          let binding = path.scope.getBinding(id);
           if (!binding.constant) {
             return;
           }
 
           for (let ref of binding.referencePaths) {
-            ref.replaceWith(t.identifier(init.name));
+            ref.replaceWith(t.identifier(init));
           }
 
-          replacements.set(id.name, init.name);
+          replacements.set(id, init);
           path.remove();
         }
       }

@@ -527,5 +527,14 @@ describe('scope hoisting', function() {
       let output = run(b);
       assert.deepEqual(output, 'foobar');
     });
+
+    it('supports object pattern requires', async function () {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/object-pattern/a.js'
+      );
+
+      let output = run(b);
+      assert.deepEqual(output, 5);
+    });
   });
 });
