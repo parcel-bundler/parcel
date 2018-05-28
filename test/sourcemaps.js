@@ -177,7 +177,7 @@ describe('sourcemaps', function() {
       childBundles: [
         {
           type: 'js',
-          assets: ['index.js', 'data.json'],
+          assets: ['index.js', 'data.js'],
           childBundles: [
             {
               type: 'map'

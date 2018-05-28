@@ -175,8 +175,8 @@ describe('scope hoisting', function() {
         __dirname + '/integration/scope-hoisting/es6/dynamic-import/a.js'
       );
 
-      let output = await await run(b).default;
-      assert.equal(output, 5);
+      let output = await run(b);
+      assert.equal(await output.default, 5);
     });
 
     it('should not export function arguments', async function() {

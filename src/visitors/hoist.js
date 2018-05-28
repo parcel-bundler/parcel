@@ -258,15 +258,6 @@ module.exports = {
       !t.isStringLiteral(args[0]) ||
       path.scope.hasBinding('require');
 
-    if (
-      asset._package &&
-      asset._package.sideEffects === false &&
-      !path.scope.parent &&
-      !path.getData('markAsPure')
-    ) {
-      path.setData('markAsPure', true);
-      path.addComment('leading', '#__PURE__');
-    }
     if (ignore) {
       return;
     }

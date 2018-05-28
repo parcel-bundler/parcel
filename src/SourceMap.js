@@ -149,8 +149,8 @@ class SourceMap {
         column: mapping.original.column
       });
 
-      if (!originalMapping.line) {
-        return false;
+      if (!originalMapping || !originalMapping.line) {
+        return;
       }
 
       this.addMapping({
@@ -209,7 +209,6 @@ class SourceMap {
       } else if (line > mid) {
         startIndex = middleIndex + 1;
       }
-      // middleIndex = Math.floor((stopIndex + startIndex) / 2);
       middleIndex = (stopIndex + startIndex) >>> 1;
     }
 
@@ -293,11 +292,16 @@ class SourceMap {
       generatedPosition.line,
       generatedPosition.column
     );
+    let mapping = this.mappings[index];
+    if (!mapping) {
+      return null;
+    }
+
     return {
-      source: this.mappings[index].source,
-      name: this.mappings[index].name,
-      line: this.mappings[index].original.line,
-      column: this.mappings[index].original.column
+      source: mapping.source,
+      name: mapping.name,
+      line: mapping.original.line,
+      column: mapping.original.column
     };
   }
 
