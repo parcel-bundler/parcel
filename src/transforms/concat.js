@@ -88,7 +88,7 @@ module.exports = packager => {
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && !assets[id]) {
-      node = REQUIRE_TEMPLATE({ID: t.numericLiteral(id)});
+      node = REQUIRE_TEMPLATE({ID: t.numericLiteral(id)}).expression;
       return t.memberExpression(node, t.identifier(originalName));
     }
 
@@ -185,7 +185,7 @@ module.exports = packager => {
             let name = `$${mod.id}$exports`;
             node = t.identifier(replacements.get(name) || name);
           } else {
-            node = REQUIRE_TEMPLATE({ID: t.numericLiteral(mod.id)});
+            node = REQUIRE_TEMPLATE({ID: t.numericLiteral(mod.id)}).expression;
           }
 
           path.replaceWith(node);
