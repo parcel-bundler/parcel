@@ -277,11 +277,6 @@ describe('html', function() {
       )
     );
 
-    // minifyJson
-    assert(
-      html.includes('<script type="application/json">{"user":"me"}</script>')
-    );
-
     // minifySvg is false
     assert(
       html.includes(
@@ -571,6 +566,34 @@ describe('html', function() {
         {
           type: 'html',
           assets: ['other page.html'],
+          childBundles: []
+        }
+      ]
+    });
+  });
+
+  it('should process inline JS', async function() {
+    let b = await bundle(__dirname + '/integration/html-inline-js/index.html', {
+      production: true
+    });
+
+    const bundleContent = (await fs.readFile(b.name)).toString();
+    assert(!bundleContent.includes('someArgument'));
+  });
+
+  it('should process inline styles', async function() {
+    let b = await bundle(
+      __dirname + '/integration/html-inline-styles/index.html',
+      {production: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'jpg',
+          assets: ['img.jpg'],
           childBundles: []
         }
       ]

@@ -62,6 +62,11 @@ const META = {
   ]
 };
 
+const SCRIPT_TYPES = {
+  'application/javascript': 'js',
+  'application/json': 'json'
+};
+
 // Options to be passed to `addURLDependency` for certain tags + attributes
 const OPTIONS = {
   a: {
@@ -160,8 +165,71 @@ class HTMLAsset extends Asset {
     }
   }
 
-  generate() {
-    return this.isAstDirty ? render(this.ast) : this.contents;
+  async generate() {
+    let parts = [];
+    this.ast.walk(node => {
+      if (node.tag === 'script' || node.tag === 'style') {
+        if (node.content) {
+          let value = node.content.join('').trim();
+          if (value) {
+            parts.push({
+              type:
+                node.tag === 'style'
+                  ? 'css'
+                  : node.attrs && node.attrs.type
+                    ? SCRIPT_TYPES[node.attrs.type] || 'js'
+                    : 'js',
+              value
+            });
+          }
+        }
+      }
+
+      if (node.attrs && node.attrs.style) {
+        parts.push({
+          type: 'css',
+          value: node.attrs.style
+        });
+      }
+
+      return node;
+    });
+
+    return parts;
+  }
+
+  async postProcess(generated) {
+    // Hacky way of filtering out the css hmr JS
+    // Related: https://github.com/parcel-bundler/parcel/issues/1389
+    generated = generated.filter(
+      generatedAsset =>
+        !(generatedAsset.type === 'js' && generatedAsset.value === '')
+    );
+
+    // Update processed inlined assets
+    let index = 0;
+    this.ast.walk(node => {
+      if (node.tag === 'script' || node.tag === 'style') {
+        if (node.content) {
+          node.content = generated[index].value;
+          index++;
+        }
+      }
+
+      if (node.attrs && node.attrs.style) {
+        node.attrs.style = generated[index].value;
+        index++;
+      }
+
+      return node;
+    });
+
+    return [
+      {
+        type: 'html',
+        value: render(this.ast)
+      }
+    ];
   }
 }
 
