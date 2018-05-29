@@ -210,7 +210,7 @@ class HTMLAsset extends Asset {
     let index = 0;
     this.ast.walk(node => {
       if (node.tag === 'script' || node.tag === 'style') {
-        if (node.content) {
+        if (node.content && node.content.join('').trim()) {
           node.content = generated[index].value;
           index++;
         }
