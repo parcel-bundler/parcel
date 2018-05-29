@@ -11,7 +11,6 @@ const CHARSET = (
  * mangle the top-level scope until scope hoisting is complete in the packager.
  */
 function mangleScope(scope) {
-  let bindings = {};
   let newNames = new Set();
 
   // Sort bindings so that more frequently referenced bindings get shorter names.
@@ -32,11 +31,9 @@ function mangleScope(scope) {
       !canRename(scope, scope.bindings[oldName], newName)
     );
 
-    bindings[oldName] = newName;
+    rename(scope, oldName, newName);
     newNames.add(newName);
   }
-
-  rename(scope, bindings);
 }
 
 function getIdentifier(num) {

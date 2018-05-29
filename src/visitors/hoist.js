@@ -117,15 +117,12 @@ module.exports = {
         scope.crawl();
 
         // Rename each binding in the top-level scope to something unique.
-        let bindings = {};
         for (let name in scope.bindings) {
-          if (!name.startsWith('$' + asset.id) && !(name in bindings)) {
+          if (!name.startsWith('$' + asset.id)) {
             let newName = '$' + asset.id + '$var$' + name;
-            bindings[name] = newName;
+            rename(scope, name, newName);
           }
         }
-
-        rename(scope, bindings);
 
         let exportsIdentifier = getExportsIdentifier(asset);
 
@@ -299,7 +296,7 @@ module.exports = {
     // This will be replaced by the final variable name of the resolved asset in the packager.
     for (let specifier of path.node.specifiers) {
       let id = getIdentifier(asset, 'import', specifier.local.name);
-      fastRename(path.scope, asset, specifier.local.name, id.name);
+      rename(path.scope, specifier.local.name, id.name);
 
       if (t.isImportDefaultSpecifier(specifier)) {
         asset.cacheData.imports[id.name] = [path.node.source.value, 'default'];
@@ -435,7 +432,7 @@ module.exports = {
     if (path.scope.hasBinding(exportsName.name)) {
       oldName = path.scope.generateDeclaredUidIdentifier(exportsName.name);
 
-      fastRename(exportsName.name, oldName.name);
+      rename(path.scope, exportsName.name, oldName.name);
     }
 
     path.scope.push({
@@ -449,15 +446,6 @@ module.exports = {
     path.remove();
   }
 };
-
-// Doesn't actually rename, schedules the renaming at the end of the traversal
-function fastRename(scope, asset, oldName, newName) {
-  if (oldName === newName) {
-    return;
-  }
-
-  rename(scope, {[oldName]: newName});
-}
 
 function addExport(asset, path, local, exported) {
   let scope = path.scope.getProgramParent();
@@ -490,7 +478,7 @@ function addExport(asset, path, local, exported) {
     asset.cacheData.exports[exported.name] = identifier.name;
   }
 
-  fastRename(scope, asset, local.name, identifier.name);
+  rename(scope, local.name, identifier.name);
 
   constantViolations.forEach(path => path.insertAfter(t.cloneDeep(assignNode)));
 }
@@ -504,7 +492,7 @@ function safeRename(path, asset, from, to) {
   // Otherwise, create a new binding that references the original.
   let binding = path.scope.getBinding(from);
   if (binding && binding.constant) {
-    fastRename(path.scope, asset, from, to);
+    rename(path.scope, from, to);
   } else {
     let [decl] = path.insertAfter(
       t.variableDeclaration('var', [
