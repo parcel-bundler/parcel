@@ -228,16 +228,26 @@ module.exports = {
         : left.property.value;
       let identifier = getExportIdentifier(asset, name);
 
-      if (!path.scope.hasBinding(identifier.name)) {
+      // If this is the first assignment, create a binding for the ES6-style export identifier.
+      // Otherwise, assign to the existing export binding.
+      let scope = path.scope.getProgramParent();
+      if (!scope.hasBinding(identifier.name)) {
         asset.cacheData.exports[name] = identifier.name;
-        path.insertBefore(
+        let [decl] = path.insertBefore(
           t.variableDeclaration('var', [
             t.variableDeclarator(t.clone(identifier), path.node.right)
           ])
         );
 
-        path.get('right').replaceWith(identifier);
+        scope.registerDeclaration(decl);
+      } else {
+        path.insertBefore(
+          t.assignmentExpression('=', t.clone(identifier), path.node.right)
+        );
       }
+
+      // Replace the CommonJS assignment with a reference to the ES6 identifier.
+      path.get('right').replaceWith(identifier);
     }
   },
 

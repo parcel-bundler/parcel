@@ -287,8 +287,14 @@ module.exports = packager => {
           return;
         }
 
-        let {object, property} = path.node;
-        if (!t.isIdentifier(object) || !t.isIdentifier(property)) {
+        let {object, property, computed} = path.node;
+        if (
+          !(
+            t.isIdentifier(object) &&
+            ((t.isIdentifier(property) && !computed) ||
+              t.isStringLiteral(property))
+          )
+        ) {
           return;
         }
 
@@ -296,7 +302,8 @@ module.exports = packager => {
 
         // If it's a $id$exports.name expression.
         if (match) {
-          let exp = findExportModule(match[1], property.name, path);
+          let name = t.isIdentifier(property) ? property.name : property.value;
+          let exp = findExportModule(match[1], name, path);
 
           // Check if $id$export$name exists and if so, replace the node by it.
           if (exp) {

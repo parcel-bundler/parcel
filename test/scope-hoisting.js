@@ -536,5 +536,15 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, 5);
     });
+
+    it('eliminates CommonJS export object where possible', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/commonjs/eliminate-exports/a.js'
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 6);
+    });
   });
 });
