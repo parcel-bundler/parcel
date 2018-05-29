@@ -348,13 +348,13 @@ class Bundler extends EventEmitter {
   }
 
   stop() {
-    // if (this.farm) {
-    //   this.farm.end();
-    // }
+    if (this.farm) {
+      this.farm.end();
+    }
 
-    // if (this.watcher) {
-    //   this.watcher.stop();
-    // }
+    if (this.watcher) {
+      this.watcher.stop();
+    }
 
     if (this.hmr) {
       this.hmr.stop();

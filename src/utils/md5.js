@@ -10,7 +10,8 @@ function md5(string) {
 
 md5.file = function(filename) {
   return new Promise((resolve, reject) => {
-    fs.createReadStream(filename)
+    fs
+      .createReadStream(filename)
       .pipe(crypto.createHash('md5').setEncoding('hex'))
       .on('finish', function() {
         resolve(this.read());
