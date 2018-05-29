@@ -2,7 +2,7 @@ const Packager = require('./Packager');
 const path = require('path');
 const fs = require('fs');
 const SourceMap = require('../SourceMap');
-const concat = require('../transforms/concat');
+const concat = require('../scope-hoisting/concat');
 const lineCounter = require('../utils/lineCounter');
 const urlJoin = require('../utils/urlJoin');
 

@@ -1,7 +1,7 @@
-const matchesPattern = require('./matches-pattern');
+const matchesPattern = require('../visitors/matches-pattern');
 const t = require('babel-types');
 const template = require('babel-template');
-const rename = require('../scope-hoisting/renamer');
+const rename = require('./renamer');
 
 const WRAPPER_TEMPLATE = template(`
   var NAME = (function () {

@@ -4,8 +4,8 @@ const template = require('babel-template');
 const t = require('babel-types');
 const traverse = require('babel-traverse').default;
 const generate = require('babel-generator').default;
-const treeShake = require('../scope-hoisting/shake');
-const mangleScope = require('../scope-hoisting/mangler');
+const treeShake = require('./shake');
+const mangleScope = require('./mangler');
 
 const EXPORTS_RE = /^\$([\d]+)\$exports$/;
 
