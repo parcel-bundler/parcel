@@ -556,5 +556,14 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, 6);
     });
+
+    it('supports circular dependencies', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/require-circular/a.js'
+      );
+
+      let output = await run(b);
+      assert.equal(output, 'foo bar');
+    });
   });
 });
