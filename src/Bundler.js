@@ -127,7 +127,10 @@ class Bundler extends EventEmitter {
         typeof options.autoinstall === 'boolean'
           ? options.autoinstall
           : !isProduction,
-      scopeHoist: options.scopeHoist !== undefined ? options.scopeHoist : !hmr,
+      scopeHoist:
+        options.scopeHoist !== undefined
+          ? options.scopeHoist
+          : isProduction && !hmr,
       contentHash:
         typeof options.contentHash === 'boolean'
           ? options.contentHash
