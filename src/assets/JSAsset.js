@@ -159,9 +159,7 @@ class JSAsset extends Asset {
     if (this.isAstDirty) {
       let opts = {
         sourceMaps: this.options.sourceMaps,
-        sourceFileName: this.relativeName,
-        minified: this.options.minify,
-        comments: !this.options.minify
+        sourceFileName: this.relativeName
       };
 
       let generated = generate(this.ast, opts, this.contents);
