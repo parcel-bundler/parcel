@@ -40,6 +40,8 @@ function treeShake(scope) {
             } else if (!parent.removed) {
               parent.remove();
             }
+          } else if (isUnusedWildcard(path) && !path.parentPath.removed) {
+            path.parentPath.remove();
           } else if (path.isAssignmentExpression()) {
             path.remove();
           }
@@ -103,15 +105,14 @@ function isExportAssignment(path) {
 }
 
 function isUnusedWildcard(path) {
-  let {parent, parentPath} = path;
+  let {parent} = path;
 
   return (
-    // match "var $id$exports = $parcel$exportWildcard(any, path);"
+    // match `$parcel$exportWildcard` calls
     t.isCallExpression(parent) &&
     t.isIdentifier(parent.callee, {name: '$parcel$exportWildcard'}) &&
-    parent.arguments[1] === path.node &&
-    parentPath.parentPath.isVariableDeclarator() &&
+    parent.arguments[0] === path.node &&
     // check if the $id$exports variable is used
-    getUnusedBinding(path, parentPath.parent.id.name) !== null
+    !getUnusedBinding(path, parent.arguments[1].name)
   );
 }

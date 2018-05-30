@@ -148,8 +148,6 @@ module.exports = packager => {
     }
   }
 
-  console.time('concat');
-
   traverse(ast, {
     CallExpression(path) {
       let {arguments: args, callee} = path.node;
@@ -350,8 +348,6 @@ module.exports = packager => {
     }
   });
 
-  console.timeEnd('concat');
-
   let opts = {
     sourceMaps: packager.options.sourceMaps,
     sourceFileName: packager.bundle.name,
@@ -359,9 +355,5 @@ module.exports = packager => {
     comments: !packager.options.minify
   };
 
-  console.time('generate');
-  let res = generate(ast, opts, code);
-  console.timeEnd('generate');
-  console.log('\n\n');
-  return res;
+  return generate(ast, opts, code);
 };

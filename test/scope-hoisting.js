@@ -103,6 +103,16 @@ describe('scope hoisting', function() {
 
     it('supports re-exporting all exports from multiple modules', async function() {
       let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/es6/re-export-all-multiple/a.js'
+      );
+
+      let output = await run(b);
+      assert.equal(output, 15);
+    });
+
+    it('supports re-exporting all exports from multiple modules deep', async function() {
+      let b = await bundle(
         __dirname + '/integration/scope-hoisting/es6/re-export-multiple/a.js'
       );
 

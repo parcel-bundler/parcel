@@ -432,28 +432,13 @@ module.exports = {
     asset.cacheData.wildcards.push(path.node.source.value);
     asset.cacheData.isES6Module = true;
 
-    let exportsName = getExportsIdentifier(asset);
-    let oldName = t.objectExpression([]);
-
-    // If the export is already defined rename it so we can reassign it.
-    // We need to do this because Uglify does not remove pure calls if they use a reassigned variable :
-    // var b = {}; b = pureCall(b) // not removed
-    // var b$0 = {}; var b = pureCall(b$0) // removed
-    if (path.scope.hasBinding(exportsName.name)) {
-      oldName = path.scope.generateDeclaredUidIdentifier(exportsName.name);
-
-      rename(path.scope, exportsName.name, oldName.name);
-    }
-
-    path.scope.push({
-      id: exportsName,
-      init: EXPORT_ALL_TEMPLATE({
-        OLD_NAME: oldName,
+    path.replaceWith(
+      EXPORT_ALL_TEMPLATE({
+        OLD_NAME: getExportsIdentifier(asset),
         SOURCE: t.stringLiteral(path.node.source.value),
         ID: t.numericLiteral(asset.id)
-      }).expression
-    });
-    path.remove();
+      })
+    );
   }
 };
 
