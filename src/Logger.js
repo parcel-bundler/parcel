@@ -4,12 +4,14 @@ const prettyError = require('./utils/prettyError');
 const emoji = require('./utils/emoji');
 const {countBreaks} = require('grapheme-breaker');
 const stripAnsi = require('strip-ansi');
+const isCI = require('is-ci');
 
 class Logger {
   constructor(options) {
     this.lines = 0;
     this.statusLine = null;
     this.setOptions(options);
+    this.isCi = isCI;
   }
 
   setOptions(options) {
@@ -124,6 +126,10 @@ class Logger {
 
   status(emoji, message, color = 'gray') {
     if (this.logLevel < 3) {
+      return;
+    }
+
+    if (this.isCI) {
       return;
     }
 

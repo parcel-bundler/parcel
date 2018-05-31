@@ -69,6 +69,14 @@ describe('Logger', () => {
     assert.equal(log.length, 5);
   });
 
+  it.only('should not print status messages in CI env', () => {
+    const l = new Logger.constructor({logLevel: 3, color: false});
+    l.isCI = true;
+    stub(l);
+    l.status('🚨', 'message');
+    assert.equal(log.length, 0);
+  });
+
   it('should handle lack of color support with alternatives', () => {
     const l = new Logger.constructor({color: false});
     stub(l);
