@@ -557,6 +557,15 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 6);
     });
 
+    it('supports multiple assignments in one line', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/multi-assign/a.js'
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {foo: 2, bar: 2, baz: 2});
+    });
+
     it('supports circular dependencies', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/commonjs/require-circular/a.js'

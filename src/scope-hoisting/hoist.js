@@ -204,13 +204,12 @@ module.exports = {
   },
 
   AssignmentExpression(path, asset) {
-    let left = path.node.left;
-    if (
-      t.isIdentifier(left) &&
-      left.name === 'exports' &&
-      !path.scope.hasBinding('exports') &&
-      !path.scope.getData('shouldWrap')
-    ) {
+    if (path.scope.hasBinding('exports') || path.scope.getData('shouldWrap')) {
+      return;
+    }
+
+    let {left, right} = path.node;
+    if (t.isIdentifier(left) && left.name === 'exports') {
       path.get('left').replaceWith(getExportsIdentifier(asset));
       asset.cacheData.isCommonJS = true;
     }
@@ -228,6 +227,10 @@ module.exports = {
         : left.property.value;
       let identifier = getExportIdentifier(asset, name);
 
+      // Replace the CommonJS assignment with a reference to the ES6 identifier.
+      path.get('left.object').replaceWith(getExportsIdentifier(asset));
+      path.get('right').replaceWith(identifier);
+
       // If this is the first assignment, create a binding for the ES6-style export identifier.
       // Otherwise, assign to the existing export binding.
       let scope = path.scope.getProgramParent();
@@ -235,19 +238,18 @@ module.exports = {
         asset.cacheData.exports[name] = identifier.name;
         let [decl] = path.insertBefore(
           t.variableDeclaration('var', [
-            t.variableDeclarator(t.clone(identifier), path.node.right)
+            t.variableDeclarator(t.clone(identifier), right)
           ])
         );
 
         scope.registerDeclaration(decl);
       } else {
         path.insertBefore(
-          t.assignmentExpression('=', t.clone(identifier), path.node.right)
+          t.assignmentExpression('=', t.clone(identifier), right)
         );
       }
 
-      // Replace the CommonJS assignment with a reference to the ES6 identifier.
-      path.get('right').replaceWith(identifier);
+      asset.cacheData.isCommonJS = true;
     }
   },
 
