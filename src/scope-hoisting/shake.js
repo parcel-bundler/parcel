@@ -43,7 +43,12 @@ function treeShake(scope) {
           } else if (isUnusedWildcard(path) && !path.parentPath.removed) {
             path.parentPath.remove();
           } else if (path.isAssignmentExpression()) {
-            path.remove();
+            let parent = path.parentPath;
+            if (!parent.isExpressionStatement()) {
+              path.replaceWith(path.node.right);
+            } else {
+              path.remove();
+            }
           }
         });
 
