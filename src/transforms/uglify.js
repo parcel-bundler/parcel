@@ -16,7 +16,7 @@ module.exports = async function(asset) {
   };
 
   let sourceMap;
-  if (asset.options.sourceMap) {
+  if (asset.options.sourceMaps) {
     sourceMap = new SourceMap();
     options.output = {
       source_map: {
