@@ -249,6 +249,15 @@ describe('scope hoisting', function() {
       assert(!called, 'side effect called');
       assert.deepEqual(output, 4);
     });
+
+    it('missing exports should be replaced with an empty object', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/es6/empty-module/a.js'
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {b: {}});
+    });
   });
 
   describe('commonjs', function() {
@@ -573,6 +582,15 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.equal(output, 'foo bar');
+    });
+
+    it('missing exports should be replaced with an empty object', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/empty-module/a.js'
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {b: {}});
     });
   });
 });

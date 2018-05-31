@@ -94,7 +94,7 @@ module.exports = packager => {
     }
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
-    if (!node && !mod.cacheData.isCommonJS) {
+    if (!node && !mod.cacheData.isCommonJS && mod.cacheData.isES6Module) {
       let relativePath = relative(packager.options.rootDir, mod.name);
       throw new Error(`${relativePath} does not export '${originalName}'`);
     }
@@ -320,6 +320,12 @@ module.exports = packager => {
       if (imports.has(name)) {
         let imp = imports.get(name);
         let node = replaceExportNode(imp[0], imp[1], path);
+
+        // If the export does not exist, replace with an empty object.
+        if (!node) {
+          node = t.objectExpression([]);
+        }
+
         path.replaceWith(node);
         return;
       }
@@ -328,12 +334,7 @@ module.exports = packager => {
 
       // If it's an undefined $id$exports identifier.
       if (match && !path.scope.hasBinding(name)) {
-        let id = Number(match[1]);
-
-        // If the id is in the bundle it may just be empty, replace with {}.
-        if (id in assets) {
-          path.replaceWith(t.objectExpression([]));
-        }
+        path.replaceWith(t.objectExpression([]));
       }
     },
     Program: {
