@@ -156,6 +156,49 @@ module.exports = packager => {
     }
   }
 
+  function collectReferencedStatments(scope, name, before, seen = new Set()) {
+    let binding = scope.getBinding(name);
+    if (!binding) {
+      return seen;
+    }
+
+    // Go through all references to this binding and collect any
+    // statements with references prior to the given position.
+    for (let ref of [
+      binding.path,
+      ...binding.constantViolations,
+      ...binding.referencePaths
+    ]) {
+      if (ref.node.start < before) {
+        let statement = getTopStatement(ref, scope);
+        if (statement && !seen.has(statement)) {
+          seen.add(statement);
+
+          let bindings = statement.getBindingIdentifiers();
+          for (let name in bindings) {
+            collectReferencedStatments(scope, name, before, seen);
+          }
+        }
+      }
+    }
+
+    return seen;
+  }
+
+  function getTopStatement(path, scope) {
+    return path.findParent(p => p.isStatement() && p.scope === scope);
+  }
+
+  function isCircular(asset, id) {
+    for (let dep of asset.depAssets.values()) {
+      if (dep.id === id || isCircular(dep, id)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   traverse(ast, {
     CallExpression(path) {
       let {arguments: args, callee} = path.node;
@@ -195,6 +238,25 @@ module.exports = packager => {
           if (assets[mod.id]) {
             let name = `$${mod.id}$exports`;
             node = t.identifier(replacements.get(name) || name);
+
+            if (isCircular(mod, id.value)) {
+              // CommonJS allows circular dependencies.
+              // Find all references of this module prior to this `require` call, and move them just before it.
+              // This way the dependent module will have access to everything this module had at the time it was required.
+              let scope = path.scope.getProgramParent();
+              let referenced = collectReferencedStatments(
+                scope,
+                name,
+                path.node.start
+              );
+              let statement = getTopStatement(path, scope);
+
+              for (let p of referenced) {
+                let node = p.node;
+                p.remove();
+                statement.insertBefore(node);
+              }
+            }
           } else {
             node = REQUIRE_TEMPLATE({ID: t.numericLiteral(mod.id)}).expression;
           }
