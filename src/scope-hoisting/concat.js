@@ -46,7 +46,11 @@ module.exports = packager => {
 
   function findExportModule(id, name) {
     let module = assets[id];
-    let exp = module && module.cacheData.exports[name];
+    let exp =
+      module &&
+      Object.prototype.hasOwnProperty.call(module.cacheData.exports, name)
+        ? module.cacheData.exports[name]
+        : null;
 
     // If this is a re-export, find the original module.
     if (Array.isArray(exp)) {
