@@ -258,6 +258,16 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, {b: {}});
     });
+
+    it('supports importing a namespace from a commonjs module when code split', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/es6/import-namespace-commonjs/a.js'
+      );
+
+      let output = await run(b);
+      assert.deepEqual(await output, 4);
+    });
   });
 
   describe('commonjs', function() {

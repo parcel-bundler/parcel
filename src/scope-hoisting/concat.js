@@ -94,7 +94,11 @@ module.exports = packager => {
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && !assets[id]) {
       node = REQUIRE_TEMPLATE({ID: t.numericLiteral(id)}).expression;
-      return t.memberExpression(node, t.identifier(originalName));
+      if (originalName !== '*') {
+        node = t.memberExpression(node, t.identifier(originalName));
+      }
+
+      return node;
     }
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
