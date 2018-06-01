@@ -222,7 +222,7 @@ class Bundler extends EventEmitter {
     this.error = null;
 
     logger.clear();
-    logger.status(emoji.progress, 'Building...');
+    logger.status('spinner', 'Building...');
 
     try {
       // Start worker farm, watcher, etc. if needed
@@ -513,7 +513,7 @@ class Bundler extends EventEmitter {
     }
 
     if (!this.error) {
-      logger.status(emoji.progress, `Building ${asset.basename}...`);
+      logger.status('spinner', `Building ${asset.basename}...`);
     }
 
     // Mark the asset processed so we don't load it twice
@@ -717,7 +717,7 @@ class Bundler extends EventEmitter {
     }
 
     logger.clear();
-    logger.status(emoji.progress, `Building ${Path.basename(path)}...`);
+    logger.status('spinner', `Building ${Path.basename(path)}...`);
 
     // Add the asset to the rebuild queue, and reset the timeout.
     for (let asset of assets) {

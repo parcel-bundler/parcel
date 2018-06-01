@@ -4,11 +4,12 @@ const prettyError = require('./utils/prettyError');
 const emoji = require('./utils/emoji');
 const {countBreaks} = require('grapheme-breaker');
 const stripAnsi = require('strip-ansi');
+const ora = require('ora');
 
 class Logger {
   constructor(options) {
     this.lines = 0;
-    this.statusLine = null;
+    this.spinner = null;
     this.setOptions(options);
   }
 
@@ -29,7 +30,8 @@ class Logger {
   }
 
   countLines(message) {
-    return message.split('\n').reduce((p, line) => {
+    let cleanMessage = stripAnsi(message);
+    return cleanMessage.split('\n').reduce((p, line) => {
       if (process.stdout.columns) {
         return p + Math.ceil((line.length || 1) / process.stdout.columns);
       }
@@ -38,14 +40,13 @@ class Logger {
     }, 0);
   }
 
-  writeRaw(message) {
-    this.lines += this.countLines(message) - 1;
-    process.stdout.write(message);
-  }
-
   write(message, persistent = false) {
     if (!persistent) {
       this.lines += this.countLines(message);
+    }
+
+    if (this.spinner) {
+      this.spinner.clear();
     }
 
     this._log(message);
@@ -86,7 +87,8 @@ class Logger {
 
     let {message, stack} = prettyError(err, {color: this.color});
 
-    this.status(emoji.error, message, 'red');
+    this.status(emoji.error, 'An error occured.', 'red');
+    this.write(this.chalk['red'].bold(message));
     if (stack) {
       this.write(stack);
     }
@@ -104,22 +106,9 @@ class Logger {
     }
 
     readline.cursorTo(process.stdout, 0);
-    this.statusLine = null;
-  }
-
-  writeLine(line, msg) {
-    if (!this.color) {
-      return this.log(msg);
+    if (this.spinner) {
+      this.spinner.clear();
     }
-
-    let n = this.lines - line;
-    let stdout = process.stdout;
-    readline.cursorTo(stdout, 0);
-    readline.moveCursor(stdout, 0, -n);
-    stdout.write(msg);
-    readline.clearLine(stdout, 1);
-    readline.cursorTo(stdout, 0);
-    readline.moveCursor(stdout, 0, n);
   }
 
   status(emoji, message, color = 'gray') {
@@ -127,19 +116,21 @@ class Logger {
       return;
     }
 
-    let hasStatusLine = this.statusLine != null;
-    if (!hasStatusLine) {
-      this.statusLine = this.lines;
+    let styledMessage = this.chalk[color].bold(message);
+
+    if (!this.spinner) {
+      this.spinner = ora(styledMessage).start();
     }
 
-    this.writeLine(
-      this.statusLine,
-      this.chalk[color].bold(`${emoji}  ${message}`)
-    );
-
-    if (!hasStatusLine) {
-      process.stdout.write('\n');
+    if (emoji !== 'spinner') {
+      this.spinner.stopAndPersist({
+        symbol: emoji,
+        text: styledMessage
+      });
+      this.spinner = null;
       this.lines++;
+    } else {
+      this.spinner.text = styledMessage;
     }
   }
 

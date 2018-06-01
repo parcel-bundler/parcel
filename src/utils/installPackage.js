@@ -3,7 +3,6 @@ const promisify = require('./promisify');
 const resolve = promisify(require('resolve'));
 const commandExists = require('command-exists');
 const logger = require('../Logger');
-const emoji = require('./emoji');
 const pipeSpawn = require('./pipeSpawn');
 const PromiseQueue = require('./PromiseQueue');
 const path = require('path');
@@ -12,7 +11,7 @@ const fs = require('./fs');
 async function install(modules, filepath, options = {}) {
   let {installPeers = true, saveDev = true, packageManager} = options;
 
-  logger.status(emoji.progress, `Installing ${modules.join(', ')}...`);
+  logger.status('spinner', `Installing ${modules.join(', ')}...`);
 
   let packageLocation = await config.resolve(filepath, ['package.json']);
   let cwd = packageLocation ? path.dirname(packageLocation) : process.cwd();
