@@ -1,2 +1,5 @@
+function p() {
+  return require('./b');
+}
 module.exports.foo = 'foo'
-module.exports = require('./b')
+module.exports = p();

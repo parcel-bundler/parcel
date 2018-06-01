@@ -585,7 +585,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, {foo: 2, bar: 2, baz: 2});
     });
 
-    it('supports circular dependencies', async function() {
+    it.only('supports circular dependencies', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/commonjs/require-circular/a.js'
       );

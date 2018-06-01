@@ -14,6 +14,15 @@ const DEFAULT_INTEROP_TEMPLATE = template(
 );
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 const REQUIRE_TEMPLATE = template('require(ID)');
+const WRAP_TEMPLATE = template(`
+  function NAME() {
+    if (!MODULE) {
+      BODY;
+    }
+
+    return MODULE;
+  }
+`);
 
 module.exports = packager => {
   let {contents: code, addedAssets} = packager;
@@ -169,7 +178,7 @@ module.exports = packager => {
       ...binding.constantViolations,
       ...binding.referencePaths
     ]) {
-      if (ref.node.start < before) {
+      // if (ref.node.start < before) {
         let statement = getTopStatement(ref, scope);
         if (statement && !seen.has(statement)) {
           seen.add(statement);
@@ -179,7 +188,7 @@ module.exports = packager => {
             collectReferencedStatments(scope, name, before, seen);
           }
         }
-      }
+      // }
     }
 
     return seen;
@@ -189,15 +198,20 @@ module.exports = packager => {
     return path.findParent(p => p.isStatement() && p.scope === scope);
   }
 
-  function isCircular(asset, id) {
+  function isCircular(asset, id, seen = new Set) {
+    if (seen.has(asset)) return false;
+    seen.add(asset);
+
     for (let dep of asset.depAssets.values()) {
-      if (dep.id === id || isCircular(dep, id)) {
+      if (dep.id === id || isCircular(dep, id, seen)) {
         return true;
       }
     }
 
     return false;
   }
+
+  let wrapped = new Set;
 
   traverse(ast, {
     CallExpression(path) {
@@ -239,23 +253,62 @@ module.exports = packager => {
             let name = `$${mod.id}$exports`;
             node = t.identifier(replacements.get(name) || name);
 
-            if (isCircular(mod, id.value)) {
+            if (isCircular(mod, id.value) && !wrapped.has(name)) {
+              console.log('CIRCULAR', mod.name, id.value)
               // CommonJS allows circular dependencies.
               // Find all references of this module prior to this `require` call, and move them just before it.
               // This way the dependent module will have access to everything this module had at the time it was required.
               let scope = path.scope.getProgramParent();
+              let binding = scope.getBinding(name);
               let referenced = collectReferencedStatments(
                 scope,
                 name,
                 path.node.start
               );
-              let statement = getTopStatement(path, scope);
+              // let statement = getTopStatement(path, scope);
+              // let statement = path.getStatementParent();
+              // console.log(statement, path.node)
+              
+              if (referenced.size) {
+                let ref = [...referenced];
+                let body = [];
+                for (let ref of referenced) {
+                  let node = ref.node;
+                  if (ref.isDeclaration()) {
+                    let ids = ref.getBindingIdentifierPaths();
+                    for (let name in ids) {
+                      scope.push({id: t.identifier(name)});
+                      let p = ids[name];
+                      let right = p.parentPath.isVariableDeclarator() ? p.parent.init : p.parent;
+                      body.push(t.assignmentExpression('=', t.identifier(name), right));
+                    }
+                  } else {
+                    body.push(ref.node);
+                  }
+                }
 
-              for (let p of referenced) {
-                let node = p.node;
-                p.remove();
-                statement.insertBefore(node);
+                let wrapper = WRAP_TEMPLATE({
+                  NAME: t.identifier(`$${mod.id}$init`),
+                  MODULE: node,
+                  BODY: body
+                });
+
+                // console.log(wrapper)
+                ref[0].insertBefore(wrapper);
+                // path.findParent(p => p.isProgram()).unshiftContainer('body', [wrapper])
+
+                for (let p of referenced) {
+                //   let node = p.node;
+                  p.remove();
+                //   statement.insertBefore(node);
+                }
+
+                wrapped.add(name);
               }
+            }
+
+            if (wrapped.has(name)) {
+              node = t.callExpression(t.identifier(`$${mod.id}$init`), []);
             }
           } else {
             node = REQUIRE_TEMPLATE({ID: t.numericLiteral(mod.id)}).expression;
@@ -304,7 +357,7 @@ module.exports = packager => {
         // This allows us to potentially replace accesses to e.g. `x.foo` with
         // a variable like `$id$export$foo` later, avoiding the exports object altogether.
         let {id, init} = path.node;
-        if (!t.isIdentifier(init)) {
+        if (!t.isIdentifier(init) ) {
           return;
         }
 
@@ -375,7 +428,7 @@ module.exports = packager => {
 
           // Check if $id$export$name exists and if so, replace the node by it.
           if (exp) {
-            path.replaceWith(t.identifier(exp));
+            // path.replaceWith(t.identifier(exp));
           }
         }
       }
