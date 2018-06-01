@@ -318,11 +318,14 @@ class Bundler extends EventEmitter {
     }
 
     await this.loadPlugins();
-    await loadEnv(Path.join(this.options.rootDir, 'index'));
+    
+    if (!this.options.env) {
+      await loadEnv(Path.join(this.options.rootDir, 'index'));
+      this.options.env = process.env;
+    }
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
     this.options.bundleLoaders = this.bundleLoaders;
-    this.options.env = process.env;
 
     if (this.options.watch) {
       this.watcher = new Watcher();
