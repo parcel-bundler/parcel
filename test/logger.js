@@ -56,17 +56,17 @@ describe('Logger', () => {
 
     l.logLevel = 1;
     l.error({message: 'message', stack: 'stack'});
-    assert.equal(log.length, 1);
+    assert.equal(log.length, 2);
 
     l.logLevel = 2;
     l.warn('message');
-    assert.equal(log.length, 2);
+    assert.equal(log.length, 3);
 
     l.logLevel = 3;
     l.log('message');
     l.persistent('message');
     l.status('🚨', 'message');
-    assert.equal(log.length, 5);
+    assert.equal(log.length, 6);
   });
 
   it('should handle lack of color support with alternatives', () => {
@@ -82,7 +82,7 @@ describe('Logger', () => {
 
     // write-line calls log
     const spy = sinon.spy(l, 'log');
-    l.writeLine(1, 'hello');
+    l.status('spinner', 'hello', 'red');
     assert(spy.called);
   });
 
@@ -91,11 +91,9 @@ describe('Logger', () => {
     stub(l);
 
     l.lines = 10;
-    l.statusLine = 'hello';
     l.clear();
 
     assert.equal(l.lines, 0);
-    assert.equal(l.statusLine, null);
   });
 
   it('should log emoji and message via status', () => {
@@ -123,23 +121,5 @@ describe('Logger', () => {
     }
 
     assert(spy.called);
-  });
-
-  it('should use stdout directly for writeLine', () => {
-    const l = new Logger.constructor({color: true});
-    const sandbox = sinon.createSandbox();
-    const log = [];
-
-    try {
-      sandbox.stub(process.stdout, 'write').callsFake(message => {
-        log.push(message);
-      });
-
-      l.writeLine(0, 'hello');
-    } finally {
-      sandbox.restore();
-    }
-
-    assert(log.includes('hello'));
   });
 });

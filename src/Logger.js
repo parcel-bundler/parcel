@@ -30,14 +30,20 @@ class Logger {
   }
 
   countLines(message) {
-    let cleanMessage = stripAnsi(message);
-    return cleanMessage.split('\n').reduce((p, line) => {
-      if (process.stdout.columns) {
-        return p + Math.ceil((line.length || 1) / process.stdout.columns);
-      }
+    return stripAnsi(message)
+      .split('\n')
+      .reduce((p, line) => {
+        if (process.stdout.columns) {
+          return p + Math.ceil((line.length || 1) / process.stdout.columns);
+        }
 
-      return p + 1;
-    }, 0);
+        return p + 1;
+      }, 0);
+  }
+
+  writeRaw(message) {
+    this.lines += this.countLines(message) - 1;
+    process.stdout.write(message);
   }
 
   write(message, persistent = false) {
@@ -114,6 +120,10 @@ class Logger {
   status(emoji, message, color = 'gray') {
     if (this.logLevel < 3) {
       return;
+    }
+
+    if (!this.color) {
+      return this.log(`${emoji} ${message}`);
     }
 
     let styledMessage = this.chalk[color].bold(message);
