@@ -88,7 +88,7 @@ function middleware(bundler) {
   };
 }
 
-async function serve(bundler, port, useHTTPS = false) {
+async function serve(bundler, port, host, useHTTPS = false) {
   let handler = middleware(bundler);
   let server;
   if (!useHTTPS) {
@@ -100,7 +100,7 @@ async function serve(bundler, port, useHTTPS = false) {
   }
 
   let freePort = await getPort({port});
-  server.listen(freePort);
+  server.listen(freePort, host);
 
   return new Promise((resolve, reject) => {
     server.on('error', err => {
@@ -115,10 +115,13 @@ async function serve(bundler, port, useHTTPS = false) {
               `configured port ${port} could not be used.`
             )}`
           : '';
+      const hostAddress = host || 'localhost';
 
       logger.persistent(
         `Server running at ${logger.chalk.cyan(
-          `${useHTTPS ? 'https' : 'http'}://localhost:${server.address().port}`
+          `${useHTTPS ? 'https' : 'http'}://${hostAddress}:${
+            server.address().port
+          }`
         )} ${addon}`
       );
 

@@ -13,6 +13,7 @@ program
     'set the port to serve on. defaults to 1234',
     parseInt
   )
+  .option('--host <host>', 'set the host to listen to. defaults to localhost')
   .option(
     '--hmr-port <port>',
     'set the port to serve HMR websockets, defaults to random',
@@ -186,10 +187,15 @@ async function bundle(main, command) {
 
   command.target = command.target || 'browser';
   if (command.name() === 'serve' && command.target === 'browser') {
-    const server = await bundler.serve(command.port || 1234, command.https);
+    const hostAddress = command.host || 'localhost';
+    const server = await bundler.serve(
+      command.port || 1234,
+      hostAddress,
+      command.https
+    );
     if (server && command.open) {
       await require('./utils/openInBrowser')(
-        `${command.https ? 'https' : 'http'}://localhost:${
+        `${command.https ? 'https' : 'http'}://${hostAddress}:${
           server.address().port
         }`,
         command.open

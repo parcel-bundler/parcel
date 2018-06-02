@@ -96,7 +96,7 @@ describe('server', function() {
 
   it('should support HTTPS', async function() {
     let b = bundler(__dirname + '/integration/commonjs/index.js');
-    server = await b.serve(0, true);
+    server = await b.serve(0, undefined, true);
 
     let data = await get('/index.js', https);
     assert.equal(data, await fs.readFile(__dirname + '/dist/index.js', 'utf8'));
@@ -104,7 +104,7 @@ describe('server', function() {
 
   it('should support HTTPS via custom certificate', async function() {
     let b = bundler(__dirname + '/integration/commonjs/index.js');
-    server = await b.serve(0, {
+    server = await b.serve(0, undefined, {
       key: __dirname + '/integration/https/private.pem',
       cert: __dirname + '/integration/https/primary.crt'
     });
