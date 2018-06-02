@@ -8,7 +8,12 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "files": ["bin/", "lib/", "src/", "index.js"],
+  "files": [
+    "bin/",
+    "lib/",
+    "src/",
+    "index.js"
+  ],
   "dependencies": {
     "babel-code-frame": "^6.26.0",
     "babel-core": "^6.25.0",
@@ -78,7 +83,7 @@
     "graphql-tag": "^2.6.0",
     "husky": "^0.14.3",
     "less": "^3.0.1",
-    "lint-staged": "^7.0.5",
+    "lint-staged": "^7.1.2",
     "mocha": "^5.1.1",
     "ncp": "^2.0.0",
     "nib": "^1.1.2",
@@ -86,7 +91,7 @@
     "nyc": "^11.1.0",
     "postcss-modules": "^1.1.0",
     "posthtml-include": "^1.1.0",
-    "prettier": "^1.9.1",
+    "prettier": "^1.13.0",
     "pug": "^2.0.3",
     "rimraf": "^2.6.1",
     "sinon": "^5.0.1",
@@ -101,15 +106,13 @@
     "test-coverage": "rm -rf coverage/* && nyc yarn test",
     "report-coverage": "nyc report --reporter=lcov && codecov",
     "test-ci": "yarn test-coverage && yarn report-coverage",
-    "format": "prettier --write './{src,bin,test}/**/*.{js,json,md}'",
+    "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
     "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
     "prepublish": "yarn build",
-    "minify":
-      "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
+    "minify": "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
     "precommit": "npm run lint && lint-staged",
-    "lint": "eslint .",
-    "postinstall":
-      "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
+    "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
+    "postinstall": "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
   },
   "bin": {
     "parcel": "bin/cli.js"
@@ -118,7 +121,10 @@
     "node": ">= 6.0.0"
   },
   "lint-staged": {
-    "*.{js,json,md}": ["prettier --write", "git add"]
+    "*.{js,json,md}": [
+      "prettier --write",
+      "git add"
+    ]
   },
   "collective": {
     "type": "opencollective",
