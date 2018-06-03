@@ -1,0 +1,36 @@
+{
+    "manifest_version": 2,
+    "name": "parcel-web-extension-test",
+    "version": "1.0.0",
+    "icons": {
+        "64": "favicon.ico"
+    },
+    "permissions": [],
+    "background": {
+        "scripts": [
+            "background_script.js"
+        ]
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "css": [
+                "content_script.css"
+            ],
+            "js": [
+                "content_script.js"
+            ],
+            "run_at": "document_start"
+        }
+    ],
+    "browser_action": {
+        "default_icon": "favicon.ico",
+        "default_title": "Example Web Extension",
+        "default_popup": "popup.html"
+    },
+    "web_accessible_resources": [
+        "inject.js"
+    ]
+}
