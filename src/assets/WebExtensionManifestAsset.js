@@ -60,6 +60,21 @@ class WebExtensionManifestAsset extends Asset {
     }
   }
 
+  processWebAccessibleResources(nodeName) {
+    if (nodeName !== 'web_accessible_resources') {
+      return;
+    }
+
+    const webAccessibleResourcesNode = this.ast[nodeName];
+    if (!Array.isArray(webAccessibleResourcesNode)) {
+      return;
+    }
+    this.ast[nodeName] = this.processMultipleDependencies(
+      webAccessibleResourcesNode
+    );
+    this.isAstDirty = true;
+  }
+
   processBrowserOrPageAction(nodeName) {
     if (!['browser_action', 'page_action'].includes(nodeName)) {
       return;
@@ -92,6 +107,7 @@ class WebExtensionManifestAsset extends Asset {
     for (const nodeName of Object.keys(this.ast)) {
       this.processBackground(nodeName);
       this.processContentScripts(nodeName);
+      this.processWebAccessibleResources(nodeName);
       this.processBrowserOrPageAction(nodeName);
       this.processIcons(nodeName);
     }
