@@ -39,10 +39,7 @@ class Parser {
     this.registerExtension('htm', './assets/HTMLAsset');
     this.registerExtension('rs', './assets/RustAsset');
 
-    this.registerExtension(
-      'webmanifest',
-      './assets/ManifestAsset/WebManifestAsset'
-    );
+    this.registerExtension('webmanifest', './assets/ManifestAsset');
 
     this.registerExtension('glsl', './assets/GLSLAsset');
     this.registerExtension('vert', './assets/GLSLAsset');
@@ -71,7 +68,7 @@ class Parser {
     }
 
     if (path.basename(filename) === 'manifest.json') {
-      return require('./assets/ManifestAsset')(filename);
+      return require('./assets/ManifestAsset');
     }
 
     let extension = path.extname(filename).toLowerCase();

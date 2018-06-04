@@ -1,9 +1,18 @@
-const Asset = require('../../Asset');
+const path = require('path');
+const Asset = require('../Asset');
+const {hasWebExtensionManifestKeys} = require('../utils/webExtensionTests');
 
-class WebExtensionManifestAsset extends Asset {
+/**
+ * A shared asset that handles:
+ * - PWA .webmanifest
+ * - PWA manifest.json
+ * - WebExtension manifest.json
+ */
+class ManifestAsset extends Asset {
   constructor(name, options) {
     super(name, options);
-    this.type = 'json';
+    this.type =
+      path.basename(name) === 'manifest.json' ? 'json' : 'webmanifest';
     this.isAstDirty = false;
   }
 
@@ -102,13 +111,41 @@ class WebExtensionManifestAsset extends Asset {
     }
   }
 
-  collectDependencies() {
+  collectDependenciesForWebExtension() {
     for (const nodeName of Object.keys(this.ast)) {
       this.processBackground(nodeName);
       this.processContentScripts(nodeName);
       this.processWebAccessibleResources(nodeName);
       this.processBrowserOrPageAction(nodeName);
       this.processIcons(nodeName);
+    }
+  }
+
+  collectDependenciesForPwa() {
+    if (Array.isArray(this.ast.icons)) {
+      for (let icon of this.ast.icons) {
+        icon.src = this.addURLDependency(icon.src);
+      }
+    }
+
+    if (Array.isArray(this.ast.screenshots)) {
+      for (let shot of this.ast.screenshots) {
+        shot.src = this.addURLDependency(shot.src);
+      }
+    }
+
+    if (this.ast.serviceworker && this.ast.serviceworker.src) {
+      this.ast.serviceworker.src = this.addURLDependency(
+        this.ast.serviceworker.src
+      );
+    }
+  }
+
+  collectDependencies() {
+    if (hasWebExtensionManifestKeys(this.ast)) {
+      this.collectDependenciesForWebExtension();
+    } else {
+      this.collectDependenciesForPwa();
     }
   }
 
@@ -121,4 +158,4 @@ class WebExtensionManifestAsset extends Asset {
   }
 }
 
-module.exports = WebExtensionManifestAsset;
+module.exports = ManifestAsset;

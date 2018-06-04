@@ -538,7 +538,7 @@ describe('html', function() {
       assets: ['index2.html'],
       childBundles: [
         {
-          type: 'webmanifest',
+          type: 'json',
           assets: ['manifest.json'],
           childBundles: [
             {

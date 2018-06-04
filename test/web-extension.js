@@ -6,7 +6,7 @@ describe('WebExtension', () => {
       __dirname + '/integration/web-extension/manifest.json'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'json',
       assets: ['manifest.json'],
       childBundles: [
