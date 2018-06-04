@@ -5,7 +5,11 @@ const glob = require('glob');
 
 class Parser {
   constructor(options = {}) {
-    this.extensions = {};
+    /**
+     * A map of extension names to either path to Asset class or Asset class itself
+     * @type {Map<string, string|Asset}
+     */
+    this.extensions = new Map();
 
     this.registerExtension('js', './assets/JSAsset');
     this.registerExtension('jsx', './assets/JSAsset');
@@ -58,7 +62,7 @@ class Parser {
       ext = '.' + ext;
     }
 
-    this.extensions[ext.toLowerCase()] = parser;
+    this.extensions.set(ext.toLowerCase(), parser);
   }
 
   findParser(filename) {
@@ -67,9 +71,10 @@ class Parser {
     }
 
     let extension = path.extname(filename).toLowerCase();
-    let parser = this.extensions[extension] || RawAsset;
+    let parser = this.extensions.get(extension) || RawAsset;
     if (typeof parser === 'string') {
-      parser = this.extensions[extension] = require(parser);
+      parser = require(parser);
+      this.extensions.set(extension, parser);
     }
 
     return parser;
