@@ -1,6 +1,5 @@
 const path = require('path');
 const Asset = require('../Asset');
-const {hasWebExtensionManifestKeys} = require('../utils/webExtensionTests');
 
 /**
  * A shared asset that handles:
@@ -141,8 +140,16 @@ class ManifestAsset extends Asset {
     }
   }
 
+  hasWebExtensionManifestKeys() {
+    const requiredKeys = ['manifest_version', 'name', 'version'];
+    const presentKeys = Object.keys(this.ast).filter(key =>
+      requiredKeys.includes(key)
+    );
+    return presentKeys.length === requiredKeys.length;
+  }
+
   collectDependencies() {
-    if (hasWebExtensionManifestKeys(this.ast)) {
+    if (this.hasWebExtensionManifestKeys()) {
       this.collectDependenciesForWebExtension();
     } else {
       this.collectDependenciesForPwa();

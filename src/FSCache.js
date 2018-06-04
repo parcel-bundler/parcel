@@ -3,7 +3,6 @@ const path = require('path');
 const md5 = require('./utils/md5');
 const objectHash = require('./utils/objectHash');
 const pkg = require('../package.json');
-const {isWebExtensionManifest} = require('./utils/webExtensionTests');
 const logger = require('./Logger');
 
 // These keys can affect the output, so if they differ, the cache should not match
@@ -73,10 +72,6 @@ class FSCache {
   }
 
   async read(filename) {
-    if (await isWebExtensionManifest(filename)) {
-      return null;
-    }
-
     if (this.invalidated.has(filename)) {
       return null;
     }
