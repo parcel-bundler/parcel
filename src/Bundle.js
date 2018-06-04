@@ -196,10 +196,17 @@ class Bundle {
 
     await packager.end();
 
-    this.bundleTime = Date.now() - startTime;
-    for (let asset of this.assets) {
-      this.bundleTime += asset.buildTime;
-    }
+    let assetArray = Array.from(this.assets);
+    let assetStartTime =
+      this.type === 'map'
+        ? 0
+        : assetArray.sort((a, b) => a.startTime - b.startTime)[0].startTime;
+    let assetEndTime =
+      this.type === 'map'
+        ? 0
+        : assetArray.sort((a, b) => b.endTime - a.endTime)[0].endTime;
+    let packagingTime = Date.now() - startTime;
+    this.bundleTime = assetEndTime - assetStartTime + packagingTime;
   }
 
   async _addDeps(asset, packager, included) {

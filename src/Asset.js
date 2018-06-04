@@ -7,6 +7,7 @@ const isURL = require('./utils/is-url');
 const config = require('./utils/config');
 const syncPromise = require('./utils/syncPromise');
 const logger = require('./Logger');
+const Resolver = require('./Resolver');
 
 let ASSET_ID = 1;
 
@@ -37,8 +38,11 @@ class Asset {
     this.parentBundle = null;
     this.bundles = new Set();
     this.cacheData = {};
+    this.startTime = 0;
+    this.endTime = 0;
     this.buildTime = 0;
     this.bundledSize = 0;
+    this.resolver = new Resolver(options);
   }
 
   shouldInvalidate() {
@@ -89,14 +93,22 @@ class Asset {
     }
 
     const parsed = URL.parse(url);
-    const resolved = path.resolve(
-      path.dirname(from),
-      decodeURIComponent(parsed.pathname)
-    );
-    this.addDependency(
-      './' + path.relative(path.dirname(this.name), resolved),
-      Object.assign({dynamic: true}, opts)
-    );
+    let depName;
+    let resolved;
+    let dir = path.dirname(from);
+    const filename = decodeURIComponent(parsed.pathname);
+
+    if (filename[0] === '~' || filename[0] === '/') {
+      if (dir === '.') {
+        dir = this.options.rootDir;
+      }
+      depName = resolved = this.resolver.resolveFilename(filename, dir);
+    } else {
+      resolved = path.resolve(dir, filename);
+      depName = './' + path.relative(path.dirname(this.name), resolved);
+    }
+
+    this.addDependency(depName, Object.assign({dynamic: true}, opts));
 
     parsed.pathname = this.options.parser
       .getAsset(resolved, this.options)

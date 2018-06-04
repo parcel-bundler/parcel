@@ -4,7 +4,6 @@ const promisify = require('../utils/promisify');
 const path = require('path');
 const os = require('os');
 const Resolver = require('../Resolver');
-const syncPromise = require('../utils/syncPromise');
 
 class SASSAsset extends Asset {
   constructor(name, options) {
@@ -28,10 +27,16 @@ class SASSAsset extends Asset {
       path.dirname(this.name)
     );
     opts.data = opts.data ? opts.data + os.EOL + code : code;
+    let type = this.options.rendition
+      ? this.options.rendition.type
+      : path
+          .extname(this.name)
+          .toLowerCase()
+          .replace('.', '');
     opts.indentedSyntax =
       typeof opts.indentedSyntax === 'boolean'
         ? opts.indentedSyntax
-        : path.extname(this.name).toLowerCase() === '.sass';
+        : type === 'sass';
 
     opts.functions = Object.assign({}, opts.functions, {
       url: node => {
@@ -40,19 +45,23 @@ class SASSAsset extends Asset {
       }
     });
 
-    opts.importer = (url, prev, done) => {
-      let resolved;
-      try {
-        resolved = syncPromise(
-          resolver.resolve(url, prev === 'stdin' ? this.name : prev)
-        ).path;
-      } catch (e) {
-        resolved = url;
+    opts.importer = opts.importer || [];
+    opts.importer = Array.isArray(opts.importer)
+      ? opts.importer
+      : [opts.importer];
+    opts.importer.push((url, prev, done) => {
+      if (!/^(~|\.\/|\/)/.test(url)) {
+        url = './' + url;
+      } else if (!/^(~\/|\.\/|\/)/.test(url)) {
+        url = url.substring(1);
       }
-      return done({
-        file: resolved
-      });
-    };
+      resolver
+        .resolve(url, prev === 'stdin' ? this.name : prev)
+        .then(resolved => resolved.path)
+        .catch(() => url)
+        .then(file => done({file}))
+        .catch(err => done(normalizeError(err)));
+    });
 
     return await render(opts);
   }
@@ -75,3 +84,18 @@ class SASSAsset extends Asset {
 }
 
 module.exports = SASSAsset;
+
+// Ensures an error inherits from Error
+function normalizeError(err) {
+  let message = 'Unknown error';
+
+  if (err) {
+    if (err instanceof Error) {
+      return err;
+    }
+
+    message = err.stack || err.message || err;
+  }
+
+  return new Error(message);
+}
