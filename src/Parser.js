@@ -2,7 +2,6 @@ const path = require('path');
 const RawAsset = require('./assets/RawAsset');
 const GlobAsset = require('./assets/GlobAsset');
 const glob = require('glob');
-const isWebExtensionManifest = require('./utils/isWebExtensionManifest');
 
 class Parser {
   constructor(options = {}) {
@@ -40,7 +39,10 @@ class Parser {
     this.registerExtension('htm', './assets/HTMLAsset');
     this.registerExtension('rs', './assets/RustAsset');
 
-    this.registerExtension('webmanifest', './assets/WebManifestAsset');
+    this.registerExtension(
+      'webmanifest',
+      './assets/ManifestAsset/WebManifestAsset'
+    );
 
     this.registerExtension('glsl', './assets/GLSLAsset');
     this.registerExtension('vert', './assets/GLSLAsset');
@@ -68,8 +70,8 @@ class Parser {
       return GlobAsset;
     }
 
-    if (isWebExtensionManifest(filename)) {
-      return require('./assets/WebExtensionManifestAsset');
+    if (path.basename(filename) === 'manifest.json') {
+      return require('./assets/ManifestAsset')(filename);
     }
 
     let extension = path.extname(filename).toLowerCase();

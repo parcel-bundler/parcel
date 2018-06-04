@@ -1,4 +1,4 @@
-const Asset = require('../Asset');
+const Asset = require('../../Asset');
 
 class WebExtensionManifestAsset extends Asset {
   constructor(name, options) {
