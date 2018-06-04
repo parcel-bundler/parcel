@@ -2,6 +2,7 @@ const path = require('path');
 const RawAsset = require('./assets/RawAsset');
 const GlobAsset = require('./assets/GlobAsset');
 const glob = require('glob');
+const isWebExtensionManifest = require('./utils/isWebExtensionManifest');
 
 class Parser {
   constructor(options = {}) {
@@ -67,9 +68,7 @@ class Parser {
       return GlobAsset;
     }
 
-    const isWebExtensionManifest =
-      this.options.webExtension && path.basename(filename) === 'manifest.json';
-    if (isWebExtensionManifest) {
+    if (isWebExtensionManifest(filename)) {
       return require('./assets/WebExtensionManifestAsset');
     }
 

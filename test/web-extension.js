@@ -3,10 +3,7 @@ const {bundle, assertBundleTree} = require('./utils');
 describe('WebExtension', () => {
   it('should produce a basic WebExtension bundle', async () => {
     const b = await bundle(
-      __dirname + '/integration/web-extension/manifest.json',
-      {
-        webExtension: true
-      }
+      __dirname + '/integration/web-extension/manifest.json'
     );
 
     assertBundleTree(b, {

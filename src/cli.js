@@ -51,10 +51,6 @@ program
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
     /^(node|browser|electron)$/
   )
-  .option(
-    '--web-extension',
-    'enables using a WebExtension manifest.json entry point, should be used with --target browser (experimental)'
-  )
   .option('-V, --version', 'output the version number')
   .option(
     '--log-level <level>',
@@ -101,10 +97,6 @@ program
     /^(node|browser|electron)$/
   )
   .option(
-    '--web-extension',
-    'enables using a WebExtension manifest.json entry point, should be used with --target browser (experimental)'
-  )
-  .option(
     '--log-level <level>',
     'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
     /^([0-3])$/
@@ -134,10 +126,6 @@ program
     '-t, --target <target>',
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
     /^(node|browser|electron)$/
-  )
-  .option(
-    '--web-extension',
-    'enables using a WebExtension manifest.json entry point, should be used with --target browser (experimental)'
   )
   .option(
     '--detailed-report',
