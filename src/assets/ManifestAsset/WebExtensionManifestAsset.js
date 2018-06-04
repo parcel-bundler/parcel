@@ -13,8 +13,7 @@ class WebExtensionManifestAsset extends Asset {
 
   processSingleDependency(path, opts) {
     opts = opts || {entry: true};
-    let assetPath = this.addURLDependency(path, opts);
-    return assetPath;
+    return this.addURLDependency(path, opts);
   }
 
   processMultipleDependencies(filenames, opts) {
@@ -28,13 +27,13 @@ class WebExtensionManifestAsset extends Asset {
       return;
     }
 
-    const node = this.ast[nodeName];
-    if (node.scripts) {
-      node.scripts = this.processMultipleDependencies(node.scripts);
+    const background = this.ast[nodeName];
+    if (Array.isArray(background.scripts)) {
+      background.scripts = this.processMultipleDependencies(background.scripts);
       this.isAstDirty = true;
     }
-    if (node.page) {
-      node.page = this.processSingleDependency(node.page);
+    if (background.page) {
+      background.page = this.processSingleDependency(background.page);
       this.isAstDirty = true;
     }
   }
@@ -44,11 +43,11 @@ class WebExtensionManifestAsset extends Asset {
       return;
     }
 
-    const contentScriptsNode = this.ast[nodeName];
-    if (!Array.isArray(contentScriptsNode)) {
+    const contentScripts = this.ast[nodeName];
+    if (!Array.isArray(contentScripts)) {
       return;
     }
-    for (const script of contentScriptsNode) {
+    for (const script of contentScripts) {
       if (script.js) {
         script.js = this.processMultipleDependencies(script.js);
         this.isAstDirty = true;
@@ -65,12 +64,12 @@ class WebExtensionManifestAsset extends Asset {
       return;
     }
 
-    const webAccessibleResourcesNode = this.ast[nodeName];
-    if (!Array.isArray(webAccessibleResourcesNode)) {
+    const webAccessibleResources = this.ast[nodeName];
+    if (!Array.isArray(webAccessibleResources)) {
       return;
     }
     this.ast[nodeName] = this.processMultipleDependencies(
-      webAccessibleResourcesNode
+      webAccessibleResources
     );
     this.isAstDirty = true;
   }
@@ -80,13 +79,13 @@ class WebExtensionManifestAsset extends Asset {
       return;
     }
 
-    const node = this.ast[nodeName];
-    if (node.default_popup) {
-      node.default_popup = this.processSingleDependency(node.default_popup);
+    const action = this.ast[nodeName];
+    if (action.default_popup) {
+      action.default_popup = this.processSingleDependency(action.default_popup);
       this.isAstDirty = true;
     }
-    if (node.default_icon) {
-      node.default_icon = this.processSingleDependency(node.default_icon);
+    if (action.default_icon) {
+      action.default_icon = this.processSingleDependency(action.default_icon);
       this.isAstDirty = true;
     }
   }
@@ -96,9 +95,9 @@ class WebExtensionManifestAsset extends Asset {
       return;
     }
 
-    const iconsNode = this.ast[nodeName];
-    for (const size of Object.keys(iconsNode)) {
-      iconsNode[size] = this.processSingleDependency(iconsNode[size]);
+    const icons = this.ast[nodeName];
+    for (const size of Object.keys(icons)) {
+      icons[size] = this.processSingleDependency(icons[size]);
       this.isAstDirty = true;
     }
   }
