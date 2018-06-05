@@ -32,6 +32,7 @@ class JSConcatPackager extends Packager {
     this.contents = '';
     this.lineOffset = 1;
     this.needsPrelude = false;
+    this.assetOffsets = new Map();
 
     for (let asset of this.bundle.assets) {
       // If this module is referenced by another JS bundle, it needs to be exposed externally.
@@ -147,6 +148,9 @@ class JSConcatPackager extends Packager {
       }
     }
 
+    let shouldWrap = [...asset.parentDeps].some(dep => dep.shouldWrap);
+    asset.cacheData.shouldWrap = shouldWrap;
+
     if (this.bundle.entryAsset === asset && this.externalModules.size > 0) {
       js = `
         function $parcel$entry() {
@@ -157,6 +161,7 @@ class JSConcatPackager extends Packager {
 
     js = js.trim() + '\n';
 
+    let startOffset = this.contents.length;
     this.bundle.addOffset(asset, this.lineOffset + 1);
     this.write(
       `\n// ASSET: ${asset.id} - ${path.relative(
@@ -165,6 +170,9 @@ class JSConcatPackager extends Packager {
       )}\n${js}`,
       map && map.lineCount ? map.lineCount : undefined
     );
+
+    let endOffset = this.contents.length;
+    this.assetOffsets.set(asset.id, [startOffset, endOffset]);
   }
 
   getBundleSpecifier(bundle) {

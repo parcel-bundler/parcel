@@ -585,13 +585,84 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, {foo: 2, bar: 2, baz: 2});
     });
 
-    it.only('supports circular dependencies', async function() {
+    it('supports circular dependencies', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/commonjs/require-circular/a.js'
       );
 
       let output = await run(b);
       assert.equal(output, 'foo bar');
+    });
+
+    it('executes modules in the correct order', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/commonjs/require-execution-order/a.js'
+      );
+
+      let out = [];
+      await run(b, {
+        output(o) {
+          out.push(o);
+        }
+      });
+
+      assert.deepEqual(out, ['a', 'b', 'c']);
+    });
+
+    it('supports conditional requires', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/commonjs/require-conditional/a.js'
+      );
+
+      let out = [];
+      await run(b, {
+        b: false,
+        output(o) {
+          out.push(o);
+        }
+      });
+
+      assert.deepEqual(out, ['a', 'c']);
+
+      out = [];
+      await run(b, {
+        b: true,
+        output(o) {
+          out.push(o);
+        }
+      });
+
+      assert.deepEqual(out, ['a', 'b', 'c']);
+    });
+
+    it('supports requires inside functions', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/commonjs/require-in-function/a.js'
+      );
+
+      let out = [];
+      await run(b, {
+        b: false,
+        output(o) {
+          out.push(o);
+        }
+      });
+
+      assert.deepEqual(out, ['a', 'c', 'b']);
+    });
+
+    it('can bundle the node stream module', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/stream-module/a.js'
+      );
+
+      let res = await run(b);
+      assert.equal(typeof res.Readable, 'function');
+      assert.equal(typeof res.Writable, 'function');
+      assert.equal(typeof res.Duplex, 'function');
     });
 
     it('missing exports should be replaced with an empty object', async function() {

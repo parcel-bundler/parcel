@@ -15,12 +15,12 @@ const DEFAULT_INTEROP_TEMPLATE = template(
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 const REQUIRE_TEMPLATE = template('require(ID)');
 const WRAP_TEMPLATE = template(`
+  var MODULE_EXECUTED = false;
   function NAME() {
-    if (!MODULE) {
+    if (!MODULE_EXECUTED) {
+      MODULE_EXECUTED = true;
       BODY;
     }
-
-    return MODULE;
   }
 `);
 
@@ -33,6 +33,8 @@ module.exports = packager => {
   // Share $parcel$interopDefault variables between modules
   let interops = new Map();
   let imports = new Map();
+  let wrapped = new Map();
+  let referenced = new Set();
 
   let assets = Array.from(addedAssets).reduce((acc, asset) => {
     acc[asset.id] = asset;
@@ -165,53 +167,64 @@ module.exports = packager => {
     }
   }
 
-  function collectReferencedStatments(scope, name, before, seen = new Set()) {
-    let binding = scope.getBinding(name);
-    if (!binding) {
-      return seen;
+  function getStatementsInRange(program, start, end) {
+    return program
+      .get('body')
+      .filter(
+        statement => statement.node.end >= start && statement.node.start <= end
+      );
+  }
+
+  function wrapModule(path, mod) {
+    // Find all statements in the module
+    let program = path.findParent(p => p.isProgram());
+    let [start, end] = packager.assetOffsets.get(mod.id);
+    let statements = getStatementsInRange(program, start, end);
+    if (!statements.length) {
+      return;
     }
 
-    // Go through all references to this binding and collect any
-    // statements with references prior to the given position.
-    for (let ref of [
-      binding.path,
-      ...binding.constantViolations,
-      ...binding.referencePaths
-    ]) {
-      // if (ref.node.start < before) {
-        let statement = getTopStatement(ref, scope);
-        if (statement && !seen.has(statement)) {
-          seen.add(statement);
+    let scope = path.scope.getProgramParent();
 
-          let bindings = statement.getBindingIdentifiers();
-          for (let name in bindings) {
-            collectReferencedStatments(scope, name, before, seen);
-          }
+    let body = [];
+    for (let ref of statements) {
+      let node = ref.node;
+
+      // Hoist all declarations out of the function wrapper
+      // so that they can be referenced by other modules directly.
+      if (ref.isVariableDeclaration()) {
+        let ids = ref.getBindingIdentifierPaths();
+        for (let name in ids) {
+          scope.push({id: t.identifier(name)});
+          let p = ids[name];
+          let right = p.parentPath.isVariableDeclarator()
+            ? p.parent.init
+            : p.parent;
+          body.push(
+            t.assignmentExpression(
+              '=',
+              t.identifier(name),
+              t.toExpression(right)
+            )
+          );
         }
-      // }
-    }
-
-    return seen;
-  }
-
-  function getTopStatement(path, scope) {
-    return path.findParent(p => p.isStatement() && p.scope === scope);
-  }
-
-  function isCircular(asset, id, seen = new Set) {
-    if (seen.has(asset)) return false;
-    seen.add(asset);
-
-    for (let dep of asset.depAssets.values()) {
-      if (dep.id === id || isCircular(dep, id, seen)) {
-        return true;
+      } else {
+        body.push(ref.node);
       }
     }
 
-    return false;
-  }
+    let wrapper = WRAP_TEMPLATE({
+      NAME: t.identifier(`$${mod.id}$init`),
+      MODULE_EXECUTED: t.identifier(`$${mod.id}$executed`),
+      BODY: body
+    });
 
-  let wrapped = new Set;
+    statements[0].insertBefore(wrapper);
+
+    for (let p of statements) {
+      p.remove();
+    }
+  }
 
   traverse(ast, {
     CallExpression(path) {
@@ -253,62 +266,35 @@ module.exports = packager => {
             let name = `$${mod.id}$exports`;
             node = t.identifier(replacements.get(name) || name);
 
-            if (isCircular(mod, id.value) && !wrapped.has(name)) {
-              console.log('CIRCULAR', mod.name, id.value)
-              // CommonJS allows circular dependencies.
-              // Find all references of this module prior to this `require` call, and move them just before it.
-              // This way the dependent module will have access to everything this module had at the time it was required.
-              let scope = path.scope.getProgramParent();
-              let binding = scope.getBinding(name);
-              let referenced = collectReferencedStatments(
-                scope,
-                name,
-                path.node.start
-              );
-              // let statement = getTopStatement(path, scope);
-              // let statement = path.getStatementParent();
-              // console.log(statement, path.node)
-              
-              if (referenced.size) {
-                let ref = [...referenced];
-                let body = [];
-                for (let ref of referenced) {
-                  let node = ref.node;
-                  if (ref.isDeclaration()) {
-                    let ids = ref.getBindingIdentifierPaths();
-                    for (let name in ids) {
-                      scope.push({id: t.identifier(name)});
-                      let p = ids[name];
-                      let right = p.parentPath.isVariableDeclarator() ? p.parent.init : p.parent;
-                      body.push(t.assignmentExpression('=', t.identifier(name), right));
-                    }
-                  } else {
-                    body.push(ref.node);
-                  }
-                }
-
-                let wrapper = WRAP_TEMPLATE({
-                  NAME: t.identifier(`$${mod.id}$init`),
-                  MODULE: node,
-                  BODY: body
-                });
-
-                // console.log(wrapper)
-                ref[0].insertBefore(wrapper);
-                // path.findParent(p => p.isProgram()).unshiftContainer('body', [wrapper])
-
-                for (let p of referenced) {
-                //   let node = p.node;
-                  p.remove();
-                //   statement.insertBefore(node);
-                }
-
-                wrapped.add(name);
+            // We need to wrap the module in a function when a require
+            // call happens inside a non top-level scope, e.g. in a
+            // function, if statement, or conditional expression.
+            if (mod.cacheData.shouldWrap) {
+              if (!wrapped.has(mod)) {
+                wrapped.set(mod, path);
               }
-            }
 
-            if (wrapped.has(name)) {
-              node = t.callExpression(t.identifier(`$${mod.id}$init`), []);
+              node = t.sequenceExpression([
+                t.callExpression(t.identifier(`$${mod.id}$init`), []),
+                node
+              ]);
+
+              // Otherwise, if this is the first reference to the module,
+              // we may need to move the actual module code just before.
+              // This is necessary to support side effects prior to require calls,
+              // which need to occur in the correct order, along with circular dependencies.
+            } else if (!referenced.has(name)) {
+              let program = path.findParent(p => p.isProgram());
+              let [start, end] = packager.assetOffsets.get(mod.id);
+              let statements = getStatementsInRange(program, start, end);
+
+              let nodes = statements.map(p => p.node);
+              for (let p of statements) {
+                p.remove();
+              }
+
+              path.getStatementParent().insertBefore(nodes);
+              referenced.add(name);
             }
           } else {
             node = REQUIRE_TEMPLATE({ID: t.numericLiteral(mod.id)}).expression;
@@ -357,7 +343,7 @@ module.exports = packager => {
         // This allows us to potentially replace accesses to e.g. `x.foo` with
         // a variable like `$id$export$foo` later, avoiding the exports object altogether.
         let {id, init} = path.node;
-        if (!t.isIdentifier(init) ) {
+        if (!t.isIdentifier(init)) {
           return;
         }
 
@@ -454,6 +440,9 @@ module.exports = packager => {
       }
 
       let match = name.match(EXPORTS_RE);
+      if (match) {
+        referenced.add(name);
+      }
 
       // If it's an undefined $id$exports identifier.
       if (match && !path.scope.hasBinding(name)) {
@@ -463,6 +452,10 @@ module.exports = packager => {
     Program: {
       // A small optimization to remove unused CommonJS exports as sometimes Uglify doesn't remove them.
       exit(path) {
+        for (let [mod, path] of wrapped) {
+          wrapModule(path, mod);
+        }
+
         treeShake(path.scope);
 
         if (packager.options.minify) {
