@@ -21,7 +21,8 @@ class VueAsset extends Asset {
       source: code,
       needMap: this.options.sourceMaps,
       filename: this.relativeName, // Used for sourcemaps
-      sourceRoot: '' // Used for sourcemaps. Override so it doesn't use cwd
+      sourceRoot: '', // Used for sourcemaps. Override so it doesn't use cwd
+      compiler: this.vueTemplateCompiler
     });
   }
 
