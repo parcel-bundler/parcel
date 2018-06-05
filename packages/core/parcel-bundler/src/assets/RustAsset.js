@@ -152,7 +152,12 @@ class RustAsset extends Asset {
     await exec('cargo', args, {cwd: cargoDir});
 
     // Get output file paths
-    let outDir = path.join(cargoDir, 'target', RUST_TARGET, 'release');
+    let [stdout] = await exec('cargo', ['metadata', '--format-version', '1'], {
+      cwd: cargoDir
+    });
+    const cargoMetadata = JSON.parse(stdout);
+    const cargoTargetDir = cargoMetadata.target_directory;
+    let outDir = path.join(cargoTargetDir, RUST_TARGET, 'release');
 
     // Rust converts '-' to '_' when outputting files.
     let rustName = cargoConfig.package.name.replace(/-/g, '_');
