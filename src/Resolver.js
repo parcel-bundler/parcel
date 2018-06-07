@@ -292,7 +292,8 @@ class Resolver {
     // Try all supported extensions
     for (let f of this.expandFile(file, extensions, pkg)) {
       if (await this.isFile(f)) {
-        return {path: f, pkg};
+        let realpath = await fs.realpath(f);
+        return {path: f, realpath, pkg};
       }
     }
   }

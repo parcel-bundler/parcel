@@ -78,6 +78,17 @@ describe('resolver', function() {
       );
       assert.equal(resolved.pkg.name, 'foo');
     });
+
+    it('should resolve a symlinked path and provide the realpath', async function() {
+      let resolved = await resolver.resolve(
+        './barsym',
+        path.join(rootDir, 'foo.js')
+      );
+
+      assert.equal(resolved.path, path.join(rootDir, 'barsym.js'));
+      assert.equal(resolved.realpath, path.join(rootDir, 'bar.js'));
+      assert.equal(resolved.pkg.name, 'resolver');
+    });
   });
 
   describe('builtins', function() {
