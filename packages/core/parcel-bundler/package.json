@@ -67,7 +67,7 @@
     "ws": "^5.1.1"
   },
   "devDependencies": {
-    "@vue/component-compiler-utils": "^1.0.0",
+    "@vue/component-compiler-utils": "^2.0.0",
     "babel-cli": "^6.26.0",
     "babel-plugin-transform-async-super": "^1.0.0",
     "babel-polyfill": "^6.26.0",
