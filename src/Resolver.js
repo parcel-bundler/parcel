@@ -353,13 +353,24 @@ class Resolver {
 
       alias = this.lookupAlias(aliases, filename);
     } else {
-      // It is a node_module. First try the entire filename as a key.
-      alias = aliases[filename];
-      if (alias == null) {
-        // If it didn't match, try only the module name.
-        let parts = this.getModuleParts(filename);
-        alias = aliases[parts[0]];
-        if (typeof alias === 'string') {
+      let parts = this.getModuleParts(filename);
+
+      alias = aliases[parts[0]];
+
+      // If the alias starts with . or ./ it doesn't point
+      // to a node module instead to a folder or file of the project
+      // convention of webpack https://webpack.js.org/configuration/resolve/
+      if (typeof alias === 'string') {
+        const isAliasToFolder = alias.startsWith('.') || alias.startsWith('/');
+
+        if (isAliasToFolder) {
+          alias = alias + '/' + path.join(...parts.slice(1));
+
+          if (alias.startsWith('/')) {
+            alias = path.normalize(dir + alias);
+          }
+        } else {
+          // It is a alias to a node module !
           // Append the filename back onto the aliased module.
           alias = path.join(alias, ...parts.slice(1));
         }

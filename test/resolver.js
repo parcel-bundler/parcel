@@ -367,6 +367,42 @@ describe('resolver', function() {
       assert.equal(resolved.pkg.name, 'resolver');
     });
 
+    it('should apply an alias for a virtual module folder (relative path)', async function() {
+      let resolved = await resolver.resolve(
+        'aliasedfolder/test.js',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(resolved.path, path.join(rootDir, 'nested', 'test.js'));
+      assert.equal(resolved.pkg.name, 'resolver');
+    });
+
+    it('should apply an alias for a virtual module folder only (relative path)', async function() {
+      let resolved = await resolver.resolve(
+        'aliasedfolder',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(resolved.path, path.join(rootDir, 'nested', 'index.js'));
+      assert.equal(resolved.pkg.name, 'resolver');
+    });
+
+    it('should apply an alias for a virtual module folder (absolute path)', async function() {
+      let resolved = await resolver.resolve(
+        'aliasedabsolute/test.js',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(resolved.path, path.join(rootDir, 'nested', 'test.js'));
+      assert.equal(resolved.pkg.name, 'resolver');
+    });
+
+    it('should apply an alias for a virtual module folder only (absolute path)', async function() {
+      let resolved = await resolver.resolve(
+        'aliasedabsolute',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(resolved.path, path.join(rootDir, 'nested', 'index.js'));
+      assert.equal(resolved.pkg.name, 'resolver');
+    });
+
     it('should apply an alias for a virtual module', async function() {
       let resolved = await resolver.resolve(
         'something',
