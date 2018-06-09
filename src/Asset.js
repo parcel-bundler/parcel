@@ -1,5 +1,6 @@
 const URL = require('url');
 const path = require('path');
+const clone = require('clone');
 const fs = require('./utils/fs');
 const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
@@ -136,7 +137,7 @@ class Asset {
     if (opts.packageKey) {
       let pkg = await this.getPackage();
       if (pkg && pkg[opts.packageKey]) {
-        return pkg[opts.packageKey];
+        return clone(pkg[opts.packageKey]);
       }
     }
 
