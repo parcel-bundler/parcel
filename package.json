@@ -28,6 +28,7 @@
     "babylon-walk": "^1.0.2",
     "browserslist": "^3.2.6",
     "chalk": "^2.1.0",
+    "clone": "^2.1.1",
     "command-exists": "^1.2.6",
     "commander": "^2.11.0",
     "cross-spawn": "^6.0.4",
@@ -67,7 +68,7 @@
     "ws": "^5.1.1"
   },
   "devDependencies": {
-    "@vue/component-compiler-utils": "^1.0.0",
+    "@vue/component-compiler-utils": "^2.0.0",
     "babel-cli": "^6.26.0",
     "babel-plugin-transform-async-super": "^1.0.0",
     "babel-polyfill": "^6.26.0",
