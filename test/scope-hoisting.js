@@ -607,7 +607,7 @@ describe('scope hoisting', function() {
         }
       });
 
-      assert.deepEqual(out, ['a', 'b', 'c']);
+      assert.deepEqual(out, ['a', 'b', 'c', 'd']);
     });
 
     it('supports conditional requires', async function() {
@@ -624,7 +624,7 @@ describe('scope hoisting', function() {
         }
       });
 
-      assert.deepEqual(out, ['a', 'c']);
+      assert.deepEqual(out, ['a', 'd']);
 
       out = [];
       await run(b, {
@@ -634,7 +634,7 @@ describe('scope hoisting', function() {
         }
       });
 
-      assert.deepEqual(out, ['a', 'b', 'c']);
+      assert.deepEqual(out, ['a', 'b', 'c', 'd']);
     });
 
     it('supports requires inside functions', async function() {

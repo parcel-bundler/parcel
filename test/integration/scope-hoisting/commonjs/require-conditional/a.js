@@ -4,4 +4,4 @@ if (b) {
   require('./b');
 }
 
-output('c');
+output('d');

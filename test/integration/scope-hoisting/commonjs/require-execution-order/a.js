@@ -1,3 +1,3 @@
 output('a');
 require('./b');
-output('c');
+output('d');

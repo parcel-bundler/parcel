@@ -35,7 +35,6 @@ module.exports = {
       asset.cacheData.wildcards = asset.cacheData.wildcards || [];
       asset.cacheData.sideEffects =
         asset._package && asset._package.sideEffects;
-      asset.cacheData.shouldWrap = false;
 
       let shouldWrap = false;
       path.traverse({

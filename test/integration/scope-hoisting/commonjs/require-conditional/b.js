@@ -1,2 +1,2 @@
 output('b');
-
+require('./c');

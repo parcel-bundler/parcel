@@ -150,9 +150,6 @@ class JSConcatPackager extends Packager {
       }
     }
 
-    let shouldWrap = [...asset.parentDeps].some(dep => dep.shouldWrap);
-    asset.cacheData.shouldWrap = shouldWrap;
-
     // if (this.bundle.entryAsset === asset && this.externalModules.size > 0) {
     //   js = `
     //     function $parcel$entry() {
@@ -162,6 +159,32 @@ class JSConcatPackager extends Packager {
     // }
 
     // js = js.trim() + '\n';
+  }
+
+  shouldWrap(asset) {
+    if (!asset) {
+      return false;
+    }
+
+    if (asset.cacheData.shouldWrap != null) {
+      return asset.cacheData.shouldWrap;
+    }
+
+    // Set to false initially so circular deps work
+    asset.cacheData.shouldWrap = false;
+
+    // We need to wrap if any of the deps are marked by the hoister, e.g.
+    // when the dep is required inside a function or conditional.
+    // We also need to wrap if any of the parents are wrapped - transitive requires
+    // shouldn't be evaluated until their parents are.
+    let shouldWrap = [...asset.parentDeps].some(
+      dep =>
+        dep.shouldWrap ||
+        this.shouldWrap(this.bundler.loadedAssets.get(dep.parent))
+    );
+
+    asset.cacheData.shouldWrap = shouldWrap;
+    return shouldWrap;
   }
 
   addDeps(asset, included) {
@@ -184,12 +207,8 @@ class JSConcatPackager extends Packager {
       depAsts.set(depAsset, depAst);
     }
 
-    let statementIndices = new Map();
-
     let statements = this.parse(asset.generated.js, asset.name);
-    let shouldWrap = [...asset.parentDeps].some(dep => dep.shouldWrap);
-
-    if (shouldWrap) {
+    if (this.shouldWrap(asset)) {
       statements = this.wrapModule(asset, statements);
     }
 
@@ -203,6 +222,7 @@ class JSConcatPackager extends Packager {
       });
     }
 
+    let statementIndices = new Map();
     for (let i = 0; i < statements.length; i++) {
       let statement = statements[i];
       if (t.isExpressionStatement(statement)) {
@@ -236,11 +256,17 @@ class JSConcatPackager extends Packager {
       if (t.isVariableDeclaration(node)) {
         for (let decl of node.declarations) {
           decls.push(t.variableDeclarator(decl.id));
-          body.push(
-            t.expressionStatement(
-              t.assignmentExpression('=', t.identifier(decl.id.name), decl.init)
-            )
-          );
+          if (decl.init) {
+            body.push(
+              t.expressionStatement(
+                t.assignmentExpression(
+                  '=',
+                  t.identifier(decl.id.name),
+                  decl.init
+                )
+              )
+            );
+          }
         }
       } else if (t.isClassDeclaration(node) || t.isFunctionDeclaration(node)) {
         let id = t.clone(node.id);
@@ -261,11 +287,9 @@ class JSConcatPackager extends Packager {
       }
     }
 
+    let executed = `$${asset.id}$executed`;
     decls.push(
-      t.variableDeclarator(
-        t.identifier(`$${asset.id}$executed`),
-        t.booleanLiteral(false)
-      )
+      t.variableDeclarator(t.identifier(executed), t.booleanLiteral(false))
     );
 
     return [
@@ -274,14 +298,11 @@ class JSConcatPackager extends Packager {
         t.identifier(`$${asset.id}$init`),
         [],
         t.blockStatement([
-          t.ifStatement(
-            t.identifier(`$${asset.id}$executed`),
-            t.returnStatement()
-          ),
+          t.ifStatement(t.identifier(executed), t.returnStatement()),
           t.expressionStatement(
             t.assignmentExpression(
               '=',
-              t.identifier(`$${asset.id}$executed`),
+              t.identifier(executed),
               t.booleanLiteral(true)
             )
           ),
