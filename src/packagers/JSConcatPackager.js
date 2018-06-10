@@ -3,8 +3,10 @@ const path = require('path');
 const fs = require('fs');
 const SourceMap = require('../SourceMap');
 const concat = require('../scope-hoisting/concat');
-const lineCounter = require('../utils/lineCounter');
 const urlJoin = require('../utils/urlJoin');
+const walk = require('babylon-walk');
+const babylon = require('babylon');
+const t = require('babel-types');
 
 const prelude = fs
   .readFileSync(path.join(__dirname, '../builtins/prelude2.min.js'), 'utf8')
@@ -16,9 +18,8 @@ const helpers =
     .trim() + '\n';
 
 class JSConcatPackager extends Packager {
-  write(string, lineCount = lineCounter(string)) {
-    this.lineOffset += lineCount - 1;
-    this.contents += string;
+  write(string) {
+    this.statements.push(...this.parse(string));
   }
 
   getSize() {
@@ -32,7 +33,8 @@ class JSConcatPackager extends Packager {
     this.contents = '';
     this.lineOffset = 1;
     this.needsPrelude = false;
-    this.assetOffsets = new Map();
+    this.statements = [];
+    this.assetPostludes = new Map();
 
     for (let asset of this.bundle.assets) {
       // If this module is referenced by another JS bundle, it needs to be exposed externally.
@@ -112,7 +114,7 @@ class JSConcatPackager extends Packager {
       return;
     }
     this.addedAssets.add(asset);
-    let {js, map} = asset.generated;
+    // let {js, map} = asset.generated;
 
     // If the asset's package has the sideEffects: false flag set, and there are no used
     // exports marked, exclude the asset from the bundle.
@@ -127,11 +129,11 @@ class JSConcatPackager extends Packager {
       if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
         for (let child of mod.parentBundle.siblingBundles) {
           if (!child.isEmpty) {
-            await this.addBundleLoader(child.type);
+            await this.addBundleLoader(child.type, asset);
           }
         }
 
-        await this.addBundleLoader(mod.type, true);
+        await this.addBundleLoader(mod.type, asset, true);
       } else {
         // If the dep isn't in this bundle, add it to the list of external modules to preload.
         // Only do this if this is the root JS bundle, otherwise they will have already been
@@ -143,7 +145,7 @@ class JSConcatPackager extends Packager {
           this.options.bundleLoaders[mod.type]
         ) {
           this.externalModules.add(mod);
-          await this.addBundleLoader(mod.type);
+          await this.addBundleLoader(mod.type, asset);
         }
       }
     }
@@ -151,28 +153,172 @@ class JSConcatPackager extends Packager {
     let shouldWrap = [...asset.parentDeps].some(dep => dep.shouldWrap);
     asset.cacheData.shouldWrap = shouldWrap;
 
-    if (this.bundle.entryAsset === asset && this.externalModules.size > 0) {
-      js = `
-        function $parcel$entry() {
-          ${js.trim()}
-        }
-      `;
+    // if (this.bundle.entryAsset === asset && this.externalModules.size > 0) {
+    //   js = `
+    //     function $parcel$entry() {
+    //       ${js.trim()}
+    //     }
+    //   `;
+    // }
+
+    // js = js.trim() + '\n';
+  }
+
+  addDeps(asset, included) {
+    if (!this.bundle.assets.has(asset) || included.has(asset)) {
+      return [];
     }
 
-    js = js.trim() + '\n';
+    included.add(asset);
 
-    let startOffset = this.contents.length;
-    this.bundle.addOffset(asset, this.lineOffset + 1);
-    this.write(
-      `\n// ASSET: ${asset.id} - ${path.relative(
-        this.options.rootDir,
-        asset.name
-      )}\n${js}`,
-      map && map.lineCount ? map.lineCount : undefined
+    if (
+      asset.cacheData.sideEffects === false &&
+      (!asset.usedExports || asset.usedExports.size === 0)
+    ) {
+      return [];
+    }
+
+    let depAsts = new Map();
+    for (let depAsset of asset.depAssets.values()) {
+      let depAst = this.addDeps(depAsset, included);
+      depAsts.set(depAsset, depAst);
+    }
+
+    let statementIndices = new Map();
+
+    let statements = this.parse(asset.generated.js, asset.name);
+    let shouldWrap = [...asset.parentDeps].some(dep => dep.shouldWrap);
+
+    if (shouldWrap) {
+      statements = this.wrapModule(asset, statements);
+    }
+
+    if (statements[0]) {
+      if (!statements[0].leadingComments) {
+        statements[0].leadingComments = [];
+      }
+      statements[0].leadingComments.push({
+        type: 'CommentLine',
+        value: ` ASSET: ${path.relative(this.options.rootDir, asset.name)}`
+      });
+    }
+
+    for (let i = 0; i < statements.length; i++) {
+      let statement = statements[i];
+      if (t.isExpressionStatement(statement)) {
+        for (let depAsset of this.findRequires(asset, statement)) {
+          if (!statementIndices.has(depAsset)) {
+            statementIndices.set(depAsset, i);
+          }
+        }
+      }
+    }
+
+    let reverseDeps = [...asset.depAssets.values()].reverse();
+    for (let dep of reverseDeps) {
+      let index = statementIndices.has(dep) ? statementIndices.get(dep) : 0;
+      statements.splice(index, 0, ...depAsts.get(dep));
+    }
+
+    if (this.assetPostludes.has(asset)) {
+      statements.push(...this.parse(this.assetPostludes.get(asset)));
+    }
+
+    return statements;
+  }
+
+  wrapModule(asset, statements) {
+    let body = [];
+    let decls = [];
+    for (let node of statements) {
+      // Hoist all declarations out of the function wrapper
+      // so that they can be referenced by other modules directly.
+      if (t.isVariableDeclaration(node)) {
+        for (let decl of node.declarations) {
+          decls.push(t.variableDeclarator(decl.id));
+          body.push(
+            t.expressionStatement(
+              t.assignmentExpression('=', t.identifier(decl.id.name), decl.init)
+            )
+          );
+        }
+      } else if (t.isClassDeclaration(node) || t.isFunctionDeclaration(node)) {
+        let id = t.clone(node.id);
+        decls.push(t.variableDeclarator(id));
+        node.id.name = `_${node.id.name}`;
+        body.unshift(
+          t.expressionStatement(
+            t.assignmentExpression(
+              '=',
+              t.identifier(id.name),
+              t.identifier(node.id.name)
+            )
+          )
+        );
+        body.push(node);
+      } else {
+        body.push(node);
+      }
+    }
+
+    decls.push(
+      t.variableDeclarator(
+        t.identifier(`$${asset.id}$executed`),
+        t.booleanLiteral(false)
+      )
     );
 
-    let endOffset = this.contents.length;
-    this.assetOffsets.set(asset.id, [startOffset, endOffset]);
+    return [
+      t.variableDeclaration('var', decls),
+      t.functionDeclaration(
+        t.identifier(`$${asset.id}$init`),
+        [],
+        t.blockStatement([
+          t.ifStatement(
+            t.identifier(`$${asset.id}$executed`),
+            t.returnStatement()
+          ),
+          t.expressionStatement(
+            t.assignmentExpression(
+              '=',
+              t.identifier(`$${asset.id}$executed`),
+              t.booleanLiteral(true)
+            )
+          ),
+          ...body
+        ])
+      )
+    ];
+  }
+
+  parse(code, filename) {
+    let ast = babylon.parse(code, {
+      sourceFilename: filename,
+      allowReturnOutsideFunction: true
+    });
+
+    return ast.program.body;
+  }
+
+  findRequires(asset, ast) {
+    let result = [];
+    walk.simple(ast, {
+      CallExpression(node) {
+        let {arguments: args, callee} = node;
+
+        if (!t.isIdentifier(callee)) {
+          return;
+        }
+
+        if (callee.name === '$parcel$require') {
+          result.push(
+            asset.depAssets.get(asset.dependencies.get(args[1].value))
+          );
+        }
+      }
+    });
+
+    return result;
   }
 
   getBundleSpecifier(bundle) {
@@ -201,7 +347,7 @@ class JSConcatPackager extends Packager {
     await this.addAsset(asset);
   }
 
-  async addBundleLoader(bundleType, dynamic) {
+  async addBundleLoader(bundleType, parentAsset, dynamic) {
     let loader = this.options.bundleLoaders[bundleType];
     if (!loader) {
       return;
@@ -215,6 +361,7 @@ class JSConcatPackager extends Packager {
     }
 
     if (bundleLoader) {
+      // parentAsset.depAssets.set({name: '_bundle_loader'}, bundleLoader);
       await this.addAssetToBundle(bundleLoader);
     } else {
       return;
@@ -223,16 +370,27 @@ class JSConcatPackager extends Packager {
     let target = this.options.target === 'node' ? 'node' : 'browser';
     let asset = await this.bundler.getAsset(loader[target]);
     if (!this.bundle.assets.has(asset)) {
-      await this.addAssetToBundle(asset);
-      this.write(
+      let dep = {name: asset.name};
+      asset.parentDeps.add(dep);
+      parentAsset.dependencies.set(dep.name, dep);
+      parentAsset.depAssets.set(dep, asset);
+      this.assetPostludes.set(
+        asset,
         `${this.getExportIdentifier(bundleLoader)}.register(${JSON.stringify(
           bundleType
         )},${this.getExportIdentifier(asset)});\n`
       );
+
+      await this.addAssetToBundle(asset);
     }
   }
 
   async end() {
+    let included = new Set();
+    for (let asset of this.bundle.assets) {
+      this.statements.push(...this.addDeps(asset, included));
+    }
+
     // Preload external modules before running entry point if needed
     if (this.externalModules.size > 0) {
       let bundleLoader = this.bundler.loadedAssets.get(
@@ -305,7 +463,8 @@ class JSConcatPackager extends Packager {
       `);
     }
 
-    let {code: output, rawMappings} = concat(this);
+    let ast = t.file(t.program(this.statements));
+    let {code: output, rawMappings} = concat(this, ast);
 
     if (!this.options.minify) {
       output = '\n' + output + '\n';

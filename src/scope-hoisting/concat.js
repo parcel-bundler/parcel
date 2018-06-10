@@ -1,5 +1,4 @@
 const {relative} = require('path');
-const babylon = require('babylon');
 const template = require('babel-template');
 const t = require('babel-types');
 const traverse = require('babel-traverse').default;
@@ -14,26 +13,13 @@ const DEFAULT_INTEROP_TEMPLATE = template(
 );
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 const REQUIRE_TEMPLATE = template('require(ID)');
-const WRAP_TEMPLATE = template(`
-  var MODULE_EXECUTED = false;
-  function NAME() {
-    if (!MODULE_EXECUTED) {
-      MODULE_EXECUTED = true;
-      BODY;
-    }
-  }
-`);
 
-module.exports = packager => {
-  let {contents: code, addedAssets} = packager;
+module.exports = (packager, ast) => {
+  let {addedAssets} = packager;
   let replacements = new Map();
-  let ast = babylon.parse(code, {
-    allowReturnOutsideFunction: true
-  });
   // Share $parcel$interopDefault variables between modules
   let interops = new Map();
   let imports = new Map();
-  let wrapped = new Map();
   let referenced = new Set();
 
   let assets = Array.from(addedAssets).reduce((acc, asset) => {
@@ -167,65 +153,6 @@ module.exports = packager => {
     }
   }
 
-  function getStatementsInRange(program, start, end) {
-    return program
-      .get('body')
-      .filter(
-        statement => statement.node.end >= start && statement.node.start <= end
-      );
-  }
-
-  function wrapModule(path, mod) {
-    // Find all statements in the module
-    let program = path.findParent(p => p.isProgram());
-    let [start, end] = packager.assetOffsets.get(mod.id);
-    let statements = getStatementsInRange(program, start, end);
-    if (!statements.length) {
-      return;
-    }
-
-    let scope = path.scope.getProgramParent();
-
-    let body = [];
-    for (let ref of statements) {
-      let node = ref.node;
-
-      // Hoist all declarations out of the function wrapper
-      // so that they can be referenced by other modules directly.
-      if (ref.isVariableDeclaration()) {
-        let ids = ref.getBindingIdentifierPaths();
-        for (let name in ids) {
-          scope.push({id: t.identifier(name)});
-          let p = ids[name];
-          let right = p.parentPath.isVariableDeclarator()
-            ? p.parent.init
-            : p.parent;
-          body.push(
-            t.assignmentExpression(
-              '=',
-              t.identifier(name),
-              t.toExpression(right)
-            )
-          );
-        }
-      } else {
-        body.push(ref.node);
-      }
-    }
-
-    let wrapper = WRAP_TEMPLATE({
-      NAME: t.identifier(`$${mod.id}$init`),
-      MODULE_EXECUTED: t.identifier(`$${mod.id}$executed`),
-      BODY: body
-    });
-
-    statements[0].insertBefore(wrapper);
-
-    for (let p of statements) {
-      p.remove();
-    }
-  }
-
   traverse(ast, {
     CallExpression(path) {
       let {arguments: args, callee} = path.node;
@@ -270,10 +197,6 @@ module.exports = packager => {
             // call happens inside a non top-level scope, e.g. in a
             // function, if statement, or conditional expression.
             if (mod.cacheData.shouldWrap) {
-              if (!wrapped.has(mod)) {
-                wrapped.set(mod, path);
-              }
-
               node = t.sequenceExpression([
                 t.callExpression(t.identifier(`$${mod.id}$init`), []),
                 node
@@ -283,18 +206,6 @@ module.exports = packager => {
               // we may need to move the actual module code just before.
               // This is necessary to support side effects prior to require calls,
               // which need to occur in the correct order, along with circular dependencies.
-            } else if (!referenced.has(name)) {
-              let program = path.findParent(p => p.isProgram());
-              let [start, end] = packager.assetOffsets.get(mod.id);
-              let statements = getStatementsInRange(program, start, end);
-
-              let nodes = statements.map(p => p.node);
-              for (let p of statements) {
-                p.remove();
-              }
-
-              path.getStatementParent().insertBefore(nodes);
-              referenced.add(name);
             }
           } else {
             node = REQUIRE_TEMPLATE({ID: t.numericLiteral(mod.id)}).expression;
@@ -452,10 +363,6 @@ module.exports = packager => {
     Program: {
       // A small optimization to remove unused CommonJS exports as sometimes Uglify doesn't remove them.
       exit(path) {
-        for (let [mod, path] of wrapped) {
-          wrapModule(path, mod);
-        }
-
         treeShake(path.scope);
 
         if (packager.options.minify) {
@@ -472,5 +379,5 @@ module.exports = packager => {
     comments: !packager.options.minify
   };
 
-  return generate(ast, opts, code);
+  return generate(ast, opts);
 };
