@@ -370,7 +370,7 @@ class Resolver {
             alias = '.' + alias;
           }
         } else {
-          // It is a alias to a node module !
+          // It is an alias to a node module !
           // Append the filename back onto the aliased module.
           alias = path.join(alias, ...parts.slice(1));
         }
