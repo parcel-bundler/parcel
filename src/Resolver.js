@@ -367,7 +367,7 @@ class Resolver {
           alias = alias + '/' + path.join(...parts.slice(1));
 
           if (alias.startsWith('/')) {
-            alias = path.normalize(dir + alias);
+            alias = '.' + alias;
           }
         } else {
           // It is a alias to a node module !
