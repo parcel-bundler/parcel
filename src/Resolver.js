@@ -364,7 +364,7 @@ class Resolver {
         const isAliasToFolder = alias.startsWith('.') || alias.startsWith('/');
 
         if (isAliasToFolder) {
-          alias = alias + '/' + path.join(...parts.slice(1));
+          alias = alias + '/' + parts.slice(1).join('/');
 
           if (alias.startsWith('/')) {
             alias = '.' + alias;
