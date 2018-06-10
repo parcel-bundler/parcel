@@ -27,7 +27,7 @@ describe('server', function() {
           let data = '';
           res.on('data', c => (data += c));
           res.on('end', () => {
-            if (Math.floor(res.statusCode / 100) !== 2) {
+            if (res.statusCode !== 200) {
               return reject(data);
             }
             resolve(data);
