@@ -1,5 +1,6 @@
 const assert = require('assert');
 const {bundle: _bundle, run} = require('./utils');
+const fs = require('../src/utils/fs');
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
@@ -267,6 +268,19 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(await output, 4);
+    });
+
+    it('removes unused exports', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/es6/tree-shaking/a.js'
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output.default, 2);
+
+      let contents = await fs.readFile(__dirname + '/dist/a.js', 'utf8');
+      assert(contents.includes('foo'));
+      assert(!contents.includes('bar'));
     });
   });
 
@@ -672,6 +686,19 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, {b: {}});
+    });
+
+    it('removes unused exports', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/tree-shaking/a.js'
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 2);
+
+      let contents = await fs.readFile(__dirname + '/dist/a.js', 'utf8');
+      assert(contents.includes('foo'));
+      assert(!contents.includes('bar'));
     });
   });
 });

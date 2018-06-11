@@ -325,7 +325,7 @@ module.exports = (packager, ast) => {
 
           // Check if $id$export$name exists and if so, replace the node by it.
           if (exp) {
-            // path.replaceWith(t.identifier(exp));
+            path.replaceWith(t.identifier(exp));
           }
         }
       }
