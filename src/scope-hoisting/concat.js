@@ -129,14 +129,12 @@ module.exports = (packager, ast) => {
     if (mod.cacheData.isCommonJS && originalName === 'default') {
       let name = `$${mod.id}$interop$default`;
       if (!path.scope.getBinding(name)) {
-        let [decl] = path
-          .findParent(p => p.parentPath.isProgram())
-          .insertBefore(
-            DEFAULT_INTEROP_TEMPLATE({
-              NAME: t.identifier(name),
-              MODULE: node
-            })
-          );
+        let [decl] = path.getStatementParent().insertBefore(
+          DEFAULT_INTEROP_TEMPLATE({
+            NAME: t.identifier(name),
+            MODULE: node
+          })
+        );
 
         let binding = path.scope.getBinding(`$${mod.id}$exports`);
         if (binding) {
