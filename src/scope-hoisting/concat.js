@@ -18,7 +18,7 @@ module.exports = (packager, ast) => {
   let {addedAssets} = packager;
   let replacements = new Map();
   // Share $parcel$interopDefault variables between modules
-  let interops = new Map();
+  let interops = new Set();
   let imports = new Map();
   let referenced = new Set();
 
@@ -106,7 +106,8 @@ module.exports = (packager, ast) => {
 
     // If it is CommonJS, look for an exports object.
     if (!node && mod.cacheData.isCommonJS) {
-      node = find(id, `$${id}$exports`);
+      let exportsName = `$${id}$exports`;
+      node = find(id, exportsName);
       if (!node) {
         return null;
       }
@@ -114,20 +115,19 @@ module.exports = (packager, ast) => {
       // Handle interop for default imports of CommonJS modules.
       if (mod.cacheData.isCommonJS && originalName === 'default') {
         let name = `$${id}$interop$default`;
-        if (!interops.has(node.name)) {
-          let [decl] = path.getStatementParent().insertBefore(
+        if (!interops.has(name)) {
+          let [decl] = path.findParent(p => p.parentPath.isProgram()).insertBefore(
             DEFAULT_INTEROP_TEMPLATE({
               NAME: t.identifier(name),
               MODULE: node
             })
           );
 
-          path.scope
-            .getBinding(node.name)
+          path.scope.getBinding(exportsName)
             .reference(decl.get('declarations.0.init'));
           path.scope.registerDeclaration(decl);
 
-          interops.set(name, node.name);
+          interops.add(name);
         }
 
         return t.memberExpression(t.identifier(name), t.identifier('d'));
