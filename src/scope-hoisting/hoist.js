@@ -337,12 +337,21 @@ module.exports = {
     }
 
     // Replace with a $parcel$require call so we know where to insert side effects.
-    path.replaceWith(
-      REQUIRE_CALL_TEMPLATE({
-        ID: t.numericLiteral(asset.id),
-        SOURCE: t.stringLiteral(path.node.source.value)
-      })
-    );
+    let requireCall = REQUIRE_CALL_TEMPLATE({
+      ID: t.numericLiteral(asset.id),
+      SOURCE: t.stringLiteral(path.node.source.value)
+    });
+
+    // Hoist the call to the top of the file.
+    let lastImport = path.scope.getData('hoistedImport');
+    if (lastImport) {
+      [lastImport] = lastImport.insertAfter(requireCall);
+    } else {
+      [lastImport] = path.parentPath.unshiftContainer('body', [requireCall]);
+    }
+
+    path.scope.setData('hoistedImport', lastImport);
+    path.remove();
   },
 
   ExportDefaultDeclaration(path, asset) {

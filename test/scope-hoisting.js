@@ -693,6 +693,22 @@ describe('scope hoisting', function() {
       assert.deepEqual(out, ['a', 'd', 'c', 'b']);
     });
 
+    it('hoists import calls to the top', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/commonjs/require-in-function-import-hoist/a.js'
+      );
+
+      let out = [];
+      await run(b, {
+        output(o) {
+          out.push(o);
+        }
+      });
+
+      assert.deepEqual(out, ['a', 'd', 'c', 'b']);
+    });
+
     it('can bundle the node stream module', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/commonjs/stream-module/a.js'
