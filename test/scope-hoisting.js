@@ -210,6 +210,16 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
+    it('supports import default CommonJS interop with dynamic imports', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/es6/dynamic-default-interop/a.js'
+      );
+
+      let output = await run(b);
+      assert.deepEqual(await output, 6);
+    });
+
     it('supports exporting an import', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/es6/re-export-var/a.js'

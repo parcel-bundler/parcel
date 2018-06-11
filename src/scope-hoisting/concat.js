@@ -17,8 +17,6 @@ const REQUIRE_TEMPLATE = template('require(ID)');
 module.exports = (packager, ast) => {
   let {addedAssets} = packager;
   let replacements = new Map();
-  // Share $parcel$interopDefault variables between modules
-  let interops = new Set();
   let imports = new Map();
   let referenced = new Set();
 
@@ -85,17 +83,13 @@ module.exports = (packager, ast) => {
     let node;
 
     if (res) {
-      node = find(id, res);
+      node = findSymbol(path, res);
     }
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && !assets[id]) {
       node = REQUIRE_TEMPLATE({ID: t.numericLiteral(id)}).expression;
-      if (originalName !== '*') {
-        node = t.memberExpression(node, t.identifier(originalName));
-      }
-
-      return node;
+      return interop(mod, originalName, path, node);
     }
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
@@ -106,51 +100,61 @@ module.exports = (packager, ast) => {
 
     // If it is CommonJS, look for an exports object.
     if (!node && mod.cacheData.isCommonJS) {
-      let exportsName = `$${id}$exports`;
-      node = find(id, exportsName);
+      node = findSymbol(path, `$${id}$exports`);
       if (!node) {
         return null;
       }
 
-      // Handle interop for default imports of CommonJS modules.
-      if (mod.cacheData.isCommonJS && originalName === 'default') {
-        let name = `$${id}$interop$default`;
-        if (!interops.has(name)) {
-          let [decl] = path.findParent(p => p.parentPath.isProgram()).insertBefore(
+      return interop(mod, originalName, path, node);
+    }
+
+    return node;
+  }
+
+  function findSymbol(path, symbol) {
+    if (replacements.has(symbol)) {
+      symbol = replacements.get(symbol);
+    }
+
+    // if the symbol is in the scope there is not need to remap it
+    if (path.scope.getProgramParent().hasBinding(symbol)) {
+      return t.identifier(symbol);
+    }
+
+    return null;
+  }
+
+  function interop(mod, originalName, path, node) {
+    // Handle interop for default imports of CommonJS modules.
+    if (mod.cacheData.isCommonJS && originalName === 'default') {
+      let name = `$${mod.id}$interop$default`;
+      if (!path.scope.getBinding(name)) {
+        let [decl] = path
+          .findParent(p => p.parentPath.isProgram())
+          .insertBefore(
             DEFAULT_INTEROP_TEMPLATE({
               NAME: t.identifier(name),
               MODULE: node
             })
           );
 
-          path.scope.getBinding(exportsName)
-            .reference(decl.get('declarations.0.init'));
-          path.scope.registerDeclaration(decl);
-
-          interops.add(name);
+        let binding = path.scope.getBinding(`$${mod.id}$exports`);
+        if (binding) {
+          binding.reference(decl.get('declarations.0.init'));
         }
 
-        return t.memberExpression(t.identifier(name), t.identifier('d'));
+        path.scope.registerDeclaration(decl);
       }
 
-      // if there is a CommonJS export return $id$exports.name
+      return t.memberExpression(t.identifier(name), t.identifier('d'));
+    }
+
+    // if there is a CommonJS export return $id$exports.name
+    if (originalName !== '*') {
       return t.memberExpression(node, t.identifier(originalName));
     }
 
     return node;
-
-    function find(id, symbol) {
-      if (replacements.has(symbol)) {
-        symbol = replacements.get(symbol);
-      }
-
-      // if the symbol is in the scope there is not need to remap it
-      if (path.scope.getProgramParent().hasBinding(symbol)) {
-        return t.identifier(symbol);
-      }
-
-      return null;
-    }
   }
 
   traverse(ast, {
