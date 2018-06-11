@@ -7,6 +7,7 @@ const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const config = require('./utils/config');
 const syncPromise = require('./utils/syncPromise');
+const emoji = require('./utils/emoji');
 const logger = require('./Logger');
 const Resolver = require('./Resolver');
 
@@ -52,6 +53,7 @@ class Asset {
 
   async loadIfNeeded() {
     if (this.contents == null) {
+      logger.status(emoji.progress, `Loading ${this.relativeName}...`);
       this.contents = await this.load();
     }
   }
@@ -59,6 +61,7 @@ class Asset {
   async parseIfNeeded() {
     await this.loadIfNeeded();
     if (!this.ast) {
+      logger.status(emoji.progress, `Parsing ${this.relativeName}...`);
       this.ast = await this.parse(this.contents);
     }
   }
@@ -190,9 +193,15 @@ class Asset {
   async process() {
     if (!this.generated) {
       await this.loadIfNeeded();
+
+      logger.status(emoji.progress, `Analyzing ${this.relativeName}...`);
+
       await this.pretransform();
       await this.getDependencies();
       await this.transform();
+
+      logger.status(emoji.progress, `Generating ${this.relativeName}...`);
+
       this.generated = await this.generate();
       this.hash = await this.generateHash();
     }

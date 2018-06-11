@@ -493,10 +493,6 @@ class Bundler extends EventEmitter {
       return;
     }
 
-    if (!this.errored) {
-      logger.status(emoji.progress, `Building ${asset.basename}...`);
-    }
-
     // Mark the asset processed so we don't load it twice
     asset.processed = true;
 
@@ -505,6 +501,10 @@ class Bundler extends EventEmitter {
     let processed = this.cache && (await this.cache.read(asset.name));
     let cacheMiss = false;
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
+      if (!this.errored) {
+        logger.status(emoji.progress, `Queuing ${asset.relativeName}...`);
+      }
+
       processed = await this.farm.run(asset.name);
       cacheMiss = true;
     }
