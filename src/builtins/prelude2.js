@@ -5,7 +5,7 @@ parcelRequire = (function (init) {
   var modules = {};
 
   function localRequire(name, jumped) {
-    if (modules[name]) {
+    if (name in modules) {
       return modules[name];
     }
 
