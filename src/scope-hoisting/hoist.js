@@ -336,7 +336,13 @@ module.exports = {
       }
     }
 
-    path.remove();
+    // Replace with a $parcel$require call so we know where to insert side effects.
+    path.replaceWith(
+      REQUIRE_CALL_TEMPLATE({
+        ID: t.numericLiteral(asset.id),
+        SOURCE: t.stringLiteral(path.node.source.value)
+      })
+    );
   },
 
   ExportDefaultDeclaration(path, asset) {

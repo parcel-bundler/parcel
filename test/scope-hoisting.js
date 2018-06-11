@@ -669,13 +669,28 @@ describe('scope hoisting', function() {
 
       let out = [];
       await run(b, {
-        b: false,
         output(o) {
           out.push(o);
         }
       });
 
       assert.deepEqual(out, ['a', 'c', 'b']);
+    });
+
+    it('supports requires inside functions with es6 import side effects', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/commonjs/require-in-function-import/a.js'
+      );
+
+      let out = [];
+      await run(b, {
+        output(o) {
+          out.push(o);
+        }
+      });
+
+      assert.deepEqual(out, ['a', 'd', 'c', 'b']);
     });
 
     it('can bundle the node stream module', async function() {

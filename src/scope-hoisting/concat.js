@@ -194,28 +194,28 @@ module.exports = (packager, ast) => {
         } else {
           let node;
           if (assets[mod.id]) {
-            let name = `$${mod.id}$exports`;
-            node = t.identifier(replacements.get(name) || name);
+            // Replace with nothing if the require call's result is not used.
+            if (!path.parentPath.isExpressionStatement()) {
+              let name = `$${mod.id}$exports`;
+              node = t.identifier(replacements.get(name) || name);
+            }
 
             // We need to wrap the module in a function when a require
             // call happens inside a non top-level scope, e.g. in a
             // function, if statement, or conditional expression.
             if (mod.cacheData.shouldWrap) {
-              node = t.sequenceExpression([
-                t.callExpression(t.identifier(`$${mod.id}$init`), []),
-                node
-              ]);
-
-              // Otherwise, if this is the first reference to the module,
-              // we may need to move the actual module code just before.
-              // This is necessary to support side effects prior to require calls,
-              // which need to occur in the correct order, along with circular dependencies.
+              let call = t.callExpression(t.identifier(`$${mod.id}$init`), []);
+              node = node ? t.sequenceExpression([call, node]) : call;
             }
           } else {
             node = REQUIRE_TEMPLATE({ID: t.numericLiteral(mod.id)}).expression;
           }
 
-          path.replaceWith(node);
+          if (node) {
+            path.replaceWith(node);
+          } else {
+            path.remove();
+          }
         }
       } else if (callee.name === '$parcel$require$resolve') {
         let [id, source] = args;
