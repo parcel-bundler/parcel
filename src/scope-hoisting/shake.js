@@ -63,6 +63,9 @@ module.exports = treeShake;
 // Check if a binding is safe to remove and returns it if it is.
 function getUnusedBinding(path, name) {
   let binding = path.scope.getBinding(name);
+  if (!binding) {
+    return null;
+  }
 
   if (isPure(binding)) {
     return binding;
