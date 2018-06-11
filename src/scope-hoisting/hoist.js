@@ -336,21 +336,7 @@ module.exports = {
       }
     }
 
-    // Replace with a $parcel$require call so we know where to insert side effects.
-    let requireCall = REQUIRE_CALL_TEMPLATE({
-      ID: t.numericLiteral(asset.id),
-      SOURCE: t.stringLiteral(path.node.source.value)
-    });
-
-    // Hoist the call to the top of the file.
-    let lastImport = path.scope.getData('hoistedImport');
-    if (lastImport) {
-      [lastImport] = lastImport.insertAfter(requireCall);
-    } else {
-      [lastImport] = path.parentPath.unshiftContainer('body', [requireCall]);
-    }
-
-    path.scope.setData('hoistedImport', lastImport);
+    addImport(asset, path);
     path.remove();
   },
 
@@ -436,6 +422,7 @@ module.exports = {
         );
       }
 
+      addImport(asset, path);
       path.remove();
     } else if (declaration) {
       path.replaceWith(declaration);
@@ -472,6 +459,24 @@ module.exports = {
     );
   }
 };
+
+function addImport(asset, path) {
+  // Replace with a $parcel$require call so we know where to insert side effects.
+  let requireCall = REQUIRE_CALL_TEMPLATE({
+    ID: t.numericLiteral(asset.id),
+    SOURCE: t.stringLiteral(path.node.source.value)
+  });
+
+  // Hoist the call to the top of the file.
+  let lastImport = path.scope.getData('hoistedImport');
+  if (lastImport) {
+    [lastImport] = lastImport.insertAfter(requireCall);
+  } else {
+    [lastImport] = path.parentPath.unshiftContainer('body', [requireCall]);
+  }
+
+  path.scope.setData('hoistedImport', lastImport);
+}
 
 function addExport(asset, path, local, exported) {
   let scope = path.scope.getProgramParent();
