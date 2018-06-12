@@ -69,8 +69,20 @@ class JSPackager extends Packager {
           !this.bundle.assets.has(mod) &&
           (!this.bundle.parentBundle || this.bundle.parentBundle.type !== 'js')
         ) {
-          this.externalModules.add(mod);
-          this.bundleLoaders.add(mod.type);
+          if(mod.type === "html") {
+            this.externalModules.add(mod);
+            this.bundleLoaders.add(mod.type);
+
+            // if your JS file imports an html dependency, the html
+            // needs to be included in the generated javascript file
+            await this.writeModule(
+              mod.id,
+              `module.exports=${JSON.stringify(mod.generated.html)}`
+            );
+          } else {
+            this.externalModules.add(mod);
+            this.bundleLoaders.add(mod.type);
+          }
         }
       }
     }

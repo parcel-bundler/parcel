@@ -52,6 +52,10 @@ class Bundler extends EventEmitter {
       browser: require.resolve('./builtins/loaders/browser/js-loader'),
       node: require.resolve('./builtins/loaders/node/js-loader')
     });
+    this.addBundleLoader('html', {
+      browser: require.resolve('./builtins/loaders/browser/html-loader'),
+      node: require.resolve('./builtins/loaders/node/html-loader')
+    })
 
     this.pending = false;
     this.loadedAssets = new Map();
