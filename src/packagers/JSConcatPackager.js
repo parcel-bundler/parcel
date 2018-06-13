@@ -250,6 +250,7 @@ class JSConcatPackager extends Packager {
   wrapModule(asset, statements) {
     let body = [];
     let decls = [];
+    let fns = [];
     for (let node of statements) {
       // Hoist all declarations out of the function wrapper
       // so that they can be referenced by other modules directly.
@@ -268,20 +269,22 @@ class JSConcatPackager extends Packager {
             );
           }
         }
-      } else if (t.isClassDeclaration(node) || t.isFunctionDeclaration(node)) {
-        let id = t.clone(node.id);
-        decls.push(t.variableDeclarator(id));
-        node.id.name = `_${node.id.name}`;
-        body.unshift(
+      } else if (t.isFunctionDeclaration(node)) {
+        // Function declarations can be hoisted out of the module initialization function
+        fns.push(node);
+      } else if (t.isClassDeclaration(node)) {
+        // Class declarations are not hoisted. We declare a variable outside the
+        // function convert to a class expression assignment.
+        decls.push(t.variableDeclarator(t.identifier(node.id.name)));
+        body.push(
           t.expressionStatement(
             t.assignmentExpression(
               '=',
-              t.identifier(id.name),
-              t.identifier(node.id.name)
+              t.identifier(node.id.name),
+              t.toExpression(node)
             )
           )
         );
-        body.push(node);
       } else {
         body.push(node);
       }
@@ -292,24 +295,23 @@ class JSConcatPackager extends Packager {
       t.variableDeclarator(t.identifier(executed), t.booleanLiteral(false))
     );
 
-    return [
-      t.variableDeclaration('var', decls),
-      t.functionDeclaration(
-        t.identifier(`$${asset.id}$init`),
-        [],
-        t.blockStatement([
-          t.ifStatement(t.identifier(executed), t.returnStatement()),
-          t.expressionStatement(
-            t.assignmentExpression(
-              '=',
-              t.identifier(executed),
-              t.booleanLiteral(true)
-            )
-          ),
-          ...body
-        ])
-      )
-    ];
+    let init = t.functionDeclaration(
+      t.identifier(`$${asset.id}$init`),
+      [],
+      t.blockStatement([
+        t.ifStatement(t.identifier(executed), t.returnStatement()),
+        t.expressionStatement(
+          t.assignmentExpression(
+            '=',
+            t.identifier(executed),
+            t.booleanLiteral(true)
+          )
+        ),
+        ...body
+      ])
+    );
+
+    return [t.variableDeclaration('var', decls), ...fns, init];
   }
 
   parse(code, filename) {
