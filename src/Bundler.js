@@ -97,6 +97,10 @@ class Bundler extends EventEmitter {
         : typeof options.hmr === 'boolean'
           ? options.hmr
           : watch;
+    const scopeHoist =
+      options.scopeHoist !== undefined
+        ? options.scopeHoist
+        : isProduction && !hmr;
     return {
       production: isProduction,
       outDir: Path.resolve(options.outDir || 'dist'),
@@ -117,7 +121,8 @@ class Bundler extends EventEmitter {
       hmrPort: options.hmrPort || 0,
       rootDir: getRootDir(this.entryFiles),
       sourceMaps:
-        typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
+        (typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true) &&
+        !scopeHoist,
       hmrHostname:
         options.hmrHostname ||
         (options.target === 'electron' ? 'localhost' : ''),
@@ -127,10 +132,7 @@ class Bundler extends EventEmitter {
         typeof options.autoinstall === 'boolean'
           ? options.autoinstall
           : !isProduction,
-      scopeHoist:
-        options.scopeHoist !== undefined
-          ? options.scopeHoist
-          : isProduction && !hmr,
+      scopeHoist: scopeHoist,
       contentHash:
         typeof options.contentHash === 'boolean'
           ? options.contentHash

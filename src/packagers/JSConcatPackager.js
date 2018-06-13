@@ -1,7 +1,6 @@
 const Packager = require('./Packager');
 const path = require('path');
 const fs = require('fs');
-const SourceMap = require('../SourceMap');
 const concat = require('../scope-hoisting/concat');
 const urlJoin = require('../utils/urlJoin');
 const walk = require('babylon-walk');
@@ -23,7 +22,6 @@ class JSConcatPackager extends Packager {
     this.exposedModules = new Set();
     this.externalModules = new Set();
     this.size = 0;
-    this.lineOffset = 1;
     this.needsPrelude = false;
     this.statements = [];
     this.assetPostludes = new Map();
@@ -119,7 +117,7 @@ class JSConcatPackager extends Packager {
       return;
     }
     this.addedAssets.add(asset);
-    let {js, map} = asset.generated;
+    let {js} = asset.generated;
 
     // If the asset's package has the sideEffects: false flag set, and there are no used
     // exports marked, exclude the asset from the bundle.
@@ -493,7 +491,7 @@ class JSConcatPackager extends Packager {
     }
 
     let ast = t.file(t.program(this.statements));
-    let {code: output, rawMappings} = concat(this, ast);
+    let {code: output} = concat(this, ast);
 
     if (!this.options.minify) {
       output = '\n' + output + '\n';
@@ -508,14 +506,6 @@ class JSConcatPackager extends Packager {
     this.bundle.totalSize = output.length;
 
     let {sourceMaps} = this.options;
-    if (sourceMaps && rawMappings) {
-      this.bundle.extendSourceMap(
-        new SourceMap(rawMappings, {
-          [this.bundle.name]: this.contents
-        })
-      );
-    }
-
     if (sourceMaps) {
       // Add source map url if a map bundle exists
       let mapBundle = this.bundle.siblingBundlesMap.get('map');
