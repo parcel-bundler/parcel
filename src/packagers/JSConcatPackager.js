@@ -106,7 +106,12 @@ class JSConcatPackager extends Packager {
   }
 
   getExportIdentifier(asset) {
-    return '$' + asset.id + '$exports';
+    let id = '$' + asset.id + '$exports';
+    if (this.shouldWrap(asset)) {
+      return `($${asset.id}$init(), ${id})`;
+    }
+
+    return id;
   }
 
   async addAsset(asset) {
