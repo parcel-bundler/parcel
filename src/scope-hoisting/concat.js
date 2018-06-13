@@ -155,6 +155,15 @@ module.exports = (packager, ast) => {
     return node;
   }
 
+  function isUnusedValue(path) {
+    return (
+      path.parentPath.isExpressionStatement() ||
+      (path.parentPath.isSequenceExpression() &&
+        (path.key !== path.container.length - 1 ||
+          isUnusedValue(path.parentPath)))
+    );
+  }
+
   traverse(ast, {
     CallExpression(path) {
       let {arguments: args, callee} = path.node;
@@ -193,7 +202,7 @@ module.exports = (packager, ast) => {
           let node;
           if (assets[mod.id]) {
             // Replace with nothing if the require call's result is not used.
-            if (!path.parentPath.isExpressionStatement()) {
+            if (!isUnusedValue(path)) {
               let name = `$${mod.id}$exports`;
               node = t.identifier(replacements.get(name) || name);
             }
