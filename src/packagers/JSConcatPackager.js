@@ -18,19 +18,11 @@ const helpers =
     .trim() + '\n';
 
 class JSConcatPackager extends Packager {
-  write(string) {
-    this.statements.push(...this.parse(string));
-  }
-
-  getSize() {
-    return this.contents.length;
-  }
-
   async start() {
     this.addedAssets = new Set();
     this.exposedModules = new Set();
     this.externalModules = new Set();
-    this.contents = '';
+    this.size = 0;
     this.lineOffset = 1;
     this.needsPrelude = false;
     this.statements = [];
@@ -80,6 +72,14 @@ class JSConcatPackager extends Packager {
     this.write(helpers);
   }
 
+  write(string) {
+    this.statements.push(...this.parse(string));
+  }
+
+  getSize() {
+    return this.size;
+  }
+
   markUsedExports(asset) {
     if (asset.usedExports) {
       return;
@@ -114,7 +114,7 @@ class JSConcatPackager extends Packager {
       return;
     }
     this.addedAssets.add(asset);
-    // let {js, map} = asset.generated;
+    let {js, map} = asset.generated;
 
     // If the asset's package has the sideEffects: false flag set, and there are no used
     // exports marked, exclude the asset from the bundle.
@@ -159,6 +159,7 @@ class JSConcatPackager extends Packager {
     // }
 
     // js = js.trim() + '\n';
+    this.size += js.length;
   }
 
   shouldWrap(asset) {
