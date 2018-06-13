@@ -198,20 +198,22 @@ class JSConcatPackager extends Packager {
 
     included.add(asset);
 
-    if (
-      asset.cacheData.sideEffects === false &&
-      (!asset.usedExports || asset.usedExports.size === 0)
-    ) {
-      return [];
-    }
-
     let depAsts = new Map();
     for (let depAsset of asset.depAssets.values()) {
       let depAst = this.addDeps(depAsset, included);
       depAsts.set(depAsset, depAst);
     }
 
-    let statements = this.parse(asset.generated.js, asset.name);
+    let statements;
+    if (
+      asset.cacheData.sideEffects === false &&
+      (!asset.usedExports || asset.usedExports.size === 0)
+    ) {
+      statements = [];
+    } else {
+      statements = this.parse(asset.generated.js, asset.name);
+    }
+
     if (this.shouldWrap(asset)) {
       statements = this.wrapModule(asset, statements);
     }
