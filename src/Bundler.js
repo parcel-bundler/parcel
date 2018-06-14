@@ -60,7 +60,7 @@ class Bundler extends EventEmitter {
     this.watcher = null;
     this.hmr = null;
     this.bundleHashes = null;
-    this.errored = false;
+    this.error = null;
     this.buildQueue = new PromiseQueue(this.processAsset.bind(this));
     this.rebuildTimeout = null;
 
@@ -218,7 +218,7 @@ class Bundler extends EventEmitter {
     let isInitialBundle = !this.entryAssets;
     let startTime = Date.now();
     this.pending = true;
-    this.errored = false;
+    this.error = null;
 
     logger.clear();
     logger.status(emoji.progress, 'Building...');
@@ -299,7 +299,7 @@ class Bundler extends EventEmitter {
       this.emit('bundled', this.mainBundle);
       return this.mainBundle;
     } catch (err) {
-      this.errored = true;
+      this.error = err;
       logger.error(err);
       if (this.hmr) {
         this.hmr.emitError(err);
@@ -327,11 +327,14 @@ class Bundler extends EventEmitter {
     }
 
     await this.loadPlugins();
-    await loadEnv(Path.join(this.options.rootDir, 'index'));
+    
+    if (!this.options.env) {
+      await loadEnv(Path.join(this.options.rootDir, 'index'));
+      this.options.env = process.env;
+    }
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
     this.options.bundleLoaders = this.bundleLoaders;
-    this.options.env = process.env;
 
     if (this.options.watch) {
       this.watcher = new Watcher();
@@ -502,7 +505,7 @@ class Bundler extends EventEmitter {
       return;
     }
 
-    if (!this.errored) {
+    if (!this.error) {
       logger.status(emoji.progress, `Building ${asset.basename}...`);
     }
 
@@ -726,7 +729,11 @@ class Bundler extends EventEmitter {
 
   async serve(port = 1234, https = false) {
     this.server = await Server.serve(this, port, https);
-    this.bundle();
+    try {
+      await this.bundle();
+    } catch (e) {
+      // ignore: server can still work with errored bundler
+    }
     return this.server;
   }
 }

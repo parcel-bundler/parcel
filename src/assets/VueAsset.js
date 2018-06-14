@@ -1,7 +1,7 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const md5 = require('../utils/md5');
-const {minify} = require('uglify-es');
+const {minify} = require('terser');
 
 class VueAsset extends Asset {
   constructor(name, options) {
@@ -21,7 +21,8 @@ class VueAsset extends Asset {
       source: code,
       needMap: this.options.sourceMaps,
       filename: this.relativeName, // Used for sourcemaps
-      sourceRoot: '' // Used for sourcemaps. Override so it doesn't use cwd
+      sourceRoot: '', // Used for sourcemaps. Override so it doesn't use cwd
+      compiler: this.vueTemplateCompiler
     });
   }
 

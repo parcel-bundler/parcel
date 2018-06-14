@@ -133,6 +133,36 @@ describe('rust', function() {
     assert.equal(res, 5);
   });
 
+  it('should generate a wasm file from a rust file in cargo workspace', async function() {
+    this.timeout(500000);
+    let b = await bundle(
+      __dirname + '/integration/rust-cargo-workspace/member/src/index.js'
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: [
+        'bundle-loader.js',
+        'bundle-url.js',
+        'index.js',
+        'wasm-loader.js'
+      ],
+      childBundles: [
+        {
+          type: 'map'
+        },
+        {
+          type: 'wasm',
+          assets: ['lib.rs'],
+          childBundles: []
+        }
+      ]
+    });
+
+    var res = await run(b);
+    assert.equal(res, 5);
+  });
+
   it('should use wasm-gc to minify output', async function() {
     this.timeout(500000);
 
