@@ -98,9 +98,7 @@ class Bundler extends EventEmitter {
           ? options.hmr
           : watch;
     const scopeHoist =
-      options.scopeHoist !== undefined
-        ? options.scopeHoist
-        : false;
+      options.scopeHoist !== undefined ? options.scopeHoist : false;
     return {
       production: isProduction,
       outDir: Path.resolve(options.outDir || 'dist'),
