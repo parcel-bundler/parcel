@@ -29,6 +29,8 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Enable posthtml-parse options in posthtmlrc [Details](https://github.com/parcel-bundler/parcel/commit/c600d4471bf584045b3edc0a7b080584d11d8a97)
 - Enforce Prettier (check if prettier is run in lint script) [Details](https://github.com/parcel-bundler/parcel/commit/523ee0fcabd194e2daf79f13ab7dd9d0b23203e1)
 - Add support for Cargo workspaces in Rust integration [Details](https://github.com/parcel-bundler/parcel/commit/24f28bc5d7dd4324841209379d2823654ab9c8e7)
+- Surface Bundler error to browser [Details](https://github.com/parcel-bundler/parcel/commit/82a80bbf6518b526d99cd1bac34be9f53494dd68)
+- Programatically pass env vars as a whitelist [Details](https://github.com/parcel-bundler/parcel/commit/a662f90a93f2b5b61eebc2aea67c5a77467963e7)
 
 ### Fixed
 
@@ -51,6 +53,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Fix typo in uglify.js [Details](https://github.com/parcel-bundler/parcel/commit/dc10531e27c4ba6cb33ff52d49eddf57b2d17b8b)
 - Pass compiler of @vue/component-compiler-utils to parser. [Details](https://github.com/parcel-bundler/parcel/commit/40fb76f8d12fe17b4e8e3eebe1a988d11d31e106)
 - Fix package.json configs [Details](https://github.com/parcel-bundler/parcel/commit/eda41e1ca9c3c8dd083196d0c6c54c52444b82cb)
+- change Uglify to Terser [Details](https://github.com/parcel-bundler/parcel/commit/86731cc5b3c678844605b60c7247ae424b07125a)
 
 ## [1.8.1] - 2018-05-04
 
