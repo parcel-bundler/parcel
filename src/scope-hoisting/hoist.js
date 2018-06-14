@@ -351,7 +351,7 @@ module.exports = {
       identifier = t.identifier(name);
     }
 
-    if (Object.values(asset.cacheData.exports).includes(name)) {
+    if (hasExport(asset, name)) {
       identifier = t.identifier(name);
     }
 
@@ -488,12 +488,9 @@ function addExport(asset, path, local, exported) {
     identifier = t.identifier(local.name);
   }
 
-  if (Object.values(asset.cacheData.exports).includes(local.name)) {
+  if (hasExport(asset, local.name)) {
     identifier = t.identifier(local.name);
   }
-
-  // console.log(local.name, identifier.name, exported.name)
-  // console.log('\n');
 
   let assignNode = EXPORT_ASSIGN_TEMPLATE({
     EXPORTS: getExportsIdentifier(asset, scope),
@@ -512,6 +509,11 @@ function addExport(asset, path, local, exported) {
   rename(scope, local.name, identifier.name);
 
   constantViolations.forEach(path => path.insertAfter(t.cloneDeep(assignNode)));
+}
+
+function hasExport(asset, name) {
+  let exports = asset.cacheData.exports;
+  return Object.keys(exports).some(k => exports[k] === name);
 }
 
 function safeRename(path, asset, from, to) {

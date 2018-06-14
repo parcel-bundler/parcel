@@ -327,7 +327,7 @@ class Bundler extends EventEmitter {
     }
 
     await this.loadPlugins();
-    
+
     if (!this.options.env) {
       await loadEnv(Path.join(this.options.rootDir, 'index'));
       this.options.env = process.env;
