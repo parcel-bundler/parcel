@@ -9,6 +9,9 @@ const CHARSET = (
  * This is a very specialized mangler designer to mangle only names in the top-level scope.
  * Mangling of names in other scopes happens at a file level inside workers, but we can't
  * mangle the top-level scope until scope hoisting is complete in the packager.
+ *
+ * Based on code from babel-minify!
+ * https://github.com/babel/minify/blob/master/packages/babel-plugin-minify-mangle-names/src/charset.js
  */
 function mangleScope(scope) {
   let newNames = new Set();
