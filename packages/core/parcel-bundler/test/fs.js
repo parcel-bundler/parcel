@@ -13,7 +13,7 @@ describe('fs', function() {
     it('should inline a file as a buffer', async function() {
       let b = await bundle(__dirname + '/integration/fs-buffer/index.js');
       let output = await run(b);
-      assert.equal(output.constructor.name, 'Buffer');
+      assert(output.constructor.name.includes('Buffer'));
       assert.equal(output.length, 5);
     });
 
@@ -87,7 +87,7 @@ describe('fs', function() {
       try {
         await run(b);
       } catch (e) {
-        assert.equal(e.message, 'require(...).readFileSync is not a function');
+        assert(e.message.includes('.readFileSync is not a function'));
 
         thrown = true;
       }
@@ -104,7 +104,7 @@ describe('fs', function() {
       try {
         await run(b);
       } catch (e) {
-        assert.equal(e.message, 'require(...).readFileSync is not a function');
+        assert(e.message.includes('.readFileSync is not a function'));
 
         thrown = true;
       }

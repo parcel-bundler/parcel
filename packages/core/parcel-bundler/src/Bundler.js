@@ -35,7 +35,7 @@ class Bundler extends EventEmitter {
 
     this.resolver = new Resolver(this.options);
     this.parser = new Parser(this.options);
-    this.packagers = new PackagerRegistry();
+    this.packagers = new PackagerRegistry(this.options);
     this.cache = this.options.cache ? new FSCache(this.options) : null;
     this.delegate = options.delegate || {};
     this.bundleLoaders = {};
@@ -91,6 +91,14 @@ class Bundler extends EventEmitter {
     const watch =
       typeof options.watch === 'boolean' ? options.watch : !isProduction;
     const target = options.target || 'browser';
+    const hmr =
+      target === 'node'
+        ? false
+        : typeof options.hmr === 'boolean'
+          ? options.hmr
+          : watch;
+    const scopeHoist =
+      options.scopeHoist !== undefined ? options.scopeHoist : false;
     return {
       production: isProduction,
       outDir: Path.resolve(options.outDir || 'dist'),
@@ -104,19 +112,15 @@ class Bundler extends EventEmitter {
       minify:
         typeof options.minify === 'boolean' ? options.minify : isProduction,
       target: target,
-      hmr:
-        target === 'node'
-          ? false
-          : typeof options.hmr === 'boolean'
-            ? options.hmr
-            : watch,
+      hmr: hmr,
       https: options.https || false,
       logLevel: isNaN(options.logLevel) ? 3 : options.logLevel,
       entryFiles: this.entryFiles,
       hmrPort: options.hmrPort || 0,
       rootDir: getRootDir(this.entryFiles),
       sourceMaps:
-        typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
+        (typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true) &&
+        !scopeHoist,
       hmrHostname:
         options.hmrHostname ||
         (options.target === 'electron' ? 'localhost' : ''),
@@ -126,6 +130,7 @@ class Bundler extends EventEmitter {
         typeof options.autoinstall === 'boolean'
           ? options.autoinstall
           : !isProduction,
+      scopeHoist: scopeHoist,
       contentHash:
         typeof options.contentHash === 'boolean'
           ? options.contentHash
@@ -246,6 +251,8 @@ class Bundler extends EventEmitter {
         asset.invalidateBundle();
       }
 
+      logger.status(emoji.progress, `Producing bundles...`);
+
       // Create a root bundle to hold all of the entry assets, and add them to the tree.
       this.mainBundle = new Bundle();
       for (let asset of this.entryAssets) {
@@ -270,6 +277,8 @@ class Bundler extends EventEmitter {
       if (this.hmr && !isInitialBundle) {
         this.hmr.emitUpdate(changedAssets);
       }
+
+      logger.status(emoji.progress, `Packaging...`);
 
       // Package everything up
       this.bundleHashes = await this.mainBundle.package(
@@ -318,7 +327,7 @@ class Bundler extends EventEmitter {
     }
 
     await this.loadPlugins();
-    
+
     if (!this.options.env) {
       await loadEnv(Path.join(this.options.rootDir, 'index'));
       this.options.env = process.env;
@@ -508,14 +517,17 @@ class Bundler extends EventEmitter {
     let processed = this.cache && (await this.cache.read(asset.name));
     let cacheMiss = false;
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
-      processed = await this.farm.run(asset.name);
+      processed = await this.farm.run(asset.name, asset.id);
+      processed.id = asset.id;
       cacheMiss = true;
     }
 
     asset.endTime = Date.now();
     asset.buildTime = asset.endTime - asset.startTime;
+    asset.id = processed.id;
     asset.generated = processed.generated;
     asset.hash = processed.hash;
+    asset.cacheData = processed.cacheData;
 
     // Call the delegate to get implicit dependencies
     let dependencies = processed.dependencies;
@@ -535,6 +547,7 @@ class Bundler extends EventEmitter {
           // that changing it triggers a recompile of the parent.
           this.watch(dep.name, asset);
         } else {
+          dep.parent = asset.name;
           let assetDep = await this.resolveDep(asset, dep);
           if (assetDep) {
             await this.loadAsset(assetDep);

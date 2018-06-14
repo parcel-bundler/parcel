@@ -12,6 +12,7 @@ const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
 const terser = require('../transforms/terser');
 const SourceMap = require('../SourceMap');
+const hoist = require('../scope-hoisting/hoist');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -29,7 +30,8 @@ class JSAsset extends Asset {
     this.isES6Module = false;
     this.outputCode = null;
     this.cacheData.env = {};
-    this.sourceMap = options.rendition ? options.rendition.sourceMap : null;
+    this.rendition = options.rendition;
+    this.sourceMap = this.rendition ? this.rendition.sourceMap : null;
   }
 
   shouldInvalidate(cacheData) {
@@ -82,6 +84,15 @@ class JSAsset extends Asset {
   }
 
   traverse(visitor) {
+    // Create a babel File object if one hasn't been created yet.
+    // This is needed so that cached NodePath objects get a `hub` object on them.
+    // Plugins like babel-minify depend on this to get the original source code string.
+    if (!this.babelFile) {
+      this.babelFile = new BabelFile(this.babelConfig || {});
+      this.babelFile.addCode(this.contents);
+      this.babelFile.addAst(this.ast);
+    }
+
     return traverse(this.ast, visitor, null, this);
   }
 
@@ -123,8 +134,16 @@ class JSAsset extends Asset {
       }
     }
 
-    if (this.isES6Module) {
-      await babel(this);
+    if (this.options.scopeHoist) {
+      await this.parseIfNeeded();
+      await this.getPackage();
+
+      this.traverse(hoist);
+      this.isAstDirty = true;
+    } else {
+      if (this.isES6Module) {
+        await babel(this);
+      }
     }
 
     if (this.options.minify) {
@@ -133,6 +152,9 @@ class JSAsset extends Asset {
   }
 
   async generate() {
+    let enableSourceMaps =
+      this.options.sourceMaps &&
+      (!this.rendition || !!this.rendition.sourceMap);
     let code;
     if (this.isAstDirty) {
       let opts = {
@@ -142,7 +164,7 @@ class JSAsset extends Asset {
 
       let generated = generate(this.ast, opts, this.contents);
 
-      if (this.options.sourceMaps && generated.rawMappings) {
+      if (enableSourceMaps && generated.rawMappings) {
         let rawMap = new SourceMap(generated.rawMappings, {
           [this.relativeName]: this.contents
         });
@@ -161,10 +183,10 @@ class JSAsset extends Asset {
 
       code = generated.code;
     } else {
-      code = this.outputCode || this.contents;
+      code = this.outputCode != null ? this.outputCode : this.contents;
     }
 
-    if (this.options.sourceMaps && !this.sourceMap) {
+    if (enableSourceMaps && !this.sourceMap) {
       this.sourceMap = new SourceMap().generateEmptyMap(
         this.relativeName,
         this.contents
@@ -173,7 +195,7 @@ class JSAsset extends Asset {
 
     if (this.globals.size > 0) {
       code = Array.from(this.globals.values()).join('\n') + '\n' + code;
-      if (this.options.sourceMaps) {
+      if (enableSourceMaps) {
         if (!(this.sourceMap instanceof SourceMap)) {
           this.sourceMap = await new SourceMap().addMap(this.sourceMap);
         }

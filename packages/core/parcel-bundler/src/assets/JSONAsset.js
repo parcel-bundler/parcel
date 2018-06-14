@@ -18,7 +18,7 @@ class JSONAsset extends Asset {
       this.ast ? JSON.stringify(this.ast, null, 2) : this.contents
     };`;
 
-    if (this.options.minify) {
+    if (this.options.minify && !this.options.scopeHoist) {
       let minified = minify(code);
       if (minified.error) {
         throw minified.error;
@@ -27,9 +27,7 @@ class JSONAsset extends Asset {
       code = minified.code;
     }
 
-    return {
-      js: code
-    };
+    return code;
   }
 }
 

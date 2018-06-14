@@ -89,8 +89,11 @@ function prepareBrowserContext(bundle, globals) {
     }
   };
 
+  var exports = {};
   var ctx = Object.assign(
     {
+      exports,
+      module: {exports},
       document: fakeDocument,
       WebSocket,
       console,
@@ -121,6 +124,7 @@ function prepareNodeContext(bundle, globals) {
   var ctx = Object.assign(
     {
       module: mod,
+      exports: module.exports,
       __filename: bundle.name,
       __dirname: path.dirname(bundle.name),
       require: function(path) {
@@ -159,7 +163,14 @@ async function run(bundle, globals, opts = {}) {
   vm.runInContext(await fs.readFile(bundle.name), ctx);
 
   if (opts.require !== false) {
-    return ctx.parcelRequire(bundle.entryAsset.id);
+    if (ctx.parcelRequire) {
+      return ctx.parcelRequire(bundle.entryAsset.id);
+    } else if (ctx.output) {
+      return ctx.output;
+    }
+    if (ctx.module) {
+      return ctx.module.exports;
+    }
   }
 
   return ctx;

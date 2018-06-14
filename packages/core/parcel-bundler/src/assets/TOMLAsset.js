@@ -13,9 +13,10 @@ class TOMLAsset extends Asset {
   }
 
   generate() {
-    return {
-      js: serializeObject(this.ast, this.options.minify)
-    };
+    return serializeObject(
+      this.ast,
+      this.options.minify && !this.options.scopeHoist
+    );
   }
 }
 
