@@ -1,6 +1,6 @@
 {
   "name": "parcel-bundler",
-  "version": "1.8.1",
+  "version": "1.9.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
   "license": "MIT",
@@ -8,7 +8,12 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "files": ["bin/", "lib/", "src/", "index.js"],
+  "files": [
+    "bin/",
+    "lib/",
+    "src/",
+    "index.js"
+  ],
   "dependencies": {
     "ansi-to-html": "^0.6.4",
     "babel-code-frame": "^6.26.0",
@@ -108,10 +113,8 @@
     "prepublish": "yarn build",
     "minify": "terser -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js && terser -c -m -o src/builtins/prelude2.min.js src/builtins/prelude2.js",
     "precommit": "npm run lint && lint-staged",
-    "lint":
-      "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
-    "postinstall":
-      "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
+    "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
+    "postinstall": "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
   },
   "bin": {
     "parcel": "bin/cli.js"
@@ -120,7 +123,10 @@
     "node": ">= 6.0.0"
   },
   "lint-staged": {
-    "*.{js,json,md}": ["prettier --write", "git add"]
+    "*.{js,json,md}": [
+      "prettier --write",
+      "git add"
+    ]
   },
   "collective": {
     "type": "opencollective",
