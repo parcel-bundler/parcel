@@ -123,6 +123,10 @@ program
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
   .option(
+    '--experimental-scope-hoisting',
+    'enable experimental scope hoisting/tree shaking support'
+  )
+  .option(
     '-t, --target <target>',
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
     /^(node|browser|electron)$/
@@ -182,6 +186,7 @@ async function bundle(main, command) {
     };
   }
 
+  command.scopeHoist = command.experimentalScopeHoisting || false;
   const bundler = new Bundler(main, command);
 
   command.target = command.target || 'browser';

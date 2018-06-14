@@ -664,18 +664,28 @@ describe('javascript', function() {
   });
 
   it('should minify YAML for production', async function() {
-    await bundle(__dirname + '/integration/yaml/index.js', {
+    let b = await bundle(__dirname + '/integration/yaml/index.js', {
+      scopeHoist: false,
       production: true
     });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
 
     let json = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 
   it('should minify TOML for production', async function() {
-    await bundle(__dirname + '/integration/toml/index.js', {
+    let b = await bundle(__dirname + '/integration/toml/index.js', {
+      scopeHoist: false,
       production: true
     });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
 
     let json = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(json.includes('{a:1,b:{c:2}}'));
@@ -685,40 +695,40 @@ describe('javascript', function() {
     await bundle(__dirname + '/integration/babel/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(file.includes('class Foo {}'));
-    assert(file.includes('class Bar {}'));
+    assert(!file.includes('function Foo'));
+    assert(!file.includes('function Bar'));
   });
 
   it('should compile with babel with default engines if no config', async function() {
     await bundle(__dirname + '/integration/babel-default/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(!file.includes('class Foo {}'));
-    assert(!file.includes('class Bar {}'));
+    assert(file.includes('function Foo'));
+    assert(file.includes('function Bar'));
   });
 
   it('should support compiling with babel using browserlist', async function() {
     await bundle(__dirname + '/integration/babel-browserslist/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(!file.includes('class Foo {}'));
-    assert(!file.includes('class Bar {}'));
+    assert(file.includes('function Foo'));
+    assert(file.includes('function Bar'));
   });
 
   it('should support splitting babel-polyfill using browserlist', async function() {
     await bundle(__dirname + '/integration/babel-polyfill/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(file.includes('async function Bar() {}'));
+    assert(file.includes('async function'));
     assert(!file.includes('regenerator'));
   });
 
   it('should support compiling with babel using browserslist for different environments', async function() {
     async function testBrowserListMultipleEnv(projectBasePath) {
       // Transpiled destructuring, like r = p.prop1, o = p.prop2, a = p.prop3;
-      const prodRegExp = /\w ?= ?\w\.prop1, ?\w ?= ?\w\.prop2, ?\w ?= ?\w\.prop3;/;
+      const prodRegExp = /\S+ ?= ?\S+\.prop1,\s*?\S+ ?= ?\S+\.prop2,\s*?\S+ ?= ?\S+\.prop3;/;
       // ES6 Destructuring, like in the source;
-      const devRegExp = /const ?{\s*prop1,\s*prop2,\s*prop3\s*} ?= ?.*/;
+      const devRegExp = /const ?{\s*prop1(:.+)?,\s*prop2(:.+)?,\s*prop3(:.+)?\s*} ?= ?.*/;
       let file;
       // Dev build test
       await bundle(__dirname + projectBasePath + '/index.js');
@@ -727,6 +737,7 @@ describe('javascript', function() {
       assert(prodRegExp.test(file) === false);
       // Prod build test
       await bundle(__dirname + projectBasePath + '/index.js', {
+        minify: false,
         production: true
       });
       file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
@@ -746,8 +757,8 @@ describe('javascript', function() {
     await bundle(__dirname + '/integration/babel-node-modules/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(file.includes('class Foo {}'));
-    assert(!file.includes('class Bar {}'));
+    assert(/class \S+ \{\}/.test(file));
+    assert(file.includes('function Bar'));
   });
 
   it('should compile node_modules if legacy browserify options are found', async function() {
@@ -756,8 +767,8 @@ describe('javascript', function() {
     );
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(!file.includes('class Foo {}'));
-    assert(!file.includes('class Bar {}'));
+    assert(file.includes('function Foo'));
+    assert(file.includes('function Bar'));
   });
 
   it('should compile node_modules with browserslist to app target', async function() {
@@ -766,16 +777,16 @@ describe('javascript', function() {
     );
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(!file.includes('class Foo {}'));
-    assert(!file.includes('class Bar {}'));
+    assert(file.includes('function Foo'));
+    assert(file.includes('function Bar'));
   });
 
   it('should compile node_modules when symlinked with a source field in package.json', async function() {
     await bundle(__dirname + '/integration/babel-node-modules-source/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(!file.includes('class Foo {}'));
-    assert(!file.includes('class Bar {}'));
+    assert(file.includes('function Foo'));
+    assert(file.includes('function Bar'));
   });
 
   it('should not compile node_modules with a source field in package.json when not symlinked', async function() {
@@ -784,8 +795,8 @@ describe('javascript', function() {
     );
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(file.includes('class Foo {}'));
-    assert(!file.includes('class Bar {}'));
+    assert(!file.includes('function Foo'));
+    assert(file.includes('function Bar'));
   });
 
   it('should support compiling JSX', async function() {
@@ -933,7 +944,7 @@ describe('javascript', function() {
     };
     mockDefine.amd = true;
 
-    await run(b, {define: mockDefine});
+    await run(b, {define: mockDefine, module: undefined});
     assert.equal(test(), 'Test!');
   });
 
@@ -942,7 +953,7 @@ describe('javascript', function() {
       global: 'testing'
     });
 
-    const ctx = await run(b, null, {require: false});
+    const ctx = await run(b, {module: undefined}, {require: false});
     assert.equal(ctx.window.testing(), 'Test!');
   });
 
@@ -954,7 +965,7 @@ describe('javascript', function() {
     };
     mockDefine.amd = true;
 
-    await run(b, {define: mockDefine});
+    await run(b, {define: mockDefine, module: undefined});
     assert.equal(test, 2);
   });
 });

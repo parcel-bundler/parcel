@@ -106,8 +106,7 @@
     "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
     "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
     "prepublish": "yarn build",
-    "minify":
-      "terser -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
+    "minify": "terser -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js && terser -c -m -o src/builtins/prelude2.min.js src/builtins/prelude2.js",
     "precommit": "npm run lint && lint-staged",
     "lint":
       "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",

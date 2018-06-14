@@ -1,1 +1,2 @@
-import './data.json';
+import data from './data';
+export default data;

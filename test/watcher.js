@@ -235,8 +235,8 @@ describe('watcher', function() {
 
     await b.bundle();
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(file.includes('class Foo {}'));
-    assert(file.includes('class Bar {}'));
+    assert(!file.includes('function Foo'));
+    assert(!file.includes('function Bar'));
 
     // Change babelrc, should recompile both files
     let babelrc = JSON.parse(
@@ -250,7 +250,7 @@ describe('watcher', function() {
 
     await nextBundle(b);
     file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(!file.includes('class Foo {}'));
-    assert(!file.includes('class Bar {}'));
+    assert(file.includes('function Foo'));
+    assert(file.includes('function Bar'));
   });
 });

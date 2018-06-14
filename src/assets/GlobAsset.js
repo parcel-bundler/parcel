@@ -38,9 +38,12 @@ class GlobAsset extends Asset {
   }
 
   generate() {
-    return {
-      js: 'module.exports = ' + generate(this.contents) + ';'
-    };
+    return [
+      {
+        type: 'js',
+        value: 'module.exports = ' + generate(this.contents) + ';'
+      }
+    ];
   }
 }
 
