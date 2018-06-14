@@ -8,12 +8,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "files": [
-    "bin/",
-    "lib/",
-    "src/",
-    "index.js"
-  ],
+  "files": ["bin/", "lib/", "src/", "index.js"],
   "dependencies": {
     "ansi-to-html": "^0.6.4",
     "babel-code-frame": "^6.26.0",
@@ -64,7 +59,7 @@
     "strip-ansi": "^4.0.0",
     "toml": "^2.3.3",
     "tomlify-j0.4": "^3.0.0",
-    "uglify-es": "^3.2.1",
+    "terser": "^3.7.3",
     "v8-compile-cache": "^2.0.0",
     "ws": "^5.1.1"
   },
@@ -111,10 +106,13 @@
     "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
     "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
     "prepublish": "yarn build",
-    "minify": "uglifyjs -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
+    "minify":
+      "terser -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js",
     "precommit": "npm run lint && lint-staged",
-    "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
-    "postinstall": "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
+    "lint":
+      "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
+    "postinstall":
+      "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
   },
   "bin": {
     "parcel": "bin/cli.js"
@@ -123,10 +121,7 @@
     "node": ">= 6.0.0"
   },
   "lint-staged": {
-    "*.{js,json,md}": [
-      "prettier --write",
-      "git add"
-    ]
+    "*.{js,json,md}": ["prettier --write", "git add"]
   },
   "collective": {
     "type": "opencollective",

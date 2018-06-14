@@ -1,4 +1,4 @@
-const {minify} = require('uglify-es');
+const {minify} = require('terser');
 const SourceMap = require('../SourceMap');
 
 module.exports = async function(asset) {
@@ -7,7 +7,7 @@ module.exports = async function(asset) {
   // Convert AST into JS
   let source = (await asset.generate()).js;
 
-  let customConfig = await asset.getConfig(['.uglifyrc']);
+  let customConfig = await asset.getConfig(['.uglifyrc', '.terserrc']);
   let options = {
     warnings: true,
     mangle: {
