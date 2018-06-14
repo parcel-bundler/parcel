@@ -593,6 +593,11 @@ describe('html', function() {
       childBundles: [
         {
           type: 'jpg',
+          assets: ['bg.jpg'],
+          childBundles: []
+        },
+        {
+          type: 'jpg',
           assets: ['img.jpg'],
           childBundles: []
         }
