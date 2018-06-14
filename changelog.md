@@ -5,21 +5,18 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [1.9.0] - unreleased
-
-### Removed
-
-- Don’t pass package.json and options over IPC [Details](https://github.com/parcel-bundler/parcel/commit/2f7be14aa9eea3fa9e8ee61591c001937d9757a1)
+## [1.9.0] - 2018-06-14
 
 ### Added
 
-- Allow --https for watch [Details](https://github.com/parcel-bundler/parcel/commit/98a293f79bf822bca5f97db9155ee30ddaa03632)
-- Fix browser entry-point resolution [Details](https://github.com/parcel-bundler/parcel/commit/98a293f79bf822bca5f97db9155ee30ddaa03632)
+- Tree shaking + scope hoisting for ES6 and CommonJS modules [Details](https://github.com/parcel-bundler/parcel/commit/0ac4e297adf95cff78de361fc4867fd412ec3b60)
+- Put filewatcher in a worker, for better stability and performance [Details](https://github.com/parcel-bundler/parcel/commit/af4cd330e91197fd88d826fd17440452f64e5c8a)
 - Cache resolved paths of dependencies [Details](https://github.com/parcel-bundler/parcel/commit/adeee429b60da2c7073d0e3b280b588cf22ce03e)
 - Custom less filemanager [Details](https://github.com/parcel-bundler/parcel/commit/87b1ea9818ae0bafaf05b5cd57bdb7d8d96dfbe8)
-- Use config.locals to render pug template [Details](https://github.com/parcel-bundler/parcel/commit/15eb885f5b696f831194199dc75e5dc91b84d5e0)
-- Put filewatcher in a worker, for better stability and performance [Details](https://github.com/parcel-bundler/parcel/commit/af4cd330e91197fd88d826fd17440452f64e5c8a)
 - support for sass specific import syntax [Details](https://github.com/parcel-bundler/parcel/commit/099a98ed46fcad8f0ad9725a2d8976c8b9d4a448)
+- Allow --https for watch [Details](https://github.com/parcel-bundler/parcel/commit/98a293f79bf822bca5f97db9155ee30ddaa03632)
+- Fix browser entry-point resolution [Details](https://github.com/parcel-bundler/parcel/commit/98a293f79bf822bca5f97db9155ee30ddaa03632)
+- Use config.locals to render pug template [Details](https://github.com/parcel-bundler/parcel/commit/15eb885f5b696f831194199dc75e5dc91b84d5e0)
 - Use async modules when possibles [Details](https://github.com/parcel-bundler/parcel/commit/83dfa3ea00fc1538a9e0d770f37454ca2d558d65)
 - Add a bundlestart event [Details](https://github.com/parcel-bundler/parcel/commit/304eb5f660cfa2630e34cc60848f875a15a3ed18)
 - Add unit tests for line counter [Details](https://github.com/parcel-bundler/parcel/commit/dc113250ce25674395c292a66184f35bbd5db04c)
@@ -54,6 +51,10 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Pass compiler of @vue/component-compiler-utils to parser. [Details](https://github.com/parcel-bundler/parcel/commit/40fb76f8d12fe17b4e8e3eebe1a988d11d31e106)
 - Fix package.json configs [Details](https://github.com/parcel-bundler/parcel/commit/eda41e1ca9c3c8dd083196d0c6c54c52444b82cb)
 - change Uglify to Terser [Details](https://github.com/parcel-bundler/parcel/commit/86731cc5b3c678844605b60c7247ae424b07125a)
+
+### Removed
+
+- Don’t pass package.json and options over IPC [Details](https://github.com/parcel-bundler/parcel/commit/2f7be14aa9eea3fa9e8ee61591c001937d9757a1)
 
 ## [1.8.1] - 2018-05-04
 
