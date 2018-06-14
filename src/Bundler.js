@@ -65,6 +65,14 @@ class Bundler extends EventEmitter {
     this.rebuildTimeout = null;
 
     logger.setOptions(this.options);
+
+    // Print all bundler options if parcel is in debug mode
+    if (this.options.logLevel > 4) {
+      logger.verbose(`Bundler options:`);
+      Object.keys(this.options).forEach(key => {
+        logger.verbose(`  ${key}: ${this.options[key]}`);
+      });
+    }
   }
 
   normalizeEntries(entryFiles) {
@@ -190,6 +198,7 @@ class Bundler extends EventEmitter {
         const pattern = /^(@.*\/)?parcel-plugin-.+/;
         if (pattern.test(dep)) {
           let plugin = await localRequire(dep, relative);
+          logger.verbose(`Load plugin: ${dep}...`);
           await plugin(this);
         }
       }
@@ -317,6 +326,8 @@ class Bundler extends EventEmitter {
       return;
     }
 
+    logger.verbose(`Start bundler...`);
+
     await this.loadPlugins();
     
     if (!this.options.env) {
@@ -388,6 +399,7 @@ class Bundler extends EventEmitter {
     }
 
     if (!this.watchedAssets.has(path)) {
+      logger.verbose(`Add ${path} to filewatcher...`);
       this.watcher.watch(path);
       this.watchedAssets.set(path, new Set());
     }
@@ -404,6 +416,7 @@ class Bundler extends EventEmitter {
     watched.delete(asset);
 
     if (watched.size === 0) {
+      logger.verbose(`Remove ${path} from filewatcher...`);
       this.watchedAssets.delete(path);
       this.watcher.unwatch(path);
     }
@@ -498,6 +511,7 @@ class Bundler extends EventEmitter {
 
     if (!this.error) {
       logger.status(emoji.progress, `Building ${asset.basename}...`);
+      logger.verbose(`Queuing ${asset.basename}...`);
     }
 
     // Mark the asset processed so we don't load it twice
@@ -508,14 +522,21 @@ class Bundler extends EventEmitter {
     let processed = this.cache && (await this.cache.read(asset.name));
     let cacheMiss = false;
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
+      logger.verbose(
+        `${!processed ? 'Cache miss,' : 'Invalidated,'} ${asset.basename}...`
+      );
       processed = await this.farm.run(asset.name);
       cacheMiss = true;
+    } else {
+      logger.verbose(`Copied ${asset.basename} from cache...`);
     }
 
     asset.endTime = Date.now();
     asset.buildTime = asset.endTime - asset.startTime;
     asset.generated = processed.generated;
     asset.hash = processed.hash;
+
+    logger.verbose(`Finished building ${asset.basename}...`);
 
     // Call the delegate to get implicit dependencies
     let dependencies = processed.dependencies;
@@ -537,6 +558,9 @@ class Bundler extends EventEmitter {
         } else {
           let assetDep = await this.resolveDep(asset, dep);
           if (assetDep) {
+            logger.verbose(
+              `Load dependency ${assetDep.basename} of ${asset.basename}...`
+            );
             await this.loadAsset(assetDep);
           }
 
@@ -695,6 +719,7 @@ class Bundler extends EventEmitter {
     }
 
     logger.clear();
+    logger.verbose(`Detected a change in ${path}...`);
     logger.status(emoji.progress, `Building ${Path.basename(path)}...`);
 
     // Add the asset to the rebuild queue, and reset the timeout.

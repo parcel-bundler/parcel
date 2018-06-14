@@ -1,5 +1,6 @@
 const Path = require('path');
 const crypto = require('crypto');
+const logger = require('./Logger');
 
 /**
  * A Bundle represents an output file, containing multiple assets. Bundles can have
@@ -184,17 +185,21 @@ class Bundle {
   async _package(bundler) {
     let Packager = bundler.packagers.get(this.type);
     let packager = new Packager(this, bundler);
+    let basename = Path.basename(this.name);
 
     let startTime = Date.now();
     await packager.setup();
     await packager.start();
+    logger.verbose(`Started packaging ${basename}...`);
 
     let included = new Set();
     for (let asset of this.assets) {
+      logger.verbose(`Adding ${asset.basename} to ${basename}...`);
       await this._addDeps(asset, packager, included);
     }
 
     await packager.end();
+    logger.verbose(`Finished packaging ${basename}...`);
 
     let assetArray = Array.from(this.assets);
     let assetStartTime =

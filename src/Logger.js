@@ -4,6 +4,9 @@ const prettyError = require('./utils/prettyError');
 const emoji = require('./utils/emoji');
 const {countBreaks} = require('grapheme-breaker');
 const stripAnsi = require('strip-ansi');
+const promisify = require('./utils/promisify');
+const path = require('path');
+const fs = require('fs');
 
 class Logger {
   constructor(options) {
@@ -44,8 +47,37 @@ class Logger {
   }
 
   write(message, persistent = false) {
+    if (this.logLevel > 3) {
+      return this.verbose(message);
+    }
+
     if (!persistent) {
       this.lines += this.countLines(message);
+    }
+
+    this._log(message);
+  }
+
+  verbose(message) {
+    if (this.logLevel < 4) {
+      return;
+    }
+
+    let currDate = new Date();
+    message = `[${currDate.toLocaleTimeString()}]: ${message}`;
+
+    if (this.logLevel > 4) {
+      if (!this.logFile) {
+        this.logFile = fs.createWriteStream(
+          path.join(
+            process.cwd(),
+            `parcel-debug-${currDate.toLocaleDateString()}@${currDate.toLocaleTimeString()}.log`
+          )
+        );
+        this.logFile.write = promisify(this.logFile.write.bind(this.logFile));
+      }
+
+      this.logFile.write(message + '\n');
     }
 
     this._log(message);
@@ -93,7 +125,7 @@ class Logger {
   }
 
   clear() {
-    if (!this.color || this.isTest) {
+    if (!this.color || this.isTest || this.logLevel > 3) {
       return;
     }
 
@@ -127,15 +159,18 @@ class Logger {
       return;
     }
 
+    let msgContent = this.chalk[color].bold(`${emoji}  ${message}`);
+
+    if (this.logLevel > 3) {
+      return this.verbose(msgContent);
+    }
+
     let hasStatusLine = this.statusLine != null;
     if (!hasStatusLine) {
       this.statusLine = this.lines;
     }
 
-    this.writeLine(
-      this.statusLine,
-      this.chalk[color].bold(`${emoji}  ${message}`)
-    );
+    this.writeLine(this.statusLine, msgContent);
 
     if (!hasStatusLine) {
       process.stdout.write('\n');
