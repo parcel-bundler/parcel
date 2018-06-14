@@ -57,6 +57,7 @@ describe('stylus', function() {
     assert(css.includes('.index'));
     assert(css.includes('.a'));
     assert(css.includes('-webkit-box'));
+    assert(css.includes('.foo'));
   });
 
   it('should support linking to assets with url() from stylus', async function() {
