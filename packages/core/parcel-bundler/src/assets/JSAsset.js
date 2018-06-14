@@ -10,7 +10,7 @@ const fsVisitor = require('../visitors/fs');
 const envVisitor = require('../visitors/env');
 const babel = require('../transforms/babel');
 const generate = require('babel-generator').default;
-const uglify = require('../transforms/uglify');
+const terser = require('../transforms/terser');
 const SourceMap = require('../SourceMap');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
@@ -128,7 +128,7 @@ class JSAsset extends Asset {
     }
 
     if (this.options.minify) {
-      await uglify(this);
+      await terser(this);
     }
   }
 

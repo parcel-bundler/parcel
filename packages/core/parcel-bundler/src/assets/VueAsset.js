@@ -1,7 +1,7 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const md5 = require('../utils/md5');
-const {minify} = require('uglify-es');
+const {minify} = require('terser');
 
 class VueAsset extends Asset {
   constructor(name, options) {
