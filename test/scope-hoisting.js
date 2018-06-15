@@ -292,6 +292,15 @@ describe('scope hoisting', function() {
       assert(contents.includes('foo'));
       assert(!contents.includes('bar'));
     });
+
+    it('support exporting a ES6 module exported as CommonJS', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/es6/re-export-commonjs/a.js'
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'foo');
+    });
   });
 
   describe('commonjs', function() {

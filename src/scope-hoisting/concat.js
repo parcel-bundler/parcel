@@ -7,6 +7,7 @@ const treeShake = require('./shake');
 const mangleScope = require('./mangler');
 
 const EXPORTS_RE = /^\$([\d]+)\$exports$/;
+const EXPORT_RE = /^\$([\d]+)\$export\$(.*)$/;
 
 const DEFAULT_INTEROP_TEMPLATE = template(
   'var NAME = $parcel$interopDefault(MODULE)'
@@ -74,6 +75,10 @@ module.exports = (packager, ast) => {
       exp = replacements.get(exp);
     }
 
+    if (!exp && module && module.cacheData.isCommonJS) {
+      exp = `$${id}$export$${name}`;
+    }
+
     return exp;
   }
 
@@ -94,8 +99,12 @@ module.exports = (packager, ast) => {
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
     if (!node && !mod.cacheData.isCommonJS && mod.cacheData.isES6Module) {
-      let relativePath = relative(packager.options.rootDir, mod.name);
-      throw new Error(`${relativePath} does not export '${originalName}'`);
+      if (res) {
+        node = t.identifier(res);
+      } else {
+        let relativePath = relative(packager.options.rootDir, mod.name);
+        throw new Error(`${relativePath} does not export '${originalName}'`);
+      }
     }
 
     // If it is CommonJS, look for an exports object.
@@ -369,6 +378,24 @@ module.exports = (packager, ast) => {
       // If it's an undefined $id$exports identifier.
       if (match && !path.scope.hasBinding(name)) {
         path.replaceWith(t.objectExpression([]));
+        return;
+      }
+
+      match = name.match(EXPORT_RE);
+
+      if (match && !path.scope.hasBinding(name)) {
+        let commonJsExport = `$${match[1]}$exports`;
+
+        if (path.scope.hasBinding(commonJsExport)) {
+          path.replaceWith(
+            t.memberExpression(
+              t.identifier(commonJsExport),
+              t.stringLiteral(match[2]),
+              true
+            )
+          );
+          path.skip();
+        }
       }
     },
     Program: {
