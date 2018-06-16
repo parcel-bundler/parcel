@@ -14,7 +14,7 @@ class Watcher {
       useFsEvents: this.shouldWatchDirs,
       ignoreInitial: true,
       ignorePermissionErrors: true,
-      ignored: /\.cache|\.git/
+      ignored: /\.cache|\.git|node_modules/
     });
 
     this.watchedDirectories = new Map();
