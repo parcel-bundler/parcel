@@ -59,7 +59,7 @@ module.exports = (packager, ast) => {
     if (wildcards && name !== 'default') {
       for (let source of wildcards) {
         let m = findExportModule(resolveModule(id, source).id, name);
-        if (m) {
+        if (m.identifier) {
           return m;
         }
       }
@@ -74,28 +74,32 @@ module.exports = (packager, ast) => {
       exp = replacements.get(exp);
     }
 
-    return exp;
+    return {
+      identifier: exp,
+      name,
+      id
+    };
   }
 
-  function replaceExportNode(mod, originalName, path) {
-    let id = mod.id;
-    let res = findExportModule(id, originalName);
+  function replaceExportNode(module, originalName, path) {
+    let {identifier, name, id} = findExportModule(module.id, originalName);
+    let mod = assets[id];
     let node;
 
-    if (res) {
-      node = findSymbol(path, res);
+    if (identifier) {
+      node = findSymbol(path, identifier);
     }
 
     // If the module is not in this bundle, create a `require` call for it.
-    if (!node && !assets[id]) {
+    if (!node && !mod) {
       node = REQUIRE_TEMPLATE({ID: t.numericLiteral(id)}).expression;
-      return interop(mod, originalName, path, node);
+      return interop(module, name, path, node);
     }
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
     if (!node && !mod.cacheData.isCommonJS && mod.cacheData.isES6Module) {
       let relativePath = relative(packager.options.rootDir, mod.name);
-      throw new Error(`${relativePath} does not export '${originalName}'`);
+      throw new Error(`${relativePath} does not export '${name}'`);
     }
 
     // If it is CommonJS, look for an exports object.
@@ -105,7 +109,7 @@ module.exports = (packager, ast) => {
         return null;
       }
 
-      return interop(mod, originalName, path, node);
+      return interop(mod, name, path, node);
     }
 
     return node;
@@ -282,9 +286,9 @@ module.exports = (packager, ast) => {
               continue;
             }
 
-            let exp = findExportModule(match[1], key.name, path);
-            if (exp) {
-              replace(value.name, exp, p);
+            let {identifier} = findExportModule(match[1], key.name, path);
+            if (identifier) {
+              replace(value.name, identifier, p);
             }
           }
 
@@ -332,11 +336,11 @@ module.exports = (packager, ast) => {
         // If it's a $id$exports.name expression.
         if (match) {
           let name = t.isIdentifier(property) ? property.name : property.value;
-          let exp = findExportModule(match[1], name, path);
+          let {identifier} = findExportModule(match[1], name, path);
 
           // Check if $id$export$name exists and if so, replace the node by it.
-          if (exp) {
-            path.replaceWith(t.identifier(exp));
+          if (identifier) {
+            path.replaceWith(t.identifier(identifier));
           }
         }
       }
