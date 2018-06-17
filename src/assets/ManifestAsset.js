@@ -142,10 +142,7 @@ class ManifestAsset extends Asset {
 
   hasWebExtensionManifestKeys() {
     const requiredKeys = ['manifest_version', 'name', 'version'];
-    const presentKeys = Object.keys(this.ast).filter(key =>
-      requiredKeys.includes(key)
-    );
-    return presentKeys.length === requiredKeys.length;
+    return requiredKeys.every(key => typeof this.ast[key] !== 'undefined');
   }
 
   collectDependencies() {
