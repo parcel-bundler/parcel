@@ -4,6 +4,7 @@ const promisify = require('../utils/promisify');
 const Resolver = require('../Resolver');
 const fs = require('../utils/fs');
 const path = require('path');
+const parseCSSImport = require('../utils/parseCSSImport');
 
 class LESSAsset extends Asset {
   constructor(name, options) {
@@ -80,6 +81,7 @@ function getFileManager(less, options) {
     }
 
     async loadFile(filename, currentDirectory) {
+      filename = parseCSSImport(filename);
       let resolved = await resolver.resolve(
         filename,
         path.join(currentDirectory, 'index')
