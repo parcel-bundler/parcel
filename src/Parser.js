@@ -5,6 +5,7 @@ const glob = require('glob');
 
 class Parser {
   constructor(options = {}) {
+    this.options = options;
     this.extensions = {};
 
     this.registerExtension('js', './assets/JSAsset');
@@ -38,7 +39,7 @@ class Parser {
     this.registerExtension('htm', './assets/HTMLAsset');
     this.registerExtension('rs', './assets/RustAsset');
 
-    this.registerExtension('webmanifest', './assets/WebManifestAsset');
+    this.registerExtension('webmanifest', './assets/ManifestAsset');
 
     this.registerExtension('glsl', './assets/GLSLAsset');
     this.registerExtension('vert', './assets/GLSLAsset');
@@ -64,6 +65,10 @@ class Parser {
   findParser(filename, fromPipeline) {
     if (!fromPipeline && /[*+{}]/.test(filename) && glob.hasMagic(filename)) {
       return GlobAsset;
+    }
+
+    if (path.basename(filename) === 'manifest.json') {
+      return require('./assets/ManifestAsset');
     }
 
     let extension = path.extname(filename).toLowerCase();

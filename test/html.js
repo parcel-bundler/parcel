@@ -530,6 +530,28 @@ describe('html', function() {
     });
   });
 
+  it(`should support webmanifest as 'manifest.json'`, async function() {
+    let b = await bundle(__dirname + '/integration/webmanifest/index2.html');
+
+    await assertBundleTree(b, {
+      name: 'index2.html',
+      assets: ['index2.html'],
+      childBundles: [
+        {
+          type: 'json',
+          assets: ['manifest.json'],
+          childBundles: [
+            {
+              type: 'txt',
+              assets: ['some.txt'],
+              childBundles: []
+            }
+          ]
+        }
+      ]
+    });
+  });
+
   it('should bundle svg files correctly', async function() {
     let b = await bundle(__dirname + '/integration/html-svg/index.html');
 
