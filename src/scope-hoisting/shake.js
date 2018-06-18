@@ -29,28 +29,7 @@ function treeShake(scope) {
       binding.path.remove();
       binding.referencePaths
         .concat(binding.constantViolations)
-        .forEach(path => {
-          if (path.parentPath.isMemberExpression()) {
-            let parent = path.parentPath.parentPath;
-            if (
-              parent.parentPath.isSequenceExpression() &&
-              parent.parent.expressions.length === 1
-            ) {
-              parent.parentPath.remove();
-            } else if (!parent.removed) {
-              parent.remove();
-            }
-          } else if (isUnusedWildcard(path) && !path.parentPath.removed) {
-            path.parentPath.remove();
-          } else if (path.isAssignmentExpression()) {
-            let parent = path.parentPath;
-            if (!parent.isExpressionStatement()) {
-              path.replaceWith(path.node.right);
-            } else {
-              path.remove();
-            }
-          }
-        });
+        .forEach(safeRemove);
 
       scope.removeBinding(name);
       removed = true;
@@ -59,6 +38,53 @@ function treeShake(scope) {
 }
 
 module.exports = treeShake;
+
+function getExpressionValue(path) {
+  if(path.isAssignmentExpression()) {
+    return getExpressionValue(path.get('right'))
+  }
+
+  return path
+}
+
+function safeRemove(path) {
+  if(path.removed) {
+    return
+  }
+
+  let {parentPath} = path
+
+  if(isUnusedWildcard(path)) {
+    return parentPath.remove()
+  }
+
+  if(parentPath.isMemberExpression()) {
+    return safeRemove(parentPath)
+  }
+
+  if(parentPath.isAssignmentExpression()) {
+    let other = parentPath.get('right')
+
+    if(other === parentPath) {
+      other = parentPath.get('left')
+    }
+
+    return parentPath.replaceWith(other)
+  }
+
+  if(path.isExpression()) {
+    let value = getExpressionValue(path)
+
+    if(value === path) {
+      value = t.nullLiteral()
+    }
+
+    path.replaceWith(value)
+  }
+  else {
+    path.remove()
+  }
+}
 
 // Check if a binding is safe to remove and returns it if it is.
 function getUnusedBinding(path, name) {
