@@ -1,0 +1,2 @@
+output('b');
+import './c';

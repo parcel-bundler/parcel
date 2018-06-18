@@ -1,5 +1,5 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 const {bundle, assertBundleTree} = require('./utils');
 
 describe('parser', function() {
@@ -8,7 +8,7 @@ describe('parser', function() {
       __dirname + '/integration/parser-case-insensitive-ext/index.html'
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.html'],
       childBundles: [
@@ -40,8 +40,8 @@ describe('parser', function() {
       ]
     });
 
-    let files = fs.readdirSync(__dirname + '/dist');
-    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    let files = await fs.readdir(__dirname + '/dist');
+    let html = await fs.readFile(__dirname + '/dist/index.html');
     for (let file of files) {
       let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {

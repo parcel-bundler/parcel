@@ -6,7 +6,7 @@ body
   color primary-color
 </style>
 
-<style lang="sass">
+<style lang="scss">
 $red: red;
 h1 {
   background: $red;

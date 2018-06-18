@@ -1,5 +1,6 @@
 const {dirname} = require('path');
-const resolve = require('resolve');
+const promisify = require('../utils/promisify');
+const resolve = promisify(require('resolve'));
 const worker = require('../worker');
 
 const cache = new Map();
@@ -10,7 +11,7 @@ async function localRequire(name, path, triedInstall = false) {
   let resolved = cache.get(key);
   if (!resolved) {
     try {
-      resolved = resolve.sync(name, {basedir});
+      resolved = await resolve(name, {basedir}).then(([name]) => name);
     } catch (e) {
       if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
         await worker.addCall({

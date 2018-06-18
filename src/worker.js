@@ -1,23 +1,26 @@
 require('v8-compile-cache');
 const Pipeline = require('./Pipeline');
-const child = require('./workerfarm/child');
 const WorkerFarm = require('./workerfarm/WorkerFarm');
 
 let pipeline;
+let child;
 
-function init(options, isLocal = false) {
-  pipeline = new Pipeline(options || {});
-  Object.assign(process.env, options.env || {});
-  process.env.HMR_PORT = options.hmrPort;
-  process.env.HMR_HOSTNAME = options.hmrHostname;
-  if (isLocal) {
-    process.env.WORKER_TYPE = 'parcel-worker';
-  }
+function setChildReference(childReference) {
+  child = childReference;
 }
 
-async function run(path, isWarmUp) {
+function init(options) {
+  pipeline = new Pipeline(options || {});
+  Object.assign(process.env, options.env || {}, {
+    PARCEL_WORKER_TYPE: child ? 'remote-worker' : 'local-worker'
+  });
+  process.env.HMR_PORT = options.hmrPort;
+  process.env.HMR_HOSTNAME = options.hmrHostname;
+}
+
+async function run(path, id, isWarmUp) {
   try {
-    return await pipeline.process(path, isWarmUp);
+    return await pipeline.process(path, id, isWarmUp);
   } catch (e) {
     e.fileName = path;
     throw e;
@@ -26,7 +29,7 @@ async function run(path, isWarmUp) {
 
 // request.location is a module path relative to src or lib
 async function addCall(request, awaitResponse = true) {
-  if (process.send && process.env.WORKER_TYPE === 'parcel-worker') {
+  if (process.send && process.env.PARCEL_WORKER_TYPE === 'remote-worker') {
     return child.addCall(request, awaitResponse);
   } else {
     return WorkerFarm.getShared().processRequest(request);
@@ -36,3 +39,4 @@ async function addCall(request, awaitResponse = true) {
 exports.init = init;
 exports.run = run;
 exports.addCall = addCall;
+exports.setChildReference = setChildReference;
