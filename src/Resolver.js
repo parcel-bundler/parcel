@@ -229,7 +229,7 @@ class Resolver {
       pkg = await this.readPackage(dir);
 
       // First try loading package.main as a file, then try as a directory.
-      let main = this.getPackageMain(pkg);
+      let main = await this.getPackageMain(pkg);
       let res =
         (await this.loadAsFile(main, extensions, pkg)) ||
         (await this.loadDirectory(main, extensions, pkg));
@@ -270,10 +270,8 @@ class Resolver {
     return pkg;
   }
 
-  getBrowserField(pkg) {
-    let target = this.options.target || 'browser';
-    return target === 'browser' ? pkg.browser : null;
-  }
+  async getPackageMain(pkg) {
+    let {browser} = pkg;
 
   getPackageMain(pkg) {
     let browser = this.getBrowserField(pkg);
@@ -284,16 +282,14 @@ class Resolver {
     // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
     // we use the "browser" or "module" field to get the full dependency tree if available.
     // If this is a linked module with a `source` field, use that as the entry point.
-    let main = [pkg.source, browser, pkg.module, pkg.main].find(
-      entry => typeof entry === 'string'
-    );
-
-    // Default to index file if no main field find
-    if (!main || main === '.' || main === './') {
-      main = 'index';
+    for (let source of [pkg.source, pkg.module, browser, pkg.main, 'index']) {
+      if (
+        typeof source === 'string' &&
+        (await fs.exists(path.resolve(pkg.pkgdir, source)))
+      ) {
+        return path.resolve(pkg.pkgdir, source);
+      }
     }
-
-    return path.resolve(pkg.pkgdir, main);
   }
 
   async loadAsFile(file, extensions, pkg) {
