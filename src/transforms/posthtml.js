@@ -26,7 +26,7 @@ async function transform(asset) {
 
 async function getConfig(asset) {
   let config =
-    (await asset.getPackage()).posthtml ||
+    ((await asset.getPackage()) || {}).posthtml ||
     (await asset.getConfig([
       '.posthtmlrc',
       '.posthtmlrc.js',
