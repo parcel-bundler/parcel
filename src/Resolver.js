@@ -295,9 +295,10 @@ class Resolver {
         continue;
       }
       try {
-        // else, check if the file main exists/is accessible. if it does, break the loop.
-        await fs.access(path.resolve(pkg.pkgdir, main));
-        break;
+        // else, check if the file main exists/is accessible. if it does, return the path of the file.
+        const resolvedPath = path.resolve(pkg.pkgdir, main);
+        await fs.access(resolvedPath);
+        return resolvedPath;
       } catch (e) {
         // keep looking for an accessible file
       }
