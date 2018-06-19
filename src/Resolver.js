@@ -282,14 +282,37 @@ class Resolver {
     // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
     // we use the "browser" or "module" field to get the full dependency tree if available.
     // If this is a linked module with a `source` field, use that as the entry point.
-    for (let source of [pkg.source, pkg.module, browser, pkg.main, 'index']) {
-      if (
-        typeof source === 'string' &&
-        (await fs.exists(path.resolve(pkg.pkgdir, source)))
-      ) {
-        return path.resolve(pkg.pkgdir, source);
+    let main;
+    // this is a list possibile main files
+    let possibleMain = [pkg.main, browser, pkg.module, pkg.source];
+    // now we iter trough the list, from the end to the beginning.
+    // by doing this, we can easily pop elements from the list
+    for (let i = possibleMain.length - 1; i >= 0; i--) {
+      main = possibleMain[i];
+      if (typeof main !== 'string') {
+        // if the current main is not a string, trash it
+        possibleMain.pop();
+        continue;
+      }
+      try {
+        // else, check if the file main exists/is accessible. if it does, break the loop.
+        await fs.access(path.resolve(pkg.pkgdir, main));
+        break;
+      } catch (e) {
+        // keep looking for an accessible file
       }
     }
+
+    // if after the loop we didnt't find any existing file, assign
+    // to the main variable the first string we found.
+    // this is needed in certain cases.
+    // example: 'should use the source field as a glob alias when symlinked' in test/resolver.js
+    main = main || possibleMain.pop();
+    // fallback
+    if (!main || main === '.' || main === './') {
+      main = 'index';
+    }
+    return path.resolve(pkg.pkgdir, main);
   }
 
   async loadAsFile(file, extensions, pkg) {
