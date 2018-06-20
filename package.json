@@ -104,7 +104,7 @@
     "vue-template-compiler": "^2.5.16"
   },
   "scripts": {
-    "test": "cross-env NODE_ENV=test mocha test/workerfarm",
+    "test": "cross-env NODE_ENV=test mocha",
     "test-coverage": "rm -rf coverage/* && nyc yarn test",
     "report-coverage": "nyc report --reporter=lcov && codecov",
     "test-ci": "yarn test-coverage && yarn report-coverage",
