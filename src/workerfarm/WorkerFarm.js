@@ -109,8 +109,10 @@ class WorkerFarm extends EventEmitter {
       this.onError(err, worker.id);
     });
 
+    worker.on('response', this.processQueue.bind(this));
+
     this.children.set(worker.id, worker);
-    
+
     this.processQueue();
   }
 
@@ -126,7 +128,7 @@ class WorkerFarm extends EventEmitter {
     if (this.ending || !this.callQueue.length) return;
 
     if (this.children.size < this.options.maxConcurrentWorkers) {
-      await this.startChild();
+      this.startChild();
     }
 
     for (let child of this.children.values()) {

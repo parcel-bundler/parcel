@@ -18,15 +18,6 @@ class Child {
       return this.end();
     }
 
-    /*if (data.type === 'module' && data.module && !this.module) {
-      this.module = require(data.module);
-      this.childId = data.child;
-      if (this.module.setChildReference) {
-        this.module.setChildReference(this);
-      }
-      return;
-    }*/
-
     let type = data.type;
     if (type === 'response') {
       return this.handleResponse(data);
