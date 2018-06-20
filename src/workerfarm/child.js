@@ -18,14 +18,14 @@ class Child {
       return this.end();
     }
 
-    if (data.type === 'module' && data.module && !this.module) {
+    /*if (data.type === 'module' && data.module && !this.module) {
       this.module = require(data.module);
       this.childId = data.child;
       if (this.module.setChildReference) {
         this.module.setChildReference(this);
       }
       return;
-    }
+    }*/
 
     let type = data.type;
     if (type === 'response') {
@@ -47,6 +47,14 @@ class Child {
     });
   }
 
+  childInit(module, childId) {
+    this.module = require(module);
+    this.childId = childId;
+    if (this.module.setChildReference) {
+      this.module.setChildReference(this);
+    }
+  }
+
   async handleRequest(data) {
     let idx = data.idx;
     let child = data.child;
@@ -56,7 +64,11 @@ class Child {
     let result = {idx, child, type: 'response'};
     try {
       result.contentType = 'data';
-      result.content = await this.module[method](...args);
+      if (method === 'childInit') {
+        result.content = this.childInit(...args, child);
+      } else {
+        result.content = await this.module[method](...args);
+      }
     } catch (e) {
       result.contentType = 'error';
       result.content = errorUtils.errorToJson(e);

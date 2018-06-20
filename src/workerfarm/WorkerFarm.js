@@ -92,16 +92,13 @@ class WorkerFarm extends EventEmitter {
     }, 10);
   }
 
-  startChild() {
-    let worker = new Worker(this.options.workerPath, this.options);
+  async startChild() {
+    let worker = new Worker(this.options, this.bundlerOptions);
+
+    await worker.fork(this.options.workerPath);
 
     worker.on('request', data => {
       this.processRequest(data, worker);
-    });
-
-    worker.on('response', () => {
-      // allow any outstanding calls to be processed
-      this.processQueue();
     });
 
     worker.once('exit', () => {
@@ -113,6 +110,8 @@ class WorkerFarm extends EventEmitter {
     });
 
     this.children.set(worker.id, worker);
+    
+    this.processQueue();
   }
 
   stopChild(childId) {
@@ -127,12 +126,16 @@ class WorkerFarm extends EventEmitter {
     if (this.ending || !this.callQueue.length) return;
 
     if (this.children.size < this.options.maxConcurrentWorkers) {
-      this.startChild();
+      await this.startChild();
     }
 
     for (let child of this.children.values()) {
       if (!this.callQueue.length) {
         break;
+      }
+
+      if (!child.ready) {
+        continue;
       }
 
       if (child.calls.size < this.options.maxConcurrentCallsPerWorker) {
@@ -204,41 +207,39 @@ class WorkerFarm extends EventEmitter {
     shared = null;
   }
 
-  init(options) {
-    this.localWorker.init(options);
-    this.initRemoteWorkers(options);
+  init(bundlerOptions) {
+    this.bundlerOptions = bundlerOptions;
+    this.persistBundlerOptions();
+    this.localWorker.init(bundlerOptions);
+    this.initRemoteWorkers();
   }
 
-  async initRemoteWorkers(options) {
+  persistBundlerOptions() {
+    for (let worker of this.children.values()) {
+      worker.bundlerOptions = this.bundlerOptions;
+    }
+  }
+
+  async initRemoteWorkers() {
     this.started = false;
     this.warmWorkers = 0;
 
     // Start workers if there isn't enough workers already
+    let promises = [];
     for (
       let i = this.children.size;
       i < this.options.maxConcurrentWorkers;
       i++
     ) {
-      this.startChild();
+      promises.push(this.startChild());
     }
-
-    // Reliable way of initialising workers
-    let promises = [];
-    for (let child of this.children.values()) {
-      promises.push(
-        new Promise((resolve, reject) => {
-          child.call({
-            method: 'init',
-            args: [options],
-            retries: 0,
-            resolve,
-            reject
-          });
-        })
-      );
-    }
-
     await Promise.all(promises);
+
+    // Reset all workers
+    await Promise.all(Array.from(this.children.values()).map(child => child.init()));
+
+    this.processQueue();
+
     if (this.options.maxConcurrentWorkers > 0) {
       this.started = true;
       this.emit('started');

@@ -10,10 +10,11 @@ const childModule =
 let WORKER_ID = 0;
 
 class Worker extends EventEmitter {
-  constructor(forkModule, options) {
+  constructor(options, bundlerOptions) {
     super();
 
     this.options = options;
+    this._bundlerOptions = bundlerOptions;
     this.id = WORKER_ID++;
 
     this.sendQueue = [];
@@ -23,11 +24,16 @@ class Worker extends EventEmitter {
     this.exitCode = null;
     this.callId = 0;
     this.stopped = false;
-
-    this.fork(forkModule);
+    this.ready = false;
+    this.childInitialised = false;
   }
 
-  fork(forkModule) {
+  set bundlerOptions(bundlerOptions) {
+    this.ready = false;
+    this._bundlerOptions = bundlerOptions;
+  }
+
+  async fork(forkModule) {
     let filteredArgs = process.execArgv.filter(
       v => !/^--(debug|inspect)/.test(v)
     );
@@ -39,11 +45,6 @@ class Worker extends EventEmitter {
     };
 
     this.child = childProcess.fork(childModule, process.argv, options);
-    this.send({
-      type: 'module',
-      module: forkModule,
-      child: this.id
-    });
 
     this.child.on('message', this.receive.bind(this));
 
@@ -54,6 +55,44 @@ class Worker extends EventEmitter {
 
     this.child.on('error', err => {
       this.emit('error', err);
+    });
+
+    await new Promise((resolve, reject) => {
+      this.call({
+        method: 'childInit',
+        args: [forkModule],
+        retries: 0,
+        resolve: (...args) => {
+          this.childInitialised = true;
+          this.emit('child-init');
+          resolve(...args);
+        },
+        reject
+      });
+    });
+
+    await this.init();
+  }
+
+  async init() {
+    if (!this.childInitialised) {
+      await new Promise(resolve => this.once('child-init', resolve));
+    }
+
+    this.ready = false;
+
+    return new Promise((resolve, reject) => {
+      this.call({
+        method: 'init',
+        args: [this._bundlerOptions],
+        retries: 0,
+        resolve: (...args) => {
+          this.ready = true;
+          this.emit('ready');
+          resolve(...args);
+        },
+        reject
+      });
     });
   }
 
