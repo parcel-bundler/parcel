@@ -19,7 +19,6 @@ class WorkerFarm extends EventEmitter {
       farmOptions
     );
 
-    this.started = false;
     this.warmWorkers = 0;
     this.children = new Map();
     this.callQueue = [];
@@ -31,21 +30,19 @@ class WorkerFarm extends EventEmitter {
   }
 
   warmupWorker(method, args) {
-    // Workers have started, but are not warmed up yet.
+    // Workers are not warmed up yet.
     // Send the job to a remote worker in the background,
     // but use the result from the local worker - it will be faster.
-    if (this.started) {
-      let promise = this.addCall(method, [...args, true]);
-      if (promise) {
-        promise
-          .then(() => {
-            this.warmWorkers++;
-            if (this.warmWorkers >= this.children.size) {
-              this.emit('warmedup');
-            }
-          })
-          .catch(() => {});
-      }
+    let promise = this.addCall(method, [...args, true]);
+    if (promise) {
+      promise
+        .then(() => {
+          this.warmWorkers++;
+          if (this.warmWorkers >= this.children.size) {
+            this.emit('warmedup');
+          }
+        })
+        .catch(() => {});
     }
   }
 
@@ -91,10 +88,10 @@ class WorkerFarm extends EventEmitter {
     }, 10);
   }
 
-  async startChild() {
-    let worker = new Worker(this.options, this.bundlerOptions);
+  startChild() {
+    let worker = new Worker(this.options);
 
-    await worker.fork(this.options.workerPath);
+    worker.fork(this.options.workerPath, this.bundlerOptions);
 
     worker.on('request', data => {
       this.processRequest(data, worker);
@@ -108,11 +105,11 @@ class WorkerFarm extends EventEmitter {
       this.onError(err, worker);
     });
 
+    worker.on('ready', () => this.processQueue.bind(this));
+
     worker.on('response', this.processQueue.bind(this));
 
     this.children.set(worker.id, worker);
-
-    this.processQueue();
   }
 
   stopChild(child) {
@@ -209,48 +206,18 @@ class WorkerFarm extends EventEmitter {
     this.bundlerOptions = bundlerOptions;
     this.persistBundlerOptions();
     this.localWorker.init(bundlerOptions);
-    this.initRemoteWorkers();
   }
 
   persistBundlerOptions() {
     for (let worker of this.children.values()) {
-      worker.bundlerOptions = this.bundlerOptions;
-    }
-  }
-
-  async initRemoteWorkers() {
-    this.started = false;
-    this.warmWorkers = 0;
-
-    // Start workers if there isn't enough workers already
-    let promises = [];
-    for (
-      let i = this.children.size;
-      i < this.options.maxConcurrentWorkers;
-      i++
-    ) {
-      promises.push(this.startChild());
-    }
-    await Promise.all(promises);
-
-    // Reset all workers
-    await Promise.all(
-      Array.from(this.children.values()).map(child => child.init())
-    );
-
-    this.processQueue();
-
-    if (this.options.maxConcurrentWorkers > 0) {
-      this.started = true;
-      this.emit('started');
+      worker.init(this.bundlerOptions);
     }
   }
 
   shouldUseRemoteWorkers() {
     return (
       !this.options.useLocalWorker ||
-      (this.started &&
-        (this.warmWorkers >= this.children.size || !this.options.warmWorkers))
+      (this.warmWorkers >= this.children.size || !this.options.warmWorkers)
     );
   }
 

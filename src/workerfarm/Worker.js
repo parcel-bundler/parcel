@@ -10,11 +10,10 @@ const childModule =
 let WORKER_ID = 0;
 
 class Worker extends EventEmitter {
-  constructor(options, bundlerOptions) {
+  constructor(options) {
     super();
 
     this.options = options;
-    this._bundlerOptions = bundlerOptions;
     this.id = WORKER_ID++;
 
     this.sendQueue = [];
@@ -25,15 +24,9 @@ class Worker extends EventEmitter {
     this.callId = 0;
     this.stopped = false;
     this.ready = false;
-    this.childInitialised = false;
   }
 
-  set bundlerOptions(bundlerOptions) {
-    this.ready = false;
-    this._bundlerOptions = bundlerOptions;
-  }
-
-  async fork(forkModule) {
+  async fork(forkModule, bundlerOptions) {
     let filteredArgs = process.execArgv.filter(
       v => !/^--(debug|inspect)/.test(v)
     );
@@ -62,29 +55,21 @@ class Worker extends EventEmitter {
         method: 'childInit',
         args: [forkModule],
         retries: 0,
-        resolve: (...args) => {
-          this.childInitialised = true;
-          this.emit('child-init');
-          resolve(...args);
-        },
+        resolve,
         reject
       });
     });
 
-    await this.init();
+    await this.init(bundlerOptions);
   }
 
-  async init() {
-    if (!this.childInitialised) {
-      await new Promise(resolve => this.once('child-init', resolve));
-    }
-
+  async init(bundlerOptions) {
     this.ready = false;
 
     return new Promise((resolve, reject) => {
       this.call({
         method: 'init',
-        args: [this._bundlerOptions],
+        args: [bundlerOptions],
         retries: 0,
         resolve: (...args) => {
           this.ready = true;
