@@ -11,7 +11,7 @@ class WorkerFarm extends EventEmitter {
       {
         maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
         maxConcurrentCallsPerWorker: 10,
-        forcedKillTime: 100,
+        forcedKillTime: 500,
         warmWorkers: true,
         useLocalWorker: true,
         workerPath: '../worker'
@@ -66,18 +66,17 @@ class WorkerFarm extends EventEmitter {
     }.bind(this);
   }
 
-  onError(error, childId) {
+  onError(error, child) {
     // Handle ipc errors
     if (error.code === 'ERR_IPC_CHANNEL_CLOSED') {
-      return this.stopChild(childId);
+      return this.stopChild(child);
     }
   }
 
-  onExit(childId) {
+  onExit(child) {
     // delay this to give any sends a chance to finish
     setTimeout(() => {
       let doQueue = false;
-      let child = this.children.get(childId);
       if (child && child.calls.size) {
         for (let call of child.calls.values()) {
           call.retries++;
@@ -85,7 +84,7 @@ class WorkerFarm extends EventEmitter {
           doQueue = true;
         }
       }
-      this.stopChild(childId);
+      this.stopChild(child);
       if (doQueue) {
         this.processQueue();
       }
@@ -102,11 +101,11 @@ class WorkerFarm extends EventEmitter {
     });
 
     worker.once('exit', () => {
-      this.onExit(worker.id);
+      this.onExit(worker);
     });
 
     worker.on('error', err => {
-      this.onError(err, worker.id);
+      this.onError(err, worker);
     });
 
     worker.on('response', this.processQueue.bind(this));
@@ -116,12 +115,9 @@ class WorkerFarm extends EventEmitter {
     this.processQueue();
   }
 
-  stopChild(childId) {
-    let child = this.children.get(childId);
-    if (child) {
-      child.stop();
-      this.children.delete(childId);
-    }
+  stopChild(child) {
+    child.stop();
+    this.children.delete(child.id);
   }
 
   async processQueue() {
@@ -202,8 +198,8 @@ class WorkerFarm extends EventEmitter {
 
   async end() {
     this.ending = true;
-    for (let childId of this.children.keys()) {
-      this.stopChild(childId);
+    for (let child of this.children.values()) {
+      this.stopChild(child);
     }
     this.ending = false;
     shared = null;
@@ -238,7 +234,9 @@ class WorkerFarm extends EventEmitter {
     await Promise.all(promises);
 
     // Reset all workers
-    await Promise.all(Array.from(this.children.values()).map(child => child.init()));
+    await Promise.all(
+      Array.from(this.children.values()).map(child => child.init())
+    );
 
     this.processQueue();
 

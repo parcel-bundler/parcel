@@ -169,6 +169,7 @@ class Worker extends EventEmitter {
     this.stopped = true;
 
     this.send('die');
+
     setTimeout(() => {
       if (this.exitCode === null) {
         this.child.kill('SIGKILL');
