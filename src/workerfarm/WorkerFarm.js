@@ -105,9 +105,8 @@ class WorkerFarm extends EventEmitter {
       this.onError(err, worker);
     });
 
-    worker.on('ready', () => this.processQueue.bind(this));
-
-    worker.on('response', this.processQueue.bind(this));
+    worker.on('ready', () => this.processQueue());
+    worker.on('response', () => this.processQueue());
 
     this.children.set(worker.id, worker);
   }
