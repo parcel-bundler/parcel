@@ -46,6 +46,14 @@ class WorkerFarm extends EventEmitter {
     }
   }
 
+  shouldStartRemoteWorkers() {
+    return (
+      this.options.maxConcurrentWorkers > 1 ||
+      process.env.NODE_ENV === 'test' ||
+      !this.options.useLocalWorker
+    );
+  }
+
   mkhandle(method) {
     return function(...args) {
       // Child process workers are slow to start (~600ms).
@@ -54,7 +62,7 @@ class WorkerFarm extends EventEmitter {
       if (this.shouldUseRemoteWorkers()) {
         return this.addCall(method, [...args, false]);
       } else {
-        if (this.options.warmWorkers) {
+        if (this.options.warmWorkers && this.shouldStartRemoteWorkers()) {
           this.warmupWorker(method, args);
         }
 
@@ -198,7 +206,9 @@ class WorkerFarm extends EventEmitter {
 
   init(bundlerOptions) {
     this.bundlerOptions = bundlerOptions;
-    this.persistBundlerOptions();
+    if (this.shouldStartRemoteWorkers()) {
+      this.persistBundlerOptions();
+    }
     this.localWorker.init(bundlerOptions);
   }
 
