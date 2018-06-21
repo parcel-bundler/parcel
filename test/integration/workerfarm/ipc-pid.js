@@ -1,14 +1,7 @@
-let options = {};
-let child;
-
-function setChildReference(childRef) {
-  child = childRef;
-}
-
 function run() {
   let result = [process.pid];
   return new Promise((resolve, reject) => {
-    child.addCall({
+    process.parcelRequest({
       location: require.resolve('./master-process-id.js'),
       args: []
     }).then((pid) => {
@@ -24,4 +17,3 @@ function init() {
 
 exports.run = run;
 exports.init = init;
-exports.setChildReference = setChildReference;

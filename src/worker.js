@@ -3,17 +3,10 @@ const Pipeline = require('./Pipeline');
 const WorkerFarm = require('./workerfarm/WorkerFarm');
 
 let pipeline;
-let child;
-
-function setChildReference(childReference) {
-  child = childReference;
-}
 
 function init(options) {
   pipeline = new Pipeline(options || {});
-  Object.assign(process.env, options.env || {}, {
-    PARCEL_WORKER_TYPE: child ? 'remote-worker' : 'local-worker'
-  });
+  Object.assign(process.env, options.env || {});
   process.env.HMR_PORT = options.hmrPort;
   process.env.HMR_HOSTNAME = options.hmrHostname;
 }
@@ -29,8 +22,8 @@ async function run(path, id, isWarmUp) {
 
 // request.location is a module path relative to src or lib
 async function addCall(request, awaitResponse = true) {
-  if (process.send && process.env.PARCEL_WORKER_TYPE === 'remote-worker') {
-    return child.addCall(request, awaitResponse);
+  if (process.send && process.parcelWorker) {
+    return process.parcelRequest(request, awaitResponse);
   } else {
     return WorkerFarm.getShared().processRequest(request);
   }
@@ -39,4 +32,3 @@ async function addCall(request, awaitResponse = true) {
 exports.init = init;
 exports.run = run;
 exports.addCall = addCall;
-exports.setChildReference = setChildReference;

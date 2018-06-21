@@ -9,8 +9,8 @@ class Child {
     this.responseQueue = new Map();
     this.responseId = 0;
     this.maxConcurrentCalls = 10;
-
-    process.env.PARCEL_WORKER_TYPE = 'remote-worker';
+    process.parcelWorker = true;
+    process.parcelRequest = this.addCall.bind(this);
   }
 
   messageListener(data) {
@@ -41,9 +41,6 @@ class Child {
   childInit(module, childId) {
     this.module = require(module);
     this.childId = childId;
-    if (this.module.setChildReference) {
-      this.module.setChildReference(this);
-    }
   }
 
   async handleRequest(data) {
