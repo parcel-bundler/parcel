@@ -135,7 +135,7 @@ class Child {
   }
 
   end() {
-    return process.exit(0);
+    process.exit();
   }
 }
 

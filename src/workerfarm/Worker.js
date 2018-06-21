@@ -150,16 +150,24 @@ class Worker extends EventEmitter {
     }
   }
 
-  stop() {
-    this.stopped = true;
+  async stop() {
+    if (!this.stopped) {
+      this.stopped = true;
 
-    this.send('die');
+      if (this.child) {
+        this.child.send('die');
 
-    setTimeout(() => {
-      if (this.exitCode === null) {
-        this.child.kill('SIGKILL');
+        let forceKill = setTimeout(
+          () => this.child.kill('SIGINT'),
+          this.options.forcedKillTime
+        );
+        await new Promise(resolve => {
+          this.child.once('exit', resolve);
+        });
+
+        clearTimeout(forceKill);
       }
-    }, this.options.forcedKillTime);
+    }
   }
 }
 

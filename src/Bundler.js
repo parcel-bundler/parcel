@@ -353,9 +353,9 @@ class Bundler extends EventEmitter {
     this.farm = WorkerFarm.getShared(this.options);
   }
 
-  stop() {
+  async stop() {
     if (this.farm) {
-      this.farm.end();
+      await this.farm.end();
     }
 
     if (this.watcher) {

@@ -10,7 +10,7 @@ class WorkerFarm extends EventEmitter {
     this.options = Object.assign(
       {
         maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
-        maxConcurrentCallsPerWorker: 10,
+        maxConcurrentCallsPerWorker: 5,
         forcedKillTime: 500,
         warmWorkers: true,
         useLocalWorker: true,
@@ -20,7 +20,7 @@ class WorkerFarm extends EventEmitter {
     );
 
     this.warmWorkers = 0;
-    this.children = new Map();
+    this.workers = new Map();
     this.callQueue = [];
 
     this.localWorker = require(this.options.workerPath);
@@ -38,7 +38,7 @@ class WorkerFarm extends EventEmitter {
       promise
         .then(() => {
           this.warmWorkers++;
-          if (this.warmWorkers >= this.children.size) {
+          if (this.warmWorkers >= this.workers.size) {
             this.emit('warmedup');
           }
         })
@@ -66,26 +66,25 @@ class WorkerFarm extends EventEmitter {
   onError(error, child) {
     // Handle ipc errors
     if (error.code === 'ERR_IPC_CHANNEL_CLOSED') {
-      return this.stopChild(child);
+      return this.stopWorker(child);
     }
   }
 
-  onExit(child) {
-    // delay this to give any sends a chance to finish
-    setTimeout(() => {
-      let doQueue = false;
-      if (child && child.calls.size) {
-        for (let call of child.calls.values()) {
-          call.retries++;
-          this.callQueue.unshift(call);
-          doQueue = true;
-        }
+  resetCalls(worker) {
+    let doQueue = false;
+
+    if (worker && worker.calls && worker.calls.size) {
+      for (let call of worker.calls.values()) {
+        call.retries++;
+        this.callQueue.unshift(call);
+        doQueue = true;
       }
-      this.stopChild(child);
-      if (doQueue) {
-        this.processQueue();
-      }
-    }, 10);
+    }
+    worker.calls = null;
+
+    if (doQueue) {
+      this.processQueue();
+    }
   }
 
   startChild() {
@@ -93,42 +92,38 @@ class WorkerFarm extends EventEmitter {
 
     worker.fork(this.options.workerPath, this.bundlerOptions);
 
-    worker.on('request', data => {
-      this.processRequest(data, worker);
-    });
-
-    worker.once('exit', () => {
-      this.onExit(worker);
-    });
-
-    worker.on('error', err => {
-      this.onError(err, worker);
-    });
+    worker.on('request', data => this.processRequest(data, worker));
 
     worker.on('ready', () => this.processQueue());
     worker.on('response', () => this.processQueue());
 
-    this.children.set(worker.id, worker);
+    worker.on('error', err => this.onError(err, worker));
+    worker.once('exit', () => this.stopWorker(worker));
+
+    this.workers.set(worker.id, worker);
   }
 
-  stopChild(child) {
-    child.stop();
-    this.children.delete(child.id);
+  async stopWorker(worker) {
+    if (!worker.stopped) {
+      this.resetCalls(worker);
+      await worker.stop();
+      this.workers.delete(worker.id);
+    }
   }
 
   async processQueue() {
     if (this.ending || !this.callQueue.length) return;
 
-    if (this.children.size < this.options.maxConcurrentWorkers) {
+    if (this.workers.size < this.options.maxConcurrentWorkers) {
       this.startChild();
     }
 
-    for (let child of this.children.values()) {
+    for (let child of this.workers.values()) {
       if (!this.callQueue.length) {
         break;
       }
 
-      if (!child.ready) {
+      if (!child.ready || child.stopped) {
         continue;
       }
 
@@ -194,9 +189,9 @@ class WorkerFarm extends EventEmitter {
 
   async end() {
     this.ending = true;
-    for (let child of this.children.values()) {
-      this.stopChild(child);
-    }
+    await Promise.all(
+      Array.from(this.workers.values()).map(child => this.stopWorker(child))
+    );
     this.ending = false;
     shared = null;
   }
@@ -208,7 +203,7 @@ class WorkerFarm extends EventEmitter {
   }
 
   persistBundlerOptions() {
-    for (let worker of this.children.values()) {
+    for (let worker of this.workers.values()) {
       worker.init(this.bundlerOptions);
     }
   }
@@ -216,7 +211,7 @@ class WorkerFarm extends EventEmitter {
   shouldUseRemoteWorkers() {
     return (
       !this.options.useLocalWorker ||
-      (this.warmWorkers >= this.children.size || !this.options.warmWorkers)
+      (this.warmWorkers >= this.workers.size || !this.options.warmWorkers)
     );
   }
 
@@ -235,13 +230,8 @@ class WorkerFarm extends EventEmitter {
       return parseInt(process.env.PARCEL_WORKERS, 10);
     }
 
-    let cores;
-    try {
-      cores = require('physical-cpu-count');
-    } catch (err) {
-      cores = os.cpus().length;
-    }
-    return cores || 1;
+    let cores = os.cpus().length;
+    return cores > 1 ? cores - 1 : 1;
   }
 }
 
