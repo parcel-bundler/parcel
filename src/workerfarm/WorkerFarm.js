@@ -63,10 +63,10 @@ class WorkerFarm extends EventEmitter {
     }.bind(this);
   }
 
-  onError(error, child) {
+  onError(error, worker) {
     // Handle ipc errors
     if (error.code === 'ERR_IPC_CHANNEL_CLOSED') {
-      return this.stopWorker(child);
+      return this.stopWorker(worker);
     }
   }
 
@@ -118,22 +118,22 @@ class WorkerFarm extends EventEmitter {
       this.startChild();
     }
 
-    for (let child of this.workers.values()) {
+    for (let worker of this.workers.values()) {
       if (!this.callQueue.length) {
         break;
       }
 
-      if (!child.ready || child.stopped) {
+      if (!worker.ready || worker.stopped) {
         continue;
       }
 
-      if (child.calls.size < this.options.maxConcurrentCallsPerWorker) {
-        child.call(this.callQueue.shift());
+      if (worker.calls.size < this.options.maxConcurrentCallsPerWorker) {
+        worker.call(this.callQueue.shift());
       }
     }
   }
 
-  async processRequest(data, child = false) {
+  async processRequest(data, worker = false) {
     let result = {
       idx: data.idx,
       type: 'response'
@@ -164,8 +164,8 @@ class WorkerFarm extends EventEmitter {
     }
 
     if (awaitResponse) {
-      if (child) {
-        child.send(result);
+      if (worker) {
+        worker.send(result);
       } else {
         return result;
       }
@@ -190,7 +190,7 @@ class WorkerFarm extends EventEmitter {
   async end() {
     this.ending = true;
     await Promise.all(
-      Array.from(this.workers.values()).map(child => this.stopWorker(child))
+      Array.from(this.workers.values()).map(worker => this.stopWorker(worker))
     );
     this.ending = false;
     shared = null;
