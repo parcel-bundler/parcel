@@ -65,6 +65,9 @@ class SASSAsset extends Asset {
 
   collectDependencies() {
     for (let dep of this.ast.stats.includedFiles) {
+      if (os.platform() === 'win32') {
+        dep = dep.replace(/\//g, '\\');
+      }
       this.addDependency(dep, {includedInParent: true});
     }
   }
