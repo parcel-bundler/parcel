@@ -18,8 +18,8 @@ const PromiseQueue = require('./utils/PromiseQueue');
 const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
-const getRootDir = require('./utils/getRootDir');
 const glob = require('fast-glob');
+const normalizeOptions = require('./utils/normalizeOptions');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -30,7 +30,7 @@ class Bundler extends EventEmitter {
     super();
 
     this.entryFiles = this.normalizeEntries(entryFiles);
-    this.options = this.normalizeOptions(options);
+    this.options = normalizeOptions(options, this.entryFiles);
 
     this.resolver = new Resolver(this.options);
     this.parser = new Parser(this.options);
@@ -86,64 +86,6 @@ class Bundler extends EventEmitter {
     return entryFiles
       .reduce((p, m) => p.concat(glob.sync(m)), [])
       .map(f => Path.resolve(f));
-  }
-
-  normalizeOptions(options) {
-    const isProduction =
-      options.production || process.env.NODE_ENV === 'production';
-    const publicURL = options.publicUrl || options.publicURL || '/';
-    const watch =
-      typeof options.watch === 'boolean' ? options.watch : !isProduction;
-    const target = options.target || 'browser';
-    const hmr =
-      target === 'node'
-        ? false
-        : typeof options.hmr === 'boolean'
-          ? options.hmr
-          : watch;
-    const scopeHoist =
-      options.scopeHoist !== undefined ? options.scopeHoist : false;
-    return {
-      production: isProduction,
-      outDir: Path.resolve(options.outDir || 'dist'),
-      outFile: options.outFile || '',
-      publicURL: publicURL,
-      watch: watch,
-      cache: typeof options.cache === 'boolean' ? options.cache : true,
-      cacheDir: Path.resolve(options.cacheDir || '.cache'),
-      killWorkers:
-        typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
-      minify:
-        typeof options.minify === 'boolean' ? options.minify : isProduction,
-      target: target,
-      bundleNodeModules:
-        typeof options.bundleNodeModules === 'boolean'
-          ? options.bundleNodeModules
-          : target === 'browser',
-      hmr: hmr,
-      https: options.https || false,
-      logLevel: isNaN(options.logLevel) ? 3 : options.logLevel,
-      entryFiles: this.entryFiles,
-      hmrPort: options.hmrPort || 0,
-      rootDir: getRootDir(this.entryFiles),
-      sourceMaps:
-        (typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true) &&
-        !scopeHoist,
-      hmrHostname:
-        options.hmrHostname ||
-        (options.target === 'electron' ? 'localhost' : ''),
-      detailedReport: options.detailedReport || false,
-      global: options.global,
-      autoinstall:
-        typeof options.autoinstall === 'boolean'
-          ? options.autoinstall
-          : !isProduction,
-      scopeHoist: scopeHoist,
-      contentHash:
-        typeof options.contentHash === 'boolean'
-          ? options.contentHash
-          : isProduction
-    };
   }
 
   addAssetType(extension, path) {
