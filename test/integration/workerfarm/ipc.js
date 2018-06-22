@@ -1,4 +1,4 @@
-async function run(a, b) {
+function run(a, b) {
   return process.parcelRequest({
     location: require.resolve('./master-sum.js'),
     args: [a, b]

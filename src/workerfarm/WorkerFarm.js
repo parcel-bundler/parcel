@@ -206,15 +206,31 @@ class WorkerFarm extends EventEmitter {
 
   init(bundlerOptions) {
     this.bundlerOptions = bundlerOptions;
+
     if (this.shouldStartRemoteWorkers()) {
       this.persistBundlerOptions();
     }
+
     this.localWorker.init(bundlerOptions);
+    this.startMaxWorkers();
   }
 
   persistBundlerOptions() {
     for (let worker of this.workers.values()) {
       worker.init(this.bundlerOptions);
+    }
+  }
+
+  startMaxWorkers() {
+    // Starts workers untill the maximum is reached
+    if (this.workers.size < this.options.maxConcurrentWorkers) {
+      for (
+        let i = 0;
+        i < this.options.maxConcurrentWorkers - this.workers.size;
+        i++
+      ) {
+        this.startChild();
+      }
     }
   }
 
