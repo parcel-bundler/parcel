@@ -174,7 +174,7 @@ async function bundle(main, command) {
   const Bundler = require('../');
 
   if (command.name() === 'build') {
-    process.env.NODE_ENV = 'production';
+    process.env.NODE_ENV = process.env.NODE_ENV || 'production';
   } else {
     process.env.NODE_ENV = process.env.NODE_ENV || 'development';
   }
