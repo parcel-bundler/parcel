@@ -1,6 +1,5 @@
 require('v8-compile-cache');
 const Pipeline = require('./Pipeline');
-const WorkerFarm = require('./workerfarm/WorkerFarm');
 
 let pipeline;
 
@@ -21,10 +20,12 @@ async function run(path, id, isWarmUp) {
 }
 
 // request.location is a module path relative to src or lib
-async function addCall(request, awaitResponse = true) {
+function addCall(request, awaitResponse = true) {
   if (process.send && process.parcelWorker) {
     return process.parcelRequest(request, awaitResponse);
   } else {
+    const WorkerFarm = require('./workerfarm/WorkerFarm');
+
     return WorkerFarm.getShared().processRequest(request);
   }
 }
