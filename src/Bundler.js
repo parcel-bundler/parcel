@@ -392,6 +392,7 @@ class Bundler extends EventEmitter {
   }
 
   watch(path, asset) {
+	path = Path.normalize(path);
     if (!this.watcher) {
       return;
     }
@@ -694,6 +695,7 @@ class Bundler extends EventEmitter {
 
       // Unwatch all included dependencies that map to this asset
       for (let dep of asset.dependencies.values()) {
+		dep = Path.normalize(dep);
         if (dep.includedInParent) {
           this.unwatch(dep.name, asset);
         }
