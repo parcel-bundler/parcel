@@ -22,8 +22,10 @@ class Worker extends EventEmitter {
     this.calls = new Map();
     this.exitCode = null;
     this.callId = 0;
-    this.stopped = false;
+
     this.ready = false;
+    this.stopped = false;
+    this.isStopping = false;
   }
 
   async fork(forkModule, bundlerOptions) {
@@ -108,6 +110,10 @@ class Worker extends EventEmitter {
   }
 
   call(call) {
+    if (this.stopped || this.isStopping) {
+      return;
+    }
+
     let idx = this.callId++;
     this.calls.set(idx, call);
 
@@ -121,7 +127,7 @@ class Worker extends EventEmitter {
   }
 
   receive(data) {
-    if (this.stopped) {
+    if (this.stopped || this.isStopping) {
       return;
     }
 

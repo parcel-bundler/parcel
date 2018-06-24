@@ -12,8 +12,8 @@ class WorkerFarm extends EventEmitter {
         maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
         maxConcurrentCallsPerWorker: 5,
         forcedKillTime: 500,
-        warmWorkers: true,
-        useLocalWorker: true,
+        warmWorkers: false,
+        useLocalWorker: false,
         workerPath: '../worker'
       },
       farmOptions
@@ -78,23 +78,6 @@ class WorkerFarm extends EventEmitter {
     }
   }
 
-  resetCalls(worker) {
-    let doQueue = false;
-
-    if (worker && worker.calls && worker.calls.size) {
-      for (let call of worker.calls.values()) {
-        call.retries++;
-        this.callQueue.unshift(call);
-        doQueue = true;
-      }
-    }
-    worker.calls = null;
-
-    if (doQueue) {
-      this.processQueue();
-    }
-  }
-
   startChild() {
     let worker = new Worker(this.options);
 
@@ -113,9 +96,23 @@ class WorkerFarm extends EventEmitter {
 
   async stopWorker(worker) {
     if (!worker.stopped) {
-      this.resetCalls(worker);
-      await worker.stop();
       this.workers.delete(worker.id);
+
+      worker.isStopping = true;
+
+      if (worker.calls.size) {
+        for (let call of worker.calls.values()) {
+          call.retries++;
+          this.callQueue.unshift(call);
+        }
+      }
+
+      worker.calls = null;
+
+      await worker.stop();
+
+      // Process any requests that failed and start a new worker
+      this.processQueue();
     }
   }
 
@@ -131,7 +128,7 @@ class WorkerFarm extends EventEmitter {
         break;
       }
 
-      if (!worker.ready || worker.stopped) {
+      if (!worker.ready || worker.stopped || worker.isStopping) {
         continue;
       }
 
