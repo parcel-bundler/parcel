@@ -1,0 +1,4 @@
+{
+    "name": "{{ APP_NAME }}",
+    "display": "standalone"
+}

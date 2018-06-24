@@ -1,4 +1,5 @@
 const Asset = require('../Asset');
+const webmanifestTransform = require('../transforms/webmanifest');
 
 class WebManifestAsset extends Asset {
   constructor(name, options) {
@@ -28,6 +29,10 @@ class WebManifestAsset extends Asset {
         this.ast.serviceworker.src
       );
     }
+  }
+
+  async pretransform() {
+    await webmanifestTransform(this);
   }
 
   generate() {
