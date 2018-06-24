@@ -256,8 +256,13 @@ class WorkerFarm extends EventEmitter {
       return parseInt(process.env.PARCEL_WORKERS, 10);
     }
 
-    let cores = os.cpus().length;
-    return cores > 1 ? cores - 1 : 1;
+    let cores;
+    try {
+      cores = require('physical-cpu-count');
+    } catch (err) {
+      cores = os.cpus().length;
+    }
+    return cores || 1;
   }
 }
 
