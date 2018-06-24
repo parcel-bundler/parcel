@@ -12,8 +12,8 @@ class WorkerFarm extends EventEmitter {
         maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
         maxConcurrentCallsPerWorker: 5,
         forcedKillTime: 500,
-        warmWorkers: false,
-        useLocalWorker: false,
+        warmWorkers: true,
+        useLocalWorker: true,
         workerPath: '../worker'
       },
       farmOptions
