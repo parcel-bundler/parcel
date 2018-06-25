@@ -27,9 +27,7 @@ function treeShake(scope) {
 
       // Remove the binding and all references to it.
       binding.path.remove();
-      binding.referencePaths
-        .concat(binding.constantViolations)
-        .forEach(safeRemove);
+      binding.referencePaths.concat(binding.constantViolations).forEach(remove);
 
       scope.removeBinding(name);
       removed = true;
@@ -38,53 +36,6 @@ function treeShake(scope) {
 }
 
 module.exports = treeShake;
-
-function getExpressionValue(path) {
-  if(path.isAssignmentExpression()) {
-    return getExpressionValue(path.get('right'))
-  }
-
-  return path
-}
-
-function safeRemove(path) {
-  if(path.removed) {
-    return
-  }
-
-  let {parentPath} = path
-
-  if(isUnusedWildcard(path)) {
-    return parentPath.remove()
-  }
-
-  if(parentPath.isMemberExpression()) {
-    return safeRemove(parentPath)
-  }
-
-  if(parentPath.isAssignmentExpression()) {
-    let other = parentPath.get('right')
-
-    if(other === parentPath) {
-      other = parentPath.get('left')
-    }
-
-    return parentPath.replaceWith(other)
-  }
-
-  if(path.isExpression()) {
-    let value = getExpressionValue(path)
-
-    if(value === path) {
-      value = t.nullLiteral()
-    }
-
-    path.replaceWith(value)
-  }
-  else {
-    path.remove()
-  }
-}
 
 // Check if a binding is safe to remove and returns it if it is.
 function getUnusedBinding(path, name) {
@@ -149,4 +100,25 @@ function isUnusedWildcard(path) {
     // check if the $id$exports variable is used
     !getUnusedBinding(path, parent.arguments[1].name)
   );
+}
+
+function remove(path) {
+  if (path.isAssignmentExpression()) {
+    if (!path.parentPath.isExpressionStatement()) {
+      path.replaceWith(path.node.right);
+    } else {
+      path.remove();
+    }
+  } else if (isExportAssignment(path)) {
+    remove(path.parentPath.parentPath);
+  } else if (isUnusedWildcard(path)) {
+    remove(path.parentPath);
+  } else if (
+    path.parentPath.isSequenceExpression() &&
+    path.parent.expressions.length === 1
+  ) {
+    remove(path.parentPath);
+  } else if (!path.removed) {
+    path.remove();
+  }
 }
