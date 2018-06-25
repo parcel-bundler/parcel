@@ -27,30 +27,7 @@ function treeShake(scope) {
 
       // Remove the binding and all references to it.
       binding.path.remove();
-      binding.referencePaths
-        .concat(binding.constantViolations)
-        .forEach(path => {
-          if (path.parentPath.isMemberExpression()) {
-            let parent = path.parentPath.parentPath;
-            if (
-              parent.parentPath.isSequenceExpression() &&
-              parent.parent.expressions.length === 1
-            ) {
-              parent.parentPath.remove();
-            } else if (!parent.removed) {
-              parent.remove();
-            }
-          } else if (isUnusedWildcard(path) && !path.parentPath.removed) {
-            path.parentPath.remove();
-          } else if (path.isAssignmentExpression()) {
-            let parent = path.parentPath;
-            if (!parent.isExpressionStatement()) {
-              path.replaceWith(path.node.right);
-            } else {
-              path.remove();
-            }
-          }
-        });
+      binding.referencePaths.concat(binding.constantViolations).forEach(remove);
 
       scope.removeBinding(name);
       removed = true;
@@ -123,4 +100,25 @@ function isUnusedWildcard(path) {
     // check if the $id$exports variable is used
     !getUnusedBinding(path, parent.arguments[1].name)
   );
+}
+
+function remove(path) {
+  if (path.isAssignmentExpression()) {
+    if (!path.parentPath.isExpressionStatement()) {
+      path.replaceWith(path.node.right);
+    } else {
+      path.remove();
+    }
+  } else if (isExportAssignment(path)) {
+    remove(path.parentPath.parentPath);
+  } else if (isUnusedWildcard(path)) {
+    remove(path.parentPath);
+  } else if (
+    path.parentPath.isSequenceExpression() &&
+    path.parent.expressions.length === 1
+  ) {
+    remove(path.parentPath);
+  } else if (!path.removed) {
+    path.remove();
+  }
 }
