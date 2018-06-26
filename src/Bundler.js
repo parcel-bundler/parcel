@@ -8,6 +8,7 @@ const Watcher = require('./Watcher');
 const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
+const {Writable} = require('stream');
 const {EventEmitter} = require('events');
 const logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
@@ -116,6 +117,10 @@ class Bundler extends EventEmitter {
       hmr: hmr,
       https: options.https || false,
       logLevel: isNaN(options.logLevel) ? 3 : options.logLevel,
+      logStream:
+        options.logStream instanceof Writable
+          ? options.logStream
+          : process.stdout,
       entryFiles: this.entryFiles,
       hmrPort: options.hmrPort || 0,
       rootDir: getRootDir(this.entryFiles),

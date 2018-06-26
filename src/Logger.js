@@ -1,5 +1,6 @@
 const chalk = require('chalk');
 const readline = require('readline');
+const {Writable} = require('stream');
 const prettyError = require('./utils/prettyError');
 const emoji = require('./utils/emoji');
 const {countBreaks} = require('grapheme-breaker');
@@ -17,6 +18,10 @@ class Logger {
       options && isNaN(options.logLevel) === false
         ? Number(options.logLevel)
         : 3;
+    this.logStream =
+      options && options.logStream instanceof Writable
+        ? options.logStream
+        : process.stdout;
     this.color =
       options && typeof options.color === 'boolean'
         ? options.color
@@ -30,8 +35,8 @@ class Logger {
 
   countLines(message) {
     return message.split('\n').reduce((p, line) => {
-      if (process.stdout.columns) {
-        return p + Math.ceil((line.length || 1) / process.stdout.columns);
+      if (this.logStream.columns) {
+        return p + Math.ceil((line.length || 1) / this.logStream.columns);
       }
 
       return p + 1;
@@ -40,7 +45,7 @@ class Logger {
 
   writeRaw(message) {
     this.lines += this.countLines(message) - 1;
-    process.stdout.write(message);
+    this.logStream.write(message);
   }
 
   write(message, persistent = false) {
@@ -98,12 +103,12 @@ class Logger {
     }
 
     while (this.lines > 0) {
-      readline.clearLine(process.stdout, 0);
-      readline.moveCursor(process.stdout, 0, -1);
+      readline.clearLine(this.logStream, 0);
+      readline.moveCursor(this.logStream, 0, -1);
       this.lines--;
     }
 
-    readline.cursorTo(process.stdout, 0);
+    readline.cursorTo(this.logStream, 0);
     this.statusLine = null;
   }
 
@@ -113,7 +118,7 @@ class Logger {
     }
 
     let n = this.lines - line;
-    let stdout = process.stdout;
+    let stdout = this.logStream;
     readline.cursorTo(stdout, 0);
     readline.moveCursor(stdout, 0, -n);
     stdout.write(msg);
@@ -138,7 +143,7 @@ class Logger {
     );
 
     if (!hasStatusLine) {
-      process.stdout.write('\n');
+      this.logStream.write('\n');
       this.lines++;
     }
   }
@@ -148,7 +153,7 @@ class Logger {
   }
 
   _log(message) {
-    console.log(message);
+    this.logStream.write(`${message}\n`);
   }
 
   table(columns, table) {

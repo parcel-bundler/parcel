@@ -1,4 +1,5 @@
 const assert = require('assert');
+const stream = require('stream');
 const sinon = require('sinon');
 const Logger = require('../src/Logger');
 
@@ -67,6 +68,32 @@ describe('Logger', () => {
     l.persistent('message');
     l.status('🚨', 'message');
     assert.equal(log.length, 5);
+  });
+
+  it('should allow replacing the output stream', () => {
+    class Recorder extends stream.Writable {
+      constructor() {
+        super();
+
+        this.recording = '';
+      }
+
+      _write(chunk, _encoding, next) {
+        this.recording += chunk;
+        next();
+      }
+    }
+
+    const logStream = new Recorder();
+    const l = new Logger.constructor({logStream});
+
+    l.write('message');
+
+    assert.equal(logStream.recording, 'message\n');
+
+    l.writeRaw('message 2');
+
+    assert.equal(logStream.recording, 'message\nmessage 2');
   });
 
   it('should handle lack of color support with alternatives', () => {
