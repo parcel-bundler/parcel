@@ -77,7 +77,7 @@ class Logger {
         this.logFile.write = promisify(this.logFile.write.bind(this.logFile));
       }
 
-      this.logFile.write(message + '\n');
+      this.logFile.write(stripAnsi(message) + '\n');
     }
 
     this._log(message);
