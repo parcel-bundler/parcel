@@ -70,7 +70,7 @@ class Bundler extends EventEmitter {
     if (this.options.logLevel > 4) {
       logger.verbose(`Bundler options:`);
       Object.keys(this.options).forEach(key => {
-        logger.verbose(`  ${key}: ${this.options[key]}`);
+        logger.verbose(`  ${key}: ${JSON.stringify(this.options[key])}`);
       });
     }
   }
@@ -241,6 +241,8 @@ class Bundler extends EventEmitter {
         }
       }
 
+      logger.verbose('[Bundler] Build the queued assets...');
+
       // Build the queued assets.
       let loadedAssets = await this.buildQueue.run();
 
@@ -248,10 +250,16 @@ class Bundler extends EventEmitter {
       // plus the ones that were in the build queue.
       let changedAssets = [...this.findOrphanAssets(), ...loadedAssets];
 
+      logger.verbose('[Bundler] Invalidating bundles...');
+
       // Invalidate bundles
       for (let asset of this.loadedAssets.values()) {
         asset.invalidateBundle();
       }
+
+      logger.verbose('[Bundler] bundles invalidated...');
+
+      logger.verbose('[Bundler] Create root bundle...');
 
       // Create a root bundle to hold all of the entry assets, and add them to the tree.
       this.mainBundle = new Bundle();
@@ -259,30 +267,42 @@ class Bundler extends EventEmitter {
         this.createBundleTree(asset, this.mainBundle);
       }
 
+      logger.verbose('[Bundler] Root bundle created.');
+
       // If there is only one child bundle, replace the root with that bundle.
       if (this.mainBundle.childBundles.size === 1) {
         this.mainBundle = Array.from(this.mainBundle.childBundles)[0];
       }
+
+      logger.verbose('[Bundler] Generating bundle hash...');
 
       // Generate the final bundle names, and replace references in the built assets.
       this.bundleNameMap = this.mainBundle.getBundleNameMap(
         this.options.contentHash
       );
 
+      logger.verbose('[Bundler] Updating bundle name references...');
+
       for (let asset of changedAssets) {
         asset.replaceBundleNames(this.bundleNameMap);
       }
+
+      logger.verbose('[Bundler] Emit hmr update...');
 
       // Emit an HMR update if this is not the initial bundle.
       if (this.hmr && !isInitialBundle) {
         this.hmr.emitUpdate(changedAssets);
       }
 
+      logger.verbose('[Bundler] Package everything up...');
+
       // Package everything up
       this.bundleHashes = await this.mainBundle.package(
         this,
         this.bundleHashes
       );
+
+      logger.verbose('[Bundler] Unload any orphaned assets...');
 
       // Unload any orphaned assets
       this.unloadOrphanedAssets();
@@ -485,6 +505,8 @@ class Bundler extends EventEmitter {
   }
 
   async processAsset(asset, isRebuild) {
+    logger.verbose(`${asset.relativeName} - Start processing`);
+
     if (isRebuild) {
       asset.invalidate();
       if (this.cache) {
@@ -493,6 +515,8 @@ class Bundler extends EventEmitter {
     }
 
     await this.loadAsset(asset);
+
+    logger.verbose(`${asset.relativeName} - Done processing`);
   }
 
   async loadAsset(asset) {
@@ -500,9 +524,11 @@ class Bundler extends EventEmitter {
       return;
     }
 
+    logger.verbose(`${asset.relativeName} - Load asset`);
+
     if (!this.errored) {
       logger.status(emoji.progress, `Building ${asset.basename}...`);
-      logger.verbose(`Queuing ${asset.basename}...`);
+      logger.verbose(`${asset.relativeName} - Queuing`);
     }
 
     // Mark the asset processed so we don't load it twice
@@ -514,19 +540,19 @@ class Bundler extends EventEmitter {
     let cacheMiss = false;
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
       logger.verbose(
-        `${!processed ? 'Cache miss,' : 'Invalidated,'} ${asset.basename}...`
+        `${asset.relativeName} - ${!processed ? 'Cache miss' : 'Invalidated'}`
       );
       processed = await this.farm.run(asset.name);
       cacheMiss = true;
     } else {
-      logger.verbose(`Copied ${asset.basename} from cache...`);
+      logger.verbose(`${asset.relativeName} - Copied from cache`);
     }
 
     asset.buildTime = Date.now() - startTime;
     asset.generated = processed.generated;
     asset.hash = processed.hash;
 
-    logger.verbose(`Finished building ${asset.basename}...`);
+    logger.verbose(`${asset.relativeName} - Finished building`);
 
     // Call the delegate to get implicit dependencies
     let dependencies = processed.dependencies;
@@ -540,6 +566,12 @@ class Bundler extends EventEmitter {
     // Resolve and load asset dependencies
     let assetDeps = await Promise.all(
       dependencies.map(async dep => {
+        logger.verbose(
+          `${asset.relativeName} - Getting dependency: ${Path.relative(
+            this.options.rootDir,
+            dep.name
+          )}`
+        );
         if (dep.includedInParent) {
           // This dependency is already included in the parent's generated output,
           // so no need to load it. We map the name back to the parent asset so
@@ -549,10 +581,18 @@ class Bundler extends EventEmitter {
           let assetDep = await this.resolveDep(asset, dep);
           if (assetDep) {
             logger.verbose(
-              `Load dependency ${assetDep.basename} of ${asset.basename}...`
+              `${asset.relativeName} - Load dependency: ${
+                assetDep.relativeName
+              }`
             );
             await this.loadAsset(assetDep);
           }
+
+          logger.verbose(
+            `${asset.relativeName} - Done loading dependency: ${
+              assetDep.relativeName
+            }`
+          );
 
           return assetDep;
         }
@@ -569,9 +609,15 @@ class Bundler extends EventEmitter {
       }
     });
 
+    logger.verbose(`${asset.relativeName} - Dependencies loaded`);
+
     if (this.cache && cacheMiss) {
       this.cache.write(asset.name, processed);
+
+      logger.verbose(`${asset.relativeName} - Cache written`);
     }
+
+    logger.verbose(`${asset.relativeName} - Done loading asset`);
   }
 
   createBundleTree(asset, bundle, dep, parentBundles = new Set()) {

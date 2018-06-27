@@ -189,6 +189,8 @@ class Asset {
       this.hash = await this.generateHash();
     }
 
+    logger.verbose(`${this.basename} processed`);
+
     return this.generated;
   }
 
