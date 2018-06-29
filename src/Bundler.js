@@ -376,13 +376,17 @@ class Bundler extends EventEmitter {
   }
 
   async resolveAsset(name, parent) {
-    let {path} = await this.resolver.resolve(name, parent);
-    return this.getLoadedAsset(path);
+    let {path, realpath} = await this.resolver.resolve(name, parent);
+    return this.getLoadedAsset(path, realpath);
   }
 
-  getLoadedAsset(path) {
+  getLoadedAsset(path, realpath) {
     if (this.loadedAssets.has(path)) {
       return this.loadedAssets.get(path);
+    }
+
+    if (this.loadedAssets.has(realpath)) {
+      return this.loadedAssets.get(realpath);
     }
 
     let asset = this.parser.getAsset(path, this.options);
