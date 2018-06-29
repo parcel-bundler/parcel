@@ -62,9 +62,9 @@
     "serve-static": "^1.12.4",
     "source-map": "0.6.1",
     "strip-ansi": "^4.0.0",
+    "terser": "^3.7.3",
     "toml": "^2.3.3",
     "tomlify-j0.4": "^3.0.0",
-    "terser": "^3.7.3",
     "v8-compile-cache": "^2.0.0",
     "ws": "^5.1.1"
   },
@@ -99,7 +99,7 @@
     "sinon": "^5.0.1",
     "sourcemap-validator": "^1.0.6",
     "stylus": "^0.54.5",
-    "typescript": "^2.7.0",
+    "typescript": "^2.9.0",
     "vue": "^2.5.16",
     "vue-template-compiler": "^2.5.16"
   },
