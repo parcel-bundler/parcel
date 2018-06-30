@@ -407,11 +407,10 @@ class Bundler extends EventEmitter {
   }
 
   async unwatch(path, asset) {
+    path = await fs.realpath(path);
     if (!this.watchedAssets.has(path)) {
       return;
     }
-
-    path = await fs.realpath(path);
 
     let watched = this.watchedAssets.get(path);
     watched.delete(asset);
