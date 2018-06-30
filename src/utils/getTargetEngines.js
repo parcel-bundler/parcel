@@ -4,7 +4,7 @@ const Path = require('path');
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
-  node: '6'
+  node: '8'
 };
 
 /**
