@@ -766,5 +766,17 @@ describe('scope hoisting', function() {
       assert(contents.includes('foo'));
       assert(!contents.includes('bar'));
     });
+
+    it('supports removing an unused inline export with uglify minification', async function() {
+      // Uglify does strange things to multiple assignments in a line.
+      // See https://github.com/parcel-bundler/parcel/issues/1549
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/export-local/a.js',
+        {minify: true}
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 3);
+    });
   });
 });

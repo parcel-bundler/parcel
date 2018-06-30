@@ -5,6 +5,30 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.9.3] - 2018-06-24
+
+### Fixed
+
+- Set user provided NODE_ENV if provided with build command [Details](https://github.com/parcel-bundler/parcel/commit/1b6a93f3efa1d8a4e9e04beda1a5545770e9fb07)
+- Fix bugs related to watching symlinks [Details](https://github.com/parcel-bundler/parcel/commit/7f4049d379f5083634ab63e59c51eebaabdc4b7a)
+- add cache-dir option to cli [Details](https://github.com/parcel-bundler/parcel/commit/12ddda778cc5283ab1409443aab42340f08b4cb7)
+- Fix tree-shaking DCE [Details](https://github.com/parcel-bundler/parcel/commit/b62132ceaf8d3c2019d7e86a9e987e13ee196c75)
+- Fix writing hashed bundle names to the cache [Details](https://github.com/parcel-bundler/parcel/commit/1bd5fcc9038e47fcc233543e32903b6e02aeb3a1)
+
+## [1.9.2] - 2018-06-18
+
+### Fixed
+
+- Fix unintended Vue asset supplemental code insertion [Details](https://github.com/parcel-bundler/parcel/commit/1701f9bbc365f1aaa945603a64c57b07d3afee5e)
+- fix 'Cannot read property 'posthtml' of null [Details](https://github.com/parcel-bundler/parcel/commit/c94624ec976d63aa5da4db78d20985ec15ec5435)
+
+## [1.9.1] - 2018-06-16
+
+### Fixed
+
+- fix relative paths being the same as node modules [Details](https://github.com/parcel-bundler/parcel/commit/f536e8bf8d8212bb314328458c8da2b4bcd8c15f)
+- Fix ES6 re-export of CommonJS modules with tree shaking [Details](https://github.com/parcel-bundler/parcel/commit/9e2f9abc2066e4c5aac05db001cf6279655bcee7)
+
 ## [1.9.0] - 2018-06-14
 
 ### Added
