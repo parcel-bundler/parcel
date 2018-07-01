@@ -35,7 +35,7 @@ async function getConfig(asset) {
     return;
   }
 
-  config = Object.assign({}, config);
+  config = config || {};
   const plugins = config.plugins;
   if (typeof plugins === 'object') {
     const depConfig = {
