@@ -5,6 +5,23 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.9.4] - 2018-07-01
+
+### Added
+
+- Upgrade Typescript to 2.9 [Details](https://github.com/parcel-bundler/parcel/commit/3a8f38cc0d8b5d71d158eeb7c7526e01be746c28)
+- Upgrade DEFAULT_ENGINES node to Node 8 [Details](https://github.com/parcel-bundler/parcel/commit/fd2294a586b24b9d9a76c86afbde3664698d86d2)
+- Add a buildError event to bundler [Details](https://github.com/parcel-bundler/parcel/commit/ead365ca4f481e9163345a849d02aff4934d448e)
+- Use process.env.PARCEL_MAX_CONCURRENT_CALLS environment variable [Details](https://github.com/parcel-bundler/parcel/commit/4808c0c03370e475a4303df5ef532f68d59a09d1)
+
+### Fixed
+
+- Fix Sass dependencies can not be watched when includePaths is a relative path [Details](https://github.com/parcel-bundler/parcel/commit/6ccaf6db73b0d800d3db7fbbab2555f5b1f8c526)
+- Replaced fwd slashes with backslashes for win to fix sass deps watch [Details](https://github.com/parcel-bundler/parcel/commit/9200e9a4d2f882a7549d21fdda8e5ce3e4af4397)
+- Fix sourcemap file size in report [Details](https://github.com/parcel-bundler/parcel/commit/729f252cf90262356b9c93b9e003b8bce2a03cd3)
+- fix build not exiting in dev env [Details](https://github.com/parcel-bundler/parcel/commit/14fabe9df341a9b6bba6349f5c1c3607ee1b570d)
+- Prevent postcss-modules plugin config from being deleted after first run [Details](https://github.com/parcel-bundler/parcel/commit/859975165e2417f036014438907bf8c241dcbeaf)
+
 ## [1.9.3] - 2018-06-24
 
 ### Fixed
