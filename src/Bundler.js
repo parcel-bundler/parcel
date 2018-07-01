@@ -301,7 +301,11 @@ class Bundler extends EventEmitter {
       return this.mainBundle;
     } catch (err) {
       this.error = err;
+
       logger.error(err);
+
+      this.emit('buildError', err);
+
       if (this.hmr) {
         this.hmr.emitError(err);
       }
