@@ -28,16 +28,7 @@ async function getConfig(asset) {
     return;
   }
 
-  config = Object.assign(
-    {},
-    config,
-    config && {
-      plugins: Array.isArray(config.plugins)
-        ? [].concat(config.plugins)
-        : Object.assign({}, config.plugins)
-    }
-  );
-
+  config = config || {};
   let postcssModulesConfig = {
     getJSON: (filename, json) => (asset.cssModules = json)
   };
