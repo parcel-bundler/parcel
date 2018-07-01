@@ -61,6 +61,8 @@ You can set `PARCEL_WORKERS` to the number of worker processes to spawn.
 
 **NOTE:** When developing plugins or new Asset types, run with `--no-cache` (or pass `cache: false` to `Bundler` options). Parcel uses caching by default, but during development you'll normally pass incomplete results into the cache. This can leave you wondering why you're constantly seeing old results.
 
+You can set `PARCEL_MAX_CONCURRENT_CALLS` to change the limit of concurrent calls per worker.
+
 ## Link to local parcel build
 
 While contributing to parcel, you may need to run a local version of parcel and set it as the global cli option in your command line, so that when you run `parcel ...`, it will find your new local variant of parcel instead of the global package installed before (if you had it installed globally before).
