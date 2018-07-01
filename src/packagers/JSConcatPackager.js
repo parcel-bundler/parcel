@@ -505,7 +505,7 @@ class JSConcatPackager extends Packager {
       output = '(function () {' + output + '})();';
     }
 
-    this.bundle.totalSize = output.length;
+    this.size = output.length;
 
     let {sourceMaps} = this.options;
     if (sourceMaps) {
