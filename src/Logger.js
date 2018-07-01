@@ -64,7 +64,7 @@ class Logger {
       return;
     }
 
-    this.write(this.chalk.bold(message), true);
+    this.write(message, true);
   }
 
   warn(err) {

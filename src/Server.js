@@ -10,6 +10,7 @@ const AnsiToHtml = require('ansi-to-html');
 const logger = require('./Logger');
 const path = require('path');
 const url = require('url');
+const ip = require('ip');
 
 const ansiToHtml = new AnsiToHtml({newline: true});
 
@@ -131,18 +132,26 @@ async function serve(bundler, port, useHTTPS = false) {
     });
 
     server.once('listening', () => {
+      const _port = server.address().port;
+      const protocol = useHTTPS ? 'https' : 'http';
+      const localAddr = `${logger.chalk.bold.cyan(
+        `${protocol}://localhost:${_port}`
+      )}`;
+      const localIpAddr = `${logger.chalk.bold.cyan(
+        `${protocol}://${ip.address()}:${_port}`
+      )}`;
+
       let addon =
         server.address().port !== port
-          ? `- ${logger.chalk.yellow(
+          ? ` - ${logger.chalk.yellow(
               `configured port ${port} could not be used.`
             )}`
           : '';
 
       logger.persistent(
-        `Server running at ${logger.chalk.cyan(
-          `${useHTTPS ? 'https' : 'http'}://localhost:${server.address().port}`
-        )} ${addon}`
+        logger.chalk.bold(`Server running at ${localAddr}${addon}`)
       );
+      logger.persistent(`On your network:  ${localIpAddr}`);
 
       resolve(server);
     });
