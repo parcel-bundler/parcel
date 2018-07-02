@@ -341,8 +341,8 @@ class Bundler extends EventEmitter {
     if (this.options.watch) {
       this.watcher = new Watcher({
         ignored: this.options.watchModules
-          ? /\.cache|\.git|node_modules/
-          : /\.cache|\.git/
+          ? /\.cache|\.git/
+          : /\.cache|\.git|node_modules/
       });
       // Wait for ready event for reliable testing on watcher
       if (process.env.NODE_ENV === 'test' && !this.watcher.ready) {
