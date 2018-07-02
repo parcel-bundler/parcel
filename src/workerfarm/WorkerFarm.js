@@ -10,7 +10,7 @@ class WorkerFarm extends EventEmitter {
     this.options = Object.assign(
       {
         maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
-        maxConcurrentCallsPerWorker: 10,
+        maxConcurrentCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(),
         forcedKillTime: 100,
         warmWorkers: true,
         useLocalWorker: true,
@@ -275,6 +275,10 @@ class WorkerFarm extends EventEmitter {
       cores = os.cpus().length;
     }
     return cores || 1;
+  }
+
+  static getConcurrentCallsPerWorker() {
+    return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS) || 10;
   }
 }
 

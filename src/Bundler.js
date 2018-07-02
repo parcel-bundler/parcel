@@ -56,6 +56,7 @@ class Bundler extends EventEmitter {
     this.pending = false;
     this.loadedAssets = new Map();
     this.watchedAssets = new Map();
+
     this.farm = null;
     this.watcher = null;
     this.hmr = null;
@@ -302,7 +303,11 @@ class Bundler extends EventEmitter {
       return this.mainBundle;
     } catch (err) {
       this.error = err;
+
       logger.error(err);
+
+      this.emit('buildError', err);
+
       if (this.hmr) {
         this.hmr.emitError(err);
       }
@@ -397,20 +402,22 @@ class Bundler extends EventEmitter {
     return asset;
   }
 
-  watch(path, asset) {
+  async watch(path, asset) {
     if (!this.watcher) {
       return;
     }
+
+    path = await fs.realpath(path);
 
     if (!this.watchedAssets.has(path)) {
       this.watcher.watch(path);
       this.watchedAssets.set(path, new Set());
     }
-
     this.watchedAssets.get(path).add(asset);
   }
 
-  unwatch(path, asset) {
+  async unwatch(path, asset) {
+    path = await fs.realpath(path);
     if (!this.watchedAssets.has(path)) {
       return;
     }

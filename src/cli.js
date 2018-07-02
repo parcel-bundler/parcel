@@ -58,6 +58,7 @@ program
     /^([0-3])$/
   )
   .option('--watch-modules', 'watch node_modules for changes')
+  .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
   .action(bundle);
 
 program
@@ -103,6 +104,7 @@ program
     /^([0-3])$/
   )
   .option('--watch-modules', 'watch node_modules for changes')
+  .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
   .action(bundle);
 
 program
@@ -142,6 +144,7 @@ program
     'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
     /^([0-3])$/
   )
+  .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
   .action(bundle);
 
 program
@@ -176,7 +179,8 @@ async function bundle(main, command) {
   const Bundler = require('../');
 
   if (command.name() === 'build') {
-    process.env.NODE_ENV = 'production';
+    command.production = true;
+    process.env.NODE_ENV = process.env.NODE_ENV || 'production';
   } else {
     process.env.NODE_ENV = process.env.NODE_ENV || 'development';
   }

@@ -196,6 +196,8 @@ class Bundle {
 
     await packager.end();
 
+    this.totalSize = packager.getSize();
+
     let assetArray = Array.from(this.assets);
     let assetStartTime =
       this.type === 'map'
