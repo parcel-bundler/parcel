@@ -57,6 +57,7 @@ program
     'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
     /^([0-3])$/
   )
+  .option('--watch-modules', 'watch node_modules for changes')
   .action(bundle);
 
 program
@@ -101,6 +102,7 @@ program
     'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
     /^([0-3])$/
   )
+  .option('--watch-modules', 'watch node_modules for changes')
   .action(bundle);
 
 program

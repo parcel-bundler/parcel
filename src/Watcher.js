@@ -6,7 +6,7 @@ const Path = require('path');
  * This prevents us from hitting EMFILE errors when running out of file descriptors.
  */
 class Watcher {
-  constructor() {
+  constructor({ignored}) {
     // FS events on macOS are flakey in the tests, which write lots of files very quickly
     // See https://github.com/paulmillr/chokidar/issues/612
     this.shouldWatchDirs = process.env.NODE_ENV !== 'test';
@@ -14,7 +14,7 @@ class Watcher {
       useFsEvents: this.shouldWatchDirs,
       ignoreInitial: true,
       ignorePermissionErrors: true,
-      ignored: /\.cache|\.git|node_modules/
+      ignored
     });
 
     this.watchedDirectories = new Map();

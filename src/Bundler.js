@@ -134,7 +134,9 @@ class Bundler extends EventEmitter {
       contentHash:
         typeof options.contentHash === 'boolean'
           ? options.contentHash
-          : isProduction
+          : isProduction,
+      watchModules:
+        typeof options.watchModules === 'boolean' ? options.watchModules : false
     };
   }
 
@@ -337,7 +339,11 @@ class Bundler extends EventEmitter {
     this.options.bundleLoaders = this.bundleLoaders;
 
     if (this.options.watch) {
-      this.watcher = new Watcher();
+      this.watcher = new Watcher({
+        ignored: this.options.watchModules
+          ? /\.cache|\.git|node_modules/
+          : /\.cache|\.git/
+      });
       // Wait for ready event for reliable testing on watcher
       if (process.env.NODE_ENV === 'test' && !this.watcher.ready) {
         await new Promise(resolve => this.watcher.once('ready', resolve));
