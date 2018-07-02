@@ -968,4 +968,55 @@ describe('javascript', function() {
     await run(b, {define: mockDefine, module: undefined});
     assert.equal(test, 2);
   });
+
+  it('should not dedupe imports with different contents', async function() {
+    let b = await bundle(
+      __dirname + `/integration/js-different-contents/index.js`,
+      {
+        hmr: false // enable asset dedupe in JSPackager
+      }
+    );
+
+    let module = await run(b);
+    assert.equal(module.default, 'Hello World!');
+  });
+
+  it('should not dedupe imports with same content but different absolute dependency paths', async function() {
+    let b = await bundle(
+      __dirname +
+        `/integration/js-same-contents-different-dependencies/index.js`,
+      {
+        hmr: false // enable asset dedupe in JSPackager
+      }
+    );
+
+    let module = await run(b);
+    assert.equal(module.default, 'Hello World!');
+  });
+
+  it('should dedupe imports with same content and same dependency paths', async function() {
+    let b = await bundle(
+      __dirname + `/integration/js-same-contents-same-dependencies/index.js`,
+      {
+        hmr: false // enable asset dedupe in JSPackager
+      }
+    );
+    const {rootDir} = b.entryAsset.options;
+    const dedupedAssets = Array.from(b.offsets.keys()).map(asset => asset.name);
+    assert.equal(dedupedAssets.length, 2);
+    assert(dedupedAssets.includes(path.join(rootDir, 'index.js')));
+    assert(
+      dedupedAssets.includes(path.join(rootDir, 'hello1.js')) ||
+        dedupedAssets.includes(path.join(rootDir, 'hello2.js'))
+    );
+    assert(
+      !(
+        dedupedAssets.includes(path.join(rootDir, 'hello1.js')) &&
+        dedupedAssets.includes(path.join(rootDir, 'hello2.js'))
+      )
+    );
+
+    let module = await run(b);
+    assert.equal(module.default, 'Hello Hello!');
+  });
 });
