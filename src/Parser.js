@@ -1,7 +1,7 @@
 const path = require('path');
 const RawAsset = require('./assets/RawAsset');
 const GlobAsset = require('./assets/GlobAsset');
-const {isGlob} = require('./utils/glob');
+const isGlob = require('is-glob');
 
 class Parser {
   constructor(options = {}) {

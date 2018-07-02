@@ -1,6 +1,6 @@
 const builtins = require('./builtins');
 const path = require('path');
-const {isGlob} = require('./utils/glob');
+const isGlob = require('is-glob');
 const fs = require('./utils/fs');
 const micromatch = require('micromatch');
 

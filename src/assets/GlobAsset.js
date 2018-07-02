@@ -1,5 +1,5 @@
 const Asset = require('../Asset');
-const {glob} = require('../utils/glob');
+const glob = require('fast-glob');
 const micromatch = require('micromatch');
 const path = require('path');
 
