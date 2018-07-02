@@ -977,7 +977,7 @@ describe('javascript', function() {
       }
     );
 
-    let module = run(b);
+    let module = await run(b);
     assert.equal(module.default, 'Hello World!');
   });
 
@@ -990,7 +990,7 @@ describe('javascript', function() {
       }
     );
 
-    let module = run(b);
+    let module = await run(b);
     assert.equal(module.default, 'Hello World!');
   });
 
@@ -1016,7 +1016,7 @@ describe('javascript', function() {
       )
     );
 
-    let module = run(b);
+    let module = await run(b);
     assert.equal(module.default, 'Hello Hello!');
   });
 });

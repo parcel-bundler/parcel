@@ -3,6 +3,7 @@ const path = require('path');
 const Packager = require('./Packager');
 const urlJoin = require('../utils/urlJoin');
 const lineCounter = require('../utils/lineCounter');
+const objectHash = require('../utils/objectHash');
 
 const prelude = {
   source: fs
@@ -35,13 +36,14 @@ class JSPackager extends Packager {
   }
 
   async addAsset(asset) {
-    if (this.dedupe.has(this.dedupeKey(asset))) {
+    let key = this.dedupeKey(asset);
+    if (this.dedupe.has(key)) {
       return;
     }
 
     // Don't dedupe when HMR is turned on since it messes with the asset ids
     if (!this.options.hmr) {
-      this.dedupe.set(this.dedupeKey(asset), asset.id);
+      this.dedupe.set(key, asset.id);
     }
 
     let deps = {};
@@ -97,11 +99,8 @@ class JSPackager extends Packager {
     // cannot rely *only* on generated JS for deduplication because paths like
     // `../` can cause 2 identical JS files to behave differently depending on
     // where they are located on the filesystem
-    let deps = Array.from(asset.depAssets.keys(), dep =>
-      this.bundler.resolver.resolveFilename(dep.name, asset.name)
-    );
-    deps.sort();
-    return JSON.stringify([asset.generated.js, deps]);
+    let deps = Array.from(asset.depAssets.values(), dep => dep.name).sort();
+    return objectHash([asset.generated.js, deps]);
   }
 
   async writeModule(id, code, deps = {}, map) {
