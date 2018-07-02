@@ -20,7 +20,7 @@ const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');
-const glob = require('glob');
+const glob = require('fast-glob');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -81,7 +81,7 @@ class Bundler extends EventEmitter {
 
     // Match files as globs
     return entryFiles
-      .reduce((p, m) => p.concat(glob.sync(m, {nonull: true})), [])
+      .reduce((p, m) => p.concat(glob.sync(m)), [])
       .map(f => Path.resolve(f));
   }
 

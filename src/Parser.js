@@ -1,7 +1,7 @@
 const path = require('path');
 const RawAsset = require('./assets/RawAsset');
 const GlobAsset = require('./assets/GlobAsset');
-const glob = require('glob');
+const isGlob = require('is-glob');
 
 class Parser {
   constructor(options = {}) {
@@ -62,7 +62,7 @@ class Parser {
   }
 
   findParser(filename, fromPipeline) {
-    if (!fromPipeline && /[*+{}]/.test(filename) && glob.hasMagic(filename)) {
+    if (!fromPipeline && isGlob(filename)) {
       return GlobAsset;
     }
 
