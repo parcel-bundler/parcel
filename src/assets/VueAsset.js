@@ -85,7 +85,9 @@ class VueAsset extends Asset {
         }
       }
     } else {
-      supplemental += `var ${optsVar} = exports.default || module.exports;`;
+      supplemental += `
+        var ${optsVar} = exports.default || module.exports;
+      `;
     }
 
     supplemental += `
