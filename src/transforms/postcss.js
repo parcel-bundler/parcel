@@ -51,7 +51,7 @@ async function getConfig(asset) {
   if (asset.options.minify) {
     let [cssnano, {version}] = await Promise.all(
       ['cssnano', 'cssnano/package.json'].map(name =>
-        localRequire(name, asset.name)
+        localRequire(name, asset.name).catch(() => require(name))
       )
     );
     config.plugins.push(
