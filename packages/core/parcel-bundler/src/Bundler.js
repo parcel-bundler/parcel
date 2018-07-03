@@ -585,7 +585,7 @@ class Bundler extends EventEmitter {
       asset.parentDeps.add(dep);
     }
 
-    if (asset.parentBundle) {
+    if (asset.parentBundle && !bundle.isolated) {
       // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
       if (asset.parentBundle !== bundle) {
         let commonBundle = bundle.findCommonAncestor(asset.parentBundle);
@@ -616,7 +616,7 @@ class Bundler extends EventEmitter {
       }
 
       // Create a new bundle for dynamic imports
-      bundle = bundle.createChildBundle(asset);
+      bundle = bundle.createChildBundle(asset, dep);
     } else if (asset.type && !this.packagers.has(asset.type)) {
       // If the asset is already the entry asset of a bundle, don't create a duplicate.
       if (isEntryAsset) {
@@ -665,7 +665,9 @@ class Bundler extends EventEmitter {
     }
 
     for (let bundle of Array.from(asset.bundles)) {
-      bundle.removeAsset(asset);
+      if (!bundle.isolated) {
+        bundle.removeAsset(asset);
+      }
       commonBundle.getSiblingBundle(bundle.type).addAsset(asset);
     }
 

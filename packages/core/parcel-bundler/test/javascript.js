@@ -158,7 +158,7 @@ describe('javascript', function() {
 
     await assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js'],
+      assets: ['index.js', 'common.js', 'worker-client.js', 'feature.js'],
       childBundles: [
         {
           type: 'map'
@@ -172,7 +172,44 @@ describe('javascript', function() {
           ]
         },
         {
-          assets: ['worker.js'],
+          assets: ['worker.js', 'common.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        }
+      ]
+    });
+  });
+
+  it('should support bundling workers with different order', async function() {
+    let b = await bundle(
+      __dirname + '/integration/workers/index-alternative.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'index-alternative.js',
+      assets: [
+        'index-alternative.js',
+        'common.js',
+        'worker-client.js',
+        'feature.js'
+      ],
+      childBundles: [
+        {
+          type: 'map'
+        },
+        {
+          assets: ['service-worker.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          assets: ['worker.js', 'common.js'],
           childBundles: [
             {
               type: 'map'

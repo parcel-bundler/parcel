@@ -8,7 +8,7 @@ const crypto = require('crypto');
  * the bundle, e.g. importing a CSS file from JS.
  */
 class Bundle {
-  constructor(type, name, parent) {
+  constructor(type, name, parent, options = {}) {
     this.type = type;
     this.name = name;
     this.parentBundle = parent;
@@ -20,13 +20,15 @@ class Bundle {
     this.offsets = new Map();
     this.totalSize = 0;
     this.bundleTime = 0;
+    this.isolated = options.isolated;
   }
 
-  static createWithAsset(asset, parentBundle) {
+  static createWithAsset(asset, parentBundle, options) {
     let bundle = new Bundle(
       asset.type,
       Path.join(asset.options.outDir, asset.generateBundleName()),
-      parentBundle
+      parentBundle,
+      options
     );
 
     bundle.entryAsset = asset;
@@ -75,14 +77,14 @@ class Bundle {
     return this.siblingBundlesMap.get(type);
   }
 
-  createChildBundle(entryAsset) {
-    let bundle = Bundle.createWithAsset(entryAsset, this);
+  createChildBundle(entryAsset, options = {}) {
+    let bundle = Bundle.createWithAsset(entryAsset, this, options);
     this.childBundles.add(bundle);
     return bundle;
   }
 
-  createSiblingBundle(entryAsset) {
-    let bundle = this.createChildBundle(entryAsset);
+  createSiblingBundle(entryAsset, options = {}) {
+    let bundle = this.createChildBundle(entryAsset, options);
     this.siblingBundles.add(bundle);
     return bundle;
   }
