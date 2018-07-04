@@ -17,7 +17,9 @@ const ATTRS = {
     'source',
     'track',
     'iframe',
-    'embed'
+    'embed',
+    'amp-img',
+    'amp-anim'
   ],
   href: ['link', 'a', 'use'],
   srcset: ['img', 'source'],
