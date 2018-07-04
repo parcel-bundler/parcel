@@ -33,7 +33,7 @@
     "command-exists": "^1.2.6",
     "commander": "^2.11.0",
     "cross-spawn": "^6.0.4",
-    "cssnano": "^3.10.0",
+    "cssnano": "^4.0.0",
     "deasync": "^0.1.13",
     "dotenv": "^5.0.0",
     "fast-glob": "^2.2.2",
