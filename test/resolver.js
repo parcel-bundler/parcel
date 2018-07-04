@@ -403,6 +403,24 @@ describe('resolver', function() {
       assert.equal(resolved.pkg.name, 'resolver');
     });
 
+    it('should apply an alias for a virtual module folder sub-path', async function() {
+      let resolved = await resolver.resolve(
+        'foo/bar',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(resolved.path, path.join(rootDir, 'bar.js'));
+      assert.equal(resolved.pkg.name, 'resolver');
+    });
+
+    it('should apply an alias for a virtual module folder glob sub-path', async function() {
+      let resolved = await resolver.resolve(
+        'glob/bar/test',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(resolved.path, path.join(rootDir, 'nested', 'test.js'));
+      assert.equal(resolved.pkg.name, 'resolver');
+    });
+
     it('should apply an alias for a virtual module', async function() {
       let resolved = await resolver.resolve(
         'something',
