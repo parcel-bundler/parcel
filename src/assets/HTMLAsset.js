@@ -1,5 +1,7 @@
 const Asset = require('../Asset');
 const api = require('posthtml/lib/api');
+const postcss = require('postcss');
+const valueParser = require('postcss-value-parser');
 const urlJoin = require('../utils/urlJoin');
 const render = require('posthtml-render');
 const posthtmlTransform = require('../transforms/posthtml');
@@ -60,6 +62,7 @@ const META = {
     'downloadUrl'
   ]
 };
+const URL_RE = /url\s*\("?(?![a-z]+:)/;
 
 // Options to be passed to `addURLDependency` for certain tags + attributes
 const OPTIONS = {
@@ -104,9 +107,49 @@ class HTMLAsset extends Asset {
     return newSources.join(',');
   }
 
+  collectInlineStyleDependencies(inlineStyle) {
+    const ast = postcss.parse(inlineStyle);
+    let isAstDirty = false;
+
+    ast.walkDecls(decl => {
+      if (URL_RE.test(decl.value)) {
+        let parsed = valueParser(decl.value);
+        let dirty = false;
+
+        parsed.walk(node => {
+          if (
+            node.type === 'function' &&
+            node.value === 'url' &&
+            node.nodes.length
+          ) {
+            let url = this.processSingleDependency(node.nodes[0].value);
+            dirty = node.nodes[0].value !== url;
+            node.nodes[0].value = url;
+          }
+        });
+
+        if (dirty) {
+          isAstDirty = true;
+          decl.value = parsed.toString();
+        }
+      }
+    });
+
+    if (isAstDirty) {
+      let css = '';
+      postcss.stringify(ast, c => (css += c));
+      return css;
+    } else {
+      return null;
+    }
+  }
+
   getAttrDepHandler(attr) {
     if (attr === 'srcset') {
       return this.collectSrcSetDependencies;
+    }
+    if (attr === 'style') {
+      return this.collectInlineStyleDependencies;
     }
     return this.processSingleDependency;
   }
@@ -141,6 +184,16 @@ class HTMLAsset extends Asset {
               options && options[attr]
             );
             this.isAstDirty = true;
+          }
+
+          // since every element might produce style dependecies
+          if (attr === 'style' && URL_RE.test(node.attrs[attr])) {
+            let depHandler = this.getAttrDepHandler(attr);
+            let dirtyInlineStyle = depHandler.call(this, node.attrs[attr]);
+            if (dirtyInlineStyle) {
+              node.attrs[attr] = dirtyInlineStyle;
+              this.isAstDirty = true;
+            }
           }
         }
       }
