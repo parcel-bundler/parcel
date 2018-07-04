@@ -273,9 +273,9 @@ class Resolver {
     }
 
     // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
-    // we use the "module" or "browser" field to get the full dependency tree if available.
+    // we use the "browser" or "module" field to get the full dependency tree if available.
     // If this is a linked module with a `source` field, use that as the entry point.
-    let main = [pkg.source, pkg.module, browser, pkg.main].find(
+    let main = [pkg.source, browser, pkg.module, pkg.main].find(
       entry => typeof entry === 'string'
     );
 
