@@ -648,7 +648,9 @@ class Bundler extends EventEmitter {
     parentBundles.add(bundle);
 
     for (let [dep, assetDep] of asset.depAssets) {
-      this.createBundleTree(assetDep, bundle, dep, parentBundles);
+      if (asset.name !== assetDep.name) {
+        this.createBundleTree(assetDep, bundle, dep, parentBundles);
+      }
     }
 
     parentBundles.delete(bundle);
