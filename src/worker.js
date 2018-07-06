@@ -17,8 +17,12 @@ function init(options) {
   Object.assign(process.env, options.env || {}, {
     PARCEL_WORKER_TYPE: child ? 'remote-worker' : 'local-worker'
   });
-  process.env.HMR_PORT = options.hmrPort;
-  process.env.HMR_HOSTNAME = options.hmrHostname;
+  if (options.hmrPort) {
+    process.env.HMR_PORT = options.hmrPort;
+  }
+  if (options.hmrHostname) {
+    process.env.HMR_HOSTNAME = options.hmrHostname;
+  }
 }
 
 async function run(path, id, isWarmUp) {
