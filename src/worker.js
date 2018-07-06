@@ -10,7 +10,10 @@ function setChildReference(childReference) {
 }
 
 function init(options) {
-  pipeline = new Pipeline(options || {});
+  if (!options) {
+    options = {};
+  }
+  pipeline = new Pipeline(options);
   Object.assign(process.env, options.env || {}, {
     PARCEL_WORKER_TYPE: child ? 'remote-worker' : 'local-worker'
   });
