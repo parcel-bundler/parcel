@@ -11,7 +11,7 @@ const fs = require('./fs');
 async function install(modules, filepath, options = {}) {
   let {installPeers = true, saveDev = true, packageManager} = options;
 
-  logger.status('spinner', `Installing ${modules.join(', ')}...`);
+  logger.progress(`Installing ${modules.join(', ')}...`);
 
   let packageLocation = await config.resolve(filepath, ['package.json']);
   let cwd = packageLocation ? path.dirname(packageLocation) : process.cwd();

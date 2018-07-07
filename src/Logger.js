@@ -42,6 +42,8 @@ class Logger {
   }
 
   writeRaw(message) {
+    this.stopSpinner();
+
     this.lines += this.countLines(message) - 1;
     process.stdout.write(message);
   }
@@ -51,10 +53,7 @@ class Logger {
       this.lines += this.countLines(message);
     }
 
-    if (this.spinner) {
-      this.spinner.clear();
-    }
-
+    this.stopSpinner();
     this._log(message);
   }
 
@@ -79,11 +78,7 @@ class Logger {
       return;
     }
 
-    let {message, stack} = prettyError(err, {color: this.color});
-    this.write(this.chalk.yellow(`${emoji.warning}  ${message}`));
-    if (stack) {
-      this.write(stack);
-    }
+    this._writeError(err, emoji.warning, this.chalk.yellow);
   }
 
   error(err) {
@@ -91,10 +86,16 @@ class Logger {
       return;
     }
 
-    let {message, stack} = prettyError(err, {color: this.color});
+    this._writeError(err, emoji.error, this.chalk.red.bold);
+  }
 
-    this.status(emoji.error, 'An error occured.', 'red');
-    this.write(this.chalk['red'].bold(message));
+  success(message) {
+    this.log(`${emoji.success}  ${this.chalk.green.bold(message)}`);
+  }
+
+  _writeError(err, emoji, color) {
+    let {message, stack} = prettyError(err, {color: this.color});
+    this.write(color(`${emoji}  ${message}`));
     if (stack) {
       this.write(stack);
     }
@@ -112,35 +113,30 @@ class Logger {
     }
 
     readline.cursorTo(process.stdout, 0);
-    if (this.spinner) {
-      this.spinner.clear();
-    }
+    this.stopSpinner();
   }
 
-  status(emoji, message, color = 'gray') {
+  progress(message) {
     if (this.logLevel < 3) {
       return;
     }
 
-    if (!this.color) {
-      return this.log(`${emoji} ${message}`);
-    }
-
-    let styledMessage = this.chalk[color].bold(message);
-
+    let styledMessage = this.chalk.gray.bold(message);
     if (!this.spinner) {
-      this.spinner = ora(styledMessage).start();
-    }
-
-    if (emoji !== 'spinner') {
-      this.spinner.stopAndPersist({
-        symbol: emoji,
-        text: styledMessage
-      });
-      this.spinner = null;
-      this.lines++;
+      this.spinner = ora({
+        text: styledMessage,
+        stream: process.stdout,
+        enabled: !this.isTest
+      }).start();
     } else {
       this.spinner.text = styledMessage;
+    }
+  }
+
+  stopSpinner() {
+    if (this.spinner) {
+      this.spinner.stop();
+      this.spinner = null;
     }
   }
 
@@ -203,7 +199,7 @@ if (process.send && process.env.PARCEL_WORKER_TYPE === 'remote-worker') {
     LoggerProxy.prototype[method] = (...args) => {
       worker.addCall(
         {
-          location: require.resolve('./Logger'),
+          location: __filename,
           method,
           args
         },

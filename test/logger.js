@@ -46,7 +46,7 @@ describe('Logger', () => {
 
     l.log('message');
     l.persistent('message');
-    l.status('🚨', 'message');
+    l.progress('message');
     l.logLevel = 1;
     l.warn('message');
     l.logLevel = 0;
@@ -65,8 +65,8 @@ describe('Logger', () => {
     l.logLevel = 3;
     l.log('message');
     l.persistent('message');
-    l.status('🚨', 'message');
-    assert.equal(log.length, 6);
+    l.progress('message');
+    assert.equal(log.length, 5);
   });
 
   it('should handle lack of color support with alternatives', () => {
@@ -75,34 +75,32 @@ describe('Logger', () => {
 
     // clear is a no-op
     l.lines = 4;
-    l.statusLine = 'hello';
     l.clear();
     assert.equal(l.lines, 4);
-    assert.equal(l.statusLine, 'hello');
-
-    // write-line calls log
-    const spy = sinon.spy(l, 'log');
-    l.status('spinner', 'hello', 'red');
-    assert(spy.called);
   });
 
   it('should reset on clear', () => {
     const l = new Logger.constructor({color: true, isTest: false});
     stub(l);
 
+    // stub readline so we don't actually clear the test output
+    const sandbox = sinon.createSandbox();
+    sandbox.stub(require('readline'));
+
     l.lines = 10;
     l.clear();
 
     assert.equal(l.lines, 0);
+    sandbox.restore();
   });
 
-  it('should log emoji and message via status', () => {
+  it('should use ora for progress', () => {
     const l = new Logger.constructor({color: false});
-    stub(l);
-    l.status('🚨', 'hello');
 
-    assert(log[0].includes('🚨'));
-    assert(log[0].includes('hello'));
+    l.progress('message');
+
+    assert(l.spinner);
+    assert(l.spinner.text.includes('message'));
   });
 
   it('should use internal _log function for writes', () => {
