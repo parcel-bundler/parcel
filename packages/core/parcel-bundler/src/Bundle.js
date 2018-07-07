@@ -142,7 +142,7 @@ class Bundle {
           Path.dirname(entryAsset.name)
         ),
         name + ext
-      );
+      ).replace(/\.\.(\/|\\)/g, '__$1');
     }
 
     // If this is an index file, use the parent directory name instead

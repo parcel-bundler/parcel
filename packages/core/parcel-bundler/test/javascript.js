@@ -220,6 +220,36 @@ describe('javascript', function() {
     });
   });
 
+  it('should support bundling service-workers', async function() {
+    let b = await bundle(__dirname + '/integration/service-worker/a/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.js'],
+      childBundles: [
+        {
+          type: 'map'
+        },
+        {
+          assets: ['worker-nested.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          assets: ['worker-outside.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        }
+      ]
+    });
+  });
+
   it('should dynamic import files which import raw files', async function() {
     let b = await bundle(
       __dirname + '/integration/dynamic-references-raw/index.js'
