@@ -5777,6 +5777,13 @@ postcss@^6.0.1, postcss@^6.0.19, postcss@^6.0.20:
     source-map "^0.6.1"
     supports-color "^5.4.0"
 
+posthtml-extend@^0.2.1:
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/posthtml-extend/-/posthtml-extend-0.2.1.tgz#d023ce7ce4dd6071071b50e315dfefa87da8a979"
+  dependencies:
+    posthtml "^0.11.3"
+    posthtml-parser "^0.3.0"
+
 posthtml-include@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/posthtml-include/-/posthtml-include-1.1.0.tgz#6a11efff05dfba4e9f29788dea1d17248f04f1e1"
@@ -5789,7 +5796,7 @@ posthtml-parser@^0.1.1:
   dependencies:
     htmlparser2 "^3.8.3"
 
-posthtml-parser@^0.3.3:
+posthtml-parser@^0.3.0, posthtml-parser@^0.3.3:
   version "0.3.3"
   resolved "https://registry.yarnpkg.com/posthtml-parser/-/posthtml-parser-0.3.3.tgz#3fe986fca9f00c0f109d731ba590b192f26e776d"
   dependencies:
