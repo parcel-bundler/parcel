@@ -20,6 +20,7 @@ const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');
+const trueCasePath = require('./utils/trueCasePath');
 const glob = require('fast-glob');
 
 /**
@@ -402,6 +403,7 @@ class Bundler extends EventEmitter {
     }
 
     path = await fs.realpath(path);
+    path = await trueCasePath(path);
 
     if (!this.watchedAssets.has(path)) {
       this.watcher.watch(path);
