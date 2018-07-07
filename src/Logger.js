@@ -4,11 +4,12 @@ const prettyError = require('./utils/prettyError');
 const emoji = require('./utils/emoji');
 const {countBreaks} = require('grapheme-breaker');
 const stripAnsi = require('strip-ansi');
+const ora = require('ora');
 
 class Logger {
   constructor(options) {
     this.lines = 0;
-    this.statusLine = null;
+    this.spinner = null;
     this.setOptions(options);
   }
 
@@ -29,16 +30,20 @@ class Logger {
   }
 
   countLines(message) {
-    return message.split('\n').reduce((p, line) => {
-      if (process.stdout.columns) {
-        return p + Math.ceil((line.length || 1) / process.stdout.columns);
-      }
+    return stripAnsi(message)
+      .split('\n')
+      .reduce((p, line) => {
+        if (process.stdout.columns) {
+          return p + Math.ceil((line.length || 1) / process.stdout.columns);
+        }
 
-      return p + 1;
-    }, 0);
+        return p + 1;
+      }, 0);
   }
 
   writeRaw(message) {
+    this.stopSpinner();
+
     this.lines += this.countLines(message) - 1;
     process.stdout.write(message);
   }
@@ -48,6 +53,7 @@ class Logger {
       this.lines += this.countLines(message);
     }
 
+    this.stopSpinner();
     this._log(message);
   }
 
@@ -72,11 +78,7 @@ class Logger {
       return;
     }
 
-    let {message, stack} = prettyError(err, {color: this.color});
-    this.write(this.chalk.yellow(`${emoji.warning}  ${message}`));
-    if (stack) {
-      this.write(stack);
-    }
+    this._writeError(err, emoji.warning, this.chalk.yellow);
   }
 
   error(err) {
@@ -84,9 +86,16 @@ class Logger {
       return;
     }
 
-    let {message, stack} = prettyError(err, {color: this.color});
+    this._writeError(err, emoji.error, this.chalk.red.bold);
+  }
 
-    this.status(emoji.error, message, 'red');
+  success(message) {
+    this.log(`${emoji.success}  ${this.chalk.green.bold(message)}`);
+  }
+
+  _writeError(err, emoji, color) {
+    let {message, stack} = prettyError(err, {color: this.color});
+    this.write(color(`${emoji}  ${message}`));
     if (stack) {
       this.write(stack);
     }
@@ -104,42 +113,30 @@ class Logger {
     }
 
     readline.cursorTo(process.stdout, 0);
-    this.statusLine = null;
+    this.stopSpinner();
   }
 
-  writeLine(line, msg) {
-    if (!this.color) {
-      return this.log(msg);
-    }
-
-    let n = this.lines - line;
-    let stdout = process.stdout;
-    readline.cursorTo(stdout, 0);
-    readline.moveCursor(stdout, 0, -n);
-    stdout.write(msg);
-    readline.clearLine(stdout, 1);
-    readline.cursorTo(stdout, 0);
-    readline.moveCursor(stdout, 0, n);
-  }
-
-  status(emoji, message, color = 'gray') {
+  progress(message) {
     if (this.logLevel < 3) {
       return;
     }
 
-    let hasStatusLine = this.statusLine != null;
-    if (!hasStatusLine) {
-      this.statusLine = this.lines;
+    let styledMessage = this.chalk.gray.bold(message);
+    if (!this.spinner) {
+      this.spinner = ora({
+        text: styledMessage,
+        stream: process.stdout,
+        enabled: !this.isTest
+      }).start();
+    } else {
+      this.spinner.text = styledMessage;
     }
+  }
 
-    this.writeLine(
-      this.statusLine,
-      this.chalk[color].bold(`${emoji}  ${message}`)
-    );
-
-    if (!hasStatusLine) {
-      process.stdout.write('\n');
-      this.lines++;
+  stopSpinner() {
+    if (this.spinner) {
+      this.spinner.stop();
+      this.spinner = null;
     }
   }
 
@@ -202,7 +199,7 @@ if (process.send && process.env.PARCEL_WORKER_TYPE === 'remote-worker') {
     LoggerProxy.prototype[method] = (...args) => {
       worker.addCall(
         {
-          location: require.resolve('./Logger'),
+          location: __filename,
           method,
           args
         },

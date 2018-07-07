@@ -51,6 +51,7 @@
     "node-forge": "^0.7.1",
     "node-libs-browser": "^2.0.0",
     "opn": "^5.1.0",
+    "ora": "^2.1.0",
     "physical-cpu-count": "^2.0.0",
     "postcss": "^6.0.19",
     "postcss-value-parser": "^3.3.0",
