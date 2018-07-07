@@ -11,7 +11,7 @@
 [![David Dependancy Status](https://david-dm.org/parcel-bundler/parcel.svg)](https://david-dm.org/parcel-bundler/parcel)
 [![npm package](https://img.shields.io/npm/v/parcel-bundler.svg)](https://www.npmjs.com/package/parcel-bundler)
 [![npm package](https://img.shields.io/npm/dm/parcel-bundler.svg)](https://www.npmjs.com/package/parcel-bundler)
-[![Slack](https://slack.parceljs.org/badge.svg)](https://slack.parceljs.org)
+[![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/parcel)
 [![Twitter Follow](https://img.shields.io/twitter/follow/parceljs.svg?style=social)](https://twitter.com/parceljs)
 
 ## Features
@@ -92,7 +92,7 @@ After the bundle tree is constructed, each bundle is written to a file by a pack
 
 All feedback and suggestions are welcome!
 
-* 💬 Chat: Join us on [slack](https://slack.parceljs.org/).
+* 💬 Join the community on [Spectrum](https://spectrum.chat/parcel)
 * 📣 Stay up to date on new features and announcements on [@parceljs](https://twitter.com/parceljs).
 
 ## Contributors
