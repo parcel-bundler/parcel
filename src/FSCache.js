@@ -4,7 +4,8 @@ const md5 = require('./utils/md5');
 const objectHash = require('./utils/objectHash');
 const pkg = require('../package.json');
 const logger = require('./Logger');
-const {isGlob, glob} = require('./utils/glob');
+const glob = require('fast-glob');
+const isGlob = require('is-glob');
 
 // These keys can affect the output, so if they differ, the cache should not match
 const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
@@ -34,9 +35,9 @@ class FSCache {
   async getLastModified(filename) {
     if (isGlob(filename)) {
       let files = await glob(filename, {
-        strict: true,
-        nodir: true
+        onlyFiles: true
       });
+
       return (await Promise.all(
         files.map(file => fs.stat(file).then(({mtime}) => mtime.getTime()))
       )).reduce((a, b) => Math.max(a, b), 0);
