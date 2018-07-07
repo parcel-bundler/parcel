@@ -116,6 +116,19 @@ describe('html', function() {
     assert(asset.dependencies.get(other).includedInParent);
   });
 
+  it('should add dependencies referenced by plugins', async () => {
+    const b = await bundle(
+      __dirname + '/integration/posthtml-plugin-deps/index.html'
+    );
+    const asset = b.assets.values().next().value;
+    const other = path.join(
+      __dirname,
+      '/integration/posthtml-plugin-deps/base.html'
+    );
+    assert(asset.dependencies.has(other));
+    assert(asset.dependencies.get(other).includedInParent);
+  });
+
   it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
     let b = await bundle(__dirname + '/integration/html-css/index.html');
 

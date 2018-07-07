@@ -38,6 +38,8 @@ async function getConfig(asset) {
   config = config || {};
   const plugins = config.plugins;
   if (typeof plugins === 'object') {
+    // This is deprecated in favor of result messages but kept for compatibility
+    // See https://github.com/posthtml/posthtml-include/blob/e4f2a57c2e52ff721eed747b65eddf7d7a1451e3/index.js#L18-L26
     const depConfig = {
       addDependencyTo: {
         addDependency: name =>
