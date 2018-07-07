@@ -94,6 +94,7 @@
     "node-sass": "^4.7.2",
     "nyc": "^11.1.0",
     "postcss-modules": "^1.1.0",
+    "posthtml-extend": "^0.2.1",
     "posthtml-include": "^1.1.0",
     "prettier": "^1.13.0",
     "pug": "^2.0.3",

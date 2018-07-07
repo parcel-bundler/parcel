@@ -112,7 +112,20 @@ class HTMLAsset extends Asset {
   }
 
   collectDependencies() {
-    this.ast.walk(node => {
+    let {ast} = this;
+
+    // Add bundled dependencies from plugins like posthtml-extend or posthtml-include, if any
+    if (ast.messages) {
+      ast.messages.forEach(message => {
+        if (message.type === 'dependency') {
+          this.addDependency(message.file, {
+            includedInParent: true
+          });
+        }
+      });
+    }
+
+    ast.walk(node => {
       if (node.attrs) {
         if (node.tag === 'meta') {
           if (
