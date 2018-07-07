@@ -13,7 +13,6 @@ const logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
-const emoji = require('./utils/emoji');
 const loadEnv = require('./utils/env');
 const PromiseQueue = require('./utils/PromiseQueue');
 const installPackage = require('./utils/installPackage');
@@ -222,7 +221,7 @@ class Bundler extends EventEmitter {
     this.error = null;
 
     logger.clear();
-    logger.status(emoji.progress, 'Building...');
+    logger.progress('Building...');
 
     try {
       // Start worker farm, watcher, etc. if needed
@@ -252,7 +251,7 @@ class Bundler extends EventEmitter {
         asset.invalidateBundle();
       }
 
-      logger.status(emoji.progress, `Producing bundles...`);
+      logger.progress(`Producing bundles...`);
 
       // Create a root bundle to hold all of the entry assets, and add them to the tree.
       this.mainBundle = new Bundle();
@@ -279,7 +278,7 @@ class Bundler extends EventEmitter {
         this.hmr.emitUpdate(changedAssets);
       }
 
-      logger.status(emoji.progress, `Packaging...`);
+      logger.progress(`Packaging...`);
 
       // Package everything up
       this.bundleHashes = await this.mainBundle.package(
@@ -292,7 +291,7 @@ class Bundler extends EventEmitter {
 
       let buildTime = Date.now() - startTime;
       let time = prettifyTime(buildTime);
-      logger.status(emoji.success, `Built in ${time}.`, 'green');
+      logger.success(`Built in ${time}.`);
       if (!this.watcher) {
         bundleReport(this.mainBundle, this.options.detailedReport);
       }
@@ -513,7 +512,7 @@ class Bundler extends EventEmitter {
     }
 
     if (!this.error) {
-      logger.status(emoji.progress, `Building ${asset.basename}...`);
+      logger.progress(`Building ${asset.basename}...`);
     }
 
     // Mark the asset processed so we don't load it twice
@@ -717,7 +716,7 @@ class Bundler extends EventEmitter {
     }
 
     logger.clear();
-    logger.status(emoji.progress, `Building ${Path.basename(path)}...`);
+    logger.progress(`Building ${Path.basename(path)}...`);
 
     // Add the asset to the rebuild queue, and reset the timeout.
     for (let asset of assets) {
