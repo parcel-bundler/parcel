@@ -273,12 +273,16 @@ class WorkerFarm extends EventEmitter {
   }
 
   static callMaster(request, awaitResponse = true) {
-    if (process.parcelWorker) {
-      let child = require('./child');
+    if (WorkerFarm.isWorker()) {
+      const child = require('./child');
       return child.addCall(request, awaitResponse);
     } else {
       return WorkerFarm.getShared().processRequest(request);
     }
+  }
+
+  static isWorker() {
+    return process.send && require.main.filename === require.resolve('./child');
   }
 
   static getConcurrentCallsPerWorker() {

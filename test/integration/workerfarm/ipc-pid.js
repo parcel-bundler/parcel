@@ -1,7 +1,9 @@
+const WorkerFarm = require(`../../../${parseInt(process.versions.node, 10) < 8 ? 'lib' : 'src'}/workerfarm/WorkerFarm`);
+
 function run() {
   let result = [process.pid];
   return new Promise((resolve, reject) => {
-    process.parcelRequest({
+    WorkerFarm.callMaster({
       location: require.resolve('./master-process-id.js'),
       args: []
     }).then((pid) => {

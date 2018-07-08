@@ -1,5 +1,7 @@
+const WorkerFarm = require(`../../../${parseInt(process.versions.node, 10) < 8 ? 'lib' : 'src'}/workerfarm/WorkerFarm`);
+
 function run(a, b) {
-  return process.parcelRequest({
+  return WorkerFarm.callMaster({
     location: require.resolve('./master-sum.js'),
     args: [a, b]
   });
