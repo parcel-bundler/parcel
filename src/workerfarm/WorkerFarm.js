@@ -243,6 +243,10 @@ class WorkerFarm extends EventEmitter {
       shared.init(options);
     }
 
+    if (!shared && !options) {
+      throw new Error('Workerfarm should be initialised using options');
+    }
+
     return shared;
   }
 
