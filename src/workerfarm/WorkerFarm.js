@@ -30,6 +30,11 @@ class WorkerFarm extends EventEmitter {
   }
 
   warmupWorker(method, args) {
+    // Workers are already stopping
+    if (this.ending) {
+      return;
+    }
+
     // Workers are not warmed up yet.
     // Send the job to a remote worker in the background,
     // but use the result from the local worker - it will be faster.
@@ -176,7 +181,10 @@ class WorkerFarm extends EventEmitter {
   }
 
   addCall(method, args) {
-    if (this.ending) return; // don't add anything new to the queue
+    // Throw error
+    if (this.ending) {
+      throw new Error('Cannot add a worker call if workerfarm is ending.');
+    }
 
     return new Promise((resolve, reject) => {
       this.callQueue.push({
@@ -266,7 +274,8 @@ class WorkerFarm extends EventEmitter {
 
   static callMaster(request, awaitResponse = true) {
     if (process.parcelWorker) {
-      return process.parcelRequest(request, awaitResponse);
+      let child = require('./child');
+      return child.addCall(request, awaitResponse);
     } else {
       return WorkerFarm.getShared().processRequest(request);
     }

@@ -13,6 +13,11 @@ class Child {
     this.responseQueue = new Map();
     this.responseId = 0;
     this.maxConcurrentCalls = 10;
+
+    // Assigning parcelWorker variables to process
+    // Slightly improves the usability of bi-directional request
+    // in places that don't have access to child or workerfarm
+    // in a reliable way (for example the tests of Parcel)
     process.parcelWorker = true;
     process.parcelRequest = this.addCall.bind(this);
   }
