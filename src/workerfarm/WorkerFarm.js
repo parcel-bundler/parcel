@@ -261,6 +261,14 @@ class WorkerFarm extends EventEmitter {
     }
     return cores || 1;
   }
+
+  static callMaster(request, awaitResponse = true) {
+    if (process.send && process.parcelWorker) {
+      return process.parcelRequest(request, awaitResponse);
+    } else {
+      return WorkerFarm.getShared().processRequest(request);
+    }
+  }
 }
 
 module.exports = WorkerFarm;

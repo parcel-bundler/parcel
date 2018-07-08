@@ -19,17 +19,5 @@ async function run(path, id, isWarmUp) {
   }
 }
 
-// request.location is a module path relative to src or lib
-function addCall(request, awaitResponse = true) {
-  if (process.send && process.parcelWorker) {
-    return process.parcelRequest(request, awaitResponse);
-  } else {
-    const WorkerFarm = require('./workerfarm/WorkerFarm');
-
-    return WorkerFarm.getShared().processRequest(request);
-  }
-}
-
 exports.init = init;
 exports.run = run;
-exports.addCall = addCall;
