@@ -181,7 +181,6 @@ class WorkerFarm extends EventEmitter {
   }
 
   addCall(method, args) {
-    // Throw error
     if (this.ending) {
       throw new Error('Cannot add a worker call if workerfarm is ending.');
     }
