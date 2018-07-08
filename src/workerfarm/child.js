@@ -2,6 +2,10 @@ const errorUtils = require('./errorUtils');
 
 class Child {
   constructor() {
+    if (!process.send) {
+      throw new Error('Only create Child instances in a worker!');
+    }
+
     this.module = undefined;
     this.childId = undefined;
 

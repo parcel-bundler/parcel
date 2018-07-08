@@ -259,15 +259,15 @@ class WorkerFarm extends EventEmitter {
     }
     return cores || 1;
   }
-  
+
   static callMaster(request, awaitResponse = true) {
-    if (process.send && process.parcelWorker) {
+    if (process.parcelWorker) {
       return process.parcelRequest(request, awaitResponse);
     } else {
       return WorkerFarm.getShared().processRequest(request);
     }
   }
-  
+
   static getConcurrentCallsPerWorker() {
     return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS) || 5;
   }
