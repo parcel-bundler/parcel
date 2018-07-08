@@ -1,6 +1,5 @@
 const Asset = require('../Asset');
-const promisify = require('../utils/promisify');
-const glob = promisify(require('glob'));
+const glob = require('fast-glob');
 const micromatch = require('micromatch');
 const path = require('path');
 
@@ -16,8 +15,7 @@ class GlobAsset extends Asset {
       regularExpressionSafeName = regularExpressionSafeName.replace(/\\/g, '/');
 
     let files = await glob(regularExpressionSafeName, {
-      strict: true,
-      nodir: true
+      onlyFiles: true
     });
     let re = micromatch.makeRe(regularExpressionSafeName, {capture: true});
     let matches = {};

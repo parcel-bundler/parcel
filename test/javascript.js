@@ -158,7 +158,7 @@ describe('javascript', function() {
 
     await assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js'],
+      assets: ['index.js', 'common.js', 'worker-client.js', 'feature.js'],
       childBundles: [
         {
           type: 'map'
@@ -172,7 +172,74 @@ describe('javascript', function() {
           ]
         },
         {
-          assets: ['worker.js'],
+          assets: ['worker.js', 'common.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        }
+      ]
+    });
+  });
+
+  it('should support bundling workers with different order', async function() {
+    let b = await bundle(
+      __dirname + '/integration/workers/index-alternative.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'index-alternative.js',
+      assets: [
+        'index-alternative.js',
+        'common.js',
+        'worker-client.js',
+        'feature.js'
+      ],
+      childBundles: [
+        {
+          type: 'map'
+        },
+        {
+          assets: ['service-worker.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          assets: ['worker.js', 'common.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        }
+      ]
+    });
+  });
+
+  it('should support bundling service-workers', async function() {
+    let b = await bundle(__dirname + '/integration/service-worker/a/index.js');
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.js'],
+      childBundles: [
+        {
+          type: 'map'
+        },
+        {
+          assets: ['worker-nested.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          assets: ['worker-outside.js'],
           childBundles: [
             {
               type: 'map'
@@ -967,5 +1034,56 @@ describe('javascript', function() {
 
     await run(b, {define: mockDefine, module: undefined});
     assert.equal(test, 2);
+  });
+
+  it('should not dedupe imports with different contents', async function() {
+    let b = await bundle(
+      __dirname + `/integration/js-different-contents/index.js`,
+      {
+        hmr: false // enable asset dedupe in JSPackager
+      }
+    );
+
+    let module = await run(b);
+    assert.equal(module.default, 'Hello World!');
+  });
+
+  it('should not dedupe imports with same content but different absolute dependency paths', async function() {
+    let b = await bundle(
+      __dirname +
+        `/integration/js-same-contents-different-dependencies/index.js`,
+      {
+        hmr: false // enable asset dedupe in JSPackager
+      }
+    );
+
+    let module = await run(b);
+    assert.equal(module.default, 'Hello World!');
+  });
+
+  it('should dedupe imports with same content and same dependency paths', async function() {
+    let b = await bundle(
+      __dirname + `/integration/js-same-contents-same-dependencies/index.js`,
+      {
+        hmr: false // enable asset dedupe in JSPackager
+      }
+    );
+    const {rootDir} = b.entryAsset.options;
+    const dedupedAssets = Array.from(b.offsets.keys()).map(asset => asset.name);
+    assert.equal(dedupedAssets.length, 2);
+    assert(dedupedAssets.includes(path.join(rootDir, 'index.js')));
+    assert(
+      dedupedAssets.includes(path.join(rootDir, 'hello1.js')) ||
+        dedupedAssets.includes(path.join(rootDir, 'hello2.js'))
+    );
+    assert(
+      !(
+        dedupedAssets.includes(path.join(rootDir, 'hello1.js')) &&
+        dedupedAssets.includes(path.join(rootDir, 'hello2.js'))
+      )
+    );
+
+    let module = await run(b);
+    assert.equal(module.default, 'Hello Hello!');
   });
 });

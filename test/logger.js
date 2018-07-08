@@ -46,7 +46,7 @@ describe('Logger', () => {
 
     l.log('message');
     l.persistent('message');
-    l.status('🚨', 'message');
+    l.progress('message');
     l.logLevel = 1;
     l.warn('message');
     l.logLevel = 0;
@@ -56,16 +56,16 @@ describe('Logger', () => {
 
     l.logLevel = 1;
     l.error({message: 'message', stack: 'stack'});
-    assert.equal(log.length, 1);
+    assert.equal(log.length, 2);
 
     l.logLevel = 2;
     l.warn('message');
-    assert.equal(log.length, 2);
+    assert.equal(log.length, 3);
 
     l.logLevel = 3;
     l.log('message');
     l.persistent('message');
-    l.status('🚨', 'message');
+    l.progress('message');
     assert.equal(log.length, 5);
   });
 
@@ -75,36 +75,32 @@ describe('Logger', () => {
 
     // clear is a no-op
     l.lines = 4;
-    l.statusLine = 'hello';
     l.clear();
     assert.equal(l.lines, 4);
-    assert.equal(l.statusLine, 'hello');
-
-    // write-line calls log
-    const spy = sinon.spy(l, 'log');
-    l.writeLine(1, 'hello');
-    assert(spy.called);
   });
 
   it('should reset on clear', () => {
     const l = new Logger.constructor({color: true, isTest: false});
     stub(l);
 
+    // stub readline so we don't actually clear the test output
+    const sandbox = sinon.createSandbox();
+    sandbox.stub(require('readline'));
+
     l.lines = 10;
-    l.statusLine = 'hello';
     l.clear();
 
     assert.equal(l.lines, 0);
-    assert.equal(l.statusLine, null);
+    sandbox.restore();
   });
 
-  it('should log emoji and message via status', () => {
+  it('should use ora for progress', () => {
     const l = new Logger.constructor({color: false});
-    stub(l);
-    l.status('🚨', 'hello');
 
-    assert(log[0].includes('🚨'));
-    assert(log[0].includes('hello'));
+    l.progress('message');
+
+    assert(l.spinner);
+    assert(l.spinner.text.includes('message'));
   });
 
   it('should use internal _log function for writes', () => {
@@ -123,23 +119,5 @@ describe('Logger', () => {
     }
 
     assert(spy.called);
-  });
-
-  it('should use stdout directly for writeLine', () => {
-    const l = new Logger.constructor({color: true});
-    const sandbox = sinon.createSandbox();
-    const log = [];
-
-    try {
-      sandbox.stub(process.stdout, 'write').callsFake(message => {
-        log.push(message);
-      });
-
-      l.writeLine(0, 'hello');
-    } finally {
-      sandbox.restore();
-    }
-
-    assert(log.includes('hello'));
   });
 });

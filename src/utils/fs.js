@@ -7,7 +7,16 @@ exports.writeFile = promisify(fs.writeFile);
 exports.stat = promisify(fs.stat);
 exports.readdir = promisify(fs.readdir);
 exports.unlink = promisify(fs.unlink);
-exports.realpath = promisify(fs.realpath);
+exports.realpath = async function(path) {
+  const realpath = promisify(fs.realpath);
+  try {
+    path = await realpath(path);
+  } catch (e) {
+    // do nothing
+  }
+  return path;
+};
+exports.lstat = promisify(fs.lstat);
 
 exports.exists = function(filename) {
   return new Promise(resolve => {
