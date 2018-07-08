@@ -339,7 +339,7 @@ module.exports = (packager, ast) => {
           let {identifier} = findExportModule(match[1], name, path);
 
           // Check if $id$export$name exists and if so, replace the node by it.
-          if (identifier) {
+          if (identifier && path.scope.hasBinding(identifier)) {
             path.replaceWith(t.identifier(identifier));
           }
         }
