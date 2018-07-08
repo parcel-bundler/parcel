@@ -56,7 +56,7 @@ module.exports = (packager, ast) => {
     // If this module exports wildcards, resolve the original module.
     // Default exports are excluded from wildcard exports.
     let wildcards = module && module.cacheData.wildcards;
-    if (wildcards && name !== 'default') {
+    if (wildcards && name !== 'default' && name !== '*') {
       for (let source of wildcards) {
         let m = findExportModule(resolveModule(id, source).id, name);
         if (m.identifier) {
