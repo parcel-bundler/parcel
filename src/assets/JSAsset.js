@@ -146,7 +146,7 @@ class JSAsset extends Asset {
       }
     }
 
-    if (this.options.minify) {
+    if (this.options.minify && !this.options.scopeHoist) {
       await terser(this);
     }
   }
