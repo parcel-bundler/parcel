@@ -15,75 +15,26 @@ const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 const REQUIRE_TEMPLATE = template('require(ID)');
 
 module.exports = (packager, ast) => {
-  let {addedAssets} = packager;
+  let {assets} = packager;
   let replacements = new Map();
   let imports = new Map();
   let referenced = new Set();
 
-  let assets = Array.from(addedAssets).reduce((acc, asset) => {
-    acc[asset.id] = asset;
-
-    return acc;
-  }, {});
-
   // Build a mapping of all imported identifiers to replace.
-  for (let asset of addedAssets) {
+  for (let asset of assets.values()) {
     for (let name in asset.cacheData.imports) {
       let imp = asset.cacheData.imports[name];
-      imports.set(name, [resolveModule(asset.id, imp[0]), imp[1]]);
+      imports.set(name, [packager.resolveModule(asset.id, imp[0]), imp[1]]);
     }
-  }
-
-  function resolveModule(id, name) {
-    let module = assets[id];
-    return module.depAssets.get(module.dependencies.get(name));
-  }
-
-  function findExportModule(id, name) {
-    let module = assets[id];
-    let exp =
-      module &&
-      Object.prototype.hasOwnProperty.call(module.cacheData.exports, name)
-        ? module.cacheData.exports[name]
-        : null;
-
-    // If this is a re-export, find the original module.
-    if (Array.isArray(exp)) {
-      let mod = resolveModule(id, exp[0]);
-      return findExportModule(mod.id, exp[1]);
-    }
-
-    // If this module exports wildcards, resolve the original module.
-    // Default exports are excluded from wildcard exports.
-    let wildcards = module && module.cacheData.wildcards;
-    if (wildcards && name !== 'default' && name !== '*') {
-      for (let source of wildcards) {
-        let m = findExportModule(resolveModule(id, source).id, name);
-        if (m.identifier) {
-          return m;
-        }
-      }
-    }
-
-    // If this is a wildcard import, resolve to the exports object.
-    if (module && name === '*') {
-      exp = `$${id}$exports`;
-    }
-
-    if (replacements.has(exp)) {
-      exp = replacements.get(exp);
-    }
-
-    return {
-      identifier: exp,
-      name,
-      id
-    };
   }
 
   function replaceExportNode(module, originalName, path) {
-    let {identifier, name, id} = findExportModule(module.id, originalName);
-    let mod = assets[id];
+    let {identifier, name, id} = packager.findExportModule(
+      module.id,
+      originalName,
+      replacements
+    );
+    let mod = assets.get(id);
     let node;
 
     if (identifier) {
@@ -190,10 +141,10 @@ module.exports = (packager, ast) => {
           );
         }
 
-        let mod = resolveModule(id.value, source.value);
+        let mod = packager.resolveModule(id.value, source.value);
 
         if (!mod) {
-          if (assets[id.value].dependencies.get(source.value).optional) {
+          if (assets.get(id.value).dependencies.get(source.value).optional) {
             path.replaceWith(
               THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)})
             );
@@ -204,7 +155,7 @@ module.exports = (packager, ast) => {
           }
         } else {
           let node;
-          if (assets[mod.id]) {
+          if (assets.get(mod.id)) {
             // Replace with nothing if the require call's result is not used.
             if (!isUnusedValue(path)) {
               let name = `$${mod.id}$exports`;
@@ -241,7 +192,7 @@ module.exports = (packager, ast) => {
           );
         }
 
-        let mapped = assets[id.value];
+        let mapped = assets.get(id.value);
         let dep = mapped.dependencies.get(source.value);
         let mod = mapped.depAssets.get(dep);
         let bundles = mod.id;
@@ -286,7 +237,11 @@ module.exports = (packager, ast) => {
               continue;
             }
 
-            let {identifier} = findExportModule(match[1], key.name, path);
+            let {identifier} = packager.findExportModule(
+              match[1],
+              key.name,
+              replacements
+            );
             if (identifier) {
               replace(value.name, identifier, p);
             }
@@ -336,7 +291,11 @@ module.exports = (packager, ast) => {
         // If it's a $id$exports.name expression.
         if (match) {
           let name = t.isIdentifier(property) ? property.name : property.value;
-          let {identifier} = findExportModule(match[1], name, path);
+          let {identifier} = packager.findExportModule(
+            match[1],
+            name,
+            replacements
+          );
 
           // Check if $id$export$name exists and if so, replace the node by it.
           if (identifier) {
