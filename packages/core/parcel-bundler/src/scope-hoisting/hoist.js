@@ -110,6 +110,7 @@ module.exports = {
           ])
         );
 
+        asset.cacheData.exports = {};
         asset.cacheData.isCommonJS = true;
         asset.cacheData.isES6Module = false;
       } else {
