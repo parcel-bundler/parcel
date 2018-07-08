@@ -112,6 +112,16 @@ describe('scope hoisting', function() {
       assert.equal(output, 15);
     });
 
+    it('supports importing all exports re-exported from multiple modules deep', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/es6/import-multiple-wildcards/a.js'
+      );
+
+      let {foo, bar, baz, a, b: bb} = await run(b);
+      assert.equal(foo + bar + baz + a + bb, 15);
+    });
+
     it('supports re-exporting all exports from multiple modules deep', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/es6/re-export-multiple/a.js'
