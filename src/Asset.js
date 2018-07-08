@@ -231,15 +231,23 @@ class Asset {
   }
 
   replaceBundleNames(bundleNameMap) {
+    let copied = false;
     for (let key in this.generated) {
       let value = this.generated[key];
       if (typeof value === 'string') {
         // Replace temporary bundle names in the output with the final content-hashed names.
+        let newValue = value;
         for (let [name, map] of bundleNameMap) {
-          value = value.split(name).join(map);
+          newValue = newValue.split(name).join(map);
         }
 
-        this.generated[key] = value;
+        // Copy `this.generated` on write so we don't end up writing the final names to the cache.
+        if (newValue !== value && !copied) {
+          this.generated = Object.assign({}, this.generated);
+          copied = true;
+        }
+
+        this.generated[key] = newValue;
       }
     }
   }

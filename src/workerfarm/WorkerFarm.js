@@ -10,7 +10,7 @@ class WorkerFarm extends EventEmitter {
     this.options = Object.assign(
       {
         maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
-        maxConcurrentCallsPerWorker: 5,
+        maxConcurrentCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(),
         forcedKillTime: 500,
         warmWorkers: true,
         useLocalWorker: true,
@@ -155,14 +155,12 @@ class WorkerFarm extends EventEmitter {
 
     const mod = require(location);
     try {
-      let func;
-      if (method) {
-        func = mod[method];
-      } else {
-        func = mod;
-      }
       result.contentType = 'data';
-      result.content = await func(...args);
+      if (method) {
+        result.content = await mod[method](...args);
+      } else {
+        result.content = await mod(...args);
+      }
     } catch (e) {
       result.contentType = 'error';
       result.content = errorUtils.errorToJson(e);
@@ -261,13 +259,17 @@ class WorkerFarm extends EventEmitter {
     }
     return cores || 1;
   }
-
+  
   static callMaster(request, awaitResponse = true) {
     if (process.send && process.parcelWorker) {
       return process.parcelRequest(request, awaitResponse);
     } else {
       return WorkerFarm.getShared().processRequest(request);
     }
+  }
+  
+  static getConcurrentCallsPerWorker() {
+    return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS) || 5;
   }
 }
 

@@ -70,7 +70,7 @@ module.exports = {
     if (isRegisterServiceWorker) {
       // Treat service workers as an entry point so filenames remain consistent across builds.
       // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
-      addURLDependency(asset, args[0], {entry: true});
+      addURLDependency(asset, args[0], {entry: true, isolated: true});
       return;
     }
   },
@@ -85,7 +85,7 @@ module.exports = {
       types.isStringLiteral(args[0]);
 
     if (isWebWorker) {
-      addURLDependency(asset, args[0]);
+      addURLDependency(asset, args[0], {isolated: true});
       return;
     }
   }
