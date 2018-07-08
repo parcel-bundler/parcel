@@ -271,6 +271,16 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 4);
     });
 
+    it('supports wildcards with sideEffects: false', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/es6/side-effects-false-wildcards/a.js'
+      );
+      let output = await run(b);
+
+      assert.deepEqual(output, 'bar');
+    });
+
     it('missing exports should be replaced with an empty object', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/es6/empty-module/a.js'

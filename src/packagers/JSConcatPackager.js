@@ -78,6 +78,25 @@ class JSConcatPackager extends Packager {
     return this.size;
   }
 
+  findExportAsset(asset, name) {
+    if (asset.cacheData.exports[name]) {
+      return asset;
+    }
+
+    for (let source of asset.cacheData.wildcards) {
+      let dep = this.findExportAsset(
+        asset.depAssets.get(asset.dependencies.get(source)),
+        name
+      );
+
+      if (dep !== null) {
+        return dep;
+      }
+    }
+
+    return null;
+  }
+
   markUsedExports(asset) {
     if (asset.usedExports) {
       return;
@@ -88,11 +107,25 @@ class JSConcatPackager extends Packager {
     for (let identifier in asset.cacheData.imports) {
       let [source, name] = asset.cacheData.imports[identifier];
       let dep = asset.depAssets.get(asset.dependencies.get(source));
+
+      if (name === '*') {
+        this.markUsedExports(dep);
+      }
+
       this.markUsed(dep, name);
+    }
+
+    for (let source of asset.cacheData.wildcards) {
+      let dep = asset.depAssets.get(asset.dependencies.get(source));
+      for (let exportIdentifier in dep.cacheData.exports) {
+        this.markUsed(dep, exportIdentifier);
+      }
     }
   }
 
   markUsed(mod, id) {
+    mod = this.findExportAsset(mod, id) || mod;
+
     let exp = mod.cacheData.exports[id];
     if (Array.isArray(exp)) {
       let depMod = mod.depAssets.get(mod.dependencies.get(exp[0]));
