@@ -85,6 +85,38 @@ describe('javascript', function() {
     assert.equal(output(), 7);
   });
 
+  it('should bundle node_modules on --target=node and --bundle-node-modules', async function() {
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'node',
+      bundleNodeModules: true
+    });
+
+    await assertBundleTree(b, {
+      name: 'main.js',
+      assets: ['main.js', 'local.js', 'index.js']
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
+  it('should bundle node_modules on --target=electron and --bundle-node-modules', async function() {
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'electron',
+      bundleNodeModules: true
+    });
+
+    await assertBundleTree(b, {
+      name: 'main.js',
+      assets: ['main.js', 'local.js', 'index.js']
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
   it('should produce a JS bundle with default exports and no imports', async function() {
     let b = await bundle(__dirname + '/integration/es6-default-only/index.js');
 
@@ -638,6 +670,30 @@ describe('javascript', function() {
     assert.equal(output.test(), 'pkg-browser');
   });
 
+  it('should not resolve the browser field for --target=node', async function() {
+    let b = await bundle(
+      __dirname + '/integration/resolve-entries/browser.js',
+      {
+        target: 'node'
+      }
+    );
+
+    await assertBundleTree(b, {
+      name: 'browser.js',
+      assets: ['browser.js', 'node-module.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = await run(b);
+
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'pkg-main');
+  });
+
   it('should resolve advanced browser resolution', async function() {
     let b = await bundle(
       __dirname + '/integration/resolve-entries/browser-multiple.js'
@@ -647,7 +703,7 @@ describe('javascript', function() {
       name: 'browser-multiple.js',
       assets: [
         'browser-multiple.js',
-        'projected-module.js',
+        'projected-browser.js',
         'browser-entry.js'
       ],
       childBundles: [
@@ -663,6 +719,32 @@ describe('javascript', function() {
     assert.equal(typeof output.entry.test, 'function');
     assert.equal(output.projected.test(), 'pkg-browser-multiple');
     assert.equal(output.entry.test(), 'pkg-browser-multiple browser-entry');
+  });
+
+  it('should not resolve advanced browser resolution with --target=node', async function() {
+    let b = await bundle(
+      __dirname + '/integration/resolve-entries/browser-multiple.js',
+      {
+        target: 'node'
+      }
+    );
+
+    await assertBundleTree(b, {
+      name: 'browser-multiple.js',
+      assets: ['browser-multiple.js', 'node-entry.js', 'projected.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let {test: output} = await run(b);
+
+    assert.equal(typeof output.projected.test, 'function');
+    assert.equal(typeof output.entry.test, 'function');
+    assert.equal(output.projected.test(), 'pkg-main-multiple');
+    assert.equal(output.entry.test(), 'pkg-browser-multiple main-entry');
   });
 
   it('should resolve the module field before main', async function() {

@@ -106,6 +106,25 @@ describe('resolver', function() {
         path.join(__dirname, '..', 'src', 'builtins', '_empty.js')
       );
     });
+
+    it('should error when resolving node builtin modules with --target=node', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        target: 'node'
+      });
+
+      let threw = false;
+      try {
+        await resolver.resolve('zlib', path.join(rootDir, 'foo.js'));
+      } catch (err) {
+        threw = true;
+      }
+      assert(threw, 'did not throw');
+    });
   });
 
   describe('node_modules', function() {
@@ -153,6 +172,27 @@ describe('resolver', function() {
       assert.equal(
         resolved.path,
         path.join(rootDir, 'node_modules', 'package-browser', 'browser.js')
+      );
+      assert.equal(resolved.pkg.name, 'package-browser');
+    });
+
+    it('should not resolve a node_modules package.browser main field with --target=node', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        target: 'node'
+      });
+
+      let resolved = await resolver.resolve(
+        'package-browser',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(rootDir, 'node_modules', 'package-browser', 'main.js')
       );
       assert.equal(resolved.pkg.name, 'package-browser');
     });
@@ -267,6 +307,27 @@ describe('resolver', function() {
       assert.equal(
         resolved.path,
         path.join(rootDir, 'node_modules', 'package-browser-alias', 'bar.js')
+      );
+      assert.equal(resolved.pkg.name, 'package-browser-alias');
+    });
+
+    it('should not alias using the package.browser field with --target=node', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        target: 'node'
+      });
+
+      let resolved = await resolver.resolve(
+        'package-browser-alias/foo',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(rootDir, 'node_modules', 'package-browser-alias', 'foo.js')
       );
       assert.equal(resolved.pkg.name, 'package-browser-alias');
     });

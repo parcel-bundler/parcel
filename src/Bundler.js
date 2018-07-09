@@ -112,6 +112,10 @@ class Bundler extends EventEmitter {
       minify:
         typeof options.minify === 'boolean' ? options.minify : isProduction,
       target: target,
+      bundleNodeModules:
+        typeof options.bundleNodeModules === 'boolean'
+          ? options.bundleNodeModules
+          : target === 'browser',
       hmr: hmr,
       https: options.https || false,
       logLevel: isNaN(options.logLevel) ? 3 : options.logLevel,
