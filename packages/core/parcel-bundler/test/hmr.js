@@ -13,26 +13,24 @@ describe('hmr', function() {
     await rimraf(__dirname + '/input');
   });
 
-  afterEach(function(done) {
+  afterEach(async function() {
     stub.restore();
-    let finalise = () => {
+    let finalise = async () => {
       if (b) {
-        b.stop();
+        await b.stop();
         b = null;
-
-        done();
       }
     };
 
     if (ws) {
       ws.close();
-      ws.onclose = () => {
-        ws = null;
-        finalise();
-      };
-    } else {
-      finalise();
+      await new Promise(resolve => {
+        ws.onclose = resolve;
+      });
+      ws = null;
     }
+
+    await finalise();
   });
 
   function nextEvent(emitter, event) {

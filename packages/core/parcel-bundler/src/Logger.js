@@ -5,6 +5,7 @@ const emoji = require('./utils/emoji');
 const {countBreaks} = require('grapheme-breaker');
 const stripAnsi = require('strip-ansi');
 const ora = require('ora');
+const WorkerFarm = require('./workerfarm/WorkerFarm');
 
 class Logger {
   constructor(options) {
@@ -192,12 +193,11 @@ function stringWidth(string) {
 // If we are in a worker, make a proxy class which will
 // send the logger calls to the main process via IPC.
 // These are handled in WorkerFarm and directed to handleMessage above.
-if (process.send && process.env.PARCEL_WORKER_TYPE === 'remote-worker') {
-  const worker = require('./worker');
+if (WorkerFarm.isWorker()) {
   class LoggerProxy {}
   for (let method of Object.getOwnPropertyNames(Logger.prototype)) {
     LoggerProxy.prototype[method] = (...args) => {
-      worker.addCall(
+      WorkerFarm.callMaster(
         {
           location: __filename,
           method,

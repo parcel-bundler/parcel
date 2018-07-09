@@ -2,6 +2,10 @@ const errorUtils = require('./errorUtils');
 
 class Child {
   constructor() {
+    if (!process.send) {
+      throw new Error('Only create Child instances in a worker!');
+    }
+
     this.module = undefined;
     this.childId = undefined;
 
@@ -9,22 +13,11 @@ class Child {
     this.responseQueue = new Map();
     this.responseId = 0;
     this.maxConcurrentCalls = 10;
-
-    process.env.PARCEL_WORKER_TYPE = 'remote-worker';
   }
 
   messageListener(data) {
     if (data === 'die') {
       return this.end();
-    }
-
-    if (data.type === 'module' && data.module && !this.module) {
-      this.module = require(data.module);
-      this.childId = data.child;
-      if (this.module.setChildReference) {
-        this.module.setChildReference(this);
-      }
-      return;
     }
 
     let type = data.type;
@@ -47,6 +40,11 @@ class Child {
     });
   }
 
+  childInit(module, childId) {
+    this.module = require(module);
+    this.childId = childId;
+  }
+
   async handleRequest(data) {
     let idx = data.idx;
     let child = data.child;
@@ -56,7 +54,11 @@ class Child {
     let result = {idx, child, type: 'response'};
     try {
       result.contentType = 'data';
-      result.content = await this.module[method](...args);
+      if (method === 'childInit') {
+        result.content = this.childInit(...args, child);
+      } else {
+        result.content = await this.module[method](...args);
+      }
     } catch (e) {
       result.contentType = 'error';
       result.content = errorUtils.errorToJson(e);
@@ -132,7 +134,7 @@ class Child {
   }
 
   end() {
-    return process.exit(0);
+    process.exit();
   }
 }
 

@@ -1,16 +1,9 @@
-let options = {};
-let child;
-
-function setChildReference(childRef) {
-  child = childRef;
-}
+const WorkerFarm = require(`../../../${parseInt(process.versions.node, 10) < 8 ? 'lib' : 'src'}/workerfarm/WorkerFarm`);
 
 function run(a, b) {
-  return new Promise((resolve, reject) => {
-    child.addCall({
-      location: require.resolve('./master-sum.js'),
-      args: [a, b]
-    }).then(resolve).catch(reject);
+  return WorkerFarm.callMaster({
+    location: require.resolve('./master-sum.js'),
+    args: [a, b]
   });
 }
 
@@ -20,4 +13,3 @@ function init() {
 
 exports.run = run;
 exports.init = init;
-exports.setChildReference = setChildReference;
