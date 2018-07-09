@@ -607,6 +607,12 @@ class Bundler extends EventEmitter {
       }
     }
 
+    // Skip this asset if it's already in the bundle.
+    // Happens when circular dependencies are placed in an isolated bundle (e.g. a worker).
+    if (bundle.isolated && bundle.assets.has(asset)) {
+      return;
+    }
+
     let isEntryAsset =
       asset.parentBundle && asset.parentBundle.entryAsset === asset;
 
