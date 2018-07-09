@@ -250,6 +250,22 @@ describe('javascript', function() {
     });
   });
 
+  it('should support bundling workers with circular dependencies', async function() {
+    let b = await bundle(__dirname + '/integration/worker-circular/index.js', {
+      sourceMaps: false
+    });
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js'],
+      childBundles: [
+        {
+          assets: ['worker.js', 'worker-dep.js']
+        }
+      ]
+    });
+  });
+
   it('should dynamic import files which import raw files', async function() {
     let b = await bundle(
       __dirname + '/integration/dynamic-references-raw/index.js'
