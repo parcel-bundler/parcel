@@ -98,18 +98,15 @@ class JSConcatPackager extends Packager {
 
       this.markUsed(dep, name);
     }
-
-    for (let source of asset.cacheData.wildcards) {
-      let dep = asset.depAssets.get(asset.dependencies.get(source));
-      for (let exportIdentifier in dep.cacheData.exports) {
-        this.markUsed(dep, exportIdentifier);
-      }
-    }
   }
 
   markUsed(mod, name) {
     let {id} = this.findExportModule(mod.id, name);
-    mod = this.assets.get(id) || mod;
+    mod = this.assets.get(id);
+
+    if (!mod) {
+      return;
+    }
 
     let exp = mod.cacheData.exports[name];
     if (Array.isArray(exp)) {
