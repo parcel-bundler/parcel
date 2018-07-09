@@ -19,6 +19,7 @@ const helpers =
 class JSConcatPackager extends Packager {
   async start() {
     this.addedAssets = new Set();
+    this.assets = new Map();
     this.exposedModules = new Set();
     this.externalModules = new Set();
     this.size = 0;
@@ -42,6 +43,8 @@ class JSConcatPackager extends Packager {
         this.exposedModules.add(asset);
         this.needsPrelude = true;
       }
+
+      this.assets.set(asset.id, asset);
 
       for (let mod of asset.depAssets.values()) {
         if (
@@ -88,19 +91,31 @@ class JSConcatPackager extends Packager {
     for (let identifier in asset.cacheData.imports) {
       let [source, name] = asset.cacheData.imports[identifier];
       let dep = asset.depAssets.get(asset.dependencies.get(source));
+
+      if (name === '*') {
+        this.markUsedExports(dep);
+      }
+
       this.markUsed(dep, name);
     }
   }
 
-  markUsed(mod, id) {
-    let exp = mod.cacheData.exports[id];
+  markUsed(mod, name) {
+    let {id} = this.findExportModule(mod.id, name);
+    mod = this.assets.get(id);
+
+    if (!mod) {
+      return;
+    }
+
+    let exp = mod.cacheData.exports[name];
     if (Array.isArray(exp)) {
       let depMod = mod.depAssets.get(mod.dependencies.get(exp[0]));
       return this.markUsed(depMod, exp[1]);
     }
 
     this.markUsedExports(mod);
-    mod.usedExports.add(id);
+    mod.usedExports.add(name);
   }
 
   getExportIdentifier(asset) {
@@ -520,6 +535,54 @@ class JSConcatPackager extends Packager {
     }
 
     await super.write(output);
+  }
+
+  resolveModule(id, name) {
+    let module = this.assets.get(+id);
+    return module.depAssets.get(module.dependencies.get(name));
+  }
+
+  findExportModule(id, name, replacements) {
+    let asset = this.assets.get(+id);
+    let exp =
+      asset &&
+      Object.prototype.hasOwnProperty.call(asset.cacheData.exports, name)
+        ? asset.cacheData.exports[name]
+        : null;
+
+    // If this is a re-export, find the original module.
+    if (Array.isArray(exp)) {
+      let mod = this.resolveModule(id, exp[0]);
+      return this.findExportModule(mod.id, exp[1], replacements);
+    }
+
+    // If this module exports wildcards, resolve the original module.
+    // Default exports are excluded from wildcard exports.
+    let wildcards = asset && asset.cacheData.wildcards;
+    if (wildcards && name !== 'default' && name !== '*') {
+      for (let source of wildcards) {
+        let mod = this.resolveModule(id, source);
+        let m = this.findExportModule(mod.id, name, replacements);
+        if (m.identifier) {
+          return m;
+        }
+      }
+    }
+
+    // If this is a wildcard import, resolve to the exports object.
+    if (asset && name === '*') {
+      exp = `$${id}$exports`;
+    }
+
+    if (replacements && replacements.has(exp)) {
+      exp = replacements.get(exp);
+    }
+
+    return {
+      identifier: exp,
+      name,
+      id
+    };
   }
 }
 
