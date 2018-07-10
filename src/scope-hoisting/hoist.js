@@ -2,6 +2,7 @@ const matchesPattern = require('../visitors/matches-pattern');
 const t = require('babel-types');
 const template = require('babel-template');
 const rename = require('./renamer');
+const {getName, getIdentifier, getExportIdentifier} = require('./utils');
 
 const WRAPPER_TEMPLATE = template(`
   var NAME = (function () {
@@ -119,8 +120,8 @@ module.exports = {
 
         // Rename each binding in the top-level scope to something unique.
         for (let name in scope.bindings) {
-          if (!name.startsWith('$' + asset.id)) {
-            let newName = '$' + asset.id + '$var$' + name;
+          if (!name.startsWith('$' + t.toIdentifier(asset.id))) {
+            let newName = getName(asset, 'var', name);
             rename(scope, name, newName);
           }
         }
@@ -160,7 +161,7 @@ module.exports = {
     }
 
     if (matchesPattern(path.node, 'module.id')) {
-      path.replaceWith(t.numericLiteral(asset.id));
+      path.replaceWith(t.stringLiteral(asset.id));
     }
 
     if (matchesPattern(path.node, 'module.hot')) {
@@ -302,7 +303,7 @@ module.exports = {
       // This will be replaced by the final variable name of the resolved asset in the packager.
       path.replaceWith(
         REQUIRE_CALL_TEMPLATE({
-          ID: t.numericLiteral(asset.id),
+          ID: t.stringLiteral(asset.id),
           SOURCE: t.stringLiteral(args[0].value)
         })
       );
@@ -311,7 +312,7 @@ module.exports = {
     if (matchesPattern(callee, 'require.resolve')) {
       path.replaceWith(
         REQUIRE_RESOLVE_CALL_TEMPLATE({
-          ID: t.numericLiteral(asset.id),
+          ID: t.stringLiteral(asset.id),
           SOURCE: args[0]
         })
       );
@@ -455,7 +456,7 @@ module.exports = {
       EXPORT_ALL_TEMPLATE({
         OLD_NAME: getExportsIdentifier(asset),
         SOURCE: t.stringLiteral(path.node.source.value),
-        ID: t.numericLiteral(asset.id)
+        ID: t.stringLiteral(asset.id)
       })
     );
   }
@@ -464,7 +465,7 @@ module.exports = {
 function addImport(asset, path) {
   // Replace with a $parcel$require call so we know where to insert side effects.
   let requireCall = REQUIRE_CALL_TEMPLATE({
-    ID: t.numericLiteral(asset.id),
+    ID: t.stringLiteral(asset.id),
     SOURCE: t.stringLiteral(path.node.source.value)
   });
 
@@ -537,29 +538,6 @@ function safeRename(path, asset, from, to) {
     path.scope.getBinding(from).reference(decl.get('declarations.0.init'));
     path.scope.registerDeclaration(decl);
   }
-}
-
-function getName(asset, type, ...rest) {
-  return (
-    '$' +
-    asset.id +
-    '$' +
-    type +
-    (rest.length
-      ? '$' +
-        rest
-          .map(name => (name === 'default' ? name : t.toIdentifier(name)))
-          .join('$')
-      : '')
-  );
-}
-
-function getIdentifier(asset, type, ...rest) {
-  return t.identifier(getName(asset, type, ...rest));
-}
-
-function getExportIdentifier(asset, name) {
-  return getIdentifier(asset, 'export', name);
 }
 
 function getExportsIdentifier(asset, scope) {
