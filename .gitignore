@@ -8,7 +8,7 @@ coverage
 .cache
 dist
 lib
-!test/**/node_modules
+!**/test/**/node_modules
 .vscode/
 .idea/
 *.min.js

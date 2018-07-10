@@ -1,0 +1,32 @@
+{
+  "private": true,
+  "name": "parcel-packages",
+  "bolt": {
+    "workspaces": [
+      "packages/*"
+    ]
+  },
+  "scripts": {
+    "build": "bolt workspaces exec -- babel src -d dist",
+    "test": "ava ./packages/*/test/*"
+  },
+  "dependencies": {
+    "find-up": "^3.0.0",
+    "typeable-promisify": "^2.0.1"
+  },
+  "devDependencies": {
+    "ava": "^0.25.0",
+    "babel-cli": "^6.26.0",
+    "babel-plugin-transform-class-properties": "^6.24.1",
+    "babel-plugin-transform-object-rest-spread": "^6.26.0",
+    "babel-preset-env": "^1.7.0",
+    "babel-preset-flow": "^6.23.0",
+    "babel-register": "^6.26.0",
+    "fixturez": "^1.1.0"
+  },
+  "ava": {
+    "require": [
+      "babel-register"
+    ]
+  }
+}

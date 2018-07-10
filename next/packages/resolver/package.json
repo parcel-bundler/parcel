@@ -1,0 +1,9 @@
+{
+  "name": "@parcel/resolver",
+  "version": "2.0.0",
+  "main": "dist/Resolver.js",
+  "dependencies": {
+    "find-up": "^3.0.0",
+    "typeable-promisify": "^2.0.1"
+  }
+}
