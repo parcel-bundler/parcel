@@ -5,8 +5,9 @@ const traverse = require('babel-traverse').default;
 const generate = require('babel-generator').default;
 const treeShake = require('./shake');
 const mangleScope = require('./mangler');
+const {getName, getIdentifier} = require('./utils');
 
-const EXPORTS_RE = /^\$([\d]+)\$exports$/;
+const EXPORTS_RE = /^\$(.+?)\$exports$/;
 
 const DEFAULT_INTEROP_TEMPLATE = template(
   'var NAME = $parcel$interopDefault(MODULE)'
@@ -43,7 +44,7 @@ module.exports = (packager, ast) => {
 
     // If the module is not in this bundle, create a `require` call for it.
     if (!node && !mod) {
-      node = REQUIRE_TEMPLATE({ID: t.numericLiteral(id)}).expression;
+      node = REQUIRE_TEMPLATE({ID: t.stringLiteral(id)}).expression;
       return interop(module, name, path, node);
     }
 
@@ -55,7 +56,7 @@ module.exports = (packager, ast) => {
 
     // If it is CommonJS, look for an exports object.
     if (!node && mod.cacheData.isCommonJS) {
-      node = findSymbol(path, `$${id}$exports`);
+      node = findSymbol(path, getName(mod, 'exports'));
       if (!node) {
         return null;
       }
@@ -82,7 +83,7 @@ module.exports = (packager, ast) => {
   function interop(mod, originalName, path, node) {
     // Handle interop for default imports of CommonJS modules.
     if (mod.cacheData.isCommonJS && originalName === 'default') {
-      let name = `$${mod.id}$interop$default`;
+      let name = getName(mod, '$interop$default');
       if (!path.scope.getBinding(name)) {
         let [decl] = path.getStatementParent().insertBefore(
           DEFAULT_INTEROP_TEMPLATE({
@@ -91,7 +92,7 @@ module.exports = (packager, ast) => {
           })
         );
 
-        let binding = path.scope.getBinding(`$${mod.id}$exports`);
+        let binding = path.scope.getBinding(getName(mod, 'exports'));
         if (binding) {
           binding.reference(decl.get('declarations.0.init'));
         }
@@ -133,7 +134,7 @@ module.exports = (packager, ast) => {
 
         if (
           args.length !== 2 ||
-          !t.isNumericLiteral(id) ||
+          !t.isStringLiteral(id) ||
           !t.isStringLiteral(source)
         ) {
           throw new Error(
@@ -158,7 +159,7 @@ module.exports = (packager, ast) => {
           if (assets.get(mod.id)) {
             // Replace with nothing if the require call's result is not used.
             if (!isUnusedValue(path)) {
-              let name = `$${mod.id}$exports`;
+              let name = getName(mod, 'exports');
               node = t.identifier(replacements.get(name) || name);
             }
 
@@ -166,11 +167,11 @@ module.exports = (packager, ast) => {
             // call happens inside a non top-level scope, e.g. in a
             // function, if statement, or conditional expression.
             if (mod.cacheData.shouldWrap) {
-              let call = t.callExpression(t.identifier(`$${mod.id}$init`), []);
+              let call = t.callExpression(getIdentifier(mod, 'init'), []);
               node = node ? t.sequenceExpression([call, node]) : call;
             }
           } else {
-            node = REQUIRE_TEMPLATE({ID: t.numericLiteral(mod.id)}).expression;
+            node = REQUIRE_TEMPLATE({ID: t.stringLiteral(mod.id)}).expression;
           }
 
           if (node) {
@@ -184,7 +185,7 @@ module.exports = (packager, ast) => {
 
         if (
           args.length !== 2 ||
-          !t.isNumericLiteral(id) ||
+          !t.isStringLiteral(id) ||
           !t.isStringLiteral(source)
         ) {
           throw new Error(

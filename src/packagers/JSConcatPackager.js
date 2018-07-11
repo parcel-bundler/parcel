@@ -6,6 +6,7 @@ const urlJoin = require('../utils/urlJoin');
 const walk = require('babylon-walk');
 const babylon = require('babylon');
 const t = require('babel-types');
+const {getName, getIdentifier} = require('../scope-hoisting/utils');
 
 const prelude = {
   source: fs
@@ -125,9 +126,9 @@ class JSConcatPackager extends Packager {
   }
 
   getExportIdentifier(asset) {
-    let id = '$' + asset.id + '$exports';
+    let id = getName(asset, 'exports');
     if (this.shouldWrap(asset)) {
-      return `($${asset.id}$init(), ${id})`;
+      return `(${getName(asset, 'init')}(), ${id})`;
     }
 
     return id;
@@ -317,13 +318,13 @@ class JSConcatPackager extends Packager {
       }
     }
 
-    let executed = `$${asset.id}$executed`;
+    let executed = getName(asset, 'executed');
     decls.push(
       t.variableDeclarator(t.identifier(executed), t.booleanLiteral(false))
     );
 
     let init = t.functionDeclaration(
-      t.identifier(`$${asset.id}$init`),
+      getIdentifier(asset, 'init'),
       [],
       t.blockStatement([
         t.ifStatement(t.identifier(executed), t.returnStatement()),
@@ -504,7 +505,7 @@ class JSConcatPackager extends Packager {
           );
         }
 
-        exposed.push(`${m.id}: ${this.getExportIdentifier(m)}`);
+        exposed.push(`"${m.id}": ${this.getExportIdentifier(m)}`);
       }
 
       this.write(`
@@ -545,12 +546,12 @@ class JSConcatPackager extends Packager {
   }
 
   resolveModule(id, name) {
-    let module = this.assets.get(+id);
+    let module = this.assets.get(id);
     return module.depAssets.get(module.dependencies.get(name));
   }
 
   findExportModule(id, name, replacements) {
-    let asset = this.assets.get(+id);
+    let asset = this.assets.get(id);
     let exp =
       asset &&
       Object.prototype.hasOwnProperty.call(asset.cacheData.exports, name)
@@ -578,7 +579,7 @@ class JSConcatPackager extends Packager {
 
     // If this is a wildcard import, resolve to the exports object.
     if (asset && name === '*') {
-      exp = `$${id}$exports`;
+      exp = getName(asset, 'exports');
     }
 
     if (replacements && replacements.has(exp)) {

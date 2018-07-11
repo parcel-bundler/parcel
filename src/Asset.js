@@ -10,8 +10,6 @@ const syncPromise = require('./utils/syncPromise');
 const logger = require('./Logger');
 const Resolver = require('./Resolver');
 
-let ASSET_ID = 1;
-
 /**
  * An Asset represents a file in the dependency tree. Assets can have multiple
  * parents that depend on it, and can be added to multiple output bundles.
@@ -20,7 +18,7 @@ let ASSET_ID = 1;
  */
 class Asset {
   constructor(name, options) {
-    this.id = ASSET_ID++;
+    this.id = null;
     this.name = name;
     this.basename = path.basename(this.name);
     this.relativeName = path.relative(options.rootDir, this.name);
@@ -188,6 +186,17 @@ class Asset {
   }
 
   async process() {
+    // Generate the id for this asset, unless it has already been set.
+    // We do this here rather than in the constructor to avoid unnecessary work in the main process.
+    // In development, the id is just the relative path to the file, for easy debugging and performance.
+    // In production, we use a short hash of the relative path.
+    if (!this.id) {
+      this.id =
+        this.options.production || this.options.scopeHoist
+          ? md5(this.relativeName, 'base64').slice(0, 4)
+          : this.relativeName;
+    }
+
     if (!this.generated) {
       await this.loadIfNeeded();
       await this.pretransform();

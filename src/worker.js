@@ -10,9 +10,9 @@ function init(options) {
   process.env.HMR_HOSTNAME = options.hmrHostname;
 }
 
-async function run(path, id, isWarmUp) {
+async function run(path, isWarmUp) {
   try {
-    return await pipeline.process(path, id, isWarmUp);
+    return await pipeline.process(path, isWarmUp);
   } catch (e) {
     e.fileName = path;
     throw e;

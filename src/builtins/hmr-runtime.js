@@ -110,7 +110,7 @@ function getParents(bundle, id) {
     for (d in modules[k][1]) {
       dep = modules[k][1][d];
       if (dep === id || (Array.isArray(dep) && dep[dep.length - 1] === id)) {
-        parents.push(+k);
+        parents.push(k);
       }
     }
   }
