@@ -224,7 +224,7 @@ class Bundler extends EventEmitter {
     try {
       // Start worker farm, watcher, etc. if needed
       await this.start();
-      
+
       // Emit start event, after bundler is initialised
       this.emit('buildStart', this.entryFiles);
 

@@ -5,6 +5,35 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.9.5] - 2018-07-11
+
+### Added
+
+- Use fast-glob [Details](https://github.com/parcel-bundler/parcel/commit/06fb3c807218d0ee40446f56d4fb12c280894756)
+- Use user installation of `cssnano` [Details](https://github.com/parcel-bundler/parcel/commit/8cee316877d65ec8c1e57bee2e25630db0cad1fa)
+- Upgrade to cssnano v4 [Details](https://github.com/parcel-bundler/parcel/commit/5e924b466d5998a20afd2e8290f67878511f4cb7)
+- Logger improvements [Details](https://github.com/parcel-bundler/parcel/commit/c96612087e4dc6576b2cc5367ff0e66219f7147a)
+- Watch PostHTML plugins dependencies [Details](https://github.com/parcel-bundler/parcel/commit/038ade609e8dcd89ac21548adea541ca99e6a7ba)
+- Add support for node 10 [Details](https://github.com/parcel-bundler/parcel/commit/cae25f6fc0f1d35de39b1d5603094b784e8ecd9e)
+- Workerfarm improvements [Details](https://github.com/parcel-bundler/parcel/commit/7b38f4f2c2b1d426131335b56f7bc50b8230c53c)
+- Use minify prelude only minify option [Details](https://github.com/parcel-bundler/parcel/commit/b52548b02e47215e668e509919e8fd962141e8a9)
+- Deterministic asset ids [Details](https://github.com/parcel-bundler/parcel/commit/e34a4d097ef0624890589f471e4a977367da568a)
+
+### Fixed
+
+- JSPackager deduplication now accounts for differences in absolute dependency paths [Details](https://github.com/parcel-bundler/parcel/commit/f699e812eab5276af22052f3ace1e4fd651f4f72)
+- Fix worker bundle hoisting [Details](https://github.com/parcel-bundler/parcel/commit/1ab05580396774f44b587d8ec3dc2d12ca13c2a0)
+- Prioritize browser field over module [Details](https://github.com/parcel-bundler/parcel/commit/96856bacd75bedcf1a09e89a66ee7083d8e069d0)
+- Fix aliasing of folder relative to project folder [Details](https://github.com/parcel-bundler/parcel/commit/69b64cc76530ea038f54bda239b1d271c6a09562)
+- Only watch directories on macOS [Details](https://github.com/parcel-bundler/parcel/commit/57f4c4592dcfc008bbdc107386f3448c2e75e820)
+- Fix generating names when outside of the entry directory [Details](https://github.com/parcel-bundler/parcel/commit/2bc6ed9ab63a35533c1637f558f64253defd789b)
+- Handle invalidating cache if dependency is a glob [Details](https://github.com/parcel-bundler/parcel/commit/ec3aea90dc5c122184e24a4f57e25dbaa99a8935)
+- Fix import deep wildcards with tree-shaking [Details](https://github.com/parcel-bundler/parcel/commit/23ee7c2a5ff806aac605a2bca95ac48310ef9a11)
+- Fix tree-shaking named import on wrapped module [Details](https://github.com/parcel-bundler/parcel/commit/a42dfeba6f79175028a7227c920b18d21271066a)
+- Fix circular deps in isolated bundles (e.g. workers) [Details](https://github.com/parcel-bundler/parcel/commit/f2deb5cbbdf1381b6202d56e3884e14423bd860c)
+- Fix tree-shaking wildcards with sideEffects: false [Details](https://github.com/parcel-bundler/parcel/commit/764f568993a11689b7014df1977c18f6bda42e4c)
+- Fix 'buildStart' event is not firing [Details](https://github.com/parcel-bundler/parcel/commit/2fa38c1874fb6b279449b3eb317d5f1e678769d7)
+
 ## [1.9.4] - 2018-07-01
 
 ### Added
