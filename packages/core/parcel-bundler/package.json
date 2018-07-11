@@ -1,6 +1,6 @@
 {
   "name": "parcel-bundler",
-  "version": "1.9.5",
+  "version": "1.9.6",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
   "license": "MIT",
