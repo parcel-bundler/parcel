@@ -7,10 +7,16 @@ const walk = require('babylon-walk');
 const babylon = require('babylon');
 const t = require('babel-types');
 
-const prelude = fs
-  .readFileSync(path.join(__dirname, '../builtins/prelude2.min.js'), 'utf8')
-  .trim()
-  .replace(/;$/, '');
+const prelude = {
+  source: fs
+    .readFileSync(path.join(__dirname, '../builtins/prelude2.js'), 'utf8')
+    .trim(),
+  minified: fs
+    .readFileSync(path.join(__dirname, '../builtins/prelude2.min.js'), 'utf8')
+    .trim()
+    .replace(/;$/, '')
+};
+
 const helpers =
   fs
     .readFileSync(path.join(__dirname, '../builtins/helpers.js'), 'utf8')
@@ -514,8 +520,9 @@ class JSConcatPackager extends Packager {
       output = '\n' + output + '\n';
     }
 
+    let preludeCode = this.options.minify ? prelude.minified : prelude.source;
     if (this.needsPrelude) {
-      output = prelude + '(function (require) {' + output + '});';
+      output = preludeCode + '(function (require) {' + output + '});';
     } else {
       output = '(function () {' + output + '})();';
     }
