@@ -106,7 +106,10 @@ class JSPackager extends Packager {
   async writeModule(id, code, deps = {}, map) {
     let wrapped = this.first ? '' : ',';
     wrapped +=
-      id + ':[function(require,module,exports) {\n' + (code || '') + '\n},';
+      JSON.stringify(id) +
+      ':[function(require,module,exports) {\n' +
+      (code || '') +
+      '\n},';
     wrapped += JSON.stringify(deps);
     wrapped += ']';
 
@@ -154,7 +157,7 @@ class JSPackager extends Packager {
     }
 
     // Generate a module to register the bundle loaders that are needed
-    let loads = 'var b=require(' + bundleLoader.id + ');';
+    let loads = 'var b=require(' + JSON.stringify(bundleLoader.id) + ');';
     for (let bundleType of this.bundleLoaders) {
       let loader = this.options.bundleLoaders[bundleType];
       if (loader) {
@@ -165,7 +168,7 @@ class JSPackager extends Packager {
           'b.register(' +
           JSON.stringify(bundleType) +
           ',require(' +
-          asset.id +
+          JSON.stringify(asset.id) +
           '));';
       }
     }
@@ -183,7 +186,9 @@ class JSPackager extends Packager {
 
       loads += 'b.load(' + JSON.stringify(preload) + ')';
       if (this.bundle.entryAsset) {
-        loads += `.then(function(){require(${this.bundle.entryAsset.id});})`;
+        loads += `.then(function(){require(${JSON.stringify(
+          this.bundle.entryAsset.id
+        )});})`;
       }
 
       loads += ';';
