@@ -149,8 +149,8 @@ class SourceMap {
         column: mapping.original.column
       });
 
-      if (!originalMapping.line) {
-        return false;
+      if (!originalMapping || !originalMapping.line) {
+        return;
       }
 
       this.addMapping({
@@ -182,7 +182,60 @@ class SourceMap {
     return this;
   }
 
-  findClosest(line, column, key = 'original') {
+  findClosestGenerated(line, column) {
+    if (line < 1) {
+      throw new Error('Line numbers must be >= 1');
+    }
+
+    if (column < 0) {
+      throw new Error('Column numbers must be >= 0');
+    }
+
+    if (this.mappings.length < 1) {
+      return undefined;
+    }
+
+    let startIndex = 0;
+    let stopIndex = this.mappings.length - 1;
+    let middleIndex = (stopIndex + startIndex) >>> 1;
+
+    while (
+      startIndex < stopIndex &&
+      this.mappings[middleIndex].generated.line !== line
+    ) {
+      let mid = this.mappings[middleIndex].generated.line;
+      if (line < mid) {
+        stopIndex = middleIndex - 1;
+      } else if (line > mid) {
+        startIndex = middleIndex + 1;
+      }
+      middleIndex = (stopIndex + startIndex) >>> 1;
+    }
+
+    let mapping = this.mappings[middleIndex];
+    if (!mapping || mapping.generated.line !== line) {
+      return this.mappings.length - 1;
+    }
+
+    while (
+      middleIndex >= 1 &&
+      this.mappings[middleIndex - 1].generated.line === line
+    ) {
+      middleIndex--;
+    }
+
+    while (
+      middleIndex < this.mappings.length - 1 &&
+      this.mappings[middleIndex + 1].generated.line === line &&
+      column > this.mappings[middleIndex].generated.column
+    ) {
+      middleIndex++;
+    }
+
+    return middleIndex;
+  }
+
+  findClosest(line, column, key) {
     if (line < 1) {
       throw new Error('Line numbers must be >= 1');
     }
@@ -211,7 +264,7 @@ class SourceMap {
       middleIndex = Math.floor((stopIndex + startIndex) / 2);
     }
 
-    let mapping = this.mappings[middleIndex];
+    var mapping = this.mappings[middleIndex];
     if (!mapping || mapping[key].line !== line) {
       return this.mappings.length - 1;
     }
@@ -235,16 +288,20 @@ class SourceMap {
   }
 
   originalPositionFor(generatedPosition) {
-    let index = this.findClosest(
+    let index = this.findClosestGenerated(
       generatedPosition.line,
-      generatedPosition.column,
-      'generated'
+      generatedPosition.column
     );
+    let mapping = this.mappings[index];
+    if (!mapping) {
+      return null;
+    }
+
     return {
-      source: this.mappings[index].source,
-      name: this.mappings[index].name,
-      line: this.mappings[index].original.line,
-      column: this.mappings[index].original.column
+      source: mapping.source,
+      name: mapping.name,
+      line: mapping.original.line,
+      column: mapping.original.column
     };
   }
 

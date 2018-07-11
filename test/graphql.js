@@ -31,6 +31,7 @@ describe('graphql', function() {
           firstName
           lastName
         }
+
       `.definitions
     );
   });

@@ -25,6 +25,7 @@ class Pipeline {
     }
 
     return {
+      id: asset.id,
       dependencies: Array.from(asset.dependencies.values()),
       generated: generatedMap,
       hash: asset.hash,
@@ -52,17 +53,19 @@ class Pipeline {
       // Find an asset type for the rendition type.
       // If the asset is not already an instance of this asset type, process it.
       let AssetType = this.parser.findParser(
-        asset.name.slice(0, -inputType.length) + type
+        asset.name.slice(0, -inputType.length) + type,
+        true
       );
       if (!(asset instanceof AssetType)) {
-        let opts = Object.assign({rendition}, asset.options);
+        let opts = Object.assign({}, asset.options, {rendition});
         let subAsset = new AssetType(asset.name, opts);
+        subAsset.id = asset.id;
         subAsset.contents = value;
         subAsset.dependencies = asset.dependencies;
+        subAsset.cacheData = Object.assign(asset.cacheData, subAsset.cacheData);
 
         let processed = await this.processAsset(subAsset);
         generated = generated.concat(processed);
-        Object.assign(asset.cacheData, subAsset.cacheData);
         asset.hash = md5(asset.hash + subAsset.hash);
       } else {
         generated.push(rendition);
@@ -98,7 +101,8 @@ class Pipeline {
       yield {
         type,
         value: asset.generated[type],
-        final: true
+        // for scope hoisting, we need to post process all JS
+        final: !(type === 'js' && this.options.scopeHoist)
       };
     }
   }

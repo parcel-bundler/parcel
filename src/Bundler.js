@@ -13,14 +13,13 @@ const logger = require('./Logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
-const emoji = require('./utils/emoji');
 const loadEnv = require('./utils/env');
 const PromiseQueue = require('./utils/PromiseQueue');
 const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');
-const glob = require('glob');
+const glob = require('fast-glob');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -35,7 +34,7 @@ class Bundler extends EventEmitter {
 
     this.resolver = new Resolver(this.options);
     this.parser = new Parser(this.options);
-    this.packagers = new PackagerRegistry();
+    this.packagers = new PackagerRegistry(this.options);
     this.cache = this.options.cache ? new FSCache(this.options) : null;
     this.delegate = options.delegate || {};
     this.bundleLoaders = {};
@@ -56,11 +55,12 @@ class Bundler extends EventEmitter {
     this.pending = false;
     this.loadedAssets = new Map();
     this.watchedAssets = new Map();
+
     this.farm = null;
     this.watcher = null;
     this.hmr = null;
     this.bundleHashes = null;
-    this.errored = false;
+    this.error = null;
     this.buildQueue = new PromiseQueue(this.processAsset.bind(this));
     this.rebuildTimeout = null;
 
@@ -80,7 +80,7 @@ class Bundler extends EventEmitter {
 
     // Match files as globs
     return entryFiles
-      .reduce((p, m) => p.concat(glob.sync(m, {nonull: true})), [])
+      .reduce((p, m) => p.concat(glob.sync(m)), [])
       .map(f => Path.resolve(f));
   }
 
@@ -91,6 +91,14 @@ class Bundler extends EventEmitter {
     const watch =
       typeof options.watch === 'boolean' ? options.watch : !isProduction;
     const target = options.target || 'browser';
+    const hmr =
+      target === 'node'
+        ? false
+        : typeof options.hmr === 'boolean'
+          ? options.hmr
+          : watch;
+    const scopeHoist =
+      options.scopeHoist !== undefined ? options.scopeHoist : false;
     return {
       production: isProduction,
       outDir: Path.resolve(options.outDir || 'dist'),
@@ -104,19 +112,15 @@ class Bundler extends EventEmitter {
       minify:
         typeof options.minify === 'boolean' ? options.minify : isProduction,
       target: target,
-      hmr:
-        target === 'node'
-          ? false
-          : typeof options.hmr === 'boolean'
-            ? options.hmr
-            : watch,
+      hmr: hmr,
       https: options.https || false,
       logLevel: isNaN(options.logLevel) ? 3 : options.logLevel,
       entryFiles: this.entryFiles,
       hmrPort: options.hmrPort || 0,
       rootDir: getRootDir(this.entryFiles),
       sourceMaps:
-        typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true,
+        (typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true) &&
+        !scopeHoist,
       hmrHostname:
         options.hmrHostname ||
         (options.target === 'electron' ? 'localhost' : ''),
@@ -126,6 +130,7 @@ class Bundler extends EventEmitter {
         typeof options.autoinstall === 'boolean'
           ? options.autoinstall
           : !isProduction,
+      scopeHoist: scopeHoist,
       contentHash:
         typeof options.contentHash === 'boolean'
           ? options.contentHash
@@ -207,20 +212,21 @@ class Bundler extends EventEmitter {
         });
       });
     }
-
-    this.emit('buildStart', this.entryFiles);
-
+    
     let isInitialBundle = !this.entryAssets;
     let startTime = Date.now();
     this.pending = true;
-    this.errored = false;
+    this.error = null;
 
     logger.clear();
-    logger.status(emoji.progress, 'Building...');
+    logger.progress('Building...');
 
     try {
       // Start worker farm, watcher, etc. if needed
       await this.start();
+
+      // Emit start event, after bundler is initialised
+      this.emit('buildStart', this.entryFiles);
 
       // If this is the initial bundle, ensure the output directory exists, and resolve the main asset.
       if (isInitialBundle) {
@@ -245,6 +251,8 @@ class Bundler extends EventEmitter {
       for (let asset of this.loadedAssets.values()) {
         asset.invalidateBundle();
       }
+
+      logger.progress(`Producing bundles...`);
 
       // Create a root bundle to hold all of the entry assets, and add them to the tree.
       this.mainBundle = new Bundle();
@@ -271,6 +279,8 @@ class Bundler extends EventEmitter {
         this.hmr.emitUpdate(changedAssets);
       }
 
+      logger.progress(`Packaging...`);
+
       // Package everything up
       this.bundleHashes = await this.mainBundle.package(
         this,
@@ -282,7 +292,7 @@ class Bundler extends EventEmitter {
 
       let buildTime = Date.now() - startTime;
       let time = prettifyTime(buildTime);
-      logger.status(emoji.success, `Built in ${time}.`, 'green');
+      logger.success(`Built in ${time}.`);
       if (!this.watcher) {
         bundleReport(this.mainBundle, this.options.detailedReport);
       }
@@ -290,8 +300,12 @@ class Bundler extends EventEmitter {
       this.emit('bundled', this.mainBundle);
       return this.mainBundle;
     } catch (err) {
-      this.errored = true;
+      this.error = err;
+
       logger.error(err);
+
+      this.emit('buildError', err);
+
       if (this.hmr) {
         this.hmr.emitError(err);
       }
@@ -318,11 +332,14 @@ class Bundler extends EventEmitter {
     }
 
     await this.loadPlugins();
-    await loadEnv(Path.join(this.options.rootDir, 'index'));
+
+    if (!this.options.env) {
+      await loadEnv(Path.join(this.options.rootDir, 'index'));
+      this.options.env = process.env;
+    }
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
     this.options.bundleLoaders = this.bundleLoaders;
-    this.options.env = process.env;
 
     if (this.options.watch) {
       this.watcher = new Watcher();
@@ -341,17 +358,19 @@ class Bundler extends EventEmitter {
     this.farm = WorkerFarm.getShared(this.options);
   }
 
-  stop() {
-    if (this.farm) {
-      this.farm.end();
-    }
-
+  async stop() {
     if (this.watcher) {
       this.watcher.stop();
     }
 
     if (this.hmr) {
       this.hmr.stop();
+    }
+
+    // Watcher and hmr can cause workerfarm calls
+    // keep this as last to prevent unwanted errors
+    if (this.farm) {
+      await this.farm.end();
     }
   }
 
@@ -379,20 +398,22 @@ class Bundler extends EventEmitter {
     return asset;
   }
 
-  watch(path, asset) {
+  async watch(path, asset) {
     if (!this.watcher) {
       return;
     }
+
+    path = await fs.realpath(path);
 
     if (!this.watchedAssets.has(path)) {
       this.watcher.watch(path);
       this.watchedAssets.set(path, new Set());
     }
-
     this.watchedAssets.get(path).add(asset);
   }
 
-  unwatch(path, asset) {
+  async unwatch(path, asset) {
+    path = await fs.realpath(path);
     if (!this.watchedAssets.has(path)) {
       return;
     }
@@ -493,8 +514,8 @@ class Bundler extends EventEmitter {
       return;
     }
 
-    if (!this.errored) {
-      logger.status(emoji.progress, `Building ${asset.basename}...`);
+    if (!this.error) {
+      logger.progress(`Building ${asset.basename}...`);
     }
 
     // Mark the asset processed so we don't load it twice
@@ -511,8 +532,10 @@ class Bundler extends EventEmitter {
 
     asset.endTime = Date.now();
     asset.buildTime = asset.endTime - asset.startTime;
+    asset.id = processed.id;
     asset.generated = processed.generated;
     asset.hash = processed.hash;
+    asset.cacheData = processed.cacheData;
 
     // Call the delegate to get implicit dependencies
     let dependencies = processed.dependencies;
@@ -532,6 +555,7 @@ class Bundler extends EventEmitter {
           // that changing it triggers a recompile of the parent.
           this.watch(dep.name, asset);
         } else {
+          dep.parent = asset.name;
           let assetDep = await this.resolveDep(asset, dep);
           if (assetDep) {
             await this.loadAsset(assetDep);
@@ -562,7 +586,7 @@ class Bundler extends EventEmitter {
       asset.parentDeps.add(dep);
     }
 
-    if (asset.parentBundle) {
+    if (asset.parentBundle && !bundle.isolated) {
       // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
       if (asset.parentBundle !== bundle) {
         let commonBundle = bundle.findCommonAncestor(asset.parentBundle);
@@ -583,6 +607,12 @@ class Bundler extends EventEmitter {
       }
     }
 
+    // Skip this asset if it's already in the bundle.
+    // Happens when circular dependencies are placed in an isolated bundle (e.g. a worker).
+    if (bundle.isolated && bundle.assets.has(asset)) {
+      return;
+    }
+
     let isEntryAsset =
       asset.parentBundle && asset.parentBundle.entryAsset === asset;
 
@@ -593,7 +623,7 @@ class Bundler extends EventEmitter {
       }
 
       // Create a new bundle for dynamic imports
-      bundle = bundle.createChildBundle(asset);
+      bundle = bundle.createChildBundle(asset, dep);
     } else if (asset.type && !this.packagers.has(asset.type)) {
       // If the asset is already the entry asset of a bundle, don't create a duplicate.
       if (isEntryAsset) {
@@ -642,7 +672,9 @@ class Bundler extends EventEmitter {
     }
 
     for (let bundle of Array.from(asset.bundles)) {
-      bundle.removeAsset(asset);
+      if (!bundle.isolated) {
+        bundle.removeAsset(asset);
+      }
       commonBundle.getSiblingBundle(bundle.type).addAsset(asset);
     }
 
@@ -692,7 +724,7 @@ class Bundler extends EventEmitter {
     }
 
     logger.clear();
-    logger.status(emoji.progress, `Building ${Path.basename(path)}...`);
+    logger.progress(`Building ${Path.basename(path)}...`);
 
     // Add the asset to the rebuild queue, and reset the timeout.
     for (let asset of assets) {
@@ -713,7 +745,11 @@ class Bundler extends EventEmitter {
 
   async serve(port = 1234, https = false) {
     this.server = await Server.serve(this, port, https);
-    this.bundle();
+    try {
+      await this.bundle();
+    } catch (e) {
+      // ignore: server can still work with errored bundler
+    }
     return this.server;
   }
 }

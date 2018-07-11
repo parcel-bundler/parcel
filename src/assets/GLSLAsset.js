@@ -53,9 +53,7 @@ class GLSLAsset extends Asset {
     const glslifyBundle = await localRequire('glslify-bundle', this.name);
     let glsl = glslifyBundle(this.ast);
 
-    return {
-      js: `module.exports=${JSON.stringify(glsl)};`
-    };
+    return `module.exports=${JSON.stringify(glsl)};`;
   }
 }
 

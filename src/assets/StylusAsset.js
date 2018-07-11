@@ -2,6 +2,8 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const Resolver = require('../Resolver');
+const fs = require('../utils/fs');
+const {dirname} = require('path');
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
@@ -48,23 +50,21 @@ class StylusAsset extends Asset {
   }
 }
 
-async function getDependencies(code, asset, options) {
-  const [Parser, DepsResolver, nodes] = await Promise.all(
-    ['parser', 'visitor/deps-resolver', 'nodes'].map(dep =>
-      localRequire('stylus/lib/' + dep, asset.name)
+async function getDependencies(
+  code,
+  filepath,
+  asset,
+  options,
+  seen = new Set()
+) {
+  seen.add(filepath);
+  const [Parser, DepsResolver, nodes, utils] = await Promise.all(
+    ['parser', 'visitor/deps-resolver', 'nodes', 'utils'].map(dep =>
+      localRequire('stylus/lib/' + dep, filepath)
     )
   );
 
   nodes.filename = asset.name;
-  class ImportVisitor extends DepsResolver {
-    visitImport(imported) {
-      let path = imported.path.first.string;
-
-      if (!deps.has(path)) {
-        deps.set(path, resolver.resolve(path, asset.name).then(m => m.path));
-      }
-    }
-  }
 
   let parser = new Parser(code, options);
   let ast = parser.parse();
@@ -75,26 +75,83 @@ async function getDependencies(code, asset, options) {
     })
   );
 
+  class ImportVisitor extends DepsResolver {
+    visitImport(imported) {
+      let path = imported.path.first.string;
+
+      if (!deps.has(path)) {
+        deps.set(path, resolver.resolve(path, filepath));
+      }
+    }
+  }
+
   new ImportVisitor(ast, options).visit(ast);
 
-  // Return a map with all await'd paths
-  return new Map(
-    await Promise.all(
-      Array.from(deps.entries()).map(async ([path, resolved]) => [
-        path,
-        await resolved.catch(() => null)
-      ])
-    )
+  // Recursively process depdendencies, and return a map with all resolved paths.
+  let res = new Map();
+  await Promise.all(
+    Array.from(deps.entries()).map(async ([path, resolved]) => {
+      try {
+        resolved = (await resolved).path;
+      } catch (err) {
+        resolved = null;
+      }
+
+      let found;
+      if (resolved) {
+        found = [resolved];
+        res.set(path, resolved);
+      } else {
+        // If we couldn't resolve, try the normal stylus resolver.
+        // We just need to do this to keep track of the dependencies - stylus does the real work.
+
+        // support optional .styl
+        let originalPath = path;
+        if (!/\.styl$/i.test(path)) {
+          path += '.styl';
+        }
+
+        let paths = (options.paths || []).concat(dirname(filepath || '.'));
+        found = utils.find(path, paths, filepath);
+        if (!found) {
+          found = utils.lookupIndex(originalPath, paths, filepath);
+        }
+
+        if (!found) {
+          throw new Error('failed to locate file ' + originalPath);
+        }
+      }
+
+      // Recursively process resolved files as well to get nested deps
+      for (let resolved of found) {
+        if (!seen.has(resolved)) {
+          asset.addDependency(resolved, {includedInParent: true});
+
+          let code = await fs.readFile(resolved, 'utf8');
+          for (let [path, resolvedPath] of await getDependencies(
+            code,
+            resolved,
+            asset,
+            options,
+            seen
+          )) {
+            res.set(path, resolvedPath);
+          }
+        }
+      }
+    })
   );
+
+  return res;
 }
 
 async function createEvaluator(code, asset, options) {
-  const deps = await getDependencies(code, asset, options);
+  const deps = await getDependencies(code, asset.name, asset, options);
   const Evaluator = await localRequire(
     'stylus/lib/visitor/evaluator',
     asset.name
   );
-  const utils = await localRequire('stylus/lib/utils', asset.name);
+
   // This is a custom stylus evaluator that extends stylus with support for the node
   // require resolution algorithm. It also adds all dependencies to the parcel asset
   // tree so the file watcher works correctly, etc.
@@ -110,31 +167,6 @@ async function createEvaluator(code, asset, options) {
         // If we find something, update the AST so stylus gets the absolute path to load later.
         if (resolved) {
           node.string = resolved;
-          asset.addDependency(node.string, {includedInParent: true});
-        } else {
-          // If we couldn't resolve, try the normal stylus resolver.
-          // We just need to do this to keep track of the dependencies - stylus does the real work.
-
-          // support optional .styl
-          if (!/\.styl$/i.test(path)) {
-            path += '.styl';
-          }
-
-          let found = utils.find(path, this.paths, this.filename);
-          if (!found) {
-            found = utils.lookupIndex(node.string, this.paths, this.filename);
-          }
-
-          if (!found) {
-            let nodeName = imported.once ? 'require' : 'import';
-            throw new Error(
-              'failed to locate @' + nodeName + ' file ' + node.string
-            );
-          }
-
-          for (let file of found) {
-            asset.addDependency(file, {includedInParent: true});
-          }
         }
       }
 

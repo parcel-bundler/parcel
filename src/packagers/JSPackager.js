@@ -3,6 +3,7 @@ const path = require('path');
 const Packager = require('./Packager');
 const urlJoin = require('../utils/urlJoin');
 const lineCounter = require('../utils/lineCounter');
+const objectHash = require('../utils/objectHash');
 
 const prelude = {
   source: fs
@@ -35,13 +36,14 @@ class JSPackager extends Packager {
   }
 
   async addAsset(asset) {
-    if (this.dedupe.has(asset.generated.js)) {
+    let key = this.dedupeKey(asset);
+    if (this.dedupe.has(key)) {
       return;
     }
 
     // Don't dedupe when HMR is turned on since it messes with the asset ids
     if (!this.options.hmr) {
-      this.dedupe.set(asset.generated.js, asset.id);
+      this.dedupe.set(key, asset.id);
     }
 
     let deps = {};
@@ -60,7 +62,7 @@ class JSPackager extends Packager {
         deps[dep.name] = bundles;
         this.bundleLoaders.add(mod.type);
       } else {
-        deps[dep.name] = this.dedupe.get(mod.generated.js) || mod.id;
+        deps[dep.name] = this.dedupe.get(this.dedupeKey(mod)) || mod.id;
 
         // If the dep isn't in this bundle, add it to the list of external modules to preload.
         // Only do this if this is the root JS bundle, otherwise they will have already been
@@ -93,10 +95,21 @@ class JSPackager extends Packager {
     return name;
   }
 
+  dedupeKey(asset) {
+    // cannot rely *only* on generated JS for deduplication because paths like
+    // `../` can cause 2 identical JS files to behave differently depending on
+    // where they are located on the filesystem
+    let deps = Array.from(asset.depAssets.values(), dep => dep.name).sort();
+    return objectHash([asset.generated.js, deps]);
+  }
+
   async writeModule(id, code, deps = {}, map) {
     let wrapped = this.first ? '' : ',';
     wrapped +=
-      id + ':[function(require,module,exports) {\n' + (code || '') + '\n},';
+      JSON.stringify(id) +
+      ':[function(require,module,exports) {\n' +
+      (code || '') +
+      '\n},';
     wrapped += JSON.stringify(deps);
     wrapped += ']';
 
@@ -144,7 +157,7 @@ class JSPackager extends Packager {
     }
 
     // Generate a module to register the bundle loaders that are needed
-    let loads = 'var b=require(' + bundleLoader.id + ');';
+    let loads = 'var b=require(' + JSON.stringify(bundleLoader.id) + ');';
     for (let bundleType of this.bundleLoaders) {
       let loader = this.options.bundleLoaders[bundleType];
       if (loader) {
@@ -155,7 +168,7 @@ class JSPackager extends Packager {
           'b.register(' +
           JSON.stringify(bundleType) +
           ',require(' +
-          asset.id +
+          JSON.stringify(asset.id) +
           '));';
       }
     }
@@ -171,11 +184,14 @@ class JSPackager extends Packager {
         }
       }
 
+      loads += 'b.load(' + JSON.stringify(preload) + ')';
       if (this.bundle.entryAsset) {
-        preload.push(this.bundle.entryAsset.id);
+        loads += `.then(function(){require(${JSON.stringify(
+          this.bundle.entryAsset.id
+        )});})`;
       }
 
-      loads += 'b.load(' + JSON.stringify(preload) + ');';
+      loads += ';';
     }
 
     // Asset ids normally start at 1, so this should be safe.

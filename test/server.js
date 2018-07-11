@@ -23,14 +23,13 @@ describe('server', function() {
           rejectUnauthorized: false
         },
         res => {
-          if (res.statusCode !== 200) {
-            return reject(new Error('Request failed: ' + res.statusCode));
-          }
-
           res.setEncoding('utf8');
           let data = '';
           res.on('data', c => (data += c));
           res.on('end', () => {
+            if (res.statusCode !== 200) {
+              return reject(data);
+            }
             resolve(data);
           });
         }
@@ -85,13 +84,63 @@ describe('server', function() {
 
     try {
       await get('/');
-      throw new Error('GET / responded with 200');
     } catch (err) {
       assert.equal(err.message, 'Request failed: 500');
     }
 
     b.errored = false;
     await get('/');
+  });
+
+  it('should serve a 500 response with error stack trace when bundler has errors', async function() {
+    let b = bundler(
+      __dirname + '/integration/bundler-error-syntax-error/index.html'
+    );
+
+    server = await b.serve(0);
+    let resp;
+    try {
+      await get('/');
+    } catch (e) {
+      resp = e;
+    }
+
+    assert(resp.includes('<title>🚨 Build Error</title>'), 'has title');
+    assert(resp.includes('<h1>🚨 Build Error</h1>'), 'has h1');
+    assert(
+      resp.includes('<div style="background: black; padding: 1rem;">'),
+      'has code frame'
+    );
+    assert(resp.includes('invalid_js'), 'code frame has invalid code');
+  });
+
+  it('should serve a 500 response without stack trace when bundler has errors in production', async function() {
+    let NODE_ENV = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    let b = bundler(
+      __dirname + '/integration/bundler-error-syntax-error/index.html'
+    );
+
+    server = await b.serve(0);
+    let resp;
+    try {
+      await get('/');
+    } catch (e) {
+      resp = e;
+    }
+
+    assert(resp.includes('<title>🚨 Build Error</title>'), 'has title');
+    assert(resp.includes('<h1>🚨 Build Error</h1>'), 'has h1');
+    assert(
+      resp.includes('<p><b>Check the console for details.</b></p>'),
+      'has description'
+    );
+    assert(
+      !resp.includes('<div style="background: black; padding: 1rem;">'),
+      'do not have code frame'
+    );
+    assert(!resp.includes('invalid_js'), 'source code is not shown');
+    process.env.NODE_ENV = NODE_ENV;
   });
 
   it('should support HTTPS', async function() {

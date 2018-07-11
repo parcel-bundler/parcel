@@ -4,6 +4,7 @@ const promisify = require('../utils/promisify');
 const path = require('path');
 const os = require('os');
 const Resolver = require('../Resolver');
+const parseCSSImport = require('../utils/parseCSSImport');
 
 class SASSAsset extends Asset {
   constructor(name, options) {
@@ -23,9 +24,10 @@ class SASSAsset extends Asset {
     let opts =
       (await this.getConfig(['.sassrc', '.sassrc.js'], {packageKey: 'sass'})) ||
       {};
-    opts.includePaths = (opts.includePaths || []).concat(
-      path.dirname(this.name)
-    );
+    opts.includePaths = (opts.includePaths
+      ? opts.includePaths.map(includePath => path.resolve(includePath))
+      : []
+    ).concat(path.dirname(this.name));
     opts.data = opts.data ? opts.data + os.EOL + code : code;
     let type = this.options.rendition
       ? this.options.rendition.type
@@ -50,11 +52,7 @@ class SASSAsset extends Asset {
       ? opts.importer
       : [opts.importer];
     opts.importer.push((url, prev, done) => {
-      if (!/^(~|\.\/|\/)/.test(url)) {
-        url = './' + url;
-      } else if (!/^(~\/|\.\/|\/)/.test(url)) {
-        url = url.substring(1);
-      }
+      url = parseCSSImport(url);
       resolver
         .resolve(url, prev === 'stdin' ? this.name : prev)
         .then(resolved => resolved.path)

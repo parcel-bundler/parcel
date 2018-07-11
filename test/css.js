@@ -218,6 +218,15 @@ describe('css', function() {
     assert(css.includes(`.${cssClass}`));
   });
 
+  it('should support transforming with postcss twice with the same result', async function() {
+    let b = await bundle(__dirname + '/integration/postcss-plugins/index.js');
+    let c = await bundle(__dirname + '/integration/postcss-plugins/index2.js');
+
+    let [run1, run2] = await Promise.all([await run(b), await run(c)]);
+
+    assert.equal(run1(), run2());
+  });
+
   it('should minify CSS in production mode', async function() {
     let b = await bundle(__dirname + '/integration/cssnano/index.js', {
       production: true

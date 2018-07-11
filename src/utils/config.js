@@ -1,5 +1,6 @@
 const fs = require('./fs');
 const path = require('path');
+const clone = require('clone');
 
 const PARSERS = {
   json: require('json5').parse,
@@ -36,7 +37,7 @@ async function load(filepath, filenames, root = path.parse(filepath).root) {
     try {
       let extname = path.extname(configFile).slice(1);
       if (extname === 'js') {
-        return require(configFile);
+        return clone(require(configFile));
       }
 
       let configContent = (await fs.readFile(configFile)).toString();
