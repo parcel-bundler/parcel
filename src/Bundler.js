@@ -213,8 +213,6 @@ class Bundler extends EventEmitter {
       });
     }
 
-    this.emit('buildStart', this.entryFiles);
-
     let isInitialBundle = !this.entryAssets;
     let startTime = Date.now();
     this.pending = true;
@@ -226,6 +224,9 @@ class Bundler extends EventEmitter {
     try {
       // Start worker farm, watcher, etc. if needed
       await this.start();
+      
+      // Emit start event, after bundler is initialised
+      this.emit('buildStart', this.entryFiles);
 
       // If this is the initial bundle, ensure the output directory exists, and resolve the main asset.
       if (isInitialBundle) {
