@@ -238,8 +238,9 @@ class WorkerFarm extends EventEmitter {
 
   shouldUseRemoteWorkers() {
     return (
-      !this.options.useLocalWorker ||
-      (this.warmWorkers >= this.workers.size || !this.options.warmWorkers)
+      this.shouldStartRemoteWorkers() &&
+      (!this.options.useLocalWorker ||
+        (this.warmWorkers >= this.workers.size || !this.options.warmWorkers))
     );
   }
 
