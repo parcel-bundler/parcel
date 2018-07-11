@@ -127,7 +127,7 @@ class Logger {
       this.spinner = ora({
         text: styledMessage,
         stream: process.stdout,
-        enabled: !this.isTest
+        enabled: this.isTest ? false : undefined // fall back to ora default unless we need to explicitly disable it.
       }).start();
     } else {
       this.spinner.text = styledMessage;
