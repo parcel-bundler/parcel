@@ -235,9 +235,8 @@ class Resolver {
         }
         if (file == '.' || file == './') {
           file = 'index';
-        } else {
-          file = path.resolve(pkg.pkgdir, file);
         }
+        file = path.resolve(pkg.pkgdir, file);
 
         const res =
           (await this.loadAsFile(file, extensions, pkg)) ||
