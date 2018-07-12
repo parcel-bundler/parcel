@@ -228,14 +228,23 @@ class Resolver {
     try {
       pkg = await this.readPackage(dir);
 
-      // First try loading package.main as a file, then try as a directory.
-      let main = await this.getPackageMain(pkg);
-      let res =
-        (await this.loadAsFile(main, extensions, pkg)) ||
-        (await this.loadDirectory(main, extensions, pkg));
+      let fileList = this.listPossibleFiles(pkg);
+      for (let file of fileList) {
+        if (typeof file != 'string') {
+          continue;
+        }
+        if (file == '.' || file == './') {
+          file = 'index';
+        } else {
+          file = path.resolve(pkg.pkgdir, file);
+        }
 
-      if (res) {
-        return res;
+        const res =
+          (await this.loadAsFile(file, extensions, pkg)) ||
+          (await this.loadDirectory(file, extensions, pkg));
+        if (res) {
+          return res;
+        }
       }
     } catch (err) {
       // ignore
@@ -270,7 +279,7 @@ class Resolver {
     return pkg;
   }
 
-  async getPackageMain(pkg) {
+  listPossibleFiles(pkg) {
     let {browser} = pkg;
 
   getPackageMain(pkg) {
@@ -282,38 +291,7 @@ class Resolver {
     // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
     // we use the "browser" or "module" field to get the full dependency tree if available.
     // If this is a linked module with a `source` field, use that as the entry point.
-    let main;
-    // this is a list possibile main files
-    let possibleMain = [pkg.main, browser, pkg.module, pkg.source];
-    // now we iter trough the list, from the end to the beginning.
-    // by doing this, we can easily pop elements from the list
-    for (let i = possibleMain.length - 1; i >= 0; i--) {
-      main = possibleMain[i];
-      if (typeof main !== 'string') {
-        // if the current main is not a string, trash it
-        possibleMain.pop();
-        continue;
-      }
-      try {
-        // else, check if the file main exists/is accessible. if it does, return the path of the file.
-        const resolvedPath = path.resolve(pkg.pkgdir, main);
-        await fs.access(resolvedPath);
-        return resolvedPath;
-      } catch (e) {
-        // keep looking for an accessible file
-      }
-    }
-
-    // if after the loop we didnt't find any existing file, assign
-    // to the main variable the first string we found.
-    // this is needed in certain cases.
-    // example: 'should use the source field as a glob alias when symlinked' in test/resolver.js
-    main = main || possibleMain.pop();
-    // fallback
-    if (!main || main === '.' || main === './') {
-      main = 'index';
-    }
-    return path.resolve(pkg.pkgdir, main);
+    return [pkg.source, browser, pkg.module, pkg.main];
   }
 
   async loadAsFile(file, extensions, pkg) {
