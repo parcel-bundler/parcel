@@ -396,6 +396,44 @@ describe('javascript', function() {
     assert.equal(await output(), 5);
   });
 
+  it('should support hoisting shared modules with async imports up multiple levels', async function() {
+    let b = await bundle(
+      __dirname + '/integration/dynamic-hoist-deep/index.js',
+      {
+        sourceMaps: false
+      }
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: [
+        'index.js',
+        'c.js',
+        'bundle-loader.js',
+        'bundle-url.js',
+        'js-loader.js'
+      ],
+      childBundles: [
+        {
+          assets: ['a.js'],
+          childBundles: [
+            {
+              assets: ['1.js'],
+              childBundles: []
+            }
+          ]
+        },
+        {
+          assets: ['b.js'],
+          childBundles: []
+        }
+      ]
+    });
+
+    let output = await run(b);
+    assert.deepEqual(output, {default: {asdf: 1}});
+  });
+
   it('should support requiring JSON files', async function() {
     let b = await bundle(__dirname + '/integration/json/index.js');
 
