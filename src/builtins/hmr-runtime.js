@@ -25,46 +25,72 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = process.env.HMR_HOSTNAME || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
-  ws.onmessage = function(event) {
-    var data = JSON.parse(event.data);
-
-    if (data.type === 'update') {
-      console.clear();
-
-      data.assets.forEach(function (asset) {
-        hmrApply(global.parcelRequire, asset);
-      });
-
-      data.assets.forEach(function (asset) {
-        if (!asset.isNew) {
-          hmrAccept(global.parcelRequire, asset.id);
-        }
-      });
-    }
-
-    if (data.type === 'reload') {
-      ws.close();
+  var ws, tryCount = 0, DEFAULT_TIMEOUT = 3000;
+  var retry = function () {
+    ws = createSocket();
+    if (!global.setTimeout) return;
+    if (ws && ws.readyState === 1) {
       ws.onclose = function () {
-        location.reload();
+        setTimeout(retry, DEFAULT_TIMEOUT);
+      };
+    } else {
+      tryCount++;
+      if (tryCount <= 5) {
+        console.log('[parcel] 🚨 Disconnected from HMR server, retrying...');
+        setTimeout(retry, DEFAULT_TIMEOUT * tryCount * 1.15);
+      } else {
+        console.error('[parcel] ❌ Lost connection to the HMR server, please refresh your browser');
       }
     }
-
-    if (data.type === 'error-resolved') {
-      console.log('[parcel] ✨ Error resolved');
-
-      removeErrorOverlay();
-    }
-
-    if (data.type === 'error') {
-      console.error('[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack);
-
-      removeErrorOverlay();
-
-      var overlay = createErrorOverlay(data);
-      document.body.appendChild(overlay);
-    }
   };
+  var createSocket = function() {
+    var ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
+    ws.onopen = function () {
+      console.clear();
+      tryCount = 0;
+    }
+    ws.onmessage = function(event) {
+      var data = JSON.parse(event.data);
+
+      if (data.type === 'update') {
+        console.clear();
+
+        data.assets.forEach(function (asset) {
+          hmrApply(global.parcelRequire, asset);
+        });
+
+        data.assets.forEach(function (asset) {
+          if (!asset.isNew) {
+            hmrAccept(global.parcelRequire, asset.id);
+          }
+        });
+      }
+
+      if (data.type === 'reload') {
+        ws.close();
+        ws.onclose = function () {
+          location.reload();
+        }
+      }
+
+      if (data.type === 'error-resolved') {
+        console.log('[parcel] ✨ Error resolved');
+
+        removeErrorOverlay();
+      }
+
+      if (data.type === 'error') {
+        console.error('[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack);
+
+        removeErrorOverlay();
+
+        var overlay = createErrorOverlay(data);
+        document.body.appendChild(overlay);
+      }
+    };
+    return ws;
+  };
+  retry();
 }
 
 function removeErrorOverlay() {
