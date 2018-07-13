@@ -151,7 +151,7 @@ class JSConcatPackager extends Packager {
     }
 
     for (let [dep, mod] of asset.depAssets) {
-      if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
+      if (dep.dynamic) {
         for (let child of mod.parentBundle.siblingBundles) {
           if (!child.isEmpty) {
             await this.addBundleLoader(child.type, asset);

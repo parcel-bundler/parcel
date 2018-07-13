@@ -49,7 +49,7 @@ class JSPackager extends Packager {
     let deps = {};
     for (let [dep, mod] of asset.depAssets) {
       // For dynamic dependencies, list the child bundles to load along with the module id
-      if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
+      if (dep.dynamic) {
         let bundles = [this.getBundleSpecifier(mod.parentBundle)];
         for (let child of mod.parentBundle.siblingBundles) {
           if (!child.isEmpty) {
