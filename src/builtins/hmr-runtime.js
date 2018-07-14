@@ -1,3 +1,5 @@
+var WebSocketClient = require('./websocket-client')
+
 var OVERLAY_ID = '__parcel__error__overlay__';
 
 var OldModule = module.bundle.Module;
@@ -22,75 +24,64 @@ function Module(moduleName) {
 module.bundle.Module = Module;
 
 var parent = module.bundle.parent;
-if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
+if ((!parent || !parent.isParcelRequire) && typeof WebSocketClient !== 'undefined') {
   var hostname = process.env.HMR_HOSTNAME || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws, tryCount = 0, DEFAULT_TIMEOUT = 3000;
-  var retry = function () {
-    ws = createSocket();
-    if (!global.setTimeout) return;
-    if (ws && ws.readyState === 1) {
-      ws.onclose = function () {
-        setTimeout(retry, DEFAULT_TIMEOUT);
-      };
-    } else {
-      tryCount++;
-      if (tryCount <= 5) {
-        console.log('[parcel] 🚨 Disconnected from HMR server, retrying...');
-        setTimeout(retry, DEFAULT_TIMEOUT * tryCount * 1.15);
-      } else {
-        console.error('[parcel] ❌ Lost connection to the HMR server, please refresh your browser');
-      }
-    }
-  };
-  var createSocket = function() {
-    var ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
-    ws.onopen = function () {
-      console.clear();
-      tryCount = 0;
-    }
-    ws.onmessage = function(event) {
-      var data = JSON.parse(event.data);
-
-      if (data.type === 'update') {
-        console.clear();
-
-        data.assets.forEach(function (asset) {
-          hmrApply(global.parcelRequire, asset);
-        });
-
-        data.assets.forEach(function (asset) {
-          if (!asset.isNew) {
-            hmrAccept(global.parcelRequire, asset.id);
-          }
-        });
-      }
-
-      if (data.type === 'reload') {
-        ws.close();
-        ws.onclose = function () {
-          location.reload();
-        }
-      }
-
-      if (data.type === 'error-resolved') {
-        console.log('[parcel] ✨ Error resolved');
-
-        removeErrorOverlay();
-      }
-
-      if (data.type === 'error') {
-        console.error('[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack);
-
-        removeErrorOverlay();
-
-        var overlay = createErrorOverlay(data);
-        document.body.appendChild(overlay);
-      }
+  var ws;
+  if (global.fallbackWebsocket) {
+    ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
+  } else {
+    ws = new WebSocketClient();
+    ws.open(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
+    ws.onopen = function (e) {
+      console.info('[parcel] ✅ Connected to HMR server');
     };
-    return ws;
+    ws.onreconnect = function (e) {
+      console.warn('[parcel] ❗ Connection to HMR server was interrupted, attempting to reconnect...');
+    };
+    ws.ongiveup = function (e) {
+      console.error('[parcel] ❌ Lost connection to HMR server, please refresh your browser')
+    }
+  }
+  ws.onmessage = function(event) {
+    var data = JSON.parse(event.data);
+
+    if (data.type === 'update') {
+      console.clear();
+
+      data.assets.forEach(function (asset) {
+        hmrApply(global.parcelRequire, asset);
+      });
+
+      data.assets.forEach(function (asset) {
+        if (!asset.isNew) {
+          hmrAccept(global.parcelRequire, asset.id);
+        }
+      });
+    }
+
+    if (data.type === 'reload') {
+      ws.close();
+      ws.onclose = function () {
+        location.reload();
+      }
+    }
+
+    if (data.type === 'error-resolved') {
+      console.log('[parcel] ✨ Error resolved');
+
+      removeErrorOverlay();
+    }
+
+    if (data.type === 'error') {
+      console.error('[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack);
+
+      removeErrorOverlay();
+
+      var overlay = createErrorOverlay(data);
+      document.body.appendChild(overlay);
+    }
   };
-  retry();
 }
 
 function removeErrorOverlay() {

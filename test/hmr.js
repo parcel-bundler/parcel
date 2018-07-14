@@ -247,7 +247,8 @@ describe('hmr', function() {
     await run(bundle, {
       output(o) {
         outputs.push(o);
-      }
+      },
+      fallbackWebsocket: true
     });
 
     assert.deepEqual(outputs, [3]);
@@ -279,7 +280,8 @@ describe('hmr', function() {
       },
       output(o) {
         outputs.push(o);
-      }
+      },
+      fallbackWebsocket: true
     });
 
     assert.deepEqual(outputs, [3]);
@@ -313,7 +315,8 @@ describe('hmr', function() {
     await run(bundle, {
       output(o) {
         outputs.push(o);
-      }
+      },
+      fallbackWebsocket: true
     });
 
     await sleep(50);
@@ -343,6 +346,7 @@ describe('hmr', function() {
     let ctx = await run(
       bundle,
       {
+        fallbackWebsocket: true,
         console: {
           error(msg) {
             logs.push(msg);
@@ -381,6 +385,7 @@ describe('hmr', function() {
     let ctx = await run(
       bundle,
       {
+        fallbackWebsocket: true,
         console: {
           error(msg) {
             logs.push(msg);
