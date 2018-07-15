@@ -156,8 +156,6 @@ module.exports = {
           scope.push({id: exportsIdentifier, init: t.objectExpression([])});
         }
 
-        let topDecls = [];
-
         // Move all "var" variables to the top-level to prevent out of order definitions when wrapped.
         for (let name in scope.bindings) {
           let binding = scope.getBinding(name);
@@ -166,35 +164,26 @@ module.exports = {
             let {parentPath} = binding.path;
 
             if (!parentPath.removed) {
-              let {declarations} = parentPath.node;
+              if (parentPath.node.declarations.length) {
+                binding.path.getStatementParent().insertBefore(
+                  parentPath.node.declarations
+                    .map(decl => {
+                      binding.scope.removeBinding(decl.id.name);
+                      scope.push({id: decl.id});
 
-              if (declarations.length) {
-                parentPath.insertBefore(
-                  declarations
-                    .map(
-                      decl =>
-                        decl.init
-                          ? t.assignmentExpression('=', decl.id, decl.init)
-                          : null
-                    )
+                      return decl.init
+                        ? t.assignmentExpression('=', decl.id, decl.init)
+                        : null;
+                    })
                     .filter(decl => decl !== null)
                 );
-
-                topDecls.push(
-                  ...declarations.map(decl => t.variableDeclarator(decl.id))
-                );
-                parentPath.remove();
               }
-            } else if (!binding.path.removed) {
-              binding.path.remove();
-            }
-          }
-        }
 
-        if (topDecls.length) {
-          path.unshiftContainer('body', [
-            t.variableDeclaration('var', topDecls)
-          ]);
+              parentPath.remove();
+            }
+
+            binding.path.remove();
+          }
         }
       }
 
