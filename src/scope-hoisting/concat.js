@@ -190,19 +190,13 @@ module.exports = (packager, ast) => {
 
             // Create and register a unique variable to store the external module if needed.
             if (!path.scope.hasBinding(externBinding)) {
-              let {parentPath} = path;
-
-              parentPath.replaceWith(
+              path.parentPath.replaceWith(
                 EXTERNAL_REQUIRE_TEMPLATE({
                   NAME: t.identifier(externBinding),
                   SOURCE: source
                 })
               );
-              parentPath.scope.registerDeclaration(parentPath);
-
-              if (!path.scope.hasBinding(externBinding)) {
-                throw new Error('invariant: cannot register binding');
-              }
+              path.scope.registerDeclaration(path.parentPath);
             }
           } else if (dep.optional) {
             path.replaceWith(
