@@ -13,8 +13,5 @@ module.exports = function loadHTMLBundle(bundle) {
         });
       }
     });
-  })
-  .then(function(code) {
-    new Function('', code)();
   });
 };
