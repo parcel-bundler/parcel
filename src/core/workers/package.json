@@ -1,0 +1,11 @@
+{
+  "name": "@parcel/workers",
+  "version": "1.9.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "src/WorkerFarm.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  }
+}

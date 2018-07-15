@@ -1,0 +1,16 @@
+{
+  "name": "@parcel/packager-html",
+  "version": "1.9.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "src/HTMLPackager.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "dependencies": {
+    "@parcel/core": "^1.9.3",
+    "@parcel/utils": "^1.9.3",
+    "posthtml": "^0.11.2"
+  }
+}

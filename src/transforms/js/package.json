@@ -1,0 +1,29 @@
+{
+  "name": "@parcel/transform-js",
+  "version": "1.9.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "src/JSAsset.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "dependencies": {
+    "@parcel/core": "^1.9.3",
+    "@parcel/fs": "^1.9.3",
+    "@parcel/logger": "^1.9.3",
+    "@parcel/utils": "^1.9.3",
+    "babel-code-frame": "^6.26.0",
+    "babel-core": "^6.25.0",
+    "babel-generator": "^6.25.0",
+    "babel-preset-env": "^1.7.0",
+    "babel-template": "^6.26.0",
+    "babel-traverse": "^6.26.0",
+    "babel-types": "^6.26.0",
+    "babylon": "^6.17.4",
+    "babylon-walk": "^1.0.2",
+    "browserslist": "^3.2.6",
+    "semver": "^5.4.1",
+    "terser": "^3.7.3"
+  }
+}

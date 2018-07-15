@@ -1,0 +1,19 @@
+{
+  "name": "@parcel/transform-html",
+  "version": "1.9.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "index.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "dependencies": {
+    "@parcel/core": "^1.9.3",
+    "@parcel/utils": "^1.9.3",
+    "htmlnano": "^0.1.9",
+    "posthtml": "^0.11.2",
+    "posthtml-parser": "^0.4.0",
+    "posthtml-render": "^1.1.3"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@parcel/resolver",
+  "version": "1.9.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "src/Resolver.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "dependencies": {
+    "@parcel/fs": "^1.9.3",
+    "glob": "^7.1.2",
+    "micromatch": "^3.0.4",
+    "node-libs-browser": "^2.0.0"
+  },
+  "devDependencies": {
+    "mocha": "^5.1.1"
+  }
+}

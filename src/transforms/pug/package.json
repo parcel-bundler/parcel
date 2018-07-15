@@ -1,0 +1,15 @@
+{
+  "name": "@parcel/transform-pug",
+  "version": "1.9.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "index.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "dependencies": {
+    "@parcel/core": "^1.9.3",
+    "@parcel/utils": "^1.9.3"
+  }
+}

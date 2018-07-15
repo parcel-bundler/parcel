@@ -1,0 +1,19 @@
+{
+  "name": "@parcel/packager-js",
+  "version": "1.9.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "src/JSPackager.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "dependencies": {
+    "@parcel/core": "^1.9.3",
+    "@parcel/loader": "^1.9.3",
+    "@parcel/utils": "^1.9.3",
+    "babel-types": "^6.26.0",
+    "babylon": "^6.17.4",
+    "babylon-walk": "^1.0.2"
+  }
+}

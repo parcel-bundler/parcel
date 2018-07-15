@@ -1,0 +1,18 @@
+{
+  "name": "@parcel/test-utils",
+  "version": "1.9.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "src/index.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "dependencies": {
+    "@parcel/core": "^1.9.3",
+    "@parcel/fs": "^1.9.3",
+    "ncp": "^2.0.0",
+    "rimraf": "^2.6.1",
+    "ws": "^5.1.1"
+  }
+}

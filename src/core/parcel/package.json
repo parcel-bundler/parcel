@@ -1,0 +1,19 @@
+{
+  "name": "parcel",
+  "version": "1.9.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "src/index.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "bin": {
+    "parcel": "src/cli.js"
+  },
+  "dependencies": {
+    "@parcel/core": "^1.9.3",
+    "chalk": "^2.1.0",
+    "commander": "^2.11.0"
+  }
+}

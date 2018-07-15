@@ -1,0 +1,25 @@
+{
+  "name": "@parcel/logger",
+  "version": "1.9.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "src/Logger.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "dependencies": {
+    "@parcel/utils": "^1.9.3",
+    "@parcel/workers": "^1.9.3",
+    "chalk": "^2.1.0",
+    "grapheme-breaker": "^0.3.2",
+    "strip-ansi": "^4.0.0"
+  },
+  "devDependencies": {
+    "mocha": "^5.1.1",
+    "sinon": "^5.0.1"
+  }
+}

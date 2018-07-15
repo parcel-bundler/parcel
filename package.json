@@ -14,6 +14,11 @@
     "src/",
     "index.js"
   ],
+  "bolt": {
+    "workspaces": [
+      "src/*/*"
+    ]
+  },
   "dependencies": {
     "ansi-to-html": "^0.6.4",
     "babel-code-frame": "^6.26.0",
