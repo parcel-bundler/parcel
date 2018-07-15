@@ -1,4 +1,4 @@
-const {relative} = require('path');
+const {relative, resolve} = require('path');
 const template = require('babel-template');
 const t = require('babel-types');
 const traverse = require('babel-traverse').default;
@@ -6,6 +6,7 @@ const generate = require('babel-generator').default;
 const treeShake = require('./shake');
 const mangleScope = require('./mangler');
 const {getName, getIdentifier} = require('./utils');
+const Asset = require('../Asset');
 
 const EXPORTS_RE = /^\$(.+?)\$exports$/;
 
@@ -14,18 +15,49 @@ const DEFAULT_INTEROP_TEMPLATE = template(
 );
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 const REQUIRE_TEMPLATE = template('require(ID)');
+const EXTERNAL_REQUIRE_TEMPLATE = template('var NAME = require(SOURCE)');
 
 module.exports = (packager, ast) => {
   let {assets} = packager;
   let replacements = new Map();
   let imports = new Map();
   let referenced = new Set();
+  let externs = new Map();
 
   // Build a mapping of all imported identifiers to replace.
   for (let asset of assets.values()) {
     for (let name in asset.cacheData.imports) {
-      let imp = asset.cacheData.imports[name];
-      imports.set(name, [packager.resolveModule(asset.id, imp[0]), imp[1]]);
+      let [source, exportName] = asset.cacheData.imports[name];
+      let dep = packager.resolveModule(asset.id, source);
+
+      if (!dep) {
+        // Re-use globally external modules
+        if (externs.has(source)) {
+          dep = externs.get(source);
+        } else {
+          let modulePath = resolve(
+            packager.options.rootDir,
+            '$parcel_modules',
+            source
+          );
+
+          // Create a virtual asset for the external module
+          dep = new Asset(modulePath, packager.options);
+          dep.cacheData = {
+            isCommonJS: true,
+            isExternal: true,
+            exports: {},
+            imports: {}
+          };
+          dep.generateId();
+          assets.set(dep.id, dep);
+          externs.set(source, dep);
+        }
+
+        asset.dependencies.set(source, dep);
+      }
+
+      imports.set(name, [dep, exportName]);
     }
   }
 
@@ -145,7 +177,34 @@ module.exports = (packager, ast) => {
         let mod = packager.resolveModule(id.value, source.value);
 
         if (!mod) {
-          if (assets.get(id.value).dependencies.get(source.value).optional) {
+          let dep = assets.get(id.value).dependencies.get(source.value);
+
+          if (dep.cacheData.isExternal) {
+            if (!path.parentPath.isExpressionStatement()) {
+              throw new Error(
+                'invariant: external import should be ExpressionStatement'
+              );
+            }
+
+            let externBinding = getName(dep, 'exports');
+
+            // Create and register a unique variable to store the external module if needed.
+            if (!path.scope.hasBinding(externBinding)) {
+              let {parentPath} = path;
+
+              parentPath.replaceWith(
+                EXTERNAL_REQUIRE_TEMPLATE({
+                  NAME: t.identifier(externBinding),
+                  SOURCE: source
+                })
+              );
+              parentPath.scope.registerDeclaration(parentPath);
+
+              if (!path.scope.hasBinding(externBinding)) {
+                throw new Error('invariant: cannot register binding');
+              }
+            }
+          } else if (dep.optional) {
             path.replaceWith(
               THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)})
             );

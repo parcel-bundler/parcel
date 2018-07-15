@@ -330,6 +330,22 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, 'bar');
     });
+
+    it('should support --target=node', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/es6/target-node/a.js',
+        {target: 'node'}
+      );
+
+      await fs.mkdirp(__dirname + '/dist/node_modules/testmodule');
+      await fs.writeFile(
+        __dirname + '/dist/node_modules/testmodule/index.js',
+        'exports.a = 5;'
+      );
+
+      let output = await run(b);
+      assert.equal(output(), 7);
+    });
   });
 
   describe('commonjs', function() {

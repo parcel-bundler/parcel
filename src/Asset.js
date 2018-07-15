@@ -186,16 +186,8 @@ class Asset {
   }
 
   async process() {
-    // Generate the id for this asset, unless it has already been set.
     // We do this here rather than in the constructor to avoid unnecessary work in the main process.
-    // In development, the id is just the relative path to the file, for easy debugging and performance.
-    // In production, we use a short hash of the relative path.
-    if (!this.id) {
-      this.id =
-        this.options.production || this.options.scopeHoist
-          ? md5(this.relativeName, 'base64').slice(0, 4)
-          : this.relativeName;
-    }
+    this.generateId();
 
     if (!this.generated) {
       await this.loadIfNeeded();
@@ -263,6 +255,18 @@ class Asset {
 
   generateErrorMessage(err) {
     return err;
+  }
+
+  generateId() {
+    // Generate the id for this asset, unless it has already been set.
+    // In development, the id is just the relative path to the file, for easy debugging and performance.
+    // In production, we use a short hash of the relative path.
+    if (!this.id) {
+      this.id =
+        this.options.production || this.options.scopeHoist
+          ? md5(this.relativeName, 'base64').slice(0, 4)
+          : this.relativeName;
+    }
   }
 }
 
