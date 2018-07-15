@@ -842,5 +842,14 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, 9);
     });
+
+    it('should correctly hoist "var" on wrapped modules', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/commonjs/hoist-vars/a.js'
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'bar');
+    });
   });
 });
