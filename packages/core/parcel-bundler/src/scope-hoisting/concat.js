@@ -7,7 +7,7 @@ const treeShake = require('./shake');
 const mangleScope = require('./mangler');
 const {getName, getIdentifier} = require('./utils');
 
-const EXPORTS_RE = /^\$(.+?)\$exports$/;
+const EXPORTS_RE = /^\$([^$]+)\$exports$/;
 
 const DEFAULT_INTEROP_TEMPLATE = template(
   'var NAME = $parcel$interopDefault(MODULE)'
