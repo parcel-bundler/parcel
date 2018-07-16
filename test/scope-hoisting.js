@@ -330,6 +330,15 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, 'bar');
     });
+
+    it('should not nameclash with internal variables', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/es6/name-clash/a.js'
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'bar');
+    });
   });
 
   describe('commonjs', function() {
