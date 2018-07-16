@@ -1,4 +1,5 @@
 const builtins = require('./builtins');
+const nodeBuiltins = require('node-libs-browser');
 const path = require('path');
 const isGlob = require('is-glob');
 const fs = require('./utils/fs');
@@ -158,6 +159,10 @@ class Resolver {
 
   async findNodeModulePath(filename, dir) {
     if (builtins[filename]) {
+      if (this.options.target === 'node' && filename in nodeBuiltins) {
+        throw new Error('Cannot resolve builtin module for node target');
+      }
+
       return {filePath: builtins[filename]};
     }
 
@@ -265,10 +270,14 @@ class Resolver {
     return pkg;
   }
 
-  getPackageMain(pkg) {
-    let {browser} = pkg;
+  getBrowserField(pkg) {
+    let target = this.options.target || 'browser';
+    return target === 'browser' ? pkg.browser : null;
+  }
 
-    if (typeof browser === 'object' && browser[pkg.name]) {
+  getPackageMain(pkg) {
+    let browser = this.getBrowserField(pkg);
+    if (browser && typeof browser === 'object' && browser[pkg.name]) {
       browser = browser[pkg.name];
     }
 
@@ -332,7 +341,7 @@ class Resolver {
     return (
       this.getAlias(filename, pkg.pkgdir, pkg.source) ||
       this.getAlias(filename, pkg.pkgdir, pkg.alias) ||
-      this.getAlias(filename, pkg.pkgdir, pkg.browser) ||
+      this.getAlias(filename, pkg.pkgdir, this.getBrowserField(pkg)) ||
       filename
     );
   }

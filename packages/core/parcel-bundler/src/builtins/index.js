@@ -1,9 +1,10 @@
-var builtins = require('node-libs-browser');
+var nodeBuiltins = require('node-libs-browser');
 
-for (var key in builtins) {
-  if (builtins[key] == null) {
-    builtins[key] = require.resolve('./_empty.js');
-  }
+var builtins = Object.create(null);
+for (var key in nodeBuiltins) {
+  builtins[key] = nodeBuiltins[key] == null
+    ? require.resolve('./_empty.js')
+    : nodeBuiltins[key];
 }
 
 builtins['_bundle_loader'] = require.resolve('./bundle-loader.js');
