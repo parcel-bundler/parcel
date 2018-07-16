@@ -4,6 +4,7 @@ const traverse = require('babel-traverse').default;
 const urlJoin = require('../utils/urlJoin');
 const isURL = require('../utils/is-url');
 const matchesPattern = require('./matches-pattern');
+const nodeBuiltins = require('node-libs-browser');
 
 const requireTemplate = template('require("_bundle_loader")');
 const argTemplate = template('require.resolve(MODULE)');
@@ -150,7 +151,12 @@ function evaluateExpression(node) {
 }
 
 function addDependency(asset, node, opts = {}) {
-  if (asset.options.target !== 'browser') {
+  // Don't bundle node builtins
+  if (asset.options.target === 'node' && node.value in nodeBuiltins) {
+    return;
+  }
+
+  if (!asset.options.bundleNodeModules) {
     const isRelativeImport = /^[/~.]/.test(node.value);
     if (!isRelativeImport) return;
   }
