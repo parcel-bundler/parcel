@@ -51,6 +51,10 @@ class Bundler extends EventEmitter {
       browser: require.resolve('./builtins/loaders/browser/js-loader'),
       node: require.resolve('./builtins/loaders/node/js-loader')
     });
+    this.addBundleLoader('html', {
+      browser: require.resolve('./builtins/loaders/browser/html-loader'),
+      node: require.resolve('./builtins/loaders/node/html-loader')
+    });
 
     this.pending = false;
     this.loadedAssets = new Map();
@@ -620,6 +624,12 @@ class Bundler extends EventEmitter {
     let isEntryAsset =
       asset.parentBundle && asset.parentBundle.entryAsset === asset;
 
+    // If the asset generated a representation for the parent bundle type, and this
+    // is not an async import, add it to the current bundle
+    if (bundle.type && asset.generated[bundle.type] != null && !dep.dynamic) {
+      bundle.addAsset(asset);
+    }
+
     if ((dep && dep.dynamic) || !bundle.type) {
       // If the asset is already the entry asset of a bundle, don't create a duplicate.
       if (isEntryAsset) {
@@ -628,22 +638,21 @@ class Bundler extends EventEmitter {
 
       // Create a new bundle for dynamic imports
       bundle = bundle.createChildBundle(asset, dep);
-    } else if (asset.type && !this.packagers.has(asset.type)) {
+    } else if (
+      asset.type &&
+      !this.packagers.get(asset.type).shouldAddAsset(bundle, asset)
+    ) {
       // If the asset is already the entry asset of a bundle, don't create a duplicate.
       if (isEntryAsset) {
         return;
       }
 
-      // No packager is available for this asset type. Create a new bundle with only this asset.
-      bundle.createSiblingBundle(asset);
+      // No packager is available for this asset type, or the packager doesn't support
+      // combining this asset into the bundle. Create a new bundle with only this asset.
+      bundle = bundle.createSiblingBundle(asset, dep);
     } else {
       // Add the asset to the common bundle of the asset's type
       bundle.getSiblingBundle(asset.type).addAsset(asset);
-    }
-
-    // If the asset generated a representation for the parent bundle type, also add it there
-    if (asset.generated[bundle.type] != null) {
-      bundle.addAsset(asset);
     }
 
     // Add the asset to sibling bundles for each generated type
