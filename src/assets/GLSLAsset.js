@@ -14,7 +14,7 @@ class GLSLAsset extends Asset {
     const glslifyDeps = await localRequire('glslify-deps', this.name);
 
     // Use the Parcel resolver rather than the default glslify one.
-    // This adds support for parcel features like alises, and tilde paths.
+    // This adds support for parcel features like aliases, and tilde paths.
     const resolver = new Resolver({
       extensions: ['.glsl', '.vert', '.frag'],
       rootDir: this.options.rootDir
