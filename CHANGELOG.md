@@ -5,6 +5,19 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.9.7] - 2018-07-15
+
+### Fixed
+
+- Fix nested async imports from a shared module [Details](https://github.com/parcel-bundler/parcel/pull/1724)
+- Prevent nameclashes with internal variables with tree shaking [Details](https://github.com/parcel-bundler/parcel/pull/1737)
+
+## [1.9.6] - 2018-07-11
+
+### Fixed
+
+- Fix ora spinner in CI environments [Details](https://github.com/parcel-bundler/parcel/commit/8670fd6962b0813f6cf82bc6a6e5430376ffc037)
+
 ## [1.9.5] - 2018-07-11
 
 ### Added
