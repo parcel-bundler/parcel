@@ -1,6 +1,6 @@
 const t = require('babel-types');
 
-const EXPORTS_RE = /^\$(.+?)\$exports$/;
+const EXPORTS_RE = /^\$([^$]+)\$exports$/;
 
 /**
  * This is a small small implementation of dead code removal specialized to handle

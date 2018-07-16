@@ -121,7 +121,7 @@ module.exports = {
         // Rename each binding in the top-level scope to something unique.
         for (let name in scope.bindings) {
           if (!name.startsWith('$' + t.toIdentifier(asset.id))) {
-            let newName = getName(asset, 'var', name, '$');
+            let newName = getName(asset, 'var', name);
             rename(scope, name, newName);
           }
         }
