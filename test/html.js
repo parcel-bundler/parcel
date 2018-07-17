@@ -286,7 +286,7 @@ describe('html', function() {
     // mergeStyles
     assert(
       html.includes(
-        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:blue}</style>'
+        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:#00f}</style>'
       )
     );
 

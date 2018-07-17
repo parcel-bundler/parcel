@@ -211,12 +211,18 @@ class HTMLAsset extends Asset {
   }
 
   async postProcess(generated) {
-    // Hacky way of filtering out the css hmr JS
+    // Hacky way of filtering out CSS HMR & sourcemaps
     // Related: https://github.com/parcel-bundler/parcel/issues/1389
     generated = generated.filter(
       generatedAsset =>
-        !(generatedAsset.type === 'js' && generatedAsset.value === '')
+        !(
+          (generatedAsset.type === 'js' && generatedAsset.value === '') ||
+          generatedAsset.type === 'map' ||
+          generatedAsset.value.includes('_css_loader')
+        )
     );
+
+    console.log(generated);
 
     // Update processed inlined assets
     let index = 0;
