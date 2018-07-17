@@ -622,4 +622,20 @@ describe('html', function() {
       ]
     });
   });
+
+  it.only('should process inline styles using lang', async function() {
+    let b = await bundle(
+      __dirname + '/integration/html-inline-sass/index.html',
+      {production: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html']
+    });
+
+    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+
+    assert(html.includes('<style type="text/css">.index{color:#00f}</style>'));
+  });
 });

@@ -187,12 +187,18 @@ class HTMLAsset extends Asset {
             parts.push({
               type:
                 node.tag === 'style'
-                  ? 'css'
+                  ? node.attrs.type
+                    ? node.attrs.type.replace('text/', '')
+                    : 'css'
                   : node.attrs && node.attrs.type
                     ? SCRIPT_TYPES[node.attrs.type] || 'js'
                     : 'js',
               value
             });
+
+            if (node.tag === 'style') {
+              node.attrs.type = 'text/css';
+            }
           }
         }
       }
