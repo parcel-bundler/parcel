@@ -1,7 +1,6 @@
 const fs = require('fs');
 /**
- * Creates an object that contains both source and minified
- * source (using the source as a fallback).
+ * Creates an object that contains both source and minified (using the source as a fallback).
  * e.g. builtins.min.js and builtins.js.
  */
 module.exports = (minifiedPath, sourcePath) => {
