@@ -623,7 +623,7 @@ describe('html', function() {
     });
   });
 
-  it.only('should process inline styles using lang', async function() {
+  it('should process inline styles using lang', async function() {
     let b = await bundle(
       __dirname + '/integration/html-inline-sass/index.html',
       {production: true}

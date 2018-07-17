@@ -184,20 +184,38 @@ class HTMLAsset extends Asset {
         if (node.content) {
           let value = node.content.join('').trim();
           if (value) {
-            parts.push({
-              type:
-                node.tag === 'style'
-                  ? node.attrs.type
-                    ? node.attrs.type.replace('text/', '')
-                    : 'css'
-                  : node.attrs && node.attrs.type
-                    ? SCRIPT_TYPES[node.attrs.type] || 'js'
-                    : 'js',
-              value
-            });
+            let type;
+
+            if (node.tag === 'style') {
+              if (node.attrs && node.attrs.type) {
+                type = node.attrs.type.replace('text/', '');
+              } else {
+                type = 'css';
+              }
+            } else {
+              if (node.attrs && node.attrs.type) {
+                if (SCRIPT_TYPES[node.attrs.type]) {
+                  type = SCRIPT_TYPES[node.attrs.type];
+                } else {
+                  type = node.attrs.type.replace('application/', '');
+                }
+              } else {
+                type = 'js';
+              }
+            }
+
+            console.log(type);
+
+            parts.push({type, value});
+
+            if (!node.attrs) {
+              node.attrs = {};
+            }
 
             if (node.tag === 'style') {
               node.attrs.type = 'text/css';
+            } else if (node.attrs && !SCRIPT_TYPES[node.attrs.type]) {
+              node.attrs.type = 'application/javascript';
             }
           }
         }
@@ -227,8 +245,6 @@ class HTMLAsset extends Asset {
           generatedAsset.value.includes('_css_loader')
         )
     );
-
-    console.log(generated);
 
     // Update processed inlined assets
     let index = 0;
