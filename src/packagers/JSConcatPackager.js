@@ -72,7 +72,7 @@ class JSConcatPackager extends Packager {
       }
     }
 
-    this.write(helpers);
+    this.write(helpers.minified);
   }
 
   write(string) {
