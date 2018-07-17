@@ -283,6 +283,11 @@ describe('html', function() {
 
     let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
 
+    // minifyJson
+    assert(
+      html.includes('<script type="application/json">{"user":"me"}</script>')
+    );
+
     // mergeStyles
     assert(
       html.includes(
