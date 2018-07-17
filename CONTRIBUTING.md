@@ -57,9 +57,11 @@ yarn test
 
 You can set `PARCEL_WORKERS` to the number of worker processes to spawn.
 
-**NOTE:** `PARCEL_WORKERS=0` is handy for debugging, because all code will run on the main thread. You can then place breakpoints in Asset code. (Normally these breakpoints won't trigger, because the code executes in a subprocess.)
+**NOTE:** `PARCEL_WORKERS=1` is handy for debugging, because all code will run on the main thread. You can then place breakpoints in Asset code. (Normally these breakpoints won't trigger, because the code executes in a subprocess.)
 
 **NOTE:** When developing plugins or new Asset types, run with `--no-cache` (or pass `cache: false` to `Bundler` options). Parcel uses caching by default, but during development you'll normally pass incomplete results into the cache. This can leave you wondering why you're constantly seeing old results.
+
+You can set `PARCEL_MAX_CONCURRENT_CALLS` to change the limit of concurrent calls per worker.
 
 ## Link to local parcel build
 

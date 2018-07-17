@@ -51,12 +51,17 @@ program
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
     /^(node|browser|electron)$/
   )
+  .option(
+    '--bundle-node-modules',
+    'force bundling node modules, even on node/electron target'
+  )
   .option('-V, --version', 'output the version number')
   .option(
     '--log-level <level>',
     'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
     /^([0-3])$/
   )
+  .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
   .action(bundle);
 
 program
@@ -97,10 +102,15 @@ program
     /^(node|browser|electron)$/
   )
   .option(
+    '--bundle-node-modules',
+    'force bundling node modules, even on node/electron target'
+  )
+  .option(
     '--log-level <level>',
     'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
     /^([0-3])$/
   )
+  .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
   .action(bundle);
 
 program
@@ -123,9 +133,17 @@ program
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
   .option(
+    '--experimental-scope-hoisting',
+    'enable experimental scope hoisting/tree shaking support'
+  )
+  .option(
     '-t, --target <target>',
     'set the runtime environment, either "node", "browser" or "electron". defaults to "browser"',
     /^(node|browser|electron)$/
+  )
+  .option(
+    '--bundle-node-modules',
+    'force bundling node modules, even on node/electron target'
   )
   .option(
     '--detailed-report',
@@ -136,6 +154,7 @@ program
     'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
     /^([0-3])$/
   )
+  .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
   .action(bundle);
 
 program
@@ -170,7 +189,8 @@ async function bundle(main, command) {
   const Bundler = require('../');
 
   if (command.name() === 'build') {
-    process.env.NODE_ENV = 'production';
+    command.production = true;
+    process.env.NODE_ENV = process.env.NODE_ENV || 'production';
   } else {
     process.env.NODE_ENV = process.env.NODE_ENV || 'development';
   }
@@ -182,6 +202,7 @@ async function bundle(main, command) {
     };
   }
 
+  command.scopeHoist = command.experimentalScopeHoisting || false;
   const bundler = new Bundler(main, command);
 
   command.target = command.target || 'browser';

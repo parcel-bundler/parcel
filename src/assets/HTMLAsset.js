@@ -1,5 +1,4 @@
 const Asset = require('../Asset');
-const parse = require('posthtml-parser');
 const api = require('posthtml/lib/api');
 const urlJoin = require('../utils/urlJoin');
 const render = require('posthtml-render');
@@ -84,8 +83,8 @@ class HTMLAsset extends Asset {
     this.isAstDirty = false;
   }
 
-  parse(code) {
-    let res = parse(code, {lowerCaseAttributeNames: true});
+  async parse(code) {
+    let res = await posthtmlTransform.parse(code, this);
     res.walk = api.walk;
     res.match = api.match;
     return res;
@@ -118,7 +117,20 @@ class HTMLAsset extends Asset {
   }
 
   collectDependencies() {
-    this.ast.walk(node => {
+    let {ast} = this;
+
+    // Add bundled dependencies from plugins like posthtml-extend or posthtml-include, if any
+    if (ast.messages) {
+      ast.messages.forEach(message => {
+        if (message.type === 'dependency') {
+          this.addDependency(message.file, {
+            includedInParent: true
+          });
+        }
+      });
+    }
+
+    ast.walk(node => {
       if (node.attrs) {
         if (node.tag === 'meta') {
           if (
@@ -156,7 +168,7 @@ class HTMLAsset extends Asset {
   }
 
   async pretransform() {
-    await posthtmlTransform(this);
+    await posthtmlTransform.transform(this);
   }
 
   async transform() {

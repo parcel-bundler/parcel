@@ -1,4 +1,4 @@
-const {minify} = require('uglify-es');
+const {minify} = require('terser');
 const {serialize} = require('serialize-to-js');
 
 function serializeObject(obj, shouldMinify = false) {

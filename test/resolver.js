@@ -106,6 +106,25 @@ describe('resolver', function() {
         path.join(__dirname, '..', 'src', 'builtins', '_empty.js')
       );
     });
+
+    it('should error when resolving node builtin modules with --target=node', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        target: 'node'
+      });
+
+      let threw = false;
+      try {
+        await resolver.resolve('zlib', path.join(rootDir, 'foo.js'));
+      } catch (err) {
+        threw = true;
+      }
+      assert(threw, 'did not throw');
+    });
   });
 
   describe('node_modules', function() {
@@ -153,6 +172,27 @@ describe('resolver', function() {
       assert.equal(
         resolved.path,
         path.join(rootDir, 'node_modules', 'package-browser', 'browser.js')
+      );
+      assert.equal(resolved.pkg.name, 'package-browser');
+    });
+
+    it('should not resolve a node_modules package.browser main field with --target=node', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        target: 'node'
+      });
+
+      let resolved = await resolver.resolve(
+        'package-browser',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(rootDir, 'node_modules', 'package-browser', 'main.js')
       );
       assert.equal(resolved.pkg.name, 'package-browser');
     });
@@ -271,6 +311,27 @@ describe('resolver', function() {
       assert.equal(resolved.pkg.name, 'package-browser-alias');
     });
 
+    it('should not alias using the package.browser field with --target=node', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        target: 'node'
+      });
+
+      let resolved = await resolver.resolve(
+        'package-browser-alias/foo',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(rootDir, 'node_modules', 'package-browser-alias', 'foo.js')
+      );
+      assert.equal(resolved.pkg.name, 'package-browser-alias');
+    });
+
     it('should alias a sub-file using the package.alias field', async function() {
       let resolved = await resolver.resolve(
         'package-alias/foo',
@@ -364,6 +425,60 @@ describe('resolver', function() {
         path.join(rootDir, 'node_modules', 'package-alias', 'foo.js')
       );
       assert.equal(resolved.path, path.join(rootDir, 'bar.js'));
+      assert.equal(resolved.pkg.name, 'resolver');
+    });
+
+    it('should apply an alias for a virtual module folder (relative to project dir)', async function() {
+      let resolved = await resolver.resolve(
+        'aliasedfolder/test.js',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(resolved.path, path.join(rootDir, 'nested', 'test.js'));
+      assert.equal(resolved.pkg.name, 'resolver');
+    });
+
+    it('should apply an alias for a virtual module folder only (relative to project dir)', async function() {
+      let resolved = await resolver.resolve(
+        'aliasedfolder',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(resolved.path, path.join(rootDir, 'nested', 'index.js'));
+      assert.equal(resolved.pkg.name, 'resolver');
+    });
+
+    it('should apply an alias for a virtual module folder (relative to root dir)', async function() {
+      let resolved = await resolver.resolve(
+        'aliasedabsolute/test.js',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(resolved.path, path.join(rootDir, 'nested', 'test.js'));
+      assert.equal(resolved.pkg.name, 'resolver');
+    });
+
+    it('should apply an alias for a virtual module folder only (relative to root dir)', async function() {
+      let resolved = await resolver.resolve(
+        'aliasedabsolute',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(resolved.path, path.join(rootDir, 'nested', 'index.js'));
+      assert.equal(resolved.pkg.name, 'resolver');
+    });
+
+    it('should apply an alias for a virtual module folder sub-path', async function() {
+      let resolved = await resolver.resolve(
+        'foo/bar',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(resolved.path, path.join(rootDir, 'bar.js'));
+      assert.equal(resolved.pkg.name, 'resolver');
+    });
+
+    it('should apply an alias for a virtual module folder glob sub-path', async function() {
+      let resolved = await resolver.resolve(
+        'glob/bar/test',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(resolved.path, path.join(rootDir, 'nested', 'test.js'));
       assert.equal(resolved.pkg.name, 'resolver');
     });
 

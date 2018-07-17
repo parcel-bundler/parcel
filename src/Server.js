@@ -5,9 +5,13 @@ const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
 const generateCertificate = require('./utils/generateCertificate');
 const getCertificate = require('./utils/getCertificate');
+const prettyError = require('./utils/prettyError');
+const AnsiToHtml = require('ansi-to-html');
 const logger = require('./Logger');
 const path = require('path');
 const url = require('url');
+
+const ansiToHtml = new AnsiToHtml({newline: true});
 
 serveStatic.mime.define({
   'application/wasm': ['wasm']
@@ -45,8 +49,8 @@ function middleware(bundler) {
 
     function respond() {
       let {pathname} = url.parse(req.url);
-      if (bundler.errored) {
-        return send500();
+      if (bundler.error) {
+        return send500(bundler.error);
       } else if (
         !pathname.startsWith(bundler.options.publicURL) ||
         path.extname(pathname) === ''
@@ -71,10 +75,28 @@ function middleware(bundler) {
       }
     }
 
-    function send500() {
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    function send500(error) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.writeHead(500);
-      res.end('🚨 Build error, check the console for details.');
+      let errorMesssge = '<h1>🚨 Build Error</h1>';
+      if (process.env.NODE_ENV === 'production') {
+        errorMesssge += '<p><b>Check the console for details.</b></p>';
+      } else {
+        const {message, stack} = prettyError(error, {color: true});
+        errorMesssge += `<p><b>${message}</b></p>`;
+        if (stack) {
+          errorMesssge += `<div style="background: black; padding: 1rem;">${ansiToHtml.toHtml(
+            stack
+          )}</div>`;
+        }
+      }
+      res.end(
+        [
+          `<!doctype html>`,
+          `<head><title>🚨 Build Error</title></head>`,
+          `<body style="font-family: monospace; white-space: pre;">${errorMesssge}</body>`
+        ].join('')
+      );
     }
 
     function send404() {

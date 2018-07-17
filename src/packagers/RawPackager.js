@@ -3,6 +3,11 @@ const path = require('path');
 const fs = require('../utils/fs');
 
 class RawPackager extends Packager {
+  static shouldAddAsset() {
+    // We cannot combine multiple raw assets together - they should be written as separate bundles.
+    return false;
+  }
+
   // Override so we don't create a file for this bundle.
   // Each asset will be emitted as a separate file instead.
   setup() {}

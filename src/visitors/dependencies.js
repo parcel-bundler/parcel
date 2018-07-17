@@ -4,6 +4,7 @@ const traverse = require('babel-traverse').default;
 const urlJoin = require('../utils/urlJoin');
 const isURL = require('../utils/is-url');
 const matchesPattern = require('./matches-pattern');
+const nodeBuiltins = require('node-libs-browser');
 
 const requireTemplate = template('require("_bundle_loader")');
 const argTemplate = template('require.resolve(MODULE)');
@@ -70,7 +71,7 @@ module.exports = {
     if (isRegisterServiceWorker) {
       // Treat service workers as an entry point so filenames remain consistent across builds.
       // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
-      addURLDependency(asset, args[0], {entry: true});
+      addURLDependency(asset, args[0], {entry: true, isolated: true});
       return;
     }
   },
@@ -85,7 +86,7 @@ module.exports = {
       types.isStringLiteral(args[0]);
 
     if (isWebWorker) {
-      addURLDependency(asset, args[0]);
+      addURLDependency(asset, args[0], {isolated: true});
       return;
     }
   }
@@ -150,7 +151,12 @@ function evaluateExpression(node) {
 }
 
 function addDependency(asset, node, opts = {}) {
-  if (asset.options.target !== 'browser') {
+  // Don't bundle node builtins
+  if (asset.options.target === 'node' && node.value in nodeBuiltins) {
+    return;
+  }
+
+  if (!asset.options.bundleNodeModules) {
     const isRelativeImport = /^[/~.]/.test(node.value);
     if (!isRelativeImport) return;
   }

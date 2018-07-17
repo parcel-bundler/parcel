@@ -11,7 +11,7 @@
 [![David Dependancy Status](https://david-dm.org/parcel-bundler/parcel.svg)](https://david-dm.org/parcel-bundler/parcel)
 [![npm package](https://img.shields.io/npm/v/parcel-bundler.svg)](https://www.npmjs.com/package/parcel-bundler)
 [![npm package](https://img.shields.io/npm/dm/parcel-bundler.svg)](https://www.npmjs.com/package/parcel-bundler)
-[![Slack](https://slack.parceljs.org/badge.svg)](https://slack.parceljs.org)
+[![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/parcel)
 [![Twitter Follow](https://img.shields.io/twitter/follow/parceljs.svg?style=social)](https://twitter.com/parceljs)
 
 ## Features
@@ -25,7 +25,7 @@
 
 ## Getting started
 
-1. Install with yarn:
+1.  Install with yarn:
 
 ```shell
 yarn global add parcel-bundler
@@ -37,7 +37,7 @@ or with npm:
 npm install -g parcel-bundler
 ```
 
-2. Parcel can take any type of file as an entry point, but an HTML or JavaScript file is a good place to start. If you link your main JavaScript file in the HTML using a relative path, Parcel will also process it for you, and replace the reference with a URL to the output file.
+2.  Parcel can take any type of file as an entry point, but an HTML or JavaScript file is a good place to start. If you link your main JavaScript file in the HTML using a relative path, Parcel will also process it for you, and replace the reference with a URL to the output file.
 
 ```html
 <html>
@@ -47,13 +47,13 @@ npm install -g parcel-bundler
 </html>
 ```
 
-3. Parcel has a development server built in, which will automatically rebuild your app as you change files and supports hot module replacement for fast development. Just point it at your entry file:
+3.  Parcel has a development server built in, which will automatically rebuild your app as you change files and supports hot module replacement for fast development. Just point it at your entry file:
 
 ```shell
 parcel index.html
 ```
 
-4. Now open http://localhost:1234/ in your browser. If needed, you can also override the default port with the `-p` option. Add `--open` to automatically open a browser.
+4.  Now open http://localhost:1234/ in your browser. If needed, you can also override the default port with the `-p` option. Add `--open` to automatically open a browser.
 
 See [parceljs.org](https://parceljs.org) for more documentation!
 
@@ -80,7 +80,7 @@ Finally, existing bundlers are built around string loaders/transforms, where the
 
 ## How it works
 
-`parcel` transforms a tree of assets to a tree of bundles. Many other bundlers are fundamentally based around JavaScript assets, with other formats tacked on - for example, by default inlined as strings into JS files. `parcel` is file-type agnostic - it will work with any type of assets the way you'd expect, with no configuration.
+`parcel` transforms a tree of assets into a tree of bundles. Many other bundlers are fundamentally based around JavaScript assets, with other formats tacked on - for example, by default inlined as strings into JS files. `parcel` is file-type agnostic - it will work with any type of assets the way you'd expect, with no configuration.
 
 `parcel` takes as input a single entry asset, which could be any file type: JS, HTML, CSS, image, etc. There are various asset types defined in `parcel` which know how to handle specific file types. The assets are parsed, their dependencies are extracted, and they are transformed to their final compiled form. This creates a tree of assets.
 
@@ -92,7 +92,7 @@ After the bundle tree is constructed, each bundle is written to a file by a pack
 
 All feedback and suggestions are welcome!
 
-* 💬 Chat: Join us on [slack](https://slack.parceljs.org/).
+* 💬 Join the community on [Spectrum](https://spectrum.chat/parcel)
 * 📣 Stay up to date on new features and announcements on [@parceljs](https://twitter.com/parceljs).
 
 ## Contributors
@@ -121,7 +121,7 @@ Support this project by becoming a sponsor. Your logo will show up here with a l
 <a href="https://opencollective.com/parcel/sponsor/8/website" target="_blank"><img src="https://opencollective.com/parcel/sponsor/8/avatar.svg"></a>
 <a href="https://opencollective.com/parcel/sponsor/9/website" target="_blank"><img src="https://opencollective.com/parcel/sponsor/9/avatar.svg"></a>
 
-## [Changelog](https://github.com/parcel-bundler/parcel/blob/master/changelog.md)
+## [Changelog](https://github.com/parcel-bundler/parcel/blob/master/CHANGELOG.md)
 
 ## License
 
