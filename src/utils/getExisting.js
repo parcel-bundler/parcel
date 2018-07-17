@@ -4,13 +4,13 @@ const fs = require('fs');
  * source (using the source as a fallback).
  * e.g. builtins.min.js and builtins.js.
  */
-module.exports = function(minified, source) {
-  var sourceFile = fs.readFileSync(source, 'utf8').trim();
+module.exports = (minifiedPath, sourcePath) => {
+  let source = fs.readFileSync(sourcePath, 'utf8').trim();
   return {
-    source: sourceFile,
-    minified: fs.existsSync(minified) ? fs
-      .readFileSync(minified, 'utf8')
+    source,
+    minified: fs.existsSync(minifiedPath) ? fs
+      .readFileSync(minifiedPath, 'utf8')
       .trim()
-      .replace(/;$/, '') : sourceFile
-  }
+      .replace(/;$/, '') : source
+  };
 };
