@@ -1,5 +1,6 @@
 const {SourceMapConsumer, SourceMapGenerator} = require('source-map');
 const lineCounter = require('./utils/lineCounter');
+const clone = require('clone');
 
 class SourceMap {
   constructor(mappings, sources) {
@@ -38,6 +39,8 @@ class SourceMap {
   }
 
   async addMap(map, lineOffset = 0, columnOffset = 0) {
+    map = clone(map);
+
     if (!(map instanceof SourceMap) && map.version) {
       let consumer = await this.getConsumer(map);
 
