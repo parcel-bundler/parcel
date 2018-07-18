@@ -204,8 +204,6 @@ class HTMLAsset extends Asset {
               }
             }
 
-            console.log(type);
-
             parts.push({type, value});
 
             if (!node.attrs) {

@@ -638,4 +638,20 @@ describe('html', function() {
 
     assert(html.includes('<style type="text/css">.index{color:#00f}</style>'));
   });
+
+  it.only('should process inline non-js scripts', async function() {
+    let b = await bundle(
+      __dirname + '/integration/html-inline-coffeescript/index.html',
+      {production: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html']
+    });
+
+    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+
+    assert(html.includes('alert("Hello, World!")'));
+  });
 });
