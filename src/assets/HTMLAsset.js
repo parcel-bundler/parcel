@@ -63,7 +63,7 @@ const META = {
 
 const SCRIPT_TYPES = {
   'application/javascript': 'js',
-  'application/json': 'json'
+  'application/json': false
 };
 
 // Options to be passed to `addURLDependency` for certain tags + attributes
@@ -194,6 +194,11 @@ class HTMLAsset extends Asset {
               }
             } else {
               if (node.attrs && node.attrs.type) {
+                // Skip JSON
+                if (SCRIPT_TYPES[node.attrs.type] === false) {
+                  return node;
+                }
+
                 if (SCRIPT_TYPES[node.attrs.type]) {
                   type = SCRIPT_TYPES[node.attrs.type];
                 } else {
@@ -248,6 +253,15 @@ class HTMLAsset extends Asset {
     let index = 0;
     this.ast.walk(node => {
       if (node.tag === 'script' || node.tag === 'style') {
+        // Skip JSON
+        if (
+          node.attrs &&
+          node.attrs.type &&
+          SCRIPT_TYPES[node.attrs.type] === false
+        ) {
+          return node;
+        }
+
         if (node.content && node.content.join('').trim()) {
           node.content = generated[index].value;
           index++;

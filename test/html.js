@@ -291,7 +291,7 @@ describe('html', function() {
     // mergeStyles
     assert(
       html.includes(
-        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:#00f}</style>'
+        '<style type="text/css">h1{color:red}div{font-size:20px}</style><style media="print" type="text/css">div{color:#00f}</style>'
       )
     );
 
@@ -639,7 +639,7 @@ describe('html', function() {
     assert(html.includes('<style type="text/css">.index{color:#00f}</style>'));
   });
 
-  it.only('should process inline non-js scripts', async function() {
+  it('should process inline non-js scripts', async function() {
     let b = await bundle(
       __dirname + '/integration/html-inline-coffeescript/index.html',
       {production: true}
