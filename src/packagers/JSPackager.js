@@ -1,19 +1,14 @@
-const fs = require('fs');
 const path = require('path');
 const Packager = require('./Packager');
+const getExisting = require('../utils/getExisting');
 const urlJoin = require('../utils/urlJoin');
 const lineCounter = require('../utils/lineCounter');
 const objectHash = require('../utils/objectHash');
 
-const prelude = {
-  source: fs
-    .readFileSync(path.join(__dirname, '../builtins/prelude.js'), 'utf8')
-    .trim(),
-  minified: fs
-    .readFileSync(path.join(__dirname, '../builtins/prelude.min.js'), 'utf8')
-    .trim()
-    .replace(/;$/, '')
-};
+const prelude = getExisting(
+  path.join(__dirname, '../builtins/prelude.min.js'),
+  path.join(__dirname, '../builtins/prelude.js')
+);
 
 class JSPackager extends Packager {
   async start() {
