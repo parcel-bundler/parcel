@@ -125,7 +125,7 @@ class Asset {
 
   async getPackage() {
     if (!this._package) {
-      this._package = await this.getConfig(['package.json']);
+      this._package = await this.resolver.findPackage(path.dirname(this.name));
     }
 
     return this._package;
