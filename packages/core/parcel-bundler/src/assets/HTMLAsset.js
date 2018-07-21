@@ -61,6 +61,12 @@ const META = {
   ]
 };
 
+const SCRIPT_TYPES = {
+  'application/javascript': 'js',
+  'text/javascript': 'js',
+  'application/json': false
+};
+
 // Options to be passed to `addURLDependency` for certain tags + attributes
 const OPTIONS = {
   a: {
@@ -172,8 +178,93 @@ class HTMLAsset extends Asset {
     }
   }
 
-  generate() {
-    return this.isAstDirty ? render(this.ast) : this.contents;
+  async generate() {
+    // Extract inline <script> and <style> tags for processing.
+    let parts = [];
+    this.ast.walk(node => {
+      if (node.tag === 'script' || node.tag === 'style') {
+        let value = node.content && node.content.join('').trim();
+        if (value) {
+          let type;
+
+          if (node.tag === 'style') {
+            if (node.attrs && node.attrs.type) {
+              type = node.attrs.type.split('/')[1];
+            } else {
+              type = 'css';
+            }
+          } else if (node.attrs && node.attrs.type) {
+            // Skip JSON
+            if (SCRIPT_TYPES[node.attrs.type] === false) {
+              return node;
+            }
+
+            if (SCRIPT_TYPES[node.attrs.type]) {
+              type = SCRIPT_TYPES[node.attrs.type];
+            } else {
+              type = node.attrs.type.split('/')[1];
+            }
+          } else {
+            type = 'js';
+          }
+
+          parts.push({
+            type,
+            value,
+            inlineHTML: true,
+            meta: {
+              type: 'tag',
+              node
+            }
+          });
+        }
+      }
+
+      // Process inline style attributes.
+      if (node.attrs && node.attrs.style) {
+        parts.push({
+          type: 'css',
+          value: node.attrs.style,
+          meta: {
+            type: 'attr',
+            node
+          }
+        });
+      }
+
+      return node;
+    });
+
+    return parts;
+  }
+
+  async postProcess(generated) {
+    // Replace inline scripts and styles with processed results.
+    for (let rendition of generated) {
+      let {type, node} = rendition.meta;
+      if (type === 'attr' && rendition.type === 'css') {
+        node.attrs.style = rendition.value;
+      } else if (type === 'tag') {
+        if (
+          (rendition.type === 'js' && node.tag === 'script') ||
+          (rendition.type === 'css' && node.tag === 'style')
+        ) {
+          node.content = rendition.value;
+        }
+
+        // Delete "type" attribute, since CSS and JS are the defaults.
+        if (node.attrs) {
+          delete node.attrs.type;
+        }
+      }
+    }
+
+    return [
+      {
+        type: 'html',
+        value: render(this.ast)
+      }
+    ];
   }
 }
 
