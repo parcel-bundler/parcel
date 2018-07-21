@@ -654,4 +654,43 @@ describe('html', function() {
 
     assert(html.includes('alert("Hello, World!")'));
   });
+
+  it('should handle inline css with @imports', async function() {
+    let b = await bundle(
+      __dirname + '/integration/html-inline-css-import/index.html',
+      {production: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'css',
+          assets: ['test.css']
+        }
+      ]
+    });
+
+    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+    assert(html.includes('@import'));
+  });
+
+  it('should error on imports and requires in inline <script> tags', async function() {
+    let err;
+    try {
+      await bundle(
+        __dirname + '/integration/html-inline-js-require/index.html',
+        {production: true}
+      );
+    } catch (e) {
+      err = e;
+    }
+
+    assert(err);
+    assert.equal(
+      err.message,
+      'Imports and requires are not supported inside inline <script> tags yet.'
+    );
+  });
 });

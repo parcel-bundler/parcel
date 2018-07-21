@@ -211,6 +211,7 @@ class HTMLAsset extends Asset {
           parts.push({
             type,
             value,
+            inlineHTML: true,
             meta: {
               type: 'tag',
               node
