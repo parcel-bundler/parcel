@@ -1,4 +1,6 @@
+const path = require('path');
 const matchesPattern = require('../visitors/matches-pattern');
+const mm = require('micromatch');
 const t = require('babel-types');
 const template = require('babel-template');
 const rename = require('./renamer');
@@ -28,14 +30,32 @@ const TYPEOF = {
   require: 'function'
 };
 
+function hasSideEffects(asset, {sideEffects} = asset._package) {
+  switch (typeof sideEffects) {
+    case 'undefined':
+      return true;
+    case 'boolean':
+      return sideEffects;
+    case 'string':
+      return mm.isMatch(
+        path.relative(asset._package.pkgdir, asset.name),
+        sideEffects,
+        {matchBase: true}
+      );
+    case 'object':
+      return sideEffects.some(sideEffects =>
+        hasSideEffects(asset, {sideEffects})
+      );
+  }
+}
+
 module.exports = {
   Program: {
     enter(path, asset) {
       asset.cacheData.imports = asset.cacheData.imports || Object.create(null);
       asset.cacheData.exports = asset.cacheData.exports || Object.create(null);
       asset.cacheData.wildcards = asset.cacheData.wildcards || [];
-      asset.cacheData.sideEffects =
-        asset._package && asset._package.sideEffects;
+      asset.cacheData.sideEffects = asset._package && hasSideEffects(asset);
 
       let shouldWrap = false;
       path.traverse({

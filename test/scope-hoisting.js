@@ -281,6 +281,22 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'bar');
     });
 
+    it('supports the package.json sideEffects flag with an array', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/es6/side-effects-array/a.js'
+      );
+
+      let calls = [];
+      let output = await run(b, {
+        sideEffect: caller => {
+          calls.push(caller);
+        }
+      });
+
+      assert(calls.toString() == 'foo', "side effect called for 'foo'");
+      assert.deepEqual(output, 4);
+    });
+
     it('missing exports should be replaced with an empty object', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/es6/empty-module/a.js'

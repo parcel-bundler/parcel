@@ -136,8 +136,8 @@ class JSConcatPackager extends Packager {
     this.addedAssets.add(asset);
     let {js} = asset.generated;
 
-    // If the asset's package has the sideEffects: false flag set, and there are no used
-    // exports marked, exclude the asset from the bundle.
+    // If the asset has no side effects according to the its package's sideEffects flag,
+    // and there are no used exports marked, exclude the asset from the bundle.
     if (
       asset.cacheData.sideEffects === false &&
       (!asset.usedExports || asset.usedExports.size === 0)
