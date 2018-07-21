@@ -176,6 +176,18 @@ describe('resolver', function() {
       assert.equal(resolved.pkg.name, 'package-browser');
     });
 
+    it('should fall back to package.main when package.module does not exist', async function() {
+      let resolved = await resolver.resolve(
+        'package-module-fallback',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(rootDir, 'node_modules', 'package-module-fallback', 'main.js')
+      );
+      assert.equal(resolved.pkg.name, 'package-module-fallback');
+    });
+
     it('should not resolve a node_modules package.browser main field with --target=node', async function() {
       let resolver = new Resolver({
         rootDir,

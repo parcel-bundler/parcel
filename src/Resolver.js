@@ -228,14 +228,17 @@ class Resolver {
     try {
       pkg = await this.readPackage(dir);
 
-      // First try loading package.main as a file, then try as a directory.
-      let main = this.getPackageMain(pkg);
-      let res =
-        (await this.loadAsFile(main, extensions, pkg)) ||
-        (await this.loadDirectory(main, extensions, pkg));
+      // Get a list of possible package entry points.
+      let entries = this.getPackageEntries(pkg);
 
-      if (res) {
-        return res;
+      for (let file of entries) {
+        // First try loading package.main as a file, then try as a directory.
+        const res =
+          (await this.loadAsFile(file, extensions, pkg)) ||
+          (await this.loadDirectory(file, extensions, pkg));
+        if (res) {
+          return res;
+        }
       }
     } catch (err) {
       // ignore
@@ -275,7 +278,7 @@ class Resolver {
     return target === 'browser' ? pkg.browser : null;
   }
 
-  getPackageMain(pkg) {
+  getPackageEntries(pkg) {
     let browser = this.getBrowserField(pkg);
     if (browser && typeof browser === 'object' && browser[pkg.name]) {
       browser = browser[pkg.name];
@@ -284,16 +287,16 @@ class Resolver {
     // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
     // we use the "browser" or "module" field to get the full dependency tree if available.
     // If this is a linked module with a `source` field, use that as the entry point.
-    let main = [pkg.source, browser, pkg.module, pkg.main].find(
-      entry => typeof entry === 'string'
-    );
+    return [pkg.source, browser, pkg.module, pkg.main]
+      .filter(entry => typeof entry === 'string')
+      .map(main => {
+        // Default to index file if no main field find
+        if (!main || main === '.' || main === './') {
+          main = 'index';
+        }
 
-    // Default to index file if no main field find
-    if (!main || main === '.' || main === './') {
-      main = 'index';
-    }
-
-    return path.resolve(pkg.pkgdir, main);
+        return path.resolve(pkg.pkgdir, main);
+      });
   }
 
   async loadAsFile(file, extensions, pkg) {
