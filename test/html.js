@@ -291,7 +291,7 @@ describe('html', function() {
     // mergeStyles
     assert(
       html.includes(
-        '<style type="text/css">h1{color:red}div{font-size:20px}</style><style media="print" type="text/css">div{color:#00f}</style>'
+        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:#00f}</style>'
       )
     );
 
@@ -636,7 +636,7 @@ describe('html', function() {
 
     let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
 
-    assert(html.includes('<style type="text/css">.index{color:#00f}</style>'));
+    assert(html.includes('<style>.index{color:#00f}</style>'));
   });
 
   it('should process inline non-js scripts', async function() {

@@ -63,6 +63,7 @@ const META = {
 
 const SCRIPT_TYPES = {
   'application/javascript': 'js',
+  'text/javascript': 'js',
   'application/json': false
 };
 
@@ -178,56 +179,55 @@ class HTMLAsset extends Asset {
   }
 
   async generate() {
+    // Extract inline <script> and <style> tags for processing.
     let parts = [];
     this.ast.walk(node => {
       if (node.tag === 'script' || node.tag === 'style') {
-        if (node.content) {
-          let value = node.content.join('').trim();
-          if (value) {
-            let type;
+        let value = node.content && node.content.join('').trim();
+        if (value) {
+          let type;
 
-            if (node.tag === 'style') {
-              if (node.attrs && node.attrs.type) {
-                type = node.attrs.type.replace('text/', '');
-              } else {
-                type = 'css';
-              }
+          if (node.tag === 'style') {
+            if (node.attrs && node.attrs.type) {
+              type = node.attrs.type.split('/')[1];
             } else {
-              if (node.attrs && node.attrs.type) {
-                // Skip JSON
-                if (SCRIPT_TYPES[node.attrs.type] === false) {
-                  return node;
-                }
-
-                if (SCRIPT_TYPES[node.attrs.type]) {
-                  type = SCRIPT_TYPES[node.attrs.type];
-                } else {
-                  type = node.attrs.type.replace('application/', '');
-                }
-              } else {
-                type = 'js';
-              }
+              type = 'css';
+            }
+          } else if (node.attrs && node.attrs.type) {
+            // Skip JSON
+            if (SCRIPT_TYPES[node.attrs.type] === false) {
+              return node;
             }
 
-            parts.push({type, value});
-
-            if (!node.attrs) {
-              node.attrs = {};
+            if (SCRIPT_TYPES[node.attrs.type]) {
+              type = SCRIPT_TYPES[node.attrs.type];
+            } else {
+              type = node.attrs.type.split('/')[1];
             }
-
-            if (node.tag === 'style') {
-              node.attrs.type = 'text/css';
-            } else if (node.attrs && !SCRIPT_TYPES[node.attrs.type]) {
-              node.attrs.type = 'application/javascript';
-            }
+          } else {
+            type = 'js';
           }
+
+          parts.push({
+            type,
+            value,
+            meta: {
+              type: 'tag',
+              node
+            }
+          });
         }
       }
 
+      // Process inline style attributes.
       if (node.attrs && node.attrs.style) {
         parts.push({
           type: 'css',
-          value: node.attrs.style
+          value: node.attrs.style,
+          meta: {
+            type: 'attr',
+            node
+          }
         });
       }
 
@@ -238,43 +238,25 @@ class HTMLAsset extends Asset {
   }
 
   async postProcess(generated) {
-    // Hacky way of filtering out CSS HMR & sourcemaps
-    // Related: https://github.com/parcel-bundler/parcel/issues/1389
-    generated = generated.filter(
-      generatedAsset =>
-        !(
-          (generatedAsset.type === 'js' && generatedAsset.value === '') ||
-          generatedAsset.type === 'map' ||
-          generatedAsset.value.includes('_css_loader')
-        )
-    );
-
-    // Update processed inlined assets
-    let index = 0;
-    this.ast.walk(node => {
-      if (node.tag === 'script' || node.tag === 'style') {
-        // Skip JSON
+    // Replace inline scripts and styles with processed results.
+    for (let rendition of generated) {
+      let {type, node} = rendition.meta;
+      if (type === 'attr' && rendition.type === 'css') {
+        node.attrs.style = rendition.value;
+      } else if (type === 'tag') {
         if (
-          node.attrs &&
-          node.attrs.type &&
-          SCRIPT_TYPES[node.attrs.type] === false
+          (rendition.type === 'js' && node.tag === 'script') ||
+          (rendition.type === 'css' && node.tag === 'style')
         ) {
-          return node;
+          node.content = rendition.value;
         }
 
-        if (node.content && node.content.join('').trim()) {
-          node.content = generated[index].value;
-          index++;
+        // Delete "type" attribute, since CSS and JS are the defaults.
+        if (node.attrs) {
+          delete node.attrs.type;
         }
       }
-
-      if (node.attrs && node.attrs.style) {
-        node.attrs.style = generated[index].value;
-        index++;
-      }
-
-      return node;
-    });
+    }
 
     return [
       {
