@@ -283,16 +283,16 @@ describe('html', function() {
 
     let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
 
-    // mergeStyles
-    assert(
-      html.includes(
-        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:blue}</style>'
-      )
-    );
-
     // minifyJson
     assert(
       html.includes('<script type="application/json">{"user":"me"}</script>')
+    );
+
+    // mergeStyles
+    assert(
+      html.includes(
+        '<style>h1{color:red}div{font-size:20px}</style><style media="print">div{color:#00f}</style>'
+      )
     );
 
     // minifySvg is false
@@ -588,5 +588,109 @@ describe('html', function() {
         }
       ]
     });
+  });
+
+  it('should process inline JS', async function() {
+    let b = await bundle(__dirname + '/integration/html-inline-js/index.html', {
+      production: true
+    });
+
+    const bundleContent = (await fs.readFile(b.name)).toString();
+    assert(!bundleContent.includes('someArgument'));
+  });
+
+  it('should process inline styles', async function() {
+    let b = await bundle(
+      __dirname + '/integration/html-inline-styles/index.html',
+      {production: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'jpg',
+          assets: ['bg.jpg'],
+          childBundles: []
+        },
+        {
+          type: 'jpg',
+          assets: ['img.jpg'],
+          childBundles: []
+        }
+      ]
+    });
+  });
+
+  it('should process inline styles using lang', async function() {
+    let b = await bundle(
+      __dirname + '/integration/html-inline-sass/index.html',
+      {production: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html']
+    });
+
+    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+
+    assert(html.includes('<style>.index{color:#00f}</style>'));
+  });
+
+  it('should process inline non-js scripts', async function() {
+    let b = await bundle(
+      __dirname + '/integration/html-inline-coffeescript/index.html',
+      {production: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html']
+    });
+
+    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+
+    assert(html.includes('alert("Hello, World!")'));
+  });
+
+  it('should handle inline css with @imports', async function() {
+    let b = await bundle(
+      __dirname + '/integration/html-inline-css-import/index.html',
+      {production: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'css',
+          assets: ['test.css']
+        }
+      ]
+    });
+
+    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+    assert(html.includes('@import'));
+  });
+
+  it('should error on imports and requires in inline <script> tags', async function() {
+    let err;
+    try {
+      await bundle(
+        __dirname + '/integration/html-inline-js-require/index.html',
+        {production: true}
+      );
+    } catch (e) {
+      err = e;
+    }
+
+    assert(err);
+    assert.equal(
+      err.message,
+      'Imports and requires are not supported inside inline <script> tags yet.'
+    );
   });
 });

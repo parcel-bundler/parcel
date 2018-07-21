@@ -65,6 +65,12 @@ class Pipeline {
         subAsset.cacheData = Object.assign(asset.cacheData, subAsset.cacheData);
 
         let processed = await this.processAsset(subAsset);
+        if (rendition.meta) {
+          for (let res of processed) {
+            res.meta = rendition.meta;
+          }
+        }
+
         generated = generated.concat(processed);
         asset.hash = md5(asset.hash + subAsset.hash);
       } else {
