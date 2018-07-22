@@ -13,6 +13,9 @@ const generate = require('babel-generator').default;
 const terser = require('../transforms/terser');
 const SourceMap = require('../SourceMap');
 const hoist = require('../scope-hoisting/hoist');
+const path = require('path');
+const fs = require('../utils/fs');
+const logger = require('../Logger');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -20,6 +23,8 @@ const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer|define)\b/;
 const FS_RE = /\breadFileSync\b/;
 const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
 const WORKER_RE = /\bnew\s*Worker\s*\(/;
+const SOURCEMAP_RE = /\/\/\s*[@#]\s*sourceMappingURL\s*=\s*([^\s]+)/;
+const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
 
 class JSAsset extends Asset {
   constructor(name, options) {
@@ -104,7 +109,74 @@ class JSAsset extends Asset {
     walk.ancestor(this.ast, collectDependencies, this);
   }
 
+  async loadSourceMap() {
+    // Get original sourcemap if there is any
+    let match = this.contents.match(SOURCEMAP_RE);
+    if (match) {
+      this.contents = this.contents.replace(SOURCEMAP_RE, '');
+
+      let url = match[1];
+      let dataURLMatch = url.match(DATA_URL_RE);
+
+      try {
+        let json, filename;
+        if (dataURLMatch) {
+          filename = this.name;
+          json = new Buffer(dataURLMatch[1], 'base64').toString();
+        } else {
+          filename = path.join(path.dirname(this.name), url);
+          json = await fs.readFile(filename, 'utf8');
+
+          // Add as a dep so we watch the source map for changes.
+          this.addDependency(filename, {includedInParent: true});
+        }
+
+        this.sourceMap = JSON.parse(json);
+
+        // Attempt to read missing source contents
+        if (!this.sourceMap.sourcesContent) {
+          this.sourceMap.sourcesContent = [];
+        }
+
+        let missingSources = this.sourceMap.sources.slice(
+          this.sourceMap.sourcesContent.length
+        );
+        if (missingSources.length) {
+          let contents = await Promise.all(
+            missingSources.map(async source => {
+              try {
+                let sourceFile = path.join(
+                  path.dirname(filename),
+                  this.sourceMap.sourceRoot || '',
+                  source
+                );
+                let result = await fs.readFile(sourceFile, 'utf8');
+                this.addDependency(sourceFile, {includedInParent: true});
+                return result;
+              } catch (err) {
+                logger.warn(
+                  `Could not load source file "${source}" in source map of "${
+                    this.relativeName
+                  }".`
+                );
+              }
+            })
+          );
+
+          this.sourceMap.sourcesContent = this.sourceMap.sourcesContent.concat(
+            contents
+          );
+        }
+      } catch (e) {
+        logger.warn(
+          `Could not load existing sourcemap of "${this.relativeName}".`
+        );
+      }
+    }
+  }
+
   async pretransform() {
+    await this.loadSourceMap();
     await babel(this);
 
     // Inline environment variables
