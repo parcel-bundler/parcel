@@ -4,12 +4,13 @@ const prettyError = require('@parcel/utils/prettyError');
 const emoji = require('./emoji');
 const {countBreaks} = require('grapheme-breaker');
 const stripAnsi = require('strip-ansi');
+const ora = require('ora');
+const WorkerFarm = require('@parcel/workers');
 
 class Logger {
   constructor(options) {
     this.lines = 0;
-    this.statusLine = null;
-    this.emoji = emoji;
+    this.spinner = null;
     this.setOptions(options);
   }
 
@@ -22,6 +23,7 @@ class Logger {
       options && typeof options.color === 'boolean'
         ? options.color
         : chalk.supportsColor;
+    this.emoji = options.emoji || emoji;
     this.chalk = new chalk.constructor({enabled: this.color});
     this.isTest =
       options && typeof options.isTest === 'boolean'
@@ -30,16 +32,20 @@ class Logger {
   }
 
   countLines(message) {
-    return message.split('\n').reduce((p, line) => {
-      if (process.stdout.columns) {
-        return p + Math.ceil((line.length || 1) / process.stdout.columns);
-      }
+    return stripAnsi(message)
+      .split('\n')
+      .reduce((p, line) => {
+        if (process.stdout.columns) {
+          return p + Math.ceil((line.length || 1) / process.stdout.columns);
+        }
 
-      return p + 1;
-    }, 0);
+        return p + 1;
+      }, 0);
   }
 
   writeRaw(message) {
+    this.stopSpinner();
+
     this.lines += this.countLines(message) - 1;
     process.stdout.write(message);
   }
@@ -49,6 +55,7 @@ class Logger {
       this.lines += this.countLines(message);
     }
 
+    this.stopSpinner();
     this._log(message);
   }
 
@@ -73,11 +80,7 @@ class Logger {
       return;
     }
 
-    let {message, stack} = prettyError(err, {color: this.color});
-    this.write(this.chalk.yellow(`${emoji.warning}  ${message}`));
-    if (stack) {
-      this.write(stack);
-    }
+    this._writeError(err, this.emoji.warning, this.chalk.yellow);
   }
 
   error(err) {
@@ -85,9 +88,16 @@ class Logger {
       return;
     }
 
-    let {message, stack} = prettyError(err, {color: this.color});
+    this._writeError(err, this.emoji.error, this.chalk.red.bold);
+  }
 
-    this.status(emoji.error, message, 'red');
+  success(message) {
+    this.log(`${this.emoji.success}  ${this.chalk.green.bold(message)}`);
+  }
+
+  _writeError(err, emoji, color) {
+    let {message, stack} = prettyError(err, {color: this.color});
+    this.write(color(`${emoji}  ${message}`));
     if (stack) {
       this.write(stack);
     }
@@ -105,25 +115,10 @@ class Logger {
     }
 
     readline.cursorTo(process.stdout, 0);
-    this.statusLine = null;
+    this.stopSpinner();
   }
 
-  writeLine(line, msg) {
-    if (!this.color) {
-      return this.log(msg);
-    }
-
-    let n = this.lines - line;
-    let stdout = process.stdout;
-    readline.cursorTo(stdout, 0);
-    readline.moveCursor(stdout, 0, -n);
-    stdout.write(msg);
-    readline.clearLine(stdout, 1);
-    readline.cursorTo(stdout, 0);
-    readline.moveCursor(stdout, 0, n);
-  }
-
-  status(type, message, color = 'gray') {
+  progress(message) {
     if (this.logLevel < 3) {
       return;
     }
@@ -138,15 +133,12 @@ class Logger {
     } else {
       this.spinner.text = styledMessage;
     }
+  }
 
-    this.writeLine(
-      this.statusLine,
-      this.chalk[color].bold(`${emoji[type]}  ${message}`)
-    );
-
-    if (!hasStatusLine) {
-      process.stdout.write('\n');
-      this.lines++;
+  stopSpinner() {
+    if (this.spinner) {
+      this.spinner.stop();
+      this.spinner = null;
     }
   }
 
@@ -202,14 +194,13 @@ function stringWidth(string) {
 // If we are in a worker, make a proxy class which will
 // send the logger calls to the main process via IPC.
 // These are handled in WorkerFarm and directed to handleMessage above.
-if (process.send && process.env.PARCEL_WORKER_TYPE === 'remote-worker') {
-  const WorkerFarm = require('@parcel/workers');
+if (WorkerFarm.isWorker()) {
   class LoggerProxy {}
   for (let method of Object.getOwnPropertyNames(Logger.prototype)) {
     LoggerProxy.prototype[method] = (...args) => {
-      worker.addCall(
+      WorkerFarm.callMaster(
         {
-          location: require.resolve('./Logger'),
+          location: __filename,
           method,
           args
         },

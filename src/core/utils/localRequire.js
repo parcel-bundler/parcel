@@ -1,7 +1,7 @@
 const {dirname} = require('path');
 const {promisify} = require('util');
 const resolve = promisify(require('resolve'));
-// const worker = require('../worker');
+const WorkerFarm = require('@parcel/workers');
 
 const cache = new Map();
 
@@ -14,7 +14,7 @@ async function localRequire(name, path, triedInstall = false) {
       resolved = await resolve(name, {basedir});
     } catch (e) {
       if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
-        await worker.addCall({
+        await WorkerFarm.callMaster({
           location: require.resolve('./installPackage.js'),
           args: [[name], path]
         });

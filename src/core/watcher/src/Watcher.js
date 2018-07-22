@@ -2,14 +2,17 @@ const FSWatcher = require('fswatcher-child');
 const Path = require('path');
 
 /**
- * This watcher wraps chokidar so that we watch directories rather than individual files.
+ * This watcher wraps chokidar so that we watch directories rather than individual files on macOS.
  * This prevents us from hitting EMFILE errors when running out of file descriptors.
+ * Chokidar does not have support for watching directories on non-macOS platforms, so we disable
+ * this behavior in order to prevent watching more individual files than necessary (e.g. node_modules).
  */
 class Watcher {
   constructor() {
     // FS events on macOS are flakey in the tests, which write lots of files very quickly
     // See https://github.com/paulmillr/chokidar/issues/612
-    this.shouldWatchDirs = process.env.NODE_ENV !== 'test';
+    this.shouldWatchDirs =
+      process.platform === 'darwin' && process.env.NODE_ENV !== 'test';
     this.watcher = new FSWatcher({
       useFsEvents: this.shouldWatchDirs,
       ignoreInitial: true,

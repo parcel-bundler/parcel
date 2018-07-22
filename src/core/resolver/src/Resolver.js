@@ -1,12 +1,11 @@
 const builtins = require('./builtins');
 const nodeBuiltins = require('node-libs-browser');
 const path = require('path');
-const glob = require('glob');
+const isGlob = require('is-glob');
 const fs = require('@parcel/fs');
 const micromatch = require('micromatch');
 
-const EMPTY_SHIM = require.resolve('./_empty');
-const GLOB_RE = /[*+{}]/;
+const EMPTY_SHIM = require.resolve('./builtins/_empty');
 
 /**
  * This resolver implements a modified version of the node_modules resolution algorithm:
@@ -39,7 +38,7 @@ class Resolver {
     }
 
     // Check if this is a glob
-    if (GLOB_RE.test(filename) && glob.hasMagic(filename)) {
+    if (isGlob(filename)) {
       return {path: path.resolve(path.dirname(parent), filename)};
     }
 
@@ -286,7 +285,7 @@ class Resolver {
     }
 
     // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
-    // we use the "module" or "browser" field to get the full dependency tree if available.
+    // we use the "browser" or "module" field to get the full dependency tree if available.
     // If this is a linked module with a `source` field, use that as the entry point.
     return [pkg.source, browser, pkg.module, pkg.main]
       .filter(entry => typeof entry === 'string')
@@ -364,14 +363,14 @@ class Resolver {
         filename = './' + filename;
       }
 
-      alias = this.lookupAlias(aliases, filename);
+      alias = this.lookupAlias(aliases, filename, dir);
     } else {
       // It is a node_module. First try the entire filename as a key.
-      alias = aliases[filename];
+      alias = this.lookupAlias(aliases, filename, dir);
       if (alias == null) {
         // If it didn't match, try only the module name.
         let parts = this.getModuleParts(filename);
-        alias = aliases[parts[0]];
+        alias = this.lookupAlias(aliases, parts[0], dir);
         if (typeof alias === 'string') {
           // Append the filename back onto the aliased module.
           alias = path.join(alias, ...parts.slice(1));
@@ -384,32 +383,30 @@ class Resolver {
       return EMPTY_SHIM;
     }
 
-    // If the alias is a relative path, then resolve
-    // relative to the package.json directory.
-    if (alias && alias[0] === '.') {
-      return path.resolve(dir, alias);
-    }
-
-    // Otherwise, assume the alias is a module
     return alias;
   }
 
-  lookupAlias(aliases, filename) {
+  lookupAlias(aliases, filename, dir) {
     // First, try looking up the exact filename
     let alias = aliases[filename];
-    if (alias != null) {
-      return alias;
-    }
-
-    // Otherwise, try replacing glob keys
-    for (let key in aliases) {
-      if (GLOB_RE.test(key)) {
-        let re = micromatch.makeRe(key, {capture: true});
-        if (re.test(filename)) {
-          return filename.replace(re, aliases[key]);
+    if (alias == null) {
+      // Otherwise, try replacing glob keys
+      for (let key in aliases) {
+        if (isGlob(key)) {
+          let re = micromatch.makeRe(key, {capture: true});
+          if (re.test(filename)) {
+            alias = filename.replace(re, aliases[key]);
+            break;
+          }
         }
       }
     }
+
+    if (typeof alias === 'string') {
+      return this.resolveFilename(alias, dir);
+    }
+
+    return alias;
   }
 
   async findPackage(dir) {

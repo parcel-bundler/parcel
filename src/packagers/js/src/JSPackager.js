@@ -31,13 +31,14 @@ class JSPackager extends Packager {
   }
 
   async addAsset(asset) {
-    if (this.dedupe.has(asset.generated.js)) {
+    let key = this.dedupeKey(asset);
+    if (this.dedupe.has(key)) {
       return;
     }
 
     // Don't dedupe when HMR is turned on since it messes with the asset ids
     if (!this.options.hmr) {
-      this.dedupe.set(asset.generated.js, asset.id);
+      this.dedupe.set(key, asset.id);
     }
 
     let deps = {};
@@ -56,7 +57,7 @@ class JSPackager extends Packager {
         deps[dep.name] = bundles;
         this.bundleLoaders.add(mod.type);
       } else {
-        deps[dep.name] = this.dedupe.get(mod.generated.js) || mod.id;
+        deps[dep.name] = this.dedupe.get(this.dedupeKey(mod)) || mod.id;
 
         // If the dep isn't in this bundle, add it to the list of external modules to preload.
         // Only do this if this is the root JS bundle, otherwise they will have already been
@@ -87,6 +88,14 @@ class JSPackager extends Packager {
     }
 
     return name;
+  }
+
+  dedupeKey(asset) {
+    // cannot rely *only* on generated JS for deduplication because paths like
+    // `../` can cause 2 identical JS files to behave differently depending on
+    // where they are located on the filesystem
+    let deps = Array.from(asset.depAssets.values(), dep => dep.name).sort();
+    return objectHash([asset.generated.js, deps]);
   }
 
   async writeModule(id, code, deps = {}, map) {
@@ -130,10 +139,10 @@ class JSPackager extends Packager {
     }
 
     let bundleLoader = this.bundler.loadedAssets.get(
-      require.resolve('@parcel/loader')
+      require.resolve('../builtins/bundle-loader')
     );
     if (this.externalModules.size > 0 && !bundleLoader) {
-      bundleLoader = await this.bundler.getAsset('@parcel/loader');
+      bundleLoader = await this.bundler.getAsset('_bundle_loader');
     }
 
     if (bundleLoader) {

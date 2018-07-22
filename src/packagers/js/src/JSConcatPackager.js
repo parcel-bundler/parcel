@@ -21,6 +21,7 @@ const helpers = getExisting(
 class JSConcatPackager extends Packager {
   async start() {
     this.addedAssets = new Set();
+    this.assets = new Map();
     this.exposedModules = new Set();
     this.externalModules = new Set();
     this.size = 0;
@@ -44,6 +45,8 @@ class JSConcatPackager extends Packager {
         this.exposedModules.add(asset);
         this.needsPrelude = true;
       }
+
+      this.assets.set(asset.id, asset);
 
       for (let mod of asset.depAssets.values()) {
         if (
@@ -90,19 +93,31 @@ class JSConcatPackager extends Packager {
     for (let identifier in asset.cacheData.imports) {
       let [source, name] = asset.cacheData.imports[identifier];
       let dep = asset.depAssets.get(asset.dependencies.get(source));
+
+      if (name === '*') {
+        this.markUsedExports(dep);
+      }
+
       this.markUsed(dep, name);
     }
   }
 
-  markUsed(mod, id) {
-    let exp = mod.cacheData.exports[id];
+  markUsed(mod, name) {
+    let {id} = this.findExportModule(mod.id, name);
+    mod = this.assets.get(id);
+
+    if (!mod) {
+      return;
+    }
+
+    let exp = mod.cacheData.exports[name];
     if (Array.isArray(exp)) {
       let depMod = mod.depAssets.get(mod.dependencies.get(exp[0]));
       return this.markUsed(depMod, exp[1]);
     }
 
     this.markUsedExports(mod);
-    mod.usedExports.add(id);
+    mod.usedExports.add(name);
   }
 
   getExportIdentifier(asset) {
@@ -508,7 +523,7 @@ class JSConcatPackager extends Packager {
       output = '(function () {' + output + '})();';
     }
 
-    this.bundle.totalSize = output.length;
+    this.size = output.length;
 
     let {sourceMaps} = this.options;
     if (sourceMaps) {

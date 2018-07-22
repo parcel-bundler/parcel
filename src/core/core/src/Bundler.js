@@ -18,7 +18,7 @@ const installPackage = require('@parcel/utils/installPackage');
 const bundleReport = require('@parcel/reporter-default');
 const prettifyTime = require('@parcel/utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');
-const glob = require('glob');
+const glob = require('fast-glob');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -71,7 +71,7 @@ class Bundler extends EventEmitter {
 
     // Match files as globs
     return entryFiles
-      .reduce((p, m) => p.concat(glob.sync(m, {nonull: true})), [])
+      .reduce((p, m) => p.concat(glob.sync(m)), [])
       .map(f => Path.resolve(f));
   }
 
@@ -214,7 +214,7 @@ class Bundler extends EventEmitter {
     this.error = null;
 
     logger.clear();
-    logger.status('progress', 'Building...');
+    logger.progress('Building...');
 
     try {
       // Start worker farm, watcher, etc. if needed
@@ -247,7 +247,7 @@ class Bundler extends EventEmitter {
         asset.invalidateBundle();
       }
 
-      logger.status('progress', `Producing bundles...`);
+      logger.progress(`Producing bundles...`);
 
       // Create a root bundle to hold all of the entry assets, and add them to the tree.
       this.mainBundle = new Bundle();
@@ -274,7 +274,7 @@ class Bundler extends EventEmitter {
         this.hmr.emitUpdate(changedAssets);
       }
 
-      logger.status('progress', `Packaging...`);
+      logger.progress(`Packaging...`);
 
       // Package everything up
       this.bundleHashes = await this.mainBundle.package(
@@ -287,7 +287,7 @@ class Bundler extends EventEmitter {
 
       let buildTime = Date.now() - startTime;
       let time = prettifyTime(buildTime);
-      logger.status('success', `Built in ${time}.`, 'green');
+      logger.success(`Built in ${time}.`);
       if (!this.watcher) {
         bundleReport(this.mainBundle, this.options.detailedReport);
       }
@@ -296,12 +296,13 @@ class Bundler extends EventEmitter {
       return this.mainBundle;
     } catch (err) {
       this.error = err;
+
       logger.error(err);
+      this.emit('buildError', err);
+
       if (this.hmr) {
         this.hmr.emitError(err);
       }
-
-      console.log(err);
 
       if (process.env.NODE_ENV === 'production') {
         process.exitCode = 1;
@@ -354,16 +355,18 @@ class Bundler extends EventEmitter {
   }
 
   stop() {
-    if (this.farm) {
-      this.farm.end();
-    }
-
     if (this.watcher) {
       this.watcher.stop();
     }
 
     if (this.hmr) {
       this.hmr.stop();
+    }
+
+    // Watcher and hmr can cause workerfarm calls
+    // keep this as last to prevent unwanted errors
+    if (this.farm) {
+      await this.farm.end();
     }
   }
 
@@ -406,11 +409,10 @@ class Bundler extends EventEmitter {
   }
 
   async unwatch(path, asset) {
+    path = await fs.realpath(path);
     if (!this.watchedAssets.has(path)) {
       return;
     }
-
-    path = await fs.realpath(path);
 
     let watched = this.watchedAssets.get(path);
     watched.delete(asset);
@@ -509,7 +511,7 @@ class Bundler extends EventEmitter {
     }
 
     if (!this.error) {
-      logger.status('progress', `Building ${asset.basename}...`);
+      logger.progress(`Building ${asset.basename}...`);
     }
 
     // Mark the asset processed so we don't load it twice
@@ -580,7 +582,7 @@ class Bundler extends EventEmitter {
       asset.parentDeps.add(dep);
     }
 
-    if (asset.parentBundle) {
+    if (asset.parentBundle && !bundle.isolated) {
       // If the asset is already in a bundle, it is shared. Move it to the lowest common ancestor.
       if (asset.parentBundle !== bundle) {
         let commonBundle = bundle.findCommonAncestor(asset.parentBundle);
@@ -599,6 +601,12 @@ class Bundler extends EventEmitter {
       if (parentBundles.has(asset.parentBundle)) {
         return;
       }
+    }
+
+    // Skip this asset if it's already in the bundle.
+    // Happens when circular dependencies are placed in an isolated bundle (e.g. a worker).
+    if (bundle.isolated && bundle.assets.has(asset)) {
+      return;
     }
 
     let isEntryAsset =
@@ -665,7 +673,9 @@ class Bundler extends EventEmitter {
     }
 
     for (let bundle of Array.from(asset.bundles)) {
-      bundle.removeAsset(asset);
+      if (!bundle.isolated) {
+        bundle.removeAsset(asset);
+      }
       commonBundle.getSiblingBundle(bundle.type).addAsset(asset);
     }
 
@@ -715,7 +725,7 @@ class Bundler extends EventEmitter {
     }
 
     logger.clear();
-    logger.status('progress', `Building ${Path.basename(path)}...`);
+    logger.progress(`Building ${Path.basename(path)}...`);
 
     // Add the asset to the rebuild queue, and reset the timeout.
     for (let asset of assets) {

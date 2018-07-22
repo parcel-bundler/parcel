@@ -10,7 +10,7 @@ const childModule =
 let WORKER_ID = 0;
 
 class Worker extends EventEmitter {
-  constructor(forkModule, options) {
+  constructor(options) {
     super();
 
     this.options = options;
@@ -22,12 +22,13 @@ class Worker extends EventEmitter {
     this.calls = new Map();
     this.exitCode = null;
     this.callId = 0;
-    this.stopped = false;
 
-    this.fork(forkModule);
+    this.ready = false;
+    this.stopped = false;
+    this.isStopping = false;
   }
 
-  fork(forkModule) {
+  async fork(forkModule, bundlerOptions) {
     let filteredArgs = process.execArgv.filter(
       v => !/^--(debug|inspect)/.test(v)
     );
@@ -39,11 +40,6 @@ class Worker extends EventEmitter {
     };
 
     this.child = childProcess.fork(childModule, process.argv, options);
-    this.send({
-      type: 'module',
-      module: forkModule,
-      child: this.id
-    });
 
     this.child.on('message', this.receive.bind(this));
 
@@ -54,6 +50,36 @@ class Worker extends EventEmitter {
 
     this.child.on('error', err => {
       this.emit('error', err);
+    });
+
+    await new Promise((resolve, reject) => {
+      this.call({
+        method: 'childInit',
+        args: [forkModule],
+        retries: 0,
+        resolve,
+        reject
+      });
+    });
+
+    await this.init(bundlerOptions);
+  }
+
+  async init(bundlerOptions) {
+    this.ready = false;
+
+    return new Promise((resolve, reject) => {
+      this.call({
+        method: 'init',
+        args: [bundlerOptions],
+        retries: 0,
+        resolve: (...args) => {
+          this.ready = true;
+          this.emit('ready');
+          resolve(...args);
+        },
+        reject
+      });
     });
   }
 
@@ -84,6 +110,10 @@ class Worker extends EventEmitter {
   }
 
   call(call) {
+    if (this.stopped || this.isStopping) {
+      return;
+    }
+
     let idx = this.callId++;
     this.calls.set(idx, call);
 
@@ -97,7 +127,7 @@ class Worker extends EventEmitter {
   }
 
   receive(data) {
-    if (this.stopped) {
+    if (this.stopped || this.isStopping) {
       return;
     }
 
@@ -126,15 +156,24 @@ class Worker extends EventEmitter {
     }
   }
 
-  stop() {
-    this.stopped = true;
+  async stop() {
+    if (!this.stopped) {
+      this.stopped = true;
 
-    this.send('die');
-    setTimeout(() => {
-      if (this.exitCode === null) {
-        this.child.kill('SIGKILL');
+      if (this.child) {
+        this.child.send('die');
+
+        let forceKill = setTimeout(
+          () => this.child.kill('SIGINT'),
+          this.options.forcedKillTime
+        );
+        await new Promise(resolve => {
+          this.child.once('exit', resolve);
+        });
+
+        clearTimeout(forceKill);
       }
-    }, this.options.forcedKillTime);
+    }
   }
 }
 
