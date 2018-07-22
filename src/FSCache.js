@@ -32,7 +32,7 @@ class FSCache {
     // Create sub-directories for every possible hex value
     // This speeds up large caches on many file systems since there are fewer files in a single directory.
     for (let i = 0; i < 256; i++) {
-      await fs.mkdirp(path.join(this.dir, i.toString(16).padStart(2, '0')));
+      await fs.mkdirp(path.join(this.dir, ('00' + i.toString(16)).slice(-2)));
     }
 
     this.dirExists = true;
