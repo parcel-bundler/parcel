@@ -8,6 +8,7 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "dependencies": {
-    "@parcel/fs": "^1.9.3"
+    "@parcel/fs": "^1.9.3",
+    "@parcel/workers": "^1.9.3"
   }
 }

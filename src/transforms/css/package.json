@@ -11,7 +11,7 @@
   "dependencies": {
     "@parcel/core": "^1.9.3",
     "@parcel/utils": "^1.9.3",
-    "cssnano": "^3.10.0",
+    "cssnano": "^4.0.0",
     "postcss": "^6.0.19",
     "postcss-value-parser": "^3.3.0"
   }

@@ -12,6 +12,7 @@
     "@parcel/cache": "^1.9.3",
     "@parcel/fs": "^1.9.3",
     "@parcel/loader-css": "^1.9.3",
+    "@parcel/loader-html": "^1.9.3",
     "@parcel/loader-js": "^1.9.3",
     "@parcel/loader-wasm": "^1.9.3",
     "@parcel/logger": "^1.9.3",

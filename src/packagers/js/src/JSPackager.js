@@ -6,8 +6,8 @@ const lineCounter = require('@parcel/utils/lineCounter');
 const objectHash = require('@parcel/utils/objectHash');
 
 const prelude = getExisting(
-  path.join(__dirname, '../builtins/prelude.min.js'),
-  path.join(__dirname, '../builtins/prelude.js')
+  path.join(__dirname, './builtins/prelude.min.js'),
+  path.join(__dirname, './builtins/prelude.js')
 );
 
 class JSPackager extends Packager {
@@ -139,7 +139,7 @@ class JSPackager extends Packager {
     }
 
     let bundleLoader = this.bundler.loadedAssets.get(
-      require.resolve('../builtins/bundle-loader')
+      require.resolve('@parcel/loader')
     );
     if (this.externalModules.size > 0 && !bundleLoader) {
       bundleLoader = await this.bundler.getAsset('_bundle_loader');

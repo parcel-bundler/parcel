@@ -1,4 +1,4 @@
-const config = require('./config');
+const config = require('@parcel/utils/config');
 const dotenv = require('dotenv');
 
 async function loadEnv(filepath) {

@@ -23,7 +23,7 @@ class Logger {
       options && typeof options.color === 'boolean'
         ? options.color
         : chalk.supportsColor;
-    this.emoji = options.emoji || emoji;
+    this.emoji = (options && options.emoji) || emoji;
     this.chalk = new chalk.constructor({enabled: this.color});
     this.isTest =
       options && typeof options.isTest === 'boolean'

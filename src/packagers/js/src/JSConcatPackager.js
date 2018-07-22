@@ -9,13 +9,13 @@ const t = require('babel-types');
 const {getName, getIdentifier} = require('../scope-hoisting/utils');
 
 const prelude = getExisting(
-  path.join(__dirname, '../builtins/prelude2.min.js'),
-  path.join(__dirname, '../builtins/prelude2.js')
+  path.join(__dirname, './builtins/prelude2.min.js'),
+  path.join(__dirname, './builtins/prelude2.js')
 );
 
 const helpers = getExisting(
-  path.join(__dirname, '../builtins/helpers.min.js'),
-  path.join(__dirname, '../builtins/helpers.js')
+  path.join(__dirname, './builtins/helpers.min.js'),
+  path.join(__dirname, './builtins/helpers.js')
 );
 
 class JSConcatPackager extends Packager {

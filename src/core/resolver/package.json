@@ -9,7 +9,7 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "scripts": {
-    "test": "mocha"
+    "test": "cross-env NODE_ENV=test mocha"
   },
   "dependencies": {
     "@parcel/fs": "^1.9.3",

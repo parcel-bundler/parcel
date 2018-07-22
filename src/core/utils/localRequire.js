@@ -1,7 +1,7 @@
 const {dirname} = require('path');
 const {promisify} = require('util');
 const resolve = promisify(require('resolve'));
-const WorkerFarm = require('@parcel/workers');
+// const WorkerFarm = require('@parcel/workers');
 
 const cache = new Map();
 

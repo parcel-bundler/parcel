@@ -10,7 +10,7 @@ class WorkerFarm extends EventEmitter {
     this.options = Object.assign(
       {
         maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
-        maxConcurrentCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(),
+        maxConcurrefntCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(),
         forcedKillTime: 500,
         warmWorkers: true,
         useLocalWorker: true
@@ -242,9 +242,9 @@ class WorkerFarm extends EventEmitter {
     );
   }
 
-  static getShared(options) {
+  static getShared(options, farmOptions) {
     if (!shared) {
-      shared = new WorkerFarm(options);
+      shared = new WorkerFarm(options, farmOptions);
     } else if (options) {
       shared.init(options);
     }
