@@ -5,7 +5,7 @@ const isGlob = require('is-glob');
 const fs = require('@parcel/fs');
 const micromatch = require('micromatch');
 
-const EMPTY_SHIM = require.resolve('./builtins/_empty');
+const EMPTY_SHIM = require.resolve('./_empty');
 
 /**
  * This resolver implements a modified version of the node_modules resolution algorithm:

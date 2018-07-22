@@ -11,7 +11,7 @@
   "dependencies": {
     "@parcel/core": "^1.9.3",
     "@parcel/utils": "^1.9.3",
-    "glob": "^7.1.2",
+    "fast-glob": "^2.2.2",
     "micromatch": "^3.0.4"
   }
 }

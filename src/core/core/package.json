@@ -46,7 +46,7 @@
     "@parcel/utils": "^1.9.3",
     "@parcel/watcher": "^1.9.3",
     "@parcel/workers": "^1.9.3",
-    "glob": "^7.1.2",
+    "fast-glob": "^2.2.2",
     "source-map": "0.6.1",
     "v8-compile-cache": "^2.0.0"
   }
