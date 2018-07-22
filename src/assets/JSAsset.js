@@ -23,6 +23,8 @@ const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer|define)\b/;
 const FS_RE = /\breadFileSync\b/;
 const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
 const WORKER_RE = /\bnew\s*Worker\s*\(/;
+const SOURCEMAP_RE = /\/\/\s*[@#]\s*sourceMappingURL\s*=\s*([^\s]+)/;
+const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
 
 class JSAsset extends Asset {
   constructor(name, options) {
@@ -107,26 +109,40 @@ class JSAsset extends Asset {
     walk.ancestor(this.ast, collectDependencies, this);
   }
 
-  async pretransform() {
+  async loadSourceMap() {
     // Get original sourcemap if there is any
-    let sourceMapLine = this.contents.lastIndexOf('//# sourceMappingURL=');
-    if (sourceMapLine > -1) {
-      let sourceMapReference = this.contents.substring(sourceMapLine + 21);
-      this.contents = this.contents.substring(0, sourceMapLine);
+    let match = this.contents.match(SOURCEMAP_RE);
+    if (match) {
+      this.contents = this.contents.replace(SOURCEMAP_RE, '');
+
+      let url = match[1];
+      let dataURLMatch = url.match(DATA_URL_RE);
 
       try {
-        this.sourceMap = JSON.parse(
-          await fs.readFile(
-            path.join(path.dirname(this.name), sourceMapReference)
-          )
-        );
+        let json;
+        if (dataURLMatch) {
+          json = new Buffer(dataURLMatch[1], 'base64').toString();
+        } else {
+          json = await fs.readFile(
+            path.join(path.dirname(this.name), url),
+            'utf8'
+          );
+        }
+
+        this.sourceMap = JSON.parse(json);
+
+        // Add as a dep so we watch the source map for changes.
+        this.addDependency(match[1], {includedInParent: true});
       } catch (e) {
         logger.warn(
           `Could not load existing sourcemap of ${this.relativeName}.`
         );
       }
     }
+  }
 
+  async pretransform() {
+    await this.loadSourceMap();
     await babel(this);
 
     // Inline environment variables
