@@ -7,7 +7,7 @@
 // orig method which is the require for previous bundles
 
 // eslint-disable-next-line no-global-assign
-parcelRequire = function(modules, cache, entry, globalName) {
+parcelRequire = (function (modules, cache, entry, globalName) {
   // Save the require from previous bundle to this closure if any
   var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
   var nodeRequire = typeof require === 'function' && require;
@@ -18,8 +18,7 @@ parcelRequire = function(modules, cache, entry, globalName) {
         // if we cannot find the module within our internal map or
         // cache jump to the current global require ie. the last bundle
         // that was added to the page.
-        var currentRequire =
-          typeof parcelRequire === 'function' && parcelRequire;
+        var currentRequire = typeof parcelRequire === 'function' && parcelRequire;
         if (!jumped && currentRequire) {
           return currentRequire(name, true);
         }
@@ -37,31 +36,25 @@ parcelRequire = function(modules, cache, entry, globalName) {
           return nodeRequire(name);
         }
 
-        var err = new Error("Cannot find module '" + name + "'");
+        var err = new Error('Cannot find module \'' + name + '\'');
         err.code = 'MODULE_NOT_FOUND';
         throw err;
       }
 
       localRequire.resolve = resolve;
 
-      var module = (cache[name] = new newRequire.Module(name));
+      var module = cache[name] = new newRequire.Module(name);
 
-      modules[name][0].call(
-        module.exports,
-        localRequire,
-        module,
-        module.exports,
-        this
-      );
+      modules[name][0].call(module.exports, localRequire, module, module.exports, this);
     }
 
     return cache[name].exports;
 
-    function localRequire(x) {
+    function localRequire(x){
       return newRequire(localRequire.resolve(x));
     }
 
-    function resolve(x) {
+    function resolve(x){
       return modules[name][1][x] || x;
     }
   }
@@ -77,13 +70,10 @@ parcelRequire = function(modules, cache, entry, globalName) {
   newRequire.modules = modules;
   newRequire.cache = cache;
   newRequire.parent = previousRequire;
-  newRequire.register = function(id, exports) {
-    modules[id] = [
-      function(require, module) {
-        module.exports = exports;
-      },
-      {}
-    ];
+  newRequire.register = function (id, exports) {
+    modules[id] = [function (require, module) {
+      module.exports = exports;
+    }, {}];
   };
 
   for (var i = 0; i < entry.length; i++) {
@@ -96,16 +86,16 @@ parcelRequire = function(modules, cache, entry, globalName) {
     var mainExports = newRequire(entry[entry.length - 1]);
 
     // CommonJS
-    if (typeof exports === 'object' && typeof module !== 'undefined') {
+    if (typeof exports === "object" && typeof module !== "undefined") {
       module.exports = mainExports;
 
-      // RequireJS
-    } else if (typeof define === 'function' && define.amd) {
-      define(function() {
-        return mainExports;
-      });
+    // RequireJS
+    } else if (typeof define === "function" && define.amd) {
+     define(function () {
+       return mainExports;
+     });
 
-      // <script>
+    // <script>
     } else if (globalName) {
       this[globalName] = mainExports;
     }
@@ -113,4 +103,4 @@ parcelRequire = function(modules, cache, entry, globalName) {
 
   // Override the current require with this new one
   return newRequire;
-};
+})

@@ -142,7 +142,7 @@ class JSPackager extends Packager {
       require.resolve('@parcel/loader')
     );
     if (this.externalModules.size > 0 && !bundleLoader) {
-      bundleLoader = await this.bundler.getAsset('_bundle_loader');
+      bundleLoader = await this.bundler.getAsset('@parcel/loader');
     }
 
     if (bundleLoader) {
@@ -200,7 +200,7 @@ class JSPackager extends Packager {
     // Add the HMR runtime if needed.
     if (this.options.hmr) {
       let asset = await this.bundler.getAsset(
-        require.resolve('../builtins/hmr-runtime')
+        require.resolve('./builtins/hmr-runtime')
       );
       await this.addAssetToBundle(asset);
       entry.push(asset.id);
