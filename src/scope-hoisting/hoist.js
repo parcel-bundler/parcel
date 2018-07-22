@@ -300,8 +300,9 @@ module.exports = {
     }
 
     if (t.isIdentifier(callee, {name: 'require'})) {
+      let source = args[0].value;
       // Ignore require calls that were ignored earlier.
-      if (!asset.dependencies.has(args[0].value)) {
+      if (!asset.dependencies.has(source)) {
         return;
       }
 
@@ -316,8 +317,10 @@ module.exports = {
           p.isSequenceExpression()
       );
       if (!parent.isProgram() || bail) {
-        asset.dependencies.get(args[0].value).shouldWrap = true;
+        asset.dependencies.get(source).shouldWrap = true;
       }
+
+      asset.cacheData.imports['$require$' + source] = [source, '*'];
 
       // Generate a variable name based on the current asset id and the module name to require.
       // This will be replaced by the final variable name of the resolved asset in the packager.

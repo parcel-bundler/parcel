@@ -832,5 +832,15 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, 3);
     });
+
+    it('should support sideEffects: false', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/commonjs/side-effects-false/a.js'
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 9);
+    });
   });
 });
