@@ -22,14 +22,25 @@ class FSCache {
     );
   }
 
-  async ensureDirExists(dir = this.dir) {
-    await fs.mkdirp(dir);
+  async ensureDirExists() {
+    if (this.dirExists) {
+      return;
+    }
+
+    await fs.mkdirp(this.dir);
+
+    // Create sub-directories for every possible hex value
+    // This speeds up large caches on many file systems since there are fewer files in a single directory.
+    for (let i = 0; i < 256; i++) {
+      await fs.mkdirp(path.join(this.dir, i.toString(16).padStart(2, '0')));
+    }
+
     this.dirExists = true;
   }
 
   getCacheFile(filename) {
     let hash = md5(this.optionsHash + filename);
-    return path.join(this.dir, hash.substring(0, 2), hash + '.json');
+    return path.join(this.dir, hash.slice(0, 2), hash.slice(2) + '.json');
   }
 
   async getLastModified(filename) {
@@ -56,8 +67,8 @@ class FSCache {
 
   async write(filename, data) {
     try {
+      await this.ensureDirExists();
       let cacheFile = this.getCacheFile(filename);
-      await this.ensureDirExists(path.dirname(cacheFile));
       await this.writeDepMtimes(data);
       await fs.writeFile(cacheFile, JSON.stringify(data));
       this.invalidated.delete(filename);
