@@ -23,13 +23,24 @@ class FSCache {
   }
 
   async ensureDirExists() {
+    if (this.dirExists) {
+      return;
+    }
+
     await fs.mkdirp(this.dir);
+
+    // Create sub-directories for every possible hex value
+    // This speeds up large caches on many file systems since there are fewer files in a single directory.
+    for (let i = 0; i < 256; i++) {
+      await fs.mkdirp(path.join(this.dir, ('00' + i.toString(16)).slice(-2)));
+    }
+
     this.dirExists = true;
   }
 
   getCacheFile(filename) {
     let hash = md5(this.optionsHash + filename);
-    return path.join(this.dir, hash + '.json');
+    return path.join(this.dir, hash.slice(0, 2), hash.slice(2) + '.json');
   }
 
   async getLastModified(filename) {
