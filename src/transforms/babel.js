@@ -115,6 +115,13 @@ async function getBabelConfig(asset) {
         }
       }
 
+      // Autoinstall any missing babel presets
+      if(babelrc.presets){
+        for(let preset of babelrc.presets){
+          await localRequire(`babel-preset-${preset}`, asset.name)
+        }
+      }
+
       // Filter out presets that are already applied by babel-preset-env
       if (Array.isArray(babelrc.presets)) {
         babelrc.presets = babelrc.presets.filter(preset => {
