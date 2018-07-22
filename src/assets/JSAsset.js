@@ -119,23 +119,57 @@ class JSAsset extends Asset {
       let dataURLMatch = url.match(DATA_URL_RE);
 
       try {
-        let json;
+        let json, filename;
         if (dataURLMatch) {
+          filename = this.name;
           json = new Buffer(dataURLMatch[1], 'base64').toString();
         } else {
-          json = await fs.readFile(
-            path.join(path.dirname(this.name), url),
-            'utf8'
-          );
+          filename = path.join(path.dirname(this.name), url);
+          json = await fs.readFile(filename, 'utf8');
+
+          // Add as a dep so we watch the source map for changes.
+          this.addDependency(filename, {includedInParent: true});
         }
 
         this.sourceMap = JSON.parse(json);
 
-        // Add as a dep so we watch the source map for changes.
-        this.addDependency(match[1], {includedInParent: true});
+        // Attempt to read missing source contents
+        if (!this.sourceMap.sourcesContent) {
+          this.sourceMap.sourcesContent = [];
+        }
+
+        let missingSources = this.sourceMap.sources.slice(
+          this.sourceMap.sourcesContent.length
+        );
+        if (missingSources.length) {
+          let contents = await Promise.all(
+            missingSources.map(async source => {
+              try {
+                let sourceFile = path.join(
+                  path.dirname(filename),
+                  this.sourceMap.sourceRoot || '',
+                  source
+                );
+                let result = await fs.readFile(sourceFile, 'utf8');
+                this.addDependency(sourceFile, {includedInParent: true});
+                return result;
+              } catch (err) {
+                logger.warn(
+                  `Could not load source file "${source}" in source map of "${
+                    this.relativeName
+                  }".`
+                );
+              }
+            })
+          );
+
+          this.sourceMap.sourcesContent = this.sourceMap.sourcesContent.concat(
+            contents
+          );
+        }
       } catch (e) {
         logger.warn(
-          `Could not load existing sourcemap of ${this.relativeName}.`
+          `Could not load existing sourcemap of "${this.relativeName}".`
         );
       }
     }

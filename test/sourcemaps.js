@@ -274,4 +274,40 @@ describe('sourcemaps', function() {
     );
     mapValidator(jsOutput, map);
   });
+
+  it('should load referenced contents of sourcemaps', async function() {
+    let b = await bundle(
+      __dirname + '/integration/sourcemap-external-contents/index.js'
+    );
+
+    assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'sum.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let jsOutput = await fs.readFile(b.name, 'utf8');
+
+    let sourcemapReference = path.join(
+      __dirname,
+      '/dist/',
+      jsOutput.substring(jsOutput.lastIndexOf('//# sourceMappingURL') + 22)
+    );
+
+    assert(
+      await fs.exists(path.join(sourcemapReference)),
+      'referenced sourcemap should exist'
+    );
+
+    let map = await fs.readFile(path.join(sourcemapReference), 'utf8');
+    assert(
+      map.indexOf('module.exports = (a, b) => a + b') > -1,
+      'Sourcemap should contain the existing sourcemap'
+    );
+    mapValidator(jsOutput, map);
+  });
 });
