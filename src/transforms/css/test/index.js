@@ -1,10 +1,10 @@
 const assert = require('assert');
-const fs = require('../src/utils/fs');
-const {bundle, run, assertBundleTree, rimraf, ncp} = require('./utils');
+const fs = require('@parcel/fs');
+const {bundle, run, assertBundleTree, rimraf, ncp} = require('@parcel/test-utils');
 
 describe('css', function() {
   it('should produce two bundles when importing a CSS file', async function() {
-    let b = await bundle(__dirname + '/integration/css/index.js');
+    let b = await bundle(__dirname + '/fixtures/css/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -27,7 +27,7 @@ describe('css', function() {
   });
 
   it('should support loading a CSS bundle along side dynamic imports', async function() {
-    let b = await bundle(__dirname + '/integration/dynamic-css/index.js');
+    let b = await bundle(__dirname + '/fixtures/dynamic-css/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -71,7 +71,7 @@ describe('css', function() {
   });
 
   it('should support importing CSS from a CSS file', async function() {
-    let b = await bundle(__dirname + '/integration/css-import/index.js');
+    let b = await bundle(__dirname + '/fixtures/css-import/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -101,7 +101,7 @@ describe('css', function() {
   });
 
   it('should support linking to assets with url() from CSS', async function() {
-    let b = await bundle(__dirname + '/integration/css-url/index.js');
+    let b = await bundle(__dirname + '/fixtures/css-url/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -144,7 +144,7 @@ describe('css', function() {
   });
 
   it('should support linking to assets with url() from CSS in production', async function() {
-    let b = await bundle(__dirname + '/integration/css-url/index.js', {
+    let b = await bundle(__dirname + '/fixtures/css-url/index.js', {
       production: true
     });
 
@@ -189,7 +189,7 @@ describe('css', function() {
   });
 
   it('should support transforming with postcss', async function() {
-    let b = await bundle(__dirname + '/integration/postcss/index.js');
+    let b = await bundle(__dirname + '/fixtures/postcss/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -219,8 +219,8 @@ describe('css', function() {
   });
 
   it('should support transforming with postcss twice with the same result', async function() {
-    let b = await bundle(__dirname + '/integration/postcss-plugins/index.js');
-    let c = await bundle(__dirname + '/integration/postcss-plugins/index2.js');
+    let b = await bundle(__dirname + '/fixtures/postcss-plugins/index.js');
+    let c = await bundle(__dirname + '/fixtures/postcss-plugins/index2.js');
 
     let [run1, run2] = await Promise.all([await run(b), await run(c)]);
 
@@ -228,7 +228,7 @@ describe('css', function() {
   });
 
   it('should minify CSS in production mode', async function() {
-    let b = await bundle(__dirname + '/integration/cssnano/index.js', {
+    let b = await bundle(__dirname + '/fixtures/cssnano/index.js', {
       production: true
     });
 
@@ -244,7 +244,7 @@ describe('css', function() {
 
   it('should automatically install postcss plugins with npm if needed', async function() {
     await rimraf(__dirname + '/input');
-    await ncp(__dirname + '/integration/autoinstall/npm', __dirname + '/input');
+    await ncp(__dirname + '/fixtures/autoinstall/npm', __dirname + '/input');
     await bundle(__dirname + '/input/index.css');
 
     // cssnext was installed
@@ -262,7 +262,7 @@ describe('css', function() {
   it('should automatically install postcss plugins with yarn if needed', async function() {
     await rimraf(__dirname + '/input');
     await ncp(
-      __dirname + '/integration/autoinstall/yarn',
+      __dirname + '/fixtures/autoinstall/yarn',
       __dirname + '/input'
     );
     await bundle(__dirname + '/input/index.css');

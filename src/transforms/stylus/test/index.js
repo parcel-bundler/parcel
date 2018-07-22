@@ -1,10 +1,10 @@
 const assert = require('assert');
-const fs = require('../src/utils/fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const fs = require('@parcel/fs');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe('stylus', function() {
   it('should support requiring stylus files', async function() {
-    let b = await bundle(__dirname + '/integration/stylus/index.js');
+    let b = await bundle(__dirname + '/fixtures/stylus/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -30,7 +30,7 @@ describe('stylus', function() {
   });
 
   it('should support requiring stylus files with dependencies', async function() {
-    let b = await bundle(__dirname + '/integration/stylus-deps/index.js');
+    let b = await bundle(__dirname + '/fixtures/stylus-deps/index.js');
 
     // a.styl shouldn't be included as a dependency that we can see.
     // stylus takes care of inlining it.
@@ -61,7 +61,7 @@ describe('stylus', function() {
   });
 
   it('should support linking to assets with url() from stylus', async function() {
-    let b = await bundle(__dirname + '/integration/stylus-url/index.js');
+    let b = await bundle(__dirname + '/fixtures/stylus-url/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -100,7 +100,7 @@ describe('stylus', function() {
   });
 
   it('should support transforming stylus with postcss', async function() {
-    let b = await bundle(__dirname + '/integration/stylus-postcss/index.js');
+    let b = await bundle(__dirname + '/fixtures/stylus-postcss/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
