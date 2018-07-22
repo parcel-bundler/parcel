@@ -1,8 +1,8 @@
 {
     "name": "pkg-browser-multiple",
-    "main": "./does-not-exist.js",
+    "main": "./node-entry.js",
     "browser": {
-        "./projected.js": "./projected-module.js",
+        "./projected.js": "./projected-browser.js",
         "pkg-browser-multiple": "browser-entry.js"
     }
 }

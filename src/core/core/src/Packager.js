@@ -10,6 +10,10 @@ class Packager {
     this.options = bundler.options;
   }
 
+  static shouldAddAsset() {
+    return true;
+  }
+
   async setup() {
     // Create sub-directories if needed
     if (this.bundle.name.includes(path.sep)) {

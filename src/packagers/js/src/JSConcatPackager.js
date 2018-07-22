@@ -1,20 +1,22 @@
 const {Packager} = require('@parcel/core');
 const path = require('path');
-const fs = require('fs');
 const concat = require('../scope-hoisting/concat');
 const urlJoin = require('@parcel/utils/urlJoin');
+const getExisting = require('@parcel/utils/getExisting');
 const walk = require('babylon-walk');
 const babylon = require('babylon');
 const t = require('babel-types');
+const {getName, getIdentifier} = require('../scope-hoisting/utils');
 
-const prelude = fs
-  .readFileSync(path.join(__dirname, './builtins/prelude2.min.js'), 'utf8')
-  .trim()
-  .replace(/;$/, '');
-const helpers =
-  fs
-    .readFileSync(path.join(__dirname, './builtins/helpers.js'), 'utf8')
-    .trim() + '\n';
+const prelude = getExisting(
+  path.join(__dirname, '../builtins/prelude2.min.js'),
+  path.join(__dirname, '../builtins/prelude2.js')
+);
+
+const helpers = getExisting(
+  path.join(__dirname, '../builtins/helpers.min.js'),
+  path.join(__dirname, '../builtins/helpers.js')
+);
 
 class JSConcatPackager extends Packager {
   async start() {
@@ -67,7 +69,7 @@ class JSConcatPackager extends Packager {
       }
     }
 
-    this.write(helpers);
+    this.write(helpers.minified);
   }
 
   write(string) {
@@ -104,9 +106,9 @@ class JSConcatPackager extends Packager {
   }
 
   getExportIdentifier(asset) {
-    let id = '$' + asset.id + '$exports';
+    let id = getName(asset, 'exports');
     if (this.shouldWrap(asset)) {
-      return `($${asset.id}$init(), ${id})`;
+      return `(${getName(asset, 'init')}(), ${id})`;
     }
 
     return id;
@@ -119,8 +121,8 @@ class JSConcatPackager extends Packager {
     this.addedAssets.add(asset);
     let {js} = asset.generated;
 
-    // If the asset's package has the sideEffects: false flag set, and there are no used
-    // exports marked, exclude the asset from the bundle.
+    // If the asset has no side effects according to the its package's sideEffects flag,
+    // and there are no used exports marked, exclude the asset from the bundle.
     if (
       asset.cacheData.sideEffects === false &&
       (!asset.usedExports || asset.usedExports.size === 0)
@@ -129,7 +131,7 @@ class JSConcatPackager extends Packager {
     }
 
     for (let [dep, mod] of asset.depAssets) {
-      if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
+      if (dep.dynamic) {
         for (let child of mod.parentBundle.siblingBundles) {
           if (!child.isEmpty) {
             await this.addBundleLoader(child.type, asset);
@@ -296,13 +298,13 @@ class JSConcatPackager extends Packager {
       }
     }
 
-    let executed = `$${asset.id}$executed`;
+    let executed = getName(asset, 'executed');
     decls.push(
       t.variableDeclarator(t.identifier(executed), t.booleanLiteral(false))
     );
 
     let init = t.functionDeclaration(
-      t.identifier(`$${asset.id}$init`),
+      getIdentifier(asset, 'init'),
       [],
       t.blockStatement([
         t.ifStatement(t.identifier(executed), t.returnStatement()),
@@ -483,7 +485,7 @@ class JSConcatPackager extends Packager {
           );
         }
 
-        exposed.push(`${m.id}: ${this.getExportIdentifier(m)}`);
+        exposed.push(`"${m.id}": ${this.getExportIdentifier(m)}`);
       }
 
       this.write(`
@@ -499,8 +501,9 @@ class JSConcatPackager extends Packager {
       output = '\n' + output + '\n';
     }
 
+    let preludeCode = this.options.minify ? prelude.minified : prelude.source;
     if (this.needsPrelude) {
-      output = prelude + '(function (require) {' + output + '});';
+      output = preludeCode + '(function (require) {' + output + '});';
     } else {
       output = '(function () {' + output + '})();';
     }
@@ -520,6 +523,54 @@ class JSConcatPackager extends Packager {
     }
 
     await super.write(output);
+  }
+
+  resolveModule(id, name) {
+    let module = this.assets.get(id);
+    return module.depAssets.get(module.dependencies.get(name));
+  }
+
+  findExportModule(id, name, replacements) {
+    let asset = this.assets.get(id);
+    let exp =
+      asset &&
+      Object.prototype.hasOwnProperty.call(asset.cacheData.exports, name)
+        ? asset.cacheData.exports[name]
+        : null;
+
+    // If this is a re-export, find the original module.
+    if (Array.isArray(exp)) {
+      let mod = this.resolveModule(id, exp[0]);
+      return this.findExportModule(mod.id, exp[1], replacements);
+    }
+
+    // If this module exports wildcards, resolve the original module.
+    // Default exports are excluded from wildcard exports.
+    let wildcards = asset && asset.cacheData.wildcards;
+    if (wildcards && name !== 'default' && name !== '*') {
+      for (let source of wildcards) {
+        let mod = this.resolveModule(id, source);
+        let m = this.findExportModule(mod.id, name, replacements);
+        if (m.identifier) {
+          return m;
+        }
+      }
+    }
+
+    // If this is a wildcard import, resolve to the exports object.
+    if (asset && name === '*') {
+      exp = getName(asset, 'exports');
+    }
+
+    if (replacements && replacements.has(exp)) {
+      exp = replacements.get(exp);
+    }
+
+    return {
+      identifier: exp,
+      name,
+      id
+    };
   }
 }
 

@@ -109,6 +109,11 @@ function prepareBrowserContext(bundle, globals) {
                 )
               ).buffer
             );
+          },
+          text() {
+            return Promise.resolve(
+              nodeFS.readFileSync(path.join(__dirname, 'dist', url), 'utf8')
+            );
           }
         });
       }

@@ -79,12 +79,14 @@ class SourceMap {
   }
 
   addMapping(mapping, lineOffset = 0, columnOffset = 0) {
-    mapping.generated = {
-      line: mapping.generated.line + lineOffset,
-      column: mapping.generated.column + columnOffset
-    };
-
-    this.mappings.push(mapping);
+    this.mappings.push({
+      source: mapping.source,
+      original: mapping.original,
+      generated: {
+        line: mapping.generated.line + lineOffset,
+        column: mapping.generated.column + columnOffset
+      }
+    });
   }
 
   addConsumerMapping(mapping, lineOffset = 0, columnOffset = 0) {

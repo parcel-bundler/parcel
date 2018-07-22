@@ -1,18 +1,14 @@
-const fs = require('fs');
 const path = require('path');
 const {Packager} = require('@parcel/core');
+const getExisting = require('@parcel/utils/getExisting');
 const urlJoin = require('@parcel/utils/urlJoin');
 const lineCounter = require('@parcel/utils/lineCounter');
+const objectHash = require('@parcel/utils/objectHash');
 
-const prelude = {
-  source: fs
-    .readFileSync(path.join(__dirname, './builtins/prelude.js'), 'utf8')
-    .trim(),
-  minified: fs
-    .readFileSync(path.join(__dirname, './builtins/prelude.min.js'), 'utf8')
-    .trim()
-    .replace(/;$/, '')
-};
+const prelude = getExisting(
+  path.join(__dirname, '../builtins/prelude.min.js'),
+  path.join(__dirname, '../builtins/prelude.js')
+);
 
 class JSPackager extends Packager {
   async start() {
@@ -47,7 +43,7 @@ class JSPackager extends Packager {
     let deps = {};
     for (let [dep, mod] of asset.depAssets) {
       // For dynamic dependencies, list the child bundles to load along with the module id
-      if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
+      if (dep.dynamic) {
         let bundles = [this.getBundleSpecifier(mod.parentBundle)];
         for (let child of mod.parentBundle.siblingBundles) {
           if (!child.isEmpty) {
@@ -96,7 +92,10 @@ class JSPackager extends Packager {
   async writeModule(id, code, deps = {}, map) {
     let wrapped = this.first ? '' : ',';
     wrapped +=
-      id + ':[function(require,module,exports) {\n' + (code || '') + '\n},';
+      JSON.stringify(id) +
+      ':[function(require,module,exports) {\n' +
+      (code || '') +
+      '\n},';
     wrapped += JSON.stringify(deps);
     wrapped += ']';
 
@@ -144,7 +143,7 @@ class JSPackager extends Packager {
     }
 
     // Generate a module to register the bundle loaders that are needed
-    let loads = 'var b=require(' + bundleLoader.id + ');';
+    let loads = 'var b=require(' + JSON.stringify(bundleLoader.id) + ');';
     for (let bundleType of this.bundleLoaders) {
       let loader = this.options.bundleLoaders[bundleType];
       if (loader) {
@@ -155,7 +154,7 @@ class JSPackager extends Packager {
           'b.register(' +
           JSON.stringify(bundleType) +
           ',require(' +
-          asset.id +
+          JSON.stringify(asset.id) +
           '));';
       }
     }
@@ -173,7 +172,9 @@ class JSPackager extends Packager {
 
       loads += 'b.load(' + JSON.stringify(preload) + ')';
       if (this.bundle.entryAsset) {
-        loads += `.then(function(){require(${this.bundle.entryAsset.id});})`;
+        loads += `.then(function(){require(${JSON.stringify(
+          this.bundle.entryAsset.id
+        )});})`;
       }
 
       loads += ';';

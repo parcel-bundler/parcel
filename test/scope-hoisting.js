@@ -281,6 +281,22 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'bar');
     });
 
+    it('supports the package.json sideEffects flag with an array', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/es6/side-effects-array/a.js'
+      );
+
+      let calls = [];
+      let output = await run(b, {
+        sideEffect: caller => {
+          calls.push(caller);
+        }
+      });
+
+      assert(calls.toString() == 'foo', "side effect called for 'foo'");
+      assert.deepEqual(output, 4);
+    });
+
     it('missing exports should be replaced with an empty object', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/es6/empty-module/a.js'
@@ -325,6 +341,15 @@ describe('scope hoisting', function() {
     it('should support named imports on wrapped modules', async function() {
       let b = await bundle(
         __dirname + '/integration/scope-hoisting/es6/import-wrapped/a.js'
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'bar');
+    });
+
+    it('should not nameclash with internal variables', async function() {
+      let b = await bundle(
+        __dirname + '/integration/scope-hoisting/es6/name-clash/a.js'
       );
 
       let output = await run(b);
@@ -806,6 +831,16 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, 3);
+    });
+
+    it('should support sideEffects: false', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/commonjs/side-effects-false/a.js'
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 9);
     });
   });
 });

@@ -128,9 +128,15 @@ class Logger {
       return;
     }
 
-    let hasStatusLine = this.statusLine != null;
-    if (!hasStatusLine) {
-      this.statusLine = this.lines;
+    let styledMessage = this.chalk.gray.bold(message);
+    if (!this.spinner) {
+      this.spinner = ora({
+        text: styledMessage,
+        stream: process.stdout,
+        enabled: this.isTest ? false : undefined // fall back to ora default unless we need to explicitly disable it.
+      }).start();
+    } else {
+      this.spinner.text = styledMessage;
     }
 
     this.writeLine(

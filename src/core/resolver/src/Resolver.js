@@ -1,4 +1,5 @@
 const builtins = require('./builtins');
+const nodeBuiltins = require('node-libs-browser');
 const path = require('path');
 const glob = require('glob');
 const fs = require('@parcel/fs');
@@ -159,6 +160,10 @@ class Resolver {
 
   async findNodeModulePath(filename, dir) {
     if (builtins[filename]) {
+      if (this.options.target === 'node' && filename in nodeBuiltins) {
+        throw new Error('Cannot resolve builtin module for node target');
+      }
+
       return {filePath: builtins[filename]};
     }
 
@@ -224,14 +229,17 @@ class Resolver {
     try {
       pkg = await this.readPackage(dir);
 
-      // First try loading package.main as a file, then try as a directory.
-      let main = this.getPackageMain(pkg);
-      let res =
-        (await this.loadAsFile(main, extensions, pkg)) ||
-        (await this.loadDirectory(main, extensions, pkg));
+      // Get a list of possible package entry points.
+      let entries = this.getPackageEntries(pkg);
 
-      if (res) {
-        return res;
+      for (let file of entries) {
+        // First try loading package.main as a file, then try as a directory.
+        const res =
+          (await this.loadAsFile(file, extensions, pkg)) ||
+          (await this.loadDirectory(file, extensions, pkg));
+        if (res) {
+          return res;
+        }
       }
     } catch (err) {
       // ignore
@@ -266,26 +274,30 @@ class Resolver {
     return pkg;
   }
 
-  getPackageMain(pkg) {
-    let {browser} = pkg;
+  getBrowserField(pkg) {
+    let target = this.options.target || 'browser';
+    return target === 'browser' ? pkg.browser : null;
+  }
 
-    if (typeof browser === 'object' && browser[pkg.name]) {
+  getPackageEntries(pkg) {
+    let browser = this.getBrowserField(pkg);
+    if (browser && typeof browser === 'object' && browser[pkg.name]) {
       browser = browser[pkg.name];
     }
 
     // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
     // we use the "module" or "browser" field to get the full dependency tree if available.
     // If this is a linked module with a `source` field, use that as the entry point.
-    let main = [pkg.source, pkg.module, browser, pkg.main].find(
-      entry => typeof entry === 'string'
-    );
+    return [pkg.source, browser, pkg.module, pkg.main]
+      .filter(entry => typeof entry === 'string')
+      .map(main => {
+        // Default to index file if no main field find
+        if (!main || main === '.' || main === './') {
+          main = 'index';
+        }
 
-    // Default to index file if no main field find
-    if (!main || main === '.' || main === './') {
-      main = 'index';
-    }
-
-    return path.resolve(pkg.pkgdir, main);
+        return path.resolve(pkg.pkgdir, main);
+      });
   }
 
   async loadAsFile(file, extensions, pkg) {
@@ -333,7 +345,7 @@ class Resolver {
     return (
       this.getAlias(filename, pkg.pkgdir, pkg.source) ||
       this.getAlias(filename, pkg.pkgdir, pkg.alias) ||
-      this.getAlias(filename, pkg.pkgdir, pkg.browser) ||
+      this.getAlias(filename, pkg.pkgdir, this.getBrowserField(pkg)) ||
       filename
     );
   }

@@ -41,6 +41,7 @@ class Bundler extends EventEmitter {
     this.addBundleLoader('wasm', require('@parcel/loader-wasm'));
     this.addBundleLoader('css', require('@parcel/loader-css'));
     this.addBundleLoader('js', require('@parcel/loader-js'));
+    this.addBundleLoader('html', require('@parcel/loader-html'));
 
     this.pending = false;
     this.loadedAssets = new Map();
@@ -102,6 +103,10 @@ class Bundler extends EventEmitter {
       minify:
         typeof options.minify === 'boolean' ? options.minify : isProduction,
       target: target,
+      bundleNodeModules:
+        typeof options.bundleNodeModules === 'boolean'
+          ? options.bundleNodeModules
+          : target === 'browser',
       hmr: hmr,
       https: options.https || false,
       logLevel: isNaN(options.logLevel) ? 3 : options.logLevel,
@@ -203,8 +208,6 @@ class Bundler extends EventEmitter {
       });
     }
 
-    this.emit('buildStart', this.entryFiles);
-
     let isInitialBundle = !this.entryAssets;
     let startTime = Date.now();
     this.pending = true;
@@ -216,6 +219,9 @@ class Bundler extends EventEmitter {
     try {
       // Start worker farm, watcher, etc. if needed
       await this.start();
+
+      // Emit start event, after bundler is initialised
+      this.emit('buildStart', this.entryFiles);
 
       // If this is the initial bundle, ensure the output directory exists, and resolve the main asset.
       if (isInitialBundle) {
@@ -308,7 +314,7 @@ class Bundler extends EventEmitter {
 
       // If not in watch mode, stop the worker farm so we don't keep the process running.
       if (!this.watcher && this.options.killWorkers) {
-        this.stop();
+        await this.stop();
       }
     }
   }
@@ -514,8 +520,7 @@ class Bundler extends EventEmitter {
     let processed = this.cache && (await this.cache.read(asset.name));
     let cacheMiss = false;
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
-      processed = await this.farm.run(asset.name, asset.id);
-      processed.id = asset.id;
+      processed = await this.farm.run(asset.name);
       cacheMiss = true;
     }
 
@@ -599,6 +604,12 @@ class Bundler extends EventEmitter {
     let isEntryAsset =
       asset.parentBundle && asset.parentBundle.entryAsset === asset;
 
+    // If the asset generated a representation for the parent bundle type, and this
+    // is not an async import, add it to the current bundle
+    if (bundle.type && asset.generated[bundle.type] != null && !dep.dynamic) {
+      bundle.addAsset(asset);
+    }
+
     if ((dep && dep.dynamic) || !bundle.type) {
       // If the asset is already the entry asset of a bundle, don't create a duplicate.
       if (isEntryAsset) {
@@ -606,23 +617,22 @@ class Bundler extends EventEmitter {
       }
 
       // Create a new bundle for dynamic imports
-      bundle = bundle.createChildBundle(asset);
-    } else if (asset.type && !this.packagers.has(asset.type)) {
+      bundle = bundle.createChildBundle(asset, dep);
+    } else if (
+      asset.type &&
+      !this.packagers.get(asset.type).shouldAddAsset(bundle, asset)
+    ) {
       // If the asset is already the entry asset of a bundle, don't create a duplicate.
       if (isEntryAsset) {
         return;
       }
 
-      // No packager is available for this asset type. Create a new bundle with only this asset.
-      bundle.createSiblingBundle(asset);
+      // No packager is available for this asset type, or the packager doesn't support
+      // combining this asset into the bundle. Create a new bundle with only this asset.
+      bundle = bundle.createSiblingBundle(asset, dep);
     } else {
       // Add the asset to the common bundle of the asset's type
       bundle.getSiblingBundle(asset.type).addAsset(asset);
-    }
-
-    // If the asset generated a representation for the parent bundle type, also add it there
-    if (asset.generated[bundle.type] != null) {
-      bundle.addAsset(asset);
     }
 
     // Add the asset to sibling bundles for each generated type

@@ -11,15 +11,13 @@ class Pipeline {
     this.parser = new Parser(options);
   }
 
-  async process(path, id, isWarmUp) {
+  async process(path, isWarmUp) {
     let options = this.options;
     if (isWarmUp) {
       options = Object.assign({isWarmUp}, options);
     }
 
     let asset = this.parser.getAsset(path, options);
-    asset.id = id;
-
     let generated = await this.processAsset(asset);
     let generatedMap = {};
     for (let rendition of generated) {
@@ -27,6 +25,7 @@ class Pipeline {
     }
 
     return {
+      id: asset.id,
       dependencies: Array.from(asset.dependencies.values()),
       generated: generatedMap,
       hash: asset.hash,
@@ -66,6 +65,12 @@ class Pipeline {
         subAsset.cacheData = Object.assign(asset.cacheData, subAsset.cacheData);
 
         let processed = await this.processAsset(subAsset);
+        if (rendition.meta) {
+          for (let res of processed) {
+            res.meta = rendition.meta;
+          }
+        }
+
         generated = generated.concat(processed);
         asset.hash = md5(asset.hash + subAsset.hash);
       } else {

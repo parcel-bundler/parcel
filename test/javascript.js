@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('../src/utils/fs');
 const path = require('path');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree, deferred} = require('./utils');
 const {mkdirp} = require('../src/utils/fs');
 
 describe('javascript', function() {
@@ -83,6 +83,38 @@ describe('javascript', function() {
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 7);
+  });
+
+  it('should bundle node_modules on --target=node and --bundle-node-modules', async function() {
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'node',
+      bundleNodeModules: true
+    });
+
+    await assertBundleTree(b, {
+      name: 'main.js',
+      assets: ['main.js', 'local.js', 'index.js']
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
+  });
+
+  it('should bundle node_modules on --target=electron and --bundle-node-modules', async function() {
+    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+      target: 'electron',
+      bundleNodeModules: true
+    });
+
+    await assertBundleTree(b, {
+      name: 'main.js',
+      assets: ['main.js', 'local.js', 'index.js']
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 3);
   });
 
   it('should produce a JS bundle with default exports and no imports', async function() {
@@ -396,6 +428,44 @@ describe('javascript', function() {
     assert.equal(await output(), 5);
   });
 
+  it('should support hoisting shared modules with async imports up multiple levels', async function() {
+    let b = await bundle(
+      __dirname + '/integration/dynamic-hoist-deep/index.js',
+      {
+        sourceMaps: false
+      }
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: [
+        'index.js',
+        'c.js',
+        'bundle-loader.js',
+        'bundle-url.js',
+        'js-loader.js'
+      ],
+      childBundles: [
+        {
+          assets: ['a.js'],
+          childBundles: [
+            {
+              assets: ['1.js'],
+              childBundles: []
+            }
+          ]
+        },
+        {
+          assets: ['b.js'],
+          childBundles: []
+        }
+      ]
+    });
+
+    let output = await run(b);
+    assert.deepEqual(output, {default: {asdf: 1}});
+  });
+
   it('should support requiring JSON files', async function() {
     let b = await bundle(__dirname + '/integration/json/index.js');
 
@@ -638,6 +708,30 @@ describe('javascript', function() {
     assert.equal(output.test(), 'pkg-browser');
   });
 
+  it('should not resolve the browser field for --target=node', async function() {
+    let b = await bundle(
+      __dirname + '/integration/resolve-entries/browser.js',
+      {
+        target: 'node'
+      }
+    );
+
+    await assertBundleTree(b, {
+      name: 'browser.js',
+      assets: ['browser.js', 'node-module.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = await run(b);
+
+    assert.equal(typeof output.test, 'function');
+    assert.equal(output.test(), 'pkg-main');
+  });
+
   it('should resolve advanced browser resolution', async function() {
     let b = await bundle(
       __dirname + '/integration/resolve-entries/browser-multiple.js'
@@ -647,7 +741,7 @@ describe('javascript', function() {
       name: 'browser-multiple.js',
       assets: [
         'browser-multiple.js',
-        'projected-module.js',
+        'projected-browser.js',
         'browser-entry.js'
       ],
       childBundles: [
@@ -663,6 +757,32 @@ describe('javascript', function() {
     assert.equal(typeof output.entry.test, 'function');
     assert.equal(output.projected.test(), 'pkg-browser-multiple');
     assert.equal(output.entry.test(), 'pkg-browser-multiple browser-entry');
+  });
+
+  it('should not resolve advanced browser resolution with --target=node', async function() {
+    let b = await bundle(
+      __dirname + '/integration/resolve-entries/browser-multiple.js',
+      {
+        target: 'node'
+      }
+    );
+
+    await assertBundleTree(b, {
+      name: 'browser-multiple.js',
+      assets: ['browser-multiple.js', 'node-entry.js', 'projected.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let {test: output} = await run(b);
+
+    assert.equal(typeof output.projected.test, 'function');
+    assert.equal(typeof output.entry.test, 'function');
+    assert.equal(output.projected.test(), 'pkg-main-multiple');
+    assert.equal(output.entry.test(), 'pkg-browser-multiple main-entry');
   });
 
   it('should resolve the module field before main', async function() {
@@ -1101,5 +1221,129 @@ describe('javascript', function() {
 
     let module = await run(b);
     assert.equal(module.default, 'Hello Hello!');
+  });
+
+  it('should support importing HTML from JS async', async function() {
+    let b = await bundle(
+      __dirname + '/integration/import-html-async/index.js',
+      {sourceMaps: false}
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: [
+        'index.js',
+        'bundle-loader.js',
+        'bundle-url.js',
+        'html-loader.js'
+      ],
+      childBundles: [
+        {
+          type: 'html',
+          assets: ['other.html'],
+          childBundles: [
+            {
+              type: 'png',
+              assets: ['100x100.png'],
+              childBundles: []
+            },
+            {
+              type: 'css',
+              assets: ['index.css'],
+              childBundles: []
+            }
+          ]
+        }
+      ]
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'string');
+    assert(output.includes('<html>'));
+    assert(output.includes('Other page'));
+  });
+
+  it('should support importing HTML from JS async with --target=node', async function() {
+    let b = await bundle(
+      __dirname + '/integration/import-html-async/index.js',
+      {
+        target: 'node',
+        sourceMaps: false
+      }
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: [
+        'index.js',
+        'bundle-loader.js',
+        'bundle-url.js',
+        'html-loader.js'
+      ],
+      childBundles: [
+        {
+          type: 'html',
+          assets: ['other.html'],
+          childBundles: [
+            {
+              type: 'png',
+              assets: ['100x100.png'],
+              childBundles: []
+            },
+            {
+              type: 'css',
+              assets: ['index.css'],
+              childBundles: []
+            }
+          ]
+        }
+      ]
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'string');
+    assert(output.includes('<html>'));
+    assert(output.includes('Other page'));
+  });
+
+  it('should support importing HTML from JS sync', async function() {
+    let b = await bundle(__dirname + '/integration/import-html-sync/index.js', {
+      sourceMaps: false
+    });
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: [
+        'index.js',
+        'bundle-loader.js',
+        'bundle-url.js',
+        'html-loader.js'
+      ],
+      childBundles: [
+        {
+          type: 'html',
+          assets: ['other.html'],
+          childBundles: [
+            {
+              type: 'png',
+              assets: ['100x100.png'],
+              childBundles: []
+            },
+            {
+              type: 'css',
+              assets: ['index.css'],
+              childBundles: []
+            }
+          ]
+        }
+      ]
+    });
+
+    let promise = deferred();
+    await run(b, {output: promise.resolve}, {require: false});
+    let output = await promise;
+    assert.equal(typeof output, 'string');
+    assert(output.includes('<html>'));
+    assert(output.includes('Other page'));
   });
 });
