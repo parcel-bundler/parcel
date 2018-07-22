@@ -68,9 +68,8 @@ class FSCache {
   async write(filename, data) {
     try {
       await this.ensureDirExists();
-      let cacheFile = this.getCacheFile(filename);
       await this.writeDepMtimes(data);
-      await fs.writeFile(cacheFile, JSON.stringify(data));
+      await fs.writeFile(this.getCacheFile(filename), JSON.stringify(data));
       this.invalidated.delete(filename);
     } catch (err) {
       logger.error(`Error writing to cache: ${err.message}`);
