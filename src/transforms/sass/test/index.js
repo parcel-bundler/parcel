@@ -1,10 +1,10 @@
 const assert = require('assert');
-const fs = require('../src/utils/fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const fs = require('@parcel/fs');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe('sass', function() {
   it('should support requiring sass files', async function() {
-    let b = await bundle(__dirname + '/integration/sass/index.js');
+    let b = await bundle(__dirname + '/fixtures/sass/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -30,7 +30,7 @@ describe('sass', function() {
   });
 
   it('should support requiring scss files', async function() {
-    let b = await bundle(__dirname + '/integration/scss/index.js');
+    let b = await bundle(__dirname + '/fixtures/scss/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -56,7 +56,7 @@ describe('sass', function() {
   });
 
   it('should support scss imports', async function() {
-    let b = await bundle(__dirname + '/integration/scss-import/index.js');
+    let b = await bundle(__dirname + '/fixtures/scss-import/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -84,7 +84,7 @@ describe('sass', function() {
   });
 
   it('should support requiring empty scss files', async function() {
-    let b = await bundle(__dirname + '/integration/scss-empty/index.js');
+    let b = await bundle(__dirname + '/fixtures/scss-empty/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -110,7 +110,7 @@ describe('sass', function() {
   });
 
   it('should support linking to assets with url() from scss', async function() {
-    let b = await bundle(__dirname + '/integration/scss-url/index.js');
+    let b = await bundle(__dirname + '/fixtures/scss-url/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -149,7 +149,7 @@ describe('sass', function() {
   });
 
   it('should support transforming scss with postcss', async function() {
-    let b = await bundle(__dirname + '/integration/scss-postcss/index.js');
+    let b = await bundle(__dirname + '/fixtures/scss-postcss/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -176,7 +176,7 @@ describe('sass', function() {
 
   it('should support advanced import syntax', async function() {
     let b = await bundle(
-      __dirname + '/integration/sass-advanced-import/index.sass'
+      __dirname + '/fixtures/sass-advanced-import/index.sass'
     );
 
     await assertBundleTree(b, {
