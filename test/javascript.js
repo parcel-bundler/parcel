@@ -466,42 +466,6 @@ describe('javascript', function() {
     assert.deepEqual(output, {default: {asdf: 1}});
   });
 
-  it('should support requiring JSON files', async function() {
-    let b = await bundle(__dirname + '/integration/json/index.js');
-
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'local.json'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 3);
-  });
-
-  it('should support requiring JSON5 files', async function() {
-    let b = await bundle(__dirname + '/integration/json5/index.js');
-
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'local.json5'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 3);
-  });
-
   it('should support importing a URL to a raw asset', async function() {
     let b = await bundle(__dirname + '/integration/import-raw/index.js');
 
@@ -828,24 +792,6 @@ describe('javascript', function() {
 
     assert.equal(typeof output.test, 'function');
     assert.equal(output.test(), 'pkg-main-module');
-  });
-
-  it('should minify JSON files', async function() {
-    await bundle(__dirname + '/integration/uglify-json/index.json', {
-      production: true
-    });
-
-    let json = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(json.includes('{test:"test"}'));
-  });
-
-  it('should minify JSON5 files', async function() {
-    await bundle(__dirname + '/integration/uglify-json5/index.json5', {
-      production: true
-    });
-
-    let json = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(json.includes('{test:"test"}'));
   });
 
   it('should minify YAML for production', async function() {
