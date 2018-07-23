@@ -1,4 +1,4 @@
-var bundle = require('./bundle-url');
+var bundle = require('@parcel/utils/bundle-url');
 
 function updateLink(link) {
   var newLink = link.cloneNode();

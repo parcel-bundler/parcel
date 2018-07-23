@@ -1,4 +1,4 @@
-var getBundleURL = require('./bundle-url').getBundleURL;
+var getBundleURL = require('@parcel/utils/bundle-url').getBundleURL;
 
 function loadBundlesLazy(bundles) {
   if (!Array.isArray(bundles)) {

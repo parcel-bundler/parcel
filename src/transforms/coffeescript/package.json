@@ -2,7 +2,7 @@
   "name": "@parcel/transform-coffeescript",
   "version": "1.9.3",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "index.js",
+  "main": "src/CoffeeScriptAsset.js",
   "license": "MIT",
   "repository": {
     "type": "git",

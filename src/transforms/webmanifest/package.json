@@ -2,7 +2,7 @@
   "name": "@parcel/transform-webmanifest",
   "version": "1.9.3",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "index.js",
+  "main": "src/WebManifestAsset.js",
   "license": "MIT",
   "repository": {
     "type": "git",
