@@ -13,6 +13,12 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   var nodeRequire = typeof require === 'function' && require;
 
   function newRequire(name, jumped) {
+    // Trigger the bundle loader if the module resolves to an array.
+    // This will have been inserted by the packager.
+    if (Array.isArray(name)) {
+      return newRequire.load(name);
+    }
+    
     if (!cache[name]) {
       if (!modules[name]) {
         // if we cannot find the module within our internal map or

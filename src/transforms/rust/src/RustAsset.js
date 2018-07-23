@@ -85,19 +85,19 @@ class RustAsset extends Asset {
     }
 
     // Ensure nightly toolchain is installed
-    let [stdout] = await exec('rustup', ['show']);
+    let {stdout} = await exec('rustup', ['show']);
     if (!stdout.includes('nightly')) {
       await pipeSpawn('rustup', ['update']);
       await pipeSpawn('rustup', ['toolchain', 'install', 'nightly']);
     }
 
     // Ensure wasm target is installed
-    [stdout] = await exec('rustup', [
+    ({stdout} = await exec('rustup', [
       'target',
       'list',
       '--toolchain',
       'nightly'
-    ]);
+    ]));
     if (!stdout.includes(RUST_TARGET + ' (installed)')) {
       await pipeSpawn('rustup', [
         'target',
@@ -152,7 +152,7 @@ class RustAsset extends Asset {
     await exec('cargo', args, {cwd: cargoDir});
 
     // Get output file paths
-    let [stdout] = await exec('cargo', ['metadata', '--format-version', '1'], {
+    let {stdout} = await exec('cargo', ['metadata', '--format-version', '1'], {
       cwd: cargoDir
     });
     const cargoMetadata = JSON.parse(stdout);

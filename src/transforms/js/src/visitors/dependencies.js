@@ -6,8 +6,6 @@ const isURL = require('@parcel/utils/is-url');
 const matchesPattern = require('./matches-pattern');
 const nodeBuiltins = require('node-libs-browser');
 
-const requireTemplate = template('require("@parcel/loader")');
-const argTemplate = template('require.resolve(MODULE)');
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
 module.exports = {
@@ -55,11 +53,10 @@ module.exports = {
       types.isStringLiteral(args[0]);
 
     if (isDynamicImport) {
-      asset.addDependency('@parcel/loader');
       addDependency(asset, args[0], {dynamic: true});
 
-      node.callee = requireTemplate().expression;
-      node.arguments[0] = argTemplate({MODULE: args[0]}).expression;
+      // Transform into a normal require. The packager will handle the bundle loading.
+      node.callee = types.identifier('require');
       asset.isAstDirty = true;
       return;
     }

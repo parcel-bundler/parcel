@@ -1,4 +1,4 @@
 module.exports = {
-  browser: require.resolve('./browser'),
-  node: require.resolve('./node')
+  browser: require.resolve('./wasm-loader-browser'),
+  node: require.resolve('./wasm-loader-node')
 };

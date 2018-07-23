@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@parcel/core": "^1.9.3",
-    "@parcel/loader": "^1.9.3",
     "@parcel/utils": "^1.9.3",
     "babel-types": "^6.26.0",
     "babylon": "^6.17.4",

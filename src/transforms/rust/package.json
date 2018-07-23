@@ -2,11 +2,14 @@
   "name": "@parcel/transform-rust",
   "version": "1.9.3",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "index.js",
+  "main": "src/RustAsset.js",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "scripts": {
+    "test": "cross-env NODE_ENV=test mocha"
   },
   "dependencies": {
     "@parcel/core": "^1.9.3",
@@ -14,5 +17,9 @@
     "@parcel/utils": "^1.9.3",
     "command-exists": "^1.2.6",
     "tomlify-j0.4": "^3.0.0"
+  },
+  "devDependencies": {
+    "@parcel/test-utils": "^1.9.3",
+    "mocha": "^5.1.1"
   }
 }

@@ -1,0 +1,1 @@
+/Users/devongovett/dev/parcel/src/transforms/rust/test/fixtures/rust-cargo/target/wasm32-unknown-unknown/release/cargo_test.wasm: /Users/devongovett/dev/parcel/src/transforms/rust/test/fixtures/rust-cargo/src/lib.rs

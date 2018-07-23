@@ -1,4 +1,4 @@
 module.exports = {
-  browser: require.resolve('./browser'),
-  node: require.resolve('./node')
+  browser: require.resolve('./css-loader-browser'),
+  node: require.resolve('./css-loader-node')
 };

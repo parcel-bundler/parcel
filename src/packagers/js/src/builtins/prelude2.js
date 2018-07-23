@@ -5,6 +5,12 @@ parcelRequire = function(init) {
   var modules = {};
 
   function localRequire(name, jumped) {
+    // Trigger the bundle loader if the module resolves to an array.
+    // This will have been inserted by the packager.
+    if (Array.isArray(name)) {
+      return localRequire.load(name);
+    }
+
     if (name in modules) {
       return modules[name];
     }

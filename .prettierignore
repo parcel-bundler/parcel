@@ -1,4 +1,4 @@
-src/builtins
+src/packagers/js/builtins/prelude*
 test/integration
 test/input
 test/dist

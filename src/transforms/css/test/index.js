@@ -36,8 +36,8 @@ describe('css', function() {
         'index.css',
         'bundle-loader.js',
         'bundle-url.js',
-        'js-loader.js',
-        'css-loader.js'
+        'js-loader-browser.js',
+        'css-loader-browser.js'
       ],
       childBundles: [
         {

@@ -138,18 +138,13 @@ class JSPackager extends Packager {
       return false;
     }
 
-    let bundleLoader = this.bundler.loadedAssets.get(
-      require.resolve('@parcel/loader')
-    );
-    if (this.externalModules.size > 0 && !bundleLoader) {
-      bundleLoader = await this.bundler.getAsset('@parcel/loader');
+    let bundleLoaderPath = require.resolve('./builtins/bundle-loader');
+    let bundleLoader = this.bundler.loadedAssets.get(bundleLoaderPath);
+    if (!bundleLoader) {
+      bundleLoader = await this.bundler.getAsset(bundleLoaderPath);
     }
 
-    if (bundleLoader) {
-      await this.addAssetToBundle(bundleLoader);
-    } else {
-      return;
-    }
+    await this.addAssetToBundle(bundleLoader);
 
     // Generate a module to register the bundle loaders that are needed
     let loads = 'var b=require(' + JSON.stringify(bundleLoader.id) + ');';
