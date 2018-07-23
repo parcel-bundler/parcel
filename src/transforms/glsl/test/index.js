@@ -1,10 +1,10 @@
 const assert = require('assert');
-const fs = require('../src/utils/fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const fs = require('@parcel/fs');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe('glsl', function() {
   it('should support requiring GLSL files via glslify', async function() {
-    let b = await bundle(__dirname + '/integration/glsl/index.js');
+    let b = await bundle(__dirname + '/fixtures/glsl/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -17,7 +17,7 @@ describe('glsl', function() {
     });
 
     let shader = await fs.readFile(
-      __dirname + '/integration/glsl/compiled.glsl',
+      __dirname + '/fixtures/glsl/compiled.glsl',
       'utf8'
     );
 
