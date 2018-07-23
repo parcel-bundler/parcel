@@ -1,12 +1,12 @@
 const assert = require('assert');
-const fs = require('../src/utils/fs');
+const fs = require('@parcel/fs');
 const path = require('path');
-const {bundle, run, assertBundleTree, deferred} = require('./utils');
-const {mkdirp} = require('../src/utils/fs');
+const {bundle, run, assertBundleTree, deferred} = require('@parcel/test-utils');
+const {mkdirp} = require('@parcel/fs');
 
 describe('javascript', function() {
   it('should produce a basic JS bundle with CommonJS requires', async function() {
-    let b = await bundle(__dirname + '/integration/commonjs/index.js');
+    let b = await bundle(__dirname + '/fixtures/commonjs/index.js');
 
     assert.equal(b.assets.size, 8);
     assert.equal(b.childBundles.size, 1);
@@ -17,7 +17,7 @@ describe('javascript', function() {
   });
 
   it('should produce a basic JS bundle with ES6 imports', async function() {
-    let b = await bundle(__dirname + '/integration/es6/index.js');
+    let b = await bundle(__dirname + '/fixtures/es6/index.js');
 
     assert.equal(b.assets.size, 8);
     assert.equal(b.childBundles.size, 1);
@@ -29,7 +29,7 @@ describe('javascript', function() {
   });
 
   it('should bundle node_modules on --target=browser', async function() {
-    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+    let b = await bundle(__dirname + '/fixtures/node_require/main.js', {
       target: 'browser'
     });
 
@@ -44,7 +44,7 @@ describe('javascript', function() {
   });
 
   it('should not bundle node_modules on --target=node', async function() {
-    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+    let b = await bundle(__dirname + '/fixtures/node_require/main.js', {
       target: 'node'
     });
 
@@ -65,7 +65,7 @@ describe('javascript', function() {
   });
 
   it('should not bundle node_modules on --target=electron', async function() {
-    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+    let b = await bundle(__dirname + '/fixtures/node_require/main.js', {
       target: 'electron'
     });
 
@@ -86,7 +86,7 @@ describe('javascript', function() {
   });
 
   it('should bundle node_modules on --target=node and --bundle-node-modules', async function() {
-    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+    let b = await bundle(__dirname + '/fixtures/node_require/main.js', {
       target: 'node',
       bundleNodeModules: true
     });
@@ -102,7 +102,7 @@ describe('javascript', function() {
   });
 
   it('should bundle node_modules on --target=electron and --bundle-node-modules', async function() {
-    let b = await bundle(__dirname + '/integration/node_require/main.js', {
+    let b = await bundle(__dirname + '/fixtures/node_require/main.js', {
       target: 'electron',
       bundleNodeModules: true
     });
@@ -118,7 +118,7 @@ describe('javascript', function() {
   });
 
   it('should produce a JS bundle with default exports and no imports', async function() {
-    let b = await bundle(__dirname + '/integration/es6-default-only/index.js');
+    let b = await bundle(__dirname + '/fixtures/es6-default-only/index.js');
 
     assert.equal(b.assets.size, 1);
     assert.equal(b.childBundles.size, 1);
@@ -130,13 +130,13 @@ describe('javascript', function() {
   });
 
   it('should split bundles when a dynamic import is used with --target=browser', async function() {
-    let b = await bundle(__dirname + '/integration/dynamic/index.js', {
+    let b = await bundle(__dirname + '/fixtures/dynamic/index.js', {
       target: 'browser'
     });
 
     await assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
+      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader-browser.js'],
       childBundles: [
         {
           type: 'map'
@@ -158,13 +158,13 @@ describe('javascript', function() {
   });
 
   it('should split bundles when a dynamic import is used with --target=node', async function() {
-    let b = await bundle(__dirname + '/integration/dynamic/index.js', {
+    let b = await bundle(__dirname + '/fixtures/dynamic/index.js', {
       target: 'node'
     });
 
     await assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
+      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader-node.js'],
       childBundles: [
         {
           type: 'map'
@@ -186,7 +186,7 @@ describe('javascript', function() {
   });
 
   it('should support bundling workers', async function() {
-    let b = await bundle(__dirname + '/integration/workers/index.js');
+    let b = await bundle(__dirname + '/fixtures/workers/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -217,7 +217,7 @@ describe('javascript', function() {
 
   it('should support bundling workers with different order', async function() {
     let b = await bundle(
-      __dirname + '/integration/workers/index-alternative.js'
+      __dirname + '/fixtures/workers/index-alternative.js'
     );
 
     assertBundleTree(b, {
@@ -253,7 +253,7 @@ describe('javascript', function() {
   });
 
   it('should support bundling service-workers', async function() {
-    let b = await bundle(__dirname + '/integration/service-worker/a/index.js');
+    let b = await bundle(__dirname + '/fixtures/service-worker/a/index.js');
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -283,7 +283,7 @@ describe('javascript', function() {
   });
 
   it('should support bundling workers with circular dependencies', async function() {
-    let b = await bundle(__dirname + '/integration/worker-circular/index.js', {
+    let b = await bundle(__dirname + '/fixtures/worker-circular/index.js', {
       sourceMaps: false
     });
 
@@ -299,11 +299,11 @@ describe('javascript', function() {
   });
 
   it('should return all exports as an object when using ES modules', async function() {
-    let b = await bundle(__dirname + '/integration/dynamic-esm/index.js');
+    let b = await bundle(__dirname + '/fixtures/dynamic-esm/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
-      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
+      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader-browser.js'],
       childBundles: [
         {
           type: 'map'
@@ -325,7 +325,7 @@ describe('javascript', function() {
   });
 
   it('should hoist common dependencies into a parent bundle', async function() {
-    let b = await bundle(__dirname + '/integration/dynamic-hoist/index.js');
+    let b = await bundle(__dirname + '/fixtures/dynamic-hoist/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -335,7 +335,7 @@ describe('javascript', function() {
         'common-dep.js',
         'bundle-loader.js',
         'bundle-url.js',
-        'js-loader.js'
+        'js-loader-browser.js'
       ],
       childBundles: [
         {
@@ -366,7 +366,7 @@ describe('javascript', function() {
   });
 
   it('should not duplicate a module which is already in a parent bundle', async function() {
-    let b = await bundle(__dirname + '/integration/dynamic-hoist-dup/index.js');
+    let b = await bundle(__dirname + '/fixtures/dynamic-hoist-dup/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -375,7 +375,7 @@ describe('javascript', function() {
         'common.js',
         'bundle-loader.js',
         'bundle-url.js',
-        'js-loader.js'
+        'js-loader-browser.js'
       ],
       childBundles: [
         {
@@ -399,7 +399,7 @@ describe('javascript', function() {
 
   it('should support hoisting shared modules with async imports up multiple levels', async function() {
     let b = await bundle(
-      __dirname + '/integration/dynamic-hoist-deep/index.js',
+      __dirname + '/fixtures/dynamic-hoist-deep/index.js',
       {
         sourceMaps: false
       }
@@ -412,7 +412,7 @@ describe('javascript', function() {
         'c.js',
         'bundle-loader.js',
         'bundle-url.js',
-        'js-loader.js'
+        'js-loader-browser.js'
       ],
       childBundles: [
         {
@@ -436,7 +436,7 @@ describe('javascript', function() {
   });
 
   it('should minify JS in production mode', async function() {
-    let b = await bundle(__dirname + '/integration/uglify/index.js', {
+    let b = await bundle(__dirname + '/fixtures/uglify/index.js', {
       production: true
     });
 
@@ -449,7 +449,7 @@ describe('javascript', function() {
   });
 
   it('should use uglify config', async function() {
-    await bundle(__dirname + '/integration/uglify-config/index.js', {
+    await bundle(__dirname + '/fixtures/uglify-config/index.js', {
       production: true
     });
 
@@ -459,26 +459,26 @@ describe('javascript', function() {
   });
 
   it('should insert global variables when needed', async function() {
-    let b = await bundle(__dirname + '/integration/globals/index.js');
+    let b = await bundle(__dirname + '/fixtures/globals/index.js');
 
     let output = await run(b);
     assert.deepEqual(output(), {
-      dir: path.join(__dirname, '/integration/globals'),
-      file: path.join(__dirname, '/integration/globals/index.js'),
+      dir: path.join(__dirname, '/fixtures/globals'),
+      file: path.join(__dirname, '/fixtures/globals/index.js'),
       buf: new Buffer('browser').toString('base64'),
       global: true
     });
   });
 
   it('should handle re-declaration of the global constant', async function() {
-    let b = await bundle(__dirname + '/integration/global-redeclare/index.js');
+    let b = await bundle(__dirname + '/fixtures/global-redeclare/index.js');
 
     let output = await run(b);
     assert.deepEqual(output(), false);
   });
 
   it('should not insert environment variables on --target=node', async function() {
-    let b = await bundle(__dirname + '/integration/env/index.js', {
+    let b = await bundle(__dirname + '/fixtures/env/index.js', {
       target: 'node'
     });
 
@@ -488,7 +488,7 @@ describe('javascript', function() {
   });
 
   it('should not insert environment variables on --target=electron', async function() {
-    let b = await bundle(__dirname + '/integration/env/index.js', {
+    let b = await bundle(__dirname + '/fixtures/env/index.js', {
       target: 'electron'
     });
 
@@ -498,7 +498,7 @@ describe('javascript', function() {
   });
 
   it('should insert environment variables on --target=browser', async function() {
-    let b = await bundle(__dirname + '/integration/env/index.js', {
+    let b = await bundle(__dirname + '/fixtures/env/index.js', {
       target: 'browser'
     });
 
@@ -508,44 +508,14 @@ describe('javascript', function() {
   });
 
   it('should insert environment variables from a file', async function() {
-    let b = await bundle(__dirname + '/integration/env-file/index.js');
+    let b = await bundle(__dirname + '/fixtures/env-file/index.js');
 
     let output = await run(b);
     assert.equal(output, 'bartest');
   });
 
-  it('should support adding implicit dependencies', async function() {
-    let b = await bundle(__dirname + '/integration/json/index.js', {
-      delegate: {
-        getImplicitDependencies(asset) {
-          if (asset.basename === 'index.js') {
-            return [{name: '../css/index.css'}];
-          }
-        }
-      }
-    });
-
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'local.json', 'index.css'],
-      childBundles: [
-        {
-          type: 'css',
-          assets: ['index.css']
-        },
-        {
-          type: 'map'
-        }
-      ]
-    });
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 3);
-  });
-
   it('should resolve the browser field before main', async function() {
-    let b = await bundle(__dirname + '/integration/resolve-entries/browser.js');
+    let b = await bundle(__dirname + '/fixtures/resolve-entries/browser.js');
 
     await assertBundleTree(b, {
       name: 'browser.js',
@@ -565,7 +535,7 @@ describe('javascript', function() {
 
   it('should not resolve the browser field for --target=node', async function() {
     let b = await bundle(
-      __dirname + '/integration/resolve-entries/browser.js',
+      __dirname + '/fixtures/resolve-entries/browser.js',
       {
         target: 'node'
       }
@@ -589,7 +559,7 @@ describe('javascript', function() {
 
   it('should resolve advanced browser resolution', async function() {
     let b = await bundle(
-      __dirname + '/integration/resolve-entries/browser-multiple.js'
+      __dirname + '/fixtures/resolve-entries/browser-multiple.js'
     );
 
     await assertBundleTree(b, {
@@ -616,7 +586,7 @@ describe('javascript', function() {
 
   it('should not resolve advanced browser resolution with --target=node', async function() {
     let b = await bundle(
-      __dirname + '/integration/resolve-entries/browser-multiple.js',
+      __dirname + '/fixtures/resolve-entries/browser-multiple.js',
       {
         target: 'node'
       }
@@ -642,7 +612,7 @@ describe('javascript', function() {
 
   it('should resolve the module field before main', async function() {
     let b = await bundle(
-      __dirname + '/integration/resolve-entries/module-field.js'
+      __dirname + '/fixtures/resolve-entries/module-field.js'
     );
 
     await assertBundleTree(b, {
@@ -663,7 +633,7 @@ describe('javascript', function() {
 
   it('should resolve the module field before main', async function() {
     let b = await bundle(
-      __dirname + '/integration/resolve-entries/both-fields.js'
+      __dirname + '/fixtures/resolve-entries/both-fields.js'
     );
 
     await assertBundleTree(b, {
@@ -684,7 +654,7 @@ describe('javascript', function() {
 
   it('should resolve the main field', async function() {
     let b = await bundle(
-      __dirname + '/integration/resolve-entries/main-field.js'
+      __dirname + '/fixtures/resolve-entries/main-field.js'
     );
 
     await assertBundleTree(b, {
@@ -704,7 +674,7 @@ describe('javascript', function() {
   });
 
   it('should support compiling with babel using .babelrc config', async function() {
-    await bundle(__dirname + '/integration/babel/index.js');
+    await bundle(__dirname + '/fixtures/babel/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(!file.includes('function Foo'));
@@ -712,7 +682,7 @@ describe('javascript', function() {
   });
 
   it('should compile with babel with default engines if no config', async function() {
-    await bundle(__dirname + '/integration/babel-default/index.js');
+    await bundle(__dirname + '/fixtures/babel-default/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('function Foo'));
@@ -720,7 +690,7 @@ describe('javascript', function() {
   });
 
   it('should support compiling with babel using browserlist', async function() {
-    await bundle(__dirname + '/integration/babel-browserslist/index.js');
+    await bundle(__dirname + '/fixtures/babel-browserslist/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('function Foo'));
@@ -728,7 +698,7 @@ describe('javascript', function() {
   });
 
   it('should support splitting babel-polyfill using browserlist', async function() {
-    await bundle(__dirname + '/integration/babel-polyfill/index.js');
+    await bundle(__dirname + '/fixtures/babel-polyfill/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('async function'));
@@ -758,15 +728,15 @@ describe('javascript', function() {
     }
 
     await testBrowserListMultipleEnv(
-      '/integration/babel-browserslist-multiple-env'
+      '/fixtures/babel-browserslist-multiple-env'
     );
     await testBrowserListMultipleEnv(
-      '/integration/babel-browserslist-multiple-env-as-string'
+      '/fixtures/babel-browserslist-multiple-env-as-string'
     );
   });
 
   it('should not compile node_modules by default', async function() {
-    await bundle(__dirname + '/integration/babel-node-modules/index.js');
+    await bundle(__dirname + '/fixtures/babel-node-modules/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(/class \S+ \{\}/.test(file));
@@ -775,7 +745,7 @@ describe('javascript', function() {
 
   it('should compile node_modules if legacy browserify options are found', async function() {
     await bundle(
-      __dirname + '/integration/babel-node-modules-browserify/index.js'
+      __dirname + '/fixtures/babel-node-modules-browserify/index.js'
     );
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
@@ -785,7 +755,7 @@ describe('javascript', function() {
 
   it('should compile node_modules with browserslist to app target', async function() {
     await bundle(
-      __dirname + '/integration/babel-node-modules-browserslist/index.js'
+      __dirname + '/fixtures/babel-node-modules-browserslist/index.js'
     );
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
@@ -794,7 +764,7 @@ describe('javascript', function() {
   });
 
   it('should compile node_modules when symlinked with a source field in package.json', async function() {
-    await bundle(__dirname + '/integration/babel-node-modules-source/index.js');
+    await bundle(__dirname + '/fixtures/babel-node-modules-source/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('function Foo'));
@@ -803,7 +773,7 @@ describe('javascript', function() {
 
   it('should not compile node_modules with a source field in package.json when not symlinked', async function() {
     await bundle(
-      __dirname + '/integration/babel-node-modules-source-unlinked/index.js'
+      __dirname + '/fixtures/babel-node-modules-source-unlinked/index.js'
     );
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
@@ -812,42 +782,42 @@ describe('javascript', function() {
   });
 
   it('should support compiling JSX', async function() {
-    await bundle(__dirname + '/integration/jsx/index.jsx');
+    await bundle(__dirname + '/fixtures/jsx/index.jsx');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('React.createElement("div"'));
   });
 
   it('should support compiling JSX in JS files with React dependency', async function() {
-    await bundle(__dirname + '/integration/jsx-react/index.js');
+    await bundle(__dirname + '/fixtures/jsx-react/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('React.createElement("div"'));
   });
 
   it('should support compiling JSX in JS files with Preact dependency', async function() {
-    await bundle(__dirname + '/integration/jsx-preact/index.js');
+    await bundle(__dirname + '/fixtures/jsx-preact/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('h("div"'));
   });
 
   it('should support compiling JSX in JS files with Nerv dependency', async function() {
-    await bundle(__dirname + '/integration/jsx-nervjs/index.js');
+    await bundle(__dirname + '/fixtures/jsx-nervjs/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('Nerv.createElement("div"'));
   });
 
   it('should support compiling JSX in JS files with Hyperapp dependency', async function() {
-    await bundle(__dirname + '/integration/jsx-hyperapp/index.js');
+    await bundle(__dirname + '/fixtures/jsx-hyperapp/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('h("div"'));
   });
 
   it('should support optional dependencies in try...catch blocks', async function() {
-    let b = await bundle(__dirname + '/integration/optional-dep/index.js');
+    let b = await bundle(__dirname + '/fixtures/optional-dep/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -868,7 +838,7 @@ describe('javascript', function() {
   });
 
   it('should support excluding dependencies in falsy branches', async function() {
-    let b = await bundle(__dirname + '/integration/falsy-dep/index.js');
+    let b = await bundle(__dirname + '/fixtures/falsy-dep/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -888,7 +858,7 @@ describe('javascript', function() {
     let error;
     try {
       await bundle(
-        __dirname + '/integration/dont-autoinstall-resolve-fails/index.js'
+        __dirname + '/fixtures/dont-autoinstall-resolve-fails/index.js'
       );
     } catch (err) {
       error = err;
@@ -904,7 +874,7 @@ describe('javascript', function() {
     let error;
     try {
       await bundle(
-        __dirname + '/integration/dont-autoinstall-resolve-alias-fails/index.js'
+        __dirname + '/fixtures/dont-autoinstall-resolve-alias-fails/index.js'
       );
     } catch (err) {
       error = err;
@@ -917,7 +887,7 @@ describe('javascript', function() {
   });
 
   it('should ignore require if it is defined in the scope', async function() {
-    let b = await bundle(__dirname + '/integration/require-scope/index.js');
+    let b = await bundle(__dirname + '/fixtures/require-scope/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -941,7 +911,7 @@ describe('javascript', function() {
   });
 
   it('should expose to CommonJS entry point', async function() {
-    let b = await bundle(__dirname + '/integration/entry-point/index.js');
+    let b = await bundle(__dirname + '/fixtures/entry-point/index.js');
 
     let module = {};
     await run(b, {module, exports: {}});
@@ -949,7 +919,7 @@ describe('javascript', function() {
   });
 
   it('should expose to RequireJS entry point', async function() {
-    let b = await bundle(__dirname + '/integration/entry-point/index.js');
+    let b = await bundle(__dirname + '/fixtures/entry-point/index.js');
     let test;
     const mockDefine = function(f) {
       test = f();
@@ -961,7 +931,7 @@ describe('javascript', function() {
   });
 
   it('should expose variable with --browser-global', async function() {
-    let b = await bundle(__dirname + '/integration/entry-point/index.js', {
+    let b = await bundle(__dirname + '/fixtures/entry-point/index.js', {
       global: 'testing'
     });
 
@@ -970,7 +940,7 @@ describe('javascript', function() {
   });
 
   it('should set `define` to undefined so AMD checks in UMD modules do not pass', async function() {
-    let b = await bundle(__dirname + '/integration/define-amd/index.js');
+    let b = await bundle(__dirname + '/fixtures/define-amd/index.js');
     let test;
     const mockDefine = function(f) {
       test = f();
@@ -983,7 +953,7 @@ describe('javascript', function() {
 
   it('should not dedupe imports with different contents', async function() {
     let b = await bundle(
-      __dirname + `/integration/js-different-contents/index.js`,
+      __dirname + `/fixtures/js-different-contents/index.js`,
       {
         hmr: false // enable asset dedupe in JSPackager
       }
@@ -996,7 +966,7 @@ describe('javascript', function() {
   it('should not dedupe imports with same content but different absolute dependency paths', async function() {
     let b = await bundle(
       __dirname +
-        `/integration/js-same-contents-different-dependencies/index.js`,
+        `/fixtures/js-same-contents-different-dependencies/index.js`,
       {
         hmr: false // enable asset dedupe in JSPackager
       }
@@ -1008,7 +978,7 @@ describe('javascript', function() {
 
   it('should dedupe imports with same content and same dependency paths', async function() {
     let b = await bundle(
-      __dirname + `/integration/js-same-contents-same-dependencies/index.js`,
+      __dirname + `/fixtures/js-same-contents-same-dependencies/index.js`,
       {
         hmr: false // enable asset dedupe in JSPackager
       }
@@ -1030,129 +1000,5 @@ describe('javascript', function() {
 
     let module = await run(b);
     assert.equal(module.default, 'Hello Hello!');
-  });
-
-  it('should support importing HTML from JS async', async function() {
-    let b = await bundle(
-      __dirname + '/integration/import-html-async/index.js',
-      {sourceMaps: false}
-    );
-
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: [
-        'index.js',
-        'bundle-loader.js',
-        'bundle-url.js',
-        'html-loader.js'
-      ],
-      childBundles: [
-        {
-          type: 'html',
-          assets: ['other.html'],
-          childBundles: [
-            {
-              type: 'png',
-              assets: ['100x100.png'],
-              childBundles: []
-            },
-            {
-              type: 'css',
-              assets: ['index.css'],
-              childBundles: []
-            }
-          ]
-        }
-      ]
-    });
-
-    let output = await run(b);
-    assert.equal(typeof output, 'string');
-    assert(output.includes('<html>'));
-    assert(output.includes('Other page'));
-  });
-
-  it('should support importing HTML from JS async with --target=node', async function() {
-    let b = await bundle(
-      __dirname + '/integration/import-html-async/index.js',
-      {
-        target: 'node',
-        sourceMaps: false
-      }
-    );
-
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: [
-        'index.js',
-        'bundle-loader.js',
-        'bundle-url.js',
-        'html-loader.js'
-      ],
-      childBundles: [
-        {
-          type: 'html',
-          assets: ['other.html'],
-          childBundles: [
-            {
-              type: 'png',
-              assets: ['100x100.png'],
-              childBundles: []
-            },
-            {
-              type: 'css',
-              assets: ['index.css'],
-              childBundles: []
-            }
-          ]
-        }
-      ]
-    });
-
-    let output = await run(b);
-    assert.equal(typeof output, 'string');
-    assert(output.includes('<html>'));
-    assert(output.includes('Other page'));
-  });
-
-  it('should support importing HTML from JS sync', async function() {
-    let b = await bundle(__dirname + '/integration/import-html-sync/index.js', {
-      sourceMaps: false
-    });
-
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: [
-        'index.js',
-        'bundle-loader.js',
-        'bundle-url.js',
-        'html-loader.js'
-      ],
-      childBundles: [
-        {
-          type: 'html',
-          assets: ['other.html'],
-          childBundles: [
-            {
-              type: 'png',
-              assets: ['100x100.png'],
-              childBundles: []
-            },
-            {
-              type: 'css',
-              assets: ['index.css'],
-              childBundles: []
-            }
-          ]
-        }
-      ]
-    });
-
-    let promise = deferred();
-    await run(b, {output: promise.resolve}, {require: false});
-    let output = await promise;
-    assert.equal(typeof output, 'string');
-    assert(output.includes('<html>'));
-    assert(output.includes('Other page'));
   });
 });

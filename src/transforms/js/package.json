@@ -8,6 +8,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "scripts": {
+    "test": "cross-env NODE_ENV=test mocha --exit"
+  },
   "dependencies": {
     "@parcel/core": "^1.9.3",
     "@parcel/fs": "^1.9.3",
@@ -25,5 +28,10 @@
     "browserslist": "^3.2.6",
     "semver": "^5.4.1",
     "terser": "^3.7.3"
+  },
+  "devDependencies": {
+    "@parcel/fs": "^1.9.3",
+    "@parcel/test-utils": "^1.9.3",
+    "mocha": "^5.1.1"
   }
 }

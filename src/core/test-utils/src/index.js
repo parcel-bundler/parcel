@@ -112,7 +112,7 @@ function prepareBrowserContext(bundle, globals) {
           },
           text() {
             return Promise.resolve(
-              nodeFS.readFileSync(path.join(__dirname, 'dist', url), 'utf8')
+              nodeFS.readFileSync(path.join(process.cwd(), 'test', 'dist', url), 'utf8')
             );
           }
         });
