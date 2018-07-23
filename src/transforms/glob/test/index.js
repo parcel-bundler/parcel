@@ -1,10 +1,10 @@
 const assert = require('assert');
-const fs = require('../src/utils/fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const fs = require('@parcel/fs');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe('glob', function() {
   it('should require a glob of files', async function() {
-    let b = await bundle(__dirname + '/integration/glob/index.js');
+    let b = await bundle(__dirname + '/fixtures/glob/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -22,7 +22,7 @@ describe('glob', function() {
   });
 
   it('should require nested directories with a glob', async function() {
-    let b = await bundle(__dirname + '/integration/glob-deep/index.js');
+    let b = await bundle(__dirname + '/fixtures/glob-deep/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -40,7 +40,7 @@ describe('glob', function() {
   });
 
   it('should support importing a glob of CSS files', async function() {
-    let b = await bundle(__dirname + '/integration/glob-css/index.js');
+    let b = await bundle(__dirname + '/fixtures/glob-css/index.js');
 
     await assertBundleTree(b, {
       name: 'index.js',
