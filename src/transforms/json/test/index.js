@@ -1,6 +1,5 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
-const path = require('path');
 const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe('json', function () {
