@@ -1,9 +1,9 @@
 const assert = require('assert');
-const {bundle, run} = require('./utils');
+const {bundle, run} = require('@parcel/test-utils');
 
 describe('reason', function() {
   it('should produce a bundle', async function() {
-    let b = await bundle(__dirname + '/integration/reason/index.js');
+    let b = await bundle(__dirname + '/fixtures/reason/index.js');
 
     assert.equal(b.assets.size, 2);
     assert.equal(b.childBundles.size, 1);

@@ -2,15 +2,22 @@
   "name": "@parcel/transform-reason",
   "version": "1.9.3",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "index.js",
+  "main": "src/ReasonAsset.js",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "scripts": {
+    "test": "cross-env NODE_ENV=test mocha"
+  },
   "dependencies": {
     "@parcel/core": "^1.9.3",
     "@parcel/fs": "^1.9.3",
     "@parcel/utils": "^1.9.3"
+  },
+  "devDependencies": {
+    "@parcel/test-utils": "^1.9.3",
+    "mocha": "^5.1.1"
   }
 }
