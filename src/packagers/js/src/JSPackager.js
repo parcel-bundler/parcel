@@ -49,13 +49,17 @@ class JSPackager extends Packager {
         for (let child of mod.parentBundle.siblingBundles) {
           if (!child.isEmpty) {
             bundles.push(this.getBundleSpecifier(child));
-            this.bundleLoaders.add(child.type);
+            if (this.options.bundleLoaders[child.type]) {
+              this.bundleLoaders.add(child.type);
+            }
           }
         }
 
         bundles.push(mod.id);
         deps[dep.name] = bundles;
-        this.bundleLoaders.add(mod.type);
+        if (this.options.bundleLoaders[mod.type]) {
+          this.bundleLoaders.add(mod.type);
+        }
       } else {
         deps[dep.name] = this.dedupe.get(this.dedupeKey(mod)) || mod.id;
 
@@ -64,7 +68,8 @@ class JSPackager extends Packager {
         // loaded in parallel with this bundle as part of a dynamic import.
         if (
           !this.bundle.assets.has(mod) &&
-          (!this.bundle.parentBundle || this.bundle.parentBundle.type !== 'js')
+          (!this.bundle.parentBundle || this.bundle.parentBundle.type !== 'js') &&
+          this.options.bundleLoaders[mod.type]
         ) {
           this.externalModules.add(mod);
           this.bundleLoaders.add(mod.type);

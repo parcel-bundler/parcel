@@ -1,10 +1,10 @@
 const assert = require('assert');
-const {bundle, assertBundleTree, run} = require('./utils');
-const fs = require('../src/utils/fs');
+const {bundle, assertBundleTree, run} = require('@parcel/test-utils');
+const fs = require('@parcel/fs');
 
 describe('vue', function() {
   it('should produce a basic vue bundle', async function() {
-    let b = await bundle(__dirname + '/integration/vue-basic/Basic.vue');
+    let b = await bundle(__dirname + '/fixtures/vue-basic/Basic.vue');
 
     await assertBundleTree(b, {
       type: 'js',
@@ -27,7 +27,7 @@ describe('vue', function() {
   });
 
   it('should produce a vue bundle with dependencies', async function() {
-    let b = await bundle(__dirname + '/integration/vue-dependencies/App.vue');
+    let b = await bundle(__dirname + '/fixtures/vue-dependencies/App.vue');
 
     await assertBundleTree(b, {
       type: 'js',
@@ -54,7 +54,7 @@ describe('vue', function() {
 
   it('should produce a vue bundle using preprocessors', async function() {
     let b = await bundle(
-      __dirname + '/integration/vue-preprocessors/pre-processors.vue'
+      __dirname + '/fixtures/vue-preprocessors/pre-processors.vue'
     );
 
     await assertBundleTree(b, {
@@ -86,7 +86,7 @@ describe('vue', function() {
 
   it('should produce a vue bundle using a functional component', async function() {
     let b = await bundle(
-      __dirname + '/integration/vue-functional/functional.vue'
+      __dirname + '/fixtures/vue-functional/functional.vue'
     );
 
     await assertBundleTree(b, {
@@ -117,7 +117,7 @@ describe('vue', function() {
   });
 
   it('should produce a vue bundle using scoped styles', async function() {
-    let b = await bundle(__dirname + '/integration/vue-scoped/App.vue');
+    let b = await bundle(__dirname + '/fixtures/vue-scoped/App.vue');
 
     await assertBundleTree(b, {
       type: 'js',
@@ -143,7 +143,7 @@ describe('vue', function() {
   });
 
   it('should produce a vue bundle using CSS modules', async function() {
-    let b = await bundle(__dirname + '/integration/vue-css-modules/App.vue');
+    let b = await bundle(__dirname + '/fixtures/vue-css-modules/App.vue');
 
     await assertBundleTree(b, {
       type: 'js',
@@ -174,7 +174,7 @@ describe('vue', function() {
 
   it('should bundle nested components dynamically', async function() {
     let b = await bundle(
-      __dirname + '/integration/vue-nested-components/testcomp.vue'
+      __dirname + '/fixtures/vue-nested-components/testcomp.vue'
     );
 
     await assertBundleTree(b, {
@@ -183,8 +183,8 @@ describe('vue', function() {
         'testcomp.vue',
         'bundle-loader.js',
         'bundle-url.js',
-        'css-loader.js',
-        'js-loader.js'
+        'css-loader-browser.js',
+        'js-loader-browser.js'
       ],
       childBundles: [
         {
@@ -214,7 +214,7 @@ describe('vue', function() {
   });
 
   it('should produce a basic production vue bundle', async function() {
-    let b = await bundle(__dirname + '/integration/vue-basic/Basic.vue', {
+    let b = await bundle(__dirname + '/fixtures/vue-basic/Basic.vue', {
       production: true
     });
 
