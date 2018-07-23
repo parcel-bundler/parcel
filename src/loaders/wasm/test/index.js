@@ -1,5 +1,5 @@
 const assert = require('assert');
-const {bundle, run, assertBundleTree, deferred} = require('./utils');
+const {bundle, run, assertBundleTree, deferred} = require('@parcel/test-utils');
 
 describe('wasm', function() {
   if (typeof WebAssembly === 'undefined') {
@@ -9,7 +9,7 @@ describe('wasm', function() {
   for (const target of ['browser', 'node']) {
     describe(`--target=${target}`, function() {
       it('should preload a wasm file for a sync require', async function() {
-        let b = await bundle(__dirname + '/integration/wasm-sync/index.js', {
+        let b = await bundle(__dirname + '/fixtures/wasm-sync/index.js', {
           target
         });
 
@@ -19,7 +19,7 @@ describe('wasm', function() {
             'index.js',
             'bundle-loader.js',
             'bundle-url.js',
-            'wasm-loader.js'
+            `wasm-loader-${target}.js`
           ],
           childBundles: [
             {
@@ -39,7 +39,7 @@ describe('wasm', function() {
       });
 
       it('should load a wasm file asynchronously with dynamic import', async function() {
-        let b = await bundle(__dirname + '/integration/wasm-async/index.js', {
+        let b = await bundle(__dirname + '/fixtures/wasm-async/index.js', {
           target
         });
 
@@ -49,7 +49,7 @@ describe('wasm', function() {
             'index.js',
             'bundle-loader.js',
             'bundle-url.js',
-            'wasm-loader.js'
+            `wasm-loader-${target}.js`
           ],
           childBundles: [
             {
@@ -68,7 +68,7 @@ describe('wasm', function() {
       });
 
       it('should load a wasm file in parallel with a dynamic JS import', async function() {
-        let b = await bundle(__dirname + '/integration/wasm-dynamic/index.js', {
+        let b = await bundle(__dirname + '/fixtures/wasm-dynamic/index.js', {
           target
         });
 
@@ -78,8 +78,8 @@ describe('wasm', function() {
             'index.js',
             'bundle-loader.js',
             'bundle-url.js',
-            'js-loader.js',
-            'wasm-loader.js'
+            `js-loader-${target}.js`,
+            `wasm-loader-${target}.js`
           ],
           childBundles: [
             {

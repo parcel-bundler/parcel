@@ -14,5 +14,8 @@
     "babel-types": "^6.26.0",
     "babylon": "^6.17.4",
     "babylon-walk": "^1.0.2"
+  },
+  "alias": {
+    "./src/builtins/bundle-url": "@parcel/utils/bundle-url"
   }
 }
