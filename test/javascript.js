@@ -544,24 +544,6 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
-  it('should support requiring YAML files', async function() {
-    let b = await bundle(__dirname + '/integration/yaml/index.js');
-
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'local.yaml'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 3);
-  });
-
   it('should resolve the browser field before main', async function() {
     let b = await bundle(__dirname + '/integration/resolve-entries/browser.js');
 
@@ -719,20 +701,6 @@ describe('javascript', function() {
 
     assert.equal(typeof output.test, 'function');
     assert.equal(output.test(), 'pkg-main-module');
-  });
-
-  it('should minify YAML for production', async function() {
-    let b = await bundle(__dirname + '/integration/yaml/index.js', {
-      scopeHoist: false,
-      production: true
-    });
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 3);
-
-    let json = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(json.includes('{a:1,b:{c:2}}'));
   });
 
   it('should support compiling with babel using .babelrc config', async function() {
