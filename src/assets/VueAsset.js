@@ -30,6 +30,11 @@ class VueAsset extends Asset {
     let descriptor = this.ast;
     let parts = [];
 
+    let i18nBlock = descriptor.customBlocks.find(r => r.type === 'i18n');
+    if (i18nBlock) {
+      this.i18nData = JSON.parse(i18nBlock.content);
+    }
+
     if (descriptor.script) {
       parts.push({
         type: descriptor.script.lang || 'js',
@@ -95,6 +100,15 @@ class VueAsset extends Asset {
         ${optsVar} = ${optsVar}.options;
       }
     `;
+
+    if (this.i18nData) {
+      supplemental += `
+        ${optsVar}.__i18n = ${optsVar}.__i18n || [];
+        ${optsVar}.__i18n.push(${JSON.stringify(
+        JSON.stringify(this.i18nData)
+      )});
+      `;
+    }
 
     supplemental += this.compileTemplate(generated, scopeId, optsVar);
     supplemental += this.compileCSSModules(generated, optsVar);
