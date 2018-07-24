@@ -10,11 +10,11 @@ https://github.com/parcel-bundler/parcel/wiki/Contributing
 
 We encourage you to create new pages or make helpful edits to all parts of the wiki. Try to ask before making major changes to pages you didn't create, but just do whatever you think is best. Feel free to make a user page and collect your notes there so everyone can learn.
 
-## Slack
+## Spectrum
 
-Join our public Slack: https://slack.parceljs.org/
+Join our community platform on Spectrum: https://spectrum.chat/parcel
 
-The #contributors channel is useful. If you want help or have questions about any aspect of Parcel development, ask there! We'll see and respond.
+If you want help or have questions about any aspect of Parcel development, ask there! We'll see and respond.
 
 It's important to us to give a good experience to new contributors, so anything you want to do is fair game. Feel free to come chat about it, or open a new [issue](https://github.com/parcel-bundler/parcel/issues/new) with RFC in the title.
 
