@@ -5,6 +5,7 @@ const fs = require('./utils/fs');
 const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
+const urlJoin = require('./utils/urlJoin');
 const config = require('./utils/config');
 const syncPromise = require('./utils/syncPromise');
 const logger = require('./Logger');
@@ -113,7 +114,7 @@ class Asset {
       .getAsset(resolved, this.options)
       .generateBundleName();
 
-    return URL.format(parsed);
+    return urlJoin(this.options.publicURL, URL.format(parsed));
   }
 
   get package() {

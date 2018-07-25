@@ -40,6 +40,7 @@ describe('Asset', () => {
     const bundleName = 'xyz';
     const options = {
       rootDir: '/root/dir',
+      publicURL: '/',
       parser: {
         getAsset: () => {
           return {
@@ -60,34 +61,34 @@ describe('Asset', () => {
     });
 
     it('should generate bundle name', () => {
-      assert.strictEqual(asset.addURLDependency('foo'), bundleName);
+      assert.strictEqual(asset.addURLDependency('foo'), `/${bundleName}`);
     });
 
     it('should preserve query and hash', () => {
       assert.strictEqual(
         asset.addURLDependency('foo#bar'),
-        `${bundleName}#bar`
+        `/${bundleName}#bar`
       );
       assert.strictEqual(
         asset.addURLDependency('foo?bar'),
-        `${bundleName}?bar`
+        `/${bundleName}?bar`
       );
       assert.strictEqual(
         asset.addURLDependency('foo?bar#baz'),
-        `${bundleName}?bar#baz`
+        `/${bundleName}?bar#baz`
       );
     });
 
     it('should resolve slash', () => {
       asset.dependencies.clear();
-      assert.strictEqual(asset.addURLDependency('/foo'), bundleName);
+      assert.strictEqual(asset.addURLDependency('/foo'), `/${bundleName}`);
       const key = path.resolve('/root/dir/foo');
       assert(asset.dependencies.has(key));
     });
 
     it('should resolve tilde', () => {
       asset.dependencies.clear();
-      assert.strictEqual(asset.addURLDependency('~/foo'), bundleName);
+      assert.strictEqual(asset.addURLDependency('~/foo'), `/${bundleName}`);
       const key = path.normalize('/root/dir/foo');
       assert(asset.dependencies.has(key));
     });
