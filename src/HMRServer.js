@@ -17,7 +17,17 @@ class HMRServer {
         this.server = https.createServer(await getCertificate(options.https));
       }
 
-      this.wss = new WebSocket.Server({server: this.server});
+      let websocketOptions = {
+        server: this.server
+      };
+
+      if (options.hmrHostname) {
+        websocketOptions.origin = `${options.https ? 'https' : 'http'}://${
+          options.hmrHostname
+        }`;
+      }
+
+      this.wss = new WebSocket.Server(websocketOptions);
       this.server.listen(options.hmrPort, resolve);
     });
 
