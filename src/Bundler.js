@@ -60,6 +60,8 @@ class Bundler extends EventEmitter {
     this.loadedAssets = new Map();
     this.watchedAssets = new Map();
 
+    this.assets = new Map();
+
     this.farm = null;
     this.watcher = null;
     this.hmr = null;
@@ -517,6 +519,23 @@ class Bundler extends EventEmitter {
     await this.loadAsset(asset);
   }
 
+  sliceAssetId(asset, length = 3, offset = 0) {
+    if (offset + length >= asset.id.length) {
+      throw new Error(`Could not find an asset id for ${asset.relativeName}`);
+    }
+
+    let assetId = asset.id;
+    assetId = assetId.slice(offset, offset + length);
+    if (this.assets.has(assetId)) {
+      if (length < 4) {
+        length++;
+      }
+      return this.sliceAssetId(asset, length, offset + 1);
+    }
+
+    return assetId;
+  }
+
   async loadAsset(asset) {
     if (asset.processed) {
       return;
@@ -544,6 +563,12 @@ class Bundler extends EventEmitter {
     asset.generated = processed.generated;
     asset.hash = processed.hash;
     asset.cacheData = processed.cacheData;
+
+    if (this.options.production && !this.options.scopeHoist) {
+      asset.id = this.sliceAssetId(asset);
+    }
+
+    this.assets.set(asset.id, asset);
 
     // Call the delegate to get implicit dependencies
     let dependencies = processed.dependencies;
