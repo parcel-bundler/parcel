@@ -81,6 +81,7 @@ class SourceMap {
   addMapping(mapping, lineOffset = 0, columnOffset = 0) {
     this.mappings.push({
       source: mapping.source,
+      name: mapping.name,
       original: mapping.original,
       generated: {
         line: mapping.generated.line + lineOffset,
@@ -100,6 +101,7 @@ class SourceMap {
 
     this.mappings.push({
       source: mapping.source,
+      name: mapping.name,
       original: {
         line: mapping.originalLine,
         column: mapping.originalColumn
@@ -107,8 +109,7 @@ class SourceMap {
       generated: {
         line: mapping.generatedLine + lineOffset,
         column: mapping.generatedColumn + columnOffset
-      },
-      name: mapping.name
+      }
     });
   }
 
