@@ -1,5 +1,5 @@
 const Asset = require('../Asset');
-const loader = require('graphql-tag/loader');
+const localRequire = require('../utils/localRequire');
 
 const dummyLoaderContext = {
   cacheable() {}
@@ -12,6 +12,7 @@ class GraphqlAsset extends Asset {
   }
 
   async parse(code) {
+    const loader = await localRequire('graphql-tag/loader', this.name);
     return loader.call(dummyLoaderContext, code);
   }
 
