@@ -79,6 +79,8 @@ class Bundler extends EventEmitter {
 
     // If no entry files provided, resolve the entry point from the current directory.
     if (!entryFiles || entryFiles.length === 0) {
+      // Show warning message if arguments are not passed to command
+      logger.warn('Entry file not provided explicitly');
       entryFiles = [process.cwd()];
     }
 
@@ -301,6 +303,7 @@ class Bundler extends EventEmitter {
       let buildTime = Date.now() - startTime;
       let time = prettifyTime(buildTime);
       logger.success(`Built in ${time}.`);
+
       if (!this.watcher) {
         bundleReport(this.mainBundle, this.options.detailedReport);
       }
