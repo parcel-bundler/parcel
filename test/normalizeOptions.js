@@ -25,7 +25,8 @@ const expectedDefaultOptions = Object.freeze({
   global: undefined,
   autoinstall: true,
   scopeHoist: false,
-  contentHash: false
+  contentHash: false,
+  bundleNodeModules: true
 });
 
 describe('normalizeOptions', () => {
@@ -51,7 +52,8 @@ describe('normalizeOptions', () => {
     assert.deepEqual(
       normalizeOptions({watch: false}),
       Object.assign({}, expectedDefaultOptions, {
-        watch: false
+        watch: false,
+        hmr: false
       })
     );
   });
@@ -71,6 +73,7 @@ describe('normalizeOptions', () => {
       normalizeOptions({target: 'node'}),
       Object.assign({}, expectedDefaultOptions, {
         target: 'node',
+        bundleNodeModules: false,
         hmr: false
       })
     );
@@ -81,7 +84,41 @@ describe('normalizeOptions', () => {
       normalizeOptions({target: 'electron'}),
       Object.assign({}, expectedDefaultOptions, {
         target: 'electron',
+        bundleNodeModules: false,
         hmrHostname: 'localhost'
+      })
+    );
+  });
+
+  it('should set bundleNodeModules to true if target === browser', () => {
+    assert.deepEqual(
+      normalizeOptions({target: 'dummy'}),
+      Object.assign({}, expectedDefaultOptions, {
+        bundleNodeModules: false,
+        target: 'dummy'
+      })
+    );
+
+    assert.deepEqual(
+      normalizeOptions({target: 'browser'}),
+      Object.assign({}, expectedDefaultOptions, {
+        bundleNodeModules: true
+      })
+    );
+  });
+
+  it('should set bundleNodeModules ', () => {
+    assert.deepEqual(
+      normalizeOptions({bundleNodeModules: true}),
+      Object.assign({}, expectedDefaultOptions, {
+        bundleNodeModules: true
+      })
+    );
+
+    assert.deepEqual(
+      normalizeOptions({bundleNodeModules: false}),
+      Object.assign({}, expectedDefaultOptions, {
+        bundleNodeModules: false
       })
     );
   });
