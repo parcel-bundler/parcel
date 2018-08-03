@@ -19,7 +19,9 @@ const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');
+const isGlob = require('is-glob');
 const glob = require('fast-glob');
+const matcher = require('matcher');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -59,6 +61,7 @@ class Bundler extends EventEmitter {
     this.pending = false;
     this.loadedAssets = new Map();
     this.watchedAssets = new Map();
+    this.watchedGlobs = [];
 
     this.farm = null;
     this.watcher = null;
@@ -417,6 +420,11 @@ class Bundler extends EventEmitter {
       this.watcher.watch(path);
       this.watchedAssets.set(path, new Set());
     }
+
+    if (isGlob(path) && !this.watchedGlobs.includes(path)) {
+      this.watchedGlobs.push(path);
+    }
+
     this.watchedAssets.get(path).add(asset);
   }
 
@@ -733,6 +741,11 @@ class Bundler extends EventEmitter {
   async onChange(path) {
     let assets = this.watchedAssets.get(path);
     if (!assets || !assets.size) {
+      for (let glob of this.watchedGlobs) {
+        if (matcher.isMatch(path, glob)) {
+          this.onChange(glob);
+        }
+      }
       return;
     }
 

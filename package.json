@@ -46,6 +46,7 @@
     "is-url": "^1.2.2",
     "js-yaml": "^3.10.0",
     "json5": "^1.0.1",
+    "matcher": "^1.1.1",
     "micromatch": "^3.0.4",
     "mkdirp": "^0.5.1",
     "node-forge": "^0.7.1",

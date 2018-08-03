@@ -1,5 +1,7 @@
 const FSWatcher = require('fswatcher-child');
 const Path = require('path');
+const isGlob = require('is-glob');
+const getGlobDirname = require('./utils/getGlobDirname');
 
 /**
  * This watcher wraps chokidar so that we watch directories rather than individual files on macOS.
@@ -62,7 +64,9 @@ class Watcher {
    * Add a path to the watcher
    */
   watch(path) {
-    if (this.shouldWatchDirs) {
+    let pathIsAGlob = isGlob(path);
+    path = Path.join(getGlobDirname(path));
+    if (this.shouldWatchDirs || pathIsAGlob) {
       // If there is no parent directory already watching this path, add a new watcher.
       let parent = this.getWatchedParent(path);
       if (!parent) {
