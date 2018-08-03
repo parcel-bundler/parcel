@@ -329,10 +329,7 @@ class Bundler extends EventEmitter {
         this.hmr.emitError(err);
       }
 
-      if (
-        process.env.NODE_ENV === 'production' ||
-        (isInitialBundle && !initialised)
-      ) {
+      if (process.env.NODE_ENV === 'production' || !initialised) {
         await this.stop();
         process.exit(1);
       } else if (process.env.NODE_ENV === 'test' && !this.hmr) {
