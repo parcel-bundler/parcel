@@ -124,4 +124,35 @@ describe('stylus', function() {
     let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
     assert(css.includes('._index_g9mqo_1'));
   });
+
+  it('should support requiring stylus files with glob dependencies', async function() {
+    let b = await bundle(
+      __dirname + '/integration/stylus-glob-import/index.js'
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.styl'],
+      childBundles: [
+        {
+          type: 'map'
+        },
+        {
+          name: 'index.css',
+          assets: ['index.styl'],
+          childBundles: []
+        }
+      ]
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
+    assert(css.includes('.index'));
+    assert(css.includes('.main'));
+    assert(css.includes('.foo'));
+    assert(css.includes('.bar'));
+  });
 });
