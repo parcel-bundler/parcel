@@ -18,9 +18,9 @@ describe('watcher', function() {
     await rimraf(__dirname + '/input');
   });
 
-  afterEach(function() {
+  afterEach(async function() {
     if (b) {
-      b.stop();
+      await b.stop();
     }
   });
 
@@ -277,5 +277,29 @@ describe('watcher', function() {
     bundle = await nextBundle(b);
     output = await run(bundle);
     assert.equal(output(), 10);
+  });
+
+  it('should rebuild if a file gets added to a glob path', async function() {
+    await ncp(__dirname + '/integration/watch-globs/', __dirname + '/input');
+
+    b = bundler(__dirname + '/input/index.js', {
+      watch: true
+    });
+
+    let bundle = await b.bundle();
+    let output = await run(bundle);
+
+    assert.equal(output().file, 'hello');
+
+    await sleep(1000);
+
+    await fs.writeFile(
+      __dirname + '/input/files/otherFile.js',
+      `module.exports = 'world';`
+    );
+
+    bundle = await nextBundle(b);
+    output = await run(bundle);
+    assert.equal(output().otherFile, 'world');
   });
 });
