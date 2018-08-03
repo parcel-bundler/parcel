@@ -61,9 +61,8 @@ class SASSAsset extends Asset {
         .catch(err => done(normalizeError(err)));
     });
 
-    let res;
     try {
-      res = await render(opts);
+      return await render(opts);
     } catch (err) {
       // Format the error so it can be handled by parcel's prettyError
       if (err.formatted) {
@@ -72,7 +71,6 @@ class SASSAsset extends Asset {
       // Throw original error if there is no codeFrame
       throw err;
     }
-    return res;
   }
 
   collectDependencies() {
