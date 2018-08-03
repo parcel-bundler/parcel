@@ -39,7 +39,7 @@ program
   )
   .option(
     '--public-url <url>',
-    'set the public URL to serve on. defaults to the same as the --out-dir option'
+    'set the public URL to serve on. defaults to "/"'
   )
   .option('--global <variable>', 'expose your module through a global variable')
   .option('--no-hmr', 'disable hot module replacement')
@@ -77,7 +77,7 @@ program
   )
   .option(
     '--public-url <url>',
-    'set the public URL to serve on. defaults to the same as the --out-dir option'
+    'set the public URL to serve on. defaults to "/"'
   )
   .option('--global <variable>', 'expose your module through a global variable')
   .option(
@@ -126,7 +126,7 @@ program
   )
   .option(
     '--public-url <url>',
-    'set the public URL to serve on. defaults to the same as the --out-dir option'
+    'set the public URL to serve on. defaults to "/"'
   )
   .option('--global <variable>', 'expose your module through a global variable')
   .option('--no-minify', 'disable minification')
