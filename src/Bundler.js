@@ -223,6 +223,7 @@ class Bundler extends EventEmitter {
 
     let isInitialBundle = !this.entryAssets;
     let startTime = Date.now();
+    let initialised = !isInitialBundle;
     this.pending = true;
     this.error = null;
 
@@ -242,10 +243,20 @@ class Bundler extends EventEmitter {
 
         this.entryAssets = new Set();
         for (let entry of this.entryFiles) {
-          let asset = await this.resolveAsset(entry);
-          this.buildQueue.add(asset);
-          this.entryAssets.add(asset);
+          try {
+            let asset = await this.resolveAsset(entry);
+            this.buildQueue.add(asset);
+            this.entryAssets.add(asset);
+          } catch (err) {
+            throw new Error(`Failed to load entrypoint: ${entry}!`);
+          }
         }
+
+        if (this.entryAssets.size === 0) {
+          throw new Error('No entrypoint(s) found.');
+        }
+
+        initialised = true;
       }
 
       // Build the queued assets.
@@ -318,8 +329,12 @@ class Bundler extends EventEmitter {
         this.hmr.emitError(err);
       }
 
-      if (process.env.NODE_ENV === 'production') {
-        process.exitCode = 1;
+      if (
+        process.env.NODE_ENV === 'production' ||
+        (isInitialBundle && !initialised)
+      ) {
+        await this.stop();
+        process.exit(1);
       } else if (process.env.NODE_ENV === 'test' && !this.hmr) {
         throw err;
       }
