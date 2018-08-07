@@ -214,7 +214,13 @@ class Asset {
   }
 
   generateHash() {
-    return objectHash(this.generated);
+    let contentHash = '';
+    try {
+      contentHash = md5(this.contents);
+    } catch (err) {
+      // ignore
+    }
+    return md5(objectHash(this.generated) + contentHash);
   }
 
   invalidate() {
