@@ -13,7 +13,7 @@ class HTLAsset extends Asset {
     const code = JSON.stringify(this.contents, null, '  ');
     return [{
       type: 'js',
-      value: `function() { return '${code}'; };`,
+      value: `function() { return '${code}'; }`,
     }];
   }
 }
