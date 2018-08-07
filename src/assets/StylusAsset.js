@@ -3,7 +3,9 @@ const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const Resolver = require('../Resolver');
 const fs = require('../utils/fs');
-const {dirname} = require('path');
+const {dirname, resolve, relative} = require('path');
+const isGlob = require('is-glob');
+const glob = require('fast-glob');
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
@@ -80,7 +82,25 @@ async function getDependencies(
       let path = imported.path.first.string;
 
       if (!deps.has(path)) {
-        deps.set(path, resolver.resolve(path, filepath));
+        if (isGlob(path)) {
+          deps.set(
+            path,
+            glob(resolve(dirname(filepath), path), {
+              onlyFiles: true
+            }).then(entries =>
+              Promise.all(
+                entries.map(entry =>
+                  resolver.resolve(
+                    './' + relative(dirname(filepath), entry),
+                    filepath
+                  )
+                )
+              )
+            )
+          );
+        } else {
+          deps.set(path, resolver.resolve(path, filepath));
+        }
       }
     }
   }
@@ -92,14 +112,17 @@ async function getDependencies(
   await Promise.all(
     Array.from(deps.entries()).map(async ([path, resolved]) => {
       try {
-        resolved = (await resolved).path;
+        resolved = await resolved;
+        resolved = Array.isArray(resolved)
+          ? resolved.map(r => r.path)
+          : resolved.path;
       } catch (err) {
         resolved = null;
       }
 
       let found;
       if (resolved) {
-        found = [resolved];
+        found = Array.isArray(resolved) ? resolved : [resolved];
         res.set(path, resolved);
       } else {
         // If we couldn't resolve, try the normal stylus resolver.
@@ -166,7 +189,18 @@ async function createEvaluator(code, asset, options) {
         // This allows stylus files in node_modules to be resolved properly.
         // If we find something, update the AST so stylus gets the absolute path to load later.
         if (resolved) {
-          node.string = resolved;
+          if (!Array.isArray(resolved)) {
+            node.string = resolved;
+          } else {
+            // If the import resolves to multiple files (i.e. glob),
+            // replace it with a separate import node for each file
+            return mergeBlocks(
+              resolved.map(resolvedPath => {
+                node.string = resolvedPath;
+                return super.visitImport(imported.clone());
+              })
+            );
+          }
         }
       }
 
@@ -176,6 +210,20 @@ async function createEvaluator(code, asset, options) {
   }
 
   return CustomEvaluator;
+}
+
+/**
+ * Puts the content of all given node blocks into the first one, essentially merging them.
+ */
+function mergeBlocks(blocks) {
+  let finalBlock;
+  for (const block of blocks) {
+    if (!finalBlock) finalBlock = block;
+    else {
+      block.nodes.forEach(node => finalBlock.push(node));
+    }
+  }
+  return finalBlock;
 }
 
 module.exports = StylusAsset;
