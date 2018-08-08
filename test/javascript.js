@@ -1347,8 +1347,14 @@ describe('javascript', function() {
     assert(output.includes('Other page'));
   });
 
-  it('should strip away flow types of node modules', async function() {
-    await bundle(__dirname + '/integration/babel-strip-flow-types/index.js');
+  it.only('should strip away flow types of node modules', async function() {
+    let b = await bundle(
+      __dirname + '/integration/babel-strip-flow-types/index.js'
+    );
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 'hello world');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(!file.includes('OptionsType'));
