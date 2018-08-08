@@ -1347,7 +1347,7 @@ describe('javascript', function() {
     assert(output.includes('Other page'));
   });
 
-  it.only('should strip away flow types of node modules', async function() {
+  it('should strip away flow types of node modules', async function() {
     let b = await bundle(
       __dirname + '/integration/babel-strip-flow-types/index.js'
     );
