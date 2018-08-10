@@ -129,7 +129,8 @@ class Resolver {
         // or the project root - whichever comes first.
         while (
           dir !== this.options.rootDir &&
-          path.basename(path.dirname(dir)) !== 'node_modules'
+          path.basename(path.dirname(dir)) !== 'node_modules' &&
+          dir !== '/'
         ) {
           dir = path.dirname(dir);
         }
