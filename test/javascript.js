@@ -29,7 +29,7 @@ describe('javascript', function() {
   });
 
   it('should produce a basic JS bundle with object rest spread support', async function() {
-    let b = await bundle(__dirname + '/integration/es6/object-rest-spread.js');
+    let b = await bundle(__dirname + '/integration/object-rest-spread/object-rest-spread.js');
 
     assert.equal(b.assets.size, 1);
 
