@@ -265,6 +265,14 @@ async function getEnvPlugins(targets, useBuiltIns = false) {
     {},
     {targets, modules: false, useBuiltIns: useBuiltIns ? 'entry' : false}
   ).plugins;
+
+  // babel-preset-env version 6.x does not cover object-rest-spread so always
+  // add it.
+  plugins.push([
+    require('babel-plugin-transform-object-rest-spread'),
+    {useBuiltIns}
+  ]);
+
   envCache.set(key, plugins);
   return plugins;
 }
