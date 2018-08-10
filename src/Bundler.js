@@ -142,7 +142,11 @@ class Bundler extends EventEmitter {
       contentHash:
         typeof options.contentHash === 'boolean'
           ? options.contentHash
-          : isProduction
+          : isProduction,
+      throwErrors:
+        typeof options.throwErrors === 'boolean'
+          ? options.throwErrors
+          : process.env.NODE_ENV === 'test'
     };
   }
 
@@ -329,11 +333,11 @@ class Bundler extends EventEmitter {
         this.hmr.emitError(err);
       }
 
-      if (process.env.NODE_ENV === 'production' || !initialised) {
+      if (this.options.throwErrors && !this.hmr) {
+        throw err;
+      } else if (process.env.NODE_ENV === 'production' || !initialised) {
         await this.stop();
         process.exit(1);
-      } else if (process.env.NODE_ENV === 'test' && !this.hmr) {
-        throw err;
       }
     } finally {
       this.pending = false;
