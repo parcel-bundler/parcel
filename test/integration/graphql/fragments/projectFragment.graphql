@@ -1,0 +1,4 @@
+fragment ProjectFragment on Project {
+  internalReference
+  name
+}

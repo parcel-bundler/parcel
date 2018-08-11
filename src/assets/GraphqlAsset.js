@@ -1,6 +1,10 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 
+const dummyLoaderContext = {
+  cacheable() {}
+};
+
 class GraphqlAsset extends Asset {
   constructor(name, options) {
     super(name, options);
@@ -8,12 +12,12 @@ class GraphqlAsset extends Asset {
   }
 
   async parse(code) {
-    let gql = await localRequire('graphql-tag', this.name);
-    return gql(code);
+    const loader = await localRequire('graphql-tag/loader', this.name);
+    return loader.call(dummyLoaderContext, code);
   }
 
   generate() {
-    return `module.exports=${JSON.stringify(this.ast, false, 2)};`;
+    return this.ast;
   }
 }
 
