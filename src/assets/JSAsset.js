@@ -70,7 +70,7 @@ class JSAsset extends Asset {
       strictMode: false,
       sourceType: 'module',
       locations: true,
-      plugins: ['exportExtensions', 'dynamicImport', 'objectRestSpread']
+      plugins: ['exportExtensions', 'dynamicImport']
     };
 
     // Check if there is a babel config file. If so, determine which parser plugins to enable
