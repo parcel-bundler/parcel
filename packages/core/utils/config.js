@@ -37,12 +37,19 @@ async function load(filepath, filenames, root = path.parse(filepath).root) {
     try {
       let extname = path.extname(configFile).slice(1);
       if (extname === 'js') {
-        return clone(require(configFile));
+        return {
+          config: clone(require(configFile)),
+          dependencies: [{name: configFile}]
+        };
       }
 
       let configContent = (await fs.readFile(configFile)).toString();
       let parse = PARSERS[extname] || PARSERS.json;
-      return configContent ? parse(configContent) : null;
+      let config = configContent ? parse(configContent) : null;
+      return {
+        config: config,
+        dependencies: [{name: configFile}]
+      };
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {
         existsCache.delete(configFile);

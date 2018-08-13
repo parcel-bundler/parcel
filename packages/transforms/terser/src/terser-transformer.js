@@ -1,6 +1,6 @@
 const {minify} = require('terser');
 
-exports.transform = async function(module, options) {
+exports.transform = async function(module, config, options) {
   let terserOptions = {
     warnings: true,
     mangle: {

@@ -1,6 +1,12 @@
-const typescript = require('typescript');
+const localRequire = require('@parcel/utils/localRequire');
+const config = require('@parcel/utils/config');
 
-exports.transform = async function(module, options) {
+exports.getConfig = async function(module, options) {
+  return config.load(module.name, ['tsconfig.json']);
+};
+
+exports.transform = async function(module, tsconfig, options) {
+  let typescript = await localRequire('typescript', module.name);
   let transpilerOptions = {
     compilerOptions: {
       module: typescript.ModuleKind.CommonJS,
@@ -15,12 +21,12 @@ exports.transform = async function(module, options) {
 
   // Overwrite default if config is found
   // let tsconfig = await this.getConfig(['tsconfig.json']);
-  /*if (tsconfig) {
+  if (tsconfig) {
     transpilerOptions.compilerOptions = Object.assign(
       transpilerOptions.compilerOptions,
       tsconfig.compilerOptions
     );
-  }*/
+  }
 
   transpilerOptions.compilerOptions.noEmit = false;
   transpilerOptions.compilerOptions.sourceMap = options.sourceMaps;

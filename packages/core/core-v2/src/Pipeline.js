@@ -29,10 +29,20 @@ class Pipeline {
     return child
   }
 
-  async runPipeline(module, pipeline, previousTransformer = null) {
+  async runPipeline(module, pipeline, previousTransformer = null, previousConfig = null) {
     // Run the first transformer in the pipeline.
     let transformer = pipeline[0];
-    let modules = await this.transform(module, transformer, previousTransformer);
+
+    let config = null;
+    if (transformer.getConfig) {
+      let result = await transformer.getConfig(module, this.options);
+      if (result) {
+        config = result.config;
+        // TODO: do something with deps
+      }
+    }
+
+    let modules = await this.transform(module, transformer, config, previousTransformer, previousConfig);
 
     let result = [];
     for (let subModule of modules) {
@@ -43,7 +53,7 @@ class Pipeline {
         // If we have reached the last transform in the pipeline, then we are done.
         if (pipeline.length === 1) {
           if (module.ast) {
-            await this.generate(transformer, module);
+            await this.generate(transformer, module, config);
           }
 
           result.push(subModule);
@@ -51,7 +61,7 @@ class Pipeline {
         // Otherwise, recursively run the remaining transforms in the pipeline.
         } else {
           result = result.concat(
-            await this.runPipeline(subModule, pipeline.slice(1), transformer)
+            await this.runPipeline(subModule, pipeline.slice(1), transformer, config)
           );
         }
 
@@ -61,7 +71,8 @@ class Pipeline {
           await this.runPipeline(
             subModule,
             await this.resolvePipeline(subModule),
-            transformer
+            transformer,
+            config
           )
         );
       }
@@ -75,22 +86,22 @@ class Pipeline {
     return result;
   }
 
-  async transform(module, transformer, previousTransformer) {
+  async transform(module, transformer, config, previousTransformer, previousConfig) {
     // let shouldTransform = transformer.transform && (!transformer.shouldTransform || transformer.shouldTransform(module, options));
     // let mightHaveDependencies = transformer.getDependencies && (!transformer.mightHaveDependencies || transformer.mightHaveDependencies(module, options));
 
     if (module.ast && (!transformer.canReuseAST || !transformer.canReuseAST(module.ast, this.options))) {
-      await this.generate(previousTransformer, module);
+      await this.generate(previousTransformer, module, previousConfig);
     }
 
     if (!module.ast && transformer.parse) {
-      module.ast = await transformer.parse(module, this.options);
+      module.ast = await transformer.parse(module, config, this.options);
     }
 
     // Transform the AST.
     let modules = [module];
     if (transformer.transform) {
-      modules = await transformer.transform(module, this.options);
+      modules = await transformer.transform(module, config, this.options);
     }
 
     // Get dependencies.
@@ -103,8 +114,8 @@ class Pipeline {
     return modules;
   }
 
-  async generate(transformer, module) {
-    let output = await transformer.generate(module, this.options);
+  async generate(transformer, module, config) {
+    let output = await transformer.generate(module, config, this.options);
     module.code = output.code;
     module.map = output.map;
     module.ast = null;
