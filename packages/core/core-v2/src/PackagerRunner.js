@@ -18,6 +18,7 @@ class PackagerRunner {
         asset,
         fileContents,
       });
+
       return result;
     }));
 
