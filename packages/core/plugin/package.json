@@ -1,0 +1,10 @@
+{
+  "name": "@parcel/plugin",
+  "version": "0.0.0",
+  "main": "src/index.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  }
+}
