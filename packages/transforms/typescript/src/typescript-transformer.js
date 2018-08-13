@@ -1,8 +1,6 @@
-const localRequire = require('@parcel/utils/localRequire');
+const typescript = require('typescript');
 
 exports.transform = async function(module, options) {
-  let typescript = await localRequire('typescript', module.name);
-
   let transpilerOptions = {
     compilerOptions: {
       module: typescript.ModuleKind.CommonJS,
