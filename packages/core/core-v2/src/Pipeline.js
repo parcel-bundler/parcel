@@ -1,20 +1,32 @@
-const minimatch = require('minimatch');
+const micromatch = require('micromatch');
 const localRequire = require('@parcel/utils/localRequire');
+const path = require('path');
 
 class Pipeline {
-  constructor(options, parcelConfig) {
+  constructor(parcelConfig, options) {
     this.options = options;
     this.parcelConfig = parcelConfig;
   }
 
+  async transformModule(module) {
+    let pipeline = await this.resolvePipeline(module);
+    return await this.runPipeline(module, pipeline);
+  }
+
   async resolvePipeline(module) {
     for (let pattern in this.parcelConfig.transforms) {
-      if (minimatch(module.name, pattern)) {
-        return Promise.all(this.parcelConfig.transforms.map(
+      if (micromatch.isMatch(module.name, pattern) || micromatch.isMatch(path.basename(module.name), pattern)) {
+        return Promise.all(this.parcelConfig.transforms[pattern].map(
           async transform => await localRequire(transform, module.name)
         ));
       }
     }
+  }
+
+  toModule(parent, child) {
+    child = Object.assign({}, parent, child);
+    child.name = parent.name.slice(0, -parent.type.length) + child.type;
+    return child
   }
 
   async runPipeline(module, pipeline, previousTransformer = null) {
@@ -24,6 +36,8 @@ class Pipeline {
 
     let result = [];
     for (let subModule of modules) {
+      subModule = this.toModule(module, subModule);
+
       // If the generated module has the same type as the input...
       if (subModule.type === module.type) {
         // If we have reached the last transform in the pipeline, then we are done.
@@ -46,7 +60,7 @@ class Pipeline {
         result = result.concat(
           await this.runPipeline(
             subModule,
-            await resolvePipeline(subModule),
+            await this.resolvePipeline(subModule),
             transformer
           )
         );

@@ -1,12 +1,13 @@
 const Pipeline = require('../src/Pipeline');
 
-const pipeline = new Pipeline({});
+const config = require('@parcel/config-default');
+const pipeline = new Pipeline(config, {});
 
 describe('Pipeline', function () {
   it('should transform some shit', async function () {
-    let transformers = [require('@parcel/transform-terser')];
     let dummyModule = {
       type: 'js',
+      name: __dirname + '/index.js',
       code: `
         function helloworld() {
           return 1 + 1;
@@ -16,26 +17,24 @@ describe('Pipeline', function () {
       `
     };
 
-    let result = await pipeline.runPipeline(dummyModule, transformers);
+    let result = await pipeline.transformModule(dummyModule);
     console.log(result);
   });
 
   it('should transform some shitty typescript', async function () {
-    let transformers = [require('@parcel/transform-typescript'), require('@parcel/transform-terser')];
     let dummyModule = {
       type: 'ts',
+      name: __dirname + '/index.ts',
       code: `
         function helloworld(count: number) {
           return 1 + count;
         }
 
         console.log(helloworld(5));
-      `,
-      name: __dirname + '/index.ts',
-      relativeName: './index.ts'
+      `
     };
 
-    let result = await pipeline.runPipeline(dummyModule, transformers);
+    let result = await pipeline.transformModule(dummyModule);
     console.log(result);
   });
 });
