@@ -1,6 +1,20 @@
+const minimatch = require('minimatch');
+const localRequire = require('@parcel/utils/localRequire');
+
 class Pipeline {
-  constructor(options) {
+  constructor(options, parcelConfig) {
     this.options = options;
+    this.parcelConfig = parcelConfig;
+  }
+
+  async resolvePipeline(module) {
+    for (let pattern in this.parcelConfig.transforms) {
+      if (minimatch(module.name, pattern)) {
+        return Promise.all(this.parcelConfig.transforms.map(
+          async transform => await localRequire(transform, module.name)
+        ));
+      }
+    }
   }
 
   async runPipeline(module, pipeline, previousTransformer = null) {
