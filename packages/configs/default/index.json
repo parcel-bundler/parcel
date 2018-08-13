@@ -4,6 +4,32 @@
     "*.{ml,re}": ["@parcel/transform-reason"],
     "*.{ts,tsx}": ["@parcel/transform-typescript"],
     "*.coffee": ["@parcel/transform-coffeescript"],
-    "*.vue": ["@"]
+    "*.vue": ["@parcel/transform-vue"],
+    "*.{json,json5}": ["@parcel/transform-json"],
+    "*.{yaml,yml}": ["@parcel/transform-yaml"],
+    "*.toml": ["@parcel/transform-toml"],
+    "*.{gql,graphql}": ["@parcel/transform-graphql"],
+    "*.{css,pcss}": ["@parcel/transform-postcss", "@parcel/transform-css"],
+    "*.{styl,stylus}": ["@parcel/transform-stylus"],
+    "*.less": ["@parcel/transform-less"],
+    "*.{sass,scss}": ["@parcel/transform-sass"],
+    "*.{html,htm}": ["@parcel/transform-posthtml", "@parcel/transform-html"],
+    "*.rs": ["@parcel/transform-rust"],
+    "*.webmanifest": ["@parcel/transform-webmanifest"],
+    "*.{glsl,vert,frag}": ["@parcel/transform-glsl"],
+    "*.{jade,pug}": ["@parcel/transform-pug"],
+    "**": ["@parcel/transform-raw"]
+  },
+  "packagers": {
+    "*.js": "@parcel/packager-js",
+    "*.css": "@parcel/packager-css",
+    "*.html": "@parcel/packager-html",
+    "*.wasm": "@parcel/packager-wasm",
+    "**": "@parcel/packager-raw"
+  },
+  "loaders": {
+    "*.js": ["@parcel/loader-js"],
+    "*.wasm": ["@parcel/loader-wasm"],
+    "*.css": ["@parcel/loader-css"]
   }
 }
