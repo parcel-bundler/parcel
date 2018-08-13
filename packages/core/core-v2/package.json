@@ -2,6 +2,7 @@
   "name": "@parcel/core-v2",
   "version": "1.9.3",
   "description": "Blazing fast, zero configuration web application bundler",
+  "main": "index.json",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -15,6 +16,7 @@
   },
   "dependencies": {
     "@parcel/transform-terser": "^1.9.3",
-    "minimatch": "^3.0.4"
+    "minimatch": "^3.0.4",
+    "@parcel/transform-typescript": "^1.9.3"
   }
 }

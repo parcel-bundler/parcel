@@ -1,6 +1,6 @@
 const localRequire = require('@parcel/utils/localRequire');
 
-exports.generate = async function(module, options) {
+exports.transform = async function(module, options) {
   let typescript = await localRequire('typescript', module.name);
 
   let transpilerOptions = {
@@ -46,8 +46,9 @@ exports.generate = async function(module, options) {
     );
   }
 
-  return {
+  return [{
+    type: 'js',
     map: sourceMap || null,
     code: code
-  }
+  }];
 }
