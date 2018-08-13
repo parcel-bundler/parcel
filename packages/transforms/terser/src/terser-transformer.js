@@ -1,6 +1,6 @@
 const {minify} = require('terser');
 
-exports.generate = async function(module, options) {
+exports.transform = async function(module, options) {
   let terserOptions = {
     warnings: true,
     mangle: {
@@ -32,7 +32,7 @@ exports.generate = async function(module, options) {
   }
 
   let result = minify(module.code, terserOptions);
-  
+
   if (sourceMap && module.map) {
     sourceMap = await new SourceMap().extendSourceMap(
       module.map,
@@ -44,8 +44,9 @@ exports.generate = async function(module, options) {
     throw result.error;
   }
 
-  return {
+  return [{
+    type: 'js',
     map: sourceMap,
     code: result.code
-  }
+  }];
 }

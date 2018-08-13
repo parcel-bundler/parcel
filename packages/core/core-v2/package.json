@@ -14,6 +14,7 @@
     "mocha": "^5.1.1"
   },
   "dependencies": {
-    "@parcel/transform-terser": "^1.9.3"
+    "@parcel/transform-terser": "^1.9.3",
+    "@parcel/transform-typescript": "^1.9.3"
   }
 }

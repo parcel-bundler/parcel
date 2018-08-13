@@ -14,7 +14,10 @@ class Pipeline {
       if (subModule.type === module.type) {
         // If we have reached the last transform in the pipeline, then we are done.
         if (pipeline.length === 1) {
-          this.generate(transformer, module);
+          if (module.ast) {
+            await this.generate(transformer, module);
+          }
+
           result.push(subModule);
 
         // Otherwise, recursively run the remaining transforms in the pipeline.
@@ -49,7 +52,7 @@ class Pipeline {
     // let mightHaveDependencies = transformer.getDependencies && (!transformer.mightHaveDependencies || transformer.mightHaveDependencies(module, options));
 
     if (module.ast && (!transformer.canReuseAST || !transformer.canReuseAST(module.ast, this.options))) {
-      this.generate(previousTransformer, module);
+      await this.generate(previousTransformer, module);
     }
 
     if (!module.ast && transformer.parse) {
