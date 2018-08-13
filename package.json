@@ -16,7 +16,9 @@
   ],
   "bolt": {
     "workspaces": [
-      "src/*/*"
+      "packages/*/*",
+      "!packages/integration-tests/*",
+      "packages/integration-tests"
     ]
   },
   "dependencies": {

@@ -1,0 +1,10 @@
+{
+  "name": "@parcel/config-default",
+  "version": "1.9.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@parcel/core-v2",
+  "version": "1.9.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "devDependencies": {
+    "mocha": "^5.1.1"
+  },
+  "dependencies": {
+    "@parcel/transform-terser": "^1.9.3"
+  }
+}

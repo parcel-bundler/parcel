@@ -10,10 +10,20 @@ type Module = {
   meta: JSONObject
 };
 
+type GenerateOutput = {
+  code: string,
+  map: SourceMap | null
+};
+
 type AST = {
   type: string,
   version: string,
   program: JSONObject
+};
+
+type Config = {
+  config: JSONObject,
+  dependencies: Array<Dependency>
 };
 
 type Transformer = {
@@ -22,6 +32,8 @@ type Transformer = {
   // of which environment variables were used and their values in the cache (via module.meta), and
   // invalidate the asset if any of those environment variables change.
   async shouldInvalidateCache(module: Module, options: Options): boolean,
+
+  async getConfig(module: Module, options: Options): Config,
 
   // If an asset is not already cached, we first need to check if we can reuse an
   // existing AST for this module from a previous step in the pipeline or if we need to re-parse.
@@ -49,7 +61,7 @@ type Transformer = {
   // This function turns an AST back into source code in the form of a new Module object,
   // or perhaps multiple output Modules in the case of a multi-part file e.g. Vue SFCs.
   // These Modules are then processed in turn by their associated transform pipelines.
-  async generate(module: Module, options: Options): Module,
+  async generate(module: Module, options: Options): GenerateOutput,
 
   // This function is called after all of the modules produced by `generate` are fully
   // processed. This allows the parent transformer to use the results of processed children
@@ -64,46 +76,55 @@ type Transformer = {
 ['my-fancy-vue-transform', '@parcel/transform-vue'] // PARSE + TRANSFORM;
 ['@parcel/transform-posthtml', '@parcel/transform-html', '@parcel/transform-htmlnano'] // PARSE + TRANSFORM; TRANSFORM + GET DEPS; TRANSFORM + GENERATE
 
+async function generate(transformer: Transformer, module: Module, options: Options) {
+  let output = transformer.generate(module, options);
+  module.code = output.code;
+  module.map = output.map;
+  module.ast = null;
+}
+
 async function transform(
   module: Module,
   transformer: Transformer,
+  previousTransformer: Transformer,
   options: Options
 ): Array<Module> {
-  let shouldTransform = transformer.transform && (!transformer.shouldTransform || transformer.shouldTransform(module, options));
-  let mightHaveDependencies = transformer.getDependencies && (!transformer.mightHaveDependencies || transformer.mightHaveDependencies(module, options));
-  let shouldParse = (shouldTransform || mightHaveDependencies) && !(module.ast && transformer.canReuseAST && transformer.canReuseAST(module, module.ast. options));
+  // let shouldTransform = transformer.transform && (!transformer.shouldTransform || transformer.shouldTransform(module, options));
+  // let mightHaveDependencies = transformer.getDependencies && (!transformer.mightHaveDependencies || transformer.mightHaveDependencies(module, options));
 
   if (module.ast && (!transformer.canReuseAST || !transformer.canReuseAST(module, module.ast, options))) {
-    module.code = previousTransformer.generate(module, module.ast, options);
-    module.ast = null;
+    generate(previousTransformer, module, options);
   }
 
-  if (shouldParse) {
+  if (!module.ast) {
     module.ast = await transformer.parse(module, options);
   }
 
   // Transform the AST.
-  if (shouldTransform) {
-    module.ast = await transformer.transform(module, module.ast, options);
+  let modules = [module];
+  if (transformer.transform) {
+    modules = await transformer.transform(module, options);
   }
 
   // Get dependencies.
-  let dependencies;
-  if (mightHaveDependencies) {
-    dependencies = await transformer.getDependencies(module, module.ast, options);
-  }
+  // let dependencies;
+  // if (transformer.getDependencies) {
+  //   dependencies = await transformer.getDependencies(module, options);
+  // }
 
-  return await transformer.generate(module, module.ast, options);
+  // return await transformer.generate(module, module.ast, options);
+  return modules;
 }
 
 async function runPipeline(
   module: Module,
   pipeline: Array<Transformer>,
-  options: Options
+  options: Options,
+  previousTransformer: Transformer
 ): Array<Module> {
   // Run the first transformer in the pipeline.
   let transformer = pipeline[0];
-  let modules = await transform(module, transformer, option);
+  let modules = await transform(module, transformer, previousTransformer, options);
 
   let result = [];
   for (let subModule of modules) {
@@ -111,12 +132,13 @@ async function runPipeline(
     if (subModule.type === module.type) {
       // If we have reached the last transform in the pipeline, then we are done.
       if (pipeline.length === 1) {
+        generate(transformer, module, options);
         result.push(subModule);
 
       // Otherwise, recursively run the remaining transforms in the pipeline.
       } else {
         result = result.concat(
-          await runPipeline(subModule, pipeline.slice(1), options)
+          await runPipeline(subModule, pipeline.slice(1), options, transformer)
         );
       }
 
@@ -126,7 +148,8 @@ async function runPipeline(
         await runPipeline(
           subModule,
           await resolvePipeline(subModule, options),
-          options
+          options,
+          transformer
         )
       );
     }

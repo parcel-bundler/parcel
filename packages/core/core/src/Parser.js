@@ -13,6 +13,7 @@ class Parser {
     this.registerExtension('es6', '@parcel/transform-js');
     this.registerExtension('jsm', '@parcel/transform-js');
     this.registerExtension('mjs', '@parcel/transform-js');
+
     this.registerExtension('ml', '@parcel/transform-reason');
     this.registerExtension('re', '@parcel/transform-reason');
     this.registerExtension('ts', '@parcel/transform-typescript');

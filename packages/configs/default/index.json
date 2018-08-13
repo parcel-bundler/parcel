@@ -1,0 +1,7 @@
+{
+  "transforms": {
+    "*.{js,mjs,jsm,jsx,es6}": ["@parcel/transform-babel", "@parcel/transform-js"],
+    "*.{ml,re}": ["@parcel/transform-reason"],
+
+  }
+}

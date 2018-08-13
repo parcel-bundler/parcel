@@ -2,7 +2,7 @@
   "name": "@parcel/transform-terser",
   "version": "1.9.3",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "./src/UglifyTransformer.js",
+  "main": "src/terser-transformer.js",
   "license": "MIT",
   "repository": {
     "type": "git",
