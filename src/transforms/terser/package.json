@@ -1,0 +1,25 @@
+{
+  "name": "@parcel/transform-terser",
+  "version": "1.9.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "./src/UglifyTransformer.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "scripts": {
+    "test": "NODE_ENV=test mocha --timeout 50000"
+  },
+  "dependencies": {
+    "@parcel/core": "^1.9.3",
+    "@parcel/fs": "^1.9.3",
+    "@parcel/resolver": "^1.9.3",
+    "@parcel/utils": "^1.9.3",
+    "terser": "^3.7.3"
+  },
+  "devDependencies": {
+    "@parcel/test-utils": "^1.9.3",
+    "mocha": "^5.1.1"
+  }
+}
