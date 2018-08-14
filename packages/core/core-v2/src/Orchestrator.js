@@ -16,3 +16,5 @@ class Orchestrator extends EventEmitter {
     // ...
   }
 }
+
+module.exports = Orchestrator;
