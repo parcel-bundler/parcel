@@ -20,14 +20,12 @@ exports.transform = async function(module, tsconfig, options) {
   };
 
   // Overwrite default if config is found
-  // let tsconfig = await this.getConfig(['tsconfig.json']);
   if (tsconfig) {
     transpilerOptions.compilerOptions = Object.assign(
       transpilerOptions.compilerOptions,
       tsconfig.compilerOptions
     );
   }
-
   transpilerOptions.compilerOptions.noEmit = false;
   transpilerOptions.compilerOptions.sourceMap = options.sourceMaps;
 
