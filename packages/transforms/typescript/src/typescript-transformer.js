@@ -16,7 +16,7 @@ exports.transform = async function(module, tsconfig, options) {
       // see https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-7.html
       esModuleInterop: true
     },
-    fileName: module.relativeName
+    fileName: module.relativePath
   };
 
   // Overwrite default if config is found
@@ -38,7 +38,7 @@ exports.transform = async function(module, tsconfig, options) {
   let code = transpiled.outputText;
   if (sourceMap) {
     sourceMap = JSON.parse(sourceMap);
-    sourceMap.sources = [module.relativeName];
+    sourceMap.sources = [module.relativePath];
     sourceMap.sourcesContent = [module.code];
 
     // Remove the source map URL

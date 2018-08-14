@@ -2,7 +2,7 @@
   "name": "@parcel/transform-js",
   "version": "1.9.3",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "src/JSAsset.js",
+  "main": "./src/js-transformer",
   "license": "MIT",
   "repository": {
     "type": "git",

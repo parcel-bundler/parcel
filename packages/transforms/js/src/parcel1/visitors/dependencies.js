@@ -1,30 +1,36 @@
 const types = require('babel-types');
+const template = require('babel-template');
 const traverse = require('babel-traverse').default;
+const urlJoin = require('@parcel/utils/urlJoin');
+const isURL = require('@parcel/utils/is-url');
+const matchesPattern = require('./matches-pattern');
 const nodeBuiltins = require('node-libs-browser');
 
+const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
+
 module.exports = {
-  ImportDeclaration(node, {module, config}) {
-    module.meta.isES6Module = true;
-    addDependency({module, config}, node.source);
+  ImportDeclaration(node, asset) {
+    asset.isES6Module = true;
+    addDependency(asset, node.source);
   },
 
-  ExportNamedDeclaration(node, {module, config}) {
-    module.meta.isES6Module = true;
+  ExportNamedDeclaration(node, asset) {
+    asset.isES6Module = true;
     if (node.source) {
-      addDependency({module, config}, node.source);
+      addDependency(asset, node.source);
     }
   },
 
-  ExportAllDeclaration(node, {module, config}) {
-    module.meta.isES6Module = true;
-    addDependency({module, config}, node.source);
+  ExportAllDeclaration(node, asset) {
+    asset.isES6Module = true;
+    addDependency(asset, node.source);
   },
 
-  ExportDefaultDeclaration(node, {module, config}) {
-    module.meta.isES6Module = true;
+  ExportDefaultDeclaration(node, asset) {
+    asset.isES6Module = true;
   },
 
-  CallExpression(node, {module, config}, ancestors) {
+  CallExpression(node, asset, ancestors) {
     let {callee, arguments: args} = node;
 
     let isRequire =
@@ -37,7 +43,7 @@ module.exports = {
 
     if (isRequire) {
       let optional = ancestors.some(a => types.isTryStatement(a)) || undefined;
-      addDependency({module, config}, args[0], {optional});
+      addDependency(asset, args[0], {optional});
       return;
     }
 
@@ -47,10 +53,37 @@ module.exports = {
       types.isStringLiteral(args[0]);
 
     if (isDynamicImport) {
-      addDependency({module, config}, args[0], {dynamic: true});
+      addDependency(asset, args[0], {dynamic: true});
 
       // Transform into a normal require. The packager will handle the bundle loading.
       node.callee = types.identifier('require');
+      asset.isAstDirty = true;
+      return;
+    }
+
+    const isRegisterServiceWorker =
+      types.isStringLiteral(args[0]) &&
+      matchesPattern(callee, serviceWorkerPattern);
+
+    if (isRegisterServiceWorker) {
+      // Treat service workers as an entry point so filenames remain consistent across builds.
+      // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
+      addURLDependency(asset, args[0], {entry: true, isolated: true});
+      return;
+    }
+  },
+
+  NewExpression(node, asset) {
+    const {callee, arguments: args} = node;
+
+    const isWebWorker =
+      callee.type === 'Identifier' &&
+      callee.name === 'Worker' &&
+      args.length === 1 &&
+      types.isStringLiteral(args[0]);
+
+    if (isWebWorker) {
+      addURLDependency(asset, args[0], {isolated: true});
       return;
     }
   }
@@ -114,25 +147,40 @@ function evaluateExpression(node) {
   return res;
 }
 
-function addDependency({module, config}, node, opts = {}) {
+function addDependency(asset, node, opts = {}) {
   // Don't bundle node builtins
-  /*if (config.target === 'node' && node.value in nodeBuiltins) {
+  if (asset.options.target === 'node' && node.value in nodeBuiltins) {
     return;
   }
 
-  if (!config.bundleNodeModules) {
+  // If this came from an inline <script> tag, throw an error.
+  // TODO: run JSPackager on inline script tags.
+  let inlineHTML =
+    asset.options.rendition && asset.options.rendition.inlineHTML;
+  if (inlineHTML) {
+    let err = new Error(
+      'Imports and requires are not supported inside inline <script> tags yet.'
+    );
+    err.loc = node.loc && node.loc.start;
+    throw err;
+  }
+
+  if (!asset.options.bundleNodeModules) {
     const isRelativeImport = /^[/~.]/.test(node.value);
     if (!isRelativeImport) return;
-  }*/
-  
-  let env = {};
-  module.deps.push({
-    moduleSpecifier: node.value,
-    loc: node.loc && node.loc.start,
-    env,
-    isAsync: opts.dynamic || false,
-    isEntry: opts.entry || false,
-    isOptional: opts.optional || false,
-    isIncluded: false,
-  });
+  }
+
+  opts.loc = node.loc && node.loc.start;
+  asset.addDependency(node.value, opts);
+}
+
+function addURLDependency(asset, node, opts = {}) {
+  opts.loc = node.loc && node.loc.start;
+
+  let assetPath = asset.addURLDependency(node.value, opts);
+  if (!isURL(assetPath)) {
+    assetPath = urlJoin(asset.options.publicURL, assetPath);
+  }
+  node.value = assetPath;
+  asset.isAstDirty = true;
 }
