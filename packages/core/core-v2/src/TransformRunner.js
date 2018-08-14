@@ -122,4 +122,4 @@ class TransformRunner {
   }
 }
 
-module.exports = Pipeline;
+module.exports = TransformRunner;
