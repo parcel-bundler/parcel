@@ -43,7 +43,7 @@ export type Dependency = {
   isAsync: boolean,
   isEntry: boolean,
   isOptional: boolean,
-  isIncludedInParent: boolean,
+  isIncluded: boolean,
   fileTypeMeta: JsonObject,
 };
 
