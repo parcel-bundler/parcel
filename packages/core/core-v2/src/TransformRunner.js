@@ -2,7 +2,7 @@ const micromatch = require('micromatch');
 const localRequire = require('@parcel/utils/localRequire');
 const path = require('path');
 
-class Pipeline {
+class TransformRunner {
   constructor(parcelConfig, options) {
     this.options = options;
     this.parcelConfig = parcelConfig;
