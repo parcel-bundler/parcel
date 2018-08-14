@@ -24,7 +24,7 @@ class GraphqlAsset extends Asset {
 
     await Promise.all(
       code
-        .split(os.EOL)
+        .split(/\r\n?|\n/)
         .map(line => line.match(IMPORT_RE))
         .filter(match => !!match)
         .map(async ([, importName]) => {
