@@ -1,4 +1,9 @@
 const {minify} = require('terser');
+const config = require('@parcel/utils/config');
+
+exports.getConfig = async function(module, options) {
+  return config.load(module.name, ['.terserrc', '.uglifyrc', '.uglifyrc.js', '.terserrc.js']);
+};
 
 exports.transform = async function(module, config, options) {
   let terserOptions = {
@@ -29,6 +34,10 @@ exports.transform = async function(module, config, options) {
         }
       }
     };
+  }
+
+  if (config) {
+    terserOptions = Object.assign({}, terserOptions, config);
   }
 
   let result = minify(module.code, terserOptions);

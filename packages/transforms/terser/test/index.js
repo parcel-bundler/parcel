@@ -1,5 +1,6 @@
 const assert = require('assert');
 const terserTransformer = require('../src/terser-transformer');
+const Path = require('path');
 
 describe('uglify', function() {
   it('should minify code', async function() {
@@ -10,12 +11,19 @@ describe('uglify', function() {
         }
 
         console.log(helloworld());
-      `
+      `,
+      name: Path.join(__dirname, 'index.js')
     };
 
-    let result = await terserTransformer.generate(dummyModule, {});
+    let parcelOptions = {};
 
-    assert(!result.code.includes('helloworld'));
-    assert(result.map === null);
+    let result = await terserTransformer.transform(
+      dummyModule, 
+      await terserTransformer.getConfig(dummyModule, parcelOptions), 
+      parcelOptions
+    );
+
+    assert(!result[0].code.includes('helloworld'));
+    assert(result[0].map === null);
   });
 });
