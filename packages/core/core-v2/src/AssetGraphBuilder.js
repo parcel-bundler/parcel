@@ -6,6 +6,8 @@ const Emittery = require('emittery');
 
 export default class AssetGraphBuilder extends Emittery {
   constructor() {
+    super();
+    
     this.assetGraph = new AssetGraph();
     this.transformQueue = new Queue();
     this.resolver = new Resolver();
