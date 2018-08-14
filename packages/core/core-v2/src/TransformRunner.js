@@ -1,6 +1,7 @@
 const micromatch = require('micromatch');
 const localRequire = require('@parcel/utils/localRequire');
 const path = require('path');
+const Asset = require('./Asset');
 
 class TransformRunner {
   constructor(parcelConfig, options) {
@@ -8,69 +9,64 @@ class TransformRunner {
     this.parcelConfig = parcelConfig;
   }
 
-  async transformModule(module) {
-    let pipeline = await this.resolvePipeline(module);
-    return await this.runPipeline(module, pipeline);
+  async transformAsset(asset) {
+    asset = new Asset(asset);
+    let pipeline = await this.resolvePipeline(asset);
+    return await this.runPipeline(asset, pipeline);
   }
 
-  async resolvePipeline(module) {
+  async resolvePipeline(asset) {
     for (let pattern in this.parcelConfig.transforms) {
-      if (micromatch.isMatch(module.name, pattern) || micromatch.isMatch(path.basename(module.name), pattern)) {
+      if (micromatch.isMatch(asset.filePath, pattern) || micromatch.isMatch(path.basename(asset.filePath), pattern)) {
         return Promise.all(this.parcelConfig.transforms[pattern].map(
-          async transform => await localRequire(transform, module.name)
+          async transform => await localRequire(transform, asset.filePath)
         ));
       }
     }
   }
 
-  toModule(parent, child) {
-    child = Object.assign({}, parent, child);
-    child.name = parent.name.slice(0, -parent.type.length) + child.type;
-    return child
-  }
-
-  async runPipeline(module, pipeline, previousTransformer = null, previousConfig = null) {
+  async runPipeline(asset, pipeline, previousTransformer = null, previousConfig = null) {
     // Run the first transformer in the pipeline.
     let transformer = pipeline[0];
 
     let config = null;
     if (transformer.getConfig) {
-      let result = await transformer.getConfig(module, this.options);
+      let result = await transformer.getConfig(asset, this.options);
       if (result) {
         config = result.config;
         // TODO: do something with deps
       }
     }
 
-    let modules = await this.transform(module, transformer, config, previousTransformer, previousConfig);
+    let assets = await this.transform(asset, transformer, config, previousTransformer, previousConfig);
 
     let result = [];
-    for (let subModule of modules) {
-      subModule = this.toModule(module, subModule);
+    for (let subAsset of assets) {
+      subAsset = new Asset(subAsset, asset);
 
-      // If the generated module has the same type as the input...
-      if (subModule.type === module.type) {
+      // If the generated asset has the same type as the input...
+      if (subAsset.type === asset.type) {
         // If we have reached the last transform in the pipeline, then we are done.
         if (pipeline.length === 1) {
-          if (module.ast) {
-            await this.generate(transformer, module, config);
+          if (subAsset.ast) {
+            await this.generate(transformer, subAsset, config);
           }
 
-          result.push(subModule);
+          result.push(subAsset);
 
         // Otherwise, recursively run the remaining transforms in the pipeline.
         } else {
           result = result.concat(
-            await this.runPipeline(subModule, pipeline.slice(1), transformer, config)
+            await this.runPipeline(subAsset, pipeline.slice(1), transformer, config)
           );
         }
 
-      // Otherwise, jump to a different pipeline for the generated module.
+      // Otherwise, jump to a different pipeline for the generated asset.
       } else {
         result = result.concat(
           await this.runPipeline(
-            subModule,
-            await this.resolvePipeline(subModule),
+            subAsset,
+            await this.resolvePipeline(subAsset),
             transformer,
             config
           )
@@ -86,39 +82,39 @@ class TransformRunner {
     return result;
   }
 
-  async transform(module, transformer, config, previousTransformer, previousConfig) {
-    // let shouldTransform = transformer.transform && (!transformer.shouldTransform || transformer.shouldTransform(module, options));
-    // let mightHaveDependencies = transformer.getDependencies && (!transformer.mightHaveDependencies || transformer.mightHaveDependencies(module, options));
+  async transform(asset, transformer, config, previousTransformer, previousConfig) {
+    // let shouldTransform = transformer.transform && (!transformer.shouldTransform || transformer.shouldTransform(asset, options));
+    // let mightHaveDependencies = transformer.getDependencies && (!transformer.mightHaveDependencies || transformer.mightHaveDependencies(asset, options));
 
-    if (module.ast && (!transformer.canReuseAST || !transformer.canReuseAST(module.ast, this.options))) {
-      await this.generate(previousTransformer, module, previousConfig);
+    if (asset.ast && (!transformer.canReuseAST || !transformer.canReuseAST(asset.ast, this.options))) {
+      await this.generate(previousTransformer, asset, previousConfig);
     }
 
-    if (!module.ast && transformer.parse) {
-      module.ast = await transformer.parse(module, config, this.options);
+    if (!asset.ast && transformer.parse) {
+      asset.ast = await transformer.parse(asset, config, this.options);
     }
 
     // Transform the AST.
-    let modules = [module];
+    let assets = [asset];
     if (transformer.transform) {
-      modules = await transformer.transform(module, config, this.options);
+      assets = await transformer.transform(asset, config, this.options);
     }
 
     // Get dependencies.
     // let dependencies;
     // if (transformer.getDependencies) {
-    //   dependencies = await transformer.getDependencies(module, options);
+    //   dependencies = await transformer.getDependencies(asset, options);
     // }
 
-    // return await transformer.generate(module, module.ast, options);
-    return modules;
+    // return await transformer.generate(asset, asset.ast, options);
+    return assets;
   }
 
-  async generate(transformer, module, config) {
-    let output = await transformer.generate(module, config, this.options);
-    module.code = output.code;
-    module.map = output.map;
-    module.ast = null;
+  async generate(transformer, asset, config) {
+    let output = await transformer.generate(asset, config, this.options);
+    asset.code = output.code;
+    asset.map = output.map;
+    asset.ast = null;
   }
 }
 

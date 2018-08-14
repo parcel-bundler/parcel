@@ -5,9 +5,8 @@ const runner = new TransformRunner(config, {});
 
 describe('TransformRunner', function () {
   it('should transform some shit', async function () {
-    let dummyModule = {
-      type: 'js',
-      name: __dirname + '/index.js',
+    let dummyAsset = {
+      filePath: __dirname + '/index.js',
       code: `
         function helloworld() {
           return 1 + 1;
@@ -17,14 +16,13 @@ describe('TransformRunner', function () {
       `
     };
 
-    let result = await runner.transformModule(dummyModule);
+    let result = await runner.transformAsset(dummyAsset);
     console.log(result);
   });
 
   it('should transform some shitty typescript', async function () {
-    let dummyModule = {
-      type: 'ts',
-      name: __dirname + '/index.ts',
+    let dummyAsset = {
+      filePath: __dirname + '/index.ts',
       code: `
         function helloworld(count: number) {
           return 1 + count;
@@ -34,7 +32,7 @@ describe('TransformRunner', function () {
       `
     };
 
-    let result = await runner.transformModule(dummyModule);
+    let result = await runner.transformAsset(dummyAsset);
     console.log(result);
   });
 });

@@ -2,11 +2,11 @@ const localRequire = require('@parcel/utils/localRequire');
 const config = require('@parcel/utils/config');
 
 exports.getConfig = async function(module, options) {
-  return config.load(module.name, ['tsconfig.json']);
+  return config.load(module.filePath, ['tsconfig.json']);
 };
 
 exports.transform = async function(module, tsconfig, options) {
-  let typescript = await localRequire('typescript', module.name);
+  let typescript = await localRequire('typescript', module.filePath);
   let transpilerOptions = {
     compilerOptions: {
       module: typescript.ModuleKind.CommonJS,

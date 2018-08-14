@@ -51,6 +51,7 @@ export type ModuleId = MODULE_RENDITION_IDENTIFIER_THING;
 
 export type Module = {
   id: ModuleId,
+  filePath: FilePath,
   env: ModuleEnvironment,
   type: FileType,
   code: string,
