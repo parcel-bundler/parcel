@@ -4,6 +4,7 @@ const EventEmitter = require('events');
 
 class Orchestrator extends EventEmitter {
   constructor(entries) {
+    super();
 
     this.watcher = new Watcher();
     this.hmrServer = new HmrServer();
