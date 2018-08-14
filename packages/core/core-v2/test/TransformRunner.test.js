@@ -1,9 +1,9 @@
-const Pipeline = require('../src/Pipeline');
+const TransformRunner = require('../src/TransformRunner');
 
 const config = require('@parcel/config-default');
-const pipeline = new Pipeline(config, {});
+const runner = new TransformRunner(config, {});
 
-describe('Pipeline', function () {
+describe('TransformRunner', function () {
   it('should transform some shit', async function () {
     let dummyModule = {
       type: 'js',
@@ -17,7 +17,7 @@ describe('Pipeline', function () {
       `
     };
 
-    let result = await pipeline.transformModule(dummyModule);
+    let result = await runner.transformModule(dummyModule);
     console.log(result);
   });
 
@@ -34,7 +34,7 @@ describe('Pipeline', function () {
       `
     };
 
-    let result = await pipeline.transformModule(dummyModule);
+    let result = await runner.transformModule(dummyModule);
     console.log(result);
   });
 });
