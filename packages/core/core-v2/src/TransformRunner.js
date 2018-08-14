@@ -42,7 +42,7 @@ class TransformRunner {
 
     let result = [];
     for (let subAsset of assets) {
-      subAsset = new Asset(subAsset, asset);
+      subAsset = subAsset instanceof Asset ? subAsset : new Asset(subAsset, asset);
 
       // If the generated asset has the same type as the input...
       if (subAsset.type === asset.type) {

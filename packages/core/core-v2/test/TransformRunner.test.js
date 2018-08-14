@@ -24,6 +24,7 @@ describe('TransformRunner', function () {
     let dummyAsset = {
       filePath: __dirname + '/index.ts',
       code: `
+        var x = require('y');
         function helloworld(count: number) {
           return 1 + count;
         }
@@ -33,6 +34,6 @@ describe('TransformRunner', function () {
     };
 
     let result = await runner.transformAsset(dummyAsset);
-    console.log(result);
+    console.log(result[0]);
   });
 });

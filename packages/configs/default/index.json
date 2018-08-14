@@ -1,6 +1,6 @@
 {
   "transforms": {
-    "*.{js,mjs,jsm,jsx,es6}": ["@parcel/transform-terser"],
+    "*.{js,mjs,jsm,jsx,es6}": ["@parcel/transform-js", "@parcel/transform-terser"],
     "*.{ml,re}": ["@parcel/transform-reason"],
     "*.{ts,tsx}": ["@parcel/transform-typescript"],
     "*.coffee": ["@parcel/transform-coffeescript"],

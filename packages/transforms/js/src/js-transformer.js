@@ -45,14 +45,6 @@ exports.transform = async function(module, config, options) {
     return [module];
   }
 
-  if (!module.deps) {
-    module.deps = [];
-  }
-
-  if (!module.meta) {
-    module.meta = {};
-  }
-
   walk.ancestor(module.ast.program, collectDependencies, {
     module,
     config
@@ -62,7 +54,7 @@ exports.transform = async function(module, config, options) {
   return [module];
 }
 
-exports.generate = async function(module, options) {
+exports.generate = async function(module, config, options) {
   let generated = generate(module.ast.program, {
     sourceMaps: options.sourceMaps,
     sourceFileName: module.relativeName

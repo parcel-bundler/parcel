@@ -124,12 +124,10 @@ function addDependency({module, config}, node, opts = {}) {
     const isRelativeImport = /^[/~.]/.test(node.value);
     if (!isRelativeImport) return;
   }*/
-  
-  let env = {};
-  module.deps.push({
+
+  module.dependencies.push({
     moduleSpecifier: node.value,
     loc: node.loc && node.loc.start,
-    env,
     isAsync: opts.dynamic || false,
     isEntry: opts.entry || false,
     isOptional: opts.optional || false,

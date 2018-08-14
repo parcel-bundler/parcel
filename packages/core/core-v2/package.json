@@ -17,6 +17,7 @@
   "dependencies": {
     "@parcel/config-default": "^1.9.3",
     "@parcel/packager-js": "^1.9.3",
+    "@parcel/transform-js": "^1.9.3",
     "@parcel/transform-terser": "^1.9.3",
     "@parcel/transform-typescript": "^1.9.3",
     "@parcel/utils": "^1.9.3",

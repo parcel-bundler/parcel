@@ -44,7 +44,7 @@ export type Dependency = {
   isEntry: boolean,
   isOptional: boolean,
   isIncluded: boolean,
-  fileTypeMeta: JsonObject,
+  meta: JsonObject,
 };
 
 export type ModuleId = MODULE_RENDITION_IDENTIFIER_THING;
