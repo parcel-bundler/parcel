@@ -6,7 +6,7 @@ let ID = 0;
 class Asset {
   constructor(asset, previous) {
     this.id = previous ? previous.id : ID++; // TODO: replace with something deterministic
-    this.previousId = previous ? previous.id : null;
+    this.parentId = previous ? previous.parentId || previous.id : asset.parentId;
     this.env = Object.assign({}, previous && previous.env, asset.env);
     this.type = asset.type || path.extname(asset.filePath).slice(1);
     this.filePath = previous ? previous.filePath.slice(0, -previous.type.length) + this.type : asset.filePath;
@@ -15,8 +15,8 @@ class Asset {
     this.map = asset.map;
     this.ast = asset.ast;
     this.meta = asset.meta || {};
-    this.dependencies = (asset.dependencies || []).map(toDependency)
-      .concat((previous ? previous.dependencies : []).map(toDependency));
+    this.dependencies = (asset.dependencies || []).map(dep => toDependency(dep, this))
+      .concat((previous ? previous.dependencies : []).map(dep => toDependency(dep, previous)));
   }
 }
 

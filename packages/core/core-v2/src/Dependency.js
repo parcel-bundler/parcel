@@ -1,6 +1,6 @@
 class Dependency {
   constructor(dep, parentAsset) {
-    this.previousId = parentAsset.id;
+    this.parentId = parentAsset.id;
     this.moduleSpecifier = dep.moduleSpecifier;
     this.resolvedPath = dep.resolvedPath;
     this.loc = dep.loc;
