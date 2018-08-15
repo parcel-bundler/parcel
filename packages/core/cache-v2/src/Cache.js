@@ -1,13 +1,16 @@
 const fs = require('@parcel/fs');
 const pkg = require('../package.json');
 const Path = require('path');
+const md5 = require('@parcel/utils/md5');
+const objectHash = require('@parcel/utils/objectHash');
+const logger = require('@parcel/logger');
 
 // These keys can affect the output, so if they differ, the cache should not match
 const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
 
-class FSCache {
+class Cache {
   constructor(options) {
-    this.dir = path.resolve(options.cacheDir || '.cache');
+    this.dir = Path.resolve(options.cacheDir || '.parcel-cache');
     this.dirExists = false;
     this.invalidated = new Set();
     this.optionsHash = objectHash(
@@ -27,13 +30,12 @@ class FSCache {
     // Create sub-directories for every possible hex value
     // This speeds up large caches on many file systems since there are fewer files in a single directory.
     for (let i = 0; i < 256; i++) {
-      await fs.mkdirp(path.join(this.dir, ('00' + i.toString(16)).slice(-2)));
+      await fs.mkdirp(Path.join(this.dir, ('00' + i.toString(16)).slice(-2)));
     }
 
     this.dirExists = true;
   }
-
-  // path.join(this.dir, hash.slice(0, 2), hash.slice(2) + '.json')
+  
   getCacheId(filePath) {
     return md5(this.optionsHash + filePath);
   }
@@ -56,14 +58,14 @@ class FSCache {
   }
 
   async writeCacheFile(cacheId, data) {
-    let cacheFilePath = getCacheEntryFilePath(cacheId);
+    let cacheFilePath = this.getCachePath(cacheId);
     await fs.writeFile(cacheFilePath, JSON.stringify(data));
     return cacheFilePath;
   }
 
   async writeBlob(type, cacheId, data) {
-    let blobPath = getCachePath(cacheId, '.' + type);
-    await fs.writeFile(blobPath, JSON.stringify(data));
+    let blobPath = this.getCachePath(cacheId, '.' + type);
+    await fs.writeFile(blobPath, typeof data === 'object' ? JSON.stringify(data) : data);
     return blobPath;
   }
 
@@ -75,11 +77,17 @@ class FSCache {
 
     cacheEntry.subModules = await Promise.all(
       cacheEntry.subModules.map(async asset => {
-        await this.writeDepMtimes(asset);
-        asset.code = await this.writeBlob(asset.type, cacheId, asset.code);
+        let assetCacheId = this.getCacheId(asset.filePath);
+
+        asset.mtime = await this.getLastModified(asset.filePath);
+        asset.code = await this.writeBlob(asset.type, assetCacheId, asset.code);
         if (asset.map) {
-          asset.map = await this.writeBlob(asset.type + '.map', cacheId, asset.map);
+          asset.map = await this.writeBlob(asset.type + '.map', assetCacheId, asset.map);
         }
+
+        await this.writeDepMtimes(asset);
+
+        return asset;
       })
     );
 
@@ -89,7 +97,6 @@ class FSCache {
   async write(filePath, assets) {
     try {
       await this.ensureDirExists();
-      await this.writeDepMtimes(filePath);
       let cacheId = this.getCacheId(filePath);
       let cacheEntry = await this.createCacheEntry(assets, cacheId);
       await this.writeCacheFile(cacheId, cacheEntry);
@@ -120,10 +127,12 @@ class FSCache {
   async reconstructCacheEntry(cacheEntry) {
     cacheEntry.subModules = await Promise.all(
       cacheEntry.subModules.map(async asset => {
+        asset.mtime = await fs.readFile(asset.code, 'utf-8');
         asset.code = await fs.readFile(asset.code, 'utf-8');
         if (asset.map) {
           asset.map = await fs.readFile(asset.map, 'utf-8');
         }
+        return asset;
       })
     );
 
@@ -138,20 +147,22 @@ class FSCache {
     let cacheId = this.getCacheId(filePath);
     try {
       let stats = await fs.stat(filePath);
-      let cacheStats = await fs.stat(cacheFile);
+      let cachePath = this.getCachePath(cacheId);
+      let cacheStats = await fs.stat(cachePath);
 
       if (stats.mtime > cacheStats.mtime) {
         return null;
       }
 
-      let cacheEntry = this.getCacheEntry(cacheId);
-      for (let subModule of cacheEntry.subModules) {
-        if (!(await this.checkDepMtimes(subModule))) {
+      let cacheEntry = await this.getCacheEntry(cacheId);
+      for (let asset of cacheEntry.subModules) {
+        let moduleStats = await fs.stat(asset.filePath);
+        if (moduleStats.mtime > cacheStats.mtime || !(await this.checkDepMtimes(asset))) {
           return null;
         }
       }
 
-      cacheEntry = await reconstructCacheEntry(data);
+      cacheEntry = await this.reconstructCacheEntry(cacheEntry);
 
       return cacheEntry;
     } catch (err) {
@@ -174,4 +185,4 @@ class FSCache {
   }
 }
 
-module.exports = FSCache;
+module.exports = Cache;
