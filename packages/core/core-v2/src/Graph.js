@@ -16,7 +16,7 @@ export type Edge = {
 };
 */
 
-class AssetGraph {
+class Graph {
 
   /*::
   nodes: Map<NodeId, Node>;
@@ -82,6 +82,10 @@ class AssetGraph {
     }
     return true;
   }
+
+  findNodeByX() {
+    // ...
+  }
 }
 
-module.exports = AssetGraph;
+module.exports = Graph;

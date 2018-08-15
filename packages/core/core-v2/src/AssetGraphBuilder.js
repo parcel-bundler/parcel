@@ -1,31 +1,31 @@
 // @flow
 'use strict';
-const AssetGraph = require('./AssetGraph');
+const Graph = require('./Graph');
 const Queue = require('./Queue');
 const Emittery = require('emittery');
 
 class AssetGraphBuilder extends Emittery {
   constructor() {
     super();
-    
-    this.assetGraph = new AssetGraph();
+
+    this.graph = new Graph();
     this.queue = new Queue();
     this.resolver = new Resolver();
-    this.on('change', this.handleChange);
+    // this.on('change', this.handleChange);
   }
 
   async build(entries, { signal }) {
-    signal.addEventListener('abort', () => {
-      // prune asset graph??
-      reject(new AbortError());
-    });
+    // signal.addEventListener('abort', () => {
+    //   // prune asset graph??
+    //   reject(new AbortError());
+    // });
 
     await this.queue.workThroughAllTheThings(this.process, { signal });
   }
 
   async process(item) {
     if (isNode(item)) {
-     // process node
+      // process node
     } else if (isEdge(item)) {
       // process edge
     } else {
@@ -52,21 +52,21 @@ class AssetGraphBuilder extends Emittery {
   //   })
   // });
 
-  handleChange(event) {
-    if (event.type === 'added')  {
-      // ...
-    } else if (event.type === 'changed') {
-      let node = this.assetGraph.findNodeByX(event.x);
-      this.queue.enqueue(node);
-    } else if (event.type === 'unlinked') {
-      let node = this.assetGraph.findNodeByX(event.x);
-      let invalidated = this.assetGraph.removeNode(node);
-      this.queue.enqueue(...invalidated);
-    } else {
-      throw new Error('wtf is this');
-    }
-    // ...
-  }
+  // handleChange(event) {
+  //   if (event.type === 'added')  {
+  //     // ...
+  //   } else if (event.type === 'changed') {
+  //     let node = this.graph.findNodeByX(event.x);
+  //     this.queue.enqueue(node);
+  //   } else if (event.type === 'unlinked') {
+  //     let node = this.graph.findNodeByX(event.x);
+  //     let invalidated = this.graph.removeNode(node);
+  //     this.queue.enqueue(...invalidated);
+  //   } else {
+  //     throw new Error('wtf is this');
+  //   }
+  //   // ...
+  // }
 }
 
 module.exports = AssetGraphBuilder;
