@@ -1,9 +1,9 @@
-const TransformRunner = require('../src/TransformRunner');
+const TransformerRunner = require('../src/TransformerRunner');
 
 const config = require('@parcel/config-default');
-const runner = new TransformRunner(config, {});
+const runner = new TransformerRunner(config, {});
 
-describe('TransformRunner', function () {
+describe('TransformerRunner', function () {
   it('should transform some shit', async function () {
     let dummyAsset = {
       filePath: __dirname + '/index.js',
@@ -16,7 +16,7 @@ describe('TransformRunner', function () {
       `
     };
 
-    let result = await runner.transformAsset(dummyAsset);
+    let result = await runner.transform(dummyAsset);
     console.log(result);
   });
 
@@ -33,7 +33,7 @@ describe('TransformRunner', function () {
       `
     };
 
-    let result = await runner.transformAsset(dummyAsset);
+    let result = await runner.transform(dummyAsset);
     console.log(result[0]);
   });
 });

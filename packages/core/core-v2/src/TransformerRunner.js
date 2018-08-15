@@ -3,13 +3,13 @@ const localRequire = require('@parcel/utils/localRequire');
 const path = require('path');
 const Asset = require('./Asset');
 
-class TransformRunner {
+class TransformerRunner {
   constructor(parcelConfig, options) {
     this.options = options;
     this.parcelConfig = parcelConfig;
   }
 
-  async transformAsset(asset) {
+  async transform(asset) {
     asset = new Asset(asset);
     let pipeline = await this.resolvePipeline(asset);
     return await this.runPipeline(asset, pipeline);
@@ -38,7 +38,7 @@ class TransformRunner {
       }
     }
 
-    let assets = await this.transform(asset, transformer, config, previousTransformer, previousConfig);
+    let assets = await this.runTransformer(asset, transformer, config, previousTransformer, previousConfig);
 
     let result = [];
     for (let subAsset of assets) {
@@ -82,7 +82,7 @@ class TransformRunner {
     return result;
   }
 
-  async transform(asset, transformer, config, previousTransformer, previousConfig) {
+  async runTransformer(asset, transformer, config, previousTransformer, previousConfig) {
     // let shouldTransform = transformer.transform && (!transformer.shouldTransform || transformer.shouldTransform(asset, options));
     // let mightHaveDependencies = transformer.getDependencies && (!transformer.mightHaveDependencies || transformer.mightHaveDependencies(asset, options));
 
@@ -118,4 +118,4 @@ class TransformRunner {
   }
 }
 
-module.exports = TransformRunner;
+module.exports = TransformerRunner;

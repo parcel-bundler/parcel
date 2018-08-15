@@ -6,13 +6,17 @@ export type NodeId = string;
 export type EdgeId = string;
 
 export type Node = {
+  type: 'node',
   id: NodeId,
+  value: any,
 };
 
 export type Edge = {
+  type: 'edge',
   id: EdgeId,
   from: NodeId,
   to: NodeId,
+  value: any,
 };
 */
 

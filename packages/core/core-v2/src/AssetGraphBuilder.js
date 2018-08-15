@@ -2,38 +2,57 @@
 'use strict';
 const Graph = require('./Graph');
 const Queue = require('./Queue');
-const Emittery = require('emittery');
+const TransformerRunner = require('./TransformerRunner');
+const ResolverRunner = require('./ResolverRunner');
 
-class AssetGraphBuilder extends Emittery {
+class AssetGraphBuilder {
   constructor() {
-    super();
-
     this.graph = new Graph();
     this.queue = new Queue();
-    this.resolver = new Resolver();
-    // this.on('change', this.handleChange);
+
+    this.transformerRunner = new TransformerRunner();
+    this.resolverRunner = new ResolverRunner();
   }
 
-  async build(entries, { signal }) {
-    // signal.addEventListener('abort', () => {
-    //   // prune asset graph??
-    //   reject(new AbortError());
-    // });
+  async build(cwd, entries) {
+    console.log(cwd, entries);
+    this.graph.addNode({
+      kind: 'node',
+      id: cwd,
+      value: cwd,
+    });
 
-    await this.queue.workThroughAllTheThings(this.process, { signal });
+    let entryEdges = entries.map(entry => {
+      return {
+        kind: 'edge',
+        id: entry,
+        from: cwd,
+        to: null,
+        value: {
+          moduleRequest: entry,
+        },
+      };
+    });
+
+    this.queue.enqueue(...entryEdges);
+
+    await this.queue.process(this.process);
   }
 
   async process(item) {
-    if (isNode(item)) {
-      // process node
-    } else if (isEdge(item)) {
-      // process edge
-    } else {
-      throw 'wtf';
-    }
+    if (item.type === 'node') {
+      let what = this.transformerRunner.transform(item.value);
+      // this.queue.enqueue(...newEdges...);
+      this.graph.addNode(item);
 
-    // or happens implicitly via `workThroughAllTheThings()`,
-    this.queue.remove(item);
+    } else if (item.type === 'edge') {
+      let resolved = this.resolverRunner.resolve(item.value);
+      // this.queue.enqueue(...resolved...);
+      this.graph.addEdge(item);
+
+    } else {
+      throw new Error('Unexpected queue item type');
+    }
   }
 
   // async processModuleRequest(moduleRequest) {
