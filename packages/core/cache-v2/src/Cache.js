@@ -58,9 +58,8 @@ class Cache {
     return await Promise.all(
       assets.map(async asset => {
         let assetCacheId = this.getCacheId(asset.hash);
-        asset.code = await this.writeBlob(asset.type, assetCacheId, asset.code);
-        if (asset.map) {
-          asset.map = await this.writeBlob(asset.type + '.map', assetCacheId, asset.map);
+        for (let blobKey in asset.blobs) {
+          asset.blobs[blobKey] = await this.writeBlob(blobKey + '.' + asset.type, assetCacheId, asset.code);
         }
         return asset;
       })
