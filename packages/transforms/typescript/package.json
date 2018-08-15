@@ -12,6 +12,7 @@
     "test": "cross-env NODE_ENV=test mocha"
   },
   "dependencies": {
+    "@parcel/utils": "^1.9.3",
     "typescript": "^2.9.0"
   },
   "devDependencies": {

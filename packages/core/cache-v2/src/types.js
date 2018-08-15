@@ -1,3 +1,4 @@
+// @flow
 import { type Module } from '../../../../types';
 
 export type CacheId = string; // Unique identifier to reference cache entry

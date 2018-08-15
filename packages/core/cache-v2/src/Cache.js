@@ -36,8 +36,8 @@ class Cache {
     this.dirExists = true;
   }
   
-  getCacheId(filePath) {
-    return md5(this.optionsHash + filePath);
+  getCacheId(appendedData) {
+    return md5(this.optionsHash + appendedData);
   }
 
   async getLastModified(filePath) {
@@ -77,7 +77,7 @@ class Cache {
 
     cacheEntry.subModules = await Promise.all(
       cacheEntry.subModules.map(async asset => {
-        let assetCacheId = this.getCacheId(asset.filePath);
+        let assetCacheId = this.getCacheId(asset.id);
 
         asset.mtime = await this.getLastModified(asset.filePath);
         asset.code = await this.writeBlob(asset.type, assetCacheId, asset.code);
