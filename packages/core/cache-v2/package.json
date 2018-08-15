@@ -8,7 +8,8 @@
   },
   "devDependencies": {
     "@parcel/core-v2": "^1.9.3",
-    "@parcel/test-utils": "^1.9.3"
+    "@parcel/test-utils": "^1.9.3",
+    "clone": "^2.1.1"
   },
   "dependencies": {
     "@parcel/fs": "^1.9.3",

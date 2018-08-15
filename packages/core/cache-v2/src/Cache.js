@@ -56,7 +56,7 @@ class Cache {
     return blobPath;
   }
 
-  async writeBlobs(assets) {
+  async _writeBlobs(assets) {
     return await Promise.all(
       assets.map(async asset => {
         let assetCacheId = this.getCacheId(asset.hash);
@@ -69,14 +69,21 @@ class Cache {
     );
   }
 
+  async writeBlobs(cacheEntry) {
+    await this.ensureDirExists();
+    
+    cacheEntry.children = await this._writeBlobs(cacheEntry.children);
+    if (cacheEntry.results) {
+      cacheEntry.results = await this._writeBlobs(cacheEntry.results);
+    }
+
+    return cacheEntry;
+  }
+
   async write(filePath, cacheEntry) {
     try {
       await this.ensureDirExists();
       let cacheId = this.getCacheId(filePath);
-      cacheEntry.children = await writeBlobs(cacheEntry.children);
-      if (cacheEntry.results) {
-        cacheEntry.results = await writeBlobs(cacheEntry.results);
-      }
       await this.writeCacheFile(cacheId, cacheEntry);
       this.invalidated.delete(filePath);
     } catch (err) {
@@ -99,7 +106,7 @@ class Cache {
 
     let cacheId = this.getCacheId(filePath);
     try {
-      return await this.reconstructCacheEntry(await this.getCacheEntry(cacheId));
+      return await this.getCacheEntry(cacheId);
     } catch (err) {
       return null;
     }
