@@ -45,14 +45,12 @@ class Cache {
   }
 
   async writeCacheFile(cacheId, data) {
-    let cacheFilePath = this.getCachePath(cacheId);
-    await fs.writeFile(cacheFilePath, JSON.stringify(data));
-    return cacheFilePath;
+    return this.writeBlob('json', cacheId, JSON.stringify(data));
   }
 
   async writeBlob(type, cacheId, data) {
     let blobPath = this.getCachePath(cacheId, '.' + type);
-    await fs.writeFile(blobPath, typeof data === 'object' ? JSON.stringify(data) : data);
+    await fs.writeFile(blobPath, data);
     return blobPath;
   }
 
