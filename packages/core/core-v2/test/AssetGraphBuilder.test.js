@@ -6,6 +6,12 @@ const builder = new AssetGraphBuilder(config, {});
 describe.only('AssetGraphBuilder', function () {
   it('works', async function () {
     let graph = await builder.build(__dirname, ['./fixtures/bundle.js']);
-    console.log(graph);
+    console.log();
+    console.log();
+    console.log();
+    console.log(graph.toGraphViz());
+    console.log();
+    console.log();
+    console.log();
   });
 });

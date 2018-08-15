@@ -93,6 +93,17 @@ class Graph {
   findNodeByX() {
     // ...
   }
+
+  toGraphViz() {
+    let str = '';
+    str += '// Copy into https://dreampuf.github.io/GraphvizOnline/\n';
+    str += 'digraph G {\n'
+    for (let edge of this.edges) {
+      str += '  "' + edge.from + '" -> "' + edge.to + '"\n';
+    }
+    str += '}';
+    return str;
+  }
 }
 
 module.exports = Graph;
