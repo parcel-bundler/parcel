@@ -25,10 +25,9 @@ class ResolverRunner {
   // TODO: use resolver plugin to resolve
   async resolve(moduleRequest) {
     let { sourcePath, moduleSpecifier } = moduleRequest;
-    // let sourceDir = await isDirectory(sourcePath) ? sourcePath : path.dirname(sourcePath);
+    let sourceDir = await isDirectory(sourcePath) ? sourcePath : path.dirname(sourcePath);
 
-    console.log(sourcePath, moduleSpecifier)
-    return resolveFrom(sourcePath, moduleSpecifier);
+    return resolveFrom(sourceDir, moduleSpecifier);
   }
 }
 
