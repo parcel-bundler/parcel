@@ -3,20 +3,15 @@
 
 /*::
 export type NodeId = string;
-export type EdgeId = string;
 
 export type Node = {
-  type: 'node',
   id: NodeId,
   value: any,
 };
 
 export type Edge = {
-  type: 'edge',
-  id: EdgeId,
   from: NodeId,
   to: NodeId,
-  value: any,
 };
 */
 
@@ -24,12 +19,12 @@ class Graph {
 
   /*::
   nodes: Map<NodeId, Node>;
-  edges: Map<EdgeId, Edge>;
+  edges: Set<Edge>;
   */
 
   constructor() {
     this.nodes = new Map();
-    this.edges = new Map();
+    this.edges = new Set();
   }
 
   addNode(node /*: Node */) {
@@ -37,11 +32,11 @@ class Graph {
   }
 
   addEdge(edge /*: Edge */) {
-    this.edges.set(edge.id, edge);
+    this.edges.add(edge);
   }
 
   removeNode(node /*: Node */) {
-    this.nodes.delete(edge.id);
+    this.nodes.delete(node.id);
 
     let invalidated = [];
 
@@ -59,7 +54,11 @@ class Graph {
   }
 
   removeEdge(edge /*: Edge */) {
-    this.edges.delete(edge.id);
+    for (let edge2 of this.edges) {
+      if (this.isSameEdge(edge, edge2)) {
+        this.edges.remove(edge2);
+      }
+    }
 
     let invalidated = [];
 
@@ -76,6 +75,10 @@ class Graph {
     }
 
     return invalidated;
+  }
+
+  isSameEdge(edgeA, edgeB) {
+    return edgeA.from === edgeB.from && edgeA.to === edgeB.to;
   }
 
   isOrphanedNode(node /*: Node */) {
