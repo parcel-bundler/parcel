@@ -1,0 +1,6 @@
+{
+  "name": "@parcel/cache-v2",
+  "version": "1.0.0",
+  "main": "./src/Cache.js",
+  "license": "MIT"
+}
