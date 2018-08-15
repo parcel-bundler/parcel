@@ -3,6 +3,7 @@
 const resolveFrom = require('resolve-from');
 const fs = require('fs');
 const { promisify } = require('util');
+const path = require('path');
 
 const stat = promisify(fs.stat);
 
@@ -24,9 +25,10 @@ class ResolverRunner {
   // TODO: use resolver plugin to resolve
   async resolve(moduleRequest) {
     let { sourcePath, moduleSpecifier } = moduleRequest;
-    let sourceDir = await isDirectory(sourcePath) ? sourcePath : path.dirname(sourcePath);
+    // let sourceDir = await isDirectory(sourcePath) ? sourcePath : path.dirname(sourcePath);
 
-    return resolveFrom(sourceDir, moduleIdentifier);
+    console.log(sourcePath, moduleSpecifier)
+    return resolveFrom(sourcePath, moduleSpecifier);
   }
 }
 

@@ -5,6 +5,7 @@ const Asset = require('./Asset');
 const clone = require('clone');
 const md5 = require('@parcel/utils/md5');
 const Cache = require('@parcel/cache-v2');
+const fs = require('@parcel/fs');
 
 class TransformerRunner {
   constructor(parcelConfig, options) {
@@ -13,7 +14,11 @@ class TransformerRunner {
     this.cache = new Cache(options);
   }
 
-  async transformAsset(asset) {
+  async transform(asset) {
+    if (!asset.code) {
+      asset.code = await fs.readFile(asset.filePath, 'utf8');
+    }
+
     asset = new Asset(asset);
     let hash = md5(asset.code);
 
@@ -59,7 +64,7 @@ class TransformerRunner {
       }
     }
 
-    let assets = await this.transform(asset, transformer, config, previousTransformer, previousConfig);
+    let assets = await this.runTransform(asset, transformer, config, previousTransformer, previousConfig);
 
     let children = [];
     for (let subAsset of assets) {
@@ -122,7 +127,7 @@ class TransformerRunner {
     return {children, results};
   }
 
-  async transform(asset, transformer, config, previousTransformer, previousConfig) {
+  async runTransform(asset, transformer, config, previousTransformer, previousConfig) {
     // let shouldTransform = transformer.transform && (!transformer.shouldTransform || transformer.shouldTransform(asset, options));
     // let mightHaveDependencies = transformer.getDependencies && (!transformer.mightHaveDependencies || transformer.mightHaveDependencies(asset, options));
 

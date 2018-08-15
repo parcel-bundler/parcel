@@ -8,14 +8,14 @@ const TransformerRunner = require('./TransformerRunner');
 const ResolverRunner = require('./ResolverRunner');
 
 // que + corall, get it?
-export default class Querral {
+class Querral {
   constructor(queues) {
     this.queues = queues;
   }
 
   allDone() {
     let { queues } = this;
-    
+
     return Promise.all(queues.map(q => q.onIdle())).then(() => {
       let unfinishedCounts = queues.map(q => (q.size + q.pending));
       let anyUndone = unfinishedCounts.some(count => (count > 0))
@@ -28,31 +28,42 @@ export default class Querral {
 }
 
 class AssetGraphBuilder {
-  constructor() {
+  constructor(config, options) {
     this.graph = new Graph();
 
     this.resolverQueue = new PQueue();
     this.transformerQueue = new PQueue();
     this.querral = new Querral([this.resolverQueue, this.transformerQueue]);
 
-    this.transformerRunner = new TransformerRunner();
+    this.transformerRunner = new TransformerRunner(config, options);
     this.resolverRunner = new ResolverRunner();
   }
 
   async build(cwd, entries) {
     this.graph.addNode({
       id: cwd,
+      type: 'root',
       value: cwd,
     });
 
-    entries
-      .map(entry => ({
-        sourcePath: 'cwd',
+    for (let entry of entries) {
+      let dep = {
+        sourcePath: cwd,
         moduleSpecifier: entry
-      }))
-      .forEach(moduleRequest => this.resolverQueue.add(() => this.resolve(moduleRequest)));
+      };
 
-    await this.querral().allDone();
+      this.graph.addNode({
+        id: entry,
+        type: 'dep',
+        value: dep
+      });
+
+      this.graph.addEdge({from: cwd, to: entry});
+
+      this.resolverQueue.add(() => this.resolve(dep));
+    }
+
+    await this.querral.allDone();
 
     return this.graph;
   }
@@ -63,6 +74,7 @@ class AssetGraphBuilder {
     let resolvedPath = await this.resolverRunner.resolve(moduleRequest);
     this.graph.addNode({
       id: resolvedPath,
+      type: 'file',
       value: resolvedPath,
     });
     this.graph.addEdge({ from: sourcePath, to: resolvedPath });
@@ -71,9 +83,27 @@ class AssetGraphBuilder {
 
   async transform(asset) {
     let transformedAsset = await this.transformerRunner.transform(asset);
-    transformedAsset.dependencies.forEach(({ moduleSpecifier }) => 
-      this.resolverQueue.add(() => this.resolve({ sourcePath: asset.filePath, moduleSpecifier }));
-    );
+    for (let child of transformedAsset.children) {
+      this.graph.addNode({
+        id: child.hash,
+        type: 'asset',
+        value: child
+      });
+
+      this.graph.addEdge({from: asset.filePath, to: child.hash});
+
+      for (let dep of child.dependencies) {
+        let depId = child.hash + ':' + dep.moduleSpecifier;
+        this.graph.addNode({
+          id: depId,
+          type: 'dep',
+          value: dep
+        });
+
+        this.graph.addEdge({from: child.id, to: depId});
+        this.resolverQueue.add(() => this.resolve({ sourcePath: asset.filePath, moduleSpecifier: dep.moduleSpecifier }));
+      }
+    }
   }
 }
 

@@ -16,7 +16,7 @@ describe('TransformerRunner', function () {
       `
     };
 
-    let result = await runner.transformAsset(dummyAsset);
+    let result = await runner.transform(dummyAsset);
     console.log(result);
   });
 
@@ -33,7 +33,7 @@ describe('TransformerRunner', function () {
       `
     };
 
-    let result = await runner.transformAsset(dummyAsset);
+    let result = await runner.transform(dummyAsset);
     console.log(result);
   });
 });
