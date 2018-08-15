@@ -40,19 +40,6 @@ class Cache {
     return md5(this.optionsHash + appendedData);
   }
 
-  async getLastModified(filePath) {
-    return (await fs.stat(filePath)).mtime.getTime();
-  }
-
-  async writeDepMtimes(asset) {
-    // Write mtimes for each dependent file that is already compiled into this asset
-    for (let dep of asset.dependencies) {
-      if (dep.isIncluded) {
-        dep.mtime = await this.getLastModified(dep.resolvedPath);
-      }
-    }
-  }
-
   getCachePath(cacheId, extension = '.json') {
     return Path.join(this.dir, cacheId.slice(0, 2), cacheId.slice(2) + extension);
   }
@@ -69,36 +56,27 @@ class Cache {
     return blobPath;
   }
 
-  async createCacheEntry(assets, cacheId) {
-    let cacheEntry = {
-      id: cacheId,
-      subModules: assets
-    };
-
-    cacheEntry.subModules = await Promise.all(
-      cacheEntry.subModules.map(async asset => {
+  async writeBlobs(assets) {
+    return await Promise.all(
+      assets.map(async asset => {
         let assetCacheId = this.getCacheId(asset.id);
-
-        asset.mtime = await this.getLastModified(asset.filePath);
         asset.code = await this.writeBlob(asset.type, assetCacheId, asset.code);
         if (asset.map) {
           asset.map = await this.writeBlob(asset.type + '.map', assetCacheId, asset.map);
         }
-
-        await this.writeDepMtimes(asset);
-
         return asset;
       })
     );
-
-    return cacheEntry;
   }
 
-  async write(filePath, assets) {
+  async write(filePath, cacheEntry) {
     try {
       await this.ensureDirExists();
       let cacheId = this.getCacheId(filePath);
-      let cacheEntry = await this.createCacheEntry(assets, cacheId);
+      cacheEntry.children = await writeBlobs(cacheEntry.children);
+      if (cacheEntry.results) {
+        cacheEntry.results = await writeBlobs(cacheEntry.results);
+      }
       await this.writeCacheFile(cacheId, cacheEntry);
       this.invalidated.delete(filePath);
     } catch (err) {
@@ -106,37 +84,12 @@ class Cache {
     }
   }
 
-  async checkDepMtimes(asset) {
-    // Check mtimes for files that are already compiled into this asset
-    // If any of them changed, invalidate.
-    for (let dep of asset.dependencies) {
-      if (dep.isIncluded) {
-        if ((await this.getLastModified(dep.resolvedPath)) > dep.mtime) {
-          return false;
-        }
-      }
-    }
-
-    return true;
-  }
-
   async getCacheEntry(cacheId) {
     return JSON.parse(await fs.readFile(this.getCachePath(cacheId), 'utf-8'));
   }
 
-  async reconstructCacheEntry(cacheEntry) {
-    cacheEntry.subModules = await Promise.all(
-      cacheEntry.subModules.map(async asset => {
-        asset.mtime = await fs.readFile(asset.code, 'utf-8');
-        asset.code = await fs.readFile(asset.code, 'utf-8');
-        if (asset.map) {
-          asset.map = await fs.readFile(asset.map, 'utf-8');
-        }
-        return asset;
-      })
-    );
-
-    return cacheEntry;
+  async readBlob(blobKey) {
+    return fs.readFile(blobKey);
   }
 
   async read(filePath) {
@@ -146,30 +99,12 @@ class Cache {
 
     let cacheId = this.getCacheId(filePath);
     try {
-      let stats = await fs.stat(filePath);
-      let cachePath = this.getCachePath(cacheId);
-      let cacheStats = await fs.stat(cachePath);
-
-      if (stats.mtime > cacheStats.mtime) {
-        return null;
-      }
-
-      let cacheEntry = await this.getCacheEntry(cacheId);
-      for (let asset of cacheEntry.subModules) {
-        let moduleStats = await fs.stat(asset.filePath);
-        if (moduleStats.mtime > cacheStats.mtime || !(await this.checkDepMtimes(asset))) {
-          return null;
-        }
-      }
-
-      cacheEntry = await this.reconstructCacheEntry(cacheEntry);
-
-      return cacheEntry;
+      return await this.reconstructCacheEntry(await this.getCacheEntry(cacheId));
     } catch (err) {
       return null;
     }
   }
-
+  
   invalidate(filePath) {
     this.invalidated.add(filePath);
   }
