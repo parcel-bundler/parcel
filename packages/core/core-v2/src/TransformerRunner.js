@@ -16,15 +16,23 @@ class TransformerRunner {
   async transformAsset(asset) {
     asset = new Asset(asset);
     let hash = md5(asset.code);
+
+    let cacheEntry = await this.cache.read(asset.filePath);
+    if (cacheEntry && cacheEntry.hash === hash) {
+      return cacheEntry;
+    }
+
     let pipeline = await this.resolvePipeline(asset);
-    let {children, results} = await this.runPipeline(asset, pipeline);
-    let cacheEntry = {
+    let {children, results} = await this.runPipeline(asset, pipeline, cacheEntry);
+    cacheEntry = {
       hash,
       children,
       results: results === children ? null : results
     };
 
     await this.cache.writeBlobs(cacheEntry);
+
+    await this.cache.write(asset.filePath, cacheEntry);
     return cacheEntry;
   }
 
@@ -38,7 +46,7 @@ class TransformerRunner {
     }
   }
 
-  async runPipeline(asset, pipeline, previousTransformer = null, previousConfig = null) {
+  async runPipeline(asset, pipeline, cacheEntry, previousTransformer = null, previousConfig = null) {
     // Run the first transformer in the pipeline.
     let transformer = pipeline[0];
 
@@ -63,6 +71,14 @@ class TransformerRunner {
         }
 
         subAsset.hash = md5(subAsset.code);
+
+        if (cacheEntry) {
+          let cachedChildren = cacheEntry.children.filter(child => child.hash === subAsset.hash);
+          if (cachedChildren.length > 0) {
+            children = children.concat(cachedChildren);
+            continue;
+          }
+        }
       }
 
       // If the generated asset has the same type as the input...
@@ -78,7 +94,7 @@ class TransformerRunner {
         // Otherwise, recursively run the remaining transforms in the pipeline.
         } else {
           children = children.concat(
-            (await this.runPipeline(subAsset, pipeline.slice(1), transformer, config)).results
+            (await this.runPipeline(subAsset, pipeline.slice(1), cacheEntry, transformer, config)).results
           );
         }
 
@@ -88,6 +104,7 @@ class TransformerRunner {
           (await this.runPipeline(
             subAsset,
             await this.resolvePipeline(subAsset),
+            cacheEntry,
             transformer,
             config
           )).results
@@ -99,7 +116,7 @@ class TransformerRunner {
     let results = children;
     if (transformer.postProcess) {
       children = previousTransformer ? children : clone(children);
-      results = await transformer.postProcess(children);
+      results = await transformer.postProcess(children, config, options);
     }
 
     return {children, results};
