@@ -2,6 +2,9 @@ const fs = require('@parcel/fs');
 const pkg = require('../package.json');
 const Path = require('path');
 
+// These keys can affect the output, so if they differ, the cache should not match
+const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
+
 class FSCache {
   constructor(options) {
     this.dir = path.resolve(options.cacheDir || '.cache');
