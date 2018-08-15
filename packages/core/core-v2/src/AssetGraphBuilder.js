@@ -72,7 +72,7 @@ class AssetGraphBuilder {
   async transform(asset) {
     let transformedAsset = await this.transformerRunner.transform(asset);
     transformedAsset.dependencies.forEach(({ moduleSpecifier }) => 
-      this.resolverQueue.add(() => this.resolve({ sourcePath: asset.filePath, moduleSpecifier }));
+      this.resolverQueue.add(() => this.resolve({ sourcePath: asset.filePath, moduleSpecifier }))
     );
   }
 }
