@@ -8,14 +8,14 @@ const path = require('path');
 describe('PackagerRunner', () => {
   it('works', async () => {
     let bundle = {
-      destPath: path.join(__dirname, 'fixtures', 'bundle.js'),
+      destPath: path.join(__dirname, 'dist', 'bundle.js'),
       assets: [
-        { filePath: require.resolve('./fixtures/module-a') },
-        { filePath: require.resolve('./fixtures/module-b') },
+        { code: require.resolve('./fixtures/module-a') },
+        { code: require.resolve('./fixtures/module-b') },
       ],
     };
 
-    let packagerRunner = new PackagerRunner();
+    let packagerRunner = new PackagerRunner({});
 
     await packagerRunner.runPackager({ bundle });
   });

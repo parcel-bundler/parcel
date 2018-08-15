@@ -15,11 +15,11 @@ class TransformerRunner {
   }
 
   async transform(asset) {
+    asset = new Asset(asset);
     if (!asset.code) {
       asset.code = await fs.readFile(asset.filePath, 'utf8');
     }
 
-    asset = new Asset(asset);
     let hash = md5(asset.code);
 
     let cacheEntry = await this.cache.read(asset.filePath);

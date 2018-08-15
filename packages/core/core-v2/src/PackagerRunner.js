@@ -1,7 +1,15 @@
 // @flow
 'use strict';
+const Cache = require('@parcel/cache-v2');
+const {mkdirp} = require('@parcel/fs');
+const path = require('path');
 
 class PackagerRunner {
+  constructor(options) {
+    this.cache = new Cache(options);
+    this.dirExists = false;
+  }
+
   async loadPackager() {
     return require('@parcel/packager-js');
   }
@@ -10,9 +18,11 @@ class PackagerRunner {
     let packager = await this.loadPackager();
 
     let modulesContents = await Promise.all(bundle.assets.map(async asset => {
-      let fileContents = await packager.readFile({
-        filePath: asset.filePath,
-      });
+      // let fileContents = await packager.readFile({
+      //   filePath: asset.code,
+      // });
+
+      let fileContents = await this.cache.readBlob(asset.code);
 
       let result = await packager.asset({
         asset,
@@ -25,6 +35,11 @@ class PackagerRunner {
     let packageFileContents = await packager.package({
       contents: modulesContents,
     });
+
+    if (!this.dirExists) {
+      await mkdirp(path.dirname(bundle.destPath));
+      this.dirExists = true;
+    }
 
     await packager.writeFile({
       filePath: bundle.destPath,
