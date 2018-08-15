@@ -1,91 +1,80 @@
 // @flow
 'use strict';
+const EventEmitter = require('events');
+const PQueue = require('p-queue');
 const Graph = require('./Graph');
 const Queue = require('./Queue');
 const TransformerRunner = require('./TransformerRunner');
 const ResolverRunner = require('./ResolverRunner');
 
+// que + corall, get it?
+export default class Querral {
+  constructor(queues) {
+    this.queues = queues;
+  }
+
+  allDone() {
+    let { queues } = this;
+    
+    return Promise.all(queues.map(q => q.onIdle())).then(() => {
+      let unfinishedCounts = queues.map(q => (q.size + q.pending));
+      let anyUndone = unfinishedCounts.some(count => (count > 0))
+
+      if (anyUndone) {
+        return this.allDone();
+      }
+    });
+  }
+}
+
 class AssetGraphBuilder {
   constructor() {
     this.graph = new Graph();
-    this.queue = new Queue();
+
+    this.resolverQueue = new PQueue();
+    this.transformerQueue = new PQueue();
+    this.querral = new Querral([this.resolverQueue, this.transformerQueue]);
 
     this.transformerRunner = new TransformerRunner();
     this.resolverRunner = new ResolverRunner();
   }
 
   async build(cwd, entries) {
-    console.log(cwd, entries);
     this.graph.addNode({
-      kind: 'node',
       id: cwd,
       value: cwd,
     });
 
-    let entryEdges = entries.map(entry => {
-      return {
-        kind: 'edge',
-        id: entry,
-        from: cwd,
-        to: null,
-        value: {
-          moduleRequest: entry,
-        },
-      };
+    entries
+      .map(entry => ({
+        sourcePath: 'cwd',
+        moduleSpecifier: entry
+      }))
+      .forEach(moduleRequest => this.resolverQueue.add(() => this.resolve(moduleRequest)));
+
+    await this.querral().allDone();
+
+    return this.graph;
+  }
+
+
+  async resolve(moduleRequest) {
+    let { sourcePath } = moduleRequest;
+    let resolvedPath = await this.resolverRunner.resolve(moduleRequest);
+    this.graph.addNode({
+      id: resolvedPath,
+      value: resolvedPath,
     });
-
-    this.queue.enqueue(...entryEdges);
-
-    await this.queue.process(this.process);
+    this.graph.addEdge({ from: sourcePath, to: resolvedPath });
+    this.transformerQueue.add(() => this.transform({ filePath: resolvedPath }));
   }
 
-  async process(item) {
-    if (item.type === 'node') {
-      let what = this.transformerRunner.transform(item.value);
-      // this.queue.enqueue(...newEdges...);
-      this.graph.addNode(item);
-
-    } else if (item.type === 'edge') {
-      let resolved = this.resolverRunner.resolve(item.value);
-      // this.queue.enqueue(...resolved...);
-      this.graph.addEdge(item);
-
-    } else {
-      throw new Error('Unexpected queue item type');
-    }
+  async transform(asset) {
+    let transformedAsset = await this.transformerRunner.transform(asset);
+    transformedAsset.dependencies.forEach(({ moduleSpecifier }) => 
+      this.resolverQueue.add(() => this.resolve({ sourcePath: asset.filePath, moduleSpecifier }));
+    );
   }
-
-  // async processModuleRequest(moduleRequest) {
-  //   let resolvedPath = this.resolver.resolve(moduleRequest);
-  //
-  // }
-  //
-  // async transformInWorker(filePath) {
-  //
-  // }
-
-  // entries.forEach((moduleSpecifier) => {
-  //   this.processModuleRequest({
-  //     srcPath: cwd,
-  //     moduleSpecifier
-  //   })
-  // });
-
-  // handleChange(event) {
-  //   if (event.type === 'added')  {
-  //     // ...
-  //   } else if (event.type === 'changed') {
-  //     let node = this.graph.findNodeByX(event.x);
-  //     this.queue.enqueue(node);
-  //   } else if (event.type === 'unlinked') {
-  //     let node = this.graph.findNodeByX(event.x);
-  //     let invalidated = this.graph.removeNode(node);
-  //     this.queue.enqueue(...invalidated);
-  //   } else {
-  //     throw new Error('wtf is this');
-  //   }
-  //   // ...
-  // }
 }
 
 module.exports = AssetGraphBuilder;
