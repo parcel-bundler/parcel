@@ -48,6 +48,7 @@ class AssetGraphBuilder {
 
     for (let entry of entries) {
       let dep = {
+        parentId: entry,
         sourcePath: cwd,
         moduleSpecifier: entry
       };
@@ -70,14 +71,13 @@ class AssetGraphBuilder {
 
 
   async resolve(moduleRequest) {
-    let { sourcePath } = moduleRequest;
     let resolvedPath = await this.resolverRunner.resolve(moduleRequest);
     this.graph.addNode({
       id: resolvedPath,
       type: 'file',
       value: resolvedPath,
     });
-    this.graph.addEdge({ from: sourcePath, to: resolvedPath });
+    this.graph.addEdge({ from: moduleRequest.parentId, to: resolvedPath });
     this.transformerQueue.add(() => this.transform({ filePath: resolvedPath }));
   }
 
@@ -101,7 +101,7 @@ class AssetGraphBuilder {
         });
 
         this.graph.addEdge({from: child.hash, to: depId});
-        this.resolverQueue.add(() => this.resolve({ sourcePath: asset.filePath, moduleSpecifier: dep.moduleSpecifier }));
+        this.resolverQueue.add(() => this.resolve({ parentId: depId, sourcePath: asset.filePath, moduleSpecifier: dep.moduleSpecifier }));
       }
     }
   }

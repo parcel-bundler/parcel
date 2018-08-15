@@ -1,5 +1,6 @@
 // package intro
 // module intro
+require('./module-a.js');
 require('./module-b.js');
 // module outro
 
