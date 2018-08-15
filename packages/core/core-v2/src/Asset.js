@@ -15,6 +15,7 @@ class Asset {
     this.map = asset.map;
     this.ast = asset.ast;
     this.meta = asset.meta || {};
+    this.hash = previous ? previous.hash : null;
     this.dependencies = (asset.dependencies || []).map(dep => toDependency(dep, this))
       .concat((previous ? previous.dependencies : []).map(dep => toDependency(dep, previous)));
   }

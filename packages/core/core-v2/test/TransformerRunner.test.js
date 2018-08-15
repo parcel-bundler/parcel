@@ -3,7 +3,7 @@ const TransformerRunner = require('../src/TransformerRunner');
 const config = require('@parcel/config-default');
 const runner = new TransformerRunner(config, {});
 
-describe('TransformerRunner', function () {
+describe.only('TransformerRunner', function () {
   it('should transform some shit', async function () {
     let dummyAsset = {
       filePath: __dirname + '/index.js',
@@ -16,7 +16,7 @@ describe('TransformerRunner', function () {
       `
     };
 
-    let result = await runner.transform(dummyAsset);
+    let result = await runner.transformAsset(dummyAsset);
     console.log(result);
   });
 
@@ -33,7 +33,7 @@ describe('TransformerRunner', function () {
       `
     };
 
-    let result = await runner.transform(dummyAsset);
-    console.log(result[0]);
+    let result = await runner.transformAsset(dummyAsset);
+    console.log(result);
   });
 });

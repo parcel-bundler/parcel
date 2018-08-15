@@ -35,9 +35,9 @@ export type ModuleEnvironment = {
 };
 
 export type Dependency = {
-  parentId: ModuleId,
-  // sourcePath: FilePath, // cwd, or parent filePath
+  parentId: string,
   moduleSpecifier: ModuleSpecifier,
+  resolvedPath: FilePath,
   loc: SourceLocation | null,
   env: ModuleEnvironment,
   isAsync: boolean,
@@ -47,16 +47,17 @@ export type Dependency = {
   meta: JsonObject,
 };
 
-export type ModuleId = MODULE_RENDITION_IDENTIFIER_THING;
-
-export type Module = {
-  id: ModuleId,
+export type Asset = {
+  id: string,
+  parentId: string,
   filePath: FilePath,
   env: ModuleEnvironment,
   type: FileType,
   code: string,
   map: SourceMap | null,
   meta: JsonObject,
+  dependencies: Array<Dependency>,
+  children: Array<Asset>
 };
 
 type Ast = {

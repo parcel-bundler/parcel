@@ -2,17 +2,30 @@ const micromatch = require('micromatch');
 const localRequire = require('@parcel/utils/localRequire');
 const path = require('path');
 const Asset = require('./Asset');
+const clone = require('clone');
+const md5 = require('@parcel/utils/md5');
+const Cache = require('@parcel/cache-v2');
 
 class TransformerRunner {
   constructor(parcelConfig, options) {
     this.options = options;
     this.parcelConfig = parcelConfig;
+    this.cache = new Cache(options);
   }
 
-  async transform(asset) {
+  async transformAsset(asset) {
     asset = new Asset(asset);
+    let hash = md5(asset.code);
     let pipeline = await this.resolvePipeline(asset);
-    return await this.runPipeline(asset, pipeline);
+    let {children, results} = await this.runPipeline(asset, pipeline);
+    let cacheEntry = {
+      hash,
+      children,
+      results: results === children ? null : results
+    };
+
+    await this.cache.writeBlobs(cacheEntry);
+    return cacheEntry;
   }
 
   async resolvePipeline(asset) {
@@ -38,11 +51,19 @@ class TransformerRunner {
       }
     }
 
-    let assets = await this.runTransformer(asset, transformer, config, previousTransformer, previousConfig);
+    let assets = await this.transform(asset, transformer, config, previousTransformer, previousConfig);
 
-    let result = [];
+    let children = [];
     for (let subAsset of assets) {
       subAsset = subAsset instanceof Asset ? subAsset : new Asset(subAsset, asset);
+
+      if (!previousTransformer) {
+        if (subAsset.ast) {
+          this.generate(transformer, subAsset, config);
+        }
+
+        subAsset.hash = md5(subAsset.code);
+      }
 
       // If the generated asset has the same type as the input...
       if (subAsset.type === asset.type) {
@@ -52,37 +73,39 @@ class TransformerRunner {
             await this.generate(transformer, subAsset, config);
           }
 
-          result.push(subAsset);
+          children.push(subAsset);
 
         // Otherwise, recursively run the remaining transforms in the pipeline.
         } else {
-          result = result.concat(
-            await this.runPipeline(subAsset, pipeline.slice(1), transformer, config)
+          children = children.concat(
+            (await this.runPipeline(subAsset, pipeline.slice(1), transformer, config)).results
           );
         }
 
       // Otherwise, jump to a different pipeline for the generated asset.
       } else {
-        result = result.concat(
-          await this.runPipeline(
+        children = children.concat(
+          (await this.runPipeline(
             subAsset,
             await this.resolvePipeline(subAsset),
             transformer,
             config
-          )
+          )).results
         );
       }
     }
 
     // If the transformer has a postProcess function, execute that with the result of the pipeline.
+    let results = children;
     if (transformer.postProcess) {
-      result = await transformer.postProcess(result);
+      children = previousTransformer ? children : clone(children);
+      results = await transformer.postProcess(children);
     }
 
-    return result;
+    return {children, results};
   }
 
-  async runTransformer(asset, transformer, config, previousTransformer, previousConfig) {
+  async transform(asset, transformer, config, previousTransformer, previousConfig) {
     // let shouldTransform = transformer.transform && (!transformer.shouldTransform || transformer.shouldTransform(asset, options));
     // let mightHaveDependencies = transformer.getDependencies && (!transformer.mightHaveDependencies || transformer.mightHaveDependencies(asset, options));
 
@@ -100,13 +123,6 @@ class TransformerRunner {
       assets = await transformer.transform(asset, config, this.options);
     }
 
-    // Get dependencies.
-    // let dependencies;
-    // if (transformer.getDependencies) {
-    //   dependencies = await transformer.getDependencies(asset, options);
-    // }
-
-    // return await transformer.generate(asset, asset.ast, options);
     return assets;
   }
 
