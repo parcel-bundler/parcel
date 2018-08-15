@@ -100,7 +100,7 @@ class AssetGraphBuilder {
           value: dep
         });
 
-        this.graph.addEdge({from: child.id, to: depId});
+        this.graph.addEdge({from: child.hash, to: depId});
         this.resolverQueue.add(() => this.resolve({ sourcePath: asset.filePath, moduleSpecifier: dep.moduleSpecifier }));
       }
     }
