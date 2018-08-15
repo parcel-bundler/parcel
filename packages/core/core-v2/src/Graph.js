@@ -100,12 +100,24 @@ class Graph {
 
     let g = graphviz.digraph('G');
 
+    let colors = {
+      'root': 'gray',
+      'asset': 'green',
+      'dep': 'orange',
+      'file': 'cyan',
+    };
+
     for (let [id, node] of this.nodes) {
-      g.addNode(id);
+      let n = g.addNode(id);
+      // console.log(node);
+      n.set('color', colors[node.type]);
+      n.set('shape', 'box');
+      n.set('style', 'filled');
+      n.set('label', `${node.type}: ${node.id}`);
     }
 
     for (let edge of this.edges) {
-      g.addEdge(edge.from, edge.to);
+      let e = g.addEdge(edge.from, edge.to);
     }
 
     let tmp = tempy.file({ name: 'graph.png' });
