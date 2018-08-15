@@ -97,6 +97,7 @@ class Graph {
   async dumpGraphViz() {
     let graphviz = require('graphviz');
     let tempy = require('tempy');
+    let path = require('path');
 
     let g = graphviz.digraph('G');
 
@@ -107,13 +108,36 @@ class Graph {
       'file': 'cyan',
     };
 
-    for (let [id, node] of this.nodes) {
-      let n = g.addNode(id);
-      // console.log(node);
+    let nodes = Array.from(this.nodes.values());
+    let root = nodes.find(n => n.type === 'root');
+    let rootPath = root ? root.value : '/';
+
+    for (let node of nodes) {
+      let n = g.addNode(node.id);
+
       n.set('color', colors[node.type]);
       n.set('shape', 'box');
       n.set('style', 'filled');
-      n.set('label', `${node.type}: ${node.id}`);
+
+      let label = `${node.type}: `;
+
+      if (node.type === 'dep') {
+        label += node.value.moduleSpecifier;
+        let parts = [];
+        if (node.value.isEntry) parts.push('entry');
+        if (node.value.isAsync) parts.push('async');
+        if (node.value.isIncluded) parts.push('included');
+        if (node.value.isOptional) parts.push('optional');
+        if (parts.length) label += '(' + parts.join(', ') + ')';
+      } else if (node.type === 'asset') {
+        label += path.relative(rootPath, node.value.filePath) + '#' + node.value.hash.slice(0, 8);
+      } else if (node.type === 'file') {
+        label += path.relative(rootPath, node.value);
+      } else {
+        label += node.id;
+      }
+
+      n.set('label', label);
     }
 
     for (let edge of this.edges) {
