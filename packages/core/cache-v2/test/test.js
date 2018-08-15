@@ -20,6 +20,10 @@ describe('cache-v2', function () {
     await rimraf(CACHE_PATH)
   });
 
+  after(async function() {
+    await rimraf(CACHE_PATH)
+  });
+
   const CACHE_ENTRY = {
     hash: md5(MOCK_FILE),
     children: [
