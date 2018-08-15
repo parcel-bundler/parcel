@@ -23,8 +23,10 @@
     "@parcel/transform-terser": "^1.9.3",
     "@parcel/transform-typescript": "^1.9.3",
     "@parcel/utils": "^1.9.3",
+    "graphviz": "^0.0.8",
     "minimatch": "^3.0.4",
     "p-queue": "^2.4.2",
-    "resolve-from": "^4.0.0"
+    "resolve-from": "^4.0.0",
+    "tempy": "^0.2.1"
   }
 }

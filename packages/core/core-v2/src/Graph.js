@@ -94,15 +94,24 @@ class Graph {
     // ...
   }
 
-  toGraphViz() {
-    let str = '';
-    str += '// Copy into https://dreampuf.github.io/GraphvizOnline/\n';
-    str += 'digraph G {\n'
-    for (let edge of this.edges) {
-      str += '  "' + edge.from + '" -> "' + edge.to + '"\n';
+  async dumpGraphViz() {
+    let graphviz = require('graphviz');
+    let tempy = require('tempy');
+
+    let g = graphviz.digraph('G');
+
+    for (let [id, node] of this.nodes) {
+      g.addNode(id);
     }
-    str += '}';
-    return str;
+
+    for (let edge of this.edges) {
+      g.addEdge(edge.from, edge.to);
+    }
+
+    let tmp = tempy.file({ name: 'graph.png' });
+
+    await g.output('png', tmp);
+    console.log(`open ${tmp}`);
   }
 }
 
