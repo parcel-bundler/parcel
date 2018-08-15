@@ -27,11 +27,13 @@ describe('cache-v2', function () {
       hash: md5(MOCK_FILE),
       children: [
         {
+          hash: md5('// hello world'),
           code: '// hello world',
           map: '{}',
           type: 'js'
         },
         {
+          hash: md5('// not hello world'),
           code: '// not hello world',
           map: {},
           type: 'js'
@@ -39,11 +41,13 @@ describe('cache-v2', function () {
       ],
       results: [
         {
+          hash: md5('// hello world'),
           code: '// hello world',
           map: '{}',
           type: 'js'
         },
         {
+          hash: md5('// not hello world'),
           code: '// not hello world',
           map: {},
           type: 'js'
