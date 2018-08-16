@@ -12,7 +12,8 @@
     "test": "mocha"
   },
   "devDependencies": {
-    "mocha": "^5.1.1"
+    "mocha": "^5.1.1",
+    "pretty-format": "^23.5.0"
   },
   "dependencies": {
     "@parcel/cache-v2": "^1.0.0",
