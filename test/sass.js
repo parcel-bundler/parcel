@@ -168,10 +168,11 @@ describe('sass', function() {
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
-    assert.equal(output(), '_index_1a1ih_1');
+    let className = output();
+    assert.notStrictEqual(className, 'index');
 
     let css = await fs.readFile(__dirname + '/dist/index.css', 'utf8');
-    assert(css.includes('._index_1a1ih_1'));
+    assert(css.includes(`.${className}`));
   });
 
   it('should support advanced import syntax', async function() {
