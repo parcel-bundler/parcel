@@ -133,7 +133,7 @@ class Resolver {
         ) {
           dir = path.dirname(dir);
 
-          if (dir === '/') {
+          if (dir === path.dirname(dir)) {
             dir = this.options.rootDir;
             break;
           }
