@@ -22,19 +22,14 @@ class PackagerRunner {
       //   filePath: asset.code,
       // });
 
-      let fileContents = await this.cache.readBlob(asset.code);
+      await this.cache.readBlobs(asset);
 
-      let result = await packager.asset({
-        asset,
-        fileContents,
-      });
+      let result = await packager.asset(asset);
 
       return result;
     }));
 
-    let packageFileContents = await packager.package({
-      contents: modulesContents,
-    });
+    let packageFileContents = await packager.package(modulesContents);
 
     if (!this.dirExists) {
       await mkdirp(path.dirname(bundle.destPath));

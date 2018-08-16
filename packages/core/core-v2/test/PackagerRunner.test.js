@@ -10,8 +10,8 @@ describe('PackagerRunner', () => {
     let bundle = {
       destPath: path.join(__dirname, 'dist', 'bundle.js'),
       assets: [
-        { code: require.resolve('./fixtures/module-a') },
-        { code: require.resolve('./fixtures/module-b') },
+        {blobs: {code: require.resolve('./fixtures/module-a')}},
+        {blobs: {code: require.resolve('./fixtures/module-b')}},
       ],
     };
 
