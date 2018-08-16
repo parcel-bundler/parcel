@@ -10,7 +10,7 @@ const prettyFormat = require('pretty-format');
 
 describe('BundleBuilder', () => {
   it('should work', async () => {
-    let bundleBuilder = new BundleBuilder();
+    let bundleBuilder = new BundleBuilder(config, {});
     let graphBuilder = new AssetGraphBuilder(config, {});
     let graph = await graphBuilder.build(__dirname, ['./fixtures/bundle.js']);
     let bundleManifest = await bundleBuilder.build(graph, { destFolder: path.join(__dirname, 'dist') });

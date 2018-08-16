@@ -5,14 +5,14 @@ const AssetGraphBuilder = require('./AssetGraphBuilder');
 // const BundleBuilder = require('./BundleBuilder');
 
 class Orchestrator extends EventEmitter {
-  constructor() {
+  constructor(config, options) {
     super();
 
     // this.watcher = new Watcher();
     // this.hmrServer = new HmrServer();
 
-    this.assetGraphBuilder = new AssetGraphBuilder();
-    // this.bundleBuilder = new BundleBuilder();
+    this.assetGraphBuilder = new AssetGraphBuilder(config, options);
+    this.bundleBuilder = new BundleBuilder(config, options);
 
     // this.assetGraphBuilder.on('complete', (assetGraph) => {
     //   this.bundleBuilder.build(assetGraph);

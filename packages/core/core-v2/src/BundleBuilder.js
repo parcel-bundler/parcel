@@ -1,20 +1,18 @@
 const path = require('path');
-// const PackagerRunner = require('./PackagerRunner');
+const PackagerRunner = require('./PackagerRunner');
 
 class BundleBuilder {
-  constructor() {
-    // this.packagerRunner = new PackagerRunner();
+  constructor(config, options) {
+    this.packagerRunner = new PackagerRunner(config, options);
   }
 
   async build(graph, opts) {
     let bundleManifest = this.generateBundleManifest(graph, opts);
-    return bundleManifest;
-    // TODO: uncomment once packagerRunner works with cache again
-    // await this.buildBundles(bundleManifest);
+    await this.buildBundles(bundleManifest);
   }
 
   generateBundleManifest(graph, opts) {
-    let assets = Array.from(graph.nodes.values()).filter(node => node.type === 'asset');
+    let assets = Array.from(graph.nodes.values()).filter(node => node.type === 'asset').map(node => node.value);
 
     return {
       bundles: [{

@@ -5,8 +5,9 @@ const {mkdirp} = require('@parcel/fs');
 const path = require('path');
 
 class PackagerRunner {
-  constructor(options) {
-    this.cache = new Cache(options);
+  constructor(config, options) {
+    this.config = config;
+    this.cache = new Cache(config, options);
     this.dirExists = false;
   }
 
