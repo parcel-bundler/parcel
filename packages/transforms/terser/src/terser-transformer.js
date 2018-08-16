@@ -55,7 +55,9 @@ exports.transform = async function(module, config, options) {
 
   return [{
     type: 'js',
-    map: sourceMap,
-    code: result.code
+    blobs: {
+      code: result.code,
+      map: sourceMap
+    }
   }];
 }

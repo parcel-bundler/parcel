@@ -150,8 +150,8 @@ class TransformerRunner {
 
   async generate(transformer, asset, config) {
     let output = await transformer.generate(asset, config, this.options);
+    asset.blobs = output;
     asset.code = output.code;
-    asset.map = output.map;
     asset.ast = null;
   }
 }

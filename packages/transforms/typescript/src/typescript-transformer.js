@@ -50,7 +50,9 @@ exports.transform = async function(module, tsconfig, options) {
 
   return [{
     type: 'js',
-    map: sourceMap || null,
-    code: code
+    blobs: {
+      code: code,
+      map: sourceMap || null
+    }
   }];
 }

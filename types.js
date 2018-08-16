@@ -53,8 +53,8 @@ export type Asset = {
   filePath: FilePath,
   env: ModuleEnvironment,
   type: FileType,
-  code: string,
-  map: SourceMap | null,
+  contents: string,
+  blobs: JsonObject,
   meta: JsonObject,
   dependencies: Array<Dependency>,
   children: Array<Asset>
