@@ -40,7 +40,17 @@ describe('cache-v2', function () {
         type: 'js',
         blobs: {
           code: '// not hello world',
-          map: '{}'
+          map: {
+            hey: 'hey'
+          }
+        }
+      },
+      {
+        hash: md5('// some random buffer'),
+        type: 'js',
+        blobs: {
+          code: '// some random buffer',
+          buffer: new Buffer('hello world')
         }
       }
     ],
@@ -50,7 +60,9 @@ describe('cache-v2', function () {
         type: 'js',
         blobs: {
           code: '// hello world',
-          map: '{}'
+          map: {
+            hey: 'hey'
+          }
         }
       },
       {
@@ -73,12 +85,16 @@ describe('cache-v2', function () {
     cacheEntry = await cacheInstance.writeBlobs(cacheEntry);
 
     for (let child of cacheEntry.children) {
-      assert(!child.blobs.map.includes('{'));
+      if (child.blobs.map) {
+        assert(!child.blobs.map.includes('{'));
+      }
       assert(!child.blobs.code.includes('hello world'));
     }
 
     for (let result of cacheEntry.results) {
-      assert(!result.blobs.map.includes('{'));
+      if (result.blobs.map) {
+        assert(!result.blobs.map.includes('{'));
+      }
       assert(!result.blobs.code.includes('hello world'));
     }
 
@@ -94,12 +110,16 @@ describe('cache-v2', function () {
     cacheEntry = await cacheInstance.writeBlobs(cacheEntry);
 
     for (let child of cacheEntry.children) {
-      assert(!child.blobs.map.includes('{'));
+      if (child.blobs.map) {
+        assert(!child.blobs.map.includes('{'));
+      }
       assert(!child.blobs.code.includes('hello world'));
     }
 
     for (let result of cacheEntry.results) {
-      assert(!result.blobs.map.includes('{'));
+      if (result.blobs.map) {
+        assert(!result.blobs.map.includes('{'));
+      }
       assert(!result.blobs.code.includes('hello world'));
     }
 
@@ -107,14 +127,25 @@ describe('cache-v2', function () {
 
     cacheEntry = await cacheInstance.read(MOCK_PATH);
 
-    for (let child of cacheEntry.children) {
-      assert(!child.blobs.map.includes('{'));
-      assert(!child.blobs.code.includes('hello world'));
-    }
+    assert(!cacheEntry.children[0].blobs.map.includes('{'));
+    assert(!cacheEntry.children[0].blobs.code.includes('hello world'));
 
-    for (let result of cacheEntry.results) {
-      assert(!result.blobs.map.includes('{'));
-      assert(!result.blobs.code.includes('hello world'));
-    }
+    await cacheInstance.readBlobs(cacheEntry.children[0]);
+
+    assert.equal(typeof cacheEntry.children[0].blobs.map, 'string');
+    assert.equal(typeof cacheEntry.children[0].blobs.code, 'string');
+
+    assert(!cacheEntry.children[1].blobs.map.includes('{'));
+    assert(!cacheEntry.children[1].blobs.code.includes('hello world'));
+
+    await cacheInstance.readBlobs(cacheEntry.children[1]);
+    
+    assert.equal(typeof cacheEntry.children[1].blobs.map, 'object');
+    assert.equal(typeof cacheEntry.children[1].blobs.code, 'string');
+
+    await cacheInstance.readBlobs(cacheEntry.children[2]);
+    
+    assert.equal(typeof cacheEntry.children[2].blobs.code, 'string');
+    assert(Buffer.isBuffer(cacheEntry.children[2].blobs.buffer));
   });
 });

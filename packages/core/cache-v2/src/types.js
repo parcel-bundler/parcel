@@ -5,10 +5,11 @@ export type CacheHash = string; // CacheHash is a combination of cacheId and fil
 
 export type CachedAsset = {
   id: CacheHash, // Unique identifier
-  code: Path, // Path to code blob
-  map: Path, // Path to map blob
   type: string, // type of asset
-  deps: Array<Dependency> // Array of dependencies
+  deps: Array<Dependency>, // Array of dependencies
+  blobs: {
+    key: Path // Key path combo, key becomes the extension, bin and json are preserved for buffers and objects
+  }
 };
 
 export type CacheEntry = {

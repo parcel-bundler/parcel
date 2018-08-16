@@ -50,6 +50,14 @@ class Cache {
 
   async writeBlob(type, cacheId, data) {
     let blobPath = this.getCachePath(cacheId, '.' + type);
+    if (typeof data === 'object') {
+      if (Buffer.isBuffer(data)) {
+        blobPath += '.bin';
+      } else {
+        data = JSON.stringify(data);
+        blobPath += '.json';
+      }
+    }
     await fs.writeFile(blobPath, data);
     return blobPath;
   }
@@ -59,7 +67,7 @@ class Cache {
       assets.map(async asset => {
         let assetCacheId = this.getCacheId(asset.hash);
         for (let blobKey in asset.blobs) {
-          asset.blobs[blobKey] = await this.writeBlob(blobKey + '.' + asset.type, assetCacheId, asset.code);
+          asset.blobs[blobKey] = await this.writeBlob(blobKey, assetCacheId, asset.blobs[blobKey]);
         }
         return asset;
       })
@@ -89,11 +97,25 @@ class Cache {
   }
 
   async getCacheEntry(cacheId) {
-    return JSON.parse(await fs.readFile(this.getCachePath(cacheId), 'utf-8'));
+    return this.readBlob(this.getCachePath(cacheId));
   }
 
   async readBlob(blobKey) {
-    return fs.readFile(blobKey);
+    let extension = Path.extname(blobKey);
+    let data = await fs.readFile(blobKey, {
+      encoding: extension === '.bin' ? null : 'utf8'
+    });
+    if (extension === '.json') {
+      data = JSON.parse(data);
+    }
+    return data;
+  }
+
+  async readBlobs(asset) {
+    await Promise.all(Object.keys(asset.blobs).map(async blobKey => {
+      asset.blobs[blobKey] = await this.readBlob(asset.blobs[blobKey]);
+    }));
+    return asset;
   }
 
   async read(filePath) {
