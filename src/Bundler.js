@@ -144,9 +144,7 @@ class Bundler extends EventEmitter {
           ? options.contentHash
           : isProduction,
       throwErrors:
-        typeof options.throwErrors === 'boolean'
-          ? options.throwErrors
-          : process.env.NODE_ENV === 'test'
+        typeof options.throwErrors === 'boolean' ? options.throwErrors : true
     };
   }
 
@@ -252,7 +250,11 @@ class Bundler extends EventEmitter {
             this.buildQueue.add(asset);
             this.entryAssets.add(asset);
           } catch (err) {
-            throw new Error(`Failed to load entrypoint: ${entry}!`);
+            throw new Error(
+              `Failed to load entrypoint: "${entry}" in "${
+                this.options.rootDir
+              }"`
+            );
           }
         }
 
