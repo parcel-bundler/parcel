@@ -2629,9 +2629,9 @@ fsevents@^1.2.2:
     nan "^2.9.2"
     node-pre-gyp "^0.10.0"
 
-fswatcher-child@^1.0.3:
-  version "1.0.3"
-  resolved "https://registry.yarnpkg.com/fswatcher-child/-/fswatcher-child-1.0.3.tgz#c89076126a3004909f6f68c0ea5c9d9143b237fd"
+fswatcher-child@^1.0.5:
+  version "1.0.5"
+  resolved "https://registry.yarnpkg.com/fswatcher-child/-/fswatcher-child-1.0.5.tgz#134d012ffa74918975617e00e56e4139f36cb140"
   dependencies:
     chokidar "^2.0.3"
 

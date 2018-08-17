@@ -39,7 +39,7 @@
     "dotenv": "^5.0.0",
     "fast-glob": "^2.2.2",
     "filesize": "^3.6.0",
-    "fswatcher-child": "^1.0.3",
+    "fswatcher-child": "^1.0.5",
     "get-port": "^3.2.0",
     "grapheme-breaker": "^0.3.2",
     "htmlnano": "^0.1.9",
