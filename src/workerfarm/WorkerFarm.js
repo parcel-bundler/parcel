@@ -1,7 +1,7 @@
 const {EventEmitter} = require('events');
-const os = require('os');
 const errorUtils = require('./errorUtils');
 const Worker = require('./Worker');
+const cpuCount = require('../utils/cpuCount');
 
 let shared = null;
 class WorkerFarm extends EventEmitter {
@@ -258,17 +258,9 @@ class WorkerFarm extends EventEmitter {
   }
 
   static getNumWorkers() {
-    if (process.env.PARCEL_WORKERS) {
-      return parseInt(process.env.PARCEL_WORKERS, 10);
-    }
-
-    let cores;
-    try {
-      cores = require('physical-cpu-count');
-    } catch (err) {
-      cores = os.cpus().length;
-    }
-    return cores || 1;
+    return process.env.PARCEL_WORKERS
+      ? parseInt(process.env.PARCEL_WORKERS, 10)
+      : cpuCount();
   }
 
   static callMaster(request, awaitResponse = true) {
@@ -285,7 +277,7 @@ class WorkerFarm extends EventEmitter {
   }
 
   static getConcurrentCallsPerWorker() {
-    return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS) || 5;
+    return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
   }
 }
 
