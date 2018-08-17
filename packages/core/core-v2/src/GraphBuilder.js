@@ -27,7 +27,7 @@ class Querral {
   }
 }
 
-class AssetGraphBuilder {
+class GraphBuilder {
   constructor(config, options) {
     this.graph = new Graph();
 
@@ -107,4 +107,4 @@ class AssetGraphBuilder {
   }
 }
 
-module.exports = AssetGraphBuilder;
+module.exports = GraphBuilder;

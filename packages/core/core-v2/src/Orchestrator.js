@@ -1,7 +1,7 @@
 // @flow
 'use strict';
 const EventEmitter = require('events');
-const AssetGraphBuilder = require('./AssetGraphBuilder');
+const GraphBuilder = require('./GraphBuilder');
 // const BundleBuilder = require('./BundleBuilder');
 
 class Orchestrator extends EventEmitter {
@@ -11,11 +11,11 @@ class Orchestrator extends EventEmitter {
     // this.watcher = new Watcher();
     // this.hmrServer = new HmrServer();
 
-    this.assetGraphBuilder = new AssetGraphBuilder(config, options);
+    this.graphBuilder = new GraphBuilder(config, options);
     this.bundleBuilder = new BundleBuilder(config, options);
 
-    // this.assetGraphBuilder.on('complete', (assetGraph) => {
-    //   this.bundleBuilder.build(assetGraph);
+    // this.graphBuilder.on('complete', (graph) => {
+    //   this.bundleBuilder.build(graph);
     // });
   }
 
@@ -27,7 +27,7 @@ class Orchestrator extends EventEmitter {
     // if (serve) this.server.start();
 
     // this.watcher.on('change', event => {
-    //   this.assetGraphBuilder.emit('change', event);
+    //   this.graphBuilder.emit('change', event);
     //   controller.abort();
     //   this.bundle();
     // });
@@ -40,12 +40,12 @@ class Orchestrator extends EventEmitter {
   }
 
   async bundle(entries) {
-    let assetGraph = await this.assetGraphBuilder.build(entries);
-    await this.bundleBuilder.build(assetGraph);
+    let graph = await this.graphBuilder.build(entries);
+    await this.bundleBuilder.build(graph);
   }
 
   // async onChange(event) {
-  //   this.assetGraphBuilder.update(event);
+  //   this.graphBuilder.update(event);
   // }
 }
 
