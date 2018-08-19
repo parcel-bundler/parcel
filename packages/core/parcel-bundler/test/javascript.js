@@ -221,6 +221,14 @@ describe('javascript', function() {
           ]
         },
         {
+          assets: ['shared-worker.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
           assets: ['worker.js', 'common.js'],
           childBundles: [
             {
@@ -251,6 +259,14 @@ describe('javascript', function() {
         },
         {
           assets: ['service-worker.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          assets: ['shared-worker.js'],
           childBundles: [
             {
               type: 'map'
