@@ -117,6 +117,11 @@ describe('sass', function() {
       assets: ['index.js', 'index.scss'],
       childBundles: [
         {
+          type: 'jpeg',
+          assets: ['image.jpeg'],
+          childBundles: []
+        },
+        {
           type: 'map'
         },
         {
