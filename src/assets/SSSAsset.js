@@ -1,10 +1,10 @@
 const postcss = require('postcss');
 
 const localRequire = require('../utils/localRequire');
-const CSSAsset = require('./CSSAsset.js');
+const Asset = require('../Asset');
 const CSSAst = require('./Ast.js').CSSAst;
 
-class SSSAsset extends CSSAsset {
+class SSSAsset extends Asset {
   constructor(name, options) {
     super(name, options);
     this.type = 'css';
