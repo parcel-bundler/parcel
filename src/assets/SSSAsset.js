@@ -6,7 +6,6 @@ const CSSAst = require('./Ast.js').CSSAst;
 
 class SSSAsset extends CSSAsset {
   constructor(name, options) {
-    options.css_parser = "sugarss";
     super(name, options);
     this.type = 'css';
   }
