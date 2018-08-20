@@ -15,6 +15,16 @@ class SSSAsset extends CSSAsset {
     let root = postcss.parse(code, {from: this.name, to: this.name, parser: sugarss});
     return new CSSAst(code, root);
   }
+  
+  generate() {
+    return [
+      {
+        type: 'css',
+        value: this.ast ? this.ast.render() : this.contents
+      }
+    ];
+  }
+
 }
 
 module.exports = SSSAsset;
