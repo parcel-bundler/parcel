@@ -1,3 +1,5 @@
+const postcss = require('postcss');
+
 class CSSAst {
   constructor(css, root) {
     this.css = css;
