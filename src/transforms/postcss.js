@@ -53,15 +53,6 @@ async function getConfig(asset) {
     config.plugins.push(postcssModules(postcssModulesConfig));
   }
 
-  if (config.parser === undefined && asset.options.css_parser !== undefined) {
-      const name = asset.options.css_parser;
-
-      if ((typeof name !== "string")) throw "Internal Error: Invalid PostCSS parser type. Should be string";
-
-      let parser = await localRequire(name, asset.name);
-      config.parser = parser;
-  }
-
   if (asset.options.minify) {
     let [cssnano, {version}] = await Promise.all(
       ['cssnano', 'cssnano/package.json'].map(name =>
