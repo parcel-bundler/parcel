@@ -60,7 +60,7 @@ class WorkerFarm extends EventEmitter {
   }
 
   mkhandle(method) {
-    return function(...args) {
+    return (...args) => {
       // Child process workers are slow to start (~600ms).
       // While we're waiting, just run on the main thread.
       // This significantly speeds up startup time.
@@ -73,7 +73,7 @@ class WorkerFarm extends EventEmitter {
 
         return this.localWorker[method](...args, false);
       }
-    }.bind(this);
+    };
   }
 
   onError(error, worker) {
