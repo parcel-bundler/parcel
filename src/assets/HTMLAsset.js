@@ -64,7 +64,8 @@ const META = {
 const SCRIPT_TYPES = {
   'application/javascript': 'js',
   'text/javascript': 'js',
-  'application/json': false
+  'application/json': false,
+  'text/html': false
 };
 
 // Options to be passed to `addURLDependency` for certain tags + attributes
