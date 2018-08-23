@@ -132,6 +132,11 @@ class Resolver {
           path.basename(path.dirname(dir)) !== 'node_modules'
         ) {
           dir = path.dirname(dir);
+
+          if (dir === path.dirname(dir)) {
+            dir = this.options.rootDir;
+            break;
+          }
         }
 
         return path.join(dir, filename.slice(1));

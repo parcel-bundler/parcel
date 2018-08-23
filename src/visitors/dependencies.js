@@ -81,7 +81,7 @@ module.exports = {
 
     const isWebWorker =
       callee.type === 'Identifier' &&
-      callee.name === 'Worker' &&
+      (callee.name === 'Worker' || callee.name === 'SharedWorker') &&
       args.length === 1 &&
       types.isStringLiteral(args[0]);
 
