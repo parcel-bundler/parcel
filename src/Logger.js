@@ -79,7 +79,6 @@ class Logger {
             `parcel-debug-${currDate.toLocaleDateString()}@${currDate.toLocaleTimeString()}.log`
           )
         );
-        this.logFile.write = this.logFile.write.bind(this.logFile);
       }
       this.logFile.write(stripAnsi(message) + '\n');
     }
