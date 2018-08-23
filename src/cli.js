@@ -202,6 +202,7 @@ async function bundle(main, command) {
     };
   }
 
+  command.throwErrors = false;
   command.scopeHoist = command.experimentalScopeHoisting || false;
   const bundler = new Bundler(main, command);
 

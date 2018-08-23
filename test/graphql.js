@@ -35,4 +35,43 @@ describe('graphql', function() {
       `.definitions
     );
   });
+
+  it('should support importing other graphql files from a graphql file', async function() {
+    let b = await bundle(__dirname + '/integration/graphql-import/index.js');
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'local.graphql'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.deepEqual(
+      output().definitions,
+      gql`
+        {
+          user(id: 6) {
+            ...UserFragment
+            ...AnotherUserFragment
+          }
+        }
+
+        fragment UserFragment on User {
+          firstName
+          lastName
+        }
+
+        fragment AnotherUserFragment on User {
+          address
+          email
+        }
+
+      `.definitions
+    );
+  });
 });

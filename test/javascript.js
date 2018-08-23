@@ -28,6 +28,23 @@ describe('javascript', function() {
     assert.equal(output.default(), 3);
   });
 
+  it('should produce a basic JS bundle with object rest spread support', async function() {
+    let b = await bundle(
+      __dirname + '/integration/object-rest-spread/object-rest-spread.js'
+    );
+
+    assert.equal(b.assets.size, 1);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'object');
+    assert.equal(typeof output.default, 'function');
+
+    let res = output.default();
+    assert.equal(res.y, 'a');
+    assert.deepEqual(res.z, {y: 'a', b: 'b'});
+    assert.deepEqual(res.ys, {b: 'b'});
+  });
+
   it('should bundle node_modules on --target=browser', async function() {
     let b = await bundle(__dirname + '/integration/node_require/main.js', {
       target: 'browser'
@@ -204,6 +221,14 @@ describe('javascript', function() {
           ]
         },
         {
+          assets: ['shared-worker.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
           assets: ['worker.js', 'common.js'],
           childBundles: [
             {
@@ -234,6 +259,14 @@ describe('javascript', function() {
         },
         {
           assets: ['service-worker.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          assets: ['shared-worker.js'],
           childBundles: [
             {
               type: 'map'

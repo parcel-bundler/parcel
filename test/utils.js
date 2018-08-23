@@ -37,7 +37,8 @@ function bundler(file, opts) {
         cache: false,
         killWorkers: false,
         hmr: false,
-        logLevel: 0
+        logLevel: 0,
+        throwErrors: true
       },
       opts
     )
