@@ -1,0 +1,6 @@
+# import './another.graphql'
+
+fragment UserFragment on User {
+    firstName
+    lastName
+}
