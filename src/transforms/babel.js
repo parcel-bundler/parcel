@@ -131,11 +131,12 @@ async function getBabelConfig(asset) {
       hasPlugin(babelrc.presets, 'react') ||
       hasPlugin(babelrc.plugins, 'transform-react-jsx');
 
-    let hasFlow = hasPlugin(babelrc.plugins, 'transform-flow-strip-types');
-
     if (!hasReact) {
       mergeConfigs(babelrc, jsxConfig);
     }
+
+    // Add Flow stripping config if it isn't already specified in the babelrc
+    let hasFlow = hasPlugin(babelrc.plugins, 'transform-flow-strip-types');
 
     if (!hasFlow && flowConfig) {
       mergeConfigs(babelrc, flowConfig);
