@@ -2,7 +2,6 @@ const URL = require('url');
 const path = require('path');
 const clone = require('clone');
 const fs = require('./utils/fs');
-const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const config = require('./utils/config');
@@ -214,13 +213,7 @@ class Asset {
   }
 
   generateHash() {
-    let contentHash = '';
-    try {
-      contentHash = md5(this.contents);
-    } catch (err) {
-      // ignore
-    }
-    return md5(objectHash(this.generated) + contentHash);
+    return '';
   }
 
   invalidate() {

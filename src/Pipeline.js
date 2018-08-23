@@ -1,5 +1,6 @@
 const Parser = require('./Parser');
 const path = require('path');
+const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 
 /**
@@ -72,7 +73,6 @@ class Pipeline {
         }
 
         generated = generated.concat(processed);
-        asset.hash = md5(asset.hash + subAsset.hash);
       } else {
         generated.push(rendition);
       }
@@ -85,6 +85,8 @@ class Pipeline {
     } catch (err) {
       throw asset.generateErrorMessage(err);
     }
+
+    asset.hash = md5(objectHash(generated) + asset.hash);
 
     return generated;
   }
