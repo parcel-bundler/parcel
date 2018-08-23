@@ -8,6 +8,7 @@ const config = require('./utils/config');
 const syncPromise = require('./utils/syncPromise');
 const logger = require('./Logger');
 const Resolver = require('./Resolver');
+const objectHash = require('./utils/objectHash');
 
 /**
  * An Asset represents a file in the dependency tree. Assets can have multiple
@@ -202,7 +203,6 @@ class Asset {
       await this.getDependencies();
       await this.transform();
       this.generated = await this.generate();
-      this.hash = await this.generateHash();
     }
 
     return this.generated;
@@ -213,7 +213,7 @@ class Asset {
   }
 
   generateHash() {
-    return '';
+    return objectHash(this.generated);
   }
 
   invalidate() {
