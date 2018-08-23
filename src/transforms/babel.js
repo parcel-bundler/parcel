@@ -103,6 +103,7 @@ async function getBabelConfig(asset) {
 
   let envConfig = await getEnvConfig(asset, isSource);
   let jsxConfig = await getJSXConfig(asset, isSource);
+  let flowConfig = getFlowConfig(asset, isSource);
 
   // Merge the babel-preset-env config and the babelrc if needed
   if (babelrc && !shouldIgnoreBabelrc(asset.name, babelrc)) {
@@ -134,18 +135,32 @@ async function getBabelConfig(asset) {
       mergeConfigs(babelrc, jsxConfig);
     }
 
+    // Add Flow stripping config if it isn't already specified in the babelrc
+    let hasFlow = hasPlugin(babelrc.plugins, 'transform-flow-strip-types');
+
+    if (!hasFlow && flowConfig) {
+      mergeConfigs(babelrc, flowConfig);
+    }
+
     return babelrc;
   }
 
   // If there is a babel-preset-env config, and it isn't empty use that
-  if (envConfig && (envConfig.plugins.length > 0 || jsxConfig)) {
+  if (envConfig && (envConfig.plugins.length > 0 || jsxConfig || flowConfig)) {
     mergeConfigs(envConfig, jsxConfig);
+    mergeConfigs(envConfig, flowConfig);
+
     return envConfig;
   }
 
   // If there is a JSX config, return that
   if (jsxConfig) {
     return jsxConfig;
+  }
+
+  // If there is a Flow config, return that
+  if (flowConfig) {
+    return flowConfig;
   }
 
   // Otherwise, don't run babel at all
@@ -308,4 +323,18 @@ async function getJSXConfig(asset, isSourceModule) {
       internal: true
     };
   }
+}
+
+/**
+ * Generates a babel config for stripping away Flow types.
+ */
+function getFlowConfig(asset) {
+  if (/^(\/{2}|\/\*+) *@flow/.test(asset.contents.substring(0, 20))) {
+    return {
+      plugins: [[require('babel-plugin-transform-flow-strip-types')]],
+      internal: true
+    };
+  }
+
+  return null;
 }
