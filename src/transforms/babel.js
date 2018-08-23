@@ -131,16 +131,24 @@ async function getBabelConfig(asset) {
       hasPlugin(babelrc.presets, 'react') ||
       hasPlugin(babelrc.plugins, 'transform-react-jsx');
 
+    let hasFlow = hasPlugin(babelrc.plugins, 'transform-flow-strip-types');
+
     if (!hasReact) {
       mergeConfigs(babelrc, jsxConfig);
+    }
+
+    if (!hasFlow && flowConfig) {
+      mergeConfigs(babelrc, flowConfig);
     }
 
     return babelrc;
   }
 
   // If there is a babel-preset-env config, and it isn't empty use that
-  if (envConfig && (envConfig.plugins.length > 0 || jsxConfig)) {
+  if (envConfig && (envConfig.plugins.length > 0 || jsxConfig || flowConfig)) {
     mergeConfigs(envConfig, jsxConfig);
+    mergeConfigs(envConfig, flowConfig);
+
     return envConfig;
   }
 
