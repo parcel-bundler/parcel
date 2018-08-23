@@ -40,13 +40,6 @@ class SASSAsset extends Asset {
         ? opts.indentedSyntax
         : type === 'sass';
 
-    opts.functions = Object.assign({}, opts.functions, {
-      'url($url)': url => {
-        let filename = this.addURLDependency(url.getValue());
-        return new sass.types.String(`url(${JSON.stringify(filename)})`);
-      }
-    });
-
     opts.importer = opts.importer || [];
     opts.importer = Array.isArray(opts.importer)
       ? opts.importer
@@ -83,8 +76,7 @@ class SASSAsset extends Asset {
     return [
       {
         type: 'css',
-        value: this.ast ? this.ast.css.toString() : '',
-        hasDependencies: false
+        value: this.ast ? this.ast.css.toString() : ''
       }
     ];
   }
