@@ -311,11 +311,8 @@ async function getJSXConfig(asset, isSourceModule) {
 /**
  * Generates a babel config for stripping away Flow types.
  */
-function getFlowConfig(asset, isSourceModule) {
-  if (
-    !isSourceModule &&
-    asset.contents.substring(0, 20).indexOf('@flow') > -1
-  ) {
+function getFlowConfig(asset) {
+  if (/^(\/{2}|\/\*+) *@flow/.test(asset.contents.substring(0, 20))) {
     return {
       plugins: [[require('babel-plugin-transform-flow-strip-types')]],
       internal: true
