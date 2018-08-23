@@ -251,7 +251,7 @@ class Bundler extends EventEmitter {
             this.entryAssets.add(asset);
           } catch (err) {
             throw new Error(
-              `Failed to load entrypoint: "${entry}" in "${
+              `Cannot resolve entry "${entry}" from "${
                 this.options.rootDir
               }"`
             );
@@ -259,7 +259,7 @@ class Bundler extends EventEmitter {
         }
 
         if (this.entryAssets.size === 0) {
-          throw new Error('No entrypoint(s) found.');
+          throw new Error('No entries found.');
         }
 
         initialised = true;
