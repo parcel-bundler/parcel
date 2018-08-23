@@ -251,9 +251,7 @@ class Bundler extends EventEmitter {
             this.entryAssets.add(asset);
           } catch (err) {
             throw new Error(
-              `Cannot resolve entry "${entry}" from "${
-                this.options.rootDir
-              }"`
+              `Cannot resolve entry "${entry}" from "${this.options.rootDir}"`
             );
           }
         }
