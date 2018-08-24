@@ -335,7 +335,7 @@ class Bundler extends EventEmitter {
 
       if (this.options.throwErrors && !this.hmr) {
         throw err;
-      } else if (process.env.NODE_ENV === 'production' || !initialised) {
+      } else if (!this.options.watch || !initialised) {
         await this.stop();
         process.exit(1);
       }
