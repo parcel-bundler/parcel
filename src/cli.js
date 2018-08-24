@@ -132,6 +132,7 @@ program
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
+  .option('--no-content-hash', 'disable content hashing')
   .option(
     '--experimental-scope-hoisting',
     'enable experimental scope hoisting/tree shaking support'
@@ -189,8 +190,11 @@ async function bundle(main, command) {
   const Bundler = require('../');
 
   if (command.name() === 'build') {
-    command.production = true;
-    process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+    command.watch = false;
+    process.env.NODE_ENV =
+      process.env.NODE_ENV || command.contentHash
+        ? 'production'
+        : 'development';
   } else {
     process.env.NODE_ENV = process.env.NODE_ENV || 'development';
   }
