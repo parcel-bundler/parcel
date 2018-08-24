@@ -1,6 +1,5 @@
 const Parser = require('./Parser');
 const path = require('path');
-const md5 = require('./utils/md5');
 
 /**
  * A Pipeline composes multiple Asset types together.
@@ -72,19 +71,20 @@ class Pipeline {
         }
 
         generated = generated.concat(processed);
-        asset.hash = md5(asset.hash + subAsset.hash);
       } else {
         generated.push(rendition);
       }
     }
 
     // Post process. This allows assets a chance to modify the output produced by sub-asset types.
-    asset.generated = generated;
     try {
       generated = await asset.postProcess(generated);
     } catch (err) {
       throw asset.generateErrorMessage(err);
     }
+
+    asset.generated = generated;
+    asset.hash = await asset.generateHash();
 
     return generated;
   }
