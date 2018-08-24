@@ -29,6 +29,7 @@ class Parser {
     this.registerExtension('css', './assets/CSSAsset');
     this.registerExtension('pcss', './assets/CSSAsset');
     this.registerExtension('postcss', './assets/CSSAsset');
+    this.registerExtension('sss', './assets/SSSAsset');
     this.registerExtension('styl', './assets/StylusAsset');
     this.registerExtension('stylus', './assets/StylusAsset');
     this.registerExtension('less', './assets/LESSAsset');
