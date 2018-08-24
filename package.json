@@ -14,13 +14,12 @@
     "src/",
     "index.js"
   ],
-  "bolt": {
-    "workspaces": [
-      "packages/*/*",
-      "!packages/integration-tests/*",
-      "packages/integration-tests"
-    ]
-  },
+  "private": true,
+  "workspaces": [
+    "packages/*/*",
+    "!packages/integration-tests/*",
+    "packages/integration-tests"
+  ],
   "dependencies": {
     "ansi-to-html": "^0.6.4",
     "babel-code-frame": "^6.26.0",
@@ -68,6 +67,7 @@
     "posthtml": "^0.11.2",
     "posthtml-parser": "^0.4.0",
     "posthtml-render": "^1.1.3",
+    "pretty-format": "^23.5.0",
     "resolve": "^1.4.0",
     "resolve-from": "^4.0.0",
     "semver": "^5.4.1",

@@ -1,0 +1,11 @@
+{
+  "name": "@parcel/simple-example",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "build": "parcel src/index.js"
+  },
+  "devDependencies": {
+    "@parcel/core-v2": "1.9.3"
+  }
+}

@@ -2,7 +2,7 @@
   "name": "@parcel/core-v2",
   "version": "1.9.3",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "index.json",
+  "main": "index.js",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -24,10 +24,17 @@
     "@parcel/transform-terser": "^1.9.3",
     "@parcel/transform-typescript": "^1.9.3",
     "@parcel/utils": "^1.9.3",
+    "chalk": "^2.1.0",
+    "commander": "^2.11.0",
     "graphviz": "^0.0.8",
     "minimatch": "^3.0.4",
     "p-queue": "^2.4.2",
+    "pretty-format": "^23.5.0",
     "resolve-from": "^4.0.0",
-    "tempy": "^0.2.1"
+    "tempy": "^0.2.1",
+    "v8-compile-cache": "^2.0.0"
+  },
+  "bin": {
+    "parcel": "bin/cli.js"
   }
 }
