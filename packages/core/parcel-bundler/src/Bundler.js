@@ -600,6 +600,8 @@ class Bundler extends EventEmitter {
       }
     });
 
+    logger.verbose(`Built ${asset.relativeName}...`);
+
     if (this.cache && cacheMiss) {
       this.cache.write(asset.name, processed);
     }

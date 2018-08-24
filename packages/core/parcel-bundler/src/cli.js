@@ -58,8 +58,8 @@ program
   .option('-V, --version', 'output the version number')
   .option(
     '--log-level <level>',
-    'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
-    /^([0-3])$/
+    'set the log level, either "0" (no output), "1" (errors), "2" (warnings), "3" (info), "4" (verbose) or "5" (debug, creates a log file).',
+    /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
   .action(bundle);
@@ -107,8 +107,8 @@ program
   )
   .option(
     '--log-level <level>',
-    'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
-    /^([0-3])$/
+    'set the log level, either "0" (no output), "1" (errors), "2" (warnings), "3" (info), "4" (verbose) or "5" (debug, creates a log file).',
+    /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
   .action(bundle);
@@ -151,8 +151,8 @@ program
   )
   .option(
     '--log-level <level>',
-    'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
-    /^([0-3])$/
+    'set the log level, either "0" (no output), "1" (errors), "2" (warnings), "3" (info), "4" (verbose) or "5" (debug, creates a log file).',
+    /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
   .action(bundle);
