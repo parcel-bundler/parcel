@@ -17,9 +17,5 @@ describe('schema ld+json', function() {
         }
       ]
     });
-
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 3);
   });
 });
