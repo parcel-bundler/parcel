@@ -49,7 +49,8 @@ const META = {
     'msapplication-square310x310logo',
     'msapplication-square70x70logo',
     'msapplication-wide310x150logo',
-    'msapplication-TileImage'
+    'msapplication-TileImage',
+    'msapplication-config'
   ],
   itemprop: [
     'image',
