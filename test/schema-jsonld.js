@@ -1,9 +1,10 @@
-const assert = require('assert');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, assertBundleTree} = require('./utils');
 
 describe('schema ld+json', function() {
   it('Should parse a LD+JSON schema and collect dependencies', async function() {
-    let b = await bundle(__dirname + '/integration/schema-jsonld/index.html');
+    let b = await bundle(__dirname + '/integration/schema-jsonld/index.html', {
+      production: true
+    });
 
     await assertBundleTree(b, {
       name: 'index.html',

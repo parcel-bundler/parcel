@@ -3,12 +3,12 @@ const Asset = require('../Asset');
 // A list of all attributes in a schema that may produce a dependency
 // Based on https://schema.org/Place
 const SCHEMA_ATTRS = [
-  "logo",
-  "photo",
-  "image",
-  "thumbnail",
-  "screenshot",
-  "screenshot"
+  'logo',
+  'photo',
+  'image',
+  'thumbnail',
+  'screenshot',
+  'screenshot'
 ];
 
 class JSONLDAsset extends Asset {
@@ -25,9 +25,12 @@ class JSONLDAsset extends Asset {
     for (let schemaKey in this.ast) {
       // only check for single values, not nested data
       // todo: check for nested data
-      if (SCHEMA_ATTRS.includes(schemaKey) && typeof this.ast[schemaKey] === 'string') {
+      if (
+        SCHEMA_ATTRS.includes(schemaKey) &&
+        typeof this.ast[schemaKey] === 'string'
+      ) {
         this.ast[schemaKey] = this.addURLDependency(this.ast[schemaKey]);
-        this.isAstDirty = true
+        this.isAstDirty = true;
       }
     }
   }
