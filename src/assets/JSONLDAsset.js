@@ -23,7 +23,9 @@ class JSONLDAsset extends Asset {
 
   collectDependencies() {
     for (let schemaKey in this.ast) {
-      if (SCHEMA_ATTRS.includes(schemaKey)) {
+      // only check for single values, not nested data
+      // todo: check for nested data
+      if (SCHEMA_ATTRS.includes(schemaKey) && typeof this.ast[schemaKey] === 'string') {
         this.ast[schemaKey] = this.addURLDependency(this.ast[schemaKey]);
         this.isAstDirty = true
       }
