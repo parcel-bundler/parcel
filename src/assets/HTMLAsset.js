@@ -254,7 +254,8 @@ class HTMLAsset extends Asset {
         }
 
         // Delete "type" attribute, since CSS and JS are the defaults.
-        if (node.attrs) {
+        // Unless it's application/ld+json
+        if (node.attrs && node.attrs.type !== 'application/ld+json') {
           delete node.attrs.type;
         }
       }
