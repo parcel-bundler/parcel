@@ -2,14 +2,7 @@ const Asset = require('../Asset');
 
 // A list of all attributes in a schema that may produce a dependency
 // Based on https://schema.org/Place
-const SCHEMA_ATTRS = [
-  'logo',
-  'photo',
-  'image',
-  'thumbnail',
-  'screenshot',
-  'screenshot'
-];
+const SCHEMA_ATTRS = ['logo', 'photo', 'image', 'thumbnail', 'screenshot'];
 
 class JSONLDAsset extends Asset {
   constructor(name, options) {
