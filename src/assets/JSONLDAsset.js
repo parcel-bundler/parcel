@@ -5,7 +5,10 @@ const Asset = require('../Asset');
 const SCHEMA_ATTRS = [
   "logo",
   "photo",
-  "image"
+  "image",
+  "thumbnail",
+  "screenshot",
+  "screenshot"
 ];
 
 class JSONLDAsset extends Asset {
