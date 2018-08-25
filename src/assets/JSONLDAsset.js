@@ -11,7 +11,7 @@ const SCHEMA_ATTRS = [
 class JSONLDAsset extends Asset {
   constructor(name, options) {
     super(name, options);
-    this.type = 'json-ld';
+    this.type = 'jsonld';
   }
 
   parse(content) {
