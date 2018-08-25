@@ -29,7 +29,11 @@ class JSONLDAsset extends Asset {
   }
 
   generate() {
-    return JSON.stringify(this.ast);
+    if (this.options.production) {
+      return JSON.stringify(this.ast);
+    } else {
+      return JSON.stringify(this.ast, null, 2);
+    }
   }
 }
 
