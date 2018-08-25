@@ -248,7 +248,8 @@ class HTMLAsset extends Asset {
       } else if (type === 'tag') {
         if (
           (rendition.type === 'js' && node.tag === 'script') ||
-          (rendition.type === 'css' && node.tag === 'style')
+          (rendition.type === 'css' && node.tag === 'style') ||
+          (rendition.type === 'jsonld' && node.tag === 'script')
         ) {
           node.content = rendition.value;
         }
