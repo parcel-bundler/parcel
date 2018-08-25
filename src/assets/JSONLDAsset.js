@@ -1,3 +1,5 @@
+const urlJoin = require('../utils/urlJoin');
+const isURL = require('../utils/is-url');
 const Asset = require('../Asset');
 
 // A list of all attributes in a schema that may produce a dependency
@@ -30,8 +32,19 @@ class JSONLDAsset extends Asset {
         SCHEMA_ATTRS.includes(schemaKey) &&
         typeof this.ast[schemaKey] === 'string'
       ) {
-        this.ast[schemaKey] = this.addURLDependency(this.ast[schemaKey]);
+        // paths aren't allowed, values must be urls
+        let assetPath = this.addURLDependency(this.ast[schemaKey]);
+        if (!isURL(assetPath)) {
+          assetPath = urlJoin(this.options.publicURL, assetPath);
+        }
+        this.ast[schemaKey] = assetPath;
         this.isAstDirty = true;
+
+        if (this.options.publicURL === '/') {
+          console.warn(
+            "Please specify publicURL using --public-url, otherwise schema asset links won't work"
+          );
+        }
       }
     }
   }
