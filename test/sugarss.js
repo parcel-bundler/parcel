@@ -23,6 +23,5 @@ describe('sugarss', function() {
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
-
-  })
-})
+  });
+});

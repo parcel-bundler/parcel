@@ -3,7 +3,7 @@ const postcss = require('postcss');
 const valueParser = require('postcss-value-parser');
 const postcssTransform = require('../transforms/postcss');
 const CssSyntaxError = require('postcss/lib/css-syntax-error');
-const CSSAst = require('./Ast.js').CSSAst;
+const CSSAst = require('./CSSAst');
 
 const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;

@@ -17,4 +17,4 @@ class CSSAst {
   }
 }
 
-module.exports.CSSAst = CSSAst;
+module.exports = CSSAst;
