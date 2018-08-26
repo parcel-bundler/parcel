@@ -3,7 +3,8 @@ const {bundle, assertBundleTree} = require('./utils');
 describe('schema ld+json', function() {
   it('Should parse a LD+JSON schema and collect dependencies', async function() {
     let b = await bundle(__dirname + '/integration/schema-jsonld/index.html', {
-      production: true
+      production: true,
+      publicURL: 'https://place.holder/'
     });
 
     await assertBundleTree(b, {
@@ -15,6 +16,9 @@ describe('schema ld+json', function() {
         },
         {
           type: 'png'
+        },
+        {
+          type: 'css'
         }
       ]
     });
