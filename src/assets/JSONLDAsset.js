@@ -1,6 +1,7 @@
 const urlJoin = require('../utils/urlJoin');
 const isURL = require('../utils/is-url');
 const Asset = require('../Asset');
+const logger = require('../Logger');
 
 // A list of all attributes in a schema that may produce a dependency
 // Based on https://schema.org/ImageObject
@@ -25,27 +26,35 @@ class JSONLDAsset extends Asset {
   }
 
   collectDependencies() {
-    for (let schemaKey in this.ast) {
-      // only check for single values, not nested data
-      // todo: check for nested data
-      if (
-        SCHEMA_ATTRS.includes(schemaKey) &&
-        typeof this.ast[schemaKey] === 'string'
-      ) {
-        // paths aren't allowed, values must be urls
-        let assetPath = this.addURLDependency(this.ast[schemaKey]);
-        if (!isURL(assetPath)) {
-          assetPath = urlJoin(this.options.publicURL, assetPath);
-        }
-        this.ast[schemaKey] = assetPath;
-        this.isAstDirty = true;
+    if (!this.options.publicURL.startsWith('http')) {
+      logger.warn(
+        "Please specify a publicURL using --public-url, otherwise schema asset links won't work"
+      );
+      return;
+    }
 
-        if (this.options.publicURL === '/') {
-          console.warn(
-            "Please specify publicURL using --public-url, otherwise schema asset links won't work"
-          );
-        }
+    for (let schemaKey in this.ast) {
+      // values can be strings or objects
+      if (SCHEMA_ATTRS.includes(schemaKey)) {
+        this.collectFromKey(this.ast, schemaKey);
+        this.isAstDirty = true;
       }
+    }
+  }
+
+  collectFromKey(schema, schemaKey) {
+    // paths aren't allowed, values must be urls
+    if (!schema.hasOwnProperty(schemaKey)) {
+      return;
+    }
+    if (typeof schema[schemaKey] !== 'string') {
+      this.collectFromKey(schema[schemaKey], 'url');
+    } else {
+      let assetPath = this.addURLDependency(schema[schemaKey]);
+      if (!isURL(assetPath)) {
+        assetPath = urlJoin(this.options.publicURL, assetPath);
+      }
+      schema[schemaKey] = assetPath;
     }
   }
 
