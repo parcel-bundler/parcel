@@ -1,7 +1,6 @@
 const postcss = require('postcss');
 const localRequire = require('../utils/localRequire');
 const Asset = require('../Asset');
-const CSSAst = require('./CSSAst');
 
 class SSSAsset extends Asset {
   constructor(name, options) {
@@ -9,23 +8,21 @@ class SSSAsset extends Asset {
     this.type = 'css';
   }
 
-  async parse(code) {
+  async generate() {
     let sugarss = await localRequire('sugarss', this.name);
-    let root = postcss.parse(code, {
+
+    await this.loadIfNeeded();
+
+    let {css} = await postcss().process(this.contents, {
       from: this.name,
       to: this.name,
       parser: sugarss
     });
-    return new CSSAst(code, root);
-  }
-
-  async generate() {
-    await this.parseIfNeeded();
 
     return [
       {
         type: 'css',
-        value: this.ast.render()
+        value: css
       }
     ];
   }

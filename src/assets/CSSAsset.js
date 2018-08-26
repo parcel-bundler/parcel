@@ -3,7 +3,6 @@ const postcss = require('postcss');
 const valueParser = require('postcss-value-parser');
 const postcssTransform = require('../transforms/postcss');
 const CssSyntaxError = require('postcss/lib/css-syntax-error');
-const CSSAst = require('./CSSAst');
 
 const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
@@ -163,6 +162,23 @@ class CSSAsset extends Asset {
     }
 
     return err;
+  }
+}
+
+class CSSAst {
+  constructor(css, root) {
+    this.css = css;
+    this.root = root;
+    this.dirty = false;
+  }
+
+  render() {
+    if (this.dirty) {
+      this.css = '';
+      postcss.stringify(this.root, c => (this.css += c));
+    }
+
+    return this.css;
   }
 }
 

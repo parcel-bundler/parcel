@@ -1,27 +1,21 @@
 const assert = require('assert');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, assertBundleTree} = require('./utils');
+const fs = require('../src/utils/fs');
+const path = require('path');
 
 describe('sugarss', function() {
   it('should correctly parse SugarSS asset', async function() {
-    let b = await bundle(__dirname + '/integration/sugarss/index.js');
+    let b = await bundle(__dirname + '/integration/sugarss/index.sss');
 
     await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.sss'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.sss'],
-          childBundles: []
-        }
-      ]
+      name: 'index.css',
+      assets: ['index.sss']
     });
 
-    let output = await run(b);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 2);
+    let cssContent = await fs.readFile(
+      path.join(__dirname, '/dist/index.css'),
+      'utf8'
+    );
+    assert(cssContent.includes('{'));
   });
 });
