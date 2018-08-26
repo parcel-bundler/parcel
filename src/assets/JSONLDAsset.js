@@ -34,7 +34,6 @@ class JSONLDAsset extends Asset {
     }
 
     for (let schemaKey in this.ast) {
-      // values can be strings or objects
       if (SCHEMA_ATTRS.includes(schemaKey)) {
         this.collectFromKey(this.ast, schemaKey);
         this.isAstDirty = true;
@@ -42,19 +41,22 @@ class JSONLDAsset extends Asset {
     }
   }
 
+  // Auxiliary method for collectDependencies() to use for recursion
   collectFromKey(schema, schemaKey) {
-    // paths aren't allowed, values must be urls
     if (!schema.hasOwnProperty(schemaKey)) {
       return;
     }
-    if (typeof schema[schemaKey] !== 'string') {
-      this.collectFromKey(schema[schemaKey], 'url');
-    } else {
+    // values can be strings or objects
+    // if it's not a string, it should have a url
+    if (typeof schema[schemaKey] === 'string') {
       let assetPath = this.addURLDependency(schema[schemaKey]);
       if (!isURL(assetPath)) {
+        // paths aren't allowed, values must be urls
         assetPath = urlJoin(this.options.publicURL, assetPath);
       }
       schema[schemaKey] = assetPath;
+    } else {
+      this.collectFromKey(schema[schemaKey], 'url');
     }
   }
 
