@@ -12,7 +12,11 @@ const SCHEMA_ATTRS = [
   'image',
   'thumbnail',
   'screenshot',
-  'primaryImageOfPage'
+  'primaryImageOfPage',
+  'embedUrl',
+  'thumbnailUrl',
+  'video',
+  'contentUrl'
 ];
 
 class JSONLDAsset extends Asset {
@@ -28,7 +32,7 @@ class JSONLDAsset extends Asset {
   collectDependencies() {
     if (!this.options.publicURL.startsWith('http')) {
       logger.warn(
-        "Please specify a publicURL using --public-url, otherwise schema asset links won't work"
+        "Please specify a publicURL using --public-url, otherwise schema assets won't be collected"
       );
       return;
     }
