@@ -49,22 +49,26 @@ module.exports = (packager, ast) => {
     }
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
-    if (!node && !mod.cacheData.isCommonJS && mod.cacheData.isES6Module) {
+    else if (!node && !mod.cacheData.isCommonJS && mod.cacheData.isES6Module) {
       let relativePath = relative(packager.options.rootDir, mod.name);
       throw new Error(`${relativePath} does not export '${name}'`);
     }
 
     // If it is CommonJS, look for an exports object.
-    if (!node && mod.cacheData.isCommonJS) {
+    else if (!node && mod.cacheData.isCommonJS) {
       node = findSymbol(path, getName(mod, 'exports'));
-      if (!node) {
-        return null;
-      }
 
-      return interop(mod, name, path, node);
+      if (node) {
+        return interop(mod, name, path, node);
+      }
     }
 
-    return node;
+    // If the export does not exist, replace with an empty object.
+    if (!node) {
+      node = t.objectExpression([]);
+    }
+
+    path.replaceWith(node);
   }
 
   function findSymbol(path, symbol) {
@@ -80,35 +84,69 @@ module.exports = (packager, ast) => {
     return null;
   }
 
+  function evalModuleExports(binding) {
+    if (binding && binding.constant) {
+      let pure = !binding.referencePaths.some(
+        path => !path.getData('pureReference', true)
+      );
+
+      if (pure) {
+        let {confident, value} = binding.path.get('init').evaluate();
+
+        if (confident) {
+          return value;
+        }
+      }
+    }
+
+    return null;
+  }
+
   function interop(mod, originalName, path, node) {
     // Handle interop for default imports of CommonJS modules.
     if (mod.cacheData.isCommonJS && originalName === 'default') {
       let name = getName(mod, '$interop$default');
       if (!path.scope.getBinding(name)) {
-        let [decl] = path.getStatementParent().insertBefore(
-          DEFAULT_INTEROP_TEMPLATE({
-            NAME: t.identifier(name),
-            MODULE: node
-          })
-        );
-
         let binding = path.scope.getBinding(getName(mod, 'exports'));
-        if (binding) {
-          binding.reference(decl.get('declarations.0.init'));
-        }
+        let staticExports = evalModuleExports(binding);
 
-        path.scope.registerDeclaration(decl);
+        if (staticExports) {
+          if (!staticExports.__esModule) {
+            path.replaceWith(binding.identifier);
+            path.setData('pureReference', true);
+          } else {
+            path.replaceWith(
+              t.memberExpression(binding.identifier, t.identifier('default'))
+            );
+            path.get('object').setData('pureReference', true);
+          }
+
+          return;
+        } else {
+          let [decl] = path.getStatementParent().insertBefore(
+            DEFAULT_INTEROP_TEMPLATE({
+              NAME: t.identifier(name),
+              MODULE: node
+            })
+          );
+
+          if (binding) {
+            binding.reference(decl.get('declarations.0.init'));
+          }
+
+          path.scope.registerDeclaration(decl);
+        }
       }
 
-      return t.memberExpression(t.identifier(name), t.identifier('d'));
+      node = t.memberExpression(t.identifier(name), t.identifier('d'));
     }
 
     // if there is a CommonJS export return $id$exports.name
-    if (originalName !== '*') {
-      return t.memberExpression(node, t.identifier(originalName));
+    else if (originalName !== '*') {
+      node = t.memberExpression(node, t.identifier(originalName));
     }
 
-    return node;
+    path.replaceWith(node);
   }
 
   function isUnusedValue(path) {
@@ -314,15 +352,7 @@ module.exports = (packager, ast) => {
 
       if (imports.has(name)) {
         let imp = imports.get(name);
-        let node = replaceExportNode(imp[0], imp[1], path);
-
-        // If the export does not exist, replace with an empty object.
-        if (!node) {
-          node = t.objectExpression([]);
-        }
-
-        path.replaceWith(node);
-        return;
+        return replaceExportNode(imp[0], imp[1], path);
       }
 
       let match = name.match(EXPORTS_RE);
