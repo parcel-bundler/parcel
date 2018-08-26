@@ -112,6 +112,13 @@ module.exports = {
       });
 
       path.scope.setData('shouldWrap', shouldWrap);
+
+      if (!shouldWrap) {
+        path.scope.push({
+          id: getExportsIdentifier(asset),
+          init: t.objectExpression([])
+        });
+      }
     },
 
     exit(path, asset) {
@@ -154,6 +161,30 @@ module.exports = {
           !scope.hasBinding(exportsIdentifier.name)
         ) {
           scope.push({id: exportsIdentifier, init: t.objectExpression([])});
+        } else {
+          let exportsBinding = scope.getBinding(exportsIdentifier.name);
+
+          // Remove module.exports if it's not referenced.
+          if (exportsBinding.references === 0) {
+            if (exportsBinding.constantViolations.length === 0) {
+              exportsBinding.path.remove();
+            }
+            // If module.exports is only assigned one time and never referenced simplify it to one variable declaration.
+            else if (exportsBinding.constantViolations.length === 1) {
+              let [{node, parentPath}] = exportsBinding.constantViolations;
+
+              // It's only safe to replace it with a variable if the assignment is in an ExpressionStatement.
+              // (ie. `var foo = (baz(), module.exports = 'foo')` is not safe)
+              if (parentPath.isExpressionStatement()) {
+                exportsBinding.path.remove();
+                parentPath.replaceWith(
+                  t.variableDeclaration('var', [
+                    t.variableDeclarator(exportsIdentifier, node.right)
+                  ])
+                );
+              }
+            }
+          }
         }
       }
 

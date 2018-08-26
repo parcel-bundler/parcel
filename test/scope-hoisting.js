@@ -821,6 +821,22 @@ describe('scope hoisting', function() {
       assert(!contents.includes('bar'));
     });
 
+    // TODO(fathyb): reenable when minification is improved
+    it.skip('removes unused JSON fields', async function() {
+      let b = await bundle(
+        __dirname +
+          '/integration/scope-hoisting/commonjs/tree-shaking-json/a.js',
+        {minify: true}
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 2);
+
+      let contents = await fs.readFile(__dirname + '/dist/a.js', 'utf8');
+      assert(contents.includes('foo'));
+      assert(!contents.includes('bar'));
+    });
+
     it('supports removing an unused inline export with uglify minification', async function() {
       // Uglify does strange things to multiple assignments in a line.
       // See https://github.com/parcel-bundler/parcel/issues/1549
