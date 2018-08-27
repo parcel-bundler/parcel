@@ -5577,6 +5577,14 @@ postcss@^6.0.1, postcss@^6.0.19, postcss@^6.0.20:
     source-map "^0.6.1"
     supports-color "^5.4.0"
 
+postcss@^7.0.2:
+  version "7.0.2"
+  resolved "https://registry.yarnpkg.com/postcss/-/postcss-7.0.2.tgz#7b5a109de356804e27f95a960bef0e4d5bc9bb18"
+  dependencies:
+    chalk "^2.4.1"
+    source-map "^0.6.1"
+    supports-color "^5.4.0"
+
 posthtml-extend@^0.2.1:
   version "0.2.1"
   resolved "https://registry.yarnpkg.com/posthtml-extend/-/posthtml-extend-0.2.1.tgz#d023ce7ce4dd6071071b50e315dfefa87da8a979"
@@ -6665,6 +6673,12 @@ stylus@0.54.5, stylus@^0.54.5:
     mkdirp "0.5.x"
     sax "0.5.x"
     source-map "0.1.x"
+
+sugarss@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/sugarss/-/sugarss-2.0.0.tgz#ddd76e0124b297d40bf3cca31c8b22ecb43bc61d"
+  dependencies:
+    postcss "^7.0.2"
 
 supports-color@4.4.0:
   version "4.4.0"
