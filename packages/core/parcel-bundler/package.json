@@ -104,6 +104,7 @@
     "sinon": "^5.0.1",
     "sourcemap-validator": "^1.0.6",
     "stylus": "^0.54.5",
+    "sugarss": "^2.0.0",
     "typescript": "^3.0.0",
     "vue": "^2.5.16",
     "vue-template-compiler": "^2.5.16"
