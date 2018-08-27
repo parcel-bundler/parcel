@@ -2,6 +2,8 @@
 'use strict';
 const EventEmitter = require('events');
 const path = require('path');
+const Watcher = require('@parcel/watcher');
+const { AbortController } = require('abortcontroller-polyfill/dist/cjs-ponyfill');
 const GraphBuilder = require('./GraphBuilder');
 const BundleBuilder = require('./BundleBuilder');
 
@@ -9,51 +11,46 @@ const BundleBuilder = require('./BundleBuilder');
 const config = require('@parcel/config-default');
 
 class Orchestrator extends EventEmitter {
-  constructor(entryFiles, options) {
+  constructor(entries, options) {
     super();
 
     this.cwd = process.cwd();
-    // this.watcher = new Watcher();
+    this.entries = entries;
+    this.watcher = new Watcher();
     // this.hmrServer = new HmrServer();
 
     this.graphBuilder = new GraphBuilder(config, {});
     this.bundleBuilder = new BundleBuilder(config, options);
-
-    // this.graphBuilder.on('complete', (graph) => {
-    //   this.bundleBuilder.build(graph);
-    // });
   }
 
-  async run(entries) {
-    // let controller = new AbortController();
-    // let signal = controller.signal;
+  async run() {
+    let controller = new AbortController();
+    let signal = controller.signal;
 
-    // if (watch) this.watcher.start();
-    // if (serve) this.server.start();
+    if (/* this.options.watch */ true) this.watcher.watch(this.cwd);
 
-    // this.watcher.on('change', event => {
-    //   this.graphBuilder.emit('change', event);
-    //   controller.abort();
-    //   this.bundle();
-    // });
+    this.watcher.on('change', event => {
+      controller.abort();
+      this.graphBuilder.handleChange(event);
 
-    await this.bundle(entries);
-
-    // if (this.watcher.running) {
-    //   await this.watcher.complete();
-    // }
-  }
-
-  async bundle(entries) {
-    let graph = await this.graphBuilder.build(this.cwd, entries);
-    await this.bundleBuilder.build(graph, {
-      destFolder: path.join(this.cwd, 'dist') // TODO: get through config instead of hardcoding
+      controller = new AbortController();
+      signal = controller.signal;
+      this.bundle({ signal });
     });
   }
 
-  // async onChange(event) {
-  //   this.graphBuilder.update(event);
-  // }
+  async bundle({ signal }) {
+     try {
+      let graph = await this.graphBuilder.build({ signal });
+      await this.bundleBuilder.build(graph, {
+        signal,
+        destFolder: path.join(this.cwd, 'dist') // TODO: get through config instead of hardcoding
+      });
+     } catch (e) {
+      console.log(e);
+     }
+
+  }
 }
 
 module.exports = Orchestrator;

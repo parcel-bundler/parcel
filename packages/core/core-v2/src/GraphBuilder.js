@@ -3,107 +3,140 @@
 const EventEmitter = require('events');
 const PQueue = require('p-queue');
 const Graph = require('./Graph');
-const Queue = require('./Queue');
 const TransformerRunner = require('./TransformerRunner');
 const ResolverRunner = require('./ResolverRunner');
 
-// que + corall, get it?
-class Querral {
-  constructor(queues) {
-    this.queues = queues;
-  }
-
-  allDone() {
-    let { queues } = this;
-
-    return Promise.all(queues.map(q => q.onIdle())).then(() => {
-      let unfinishedCounts = queues.map(q => (q.size + q.pending));
-      let anyUndone = unfinishedCounts.some(count => (count > 0))
-
-      if (anyUndone) {
-        return this.allDone();
-      }
-    });
-  }
-}
+const AbortError = new Error('Aborted!');
 
 class GraphBuilder {
   constructor(config, options) {
+    this.config = config;
     this.graph = new Graph();
+    this.initializeGraph();
+    this.incompleteNodes = new Set();
 
-    this.resolverQueue = new PQueue();
-    this.transformerQueue = new PQueue();
-    this.querral = new Querral([this.resolverQueue, this.transformerQueue]);
-
-    this.transformerRunner = new TransformerRunner(config, options);
-    this.resolverRunner = new ResolverRunner();
-  }
-
-  async build(cwd, entries) {
-    this.graph.addNode({
-      id: cwd,
-      type: 'root',
-      value: cwd,
+    this.queue = new PQueue({
+      autoStart: false,
     });
 
-    for (let entry of entries) {
-      let dep = {
-        parentId: entry,
-        sourcePath: cwd,
-        moduleSpecifier: entry
-      };
-
-      this.graph.addNode({
-        id: entry,
-        type: 'dep',
-        value: dep
-      });
-
-      this.graph.addEdge({from: cwd, to: entry});
-
-      this.resolverQueue.add(() => this.resolve(dep));
-    }
-
-    await this.querral.allDone();
-
-    return this.graph;
+    this.transformerRunner = new TransformerRunner(config, options);
+    this.resolverRunner = new ResolverRunner(config, options);
   }
 
+  initializeGraph() {
+    let { rootDir, entries } = this.config;
 
-  async resolve(moduleRequest) {
-    let resolvedPath = await this.resolverRunner.resolve(moduleRequest);
-    this.graph.addNode({
+    let rootNode = this.addRootNode(rootDir);
+
+    for (let entry of this.config.entries) {
+      let dependency = {
+        sourcePath: rootDir,
+        moduleSpecifier: entry,
+      }
+      this.addDependencyNode(rootDir, dependency);
+    }
+  }
+
+  addRootNode(root) {
+    let rootNode = {
+      id: rootDir,
+      type: 'root',
+      value: rootDir,
+    };
+    this.graph.addNode(rootNode);
+  }
+
+  addDependencyNode(from, dep) {
+    let depNode = {
+      id: from + ':' + dep.moduleSpecifier,
+      type: 'dep',
+      value: dep,
+    };
+    this.graph.addNode(depNode);
+    this.graph.addEdge({ from, to: depNode.id });
+    this.incompleteNodes.add(depNode);
+  }
+
+  addFileNode(from, file) {
+    let fileNode = {
       id: resolvedPath,
       type: 'file',
       value: resolvedPath,
-    });
-    this.graph.addEdge({ from: moduleRequest.parentId, to: resolvedPath });
-    this.transformerQueue.add(() => this.transform({ filePath: resolvedPath }));
+    };
+    this.graph.addNode(fileNode);
+    this.graph.addEdge(from.id, fileNode.id);
+    this.incompleteNodes.delete(from);
+    this.incompleteNodes.add(fileNode)
   }
 
-  async transform(asset) {
-    let transformedAsset = await this.transformerRunner.transform(asset);
-    for (let child of transformedAsset.children) {
-      this.graph.addNode({
-        id: child.hash,
-        type: 'asset',
-        value: child
+  addAssetNode(from, asset) {
+    this.graph.addNode({
+      id: child.hash,
+      type: 'asset',
+      value: child
+    });
+
+    this.graph.addEdge({from: asset.filePath, to: child.hash});
+    this.incompleteNodes.delete(from);
+  }
+
+  async build({ signal }) {
+    return new Promise(async (resolve, reject) => {
+      if (signal.aborted) reject(AbortError);
+
+      signal.addEventListener('abort', () => {
+        this.queue.pause(); // Is this necessary?
+        this.queue.clear();
+        return reject(AbortError);
       });
 
-      this.graph.addEdge({from: asset.filePath, to: child.hash});
+      for (let node of this.incompleteNodes) {
+        this.queue.add(() => this.processNode(node, { signal }));
+      }
 
-      for (let dep of child.dependencies) {
-        let depId = child.hash + ':' + dep.moduleSpecifier;
-        this.graph.addNode({
-          id: depId,
-          type: 'dep',
-          value: dep
-        });
+      this.queue.start();
 
-        this.graph.addEdge({from: child.hash, to: depId});
-        this.resolverQueue.add(() => this.resolve({ parentId: depId, sourcePath: asset.filePath, moduleSpecifier: dep.moduleSpecifier }));
+      await this.queue.onIdle();
+
+      return resolve(this.graph);
+    });
+  }
+
+  processNode(node, { signal }) {
+    if (node.type === 'dependency') {
+      return this.resolve(node, { signal });
+    } else if (node.type === 'file') {
+      return this.transform(node, { signal })
+    }
+  }
+
+  async resolve(depNode, { signal }) {
+    let resolvedPath = await this.resolverRunner.resolve(depNode.value);
+    if (!signal.aborted) {
+      let file = { filePath: resolvedPath };
+      let fileNode = this.addFileNode(depNode, file);
+      this.queue.add(() => this.transform(fileNode, { signal }));
+    }
+  }
+
+  async tranform(fileNode, { signal }) {
+    let childAssets = await this.transformerRunner.transform(fileNode.value);
+
+    if (!signal.aborted) {
+      for (let asset of childAssets) {
+        let assetNode = this.addAssetNode(fileNode, asset);
+
+        for (let dep of asset.dependencies) {
+          let depNode = this.addDependencyNode(assetNode, dep);
+          this.queue.add(() => this.resolve(depNode, { signal }))
+        }
       }
     }
+  }
+
+  handleChange(filePath) {
+    let fileNode = this.graph.nodes.get(filePath);
+    this.incompleteNodes.add(fileNode);
   }
 }
 
