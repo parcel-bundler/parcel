@@ -2,13 +2,13 @@ const URL = require('url');
 const path = require('path');
 const clone = require('clone');
 const fs = require('./utils/fs');
-const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const config = require('./utils/config');
 const syncPromise = require('./utils/syncPromise');
 const logger = require('./Logger');
 const Resolver = require('./Resolver');
+const objectHash = require('./utils/objectHash');
 
 /**
  * An Asset represents a file in the dependency tree. Assets can have multiple
@@ -203,7 +203,6 @@ class Asset {
       await this.getDependencies();
       await this.transform();
       this.generated = await this.generate();
-      this.hash = await this.generateHash();
     }
 
     return this.generated;

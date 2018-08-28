@@ -29,6 +29,11 @@ async function getConfig(asset) {
   }
 
   config = config || {};
+
+  if (typeof config !== 'object') {
+    throw new Error('PostCSS config should be an object.');
+  }
+
   let postcssModulesConfig = {
     getJSON: (filename, json) => (asset.cssModules = json)
   };

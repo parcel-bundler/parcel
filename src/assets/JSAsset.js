@@ -22,7 +22,7 @@ const ENV_RE = /\b(?:process\.env)\b/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer|define)\b/;
 const FS_RE = /\breadFileSync\b/;
 const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
-const WORKER_RE = /\bnew\s*Worker\s*\(/;
+const WORKER_RE = /\bnew\s*(?:Shared)?Worker\s*\(/;
 const SOURCEMAP_RE = /\/\/\s*[@#]\s*sourceMappingURL\s*=\s*([^\s]+)/;
 const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
 
