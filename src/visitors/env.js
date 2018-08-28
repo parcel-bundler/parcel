@@ -7,10 +7,13 @@ module.exports = {
     if (matchesPattern(node.object, 'process.env')) {
       let key = types.toComputedKey(node);
       if (types.isStringLiteral(key)) {
-        let val = types.valueToNode(process.env[key.value]);
-        morph(node, val);
-        asset.isAstDirty = true;
-        asset.cacheData.env[key.value] = process.env[key.value];
+        let prop = process.env[key.value];
+        if (typeof prop !== 'function') {
+          let value = types.valueToNode(prop);
+          morph(node, value);
+          asset.isAstDirty = true;
+          asset.cacheData.env[key.value] = process.env[key.value];
+        }
       }
     }
   }
