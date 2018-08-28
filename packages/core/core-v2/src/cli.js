@@ -1,4 +1,4 @@
-require('v8-compile-cache');
+// require('v8-compile-cache');
 const chalk = require('chalk');
 const program = require('commander');
 const version = require('../package.json').version;
@@ -203,7 +203,8 @@ async function bundle(main, command) {
   }
 
   command.scopeHoist = command.experimentalScopeHoisting || false;
-  const orchestrator = new Orchestrator(main, command);
+  let entries = main.map(entry => entry.startsWith('./') ? entry : `./${entry}`)
+  const orchestrator = new Orchestrator(entries, command);
 
   // command.target = command.target || 'browser';
   // if (command.name() === 'serve' && command.target === 'browser') {
@@ -217,6 +218,6 @@ async function bundle(main, command) {
   //     );
   //   }
   // } else {
-    orchestrator.run(main.map(entry => entry.startsWith('./') ? entry : `./${entry}`));
+    orchestrator.run();
   //}
 }

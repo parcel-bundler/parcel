@@ -2,7 +2,7 @@
 'use strict';
 const EventEmitter = require('events');
 const path = require('path');
-const Watcher = require('@parcel/watcher');
+// const Watcher = require('@parcel/watcher');
 const { AbortController } = require('abortcontroller-polyfill/dist/cjs-ponyfill');
 const GraphBuilder = require('./GraphBuilder');
 const BundleBuilder = require('./BundleBuilder');
@@ -16,27 +16,43 @@ class Orchestrator extends EventEmitter {
 
     this.cwd = process.cwd();
     this.entries = entries;
-    this.watcher = new Watcher();
+    // this.watcher = new Watcher();
     // this.hmrServer = new HmrServer();
 
-    this.graphBuilder = new GraphBuilder(config, {});
+    this.graphBuilder = new GraphBuilder({
+      entries,
+      rootDir: this.cwd,
+      parcelConfig: config,
+      cliOpts: options,
+    });
     this.bundleBuilder = new BundleBuilder(config, options);
   }
 
   async run() {
-    let controller = new AbortController();
-    let signal = controller.signal;
+    // let controller = new AbortController();
+    // let signal = controller.signal;
+    let signal = {
+      aborted: false,
+      addEventListener: () => null
+    }
 
-    if (/* this.options.watch */ true) this.watcher.watch(this.cwd);
+    await this.bundle({ signal });
 
-    this.watcher.on('change', event => {
-      controller.abort();
-      this.graphBuilder.handleChange(event);
+    console.log('BUNDLED')
 
-      controller = new AbortController();
-      signal = controller.signal;
-      this.bundle({ signal });
-    });
+    // if (/* this.options.watch */ true) {
+    //   this.watcher.watch(this.cwd);
+
+    //   this.watcher.on('change', event => {
+    //     console.log('CHANGE', event)
+    //     controller.abort();
+    //     this.graphBuilder.handleChange(event);
+
+    //     controller = new AbortController();
+    //     signal = controller.signal;
+    //     this.bundle({ signal });
+    //   });
+    // }
   }
 
   async bundle({ signal }) {
@@ -49,7 +65,6 @@ class Orchestrator extends EventEmitter {
      } catch (e) {
       console.log(e);
      }
-
   }
 }
 
