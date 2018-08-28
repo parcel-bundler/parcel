@@ -8,10 +8,10 @@ const Cache = require('@parcel/cache-v2');
 const fs = require('@parcel/fs');
 
 class TransformerRunner {
-  constructor(parcelConfig, options) {
-    this.options = options;
+  constructor({ parcelConfig, cliOpts }) {
+    this.cliOpts = cliOpts;
     this.parcelConfig = parcelConfig;
-    this.cache = new Cache(options);
+    this.cache = new Cache(cliOpts);
   }
 
   async transform(asset) {
@@ -57,7 +57,7 @@ class TransformerRunner {
 
     let config = null;
     if (transformer.getConfig) {
-      let result = await transformer.getConfig(asset, this.options);
+      let result = await transformer.getConfig(asset, this.cliOpts);
       if (result) {
         config = result.config;
         // TODO: do something with deps
@@ -131,25 +131,25 @@ class TransformerRunner {
     // let shouldTransform = transformer.transform && (!transformer.shouldTransform || transformer.shouldTransform(asset, options));
     // let mightHaveDependencies = transformer.getDependencies && (!transformer.mightHaveDependencies || transformer.mightHaveDependencies(asset, options));
 
-    if (asset.ast && (!transformer.canReuseAST || !transformer.canReuseAST(asset.ast, this.options))) {
+    if (asset.ast && (!transformer.canReuseAST || !transformer.canReuseAST(asset.ast, this.cliOpts))) {
       await this.generate(previousTransformer, asset, previousConfig);
     }
 
     if (!asset.ast && transformer.parse) {
-      asset.ast = await transformer.parse(asset, config, this.options);
+      asset.ast = await transformer.parse(asset, config, this.cliOpts);
     }
 
     // Transform the AST.
     let assets = [asset];
     if (transformer.transform) {
-      assets = await transformer.transform(asset, config, this.options);
+      assets = await transformer.transform(asset, config, this.cliOpts);
     }
 
     return assets;
   }
 
   async generate(transformer, asset, config) {
-    let output = await transformer.generate(asset, config, this.options);
+    let output = await transformer.generate(asset, config, this.cliOpts);
     asset.blobs = output;
     asset.code = output.code;
     asset.ast = null;

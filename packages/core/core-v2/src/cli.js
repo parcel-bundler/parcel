@@ -186,7 +186,7 @@ program.parse(args);
 
 async function bundle(main, command) {
   // Require bundler here so the help command is fast
-  const Orchestrator = require('../');
+  const Parcel = require('../');
 
   if (command.name() === 'build') {
     command.production = true;
@@ -204,7 +204,7 @@ async function bundle(main, command) {
 
   command.scopeHoist = command.experimentalScopeHoisting || false;
   let entries = main.map(entry => entry.startsWith('./') ? entry : `./${entry}`)
-  const orchestrator = new Orchestrator(entries, command);
+  const parcel = new Parcel({ entries });
 
   // command.target = command.target || 'browser';
   // if (command.name() === 'serve' && command.target === 'browser') {
@@ -218,6 +218,6 @@ async function bundle(main, command) {
   //     );
   //   }
   // } else {
-    orchestrator.run();
+    parcel.run();
   //}
 }

@@ -15,7 +15,7 @@ export type Edge = {
 };
 */
 
-class Graph {
+class GenericGraph {
 
   /*::
   nodes: Map<NodeId, Node>;
@@ -92,6 +92,78 @@ class Graph {
 
   findNodeByX() {
     // ...
+  }
+}
+
+class Graph {
+  constructor({ entries, rootDir }) {
+    this.graph = new GenericGraph();
+    this.nodes = this.graph.nodes;
+    this.edges = this.graph.edges;
+    this.incompleteNodes = new Set();
+    this.initializeGraph({ entries, rootDir});
+  }
+
+  initializeGraph({ entries, rootDir }) {
+    let rootNode = {
+      id: rootDir,
+      type: 'root',
+    };
+    this.graph.addNode(rootNode);
+
+    for (let entry of entries) {
+      let dependency = {
+        sourcePath: rootDir,
+        moduleSpecifier: entry,
+      }
+      this.addDependencyNode(rootNode, dependency);
+    }
+  }
+
+  invalidateNode(nodeId) {
+    let node = this.graph.nodes.get(nodeId);
+    this.incompleteNodes.add(node);
+  }
+
+  addDependencyNode(from, dep) {
+    let depNode = {
+      id: from.id + ':' + dep.moduleSpecifier,
+      type: 'dependency',
+      value: dep,
+    };
+    this.graph.addNode(depNode);
+    this.graph.addEdge({ from: from.id, to: depNode.id });
+    this.incompleteNodes.add(depNode);
+
+    return depNode;
+  }
+
+  addFileNode(from, file) {
+    let fileNode = {
+      id: file.filePath,
+      type: 'file',
+      value: file,
+    };
+    this.graph.addNode(fileNode);
+    this.graph.addEdge({ from: from.id, to: fileNode.id });
+    this.incompleteNodes.delete(from);
+    this.incompleteNodes.add(fileNode);
+    if (this.watcher) this.watcher.watch(file.filePath);
+
+    return fileNode;
+  }
+
+  addAssetNode(from, asset) {
+    let assetNode = {
+      id: asset.hash,
+      type: 'asset',
+      value: asset
+    }
+    this.graph.addNode(assetNode);
+    this.graph.addEdge({ from: from.id, to: assetNode.id });
+    this.incompleteNodes.delete(from);
+
+    return assetNode;
   }
 
   async dumpGraphViz() {
