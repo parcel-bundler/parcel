@@ -3,7 +3,11 @@
 <head>
   <title>Hello, world.</title>
   <link rel="stylesheet" href="style.css"/>
+  <script>
+    alert('foo');
+  </script>
 </head>
 <body>
+  <h1>${resource.title}</h1>
 </body>
 </html>

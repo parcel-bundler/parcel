@@ -16,8 +16,8 @@ describe('cascading plugins', function() {
     b.addAssetType('htl-preprocessed', require.resolve('./integration/cascading-plugins/HTLAsset.js'));
     await b.bundle();
 
-    let generated = await fs.readFile(__dirname + '/dist/source.js', 'utf8');
+    let generated = await fs.readFile(__dirname + '/dist/source.htl-js', 'utf8');
     let expected = await fs.readFile(path.resolve(__dirname, 'integration/cascading-plugins/source-expected.js'), 'utf8');
-    assert.equal(generated, expected)
+    assert.equal(generated.trim(), expected.trim())
   });
 });

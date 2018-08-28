@@ -11,11 +11,13 @@ class HTLAsset extends Asset {
 
   async generate() {
     const code = JSON.stringify(this.contents, null, '  ');
+
     return [{
       type: 'js',
-      value: `function() { return '${code}'; }`,
+      value: `function main() { return ${code}; }`,
     }];
   }
+
 }
 
 module.exports = HTLAsset;
