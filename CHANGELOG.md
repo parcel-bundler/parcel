@@ -47,6 +47,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Support error strings in workers [Details](https://github.com/parcel-bundler/parcel/pull/1761)
 - Terminate workerfarm when using the API [Details](https://github.com/parcel-bundler/parcel/pull/1760)
 - Fix comment typo [Details](https://github.com/parcel-bundler/parcel/pull/1739/files)
+- Fix dotenv package error [Details](https://github.com/parcel-bundler/parcel/pull/1953)
 
 ### Chores
 
