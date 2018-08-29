@@ -2,7 +2,7 @@ const path = require('path');
 const matchesPattern = require('../visitors/matches-pattern');
 const mm = require('micromatch');
 const t = require('@babel/types');
-const template = require('babel-template');
+const template = require('@babel/template').default;
 const rename = require('./renamer');
 const {getName, getIdentifier, getExportIdentifier} = require('./utils');
 

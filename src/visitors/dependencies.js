@@ -1,5 +1,5 @@
 const types = require('@babel/types');
-const template = require('babel-template');
+const template = require('@babel/template').default;
 const traverse = require('@babel/traverse').default;
 const urlJoin = require('../utils/urlJoin');
 const isURL = require('../utils/is-url');
