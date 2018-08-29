@@ -99,15 +99,15 @@ class Parcel {
     // console.log('transforming fileNode', fileNode)
     let { children: childAssets } = await this.transformerRunner.transform(fileNode.value);
     if (!signal.aborted) {
-      let assetNodesToRemove = fileNode.fromEdges.map(edge => this.graph.nodes.get(edge.to));
-      let depNodesToRemove = [];
+      let assetEdgesToRemove = fileNode.fromEdges;
+      let depEdgesToRemove = [];
 
       for (let asset of childAssets) {
         let assetNode = this.graph.addAssetNode(fileNode, asset);
-        assetNodesToRemove = assetNodesToRemove.filter(node => node === assetNode);
+        assetEdgesToRemove = assetEdgesToRemove.filter(edge => edge.to === assetNode.id);
 
-        let assetDepNodes = assetNode.fromEdges.map(edge => this.graph.nodes.get(edge.to))
-        depNodesToRemove = depNodesToRemove.concat(assetDepNodes);
+        let assetDepNodes = assetNode.fromEdges;
+        depEdgesToRemove = depEdgesToRemove.concat(assetDepNodes);
 
         for (let dep of asset.dependencies) {
           dep.sourcePath = fileNode.value.filePath; // ? Should this be done elsewhere?
@@ -116,15 +116,15 @@ class Parcel {
             this.queue.add(() => this.resolve(depNode, { signal }));
           } else {
             let depNode = this.graph.getDependencyNode(dep);
-            depNodesToRemove = depNodesToRemove.filter(node => node === depNode);
+            depEdgesToRemove = depEdgesToRemove.filter(edge => edge.to === depNode.id);
           }
         }
       }
 
-      let nodesToRemove = [...assetNodesToRemove, ...depNodesToRemove];
-      for (let node of nodesToRemove) {
-        let { nodes: prunedNodes } = this.graph.prune(node);
-        let prunedFiles = prunedNodes.filter(node => node.type === 'file').map(node => node.value);
+      let edgesToRemove = [...assetEdgesToRemove, ...depEdgesToRemove];
+      for (let edge of edgesToRemove) {
+        let invalidated = this.graph.removeEdge(edge);
+        let prunedFiles = invalidated.filter(node => node.type === 'file').map(node => node.value);
         for (let file of prunedFiles) {
           if (this.watcher) this.watcher.unWatch(file.filePath);
         }

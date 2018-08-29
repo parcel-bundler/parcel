@@ -46,7 +46,7 @@ class Graph {
 
     for (let edge of this.edges) {
       if (edge.to === node.id) {
-        invalidated.add(edge);
+        invalidated.push(edge);
       }
 
       if (edge.from === node.id) {
@@ -58,11 +58,7 @@ class Graph {
   }
 
   removeEdge(edge /*: Edge */) {
-    for (let edge2 of this.edges) {
-      if (this.isSameEdge(edge, edge2)) {
-        this.edges.remove(edge2);
-      }
-    }
+    this.edges.remove(edge);
 
     let invalidated = [];
 
@@ -81,10 +77,6 @@ class Graph {
     return invalidated;
   }
 
-  isSameEdge(edgeA, edgeB) {
-    return edgeA.from === edgeB.from && edgeA.to === edgeB.to;
-  }
-
   isOrphanedNode(node /*: Node */) {
     for (let edge of this.edges) {
       if (edge.to === node.id) {
@@ -92,11 +84,6 @@ class Graph {
       }
     }
     return true;
-  }
-
-  prune(edge) {
-    // Not implemented
-    return { edges: [], nodes: [] };
   }
 }
 
