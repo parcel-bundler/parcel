@@ -844,7 +844,7 @@ To form a path that looks like:
 /path/to/app/src/file.js
 ```
 
-Then is follows the [Node module resolution algorithm](https://nodejs.org/api/modules.html#modules_all_together).
+Then it follows the [Node module resolution algorithm](https://nodejs.org/api/modules.html#modules_all_together).
 
 ### Aliases
 
