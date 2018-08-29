@@ -129,15 +129,21 @@ async function getBabelConfig(asset) {
 
     // Add JSX config if it isn't already specified in the babelrc
     let hasReact =
-      hasPlugin(babelrc.presets, 'react') ||
-      hasPlugin(babelrc.plugins, 'transform-react-jsx');
+      hasPlugin(babelrc.presets, ['react', '@babel/preset-react']) ||
+      hasPlugin(babelrc.plugins, [
+        'transform-react-jsx',
+        '@babel/plugin-transform-react-jsx'
+      ]);
 
     if (!hasReact) {
       mergeConfigs(babelrc, jsxConfig);
     }
 
     // Add Flow stripping config if it isn't already specified in the babelrc
-    let hasFlow = hasPlugin(babelrc.plugins, 'transform-flow-strip-types');
+    let hasFlow = hasPlugin(babelrc.plugins, [
+      'transform-flow-strip-types',
+      '@babel/plugin-transform-flow-strip-types'
+    ]);
 
     if (!hasFlow && flowConfig) {
       mergeConfigs(babelrc, flowConfig);
@@ -177,8 +183,10 @@ function mergeConfigs(a, b) {
   return a;
 }
 
-function hasPlugin(arr, plugin) {
-  return Array.isArray(arr) && arr.some(p => getPluginName(p) === plugin);
+function hasPlugin(arr, plugins) {
+  return (
+    Array.isArray(arr) && arr.some(p => plugins.includes(getPluginName(p)))
+  );
 }
 
 function getPluginName(p) {

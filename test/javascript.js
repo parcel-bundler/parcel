@@ -951,7 +951,7 @@ describe.only('javascript', function() {
     assert(file.includes('function Bar'));
   });
 
-  it('should support splitting babel-polyfill using browserlist', async function() {
+  it.skip('should support splitting babel-polyfill using browserlist', async function() {
     await bundle(__dirname + '/integration/babel-polyfill/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
