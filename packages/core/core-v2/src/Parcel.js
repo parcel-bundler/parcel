@@ -88,8 +88,8 @@ class Parcel {
     if (!signal.aborted) {
       let file = { filePath: resolvedPath };
       let fileNode = this.graph.addFileNode(depNode, file);
-      this.watcher.watch(resolvedPath);
       this.queue.add(() => this.transform(fileNode, { signal }));
+      if (this.watcher) this.watcher.watch(resolvedPath);
     }
   }
 
