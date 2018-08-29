@@ -15,7 +15,7 @@ export type Edge = {
 };
 */
 
-class GenericGraph {
+class Graph {
 
   /*::
   nodes: Map<NodeId, Node>;
@@ -32,6 +32,10 @@ class GenericGraph {
   }
 
   addEdge(edge /*: Edge */) {
+    let fromNode = this.nodes.get(edge.from);
+    fromNode.fromEdges.push(edge);
+    let toNode = this.nodes.get(edge.to);
+    toNode.toEdges.push(edge);
     this.edges.add(edge);
   }
 
@@ -90,136 +94,9 @@ class GenericGraph {
     return true;
   }
 
-  findNodeByX() {
-    // ...
-  }
-}
-
-class Graph {
-  constructor({ entries, rootDir }) {
-    this.graph = new GenericGraph();
-    this.nodes = this.graph.nodes;
-    this.edges = this.graph.edges;
-    this.incompleteNodes = new Set();
-    this.initializeGraph({ entries, rootDir});
-  }
-
-  initializeGraph({ entries, rootDir }) {
-    let rootNode = {
-      id: rootDir,
-      type: 'root',
-    };
-    this.graph.addNode(rootNode);
-
-    for (let entry of entries) {
-      let dependency = {
-        sourcePath: rootDir,
-        moduleSpecifier: entry,
-      }
-      this.addDependencyNode(rootNode, dependency);
-    }
-  }
-
-  invalidateNode(nodeId) {
-    let node = this.graph.nodes.get(nodeId);
-    this.incompleteNodes.add(node);
-  }
-
-  addDependencyNode(from, dep) {
-    let depNode = {
-      id: from.id + ':' + dep.moduleSpecifier,
-      type: 'dependency',
-      value: dep,
-    };
-    this.graph.addNode(depNode);
-    this.graph.addEdge({ from: from.id, to: depNode.id });
-    this.incompleteNodes.add(depNode);
-
-    return depNode;
-  }
-
-  addFileNode(from, file) {
-    let fileNode = {
-      id: file.filePath,
-      type: 'file',
-      value: file,
-    };
-    this.graph.addNode(fileNode);
-    this.graph.addEdge({ from: from.id, to: fileNode.id });
-    this.incompleteNodes.delete(from);
-    this.incompleteNodes.add(fileNode);
-    if (this.watcher) this.watcher.watch(file.filePath);
-
-    return fileNode;
-  }
-
-  addAssetNode(from, asset) {
-    let assetNode = {
-      id: asset.hash,
-      type: 'asset',
-      value: asset
-    }
-    this.graph.addNode(assetNode);
-    this.graph.addEdge({ from: from.id, to: assetNode.id });
-    this.incompleteNodes.delete(from);
-
-    return assetNode;
-  }
-
-  async dumpGraphViz() {
-    let graphviz = require('graphviz');
-    let tempy = require('tempy');
-    let path = require('path');
-
-    let g = graphviz.digraph('G');
-
-    let colors = {
-      'root': 'gray',
-      'asset': 'green',
-      'dep': 'orange',
-      'file': 'cyan',
-    };
-
-    let nodes = Array.from(this.nodes.values());
-    let root = nodes.find(n => n.type === 'root');
-    let rootPath = root ? root.value : '/';
-
-    for (let node of nodes) {
-      let n = g.addNode(node.id);
-
-      n.set('color', colors[node.type]);
-      n.set('shape', 'box');
-      n.set('style', 'filled');
-
-      let label = `${node.type}: `;
-
-      if (node.type === 'dep') {
-        label += node.value.moduleSpecifier;
-        let parts = [];
-        if (node.value.isEntry) parts.push('entry');
-        if (node.value.isAsync) parts.push('async');
-        if (node.value.isIncluded) parts.push('included');
-        if (node.value.isOptional) parts.push('optional');
-        if (parts.length) label += '(' + parts.join(', ') + ')';
-      } else if (node.type === 'asset') {
-        label += path.relative(rootPath, node.value.filePath) + '#' + node.value.hash.slice(0, 8);
-      } else if (node.type === 'file') {
-        label += path.relative(rootPath, node.value);
-      } else {
-        label += node.id;
-      }
-
-      n.set('label', label);
-    }
-
-    for (let edge of this.edges) {
-      let e = g.addEdge(edge.from, edge.to);
-    }
-
-    let tmp = tempy.file({ name: 'graph.png' });
-
-    await g.output('png', tmp);
-    console.log(`open ${tmp}`);
+  prune(edge) {
+    // Not implemented
+    return { edges: [], nodes: [] };
   }
 }
 
