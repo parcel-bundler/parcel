@@ -100,6 +100,15 @@ async function getBabelConfig(asset) {
 
   // Try to resolve a .babelrc file. If one is found, consider the module source code.
   let babelrc = await getBabelRc(asset, isSource);
+  let isBabel7 = true;
+  if (babelrc) {
+    isBabel7 = babelrc.version === 7;
+    babelrc = babelrc.config;
+
+    if (!isBabel7) {
+      console.log('Found a babel 6 module in: ', asset.name);
+    }
+  }
   isSource = isSource || !!babelrc;
 
   let envConfig = await getEnvConfig(asset, isSource);
@@ -193,6 +202,30 @@ function getPluginName(p) {
   return Array.isArray(p) ? p[0] : p;
 }
 
+function testPluginArrayForBabelScope(plugins) {
+  for (let plugin of plugins) {
+    if (getPluginName(plugin).startsWith('@babel/')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isBabel7Config(babelrc) {
+  if (!babelrc.presets && !babelrc.presets) {
+    return true;
+  }
+
+  if (
+    (babelrc.presets && testPluginArrayForBabelScope(babelrc.presets)) ||
+    (babelrc.plugins && testPluginArrayForBabelScope(babelrc.plugins))
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 /**
  * Finds a .babelrc for an asset. By default, .babelrc files inside node_modules are not used.
  * However, there are some exceptions:
@@ -203,6 +236,7 @@ async function getBabelRc(asset, isSource) {
   // Support legacy browserify packages
   let pkg = await asset.getPackage();
   let browserify = pkg && pkg.browserify;
+  let babelrc = null;
   if (browserify && Array.isArray(browserify.transform)) {
     // Look for babelify in the browserify transform list
     let babelify = browserify.transform.find(
@@ -211,21 +245,31 @@ async function getBabelRc(asset, isSource) {
 
     // If specified as an array, override the config with the one specified
     if (Array.isArray(babelify) && babelify[1]) {
-      return babelify[1];
+      return {
+        version: 6,
+        config: babelify[1]
+      };
     }
 
     // Otherwise, return the .babelrc if babelify was found
-    return babelify ? await findBabelRc(asset) : null;
+    if (babelify) {
+      babelrc = await findBabelRc(asset);
+    }
   }
 
   // If this asset is not in node_modules, always use the .babelrc
-  if (isSource) {
-    return await findBabelRc(asset);
+  if (!babelrc && isSource) {
+    babelrc = await findBabelRc(asset);
   }
 
   // Otherwise, don't load .babelrc for node_modules.
   // See https://github.com/parcel-bundler/parcel/issues/13.
-  return null;
+  return babelrc
+    ? {
+        version: isBabel7Config(babelrc) ? 7 : 6,
+        config: babelrc
+      }
+    : null;
 }
 
 async function findBabelRc(asset) {

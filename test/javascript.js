@@ -28,6 +28,17 @@ describe.only('javascript', function() {
     assert.equal(output.default(), 3);
   });
 
+  it('should produce a basic JS bundle using Babel 6', async function() {
+    let b = await bundle(
+      __dirname + '/integration/babel-6-compatibility/index.js'
+    );
+
+    let output = await run(b);
+    assert.equal(typeof output, 'object');
+    assert.equal(typeof output.default, 'function');
+    assert.equal(output.default(), 3);
+  });
+
   it('should produce a basic JS bundle with object rest spread support', async function() {
     let b = await bundle(
       __dirname + '/integration/object-rest-spread/object-rest-spread.js'
