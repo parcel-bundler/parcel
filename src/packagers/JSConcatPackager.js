@@ -530,7 +530,10 @@ class JSConcatPackager extends Packager {
       // Add source map url if a map bundle exists
       let mapBundle = this.bundle.siblingBundlesMap.get('map');
       if (mapBundle) {
-        let mapUrl = urlJoin(this.options.publicURL, path.basename(mapBundle.name));
+        let mapUrl = urlJoin(
+          this.options.publicURL,
+          path.basename(mapBundle.name)
+        );
         output += `\n//# sourceMappingURL=${mapUrl}`;
       }
     }
