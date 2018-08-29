@@ -37,7 +37,7 @@
     "babel-preset-env": "^1.7.0",
     "babel-template": "^6.26.0",
     "babel-traverse": "^6.26.0",
-    "@babel-types": "^6.26.0",
+    "babel-types": "^6.26.0",
     "babylon": "^6.17.4",
     "babylon-walk": "^1.0.2",
     "browserslist": "^3.2.6",
