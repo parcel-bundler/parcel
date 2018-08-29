@@ -4,8 +4,8 @@ const concat = require('../scope-hoisting/concat');
 const urlJoin = require('../utils/urlJoin');
 const getExisting = require('../utils/getExisting');
 const walk = require('babylon-walk');
-const babylon = require('babylon');
-const t = require('babel-types');
+const babylon = require('@babel/parser');
+const t = require('@babel/types');
 const {getName, getIdentifier} = require('../scope-hoisting/utils');
 
 const prelude = getExisting(

@@ -1,4 +1,4 @@
-const types = require('babel-types');
+const types = require('@babel/types');
 const matchesPattern = require('./matches-pattern');
 
 module.exports = {

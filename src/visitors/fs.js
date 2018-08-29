@@ -1,4 +1,4 @@
-const t = require('babel-types');
+const t = require('@babel/types');
 const Path = require('path');
 const fs = require('fs');
 const template = require('babel-template');

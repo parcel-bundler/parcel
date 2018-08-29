@@ -1,7 +1,7 @@
-const types = require('babel-types');
+const types = require('@babel/types');
 
-// from babel-types. remove when we upgrade to babel 7.
-// https://github.com/babel/babel/blob/0189b387026c35472dccf45d14d58312d249f799/packages/babel-types/src/index.js#L347
+// from @babel/types. remove when we upgrade to babel 7.
+// https://github.com/babel/babel/blob/0189b387026c35472dccf45d14d58312d249f799/packages/@babel/types/src/index.js#L347
 module.exports = function matchesPattern(member, match, allowPartial) {
   // not a member expression
   if (!types.isMemberExpression(member)) return false;

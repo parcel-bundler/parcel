@@ -1,4 +1,4 @@
-const t = require('babel-types');
+const t = require('@babel/types');
 
 function getName(asset, type, ...rest) {
   return (
