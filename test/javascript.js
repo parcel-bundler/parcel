@@ -1253,7 +1253,7 @@ describe.only('javascript', function() {
       __dirname + '/integration/import-html-async/index.js',
       {sourceMaps: false}
     );
-
+    
     await assertBundleTree(b, {
       name: 'index.js',
       assets: [
@@ -1275,7 +1275,11 @@ describe.only('javascript', function() {
             {
               type: 'css',
               assets: ['index.css'],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'js'
+                }
+              ]
             }
           ]
         }
@@ -1318,7 +1322,11 @@ describe.only('javascript', function() {
             {
               type: 'css',
               assets: ['index.css'],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'js'
+                }
+              ]
             }
           ]
         }
@@ -1357,7 +1365,11 @@ describe.only('javascript', function() {
             {
               type: 'css',
               assets: ['index.css'],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'js'
+                }
+              ]
             }
           ]
         }
