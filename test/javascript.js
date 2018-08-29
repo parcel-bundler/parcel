@@ -1253,7 +1253,7 @@ describe.only('javascript', function() {
       __dirname + '/integration/import-html-async/index.js',
       {sourceMaps: false}
     );
-    
+
     await assertBundleTree(b, {
       name: 'index.js',
       assets: [
