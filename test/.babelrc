@@ -4,5 +4,5 @@
       "node": "current"
     }
   }]],
-  "ignore": ["integration", "input"]
+  "ignore": ["integration", "input", "dist"]
 }

@@ -225,11 +225,9 @@ class JSPackager extends Packager {
       // Add source map url if a map bundle exists
       let mapBundle = this.bundle.siblingBundlesMap.get('map');
       if (mapBundle) {
+        let mapUrl = urlJoin(this.options.publicURL, path.basename(mapBundle.name));
         await this.write(
-          `\n//# sourceMappingURL=${urlJoin(
-            this.options.publicURL,
-            path.basename(mapBundle.name)
-          )}`
+          `\n//# sourceMappingURL=${mapUrl}`
         );
       }
     }
