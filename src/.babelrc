@@ -4,6 +4,5 @@
       "node": "6"
     }
   }]],
-  "plugins": ["transform-async-super"],
   "ignore": ["builtins"]
 }
