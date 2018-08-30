@@ -8,7 +8,8 @@ const traverse = require('@babel/traverse').default;
 const assert = require('assert');
 
 describe.only('Babel', function() {
-  it.only('Should be able to convert Babel 7 to Babel 6 AST', async function() {
+  let ast;
+  before(async function() {
     const options = {
       parserOpts: {
         allowReturnOutsideFunction: true,
@@ -26,8 +27,11 @@ describe.only('Babel', function() {
       path.join(__dirname, './integration/babel-ast-conversion/index.js'),
       'utf8'
     );
-    let ast = babelCore.parse(code, options);
 
+    ast = babelCore.parse(code, options);
+  });
+
+  it('Should be able to convert Babel 7 => Babel 6 AST', async function() {
     ast = BabelASTConvertor(ast, 7);
 
     let elementCount = {};
@@ -67,6 +71,54 @@ describe.only('Babel', function() {
 
     assert.equal(elementCount['RestElement'], undefined);
     assert.equal(elementCount['RestProperty'], 2);
+
+    // Check node count
+    assert.equal(elementCount['TypeParameter'], 6);
+
+    assert.equal(elementCount['ArrowFunctionExpression'], 2);
+  });
+
+  it('Should be able to convert Babel 6 => Babel 7 AST', async function() {
+    ast = BabelASTConvertor(ast, 6);
+
+    let elementCount = {};
+    traverse(ast, {
+      enter(path) {
+        if (!elementCount[path.node.type]) {
+          elementCount[path.node.type] = 0;
+        }
+        elementCount[path.node.type]++;
+
+        if (path.node.variance) {
+          assert(!!path.node.variance.kind);
+          assert.equal(path.node.variance.type, 'VarianceNode');
+        }
+
+        if (path.node.type === 'ForOfStatement') {
+          assert(path.node.await);
+        }
+
+        if (path.node.type === 'ArrowFunctionExpression') {
+          assert(path.node.expression === undefined);
+        }
+      }
+    });
+
+    // Check Renaming/Removal of Nodes
+    assert.equal(elementCount['ExistsTypeAnnotation'], 1);
+    assert.equal(elementCount['ExistentialTypeParam'], undefined);
+
+    assert.equal(elementCount['NumberLiteralTypeAnnotation'], 1);
+    assert.equal(elementCount['NumericLiteralTypeAnnotation'], undefined);
+
+    assert.equal(elementCount['ForOfStatement'], 1);
+    assert.equal(elementCount['ForAwaitStatement'], undefined);
+
+    assert.equal(elementCount['SpreadElement'], 2);
+    assert.equal(elementCount['SpreadProperty'], undefined);
+
+    assert.equal(elementCount['RestElement'], 2);
+    assert.equal(elementCount['RestProperty'], undefined);
 
     // Check node count
     assert.equal(elementCount['TypeParameter'], 6);

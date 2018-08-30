@@ -1,13 +1,8 @@
 const traverse = require('@babel/traverse').default;
 
 // Convert between babel 7 and babel 6 AST
-module.exports = function(ast, version) {
-  if (version !== 7) {
-    throw new Error(
-      'Only Babel 7 ASTs can currently be converted to a Babel 6 compat mode'
-    );
-  }
-
+// More info on the AST Changes: https://babeljs.io/docs/en/v7-migration-api#ast-changes
+function babel7toBabel6(ast) {
   const visitor = {
     ArrowFunctionExpression: node => {
       node.expression = node.body.type !== 'BlockStatement';
@@ -58,4 +53,58 @@ module.exports = function(ast, version) {
   });
 
   return ast;
+}
+
+function babel6toBabel7(ast) {
+  const visitor = {
+    ArrowFunctionExpression: node => {
+      delete node.expression;
+    },
+    ExistentialTypeParam: node => {
+      node.type = 'ExistsTypeAnnotation';
+    },
+    NumericLiteralTypeAnnotation: node => {
+      node.type = 'NumberLiteralTypeAnnotation';
+    },
+    ObjectTypeIndexer: node => {
+      node.end--;
+      node.loc.end.column--;
+    },
+    ForAwaitStatement: node => {
+      node.type = 'ForOfStatement';
+      node.await = true;
+    },
+    SpreadProperty: node => {
+      node.type = 'SpreadElement';
+    },
+    RestProperty: node => {
+      node.type = 'RestElement';
+    }
+  };
+
+  traverse(ast, {
+    enter(path) {
+      if (path.node.variance && typeof path.node.variance === 'string') {
+        path.node.variance = {
+          type: 'VarianceNode',
+          kind: path.node.variance
+        };
+      }
+
+      let visitorFunc = visitor[path.node.type];
+      if (visitorFunc) {
+        visitorFunc(path.node);
+      }
+    }
+  });
+
+  return ast;
+}
+
+module.exports = function(ast, version) {
+  if (![6, 7].includes(version)) {
+    throw new Error('This convertor only supports Babel 6 and 7 ASTs');
+  }
+
+  return version === 7 ? babel7toBabel6(ast) : babel6toBabel7(ast);
 };
