@@ -71,6 +71,7 @@ class JSAsset extends Asset {
         strictMode: false,
         sourceType: 'module',
         locations: true,
+        tokens: true, // TODO: Set this to false if there is no babel 6 config
         plugins: ['exportExtensions', 'dynamicImport']
       }
     };

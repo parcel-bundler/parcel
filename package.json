@@ -73,6 +73,7 @@
   },
   "devDependencies": {
     "@babel/cli": "^7.0.0",
+    "@babel/preset-flow": "^7.0.0",
     "@babel/register": "^7.0.0",
     "@vue/component-compiler-utils": "^2.0.0",
     "babel-core": "^6.26.3",
