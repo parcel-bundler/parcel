@@ -233,10 +233,11 @@ function isBabel7Config(babelrc) {
  *   - the `source` field in package.json is used by the resolver
  */
 async function getBabelRc(asset, isSource) {
+  let babelrc = null;
+
   // Support legacy browserify packages
   let pkg = await asset.getPackage();
   let browserify = pkg && pkg.browserify;
-  let babelrc = null;
   if (browserify && Array.isArray(browserify.transform)) {
     // Look for babelify in the browserify transform list
     let babelify = browserify.transform.find(
@@ -245,14 +246,11 @@ async function getBabelRc(asset, isSource) {
 
     // If specified as an array, override the config with the one specified
     if (Array.isArray(babelify) && babelify[1]) {
-      return {
-        version: 6,
-        config: babelify[1]
-      };
+      babelrc = babelify[1];
     }
 
     // Otherwise, return the .babelrc if babelify was found
-    if (babelify) {
+    if (!babelrc && babelify) {
       babelrc = await findBabelRc(asset);
     }
   }
