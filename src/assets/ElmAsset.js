@@ -7,6 +7,7 @@ class ElmAsset extends Asset {
   constructor(name, options) {
     super(name, options);
     this.type = 'js';
+    this.forceReload = true;
   }
   
   async collectDependencies() {
