@@ -49,11 +49,6 @@ class AssetGraph extends Graph {
     }
   }
 
-  invalidateNode(nodeId) {
-    let node = this.nodes.get(nodeId);
-    this.incompleteNodes.add(node);
-  }
-
   addDependencyNode(from, dep) {
     if (this.hasDependencyNode(dep)) return this.getDependencyNode(dep);
 

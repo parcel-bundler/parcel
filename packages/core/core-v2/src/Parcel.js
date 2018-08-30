@@ -24,7 +24,8 @@ class Parcel {
 
     this.graph = new AssetGraph({ entries, rootDir: this.rootDir });
     this.watcher = cliOpts.watch ? new Watcher() : null;
-    this.queue = new PQueue({
+    this.updateQueue = new PQueue();
+    this.mainQueue = new PQueue({
       autoStart: false,
     });
 
@@ -42,37 +43,47 @@ class Parcel {
 
     if (this.watcher) {
       this.watcher.on('change', event => {
-        controller.abort();
-        this.queue.pause();
-        this.queue.clear();
-        this.handleChange(event);
+        if (!this.updateQueue.isPaused) {
+          this.handleChange(event);
+        } else {
+          controller.abort();
+          this.mainQueue.pause();
+          this.mainQueue.clear();
+          this.handleChange(event);
 
-        controller = new AbortController();
-        signal = controller.signal;
+          controller = new AbortController();
+          signal = controller.signal;
 
-        this.build({ signal });
+          this.build({ signal });
+        }
       });
     }
   }
 
   async build({ signal }) {
-    let graph = await this.completeGraph({ signal });
+    await this.updateGraph();
+    await this.completeGraph({ signal });
     // await graph.dumpGraphViz();
-    let { bundles } = await this.bundle(graph);
+    let { bundles } = await this.bundle(this.graph);
     await this.package(bundles);
+  }
+
+  async updateGraph() {
+    this.updateQueue.start();
+    await this.updateQueue.onIdle();
+    this.updateQueue.pause();
   }
 
   async completeGraph({ signal }) {
     for (let node of this.graph.incompleteNodes) {
-      this.queue.add(() => this.processNode(node, { signal }));
+      this.mainQueue.add(() => this.processNode(node, { signal }));
     }
 
-    this.queue.start();
-    await this.queue.onIdle();
+    this.mainQueue.start();
+    await this.mainQueue.onIdle();
+    this.mainQueue.pause();
 
     if (signal.aborted) throw AbortError;
-
-    return this.graph;
   }
 
   processNode(node, { signal }) {
@@ -90,15 +101,15 @@ class Parcel {
     let file = { filePath: resolvedPath };
     if (!signal.aborted && !this.graph.hasFileNode(file)) {
       let fileNode = this.graph.addFileNode(depNode, file);
-      this.queue.add(() => this.transform(fileNode, { signal }));
+      this.mainQueue.add(() => this.transform(fileNode, { signal }));
       if (this.watcher) this.watcher.watch(resolvedPath);
     }
   }
 
-  async transform(fileNode, { signal }) {
+  async transform(fileNode, { signal, shallow }) {
     // console.log('transforming fileNode', fileNode)
     let { children: childAssets } = await this.transformerRunner.transform(fileNode.value);
-    if (!signal.aborted) {
+    if (signal && !signal.aborted) {
       let assetEdgesToRemove = fileNode.fromEdges;
       let depEdgesToRemove = [];
 
@@ -113,7 +124,7 @@ class Parcel {
           dep.sourcePath = fileNode.value.filePath; // ? Should this be done elsewhere?
           if (!this.graph.hasDependencyNode(dep)) {
             let depNode = this.graph.addDependencyNode(assetNode, dep);
-            this.queue.add(() => this.resolve(depNode, { signal }));
+            if (!shallow) this.mainQueue.add(() => this.resolve(depNode, { signal }));
           } else {
             let depNode = this.graph.getDependencyNode(dep);
             depEdgesToRemove = depEdgesToRemove.filter(edge => edge.to === depNode.id);
@@ -141,7 +152,8 @@ class Parcel {
   }
 
   handleChange(filePath) {
-    this.graph.invalidateNode(filePath);
+    let fileNode = this.graph.nodes.get(filePath);
+    this.updateQueue.add(() => this.transform(fileNode, { shallow }));
   }
 }
 
