@@ -1392,4 +1392,15 @@ describe('javascript', function() {
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(!file.includes('OptionsType'));
   });
+
+  it('should stub require.cache', async function() {
+    let b = await bundle(
+      __dirname + '/integration/node_require_cache/main.js',
+      {
+        target: 'node'
+      }
+    );
+
+    await run(b);
+  });
 });
