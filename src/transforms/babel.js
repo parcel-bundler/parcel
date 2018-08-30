@@ -46,9 +46,6 @@ async function babelTransform(asset) {
   //   throw new Error(`Unsupported babel version: ${babel.version}`);
   // }
 
-  const babelASTConvertor = require('./babelASTConvertor');
-  babelASTConvertor(asset.ast, 7);
-
   let res = babel.transformFromAst(asset.ast, asset.contents, config);
   if (res.ast) {
     asset.ast = res.ast;
