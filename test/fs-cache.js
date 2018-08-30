@@ -139,16 +139,16 @@ describe('FSCache', () => {
 
   it('should invalidate cache if a wildcard dependency changes', async () => {
     const cache = new FSCache({cacheDir: cachePath});
-    const wildcardPath = path.join(inputPath, 'wildcard');
+    let wildcardPath = path.join(inputPath, 'wildcard');
     await fs.mkdirp(wildcardPath);
     await ncp(__dirname + '/integration/fs', wildcardPath);
-    const filePath = path.join(wildcardPath, 'test.txt');
+    let filePath = path.join(wildcardPath, 'test.txt');
 
     await cache.write(__filename, {
       dependencies: [
         {
           includedInParent: true,
-          name: path.join(wildcardPath, '*')
+          name: path.join(wildcardPath, '*').replace(/\\/g, '/')
         }
       ]
     });

@@ -58,12 +58,11 @@ describe('pug', function() {
     });
 
     const html = await fs.readFile(__dirname + '/dist/index.html', 'utf-8');
-    const expect = await fs.readFile(
-      __dirname + '/integration/pug-include-extends/expect.html',
-      'utf-8'
-    );
 
-    assert.equal(html, expect, 'Content mismatch');
+    assert(html.includes('<!DOCTYPE html>'));
+    assert(html.includes('<html>'));
+    assert(html.includes('<body>'));
+    assert(html.includes(`<h1>Yep, it's working!</h1>`));
   });
 
   it('should support variables', async function() {
