@@ -27,7 +27,6 @@
     "@babel/traverse": "^7.0.0",
     "@babel/types": "^7.0.0",
     "ansi-to-html": "^0.6.4",
-    "babylon": "^6.17.4",
     "babylon-walk": "^1.0.2",
     "browserslist": "^3.2.6",
     "chalk": "^2.1.0",
