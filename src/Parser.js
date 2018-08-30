@@ -17,6 +17,7 @@ class Parser {
     this.registerExtension('ts', './assets/TypeScriptAsset');
     this.registerExtension('tsx', './assets/TypeScriptAsset');
     this.registerExtension('coffee', './assets/CoffeeScriptAsset');
+    this.registerExtension('elm', './assets/ElmAsset');
     this.registerExtension('vue', './assets/VueAsset');
     this.registerExtension('json', './assets/JSONAsset');
     this.registerExtension('json5', './assets/JSONAsset');
