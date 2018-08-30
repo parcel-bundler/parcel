@@ -26,6 +26,10 @@ class ElmAsset extends Asset {
       cwd: process.cwd()
     };
     
+    if (process.env.NODE_ENV === 'test') {
+        options.cwd += '/test/integration/elm';
+    }
+    
     if (this.options.minify) {
       options.optimize = true;
     }
