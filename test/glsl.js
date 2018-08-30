@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('../src/utils/fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree, normaliseNewlines} = require('./utils');
 
 describe('glsl', function() {
   it('should support requiring GLSL files via glslify', async function() {
@@ -25,7 +25,9 @@ describe('glsl', function() {
     assert.equal(typeof output, 'function');
     assert.ok(
       output().reduce((acc, requiredShader) => {
-        return acc && shader === requiredShader;
+        return (
+          acc && normaliseNewlines(shader) === normaliseNewlines(requiredShader)
+        );
       }, true)
     );
   });

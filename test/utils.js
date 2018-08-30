@@ -251,6 +251,10 @@ function deferred() {
   return promise;
 }
 
+function normaliseNewlines(text) {
+  return text.replace(/(\r\n|\n|\r)/g, '\n');
+}
+
 exports.sleep = sleep;
 exports.bundler = bundler;
 exports.bundle = bundle;
@@ -260,3 +264,4 @@ exports.nextBundle = nextBundle;
 exports.deferred = deferred;
 exports.rimraf = rimraf;
 exports.ncp = ncp;
+exports.normaliseNewlines = normaliseNewlines;
