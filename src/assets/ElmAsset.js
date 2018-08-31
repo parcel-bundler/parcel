@@ -52,11 +52,11 @@ class ElmAsset extends Asset {
       [this.type]: output
     };
 
-    // Recommended two-pass minification
+    // Recommended minification
     // Based on:
     // - http://elm-lang.org/0.19.0/optimize
     function pack(source) {
-      const firstPass = {
+      const options = {
         compress: {
           keep_fargs: false,
           pure_funcs: [
@@ -77,18 +77,15 @@ class ElmAsset extends Asset {
             'A8',
             'A9'
           ],
+          mangle: true,
           pure_getters: true,
           unsafe: true,
           unsafe_comps: true
         }
       };
 
-      const secondPass = {mangle: true};
-
-      const compressed = minify(source, firstPass);
-      const mangled = minify(compressed.code, secondPass);
-
-      return mangled.code;
+      const {code} = minify(source, options);
+      return code;
     }
   }
 }
