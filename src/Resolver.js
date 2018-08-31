@@ -1,7 +1,7 @@
 const builtins = require('./builtins');
 const nodeBuiltins = require('node-libs-browser');
 const path = require('path');
-const isGlob = require('is-glob');
+const {isGlob} = require('./utils/glob');
 const fs = require('./utils/fs');
 const micromatch = require('micromatch');
 
