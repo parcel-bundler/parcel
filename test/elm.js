@@ -20,11 +20,6 @@ describe('elm', function() {
       production: true
     });
 
-    await assertBundleTree(b, {
-      type: 'js',
-      assets: ['Main.elm', 'index.js']
-    });
-
     let output = await run(b);
     assert.equal(typeof output().Elm.Main.init, 'function');
 
