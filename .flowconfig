@@ -1,0 +1,14 @@
+[ignore]
+.*/node_modules/findup/.*
+.*/node_modules/config-chain/.*
+.*/node_modules/graphviz/documentation.json
+
+[include]
+
+[libs]
+
+[lints]
+
+[options]
+
+[strict]

@@ -9,9 +9,11 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "scripts": {
+    "build": "babel src --out-dir lib",
     "test": "mocha"
   },
   "devDependencies": {
+    "babel-cli": "^6.26.0",
     "mocha": "^5.1.1",
     "pretty-format": "^23.5.0"
   },

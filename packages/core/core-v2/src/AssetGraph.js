@@ -1,55 +1,84 @@
 
-const Graph = require('./Graph');
+// @flow
+'use strict';
+import Graph, { Node, type NodeId } from './Graph';
+import type { Dependency, Asset, File } from './types';
+import type { Edge } from './Graph';
 
-const depNode = (dep) => ({
-  id: dep.sourcePath + ':' + dep.moduleSpecifier,
-  type: 'dependency',
-  value: dep,
-  fromEdges: [],
-  toEdges: [],
+export interface RootNode extends Node {
+  type: 'root';
+  value: string;
+}
+
+export interface DependencyNode extends Node {
+  type: 'dependency';
+  value: Dependency;
+}
+
+export interface FileNode extends Node {
+  type: 'file';
+  value: File;
+}
+
+export interface AssetNode extends Node {
+  type: 'asset';
+  value: Asset;
+}
+
+export type AssetGraphNode = RootNode|DependencyNode|FileNode|AssetNode;
+
+const rootNode = (rootDir: string) => ({
+  id: rootDir,
+  type: 'root',
+  value: rootDir,
 });
 
-const fileNode = (file) => ({
+const depNode = (dep: Dependency) => ({
+  id: `${dep.sourcePath}:${dep.moduleSpecifier}`,
+  type: 'dependency',
+  value: dep,
+});
+
+const fileNode = (file: File): FileNode => ({
   id: file.filePath,
   type: 'file',
   value: file,
-  fromEdges: [],
-  toEdges: [],
 });
 
-const assetNode = (asset) => ({
+const assetNode = (asset: Asset) => ({
   id: asset.hash,
   type: 'asset',
   value: asset,
-  fromEdges: [],
-  toEdges: [],
 });
 
-class AssetGraph extends Graph {
-  constructor({ entries, rootDir }) {
+type AssetGraphOpts = {
+  entries: Array<string>,
+  rootDir: string,
+}
+
+export default class AssetGraph extends Graph<AssetGraphNode> {
+  incompleteNodes: Set<AssetGraphNode>;
+
+  constructor({ entries, rootDir }: AssetGraphOpts) {
     super();
     this.incompleteNodes = new Set();
     this.initializeGraph({ entries, rootDir });
   }
 
-  initializeGraph({ entries, rootDir }) {
-    let rootNode = {
-      id: rootDir,
-      type: 'root',
-      fromEdges: [],
-    };
-    this.addNode(rootNode);
+  initializeGraph({ entries, rootDir }: AssetGraphOpts) {
+    let node = rootNode(rootDir);
+    this.addNode(node);
 
     for (let entry of entries) {
       let dependency = {
         sourcePath: rootDir,
         moduleSpecifier: entry,
       }
-      this.addDependencyNode(rootNode, dependency);
+      this.addDependencyNode(node, dependency);
     }
   }
 
-  addDependencyNode(from, dep) {
+  addDependencyNode(from: AssetNode|RootNode, dep: Dependency) {
     if (this.hasDependencyNode(dep)) return this.getDependencyNode(dep);
 
     let node = depNode(dep);
@@ -60,17 +89,19 @@ class AssetGraph extends Graph {
     return node;
   }
 
-  hasDependencyNode(dep) {
+  hasDependencyNode(dep: Dependency) {
     let node = depNode(dep);
     return this.nodes.has(node.id);
   }
 
-  getDependencyNode(dep) {
+  getDependencyNode(dep: Dependency) {
     let node = depNode(dep);
-    return this.nodes.get(node.id);
+    node = this.nodes.get(node.id);
+    if (!node || node.type !== 'dependency') throw new Error('Invalid Graph');
+    return node;
   }
 
-  addFileNode(from, file) {
+  addFileNode(from: DependencyNode, file: File): FileNode {
     if (this.hasFileNode(file)) return this.getFileNode(file);
 
     let node = fileNode(file);
@@ -82,17 +113,19 @@ class AssetGraph extends Graph {
     return node;
   }
 
-  hasFileNode(file) {
+  hasFileNode(file: File) {
     let node = fileNode(file);
     return this.nodes.has(node.id);
   }
 
-  getFileNode(file) {
+  getFileNode(file: File) {
     let node = fileNode(file);
-    return this.nodes.get(node.id);
+    node = this.nodes.get(node.id);
+    if (!node || node.type !== 'file') throw new Error('Invalid Graph');
+    return node;
   }
 
-  addAssetNode(from, asset) {
+  addAssetNode(from: FileNode, asset: Asset) {
     if (this.hasAssetNode(asset)) return this.getAssetNode(asset);
 
     let node = assetNode(asset);
@@ -103,14 +136,21 @@ class AssetGraph extends Graph {
     return node;
   }
 
-  hasAssetNode(asset) {
+  hasAssetNode(asset: Asset) {
     let node = assetNode(asset);
     return this.nodes.has(node.id);
   }
 
-  getAssetNode(asset) {
+  getAssetNode(asset: Asset) {
     let node = assetNode(asset);
-    return this.nodes.get(node.id);
+    node = this.nodes.get(node.id);
+    if (!node || node.type !== 'asset') throw new Error('Invalid Graph');
+    return node;
+  }
+
+  removeNode(node: AssetGraphNode) {
+    this.incompleteNodes.delete(node);
+    return super.removeNode(node);
   }
 
   async dumpGraphViz() {
@@ -123,12 +163,18 @@ class AssetGraph extends Graph {
     let colors = {
       'root': 'gray',
       'asset': 'green',
-      'dep': 'orange',
+      'dependency': 'orange',
       'file': 'cyan',
     };
 
     let nodes = Array.from(this.nodes.values());
-    let root = nodes.find(n => n.type === 'root');
+    let root
+    for (let node of nodes) {
+      if (node.type === 'root') {
+        root = node;
+        break;
+      }
+    }
     let rootPath = root ? root.value : '/';
 
     for (let node of nodes) {
@@ -140,7 +186,7 @@ class AssetGraph extends Graph {
 
       let label = `${node.type}: `;
 
-      if (node.type === 'dep') {
+      if (node.type === 'dependency') {
         label += node.value.moduleSpecifier;
         let parts = [];
         if (node.value.isEntry) parts.push('entry');
@@ -151,7 +197,7 @@ class AssetGraph extends Graph {
       } else if (node.type === 'asset') {
         label += path.relative(rootPath, node.value.filePath) + '#' + node.value.hash.slice(0, 8);
       } else if (node.type === 'file') {
-        label += path.relative(rootPath, node.value);
+        label += path.relative(rootPath, node.value.filePath);
       } else {
         label += node.id;
       }
@@ -169,5 +215,3 @@ class AssetGraph extends Graph {
     console.log(`open ${tmp}`);
   }
 }
-
-module.exports = AssetGraph;

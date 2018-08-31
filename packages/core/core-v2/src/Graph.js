@@ -1,45 +1,36 @@
 // @flow
 'use strict';
 
-/*::
 export type NodeId = string;
-
-export type Node = {
-  id: NodeId,
-  value: any,
-};
 
 export type Edge = {
   from: NodeId,
   to: NodeId,
 };
-*/
 
-class Graph {
+export interface Node {
+  id: string;
+  value: any;
+}
 
-  /*::
+export default class Graph<Node: Node> {
   nodes: Map<NodeId, Node>;
   edges: Set<Edge>;
-  */
 
   constructor() {
     this.nodes = new Map();
     this.edges = new Set();
   }
 
-  addNode(node /*: Node */) {
+  addNode(node: Node) {
     this.nodes.set(node.id, node);
   }
 
-  addEdge(edge /*: Edge */) {
-    let fromNode = this.nodes.get(edge.from);
-    fromNode.fromEdges.push(edge);
-    let toNode = this.nodes.get(edge.to);
-    toNode.toEdges.push(edge);
+  addEdge(edge: Edge) {
     this.edges.add(edge);
   }
 
-  removeNode(node /*: Node */) {
+  removeNode(node: Node): Array<Node|Edge> {
     this.nodes.delete(node.id);
 
     let invalidated = [];
@@ -57,17 +48,17 @@ class Graph {
     return invalidated;
   }
 
-  removeEdge(edge /*: Edge */) {
-    this.edges.remove(edge);
+  removeEdge(edge: Edge): Array<Node|Edge> {
+    this.edges.delete(edge);
 
     let invalidated = [];
 
-    for (let node of this.nodes) {
-      if (edge.from === node.id) {
+    for (let [id, node] of this.nodes) {
+      if (edge.from === id) {
         invalidated.push(node);
       }
 
-      if (edge.to === node.id) {
+      if (edge.to === id) {
         if (this.isOrphanedNode(node)) {
           invalidated = invalidated.concat(this.removeNode(node));
         }
@@ -86,5 +77,3 @@ class Graph {
     return true;
   }
 }
-
-module.exports = Graph;

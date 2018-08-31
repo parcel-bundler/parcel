@@ -66,6 +66,8 @@ type Ast = {
   program: JsonObject
 };
 
+type ModuleId = string;
+
 type ModuleGraph = {
   nodes: Array<ModuleId>;
   edges: Array<{
@@ -109,7 +111,7 @@ type Resolver = {
 
 type Transformer = {
   config(opts: {
-    module: Module,
+    module: Asset,
     fs: FileSystem,
     env: GlobalEnv,
   }): Promise<{
@@ -124,12 +126,12 @@ type Transformer = {
   // }>,
 
   transform(opts: {
-    module: Module,
+    module: Asset,
     // ast: Ast,
     env: GlobalEnv,
   }): Promise<{
     results: Array<{
-      module: Module,
+      module: Asset,
       dependencies: Array<Dependency>
     }>
   }>,
@@ -145,9 +147,9 @@ type Transformer = {
 
 
 
-declare function transform(opts: { module: Module, globalEnv: GlobalEnv }): {
+declare function transform(opts: { module: Asset, globalEnv: GlobalEnv }): {
   results: Array<{
-    module: Module,
+    module: Asset,
     dependencies: Array<Dependency>,
   }>,
 };
