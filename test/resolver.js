@@ -7,7 +7,7 @@ const {symlinkSync} = require('fs');
 
 const rootDir = path.join(__dirname, 'input/resolver');
 
-describe('resolver', function() {
+describe.only('resolver', function() {
   let resolver;
   before(async function() {
     await rimraf(__dirname + '/input');
@@ -17,15 +17,18 @@ describe('resolver', function() {
     // Create the symlinks here to prevent cross platform and git issues
     symlinkSync(
       path.join(rootDir, 'packages/source'),
-      path.join(rootDir, 'node_modules/source')
+      path.join(rootDir, 'node_modules/source'),
+      'dir'
     );
     symlinkSync(
       path.join(rootDir, 'packages/source-alias'),
-      path.join(rootDir, 'node_modules/source-alias')
+      path.join(rootDir, 'node_modules/source-alias'),
+      'dir'
     );
     symlinkSync(
       path.join(rootDir, 'packages/source-alias-glob'),
-      path.join(rootDir, 'node_modules/source-alias-glob')
+      path.join(rootDir, 'node_modules/source-alias-glob'),
+      'dir'
     );
 
     resolver = new Resolver({
