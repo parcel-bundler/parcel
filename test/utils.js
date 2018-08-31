@@ -11,16 +11,20 @@ const promisify = require('../src/utils/promisify');
 const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
 
-beforeEach(async function() {
-  // Test run in a single process, creating and deleting the same file(s)
-  // Windows needs a delay for the file handles to be released before deleting
-  // is possible. Without a delay, rimraf fails on `beforeEach` for `/dist`
-  if (process.platform === 'win32') {
+async function deleteDirDelayed(distPath) {
+  try {
+    await rimraf(distPath);
+  } catch (e) {
     await sleep(50);
+    await deleteDirDelayed(distPath);
   }
-  // Unix based systems also need a delay but only half as much as windows
-  await sleep(50);
-  await rimraf(path.join(__dirname, 'dist'));
+}
+
+beforeEach(async function() {
+  let distPath = path.join(__dirname, 'dist');
+  if (await fs.exists(distPath)) {
+    await deleteDirDelayed(distPath);
+  }
 });
 
 function sleep(ms) {
