@@ -12,7 +12,7 @@ describe('scope hoisting', function() {
       'WARNING: Scope hoisting tests are disabled on windows due to ' +
         'filesystem errors. Feel free to look into this and contribute a fix!'
     );
-    this.skip();
+    return;
   }
 
   describe('es6', function() {
