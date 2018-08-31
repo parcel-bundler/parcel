@@ -55,11 +55,6 @@ async function babelTransform(asset, version) {
     ? require('@babel/core')
     : await localRequire('@babel/core', asset.name);
 
-  // TODO: support other versions of babel
-  // if (parseInt(babel.version, 10) !== 6) {
-  //   throw new Error(`Unsupported babel version: ${babel.version}`);
-  // }
-
   let res = babel.transformFromAst(asset.ast, asset.contents, config);
   if (res.ast) {
     asset.ast = res.ast;
@@ -358,13 +353,6 @@ async function getEnvPlugins(targets, useBuiltIns = false) {
       shippedProposals: true
     }
   ).plugins;
-
-  // @babel/preset-env version 6.x does not cover object-rest-spread so always
-  // add it.
-  // plugins.push([
-  //   require('babel-plugin-transform-object-rest-spread'),
-  //   {useBuiltIns}
-  // ]);
 
   envCache.set(key, plugins);
   return plugins;
