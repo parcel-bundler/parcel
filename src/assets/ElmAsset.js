@@ -52,7 +52,7 @@ class ElmAsset extends Asset {
       [this.type]: output
     };
 
-    // Optimized two-pass minification
+    // Recommended two-pass minification
     // Based on:
     // - http://elm-lang.org/0.19.0/optimize
     function pack(source) {
