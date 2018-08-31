@@ -1,8 +1,9 @@
 const assert = require('assert');
 const fs = require('../src/utils/fs');
 const path = require('path');
-const {bundle, run, assertBundleTree, deferred} = require('./utils');
+const {bundle, run, assertBundleTree, deferred, ncp} = require('./utils');
 const {mkdirp} = require('../src/utils/fs');
+const {symlinkSync} = require('fs');
 
 describe('javascript', function() {
   it('should produce a basic JS bundle with CommonJS requires', async function() {
@@ -1018,7 +1019,21 @@ describe('javascript', function() {
   });
 
   it('should compile node_modules when symlinked with a source field in package.json', async function() {
-    await bundle(__dirname + '/integration/babel-node-modules-source/index.js');
+    const inputDir = __dirname + '/input';
+    await mkdirp(path.join(inputDir, 'node_modules'));
+    await ncp(
+      path.join(__dirname + '/integration/babel-node-modules-source'),
+      inputDir
+    );
+
+    // Create the symlinks here to prevent cross platform and git issues
+    symlinkSync(
+      path.join(inputDir, 'packages/foo'),
+      path.join(inputDir, 'node_modules/foo'),
+      'dir'
+    );
+
+    await bundle(inputDir + '/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(file.includes('function Foo'));
