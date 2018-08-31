@@ -233,7 +233,7 @@ describe('watcher', function() {
 
   it('should recompile all assets when a config file changes', async function() {
     await ncp(__dirname + '/integration/babel', inputDir);
-    b = bundler(inputDir + 'index.js', {watch: true});
+    b = bundler(path.join(inputDir, 'index.js'), {watch: true});
 
     await b.bundle();
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
