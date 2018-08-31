@@ -5,7 +5,15 @@ const fs = require('../src/utils/fs');
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
 
-describe.skip('scope hoisting', function() {
+describe('scope hoisting', function() {
+  // TODO: Figure out why these throw permission errors on windows
+  if (process.platform === 'win32') {
+    // eslint-disable-next-line no-console
+    console.warn(`WARNING: Scope hoisting tests are disabled on windows due to filesystem errors.
+    Feel free to look into this and contribute a fix!`);
+    return;
+  }
+
   describe('es6', function() {
     it('supports default imports and exports of expressions', async function() {
       let b = await bundle(
