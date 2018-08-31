@@ -7,7 +7,7 @@ const {symlinkSync} = require('fs');
 
 const rootDir = path.join(__dirname, 'input/resolver');
 
-describe.only('resolver', function() {
+describe('resolver', function() {
   let resolver;
   before(async function() {
     await rimraf(__dirname + '/input');

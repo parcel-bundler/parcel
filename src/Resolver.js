@@ -147,7 +147,7 @@ class Resolver {
 
       default:
         // Module
-        return path.normalize(filename);
+        return path.normalize(filename).replace(/\\/g, '/');
     }
   }
 
