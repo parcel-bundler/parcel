@@ -21,7 +21,7 @@ async function removeDistDirectory(count = 0) {
       return;
     }
 
-    await sleep(100);
+    await sleep(250);
     await removeDistDirectory(count + 1);
   }
 }
