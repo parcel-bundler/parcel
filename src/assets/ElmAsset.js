@@ -77,11 +77,11 @@ class ElmAsset extends Asset {
             'A8',
             'A9'
           ],
-          mangle: true,
           pure_getters: true,
           unsafe: true,
           unsafe_comps: true
-        }
+        },
+        mangle: true
       };
 
       const {code} = minify(source, options);
