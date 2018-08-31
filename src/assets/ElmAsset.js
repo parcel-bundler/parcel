@@ -88,7 +88,7 @@ class ElmAsset extends Asset {
       const result = minify(source, options);
       
       if (result.error) {
-        throw new Error(result.error);
+        throw result.error;
       }
       
       return result.code;
