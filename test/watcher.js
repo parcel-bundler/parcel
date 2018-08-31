@@ -16,6 +16,7 @@ describe('watcher', function() {
   let b;
   beforeEach(async function() {
     await rimraf(__dirname + '/input');
+    await sleep(100);
   });
 
   afterEach(function() {
