@@ -12,18 +12,17 @@ const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
 
 async function removeDistDirectory(count = 0) {
-  let distPath = path.join(__dirname, 'dist');
   try {
-    await rimraf(distPath);
+    await rimraf(path.join(__dirname, 'dist'));
   } catch (e) {
-    if (count > 20) {
+    if (count > 8) {
       // eslint-disable-next-line no-console
-      console.warn('Unable to remove dist directory.');
+      console.warn('WARNING: Unable to remove dist directory:', e.message);
       return;
     }
 
-    await sleep(50);
-    return removeDistDirectory(count + 1);
+    await sleep(100);
+    await removeDistDirectory(count + 1);
   }
 }
 

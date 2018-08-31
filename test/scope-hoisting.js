@@ -5,7 +5,7 @@ const fs = require('../src/utils/fs');
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
 
-describe('scope hoisting', function() {
+describe.skip('scope hoisting', function() {
   describe('es6', function() {
     it('supports default imports and exports of expressions', async function() {
       let b = await bundle(
