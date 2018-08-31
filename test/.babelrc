@@ -4,5 +4,6 @@
       "node": "current"
     }
   }]],
+  "plugins": ["@babel/plugin-transform-runtime"],
   "ignore": ["integration", "input", "dist"]
 }
