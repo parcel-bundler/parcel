@@ -6,12 +6,13 @@ const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
 
 describe('scope hoisting', function() {
-  // TODO: Figure out why these throw permission errors on windows
   if (process.platform === 'win32') {
     // eslint-disable-next-line no-console
-    console.warn(`WARNING: Scope hoisting tests are disabled on windows due to filesystem errors.
-    Feel free to look into this and contribute a fix!`);
-    return;
+    console.warn(
+      'WARNING: Scope hoisting tests are disabled on windows due to ' +
+        'filesystem errors. Feel free to look into this and contribute a fix!'
+    );
+    this.skip();
   }
 
   describe('es6', function() {
