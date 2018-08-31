@@ -77,12 +77,16 @@ class JSAsset extends Asset {
     };
 
     // Check if there is a babel config file. If so, determine which parser plugins to enable
-    this.babelConfig = await babel.getConfig(this);
-    Object.assign(options, this.babelConfig);
-    // if (this.babelConfig) {
-    //   const file = new BabelFile(this.babelConfig);
-    //   options.plugins.push(...file.parserOpts.plugins);
-    // }
+    let babelConfig = await babel.getConfig(this);
+
+    if (babelConfig && babelConfig.babelVersion !== 6) {
+      this.babelConfig = await babel.getConfig(this);
+      Object.assign(options, this.babelConfig);
+      // if (this.babelConfig) {
+      //   const file = new BabelFile(this.babelConfig);
+      //   options.plugins.push(...file.parserOpts.plugins);
+      // }
+    }
 
     return options;
   }

@@ -2,8 +2,8 @@ const presetEnv = require('@babel/preset-env');
 const getTargetEngines = require('../utils/getTargetEngines');
 const localRequire = require('../utils/localRequire');
 const path = require('path');
-// const {util: babelUtils} = require('@babel/core');
 const fs = require('../utils/fs');
+const babelASTConverter = require('./babelASTConverter');
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 const ENV_PLUGINS = require('@babel/preset-env/data/plugins');
@@ -34,6 +34,24 @@ async function babelTransform(asset) {
   }
 
   await asset.parseIfNeeded();
+
+  // Pre-Transform Babel 6
+  if (config.babelVersion && config.babelVersion === 6) {
+    // Flag it as Babel 6 so we skip config fetching for Babel 6
+    asset.isBabel6 = true;
+
+    let babel6 = await localRequire('babel-core', asset.name);
+    asset.ast = babelASTConverter(asset.ast, 7);
+    let res = babel6.transformFromAst(asset.ast, asset.contents, config);
+    if (res.ast) {
+      asset.ast = res.ast;
+      asset.isAstDirty = true;
+    }
+
+    asset.ast = babelASTConverter(asset.ast, 6);
+
+    return babelTransform(asset);
+  }
 
   // If this is an internally generated config, use our internal @babel/core,
   // otherwise require a local version from the package we're compiling.
@@ -70,6 +88,14 @@ async function getConfig(asset) {
       value: internal,
       configurable: true
     });
+
+    // Hide config version from babel
+    let babelVersion = config.babelVersion;
+    delete config.babelVersion;
+    Object.defineProperty(config, 'babelVersion', {
+      value: babelVersion,
+      configurable: true
+    });
   }
 
   return config;
@@ -99,16 +125,14 @@ async function getBabelConfig(asset) {
     !asset.name.includes(NODE_MODULES);
 
   // Try to resolve a .babelrc file. If one is found, consider the module source code.
-  let babelrc = await getBabelRc(asset, isSource);
-  let isBabel7 = true;
-  if (babelrc) {
-    isBabel7 = babelrc.version === 7;
-    babelrc = babelrc.config;
-
-    if (!isBabel7) {
-      console.log('Found a babel 6 module in: ', asset.name);
+  let babelrc = null;
+  if (asset.isBabel6 !== true) {
+    babelrc = await getBabelRc(asset, isSource);
+    if (babelrc && babelrc.babelVersion === 6) {
+      return babelrc;
     }
   }
+
   isSource = isSource || !!babelrc;
 
   let envConfig = await getEnvConfig(asset, isSource);
@@ -211,7 +235,7 @@ function testPluginArrayForBabelScope(plugins) {
   return false;
 }
 
-function isBabel7Config(babelrc) {
+function isBabel7Config(babelrc = {}) {
   if (!babelrc.presets && !babelrc.presets) {
     return true;
   }
@@ -262,12 +286,10 @@ async function getBabelRc(asset, isSource) {
 
   // Otherwise, don't load .babelrc for node_modules.
   // See https://github.com/parcel-bundler/parcel/issues/13.
-  return babelrc
-    ? {
-        version: isBabel7Config(babelrc) ? 7 : 6,
-        config: babelrc
-      }
-    : null;
+  if (babelrc) {
+    babelrc.babelVersion = isBabel7Config(babelrc) ? 7 : 6;
+  }
+  return babelrc;
 }
 
 async function findBabelRc(asset) {
