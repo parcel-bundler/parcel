@@ -4,7 +4,7 @@ const {bundle, assertBundleTree, run} = require('./utils');
 describe('elm', function() {
   it('should produce a basic elm bundle', async function() {
     let b = await bundle(__dirname + '/integration/elm/index.js');
-    
+
     await assertBundleTree(b, {
       type: 'js',
       assets: ['Main.elm', 'index.js']
