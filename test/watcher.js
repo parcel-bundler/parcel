@@ -11,11 +11,14 @@ const {
   rimraf,
   ncp
 } = require('./utils');
+const {symlinkSync} = require('fs');
+
+const inputDir = path.join(__dirname, '/input');
 
 describe('watcher', function() {
   let b;
   beforeEach(async function() {
-    await rimraf(__dirname + '/input');
+    await rimraf(inputDir);
     await sleep(100);
   });
 
@@ -26,17 +29,14 @@ describe('watcher', function() {
   });
 
   it('should rebuild on file change', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    await ncp(__dirname + '/integration/commonjs', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    b = bundler(inputDir + '/index.js', {watch: true});
     let bundle = await b.bundle();
     let output = await run(bundle);
     assert.equal(output(), 3);
 
-    await fs.writeFile(
-      __dirname + '/input/local.js',
-      'exports.a = 5; exports.b = 5;'
-    );
+    await fs.writeFile(inputDir + '/local.js', 'exports.a = 5; exports.b = 5;');
 
     bundle = await nextBundle(b);
     output = await run(bundle);
@@ -44,9 +44,9 @@ describe('watcher', function() {
   });
 
   it('should re-generate bundle tree when files change', async function() {
-    await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
+    await ncp(__dirname + '/integration/dynamic-hoist', inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    b = bundler(inputDir + '/index.js', {watch: true});
     let bundle = await b.bundle();
 
     await assertBundleTree(bundle, {
@@ -87,7 +87,7 @@ describe('watcher', function() {
 
     // change b.js so that it no longer depends on common.js.
     // This should cause common.js and dependencies to no longer be hoisted to the root bundle.
-    await fs.writeFile(__dirname + '/input/b.js', 'module.exports = 5;');
+    await fs.writeFile(inputDir + '/b.js', 'module.exports = 5;');
 
     bundle = await nextBundle(b);
     await assertBundleTree(bundle, {
@@ -121,8 +121,8 @@ describe('watcher', function() {
   });
 
   it('should only re-package bundles that changed', async function() {
-    await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    await ncp(__dirname + '/integration/dynamic-hoist', inputDir);
+    b = bundler(inputDir + '/index.js', {watch: true});
 
     await b.bundle();
     let mtimes = (await fs.readdir(__dirname + '/dist')).map(
@@ -132,7 +132,7 @@ describe('watcher', function() {
 
     await sleep(1100); // mtime only has second level precision
     await fs.writeFile(
-      __dirname + '/input/b.js',
+      inputDir + '/b.js',
       'module.exports = require("./common")'
     );
 
@@ -146,8 +146,8 @@ describe('watcher', function() {
   });
 
   it('should unload assets that are orphaned', async function() {
-    await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    await ncp(__dirname + '/integration/dynamic-hoist', inputDir);
+    b = bundler(inputDir + '/index.js', {watch: true});
 
     let bundle = await b.bundle();
     await assertBundleTree(bundle, {
@@ -186,10 +186,10 @@ describe('watcher', function() {
     let output = await run(bundle);
     assert.equal(await output(), 7);
 
-    assert(b.loadedAssets.has(path.join(__dirname, '/input/common-dep.js')));
+    assert(b.loadedAssets.has(path.join(inputDir, '/common-dep.js')));
 
     // Get rid of common-dep.js
-    await fs.writeFile(__dirname + '/input/common.js', 'module.exports = 5;');
+    await fs.writeFile(inputDir + '/common.js', 'module.exports = 5;');
 
     bundle = await nextBundle(b);
     await assertBundleTree(bundle, {
@@ -227,12 +227,12 @@ describe('watcher', function() {
     output = await run(bundle);
     assert.equal(await output(), 13);
 
-    assert(!b.loadedAssets.has(path.join(__dirname, '/input/common-dep.js')));
+    assert(!b.loadedAssets.has(path.join(inputDir, 'common-dep.js')));
   });
 
   it('should recompile all assets when a config file changes', async function() {
-    await ncp(__dirname + '/integration/babel', __dirname + '/input');
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    await ncp(__dirname + '/integration/babel', inputDir);
+    b = bundler(inputDir + 'index.js', {watch: true});
 
     await b.bundle();
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
@@ -240,14 +240,12 @@ describe('watcher', function() {
     assert(!file.includes('function Bar'));
 
     // Change babelrc, should recompile both files
-    let babelrc = JSON.parse(
-      await fs.readFile(__dirname + '/input/.babelrc', 'utf8')
-    );
+    let babelrc = JSON.parse(await fs.readFile(inputDir + '/.babelrc', 'utf8'));
     babelrc.presets[0][1].targets.browsers.push('IE >= 11');
 
     await sleep(100);
 
-    await fs.writeFile(__dirname + '/input/.babelrc', JSON.stringify(babelrc));
+    await fs.writeFile(inputDir + '/.babelrc', JSON.stringify(babelrc));
 
     await nextBundle(b);
     file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
@@ -256,12 +254,15 @@ describe('watcher', function() {
   });
 
   it('should rebuild if the file behind a symlink changes', async function() {
-    await ncp(
-      __dirname + '/integration/commonjs-with-symlinks/',
-      __dirname + '/input'
+    await ncp(__dirname + '/integration/commonjs-with-symlinks/', inputDir);
+
+    // Create the symlink here to prevent cross platform and git issues
+    symlinkSync(
+      path.join(inputDir, 'local.js'),
+      path.join(inputDir, 'src/symlinked_local.js')
     );
 
-    b = bundler(__dirname + '/input/src/index.js', {
+    b = bundler(inputDir + '/src/index.js', {
       watch: true
     });
 
@@ -270,10 +271,7 @@ describe('watcher', function() {
 
     assert.equal(output(), 3);
 
-    await fs.writeFile(
-      __dirname + '/input/local.js',
-      'exports.a = 5; exports.b = 5;'
-    );
+    await fs.writeFile(inputDir + '/local.js', 'exports.a = 5; exports.b = 5;');
 
     bundle = await nextBundle(b);
     output = await run(bundle);

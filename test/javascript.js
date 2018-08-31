@@ -1026,7 +1026,7 @@ describe('javascript', function() {
       inputDir
     );
 
-    // Create the symlinks here to prevent cross platform and git issues
+    // Create the symlink here to prevent cross platform and git issues
     symlinkSync(
       path.join(inputDir, 'packages/foo'),
       path.join(inputDir, 'node_modules/foo'),
