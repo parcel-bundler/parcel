@@ -11,20 +11,24 @@ const promisify = require('../src/utils/promisify');
 const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
 
-async function deleteDirDelayed(distPath) {
+async function removeDistDirectory(count = 0) {
+  let distPath = path.join(__dirname, 'dist');
   try {
     await rimraf(distPath);
   } catch (e) {
+    if (count > 20) {
+      // eslint-disable-next-line no-console
+      console.warn('Unable to remove dist directory.');
+      return;
+    }
+
     await sleep(50);
-    await deleteDirDelayed(distPath);
+    return removeDistDirectory(count++);
   }
 }
 
 beforeEach(async function() {
-  let distPath = path.join(__dirname, 'dist');
-  if (await fs.exists(distPath)) {
-    await deleteDirDelayed(distPath);
-  }
+  await removeDistDirectory();
 });
 
 function sleep(ms) {
