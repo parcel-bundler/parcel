@@ -85,8 +85,13 @@ class ElmAsset extends Asset {
         rename: false
       };
 
-      const {code} = minify(source, options);
-      return code;
+      const result = minify(source, options);
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      return result.code;
     }
   }
 }
