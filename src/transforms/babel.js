@@ -27,8 +27,8 @@ const JSX_PRAGMA = {
   hyperapp: 'h'
 };
 
-async function babelTransform(asset) {
-  let config = await getConfig(asset);
+async function babelTransform(asset, version) {
+  let config = await getConfig(asset, version);
   if (!config) {
     return;
   }
@@ -37,11 +37,7 @@ async function babelTransform(asset) {
 
   // Pre-Transform Babel 6
   if (config.babelVersion && config.babelVersion === 6) {
-    // Flag it as Babel 6 so we skip config fetching for Babel 6
-    asset.isBabel6 = true;
-
     let babel6 = await localRequire('babel-core', asset.name);
-    asset.ast = babelASTConverter(asset.ast, 7);
     let res = babel6.transformFromAst(asset.ast, asset.contents, config);
     if (res.ast) {
       asset.ast = res.ast;
@@ -50,7 +46,7 @@ async function babelTransform(asset) {
 
     asset.ast = babelASTConverter(asset.ast, 6);
 
-    return babelTransform(asset);
+    return babelTransform(asset, 7);
   }
 
   // If this is an internally generated config, use our internal @babel/core,
@@ -73,8 +69,8 @@ async function babelTransform(asset) {
 
 module.exports = babelTransform;
 
-async function getConfig(asset) {
-  let config = await getBabelConfig(asset);
+async function getConfig(asset, version) {
+  let config = await getBabelConfig(asset, version);
   if (config) {
     config.code = false;
     config.ast = true;
@@ -103,7 +99,7 @@ async function getConfig(asset) {
 
 babelTransform.getConfig = getConfig;
 
-async function getBabelConfig(asset) {
+async function getBabelConfig(asset, version) {
   // If asset is marked as an ES6 modules, this is a second pass after dependencies are extracted.
   // Just compile modules to CommonJS.
   if (asset.isES6Module) {
@@ -114,7 +110,9 @@ async function getBabelConfig(asset) {
   }
 
   if (asset.babelConfig) {
-    return asset.babelConfig;
+    if (asset.babelConfig.babelVersion === version) {
+      return asset.babelConfig;
+    }
   }
 
   // Consider the module source code rather than precompiled if the resolver
@@ -126,7 +124,7 @@ async function getBabelConfig(asset) {
 
   // Try to resolve a .babelrc file. If one is found, consider the module source code.
   let babelrc = null;
-  if (asset.isBabel6 !== true) {
+  if (!asset.babelConfig) {
     babelrc = await getBabelRc(asset, isSource);
     if (babelrc && babelrc.babelVersion === 6) {
       return babelrc;

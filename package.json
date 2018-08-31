@@ -80,6 +80,7 @@
     "@vue/component-compiler-utils": "^2.0.0",
     "babel-core": "^6.26.3",
     "babel-preset-env": "^1.7.0",
+    "babylon": "^6.18.0",
     "bsb-js": "^1.0.1",
     "codecov": "^3.0.0",
     "coffeescript": "^2.0.3",
