@@ -81,7 +81,8 @@ class ElmAsset extends Asset {
           unsafe: true,
           unsafe_comps: true
         },
-        mangle: true
+        mangle: true,
+        rename: false
       };
 
       const {code} = minify(source, options);
