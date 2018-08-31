@@ -45,18 +45,18 @@ class ElmAsset extends Asset {
     let output = this.contents;
 
     if (this.options.minify) {
-      output = mangle(compress(output));
+      output = pack(output);
     }
 
     return {
       [this.type]: output
     };
 
-    // Optimal Terser Configuration
+    // Optimized two-pass minification
     // Based on:
     // - http://elm-lang.org/0.19.0/optimize
-    function compress(source) {
-      const options = {
+    function pack(source) {
+      const firstPass = {
         compress: {
           keep_fargs: false,
           pure_funcs: [
@@ -83,13 +83,12 @@ class ElmAsset extends Asset {
         }
       };
 
-      const {code} = minify(source, options);
-      return code;
-    }
+      const secondPass = {mangle: true};
 
-    function mangle(source) {
-      const {code} = minify(source, {mangle: true});
-      return code;
+      const compressed = minify(source, firstPass);
+      const mangled = minify(compressed.code, secondPass);
+
+      return mangled.code;
     }
   }
 }
