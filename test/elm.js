@@ -24,6 +24,6 @@ describe('elm', function() {
     assert.equal(typeof output().Elm.Main.init, 'function');
 
     let js = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(!js.includes('init'));
+    assert(!js.includes('elm$core'));
   });
 });
