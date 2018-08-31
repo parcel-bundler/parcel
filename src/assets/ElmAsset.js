@@ -59,6 +59,7 @@ class ElmAsset extends Asset {
       const options = {
         compress: {
           keep_fargs: false,
+          passes: 2,
           pure_funcs: [
             'F2',
             'F3',
