@@ -43,7 +43,7 @@ class ElmAsset extends Asset {
       }
 
       // Continue searching
-      return findPackageFile(path.dirname(baseDir));
+      return await findPackageFile(path.dirname(baseDir));
     }
   }
 
