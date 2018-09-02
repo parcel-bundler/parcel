@@ -86,7 +86,7 @@
     "codecov": "^3.0.0",
     "coffeescript": "^2.0.3",
     "cross-env": "^5.1.1",
-    "elm": "^0.19.0-bugfix2",
+    "elm": "^0.19.0",
     "eslint": "^4.13.0",
     "find-elm-dependencies": "^2.0.0",
     "glslify-bundle": "^5.0.0",
