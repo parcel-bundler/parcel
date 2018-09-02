@@ -85,7 +85,7 @@ class HTMLAsset extends Asset {
     super(name, options);
     this.type = 'html';
     this.isAstDirty = false;
-    this.forceReload = true;
+    this.hmrPageReload = true;
   }
 
   async parse(code) {
