@@ -24,6 +24,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Split cache into multiple folders for faster FS [Details](https://github.com/parcel-bundler/parcel/pull/1322)
 - Support array in package.json's sideEffects property [Details](https://github.com/parcel-bundler/parcel/pull/1766)
 - Process inline scripts and styles [Details](https://github.com/parcel-bundler/parcel/pull/1456)
+- Added stub for require.cache [Details](https://github.com/parcel-bundler/parcel/pull/1960)
 
 ### Fixed
 
