@@ -1,5 +1,7 @@
+const path = require('path');
 const process = require('process');
 const Asset = require('../Asset');
+const fs = require('../utils/fs');
 const localRequire = require('../utils/localRequire');
 const {minify} = require('terser');
 
@@ -16,10 +18,33 @@ class ElmAsset extends Asset {
       this.name
     );
     const dependencies = await findAllDependencies(this.name);
+    const packageFile = await findPackageFile(path.dirname(this.name));
+
+    if (packageFile) {
+      dependencies.push(packageFile);
+    }
 
     dependencies.forEach(dependency => {
       this.addDependency(dependency, {includedInParent: true});
     });
+
+    // Recursively search for a package file
+    async function findPackageFile(baseDir) {
+      const parsedPath = path.parse(baseDir);
+      const elmPackagePath = path.join(parsedPath.dir, 'elm.json');
+
+      if (await fs.exists(elmPackagePath)) {
+        return elmPackagePath;
+      }
+
+      // Stop if we've reached the file system root
+      if (parsedPath.root === parsedPath.dir) {
+        return undefined;
+      }
+
+      // Continue searching
+      return findPackageFile(path.dirname(baseDir));
+    }
   }
 
   async parse() {
