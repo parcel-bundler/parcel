@@ -226,7 +226,7 @@ async function findBabelRc(asset) {
   });
 }
 
-function shouldIgnoreBabelrc(filename, babelrc) {
+function shouldIgnoreBabelrc(/* filename, babelrc */) {
   return false;
   // Determine if we should ignore this babelrc file. We do this here instead of
   // letting @babel/core handle it because this config might be merged with our
