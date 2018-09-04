@@ -88,11 +88,13 @@ export default class Parcel {
   }
 
   async build({ signal }: BuildOpts) {
+    console.log('Starting build');
     await this.updateGraph();
     await this.completeGraph({ signal });
     // await graph.dumpGraphViz();
     let { bundles } = await this.bundle();
     await this.package(bundles);
+    console.log('Finished build')
   }
 
   async updateGraph() {
