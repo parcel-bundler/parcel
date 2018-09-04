@@ -2,8 +2,8 @@ const presetEnv = require('@babel/preset-env');
 const getTargetEngines = require('../utils/getTargetEngines');
 const localRequire = require('../utils/localRequire');
 const path = require('path');
-// const {util: babelUtils} = require('@babel/core');
 const fs = require('../utils/fs');
+const babelASTConverter = require('./babelASTConverter');
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 const ENV_PLUGINS = require('@babel/preset-env/data/plugins');
@@ -27,24 +27,33 @@ const JSX_PRAGMA = {
   hyperapp: 'h'
 };
 
-async function babelTransform(asset) {
-  let config = await getConfig(asset);
+async function babelTransform(asset, version) {
+  let config = await getConfig(asset, version);
   if (!config) {
     return;
   }
 
   await asset.parseIfNeeded();
 
+  // Pre-Transform Babel 6
+  if (config.babelVersion && config.babelVersion === 6) {
+    let babel6 = await localRequire('babel-core', asset.name);
+    let res = babel6.transformFromAst(asset.ast, asset.contents, config);
+    if (res.ast) {
+      asset.ast = res.ast;
+      asset.isAstDirty = true;
+    }
+
+    asset.ast = babelASTConverter(asset.ast, 6);
+
+    return babelTransform(asset, 7);
+  }
+
   // If this is an internally generated config, use our internal @babel/core,
   // otherwise require a local version from the package we're compiling.
   let babel = config.internal
     ? require('@babel/core')
     : await localRequire('@babel/core', asset.name);
-
-  // TODO: support other versions of babel
-  // if (parseInt(babel.version, 10) !== 6) {
-  //   throw new Error(`Unsupported babel version: ${babel.version}`);
-  // }
 
   let res = babel.transformFromAst(asset.ast, asset.contents, config);
   if (res.ast) {
@@ -55,8 +64,8 @@ async function babelTransform(asset) {
 
 module.exports = babelTransform;
 
-async function getConfig(asset) {
-  let config = await getBabelConfig(asset);
+async function getConfig(asset, version) {
+  let config = await getBabelConfig(asset, version);
   if (config) {
     config.code = false;
     config.ast = true;
@@ -70,6 +79,14 @@ async function getConfig(asset) {
       value: internal,
       configurable: true
     });
+
+    // Hide config version from babel
+    let babelVersion = config.babelVersion;
+    delete config.babelVersion;
+    Object.defineProperty(config, 'babelVersion', {
+      value: babelVersion,
+      configurable: true
+    });
   }
 
   return config;
@@ -77,7 +94,7 @@ async function getConfig(asset) {
 
 babelTransform.getConfig = getConfig;
 
-async function getBabelConfig(asset) {
+async function getBabelConfig(asset, version) {
   // If asset is marked as an ES6 modules, this is a second pass after dependencies are extracted.
   // Just compile modules to CommonJS.
   if (asset.isES6Module) {
@@ -88,7 +105,9 @@ async function getBabelConfig(asset) {
   }
 
   if (asset.babelConfig) {
-    return asset.babelConfig;
+    if (asset.babelConfig.babelVersion === version) {
+      return asset.babelConfig;
+    }
   }
 
   // Consider the module source code rather than precompiled if the resolver
@@ -99,7 +118,14 @@ async function getBabelConfig(asset) {
     !asset.name.includes(NODE_MODULES);
 
   // Try to resolve a .babelrc file. If one is found, consider the module source code.
-  let babelrc = await getBabelRc(asset, isSource);
+  let babelrc = null;
+  if (!asset.babelConfig) {
+    babelrc = await getBabelRc(asset, isSource);
+    if (babelrc && babelrc.babelVersion === 6) {
+      return babelrc;
+    }
+  }
+
   isSource = isSource || !!babelrc;
 
   let envConfig = await getEnvConfig(asset, isSource);
@@ -129,15 +155,21 @@ async function getBabelConfig(asset) {
 
     // Add JSX config if it isn't already specified in the babelrc
     let hasReact =
-      hasPlugin(babelrc.presets, 'react') ||
-      hasPlugin(babelrc.plugins, 'transform-react-jsx');
+      hasPlugin(babelrc.presets, ['react', '@babel/preset-react']) ||
+      hasPlugin(babelrc.plugins, [
+        'transform-react-jsx',
+        '@babel/plugin-transform-react-jsx'
+      ]);
 
     if (!hasReact) {
       mergeConfigs(babelrc, jsxConfig);
     }
 
     // Add Flow stripping config if it isn't already specified in the babelrc
-    let hasFlow = hasPlugin(babelrc.plugins, 'transform-flow-strip-types');
+    let hasFlow = hasPlugin(babelrc.plugins, [
+      'transform-flow-strip-types',
+      '@babel/plugin-transform-flow-strip-types'
+    ]);
 
     if (!hasFlow && flowConfig) {
       mergeConfigs(babelrc, flowConfig);
@@ -177,12 +209,38 @@ function mergeConfigs(a, b) {
   return a;
 }
 
-function hasPlugin(arr, plugin) {
-  return Array.isArray(arr) && arr.some(p => getPluginName(p) === plugin);
+function hasPlugin(arr, plugins) {
+  return (
+    Array.isArray(arr) && arr.some(p => plugins.includes(getPluginName(p)))
+  );
 }
 
 function getPluginName(p) {
   return Array.isArray(p) ? p[0] : p;
+}
+
+function testPluginArrayForBabelScope(plugins) {
+  for (let plugin of plugins) {
+    if (getPluginName(plugin).startsWith('@babel/')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isBabel7Config(babelrc = {}) {
+  if (!babelrc.presets && !babelrc.presets) {
+    return true;
+  }
+
+  if (
+    (babelrc.presets && testPluginArrayForBabelScope(babelrc.presets)) ||
+    (babelrc.plugins && testPluginArrayForBabelScope(babelrc.plugins))
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -192,6 +250,8 @@ function getPluginName(p) {
  *   - the `source` field in package.json is used by the resolver
  */
 async function getBabelRc(asset, isSource) {
+  let babelrc = null;
+
   // Support legacy browserify packages
   let pkg = await asset.getPackage();
   let browserify = pkg && pkg.browserify;
@@ -203,21 +263,26 @@ async function getBabelRc(asset, isSource) {
 
     // If specified as an array, override the config with the one specified
     if (Array.isArray(babelify) && babelify[1]) {
-      return babelify[1];
+      babelrc = babelify[1];
     }
 
     // Otherwise, return the .babelrc if babelify was found
-    return babelify ? await findBabelRc(asset) : null;
+    if (!babelrc && babelify) {
+      babelrc = await findBabelRc(asset);
+    }
   }
 
   // If this asset is not in node_modules, always use the .babelrc
-  if (isSource) {
-    return await findBabelRc(asset);
+  if (!babelrc && isSource) {
+    babelrc = await findBabelRc(asset);
   }
 
   // Otherwise, don't load .babelrc for node_modules.
   // See https://github.com/parcel-bundler/parcel/issues/13.
-  return null;
+  if (babelrc) {
+    babelrc.babelVersion = isBabel7Config(babelrc) ? 7 : 6;
+  }
+  return babelrc;
 }
 
 async function findBabelRc(asset) {
@@ -226,15 +291,16 @@ async function findBabelRc(asset) {
   });
 }
 
-function shouldIgnoreBabelrc(filename, babelrc) {
-  return false;
+/*function shouldIgnoreBabelrc(filename, babelrc) {
   // Determine if we should ignore this babelrc file. We do this here instead of
   // letting @babel/core handle it because this config might be merged with our
   // autogenerated one later which shouldn't be ignored.
-  // let ignore = babelUtils.arrayify(babelrc.ignore, babelUtils.regexify);
-  // let only =
-  //   babelrc.only && babelUtils.arrayify(babelrc.only, babelUtils.regexify);
-  // return babelUtils.shouldIgnore(filename, ignore, only);
+  let ignore = babelUtils.arrayify(babelrc.ignore, babelUtils.regexify);
+  let only = babelrc.only && babelUtils.arrayify(babelrc.only, babelUtils.regexify);
+  return babelUtils.shouldIgnore(filename, ignore, only);
+}*/
+function shouldIgnoreBabelrc() {
+  return false;
 }
 
 /**
@@ -287,13 +353,6 @@ async function getEnvPlugins(targets, useBuiltIns = false) {
       shippedProposals: true
     }
   ).plugins;
-
-  // @babel/preset-env version 6.x does not cover object-rest-spread so always
-  // add it.
-  // plugins.push([
-  //   require('babel-plugin-transform-object-rest-spread'),
-  //   {useBuiltIns}
-  // ]);
 
   envCache.set(key, plugins);
   return plugins;

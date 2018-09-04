@@ -5,6 +5,7 @@ const collectDependencies = require('../visitors/dependencies');
 const walk = require('babylon-walk');
 const Asset = require('../Asset');
 // const babylon = require('@babel/parser');
+const localRequire = require('../utils/localRequire');
 const insertGlobals = require('../visitors/globals');
 const fsVisitor = require('../visitors/fs');
 const envVisitor = require('../visitors/env');
@@ -62,7 +63,7 @@ class JSAsset extends Asset {
 
   async getParserOptions() {
     // Babylon options. We enable a few plugins by default.
-    const options = {
+    let options = {
       parserOpts: {
         filename: this.name,
         allowReturnOutsideFunction: true,
@@ -77,19 +78,38 @@ class JSAsset extends Asset {
 
     // Check if there is a babel config file. If so, determine which parser plugins to enable
     this.babelConfig = await babel.getConfig(this);
-    Object.assign(options, this.babelConfig);
-    // if (this.babelConfig) {
-    //   const file = new BabelFile(this.babelConfig);
-    //   options.plugins.push(...file.parserOpts.plugins);
-    // }
+    if (this.babelConfig) {
+      if (this.babelConfig.babelVersion === 6) {
+        options.parserOpts.tokens = true;
+        options = options.parserOpts;
+      }
+
+      Object.assign(options, this.babelConfig);
+
+      let babelVersion = this.babelConfig.babelVersion;
+      Object.defineProperty(options, 'babelVersion', {
+        value: babelVersion,
+        configurable: true
+      });
+
+      // if (this.babelConfig) {
+      //   const file = new BabelFile(this.babelConfig);
+      //   options.plugins.push(...file.parserOpts.plugins);
+      // }
+    }
 
     return options;
   }
 
   async parse(code) {
     const options = await this.getParserOptions();
-    // return babylon.parse(code, options);
-    return babelCore.parse(code, options);
+
+    if (options.babelVersion === 6) {
+      let babylon = await localRequire('babylon', this.name);
+      return babylon.parse(code, options);
+    } else {
+      return babelCore.parse(code, options);
+    }
   }
 
   traverse(visitor) {

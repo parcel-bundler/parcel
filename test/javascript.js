@@ -28,6 +28,17 @@ describe.only('javascript', function() {
     assert.equal(output.default(), 3);
   });
 
+  it('should produce a basic JS bundle using Babel 6', async function() {
+    let b = await bundle(
+      __dirname + '/integration/babel-6-compatibility/index.js'
+    );
+
+    let output = await run(b);
+    assert.equal(typeof output, 'object');
+    assert.equal(typeof output.default, 'function');
+    assert.equal(output.default(), 3);
+  });
+
   it('should produce a basic JS bundle with object rest spread support', async function() {
     let b = await bundle(
       __dirname + '/integration/object-rest-spread/object-rest-spread.js'
@@ -951,14 +962,6 @@ describe.only('javascript', function() {
     assert(file.includes('function Bar'));
   });
 
-  it('should support splitting babel-polyfill using browserlist', async function() {
-    await bundle(__dirname + '/integration/babel-polyfill/index.js');
-
-    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
-    assert(file.includes('async function'));
-    assert(!file.includes('regenerator'));
-  });
-
   it('should support compiling with babel using browserslist for different environments', async function() {
     async function testBrowserListMultipleEnv(projectBasePath) {
       // Transpiled destructuring, like r = p.prop1, o = p.prop2, a = p.prop3;
@@ -1283,7 +1286,11 @@ describe.only('javascript', function() {
             {
               type: 'css',
               assets: ['index.css'],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'js'
+                }
+              ]
             }
           ]
         }
@@ -1326,7 +1333,11 @@ describe.only('javascript', function() {
             {
               type: 'css',
               assets: ['index.css'],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'js'
+                }
+              ]
             }
           ]
         }
@@ -1365,7 +1376,11 @@ describe.only('javascript', function() {
             {
               type: 'css',
               assets: ['index.css'],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'js'
+                }
+              ]
             }
           ]
         }
