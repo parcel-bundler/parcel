@@ -91,7 +91,7 @@ export default class Parcel {
     console.log('Starting build');
     await this.updateGraph();
     await this.completeGraph({ signal });
-    // await graph.dumpGraphViz();
+    await this.graph.dumpGraphViz();
     let { bundles } = await this.bundle();
     await this.package(bundles);
     console.log('Finished build')
@@ -144,10 +144,10 @@ export default class Parcel {
 
       for (let asset of childAssets) {
         let assetNode = this.graph.addAssetNode(fileNode, asset);
-        assetEdgesToRemove = assetEdgesToRemove.filter(edge => edge.to === assetNode.id);
+        assetEdgesToRemove = assetEdgesToRemove.filter(edge => edge.to !== assetNode.id);
 
-        let assetDepNodes = Array.from(this.graph.edges).filter(edge => edge.from === assetNode.id);
-        depEdgesToRemove = depEdgesToRemove.concat(assetDepNodes);
+        let assetDepEdges = Array.from(this.graph.edges).filter(edge => edge.from === assetNode.id);
+        depEdgesToRemove = depEdgesToRemove.concat(assetDepEdges);
 
         for (let dep of asset.dependencies) {
           dep.sourcePath = fileNode.value.filePath; // ? Should this be done elsewhere?
@@ -156,18 +156,18 @@ export default class Parcel {
             if (!shallow) this.mainQueue.add(() => this.resolve(depNode, { signal }));
           } else {
             let depNode = this.graph.getDependencyNode(dep);
-            depEdgesToRemove = depEdgesToRemove.filter(edge => edge.to === depNode.id);
+            depEdgesToRemove = depEdgesToRemove.filter(edge => edge.to !== depNode.id);
           }
         }
       }
 
       let edgesToRemove = [...assetEdgesToRemove, ...depEdgesToRemove];
       for (let edge of edgesToRemove) {
-        let invalidated = this.graph.removeEdge(edge);
-        for (let nodeOrEdge of invalidated) {
+        let removed = this.graph.removeEdge(edge);
+        for (let nodeOrEdge of removed) {
           if (nodeOrEdge.type === 'file' && this.watcher) {
             let fileNode: any = nodeOrEdge;
-            if (this.watcher) this.watcher.unWatch(fileNode.value.filePath);
+            if (this.watcher) this.watcher.unwatch(fileNode.value.filePath);
           }
         }
       }

@@ -33,39 +33,31 @@ export default class Graph<Node: Node> {
   removeNode(node: Node): Array<Node|Edge> {
     this.nodes.delete(node.id);
 
-    let invalidated = [];
+    let removed = [];
 
     for (let edge of this.edges) {
-      if (edge.to === node.id) {
-        invalidated.push(edge);
-      }
-
       if (edge.from === node.id) {
-        invalidated = invalidated.concat(this.removeEdge(edge));
+        removed = removed.concat(this.removeEdge(edge));
       }
     }
 
-    return invalidated;
+    return removed;
   }
 
   removeEdge(edge: Edge): Array<Node|Edge> {
     this.edges.delete(edge);
 
-    let invalidated = [];
+    let removed = [];
 
     for (let [id, node] of this.nodes) {
-      if (edge.from === id) {
-        invalidated.push(node);
-      }
-
       if (edge.to === id) {
         if (this.isOrphanedNode(node)) {
-          invalidated = invalidated.concat(this.removeNode(node));
+          removed = removed.concat(this.removeNode(node));
         }
       }
     }
 
-    return invalidated;
+    return removed;
   }
 
   isOrphanedNode(node /*: Node */) {
