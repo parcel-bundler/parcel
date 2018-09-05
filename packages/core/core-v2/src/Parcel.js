@@ -139,36 +139,17 @@ export default class Parcel {
     // console.log('transforming fileNode', fileNode)
     let { children: childAssets } = await this.transformerRunner.transform(fileNode.value);
     if (signal && !signal.aborted) {
-      let assetEdgesToRemove = Array.from(this.graph.edges).filter(edge => edge.from === fileNode.id);
-      let depEdgesToRemove = [];
+      let { removed, added } = this.graph.updateFileNode(fileNode, childAssets);
 
-      for (let asset of childAssets) {
-        let assetNode = this.graph.addAssetNode(fileNode, asset);
-        assetEdgesToRemove = assetEdgesToRemove.filter(edge => edge.to !== assetNode.id);
-
-        let assetDepEdges = Array.from(this.graph.edges).filter(edge => edge.from === assetNode.id);
-        depEdgesToRemove = depEdgesToRemove.concat(assetDepEdges);
-
-        for (let dep of asset.dependencies) {
-          dep.sourcePath = fileNode.value.filePath; // ? Should this be done elsewhere?
-          if (!this.graph.hasDependencyNode(dep)) {
-            let depNode = this.graph.addDependencyNode(assetNode, dep);
-            if (!shallow) this.mainQueue.add(() => this.resolve(depNode, { signal }));
-          } else {
-            let depNode = this.graph.getDependencyNode(dep);
-            depEdgesToRemove = depEdgesToRemove.filter(edge => edge.to !== depNode.id);
-          }
+      if (this.watcher) {
+        for (let [id, node] of removed.nodes) {
+          if (node.type === 'file') this.watcher.unwatch(node.value.filePath);
         }
       }
 
-      let edgesToRemove = [...assetEdgesToRemove, ...depEdgesToRemove];
-      for (let edge of edgesToRemove) {
-        let removed = this.graph.removeEdge(edge);
-        for (let nodeOrEdge of removed) {
-          if (nodeOrEdge.type === 'file' && this.watcher) {
-            let fileNode: any = nodeOrEdge;
-            if (this.watcher) this.watcher.unwatch(fileNode.value.filePath);
-          }
+      if (!shallow) {
+        for (let node of added.nodes) {
+          if (node.type === 'dependency') this.mainQueue.add(() => this.resolve(node, { signal }));
         }
       }
     }
@@ -185,7 +166,7 @@ export default class Parcel {
 
   handleChange(filePath: string) {
     let file = { filePath };
-    if (this.graph.hasFileNode({ filePath })) {
+    if (this.graph.hasFileNode(file)) {
       let fileNode = this.graph.getFileNode(file);
       this.updateQueue.add(() => this.transform(fileNode, { signal: { aborted: false }, shallow: true }));
     }

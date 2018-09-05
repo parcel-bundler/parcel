@@ -16,4 +16,5 @@ export type File = {
 export type Asset = {
   hash: string,
   filePath: string,
+  dependencies: Array<Dependency>,
 }

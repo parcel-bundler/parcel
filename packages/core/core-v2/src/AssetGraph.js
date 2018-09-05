@@ -153,6 +153,47 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return super.removeNode(node);
   }
 
+  updateFileNode(fileNode: FileNode, assets: Array<Asset>) {
+    let added = { nodes: [] };
+    let removed = new Graph();
+
+    let assetEdgesToRemove = Array.from(this.edges).filter(edge => edge.from === fileNode.id);
+    let depEdgesToRemove = [];
+
+    for (let asset of assets) {
+      let assetNode;
+      if (!this.hasAssetNode(asset)) {
+        assetNode = this.addAssetNode(fileNode, asset);
+        added.nodes.push(assetNode);
+      } else {
+        assetNode = this.getAssetNode(asset);
+      }
+
+      assetEdgesToRemove = assetEdgesToRemove.filter(edge => edge.to !== assetNode.id);
+
+      let assetDepEdges = Array.from(this.edges).filter(edge => edge.from === assetNode.id);
+      depEdgesToRemove = depEdgesToRemove.concat(assetDepEdges);
+
+      for (let dep of asset.dependencies) {
+        dep.sourcePath = fileNode.value.filePath; // ? Should this be done elsewhere?
+        if (!this.hasDependencyNode(dep)) {
+          let depNode = this.addDependencyNode(assetNode, dep);
+          added.nodes.push(depNode);
+        } else {
+          let depNode = this.getDependencyNode(dep);
+          depEdgesToRemove = depEdgesToRemove.filter(edge => edge.to !== depNode.id);
+        }
+      }
+    }
+
+    let edgesToRemove = [...assetEdgesToRemove, ...depEdgesToRemove];
+    for (let edge of edgesToRemove) {
+      removed.merge(this.removeEdge(edge));
+    }
+
+    return { added, removed };
+  }
+
   async dumpGraphViz() {
     let graphviz = require('graphviz');
     let tempy = require('tempy');
