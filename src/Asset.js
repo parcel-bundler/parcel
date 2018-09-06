@@ -107,7 +107,7 @@ class Asset {
       depName = './' + path.relative(path.dirname(this.name), resolved);
     }
 
-    this.addDependency(depName, Object.assign({dynamic: true}, opts));
+    this.addDependency(depName, Object.assign({dynamic: true, resolved}, opts));
 
     parsed.pathname = this.options.parser
       .getAsset(resolved, this.options)
