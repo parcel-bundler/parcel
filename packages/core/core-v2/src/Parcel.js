@@ -4,7 +4,8 @@ import path from 'path';
 import { AbortController } from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import Watcher from '@parcel/watcher';
 import PQueue from 'p-queue';
-import AssetGraph, { type AssetGraphNode, DependencyNode, FileNode, AssetNode } from './AssetGraph';
+import AssetGraph, { type AssetGraphNode } from './AssetGraph';
+import type { Dependency, Asset, File } from './types';
 import TransformerRunner from './TransformerRunner';
 import ResolverRunner from './ResolverRunner';
 import BundlerRunner from './BundlerRunner';
@@ -91,7 +92,7 @@ export default class Parcel {
     console.log('Starting build');
     await this.updateGraph();
     await this.completeGraph({ signal });
-    await this.graph.dumpGraphViz();
+    // await this.graph.dumpGraphViz();
     let { bundles } = await this.bundle();
     await this.package(bundles);
     console.log('Finished build')
@@ -104,7 +105,7 @@ export default class Parcel {
   }
 
   async completeGraph({ signal }: BuildOpts) {
-    for (let node of this.graph.incompleteNodes) {
+    for (let [id, node] of this.graph.incompleteNodes) {
       this.mainQueue.add(() => this.processNode(node, { signal }));
     }
 
@@ -117,39 +118,42 @@ export default class Parcel {
 
   processNode(node: AssetGraphNode, { signal }: BuildOpts) {
     switch (node.type) {
-      case 'dependency': return this.resolve(node, { signal });
-      case 'file': return this.transform(node, { signal });
+      case 'dependency': return this.resolve(node.value, { signal });
+      case 'file': return this.transform(node.value, { signal });
       default: throw new Error('Invalid Graph');
     }
   }
 
-  async resolve(depNode: DependencyNode, { signal }: BuildOpts) {
-    // console.log('resolving depNode', depNode)
-    let resolvedPath = await this.resolverRunner.resolve(depNode.value);
+  async resolve(dep: Dependency, { signal }: BuildOpts) {
+    // console.log('resolving dependency', dep);
+    let resolvedPath = await this.resolverRunner.resolve(dep);
 
     let file = { filePath: resolvedPath };
-    if (!signal.aborted && !this.graph.hasFileNode(file)) {
-      let fileNode = this.graph.addFileNode(depNode, file);
-      this.mainQueue.add(() => this.transform(fileNode, { signal }));
-      if (this.watcher) this.watcher.watch(resolvedPath);
+    if (!signal.aborted) {
+      let {newFile} = this.graph.updateDependency(dep, file);
+
+      if (newFile) {
+        this.mainQueue.add(() => this.transform(newFile, { signal }));
+        if (this.watcher) this.watcher.watch(newFile.filePath);
+      }
     }
   }
 
-  async transform(fileNode: FileNode, { signal, shallow }: BuildOpts) {
-    // console.log('transforming fileNode', fileNode)
-    let { children: childAssets } = await this.transformerRunner.transform(fileNode.value);
+  async transform(file: File, { signal, shallow }: BuildOpts) {
+    // console.log('transforming file', file);
+    let { children: childAssets } = await this.transformerRunner.transform(file);
     if (signal && !signal.aborted) {
-      let { removed, added } = this.graph.updateFileNode(fileNode, childAssets);
+      let { prunedFiles, newDeps } = this.graph.updateFile(file, childAssets);
 
       if (this.watcher) {
-        for (let [id, node] of removed.nodes) {
-          if (node.type === 'file') this.watcher.unwatch(node.value.filePath);
+        for (let file of prunedFiles) {
+          this.watcher.unwatch(file.filePath);
         }
       }
 
       if (!shallow) {
-        for (let node of added.nodes) {
-          if (node.type === 'dependency') this.mainQueue.add(() => this.resolve(node, { signal }));
+        for (let dep of newDeps) {
+          this.mainQueue.add(() => this.resolve(dep, { signal }));
         }
       }
     }
@@ -166,9 +170,8 @@ export default class Parcel {
 
   handleChange(filePath: string) {
     let file = { filePath };
-    if (this.graph.hasFileNode(file)) {
-      let fileNode = this.graph.getFileNode(file);
-      this.updateQueue.add(() => this.transform(fileNode, { signal: { aborted: false }, shallow: true }));
+    if (this.graph.nodes.has(filePath)) {
+      this.updateQueue.add(() => this.transform(file, { signal: { aborted: false }, shallow: true }));
     }
   }
 }

@@ -1,9 +1,12 @@
 const TransformerRunner = require('../src/TransformerRunner');
 
 const config = require('@parcel/config-default');
-const runner = new TransformerRunner(config, {});
+const runner = new TransformerRunner({
+  parcelConfig: config,
+  cliOpts: {}
+});
 
-describe.only('TransformerRunner', function () {
+describe('TransformerRunner', function () {
   it('should transform some shit', async function () {
     let dummyAsset = {
       filePath: __dirname + '/index.js',

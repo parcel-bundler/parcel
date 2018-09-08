@@ -5,6 +5,8 @@ const PackagerRunner = require('../src/PackagerRunner');
 const assert = require('assert');
 const path = require('path');
 
+const config = require('@parcel/config-default');
+
 describe('PackagerRunner', () => {
   it('works', async () => {
     let bundle = {
@@ -15,7 +17,11 @@ describe('PackagerRunner', () => {
       ],
     };
 
-    let packagerRunner = new PackagerRunner({});
+
+    let packagerRunner = new PackagerRunner({
+      parcelConfig: config,
+      cliOpts: {}
+    });
 
     await packagerRunner.runPackager({ bundle });
   });

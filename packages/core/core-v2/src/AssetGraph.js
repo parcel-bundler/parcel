@@ -3,7 +3,6 @@
 'use strict';
 import Graph, { Node, type NodeId } from './Graph';
 import type { Dependency, Asset, File } from './types';
-import type { Edge } from './Graph';
 
 export interface RootNode extends Node {
   type: 'root';
@@ -27,29 +26,51 @@ export interface AssetNode extends Node {
 
 export type AssetGraphNode = RootNode|DependencyNode|FileNode|AssetNode;
 
-const rootNode = (rootDir: string) => ({
+export const nodeFromRootDir = (rootDir: string) => ({
   id: rootDir,
   type: 'root',
   value: rootDir,
 });
 
-const depNode = (dep: Dependency) => ({
+export const nodeFromDep = (dep: Dependency) => ({
   id: `${dep.sourcePath}:${dep.moduleSpecifier}`,
   type: 'dependency',
   value: dep,
 });
 
-const fileNode = (file: File): FileNode => ({
+export const nodeFromFile = (file: File) => ({
   id: file.filePath,
   type: 'file',
   value: file,
 });
 
-const assetNode = (asset: Asset) => ({
+export const nodeFromAsset = (asset: Asset) => ({
   id: asset.hash,
   type: 'asset',
   value: asset,
 });
+
+const getFileNodesFromGraph = (graph: Graph<Node>): Array<File> => {
+  return Array.from(graph.nodes.values())
+    .filter((node: any) => node.type === 'file')
+    .map(node => node.value);
+}
+
+const getDepNodesFromGraph = (graph: Graph<Node>): Array<Dependency> => {
+  return Array.from(graph.nodes.values())
+    .filter((node: any) => node.type === 'dependency')
+    .map(node => node.value);
+}
+
+type DepUpdates = {
+  newFile?: File,
+  prunedFiles: Array<File>,
+}
+
+type FileUpdates = {
+  newDeps: Array<Dependency>,
+  prunedFiles: Array<File>
+}
 
 type AssetGraphOpts = {
   entries: Array<string>,
@@ -57,141 +78,79 @@ type AssetGraphOpts = {
 }
 
 export default class AssetGraph extends Graph<AssetGraphNode> {
-  incompleteNodes: Set<AssetGraphNode>;
+  incompleteNodes: Map<NodeId, AssetGraphNode>;
 
   constructor({ entries, rootDir }: AssetGraphOpts) {
     super();
-    this.incompleteNodes = new Set();
+    this.incompleteNodes = new Map();
     this.initializeGraph({ entries, rootDir });
   }
 
   initializeGraph({ entries, rootDir }: AssetGraphOpts) {
-    let node = rootNode(rootDir);
-    this.addNode(node);
+    let rootNode = nodeFromRootDir(rootDir);
+    this.addNode(rootNode);
 
-    for (let entry of entries) {
-      let dependency = {
-        sourcePath: rootDir,
-        moduleSpecifier: entry,
-      }
-      this.addDependencyNode(node, dependency);
+    let depNodes = entries.map(entry => nodeFromDep({
+      sourcePath: rootDir,
+      moduleSpecifier: entry,
+    }));
+
+    this.updateDownStreamNodes(rootNode, depNodes);
+    for (let depNode of depNodes) {
+      this.incompleteNodes.set(depNode.id, depNode);
     }
-  }
-
-  addDependencyNode(from: AssetNode|RootNode, dep: Dependency) {
-    if (this.hasDependencyNode(dep)) return this.getDependencyNode(dep);
-
-    let node = depNode(dep);
-    this.addNode(node);
-    this.addEdge({ from: from.id, to: node.id });
-    this.incompleteNodes.add(node);
-
-    return node;
-  }
-
-  hasDependencyNode(dep: Dependency) {
-    let node = depNode(dep);
-    return this.nodes.has(node.id);
-  }
-
-  getDependencyNode(dep: Dependency) {
-    let node = depNode(dep);
-    node = this.nodes.get(node.id);
-    if (!node || node.type !== 'dependency') throw new Error('Invalid Graph');
-    return node;
-  }
-
-  addFileNode(from: DependencyNode, file: File): FileNode {
-    if (this.hasFileNode(file)) return this.getFileNode(file);
-
-    let node = fileNode(file);
-    this.addNode(node);
-    this.addEdge({ from: from.id, to: node.id });
-    this.incompleteNodes.delete(from);
-    this.incompleteNodes.add(node);
-
-    return node;
-  }
-
-  hasFileNode(file: File) {
-    let node = fileNode(file);
-    return this.nodes.has(node.id);
-  }
-
-  getFileNode(file: File) {
-    let node = fileNode(file);
-    node = this.nodes.get(node.id);
-    if (!node || node.type !== 'file') throw new Error('Invalid Graph');
-    return node;
-  }
-
-  addAssetNode(from: FileNode, asset: Asset) {
-    if (this.hasAssetNode(asset)) return this.getAssetNode(asset);
-
-    let node = assetNode(asset);
-    this.addNode(node);
-    this.addEdge({ from: from.id, to: node.id });
-    this.incompleteNodes.delete(from);
-
-    return node;
-  }
-
-  hasAssetNode(asset: Asset) {
-    let node = assetNode(asset);
-    return this.nodes.has(node.id);
-  }
-
-  getAssetNode(asset: Asset) {
-    let node = assetNode(asset);
-    node = this.nodes.get(node.id);
-    if (!node || node.type !== 'asset') throw new Error('Invalid Graph');
-    return node;
   }
 
   removeNode(node: AssetGraphNode) {
-    this.incompleteNodes.delete(node);
+    this.incompleteNodes.delete(node.id);
     return super.removeNode(node);
   }
 
-  updateFileNode(fileNode: FileNode, assets: Array<Asset>) {
-    let added = { nodes: [] };
-    let removed = new Graph();
+  updateDependency(dep: Dependency, file: File): DepUpdates {
+    let newFile;
+    let prunedFiles = [];
 
-    let assetEdgesToRemove = Array.from(this.edges).filter(edge => edge.from === fileNode.id);
-    let depEdgesToRemove = [];
+    let depNode = nodeFromDep(dep);
+    this.incompleteNodes.delete(depNode.id);
+
+    let fileNode = nodeFromFile(file);
+    let { added, removed } = this.updateDownStreamNodes(depNode, [fileNode]);
+
+    if (added.nodes.size) {
+      newFile = file;
+      this.incompleteNodes.set(fileNode.id, fileNode);
+    }
+
+    prunedFiles = prunedFiles.concat(getFileNodesFromGraph(removed));
+    return { newFile, prunedFiles };
+  }
+
+  updateFile(file: File, assets: Array<Asset>): FileUpdates {
+    let newDeps: Array<Dependency> = [];
+    let prunedFiles = [];
+
+    let fileNode = nodeFromFile(file);
+    this.incompleteNodes.delete(fileNode.id);
+
+    let assetNodes = assets.map(asset => nodeFromAsset(asset));
+    let fileNodeUpdates = this.updateDownStreamNodes(fileNode, assetNodes);
+
+    prunedFiles = prunedFiles.concat(getFileNodesFromGraph(fileNodeUpdates.removed));
 
     for (let asset of assets) {
-      let assetNode;
-      if (!this.hasAssetNode(asset)) {
-        assetNode = this.addAssetNode(fileNode, asset);
-        added.nodes.push(assetNode);
-      } else {
-        assetNode = this.getAssetNode(asset);
-      }
-
-      assetEdgesToRemove = assetEdgesToRemove.filter(edge => edge.to !== assetNode.id);
-
-      let assetDepEdges = Array.from(this.edges).filter(edge => edge.from === assetNode.id);
-      depEdgesToRemove = depEdgesToRemove.concat(assetDepEdges);
-
-      for (let dep of asset.dependencies) {
-        dep.sourcePath = fileNode.value.filePath; // ? Should this be done elsewhere?
-        if (!this.hasDependencyNode(dep)) {
-          let depNode = this.addDependencyNode(assetNode, dep);
-          added.nodes.push(depNode);
-        } else {
-          let depNode = this.getDependencyNode(dep);
-          depEdgesToRemove = depEdgesToRemove.filter(edge => edge.to !== depNode.id);
-        }
-      }
+      let assetNode = nodeFromAsset(asset);
+      let depNodes = asset.dependencies.map(dep => nodeFromDep({...dep, sourcePath: file.filePath}));
+      let assetNodeUpdates = this.updateDownStreamNodes(assetNode, depNodes);
+      prunedFiles = prunedFiles.concat(getFileNodesFromGraph(assetNodeUpdates.removed));
+      newDeps = newDeps.concat(getDepNodesFromGraph(assetNodeUpdates.added));
     }
 
-    let edgesToRemove = [...assetEdgesToRemove, ...depEdgesToRemove];
-    for (let edge of edgesToRemove) {
-      removed.merge(this.removeEdge(edge));
+    for (let dep of newDeps) {
+      let depNode = nodeFromDep(dep);
+      this.incompleteNodes.set(depNode.id, depNode);
     }
 
-    return { added, removed };
+    return { newDeps, prunedFiles };
   }
 
   async dumpGraphViz() {
