@@ -81,7 +81,7 @@ class JSAsset extends Asset {
     if (this.babelConfig) {
       if (this.babelConfig.babelVersion === 6) {
         options.parserOpts.tokens = true;
-        options = options.parserOpts;
+        // options = options.parserOpts;
       }
 
       Object.assign(options, this.babelConfig);
@@ -103,13 +103,7 @@ class JSAsset extends Asset {
 
   async parse(code) {
     const options = await this.getParserOptions();
-
-    if (options.babelVersion === 6) {
-      let babylon = await localRequire('babylon', this.name);
-      return babylon.parse(code, options);
-    } else {
-      return babelCore.parse(code, options);
-    }
+    return babelCore.parse(code, options);
   }
 
   traverse(visitor) {

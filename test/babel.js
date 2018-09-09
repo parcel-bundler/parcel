@@ -7,7 +7,7 @@ const babelPresetEnv = require('@babel/preset-env');
 const traverse = require('@babel/traverse').default;
 const assert = require('assert');
 
-describe.only('Babel', function() {
+describe('Babel', function() {
   let ast;
   before(async function() {
     const options = {

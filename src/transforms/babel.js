@@ -4,6 +4,8 @@ const localRequire = require('../utils/localRequire');
 const path = require('path');
 const fs = require('../utils/fs');
 const babelASTConverter = require('./babelASTConverter');
+const babelCore = require('@babel/core');
+const {buildRootChain} = require('@babel/core/lib/config/config-chain');
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 const ENV_PLUGINS = require('@babel/preset-env/data/plugins');
@@ -53,7 +55,7 @@ async function babelTransform(asset, version) {
   // otherwise require a local version from the package we're compiling.
   let babel = config.internal
     ? require('@babel/core')
-    : await localRequire('@babel/core', asset.name);
+    : await localRequire(config.babelVersion === 6 ? 'babel-core' : '@babel/core', asset.name);
 
   let res = babel.transformFromAst(asset.ast, asset.contents, config);
   if (res.ast) {
@@ -89,6 +91,7 @@ async function getConfig(asset, version) {
     });
   }
 
+  console.log(config)
   return config;
 }
 
@@ -105,9 +108,9 @@ async function getBabelConfig(asset, version) {
   }
 
   if (asset.babelConfig) {
-    if (asset.babelConfig.babelVersion === version) {
+  //   if (asset.babelConfig.babelVersion === version) {
       return asset.babelConfig;
-    }
+  //   }
   }
 
   // Consider the module source code rather than precompiled if the resolver
@@ -118,12 +121,9 @@ async function getBabelConfig(asset, version) {
     !asset.name.includes(NODE_MODULES);
 
   // Try to resolve a .babelrc file. If one is found, consider the module source code.
-  let babelrc = null;
-  if (!asset.babelConfig) {
-    babelrc = await getBabelRc(asset, isSource);
-    if (babelrc && babelrc.babelVersion === 6) {
-      return babelrc;
-    }
+  let babelrc = await getBabelRc(asset, isSource);
+  if (babelrc) {
+    babelrc.babelVersion = getBabelVersion(babelrc);
   }
 
   isSource = isSource || !!babelrc;
@@ -182,7 +182,6 @@ async function getBabelConfig(asset, version) {
   if (envConfig && (envConfig.plugins.length > 0 || jsxConfig || flowConfig)) {
     mergeConfigs(envConfig, jsxConfig);
     mergeConfigs(envConfig, flowConfig);
-
     return envConfig;
   }
 
@@ -209,6 +208,14 @@ function mergeConfigs(a, b) {
   return a;
 }
 
+function getBabel6TransformPlugin(asset) {
+  return function () {
+    return {
+      
+    };
+  };
+}
+
 function hasPlugin(arr, plugins) {
   return (
     Array.isArray(arr) && arr.some(p => plugins.includes(getPluginName(p)))
@@ -216,31 +223,29 @@ function hasPlugin(arr, plugins) {
 }
 
 function getPluginName(p) {
-  return Array.isArray(p) ? p[0] : p;
+  // return Array.isArray(p) ? p[0] : p;
+  return p.file ? p.file.request : '';
 }
 
-function testPluginArrayForBabelScope(plugins) {
-  for (let plugin of plugins) {
-    if (getPluginName(plugin).startsWith('@babel/')) {
-      return true;
-    }
-  }
-  return false;
+function hasBabel7Plugin(plugins) {
+  return plugins.some(plugin => 
+    getPluginName(plugin).startsWith('@babel/')
+  );
 }
 
-function isBabel7Config(babelrc = {}) {
+function getBabelVersion(babelrc = {}) {
   if (!babelrc.presets && !babelrc.presets) {
-    return true;
+    return 7;
   }
 
   if (
-    (babelrc.presets && testPluginArrayForBabelScope(babelrc.presets)) ||
-    (babelrc.plugins && testPluginArrayForBabelScope(babelrc.plugins))
+    (babelrc.presets && hasBabel7Plugin(babelrc.presets)) ||
+    (babelrc.plugins && hasBabel7Plugin(babelrc.plugins))
   ) {
-    return true;
+    return 7;
   }
 
-  return false;
+  return 6;
 }
 
 /**
@@ -263,32 +268,58 @@ async function getBabelRc(asset, isSource) {
 
     // If specified as an array, override the config with the one specified
     if (Array.isArray(babelify) && babelify[1]) {
-      babelrc = babelify[1];
+      return babelify[1];
     }
 
     // Otherwise, return the .babelrc if babelify was found
-    if (!babelrc && babelify) {
-      babelrc = await findBabelRc(asset);
-    }
+    return babelify ? await findBabelRc(asset) : null;
   }
 
   // If this asset is not in node_modules, always use the .babelrc
-  if (!babelrc && isSource) {
-    babelrc = await findBabelRc(asset);
+  if (isSource) {
+    return await findBabelRc(asset);
   }
 
   // Otherwise, don't load .babelrc for node_modules.
   // See https://github.com/parcel-bundler/parcel/issues/13.
-  if (babelrc) {
-    babelrc.babelVersion = isBabel7Config(babelrc) ? 7 : 6;
-  }
-  return babelrc;
+  return null;
 }
 
 async function findBabelRc(asset) {
-  return await asset.getConfig(['.babelrc', '.babelrc.js'], {
-    packageKey: 'babel'
+  // return await asset.getConfig(['.babelrc', '.babelrc.js'], {
+  //   packageKey: 'babel'
+  // });
+  let config = babelCore.loadPartialConfig({
+    filename: asset.name
   });
+  // let chain = buildRootChain({filename: asset.name}, {
+  //   filename: asset.name,
+  //   cwd: process.cwd(),
+  //   root: process.cwd(),
+  //   envName: process.env.NODE_ENV
+  // });
+  // console.log(chain)
+
+  if (config) {
+    for (let file in [config.babelrc, config.babelignore, config.config]) {
+      if (file) {
+        asset.addDependency(file, {includedInParent: true});
+      }
+    }
+
+    return config.options;
+  }
+}
+
+function getBabel6Config(config) {
+  let res = Object.assign({}, config);
+  delete res.configFile
+  delete res.envName;
+  delete res.cwd;
+  delete res.root;
+  res.plugins = (res.plugins || []).map(p => p._descriptor);
+  res.presets = (res.presets || []).map(p => p._descriptor);
+  return res;
 }
 
 /*function shouldIgnoreBabelrc(filename, babelrc) {
