@@ -9,6 +9,7 @@ const prettyError = require('./utils/prettyError');
 const AnsiToHtml = require('ansi-to-html');
 const logger = require('./Logger');
 const path = require('path');
+const fs = require('fs');
 const url = require('url');
 
 const ansiToHtml = new AnsiToHtml({newline: true});
@@ -51,18 +52,28 @@ function middleware(bundler) {
     function respond() {
       let {pathname} = url.parse(req.url);
       if (bundler.error) {
-        return send500(bundler.error);
-      } else if (
-        !pathname.startsWith(bundler.options.publicURL) ||
-        path.extname(pathname) === ''
-      ) {
-        // If the URL doesn't start with the public path, or the URL doesn't
-        // have a file extension, send the main HTML bundle.
-        return sendIndex();
+        send500(bundler.error);
+      } else if (path.extname(pathname) === '') {
+        // if the URL doesn't have a file extension, send the main HTML bundle
+        sendIndex();
       } else {
-        // Otherwise, serve the file from the dist folder
-        req.url = pathname.slice(bundler.options.publicURL.length);
-        return serve(req, res, send404);
+        // convert related publicURL path to absolute path.
+        // eg: dist -> /dist, ./dist -> /dist, /dist -> /dist
+        let publicURL = `/${bundler.options.publicURL.replace(/^\.?\/?/, '')}`;
+        if (publicURL !== '/' && pathname.startsWith(publicURL)) {
+          pathname = pathname.slice(publicURL.length);
+        }
+        // check if file exists
+        fs.access(
+          path.join(bundler.options.outDir, pathname.slice(1)),
+          function(error) {
+            // if file doesn't exist, send the main HTML bundle
+            if (error) return sendIndex();
+            // otherwise send the file
+            req.url = pathname;
+            serve(req, res, send404);
+          }
+        );
       }
     }
 
