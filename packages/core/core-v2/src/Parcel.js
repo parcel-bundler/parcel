@@ -4,7 +4,8 @@ import path from 'path';
 import { AbortController } from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import Watcher from '@parcel/watcher';
 import PQueue from 'p-queue';
-import AssetGraph, { type AssetGraphNode } from './AssetGraph';
+import AssetGraph from './AssetGraph';
+import { Node } from './Graph';
 import type { Dependency, Asset, File } from './types';
 import TransformerRunner from './TransformerRunner';
 import ResolverRunner from './ResolverRunner';
@@ -116,7 +117,7 @@ export default class Parcel {
     if (signal.aborted) throw AbortError;
   }
 
-  processNode(node: AssetGraphNode, { signal }: BuildOpts) {
+  processNode(node: Node, { signal }: BuildOpts) {
     switch (node.type) {
       case 'dependency': return this.resolve(node.value, { signal });
       case 'file': return this.transform(node.value, { signal });

@@ -10,15 +10,16 @@ export type Edge = {
 
 export interface Node {
   id: string;
+  type?: string;
   value: any;
 }
 
 type GraphUpdates = {
-  added: Graph<Node>,
-  removed: Graph<Node>,
+  added: Graph,
+  removed: Graph,
 }
 
-export default class Graph<Node: Node> {
+export default class Graph {
   nodes: Map<NodeId, Node>;
   edges: Set<Edge>;
 
@@ -47,8 +48,7 @@ export default class Graph<Node: Node> {
     return false;
   }
 
-  // ? can using any be avoided here?
-  merge(graph: Graph<any>) {
+  merge(graph: Graph) {
     for (let [id, node] of graph.nodes) {
       this.addNode(node);
     }
@@ -58,7 +58,7 @@ export default class Graph<Node: Node> {
     }
   }
 
-  removeNode(node: Node): Graph<Node> {
+  removeNode(node: Node): Graph {
     let removed = new Graph();
 
     this.nodes.delete(node.id);
@@ -73,7 +73,7 @@ export default class Graph<Node: Node> {
     return removed;
   }
 
-  removeEdge(edge: Edge): Graph<Node> {
+  removeEdge(edge: Edge): Graph {
     let removed = new Graph();
 
     this.edges.delete(edge);

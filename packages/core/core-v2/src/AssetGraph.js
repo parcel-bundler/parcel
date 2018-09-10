@@ -4,28 +4,6 @@
 import Graph, { Node, type NodeId } from './Graph';
 import type { Dependency, Asset, File } from './types';
 
-export interface RootNode extends Node {
-  type: 'root';
-  value: string;
-}
-
-export interface DependencyNode extends Node {
-  type: 'dependency';
-  value: Dependency;
-}
-
-export interface FileNode extends Node {
-  type: 'file';
-  value: File;
-}
-
-export interface AssetNode extends Node {
-  type: 'asset';
-  value: Asset;
-}
-
-export type AssetGraphNode = RootNode|DependencyNode|FileNode|AssetNode;
-
 export const nodeFromRootDir = (rootDir: string) => ({
   id: rootDir,
   type: 'root',
@@ -50,13 +28,13 @@ export const nodeFromAsset = (asset: Asset) => ({
   value: asset,
 });
 
-const getFileNodesFromGraph = (graph: Graph<Node>): Array<File> => {
+const getFileNodesFromGraph = (graph: Graph): Array<File> => {
   return Array.from(graph.nodes.values())
     .filter((node: any) => node.type === 'file')
     .map(node => node.value);
 }
 
-const getDepNodesFromGraph = (graph: Graph<Node>): Array<Dependency> => {
+const getDepNodesFromGraph = (graph: Graph): Array<Dependency> => {
   return Array.from(graph.nodes.values())
     .filter((node: any) => node.type === 'dependency')
     .map(node => node.value);
@@ -77,8 +55,8 @@ type AssetGraphOpts = {
   rootDir: string,
 }
 
-export default class AssetGraph extends Graph<AssetGraphNode> {
-  incompleteNodes: Map<NodeId, AssetGraphNode>;
+export default class AssetGraph extends Graph {
+  incompleteNodes: Map<NodeId, Node>;
 
   constructor({ entries, rootDir }: AssetGraphOpts) {
     super();
@@ -101,7 +79,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     }
   }
 
-  removeNode(node: AssetGraphNode) {
+  removeNode(node: Node) {
     this.incompleteNodes.delete(node.id);
     return super.removeNode(node);
   }
@@ -165,6 +143,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       'asset': 'green',
       'dependency': 'orange',
       'file': 'cyan',
+      'default': 'white',
     };
 
     let nodes = Array.from(this.nodes.values());
@@ -180,11 +159,11 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     for (let node of nodes) {
       let n = g.addNode(node.id);
 
-      n.set('color', colors[node.type]);
+      n.set('color', colors[node.type || 'default']);
       n.set('shape', 'box');
       n.set('style', 'filled');
 
-      let label = `${node.type}: `;
+      let label = `${node.type || 'No Type'}: `;
 
       if (node.type === 'dependency') {
         label += node.value.moduleSpecifier;
