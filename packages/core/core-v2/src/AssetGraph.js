@@ -55,6 +55,14 @@ type AssetGraphOpts = {
   rootDir: string,
 }
 
+/**
+ * AssetGraph is a Graph with some extra rules.
+ *  * Nodes can only have one of the following types "root", "dependency", "file", "asset"
+ *  * There is one root node that represents the root directory
+ *  * The root note has edges to dependency nodes for each entry file
+ *  * A dependency node should have an edge to exactly one file node
+ *  * A file node can have one to many edges to asset nodes which can have zero to many edges dependency nodes
+ */
 export default class AssetGraph extends Graph {
   incompleteNodes: Map<NodeId, Node>;
 

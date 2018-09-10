@@ -72,9 +72,13 @@ export default class Parcel {
 
     if (this.watcher) {
       this.watcher.on('change', event => {
+        // The build step starts by updating the graph with all of the changes in the update queue
         if (!this.updateQueue.isPaused) {
+          // If a change comes in while the graph is being updated, just add it to the update queue
           this.handleChange(event);
         } else {
+          // Otherwise cancel any work that may be in progress, add the change to the udpate queue,
+          // and start a new build.
           controller.abort();
           this.mainQueue.pause();
           this.mainQueue.clear();
@@ -100,16 +104,21 @@ export default class Parcel {
   }
 
   async updateGraph() {
+    // Process all changes that may update the middle of the the graph
     this.updateQueue.start();
     await this.updateQueue.onIdle();
     this.updateQueue.pause();
   }
 
   async completeGraph({ signal }: BuildOpts) {
+    // AssetGraph keeps track of nodes that represent files that have not been transformed
+    // and dependencies that have not been resolved so that rebuilds start from the leaves
+    // of the graph
     for (let [id, node] of this.graph.incompleteNodes) {
       this.mainQueue.add(() => this.processNode(node, { signal }));
     }
 
+    // Process and build out the edges of the graph
     this.mainQueue.start();
     await this.mainQueue.onIdle();
     this.mainQueue.pause();
@@ -130,7 +139,7 @@ export default class Parcel {
     let resolvedPath = await this.resolverRunner.resolve(dep);
 
     let file = { filePath: resolvedPath };
-    if (!signal.aborted) {
+    if (signal && !signal.aborted) {
       let {newFile} = this.graph.updateDependency(dep, file);
 
       if (newFile) {
@@ -152,6 +161,8 @@ export default class Parcel {
         }
       }
 
+      // The shallow option is used for updating, which only works on files that changed
+      // It is best not to add anything to the main queue until the udate queue is empty
       if (!shallow) {
         for (let dep of newDeps) {
           this.mainQueue.add(() => this.resolve(dep, { signal }));

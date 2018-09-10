@@ -58,6 +58,7 @@ export default class Graph {
     }
   }
 
+  // Removes node and any edges coming from that node
   removeNode(node: Node): Graph {
     let removed = new Graph();
 
@@ -73,6 +74,7 @@ export default class Graph {
     return removed;
   }
 
+  // Removes edge and node the edge is to if the node is orphaned
   removeEdge(edge: Edge): Graph {
     let removed = new Graph();
 
@@ -99,6 +101,8 @@ export default class Graph {
     return true;
   }
 
+  // Update a node's downstream nodes making sure to prune any orphaned branches
+  // Also keeps track of all added and removed edges and nodes
   updateDownStreamNodes(fromNode: Node, toNodes: Array<Node>): GraphUpdates {
     let removed = new Graph();
     let added = new Graph();
