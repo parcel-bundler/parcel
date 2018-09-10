@@ -77,7 +77,7 @@ export default class Parcel {
           // If a change comes in while the graph is being updated, just add it to the update queue
           this.handleChange(event);
         } else {
-          // Otherwise cancel any work that may be in progress, add the change to the udpate queue,
+          // Otherwise cancel any work that may be in progress, add the change to the update queue,
           // and start a new build.
           controller.abort();
           this.mainQueue.pause();
