@@ -32,12 +32,15 @@ describe('watcher', function() {
   it('should rebuild on file change', async function() {
     await ncp(path.join(__dirname, '/integration/commonjs'), inputDir);
 
-    b = bundler(inputDir + '/index.js', {watch: true});
+    b = bundler(path.join(inputDir, '/index.js'), {watch: true});
     let bundle = await b.bundle();
     let output = await run(bundle);
     assert.equal(output(), 3);
 
-    await fs.writeFile(inputDir + '/local.js', 'exports.a = 5; exports.b = 5;');
+    await fs.writeFile(
+      path.join(inputDir, '/local.js'),
+      'exports.a = 5; exports.b = 5;'
+    );
 
     bundle = await nextBundle(b);
     output = await run(bundle);
@@ -47,7 +50,7 @@ describe('watcher', function() {
   it('should re-generate bundle tree when files change', async function() {
     await ncp(path.join(__dirname, '/integration/dynamic-hoist'), inputDir);
 
-    b = bundler(inputDir + '/index.js', {watch: true});
+    b = bundler(path.join(inputDir, '/index.js'), {watch: true});
     let bundle = await b.bundle();
 
     await assertBundleTree(bundle, {
@@ -88,7 +91,7 @@ describe('watcher', function() {
 
     // change b.js so that it no longer depends on common.js.
     // This should cause common.js and dependencies to no longer be hoisted to the root bundle.
-    await fs.writeFile(inputDir + '/b.js', 'module.exports = 5;');
+    await fs.writeFile(path.join(inputDir, '/b.js'), 'module.exports = 5;');
 
     bundle = await nextBundle(b);
     await assertBundleTree(bundle, {
@@ -123,7 +126,7 @@ describe('watcher', function() {
 
   it('should only re-package bundles that changed', async function() {
     await ncp(path.join(__dirname, '/integration/dynamic-hoist'), inputDir);
-    b = bundler(inputDir + '/index.js', {watch: true});
+    b = bundler(path.join(inputDir, '/index.js'), {watch: true});
 
     await b.bundle();
     let mtimes = (await fs.readdir(path.join(__dirname, '/dist'))).map(
@@ -135,7 +138,7 @@ describe('watcher', function() {
 
     await sleep(1100); // mtime only has second level precision
     await fs.writeFile(
-      inputDir + '/b.js',
+      path.join(inputDir, '/b.js'),
       'module.exports = require("./common")'
     );
 
