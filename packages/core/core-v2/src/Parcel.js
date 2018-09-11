@@ -64,11 +64,11 @@ export default class Parcel {
     this.packagerRunner = new PackagerRunner({ parcelConfig: defaultConfig, cliOpts });
   }
 
-  run() {
+  async run() {
     let controller = new AbortController();
     let signal = controller.signal;
 
-    this.build({ signal });
+    let buildPromise = this.build({ signal });
 
     if (this.watcher) {
       this.watcher.on('change', event => {
@@ -91,6 +91,8 @@ export default class Parcel {
         }
       });
     }
+
+    await buildPromise;
   }
 
   async build({ signal }: BuildOpts) {
