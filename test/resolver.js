@@ -10,7 +10,7 @@ const rootDir = path.join(__dirname, 'input/resolver');
 describe('resolver', function() {
   let resolver;
   before(async function() {
-    await rimraf(__dirname + '/input');
+    await rimraf(path.join(__dirname, '/input'));
     await mkdirp(rootDir);
     await ncp(path.join(__dirname, 'integration/resolver'), rootDir);
 
