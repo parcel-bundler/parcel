@@ -235,7 +235,7 @@ class Asset {
   generateBundleName() {
     // Generate a unique name. This will be replaced with a nicer
     // name later as part of content hashing.
-    return md5(this.name) + '.' + this.type;
+    return md5(this.relativeName) + '.' + this.type;
   }
 
   replaceBundleNames(bundleNameMap) {
