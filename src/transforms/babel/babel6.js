@@ -1,9 +1,10 @@
 const localRequire = require('../../utils/localRequire');
 const {babel6toBabel7} = require('./astConverter');
 
-async function babel6(asset, config) {
+async function babel6(asset, options) {
   let babel = await localRequire('babel-core', asset.name);
 
+  let config = options.config;
   config.code = false;
   config.ast = true;
   config.filename = asset.name;

@@ -54,12 +54,12 @@ async function getBabelConfig(asset) {
 
   // Add JSX config if it isn't already specified in the babelrc
   let hasReact =
-    babelrc &&
+    babelrc && (
     hasPlugin(babelrc.config.presets, ['react', '@babel/preset-react']) ||
     hasPlugin(babelrc.config.plugins, [
       'transform-react-jsx',
       '@babel/plugin-transform-react-jsx'
-    ]);
+    ]));
 
   if (!hasReact) {
     mergeConfigs(babelrc, jsxConfig);
@@ -89,10 +89,10 @@ function mergeConfigs(result, config) {
 
   let merged = result[config.babelVersion];
   if (merged) {
-    merged.presets = (merged.presets || []).concat(config.config.presets || []);
-    merged.plugins = (merged.plugins || []).concat(config.config.plugins || []);
+    merged.config.presets = (merged.config.presets || []).concat(config.config.presets || []);
+    merged.config.plugins = (merged.config.plugins || []).concat(config.config.plugins || []);
   } else {
-    result[config.babelVersion] = config.config;
+    result[config.babelVersion] = config;
   }
 
   return merged;

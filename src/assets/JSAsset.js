@@ -237,9 +237,11 @@ class JSAsset extends Asset {
       this.isAstDirty = true;
     } else {
       if (this.isES6Module) {
-        // await babel(this);
         await babel7(this, {
-          plugins: [require('@babel/plugin-transform-modules-commonjs')]
+          internal: true,
+          config: {
+            plugins: [require('@babel/plugin-transform-modules-commonjs')]
+          }
         });
       }
     }
