@@ -49,6 +49,8 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Terminate workerfarm when using the API [Details](https://github.com/parcel-bundler/parcel/pull/1760)
 - Fix comment typo [Details](https://github.com/parcel-bundler/parcel/pull/1739/files)
 - Fix dotenv package error [Details](https://github.com/parcel-bundler/parcel/pull/1953)
+- Don't resolve slash and tilde paths twice [Details](https://github.com/parcel-bundler/parcel/pull/1993)
+- bundle name hash-key generation is not environment independent [Details](https://github.com/parcel-bundler/parcel/pull/2002)
 
 ### Chores
 
