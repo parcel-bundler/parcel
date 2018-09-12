@@ -1,13 +1,13 @@
 const babelCore = require('@babel/core');
 const fs = require('../src/utils/fs');
-const BabelASTConvertor = require('../src/transforms/babelASTConverter');
+const BabelASTConvertor = require('../src/transforms/babel/astConverter');
 const path = require('path');
 const BabelFlowPreset = require('@babel/preset-flow');
 const babelPresetEnv = require('@babel/preset-env');
 const traverse = require('@babel/traverse').default;
 const assert = require('assert');
 
-describe.only('Babel', function() {
+describe('Babel', function() {
   let ast;
   before(async function() {
     const options = {

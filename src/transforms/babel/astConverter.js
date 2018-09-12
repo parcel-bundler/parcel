@@ -101,10 +101,5 @@ function babel6toBabel7(ast) {
   return ast;
 }
 
-module.exports = function(ast, version) {
-  if (![6, 7].includes(version)) {
-    throw new Error('This convertor only supports Babel 6 and 7 ASTs');
-  }
-
-  return version === 7 ? babel7toBabel6(ast) : babel6toBabel7(ast);
-};
+exports.babel7toBabel6 = babel7toBabel6;
+exports.babel6toBabel7 = babel6toBabel7;

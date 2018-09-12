@@ -4,12 +4,13 @@ const codeFrame = require('@babel/code-frame').codeFrameColumns;
 const collectDependencies = require('../visitors/dependencies');
 const walk = require('babylon-walk');
 const Asset = require('../Asset');
-// const babylon = require('@babel/parser');
+const babelParser = require('@babel/parser');
 const localRequire = require('../utils/localRequire');
 const insertGlobals = require('../visitors/globals');
 const fsVisitor = require('../visitors/fs');
 const envVisitor = require('../visitors/env');
-const babel = require('../transforms/babel');
+const babel = require('../transforms/babel/transform');
+const babel7 = require('../transforms/babel/babel7');
 const generate = require('@babel/generator').default;
 const terser = require('../transforms/terser');
 const SourceMap = require('../SourceMap');
@@ -67,12 +68,9 @@ class JSAsset extends Asset {
       parserOpts: {
         filename: this.name,
         allowReturnOutsideFunction: true,
-        allowHashBang: true,
-        ecmaVersion: Infinity,
         strictMode: false,
         sourceType: 'module',
-        locations: true,
-        plugins: ['exportExtensions', 'dynamicImport']
+        plugins: ['exportExtensions', 'exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport']
       }
     };
 
@@ -81,7 +79,7 @@ class JSAsset extends Asset {
     if (this.babelConfig) {
       if (this.babelConfig.babelVersion === 6) {
         options.parserOpts.tokens = true;
-        options = options.parserOpts;
+        // options = options.parserOpts;
       }
 
       Object.assign(options, this.babelConfig);
@@ -102,14 +100,15 @@ class JSAsset extends Asset {
   }
 
   async parse(code) {
-    const options = await this.getParserOptions();
-
-    if (options.babelVersion === 6) {
-      let babylon = await localRequire('babylon', this.name);
-      return babylon.parse(code, options);
-    } else {
-      return babelCore.parse(code, options);
+    // const options = await this.getParserOptions();
+    // return babelCore.parse(code, options);
+    await babel(this);
+    if (!this.ast) {
+      console.log('NO AST')
+      this.ast = babelParser.parse(code);
     }
+
+    return this.ast;
   }
 
   traverse(visitor) {
@@ -201,7 +200,7 @@ class JSAsset extends Asset {
 
   async pretransform() {
     await this.loadSourceMap();
-    await babel(this);
+    // await babel(this);
 
     // Inline environment variables
     if (this.options.target === 'browser' && ENV_RE.test(this.contents)) {
@@ -238,7 +237,12 @@ class JSAsset extends Asset {
       this.isAstDirty = true;
     } else {
       if (this.isES6Module) {
-        await babel(this);
+        await babel7(this, {
+          internal: true,
+          config: {
+            plugins: [require('@babel/plugin-transform-modules-commonjs')]
+          }
+        });
       }
     }
 
