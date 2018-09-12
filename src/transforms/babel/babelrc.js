@@ -1,5 +1,3 @@
-const {buildRootChain} = require('@babel/core/lib/config/config-chain');
-const {mergeOptions} = require('@babel/core/lib/config/util');
 const semver = require('semver');
 const logger = require('../../logger');
 const path = require('path');
