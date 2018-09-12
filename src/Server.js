@@ -8,8 +8,8 @@ const getCertificate = require('./utils/getCertificate');
 const prettyError = require('./utils/prettyError');
 const AnsiToHtml = require('ansi-to-html');
 const logger = require('./Logger');
+const fs = require('./utils/fs');
 const path = require('path');
-const fs = require('fs');
 const url = require('url');
 
 const ansiToHtml = new AnsiToHtml({newline: true});
@@ -64,11 +64,10 @@ function middleware(bundler) {
           pathname = pathname.slice(publicURL.length);
         }
         // check if file exists
-        fs.access(
-          path.join(bundler.options.outDir, pathname.slice(1)),
-          function(error) {
+        fs.exists(path.join(bundler.options.outDir, pathname.slice(1))).then(
+          function(exists) {
             // if file doesn't exist, send the main HTML bundle
-            if (error) return sendIndex();
+            if (!exists) return sendIndex();
             // otherwise send the file
             req.url = pathname;
             serve(req, res, send404);
