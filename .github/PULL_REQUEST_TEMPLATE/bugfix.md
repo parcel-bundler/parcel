@@ -36,5 +36,11 @@ Search open/closed issues before submitting since someone might have pushed the 
 | npm/Yarn         |
 | Operating System |
 
+## ✔️ PR Todo
+
+- [ ] Added/updated unit tests for this change
+- [ ] Filled out test instructions
+- [ ] Included links to related issues/PRs
+
 <!-- Love parcel? Please consider supporting our collective:
 👉  https://opencollective.com/parcel/donate -->
