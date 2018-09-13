@@ -28,5 +28,12 @@ Tell us how the feature should work
 
 <!-- Examples help us understand the requested feature better -->
 
+
+## ✔️ PR Todo
+
+- [ ] Added/updated unit tests for this change
+- [ ] Filled out test instructions
+- [ ] Included links to related issues/PRs
+
 <!-- Love parcel? Please consider supporting our collective:
 👉  https://opencollective.com/parcel/donate -->
