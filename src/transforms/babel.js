@@ -108,6 +108,21 @@ async function getBabelConfig(asset) {
   // Merge the babel-preset-env config and the babelrc if needed
   if (babelrc && !shouldIgnoreBabelrc(asset.name, babelrc)) {
     if (envConfig) {
+      // Auto Install any missing babel plugins
+      if(babelrc.plugins){
+        for(let plugin of babelrc.plugins){
+          let pluginName = getPluginName(plugin);
+          await localRequire(`babel-plugin-${pluginName}`, asset.name)
+        }
+      }
+
+      // Autoinstall any missing babel presets
+      if(babelrc.presets){
+        for(let preset of babelrc.presets){
+          await localRequire(`babel-preset-${preset}`, asset.name)
+        }
+      }
+
       // Filter out presets that are already applied by babel-preset-env
       if (Array.isArray(babelrc.presets)) {
         babelrc.presets = babelrc.presets.filter(preset => {
