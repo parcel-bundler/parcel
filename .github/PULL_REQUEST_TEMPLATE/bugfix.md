@@ -13,7 +13,7 @@ Search open/closed issues before submitting since someone might have pushed the 
 
 <!--- Provide the details of the pull request here -->
 
-## 🤔 What was not working?
+## 🤔 Tell Us What Goes Wrong
 
 <!--- Tell us what should happen -->
 
@@ -23,7 +23,10 @@ Search open/closed issues before submitting since someone might have pushed the 
 
 ## 🔦 Tests
 
-<!--- Providing tests is not always necessary but helps us test for future bugs -->
+<!--- 
+Please provide tests or at least test instructions so we can test for this bug in future releases.
+Let us know what we should test to make sure that everything works.
+-->
 
 ## 🌍 Your Environment
 
