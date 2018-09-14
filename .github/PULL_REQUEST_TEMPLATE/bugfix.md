@@ -6,7 +6,7 @@ about: Did you fix something that did not work as expected?
 <!---
 Thanks for filing a pull request 😄 ! Before you submit, please read the following:
 
-Search open/closed issues before submitting since someone might have pushed the same thing before!
+Search open/closed similar issues and pull requests before submitting since someone might have pushed the same thing before!
 -->
 
 # 🐛 bug fix
