@@ -35,7 +35,7 @@ class Cache {
 
     this.dirExists = true;
   }
-  
+
   getCacheId(appendedData) {
     return md5(this.optionsHash + appendedData);
   }
@@ -76,7 +76,7 @@ class Cache {
 
   async writeBlobs(cacheEntry) {
     await this.ensureDirExists();
-    
+
     cacheEntry.children = await this._writeBlobs(cacheEntry.children);
     if (cacheEntry.results) {
       cacheEntry.results = await this._writeBlobs(cacheEntry.results);
@@ -112,10 +112,11 @@ class Cache {
   }
 
   async readBlobs(asset) {
+    let blobs = {};
     await Promise.all(Object.keys(asset.blobs).map(async blobKey => {
-      asset.blobs[blobKey] = await this.readBlob(asset.blobs[blobKey]);
+      blobs[blobKey] = await this.readBlob(asset.blobs[blobKey]);
     }));
-    return asset;
+    return blobs;
   }
 
   async read(filePath) {
@@ -130,7 +131,7 @@ class Cache {
       return null;
     }
   }
-  
+
   invalidate(filePath) {
     this.invalidated.add(filePath);
   }
