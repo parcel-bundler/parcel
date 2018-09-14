@@ -1,6 +1,5 @@
 // @flow
 'use strict';
-import path from 'path';
 import { AbortController } from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import Watcher from '@parcel/watcher';
 import PQueue from 'p-queue';
@@ -15,7 +14,7 @@ import PackagerRunner from './PackagerRunner';
 // TODO: use custom config if present
 const defaultConfig = require('@parcel/config-default');
 
-const AbortError = new Error('Aborted!');
+const abortError = new Error('Build aborted');
 
 type CliOpts = {
   watch?: boolean
@@ -23,6 +22,7 @@ type CliOpts = {
 
 type ParcelOpts = {
   entries: Array<string>,
+  cwd?: string,
   cliOpts: CliOpts,
 }
 
@@ -37,6 +37,7 @@ type BuildOpts = {
 }
 
 export default class Parcel {
+  entries: Array<string>;
   rootDir: string;
   graph: AssetGraph;
   watcher: Watcher;
@@ -96,13 +97,19 @@ export default class Parcel {
   }
 
   async build({ signal }: BuildOpts) {
-    console.log('Starting build');
-    await this.updateGraph();
-    await this.completeGraph({ signal });
-    // await this.graph.dumpGraphViz();
-    let { bundles } = await this.bundle();
-    await this.package(bundles);
-    console.log('Finished build')
+    try {
+      console.log('Starting build');
+      await this.updateGraph();
+      await this.completeGraph({ signal });
+      // await this.graph.dumpGraphViz();
+      let { bundles } = await this.bundle();
+      await this.package(bundles);
+      console.log('Finished build');
+    } catch (e) {
+      if (e !== abortError) {
+        console.error(e);
+      }
+    }
   }
 
   async updateGraph() {
@@ -125,7 +132,7 @@ export default class Parcel {
     await this.mainQueue.onIdle();
     this.mainQueue.pause();
 
-    if (signal.aborted) throw AbortError;
+    if (signal.aborted) throw abortError;
   }
 
   processNode(node: Node, { signal }: BuildOpts) {
