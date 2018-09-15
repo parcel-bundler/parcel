@@ -1,8 +1,7 @@
 const semver = require('semver');
 const logger = require('../../logger');
 const path = require('path');
-const promisify = require('../../utils/promisify');
-const resolve = promisify(require('resolve'));
+const localRequire = require('../../utils/localRequire');
 const installPackage = require('../../utils/installPackage');
 
 async function getBabelConfig(asset, isSource) {
@@ -12,12 +11,13 @@ async function getBabelConfig(asset, isSource) {
   }
 
   // Ignore if the config is empty.
-  if ((!config.plugins || config.plugins.length === 0) ||
+  if ((!config.plugins || config.plugins.length === 0) &&
     (!config.presets || config.presets.length === 0)) {
     return null;
   }
 
-  let babelVersion = await getBabelVersion(asset, config);
+  let plugins = await installPlugins(asset, config);
+  let babelVersion = await getBabelVersion(asset, plugins);
   
   return {
     babelVersion,
@@ -69,7 +69,7 @@ async function findBabelRc(asset) {
   });
 }
 
-async function getBabelVersion(asset, babelrc) {
+async function getBabelVersion(asset, plugins) {
   // Check the package.json to determine the babel version that is installed
   let pkg = await asset.getPackage();
   let babelLegacy = getDependency(pkg, 'babel-core');
@@ -87,9 +87,9 @@ async function getBabelVersion(asset, babelrc) {
   // or a new app that just added a .babelrc without manually installing a version of babel core.
   // We will attempt to infer a verison of babel and install it based on the dependencies of the plugins
   // in the config. This should only happen once since we save babel core into package.json for subsequent runs.
-  let inferred = await inferBabelVersion(asset, babelrc);
+  let inferred = await inferBabelVersion(asset, plugins);
   let name = inferred === 6 ? 'babel-core' : `@babel/core`;
-  await installPackage([name], asset.name);
+  await installPackage(name, asset.name);
   return inferred;
 }
 
@@ -113,15 +113,11 @@ const CORE_DEPS = new Set([
   'babylon'
 ]);
 
-async function inferBabelVersion(asset, babelrc) {
+async function inferBabelVersion(asset, plugins) {
   // Attempt to determine version based on dependencies of plugins
-  let basedir = path.dirname(asset.name);
-  let presets = (babelrc.presets || []).map(p => resolveModule('preset', getPluginName(p), basedir));
-  let plugins = (babelrc.plugins || []).map(p => resolveModule('plugin', getPluginName(p), basedir));
-  let results = await Promise.all([...presets, ...plugins]);
   let version;
 
-  for (let pkg of results) {
+  for (let pkg of plugins) {
     if (!pkg) {
       continue;
     }
@@ -166,10 +162,17 @@ function getMaxMajor(version) {
   }
 }
 
-async function resolveModule(type, name, basedir) {
+async function installPlugins(asset, babelrc) {
+  let presets = (babelrc.presets || []).map(p => resolveModule('preset', getPluginName(p), asset.name));
+  let plugins = (babelrc.plugins || []).map(p => resolveModule('plugin', getPluginName(p), asset.name));
+  return await Promise.all([...presets, ...plugins]);
+}
+
+async function resolveModule(type, name, path) {
   try {
     name = standardizeName(type, name);
-    return await resolve(name, {basedir}).then(([name, pkg]) => pkg);
+    let [, pkg] = await localRequire.resolve(name, path);
+    return pkg;
   } catch (err) {
     return null;
   }

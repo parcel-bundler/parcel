@@ -11,6 +11,9 @@ const WorkerFarm = require('../workerfarm/WorkerFarm');
 
 async function install(modules, filepath, options = {}) {
   let {installPeers = true, saveDev = true, packageManager} = options;
+  if (typeof modules === 'string') {
+    modules = [modules];
+  }
 
   logger.progress(`Installing ${modules.join(', ')}...`);
 
