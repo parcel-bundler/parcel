@@ -1,10 +1,9 @@
-const types = require('babel-types');
-const matchesPattern = require('./matches-pattern');
+const types = require('@babel/types');
 
 module.exports = {
   MemberExpression(node, asset) {
     // Inline environment variables accessed on process.env
-    if (matchesPattern(node.object, 'process.env')) {
+    if (types.matchesPattern(node.object, 'process.env')) {
       let key = types.toComputedKey(node);
       if (types.isStringLiteral(key)) {
         let prop = process.env[key.value];

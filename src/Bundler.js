@@ -499,7 +499,7 @@ class Bundler extends EventEmitter {
     // If the module resolved (i.e. wasn't a local file), but the module directory wasn't found, install it.
     if (resolved.moduleName && !resolved.moduleDir) {
       try {
-        await installPackage([resolved.moduleName], asset.name, {
+        await installPackage(resolved.moduleName, asset.name, {
           saveDev: false
         });
       } catch (err) {

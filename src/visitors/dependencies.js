@@ -1,9 +1,8 @@
-const types = require('babel-types');
-const template = require('babel-template');
-const traverse = require('babel-traverse').default;
+const types = require('@babel/types');
+const template = require('@babel/template').default;
+const traverse = require('@babel/traverse').default;
 const urlJoin = require('../utils/urlJoin');
 const isURL = require('../utils/is-url');
-const matchesPattern = require('./matches-pattern');
 const nodeBuiltins = require('node-libs-browser');
 
 const requireTemplate = template('require("_bundle_loader")');
@@ -66,7 +65,7 @@ module.exports = {
 
     const isRegisterServiceWorker =
       types.isStringLiteral(args[0]) &&
-      matchesPattern(callee, serviceWorkerPattern);
+      types.matchesPattern(callee, serviceWorkerPattern);
 
     if (isRegisterServiceWorker) {
       // Treat service workers as an entry point so filenames remain consistent across builds.

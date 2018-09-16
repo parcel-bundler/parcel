@@ -1,3 +1,3 @@
-import 'babel-polyfill';
+import '@babel/polyfill';
 
 export async function Bar() {}

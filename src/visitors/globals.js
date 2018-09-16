@@ -1,5 +1,5 @@
 const Path = require('path');
-const types = require('babel-types');
+const types = require('@babel/types');
 
 const VARS = {
   process: asset => {

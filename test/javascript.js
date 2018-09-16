@@ -28,6 +28,89 @@ describe('javascript', function() {
     assert.equal(output.default(), 3);
   });
 
+  it('should produce a basic JS bundle using Babel 6', async function() {
+    let b = await bundle(
+      __dirname + '/integration/babel-6-compatibility/index.js'
+    );
+
+    let output = await run(b);
+    assert.equal(typeof output, 'object');
+    assert.equal(typeof output.default, 'function');
+    assert.equal(output.default(), 3);
+  });
+
+  it('should auto install babel-core v6', async function() {
+    let originalPkg = await fs.readFile(
+      __dirname + '/integration/babel-6-autoinstall/package.json'
+    );
+    let b = await bundle(
+      __dirname + '/integration/babel-6-autoinstall/index.js'
+    );
+
+    let output = await run(b);
+    assert.equal(typeof output, 'object');
+    assert.equal(typeof output.default, 'function');
+    assert.equal(output.default(), 3);
+
+    let pkg = await fs.readFile(
+      __dirname + '/integration/babel-6-autoinstall/package.json'
+    );
+    assert(JSON.parse(pkg).devDependencies['babel-core']);
+    await fs.writeFile(
+      __dirname + '/integration/babel-6-autoinstall/package.json',
+      originalPkg
+    );
+  });
+
+  it('should auto install @babel/core v7', async function() {
+    let originalPkg = await fs.readFile(
+      __dirname + '/integration/babel-7-autoinstall/package.json'
+    );
+    let b = await bundle(
+      __dirname + '/integration/babel-7-autoinstall/index.js'
+    );
+
+    let output = await run(b);
+    assert.equal(typeof output, 'object');
+    assert.equal(typeof output.default, 'function');
+    assert.equal(output.default(), 3);
+
+    let pkg = await fs.readFile(
+      __dirname + '/integration/babel-7-autoinstall/package.json'
+    );
+    assert(JSON.parse(pkg).devDependencies['@babel/core']);
+    await fs.writeFile(
+      __dirname + '/integration/babel-7-autoinstall/package.json',
+      originalPkg
+    );
+  });
+
+  it('should auto install babel plugins', async function() {
+    let originalPkg = await fs.readFile(
+      __dirname + '/integration/babel-plugin-autoinstall/package.json'
+    );
+    let b = await bundle(
+      __dirname + '/integration/babel-plugin-autoinstall/index.js'
+    );
+
+    let output = await run(b);
+    assert.equal(typeof output, 'object');
+    assert.equal(typeof output.default, 'function');
+    assert.equal(output.default(), 3);
+
+    let pkg = await fs.readFile(
+      __dirname + '/integration/babel-plugin-autoinstall/package.json'
+    );
+    assert(JSON.parse(pkg).devDependencies['@babel/core']);
+    assert(
+      JSON.parse(pkg).devDependencies['@babel/plugin-proposal-class-properties']
+    );
+    await fs.writeFile(
+      __dirname + '/integration/babel-plugin-autoinstall/package.json',
+      originalPkg
+    );
+  });
+
   it('should produce a basic JS bundle with object rest spread support', async function() {
     let b = await bundle(
       __dirname + '/integration/object-rest-spread/object-rest-spread.js'
@@ -1282,8 +1365,7 @@ describe('javascript', function() {
             },
             {
               type: 'css',
-              assets: ['index.css'],
-              childBundles: []
+              assets: ['index.css']
             }
           ]
         }
@@ -1325,8 +1407,7 @@ describe('javascript', function() {
             },
             {
               type: 'css',
-              assets: ['index.css'],
-              childBundles: []
+              assets: ['index.css']
             }
           ]
         }
@@ -1364,8 +1445,7 @@ describe('javascript', function() {
             },
             {
               type: 'css',
-              assets: ['index.css'],
-              childBundles: []
+              assets: ['index.css']
             }
           ]
         }
