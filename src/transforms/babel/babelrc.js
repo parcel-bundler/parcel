@@ -3,6 +3,8 @@ const logger = require('../../logger');
 const path = require('path');
 const localRequire = require('../../utils/localRequire');
 const installPackage = require('../../utils/installPackage');
+const fs = require('../../utils/fs');
+const micromatch = require('micromatch');
 
 async function getBabelConfig(asset, isSource) {
   let config = await getBabelRc(asset, isSource);
@@ -63,9 +65,83 @@ async function getBabelRc(asset, isSource) {
 }
 
 async function findBabelRc(asset) {
-  // TODO: support babelignore, etc.
-  return await asset.getConfig(['.babelrc', '.babelrc.js'], {
+  // TODO: use the babel API to do this config resolution and support all of its features.
+  // This is not currently possible because babel tries to actually load plugins and presets
+  // while resolving the config, but those plugins might not be installed yet.
+  let config = await asset.getConfig(['.babelrc', '.babelrc.js'], {
     packageKey: 'babel'
+  });
+
+  if (!config) {
+    return null;
+  }
+
+  if (typeof config === 'function') {
+    // We cannot support function configs since there is no exposed method in babel
+    // to create the API that is passed to them...
+    throw new Error('Parcel does not support function configs in .babelrc.js yet.');
+  }
+
+  for (let key of ['extends', 'overrides', 'test', 'include', 'exclude']) {
+    if (config[key]) {
+      throw new Error(`Parcel does not support babel 7 advanced configuration option "${key}" yet.`);
+    }
+  }
+
+  // Support ignore/only config options.
+  if (shouldIgnore(asset, config)) {
+    return null;
+  }
+
+  // Support .babelignore
+  let ignoreConfig = await getIgnoreConfig(asset);
+  if (ignoreConfig && shouldIgnore(asset, ignoreConfig)) {
+    return null;
+  }
+
+  return config;
+}
+
+async function getIgnoreConfig(asset) {
+  let ignoreFile = await asset.getConfig(['.babelignore'], {
+    load: false
+  });
+
+  if (!ignoreFile) {
+    return null;
+  }
+
+  let data = await fs.readFile(ignoreFile, 'utf8');
+  let patterns = data.split('\n')
+    .map(line => line.replace(/#.*$/, '').trim())
+    .filter(Boolean);
+
+  return {ignore: patterns};
+}
+
+function shouldIgnore(asset, config) {
+  if (config.ignore && matchesPatterns(config.ignore, asset.name)) {
+    return true;
+  }
+
+  if (config.only && !matchesPatterns(config.only, asset.name)) {
+    return true;
+  }
+
+  return false;
+}
+
+function matchesPatterns(patterns, path) {
+  return patterns.some(pattern => {
+    if (typeof pattern === 'function') {
+      return !!pattern(path);
+    }
+
+    if (typeof pattern === 'string') {
+      return micromatch.isMatch(path, '**/' + pattern + '/**');
+    }
+
+    return pattern.test(string);
   });
 }
 
