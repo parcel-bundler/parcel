@@ -62,53 +62,14 @@ class JSAsset extends Asset {
     );
   }
 
-  async getParserOptions() {
-    // Babylon options. We enable a few plugins by default.
-    let options = {
-      parserOpts: {
-        filename: this.name,
-        allowReturnOutsideFunction: true,
-        strictMode: false,
-        sourceType: 'module',
-        plugins: ['exportExtensions', 'exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport']
-      }
-    };
-
-    // Check if there is a babel config file. If so, determine which parser plugins to enable
-    this.babelConfig = await babel.getConfig(this);
-    if (this.babelConfig) {
-      if (this.babelConfig.babelVersion === 6) {
-        options.parserOpts.tokens = true;
-        // options = options.parserOpts;
-      }
-
-      Object.assign(options, this.babelConfig);
-
-      let babelVersion = this.babelConfig.babelVersion;
-      Object.defineProperty(options, 'babelVersion', {
-        value: babelVersion,
-        configurable: true
-      });
-
-      // if (this.babelConfig) {
-      //   const file = new BabelFile(this.babelConfig);
-      //   options.plugins.push(...file.parserOpts.plugins);
-      // }
-    }
-
-    return options;
-  }
-
   async parse(code) {
-    // const options = await this.getParserOptions();
-    // return babelCore.parse(code, options);
-    await babel(this);
-    if (!this.ast) {
-      console.log('NO AST')
-      this.ast = babelParser.parse(code);
-    }
-
-    return this.ast;
+    return babelParser.parse(code, {
+      filename: this.name,
+      allowReturnOutsideFunction: true,
+      strictMode: false,
+      sourceType: 'module',
+      plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport']
+    });
   }
 
   traverse(visitor) {
@@ -200,7 +161,7 @@ class JSAsset extends Asset {
 
   async pretransform() {
     await this.loadSourceMap();
-    // await babel(this);
+    await babel(this);
 
     // Inline environment variables
     if (this.options.target === 'browser' && ENV_RE.test(this.contents)) {

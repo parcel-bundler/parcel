@@ -14,6 +14,12 @@ async function babel7(asset, options) {
   config.filename = asset.name;
   config.babelrc = false;
   config.configFile = false;
+  config.parserOpts = Object.assign({}, config.parserOpts, {
+    allowReturnOutsideFunction: true,
+    strictMode: false,
+    sourceType: 'module',
+    plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport']
+  });
 
   let res;
   if (asset.ast) {

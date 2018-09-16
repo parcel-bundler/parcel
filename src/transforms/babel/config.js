@@ -3,6 +3,7 @@ const getEnvConfig = require('./env');
 const getJSXConfig = require('./jsx');
 const getFlowConfig = require('./flow');
 const path = require('path');
+const fs = require('../../utils/fs');
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 const ENV_PLUGINS = require('@babel/preset-env/data/plugins');
@@ -55,14 +56,19 @@ async function getBabelConfig(asset) {
   // Add JSX config if it isn't already specified in the babelrc
   let hasReact =
     babelrc && (
-    hasPlugin(babelrc.config.presets, ['react', '@babel/preset-react']) ||
+    hasPlugin(babelrc.config.presets, [
+      'react',
+      '@babel/react',
+      '@babel/preset-react'
+    ]) ||
     hasPlugin(babelrc.config.plugins, [
       'transform-react-jsx',
+      '@babel/transform-react-jsx',
       '@babel/plugin-transform-react-jsx'
     ]));
 
   if (!hasReact) {
-    mergeConfigs(babelrc, jsxConfig);
+    mergeConfigs(result, jsxConfig);
   }
 
   // Add Flow stripping config if it isn't already specified in the babelrc
@@ -70,11 +76,12 @@ async function getBabelConfig(asset) {
     babelrc &&
     hasPlugin(babelrc.config.plugins, [
       'transform-flow-strip-types',
+      '@babel/transform-flow-strip-types',
       '@babel/plugin-transform-flow-strip-types'
     ]);
 
   if (!hasFlow) {
-    mergeConfigs(babelrc, flowConfig);
+    mergeConfigs(result, flowConfig);
   }
 
   return result;
@@ -94,8 +101,6 @@ function mergeConfigs(result, config) {
   } else {
     result[config.babelVersion] = config;
   }
-
-  return merged;
 }
 
 function hasPlugin(arr, plugins) {

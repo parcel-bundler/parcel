@@ -182,11 +182,21 @@ const CORE_DEPS = new Set([
   '@babel/core',
   '@babel/runtime', 
   '@babel/template',
+  '@babel/traverse',
+  '@babel/types',
   '@babel/parser',
+  '@babel/cli',
+  '@babel/register',
+  '@babel/generator',
   'babel-core',
   'babel-runtime',
   'babel-template',
-  'babylon'
+  'babel-traverse',
+  'babel-types',
+  'babylon',
+  'babel-cli',
+  'babel-register',
+  'babel-generator'
 ]);
 
 async function inferBabelVersion(asset, plugins) {

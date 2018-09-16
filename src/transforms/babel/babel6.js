@@ -9,6 +9,15 @@ async function babel6(asset, options) {
   config.ast = true;
   config.filename = asset.name;
   config.babelrc = false;
+  config.parserOpts = Object.assign({}, config.parserOpts, {
+    allowReturnOutsideFunction: true,
+    allowHashBang: true,
+    ecmaVersion: Infinity,
+    strictMode: false,
+    sourceType: 'module',
+    locations: true,
+    plugins: ['exportExtensions', 'dynamicImport']
+  });
 
   let res = babel.transform(asset.contents, config);
   if (res.ast) {

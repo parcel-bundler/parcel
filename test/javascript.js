@@ -28,7 +28,7 @@ describe.only('javascript', function() {
     assert.equal(output.default(), 3);
   });
 
-  it.only('should produce a basic JS bundle using Babel 6', async function() {
+  it('should produce a basic JS bundle using Babel 6', async function() {
     let b = await bundle(
       __dirname + '/integration/babel-6-compatibility/index.js'
     );
@@ -938,7 +938,7 @@ describe.only('javascript', function() {
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 
-  it.only('should support compiling with babel using .babelrc config', async function() {
+  it('should support compiling with babel using .babelrc config', async function() {
     await bundle(__dirname + '/integration/babel/index.js');
 
     let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
