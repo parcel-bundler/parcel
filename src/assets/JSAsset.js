@@ -1,11 +1,9 @@
-const babelCore = require('@babel/core');
 const traverse = require('@babel/traverse').default;
 const codeFrame = require('@babel/code-frame').codeFrameColumns;
 const collectDependencies = require('../visitors/dependencies');
 const walk = require('babylon-walk');
 const Asset = require('../Asset');
 const babelParser = require('@babel/parser');
-const localRequire = require('../utils/localRequire');
 const insertGlobals = require('../visitors/globals');
 const fsVisitor = require('../visitors/fs');
 const envVisitor = require('../visitors/env');
@@ -268,7 +266,9 @@ class JSAsset extends Asset {
       // Babel 7 adds its own code frame on the error message itself
       // We need to remove it and pass it separately.
       if (err.message.startsWith(this.name)) {
-        err.message = err.message.slice(this.name.length + 1, err.message.indexOf('\n')).trim();
+        err.message = err.message
+          .slice(this.name.length + 1, err.message.indexOf('\n'))
+          .trim();
       }
 
       err.codeFrame = codeFrame(this.contents, {start: loc});

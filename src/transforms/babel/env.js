@@ -31,7 +31,7 @@ async function getEnvConfig(asset, isSourceModule) {
     internal: true,
     babelVersion: 7,
     config: {
-      plugins: targetEnv,
+      plugins: targetEnv
     }
   };
 }

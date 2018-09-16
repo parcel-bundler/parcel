@@ -42,7 +42,7 @@ async function getJSXConfig(asset, isSourceModule) {
       internal: true,
       babelVersion: 7,
       config: {
-        plugins: [[require('@babel/plugin-transform-react-jsx'), {pragma}]],
+        plugins: [[require('@babel/plugin-transform-react-jsx'), {pragma}]]
       }
     };
   }

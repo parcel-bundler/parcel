@@ -1,6 +1,9 @@
 const babelCore = require('@babel/core');
 const fs = require('../src/utils/fs');
-const {babel6toBabel7, babel7toBabel6} = require('../src/transforms/babel/astConverter');
+const {
+  babel6toBabel7,
+  babel7toBabel6
+} = require('../src/transforms/babel/astConverter');
 const path = require('path');
 const BabelFlowPreset = require('@babel/preset-flow');
 const babelPresetEnv = require('@babel/preset-env');

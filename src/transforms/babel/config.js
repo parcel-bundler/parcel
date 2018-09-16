@@ -55,24 +55,24 @@ async function getBabelConfig(asset) {
 
   // Add JSX config if it isn't already specified in the babelrc
   let hasReact =
-    babelrc && (
-    hasPlugin(babelrc.config.presets, [
+    babelrc &&
+    (hasPlugin(babelrc.config.presets, [
       'react',
       '@babel/react',
       '@babel/preset-react'
     ]) ||
-    hasPlugin(babelrc.config.plugins, [
-      'transform-react-jsx',
-      '@babel/transform-react-jsx',
-      '@babel/plugin-transform-react-jsx'
-    ]));
+      hasPlugin(babelrc.config.plugins, [
+        'transform-react-jsx',
+        '@babel/transform-react-jsx',
+        '@babel/plugin-transform-react-jsx'
+      ]));
 
   if (!hasReact) {
     mergeConfigs(result, jsxConfig);
   }
 
   // Add Flow stripping config if it isn't already specified in the babelrc
-  let hasFlow = 
+  let hasFlow =
     babelrc &&
     hasPlugin(babelrc.config.plugins, [
       'transform-flow-strip-types',
@@ -90,14 +90,22 @@ async function getBabelConfig(asset) {
 module.exports = getBabelConfig;
 
 function mergeConfigs(result, config) {
-  if (!config || ((!config.config.presets || config.config.presets.length === 0) && (!config.config.plugins || config.config.plugins.length === 0))) {
+  if (
+    !config ||
+    ((!config.config.presets || config.config.presets.length === 0) &&
+      (!config.config.plugins || config.config.plugins.length === 0))
+  ) {
     return;
   }
 
   let merged = result[config.babelVersion];
   if (merged) {
-    merged.config.presets = (merged.config.presets || []).concat(config.config.presets || []);
-    merged.config.plugins = (merged.config.plugins || []).concat(config.config.plugins || []);
+    merged.config.presets = (merged.config.presets || []).concat(
+      config.config.presets || []
+    );
+    merged.config.plugins = (merged.config.plugins || []).concat(
+      config.config.plugins || []
+    );
   } else {
     result[config.babelVersion] = config;
   }
@@ -112,4 +120,3 @@ function hasPlugin(arr, plugins) {
 function getPluginName(p) {
   return Array.isArray(p) ? p[0] : p;
 }
-

@@ -13,14 +13,16 @@ async function getBabelConfig(asset, isSource) {
   }
 
   // Ignore if the config is empty.
-  if ((!config.plugins || config.plugins.length === 0) &&
-    (!config.presets || config.presets.length === 0)) {
+  if (
+    (!config.plugins || config.plugins.length === 0) &&
+    (!config.presets || config.presets.length === 0)
+  ) {
     return null;
   }
 
   let plugins = await installPlugins(asset, config);
   let babelVersion = await getBabelVersion(asset, plugins);
-  
+
   return {
     babelVersion,
     config
@@ -79,12 +81,16 @@ async function findBabelRc(asset) {
   if (typeof config === 'function') {
     // We cannot support function configs since there is no exposed method in babel
     // to create the API that is passed to them...
-    throw new Error('Parcel does not support function configs in .babelrc.js yet.');
+    throw new Error(
+      'Parcel does not support function configs in .babelrc.js yet.'
+    );
   }
 
   for (let key of ['extends', 'overrides', 'test', 'include', 'exclude']) {
     if (config[key]) {
-      throw new Error(`Parcel does not support babel 7 advanced configuration option "${key}" yet.`);
+      throw new Error(
+        `Parcel does not support babel 7 advanced configuration option "${key}" yet.`
+      );
     }
   }
 
@@ -112,7 +118,8 @@ async function getIgnoreConfig(asset) {
   }
 
   let data = await fs.readFile(ignoreFile, 'utf8');
-  let patterns = data.split('\n')
+  let patterns = data
+    .split('\n')
     .map(line => line.replace(/#.*$/, '').trim())
     .filter(Boolean);
 
@@ -141,7 +148,7 @@ function matchesPatterns(patterns, path) {
       return micromatch.isMatch(path, '**/' + pattern + '/**');
     }
 
-    return pattern.test(string);
+    return pattern.test(path);
   });
 }
 
@@ -180,7 +187,7 @@ function getDependency(pkg, dep) {
 // Core babel packages we use to infer the major version of babel to use.
 const CORE_DEPS = new Set([
   '@babel/core',
-  '@babel/runtime', 
+  '@babel/runtime',
   '@babel/template',
   '@babel/traverse',
   '@babel/types',
@@ -214,7 +221,9 @@ async function inferBabelVersion(asset, plugins) {
         // Parse version range (ignore prerelease), and ensure it overlaps with the existing version (if any)
         let range = new semver.Range(dep.replace(/-.*(\s|\|\||$)?/, ''));
         if (version && !version.intersects(range)) {
-          throw new Error('Conflicting babel versions found in .babelrc. Make sure all of your plugins and presets depend on the same major version of babel.');
+          throw new Error(
+            'Conflicting babel versions found in .babelrc. Make sure all of your plugins and presets depend on the same major version of babel.'
+          );
         }
 
         version = range;
@@ -227,7 +236,9 @@ async function inferBabelVersion(asset, plugins) {
   // e.g. if ^6 || ^7 were specified, use 7.
   version = getMaxMajor(version);
   if (!version) {
-    logger.warn(`Could not infer babel version. Defaulting to babel 7. Please add either babel-core or @babel/core as a dependency.`);
+    logger.warn(
+      `Could not infer babel version. Defaulting to babel 7. Please add either babel-core or @babel/core as a dependency.`
+    );
     version = 7;
   }
 
@@ -249,8 +260,12 @@ function getMaxMajor(version) {
 }
 
 async function installPlugins(asset, babelrc) {
-  let presets = (babelrc.presets || []).map(p => resolveModule('preset', getPluginName(p), asset.name));
-  let plugins = (babelrc.plugins || []).map(p => resolveModule('plugin', getPluginName(p), asset.name));
+  let presets = (babelrc.presets || []).map(p =>
+    resolveModule('preset', getPluginName(p), asset.name)
+  );
+  let plugins = (babelrc.plugins || []).map(p =>
+    resolveModule('plugin', getPluginName(p), asset.name)
+  );
   return await Promise.all([...presets, ...plugins]);
 }
 
@@ -279,28 +294,28 @@ function standardizeName(type, name) {
   // Let absolute and relative paths through.
   if (path.isAbsolute(name)) return name;
 
-  const isPreset = type === "preset";
+  const isPreset = type === 'preset';
 
   return (
     name
       // foo -> babel-preset-foo
       .replace(
         isPreset ? BABEL_PRESET_PREFIX_RE : BABEL_PLUGIN_PREFIX_RE,
-        `babel-${type}-`,
+        `babel-${type}-`
       )
       // @babel/es2015 -> @babel/preset-es2015
       .replace(
         isPreset ? BABEL_PRESET_ORG_RE : BABEL_PLUGIN_ORG_RE,
-        `$1${type}-`,
+        `$1${type}-`
       )
       // @foo/mypreset -> @foo/babel-preset-mypreset
       .replace(
         isPreset ? OTHER_PRESET_ORG_RE : OTHER_PLUGIN_ORG_RE,
-        `$1babel-${type}-`,
+        `$1babel-${type}-`
       )
       // @foo -> @foo/babel-preset
       .replace(OTHER_ORG_DEFAULT_RE, `$1/babel-${type}`)
       // module:mypreset -> mypreset
-      .replace(EXACT_RE, "")
+      .replace(EXACT_RE, '')
   );
 }

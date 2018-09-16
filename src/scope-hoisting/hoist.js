@@ -523,8 +523,8 @@ function addExport(asset, path, local, exported) {
   });
 
   let binding = scope.getBinding(local.name);
-  let constantViolations = binding 
-    ? binding.constantViolations.concat(path) 
+  let constantViolations = binding
+    ? binding.constantViolations.concat(path)
     : [path];
 
   if (!asset.cacheData.exports[exported.name]) {
