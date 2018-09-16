@@ -75,7 +75,7 @@ module.exports = {
 
         ReturnStatement(path) {
           // Wrap in a function if we see a top-level return statement.
-          if (path.getFunctionParent().isProgram()) {
+          if (!path.getFunctionParent()) {
             shouldWrap = true;
             asset.cacheData.isCommonJS = true;
             path.replaceWith(
@@ -522,9 +522,10 @@ function addExport(asset, path, local, exported) {
     LOCAL: identifier
   });
 
-  let constantViolations = scope
-    .getBinding(local.name)
-    .constantViolations.concat(path);
+  let binding = scope.getBinding(local.name);
+  let constantViolations = binding 
+    ? binding.constantViolations.concat(path) 
+    : [path];
 
   if (!asset.cacheData.exports[exported.name]) {
     asset.cacheData.exports[exported.name] = identifier.name;

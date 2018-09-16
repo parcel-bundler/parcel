@@ -73,15 +73,6 @@ class JSAsset extends Asset {
   }
 
   traverse(visitor) {
-    // Create a babel File object if one hasn't been created yet.
-    // This is needed so that cached NodePath objects get a `hub` object on them.
-    // Plugins like babel-minify depend on this to get the original source code string.
-    // if (!this.babelFile) {
-    //   this.babelFile = new BabelFile(this.babelConfig || {});
-    //   this.babelFile.addCode(this.contents);
-    //   this.babelFile.addAst(this.ast);
-    // }
-
     return traverse(this.ast, visitor, null, this);
   }
 
@@ -274,6 +265,12 @@ class JSAsset extends Asset {
   generateErrorMessage(err) {
     const loc = err.loc;
     if (loc) {
+      // Babel 7 adds its own code frame on the error message itself
+      // We need to remove it and pass it separately.
+      if (err.message.startsWith(this.name)) {
+        err.message = err.message.slice(this.name.length + 1, err.message.indexOf('\n')).trim();
+      }
+
       err.codeFrame = codeFrame(this.contents, {start: loc});
       err.highlightedCodeFrame = codeFrame(
         this.contents,

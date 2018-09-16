@@ -4,7 +4,7 @@ const path = require('path');
 const {bundle, run, assertBundleTree, deferred} = require('./utils');
 const {mkdirp} = require('../src/utils/fs');
 
-describe.only('javascript', function() {
+describe('javascript', function() {
   it('should produce a basic JS bundle with CommonJS requires', async function() {
     let b = await bundle(__dirname + '/integration/commonjs/index.js');
 
@@ -1285,12 +1285,7 @@ describe.only('javascript', function() {
             },
             {
               type: 'css',
-              assets: ['index.css'],
-              childBundles: [
-                {
-                  type: 'js'
-                }
-              ]
+              assets: ['index.css']
             }
           ]
         }
@@ -1332,12 +1327,7 @@ describe.only('javascript', function() {
             },
             {
               type: 'css',
-              assets: ['index.css'],
-              childBundles: [
-                {
-                  type: 'js'
-                }
-              ]
+              assets: ['index.css']
             }
           ]
         }
@@ -1375,12 +1365,7 @@ describe.only('javascript', function() {
             },
             {
               type: 'css',
-              assets: ['index.css'],
-              childBundles: [
-                {
-                  type: 'js'
-                }
-              ]
+              assets: ['index.css']
             }
           ]
         }

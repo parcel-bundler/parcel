@@ -1,13 +1,13 @@
 const babelCore = require('@babel/core');
 const fs = require('../src/utils/fs');
-const BabelASTConvertor = require('../src/transforms/babel/astConverter');
+const {babel6toBabel7, babel7toBabel6} = require('../src/transforms/babel/astConverter');
 const path = require('path');
 const BabelFlowPreset = require('@babel/preset-flow');
 const babelPresetEnv = require('@babel/preset-env');
 const traverse = require('@babel/traverse').default;
 const assert = require('assert');
 
-describe('Babel', function() {
+describe('babel', function() {
   let ast;
   before(async function() {
     const options = {
@@ -32,7 +32,7 @@ describe('Babel', function() {
   });
 
   it('Should be able to convert Babel 7 => Babel 6 AST', async function() {
-    ast = BabelASTConvertor(ast, 7);
+    ast = babel7toBabel6(ast);
 
     let elementCount = {};
     traverse(ast, {
@@ -79,7 +79,7 @@ describe('Babel', function() {
   });
 
   it('Should be able to convert Babel 6 => Babel 7 AST', async function() {
-    ast = BabelASTConvertor(ast, 6);
+    ast = babel6toBabel7(ast);
 
     let elementCount = {};
     traverse(ast, {
