@@ -14,6 +14,9 @@ lib
 *.min.js
 test/integration/**/target
 test/integration/**/Cargo.lock
+test/**/node_modules
+test/**/yarn.lock
+test/**/package-lock.json
 # Logs
 logs
 *.log

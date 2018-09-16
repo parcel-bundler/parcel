@@ -1,15 +1,15 @@
-const {File: BabelFile} = require('babel-core');
-const traverse = require('babel-traverse').default;
-const codeFrame = require('babel-code-frame');
+const traverse = require('@babel/traverse').default;
+const codeFrame = require('@babel/code-frame').codeFrameColumns;
 const collectDependencies = require('../visitors/dependencies');
 const walk = require('babylon-walk');
 const Asset = require('../Asset');
-const babylon = require('babylon');
+const babelParser = require('@babel/parser');
 const insertGlobals = require('../visitors/globals');
 const fsVisitor = require('../visitors/fs');
 const envVisitor = require('../visitors/env');
-const babel = require('../transforms/babel');
-const generate = require('babel-generator').default;
+const babel = require('../transforms/babel/transform');
+const babel7 = require('../transforms/babel/babel7');
+const generate = require('@babel/generator').default;
 const terser = require('../transforms/terser');
 const SourceMap = require('../SourceMap');
 const hoist = require('../scope-hoisting/hoist');
@@ -60,44 +60,17 @@ class JSAsset extends Asset {
     );
   }
 
-  async getParserOptions() {
-    // Babylon options. We enable a few plugins by default.
-    const options = {
+  async parse(code) {
+    return babelParser.parse(code, {
       filename: this.name,
       allowReturnOutsideFunction: true,
-      allowHashBang: true,
-      ecmaVersion: Infinity,
       strictMode: false,
       sourceType: 'module',
-      locations: true,
-      plugins: ['exportExtensions', 'dynamicImport']
-    };
-
-    // Check if there is a babel config file. If so, determine which parser plugins to enable
-    this.babelConfig = await babel.getConfig(this);
-    if (this.babelConfig) {
-      const file = new BabelFile(this.babelConfig);
-      options.plugins.push(...file.parserOpts.plugins);
-    }
-
-    return options;
-  }
-
-  async parse(code) {
-    const options = await this.getParserOptions();
-    return babylon.parse(code, options);
+      plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport']
+    });
   }
 
   traverse(visitor) {
-    // Create a babel File object if one hasn't been created yet.
-    // This is needed so that cached NodePath objects get a `hub` object on them.
-    // Plugins like babel-minify depend on this to get the original source code string.
-    if (!this.babelFile) {
-      this.babelFile = new BabelFile(this.babelConfig || {});
-      this.babelFile.addCode(this.contents);
-      this.babelFile.addAst(this.ast);
-    }
-
     return traverse(this.ast, visitor, null, this);
   }
 
@@ -214,7 +187,12 @@ class JSAsset extends Asset {
       this.isAstDirty = true;
     } else {
       if (this.isES6Module) {
-        await babel(this);
+        await babel7(this, {
+          internal: true,
+          config: {
+            plugins: [require('@babel/plugin-transform-modules-commonjs')]
+          }
+        });
       }
     }
 
@@ -285,11 +263,18 @@ class JSAsset extends Asset {
   generateErrorMessage(err) {
     const loc = err.loc;
     if (loc) {
-      err.codeFrame = codeFrame(this.contents, loc.line, loc.column + 1);
+      // Babel 7 adds its own code frame on the error message itself
+      // We need to remove it and pass it separately.
+      if (err.message.startsWith(this.name)) {
+        err.message = err.message
+          .slice(this.name.length + 1, err.message.indexOf('\n'))
+          .trim();
+      }
+
+      err.codeFrame = codeFrame(this.contents, {start: loc});
       err.highlightedCodeFrame = codeFrame(
         this.contents,
-        loc.line,
-        loc.column + 1,
+        {start: loc},
         {highlightCode: true}
       );
     }

@@ -168,11 +168,11 @@ describe('hmr', function() {
       `${path.join(
         __dirname,
         '/input/local.js'
-      )}:1:12: Unexpected token, expected , (1:12)`
+      )}:1:12: Unexpected token, expected "," (1:12)`
     );
     assert.equal(
       msg.error.stack,
-      '> 1 | require("fs"; exports.a = 5; exports.b = 5;\n    |             ^'
+      '> 1 | require("fs"; exports.a = 5; exports.b = 5;\n    |            ^'
     );
 
     await buildEnd;

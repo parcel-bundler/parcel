@@ -1,9 +1,9 @@
 {
-  "presets": [["env", {
+  "presets": [["@babel/preset-env", {
     "targets": {
       "node": "6"
     }
   }]],
-  "plugins": ["transform-async-super"],
+  "plugins": ["@babel/plugin-transform-runtime"],
   "ignore": ["builtins"]
 }
