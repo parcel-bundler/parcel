@@ -9,9 +9,12 @@ async function babel7(asset, options) {
     ? require('@babel/core')
     : await localRequire('@babel/core', asset.name);
 
+  let pkg = await asset.getPackage();
+
   config.code = false;
   config.ast = true;
   config.filename = asset.name;
+  config.cwd = pkg ? pkg.pkgdir : asset.options.rootDir;
   config.babelrc = false;
   config.configFile = false;
   config.parserOpts = Object.assign({}, config.parserOpts, {
