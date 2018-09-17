@@ -86,11 +86,12 @@ describe('resolver', function() {
         'zlib',
         path.join(rootDir, 'foo.js')
       );
+
       assert.equal(
         resolved.path,
         path.join(
           __dirname,
-          '..',
+          '../../../..',
           'node_modules',
           'browserify-zlib',
           'lib',

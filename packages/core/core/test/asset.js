@@ -33,7 +33,7 @@ describe('Asset', () => {
 
   it('should have backward compatibility for package field', function() {
     let a = new Asset(__filename, {rootDir: '/root/dir'});
-    assert.equal(a.package.name, 'parcel-bundler');
+    assert.equal(a.package.name, '@parcel/core');
   });
 
   describe('addURLDependency', () => {
