@@ -188,6 +188,10 @@ async function bundle(main, command) {
   // Require bundler here so the help command is fast
   const Bundler = require('../');
 
+  if (command.name() === 'watch') {
+    command.watch = true;
+  }
+
   if (command.name() === 'build') {
     command.production = true;
     process.env.NODE_ENV = process.env.NODE_ENV || 'production';
