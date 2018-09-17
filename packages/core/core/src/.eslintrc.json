@@ -1,5 +1,5 @@
 {
-  "extends": "../.eslintrc.json",
+  "extends": "@parcel/eslint-config",
   "rules": {
     "no-console": 0
   }

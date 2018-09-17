@@ -1,4 +1,4 @@
-src/builtins
-test/integration
-test/input
-test/dist
+packages/core/core/src/builtins
+packages/core/core/test/integration
+packages/core/core/test/input
+packages/core/core/test/dist

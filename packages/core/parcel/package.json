@@ -1,0 +1,32 @@
+{
+  "name": "parcel-bundler",
+  "version": "1.10.0",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "index.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "files": [
+    "index.js",
+    "bin.js"
+  ],
+  "scripts": {
+    "postinstall": "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\""
+  },
+  "dependencies": {
+    "@parcel/core": "^1.10.1",
+    "spawndamnit": "^2.0.0"
+  },
+  "bin": {
+    "parcel": "./bin.js"
+  },
+  "engines": {
+    "node": ">= 6.0.0"
+  },
+  "collective": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  }
+}

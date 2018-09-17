@@ -1,0 +1,6 @@
+{
+  "name": "@parcel/eslint-config",
+  "version": "1.0.0",
+  "license": "MIT",
+  "main": "./.eslintrc.json"
+}
