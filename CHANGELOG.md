@@ -5,10 +5,24 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [1.10.0] - 2018-
+## [1.10.0-beta.2] - 2018-
+
+### Fixed
+
+- allow empty string in meta [Details](https://github.com/parcel-bundler/parcel/pull/2027)
+- fixed watch not working when NODE_ENV is production [Details](https://github.com/parcel-bundler/parcel/pull/2024)
+
+## [1.10.0-beta.1] - 2018-09-16
+
+### Fixed
+
+- Incorrect casing for Logger require [Details](https://github.com/parcel-bundler/parcel/pull/2021)
+
+## [1.10.0-beta.0] - 2018-09-16
 
 ### Added
 
+- Babel 7 support [Details](https://github.com/parcel-bundler/parcel/pull/1955)
 - HTML Bundle loader [Details](https://github.com/parcel-bundler/parcel/pull/1732)
 - Support optionally bundling node_modules for `--target=node` [Details](https://github.com/parcel-bundler/parcel/pull/1690)
 - Import existing sourcemaps [Details](https://github.com/parcel-bundler/parcel/pull/1349)
@@ -25,6 +39,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Support array in package.json's sideEffects property [Details](https://github.com/parcel-bundler/parcel/pull/1766)
 - Process inline scripts and styles [Details](https://github.com/parcel-bundler/parcel/pull/1456)
 - Added stub for require.cache [Details](https://github.com/parcel-bundler/parcel/pull/1960)
+- Added dotenv-expand to expand env vars [Details](https://github.com/parcel-bundler/parcel/pull/2014)
 
 ### Fixed
 
