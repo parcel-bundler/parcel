@@ -137,7 +137,12 @@ class HTMLAsset extends Asset {
           if (
             !Object.keys(node.attrs).some(attr => {
               let values = META[attr];
-              return values && values.includes(node.attrs[attr]);
+
+              return (
+                values &&
+                values.includes(node.attrs[attr]) &&
+                node.attrs.content !== ''
+              );
             })
           ) {
             return node;
