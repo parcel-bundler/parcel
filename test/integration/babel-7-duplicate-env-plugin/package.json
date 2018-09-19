@@ -1,0 +1,6 @@
+{
+  "name": "babel-7-duplicate-env-plugin",
+  "devDependencies": {
+    "@babel/core": "^7.1.0"
+  }
+}

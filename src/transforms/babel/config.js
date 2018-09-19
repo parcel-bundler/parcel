@@ -44,7 +44,10 @@ async function getBabelConfig(asset) {
     // Filter out plugins that are already applied by @babel/preset-env
     if (Array.isArray(babelrc.config.plugins)) {
       babelrc.config.plugins = babelrc.config.plugins.filter(plugin => {
-        return !ENV_PLUGINS[getPluginName(plugin)];
+        // new plugins presented in plugins.json file without `@babel/[plugin-]` prefix
+        return !ENV_PLUGINS[
+          getPluginName(plugin).replace(/^@babel\/(?:plugin-)?/, '')
+        ];
       });
     }
   }
