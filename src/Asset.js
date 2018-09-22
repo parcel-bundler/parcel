@@ -21,7 +21,9 @@ class Asset {
     this.id = null;
     this.name = name;
     this.basename = path.basename(this.name);
-    this.relativeName = path.relative(options.rootDir, this.name);
+    this.relativeName = path
+      .relative(options.rootDir, this.name)
+      .replace(/\\/g, '/');
     this.options = options;
     this.encoding = 'utf8';
     this.type = path.extname(this.name).slice(1);
