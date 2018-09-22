@@ -253,17 +253,17 @@ class HTMLAsset extends Asset {
       if (type === 'attr' && rendition.type === 'css') {
         node.attrs.style = rendition.value;
       } else if (type === 'tag') {
-        if (
-          (rendition.type === 'js' && node.tag === 'script') ||
-          (rendition.type === 'css' && node.tag === 'style') ||
-          (rendition.type === 'jsonld' && node.tag === 'script')
-        ) {
+        if (rendition.isMain) {
           node.content = rendition.value;
         }
 
         // Delete "type" attribute, since CSS and JS are the defaults.
         // Unless it's application/ld+json
-        if (node.attrs && node.attrs.type && SCRIPT_TYPES[node.attrs.type] === 'js') {
+        if (
+          node.attrs &&
+          (node.tag === 'style' ||
+            (node.attrs.type && SCRIPT_TYPES[node.attrs.type] === 'js'))
+        ) {
           delete node.attrs.type;
         }
       }
