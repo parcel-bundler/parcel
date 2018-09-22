@@ -1,9 +1,10 @@
 const assert = require('assert');
+const path = require('path');
 const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('plugins', function() {
   it('should load plugins and apply custom asset type', async function() {
-    let b = await bundle(__dirname + '/integration/plugins/index.js');
+    let b = await bundle(path.join(__dirname, '/integration/plugins/index.js'));
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -21,7 +22,7 @@ describe('plugins', function() {
 
   it('should load package.json from parent tree', async function() {
     let b = await bundle(
-      __dirname + '/integration/plugins/sub-folder/index.js'
+      path.join(__dirname, '/integration/plugins/sub-folder/index.js')
     );
 
     await assertBundleTree(b, {

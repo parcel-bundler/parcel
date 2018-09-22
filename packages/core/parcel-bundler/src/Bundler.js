@@ -19,7 +19,7 @@ const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');
-const glob = require('fast-glob');
+const {glob} = require('./utils/glob');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
