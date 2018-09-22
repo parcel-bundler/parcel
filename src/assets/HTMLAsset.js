@@ -66,7 +66,8 @@ const SCRIPT_TYPES = {
   'application/javascript': 'js',
   'text/javascript': 'js',
   'application/json': false,
-  'application/ld+json': 'jsonld'
+  'application/ld+json': 'jsonld',
+  'text/html': false
 };
 
 // Options to be passed to `addURLDependency` for certain tags + attributes
@@ -139,7 +140,12 @@ class HTMLAsset extends Asset {
           if (
             !Object.keys(node.attrs).some(attr => {
               let values = META[attr];
-              return values && values.includes(node.attrs[attr]);
+
+              return (
+                values &&
+                values.includes(node.attrs[attr]) &&
+                node.attrs.content !== ''
+              );
             })
           ) {
             return node;
@@ -257,7 +263,7 @@ class HTMLAsset extends Asset {
 
         // Delete "type" attribute, since CSS and JS are the defaults.
         // Unless it's application/ld+json
-        if (node.attrs && node.attrs.type !== 'application/ld+json') {
+        if (node.attrs && node.attrs.type && SCRIPT_TYPES[node.attrs.type] === 'js') {
           delete node.attrs.type;
         }
       }

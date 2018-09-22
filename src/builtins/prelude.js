@@ -42,6 +42,7 @@ parcelRequire = (function (modules, cache, entry, globalName) {
       }
 
       localRequire.resolve = resolve;
+      localRequire.cache = {};
 
       var module = cache[name] = new newRequire.Module(name);
 

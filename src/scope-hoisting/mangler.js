@@ -1,5 +1,5 @@
 const rename = require('./renamer');
-const t = require('babel-types');
+const t = require('@babel/types');
 
 const CHARSET = (
   'abcdefghijklmnopqrstuvwxyz' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ$_'

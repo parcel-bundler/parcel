@@ -11,11 +11,16 @@ const {
   rimraf,
   ncp
 } = require('./utils');
+const {symlinkSync} = require('fs');
+
+const inputDir = path.join(__dirname, '/input');
 
 describe('watcher', function() {
   let b;
   beforeEach(async function() {
-    await rimraf(__dirname + '/input');
+    await sleep(100);
+    await rimraf(inputDir);
+    await sleep(100);
   });
 
   afterEach(function() {
@@ -25,15 +30,15 @@ describe('watcher', function() {
   });
 
   it('should rebuild on file change', async function() {
-    await ncp(__dirname + '/integration/commonjs', __dirname + '/input');
+    await ncp(path.join(__dirname, '/integration/commonjs'), inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    b = bundler(path.join(inputDir, '/index.js'), {watch: true});
     let bundle = await b.bundle();
     let output = await run(bundle);
     assert.equal(output(), 3);
 
     await fs.writeFile(
-      __dirname + '/input/local.js',
+      path.join(inputDir, '/local.js'),
       'exports.a = 5; exports.b = 5;'
     );
 
@@ -43,9 +48,9 @@ describe('watcher', function() {
   });
 
   it('should re-generate bundle tree when files change', async function() {
-    await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
+    await ncp(path.join(__dirname, '/integration/dynamic-hoist'), inputDir);
 
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    b = bundler(path.join(inputDir, '/index.js'), {watch: true});
     let bundle = await b.bundle();
 
     await assertBundleTree(bundle, {
@@ -86,7 +91,7 @@ describe('watcher', function() {
 
     // change b.js so that it no longer depends on common.js.
     // This should cause common.js and dependencies to no longer be hoisted to the root bundle.
-    await fs.writeFile(__dirname + '/input/b.js', 'module.exports = 5;');
+    await fs.writeFile(path.join(inputDir, '/b.js'), 'module.exports = 5;');
 
     bundle = await nextBundle(b);
     await assertBundleTree(bundle, {
@@ -120,33 +125,37 @@ describe('watcher', function() {
   });
 
   it('should only re-package bundles that changed', async function() {
-    await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    await ncp(path.join(__dirname, '/integration/dynamic-hoist'), inputDir);
+    b = bundler(path.join(inputDir, '/index.js'), {watch: true});
 
     await b.bundle();
-    let mtimes = (await fs.readdir(__dirname + '/dist')).map(
+    let mtimes = (await fs.readdir(path.join(__dirname, '/dist'))).map(
       f =>
-        (nodeFS.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000) | 0
+        (nodeFS.statSync(path.join(__dirname, '/dist/', f)).mtime.getTime() /
+          1000) |
+        0
     );
 
     await sleep(1100); // mtime only has second level precision
     await fs.writeFile(
-      __dirname + '/input/b.js',
+      path.join(inputDir, '/b.js'),
       'module.exports = require("./common")'
     );
 
     await nextBundle(b);
-    let newMtimes = (await fs.readdir(__dirname + '/dist')).map(
+    let newMtimes = (await fs.readdir(path.join(__dirname, '/dist'))).map(
       f =>
-        (nodeFS.statSync(__dirname + '/dist/' + f).mtime.getTime() / 1000) | 0
+        (nodeFS.statSync(path.join(__dirname, '/dist/', f)).mtime.getTime() /
+          1000) |
+        0
     );
     assert.deepEqual(mtimes.sort().slice(0, 2), newMtimes.sort().slice(0, 2));
     assert.notEqual(mtimes[mtimes.length - 1], newMtimes[newMtimes.length - 1]);
   });
 
   it('should unload assets that are orphaned', async function() {
-    await ncp(__dirname + '/integration/dynamic-hoist', __dirname + '/input');
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    await ncp(path.join(__dirname, '/integration/dynamic-hoist'), inputDir);
+    b = bundler(path.join(inputDir, '/index.js'), {watch: true});
 
     let bundle = await b.bundle();
     await assertBundleTree(bundle, {
@@ -185,10 +194,13 @@ describe('watcher', function() {
     let output = await run(bundle);
     assert.equal(await output(), 7);
 
-    assert(b.loadedAssets.has(path.join(__dirname, '/input/common-dep.js')));
+    assert(b.loadedAssets.has(path.join(inputDir, '/common-dep.js')));
 
     // Get rid of common-dep.js
-    await fs.writeFile(__dirname + '/input/common.js', 'module.exports = 5;');
+    await fs.writeFile(
+      path.join(inputDir, '/common.js'),
+      'module.exports = 5;'
+    );
 
     bundle = await nextBundle(b);
     await assertBundleTree(bundle, {
@@ -226,41 +238,53 @@ describe('watcher', function() {
     output = await run(bundle);
     assert.equal(await output(), 13);
 
-    assert(!b.loadedAssets.has(path.join(__dirname, '/input/common-dep.js')));
+    assert(!b.loadedAssets.has(path.join(inputDir, 'common-dep.js')));
   });
 
   it('should recompile all assets when a config file changes', async function() {
-    await ncp(__dirname + '/integration/babel', __dirname + '/input');
-    b = bundler(__dirname + '/input/index.js', {watch: true});
+    await ncp(path.join(__dirname, '/integration/babel'), inputDir);
+    b = bundler(path.join(inputDir, 'index.js'), {watch: true});
 
     await b.bundle();
-    let file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
+    let file = await fs.readFile(
+      path.join(__dirname, '/dist/index.js'),
+      'utf8'
+    );
     assert(!file.includes('function Foo'));
     assert(!file.includes('function Bar'));
 
     // Change babelrc, should recompile both files
     let babelrc = JSON.parse(
-      await fs.readFile(__dirname + '/input/.babelrc', 'utf8')
+      await fs.readFile(path.join(inputDir, '/.babelrc'), 'utf8')
     );
     babelrc.presets[0][1].targets.browsers.push('IE >= 11');
 
     await sleep(100);
 
-    await fs.writeFile(__dirname + '/input/.babelrc', JSON.stringify(babelrc));
+    await fs.writeFile(
+      path.join(inputDir, '/.babelrc'),
+      JSON.stringify(babelrc)
+    );
 
     await nextBundle(b);
-    file = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
+    file = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
     assert(file.includes('function Foo'));
     assert(file.includes('function Bar'));
   });
 
   it('should rebuild if the file behind a symlink changes', async function() {
     await ncp(
-      __dirname + '/integration/commonjs-with-symlinks/',
-      __dirname + '/input'
+      path.join(__dirname, '/integration/commonjs-with-symlinks/'),
+      inputDir
     );
 
-    b = bundler(__dirname + '/input/src/index.js', {
+    // Create the symlink here to prevent cross platform and git issues
+    symlinkSync(
+      path.join(inputDir, 'local.js'),
+      path.join(inputDir, 'src/symlinked_local.js')
+    );
+
+    b = bundler(path.join(inputDir, '/src/index.js'), {
       watch: true
     });
 
@@ -270,7 +294,7 @@ describe('watcher', function() {
     assert.equal(output(), 3);
 
     await fs.writeFile(
-      __dirname + '/input/local.js',
+      path.join(inputDir, '/local.js'),
       'exports.a = 5; exports.b = 5;'
     );
 
