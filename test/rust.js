@@ -1,4 +1,5 @@
 const assert = require('assert');
+const path = require('path');
 const {bundle, bundler, run, assertBundleTree} = require('./utils');
 const fs = require('../src/utils/fs');
 const commandExists = require('command-exists');
@@ -14,7 +15,7 @@ describe('rust', function() {
 
   it('should generate a wasm file from a rust file with rustc with --target=browser', async function() {
     this.timeout(500000);
-    let b = await bundle(__dirname + '/integration/rust/index.js');
+    let b = await bundle(path.join(__dirname, '/integration/rust/index.js'));
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -45,7 +46,7 @@ describe('rust', function() {
 
   it('should generate a wasm file from a rust file with rustc with --target=node', async function() {
     this.timeout(500000);
-    let b = await bundle(__dirname + '/integration/rust/index.js', {
+    let b = await bundle(path.join(__dirname, '/integration/rust/index.js'), {
       target: 'node'
     });
 
@@ -78,7 +79,7 @@ describe('rust', function() {
 
   it('should support rust files with dependencies via rustc', async function() {
     this.timeout(500000);
-    let b = bundler(__dirname + '/integration/rust-deps/index.js');
+    let b = bundler(path.join(__dirname, '/integration/rust-deps/index.js'));
     let bundle = await b.bundle();
 
     await assertBundleTree(bundle, {
@@ -107,7 +108,9 @@ describe('rust', function() {
 
   it('should generate a wasm file from a rust file with cargo', async function() {
     this.timeout(500000);
-    let b = await bundle(__dirname + '/integration/rust-cargo/src/index.js');
+    let b = await bundle(
+      path.join(__dirname, '/integration/rust-cargo/src/index.js')
+    );
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -136,7 +139,10 @@ describe('rust', function() {
   it('should generate a wasm file from a rust file in cargo workspace', async function() {
     this.timeout(500000);
     let b = await bundle(
-      __dirname + '/integration/rust-cargo-workspace/member/src/index.js'
+      path.join(
+        __dirname,
+        '/integration/rust-cargo-workspace/member/src/index.js'
+      )
     );
 
     await assertBundleTree(b, {
@@ -168,16 +174,19 @@ describe('rust', function() {
 
     // Store the size of not minified bundle in order to test it against
     // the size of minified one.
-    let b = await bundle(__dirname + '/integration/rust/index.js', {
+    let b = await bundle(path.join(__dirname, '/integration/rust/index.js'), {
       minify: false,
       sourceMaps: false
     });
     const size = (await fs.stat(Array.from(b.childBundles)[0].name)).size;
 
-    let bMinified = await bundle(__dirname + '/integration/rust/index.js', {
-      minify: true,
-      sourceMaps: false
-    });
+    let bMinified = await bundle(
+      path.join(__dirname, '/integration/rust/index.js'),
+      {
+        minify: true,
+        sourceMaps: false
+      }
+    );
 
     const bundleTree = {
       name: 'index.js',

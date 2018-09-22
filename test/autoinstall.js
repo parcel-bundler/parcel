@@ -2,13 +2,14 @@ const assert = require('assert');
 const install = require('../src/utils/installPackage');
 const fs = require('../src/utils/fs');
 const {ncp, rimraf} = require('./utils');
-const inputDirPath = __dirname + '/input';
+const path = require('path');
+const inputDirPath = path.join(__dirname, '/input');
 
 describe('autoinstall', function() {
   beforeEach(async function() {
     // Setup (clear the input dir and move integration test in)
     await rimraf(inputDirPath, {});
-    await ncp(__dirname + '/integration/babel-default', inputDirPath);
+    await ncp(path.join(__dirname, '/integration/babel-default'), inputDirPath);
   });
 
   it('should install lodash using npm and save dev dependency to package.json', async function() {
