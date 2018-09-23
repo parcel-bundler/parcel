@@ -16,7 +16,6 @@ jobs:
       version: $(node_version)
     displayName: 'Install Node.js'
 
-  - script: |
-    yarn
-    yarn test-ci
-    yarn lint
+  - script: yarn
+  - script: yarn test-ci
+  - script: yarn lint
