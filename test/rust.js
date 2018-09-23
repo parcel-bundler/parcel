@@ -169,7 +169,7 @@ describe('rust', function() {
     assert.equal(res, 5);
   });
 
-  it('should use wasm-gc to minify output', async function() {
+  it('should minify code on production', async function() {
     this.timeout(500000);
 
     // Store the size of not minified bundle in order to test it against
