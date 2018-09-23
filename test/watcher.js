@@ -23,9 +23,9 @@ describe('watcher', function() {
     await sleep(100);
   });
 
-  afterEach(function() {
+  afterEach(async function() {
     if (b) {
-      b.stop();
+      await b.stop();
     }
   });
 
