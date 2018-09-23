@@ -9,7 +9,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- Added LD+JSON asset and test case [Details](https://github.com/parcel-bundler/parcel/pull/1936)
+- Added LD+JSON asset [Details](https://github.com/parcel-bundler/parcel/pull/1936)
 
 ### Fixed
 
