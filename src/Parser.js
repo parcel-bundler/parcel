@@ -20,6 +20,7 @@ class Parser {
     this.registerExtension('vue', './assets/VueAsset');
     this.registerExtension('json', './assets/JSONAsset');
     this.registerExtension('json5', './assets/JSONAsset');
+    this.registerExtension('jsonld', './assets/JSONLDAsset');
     this.registerExtension('yaml', './assets/YAMLAsset');
     this.registerExtension('yml', './assets/YAMLAsset');
     this.registerExtension('toml', './assets/TOMLAsset');

@@ -67,6 +67,7 @@ class Pipeline {
         if (rendition.meta) {
           for (let res of processed) {
             res.meta = rendition.meta;
+            res.isMain = res.type === subAsset.type;
           }
         }
 
