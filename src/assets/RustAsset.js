@@ -158,11 +158,6 @@ class RustAsset extends Asset {
       this.wasmPath
     ];
 
-    // Remove unused wasm code if it's a production build
-    if (this.options.minify) {
-      args.push('--gc-sections');
-    }
-
     await exec('rustc', args);
 
     // Run again to collect dependencies
