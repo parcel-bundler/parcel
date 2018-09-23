@@ -10,12 +10,16 @@ jobs:
         node_version: 8.x
       node_10_x:
         node_version: 10.x
+    maxParallel: 3
   steps:
   - task: NodeTool@0
     inputs:
-      version: $(node_version)
+      versionSpec: $(node_version)
     displayName: 'Install Node.js'
 
   - script: yarn
+    displayName: 'Install dependencies'
   - script: yarn test-ci
+    displayName: 'Run tests'
   - script: yarn lint
+    displayName: 'Lint'
