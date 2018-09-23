@@ -7,8 +7,15 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [1.10.0-beta.2] - 2018-
 
+### Added
+
+- Added LD+JSON asset and test case [Details](https://github.com/parcel-bundler/parcel/pull/1936)
+
 ### Fixed
 
+- Don't modify script nodes with text/html type [Details](https://github.com/parcel-bundler/parcel/pull/1924)
+- Fix various windows bugs & tests [Details](https://github.com/parcel-bundler/parcel/pull/1965)
+- Cross-platform deterministic asset ids [Details](https://github.com/parcel-bundler/parcel/pull/2020)
 - allow empty string in meta [Details](https://github.com/parcel-bundler/parcel/pull/2027)
 - fixed watch not working when NODE_ENV is production [Details](https://github.com/parcel-bundler/parcel/pull/2024)
 
