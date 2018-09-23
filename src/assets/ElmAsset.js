@@ -11,13 +11,8 @@ class ElmAsset extends Asset {
   }
 
   async collectDependencies() {
-    const {findAllDependencies} = await localRequire(
-      'find-elm-dependencies',
-      this.name
-    );
-
     await this.getConfig(['elm.json'], {load: false});
-    const dependencies = await findAllDependencies(this.name);
+    const dependencies = await this.elm.findAllDependencies(this.name);
 
     dependencies.forEach(dependency => {
       this.addDependency(dependency, {includedInParent: true});
@@ -25,7 +20,7 @@ class ElmAsset extends Asset {
   }
 
   async parse() {
-    const elm = await localRequire('node-elm-compiler', this.name);
+    this.elm = await localRequire('node-elm-compiler', this.name);
 
     const options = {
       cwd: process.cwd()
@@ -39,7 +34,7 @@ class ElmAsset extends Asset {
       options.optimize = true;
     }
 
-    const compiled = await elm.compileToString(this.name, options);
+    const compiled = await this.elm.compileToString(this.name, options);
     this.contents = compiled.toString();
   }
 

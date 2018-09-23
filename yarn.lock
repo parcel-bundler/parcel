@@ -2702,9 +2702,9 @@ elliptic@^6.0.0:
     minimalistic-assert "^1.0.0"
     minimalistic-crypto-utils "^1.0.0"
 
-elm@^0.19.0-bugfix2:
-  version "0.19.0-bugfix2"
-  resolved "https://registry.yarnpkg.com/elm/-/elm-0.19.0-bugfix2.tgz#b2b7ad4dbeb89edf997759330b3694f419f9f1b3"
+elm@^0.19.0:
+  version "0.19.0"
+  resolved "https://registry.yarnpkg.com/elm/-/elm-0.19.0.tgz#c6ad86afea9e971424ebe75e36c9d03412a787fa"
   dependencies:
     binwrap "0.1.4"
 
@@ -3091,7 +3091,7 @@ find-cache-dir@^1.0.0:
     make-dir "^1.0.0"
     pkg-dir "^2.0.0"
 
-find-elm-dependencies@2.0.0, find-elm-dependencies@^2.0.0:
+find-elm-dependencies@2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/find-elm-dependencies/-/find-elm-dependencies-2.0.0.tgz#435aa05a6544a0ecf54c5d1ac85cc1ca1044e4e4"
   dependencies:
