@@ -1,0 +1,22 @@
+jobs:
+- job: ${{ parameters.name }}
+  pool: 
+    vmImage: ${{ parameters.vmImage }}
+  strategy:
+    matrix:
+      node_6_x:
+        node_version: 6.x
+      node_8_x:
+        node_version: 8.x
+      node_10_x:
+        node_version: 10.x
+  steps:
+  - task: NodeTool@0
+    inputs:
+      version: $(node_version)
+    displayName: 'Install Node.js'
+
+  - script: |
+    yarn
+    yarn test-ci
+    yarn lint

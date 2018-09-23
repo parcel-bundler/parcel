@@ -1,47 +1,15 @@
-# Node.js
-# Build a general Node.js project with npm.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
-
 jobs:
-- job: Linux
-  pool:
-    vmImage: 'ubuntu-16.04'
-  strategy:
-    matrix:
-      node_6_x:
-        node_version: 6.x
-      node_8_x:
-        node_version: 8.x
-      node_10_x:
-        node_version: 10.x
-  steps:
-  - script: echo hello from Linux
+- template: azure-pipelines-template.yml
+  parameters:
+    name: macOS
+    vmImage: macOS-10.13
 
-- job: macOS
-  pool:
-    vmImage: 'macOS-10.13'
-  strategy:
-    matrix:
-      node_6_x:
-        node_version: 6.x
-      node_8_x:
-        node_version: 8.x
-      node_10_x:
-        node_version: 10.x
-  steps:
-  - script: echo hello from macOS
+- template: azure-pipelines-template.yml
+  parameters:
+    name: Linux
+    vmImage: ubuntu-1604
 
-- job: Windows
-  pool:
-    vmImage: 'vs2017-win2016'
-  strategy:
-    matrix:
-      node_6_x:
-        node_version: 6.x
-      node_8_x:
-        node_version: 8.x
-      node_10_x:
-        node_version: 10.x
-  steps:
-  - script: echo hello from Windows
+- template: azure-pipelines-template.yml
+  parameters:
+    name: Windows
+    vmImage: vs2017-win2016
