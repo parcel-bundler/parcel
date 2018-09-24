@@ -129,9 +129,9 @@ class Watcher {
   /**
    * Stop watching all paths
    */
-  stop() {
+  async stop() {
     this.stopped = true;
-    this.watcher.close();
+    await this.watcher.close();
   }
 }
 

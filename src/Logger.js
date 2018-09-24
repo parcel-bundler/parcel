@@ -6,6 +6,8 @@ const {countBreaks} = require('grapheme-breaker');
 const stripAnsi = require('strip-ansi');
 const ora = require('ora');
 const WorkerFarm = require('./workerfarm/WorkerFarm');
+const path = require('path');
+const fs = require('fs');
 
 class Logger {
   constructor(options) {
@@ -50,11 +52,36 @@ class Logger {
   }
 
   write(message, persistent = false) {
+    if (this.logLevel > 3) {
+      return this.verbose(message);
+    }
+
     if (!persistent) {
       this.lines += this.countLines(message);
     }
 
     this.stopSpinner();
+    this._log(message);
+  }
+
+  verbose(message) {
+    if (this.logLevel < 4) {
+      return;
+    }
+
+    let currDate = new Date();
+    message = `[${currDate.toLocaleTimeString()}]: ${message}`;
+    if (this.logLevel > 4) {
+      if (!this.logFile) {
+        this.logFile = fs.createWriteStream(
+          path.join(
+            process.cwd(),
+            `parcel-debug-${currDate.toLocaleDateString()}@${currDate.toLocaleTimeString()}.log`
+          )
+        );
+      }
+      this.logFile.write(stripAnsi(message) + '\n');
+    }
     this._log(message);
   }
 
@@ -103,7 +130,7 @@ class Logger {
   }
 
   clear() {
-    if (!this.color || this.isTest) {
+    if (!this.color || this.isTest || this.logLevel > 3) {
       return;
     }
 
@@ -120,6 +147,10 @@ class Logger {
   progress(message) {
     if (this.logLevel < 3) {
       return;
+    }
+
+    if (this.logLevel > 3) {
+      return this.verbose(message);
     }
 
     let styledMessage = this.chalk.gray.bold(message);

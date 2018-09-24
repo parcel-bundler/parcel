@@ -1,7 +1,7 @@
-const t = require('babel-types');
+const t = require('@babel/types');
 const Path = require('path');
 const fs = require('fs');
-const template = require('babel-template');
+const template = require('@babel/template').default;
 const logger = require('../Logger');
 
 const bufferTemplate = template('Buffer(CONTENT, ENC)');

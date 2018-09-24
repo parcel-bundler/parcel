@@ -1,8 +1,7 @@
 const path = require('path');
-const matchesPattern = require('../visitors/matches-pattern');
 const mm = require('micromatch');
-const t = require('babel-types');
-const template = require('babel-template');
+const t = require('@babel/types');
+const template = require('@babel/template').default;
 const rename = require('./renamer');
 const {getName, getIdentifier, getExportIdentifier} = require('./utils');
 
@@ -76,7 +75,7 @@ module.exports = {
 
         ReturnStatement(path) {
           // Wrap in a function if we see a top-level return statement.
-          if (path.getFunctionParent().isProgram()) {
+          if (!path.getFunctionParent()) {
             shouldWrap = true;
             asset.cacheData.isCommonJS = true;
             path.replaceWith(
@@ -175,20 +174,20 @@ module.exports = {
       return;
     }
 
-    if (matchesPattern(path.node, 'module.exports')) {
+    if (t.matchesPattern(path.node, 'module.exports')) {
       path.replaceWith(getExportsIdentifier(asset));
       asset.cacheData.isCommonJS = true;
     }
 
-    if (matchesPattern(path.node, 'module.id')) {
+    if (t.matchesPattern(path.node, 'module.id')) {
       path.replaceWith(t.stringLiteral(asset.id));
     }
 
-    if (matchesPattern(path.node, 'module.hot')) {
+    if (t.matchesPattern(path.node, 'module.hot')) {
       path.replaceWith(t.identifier('null'));
     }
 
-    if (matchesPattern(path.node, 'module.bundle')) {
+    if (t.matchesPattern(path.node, 'module.bundle')) {
       path.replaceWith(t.identifier('require'));
     }
   },
@@ -332,7 +331,7 @@ module.exports = {
       );
     }
 
-    if (matchesPattern(callee, 'require.resolve')) {
+    if (t.matchesPattern(callee, 'require.resolve')) {
       path.replaceWith(
         REQUIRE_RESOLVE_CALL_TEMPLATE({
           ID: t.stringLiteral(asset.id),
@@ -523,9 +522,10 @@ function addExport(asset, path, local, exported) {
     LOCAL: identifier
   });
 
-  let constantViolations = scope
-    .getBinding(local.name)
-    .constantViolations.concat(path);
+  let binding = scope.getBinding(local.name);
+  let constantViolations = binding
+    ? binding.constantViolations.concat(path)
+    : [path];
 
   if (!asset.cacheData.exports[exported.name]) {
     asset.cacheData.exports[exported.name] = identifier.name;

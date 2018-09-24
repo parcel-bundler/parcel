@@ -4,8 +4,7 @@ const localRequire = require('../utils/localRequire');
 const Resolver = require('../Resolver');
 const fs = require('../utils/fs');
 const {dirname, resolve, relative} = require('path');
-const isGlob = require('is-glob');
-const glob = require('fast-glob');
+const {isGlob, glob} = require('../utils/glob');
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 

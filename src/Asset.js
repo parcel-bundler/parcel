@@ -2,13 +2,13 @@ const URL = require('url');
 const path = require('path');
 const clone = require('clone');
 const fs = require('./utils/fs');
-const objectHash = require('./utils/objectHash');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const config = require('./utils/config');
 const syncPromise = require('./utils/syncPromise');
 const logger = require('./Logger');
 const Resolver = require('./Resolver');
+const objectHash = require('./utils/objectHash');
 
 /**
  * An Asset represents a file in the dependency tree. Assets can have multiple
@@ -21,10 +21,13 @@ class Asset {
     this.id = null;
     this.name = name;
     this.basename = path.basename(this.name);
-    this.relativeName = path.relative(options.rootDir, this.name);
+    this.relativeName = path
+      .relative(options.rootDir, this.name)
+      .replace(/\\/g, '/');
     this.options = options;
     this.encoding = 'utf8';
     this.type = path.extname(this.name).slice(1);
+    this.hmrPageReload = false;
 
     this.processed = false;
     this.contents = options.rendition ? options.rendition.value : null;
@@ -107,7 +110,7 @@ class Asset {
       depName = './' + path.relative(path.dirname(this.name), resolved);
     }
 
-    this.addDependency(depName, Object.assign({dynamic: true}, opts));
+    this.addDependency(depName, Object.assign({dynamic: true, resolved}, opts));
 
     parsed.pathname = this.options.parser
       .getAsset(resolved, this.options)
@@ -203,7 +206,6 @@ class Asset {
       await this.getDependencies();
       await this.transform();
       this.generated = await this.generate();
-      this.hash = await this.generateHash();
     }
 
     return this.generated;
@@ -236,7 +238,7 @@ class Asset {
   generateBundleName() {
     // Generate a unique name. This will be replaced with a nicer
     // name later as part of content hashing.
-    return md5(this.name) + '.' + this.type;
+    return md5(this.relativeName) + '.' + this.type;
   }
 
   replaceBundleNames(bundleNameMap) {

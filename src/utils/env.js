@@ -1,5 +1,6 @@
 const config = require('./config');
 const dotenv = require('dotenv');
+const variableExpansion = require('dotenv-expand');
 
 async function loadEnv(filepath) {
   const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -17,7 +18,8 @@ async function loadEnv(filepath) {
     dotenvFiles.map(async dotenvFile => {
       const envPath = await config.resolve(filepath, [dotenvFile]);
       if (envPath) {
-        dotenv.config({path: envPath});
+        const envs = dotenv.config({path: envPath});
+        variableExpansion(envs);
       }
     })
   );

@@ -6,7 +6,7 @@ const {bundler, bundle, run, assertBundleTree} = require('./utils');
 
 describe('sourcemaps', function() {
   it('should create a valid sourcemap as a child of a JS bundle', async function() {
-    let b = bundler(__dirname + '/integration/sourcemap/index.js');
+    let b = bundler(path.join(__dirname, '/integration/sourcemap/index.js'));
     let bu = await b.bundle();
 
     await assertBundleTree(bu, {
@@ -51,7 +51,7 @@ describe('sourcemaps', function() {
 
   it('should create a valid sourcemap as a child of a TS bundle', async function() {
     let b = await bundle(
-      __dirname + '/integration/sourcemap-typescript/index.ts'
+      path.join(__dirname, '/integration/sourcemap-typescript/index.ts')
     );
 
     await assertBundleTree(b, {
@@ -80,7 +80,7 @@ describe('sourcemaps', function() {
 
   it('should create a valid sourcemap as a child of a nested TS bundle', async function() {
     let b = await bundle(
-      __dirname + '/integration/sourcemap-typescript-nested/index.ts'
+      path.join(__dirname, '/integration/sourcemap-typescript-nested/index.ts')
     );
 
     await assertBundleTree(b, {
@@ -108,7 +108,9 @@ describe('sourcemaps', function() {
   });
 
   it('should create a valid sourcemap for a js file with requires', async function() {
-    let b = await bundle(__dirname + '/integration/sourcemap-nested/index.js');
+    let b = await bundle(
+      path.join(__dirname, '/integration/sourcemap-nested/index.js')
+    );
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -136,7 +138,7 @@ describe('sourcemaps', function() {
 
   it('should create a valid sourcemap for a minified js bundle with requires', async function() {
     let b = await bundle(
-      __dirname + '/integration/sourcemap-nested-minified/index.js',
+      path.join(__dirname, '/integration/sourcemap-nested-minified/index.js'),
       {
         minify: true
       }
@@ -168,7 +170,7 @@ describe('sourcemaps', function() {
 
   it('should create a valid sourcemap reference for a child bundle', async function() {
     let b = await bundle(
-      __dirname + '/integration/sourcemap-reference/index.html'
+      path.join(__dirname, '/integration/sourcemap-reference/index.html')
     );
 
     await assertBundleTree(b, {
@@ -207,7 +209,7 @@ describe('sourcemaps', function() {
 
   it('should load existing sourcemaps of libraries', async function() {
     let b = await bundle(
-      __dirname + '/integration/sourcemap-existing/index.js'
+      path.join(__dirname, '/integration/sourcemap-existing/index.js')
     );
 
     assertBundleTree(b, {
@@ -242,7 +244,9 @@ describe('sourcemaps', function() {
   });
 
   it('should load inline sourcemaps of libraries', async function() {
-    let b = await bundle(__dirname + '/integration/sourcemap-inline/index.js');
+    let b = await bundle(
+      path.join(__dirname, '/integration/sourcemap-inline/index.js')
+    );
 
     assertBundleTree(b, {
       name: 'index.js',
@@ -277,7 +281,7 @@ describe('sourcemaps', function() {
 
   it('should load referenced contents of sourcemaps', async function() {
     let b = await bundle(
-      __dirname + '/integration/sourcemap-external-contents/index.js'
+      path.join(__dirname, '/integration/sourcemap-external-contents/index.js')
     );
 
     assertBundleTree(b, {

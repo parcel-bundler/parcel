@@ -7,9 +7,13 @@ const pipeSpawn = require('./pipeSpawn');
 const PromiseQueue = require('./PromiseQueue');
 const path = require('path');
 const fs = require('./fs');
+const WorkerFarm = require('../workerfarm/WorkerFarm');
 
 async function install(modules, filepath, options = {}) {
   let {installPeers = true, saveDev = true, packageManager} = options;
+  if (typeof modules === 'string') {
+    modules = [modules];
+  }
 
   logger.progress(`Installing ${modules.join(', ')}...`);
 
@@ -99,7 +103,17 @@ async function checkForYarnCommand() {
 }
 
 let queue = new PromiseQueue(install, {maxConcurrent: 1, retry: false});
-module.exports = function(...args) {
+module.exports = async function(...args) {
+  // Ensure that this function is always called on the master process so we
+  // don't call multiple installs in parallel.
+  if (WorkerFarm.isWorker()) {
+    await WorkerFarm.callMaster({
+      location: __filename,
+      args
+    });
+    return;
+  }
+
   queue.add(...args);
   return queue.run();
 };

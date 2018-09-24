@@ -1,10 +1,11 @@
 const assert = require('assert');
+const path = require('path');
 const fs = require('../src/utils/fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree, normaliseNewlines} = require('./utils');
 
 describe('glsl', function() {
   it('should support requiring GLSL files via glslify', async function() {
-    let b = await bundle(__dirname + '/integration/glsl/index.js');
+    let b = await bundle(path.join(__dirname, '/integration/glsl/index.js'));
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -17,7 +18,7 @@ describe('glsl', function() {
     });
 
     let shader = await fs.readFile(
-      __dirname + '/integration/glsl/compiled.glsl',
+      path.join(__dirname, '/integration/glsl/compiled.glsl'),
       'utf8'
     );
 
@@ -25,7 +26,9 @@ describe('glsl', function() {
     assert.equal(typeof output, 'function');
     assert.ok(
       output().reduce((acc, requiredShader) => {
-        return acc && shader === requiredShader;
+        return (
+          acc && normaliseNewlines(shader) === normaliseNewlines(requiredShader)
+        );
       }, true)
     );
   });

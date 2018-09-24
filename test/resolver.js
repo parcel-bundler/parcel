@@ -1,17 +1,45 @@
 const Resolver = require('../src/Resolver');
 const path = require('path');
 const assert = require('assert');
+const {rimraf, ncp} = require('./utils');
+const {mkdirp} = require('../src/utils/fs');
+const {symlinkSync} = require('fs');
 
-const rootDir = path.join(__dirname, 'integration', 'resolver');
-const resolver = new Resolver({
-  rootDir,
-  extensions: {
-    '.js': true,
-    '.json': true
-  }
-});
+const rootDir = path.join(__dirname, 'input/resolver');
 
 describe('resolver', function() {
+  let resolver;
+  before(async function() {
+    await rimraf(path.join(__dirname, '/input'));
+    await mkdirp(rootDir);
+    await ncp(path.join(__dirname, 'integration/resolver'), rootDir);
+
+    // Create the symlinks here to prevent cross platform and git issues
+    symlinkSync(
+      path.join(rootDir, 'packages/source'),
+      path.join(rootDir, 'node_modules/source'),
+      'dir'
+    );
+    symlinkSync(
+      path.join(rootDir, 'packages/source-alias'),
+      path.join(rootDir, 'node_modules/source-alias'),
+      'dir'
+    );
+    symlinkSync(
+      path.join(rootDir, 'packages/source-alias-glob'),
+      path.join(rootDir, 'node_modules/source-alias-glob'),
+      'dir'
+    );
+
+    resolver = new Resolver({
+      rootDir,
+      extensions: {
+        '.js': true,
+        '.json': true
+      }
+    });
+  });
+
   describe('file paths', function() {
     it('should resolve a relative path with an extension', async function() {
       let resolved = await resolver.resolve(
