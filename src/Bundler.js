@@ -384,7 +384,7 @@ class Bundler extends EventEmitter {
 
   async stop() {
     if (this.watcher) {
-      this.watcher.stop();
+      await this.watcher.stop();
     }
 
     if (this.hmr) {
