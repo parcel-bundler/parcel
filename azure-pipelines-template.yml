@@ -20,7 +20,7 @@ jobs:
   # Install Rust
   - ${{ if ne(parameters.name, 'Windows') }}:
     - script: |
-        curl https://sh.rustup.rs -sSf | sh -s -- -y
+        curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain none
         export PATH="$HOME/.cargo/bin:$PATH"
         echo "##vso[task.setvariable variable=PATH]$PATH"
         rustc -Vv
@@ -29,7 +29,7 @@ jobs:
   - ${{ if eq(parameters.name, 'Windows') }}:
     - script: |
         curl -sSf -o rustup-init.exe https://win.rustup.rs
-        rustup-init.exe -y
+        rustup-init.exe -y --default-toolchain none
         set PATH=%PATH%;%USERPROFILE%\.cargo\bin
         @echo "##vso[task.setvariable variable=PATH]%PATH%"
         rustc -Vv
