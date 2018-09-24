@@ -37,6 +37,7 @@ describe('watcher', function() {
     let output = await run(bundle);
     assert.equal(output(), 3);
 
+    await sleep(100);
     fs.writeFile(
       path.join(inputDir, '/local.js'),
       'exports.a = 5; exports.b = 5;'
@@ -91,6 +92,7 @@ describe('watcher', function() {
 
     // change b.js so that it no longer depends on common.js.
     // This should cause common.js and dependencies to no longer be hoisted to the root bundle.
+    await sleep(100);
     fs.writeFile(path.join(inputDir, '/b.js'), 'module.exports = 5;');
 
     bundle = await nextBundle(b);
@@ -197,6 +199,7 @@ describe('watcher', function() {
     assert(b.loadedAssets.has(path.join(inputDir, '/common-dep.js')));
 
     // Get rid of common-dep.js
+    await sleep(100);
     fs.writeFile(path.join(inputDir, '/common.js'), 'module.exports = 5;');
 
     bundle = await nextBundle(b);
@@ -257,7 +260,6 @@ describe('watcher', function() {
     babelrc.presets[0][1].targets.browsers.push('IE >= 11');
 
     await sleep(100);
-
     fs.writeFile(path.join(inputDir, '/.babelrc'), JSON.stringify(babelrc));
 
     await nextBundle(b);
