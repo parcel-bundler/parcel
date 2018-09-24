@@ -19,7 +19,7 @@ async function loadEnv(filepath) {
       const envPath = await config.resolve(filepath, [dotenvFile]);
       if (envPath) {
         const envs = dotenv.config({path: envPath});
-        variableExpansion(envs)
+        variableExpansion(envs);
       }
     })
   );
