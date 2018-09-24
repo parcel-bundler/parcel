@@ -27,6 +27,7 @@ class Asset {
     this.options = options;
     this.encoding = 'utf8';
     this.type = path.extname(this.name).slice(1);
+    this.hmrPageReload = false;
 
     this.processed = false;
     this.contents = options.rendition ? options.rendition.value : null;
