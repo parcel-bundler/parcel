@@ -23,9 +23,9 @@ describe('watcher', function() {
     await sleep(100);
   });
 
-  afterEach(function() {
+  afterEach(async function() {
     if (b) {
-      b.stop();
+      await b.stop();
     }
   });
 
@@ -37,7 +37,8 @@ describe('watcher', function() {
     let output = await run(bundle);
     assert.equal(output(), 3);
 
-    await fs.writeFile(
+    await sleep(100);
+    fs.writeFile(
       path.join(inputDir, '/local.js'),
       'exports.a = 5; exports.b = 5;'
     );
@@ -91,7 +92,8 @@ describe('watcher', function() {
 
     // change b.js so that it no longer depends on common.js.
     // This should cause common.js and dependencies to no longer be hoisted to the root bundle.
-    await fs.writeFile(path.join(inputDir, '/b.js'), 'module.exports = 5;');
+    await sleep(100);
+    fs.writeFile(path.join(inputDir, '/b.js'), 'module.exports = 5;');
 
     bundle = await nextBundle(b);
     await assertBundleTree(bundle, {
@@ -137,7 +139,7 @@ describe('watcher', function() {
     );
 
     await sleep(1100); // mtime only has second level precision
-    await fs.writeFile(
+    fs.writeFile(
       path.join(inputDir, '/b.js'),
       'module.exports = require("./common")'
     );
@@ -197,10 +199,8 @@ describe('watcher', function() {
     assert(b.loadedAssets.has(path.join(inputDir, '/common-dep.js')));
 
     // Get rid of common-dep.js
-    await fs.writeFile(
-      path.join(inputDir, '/common.js'),
-      'module.exports = 5;'
-    );
+    await sleep(100);
+    fs.writeFile(path.join(inputDir, '/common.js'), 'module.exports = 5;');
 
     bundle = await nextBundle(b);
     await assertBundleTree(bundle, {
@@ -260,11 +260,7 @@ describe('watcher', function() {
     babelrc.presets[0][1].targets.browsers.push('IE >= 11');
 
     await sleep(100);
-
-    await fs.writeFile(
-      path.join(inputDir, '/.babelrc'),
-      JSON.stringify(babelrc)
-    );
+    fs.writeFile(path.join(inputDir, '/.babelrc'), JSON.stringify(babelrc));
 
     await nextBundle(b);
     file = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
@@ -293,7 +289,8 @@ describe('watcher', function() {
 
     assert.equal(output(), 3);
 
-    await fs.writeFile(
+    await sleep(100);
+    fs.writeFile(
       path.join(inputDir, '/local.js'),
       'exports.a = 5; exports.b = 5;'
     );
