@@ -287,6 +287,7 @@ describe('watcher', function() {
 
     assert.equal(output(), 3);
 
+    await sleep(100);
     fs.writeFile(
       path.join(inputDir, '/local.js'),
       'exports.a = 5; exports.b = 5;'
