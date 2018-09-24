@@ -17,6 +17,23 @@ jobs:
       versionSpec: $(node_version)
     displayName: 'Install Node.js'
 
+  # Install Rust
+  - ${{ if ne(parameters.name, 'Windows') }}:
+    - script: |
+        curl https://sh.rustup.rs -sSf | sh -s -- -y
+        export $PATH=~/.cargo/bin:$PATH
+        rustc -Vv
+        cargo -V
+      displayName: Install Rust
+  - ${{ if eq(parameters.name, 'Windows') }}:
+    - script: |
+        curl -sSf -o rustup-init.exe https://win.rustup.rs
+        rustup-init.exe -y
+        set PATH=%PATH%;C:\agent\.cargo\bin
+        rustc -Vv
+        cargo -V
+      displayName: Install Rust
+
   - script: yarn
     displayName: 'Install dependencies'
   - script: yarn test-ci
