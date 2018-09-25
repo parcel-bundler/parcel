@@ -78,7 +78,11 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   };
 
   for (var i = 0; i < entry.length; i++) {
-    newRequire(entry[i]);
+    try{
+      newRequire(entry[i]);
+    } catch(e){
+      console.error(e);
+    }
   }
 
   if (entry.length) {
