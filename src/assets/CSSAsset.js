@@ -29,18 +29,18 @@ class CSSAsset extends Asset {
 
   collectDependencies() {
     this.ast.root.walkAtRules('import', rule => {
-      let params = valueParser(rule.params).nodes;
-      let [name, ...media] = params;
+      let params = valueParser(rule.params);
+      let [name, ...media] = params.nodes;
       let dep;
-      if (name.type === 'string') {
-        dep = name.value;
-      } else if (
+      if (
         name.type === 'function' &&
         name.value === 'url' &&
         name.nodes.length
       ) {
-        dep = name.nodes[0].value;
+        name = name.nodes[0];
       }
+
+      dep = name.value;
 
       if (!dep) {
         throw new Error('Could not find import name for ' + rule);
@@ -50,10 +50,19 @@ class CSSAsset extends Asset {
         return;
       }
 
-      media = valueParser.stringify(media).trim();
-      this.addDependency(dep, {media, loc: rule.source.start});
+      // If this came from an inline <style> tag, don't inline the imported file. Replace with the correct URL instead.
+      // TODO: run CSSPackager on inline style tags.
+      let inlineHTML =
+        this.options.rendition && this.options.rendition.inlineHTML;
+      if (inlineHTML) {
+        name.value = this.addURLDependency(dep, {loc: rule.source.start});
+        rule.params = params.toString();
+      } else {
+        media = valueParser.stringify(media).trim();
+        this.addDependency(dep, {media, loc: rule.source.start});
+        rule.remove();
+      }
 
-      rule.remove();
       this.ast.dirty = true;
     });
 

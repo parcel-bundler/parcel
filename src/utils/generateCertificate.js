@@ -27,7 +27,7 @@ function generateCertificate(options = {}) {
   const cert = pki.createCertificate();
 
   cert.publicKey = keys.publicKey;
-  cert.serialNumber = '01';
+  cert.serialNumber = Date.now().toString();
   cert.validity.notBefore = new Date();
   cert.validity.notAfter = new Date();
   cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 1);

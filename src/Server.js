@@ -36,6 +36,7 @@ function enableCors(res) {
 function middleware(bundler) {
   const serve = serveStatic(bundler.options.outDir, {
     index: false,
+    redirect: false,
     setHeaders: setHeaders
   });
 

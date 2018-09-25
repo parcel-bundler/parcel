@@ -49,7 +49,8 @@ const META = {
     'msapplication-square310x310logo',
     'msapplication-square70x70logo',
     'msapplication-wide310x150logo',
-    'msapplication-TileImage'
+    'msapplication-TileImage',
+    'msapplication-config'
   ],
   itemprop: [
     'image',
@@ -59,6 +60,14 @@ const META = {
     'contentUrl',
     'downloadUrl'
   ]
+};
+
+const SCRIPT_TYPES = {
+  'application/javascript': 'js',
+  'text/javascript': 'js',
+  'application/json': false,
+  'application/ld+json': 'jsonld',
+  'text/html': false
 };
 
 // Options to be passed to `addURLDependency` for certain tags + attributes
@@ -76,6 +85,7 @@ class HTMLAsset extends Asset {
     super(name, options);
     this.type = 'html';
     this.isAstDirty = false;
+    this.hmrPageReload = true;
   }
 
   async parse(code) {
@@ -131,7 +141,12 @@ class HTMLAsset extends Asset {
           if (
             !Object.keys(node.attrs).some(attr => {
               let values = META[attr];
-              return values && values.includes(node.attrs[attr]);
+
+              return (
+                values &&
+                values.includes(node.attrs[attr]) &&
+                node.attrs.content !== ''
+              );
             })
           ) {
             return node;
@@ -172,8 +187,95 @@ class HTMLAsset extends Asset {
     }
   }
 
-  generate() {
-    return this.isAstDirty ? render(this.ast) : this.contents;
+  async generate() {
+    // Extract inline <script> and <style> tags for processing.
+    let parts = [];
+    this.ast.walk(node => {
+      if (node.tag === 'script' || node.tag === 'style') {
+        let value = node.content && node.content.join('').trim();
+        if (value) {
+          let type;
+
+          if (node.tag === 'style') {
+            if (node.attrs && node.attrs.type) {
+              type = node.attrs.type.split('/')[1];
+            } else {
+              type = 'css';
+            }
+          } else if (node.attrs && node.attrs.type) {
+            // Skip JSON
+            if (SCRIPT_TYPES[node.attrs.type] === false) {
+              return node;
+            }
+
+            if (SCRIPT_TYPES[node.attrs.type]) {
+              type = SCRIPT_TYPES[node.attrs.type];
+            } else {
+              type = node.attrs.type.split('/')[1];
+            }
+          } else {
+            type = 'js';
+          }
+
+          parts.push({
+            type,
+            value,
+            inlineHTML: true,
+            meta: {
+              type: 'tag',
+              node
+            }
+          });
+        }
+      }
+
+      // Process inline style attributes.
+      if (node.attrs && node.attrs.style) {
+        parts.push({
+          type: 'css',
+          value: node.attrs.style,
+          meta: {
+            type: 'attr',
+            node
+          }
+        });
+      }
+
+      return node;
+    });
+
+    return parts;
+  }
+
+  async postProcess(generated) {
+    // Replace inline scripts and styles with processed results.
+    for (let rendition of generated) {
+      let {type, node} = rendition.meta;
+      if (type === 'attr' && rendition.type === 'css') {
+        node.attrs.style = rendition.value;
+      } else if (type === 'tag') {
+        if (rendition.isMain) {
+          node.content = rendition.value;
+        }
+
+        // Delete "type" attribute, since CSS and JS are the defaults.
+        // Unless it's application/ld+json
+        if (
+          node.attrs &&
+          (node.tag === 'style' ||
+            (node.attrs.type && SCRIPT_TYPES[node.attrs.type] === 'js'))
+        ) {
+          delete node.attrs.type;
+        }
+      }
+    }
+
+    return [
+      {
+        type: 'html',
+        value: render(this.ast)
+      }
+    ];
   }
 }
 

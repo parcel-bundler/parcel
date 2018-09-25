@@ -72,8 +72,8 @@ class HMRServer {
       });
     }
 
-    const containsHtmlAsset = assets.some(asset => asset.type === 'html');
-    if (containsHtmlAsset) {
+    const shouldReload = assets.some(asset => asset.hmrPageReload);
+    if (shouldReload) {
       this.broadcast({
         type: 'reload'
       });

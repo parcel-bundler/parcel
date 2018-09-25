@@ -7,5 +7,8 @@ exports.startWorker = function() {
   worker.postMessage(commonText);
 };
 
+exports.startSharedWorker = function() {
+  const worker = new SharedWorker('shared-worker.js');
+};
 
 

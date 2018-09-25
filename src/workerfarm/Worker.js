@@ -41,7 +41,7 @@ class Worker extends EventEmitter {
 
     this.child = childProcess.fork(childModule, process.argv, options);
 
-    this.child.on('message', this.receive.bind(this));
+    this.child.on('message', data => this.receive(data));
 
     this.child.once('exit', code => {
       this.exitCode = code;

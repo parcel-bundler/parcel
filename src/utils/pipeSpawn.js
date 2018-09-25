@@ -13,7 +13,8 @@ function pipeSpawn(cmd, params, opts) {
             npm_config_color: logger.color ? 'always' : '',
             npm_config_progress: true
           },
-          process.env
+          process.env,
+          {NODE_ENV: null} // Passing NODE_ENV through causes strange issues with yarn
         )
       },
       opts
