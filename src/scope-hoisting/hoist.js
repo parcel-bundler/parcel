@@ -154,6 +154,36 @@ module.exports = {
         ) {
           scope.push({id: exportsIdentifier, init: t.objectExpression([])});
         }
+
+        // Move all "var" variables to the top-level to prevent out of order definitions when wrapped.
+        for (let name in scope.bindings) {
+          let binding = scope.getBinding(name);
+
+          if (binding.path.scope !== scope && binding.kind === 'var') {
+            let {parentPath} = binding.path;
+
+            if (!parentPath.removed) {
+              if (parentPath.node.declarations.length) {
+                binding.path.getStatementParent().insertBefore(
+                  parentPath.node.declarations
+                    .map(decl => {
+                      binding.scope.removeBinding(decl.id.name);
+                      scope.push({id: decl.id});
+
+                      return decl.init
+                        ? t.assignmentExpression('=', decl.id, decl.init)
+                        : null;
+                    })
+                    .filter(decl => decl !== null)
+                );
+              }
+
+              parentPath.remove();
+            }
+
+            binding.path.remove();
+          }
+        }
       }
 
       path.stop();
