@@ -4,10 +4,17 @@ const htmlnano = require('htmlnano');
 module.exports = async function(asset) {
   await asset.parseIfNeeded();
 
-  let htmlNanoConfig = await asset.getConfig(
-    ['.htmlnanorc', '.htmlnanorc.js'],
-    {packageKey: 'htmlnano'}
+  let htmlNanoConfig = Object.assign(
+    {},
+    await asset.getConfig(['.htmlnanorc', '.htmlnanorc.js'], {
+      packageKey: 'htmlnano'
+    }),
+    {
+      minifyCss: false,
+      minifyJs: false
+    }
   );
+
   let res = await posthtml([htmlnano(htmlNanoConfig)]).process(asset.ast, {
     skipParse: true
   });

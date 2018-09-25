@@ -19,7 +19,7 @@ const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');
-const glob = require('fast-glob');
+const {glob} = require('./utils/glob');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -144,7 +144,9 @@ class Bundler extends EventEmitter {
       contentHash:
         typeof options.contentHash === 'boolean'
           ? options.contentHash
-          : isProduction
+          : isProduction,
+      throwErrors:
+        typeof options.throwErrors === 'boolean' ? options.throwErrors : true
     };
   }
 
@@ -225,6 +227,7 @@ class Bundler extends EventEmitter {
 
     let isInitialBundle = !this.entryAssets;
     let startTime = Date.now();
+    let initialised = !isInitialBundle;
     this.pending = true;
     this.error = null;
 
@@ -244,10 +247,22 @@ class Bundler extends EventEmitter {
 
         this.entryAssets = new Set();
         for (let entry of this.entryFiles) {
-          let asset = await this.resolveAsset(entry);
-          this.buildQueue.add(asset);
-          this.entryAssets.add(asset);
+          try {
+            let asset = await this.resolveAsset(entry);
+            this.buildQueue.add(asset);
+            this.entryAssets.add(asset);
+          } catch (err) {
+            throw new Error(
+              `Cannot resolve entry "${entry}" from "${this.options.rootDir}"`
+            );
+          }
         }
+
+        if (this.entryAssets.size === 0) {
+          throw new Error('No entries found.');
+        }
+
+        initialised = true;
       }
 
       // Build the queued assets.
@@ -320,10 +335,11 @@ class Bundler extends EventEmitter {
         this.hmr.emitError(err);
       }
 
-      if (process.env.NODE_ENV === 'production') {
-        process.exitCode = 1;
-      } else if (process.env.NODE_ENV === 'test' && !this.hmr) {
+      if (this.options.throwErrors && !this.hmr) {
         throw err;
+      } else if (!this.options.watch || !initialised) {
+        await this.stop();
+        process.exit(1);
       }
     } finally {
       this.pending = false;
@@ -331,7 +347,7 @@ class Bundler extends EventEmitter {
 
       // If not in watch mode, stop the worker farm so we don't keep the process running.
       if (!this.watcher && this.options.killWorkers) {
-        this.stop();
+        await this.stop();
       }
     }
   }
@@ -370,7 +386,7 @@ class Bundler extends EventEmitter {
 
   async stop() {
     if (this.watcher) {
-      this.watcher.stop();
+      await this.watcher.stop();
     }
 
     if (this.hmr) {
@@ -485,7 +501,7 @@ class Bundler extends EventEmitter {
     // If the module resolved (i.e. wasn't a local file), but the module directory wasn't found, install it.
     if (resolved.moduleName && !resolved.moduleDir) {
       try {
-        await installPackage([resolved.moduleName], asset.name, {
+        await installPackage(resolved.moduleName, asset.name, {
           saveDev: false
         });
       } catch (err) {
@@ -608,6 +624,8 @@ class Bundler extends EventEmitter {
         dep.resolved = assetDep.name;
       }
     });
+
+    logger.verbose(`Built ${asset.relativeName}...`);
 
     if (this.cache && cacheMiss) {
       this.cache.write(asset.name, processed);

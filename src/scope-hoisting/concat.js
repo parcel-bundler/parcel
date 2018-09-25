@@ -1,8 +1,8 @@
 const {relative} = require('path');
-const template = require('babel-template');
-const t = require('babel-types');
-const traverse = require('babel-traverse').default;
-const generate = require('babel-generator').default;
+const template = require('@babel/template').default;
+const t = require('@babel/types');
+const traverse = require('@babel/traverse').default;
+const generate = require('@babel/generator').default;
 const treeShake = require('./shake');
 const mangleScope = require('./mangler');
 const {getName, getIdentifier} = require('./utils');

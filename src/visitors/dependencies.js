@@ -1,9 +1,8 @@
-const types = require('babel-types');
-const template = require('babel-template');
-const traverse = require('babel-traverse').default;
+const types = require('@babel/types');
+const template = require('@babel/template').default;
+const traverse = require('@babel/traverse').default;
 const urlJoin = require('../utils/urlJoin');
 const isURL = require('../utils/is-url');
-const matchesPattern = require('./matches-pattern');
 const nodeBuiltins = require('node-libs-browser');
 
 const requireTemplate = template('require("_bundle_loader")');
@@ -66,7 +65,7 @@ module.exports = {
 
     const isRegisterServiceWorker =
       types.isStringLiteral(args[0]) &&
-      matchesPattern(callee, serviceWorkerPattern);
+      types.matchesPattern(callee, serviceWorkerPattern);
 
     if (isRegisterServiceWorker) {
       // Treat service workers as an entry point so filenames remain consistent across builds.
@@ -81,7 +80,7 @@ module.exports = {
 
     const isWebWorker =
       callee.type === 'Identifier' &&
-      callee.name === 'Worker' &&
+      (callee.name === 'Worker' || callee.name === 'SharedWorker') &&
       args.length === 1 &&
       types.isStringLiteral(args[0]);
 
@@ -154,6 +153,18 @@ function addDependency(asset, node, opts = {}) {
   // Don't bundle node builtins
   if (asset.options.target === 'node' && node.value in nodeBuiltins) {
     return;
+  }
+
+  // If this came from an inline <script> tag, throw an error.
+  // TODO: run JSPackager on inline script tags.
+  let inlineHTML =
+    asset.options.rendition && asset.options.rendition.inlineHTML;
+  if (inlineHTML) {
+    let err = new Error(
+      'Imports and requires are not supported inside inline <script> tags yet.'
+    );
+    err.loc = node.loc && node.loc.start;
+    throw err;
   }
 
   if (!asset.options.bundleNodeModules) {

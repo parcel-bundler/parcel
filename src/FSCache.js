@@ -4,8 +4,7 @@ const md5 = require('./utils/md5');
 const objectHash = require('./utils/objectHash');
 const pkg = require('../package.json');
 const logger = require('./Logger');
-const glob = require('fast-glob');
-const isGlob = require('is-glob');
+const {isGlob, glob} = require('./utils/glob');
 
 // These keys can affect the output, so if they differ, the cache should not match
 const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
@@ -23,13 +22,24 @@ class FSCache {
   }
 
   async ensureDirExists() {
+    if (this.dirExists) {
+      return;
+    }
+
     await fs.mkdirp(this.dir);
+
+    // Create sub-directories for every possible hex value
+    // This speeds up large caches on many file systems since there are fewer files in a single directory.
+    for (let i = 0; i < 256; i++) {
+      await fs.mkdirp(path.join(this.dir, ('00' + i.toString(16)).slice(-2)));
+    }
+
     this.dirExists = true;
   }
 
   getCacheFile(filename) {
     let hash = md5(this.optionsHash + filename);
-    return path.join(this.dir, hash + '.json');
+    return path.join(this.dir, hash.slice(0, 2), hash.slice(2) + '.json');
   }
 
   async getLastModified(filename) {

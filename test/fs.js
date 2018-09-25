@@ -1,55 +1,68 @@
 const assert = require('assert');
 const fs = require('../src/utils/fs');
+const path = require('path');
 const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('fs', function() {
   describe('--target=browser', function() {
     it('should inline a file as a string', async function() {
-      let b = await bundle(__dirname + '/integration/fs/index.js');
+      let b = await bundle(path.join(__dirname, '/integration/fs/index.js'));
       let output = await run(b);
       assert.equal(output, 'hello');
     });
 
     it('should inline a file as a buffer', async function() {
-      let b = await bundle(__dirname + '/integration/fs-buffer/index.js');
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-buffer/index.js')
+      );
       let output = await run(b);
       assert(output.constructor.name.includes('Buffer'));
       assert.equal(output.length, 5);
     });
 
     it('should inline a file with fs require alias', async function() {
-      let b = await bundle(__dirname + '/integration/fs-alias/index.js');
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-alias/index.js')
+      );
       let output = await run(b);
       assert.equal(output, 'hello');
     });
 
     it('should inline a file with fs require inline', async function() {
-      let b = await bundle(__dirname + '/integration/fs-inline/index.js');
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-inline/index.js')
+      );
       let output = await run(b);
       assert.equal(output, 'hello');
     });
 
     it('should inline a file with fs require assignment', async function() {
-      let b = await bundle(__dirname + '/integration/fs-assign/index.js');
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-assign/index.js')
+      );
       let output = await run(b);
       assert.equal(output, 'hello');
     });
 
     it('should inline a file with fs require assignment alias', async function() {
-      let b = await bundle(__dirname + '/integration/fs-assign-alias/index.js');
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-assign-alias/index.js')
+      );
       let output = await run(b);
       assert.equal(output, 'hello');
     });
 
     it('should inline a file with fs require destructure', async function() {
-      let b = await bundle(__dirname + '/integration/fs-destructure/index.js');
+      let b = await bundle(
+        path.join(__dirname, '/integration/fs-destructure/index.js')
+      );
       let output = await run(b);
       assert.equal(output, 'hello');
     });
 
     it('should inline a file with fs require destructure assignment', async function() {
       let b = await bundle(
-        __dirname + '/integration/fs-destructure-assign/index.js'
+        path.join(__dirname, '/integration/fs-destructure-assign/index.js')
       );
       let output = await run(b);
       assert.equal(output, 'hello');
@@ -57,7 +70,7 @@ describe('fs', function() {
 
     it('should not evaluate fs calls when package.browser.fs is false', async function() {
       let b = await bundle(
-        __dirname + '/integration/resolve-entries/ignore-fs.js'
+        path.join(__dirname, '/integration/resolve-entries/ignore-fs.js')
       );
 
       await assertBundleTree(b, {
@@ -80,7 +93,7 @@ describe('fs', function() {
     // TODO: check if the logger has warned the user
     it('should ignore fs calls when the filename is not evaluable', async function() {
       let b = await bundle(
-        __dirname + '/integration/fs-file-non-evaluable/index.js'
+        path.join(__dirname, '/integration/fs-file-non-evaluable/index.js')
       );
       let thrown = false;
 
@@ -97,7 +110,7 @@ describe('fs', function() {
 
     it('should ignore fs calls when the options are not evaluable', async function() {
       let b = await bundle(
-        __dirname + '/integration/fs-options-non-evaluable/index.js'
+        path.join(__dirname, '/integration/fs-options-non-evaluable/index.js')
       );
       let thrown = false;
 
@@ -115,7 +128,7 @@ describe('fs', function() {
 
   describe('--target=node', function() {
     it('should leave an attempt to read a file unchanged', async function() {
-      let b = await bundle(__dirname + '/integration/fs/index.js', {
+      let b = await bundle(path.join(__dirname, '/integration/fs/index.js'), {
         target: 'node'
       });
 
@@ -132,7 +145,7 @@ describe('fs', function() {
       assert((await fs.readFile(b.name)).includes("require('fs')"));
       assert((await fs.readFile(b.name)).includes('readFileSync'));
 
-      await fs.writeFile(__dirname + '/dist/test.txt', 'hey');
+      await fs.writeFile(path.join(__dirname, '/dist/test.txt'), 'hey');
       let output = await run(b);
       assert.equal(output, 'hey');
     });
@@ -140,7 +153,7 @@ describe('fs', function() {
 
   describe('--target=electron', function() {
     it('should leave an attempt to read a file unchanged', async function() {
-      let b = await bundle(__dirname + '/integration/fs/index.js', {
+      let b = await bundle(path.join(__dirname, '/integration/fs/index.js'), {
         target: 'electron'
       });
 
@@ -157,7 +170,7 @@ describe('fs', function() {
       assert((await fs.readFile(b.name)).includes("require('fs')"));
       assert((await fs.readFile(b.name)).includes('readFileSync'));
 
-      await fs.writeFile(__dirname + '/dist/test.txt', 'hey');
+      await fs.writeFile(path.join(__dirname, '/dist/test.txt'), 'hey');
       let output = await run(b);
       assert.equal(output, 'hey');
     });

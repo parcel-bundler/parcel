@@ -13,8 +13,8 @@ class SASSAsset extends Asset {
   }
 
   async parse(code) {
-    // node-sass should be installed locally in the module that's being required
-    let sass = await localRequire('node-sass', this.name);
+    // node-sass or dart-sass should be installed locally in the module that's being required
+    let sass = await getSassRuntime(this.name);
     let render = promisify(sass.render.bind(sass));
     const resolver = new Resolver({
       extensions: ['.scss', '.sass'],
@@ -40,13 +40,6 @@ class SASSAsset extends Asset {
         ? opts.indentedSyntax
         : type === 'sass';
 
-    opts.functions = Object.assign({}, opts.functions, {
-      url: node => {
-        let filename = this.addURLDependency(node.getValue());
-        return new sass.types.String(`url(${JSON.stringify(filename)})`);
-      }
-    });
-
     opts.importer = opts.importer || [];
     opts.importer = Array.isArray(opts.importer)
       ? opts.importer
@@ -61,7 +54,16 @@ class SASSAsset extends Asset {
         .catch(err => done(normalizeError(err)));
     });
 
-    return await render(opts);
+    try {
+      return await render(opts);
+    } catch (err) {
+      // Format the error so it can be handled by parcel's prettyError
+      if (err.formatted) {
+        throw sassToCodeFrame(err);
+      }
+      // Throw original error if there is no codeFrame
+      throw err;
+    }
   }
 
   collectDependencies() {
@@ -74,14 +76,34 @@ class SASSAsset extends Asset {
     return [
       {
         type: 'css',
-        value: this.ast ? this.ast.css.toString() : '',
-        hasDependencies: false
+        value: this.ast ? this.ast.css.toString() : ''
       }
     ];
   }
 }
 
 module.exports = SASSAsset;
+
+async function getSassRuntime(searchPath) {
+  try {
+    return await localRequire('node-sass', searchPath, true);
+  } catch (e) {
+    // If node-sass is not used locally, install dart-sass, as this causes no freezing issues
+    return await localRequire('sass', searchPath);
+  }
+}
+
+function sassToCodeFrame(err) {
+  let error = new Error(err.message);
+  error.codeFrame = err.formatted;
+  error.stack = err.stack;
+  error.fileName = err.file;
+  error.loc = {
+    line: err.line,
+    column: err.column
+  };
+  return error;
+}
 
 // Ensures an error inherits from Error
 function normalizeError(err) {

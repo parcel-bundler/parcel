@@ -39,7 +39,7 @@ program
   )
   .option(
     '--public-url <url>',
-    'set the public URL to serve on. defaults to the same as the --out-dir option'
+    'set the public URL to serve on. defaults to "/"'
   )
   .option('--global <variable>', 'expose your module through a global variable')
   .option('--no-hmr', 'disable hot module replacement')
@@ -58,8 +58,8 @@ program
   .option('-V, --version', 'output the version number')
   .option(
     '--log-level <level>',
-    'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
-    /^([0-3])$/
+    'set the log level, either "0" (no output), "1" (errors), "2" (warnings), "3" (info), "4" (verbose) or "5" (debug, creates a log file).',
+    /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
   .action(bundle);
@@ -77,7 +77,7 @@ program
   )
   .option(
     '--public-url <url>',
-    'set the public URL to serve on. defaults to the same as the --out-dir option'
+    'set the public URL to serve on. defaults to "/"'
   )
   .option('--global <variable>', 'expose your module through a global variable')
   .option(
@@ -107,8 +107,8 @@ program
   )
   .option(
     '--log-level <level>',
-    'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
-    /^([0-3])$/
+    'set the log level, either "0" (no output), "1" (errors), "2" (warnings), "3" (info), "4" (verbose) or "5" (debug, creates a log file).',
+    /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
   .action(bundle);
@@ -126,12 +126,13 @@ program
   )
   .option(
     '--public-url <url>',
-    'set the public URL to serve on. defaults to the same as the --out-dir option'
+    'set the public URL to serve on. defaults to "/"'
   )
   .option('--global <variable>', 'expose your module through a global variable')
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
+  .option('--no-content-hash', 'disable content hashing')
   .option(
     '--experimental-scope-hoisting',
     'enable experimental scope hoisting/tree shaking support'
@@ -151,8 +152,8 @@ program
   )
   .option(
     '--log-level <level>',
-    'set the log level, either "0" (no output), "1" (errors), "2" (warnings + errors) or "3" (all).',
-    /^([0-3])$/
+    'set the log level, either "0" (no output), "1" (errors), "2" (warnings), "3" (info), "4" (verbose) or "5" (debug, creates a log file).',
+    /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
   .action(bundle);
@@ -188,6 +189,10 @@ async function bundle(main, command) {
   // Require bundler here so the help command is fast
   const Bundler = require('../');
 
+  if (command.name() === 'watch') {
+    command.watch = true;
+  }
+
   if (command.name() === 'build') {
     command.production = true;
     process.env.NODE_ENV = process.env.NODE_ENV || 'production';
@@ -202,6 +207,7 @@ async function bundle(main, command) {
     };
   }
 
+  command.throwErrors = false;
   command.scopeHoist = command.experimentalScopeHoisting || false;
   const bundler = new Bundler(main, command);
 

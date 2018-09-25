@@ -1,10 +1,13 @@
 const assert = require('assert');
 const sinon = require('sinon');
+const path = require('path');
 const {assertBundleTree, bundle, bundler, nextBundle} = require('./utils');
 
 describe('bundler', function() {
   it('should bundle once before exporting middleware', async function() {
-    let b = bundler(__dirname + '/integration/bundler-middleware/index.js');
+    let b = bundler(
+      path.join(__dirname, '/integration/bundler-middleware/index.js')
+    );
     b.middleware();
 
     await nextBundle(b);
@@ -12,7 +15,7 @@ describe('bundler', function() {
   });
 
   it('should defer bundling if a bundle is pending', async () => {
-    const b = bundler(__dirname + '/integration/html/index.html');
+    const b = bundler(path.join(__dirname, '/integration/html/index.html'));
     b.pending = true; // bundle in progress
     const spy = sinon.spy(b, 'bundle');
 
@@ -30,7 +33,7 @@ describe('bundler', function() {
   });
 
   it('should enforce asset type path to be a string', () => {
-    const b = bundler(__dirname + '/integration/html/index.html');
+    const b = bundler(path.join(__dirname, '/integration/html/index.html'));
 
     assert.throws(() => {
       b.addAssetType('.ext', {});
@@ -38,7 +41,7 @@ describe('bundler', function() {
   });
 
   it('should enforce setup before bundling', () => {
-    const b = bundler(__dirname + '/integration/html/index.html');
+    const b = bundler(path.join(__dirname, '/integration/html/index.html'));
     b.farm = true; // truthy
 
     assert.throws(() => {
@@ -52,8 +55,8 @@ describe('bundler', function() {
 
   it('should support multiple entry points', async function() {
     let b = await bundle([
-      __dirname + '/integration/multi-entry/one.html',
-      __dirname + '/integration/multi-entry/two.html'
+      path.join(__dirname, '/integration/multi-entry/one.html'),
+      path.join(__dirname, '/integration/multi-entry/two.html')
     ]);
 
     await assertBundleTree(b, [
@@ -76,7 +79,9 @@ describe('bundler', function() {
   });
 
   it('should support multiple entry points as a glob', async function() {
-    let b = await bundle(__dirname + '/integration/multi-entry/*.html');
+    let b = await bundle(
+      path.join(__dirname, '/integration/multi-entry/*.html')
+    );
 
     await assertBundleTree(b, [
       {

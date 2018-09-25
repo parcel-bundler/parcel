@@ -1,27 +1,22 @@
 const Packager = require('./Packager');
 const path = require('path');
-const fs = require('fs');
 const concat = require('../scope-hoisting/concat');
 const urlJoin = require('../utils/urlJoin');
+const getExisting = require('../utils/getExisting');
 const walk = require('babylon-walk');
-const babylon = require('babylon');
-const t = require('babel-types');
+const babylon = require('@babel/parser');
+const t = require('@babel/types');
 const {getName, getIdentifier} = require('../scope-hoisting/utils');
 
-const prelude = {
-  source: fs
-    .readFileSync(path.join(__dirname, '../builtins/prelude2.js'), 'utf8')
-    .trim(),
-  minified: fs
-    .readFileSync(path.join(__dirname, '../builtins/prelude2.min.js'), 'utf8')
-    .trim()
-    .replace(/;$/, '')
-};
+const prelude = getExisting(
+  path.join(__dirname, '../builtins/prelude2.min.js'),
+  path.join(__dirname, '../builtins/prelude2.js')
+);
 
-const helpers =
-  fs
-    .readFileSync(path.join(__dirname, '../builtins/helpers.js'), 'utf8')
-    .trim() + '\n';
+const helpers = getExisting(
+  path.join(__dirname, '../builtins/helpers.min.js'),
+  path.join(__dirname, '../builtins/helpers.js')
+);
 
 class JSConcatPackager extends Packager {
   async start() {
@@ -77,7 +72,7 @@ class JSConcatPackager extends Packager {
       }
     }
 
-    this.write(helpers);
+    this.write(helpers.minified);
   }
 
   write(string) {
@@ -141,8 +136,8 @@ class JSConcatPackager extends Packager {
     this.addedAssets.add(asset);
     let {js} = asset.generated;
 
-    // If the asset's package has the sideEffects: false flag set, and there are no used
-    // exports marked, exclude the asset from the bundle.
+    // If the asset has no side effects according to the its package's sideEffects flag,
+    // and there are no used exports marked, exclude the asset from the bundle.
     if (
       asset.cacheData.sideEffects === false &&
       (!asset.usedExports || asset.usedExports.size === 0)
@@ -535,10 +530,11 @@ class JSConcatPackager extends Packager {
       // Add source map url if a map bundle exists
       let mapBundle = this.bundle.siblingBundlesMap.get('map');
       if (mapBundle) {
-        output += `\n//# sourceMappingURL=${urlJoin(
+        let mapUrl = urlJoin(
           this.options.publicURL,
           path.basename(mapBundle.name)
-        )}`;
+        );
+        output += `\n//# sourceMappingURL=${mapUrl}`;
       }
     }
 
