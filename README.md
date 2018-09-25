@@ -5,8 +5,7 @@
 </p>
 
 [![Backers on Open Collective](https://opencollective.com/parcel/backers/badge.svg)](#backers) [![Sponsors on Open Collective](https://opencollective.com/parcel/sponsors/badge.svg)](#sponsors)
-[![Travis CI Build Status](https://travis-ci.org/parcel-bundler/parcel.svg?branch=master)](https://travis-ci.org/parcel-bundler/parcel)
-[![Appveyor Build status](https://ci.appveyor.com/api/projects/status/nr7d6qjxj3wwsw6n/branch/master?svg=true)](https://ci.appveyor.com/project/devongovett/parcel)
+[![Build Status](https://dev.azure.com/devongovett/devongovett/_apis/build/status/parcel-bundler.parcel?branchName=master)](https://dev.azure.com/devongovett/devongovett/_build/latest?definitionId=1)
 [![Coverage](https://img.shields.io/codecov/c/github/parcel-bundler/parcel/master.svg)](https://codecov.io/github/parcel-bundler/parcel/)
 [![David Dependency Status](https://david-dm.org/parcel-bundler/parcel.svg)](https://david-dm.org/parcel-bundler/parcel)
 [![npm package](https://img.shields.io/npm/v/parcel-bundler.svg)](https://www.npmjs.com/package/parcel-bundler)
@@ -16,16 +15,16 @@
 
 ## Features
 
-* 🚀 **Blazing fast** bundle times - multicore compilation, and a filesystem cache for fast rebuilds even after a restart.
-* 📦 Out of the box support for JS, CSS, HTML, file assets, and more - **no plugins to install**.
-* 🐠 **Automatically transforms modules** using Babel, PostCSS, and PostHTML when needed - even `node_modules`.
-* ✂️ Zero configuration **code splitting** using dynamic `import()` statements.
-* 🔥 Built in support for **hot module replacement**
-* 🚨 Friendly error logging experience - syntax highlighted code frames help pinpoint the problem.
+- 🚀 **Blazing fast** bundle times - multicore compilation, and a filesystem cache for fast rebuilds even after a restart.
+- 📦 Out of the box support for JS, CSS, HTML, file assets, and more - **no plugins to install**.
+- 🐠 **Automatically transforms modules** using Babel, PostCSS, and PostHTML when needed - even `node_modules`.
+- ✂️ Zero configuration **code splitting** using dynamic `import()` statements.
+- 🔥 Built in support for **hot module replacement**
+- 🚨 Friendly error logging experience - syntax highlighted code frames help pinpoint the problem.
 
 ## Getting started
 
-1. Install with yarn:
+1.  Install with yarn:
 
 ```shell
 yarn global add parcel-bundler
@@ -37,7 +36,7 @@ or with npm:
 npm install -g parcel-bundler
 ```
 
-2. Parcel can take any type of file as an entry point, but an HTML or JavaScript file is a good place to start. If you link your main JavaScript file in the HTML using a relative path, Parcel will also process it for you, and replace the reference with a URL to the output file.
+2.  Parcel can take any type of file as an entry point, but an HTML or JavaScript file is a good place to start. If you link your main JavaScript file in the HTML using a relative path, Parcel will also process it for you, and replace the reference with a URL to the output file.
 
 ```html
 <html>
@@ -47,13 +46,13 @@ npm install -g parcel-bundler
 </html>
 ```
 
-3. Parcel has a development server built in, which will automatically rebuild your app as you change files and supports hot module replacement for fast development. Just point it at your entry file:
+3.  Parcel has a development server built in, which will automatically rebuild your app as you change files and supports hot module replacement for fast development. Just point it at your entry file:
 
 ```shell
 parcel index.html
 ```
 
-4. Now open http://localhost:1234/ in your browser. If needed, you can also override the default port with the `-p` option. Add `--open` to automatically open a browser.
+4.  Now open http://localhost:1234/ in your browser. If needed, you can also override the default port with the `-p` option. Add `--open` to automatically open a browser.
 
 See [parceljs.org](https://parceljs.org) for more documentation!
 
@@ -74,7 +73,7 @@ There are many web application bundlers out there with huge adoption, including 
 
 Many bundlers are built around configuration and plugins, and it is not uncommon to see applications with upwards of 500 lines of configuration just to get things working. This configuration is not just tedious and time consuming, but is also hard to get right and must be duplicated for each application. Oftentimes, this can lead to sub-optimized apps shipping to production. `parcel` is designed to need zero configuration: just point it at the entry point of your application, and it does the right thing.
 
-Existing bundlers are also _very_ slow. Large applications with lots of files and many dependencies can take minutes to build, which is especially painful during development, when things change all the time. File watchers can help with rebuilds, but the initial launch is often still very slow. 
+Existing bundlers are also _very_ slow. Large applications with lots of files and many dependencies can take minutes to build, which is especially painful during development, when things change all the time. File watchers can help with rebuilds, but the initial launch is often still very slow.
 
 `parcel` utilizes worker processes to compile your code in parallel, utilizing modern multicore processors. This results in a huge boost in speed for initial builds. It also has a file system cache, which saves the compiled results per file, for even faster subsequent startups.
 
@@ -94,8 +93,8 @@ After the bundle tree is constructed, each bundle is written to a file by a pack
 
 All feedback and suggestions are welcome!
 
-* 💬 Join the community on [Spectrum](https://spectrum.chat/parcel)
-* 📣 Stay up to date on new features and announcements on [@parceljs](https://twitter.com/parceljs).
+- 💬 Join the community on [Spectrum](https://spectrum.chat/parcel)
+- 📣 Stay up to date on new features and announcements on [@parceljs](https://twitter.com/parceljs).
 
 ## Contributors
 

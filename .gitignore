@@ -12,6 +12,7 @@ lib
 .vscode/
 .idea/
 *.min.js
+test/integration/**/elm-stuff
 test/integration/**/target
 test/integration/**/Cargo.lock
 test/**/node_modules

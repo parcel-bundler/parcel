@@ -15,7 +15,6 @@ const MAIN_FILES = ['src/lib.rs', 'src/main.rs'];
 
 // Track installation status so we don't need to check more than once
 let rustInstalled = false;
-let wasmGCInstalled = false;
 
 class RustAsset extends Asset {
   constructor(name, options) {
@@ -62,12 +61,6 @@ class RustAsset extends Asset {
     } else {
       await this.rustcBuild();
     }
-
-    // If this is a prod build, use wasm-gc to remove unused code
-    if (this.options.minify) {
-      await this.installWasmGC();
-      await exec('wasm-gc', [this.wasmPath, this.wasmPath]);
-    }
   }
 
   async installRust() {
@@ -109,24 +102,6 @@ class RustAsset extends Asset {
     }
 
     rustInstalled = true;
-  }
-
-  async installWasmGC() {
-    if (wasmGCInstalled) {
-      return;
-    }
-
-    try {
-      await commandExists('wasm-gc');
-    } catch (e) {
-      await pipeSpawn('cargo', [
-        'install',
-        '--git',
-        'https://github.com/alexcrichton/wasm-gc'
-      ]);
-    }
-
-    wasmGCInstalled = true;
   }
 
   async cargoBuild(cargoConfig, cargoDir) {
@@ -182,6 +157,7 @@ class RustAsset extends Asset {
       '-o',
       this.wasmPath
     ];
+
     await exec('rustc', args);
 
     // Run again to collect dependencies

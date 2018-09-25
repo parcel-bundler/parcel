@@ -15,15 +15,27 @@ async function babel6(asset, options) {
     ecmaVersion: Infinity,
     strictMode: false,
     sourceType: 'module',
-    locations: true,
-    plugins: ['exportExtensions', 'dynamicImport']
+    locations: true
   });
+
+  // Passing a list of plugins as part of parserOpts seems to override any custom
+  // syntax plugins a user might have added (e.g. decorators). We add dynamicImport
+  // using a plugin instead.
+  config.plugins = (config.plugins || []).concat(dynamicImport);
 
   let res = babel.transform(asset.contents, config);
   if (res.ast) {
     asset.ast = babel6toBabel7(res.ast);
     asset.isAstDirty = true;
   }
+}
+
+function dynamicImport() {
+  return {
+    manipulateOptions(opts, parserOpts) {
+      parserOpts.plugins.push('dynamicImport');
+    }
+  };
 }
 
 module.exports = babel6;

@@ -21,7 +21,7 @@ async function babel7(asset, options) {
     allowReturnOutsideFunction: true,
     strictMode: false,
     sourceType: 'module',
-    plugins: ['exportDefaultFrom', 'exportNamespaceFrom', 'dynamicImport']
+    plugins: ['dynamicImport']
   });
 
   let res;
