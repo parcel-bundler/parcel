@@ -140,4 +140,18 @@ describe('typescript', function() {
     assert.equal(typeof output.test, 'function');
     assert.equal(output.test(), 'test passed');
   });
+
+  it('fs.readFileSync should inline a file as a string', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/typescript-fs/index.ts')
+    );
+
+    const text = 'export default <div>Hello</div>;';
+    let output = await run(b);
+
+    assert.deepEqual(output, {
+      fromTs: text,
+      fromTsx: text
+    });
+  });
 });
