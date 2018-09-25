@@ -194,11 +194,8 @@ async function bundle(main, command) {
   }
 
   if (command.name() === 'build') {
-    command.watch = false;
-    process.env.NODE_ENV =
-      process.env.NODE_ENV || command.contentHash
-        ? 'production'
-        : 'development';
+    command.production = true;
+    process.env.NODE_ENV = process.env.NODE_ENV || 'production';
   } else {
     process.env.NODE_ENV = process.env.NODE_ENV || 'development';
   }
