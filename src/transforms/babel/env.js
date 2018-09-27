@@ -18,13 +18,16 @@ async function getEnvConfig(asset, isSourceModule) {
   // Otherwise, load the source engines and generate a babel-present-env config.
   if (!isSourceModule) {
     let sourceEngines = await getTargetEngines(asset, false);
-    let sourceEnv = (await getEnvPlugins(sourceEngines, false)) || targetEnv;
+    let sourceEnv = await getEnvPlugins(sourceEngines, false);
 
-    // Do a diff of the returned plugins. We only need to process the remaining plugins to get to the app target.
-    let sourcePlugins = new Set(sourceEnv.map(p => p[0]));
-    targetEnv = targetEnv.filter(plugin => {
-      return !sourcePlugins.has(plugin[0]);
-    });
+    // Do a diff of the returned plugins if there is a known environment for the source.
+    // We only need to process the remaining plugins to get to the app target.
+    if (sourceEnv) {
+      let sourcePlugins = new Set(sourceEnv.map(p => p[0]));
+      targetEnv = targetEnv.filter(plugin => {
+        return !sourcePlugins.has(plugin[0]);
+      });
+    }
   }
 
   return {

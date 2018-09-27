@@ -1149,7 +1149,7 @@ describe('javascript', function() {
     );
   });
 
-  it('should not compile node_modules by default', async function() {
+  it('should make node_modules browser compatible', async function() {
     await bundle(
       path.join(__dirname, '/integration/babel-node-modules/index.js')
     );
@@ -1158,7 +1158,7 @@ describe('javascript', function() {
       path.join(__dirname, '/dist/index.js'),
       'utf8'
     );
-    assert(/class \S+ \{\}/.test(file));
+    assert(!/class \S+ \{\}/.test(file));
     assert(file.includes('function Bar'));
   });
 
@@ -1219,7 +1219,7 @@ describe('javascript', function() {
     assert(file.includes('function Bar'));
   });
 
-  it('should not compile node_modules with a source field in package.json when not symlinked', async function() {
+  it('Should compile node_modules without a defined target to match the projects browserslist', async function() {
     await bundle(
       path.join(
         __dirname,
@@ -1231,8 +1231,10 @@ describe('javascript', function() {
       path.join(__dirname, '/dist/index.js'),
       'utf8'
     );
-    assert(!file.includes('function Foo'));
-    assert(file.includes('function Bar'));
+
+    assert(!/class \S+ \{\}/.test(file), 'should not contain a class');
+    assert(file.includes('function Foo'), 'should have a function Foo');
+    assert(file.includes('function Bar'), 'should have a function Bar');
   });
 
   it('should support compiling JSX', async function() {

@@ -51,11 +51,6 @@ async function getTargetEngines(asset, isTargetApp) {
         }
       }
     }
-
-    // Fall back to package.engines.node for node_modules without any browser target info.
-    if (!isTargetApp && !targets.browsers && typeof nodeVersion === 'string') {
-      targets.node = nodeVersion;
-    }
   }
 
   // If we didn't find any targets, set some default engines for the target app.
