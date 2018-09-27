@@ -106,7 +106,7 @@ function hasBinding(node, name) {
     types.isArrowFunctionExpression(node)
   ) {
     return (
-      (node.id !== null && node.id.name === name) ||
+      (node.id && node.id.name === name) ||
       node.params.some(
         param => types.isIdentifier(param) && param.name === name
       )

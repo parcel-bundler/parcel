@@ -5,6 +5,12 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.10.1] - 2018-09-26
+
+### Fixed
+
+- Fix error when node.id is undefined instead of null
+
 ## [1.10.0] - 2018-09-25
 
 ### Added
