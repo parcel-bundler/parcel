@@ -9,7 +9,7 @@ module.exports = async function(asset) {
 
   let customConfig = await asset.getConfig(['.uglifyrc', '.terserrc']);
   let options = {
-    warnings: true,
+    ecma: 5,
     mangle: {
       toplevel: !asset.options.scopeHoist
     }
