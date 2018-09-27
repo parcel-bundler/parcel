@@ -322,6 +322,38 @@ describe('resolver', function() {
       assert.equal(resolved.pkg.name, 'package-browser-alias');
     });
 
+    it('should alias the main file using the package.browser field if it is in sub directory', async function() {
+      let resolved = await resolver.resolve(
+        'package-browser-alias-subdirs',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules',
+          'package-browser-alias-subdirs',
+          'src/client.js'
+        )
+      );
+      assert.equal(resolved.pkg.name, 'package-browser-alias-subdirs');
+
+      resolved = await resolver.resolve(
+        'package-browser-alias-subdirs/test/support/server.js',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules',
+          'package-browser-alias-subdirs',
+          'test/support/blank.js'
+        )
+      );
+      assert.equal(resolved.pkg.name, 'package-browser-alias-subdirs');
+    });
+
     it('should alias a sub-file using the package.browser field', async function() {
       let resolved = await resolver.resolve(
         'package-browser-alias/foo',

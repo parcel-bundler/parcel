@@ -15,7 +15,6 @@ lib
 test/integration/**/elm-stuff
 test/integration/**/target
 test/integration/**/Cargo.lock
-test/**/node_modules
 test/**/yarn.lock
 test/**/package-lock.json
 # Logs
