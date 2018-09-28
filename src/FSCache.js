@@ -12,6 +12,7 @@ const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
 class FSCache {
   constructor(options) {
     this.dir = path.resolve(options.cacheDir || '.cache');
+    this.options = options;
     this.dirExists = false;
     this.invalidated = new Set();
     this.optionsHash = objectHash(
@@ -21,25 +22,18 @@ class FSCache {
     );
   }
 
-  async ensureDirExists() {
-    if (this.dirExists) {
-      return;
-    }
-
-    await fs.mkdirp(this.dir);
-
-    // Create sub-directories for every possible hex value
-    // This speeds up large caches on many file systems since there are fewer files in a single directory.
-    for (let i = 0; i < 256; i++) {
-      await fs.mkdirp(path.join(this.dir, ('00' + i.toString(16)).slice(-2)));
-    }
-
-    this.dirExists = true;
-  }
-
   getCacheFile(filename) {
-    let hash = md5(this.optionsHash + filename);
-    return path.join(this.dir, hash.slice(0, 2), hash.slice(2) + '.json');
+    let relativeFilename = path.relative(this.options.rootDir, filename);
+    relativeFilename = relativeFilename
+      .replace(/\\/g, '/')
+      .replace(/\.\.\//g, '__-');
+    // Normalise node_modules to one big folder...
+    relativeFilename = relativeFilename.replace(
+      /^.*node_modules/,
+      'node_modules'
+    );
+    let hash = relativeFilename + '-' + this.optionsHash;
+    return path.join(this.dir, hash + '.json');
   }
 
   async getLastModified(filename) {
@@ -66,9 +60,10 @@ class FSCache {
 
   async write(filename, data) {
     try {
-      await this.ensureDirExists();
       await this.writeDepMtimes(data);
-      await fs.writeFile(this.getCacheFile(filename), JSON.stringify(data));
+      let cacheFile = this.getCacheFile(filename);
+      await fs.mkdirp(path.dirname(cacheFile));
+      await fs.writeFile(cacheFile, JSON.stringify(data));
       this.invalidated.delete(filename);
     } catch (err) {
       logger.error(`Error writing to cache: ${err.message}`);
