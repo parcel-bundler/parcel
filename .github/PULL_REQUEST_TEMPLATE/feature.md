@@ -28,11 +28,11 @@ Tell us how the feature should work
 
 <!-- Examples help us understand the requested feature better -->
 
-# 🚨 Test instructions
+## 🚨 Test instructions
 
 <!-- In case it is impossible (or too hard) to reliably test this feature with unit tests, please provide test instructions! -->
 
-# ✔️ PR Todo
+## ✔️ PR Todo
 
 - [ ] Added/updated unit tests for this change
 - [ ] Filled out test instructions (In case there aren't any unit tests)

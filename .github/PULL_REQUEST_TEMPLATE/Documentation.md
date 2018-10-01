@@ -9,7 +9,7 @@ Thanks for filing a pull request 😄 ! Before you submit, please read the follo
 ⚠️ This is not the docs repo. File an issue/PR here: https://github.com/parcel-bundler/website ⚠️
 -->
 
-# ✔️ PR Todo
+## ✔️ PR Todo
 
 - [ ] Included links to related issues/PRs
 

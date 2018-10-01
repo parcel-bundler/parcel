@@ -21,7 +21,7 @@ Search open/closed similar issues and pull requests before submitting since some
 
 <!--- Describe how you fixed the bug -->
 
-# 🚨 Test instructions
+## 🚨 Test instructions
 
 <!-- In case it is impossible (or too hard) to reliably test this feature/fix with unit tests, please provide test instructions! -->
 
@@ -36,7 +36,7 @@ Search open/closed similar issues and pull requests before submitting since some
 | npm/Yarn         |
 | Operating System |
 
-# ✔️ PR Todo
+## ✔️ PR Todo
 
 - [ ] Added/updated unit tests for this change
 - [ ] Filled out test instructions (In case there aren't any unit tests)
