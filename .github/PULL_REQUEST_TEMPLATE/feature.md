@@ -28,12 +28,17 @@ Tell us how the feature should work
 
 <!-- Examples help us understand the requested feature better -->
 
+# 🚨 Test instructions
 
-## ✔️ PR Todo
+<!-- In case it is impossible (or too hard) to reliably test this feature with unit tests, please provide test instructions! -->
+
+# ✔️ PR Todo
 
 - [ ] Added/updated unit tests for this change
-- [ ] Filled out test instructions
+- [ ] Filled out test instructions (In case there aren't any unit tests)
 - [ ] Included links to related issues/PRs
 
-<!-- Love parcel? Please consider supporting our collective:
-👉  https://opencollective.com/parcel/donate -->
+<!--
+Love parcel? Please consider supporting our collective:
+👉  https://opencollective.com/parcel/donate
+-->
