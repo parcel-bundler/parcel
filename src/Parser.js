@@ -1,7 +1,7 @@
 const path = require('path');
 const RawAsset = require('./assets/RawAsset');
 const GlobAsset = require('./assets/GlobAsset');
-const isGlob = require('is-glob');
+const {isGlob} = require('./utils/glob');
 
 class Parser {
   constructor(options = {}) {
@@ -17,9 +17,11 @@ class Parser {
     this.registerExtension('ts', './assets/TypeScriptAsset');
     this.registerExtension('tsx', './assets/TypeScriptAsset');
     this.registerExtension('coffee', './assets/CoffeeScriptAsset');
+    this.registerExtension('elm', './assets/ElmAsset');
     this.registerExtension('vue', './assets/VueAsset');
     this.registerExtension('json', './assets/JSONAsset');
     this.registerExtension('json5', './assets/JSONAsset');
+    this.registerExtension('jsonld', './assets/JSONLDAsset');
     this.registerExtension('yaml', './assets/YAMLAsset');
     this.registerExtension('yml', './assets/YAMLAsset');
     this.registerExtension('toml', './assets/TOMLAsset');

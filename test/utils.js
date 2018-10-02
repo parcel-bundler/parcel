@@ -11,16 +11,31 @@ const promisify = require('../src/utils/promisify');
 const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
 
-beforeEach(async function() {
-  // Test run in a single process, creating and deleting the same file(s)
-  // Windows needs a delay for the file handles to be released before deleting
-  // is possible. Without a delay, rimraf fails on `beforeEach` for `/dist`
-  if (process.platform === 'win32') {
-    await sleep(50);
+const chalk = new (require('chalk')).constructor({enabled: true});
+const warning = chalk.keyword('orange');
+// eslint-disable-next-line no-console
+console.warn = (...args) => {
+  // eslint-disable-next-line no-console
+  console.error(warning(...args));
+};
+
+async function removeDistDirectory(count = 0) {
+  try {
+    await rimraf(path.join(__dirname, 'dist'));
+  } catch (e) {
+    if (count > 8) {
+      // eslint-disable-next-line no-console
+      console.warn('WARNING: Unable to remove dist directory:', e.message);
+      return;
+    }
+
+    await sleep(250);
+    await removeDistDirectory(count + 1);
   }
-  // Unix based systems also need a delay but only half as much as windows
-  await sleep(50);
-  await rimraf(path.join(__dirname, 'dist'));
+}
+
+beforeEach(async function() {
+  await removeDistDirectory();
 });
 
 function sleep(ms) {
@@ -251,6 +266,10 @@ function deferred() {
   return promise;
 }
 
+function normaliseNewlines(text) {
+  return text.replace(/(\r\n|\n|\r)/g, '\n');
+}
+
 exports.sleep = sleep;
 exports.bundler = bundler;
 exports.bundle = bundle;
@@ -260,3 +279,4 @@ exports.nextBundle = nextBundle;
 exports.deferred = deferred;
 exports.rimraf = rimraf;
 exports.ncp = ncp;
+exports.normaliseNewlines = normaliseNewlines;

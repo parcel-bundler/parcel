@@ -19,7 +19,7 @@ const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');
-const glob = require('fast-glob');
+const {glob} = require('./utils/glob');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -384,7 +384,7 @@ class Bundler extends EventEmitter {
 
   async stop() {
     if (this.watcher) {
-      this.watcher.stop();
+      await this.watcher.stop();
     }
 
     if (this.hmr) {
@@ -499,7 +499,7 @@ class Bundler extends EventEmitter {
     // If the module resolved (i.e. wasn't a local file), but the module directory wasn't found, install it.
     if (resolved.moduleName && !resolved.moduleDir) {
       try {
-        await installPackage([resolved.moduleName], asset.name, {
+        await installPackage(resolved.moduleName, asset.name, {
           saveDev: false
         });
       } catch (err) {

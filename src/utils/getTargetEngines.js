@@ -12,7 +12,7 @@ const DEFAULT_ENGINES = {
  *   - package.json engines field
  *   - package.json browserslist field
  *   - browserslist or .browserslistrc files
- *   - .babelrc or .babelrc.js files with babel-preset-env
+ *   - .babelrc or .babelrc.js files with @babel/preset-env
  */
 async function getTargetEngines(asset, isTargetApp) {
   let targets = {};

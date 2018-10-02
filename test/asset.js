@@ -24,7 +24,7 @@ describe('Asset', () => {
 
   it('should support overriding the filename of the root bundle', async function() {
     const outFile = 'custom-out-file.html';
-    await bundle(__dirname + '/integration/html/index.html', {
+    await bundle(path.join(__dirname, '/integration/html/index.html'), {
       outFile
     });
 

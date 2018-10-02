@@ -5,7 +5,9 @@ const path = require('path');
 
 describe('sugarss', function() {
   it('should correctly parse SugarSS asset', async function() {
-    let b = await bundle(__dirname + '/integration/sugarss/index.sss');
+    let b = await bundle(
+      path.join(__dirname, '/integration/sugarss/index.sss')
+    );
 
     await assertBundleTree(b, {
       name: 'index.css',

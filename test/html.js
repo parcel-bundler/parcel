@@ -5,7 +5,7 @@ const path = require('path');
 
 describe('html', function() {
   it('should support bundling HTML', async function() {
-    let b = await bundle(__dirname + '/integration/html/index.html');
+    let b = await bundle(path.join(__dirname, '/integration/html/index.html'));
 
     await assertBundleTree(b, {
       name: 'index.html',
@@ -44,8 +44,8 @@ describe('html', function() {
       ]
     });
 
-    let files = await fs.readdir(__dirname + '/dist');
-    let html = await fs.readFile(__dirname + '/dist/index.html');
+    let files = await fs.readdir(path.join(__dirname, '/dist'));
+    let html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
     for (let file of files) {
       let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {
@@ -55,7 +55,9 @@ describe('html', function() {
   });
 
   it('should find href attr when not first', async function() {
-    let b = await bundle(__dirname + '/integration/html-attr-order/index.html');
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-attr-order/index.html')
+    );
 
     await assertBundleTree(b, {
       name: 'index.html',
@@ -71,7 +73,9 @@ describe('html', function() {
   });
 
   it('should support transforming HTML with posthtml', async function() {
-    let b = await bundle(__dirname + '/integration/posthtml/index.html');
+    let b = await bundle(
+      path.join(__dirname, '/integration/posthtml/index.html')
+    );
 
     await assertBundleTree(b, {
       name: 'index.html',
@@ -79,12 +83,14 @@ describe('html', function() {
       childBundles: []
     });
 
-    let html = await fs.readFile(__dirname + '/dist/index.html');
+    let html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
     assert(html.includes('<h1>Other page</h1>'));
   });
 
   it('should find assets inside posthtml', async function() {
-    let b = await bundle(__dirname + '/integration/posthtml-assets/index.html');
+    let b = await bundle(
+      path.join(__dirname, '/integration/posthtml-assets/index.html')
+    );
 
     await assertBundleTree(b, {
       name: 'index.html',
@@ -105,7 +111,7 @@ describe('html', function() {
 
   it('should add dependencies referenced by posthtml-include', async () => {
     const b = await bundle(
-      __dirname + '/integration/posthtml-assets/index.html'
+      path.join(__dirname, '/integration/posthtml-assets/index.html')
     );
     const asset = b.assets.values().next().value;
     const other = path.join(
@@ -118,7 +124,7 @@ describe('html', function() {
 
   it('should add dependencies referenced by plugins', async () => {
     const b = await bundle(
-      __dirname + '/integration/posthtml-plugin-deps/index.html'
+      path.join(__dirname, '/integration/posthtml-plugin-deps/index.html')
     );
     const asset = b.assets.values().next().value;
     const other = path.join(
@@ -130,7 +136,9 @@ describe('html', function() {
   });
 
   it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
-    let b = await bundle(__dirname + '/integration/html-css/index.html');
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-css/index.html')
+    );
 
     await assertBundleTree(b, {
       name: 'index.html',
@@ -153,7 +161,7 @@ describe('html', function() {
       ]
     });
 
-    let html = await fs.readFile(__dirname + '/dist/index.html');
+    let html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
     assert(
       /<link rel="stylesheet" href="[/\\]{1}html-css\.[a-f0-9]+\.css">/.test(
         html
@@ -162,7 +170,9 @@ describe('html', function() {
   });
 
   it('should insert sibling bundles before body element if no HEAD', async function() {
-    let b = await bundle(__dirname + '/integration/html-css-head/index.html');
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-css-head/index.html')
+    );
 
     await assertBundleTree(b, {
       name: 'index.html',
@@ -185,7 +195,7 @@ describe('html', function() {
       ]
     });
 
-    let html = await fs.readFile(__dirname + '/dist/index.html');
+    let html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
     assert(
       /<html>\s*<link rel="stylesheet" href="[/\\]{1}html-css-head\.[a-f0-9]+\.css">\s*<body>/.test(
         html
@@ -194,9 +204,12 @@ describe('html', function() {
   });
 
   it('should insert sibling JS bundles for CSS files in the HEAD', async function() {
-    let b = await bundle(__dirname + '/integration/html-css-js/index.html', {
-      hmr: true
-    });
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-css-js/index.html'),
+      {
+        hmr: true
+      }
+    );
 
     await assertBundleTree(b, {
       name: 'index.html',
@@ -224,13 +237,13 @@ describe('html', function() {
       ]
     });
 
-    let html = await fs.readFile(__dirname + '/dist/index.html');
+    let html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
     assert(/<script src="[/\\]{1}html-css-js\.[a-f0-9]+\.js">/.test(html));
   });
 
   it('should insert sibling bundles at correct location in tree when optional elements are absent', async function() {
     let b = await bundle(
-      __dirname + '/integration/html-css-optional-elements/index.html'
+      path.join(__dirname, '/integration/html-css-optional-elements/index.html')
     );
 
     await assertBundleTree(b, {
@@ -258,7 +271,7 @@ describe('html', function() {
       ]
     });
 
-    let html = await fs.readFile(__dirname + '/dist/index.html');
+    let html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
     assert(
       /<\/script>\s*<link rel="stylesheet" href="[/\\]{1}html-css-optional-elements\.[a-f0-9]+\.css"><h1>Hello/.test(
         html
@@ -267,21 +280,30 @@ describe('html', function() {
   });
 
   it('should minify HTML in production mode', async function() {
-    await bundle(__dirname + '/integration/htmlnano/index.html', {
+    await bundle(path.join(__dirname, '/integration/htmlnano/index.html'), {
       production: true
     });
 
-    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
     assert(html.includes('Other page'));
     assert(!html.includes('\n'));
   });
 
   it('should read .htmlnanorc and minify HTML in production mode', async function() {
-    await bundle(__dirname + '/integration/htmlnano-config/index.html', {
-      production: true
-    });
+    await bundle(
+      path.join(__dirname, '/integration/htmlnano-config/index.html'),
+      {
+        production: true
+      }
+    );
 
-    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
 
     // minifyJson
     assert(
@@ -304,34 +326,46 @@ describe('html', function() {
   });
 
   it('should not minify default values inside HTML in production mode', async function() {
-    await bundle(__dirname + '/integration/htmlnano-defaults-form/index.html', {
-      production: true
-    });
+    await bundle(
+      path.join(__dirname, '/integration/htmlnano-defaults-form/index.html'),
+      {
+        production: true
+      }
+    );
 
-    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
     assert(html.includes('<input type="text">'));
     assert(!html.includes('\n'));
   });
 
   it('should not prepend the public path to assets with remote URLs', async function() {
-    await bundle(__dirname + '/integration/html/index.html');
+    await bundle(path.join(__dirname, '/integration/html/index.html'));
 
-    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
     assert(
       html.includes('<script src="https://unpkg.com/parcel-bundler"></script>')
     );
   });
 
   it('should not prepend the public path to hash links', async function() {
-    await bundle(__dirname + '/integration/html/index.html');
+    await bundle(path.join(__dirname, '/integration/html/index.html'));
 
-    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
     assert(html.includes('<a href="#hash_link">'));
   });
 
   it('should detect virtual paths', async function() {
     let b = await bundle(
-      __dirname + '/integration/html-virtualpath/index.html'
+      path.join(__dirname, '/integration/html-virtualpath/index.html')
     );
 
     await assertBundleTree(b, {
@@ -348,30 +382,36 @@ describe('html', function() {
   });
 
   it('should not update root/main file in the bundles', async function() {
-    await bundle(__dirname + '/integration/html-root/index.html');
+    await bundle(path.join(__dirname, '/integration/html-root/index.html'));
 
-    let files = await fs.readdir(__dirname + '/dist');
+    let files = await fs.readdir(path.join(__dirname, '/dist'));
 
     for (let file of files) {
       if (file !== 'index.html' && file.endsWith('.html')) {
-        let html = await fs.readFile(__dirname + '/dist/' + file);
+        let html = await fs.readFile(path.join(__dirname, '/dist/', file));
         assert(html.includes('index.html'));
       }
     }
   });
 
   it('should conserve the spacing in the HTML tags', async function() {
-    await bundle(__dirname + '/integration/html/index.html', {
+    await bundle(path.join(__dirname, '/integration/html/index.html'), {
       production: true
     });
 
-    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
     assert(/<i>hello<\/i> <i>world<\/i>/.test(html));
   });
 
   it('should support child bundles of different types', async function() {
     let b = await bundle(
-      __dirname + '/integration/child-bundle-different-types/index.html'
+      path.join(
+        __dirname,
+        '/integration/child-bundle-different-types/index.html'
+      )
     );
 
     await assertBundleTree(b, {
@@ -407,7 +447,9 @@ describe('html', function() {
   });
 
   it('should support circular dependencies', async function() {
-    let b = await bundle(__dirname + '/integration/circular/index.html');
+    let b = await bundle(
+      path.join(__dirname, '/integration/circular/index.html')
+    );
 
     await assertBundleTree(b, {
       name: 'index.html',
@@ -447,7 +489,9 @@ describe('html', function() {
   });
 
   it('should support bundling HTM', async function() {
-    let b = await bundle(__dirname + '/integration/htm-extension/index.htm');
+    let b = await bundle(
+      path.join(__dirname, '/integration/htm-extension/index.htm')
+    );
 
     await assertBundleTree(b, {
       name: 'index.html',
@@ -468,7 +512,9 @@ describe('html', function() {
   });
 
   it('should detect srcset attribute', async function() {
-    let b = await bundle(__dirname + '/integration/html-srcset/index.html');
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-srcset/index.html')
+    );
 
     await assertBundleTree(b, {
       name: 'index.html',
@@ -495,7 +541,7 @@ describe('html', function() {
 
   it('should detect srcset attribute of source element', async function() {
     let b = await bundle(
-      __dirname + '/integration/html-source-srcset/index.html'
+      path.join(__dirname, '/integration/html-source-srcset/index.html')
     );
 
     await assertBundleTree(b, {
@@ -522,7 +568,9 @@ describe('html', function() {
   });
 
   it('should support webmanifest', async function() {
-    let b = await bundle(__dirname + '/integration/webmanifest/index.html');
+    let b = await bundle(
+      path.join(__dirname, '/integration/webmanifest/index.html')
+    );
 
     await assertBundleTree(b, {
       name: 'index.html',
@@ -544,7 +592,9 @@ describe('html', function() {
   });
 
   it('should bundle svg files correctly', async function() {
-    let b = await bundle(__dirname + '/integration/html-svg/index.html');
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-svg/index.html')
+    );
 
     await assertBundleTree(b, {
       name: 'index.html',
@@ -559,7 +609,9 @@ describe('html', function() {
   });
 
   it('should support data attribute of object element', async function() {
-    let b = await bundle(__dirname + '/integration/html-object/index.html');
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-object/index.html')
+    );
 
     await assertBundleTree(b, {
       name: 'index.html',
@@ -575,7 +627,9 @@ describe('html', function() {
   });
 
   it('should resolve assets containing spaces', async function() {
-    let b = await bundle(__dirname + '/integration/resolve-spaces/index.html');
+    let b = await bundle(
+      path.join(__dirname, '/integration/resolve-spaces/index.html')
+    );
 
     await assertBundleTree(b, {
       name: 'index.html',
@@ -591,9 +645,12 @@ describe('html', function() {
   });
 
   it('should process inline JS', async function() {
-    let b = await bundle(__dirname + '/integration/html-inline-js/index.html', {
-      production: true
-    });
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-js/index.html'),
+      {
+        production: true
+      }
+    );
 
     const bundleContent = (await fs.readFile(b.name)).toString();
     assert(!bundleContent.includes('someArgument'));
@@ -601,7 +658,7 @@ describe('html', function() {
 
   it('should process inline styles', async function() {
     let b = await bundle(
-      __dirname + '/integration/html-inline-styles/index.html',
+      path.join(__dirname, '/integration/html-inline-styles/index.html'),
       {production: true}
     );
 
@@ -625,7 +682,7 @@ describe('html', function() {
 
   it('should process inline styles using lang', async function() {
     let b = await bundle(
-      __dirname + '/integration/html-inline-sass/index.html',
+      path.join(__dirname, '/integration/html-inline-sass/index.html'),
       {production: true}
     );
 
@@ -634,14 +691,17 @@ describe('html', function() {
       assets: ['index.html']
     });
 
-    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
 
     assert(html.includes('<style>.index{color:#00f}</style>'));
   });
 
   it('should process inline non-js scripts', async function() {
     let b = await bundle(
-      __dirname + '/integration/html-inline-coffeescript/index.html',
+      path.join(__dirname, '/integration/html-inline-coffeescript/index.html'),
       {production: true}
     );
 
@@ -650,14 +710,17 @@ describe('html', function() {
       assets: ['index.html']
     });
 
-    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
 
     assert(html.includes('alert("Hello, World!")'));
   });
 
   it('should handle inline css with @imports', async function() {
     let b = await bundle(
-      __dirname + '/integration/html-inline-css-import/index.html',
+      path.join(__dirname, '/integration/html-inline-css-import/index.html'),
       {production: true}
     );
 
@@ -672,7 +735,10 @@ describe('html', function() {
       ]
     });
 
-    let html = await fs.readFile(__dirname + '/dist/index.html', 'utf8');
+    let html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
     assert(html.includes('@import'));
   });
 
@@ -680,7 +746,7 @@ describe('html', function() {
     let err;
     try {
       await bundle(
-        __dirname + '/integration/html-inline-js-require/index.html',
+        path.join(__dirname, '/integration/html-inline-js-require/index.html'),
         {production: true}
       );
     } catch (e) {
