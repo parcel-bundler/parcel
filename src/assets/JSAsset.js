@@ -149,7 +149,10 @@ class JSAsset extends Asset {
   }
 
   async pretransform() {
-    await this.loadSourceMap();
+    if (this.options.sourceMaps) {
+      await this.loadSourceMap();
+    }
+
     await babel(this);
 
     // Inline environment variables
