@@ -448,6 +448,47 @@ describe('javascript', function() {
     });
   });
 
+  it('should support bundling in workers with other loaders', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/workers-with-other-loaders/index.js')
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: [
+        'index.js',
+        'worker-client.js',
+        'bundle-loader.js',
+        'bundle-url.js',
+        'js-loader.js',
+        'wasm-loader.js'
+      ],
+      childBundles: [
+        {
+          type: 'wasm',
+          assets: ['add.wasm'],
+          childBundles: []
+        },
+        {
+          type: 'map'
+        },
+        {
+          assets: [
+            'worker.js',
+            'bundle-loader.js',
+            'bundle-url.js',
+            'wasm-loader.js'
+          ],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        }
+      ]
+    });
+  });
+
   it('should dynamic import files which import raw files', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-references-raw/index.js')
