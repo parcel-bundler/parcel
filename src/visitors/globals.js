@@ -1,36 +1,28 @@
 const Path = require('path');
-const types = require('babel-types');
-const matchesPattern = require('./matches-pattern');
+const types = require('@babel/types');
 
 const VARS = {
   process: asset => {
     asset.addDependency('process');
     return 'var process = require("process");';
   },
-  global: () => 'var global = (1,eval)("this");',
+  global: asset =>
+    `var global = arguments[${asset.options.scopeHoist ? 0 : 3}];`,
   __dirname: asset =>
     `var __dirname = ${JSON.stringify(Path.dirname(asset.name))};`,
   __filename: asset => `var __filename = ${JSON.stringify(asset.name)};`,
   Buffer: asset => {
     asset.addDependency('buffer');
     return 'var Buffer = require("buffer").Buffer;';
-  }
+  },
+  // Prevent AMD defines from working when loading UMD bundles.
+  // Ideally the CommonJS check would come before the AMD check, but many
+  // existing modules do the checks the opposite way leading to modules
+  // not exporting anything to Parcel.
+  define: () => 'var define;'
 };
 
 module.exports = {
-  MemberExpression(node, asset) {
-    // Inline environment variables accessed on process.env
-    if (matchesPattern(node.object, 'process.env')) {
-      let key = types.toComputedKey(node);
-      if (types.isStringLiteral(key)) {
-        let val = types.valueToNode(process.env[key.value]);
-        morph(node, val);
-        asset.isAstDirty = true;
-        asset.cacheData.env[key.value] = process.env[key.value];
-      }
-    }
-  },
-
   Identifier(node, asset, ancestors) {
     let parent = ancestors[ancestors.length - 2];
     if (
@@ -62,15 +54,4 @@ function inScope(ancestors) {
   }
 
   return false;
-}
-
-// replace object properties
-function morph(object, newProperties) {
-  for (let key in object) {
-    delete object[key];
-  }
-
-  for (let key in newProperties) {
-    object[key] = newProperties[key];
-  }
 }

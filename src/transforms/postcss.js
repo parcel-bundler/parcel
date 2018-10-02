@@ -1,7 +1,7 @@
 const localRequire = require('../utils/localRequire');
 const loadPlugins = require('../utils/loadPlugins');
 const postcss = require('postcss');
-const cssnano = require('cssnano');
+const semver = require('semver');
 
 module.exports = async function(asset) {
   let config = await getConfig(asset);
@@ -17,13 +17,10 @@ module.exports = async function(asset) {
 };
 
 async function getConfig(asset) {
-  let config =
-    asset.package.postcss ||
-    (await asset.getConfig([
-      '.postcssrc',
-      '.postcssrc.js',
-      'postcss.config.js'
-    ]));
+  let config = await asset.getConfig(
+    ['.postcssrc', '.postcssrc.js', 'postcss.config.js'],
+    {packageKey: 'postcss'}
+  );
 
   let enableModules =
     asset.options.rendition && asset.options.rendition.modules;
@@ -32,6 +29,10 @@ async function getConfig(asset) {
   }
 
   config = config || {};
+
+  if (typeof config !== 'object') {
+    throw new Error('PostCSS config should be an object.');
+  }
 
   let postcssModulesConfig = {
     getJSON: (filename, json) => (asset.cssModules = json)
@@ -53,14 +54,18 @@ async function getConfig(asset) {
   }
 
   if (asset.options.minify) {
+    let [cssnano, {version}] = await Promise.all(
+      ['cssnano', 'cssnano/package.json'].map(name =>
+        localRequire(name, asset.name).catch(() => require(name))
+      )
+    );
     config.plugins.push(
       cssnano(
         (await asset.getConfig(['cssnano.config.js'])) || {
-          // Only enable safe css transforms by default.
+          // Only enable safe css transforms if cssnano < 4
           // See: https://github.com/parcel-bundler/parcel/issues/698
-          // Note: Remove when upgrading cssnano to v4
           // See: https://github.com/ben-eb/cssnano/releases/tag/v4.0.0-rc.0
-          safe: true
+          safe: semver.satisfies(version, '<4.0.0-rc')
         }
       )
     );

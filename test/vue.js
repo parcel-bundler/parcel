@@ -1,12 +1,15 @@
 const assert = require('assert');
+const path = require('path');
 const {bundle, assertBundleTree, run} = require('./utils');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
 
 describe('vue', function() {
   it('should produce a basic vue bundle', async function() {
-    let b = await bundle(__dirname + '/integration/vue-basic/Basic.vue');
+    let b = await bundle(
+      path.join(__dirname, '/integration/vue-basic/Basic.vue')
+    );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: ['Basic.vue'],
       childBundles: [
@@ -19,7 +22,7 @@ describe('vue', function() {
       ]
     });
 
-    let output = run(b).default;
+    let output = (await run(b)).default;
     assert.equal(typeof output.render, 'function');
     assert.deepEqual(output.staticRenderFns, []);
     assert.equal(output._compiled, true);
@@ -27,9 +30,11 @@ describe('vue', function() {
   });
 
   it('should produce a vue bundle with dependencies', async function() {
-    let b = await bundle(__dirname + '/integration/vue-dependencies/App.vue');
+    let b = await bundle(
+      path.join(__dirname, '/integration/vue-dependencies/App.vue')
+    );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: ['App.vue'],
       childBundles: [
@@ -46,7 +51,7 @@ describe('vue', function() {
       ]
     });
 
-    let output = run(b).default;
+    let output = (await run(b)).default;
     assert.equal(typeof output.render, 'function');
     assert.equal(output.staticRenderFns.length, 2);
     assert.deepEqual(output.data(), {msg: 'Welcome to Your Vue.js App!'});
@@ -54,10 +59,10 @@ describe('vue', function() {
 
   it('should produce a vue bundle using preprocessors', async function() {
     let b = await bundle(
-      __dirname + '/integration/vue-preprocessors/pre-processors.vue'
+      path.join(__dirname, '/integration/vue-preprocessors/pre-processors.vue')
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: ['pre-processors.vue'],
       childBundles: [
@@ -70,13 +75,13 @@ describe('vue', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output.render, 'function');
     assert.deepEqual(output.staticRenderFns, []);
     assert.deepEqual(output.data(), {msg: 'Hello from coffee!'});
 
-    let contents = fs.readFileSync(
-      __dirname + '/dist/pre-processors.css',
+    let contents = await fs.readFile(
+      path.join(__dirname, '/dist/pre-processors.css'),
       'utf8'
     );
     assert(contents.includes('color: #999'));
@@ -86,10 +91,10 @@ describe('vue', function() {
 
   it('should produce a vue bundle using a functional component', async function() {
     let b = await bundle(
-      __dirname + '/integration/vue-functional/functional.vue'
+      path.join(__dirname, '/integration/vue-functional/functional.vue')
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: ['functional.vue'],
       childBundles: [
@@ -99,7 +104,7 @@ describe('vue', function() {
       ]
     });
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output.render, 'function');
     assert.equal(output.staticRenderFns.length, 1);
     assert.equal(output.functional, true);
@@ -109,14 +114,19 @@ describe('vue', function() {
     output._injectStyles.call(ctx);
     assert.equal(typeof ctx.$style.red, 'string');
 
-    let contents = fs.readFileSync(__dirname + '/dist/functional.css', 'utf8');
+    let contents = await fs.readFile(
+      path.join(__dirname, '/dist/functional.css'),
+      'utf8'
+    );
     assert(contents.includes('.' + ctx.$style.red));
   });
 
   it('should produce a vue bundle using scoped styles', async function() {
-    let b = await bundle(__dirname + '/integration/vue-scoped/App.vue');
+    let b = await bundle(
+      path.join(__dirname, '/integration/vue-scoped/App.vue')
+    );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: ['App.vue'],
       childBundles: [
@@ -129,20 +139,25 @@ describe('vue', function() {
       ]
     });
 
-    let output = run(b).default;
+    let output = (await run(b)).default;
     assert.equal(typeof output.render, 'function');
     assert.equal(output.staticRenderFns.length, 1);
     assert(/^data-v-[0-9a-h]{6}$/.test(output._scopeId));
     assert.deepEqual(output.data(), {ok: true});
 
-    let contents = fs.readFileSync(__dirname + '/dist/App.css', 'utf8');
+    let contents = await fs.readFile(
+      path.join(__dirname, '/dist/App.css'),
+      'utf8'
+    );
     assert(contents.includes(`.test[${output._scopeId}]`));
   });
 
   it('should produce a vue bundle using CSS modules', async function() {
-    let b = await bundle(__dirname + '/integration/vue-css-modules/App.vue');
+    let b = await bundle(
+      path.join(__dirname, '/integration/vue-css-modules/App.vue')
+    );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: ['App.vue'],
       childBundles: [
@@ -155,7 +170,7 @@ describe('vue', function() {
       ]
     });
 
-    let output = run(b).default;
+    let output = (await run(b)).default;
     assert.equal(typeof output.render, 'function');
     assert.deepEqual(output.staticRenderFns, []);
     assert(Array.isArray(output.beforeCreate));
@@ -165,16 +180,19 @@ describe('vue', function() {
     output.beforeCreate[0].call(ctx);
     assert.equal(typeof ctx.$style.red, 'string');
 
-    let contents = fs.readFileSync(__dirname + '/dist/App.css', 'utf8');
+    let contents = await fs.readFile(
+      path.join(__dirname, '/dist/App.css'),
+      'utf8'
+    );
     assert(contents.includes('.' + ctx.$style.red));
   });
 
   it('should bundle nested components dynamically', async function() {
     let b = await bundle(
-      __dirname + '/integration/vue-nested-components/testcomp.vue'
+      path.join(__dirname, '/integration/vue-nested-components/testcomp.vue')
     );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: [
         'testcomp.vue',
@@ -202,7 +220,7 @@ describe('vue', function() {
       ]
     });
 
-    let output = run(b).default;
+    let output = (await run(b)).default;
     assert.equal(typeof output.render, 'function');
     assert.deepEqual(output.staticRenderFns, []);
     assert.equal(output._compiled, true);
@@ -211,11 +229,14 @@ describe('vue', function() {
   });
 
   it('should produce a basic production vue bundle', async function() {
-    let b = await bundle(__dirname + '/integration/vue-basic/Basic.vue', {
-      production: true
-    });
+    let b = await bundle(
+      path.join(__dirname, '/integration/vue-basic/Basic.vue'),
+      {
+        production: true
+      }
+    );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       type: 'js',
       assets: ['Basic.vue'],
       childBundles: [
@@ -228,7 +249,7 @@ describe('vue', function() {
       ]
     });
 
-    let output = run(b).default;
+    let output = (await run(b)).default;
     assert.equal(typeof output.render, 'function');
     assert.deepEqual(output.staticRenderFns, []);
     assert.equal(output._compiled, true);

@@ -1,12 +1,15 @@
 const assert = require('assert');
-const fs = require('fs');
+const path = require('path');
+const fs = require('../src/utils/fs');
 const {bundle, assertBundleTree} = require('./utils');
 
 describe('encodedURI', function() {
   it('should support bundling files which names in encoded URI', async function() {
-    let b = await bundle(__dirname + '/integration/encodedURI/index.html');
+    let b = await bundle(
+      path.join(__dirname, '/integration/encodedURI/index.html')
+    );
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.html',
       assets: ['index.html'],
       childBundles: [
@@ -18,8 +21,8 @@ describe('encodedURI', function() {
       ]
     });
 
-    let files = fs.readdirSync(__dirname + '/dist');
-    let html = fs.readFileSync(__dirname + '/dist/index.html');
+    let files = await fs.readdir(path.join(__dirname, '/dist'));
+    let html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
     for (let file of files) {
       if (file !== 'index.html') {
         assert(html.includes(file));

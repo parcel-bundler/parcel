@@ -3,8 +3,8 @@ const yaml = require('js-yaml');
 const serializeObject = require('../utils/serializeObject');
 
 class YAMLAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'js';
   }
 
@@ -13,9 +13,10 @@ class YAMLAsset extends Asset {
   }
 
   generate() {
-    return {
-      js: serializeObject(this.ast, this.options.minify)
-    };
+    return serializeObject(
+      this.ast,
+      this.options.minify && !this.options.scopeHoist
+    );
   }
 }
 

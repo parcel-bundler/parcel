@@ -1,11 +1,11 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const md5 = require('../utils/md5');
-const {minify} = require('uglify-es');
+const {minify} = require('terser');
 
 class VueAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'js';
   }
 
@@ -21,7 +21,8 @@ class VueAsset extends Asset {
       source: code,
       needMap: this.options.sourceMaps,
       filename: this.relativeName, // Used for sourcemaps
-      sourceRoot: '' // Used for sourcemaps. Override so it doesn't use cwd
+      sourceRoot: '', // Used for sourcemaps. Override so it doesn't use cwd
+      compiler: this.vueTemplateCompiler
     });
   }
 
@@ -67,8 +68,29 @@ class VueAsset extends Asset {
 
     // Generate JS output.
     let js = this.ast.script ? generated[0].value : '';
-    let supplemental = `
-      var ${optsVar} = exports.default || module.exports;
+    let supplemental = '';
+
+    // TODO: make it possible to process this code with the normal scope hoister
+    if (this.options.scopeHoist) {
+      optsVar = `$${this.id}$export$default`;
+
+      if (!js.includes(optsVar)) {
+        optsVar = `$${this.id}$exports`;
+        if (!js.includes(optsVar)) {
+          supplemental += `
+            var ${optsVar} = {};
+          `;
+
+          this.cacheData.isCommonJS = true;
+        }
+      }
+    } else {
+      supplemental += `
+        var ${optsVar} = exports.default || module.exports;
+      `;
+    }
+
+    supplemental += `
       if (typeof ${optsVar} === 'function') {
         ${optsVar} = ${optsVar}.options;
       }
@@ -78,15 +100,17 @@ class VueAsset extends Asset {
     supplemental += this.compileCSSModules(generated, optsVar);
     supplemental += this.compileHMR(generated, optsVar);
 
-    if (this.options.minify && supplemental) {
+    if (this.options.minify && !this.options.scopeHoist && supplemental) {
       let {code, error} = minify(supplemental, {toplevel: true});
       if (error) {
         throw error;
       }
 
       supplemental = code;
+      if (supplemental) {
+        supplemental = `\n(function(){${supplemental}})();`;
+      }
     }
-
     js += supplemental;
 
     if (js) {

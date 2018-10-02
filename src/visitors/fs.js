@@ -1,7 +1,7 @@
-const t = require('babel-types');
+const t = require('@babel/types');
 const Path = require('path');
 const fs = require('fs');
-const template = require('babel-template');
+const template = require('@babel/template').default;
 const logger = require('../Logger');
 
 const bufferTemplate = template('Buffer(CONTENT, ENC)');
@@ -21,13 +21,7 @@ module.exports = {
   },
 
   CallExpression(path, asset) {
-    // See https://github.com/defunctzombie/node-browser-resolve#skip
-    let ignore =
-      asset.package &&
-      asset.package.browser &&
-      asset.package.browser.fs === false;
-
-    if (!ignore && referencesImport(path, 'fs', 'readFileSync')) {
+    if (referencesImport(path, 'fs', 'readFileSync')) {
       let vars = {
         __dirname: Path.dirname(asset.name),
         __filename: asset.basename

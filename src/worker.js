@@ -3,30 +3,21 @@ const Pipeline = require('./Pipeline');
 
 let pipeline;
 
-exports.init = function(options, callback) {
+function init(options) {
   pipeline = new Pipeline(options || {});
   Object.assign(process.env, options.env || {});
   process.env.HMR_PORT = options.hmrPort;
   process.env.HMR_HOSTNAME = options.hmrHostname;
-  callback();
-};
+}
 
-exports.run = async function(path, pkg, options, isWarmUp, callback) {
+async function run(path, isWarmUp) {
   try {
-    options.isWarmUp = isWarmUp;
-    var result = await pipeline.process(path, pkg, options);
-
-    callback(null, result);
-  } catch (err) {
-    let returned = err;
-    returned.fileName = path;
-    callback(returned);
+    return await pipeline.process(path, isWarmUp);
+  } catch (e) {
+    e.fileName = path;
+    throw e;
   }
-};
+}
 
-process.on('unhandledRejection', function(err) {
-  // ERR_IPC_CHANNEL_CLOSED happens when the worker is killed before it finishes processing
-  if (err.code !== 'ERR_IPC_CHANNEL_CLOSED') {
-    console.error('Unhandled promise rejection:', err.stack);
-  }
-});
+exports.init = init;
+exports.run = run;

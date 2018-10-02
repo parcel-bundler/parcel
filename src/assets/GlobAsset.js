@@ -1,11 +1,11 @@
 const Asset = require('../Asset');
-const glob = require('glob');
 const micromatch = require('micromatch');
 const path = require('path');
+const {glob} = require('../utils/glob');
 
 class GlobAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = null; // allows this asset to be included in any type bundle
   }
 
@@ -14,9 +14,8 @@ class GlobAsset extends Asset {
     if (process.platform === 'win32')
       regularExpressionSafeName = regularExpressionSafeName.replace(/\\/g, '/');
 
-    let files = glob.sync(regularExpressionSafeName, {
-      strict: true,
-      nodir: true
+    let files = await glob(regularExpressionSafeName, {
+      onlyFiles: true
     });
     let re = micromatch.makeRe(regularExpressionSafeName, {capture: true});
     let matches = {};
@@ -37,9 +36,12 @@ class GlobAsset extends Asset {
   }
 
   generate() {
-    return {
-      js: 'module.exports = ' + generate(this.contents) + ';'
-    };
+    return [
+      {
+        type: 'js',
+        value: 'module.exports = ' + generate(this.contents) + ';'
+      }
+    ];
   }
 }
 

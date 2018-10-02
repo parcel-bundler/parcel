@@ -3,16 +3,19 @@ const promisify = require('./promisify');
 const resolve = promisify(require('resolve'));
 const commandExists = require('command-exists');
 const logger = require('../Logger');
-const emoji = require('./emoji');
 const pipeSpawn = require('./pipeSpawn');
 const PromiseQueue = require('./PromiseQueue');
 const path = require('path');
 const fs = require('./fs');
+const WorkerFarm = require('../workerfarm/WorkerFarm');
 
 async function install(modules, filepath, options = {}) {
   let {installPeers = true, saveDev = true, packageManager} = options;
+  if (typeof modules === 'string') {
+    modules = [modules];
+  }
 
-  logger.status(emoji.progress, `Installing ${modules.join(', ')}...`);
+  logger.progress(`Installing ${modules.join(', ')}...`);
 
   let packageLocation = await config.resolve(filepath, ['package.json']);
   let cwd = packageLocation ? path.dirname(packageLocation) : process.cwd();
@@ -100,7 +103,17 @@ async function checkForYarnCommand() {
 }
 
 let queue = new PromiseQueue(install, {maxConcurrent: 1, retry: false});
-module.exports = function(...args) {
+module.exports = async function(...args) {
+  // Ensure that this function is always called on the master process so we
+  // don't call multiple installs in parallel.
+  if (WorkerFarm.isWorker()) {
+    await WorkerFarm.callMaster({
+      location: __filename,
+      args
+    });
+    return;
+  }
+
   queue.add(...args);
   return queue.run();
 };

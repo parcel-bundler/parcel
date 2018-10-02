@@ -1,4 +1,7 @@
 {
   "name": "parcel-test-babel-polyfill-browserslist",
-  "browserslist": ["last 2 Chrome versions"]
+  "private": true,
+  "browserslist": [
+    "last 2 Chrome versions"
+  ]
 }

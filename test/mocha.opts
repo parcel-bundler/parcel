@@ -1,2 +1,3 @@
---timeout 25000
+--timeout 50000
 --require ./test/babel-register
+--exit

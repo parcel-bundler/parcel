@@ -1,10 +1,7 @@
 const assert = require('assert');
 const path = require('path');
-const rimraf = require('rimraf');
 const fs = require('../src/utils/fs');
-const promisify = require('../src/utils/promisify');
-const {sleep} = require('./utils');
-const ncp = promisify(require('ncp'));
+const {sleep, rimraf, ncp} = require('./utils');
 const FSCache = require('../src/FSCache');
 
 const cachePath = path.join(__dirname, '.cache');
@@ -17,9 +14,9 @@ const getMTime = async file => {
 };
 
 describe('FSCache', () => {
-  beforeEach(() => {
-    rimraf.sync(cachePath);
-    rimraf.sync(inputPath);
+  beforeEach(async () => {
+    await rimraf(cachePath);
+    await rimraf(inputPath);
   });
 
   it('should create directory on ensureDirExists', async () => {
@@ -95,7 +92,7 @@ describe('FSCache', () => {
 
   it('should invalidate when dependency included in parent changes', async () => {
     const cache = new FSCache({cacheDir: cachePath});
-    await ncp(__dirname + '/integration/fs', inputPath);
+    await ncp(path.join(__dirname, '/integration/fs'), inputPath);
     const filePath = path.join(inputPath, 'test.txt');
 
     await cache.write(__filename, {
@@ -138,5 +135,32 @@ describe('FSCache', () => {
         ]
       });
     });
+  });
+
+  it('should invalidate cache if a wildcard dependency changes', async () => {
+    const cache = new FSCache({cacheDir: cachePath});
+    const wildcardPath = path.join(inputPath, 'wildcard');
+    await fs.mkdirp(wildcardPath);
+    await ncp(path.join(__dirname, '/integration/fs'), wildcardPath);
+    const filePath = path.join(wildcardPath, 'test.txt');
+
+    await cache.write(__filename, {
+      dependencies: [
+        {
+          includedInParent: true,
+          name: path.join(wildcardPath, '*')
+        }
+      ]
+    });
+
+    let cached = await cache.read(__filename);
+    assert(cached !== null);
+
+    // delay and update dependency
+    await sleep(1000);
+    await fs.writeFile(filePath, 'world');
+
+    cached = await cache.read(__filename);
+    assert.equal(cached, null);
   });
 });

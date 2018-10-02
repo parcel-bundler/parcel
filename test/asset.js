@@ -1,11 +1,12 @@
 const assert = require('assert');
-const fs = require('fs');
+const fs = require('../src/utils/fs');
+const path = require('path');
 const Asset = require('../src/Asset');
 const {bundle} = require('./utils');
 
 describe('Asset', () => {
   it('should include default implementations', async () => {
-    const a = new Asset(__filename, undefined, {rootDir: '/root/dir'});
+    const a = new Asset(__filename, {rootDir: '/root/dir'});
     Object.assign(a, {
       type: 'type',
       contents: 'contents'
@@ -23,11 +24,16 @@ describe('Asset', () => {
 
   it('should support overriding the filename of the root bundle', async function() {
     const outFile = 'custom-out-file.html';
-    await bundle(__dirname + '/integration/html/index.html', {
+    await bundle(path.join(__dirname, '/integration/html/index.html'), {
       outFile
     });
 
-    assert(fs.existsSync(__dirname, `/dist/${outFile}`));
+    assert(await fs.exists(__dirname, `/dist/${outFile}`));
+  });
+
+  it('should have backward compatibility for package field', function() {
+    let a = new Asset(__filename, {rootDir: '/root/dir'});
+    assert.equal(a.package.name, 'parcel-bundler');
   });
 
   describe('addURLDependency', () => {
@@ -42,7 +48,7 @@ describe('Asset', () => {
         }
       }
     };
-    const asset = new Asset('test', undefined, options);
+    const asset = new Asset('test', options);
 
     it('should ignore urls', () => {
       const url = 'https://parceljs.org/assets.html';
@@ -70,6 +76,20 @@ describe('Asset', () => {
         asset.addURLDependency('foo?bar#baz'),
         `${bundleName}?bar#baz`
       );
+    });
+
+    it('should resolve slash', () => {
+      asset.dependencies.clear();
+      assert.strictEqual(asset.addURLDependency('/foo'), bundleName);
+      const key = path.resolve('/root/dir/foo');
+      assert(asset.dependencies.has(key));
+    });
+
+    it('should resolve tilde', () => {
+      asset.dependencies.clear();
+      assert.strictEqual(asset.addURLDependency('~/foo'), bundleName);
+      const key = path.normalize('/root/dir/foo');
+      assert(asset.dependencies.has(key));
     });
   });
 });

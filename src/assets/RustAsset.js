@@ -15,11 +15,10 @@ const MAIN_FILES = ['src/lib.rs', 'src/main.rs'];
 
 // Track installation status so we don't need to check more than once
 let rustInstalled = false;
-let wasmGCInstalled = false;
 
 class RustAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'wasm';
   }
 
@@ -61,12 +60,6 @@ class RustAsset extends Asset {
       await this.cargoBuild(cargoConfig, cargoDir);
     } else {
       await this.rustcBuild();
-    }
-
-    // If this is a prod build, use wasm-gc to remove unused code
-    if (this.options.minify) {
-      await this.installWasmGC();
-      await exec('wasm-gc', [this.wasmPath, this.wasmPath]);
     }
   }
 
@@ -111,24 +104,6 @@ class RustAsset extends Asset {
     rustInstalled = true;
   }
 
-  async installWasmGC() {
-    if (wasmGCInstalled) {
-      return;
-    }
-
-    try {
-      await commandExists('wasm-gc');
-    } catch (e) {
-      await pipeSpawn('cargo', [
-        'install',
-        '--git',
-        'https://github.com/alexcrichton/wasm-gc'
-      ]);
-    }
-
-    wasmGCInstalled = true;
-  }
-
   async cargoBuild(cargoConfig, cargoDir) {
     // Ensure the cargo config has cdylib as the crate-type
     if (!cargoConfig.lib) {
@@ -152,7 +127,12 @@ class RustAsset extends Asset {
     await exec('cargo', args, {cwd: cargoDir});
 
     // Get output file paths
-    let outDir = path.join(cargoDir, 'target', RUST_TARGET, 'release');
+    let [stdout] = await exec('cargo', ['metadata', '--format-version', '1'], {
+      cwd: cargoDir
+    });
+    const cargoMetadata = JSON.parse(stdout);
+    const cargoTargetDir = cargoMetadata.target_directory;
+    let outDir = path.join(cargoTargetDir, RUST_TARGET, 'release');
 
     // Rust converts '-' to '_' when outputting files.
     let rustName = cargoConfig.package.name.replace(/-/g, '_');
@@ -177,6 +157,7 @@ class RustAsset extends Asset {
       '-o',
       this.wasmPath
     ];
+
     await exec('rustc', args);
 
     // Run again to collect dependencies

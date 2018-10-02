@@ -5,8 +5,8 @@ const promisify = require('../utils/promisify');
 const Resolver = require('../Resolver');
 
 class GLSLAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'js';
   }
 
@@ -14,7 +14,7 @@ class GLSLAsset extends Asset {
     const glslifyDeps = await localRequire('glslify-deps', this.name);
 
     // Use the Parcel resolver rather than the default glslify one.
-    // This adds support for parcel features like alises, and tilde paths.
+    // This adds support for parcel features like aliases, and tilde paths.
     const resolver = new Resolver({
       extensions: ['.glsl', '.vert', '.frag'],
       rootDir: this.options.rootDir
@@ -53,9 +53,7 @@ class GLSLAsset extends Asset {
     const glslifyBundle = await localRequire('glslify-bundle', this.name);
     let glsl = glslifyBundle(this.ast);
 
-    return {
-      js: `module.exports=${JSON.stringify(glsl)};`
-    };
+    return `module.exports=${JSON.stringify(glsl)};`;
   }
 }
 

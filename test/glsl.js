@@ -1,12 +1,13 @@
 const assert = require('assert');
-const fs = require('fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const path = require('path');
+const fs = require('../src/utils/fs');
+const {bundle, run, assertBundleTree, normaliseNewlines} = require('./utils');
 
 describe('glsl', function() {
   it('should support requiring GLSL files via glslify', async function() {
-    let b = await bundle(__dirname + '/integration/glsl/index.js');
+    let b = await bundle(path.join(__dirname, '/integration/glsl/index.js'));
 
-    assertBundleTree(b, {
+    await assertBundleTree(b, {
       name: 'index.js',
       assets: ['index.js', 'local.glsl', 'local.vert', 'local.frag'],
       childBundles: [
@@ -16,16 +17,18 @@ describe('glsl', function() {
       ]
     });
 
-    let shader = fs.readFileSync(
-      __dirname + '/integration/glsl/compiled.glsl',
+    let shader = await fs.readFile(
+      path.join(__dirname, '/integration/glsl/compiled.glsl'),
       'utf8'
     );
 
-    let output = run(b);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.ok(
       output().reduce((acc, requiredShader) => {
-        return acc && shader === requiredShader;
+        return (
+          acc && normaliseNewlines(shader) === normaliseNewlines(requiredShader)
+        );
       }, true)
     );
   });

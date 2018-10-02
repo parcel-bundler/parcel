@@ -1,3 +1,5 @@
-navigator.serviceWorker.register('service-worker.js', { scope: './' });
+exports.commonFunction = require('./common').commonFunction;
+exports.startWorker = require('./worker-client').startWorker;
+exports.startSharedWorker = require('./worker-client').startSharedWorker;
+exports.feature = require('./feature');
 
-new Worker('worker.js');

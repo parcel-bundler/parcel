@@ -1,0 +1,15 @@
+jobs:
+- template: azure-pipelines-template.yml
+  parameters:
+    name: macOS
+    vmImage: macOS-10.13
+
+- template: azure-pipelines-template.yml
+  parameters:
+    name: Linux
+    vmImage: ubuntu-16.04
+
+- template: azure-pipelines-template.yml
+  parameters:
+    name: Windows
+    vmImage: vs2017-win2016

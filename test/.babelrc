@@ -1,8 +1,9 @@
 {
-  "presets": [["env", {
+  "presets": [["@babel/preset-env", {
     "targets": {
       "node": "current"
     }
   }]],
-  "ignore": ["integration", "input"]
+  "plugins": ["@babel/plugin-transform-runtime"],
+  "ignore": ["integration", "input", "dist"]
 }

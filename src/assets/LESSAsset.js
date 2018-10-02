@@ -1,10 +1,14 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const promisify = require('../utils/promisify');
+const Resolver = require('../Resolver');
+const fs = require('../utils/fs');
+const path = require('path');
+const parseCSSImport = require('../utils/parseCSSImport');
 
 class LESSAsset extends Asset {
-  constructor(name, pkg, options) {
-    super(name, pkg, options);
+  constructor(name, options) {
+    super(name, options);
     this.type = 'css';
   }
 
@@ -14,8 +18,7 @@ class LESSAsset extends Asset {
     let render = promisify(less.render.bind(less));
 
     let opts =
-      this.package.less ||
-      (await this.getConfig(['.lessrc', '.lessrc.js'])) ||
+      (await this.getConfig(['.lessrc', '.lessrc.js'], {packageKey: 'less'})) ||
       {};
     opts.filename = this.name;
     opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
@@ -33,7 +36,7 @@ class LESSAsset extends Asset {
     return [
       {
         type: 'css',
-        value: this.ast.css,
+        value: this.ast ? this.ast.css : '',
         hasDependencies: false
       }
     ];
@@ -55,8 +58,42 @@ function urlPlugin(asset) {
 
       visitor.run = visitor.visit;
       pluginManager.addVisitor(visitor);
+
+      let LessFileManager = getFileManager(less, asset.options);
+      pluginManager.addFileManager(new LessFileManager());
     }
   };
+}
+
+function getFileManager(less, options) {
+  const resolver = new Resolver({
+    extensions: ['.css', '.less'],
+    rootDir: options.rootDir
+  });
+
+  class LessFileManager extends less.FileManager {
+    supports() {
+      return true;
+    }
+
+    supportsSync() {
+      return false;
+    }
+
+    async loadFile(filename, currentDirectory) {
+      filename = parseCSSImport(filename);
+      let resolved = await resolver.resolve(
+        filename,
+        path.join(currentDirectory, 'index')
+      );
+      return {
+        contents: await fs.readFile(resolved.path, 'utf8'),
+        filename: resolved.path
+      };
+    }
+  }
+
+  return LessFileManager;
 }
 
 module.exports = LESSAsset;

@@ -4,9 +4,10 @@ const md5 = require('./utils/md5');
 const objectHash = require('./utils/objectHash');
 const pkg = require('../package.json');
 const logger = require('./Logger');
+const {isGlob, glob} = require('./utils/glob');
 
 // These keys can affect the output, so if they differ, the cache should not match
-const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target'];
+const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
 
 class FSCache {
   constructor(options) {
@@ -21,21 +22,44 @@ class FSCache {
   }
 
   async ensureDirExists() {
+    if (this.dirExists) {
+      return;
+    }
+
     await fs.mkdirp(this.dir);
+
+    // Create sub-directories for every possible hex value
+    // This speeds up large caches on many file systems since there are fewer files in a single directory.
+    for (let i = 0; i < 256; i++) {
+      await fs.mkdirp(path.join(this.dir, ('00' + i.toString(16)).slice(-2)));
+    }
+
     this.dirExists = true;
   }
 
   getCacheFile(filename) {
     let hash = md5(this.optionsHash + filename);
-    return path.join(this.dir, hash + '.json');
+    return path.join(this.dir, hash.slice(0, 2), hash.slice(2) + '.json');
+  }
+
+  async getLastModified(filename) {
+    if (isGlob(filename)) {
+      let files = await glob(filename, {
+        onlyFiles: true
+      });
+
+      return (await Promise.all(
+        files.map(file => fs.stat(file).then(({mtime}) => mtime.getTime()))
+      )).reduce((a, b) => Math.max(a, b), 0);
+    }
+    return (await fs.stat(filename)).mtime.getTime();
   }
 
   async writeDepMtimes(data) {
     // Write mtimes for each dependent file that is already compiled into this asset
     for (let dep of data.dependencies) {
       if (dep.includedInParent) {
-        let stats = await fs.stat(dep.name);
-        dep.mtime = stats.mtime.getTime();
+        dep.mtime = await this.getLastModified(dep.name);
       }
     }
   }
@@ -47,7 +71,7 @@ class FSCache {
       await fs.writeFile(this.getCacheFile(filename), JSON.stringify(data));
       this.invalidated.delete(filename);
     } catch (err) {
-      logger.error('Error writing to cache', err);
+      logger.error(`Error writing to cache: ${err.message}`);
     }
   }
 
@@ -56,8 +80,7 @@ class FSCache {
     // If any of them changed, invalidate.
     for (let dep of data.dependencies) {
       if (dep.includedInParent) {
-        let stats = await fs.stat(dep.name);
-        if (stats.mtime > dep.mtime) {
+        if ((await this.getLastModified(dep.name)) > dep.mtime) {
           return false;
         }
       }
@@ -83,7 +106,7 @@ class FSCache {
 
       let json = await fs.readFile(cacheFile);
       let data = JSON.parse(json);
-      if (!await this.checkDepMtimes(data)) {
+      if (!(await this.checkDepMtimes(data))) {
         return null;
       }
 

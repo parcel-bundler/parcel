@@ -1,7 +1,7 @@
 const path = require('path');
 const RawAsset = require('./assets/RawAsset');
 const GlobAsset = require('./assets/GlobAsset');
-const glob = require('glob');
+const {isGlob} = require('./utils/glob');
 
 class Parser {
   constructor(options = {}) {
@@ -17,9 +17,11 @@ class Parser {
     this.registerExtension('ts', './assets/TypeScriptAsset');
     this.registerExtension('tsx', './assets/TypeScriptAsset');
     this.registerExtension('coffee', './assets/CoffeeScriptAsset');
+    this.registerExtension('elm', './assets/ElmAsset');
     this.registerExtension('vue', './assets/VueAsset');
     this.registerExtension('json', './assets/JSONAsset');
     this.registerExtension('json5', './assets/JSONAsset');
+    this.registerExtension('jsonld', './assets/JSONLDAsset');
     this.registerExtension('yaml', './assets/YAMLAsset');
     this.registerExtension('yml', './assets/YAMLAsset');
     this.registerExtension('toml', './assets/TOMLAsset');
@@ -28,6 +30,8 @@ class Parser {
 
     this.registerExtension('css', './assets/CSSAsset');
     this.registerExtension('pcss', './assets/CSSAsset');
+    this.registerExtension('postcss', './assets/CSSAsset');
+    this.registerExtension('sss', './assets/SSSAsset');
     this.registerExtension('styl', './assets/StylusAsset');
     this.registerExtension('stylus', './assets/StylusAsset');
     this.registerExtension('less', './assets/LESSAsset');
@@ -61,8 +65,8 @@ class Parser {
     this.extensions[ext.toLowerCase()] = parser;
   }
 
-  findParser(filename) {
-    if (/[*+{}]/.test(filename) && glob.hasMagic(filename)) {
+  findParser(filename, fromPipeline) {
+    if (!fromPipeline && isGlob(filename)) {
       return GlobAsset;
     }
 
@@ -75,10 +79,10 @@ class Parser {
     return parser;
   }
 
-  getAsset(filename, pkg, options = {}) {
+  getAsset(filename, options = {}) {
     let Asset = this.findParser(filename);
     options.parser = this;
-    return new Asset(filename, pkg, options);
+    return new Asset(filename, options);
   }
 }
 

@@ -4,11 +4,15 @@ const prettyError = require('./utils/prettyError');
 const emoji = require('./utils/emoji');
 const {countBreaks} = require('grapheme-breaker');
 const stripAnsi = require('strip-ansi');
+const ora = require('ora');
+const WorkerFarm = require('./workerfarm/WorkerFarm');
+const path = require('path');
+const fs = require('fs');
 
 class Logger {
   constructor(options) {
     this.lines = 0;
-    this.statusLine = null;
+    this.spinner = null;
     this.setOptions(options);
   }
 
@@ -29,25 +33,55 @@ class Logger {
   }
 
   countLines(message) {
-    return message.split('\n').reduce((p, line) => {
-      if (process.stdout.columns) {
-        return p + Math.ceil((line.length || 1) / process.stdout.columns);
-      }
+    return stripAnsi(message)
+      .split('\n')
+      .reduce((p, line) => {
+        if (process.stdout.columns) {
+          return p + Math.ceil((line.length || 1) / process.stdout.columns);
+        }
 
-      return p + 1;
-    }, 0);
+        return p + 1;
+      }, 0);
   }
 
   writeRaw(message) {
+    this.stopSpinner();
+
     this.lines += this.countLines(message) - 1;
     process.stdout.write(message);
   }
 
   write(message, persistent = false) {
+    if (this.logLevel > 3) {
+      return this.verbose(message);
+    }
+
     if (!persistent) {
       this.lines += this.countLines(message);
     }
 
+    this.stopSpinner();
+    this._log(message);
+  }
+
+  verbose(message) {
+    if (this.logLevel < 4) {
+      return;
+    }
+
+    let currDate = new Date();
+    message = `[${currDate.toLocaleTimeString()}]: ${message}`;
+    if (this.logLevel > 4) {
+      if (!this.logFile) {
+        this.logFile = fs.createWriteStream(
+          path.join(
+            process.cwd(),
+            `parcel-debug-${currDate.toLocaleDateString()}@${currDate.toLocaleTimeString()}.log`
+          )
+        );
+      }
+      this.logFile.write(stripAnsi(message) + '\n');
+    }
     this._log(message);
   }
 
@@ -72,11 +106,7 @@ class Logger {
       return;
     }
 
-    let {message, stack} = prettyError(err, {color: this.color});
-    this.write(this.chalk.yellow(`${emoji.warning}  ${message}`));
-    if (stack) {
-      this.write(stack);
-    }
+    this._writeError(err, emoji.warning, this.chalk.yellow);
   }
 
   error(err) {
@@ -84,16 +114,23 @@ class Logger {
       return;
     }
 
-    let {message, stack} = prettyError(err, {color: this.color});
+    this._writeError(err, emoji.error, this.chalk.red.bold);
+  }
 
-    this.status(emoji.error, message, 'red');
+  success(message) {
+    this.log(`${emoji.success}  ${this.chalk.green.bold(message)}`);
+  }
+
+  _writeError(err, emoji, color) {
+    let {message, stack} = prettyError(err, {color: this.color});
+    this.write(color(`${emoji}  ${message}`));
     if (stack) {
       this.write(stack);
     }
   }
 
   clear() {
-    if (!this.color || this.isTest) {
+    if (!this.color || this.isTest || this.logLevel > 3) {
       return;
     }
 
@@ -104,42 +141,34 @@ class Logger {
     }
 
     readline.cursorTo(process.stdout, 0);
-    this.statusLine = null;
+    this.stopSpinner();
   }
 
-  writeLine(line, msg) {
-    if (!this.color) {
-      return this.log(msg);
-    }
-
-    let n = this.lines - line;
-    let stdout = process.stdout;
-    readline.cursorTo(stdout, 0);
-    readline.moveCursor(stdout, 0, -n);
-    stdout.write(msg);
-    readline.clearLine(stdout, 1);
-    readline.cursorTo(stdout, 0);
-    readline.moveCursor(stdout, 0, n);
-  }
-
-  status(emoji, message, color = 'gray') {
+  progress(message) {
     if (this.logLevel < 3) {
       return;
     }
 
-    let hasStatusLine = this.statusLine != null;
-    if (!hasStatusLine) {
-      this.statusLine = this.lines;
+    if (this.logLevel > 3) {
+      return this.verbose(message);
     }
 
-    this.writeLine(
-      this.statusLine,
-      this.chalk[color].bold(`${emoji}  ${message}`)
-    );
+    let styledMessage = this.chalk.gray.bold(message);
+    if (!this.spinner) {
+      this.spinner = ora({
+        text: styledMessage,
+        stream: process.stdout,
+        enabled: this.isTest ? false : undefined // fall back to ora default unless we need to explicitly disable it.
+      }).start();
+    } else {
+      this.spinner.text = styledMessage;
+    }
+  }
 
-    if (!hasStatusLine) {
-      process.stdout.write('\n');
-      this.lines++;
+  stopSpinner() {
+    if (this.spinner) {
+      this.spinner.stop();
+      this.spinner = null;
     }
   }
 
@@ -195,15 +224,18 @@ function stringWidth(string) {
 // If we are in a worker, make a proxy class which will
 // send the logger calls to the main process via IPC.
 // These are handled in WorkerFarm and directed to handleMessage above.
-if (process.send) {
+if (WorkerFarm.isWorker()) {
   class LoggerProxy {}
   for (let method of Object.getOwnPropertyNames(Logger.prototype)) {
     LoggerProxy.prototype[method] = (...args) => {
-      process.send({
-        type: 'logger',
-        method,
-        args
-      });
+      WorkerFarm.callMaster(
+        {
+          location: __filename,
+          method,
+          args
+        },
+        false
+      );
     };
   }
 

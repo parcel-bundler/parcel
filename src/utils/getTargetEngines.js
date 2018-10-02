@@ -1,9 +1,10 @@
 const browserslist = require('browserslist');
 const semver = require('semver');
+const Path = require('path');
 
 const DEFAULT_ENGINES = {
-  browsers: ['> 1%', 'last 2 versions', 'Firefox ESR'],
-  node: '6'
+  browsers: ['> 0.25%'],
+  node: '8'
 };
 
 /**
@@ -11,11 +12,13 @@ const DEFAULT_ENGINES = {
  *   - package.json engines field
  *   - package.json browserslist field
  *   - browserslist or .browserslistrc files
- *   - .babelrc or .babelrc.js files with babel-preset-env
+ *   - .babelrc or .babelrc.js files with @babel/preset-env
  */
 async function getTargetEngines(asset, isTargetApp) {
   let targets = {};
-  let path = isTargetApp ? asset.options.mainFile : asset.name;
+  let path = isTargetApp
+    ? Path.join(asset.options.rootDir, 'index')
+    : asset.name;
   let compileTarget =
     asset.options.target === 'browser' ? 'browsers' : asset.options.target;
   let pkg = await asset.getConfig(['package.json'], {path});

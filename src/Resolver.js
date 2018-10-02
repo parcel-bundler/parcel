@@ -1,7 +1,9 @@
 const builtins = require('./builtins');
+const nodeBuiltins = require('node-libs-browser');
 const path = require('path');
-const glob = require('glob');
+const {isGlob} = require('./utils/glob');
 const fs = require('./utils/fs');
+const micromatch = require('micromatch');
 
 const EMPTY_SHIM = require.resolve('./builtins/_empty');
 
@@ -36,7 +38,7 @@ class Resolver {
     }
 
     // Check if this is a glob
-    if (/[*+{}]/.test(filename) && glob.hasMagic(filename)) {
+    if (isGlob(filename)) {
       return {path: path.resolve(path.dirname(parent), filename)};
     }
 
@@ -53,6 +55,28 @@ class Resolver {
 
     extensions.unshift('');
 
+    // Resolve the module directory or local file path
+    let module = await this.resolveModule(filename, parent);
+    let resolved;
+
+    if (module.moduleDir) {
+      resolved = await this.loadNodeModules(module, extensions);
+    } else if (module.filePath) {
+      resolved = await this.loadRelative(module.filePath, extensions);
+    }
+
+    if (!resolved) {
+      let dir = parent ? path.dirname(parent) : process.cwd();
+      let err = new Error(`Cannot find module '${input}' from '${dir}'`);
+      err.code = 'MODULE_NOT_FOUND';
+      throw err;
+    }
+
+    this.cache.set(key, resolved);
+    return resolved;
+  }
+
+  async resolveModule(filename, parent) {
     let dir = parent ? path.dirname(parent) : process.cwd();
 
     // If this isn't the entrypoint, resolve the input file to an absolute path
@@ -63,24 +87,30 @@ class Resolver {
     // Resolve aliases in the parent module for this file.
     filename = await this.loadAlias(filename, dir);
 
-    let resolved;
+    // Return just the file path if this is a file, not in node_modules
     if (path.isAbsolute(filename)) {
-      // load as file
-      resolved = await this.loadRelative(filename, extensions);
-    } else {
-      // load node_modules
-      resolved = await this.loadNodeModules(filename, dir, extensions);
+      return {
+        filePath: filename
+      };
     }
 
+    // Resolve the module in node_modules
+    let resolved;
+    try {
+      resolved = await this.findNodeModulePath(filename, dir);
+    } catch (err) {
+      // ignore
+    }
+
+    // If we couldn't resolve the node_modules path, just return the module name info
     if (!resolved) {
-      let err = new Error(
-        "Cannot find module '" + input + "' from '" + dir + "'"
-      );
-      err.code = 'MODULE_NOT_FOUND';
-      throw err;
+      let parts = this.getModuleParts(filename);
+      resolved = {
+        moduleName: parts[0],
+        subPath: parts[1]
+      };
     }
 
-    this.cache.set(key, resolved);
     return resolved;
   }
 
@@ -102,6 +132,11 @@ class Resolver {
           path.basename(path.dirname(dir)) !== 'node_modules'
         ) {
           dir = path.dirname(dir);
+
+          if (dir === path.dirname(dir)) {
+            dir = this.options.rootDir;
+            break;
+          }
         }
 
         return path.join(dir, filename.slice(1));
@@ -112,7 +147,7 @@ class Resolver {
 
       default:
         // Module
-        return path.normalize(filename);
+        return filename;
     }
   }
 
@@ -127,10 +162,13 @@ class Resolver {
     );
   }
 
-  async loadNodeModules(filename, dir, extensions) {
-    // Check if this is a builtin module
+  async findNodeModulePath(filename, dir) {
     if (builtins[filename]) {
-      return {path: builtins[filename]};
+      if (this.options.target === 'node' && filename in nodeBuiltins) {
+        throw new Error('Cannot resolve builtin module for node target');
+      }
+
+      return {filePath: builtins[filename]};
     }
 
     let parts = this.getModuleParts(filename);
@@ -147,20 +185,12 @@ class Resolver {
         let moduleDir = path.join(dir, 'node_modules', parts[0]);
         let stats = await fs.stat(moduleDir);
         if (stats.isDirectory()) {
-          let f = path.join(dir, 'node_modules', filename);
-
-          // If a module was specified as a module sub-path (e.g. some-module/some/path),
-          // it is likely a file. Try loading it as a file first.
-          if (parts.length > 1) {
-            let pkg = await this.readPackage(moduleDir);
-            let res = await this.loadAsFile(f, extensions, pkg);
-            if (res) {
-              return res;
-            }
-          }
-
-          // Otherwise, load as a directory.
-          return await this.loadDirectory(f, extensions);
+          return {
+            moduleName: parts[0],
+            subPath: parts[1],
+            moduleDir: moduleDir,
+            filePath: path.join(dir, 'node_modules', filename)
+          };
         }
       } catch (err) {
         // ignore
@@ -168,6 +198,25 @@ class Resolver {
 
       // Move up a directory
       dir = path.dirname(dir);
+    }
+  }
+
+  async loadNodeModules(module, extensions) {
+    try {
+      // If a module was specified as a module sub-path (e.g. some-module/some/path),
+      // it is likely a file. Try loading it as a file first.
+      if (module.subPath) {
+        let pkg = await this.readPackage(module.moduleDir);
+        let res = await this.loadAsFile(module.filePath, extensions, pkg);
+        if (res) {
+          return res;
+        }
+      }
+
+      // Otherwise, load as a directory.
+      return await this.loadDirectory(module.filePath, extensions);
+    } catch (e) {
+      // ignore
     }
   }
 
@@ -184,14 +233,17 @@ class Resolver {
     try {
       pkg = await this.readPackage(dir);
 
-      // First try loading package.main as a file, then try as a directory.
-      let main = this.getPackageMain(pkg);
-      let res =
-        (await this.loadAsFile(main, extensions, pkg)) ||
-        (await this.loadDirectory(main, extensions, pkg));
+      // Get a list of possible package entry points.
+      let entries = this.getPackageEntries(pkg);
 
-      if (res) {
-        return res;
+      for (let file of entries) {
+        // First try loading package.main as a file, then try as a directory.
+        const res =
+          (await this.loadAsFile(file, extensions, pkg)) ||
+          (await this.loadDirectory(file, extensions, pkg));
+        if (res) {
+          return res;
+        }
       }
     } catch (err) {
       // ignore
@@ -213,23 +265,43 @@ class Resolver {
     pkg.pkgfile = file;
     pkg.pkgdir = dir;
 
+    // If the package has a `source` field, check if it is behind a symlink.
+    // If so, we treat the module as source code rather than a pre-compiled module.
+    if (pkg.source) {
+      let realpath = await fs.realpath(file);
+      if (realpath === file) {
+        delete pkg.source;
+      }
+    }
+
     this.packageCache.set(file, pkg);
     return pkg;
   }
 
-  getPackageMain(pkg) {
-    // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
-    // we use the "module" or "jsnext:main" field to get the full dependency tree if available
-    let main = [pkg.module, pkg['jsnext:main'], pkg.browser, pkg.main].find(
-      entry => typeof entry === 'string'
-    );
+  getBrowserField(pkg) {
+    let target = this.options.target || 'browser';
+    return target === 'browser' ? pkg.browser : null;
+  }
 
-    // Default to index file if no main field find
-    if (!main || main === '.' || main === './') {
-      main = 'index';
+  getPackageEntries(pkg) {
+    let browser = this.getBrowserField(pkg);
+    if (browser && typeof browser === 'object' && browser[pkg.name]) {
+      browser = browser[pkg.name];
     }
 
-    return path.resolve(pkg.pkgdir, main);
+    // libraries like d3.js specifies node.js specific files in the "main" which breaks the build
+    // we use the "browser" or "module" field to get the full dependency tree if available.
+    // If this is a linked module with a `source` field, use that as the entry point.
+    return [pkg.source, browser, pkg.module, pkg.main]
+      .filter(entry => typeof entry === 'string')
+      .map(main => {
+        // Default to index file if no main field find
+        if (!main || main === '.' || main === './') {
+          main = 'index';
+        }
+
+        return path.resolve(pkg.pkgdir, main);
+      });
   }
 
   async loadAsFile(file, extensions, pkg) {
@@ -269,16 +341,17 @@ class Resolver {
   }
 
   resolvePackageAliases(filename, pkg) {
-    // Resolve aliases in the package.alias and package.browser fields.
-    if (pkg) {
-      return (
-        this.getAlias(filename, pkg.pkgdir, pkg.alias) ||
-        this.getAlias(filename, pkg.pkgdir, pkg.browser) ||
-        filename
-      );
+    if (!pkg) {
+      return filename;
     }
 
-    return filename;
+    // Resolve aliases in the package.source, package.alias, and package.browser fields.
+    return (
+      this.getAlias(filename, pkg.pkgdir, pkg.source) ||
+      this.getAlias(filename, pkg.pkgdir, pkg.alias) ||
+      this.getAlias(filename, pkg.pkgdir, this.getBrowserField(pkg)) ||
+      filename
+    );
   }
 
   getAlias(filename, dir, aliases) {
@@ -295,14 +368,14 @@ class Resolver {
         filename = './' + filename;
       }
 
-      alias = aliases[filename];
+      alias = this.lookupAlias(aliases, filename, dir);
     } else {
       // It is a node_module. First try the entire filename as a key.
-      alias = aliases[filename];
+      alias = this.lookupAlias(aliases, filename, dir);
       if (alias == null) {
         // If it didn't match, try only the module name.
         let parts = this.getModuleParts(filename);
-        alias = aliases[parts[0]];
+        alias = this.lookupAlias(aliases, parts[0], dir);
         if (typeof alias === 'string') {
           // Append the filename back onto the aliased module.
           alias = path.join(alias, ...parts.slice(1));
@@ -315,13 +388,29 @@ class Resolver {
       return EMPTY_SHIM;
     }
 
-    // If the alias is a relative path, then resolve
-    // relative to the package.json directory.
-    if (alias && alias[0] === '.') {
-      return path.resolve(dir, alias);
+    return alias;
+  }
+
+  lookupAlias(aliases, filename, dir) {
+    // First, try looking up the exact filename
+    let alias = aliases[filename];
+    if (alias == null) {
+      // Otherwise, try replacing glob keys
+      for (let key in aliases) {
+        if (isGlob(key)) {
+          let re = micromatch.makeRe(key, {capture: true});
+          if (re.test(filename)) {
+            alias = filename.replace(re, aliases[key]);
+            break;
+          }
+        }
+      }
     }
 
-    // Otherwise, assume the alias is a module
+    if (typeof alias === 'string') {
+      return this.resolveFilename(alias, dir);
+    }
+
     return alias;
   }
 

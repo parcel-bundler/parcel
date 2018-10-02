@@ -1,18 +1,14 @@
-const fs = require('fs');
 const path = require('path');
 const Packager = require('./Packager');
+const getExisting = require('../utils/getExisting');
 const urlJoin = require('../utils/urlJoin');
 const lineCounter = require('../utils/lineCounter');
+const objectHash = require('../utils/objectHash');
 
-const prelude = {
-  source: fs
-    .readFileSync(path.join(__dirname, '../builtins/prelude.js'), 'utf8')
-    .trim(),
-  minified: fs
-    .readFileSync(path.join(__dirname, '../builtins/prelude.min.js'), 'utf8')
-    .trim()
-    .replace(/;$/, '')
-};
+const prelude = getExisting(
+  path.join(__dirname, '../builtins/prelude.min.js'),
+  path.join(__dirname, '../builtins/prelude.js')
+);
 
 class JSPackager extends Packager {
   async start() {
@@ -35,19 +31,20 @@ class JSPackager extends Packager {
   }
 
   async addAsset(asset) {
-    if (this.dedupe.has(asset.generated.js)) {
+    let key = this.dedupeKey(asset);
+    if (this.dedupe.has(key)) {
       return;
     }
 
     // Don't dedupe when HMR is turned on since it messes with the asset ids
     if (!this.options.hmr) {
-      this.dedupe.set(asset.generated.js, asset.id);
+      this.dedupe.set(key, asset.id);
     }
 
     let deps = {};
     for (let [dep, mod] of asset.depAssets) {
       // For dynamic dependencies, list the child bundles to load along with the module id
-      if (dep.dynamic && this.bundle.childBundles.has(mod.parentBundle)) {
+      if (dep.dynamic) {
         let bundles = [this.getBundleSpecifier(mod.parentBundle)];
         for (let child of mod.parentBundle.siblingBundles) {
           if (!child.isEmpty) {
@@ -60,17 +57,19 @@ class JSPackager extends Packager {
         deps[dep.name] = bundles;
         this.bundleLoaders.add(mod.type);
       } else {
-        deps[dep.name] = this.dedupe.get(mod.generated.js) || mod.id;
+        deps[dep.name] = this.dedupe.get(this.dedupeKey(mod)) || mod.id;
 
         // If the dep isn't in this bundle, add it to the list of external modules to preload.
         // Only do this if this is the root JS bundle, otherwise they will have already been
         // loaded in parallel with this bundle as part of a dynamic import.
-        if (
-          !this.bundle.assets.has(mod) &&
-          (!this.bundle.parentBundle || this.bundle.parentBundle.type !== 'js')
-        ) {
+        if (!this.bundle.assets.has(mod)) {
           this.externalModules.add(mod);
-          this.bundleLoaders.add(mod.type);
+          if (
+            !this.bundle.parentBundle ||
+            this.bundle.parentBundle.type !== 'js'
+          ) {
+            this.bundleLoaders.add(mod.type);
+          }
         }
       }
     }
@@ -93,10 +92,21 @@ class JSPackager extends Packager {
     return name;
   }
 
+  dedupeKey(asset) {
+    // cannot rely *only* on generated JS for deduplication because paths like
+    // `../` can cause 2 identical JS files to behave differently depending on
+    // where they are located on the filesystem
+    let deps = Array.from(asset.depAssets.values(), dep => dep.name).sort();
+    return objectHash([asset.generated.js, deps]);
+  }
+
   async writeModule(id, code, deps = {}, map) {
     let wrapped = this.first ? '' : ',';
     wrapped +=
-      id + ':[function(require,module,exports) {\n' + (code || '') + '\n},';
+      JSON.stringify(id) +
+      ':[function(require,module,exports) {\n' +
+      (code || '') +
+      '\n},';
     wrapped += JSON.stringify(deps);
     wrapped += ']';
 
@@ -119,7 +129,7 @@ class JSPackager extends Packager {
 
     // Add all dependencies as well
     for (let child of asset.depAssets.values()) {
-      await this.addAssetToBundle(child, this.bundle);
+      await this.addAssetToBundle(child);
     }
 
     await this.addAsset(asset);
@@ -144,17 +154,18 @@ class JSPackager extends Packager {
     }
 
     // Generate a module to register the bundle loaders that are needed
-    let loads = 'var b=require(' + bundleLoader.id + ');';
+    let loads = 'var b=require(' + JSON.stringify(bundleLoader.id) + ');';
     for (let bundleType of this.bundleLoaders) {
       let loader = this.options.bundleLoaders[bundleType];
       if (loader) {
-        let asset = await this.bundler.getAsset(loader);
+        let target = this.options.target === 'node' ? 'node' : 'browser';
+        let asset = await this.bundler.getAsset(loader[target]);
         await this.addAssetToBundle(asset);
         loads +=
           'b.register(' +
           JSON.stringify(bundleType) +
           ',require(' +
-          asset.id +
+          JSON.stringify(asset.id) +
           '));';
       }
     }
@@ -170,11 +181,14 @@ class JSPackager extends Packager {
         }
       }
 
+      loads += 'b.load(' + JSON.stringify(preload) + ')';
       if (this.bundle.entryAsset) {
-        preload.push(this.bundle.entryAsset.id);
+        loads += `.then(function(){require(${JSON.stringify(
+          this.bundle.entryAsset.id
+        )});})`;
       }
 
-      loads += 'b.load(' + JSON.stringify(preload) + ');';
+      loads += ';';
     }
 
     // Asset ids normally start at 1, so this should be safe.
@@ -202,15 +216,23 @@ class JSPackager extends Packager {
       entry.push(this.bundle.entryAsset.id);
     }
 
-    await this.write('},{},' + JSON.stringify(entry) + ')');
+    await this.dest.write(
+      '},{},' +
+        JSON.stringify(entry) +
+        ', ' +
+        JSON.stringify(this.options.global || null) +
+        ')'
+    );
     if (this.options.sourceMaps) {
-      // Add source map url
-      await this.write(
-        `\n//# sourceMappingURL=${urlJoin(
+      // Add source map url if a map bundle exists
+      let mapBundle = this.bundle.siblingBundlesMap.get('map');
+      if (mapBundle) {
+        let mapUrl = urlJoin(
           this.options.publicURL,
-          path.basename(this.bundle.name, '.js') + '.map'
-        )}`
-      );
+          path.basename(mapBundle.name)
+        );
+        await this.write(`\n//# sourceMappingURL=${mapUrl}`);
+      }
     }
     await this.dest.end();
   }
