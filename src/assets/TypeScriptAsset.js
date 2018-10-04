@@ -1,5 +1,8 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
+const config = require('../utils/config');
+const fs = require('fs');
+const path = require('path');
 
 class TypeScriptAsset extends Asset {
   constructor(name, options) {
@@ -28,9 +31,39 @@ class TypeScriptAsset extends Asset {
 
     // Overwrite default if config is found
     if (tsconfig) {
+      // Files read by TypeScript parser while resolving "extends"
+      let readFiles = [];
+      // https://github.com/Microsoft/TypeScript/blob/62306bc3f9e119dc17b400ff263dad532da6cdb1/scripts/build/upToDate.js#L370
+      const parseConfigHost = {
+        useCaseSensitiveFileNames: true,
+        getCurrentDirectory: () => process.cwd(),
+        readDirectory: file => fs.readdirSync(file),
+        fileExists: file => fs.existsSync(file) && fs.statSync(file).isFile(),
+        readFile: file => {
+          readFiles.push(file);
+          return fs.readFileSync(file, 'utf8');
+        },
+        onUnRecoverableConfigFileDiagnostic: () => undefined
+      };
+      // Get directory of tsconfig.json
+      const tsconfigDir = path.dirname(
+        await config.resolve(this.name, ['tsconfig.json'])
+      );
+      // Parse contents of tsconfig.json with TypeScript API to resolve "extends"
+      const parsedTsconfig = typescript.parseJsonConfigFileContent(
+        tsconfig,
+        parseConfigHost,
+        tsconfigDir
+      );
+      // Add resolved files to watch list
+      for (const file of readFiles) {
+        if (file.endsWith('/tsconfig.json')) {
+          this.addDependency(file, {includedInParent: true});
+        }
+      }
       transpilerOptions.compilerOptions = Object.assign(
         transpilerOptions.compilerOptions,
-        tsconfig.compilerOptions
+        parsedTsconfig.options
       );
     }
     transpilerOptions.compilerOptions.noEmit = false;
