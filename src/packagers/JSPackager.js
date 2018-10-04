@@ -62,12 +62,14 @@ class JSPackager extends Packager {
         // If the dep isn't in this bundle, add it to the list of external modules to preload.
         // Only do this if this is the root JS bundle, otherwise they will have already been
         // loaded in parallel with this bundle as part of a dynamic import.
-        if (
-          !this.bundle.assets.has(mod) &&
-          (!this.bundle.parentBundle || this.bundle.parentBundle.type !== 'js')
-        ) {
+        if (!this.bundle.assets.has(mod)) {
           this.externalModules.add(mod);
-          this.bundleLoaders.add(mod.type);
+          if (
+            !this.bundle.parentBundle ||
+            this.bundle.parentBundle.type !== 'js'
+          ) {
+            this.bundleLoaders.add(mod.type);
+          }
         }
       }
     }
@@ -225,12 +227,11 @@ class JSPackager extends Packager {
       // Add source map url if a map bundle exists
       let mapBundle = this.bundle.siblingBundlesMap.get('map');
       if (mapBundle) {
-        await this.write(
-          `\n//# sourceMappingURL=${urlJoin(
-            this.options.publicURL,
-            path.basename(mapBundle.name)
-          )}`
+        let mapUrl = urlJoin(
+          this.options.publicURL,
+          path.basename(mapBundle.name)
         );
+        await this.write(`\n//# sourceMappingURL=${mapUrl}`);
       }
     }
     await this.dest.end();

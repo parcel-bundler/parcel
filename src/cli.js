@@ -132,6 +132,8 @@ program
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
+  .option('--no-autoinstall', 'disable autoinstall')
+  .option('--no-content-hash', 'disable content hashing')
   .option(
     '--experimental-scope-hoisting',
     'enable experimental scope hoisting/tree shaking support'
@@ -187,6 +189,10 @@ program.parse(args);
 async function bundle(main, command) {
   // Require bundler here so the help command is fast
   const Bundler = require('../');
+
+  if (command.name() === 'watch') {
+    command.watch = true;
+  }
 
   if (command.name() === 'build') {
     command.production = true;

@@ -17,7 +17,17 @@ class HMRServer {
         this.server = https.createServer(await getCertificate(options.https));
       }
 
-      this.wss = new WebSocket.Server({server: this.server});
+      let websocketOptions = {
+        server: this.server
+      };
+
+      if (options.hmrHostname) {
+        websocketOptions.origin = `${options.https ? 'https' : 'http'}://${
+          options.hmrHostname
+        }`;
+      }
+
+      this.wss = new WebSocket.Server(websocketOptions);
       this.server.listen(options.hmrPort, resolve);
     });
 
@@ -62,8 +72,8 @@ class HMRServer {
       });
     }
 
-    const containsHtmlAsset = assets.some(asset => asset.type === 'html');
-    if (containsHtmlAsset) {
+    const shouldReload = assets.some(asset => asset.hmrPageReload);
+    if (shouldReload) {
       this.broadcast({
         type: 'reload'
       });

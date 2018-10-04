@@ -1,10 +1,11 @@
 const assert = require('assert');
+const path = require('path');
 const gql = require('graphql-tag');
 const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('graphql', function() {
   it('should support requiring graphql files', async function() {
-    let b = await bundle(__dirname + '/integration/graphql/index.js');
+    let b = await bundle(path.join(__dirname, '/integration/graphql/index.js'));
 
     await assertBundleTree(b, {
       name: 'index.js',
@@ -37,7 +38,9 @@ describe('graphql', function() {
   });
 
   it('should support importing other graphql files from a graphql file', async function() {
-    let b = await bundle(__dirname + '/integration/graphql-import/index.js');
+    let b = await bundle(
+      path.join(__dirname, '/integration/graphql-import/index.js')
+    );
 
     await assertBundleTree(b, {
       name: 'index.js',

@@ -4,8 +4,8 @@ const concat = require('../scope-hoisting/concat');
 const urlJoin = require('../utils/urlJoin');
 const getExisting = require('../utils/getExisting');
 const walk = require('babylon-walk');
-const babylon = require('babylon');
-const t = require('babel-types');
+const babylon = require('@babel/parser');
+const t = require('@babel/types');
 const {getName, getIdentifier} = require('../scope-hoisting/utils');
 
 const prelude = getExisting(
@@ -530,10 +530,11 @@ class JSConcatPackager extends Packager {
       // Add source map url if a map bundle exists
       let mapBundle = this.bundle.siblingBundlesMap.get('map');
       if (mapBundle) {
-        output += `\n//# sourceMappingURL=${urlJoin(
+        let mapUrl = urlJoin(
           this.options.publicURL,
           path.basename(mapBundle.name)
-        )}`;
+        );
+        output += `\n//# sourceMappingURL=${mapUrl}`;
       }
     }
 

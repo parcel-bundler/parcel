@@ -5,6 +5,73 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.10.1] - 2018-09-26
+
+### Fixed
+
+- Fix error when node.id is undefined instead of null
+
+## [1.10.0] - 2018-09-25
+
+### Added
+
+- Babel 7 support [Details](https://github.com/parcel-bundler/parcel/pull/1955)
+- HTML Bundle loader [Details](https://github.com/parcel-bundler/parcel/pull/1732)
+- Process inline scripts and styles [Details](https://github.com/parcel-bundler/parcel/pull/1456)
+- Added LD+JSON asset [Details](https://github.com/parcel-bundler/parcel/pull/1936)
+- Add support for Elm assets [Details](https://github.com/parcel-bundler/parcel/pull/1968)
+- Support optionally bundling node_modules for `--target=node` [Details](https://github.com/parcel-bundler/parcel/pull/1690)
+- Import existing sourcemaps [Details](https://github.com/parcel-bundler/parcel/pull/1349)
+- Import GraphQL files from other GraphQL files [Details](https://github.com/parcel-bundler/parcel/pull/1892)
+- Automatically strip flow types [Details](https://github.com/parcel-bundler/parcel/pull/1864)
+- SugarSS Support [Details](https://github.com/parcel-bundler/parcel/pull/1941)
+- Minimal verbose/debug mode [Details](https://github.com/parcel-bundler/parcel/pull/1834)
+- User friendly error on failed entrypoint resolving [Details](https://github.com/parcel-bundler/parcel/pull/1848)
+- Support for SharedWorkers [Details](https://github.com/parcel-bundler/parcel/pull/1907)
+- Add Object Spread to default Babel transforms [Details](https://github.com/parcel-bundler/parcel/pull/1835)
+- Update help message for `--public-url` [Details](https://github.com/parcel-bundler/parcel/pull/1846)
+- Support HTML5 history mode routing [Details](https://github.com/parcel-bundler/parcel/pull/1788)
+- Split cache into multiple folders for faster FS [Details](https://github.com/parcel-bundler/parcel/pull/1322)
+- Support array in package.json's sideEffects property [Details](https://github.com/parcel-bundler/parcel/pull/1766)
+- Added stub for require.cache [Details](https://github.com/parcel-bundler/parcel/pull/1960)
+- Added dotenv-expand to expand env vars [Details](https://github.com/parcel-bundler/parcel/pull/2014)
+- Update Typescript to v3.0.0 [Details](https://github.com/parcel-bundler/parcel/pull/1840)
+- Add `--no-content-hash` option to build cli [Details](https://github.com/parcel-bundler/parcel/pull/1934)
+
+### Fixed
+
+- Exit process on Error [Details](https://github.com/parcel-bundler/parcel/pull/1933)
+- Fix non updating asset hashes [Details](https://github.com/parcel-bundler/parcel/pull/1861)
+- Fix Sass url resolving [Details](https://github.com/parcel-bundler/parcel/pull/1909)
+- WorkerFarm Cleanup [Details](https://github.com/parcel-bundler/parcel/pull/1918)
+- Fix infinite loop in resolver when using `~/...` imports [Details](https://github.com/parcel-bundler/parcel/pull/1881)
+- Default to Dart-Sass and add backwards compatibility for node-sass [Details](https://github.com/parcel-bundler/parcel/pull/1847)
+- Validate if a PostCSS config is an object [Details](https://github.com/parcel-bundler/parcel/pull/1862)
+- VSCode syntax highlight with PostCSS in Vue Component style tag [Details](https://github.com/parcel-bundler/parcel/pull/1897)
+- Glob support in less imports [Details](https://github.com/parcel-bundler/parcel/pull/1845)
+- Generate unique certificate serial number [Details](https://github.com/parcel-bundler/parcel/pull/1830)
+- Keep name in sourcemaps mappings [Details](https://github.com/parcel-bundler/parcel/pull/1804)
+- Replace slack with spectrum badge [Details](https://github.com/parcel-bundler/parcel/pull/1785)
+- Use esnext with typescript and scope hoisting [Details](https://github.com/parcel-bundler/parcel/pull/1781)
+- Fix sourcemaps failing on refresh/hmr [Details](https://github.com/parcel-bundler/parcel/pull/1755)
+- Support sideEffect: false with CommonJS [Details](https://github.com/parcel-bundler/parcel/pull/1770)
+- Get only existing package main [Details](https://github.com/parcel-bundler/parcel/pull/1577)
+- Load minified built-in if available [Details](https://github.com/parcel-bundler/parcel/pull/1749)
+- Support error strings in workers [Details](https://github.com/parcel-bundler/parcel/pull/1761)
+- Terminate workerfarm when using the API [Details](https://github.com/parcel-bundler/parcel/pull/1760)
+- Fix comment typo [Details](https://github.com/parcel-bundler/parcel/pull/1739/files)
+- Fix dotenv package error [Details](https://github.com/parcel-bundler/parcel/pull/1953)
+- Don't resolve slash and tilde paths twice [Details](https://github.com/parcel-bundler/parcel/pull/1993)
+- bundle name hash-key generation is not environment independent [Details](https://github.com/parcel-bundler/parcel/pull/2002)
+- Don't modify script nodes with text/html type [Details](https://github.com/parcel-bundler/parcel/pull/1924)
+- Fix various windows bugs & tests [Details](https://github.com/parcel-bundler/parcel/pull/1965)
+- Cross-platform deterministic asset ids [Details](https://github.com/parcel-bundler/parcel/pull/2020)
+- allow empty string in meta [Details](https://github.com/parcel-bundler/parcel/pull/2027)
+- fixed watch not working when NODE_ENV is production [Details](https://github.com/parcel-bundler/parcel/pull/2024)
+- Incorrect casing for Logger require [Details](https://github.com/parcel-bundler/parcel/pull/2021)
+- fix security vuln [Details](https://github.com/parcel-bundler/parcel/pull/1794)
+- Remove wasm-gc from RustAsset [Details](https://github.com/parcel-bundler/parcel/pull/2048)
+
 ## [1.9.7] - 2018-07-15
 
 ### Fixed

@@ -6,6 +6,7 @@ class PugAsset extends Asset {
   constructor(name, options) {
     super(name, options);
     this.type = 'html';
+    this.hmrPageReload = true;
   }
 
   async generate() {
