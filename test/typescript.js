@@ -154,4 +154,30 @@ describe('typescript', function() {
       fromTsx: text
     });
   });
+
+  describe('extends property in tsconfig.json', function() {
+    const integrationRoot = path.join(
+      __dirname,
+      '/integration/typescript-extends'
+    );
+
+    let b;
+    beforeEach(async function() {
+      b = await bundle(path.join(integrationRoot, '/subdir/index.ts'));
+    });
+
+    it('Parent tsconfig.json should be added as dependency', async function() {
+      const deps = b.entryAsset.dependencies;
+      assert(deps.has(path.join(integrationRoot, '/subdir/tsconfig.json')));
+      assert(deps.has(path.join(integrationRoot, '/tsconfig.json')));
+    });
+
+    it('Parent tsconfig.json should be used', async function() {
+      for (const asset of b.assets.values()) {
+        const js = "var foo = 'bar'";
+        assert(asset.generated.js, js);
+        break;
+      }
+    });
+  });
 });
