@@ -168,7 +168,6 @@ describe('typescript', function() {
 
     it('Parent tsconfig.json should be added as dependency', async function() {
       const deps = b.entryAsset.dependencies;
-      console.log(deps);
       assert(deps.has(path.join(integrationRoot, '/subdir/tsconfig.json')));
       assert(deps.has(path.join(integrationRoot, '/tsconfig.json')));
     });

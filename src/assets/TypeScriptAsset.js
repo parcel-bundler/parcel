@@ -57,8 +57,10 @@ class TypeScriptAsset extends Asset {
       );
       // Add resolved files to watch list
       for (const file of readFiles) {
-        if (file.endsWith('/tsconfig.json')) {
-          this.addDependency(file, {includedInParent: true});
+        if (file.endsWith('tsconfig.json')) {
+          // `path` needs to be normalized for Windows path system compatibility
+          // because TypeScript API outputs UNIX style path even if Windows environment
+          this.addDependency(path.resolve(file), {includedInParent: true});
         }
       }
       transpilerOptions.compilerOptions = Object.assign(
