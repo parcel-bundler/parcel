@@ -12,7 +12,6 @@ const ATTRS = {
   src: [
     'script',
     'img',
-    'image',
     'audio',
     'video',
     'source',
