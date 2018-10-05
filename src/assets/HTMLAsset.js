@@ -22,7 +22,7 @@ const ATTRS = {
   href: ['link', 'a', 'use'],
   srcset: ['img', 'source'],
   poster: ['video'],
-  'xlink:href': ['use'],
+  'xlink:href': ['use', 'image'],
   content: ['meta'],
   data: ['object']
 };
