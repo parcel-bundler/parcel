@@ -67,7 +67,8 @@ const SCRIPT_TYPES = {
   'text/javascript': 'js',
   'application/json': false,
   'application/ld+json': 'jsonld',
-  'text/html': false
+  'text/html': false,
+  'text/x-template': 'html'
 };
 
 // Options to be passed to `addURLDependency` for certain tags + attributes
