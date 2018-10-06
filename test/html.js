@@ -608,7 +608,7 @@ describe('html', function() {
     });
   });
 
-  it('should bundle svg files using <image xlink:href=""> correctly', async function () {
+  it('should bundle svg files using <image xlink:href=""> correctly', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-svg-image/index.html')
     );
