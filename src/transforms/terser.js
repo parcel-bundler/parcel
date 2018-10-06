@@ -10,6 +10,7 @@ module.exports = async function(asset) {
   let customConfig = await asset.getConfig(['.uglifyrc', '.terserrc']);
   let options = {
     warnings: true,
+    safari10: true,
     mangle: {
       toplevel: !asset.options.scopeHoist
     }
