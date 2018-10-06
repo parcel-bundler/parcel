@@ -608,6 +608,23 @@ describe('html', function() {
     });
   });
 
+  it('should bundle svg files using <image xlink:href=""> correctly', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-svg-image/index.html')
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'svg',
+          assets: ['file.svg']
+        }
+      ]
+    });
+  });
+
   it('should support data attribute of object element', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-object/index.html')
