@@ -1053,5 +1053,17 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, 9);
     });
+
+    it('should support optional requires', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-optional/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 42);
+    });
   });
 });
