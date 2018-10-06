@@ -63,7 +63,7 @@ class TypeScriptAsset extends Asset {
 
       // Parse contents of tsconfig.json with TypeScript API to resolve "extends"
       const compilerHost = typescript.createCompilerHost(
-        tsconfig.compilerOptions
+        tsconfig.compilerOptions || {}
       );
       const parseConfigHost = parseConfigHostFromCompilerHost(
         compilerHost,
