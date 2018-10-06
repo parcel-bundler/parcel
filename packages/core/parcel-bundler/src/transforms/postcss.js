@@ -18,7 +18,7 @@ module.exports = async function(asset) {
 
 async function getConfig(asset) {
   let config = await asset.getConfig(
-    ['.postcssrc', '.postcssrc.js', 'postcss.config.js'],
+    ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
     {packageKey: 'postcss'}
   );
 
