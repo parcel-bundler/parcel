@@ -5,6 +5,23 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.10.2] - 2018-10-06
+
+### Added
+
+- Add `<image>` as a valid element type to bundle in `<svg>` tags [Details](https://github.com/parcel-bundler/parcel/pull/2113)
+- Resolving `.postcssrc.json` as a PostCSS config [Details](https://github.com/parcel-bundler/parcel/pull/2115)
+- Add loaders when bundling workers [Details](https://github.com/parcel-bundler/parcel/pull/2092)
+
+### Fixed
+
+- Fix hoist of modules with multiple aliases [Details](https://github.com/parcel-bundler/parcel/pull/2077)
+- Fix hoisting of optional require calls [Details](https://github.com/parcel-bundler/parcel/pull/2078)
+- Fix safari 10 compatibility for terser [Details](https://github.com/parcel-bundler/parcel/pull/2103)
+- Fix HMR for Pug assets [Details](https://github.com/parcel-bundler/parcel/pull/2091)
+- Don't load existing sourcemaps if sourcemaps are disabled [Details](https://github.com/parcel-bundler/parcel/pull/2089)
+- add missing --no-autoinstall flag to build command [Details](https://github.com/parcel-bundler/parcel/pull/2076)
+
 ## [1.10.1] - 2018-09-26
 
 ### Fixed
