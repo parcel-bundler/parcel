@@ -132,6 +132,7 @@ program
   .option('--no-minify', 'disable minification')
   .option('--no-cache', 'disable the filesystem cache')
   .option('--no-source-maps', 'disable sourcemaps')
+  .option('--no-autoinstall', 'disable autoinstall')
   .option('--no-content-hash', 'disable content hashing')
   .option(
     '--experimental-scope-hoisting',

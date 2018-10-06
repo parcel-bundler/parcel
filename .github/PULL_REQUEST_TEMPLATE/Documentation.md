@@ -9,5 +9,11 @@ Thanks for filing a pull request 😄 ! Before you submit, please read the follo
 ⚠️ This is not the docs repo. File an issue/PR here: https://github.com/parcel-bundler/website ⚠️
 -->
 
-<!-- Love parcel? Please consider supporting our collective:
-👉  https://opencollective.com/parcel/donate -->
+## ✔️ PR Todo
+
+- [ ] Included links to related issues/PRs
+
+<!--
+Love parcel? Please consider supporting our collective:
+👉  https://opencollective.com/parcel/donate
+-->

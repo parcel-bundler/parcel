@@ -66,6 +66,7 @@ class JSPackager extends Packager {
           this.externalModules.add(mod);
           if (
             !this.bundle.parentBundle ||
+            this.bundle.isolated ||
             this.bundle.parentBundle.type !== 'js'
           ) {
             this.bundleLoaders.add(mod.type);

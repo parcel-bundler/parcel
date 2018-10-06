@@ -94,11 +94,13 @@ class JSConcatPackager extends Packager {
       let [source, name] = asset.cacheData.imports[identifier];
       let dep = asset.depAssets.get(asset.dependencies.get(source));
 
-      if (name === '*') {
-        this.markUsedExports(dep);
-      }
+      if (dep) {
+        if (name === '*') {
+          this.markUsedExports(dep);
+        }
 
-      this.markUsed(dep, name);
+        this.markUsed(dep, name);
+      }
     }
   }
 
@@ -217,8 +219,10 @@ class JSConcatPackager extends Packager {
 
     let depAsts = new Map();
     for (let depAsset of asset.depAssets.values()) {
-      let depAst = this.addDeps(depAsset, included);
-      depAsts.set(depAsset, depAst);
+      if (!depAsts.has(depAsset)) {
+        let depAst = this.addDeps(depAsset, included);
+        depAsts.set(depAsset, depAst);
+      }
     }
 
     let statements;
