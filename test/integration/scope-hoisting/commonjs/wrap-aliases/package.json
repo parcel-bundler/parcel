@@ -1,0 +1,6 @@
+{
+    "name": "a",
+    "browser": {
+        "foo": "foo-bar"
+    }
+}

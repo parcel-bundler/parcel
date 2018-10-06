@@ -219,8 +219,10 @@ class JSConcatPackager extends Packager {
 
     let depAsts = new Map();
     for (let depAsset of asset.depAssets.values()) {
-      let depAst = this.addDeps(depAsset, included);
-      depAsts.set(depAsset, depAst);
+      if (!depAsts.has(depAsset)) {
+        let depAst = this.addDeps(depAsset, included);
+        depAsts.set(depAsset, depAst);
+      }
     }
 
     let statements;
