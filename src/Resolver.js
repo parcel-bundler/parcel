@@ -392,6 +392,11 @@ class Resolver {
   }
 
   lookupAlias(aliases, filename, dir) {
+    filename = path.normalize(filename);
+    Object.keys(aliases).forEach(
+      key => (aliases[path.normalize(key)] = aliases[key])
+    );
+
     // First, try looking up the exact filename
     let alias = aliases[filename];
     if (alias == null) {
