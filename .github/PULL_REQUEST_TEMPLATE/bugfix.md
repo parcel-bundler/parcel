@@ -11,7 +11,7 @@ Search open/closed similar issues and pull requests before submitting since some
 
 # 🐛 bug fix
 
-<!--- Provide the details of the pull request here -->
+<!--- Provide the details of the pull request here and include existing issues this resolves -->
 
 ## 🤔 Tell Us What Goes Wrong
 
@@ -21,12 +21,9 @@ Search open/closed similar issues and pull requests before submitting since some
 
 <!--- Describe how you fixed the bug -->
 
-## 🔦 Tests
+## 🚨 Test instructions
 
-<!--- 
-Please provide tests or at least test instructions so we can test for this bug in future releases.
-Let us know what we should test to make sure that everything works.
--->
+<!-- In case it is impossible (or too hard) to reliably test this feature/fix with unit tests, please provide test instructions! -->
 
 ## 🌍 Your Environment
 
@@ -42,8 +39,10 @@ Let us know what we should test to make sure that everything works.
 ## ✔️ PR Todo
 
 - [ ] Added/updated unit tests for this change
-- [ ] Filled out test instructions
+- [ ] Filled out test instructions (In case there aren't any unit tests)
 - [ ] Included links to related issues/PRs
 
-<!-- Love parcel? Please consider supporting our collective:
-👉  https://opencollective.com/parcel/donate -->
+<!--
+Love parcel? Please consider supporting our collective:
+👉  https://opencollective.com/parcel/donate
+-->
