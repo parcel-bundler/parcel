@@ -82,14 +82,11 @@ async function determinePackageManager(filepath) {
   const hasYarn = await checkForYarnCommand();
 
   /**
-   * There is package-lock.json -> Use npm
-   * There is yarn.lock & yarn command -> Use Yarn
-   * Otherwise -> Use npm
+   * The only situation Parcel should use yarn is
+   * there is yarn command AND there is yarn.lock AND there is NO package-lock.json
+   * Otherwise, it uses npm
    */
-  if (npmLockFile) {
-    return 'npm';
-  }
-  if (hasYarn && yarnLockFile) {
+  if (hasYarn && yarnLockFile && !npmLockFile) {
     return 'yarn';
   }
   return 'npm';
