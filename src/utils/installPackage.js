@@ -75,11 +75,11 @@ async function installPeerDependencies(filepath, name, options) {
 }
 
 async function determinePackageManager(filepath) {
-  const [npmLockFile, yarnLockFile] = await Promise.all([
+  const [npmLockFile, yarnLockFile, hasYarn] = await Promise.all([
     config.resolve(filepath, [PACKAGE_LOCK]),
-    config.resolve(filepath, [YARN_LOCK])
+    config.resolve(filepath, [YARN_LOCK]),
+    checkForYarnCommand()
   ]);
-  const hasYarn = await checkForYarnCommand();
 
   /**
    * The only situation Parcel should use yarn is
