@@ -10,7 +10,6 @@ const fs = require('./fs');
 const WorkerFarm = require('../workerfarm/WorkerFarm');
 
 const YARN_LOCK = 'yarn.lock';
-const PACKAGE_LOCK = 'package-lock.json';
 
 async function install(modules, filepath, options = {}) {
   let {installPeers = true, saveDev = true, packageManager} = options;
@@ -75,18 +74,13 @@ async function installPeerDependencies(filepath, name, options) {
 }
 
 async function determinePackageManager(filepath) {
-  const [npmLockFile, yarnLockFile] = await Promise.all([
-    config.resolve(filepath, [PACKAGE_LOCK]),
-    config.resolve(filepath, [YARN_LOCK])
-  ]);
+  const yarnLockFile = await config.resolve(filepath, [YARN_LOCK]);
 
   /**
-   * The only situation Parcel should use yarn is
-   * there is yarn command AND there is yarn.lock AND there is NO package-lock.json
-   * Otherwise, it uses npm
+   * no yarn.lock => use npm
+   * yarn.lock => Use yarn, fallback to npm
    */
-
-  if (!yarnLockFile || npmLockFile) {
+  if (!yarnLockFile) {
     return 'npm';
   }
 
