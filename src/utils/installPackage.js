@@ -75,10 +75,9 @@ async function installPeerDependencies(filepath, name, options) {
 }
 
 async function determinePackageManager(filepath) {
-  const [npmLockFile, yarnLockFile, hasYarn] = await Promise.all([
+  const [npmLockFile, yarnLockFile] = await Promise.all([
     config.resolve(filepath, [PACKAGE_LOCK]),
-    config.resolve(filepath, [YARN_LOCK]),
-    checkForYarnCommand()
+    config.resolve(filepath, [YARN_LOCK])
   ]);
 
   /**
@@ -86,9 +85,16 @@ async function determinePackageManager(filepath) {
    * there is yarn command AND there is yarn.lock AND there is NO package-lock.json
    * Otherwise, it uses npm
    */
-  if (hasYarn && yarnLockFile && !npmLockFile) {
+
+  if (!yarnLockFile || npmLockFile) {
+    return 'npm';
+  }
+
+  const hasYarn = await checkForYarnCommand();
+  if (hasYarn) {
     return 'yarn';
   }
+
   return 'npm';
 }
 
