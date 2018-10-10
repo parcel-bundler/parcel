@@ -392,16 +392,18 @@ class Resolver {
   }
 
   lookupAlias(aliases, filename, dir) {
-    filename = path.normalize(filename);
-    Object.keys(aliases).forEach(
-      key => (aliases[path.normalize(key)] = aliases[key])
-    );
-
     // First, try looking up the exact filename
     let alias = aliases[filename];
     if (alias == null) {
-      // Otherwise, try replacing glob keys
+      filename = path.normalize(filename);
+
       for (let key in aliases) {
+        // Try normalised path matching (mainly for windows)
+        if (path.normalize(key) === filename) {
+          alias = aliases[key];
+        }
+
+        // Otherwise, try replacing glob keys
         if (isGlob(key)) {
           let re = micromatch.makeRe(key, {capture: true});
           if (re.test(filename)) {
