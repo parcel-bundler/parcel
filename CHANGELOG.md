@@ -5,6 +5,12 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.10.3] - 2018-10-11
+
+### Fixed
+
+- Don't dedupe assets that are depended on in more than one bundle [Details](https://github.com/parcel-bundler/parcel/pull/2122)
+
 ## [1.10.2] - 2018-10-06
 
 ### Added
