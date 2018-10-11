@@ -31,14 +31,23 @@ class JSPackager extends Packager {
   }
 
   async addAsset(asset) {
-    let key = this.dedupeKey(asset);
-    if (this.dedupe.has(key)) {
-      return;
-    }
+    // If this module is referenced by another JS bundle, it needs to be exposed externally.
+    // In that case, don't dedupe the asset as it would affect the module ids that are referenced by other bundles.
+    let isExposed = !Array.from(asset.parentDeps).every(dep => {
+      let depAsset = this.bundler.loadedAssets.get(dep.parent);
+      return this.bundle.assets.has(depAsset) || depAsset.type !== 'js';
+    });
 
-    // Don't dedupe when HMR is turned on since it messes with the asset ids
-    if (!this.options.hmr) {
-      this.dedupe.set(key, asset.id);
+    if (!isExposed) {
+      let key = this.dedupeKey(asset);
+      if (this.dedupe.has(key)) {
+        return;
+      }
+
+      // Don't dedupe when HMR is turned on since it messes with the asset ids
+      if (!this.options.hmr) {
+        this.dedupe.set(key, asset.id);
+      }
     }
 
     let deps = {};

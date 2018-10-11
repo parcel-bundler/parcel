@@ -1520,22 +1520,40 @@ describe('javascript', function() {
       }
     );
     const {rootDir} = b.entryAsset.options;
-    const dedupedAssets = Array.from(b.offsets.keys()).map(asset => asset.name);
-    assert.equal(dedupedAssets.length, 2);
-    assert(dedupedAssets.includes(path.join(rootDir, 'index.js')));
+    const writtenAssets = Array.from(b.offsets.keys()).map(asset => asset.name);
+    assert.equal(writtenAssets.length, 2);
+    assert(writtenAssets.includes(path.join(rootDir, 'index.js')));
     assert(
-      dedupedAssets.includes(path.join(rootDir, 'hello1.js')) ||
-        dedupedAssets.includes(path.join(rootDir, 'hello2.js'))
+      writtenAssets.includes(path.join(rootDir, 'hello1.js')) ||
+        writtenAssets.includes(path.join(rootDir, 'hello2.js'))
     );
     assert(
       !(
-        dedupedAssets.includes(path.join(rootDir, 'hello1.js')) &&
-        dedupedAssets.includes(path.join(rootDir, 'hello2.js'))
+        writtenAssets.includes(path.join(rootDir, 'hello1.js')) &&
+        writtenAssets.includes(path.join(rootDir, 'hello2.js'))
       )
     );
 
     let module = await run(b);
     assert.equal(module.default, 'Hello Hello!');
+  });
+
+  it('should not dedupe assets that exist in more than one bundle', async function() {
+    let b = await bundle(
+      path.join(__dirname, `/integration/js-dedup-hoist/index.js`),
+      {
+        hmr: false // enable asset dedupe in JSPackager
+      }
+    );
+    const {rootDir} = b.entryAsset.options;
+    const writtenAssets = Array.from(b.offsets.keys()).map(asset => asset.name);
+    assert(
+      writtenAssets.includes(path.join(rootDir, 'hello1.js')) &&
+        writtenAssets.includes(path.join(rootDir, 'hello2.js'))
+    );
+
+    let module = await run(b);
+    assert.equal(await module.default(), 'Hello Hello! Hello');
   });
 
   it('should support importing HTML from JS async', async function() {
