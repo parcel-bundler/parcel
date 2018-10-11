@@ -30,6 +30,10 @@ program
     'automatically open in specified browser, defaults to default browser'
   )
   .option(
+    '--spawn [command]',
+    'automatically spawns a child process, after bundle is ready'
+  )
+  .option(
     '-d, --out-dir <path>',
     'set the output directory. defaults to "dist"'
   )
@@ -215,13 +219,13 @@ async function bundle(main, command) {
   command.target = command.target || 'browser';
   if (command.name() === 'serve' && command.target === 'browser') {
     const server = await bundler.serve(command.port || 1234, command.https);
+    const serverUrl = `${command.https ? 'https' : 'http'}://localhost:${
+      server.address().port
+    }`;
     if (server && command.open) {
-      await require('./utils/openInBrowser')(
-        `${command.https ? 'https' : 'http'}://localhost:${
-          server.address().port
-        }`,
-        command.open
-      );
+      await require('./utils/openInBrowser')(serverUrl, command.open);
+    } else if (server && command.spawn) {
+      await require('./utils/spawnCommand')(serverUrl, command.spawn);
     }
   } else {
     bundler.bundle();
