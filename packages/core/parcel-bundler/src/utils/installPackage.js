@@ -9,6 +9,8 @@ const path = require('path');
 const fs = require('./fs');
 const WorkerFarm = require('../workerfarm/WorkerFarm');
 
+const YARN_LOCK = 'yarn.lock';
+
 async function install(modules, filepath, options = {}) {
   let {installPeers = true, saveDev = true, packageManager} = options;
   if (typeof modules === 'string') {
@@ -72,19 +74,22 @@ async function installPeerDependencies(filepath, name, options) {
 }
 
 async function determinePackageManager(filepath) {
-  let configFile = await config.resolve(filepath, [
-    'yarn.lock',
-    'package-lock.json'
-  ]);
-  let hasYarn = await checkForYarnCommand();
+  const yarnLockFile = await config.resolve(filepath, [YARN_LOCK]);
 
-  // If Yarn isn't available, or there is a package-lock.json file, use npm.
-  let configName = configFile && path.basename(configFile);
-  if (!hasYarn || configName === 'package-lock.json') {
+  /**
+   * no yarn.lock => use npm
+   * yarn.lock => Use yarn, fallback to npm
+   */
+  if (!yarnLockFile) {
     return 'npm';
   }
 
-  return 'yarn';
+  const hasYarn = await checkForYarnCommand();
+  if (hasYarn) {
+    return 'yarn';
+  }
+
+  return 'npm';
 }
 
 let hasYarn = null;
