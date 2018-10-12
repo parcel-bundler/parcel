@@ -1,28 +1,28 @@
-// @flow
-'use strict';
+// // @flow
+// 'use strict';
 
-const PackagerRunner = require('../src/PackagerRunner');
-const assert = require('assert');
-const path = require('path');
+// const PackagerRunner = require('../src/PackagerRunner');
+// const assert = require('assert');
+// const path = require('path');
 
-const config = require('@parcel/config-default');
+// const config = require('@parcel/config-default');
 
-describe('PackagerRunner', () => {
-  it('works', async () => {
-    let bundle = {
-      destPath: path.join(__dirname, 'dist', 'bundle.js'),
-      assets: [
-        {blobs: {code: require.resolve('./fixtures/module-a')}},
-        {blobs: {code: require.resolve('./fixtures/module-b')}},
-      ],
-    };
+// describe('PackagerRunner', () => {
+//   it('works', async () => {
+//     let bundle = {
+//       destPath: path.join(__dirname, 'dist', 'bundle.js'),
+//       assets: [
+//         {blobs: {code: require.resolve('./fixtures/module-a')}},
+//         {blobs: {code: require.resolve('./fixtures/module-b')}},
+//       ],
+//     };
 
 
-    let packagerRunner = new PackagerRunner({
-      parcelConfig: config,
-      cliOpts: {}
-    });
+//     let packagerRunner = new PackagerRunner({
+//       parcelConfig: config,
+//       cliOpts: {}
+//     });
 
-    await packagerRunner.runPackager({ bundle });
-  });
-});
+//     await packagerRunner.runPackager({ bundle });
+//   });
+// });

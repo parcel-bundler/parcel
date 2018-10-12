@@ -28,16 +28,22 @@ export const nodeFromAsset = (asset: Asset) => ({
   value: asset,
 });
 
-const getFileNodesFromGraph = (graph: Graph): Array<File> => {
+const getFileNodesFromGraph = (graph: Graph): Array<Node> => {
   return Array.from(graph.nodes.values())
-    .filter((node: any) => node.type === 'file')
-    .map(node => node.value);
+    .filter((node: any) => node.type === 'file');
 }
 
-const getDepNodesFromGraph = (graph: Graph): Array<Dependency> => {
+const getFilesFromGraph = (graph: Graph): Array<File> => {
+  return getFileNodesFromGraph(graph).map(node => node.value);
+}
+
+const getDepNodesFromGraph = (graph: Graph): Array<Node> => {
   return Array.from(graph.nodes.values())
-    .filter((node: any) => node.type === 'dependency')
-    .map(node => node.value);
+    .filter((node: any) => node.type === 'dependency');
+}
+
+const getDepsFromGraph = (graph: Graph): Array<Dependency> => {
+  return getDepNodesFromGraph(graph).map(node => node.value);
 }
 
 type DepUpdates = {
@@ -92,9 +98,9 @@ export default class AssetGraph extends Graph {
     return super.removeNode(node);
   }
 
+  // Once a dependency is resolved, connect it to a node representing the file it was resolved to
   updateDependency(dep: Dependency, file: File): DepUpdates {
     let newFile;
-    let prunedFiles = [];
 
     let depNode = nodeFromDep(dep);
     this.incompleteNodes.delete(depNode.id);
@@ -107,34 +113,34 @@ export default class AssetGraph extends Graph {
       this.incompleteNodes.set(fileNode.id, fileNode);
     }
 
-    prunedFiles = prunedFiles.concat(getFileNodesFromGraph(removed));
+    let prunedFiles = getFilesFromGraph(removed);
     return { newFile, prunedFiles };
   }
 
+  // Once a file has been transformed, connect it to asset nodes representing the generated assets
   updateFile(file: File, assets: Array<Asset>): FileUpdates {
-    let newDeps: Array<Dependency> = [];
-    let prunedFiles = [];
+    let newDepNodes: Array<Dependency> = [];
 
     let fileNode = nodeFromFile(file);
     this.incompleteNodes.delete(fileNode.id);
 
     let assetNodes = assets.map(asset => nodeFromAsset(asset));
-    let fileNodeUpdates = this.updateDownStreamNodes(fileNode, assetNodes);
+    let {removed} = this.updateDownStreamNodes(fileNode, assetNodes);
 
-    prunedFiles = prunedFiles.concat(getFileNodesFromGraph(fileNodeUpdates.removed));
+    let prunedFiles = getFilesFromGraph(removed);
 
-    for (let asset of assets) {
-      let assetNode = nodeFromAsset(asset);
-      let depNodes = asset.dependencies.map(dep => nodeFromDep({...dep, sourcePath: file.filePath}));
-      let assetNodeUpdates = this.updateDownStreamNodes(assetNode, depNodes);
-      prunedFiles = prunedFiles.concat(getFileNodesFromGraph(assetNodeUpdates.removed));
-      newDeps = newDeps.concat(getDepNodesFromGraph(assetNodeUpdates.added));
+    for (let assetNode of assetNodes) {
+      let depNodes = assetNode.value.dependencies.map(dep => nodeFromDep({...dep, sourcePath: file.filePath}));
+      let {removed, added} = this.updateDownStreamNodes(assetNode, depNodes);
+      prunedFiles = prunedFiles.concat(getFilesFromGraph(removed));
+      newDepNodes = newDepNodes.concat(getDepNodesFromGraph(added));
     }
 
-    for (let dep of newDeps) {
-      let depNode = nodeFromDep(dep);
+    for (let depNode of newDepNodes) {
       this.incompleteNodes.set(depNode.id, depNode);
     }
+
+    let newDeps = newDepNodes.map(node => node.value);
 
     return { newDeps, prunedFiles };
   }
