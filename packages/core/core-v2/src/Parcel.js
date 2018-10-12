@@ -191,7 +191,7 @@ export default class Parcel {
 
   handleChange(filePath: string) {
     let file = { filePath };
-    if (this.graph.nodes.has(filePath)) {
+    if (this.graph.hasNode(filePath)) {
       this.updateQueue.add(() => this.transform(file, { signal: { aborted: false }, shallow: true }));
     }
   }

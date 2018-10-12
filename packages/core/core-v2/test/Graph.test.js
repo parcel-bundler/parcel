@@ -18,6 +18,14 @@ describe('Graph', () => {
     assert.equal(graph.nodes.get(node.id), node);
   });
 
+  it('hasNode should return a boolean based on whether the node exists in the graph', () => {
+    let graph = new Graph();
+    let node = {id: 'a', value: 'a'};
+    graph.addNode(node);
+    assert(graph.hasNode(node.id));
+    assert(!graph.hasNode('b'));
+  });
+
   it('addEdge should add an edge to the graph', () => {
     let graph = new Graph();
     let edge = {from: 'a', to: 'b'};

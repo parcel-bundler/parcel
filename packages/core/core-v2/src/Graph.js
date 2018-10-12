@@ -33,6 +33,10 @@ export default class Graph {
     return node;
   }
 
+  hasNode(id: string) {
+    return this.nodes.has(id);
+  }
+
   addEdge(edge: Edge) {
     this.edges.add(edge);
     return edge;
