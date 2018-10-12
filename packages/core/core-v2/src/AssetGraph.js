@@ -130,6 +130,7 @@ export default class AssetGraph extends Graph {
     let prunedFiles = getFilesFromGraph(removed);
 
     for (let assetNode of assetNodes) {
+      // TODO: dep should already have sourcePath
       let depNodes = assetNode.value.dependencies.map(dep => nodeFromDep({...dep, sourcePath: file.filePath}));
       let {removed, added} = this.updateDownStreamNodes(assetNode, depNodes);
       prunedFiles = prunedFiles.concat(getFilesFromGraph(removed));
