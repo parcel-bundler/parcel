@@ -226,7 +226,7 @@ class JSPackager extends Packager {
       entry.push(this.bundle.entryAsset.id);
     }
 
-    await this.dest.write(
+    await this.write(
       '},{},' +
         JSON.stringify(entry) +
         ', ' +
@@ -244,7 +244,7 @@ class JSPackager extends Packager {
         await this.write(`\n//# sourceMappingURL=${mapUrl}`);
       }
     }
-    await this.dest.end();
+    await super.end();
   }
 }
 
