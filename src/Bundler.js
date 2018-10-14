@@ -135,7 +135,8 @@ class Bundler extends EventEmitter {
       detailedReport: options.detailedReport || false,
       global: options.global,
       autoinstall:
-        typeof options.autoinstall === 'boolean'
+        typeof options.autoinstall === 'boolean' &&
+        process.env.PARCEL_NO_AUTOINSTALL !== 'true'
           ? options.autoinstall
           : !isProduction,
       scopeHoist: scopeHoist,
@@ -469,7 +470,6 @@ class Bundler extends EventEmitter {
         let fromNodeModules = asset.name.includes(
           `${Path.sep}node_modules${Path.sep}`
         );
-
         if (
           !isLocalFile &&
           !fromNodeModules &&

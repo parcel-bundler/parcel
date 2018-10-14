@@ -6,6 +6,8 @@ const {mkdirp} = require('../src/utils/fs');
 const {symlinkSync} = require('fs');
 
 describe('javascript', function() {
+  this.timeout(30000);
+
   it('should produce a basic JS bundle with CommonJS requires', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs/index.js')
@@ -40,6 +42,27 @@ describe('javascript', function() {
     assert.equal(typeof output, 'object');
     assert.equal(typeof output.default, 'function');
     assert.equal(output.default(), 3);
+  });
+
+  it('should not autoinstall if PARCEL_NO_AUTOINSTALL is set to true', async function() {
+    const inputDir = path.resolve(
+      __dirname,
+      'integration',
+      'dont-autoinstall-if-env-var-is-set-to-true'
+    );
+    try {
+      let a = await bundle(path.resolve(inputDir, './index.js'));
+      await run(a);
+    } catch (e) {
+      let pkg = await fs.readFile(
+        path.resolve(inputDir, 'package.json'),
+        'utf8'
+      );
+      const pkgName = 'lodash';
+      pkg = JSON.parse(pkg);
+      assert(pkgName in pkg.dependencies === false);
+      assert(e.message.includes("Cannot resolve dependency 'lodash'"));
+    }
   });
 
   it('should auto install babel-core v6', async function() {
