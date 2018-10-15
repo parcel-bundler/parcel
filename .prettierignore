@@ -1,4 +1,4 @@
-src/builtins
-test/integration
-test/input
-test/dist
+packages/core/parcel/src/builtins
+packages/core/parcel/test/integration
+packages/core/parcel/test/input
+packages/core/parcel/test/dist

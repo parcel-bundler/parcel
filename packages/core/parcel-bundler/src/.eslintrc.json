@@ -1,5 +1,5 @@
 {
-  "extends": "../.eslintrc.json",
+  "extends": "../../../../.eslintrc.json",
   "rules": {
     "no-console": 0
   }

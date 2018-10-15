@@ -1,0 +1,41 @@
+{
+  "name": "@parcel/monorepo",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "private": true,
+  "workspaces": [
+    "packages/*/*"
+  ],
+  "scripts": {
+    "build": "lerna run build --stream",
+    "test": "lerna run test --stream",
+    "test-ci": "lerna run test-ci --stream",
+    "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different",
+    "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\"",
+    "precommit": "lint-staged",
+    "clean": "lerna clean --yes && lerna exec -- rm -rf ./lib && yarn",
+    "postinstall": "yarn build"
+  },
+  "devDependencies": {
+    "lerna": "^3.3.2",
+    "lint-staged": "^7.2.2",
+    "prettier": "^1.14.2"
+  },
+  "engines": {
+    "node": ">= 6.0.0"
+  },
+  "lint-staged": {
+    "*.{js,json,md}": [
+      "prettier --write",
+      "git add"
+    ]
+  },
+  "collective": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/parcel"
+  }
+}
