@@ -1,4 +1,4 @@
-packages/core/parcel/src/builtins
-packages/core/parcel/test/integration
-packages/core/parcel/test/input
-packages/core/parcel/test/dist
+packages/core/parcel-bundler/src/builtins
+packages/core/parcel-bundler/test/integration
+packages/core/parcel-bundler/test/input
+packages/core/parcel-bundler/test/dist
