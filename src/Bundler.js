@@ -136,7 +136,7 @@ class Bundler extends EventEmitter {
       global: options.global,
       autoinstall:
         typeof options.autoinstall === 'boolean' &&
-        process.env.PARCEL_NO_AUTOINSTALL !== 'true'
+        process.env.PARCEL_AUTOINSTALL !== 'false'
           ? options.autoinstall
           : !isProduction,
       scopeHoist: scopeHoist,

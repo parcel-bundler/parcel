@@ -44,7 +44,7 @@ describe('javascript', function() {
     assert.equal(output.default(), 3);
   });
 
-  it('should not autoinstall if PARCEL_NO_AUTOINSTALL is set to true', async function() {
+  it('should not autoinstall if PARCEL_AUTOINSTALL is set to false', async function() {
     const inputDir = path.resolve(
       __dirname,
       'integration',
