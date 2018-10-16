@@ -47,3 +47,13 @@ jobs:
     inputs:
       testResultsFiles: '**/junit-*.xml'
       testRunTitle: TestRunparameters.name$(node_version)
+  - task: PublishCodeCoverageResults@1
+    displayName: 'Publish code coverage results'
+    inputs: 
+      codeCoverageTool: 'cobertura'
+      summaryFileLocation: '**/coverage/cobertura-coverage.xml'
+  - task: PublishBuildArtifacts@1
+    displayName: 'Where is the HTML file'
+    inputs:
+    pathtoPublish: '$(System.DefaultWorkingDirectory)' 
+
