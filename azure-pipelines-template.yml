@@ -40,9 +40,10 @@ jobs:
     displayName: 'Install dependencies'
   - script: yarn test-ci
     displayName: 'Run tests'
-  #- script: yarn lint
-  #  displayName: 'Lint'
+  - script: yarn lint
+    displayName: 'Lint'
   - task: PublishTestResults@2
     displayName: 'Publish Test Results'
     inputs:
+      testResultsFiles: '**/junit-*.xml'
       testRunTitle: TestRunparameters.name$(node_version)
