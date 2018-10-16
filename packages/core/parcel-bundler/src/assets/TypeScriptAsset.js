@@ -1,5 +1,35 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
+const config = require('../utils/config');
+const path = require('path');
+
+/**
+ * Creates host for parsing tsconfig.json from host for TypeScript compiler
+ * Modification of https://github.com/Microsoft/TypeScript/blob/70e26fc7016ada7b2dc6eefb854cc59f92fb4bcd/src/compiler/program.ts#L2855
+ * @param {Object} compilerHost
+ * @param {string[]} readFileStore Read files while parsing tsconfig.json, should be parent tsconfig.json
+ */
+const parseConfigHostFromCompilerHost = (compilerHost, readFileStore) => {
+  return {
+    fileExists: f => compilerHost.fileExists(f),
+    readDirectory(root, extensions, excludes, includes, depth) {
+      return compilerHost.readDirectory(
+        root,
+        extensions,
+        excludes,
+        includes,
+        depth
+      );
+    },
+    readFile: f => {
+      readFileStore.push(f);
+      return compilerHost.readFile(f);
+    },
+    useCaseSensitiveFileNames: compilerHost.useCaseSensitiveFileNames(),
+    getCurrentDirectory: () => compilerHost.getCurrentDirectory(),
+    onUnRecoverableConfigFileDiagnostic: () => undefined
+  };
+};
 
 class TypeScriptAsset extends Asset {
   constructor(name, options) {
@@ -28,9 +58,36 @@ class TypeScriptAsset extends Asset {
 
     // Overwrite default if config is found
     if (tsconfig) {
+      // Files read by TypeScript parser while resolving "extends"
+      let readFiles = [];
+
+      // Parse contents of tsconfig.json with TypeScript API to resolve "extends"
+      const compilerHost = typescript.createCompilerHost(
+        tsconfig.compilerOptions || {}
+      );
+      const parseConfigHost = parseConfigHostFromCompilerHost(
+        compilerHost,
+        readFiles
+      );
+      const tsconfigPath = await config.resolve(this.name, ['tsconfig.json']);
+      const parsedTsconfig = typescript.parseJsonConfigFileContent(
+        tsconfig,
+        parseConfigHost,
+        path.dirname(tsconfigPath)
+      );
+
+      // Add resolved tsconfig.json to watch list
+      for (const file of readFiles) {
+        if (file.endsWith('tsconfig.json')) {
+          // `path` needs to be normalized for Windows path system compatibility
+          // because TypeScript API outputs UNIX style path even if Windows environment
+          this.addDependency(path.resolve(file), {includedInParent: true});
+        }
+      }
+
       transpilerOptions.compilerOptions = Object.assign(
         transpilerOptions.compilerOptions,
-        tsconfig.compilerOptions
+        parsedTsconfig.options
       );
     }
     transpilerOptions.compilerOptions.noEmit = false;
