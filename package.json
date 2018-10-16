@@ -23,8 +23,6 @@
   "devDependencies": {
     "lerna": "^3.3.2",
     "lint-staged": "^7.2.2",
-    "mocha-junit-reporter": "^1.18.0",
-    "mocha-multi-reporters": "^1.1.7",
     "prettier": "^1.14.2"
   },
   "engines": {

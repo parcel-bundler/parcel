@@ -98,6 +98,8 @@
     "less": "^3.0.1",
     "lint-staged": "^7.1.2",
     "mocha": "^5.1.1",
+    "mocha-junit-reporter": "^1.18.0",
+    "mocha-multi-reporters": "^1.1.7",
     "ncp": "^2.0.0",
     "nib": "^1.1.2",
     "node-elm-compiler": "^5.0.1",
