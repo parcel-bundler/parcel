@@ -55,5 +55,5 @@ jobs:
   - task: PublishBuildArtifacts@1
     displayName: 'Where is the HTML file'
     inputs:
-    pathtoPublish: '$(System.DefaultWorkingDirectory)' 
+      pathtoPublish: '$(System.DefaultWorkingDirectory)' 
 
