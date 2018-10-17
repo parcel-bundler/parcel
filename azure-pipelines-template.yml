@@ -46,12 +46,13 @@ jobs:
     displayName: 'Publish Test Results'
     inputs:
       testResultsFiles: '**/junit-*.xml'
-      testRunTitle: TestRun $(parameters.name)_$(node_version)
+      testRunTitle: TestRun ${{ parameters.name }}_$(node_version)
   - task: PublishCodeCoverageResults@1
     displayName: 'Publish code coverage results'
     inputs: 
       codeCoverageTool: 'cobertura'
       summaryFileLocation: '**/coverage/cobertura-coverage.xml'
+      reportDirectory: 'coverage'
   - task: PublishBuildArtifacts@1
     displayName: 'Where is the HTML file'
     inputs:
