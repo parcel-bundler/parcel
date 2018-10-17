@@ -1,11 +1,17 @@
 {
   "name": "@parcel/workerfarm",
-  "version": "1.9.3",
+  "version": "1.10.3",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/WorkerFarm.js",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "scripts": {
+    "test": "cross-env NODE_ENV=test mocha"
+  },
+  "devDependencies": {
+    "mocha": "^5.2.0"
   }
 }

@@ -1,4 +1,6 @@
-const WorkerFarm = require(`../../../${parseInt(process.versions.node, 10) < 8 ? 'lib' : 'src'}/workerfarm/WorkerFarm`);
+const WorkerFarm = require(`../../../${
+  parseInt(process.versions.node, 10) < 8 ? 'lib' : 'src'
+}/WorkerFarm`);
 
 function run(a, b) {
   return WorkerFarm.callMaster({

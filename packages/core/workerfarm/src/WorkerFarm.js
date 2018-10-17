@@ -1,9 +1,14 @@
 const {EventEmitter} = require('events');
 const errorUtils = require('./errorUtils');
 const Worker = require('./Worker');
-const cpuCount = require('../utils/cpuCount');
+const cpuCount = require('./cpuCount');
 
 let shared = null;
+
+/**
+ * workerPath should always be defined inside farmOptions
+ */
+
 class WorkerFarm extends EventEmitter {
   constructor(options, farmOptions = {}) {
     super();
@@ -13,8 +18,7 @@ class WorkerFarm extends EventEmitter {
         maxConcurrentCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(),
         forcedKillTime: 500,
         warmWorkers: true,
-        useLocalWorker: true,
-        workerPath: '../worker'
+        useLocalWorker: true
       },
       farmOptions
     );
