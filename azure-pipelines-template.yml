@@ -51,5 +51,5 @@ jobs:
     displayName: 'Publish code coverage results'
     inputs: 
       codeCoverageTool: 'cobertura'
-      summaryFileLocation: '**/coverage/cobertura-coverage.xml'
+      summaryFileLocation: '**/parcel-bundler/coverage/cobertura-coverage.xml'
       reportDirectory: '**/coverage'
