@@ -52,4 +52,4 @@ jobs:
     inputs: 
       codeCoverageTool: 'cobertura'
       summaryFileLocation: '**/coverage/cobertura-coverage.xml'
-      reportDirectory: '$(System.DefaultWorkingDirectory)/coverage'
+      reportDirectory: '**/coverage'
