@@ -46,7 +46,7 @@ jobs:
     displayName: 'Publish Test Results'
     inputs:
       testResultsFiles: '**/junit-*.xml'
-      testRunTitle: TestRun $(name)_$(node_version)
+      testRunTitle: TestRun {{name}}_$(node_version)
   - task: PublishCodeCoverageResults@1
     displayName: 'Publish code coverage results'
     inputs: 
