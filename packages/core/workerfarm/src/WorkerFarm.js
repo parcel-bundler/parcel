@@ -27,6 +27,8 @@ class WorkerFarm extends EventEmitter {
     this.workers = new Map();
     this.callQueue = [];
 
+    console.log(this.options.workerPath);
+
     this.localWorker = require(this.options.workerPath);
     this.run = this.mkhandle('run');
 

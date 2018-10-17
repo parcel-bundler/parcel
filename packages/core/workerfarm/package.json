@@ -2,16 +2,26 @@
   "name": "@parcel/workerfarm",
   "version": "1.10.3",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "src/WorkerFarm.js",
+  "main": "index.js",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "engines": {
+    "node": ">= 6.0.0"
+  },
   "scripts": {
-    "test": "cross-env NODE_ENV=test mocha"
+    "test": "cross-env NODE_ENV=test mocha",
+    "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
+    "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
+    "build": "babel src -d lib",
+    "prepublish": "yarn build"
   },
   "devDependencies": {
     "mocha": "^5.2.0"
+  },
+  "dependencies": {
+    "physical-cpu-count": "^2.0.0"
   }
 }
