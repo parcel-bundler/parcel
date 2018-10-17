@@ -1,5 +1,8 @@
 const assert = require('assert');
-const WorkerFarm = require('../src/WorkerFarm');
+const WorkerFarm =
+  parseInt(process.versions.node, 10) < 8
+    ? require('../lib/WorkerFarm')
+    : require('../src/WorkerFarm');
 
 describe('WorkerFarm', () => {
   it('Should start up workers', async () => {
