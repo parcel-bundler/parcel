@@ -52,9 +52,4 @@ jobs:
     inputs: 
       codeCoverageTool: 'cobertura'
       summaryFileLocation: '**/coverage/cobertura-coverage.xml'
-      reportDirectory: 'coverage'
-  - task: PublishBuildArtifacts@1
-    displayName: 'Where is the HTML file'
-    inputs:
-      pathtoPublish: '$(System.DefaultWorkingDirectory)' 
-
+      reportDirectory: '$(System.DefaultWorkingDirectory)/coverage'
