@@ -1,6 +1,6 @@
 const path = require('path');
 const prettifyTime = require('./prettifyTime');
-const logger = require('../Logger');
+const logger = require('@parcel/Logger');
 const emoji = require('./emoji');
 const filesize = require('filesize');
 

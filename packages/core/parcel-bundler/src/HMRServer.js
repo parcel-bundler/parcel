@@ -4,7 +4,7 @@ const WebSocket = require('ws');
 const prettyError = require('./utils/prettyError');
 const generateCertificate = require('./utils/generateCertificate');
 const getCertificate = require('./utils/getCertificate');
-const logger = require('./Logger');
+const logger = require('@parcel/Logger');
 
 class HMRServer {
   async start(options = {}) {

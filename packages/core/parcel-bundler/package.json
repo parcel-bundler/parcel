@@ -43,7 +43,6 @@
     "filesize": "^3.6.0",
     "fswatcher-child": "^1.0.5",
     "get-port": "^3.2.0",
-    "grapheme-breaker": "^0.3.2",
     "htmlnano": "^0.1.9",
     "is-glob": "^4.0.0",
     "is-url": "^1.2.2",
@@ -54,7 +53,6 @@
     "node-forge": "^0.7.1",
     "node-libs-browser": "^2.0.0",
     "opn": "^5.1.0",
-    "ora": "^2.1.0",
     "postcss": "^6.0.19",
     "postcss-value-parser": "^3.3.0",
     "posthtml": "^0.11.2",
@@ -65,13 +63,13 @@
     "serialize-to-js": "^1.1.1",
     "serve-static": "^1.12.4",
     "source-map": "0.6.1",
-    "strip-ansi": "^4.0.0",
     "terser": "^3.7.3",
     "toml": "^2.3.3",
     "tomlify-j0.4": "^3.0.0",
     "v8-compile-cache": "^2.0.0",
     "ws": "^5.1.1",
-    "@parcel/workers": "^1.10.3"
+    "@parcel/workers": "^1.10.3",
+    "@parcel/logger": "^1.10.3"
   },
   "devDependencies": {
     "@babel/cli": "^7.0.0",
