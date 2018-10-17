@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/workerfarm",
+  "name": "@parcel/workers",
   "version": "1.10.3",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",

@@ -71,7 +71,7 @@
     "tomlify-j0.4": "^3.0.0",
     "v8-compile-cache": "^2.0.0",
     "ws": "^5.1.1",
-    "@parcel/workerfarm": "^1.10.3"
+    "@parcel/workers": "^1.10.3"
   },
   "devDependencies": {
     "@babel/cli": "^7.0.0",
