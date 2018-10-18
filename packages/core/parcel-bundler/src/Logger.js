@@ -5,7 +5,7 @@ const emoji = require('./utils/emoji');
 const {countBreaks} = require('grapheme-breaker');
 const stripAnsi = require('strip-ansi');
 const ora = require('ora');
-const WorkerFarm = require('./workerfarm/WorkerFarm');
+const WorkerFarm = require('@parcel/workers');
 const path = require('path');
 const fs = require('fs');
 

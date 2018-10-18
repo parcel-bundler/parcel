@@ -55,7 +55,6 @@
     "node-libs-browser": "^2.0.0",
     "opn": "^5.1.0",
     "ora": "^2.1.0",
-    "physical-cpu-count": "^2.0.0",
     "postcss": "^6.0.19",
     "postcss-value-parser": "^3.3.0",
     "posthtml": "^0.11.2",
@@ -71,7 +70,8 @@
     "toml": "^2.3.3",
     "tomlify-j0.4": "^3.0.0",
     "v8-compile-cache": "^2.0.0",
-    "ws": "^5.1.1"
+    "ws": "^5.1.1",
+    "@parcel/workers": "^1.10.3"
   },
   "devDependencies": {
     "@babel/cli": "^7.0.0",
@@ -79,7 +79,6 @@
     "@babel/plugin-syntax-export-namespace-from": "^7.0.0",
     "@babel/plugin-transform-runtime": "^7.0.0",
     "@babel/preset-flow": "^7.0.0",
-    "@babel/register": "^7.0.0",
     "@vue/component-compiler-utils": "^2.0.0",
     "babel-core": "^6.26.3",
     "babel-preset-env": "^1.7.0",
@@ -115,7 +114,8 @@
     "sugarss": "^2.0.0",
     "typescript": "^3.0.0",
     "vue": "^2.5.16",
-    "vue-template-compiler": "^2.5.16"
+    "vue-template-compiler": "^2.5.16",
+    "@parcel/babel-register": "^1.10.3"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
