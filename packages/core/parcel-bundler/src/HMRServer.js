@@ -1,7 +1,6 @@
 const http = require('http');
 const https = require('https');
 const WebSocket = require('ws');
-const prettyError = require('./utils/prettyError');
 const generateCertificate = require('./utils/generateCertificate');
 const getCertificate = require('./utils/getCertificate');
 const logger = require('@parcel/logger');
@@ -49,7 +48,7 @@ class HMRServer {
   }
 
   emitError(err) {
-    let {message, stack} = prettyError(err);
+    let {message, stack} = logger.formatError(err);
 
     // store the most recent error so we can notify new connections
     // and so we can broadcast when the error is resolved

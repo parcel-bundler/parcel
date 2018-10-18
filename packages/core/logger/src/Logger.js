@@ -25,6 +25,7 @@ class Logger {
       options && typeof options.color === 'boolean'
         ? options.color
         : chalk.supportsColor;
+    this.emoji = (options && options.emoji) || emoji;
     this.chalk = new chalk.constructor({enabled: this.color});
     this.isTest =
       options && typeof options.isTest === 'boolean'
@@ -106,7 +107,7 @@ class Logger {
       return;
     }
 
-    this._writeError(err, emoji.warning, this.chalk.yellow);
+    this._writeError(err, this.emoji.warning, this.chalk.yellow);
   }
 
   error(err) {
@@ -114,15 +115,19 @@ class Logger {
       return;
     }
 
-    this._writeError(err, emoji.error, this.chalk.red.bold);
+    this._writeError(err, this.emoji.error, this.chalk.red.bold);
   }
 
   success(message) {
-    this.log(`${emoji.success}  ${this.chalk.green.bold(message)}`);
+    this.log(`${this.emoji.success}  ${this.chalk.green.bold(message)}`);
+  }
+
+  formatError(err, opts) {
+    return prettyError(err, opts);
   }
 
   _writeError(err, emoji, color) {
-    let {message, stack} = prettyError(err, {color: this.color});
+    let {message, stack} = this.formatError(err, {color: this.color});
     this.write(color(`${emoji}  ${message}`));
     if (stack) {
       this.write(stack);
@@ -177,6 +182,7 @@ class Logger {
   }
 
   _log(message) {
+    // eslint-disable-next-line no-console
     console.log(message);
   }
 

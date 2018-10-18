@@ -1,5 +1,5 @@
 const assert = require('assert');
-const prettyError = require('../src/utils/prettyError');
+const prettyError = require('../src/prettyError');
 
 const message = 'Error Message!';
 const fileName = 'Test.js';
