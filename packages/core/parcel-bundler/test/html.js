@@ -109,19 +109,6 @@ describe('html', function() {
     });
   });
 
-  it('should add dependencies referenced by posthtml-include', async () => {
-    const b = await bundle(
-      path.join(__dirname, '/integration/posthtml-assets/index.html')
-    );
-    const asset = b.assets.values().next().value;
-    const other = path.join(
-      __dirname,
-      '/integration/posthtml-assets/other.html'
-    );
-    assert(asset.dependencies.has(other));
-    assert(asset.dependencies.get(other).includedInParent);
-  });
-
   it('should add dependencies referenced by plugins', async () => {
     const b = await bundle(
       path.join(__dirname, '/integration/posthtml-plugin-deps/index.html')
