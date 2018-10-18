@@ -1,2 +1,2 @@
---require @parcel/logger
+--require @parcel/babel-register
 --exit
