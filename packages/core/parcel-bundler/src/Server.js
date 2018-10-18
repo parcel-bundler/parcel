@@ -7,7 +7,7 @@ const generateCertificate = require('./utils/generateCertificate');
 const getCertificate = require('./utils/getCertificate');
 const prettyError = require('./utils/prettyError');
 const AnsiToHtml = require('ansi-to-html');
-const logger = require('@parcel/Logger');
+const logger = require('@parcel/logger');
 const path = require('path');
 const url = require('url');
 
