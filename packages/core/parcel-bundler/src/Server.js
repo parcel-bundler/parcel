@@ -5,9 +5,8 @@ const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
 const generateCertificate = require('./utils/generateCertificate');
 const getCertificate = require('./utils/getCertificate');
-const prettyError = require('./utils/prettyError');
 const AnsiToHtml = require('ansi-to-html');
-const logger = require('./Logger');
+const logger = require('@parcel/logger');
 const path = require('path');
 const url = require('url');
 
@@ -83,7 +82,7 @@ function middleware(bundler) {
       if (process.env.NODE_ENV === 'production') {
         errorMesssge += '<p><b>Check the console for details.</b></p>';
       } else {
-        const {message, stack} = prettyError(error, {color: true});
+        const {message, stack} = logger.formatError(error, {color: true});
         errorMesssge += `<p><b>${message}</b></p>`;
         if (stack) {
           errorMesssge += `<div style="background: black; padding: 1rem;">${ansiToHtml.toHtml(
