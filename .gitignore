@@ -5,6 +5,7 @@ coverage
 .nyc_output
 .cache
 dist
+lib
 .vscode/
 .idea/
 *.min.js
