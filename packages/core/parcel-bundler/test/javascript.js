@@ -1584,6 +1584,12 @@ describe('javascript', function() {
     assert.equal(await module.default(), 'Hello Hello! Hello');
   });
 
+  it('should support cyclic dependencies', async function() {
+    let b = await bundle(path.join(__dirname, `/integration/js-cyclic/index.js`));
+    let module = await run(b);
+    assert.equal(module.default, 'abba');
+  });
+
   it('should support importing HTML from JS async', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/import-html-async/index.js'),

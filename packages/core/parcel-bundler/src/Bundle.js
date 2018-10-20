@@ -112,8 +112,8 @@ class Bundle {
     // Otherwise, use a hash of the filename so it remains consistent across builds.
     let ext = Path.extname(this.name);
     let hash = (contentHash
-      ? this.getHash()
-      : Path.basename(this.name, ext)
+        ? this.getHash()
+        : Path.basename(this.name, ext)
     ).slice(-8);
     let entryAsset = this.entryAsset || this.parentBundle.entryAsset;
     let name = Path.basename(entryAsset.name, Path.extname(entryAsset.name));
@@ -274,10 +274,15 @@ class Bundle {
 
   getHash() {
     let hash = crypto.createHash('md5');
-    for (let asset of this.assets) {
-      hash.update(asset.hash);
-    }
-
+    let visited = new Set();
+    let visit = asset => {
+      if (!visited.has(asset.id)) {
+        visited.add(asset.id);
+        hash.update(asset.hash);
+        Array.from(asset.depAssets.values()).forEach(visit);
+      }
+    };
+    this.assets.forEach(visit);
     return hash.digest('hex');
   }
 }

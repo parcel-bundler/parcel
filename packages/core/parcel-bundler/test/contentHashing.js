@@ -71,4 +71,35 @@ describe('content hashing', function() {
 
     assert.notEqual(filename, newFilename);
   });
+
+  it('should update content hash when indirect dependency changes', async function () {
+    await ncp(
+      path.join(__dirname, '/integration/import-multilevel-html'),
+      path.join(__dirname, '/input')
+    );
+
+    await bundle(path.join(__dirname, '/input/index.html'), {
+      production: true
+    });
+
+    let html = await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8');
+    let filename = html.match(/\/(input\.[0-9a-f]+\.js)/)[1];
+    assert(await fs.exists(path.join(__dirname, '/dist/', filename)));
+    let content = await fs.readFile(path.join(__dirname, '/dist/', filename));
+
+    await fs.writeFile(path.join(__dirname, '/input/test.txt'), 'hello world');
+
+    await bundle(path.join(__dirname, '/input/index.html'), {
+      production: true
+    });
+
+    html = await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8');
+    let newFilename = html.match(/\/(input\.[0-9a-f]+\.js)/)[1];
+    assert(await fs.exists(path.join(__dirname, '/dist/', newFilename)));
+    let newContent = await fs.readFile(path.join(__dirname, '/dist/', newFilename));
+
+    assert.notEqual(content, newContent);
+    assert.notEqual(filename, newFilename);
+  });
+
 });
