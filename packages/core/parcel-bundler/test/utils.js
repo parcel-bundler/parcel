@@ -82,7 +82,9 @@ function prepareBrowserContext(bundle, globals) {
             setTimeout(function() {
               if (el.tag === 'script') {
                 vm.runInContext(
-                  nodeFS.readFileSync(path.join(__dirname, 'dist', el.src)),
+                  nodeFS.readFileSync(
+                    path.join(path.dirname(bundle.name), el.src)
+                  ),
                   ctx
                 );
               }
