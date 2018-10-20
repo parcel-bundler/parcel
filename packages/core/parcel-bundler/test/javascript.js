@@ -1,7 +1,14 @@
 const assert = require('assert');
 const fs = require('../src/utils/fs');
 const path = require('path');
-const {bundle, run, assertBundleTree, deferred, ncp} = require('./utils');
+const {
+  bundle,
+  bundler,
+  run,
+  assertBundleTree,
+  deferred,
+  ncp
+} = require('./utils');
 const {mkdirp} = require('../src/utils/fs');
 const {symlinkSync} = require('fs');
 
@@ -309,6 +316,27 @@ describe('javascript', function() {
       ]
     });
 
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 3);
+  });
+
+  it('should load dynamic bundle when entry is in a subdirectory', async function() {
+    let bu = await bundler(
+      path.join(
+        __dirname,
+        '/integration/dynamic-subdirectory/subdirectory/index.js'
+      ),
+      {
+        target: 'browser'
+      }
+    );
+    // Set the rootDir to make sure subdirectory is preserved
+    bu.options.rootDir = path.join(
+      __dirname,
+      '/integration/dynamic-subdirectory'
+    );
+    let b = await bu.bundle();
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 3);

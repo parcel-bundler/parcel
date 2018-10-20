@@ -94,7 +94,7 @@ class JSPackager extends Packager {
   }
 
   getBundleSpecifier(bundle) {
-    let name = path.basename(bundle.name);
+    let name = path.relative(path.dirname(this.bundle.name), bundle.name);
     if (bundle.entryAsset) {
       return [name, bundle.entryAsset.id];
     }

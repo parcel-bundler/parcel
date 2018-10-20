@@ -82,7 +82,9 @@ function prepareBrowserContext(bundle, globals) {
             setTimeout(function() {
               if (el.tag === 'script') {
                 vm.runInContext(
-                  nodeFS.readFileSync(path.join(__dirname, 'dist', el.src)),
+                  nodeFS.readFileSync(
+                    path.join(path.dirname(bundle.name), el.src)
+                  ),
                   ctx
                 );
               }
@@ -119,13 +121,13 @@ function prepareBrowserContext(bundle, globals) {
           arrayBuffer() {
             return Promise.resolve(
               new Uint8Array(
-                nodeFS.readFileSync(path.join(__dirname, 'dist', url))
+                nodeFS.readFileSync(path.join(path.dirname(bundle.name), url))
               ).buffer
             );
           },
           text() {
             return Promise.resolve(
-              nodeFS.readFileSync(path.join(__dirname, 'dist', url), 'utf8')
+              nodeFS.readFileSync(path.join(path.dirname(bundle.name), url), 'utf8')
             );
           }
         });
