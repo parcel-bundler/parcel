@@ -20,7 +20,7 @@ function generateCertificate(options = {}) {
     }
   }
 
-  logger.log('Generating SSL Certificate...');
+  logger.progress('Generating SSL Certificate...');
 
   const pki = forge.pki;
   const keys = pki.rsa.generateKeyPair(2048);
