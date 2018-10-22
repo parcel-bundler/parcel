@@ -651,6 +651,18 @@ class Bundler extends EventEmitter {
       bundle.addAsset(asset);
     }
 
+    if (
+      this.options.production &&
+      dep &&
+      dep.dynamic &&
+      asset.type !== 'js' &&
+      bundle.type === 'js'
+    ) {
+      let err = new Error('Non JS dynamic imports are not supported yet.');
+      err.loc = dep.loc;
+      throw err;
+    }
+
     if ((dep && dep.dynamic) || !bundle.type) {
       // If the asset is already the entry asset of a bundle, don't create a duplicate.
       if (isEntryAsset) {
