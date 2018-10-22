@@ -36,11 +36,7 @@ async function getConfig(asset) {
   }
 
   config = config || {};
-  const plugins = config.plugins;
-  if (typeof plugins === 'object') {
-    Object.keys(plugins).forEach(p => plugins[p]);
-  }
-  config.plugins = await loadPlugins(plugins, asset.name);
+  config.plugins = await loadPlugins(config.plugins, asset.name);
   config.skipParse = true;
   return config;
 }
