@@ -15,7 +15,7 @@ const SourceMap = require('../SourceMap');
 const hoist = require('../scope-hoisting/hoist');
 const path = require('path');
 const fs = require('../utils/fs');
-const logger = require('../Logger');
+const logger = require('@parcel/logger');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;

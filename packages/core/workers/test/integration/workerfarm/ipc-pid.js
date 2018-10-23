@@ -1,4 +1,6 @@
-const WorkerFarm = require(`../../../${parseInt(process.versions.node, 10) < 8 ? 'lib' : 'src'}/workerfarm/WorkerFarm`);
+const WorkerFarm = require(`../../../${
+  parseInt(process.versions.node, 10) < 8 ? 'lib' : 'src'
+}/WorkerFarm`);
 
 function run() {
   let result = [process.pid];
@@ -6,10 +8,12 @@ function run() {
     WorkerFarm.callMaster({
       location: require.resolve('./master-process-id.js'),
       args: []
-    }).then((pid) => {
-      result.push(pid)
-      resolve(result);
-    }).catch(reject);
+    })
+      .then(pid => {
+        result.push(pid);
+        resolve(result);
+      })
+      .catch(reject);
   });
 }
 

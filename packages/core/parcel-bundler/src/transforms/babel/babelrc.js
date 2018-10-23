@@ -1,5 +1,5 @@
 const semver = require('semver');
-const logger = require('../../Logger');
+const logger = require('@parcel/logger');
 const path = require('path');
 const localRequire = require('../../utils/localRequire');
 const installPackage = require('../../utils/installPackage');

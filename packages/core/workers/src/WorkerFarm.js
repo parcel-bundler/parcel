@@ -1,27 +1,36 @@
 const {EventEmitter} = require('events');
 const errorUtils = require('./errorUtils');
 const Worker = require('./Worker');
-const cpuCount = require('../utils/cpuCount');
+const cpuCount = require('./cpuCount');
 
 let shared = null;
+
+/**
+ * workerPath should always be defined inside farmOptions
+ */
+
 class WorkerFarm extends EventEmitter {
   constructor(options, farmOptions = {}) {
     super();
-    this.options = Object.assign(
-      {
-        maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
-        maxConcurrentCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(),
-        forcedKillTime: 500,
-        warmWorkers: true,
-        useLocalWorker: true,
-        workerPath: '../worker'
-      },
-      farmOptions
-    );
+    this.options = {
+      maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
+      maxConcurrentCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(),
+      forcedKillTime: 500,
+      warmWorkers: true,
+      useLocalWorker: true
+    };
+
+    if (farmOptions) {
+      this.options = Object.assign(this.options, farmOptions);
+    }
 
     this.warmWorkers = 0;
     this.workers = new Map();
     this.callQueue = [];
+
+    if (!this.options.workerPath) {
+      throw new Error('Please provide a worker path!');
+    }
 
     this.localWorker = require(this.options.workerPath);
     this.run = this.mkhandle('run');
@@ -243,9 +252,16 @@ class WorkerFarm extends EventEmitter {
     );
   }
 
-  static getShared(options) {
+  static async getShared(options, farmOptions) {
+    // Farm options shouldn't be considered safe to overwrite
+    // and require an entire new instance to be created
+    if (shared && farmOptions) {
+      await shared.end();
+      shared = null;
+    }
+
     if (!shared) {
-      shared = new WorkerFarm(options);
+      shared = new WorkerFarm(options, farmOptions);
     } else if (options) {
       shared.init(options);
     }
@@ -263,12 +279,12 @@ class WorkerFarm extends EventEmitter {
       : cpuCount();
   }
 
-  static callMaster(request, awaitResponse = true) {
+  static async callMaster(request, awaitResponse = true) {
     if (WorkerFarm.isWorker()) {
       const child = require('./child');
       return child.addCall(request, awaitResponse);
     } else {
-      return WorkerFarm.getShared().processRequest(request);
+      return (await WorkerFarm.getShared()).processRequest(request);
     }
   }
 

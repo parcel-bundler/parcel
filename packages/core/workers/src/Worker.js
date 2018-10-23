@@ -2,13 +2,9 @@ const childProcess = require('child_process');
 const {EventEmitter} = require('events');
 const errorUtils = require('./errorUtils');
 
-const childModule =
-  parseInt(process.versions.node, 10) < 8
-    ? require.resolve('../../lib/workerfarm/child')
-    : require.resolve('../../src/workerfarm/child');
+const childModule = require.resolve('./child');
 
 let WORKER_ID = 0;
-
 class Worker extends EventEmitter {
   constructor(options) {
     super();

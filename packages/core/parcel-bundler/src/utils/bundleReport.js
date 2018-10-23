@@ -1,7 +1,6 @@
 const path = require('path');
 const prettifyTime = require('./prettifyTime');
-const logger = require('../Logger');
-const emoji = require('./emoji');
+const logger = require('@parcel/logger');
 const filesize = require('filesize');
 
 const LARGE_BUNDLE_SIZE = 1024 * 1024;
@@ -83,7 +82,7 @@ function* iterateBundles(bundle) {
 function prettifySize(size, isLarge) {
   let res = filesize(size);
   if (isLarge) {
-    return logger.chalk.yellow(emoji.warning + '  ' + res);
+    return logger.chalk.yellow(logger.emoji.warning + '  ' + res);
   }
   return logger.chalk.magenta(res);
 }

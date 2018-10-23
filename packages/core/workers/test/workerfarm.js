@@ -1,5 +1,5 @@
 const assert = require('assert');
-const WorkerFarm = require('../src/workerfarm/WorkerFarm');
+const WorkerFarm = require('../index');
 
 describe('WorkerFarm', () => {
   it('Should start up workers', async () => {

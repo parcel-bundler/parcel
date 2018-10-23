@@ -3,7 +3,7 @@ const path = require('path');
 const md5 = require('./utils/md5');
 const objectHash = require('./utils/objectHash');
 const pkg = require('../package.json');
-const logger = require('./Logger');
+const logger = require('@parcel/logger');
 const {isGlob, glob} = require('./utils/glob');
 
 // These keys can affect the output, so if they differ, the cache should not match
