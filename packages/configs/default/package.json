@@ -1,0 +1,14 @@
+{
+  "name": "@parcel/config-default",
+  "version": "2.0.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "dependencies": {
+    "@parcel/packager-js": "^2.0.0",
+    "@parcel/transformer-js": "^2.0.0",
+    "@parcel/transformer-terser": "^2.0.0"
+  }
+}

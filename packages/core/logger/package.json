@@ -20,9 +20,9 @@
     "prepublish": "yarn build"
   },
   "devDependencies": {
+    "@parcel/eslint-config": "1.10.3",
     "mocha": "^5.2.0",
-    "sinon": "^5.0.1",
-    "@parcel/babel-register": "^1.10.3"
+    "sinon": "^5.0.1"
   },
   "dependencies": {
     "chalk": "^2.1.0",

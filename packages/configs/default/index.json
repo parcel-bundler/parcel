@@ -1,0 +1,11 @@
+{
+  "transforms": {
+    "*.{js,mjs,jsm,jsx,es6}": [
+      "@parcel/transformer-js",
+      "@parcel/transformer-terser"
+    ]
+  },
+  "packagers": {
+    "*.js": "@parcel/packager-js"
+  }
+}

@@ -21,6 +21,8 @@
     "postinstall": "yarn build"
   },
   "devDependencies": {
+    "eslint": "4",
+    "flow-bin": "^0.83.0",
     "lerna": "^3.3.2",
     "lint-staged": "^7.2.2",
     "prettier": "^1.14.2"

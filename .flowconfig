@@ -1,0 +1,17 @@
+[ignore]
+.*/node_modules/@choojs/**/.*
+.*/node_modules/config-chain/.*
+.*/node_modules/graphviz/documentation.json
+<PROJECT_ROOT>/packages/core/parcel-bundler/test/integration/.*
+<PROJECT_ROOT>/.nyc_output/.*
+.*/tmp/**/.*
+
+[include]
+
+[libs]
+
+[lints]
+
+[options]
+
+[strict]

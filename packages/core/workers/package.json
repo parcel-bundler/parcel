@@ -12,14 +12,14 @@
     "node": ">= 6.0.0"
   },
   "scripts": {
+    "pretest": "yarn build",
     "test": "cross-env NODE_ENV=test mocha",
     "test-ci": "yarn build && yarn test",
-    "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
-    "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
     "build": "babel src -d lib",
     "prepublish": "yarn build"
   },
   "devDependencies": {
+    "@parcel/eslint-config": "1.10.3",
     "mocha": "^5.2.0"
   },
   "dependencies": {

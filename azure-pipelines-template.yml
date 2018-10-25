@@ -1,44 +1,46 @@
 jobs:
-- job: ${{ parameters.name }}
-  pool: 
-    vmImage: ${{ parameters.vmImage }}
-  strategy:
-    matrix:
-      node_6_x:
-        node_version: 6.x
-      node_8_x:
-        node_version: 8.x
-      node_10_x:
-        node_version: 10.x
-    maxParallel: 3
-  steps:
-  - task: NodeTool@0
-    inputs:
-      versionSpec: $(node_version)
-    displayName: 'Install Node.js'
+  - job: ${{ parameters.name }}
+    pool:
+      vmImage: ${{ parameters.vmImage }}
+    strategy:
+      matrix:
+        node_6_x:
+          node_version: 6.x
+        node_8_x:
+          node_version: 8.x
+        node_10_x:
+          node_version: 10.x
+      maxParallel: 3
+    steps:
+      - task: NodeTool@0
+        inputs:
+          versionSpec: $(node_version)
+        displayName: 'Install Node.js'
 
-  # Install Rust
-  - ${{ if ne(parameters.name, 'Windows') }}:
-    - script: |
-        curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
-        export PATH="$HOME/.cargo/bin:$PATH"
-        echo "##vso[task.setvariable variable=PATH]$PATH"
-        rustc -Vv
-        cargo -V
-      displayName: Install Rust
-  - ${{ if eq(parameters.name, 'Windows') }}:
-    - script: |
-        curl -sSf -o rustup-init.exe https://win.rustup.rs
-        rustup-init.exe -y --default-toolchain nightly
-        set PATH=%PATH%;%USERPROFILE%\.cargo\bin
-        echo "##vso[task.setvariable variable=PATH]%PATH%;%USERPROFILE%\.cargo\bin"
-        rustc -Vv
-        cargo -V
-      displayName: Install Rust
+      # Install Rust
+      - ${{ if ne(parameters.name, 'Windows') }}:
+          - script: |
+              curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
+              export PATH="$HOME/.cargo/bin:$PATH"
+              echo "##vso[task.setvariable variable=PATH]$PATH"
+              rustc -Vv
+              cargo -V
+            displayName: Install Rust
+      - ${{ if eq(parameters.name, 'Windows') }}:
+          - script: |
+              curl -sSf -o rustup-init.exe https://win.rustup.rs
+              rustup-init.exe -y --default-toolchain nightly
+              set PATH=%PATH%;%USERPROFILE%\.cargo\bin
+              echo "##vso[task.setvariable variable=PATH]%PATH%;%USERPROFILE%\.cargo\bin"
+              rustc -Vv
+              cargo -V
+            displayName: Install Rust
 
-  - script: yarn
-    displayName: 'Install dependencies'
-  - script: yarn test-ci
-    displayName: 'Run tests'
-  - script: yarn lint
-    displayName: 'Lint'
+      - script: yarn
+        displayName: 'Install dependencies'
+      - script: yarn test-ci
+        displayName: 'Run tests'
+      - script: yarn flow
+        displayName: 'Type check with Flow'
+      - script: yarn lint
+        displayName: 'Lint'
