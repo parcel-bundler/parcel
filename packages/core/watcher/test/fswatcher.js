@@ -1,10 +1,10 @@
-const FSWatcher = require('../index');
+const Watcher = require('../index');
 const {sleep} = require('@parcel/test-utils');
 const assert = require('assert');
 
 describe('Watcher', function() {
   it('Should be able to create a new watcher', async () => {
-    let watcher = new FSWatcher();
+    let watcher = new Watcher();
 
     assert(!!watcher.child);
     assert(!watcher.ready);
@@ -18,7 +18,7 @@ describe('Watcher', function() {
   });
 
   it('Should be able to properly destroy the watcher', async () => {
-    let watcher = new FSWatcher();
+    let watcher = new Watcher();
 
     await sleep(1000);
 

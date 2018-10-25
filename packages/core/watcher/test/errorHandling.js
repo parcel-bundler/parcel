@@ -1,5 +1,5 @@
-const FSWatcher = require('../index');
-const fs = require('fs-extra');
+const Watcher = require('../index');
+const fs = require('@parcel/fs');
 const path = require('path');
 const assert = require('assert');
 const {sleep} = require('@parcel/test-utils');
@@ -12,7 +12,7 @@ describe('error handling', function() {
   });
 
   it('Should restart child process if it dies', async () => {
-    let watcher = new FSWatcher({});
+    let watcher = new Watcher({});
 
     let filepath = path.join(tmpFolder, 'file1.txt');
 
@@ -45,7 +45,7 @@ describe('error handling', function() {
   });
 
   it('Should restart child process on errors', async () => {
-    let watcher = new FSWatcher({});
+    let watcher = new Watcher({});
 
     let filepath = path.join(tmpFolder, 'file1.txt');
 

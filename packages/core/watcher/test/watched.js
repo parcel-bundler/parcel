@@ -1,5 +1,5 @@
-const FSWatcher = require('../index');
-const fs = require('fs-extra');
+const Watcher = require('../index');
+const fs = require('@parcel/fs');
 const path = require('path');
 const assert = require('assert');
 
@@ -11,7 +11,7 @@ describe('watched paths', function() {
   });
 
   it('Should return watched paths', async () => {
-    let watcher = new FSWatcher({});
+    let watcher = new Watcher({});
 
     let filepath = path.join(tmpFolder, 'file1.txt');
     await fs.writeFile(filepath, 'this is a text document');

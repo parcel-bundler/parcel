@@ -1,5 +1,5 @@
-const FSWatcher = require('../index');
-const fs = require('fs-extra');
+const Watcher = require('../index');
+const fs = require('@parcel/fs');
 const path = require('path');
 const assert = require('assert');
 const {sleep} = require('@parcel/test-utils');
@@ -12,7 +12,7 @@ describe('change event', function() {
   });
 
   it('Should emit event on filechange', async () => {
-    let watcher = new FSWatcher({});
+    let watcher = new Watcher({});
 
     let filepath = path.join(tmpFolder, 'file1.txt');
 
@@ -41,7 +41,7 @@ describe('change event', function() {
   });
 
   it('Should emit event on filechange using arrays', async () => {
-    let watcher = new FSWatcher({});
+    let watcher = new Watcher({});
 
     let filepath = path.join(tmpFolder, 'file1.txt');
 
@@ -70,7 +70,7 @@ describe('change event', function() {
   });
 
   it('Should not emit event if file has been added and removed', async () => {
-    let watcher = new FSWatcher({});
+    let watcher = new Watcher({});
 
     let filepath = path.join(tmpFolder, 'file1.txt');
 

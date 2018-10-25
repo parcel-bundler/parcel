@@ -1,5 +1,5 @@
-const FSWatcher = require('../index');
-const fs = require('fs-extra');
+const Watcher = require('../index');
+const fs = require('@parcel/fs');
 const path = require('path');
 const assert = require('assert');
 const {sleep} = require('@parcel/test-utils');
@@ -12,7 +12,7 @@ describe('options', function() {
   });
 
   it('Should pass init options with correct ignored regex', async () => {
-    let watcher = new FSWatcher({
+    let watcher = new Watcher({
       ignored: /file/
     });
 
@@ -42,7 +42,7 @@ describe('options', function() {
   });
 
   it('Should pass init options with a more complex ignored regex', async () => {
-    let watcher = new FSWatcher({
+    let watcher = new Watcher({
       ignored: /file|config/
     });
 
@@ -82,7 +82,7 @@ describe('options', function() {
   });
 
   it('Should not ignore any files outside of the regex', async () => {
-    let watcher = new FSWatcher({
+    let watcher = new Watcher({
       ignored: /file|config/
     });
 
