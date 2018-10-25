@@ -116,7 +116,8 @@
     "typescript": "^3.0.0",
     "vue": "^2.5.16",
     "vue-template-compiler": "^2.5.16",
-    "@parcel/babel-register": "^1.10.3"
+    "@parcel/babel-register": "^1.10.3",
+    "@parcel/test-utils": "^1.10.3"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",

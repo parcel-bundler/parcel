@@ -6,11 +6,11 @@ const {
   bundler,
   run,
   assertBundleTree,
-  sleep,
   nextBundle,
   rimraf,
   ncp
 } = require('./utils');
+const {sleep} = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
 
 const inputDir = path.join(__dirname, '/input');

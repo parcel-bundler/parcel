@@ -8,6 +8,7 @@ const WebSocket = require('ws');
 const Module = require('module');
 
 const {promisify} = require('@parcel/utils');
+const {sleep} = require('@parcel/test-utils');
 const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
 
@@ -37,10 +38,6 @@ async function removeDistDirectory(count = 0) {
 beforeEach(async function() {
   await removeDistDirectory();
 });
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 function bundler(file, opts) {
   return new Bundler(
@@ -275,7 +272,6 @@ function normaliseNewlines(text) {
   return text.replace(/(\r\n|\n|\r)/g, '\n');
 }
 
-exports.sleep = sleep;
 exports.bundler = bundler;
 exports.bundle = bundle;
 exports.run = run;
