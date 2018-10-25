@@ -1,2 +1,3 @@
 --require @parcel/babel-register
+--timeout 50000
 --exit
