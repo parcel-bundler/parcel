@@ -1,4 +1,4 @@
-const promisify = require('./promisify');
+const {promisify} = require('@parcel/utils');
 const fs = require('fs');
 const mkdirp = require('mkdirp');
 

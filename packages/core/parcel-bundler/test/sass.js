@@ -1,6 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const fs = require('../src/utils/fs');
+const fs = require('@parcel/fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
 describe('sass', function() {

@@ -1,5 +1,5 @@
 const Asset = require('../Asset');
-const fs = require('../utils/fs');
+const fs = require('@parcel/fs');
 const localRequire = require('../utils/localRequire');
 
 class ReasonAsset extends Asset {

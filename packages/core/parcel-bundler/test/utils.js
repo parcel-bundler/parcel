@@ -1,13 +1,13 @@
 const Bundler = require('../src/Bundler');
 const assert = require('assert');
 const vm = require('vm');
-const fs = require('../src/utils/fs');
+const fs = require('@parcel/fs');
 const nodeFS = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
 const Module = require('module');
 
-const promisify = require('../src/utils/promisify');
+const {promisify} = require('@parcel/utils');
 const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
 

@@ -1,4 +1,4 @@
-const fs = require('./fs');
+const fs = require('@parcel/fs');
 const path = require('path');
 const clone = require('clone');
 

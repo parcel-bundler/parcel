@@ -2,7 +2,7 @@ const Resolver = require('../src/Resolver');
 const path = require('path');
 const assert = require('assert');
 const {rimraf, ncp} = require('./utils');
-const {mkdirp} = require('../src/utils/fs');
+const {mkdirp} = require('@parcel/fs');
 const {symlinkSync} = require('fs');
 
 const rootDir = path.join(__dirname, 'input/resolver');

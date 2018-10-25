@@ -1,4 +1,4 @@
-const fs = require('./utils/fs');
+const fs = require('@parcel/fs');
 const Resolver = require('./Resolver');
 const Parser = require('./Parser');
 const WorkerFarm = require('@parcel/workers');

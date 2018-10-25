@@ -1,4 +1,4 @@
-const fs = require('../src/utils/fs');
+const fs = require('@parcel/fs');
 const assert = require('assert');
 const lineCounter = require('../src/utils/lineCounter');
 

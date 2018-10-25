@@ -9,10 +9,19 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "scripts": {
+    "test": "cross-env NODE_ENV=test mocha",
+    "test-ci": "yarn build && yarn test",
+    "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
+    "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
     "build": "babel src -d lib",
     "prepublish": "yarn build"
   },
   "dependencies": {
     "fswatcher-child": "^1.0.5"
+  },
+  "devDependencies": {
+    "mocha": "^5.2.0",
+    "@parcel/babel-register": "^1.10.3",
+    "@parcel/fs": "^1.10.3"
   }
 }
