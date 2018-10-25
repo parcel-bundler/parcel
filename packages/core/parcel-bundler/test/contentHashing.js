@@ -71,4 +71,20 @@ describe('content hashing', function() {
 
     assert.notEqual(filename, newFilename);
   });
+
+  it('should keep the original filename when a matching copyPath is found', async function() {
+    await ncp(
+      path.join(__dirname, '/integration/import-raw'),
+      path.join(__dirname, '/input')
+    );
+
+    await bundle(path.join(__dirname, '/input/index.js'), {
+      production: true,
+      copyPaths: [/\.txt$/]
+    });
+
+    let js = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    let filename = js.match(/test\.txt/g);
+    assert.equal(filename.length, 3);
+  });
 });

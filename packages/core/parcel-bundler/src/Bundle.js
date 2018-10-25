@@ -93,29 +93,36 @@ class Bundle {
     return this.assets.size === 0;
   }
 
-  getBundleNameMap(contentHash, hashes = new Map()) {
+  getBundleNameMap(contentHash, copyPaths = [], hashes = new Map()) {
     if (this.name) {
-      let hashedName = this.getHashedBundleName(contentHash);
+      let hashedName = this.getHashedBundleName(contentHash, copyPaths);
       hashes.set(Path.basename(this.name), hashedName);
       this.name = Path.join(Path.dirname(this.name), hashedName);
     }
 
     for (let child of this.childBundles.values()) {
-      child.getBundleNameMap(contentHash, hashes);
+      child.getBundleNameMap(contentHash, copyPaths, hashes);
     }
 
     return hashes;
   }
 
-  getHashedBundleName(contentHash) {
+  getHashedBundleName(contentHash, copyPaths = []) {
     // If content hashing is enabled, generate a hash from all assets in the bundle.
     // Otherwise, use a hash of the filename so it remains consistent across builds.
     let ext = Path.extname(this.name);
+    let entryAsset = this.entryAsset || this.parentBundle.entryAsset;
+    let justCopy = copyPaths.some(
+      pathOrPattern =>
+        pathOrPattern === entryAsset.relativeName ||
+        (pathOrPattern instanceof RegExp &&
+          pathOrPattern.test(entryAsset.relativeName))
+    );
     let hash = (contentHash
       ? this.getHash()
       : Path.basename(this.name, ext)
     ).slice(-8);
-    let entryAsset = this.entryAsset || this.parentBundle.entryAsset;
+    let suffix = justCopy ? '' : `.${hash}`;
     let name = Path.basename(entryAsset.name, Path.extname(entryAsset.name));
     let isMainEntry = entryAsset.options.entryFiles[0] === entryAsset.name;
     let isEntry =
@@ -152,7 +159,7 @@ class Bundle {
     }
 
     // Add the content hash and extension.
-    return name + '.' + hash + ext;
+    return name + suffix + ext;
   }
 
   async package(bundler, oldHashes, newHashes = new Map()) {

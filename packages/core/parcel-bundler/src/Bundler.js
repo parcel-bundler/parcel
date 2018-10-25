@@ -140,6 +140,7 @@ class Bundler extends EventEmitter {
           ? options.autoinstall
           : !isProduction,
       scopeHoist: scopeHoist,
+      copyPaths: Array.isArray(options.copyPaths) ? options.copyPaths : [],
       contentHash:
         typeof options.contentHash === 'boolean'
           ? options.contentHash
@@ -291,7 +292,8 @@ class Bundler extends EventEmitter {
 
       // Generate the final bundle names, and replace references in the built assets.
       this.bundleNameMap = this.mainBundle.getBundleNameMap(
-        this.options.contentHash
+        this.options.contentHash,
+        this.options.copyPaths
       );
 
       for (let asset of changedAssets) {
