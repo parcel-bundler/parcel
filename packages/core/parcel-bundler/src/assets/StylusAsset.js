@@ -2,7 +2,7 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const Resolver = require('../Resolver');
-const fs = require('../utils/fs');
+const fs = require('@parcel/fs');
 const {dirname, resolve, relative} = require('path');
 const {isGlob, glob} = require('../utils/glob');
 

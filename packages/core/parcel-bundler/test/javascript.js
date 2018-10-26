@@ -1,5 +1,5 @@
 const assert = require('assert');
-const fs = require('../src/utils/fs');
+const fs = require('@parcel/fs');
 const path = require('path');
 const {
   bundle,
@@ -9,7 +9,7 @@ const {
   deferred,
   ncp
 } = require('./utils');
-const {mkdirp} = require('../src/utils/fs');
+const {mkdirp} = require('@parcel/fs');
 const {symlinkSync} = require('fs');
 
 describe('javascript', function() {

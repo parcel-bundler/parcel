@@ -1,16 +1,16 @@
 const assert = require('assert');
-const fs = require('../src/utils/fs');
+const fs = require('@parcel/fs');
 const nodeFS = require('fs');
 const path = require('path');
 const {
   bundler,
   run,
   assertBundleTree,
-  sleep,
   nextBundle,
   rimraf,
   ncp
 } = require('./utils');
+const {sleep} = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
 
 const inputDir = path.join(__dirname, '/input');

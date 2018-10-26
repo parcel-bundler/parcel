@@ -70,7 +70,9 @@
     "ws": "^5.1.1",
     "@parcel/watcher": "1.10.3",
     "@parcel/workers": "^1.10.3",
-    "@parcel/logger": "^1.10.3"
+    "@parcel/logger": "^1.10.3",
+    "@parcel/utils": "^1.10.3",
+    "@parcel/fs": "^1.10.3"
   },
   "devDependencies": {
     "@babel/cli": "^7.0.0",
@@ -114,7 +116,8 @@
     "typescript": "^3.0.0",
     "vue": "^2.5.16",
     "vue-template-compiler": "^2.5.16",
-    "@parcel/babel-register": "^1.10.3"
+    "@parcel/babel-register": "^1.10.3",
+    "@parcel/test-utils": "^1.10.3"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",

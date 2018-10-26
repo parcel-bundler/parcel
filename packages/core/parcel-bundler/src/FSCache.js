@@ -1,4 +1,4 @@
-const fs = require('./utils/fs');
+const fs = require('@parcel/fs');
 const path = require('path');
 const md5 = require('./utils/md5');
 const objectHash = require('./utils/objectHash');

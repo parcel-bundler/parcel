@@ -1,7 +1,7 @@
 const fs = require('fs');
-const promisify = require('../utils/promisify');
+const {promisify} = require('@parcel/utils');
 const path = require('path');
-const {mkdirp} = require('../utils/fs');
+const {mkdirp} = require('@parcel/fs');
 
 class Packager {
   constructor(bundle, bundler) {

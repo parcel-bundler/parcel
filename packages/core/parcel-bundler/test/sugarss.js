@@ -1,6 +1,6 @@
 const assert = require('assert');
 const {bundle, assertBundleTree} = require('./utils');
-const fs = require('../src/utils/fs');
+const fs = require('@parcel/fs');
 const path = require('path');
 
 describe('sugarss', function() {

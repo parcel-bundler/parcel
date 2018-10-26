@@ -1,6 +1,6 @@
 const childProcess = require('child_process');
 const {EventEmitter} = require('events');
-const errorUtils = require('./errorUtils');
+const {errorUtils} = require('@parcel/utils');
 
 const childModule = require.resolve('./child');
 

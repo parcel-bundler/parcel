@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const {bundle: _bundle, run} = require('./utils');
-const fs = require('../src/utils/fs');
+const fs = require('@parcel/fs');
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
