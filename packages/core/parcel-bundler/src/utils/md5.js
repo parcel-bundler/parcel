@@ -11,11 +11,13 @@ function md5(string, encoding = 'hex') {
 md5.file = function(filename) {
   return new Promise((resolve, reject) => {
     fs.createReadStream(filename)
+      .on('error', function(error) {
+        reject(error);
+      })
       .pipe(crypto.createHash('md5').setEncoding('hex'))
       .on('finish', function() {
         resolve(this.read());
-      })
-      .on('error', reject);
+      });
   });
 };
 

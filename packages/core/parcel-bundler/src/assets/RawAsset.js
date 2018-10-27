@@ -27,7 +27,11 @@ class RawAsset extends Asset {
   }
 
   async generateHash() {
-    return await md5.file(this.name);
+    try {
+      return await md5.file(this.name);
+    } catch (err) {
+      throw new Error(err);
+    }
   }
 }
 
