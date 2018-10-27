@@ -2423,9 +2423,9 @@ browserslist@^4.0.0, browserslist@^4.1.0:
     node-releases "^1.0.0-alpha.15"
 
 bsb-js@^1.0.1:
-  version "1.1.7"
-  resolved "https://registry.yarnpkg.com/bsb-js/-/bsb-js-1.1.7.tgz#12cc91e974f5896b3a2aa8358419d24e56f552c3"
-  integrity sha512-FSR7d5Kb6KfVI5sLz9bEeD9pbA9F4Zbkk1xa6R9CJtyd+dJ7mIkxoXqv7cw7HWcuee+VpIhmjYzrplnFd/5Qgg==
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/bsb-js/-/bsb-js-1.0.2.tgz#b9e7af1dfdb8de6191bb36fdff43f59359a7dfe7"
+  integrity sha512-vJODKWqPx4vFQoH+1s4l4ozys9UrJne1gu1G4AcPi/FZlJXdHHYtsYPy+FVHqaCWH6nlR9jh7dhVraVoGx+wPg==
 
 buffer-equal@0.0.1:
   version "0.0.1"
