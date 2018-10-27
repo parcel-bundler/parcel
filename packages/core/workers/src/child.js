@@ -1,4 +1,4 @@
-const errorUtils = require('./errorUtils');
+const {errorUtils} = require('@parcel/utils');
 
 class Child {
   constructor() {

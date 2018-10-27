@@ -1,4 +1,4 @@
-const fs = require('./fs');
+const fs = require('@parcel/fs');
 
 async function getCertificate(options) {
   try {

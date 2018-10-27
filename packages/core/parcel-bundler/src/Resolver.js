@@ -2,7 +2,7 @@ const builtins = require('./builtins');
 const nodeBuiltins = require('node-libs-browser');
 const path = require('path');
 const {isGlob} = require('./utils/glob');
-const fs = require('./utils/fs');
+const fs = require('@parcel/fs');
 const micromatch = require('micromatch');
 
 const EMPTY_SHIM = require.resolve('./builtins/_empty');

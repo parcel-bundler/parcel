@@ -3,7 +3,7 @@ const getEnvConfig = require('./env');
 const getJSXConfig = require('./jsx');
 const getFlowConfig = require('./flow');
 const path = require('path');
-const fs = require('../../utils/fs');
+const fs = require('@parcel/fs');
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 const ENV_PLUGINS = require('@babel/preset-env/data/plugins');

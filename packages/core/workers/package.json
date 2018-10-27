@@ -23,6 +23,7 @@
     "mocha": "^5.2.0"
   },
   "dependencies": {
-    "physical-cpu-count": "^2.0.0"
+    "physical-cpu-count": "^2.0.0",
+    "@parcel/utils": "^1.10.3"
   }
 }
