@@ -15,8 +15,10 @@ class KotlinAsset extends Asset {
     );
     const fs = require('fs', this.name);
 
-    // remove extension
-    let fileName = this.id.substring(0, this.id.lastIndexOf('.'));
+    // remove extension and path
+    let slashyIndex = this.id.lastIndexOf('/'); // linux/mac
+    if (slashyIndex === -1) slashyIndex = this.id.lastIndexOf('\\'); // windows
+    const fileName = this.id.substring(slashyIndex, this.id.lastIndexOf('.'));
 
     await kotlinCompiler.compile({
       output: 'build/kt.temp/' + fileName + '.js',
