@@ -1,12 +1,12 @@
 const config = require('./config');
-const promisify = require('./promisify');
+const {promisify} = require('@parcel/utils');
 const resolve = promisify(require('resolve'));
 const commandExists = require('command-exists');
 const logger = require('@parcel/logger');
 const pipeSpawn = require('./pipeSpawn');
 const PromiseQueue = require('./PromiseQueue');
 const path = require('path');
-const fs = require('./fs');
+const fs = require('@parcel/fs');
 const WorkerFarm = require('@parcel/workers');
 
 const YARN_LOCK = 'yarn.lock';

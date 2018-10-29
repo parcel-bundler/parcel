@@ -14,6 +14,10 @@ program
     parseInt
   )
   .option(
+    '--host <host>',
+    'set the host to listen on, defaults to listening on all interfaces'
+  )
+  .option(
     '--hmr-port <port>',
     'set the port to serve HMR websockets, defaults to random',
     parseInt
@@ -214,7 +218,11 @@ async function bundle(main, command) {
 
   command.target = command.target || 'browser';
   if (command.name() === 'serve' && command.target === 'browser') {
-    const server = await bundler.serve(command.port || 1234, command.https);
+    const server = await bundler.serve(
+      command.port || 1234,
+      command.https,
+      command.host
+    );
     if (server && command.open) {
       await require('./utils/openInBrowser')(
         `${command.https ? 'https' : 'http'}://localhost:${

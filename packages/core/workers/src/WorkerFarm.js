@@ -1,5 +1,5 @@
 const {EventEmitter} = require('events');
-const errorUtils = require('./errorUtils');
+const {errorUtils} = require('@parcel/utils');
 const Worker = require('./Worker');
 const cpuCount = require('./cpuCount');
 

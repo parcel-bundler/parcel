@@ -1,5 +1,5 @@
 const babelCore = require('@babel/core');
-const fs = require('../src/utils/fs');
+const fs = require('@parcel/fs');
 const {
   babel6toBabel7,
   babel7toBabel6
