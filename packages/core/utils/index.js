@@ -8,3 +8,8 @@ exports.errorUtils =
   parseInt(process.versions.node, 10) < 8
     ? require('./lib/errorUtils')
     : require('./src/errorUtils');
+
+exports.matchConfig =
+  parseInt(process.versions.node, 10) < 8
+    ? require('./lib/matchConfig')
+    : require('./src/matchConfig');
