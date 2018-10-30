@@ -38,39 +38,61 @@ export type AST = {
   program: JSONObject
 };
 
+export type CLIOptions = JSONObject;
 export type Config = JSONObject;
 export type SourceMap = JSONObject;
 
-export type Transformer = {
-  getConfig(asset: TransformerAsset): ConfigOutput,
-  canReuseAST(ast: AST): boolean,
-  parse(asset: TransformerAsset, config: Config): AST,
-  transform(asset: TransformerAsset, config: Config): [TransformerAsset],
-  generate(asset: TransformerAsset, config: Config): TransformerOutput,
-  postProcess(
-    assets: Array<TransformerAsset>,
-    config: Config
-  ): Array<TransformerAsset>
-};
-
-export type TransformerAsset = {
+export type TransformerInput = {
   filePath: string,
   code: string,
-  ast: AST | null,
-  dependencies: Array<Dependency>,
-  output: TransformerOutput
+  ast: ?AST
+};
+
+export type TransformerResult = {
+  type: string,
+  code?: string,
+  ast?: AST,
+  dependencies?: Array<Dependency>,
+  output?: TransformerOutput
 };
 
 export type TransformerOutput = {
   code: string,
-  map: SourceMap,
+  map?: SourceMap,
   [string]: string
+};
+
+export interface Transformer {
+  getConfig?: (filePath: string, opts: CLIOptions) => ConfigOutput;
+  canReuseAST?: (ast: AST, opts: CLIOptions) => boolean;
+  parse(asset: TransformerInput, config: ?Config, opts: CLIOptions): AST;
+  transform(
+    asset: TransformerInput,
+    config: ?Config,
+    opts: CLIOptions
+  ): Array<TransformerResult>;
+  generate(
+    asset: TransformerInput,
+    config: ?Config,
+    opts: CLIOptions
+  ): TransformerOutput;
+  postProcess?: (
+    assets: Array<TransformerResult>,
+    config: ?Config,
+    opts: CLIOptions
+  ) => Array<TransformerResult>;
+}
+
+export type CacheAsset = {
+  hash: string,
+  dependencies: Array<Dependency>,
+  output: TransformerOutput
 };
 
 export type CacheEntry = {
   filePath: string,
   hash: string,
-  assets: Array<Asset>
+  assets: Array<CacheAsset>
 };
 
 export type ConfigOutput = {

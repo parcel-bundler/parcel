@@ -5,7 +5,7 @@ import Watcher from '@parcel/watcher';
 import PQueue from 'p-queue';
 import AssetGraph from './AssetGraph';
 import {Node} from './Graph';
-import type {Dependency, File} from './types';
+import type {Dependency, File} from '@parcel/types';
 import TransformerRunner from './TransformerRunner';
 import ResolverRunner from './ResolverRunner';
 import BundlerRunner from './BundlerRunner';

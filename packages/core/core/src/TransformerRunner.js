@@ -4,8 +4,11 @@ import type {
   Asset,
   File,
   Transformer,
-  TransformerAsset,
+  TransformerInput,
+  TransformerOutput,
+  TransformerResult,
   CacheEntry,
+  CacheAsset,
   Config,
   JSONObject,
   ParcelConfig
@@ -44,15 +47,13 @@ class TransformerRunner {
       return cacheEntry;
     }
 
-    let asset: TransformerAsset = {
+    let asset: TransformerInput = {
       filePath: file.filePath,
       code,
-      ast: null,
-      dependencies: [],
-      output: {}
+      ast: null
     };
 
-    let pipeline = await this.resolvePipeline(asset);
+    let pipeline = await this.resolvePipeline(file.filePath);
 
     let {children, results} = await this.runPipeline(
       asset,
@@ -71,16 +72,16 @@ class TransformerRunner {
     return cacheEntry;
   }
 
-  async resolvePipeline(asset): Array<Transformer> {
+  async resolvePipeline(filePath: string): Promise<Array<Transformer>> {
     for (let pattern in this.parcelConfig.transforms) {
       if (
-        micromatch.isMatch(asset.filePath, pattern) ||
-        micromatch.isMatch(path.basename(asset.filePath), pattern)
+        micromatch.isMatch(filePath, pattern) ||
+        micromatch.isMatch(path.basename(filePath), pattern)
       ) {
         return Promise.all(
           this.parcelConfig.transforms[pattern].map(
             (transform: string): Promise<Transformer> =>
-              localRequire(transform, asset.filePath)
+              localRequire(transform, filePath)
           )
         );
       }
@@ -88,20 +89,20 @@ class TransformerRunner {
   }
 
   async runPipeline(
-    asset: TransformerAsset,
+    asset: TransformerInput,
     pipeline: Array<Transformer>,
     cacheEntry: CacheEntry,
-    previousTransformer: Transformer = null,
-    previousConfig: Config = null
+    previousTransformer: ?Transformer,
+    previousConfig: ?Config
   ) {
     // Run the first transformer in the pipeline.
     let transformer = pipeline[0];
     let config = null;
     if (transformer.getConfig) {
-      let result = await transformer.getConfig(asset, this.cliOpts);
+      let result = await transformer.getConfig(asset.filePath, this.cliOpts);
       if (result) {
         config = result.config;
-        // TODO: do something with deps
+        // TODO: do something with dependencies
       }
     }
 
@@ -113,17 +114,22 @@ class TransformerRunner {
       previousConfig
     );
 
-    let children: Asset = [];
+    let children: Array<TransformerResult> = [];
     for (let subAsset of assets) {
-      subAsset =
-        subAsset instanceof Asset ? subAsset : new Asset(subAsset, asset);
+      // subAsset =
+      //   subAsset instanceof Asset ? subAsset : new Asset(subAsset, asset);
+      let cacheAsset: CacheAsset = {
+        hash: md5(subAsset.code),
+        dependencies: subAsset.dependencies,
+        output: subAsset.output
+      };
 
       if (!previousTransformer) {
         if (subAsset.ast) {
           this.generate(transformer, subAsset, config);
         }
 
-        subAsset.hash = md5(subAsset.code);
+        // subAsset.hash = md5(subAsset.code);
 
         if (cacheEntry) {
           let cachedChildren = cacheEntry.assets.filter(
@@ -144,7 +150,7 @@ class TransformerRunner {
             await this.generate(transformer, subAsset, config);
           }
 
-          children.push(subAsset);
+          children.push(cacheAsset);
 
           // Otherwise, recursively run the remaining transforms in the pipeline.
         } else {
@@ -184,36 +190,35 @@ class TransformerRunner {
   }
 
   async runTransform(
-    asset: TransformerAsset,
+    asset: TransformerInput,
     transformer: Transformer,
-    config: Config,
-    previousTransformer: Transformer,
-    previousConfig: Config
-  ) {
+    config: ?Config,
+    previousTransformer: ?Transformer,
+    previousConfig: ?Config
+  ): Promise<Array<TransformerResult>> {
     if (
       asset.ast &&
       (!transformer.canReuseAST ||
-        !transformer.canReuseAST(asset.ast, this.cliOpts))
+        !transformer.canReuseAST(asset.ast, this.cliOpts)) &&
+      previousTransformer &&
+      previousConfig
     ) {
-      await this.generate(previousTransformer, asset, previousConfig);
+      asset = await this.generate(previousTransformer, asset, previousConfig);
     }
 
-    if (!asset.ast && transformer.parse) {
+    if (!asset.ast) {
       asset.ast = await transformer.parse(asset, config, this.cliOpts);
     }
 
     // Transform the AST.
-    let assets = [asset];
-    if (transformer.transform) {
-      assets = await transformer.transform(asset, config, this.cliOpts);
-    }
+    let assets = await transformer.transform(asset, config, this.cliOpts);
 
     return assets;
   }
 
   async generate(
     transformer: Transformer,
-    asset: TransformerAsset,
+    asset: TransformerInput,
     config: Config
   ) {
     let output = await transformer.generate(asset, config, this.cliOpts);
