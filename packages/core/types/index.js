@@ -91,8 +91,15 @@ export type File = {
 export type Asset = {
   id: string,
   filePath: FilePath,
-  dependencies: Array<Dependency>,
-  hash: string
+  hash: string,
+  output: AssetOutput,
+  env: Environment
+};
+
+export type AssetOutput = {
+  code: string,
+  map?: SourceMap,
+  [string]: Blob
 };
 
 export type AST = {
@@ -118,14 +125,8 @@ export type TransformerResult = {
   code?: string,
   ast?: AST,
   dependencies?: Array<Dependency>,
-  output?: TransformerOutput,
+  output?: AssetOutput,
   env?: Environment
-};
-
-export type TransformerOutput = {
-  code: string,
-  map?: SourceMap,
-  [string]: Blob
 };
 
 export type ConfigOutput = {
@@ -146,7 +147,7 @@ export type Transformer = {
     asset: TransformerInput,
     config: ?Config,
     opts: CLIOptions
-  ): TransformerOutput,
+  ): AssetOutput,
   postProcess?: (
     assets: Array<TransformerResult>,
     config: ?Config,
@@ -157,7 +158,8 @@ export type Transformer = {
 export type CacheAsset = {
   hash: string,
   dependencies: Array<Dependency>,
-  output: TransformerOutput
+  output: TransformerOutput,
+  transformerOutput?: TransformerOutput // pre-postProcess cache. If not defined, use it is the same as output.
 };
 
 export type CacheEntry = {
@@ -183,7 +185,7 @@ export type Namer = {
 };
 
 export type Packager = {
-  package(assets: Array<CacheAsset>, opts: CLIOptions): Blob
+  package(assets: Array<Asset>, opts: CLIOptions): Blob
 };
 
 export type Optimizer = {
