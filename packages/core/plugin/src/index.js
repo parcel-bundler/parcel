@@ -1,4 +1,12 @@
+// @flow
 'use strict';
+import type {
+  TransformerAsset,
+  TransformerOutput,
+  AST,
+  Config,
+  ConfigOutput
+} from '@parcel/types';
 
 /*::
 type PackagerOpts<FileContents: string | Buffer | null> = {

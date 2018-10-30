@@ -1,31 +1,56 @@
-const micromatch = require('micromatch');
-const localRequire = require('@parcel/utils/localRequire');
-const path = require('path');
-const Asset = require('./Asset');
-const clone = require('clone');
-const md5 = require('@parcel/utils/md5');
-const Cache = require('@parcel/cache');
-const fs = require('@parcel/fs');
+// @flow
+import type {
+  Dependency,
+  Asset,
+  File,
+  Transformer,
+  TransformerAsset,
+  CacheEntry,
+  Config,
+  JSONObject,
+  ParcelConfig
+} from '@parcel/types';
+import micromatch from 'micromatch';
+import localRequire from '@parcel/utils/localRequire';
+import path from 'path';
+// import Asset from './Asset';
+import clone from 'clone';
+import md5 from '@parcel/utils/md5';
+import Cache from '@parcel/cache';
+import fs from '@parcel/fs';
+
+type Opts = {
+  parcelConfig: ParcelConfig,
+  cliOpts: JSONObject
+};
 
 class TransformerRunner {
-  constructor({parcelConfig, cliOpts}) {
+  cliOpts: JSONObject;
+  parcelConfig: ParcelConfig;
+  cache: Cache;
+
+  constructor({parcelConfig, cliOpts}: Opts) {
     this.cliOpts = cliOpts;
     this.parcelConfig = parcelConfig;
     this.cache = new Cache(cliOpts);
   }
 
-  async transform(asset) {
-    asset = new Asset(asset);
-    if (!asset.code) {
-      asset.code = await fs.readFile(asset.filePath, 'utf8');
-    }
+  async transform(file: File) {
+    let code = await fs.readFile(file.filePath, 'utf8');
+    let hash = md5(code);
 
-    let hash = md5(asset.code);
-
-    let cacheEntry = await this.cache.read(asset.filePath);
+    let cacheEntry = await this.cache.read(file.filePath);
     if (cacheEntry && cacheEntry.hash === hash) {
       return cacheEntry;
     }
+
+    let asset: TransformerAsset = {
+      filePath: file.filePath,
+      code,
+      ast: null,
+      dependencies: [],
+      output: {}
+    };
 
     let pipeline = await this.resolvePipeline(asset);
 
@@ -46,7 +71,7 @@ class TransformerRunner {
     return cacheEntry;
   }
 
-  async resolvePipeline(asset) {
+  async resolvePipeline(asset): Array<Transformer> {
     for (let pattern in this.parcelConfig.transforms) {
       if (
         micromatch.isMatch(asset.filePath, pattern) ||
@@ -54,7 +79,8 @@ class TransformerRunner {
       ) {
         return Promise.all(
           this.parcelConfig.transforms[pattern].map(
-            async transform => await localRequire(transform, asset.filePath)
+            (transform: string): Promise<Transformer> =>
+              localRequire(transform, asset.filePath)
           )
         );
       }
@@ -62,11 +88,11 @@ class TransformerRunner {
   }
 
   async runPipeline(
-    asset,
-    pipeline,
-    cacheEntry,
-    previousTransformer = null,
-    previousConfig = null
+    asset: TransformerAsset,
+    pipeline: Array<Transformer>,
+    cacheEntry: CacheEntry,
+    previousTransformer: Transformer = null,
+    previousConfig: Config = null
   ) {
     // Run the first transformer in the pipeline.
     let transformer = pipeline[0];
@@ -87,7 +113,7 @@ class TransformerRunner {
       previousConfig
     );
 
-    let children = [];
+    let children: Asset = [];
     for (let subAsset of assets) {
       subAsset =
         subAsset instanceof Asset ? subAsset : new Asset(subAsset, asset);
@@ -100,7 +126,7 @@ class TransformerRunner {
         subAsset.hash = md5(subAsset.code);
 
         if (cacheEntry) {
-          let cachedChildren = cacheEntry.children.filter(
+          let cachedChildren = cacheEntry.assets.filter(
             child => child.hash === subAsset.hash
           );
           if (cachedChildren.length > 0) {
@@ -158,15 +184,12 @@ class TransformerRunner {
   }
 
   async runTransform(
-    asset,
-    transformer,
-    config,
-    previousTransformer,
-    previousConfig
+    asset: TransformerAsset,
+    transformer: Transformer,
+    config: Config,
+    previousTransformer: Transformer,
+    previousConfig: Config
   ) {
-    // let shouldTransform = transformer.transform && (!transformer.shouldTransform || transformer.shouldTransform(asset, options));
-    // let mightHaveDependencies = transformer.getDependencies && (!transformer.mightHaveDependencies || transformer.mightHaveDependencies(asset, options));
-
     if (
       asset.ast &&
       (!transformer.canReuseAST ||
@@ -188,9 +211,13 @@ class TransformerRunner {
     return assets;
   }
 
-  async generate(transformer, asset, config) {
+  async generate(
+    transformer: Transformer,
+    asset: TransformerAsset,
+    config: Config
+  ) {
     let output = await transformer.generate(asset, config, this.cliOpts);
-    asset.blobs = output;
+    asset.output = output;
     asset.code = output.code;
     asset.ast = null;
   }

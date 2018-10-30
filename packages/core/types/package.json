@@ -1,13 +1,11 @@
 {
-  "name": "@parcel/plugin",
+  "name": "@parcel/types",
   "version": "2.0.0",
   "license": "MIT",
+  "main": "src/index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
-  },
-  "dependencies": {
-    "@parcel/types": "^2.0.0"
   },
   "devDependencies": {
     "@parcel/eslint-config": "1.10.3"
