@@ -193,7 +193,7 @@ export type Optimizer = {
 };
 
 export type Resolver = {
-  resolve(dependency: Dependency, opts: CLIOptions): FilePath
+  resolve(dependency: Dependency, opts: CLIOptions): FilePath | null
 };
 
 export type Reporter = {

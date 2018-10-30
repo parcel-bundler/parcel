@@ -5,7 +5,6 @@ import type {
   File,
   Transformer,
   TransformerInput,
-  TransformerOutput,
   TransformerResult,
   CacheEntry,
   CacheAsset,
@@ -86,6 +85,8 @@ class TransformerRunner {
         );
       }
     }
+
+    return [];
   }
 
   async runPipeline(
