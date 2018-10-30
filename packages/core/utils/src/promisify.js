@@ -1,5 +1,11 @@
-module.exports = function(fn) {
-  return function(...args) {
+// @flow
+
+export default function<T: Function>(fn: T): T {
+  declare var promisify: T;
+
+  return promisify;
+
+  function promisify(...args) {
     return new Promise(function(resolve, reject) {
       fn(...args, function(err, ...res) {
         if (err) return reject(err);
@@ -9,5 +15,5 @@ module.exports = function(fn) {
         resolve(res);
       });
     });
-  };
-};
+  }
+}
