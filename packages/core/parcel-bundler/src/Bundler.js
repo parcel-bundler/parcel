@@ -107,6 +107,16 @@ class Bundler extends EventEmitter {
         : typeof options.hmr === 'boolean'
           ? options.hmr
           : watch;
+    const setAutoInstall = () => {
+      const {PARCEL_AUTOINSTALL} = process.env;
+      if (typeof options.autoInstall === 'boolean') {
+        return options.autoinstall;
+      }
+      if (PARCEL_AUTOINSTALL === 'false') {
+        return false;
+      }
+      return !isProduction;
+    };
     const scopeHoist =
       options.scopeHoist !== undefined ? options.scopeHoist : false;
     return {
@@ -141,10 +151,7 @@ class Bundler extends EventEmitter {
         (options.target === 'electron' ? 'localhost' : ''),
       detailedReport: options.detailedReport || false,
       global: options.global,
-      autoinstall:
-        typeof options.autoinstall === 'boolean'
-          ? options.autoinstall
-          : !isProduction,
+      autoinstall: setAutoInstall(),
       scopeHoist: scopeHoist,
       contentHash:
         typeof options.contentHash === 'boolean'
