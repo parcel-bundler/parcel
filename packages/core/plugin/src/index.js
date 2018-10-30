@@ -1,6 +1,15 @@
+// @flow
 'use strict';
+import type {
+  TransformerAsset,
+  TransformerOutput,
+  Transformer,
+  AST,
+  Config,
+  ConfigOutput
+} from '@parcel/types';
 
-/*::
+/*
 type PackagerOpts<FileContents: string | Buffer | null> = {
   readFile(opts: { filePath: string }): Promise<FileContents>,
   writeFile(opts: { filePath: string, fileContents: FileContents }): Promise<mixed>,

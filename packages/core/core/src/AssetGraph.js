@@ -1,7 +1,7 @@
 // @flow
 'use strict';
 import Graph, {Node, type NodeId} from './Graph';
-import type {Dependency, Asset, File} from './types';
+import type {Dependency, Asset, File} from '@parcel/types';
 
 export const nodeFromRootDir = (rootDir: string) => ({
   id: rootDir,

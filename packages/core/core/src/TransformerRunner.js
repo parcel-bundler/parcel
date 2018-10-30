@@ -1,33 +1,58 @@
-const micromatch = require('micromatch');
-const localRequire = require('@parcel/utils/localRequire');
-const path = require('path');
-const Asset = require('./Asset');
-const clone = require('clone');
-const md5 = require('@parcel/utils/md5');
-const Cache = require('@parcel/cache');
-const fs = require('@parcel/fs');
+// @flow
+import type {
+  Dependency,
+  Asset,
+  File,
+  Transformer,
+  TransformerInput,
+  TransformerResult,
+  CacheEntry,
+  CacheAsset,
+  Config,
+  JSONObject,
+  ParcelConfig
+} from '@parcel/types';
+import micromatch from 'micromatch';
+import localRequire from '@parcel/utils/localRequire';
+import path from 'path';
+// import Asset from './Asset';
+import clone from 'clone';
+import md5 from '@parcel/utils/md5';
+import Cache from '@parcel/cache';
+import fs from '@parcel/fs';
+
+type Opts = {
+  parcelConfig: ParcelConfig,
+  cliOpts: JSONObject
+};
 
 class TransformerRunner {
-  constructor({parcelConfig, cliOpts}) {
+  cliOpts: JSONObject;
+  parcelConfig: ParcelConfig;
+  cache: Cache;
+
+  constructor({parcelConfig, cliOpts}: Opts) {
     this.cliOpts = cliOpts;
     this.parcelConfig = parcelConfig;
     this.cache = new Cache(cliOpts);
   }
 
-  async transform(asset) {
-    asset = new Asset(asset);
-    if (!asset.code) {
-      asset.code = await fs.readFile(asset.filePath, 'utf8');
-    }
+  async transform(file: File) {
+    let code = await fs.readFile(file.filePath, 'utf8');
+    let hash = md5(code);
 
-    let hash = md5(asset.code);
-
-    let cacheEntry = await this.cache.read(asset.filePath);
+    let cacheEntry = await this.cache.read(file.filePath);
     if (cacheEntry && cacheEntry.hash === hash) {
       return cacheEntry;
     }
 
-    let pipeline = await this.resolvePipeline(asset);
+    let asset: TransformerInput = {
+      filePath: file.filePath,
+      code,
+      ast: null
+    };
+
+    let pipeline = await this.resolvePipeline(file.filePath);
 
     let {children, results} = await this.runPipeline(
       asset,
@@ -46,36 +71,39 @@ class TransformerRunner {
     return cacheEntry;
   }
 
-  async resolvePipeline(asset) {
+  async resolvePipeline(filePath: string): Promise<Array<Transformer>> {
     for (let pattern in this.parcelConfig.transforms) {
       if (
-        micromatch.isMatch(asset.filePath, pattern) ||
-        micromatch.isMatch(path.basename(asset.filePath), pattern)
+        micromatch.isMatch(filePath, pattern) ||
+        micromatch.isMatch(path.basename(filePath), pattern)
       ) {
         return Promise.all(
           this.parcelConfig.transforms[pattern].map(
-            async transform => await localRequire(transform, asset.filePath)
+            (transform: string): Promise<Transformer> =>
+              localRequire(transform, filePath)
           )
         );
       }
     }
+
+    return [];
   }
 
   async runPipeline(
-    asset,
-    pipeline,
-    cacheEntry,
-    previousTransformer = null,
-    previousConfig = null
+    asset: TransformerInput,
+    pipeline: Array<Transformer>,
+    cacheEntry: CacheEntry,
+    previousTransformer: ?Transformer,
+    previousConfig: ?Config
   ) {
     // Run the first transformer in the pipeline.
     let transformer = pipeline[0];
     let config = null;
     if (transformer.getConfig) {
-      let result = await transformer.getConfig(asset, this.cliOpts);
+      let result = await transformer.getConfig(asset.filePath, this.cliOpts);
       if (result) {
         config = result.config;
-        // TODO: do something with deps
+        // TODO: do something with dependencies
       }
     }
 
@@ -87,20 +115,25 @@ class TransformerRunner {
       previousConfig
     );
 
-    let children = [];
+    let children: Array<TransformerResult> = [];
     for (let subAsset of assets) {
-      subAsset =
-        subAsset instanceof Asset ? subAsset : new Asset(subAsset, asset);
+      // subAsset =
+      //   subAsset instanceof Asset ? subAsset : new Asset(subAsset, asset);
+      let cacheAsset: CacheAsset = {
+        hash: md5(subAsset.code),
+        dependencies: subAsset.dependencies,
+        output: subAsset.output
+      };
 
       if (!previousTransformer) {
         if (subAsset.ast) {
           this.generate(transformer, subAsset, config);
         }
 
-        subAsset.hash = md5(subAsset.code);
+        // subAsset.hash = md5(subAsset.code);
 
         if (cacheEntry) {
-          let cachedChildren = cacheEntry.children.filter(
+          let cachedChildren = cacheEntry.assets.filter(
             child => child.hash === subAsset.hash
           );
           if (cachedChildren.length > 0) {
@@ -118,7 +151,7 @@ class TransformerRunner {
             await this.generate(transformer, subAsset, config);
           }
 
-          children.push(subAsset);
+          children.push(cacheAsset);
 
           // Otherwise, recursively run the remaining transforms in the pipeline.
         } else {
@@ -158,39 +191,39 @@ class TransformerRunner {
   }
 
   async runTransform(
-    asset,
-    transformer,
-    config,
-    previousTransformer,
-    previousConfig
-  ) {
-    // let shouldTransform = transformer.transform && (!transformer.shouldTransform || transformer.shouldTransform(asset, options));
-    // let mightHaveDependencies = transformer.getDependencies && (!transformer.mightHaveDependencies || transformer.mightHaveDependencies(asset, options));
-
+    asset: TransformerInput,
+    transformer: Transformer,
+    config: ?Config,
+    previousTransformer: ?Transformer,
+    previousConfig: ?Config
+  ): Promise<Array<TransformerResult>> {
     if (
       asset.ast &&
       (!transformer.canReuseAST ||
-        !transformer.canReuseAST(asset.ast, this.cliOpts))
+        !transformer.canReuseAST(asset.ast, this.cliOpts)) &&
+      previousTransformer &&
+      previousConfig
     ) {
-      await this.generate(previousTransformer, asset, previousConfig);
+      asset = await this.generate(previousTransformer, asset, previousConfig);
     }
 
-    if (!asset.ast && transformer.parse) {
+    if (!asset.ast) {
       asset.ast = await transformer.parse(asset, config, this.cliOpts);
     }
 
     // Transform the AST.
-    let assets = [asset];
-    if (transformer.transform) {
-      assets = await transformer.transform(asset, config, this.cliOpts);
-    }
+    let assets = await transformer.transform(asset, config, this.cliOpts);
 
     return assets;
   }
 
-  async generate(transformer, asset, config) {
+  async generate(
+    transformer: Transformer,
+    asset: TransformerInput,
+    config: Config
+  ) {
     let output = await transformer.generate(asset, config, this.cliOpts);
-    asset.blobs = output;
+    asset.output = output;
     asset.code = output.code;
     asset.ast = null;
   }
