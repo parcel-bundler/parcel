@@ -14,7 +14,6 @@
   "scripts": {
     "test": "echo this package has no tests yet",
     "test-ci": "yarn build && yarn test",
-    "build": "babel src -d lib",
     "prepublish": "yarn build"
   },
   "dependencies": {

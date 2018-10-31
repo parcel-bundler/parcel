@@ -121,7 +121,7 @@
     "report-coverage": "nyc report --reporter=lcov && codecov",
     "test-ci": "yarn test-coverage && yarn report-coverage",
     "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
-    "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
+    "build": "yarn minify && ncp src/builtins lib/builtins",
     "prepublish": "yarn build",
     "minify": "terser -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js && terser -c -m -o src/builtins/prelude2.min.js src/builtins/prelude2.js",
     "precommit": "lint-staged",

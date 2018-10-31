@@ -15,7 +15,6 @@
     "pretest": "yarn build",
     "test": "cross-env NODE_ENV=test mocha",
     "test-ci": "yarn build && yarn test",
-    "build": "babel src -d lib",
     "prepublish": "yarn build"
   },
   "devDependencies": {
