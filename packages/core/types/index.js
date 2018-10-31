@@ -13,7 +13,7 @@ export type JSONObject = {
 };
 
 type PackageName = string;
-type FilePath = string;
+export type FilePath = string;
 type Glob = string;
 type Semver = string;
 type SemverRange = string;
@@ -91,6 +91,7 @@ export type File = {
 export type Asset = {
   id: string,
   filePath: FilePath,
+  type: string,
   hash: string,
   output: AssetOutput,
   env: Environment
@@ -155,17 +156,11 @@ export type Transformer = {
   ) => Array<TransformerResult>
 };
 
-export type CacheAsset = {
-  hash: string,
-  dependencies: Array<Dependency>,
-  output: TransformerOutput,
-  transformerOutput?: TransformerOutput // pre-postProcess cache. If not defined, use it is the same as output.
-};
-
 export type CacheEntry = {
   filePath: FilePath,
   hash: string,
-  assets: Array<CacheAsset>
+  assets: Array<Asset>,
+  postProcessedAssets: ?Array<Asset>
 };
 
 // TODO: what do we want to expose here?
