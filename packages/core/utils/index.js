@@ -8,3 +8,8 @@ exports.errorUtils =
   parseInt(process.versions.node, 10) < 8
     ? require('./lib/errorUtils')
     : require('./src/errorUtils');
+
+exports.glob =
+  parseInt(process.versions.node, 10) < 8
+    ? require('./lib/glob')
+    : require('./src/glob');

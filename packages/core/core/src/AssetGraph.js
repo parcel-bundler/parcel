@@ -2,6 +2,7 @@
 'use strict';
 import Graph, {Node, type NodeId} from './Graph';
 import type {Dependency, Asset, File} from '@parcel/types';
+import path from 'path';
 
 export const nodeFromRootDir = (rootDir: string) => ({
   id: rootDir,
@@ -81,7 +82,7 @@ export default class AssetGraph extends Graph {
 
     let depNodes = entries.map(entry =>
       nodeFromDep({
-        sourcePath: rootDir,
+        sourcePath: path.resolve(rootDir, 'index'),
         moduleSpecifier: entry
       })
     );

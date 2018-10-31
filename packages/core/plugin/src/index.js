@@ -1,62 +1,35 @@
 // @flow
 'use strict';
 import type {
-  Transformer as TransformerOpts,
-  Resolver as ResolverOpts,
-  Bundler as BundlerOpts,
-  Namer as NamerOpts,
-  Packager as PackagerOpts,
-  Optimizer as OptimizerOpts,
-  Reporter as ReporterOpts
+  TransformerOutput,
+  Transformer,
+  AST,
+  Config,
+  ConfigOutput,
+  Resolver
 } from '@parcel/types';
 
-export const CONFIG = Symbol('config');
+/*
+type PackagerOpts<FileContents: string | Buffer | null> = {
+  readFile(opts: { filePath: string }): Promise<FileContents>,
+  writeFile(opts: { filePath: string, fileContents: FileContents }): Promise<mixed>,
+  module(): Promise<string>,
+  package(opts: { bundle: { destPath: string, assets: [] }, files: { FileContents } }): Promise<string>,
+};
+*/
 
-export class Transformer {
-  constructor(opts: TransformerOpts) {
-    // $FlowFixMe
-    this[CONFIG] = opts;
-  }
-}
+export const transformer = (opts: any) => {
+  return opts;
+};
 
-export class Resolver {
-  constructor(opts: ResolverOpts) {
-    // $FlowFixMe
-    this[CONFIG] = opts;
-  }
-}
+export const packager = (opts: any) => {
+  return opts;
+};
 
-export class Bundler {
-  constructor(opts: BundlerOpts) {
-    // $FlowFixMe
-    this[CONFIG] = opts;
-  }
-}
+export const optimizer = (opts: any) => {
+  return opts;
+};
 
-export class Namer {
-  constructor(opts: NamerOpts) {
-    // $FlowFixMe
-    this[CONFIG] = opts;
-  }
-}
-
-export class Packager {
-  constructor(opts: PackagerOpts) {
-    // $FlowFixMe
-    this[CONFIG] = opts;
-  }
-}
-
-export class Optimizer {
-  constructor(opts: OptimizerOpts) {
-    // $FlowFixMe
-    this[CONFIG] = opts;
-  }
-}
-
-export class Reporter {
-  constructor(opts: ReporterOpts) {
-    // $FlowFixMe
-    this[CONFIG] = opts;
-  }
-}
+export const resolver = (opts: Resolver) => {
+  return opts;
+};

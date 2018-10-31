@@ -1,0 +1,13 @@
+{
+  "name": "@parcel/builtins",
+  "version": "2.0.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@parcel/eslint-config": "1.10.3"
+  }
+}
