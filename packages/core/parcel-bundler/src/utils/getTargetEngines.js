@@ -12,7 +12,7 @@ const DEFAULT_ENGINES = {
  *   - package.json engines field
  *   - package.json browserslist field
  *   - browserslist or .browserslistrc files
- *   - .babelrc or .babelrc.js files with @babel/preset-env
+ *   - .babelrc or .babelrc.js or .babelrc.json files with @babel/preset-env
  */
 async function getTargetEngines(asset, isTargetApp) {
   let targets = {};
@@ -114,7 +114,10 @@ async function loadBrowserslist(asset, path) {
 }
 
 async function loadBabelrc(asset, path) {
-  let config = await asset.getConfig(['.babelrc', '.babelrc.js'], {path});
+  let config = await asset.getConfig(
+    ['.babelrc', '.babelrc.js', '.babelrc.json'],
+    {path}
+  );
   if (config && config.presets) {
     let env = config.presets.find(
       plugin =>

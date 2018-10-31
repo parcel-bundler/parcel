@@ -1153,6 +1153,17 @@ describe('javascript', function() {
     assert(!file.includes('function Bar'));
   });
 
+  it('should support compiling with babel using .babelrc.json config', async function() {
+    await bundle(path.join(__dirname, '/integration/babelrc-json/index.js'));
+
+    let file = await fs.readFile(
+      path.join(__dirname, '/dist/index.js'),
+      'utf8'
+    );
+    assert(!file.includes('function Foo'));
+    assert(!file.includes('function Bar'));
+  });
+
   it('should compile with babel with default engines if no config', async function() {
     await bundle(path.join(__dirname, '/integration/babel-default/index.js'));
 
