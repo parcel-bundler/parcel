@@ -1,0 +1,11 @@
+{
+  "name": "some-cli-scripts",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "build": "node ./scripts/build.js"
+  },
+  "dependencies": {
+    "@parcel/babel-preset": "^2.0.0"
+  }
+}
