@@ -79,6 +79,7 @@ export type Dependency = {
   isEntry?: boolean,
   isOptional?: boolean,
   isIncluded?: boolean,
+  isConfig?: boolean,
   loc?: SourceLocation,
   env?: Environment,
   meta?: JSONObject
@@ -104,7 +105,7 @@ export type AssetOutput = {
 };
 
 export type AST = {
-  kind: string,
+  type: string,
   version: string,
   program: JSONObject
 };
@@ -124,7 +125,7 @@ export type TransformerInput = {
 export type TransformerResult = {
   type: string,
   code?: string,
-  ast?: AST,
+  ast?: ?AST,
   dependencies?: Array<Dependency>,
   output?: AssetOutput,
   env?: Environment
@@ -135,32 +136,39 @@ export type ConfigOutput = {
   dependencies: Array<Dependency>
 };
 
+type Async<T> = T | Promise<T>;
+
 export type Transformer = {
-  getConfig?: (filePath: FilePath, opts: CLIOptions) => ConfigOutput,
+  getConfig?: (filePath: FilePath, opts: CLIOptions) => Async<ConfigOutput>,
   canReuseAST?: (ast: AST, opts: CLIOptions) => boolean,
-  parse(asset: TransformerInput, config: ?Config, opts: CLIOptions): AST,
+  parse?: (
+    asset: TransformerInput,
+    config: ?Config,
+    opts: CLIOptions
+  ) => Async<?AST>,
   transform(
     asset: TransformerInput,
     config: ?Config,
     opts: CLIOptions
-  ): Array<TransformerResult>,
-  generate(
+  ): Async<Array<TransformerResult>>,
+  generate?: (
     asset: TransformerInput,
     config: ?Config,
     opts: CLIOptions
-  ): AssetOutput,
+  ) => Async<AssetOutput>,
   postProcess?: (
     assets: Array<Asset>,
     config: ?Config,
     opts: CLIOptions
-  ) => Array<TransformerResult>
+  ) => Async<Array<TransformerResult>>
 };
 
 export type CacheEntry = {
   filePath: FilePath,
   hash: string,
   assets: Array<Asset>,
-  postProcessedAssets: ?Array<Asset>
+  postProcessedAssets: ?Array<Asset>,
+  dependencies: Array<Dependency> // File-level dependencies, e.g. config files.
 };
 
 // TODO: what do we want to expose here?

@@ -1,3 +1,4 @@
+// @flow
 import {minify} from 'terser';
 import {transformer} from '@parcel/plugin';
 import config from '@parcel/utils/config';
@@ -10,8 +11,8 @@ class SourceMap {
 }
 
 export default transformer({
-  async getConfig(module /* , options */) {
-    return config.load(module.filePath, [
+  async getConfig(filePath /* , options */) {
+    return config.load(filePath, [
       '.terserrc',
       '.uglifyrc',
       '.uglifyrc.js',
@@ -67,7 +68,7 @@ export default transformer({
     return [
       {
         type: 'js',
-        blobs: {
+        output: {
           code: result.code,
           map: sourceMap
         }

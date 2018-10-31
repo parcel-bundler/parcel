@@ -18,7 +18,7 @@ type PackagerOpts<FileContents: string | Buffer | null> = {
 };
 */
 
-export const transformer = (opts /*: TransformerOpts */) => {
+export const transformer = (opts: Transformer): Transformer => {
   return opts;
 };
 

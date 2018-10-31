@@ -70,11 +70,11 @@ export default class Cache {
     return await Promise.all(
       assets.map(async asset => {
         let assetCacheId = this.getCacheId(asset.hash);
-        for (let blobKey in asset.blobs) {
-          asset.blobs[blobKey] = await this.writeBlob(
+        for (let blobKey in asset.output) {
+          asset.output[blobKey] = await this.writeBlob(
             blobKey,
             assetCacheId,
-            asset.blobs[blobKey]
+            asset.output[blobKey]
           );
         }
         return asset;
@@ -85,9 +85,11 @@ export default class Cache {
   async writeBlobs(cacheEntry) {
     await this.ensureDirExists();
 
-    cacheEntry.children = await this._writeBlobs(cacheEntry.children);
-    if (cacheEntry.results) {
-      cacheEntry.results = await this._writeBlobs(cacheEntry.results);
+    cacheEntry.assets = await this._writeBlobs(cacheEntry.assets);
+    if (cacheEntry.postProcessedAssets) {
+      cacheEntry.postProcessedAssets = await this._writeBlobs(
+        cacheEntry.postProcessedAssets
+      );
     }
 
     return cacheEntry;
@@ -122,8 +124,8 @@ export default class Cache {
   async readBlobs(asset) {
     let blobs = {};
     await Promise.all(
-      Object.keys(asset.blobs).map(async blobKey => {
-        blobs[blobKey] = await this.readBlob(asset.blobs[blobKey]);
+      Object.keys(asset.output).map(async blobKey => {
+        blobs[blobKey] = await this.readBlob(asset.output[blobKey]);
       })
     );
     return blobs;
