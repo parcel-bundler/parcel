@@ -1,5 +1,5 @@
 const assert = require('assert');
-const install = require('../src/utils/installPackage');
+const {installPackage} = require('@parcel/utils');
 const fs = require('@parcel/fs');
 const {ncp, rimraf} = require('./utils');
 const path = require('path');
@@ -15,7 +15,7 @@ describe('autoinstall', function() {
   it('should install lodash using npm and save dev dependency to package.json', async function() {
     let pkgName = 'lodash';
 
-    await install([pkgName], inputDirPath + '/test.js', {
+    await installPackage([pkgName], inputDirPath + '/test.js', {
       saveDev: true,
       packageManager: 'npm'
     });
@@ -31,7 +31,7 @@ describe('autoinstall', function() {
   it('should install lodash using yarn and save dev dependency to package.json', async function() {
     let pkgName = 'lodash';
 
-    await install([pkgName], inputDirPath + '/test.js', {
+    await installPackage([pkgName], inputDirPath + '/test.js', {
       saveDev: true,
       packageManager: 'yarn'
     });

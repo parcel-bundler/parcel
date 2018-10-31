@@ -1,6 +1,6 @@
 const Asset = require('../Asset');
 const fs = require('@parcel/fs');
-const localRequire = require('../utils/localRequire');
+const {localRequire} = require('@parcel/utils');
 
 class ReasonAsset extends Asset {
   constructor(name, options) {

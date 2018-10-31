@@ -1,4 +1,4 @@
-const localRequire = require('../../utils/localRequire');
+const {localRequire} = require('@parcel/utils');
 const {babel6toBabel7} = require('./astConverter');
 
 async function babel6(asset, options) {

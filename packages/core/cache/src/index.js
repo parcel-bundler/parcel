@@ -1,8 +1,7 @@
 import fs from '@parcel/fs';
 import pkg from '../package.json';
 import Path from 'path';
-import md5 from '@parcel/utils/md5';
-import objectHash from '@parcel/utils/objectHash';
+import {md5, objectHash} from '@parcel/utils';
 import logger from '@parcel/logger';
 
 // These keys can affect the output, so if they differ, the cache should not match

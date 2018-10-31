@@ -10,12 +10,14 @@ const HMRServer = require('./HMRServer');
 const Server = require('./Server');
 const {EventEmitter} = require('events');
 const logger = require('@parcel/logger');
+const {
+  localRequire,
+  PromiseQueue,
+  installPackage,
+  config
+} = require('@parcel/utils');
 const PackagerRegistry = require('./packagers');
-const localRequire = require('./utils/localRequire');
-const config = require('./utils/config');
 const loadEnv = require('./utils/env');
-const PromiseQueue = require('./utils/PromiseQueue');
-const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');

@@ -1,5 +1,5 @@
 const spawn = require('cross-spawn');
-const logger = require('@parcel/logger');
+// const logger = require('@parcel/logger');
 
 function pipeSpawn(cmd, params, opts) {
   const cp = spawn(
@@ -9,8 +9,8 @@ function pipeSpawn(cmd, params, opts) {
       {
         env: Object.assign(
           {
-            FORCE_COLOR: logger.color,
-            npm_config_color: logger.color ? 'always' : '',
+            FORCE_COLOR: false, //logger.color,
+            npm_config_color: 'always', //logger.color ? 'always' : '',
             npm_config_progress: true
           },
           process.env,
@@ -21,8 +21,12 @@ function pipeSpawn(cmd, params, opts) {
     )
   );
 
-  cp.stdout.setEncoding('utf8').on('data', d => logger.writeRaw(d));
-  cp.stderr.setEncoding('utf8').on('data', d => logger.writeRaw(d));
+  cp.stdout
+    .setEncoding('utf8')
+    .on('data', d => console.log(d) /*logger.writeRaw(d)*/);
+  cp.stderr
+    .setEncoding('utf8')
+    .on('data', d => console.log(d) /*logger.writeRaw(d)*/);
 
   return new Promise((resolve, reject) => {
     cp.on('error', reject);
@@ -31,7 +35,7 @@ function pipeSpawn(cmd, params, opts) {
         return reject(new Error(cmd + ' failed.'));
       }
 
-      logger.clear();
+      // logger.clear();
       return resolve();
     });
   });

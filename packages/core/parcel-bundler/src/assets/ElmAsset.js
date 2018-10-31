@@ -1,6 +1,6 @@
 const Asset = require('../Asset');
 const commandExists = require('command-exists');
-const localRequire = require('../utils/localRequire');
+const {localRequire} = require('@parcel/utils');
 const {minify} = require('terser');
 const path = require('path');
 const spawn = require('cross-spawn');

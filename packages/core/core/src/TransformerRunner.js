@@ -13,11 +13,10 @@ import type {
   ParcelConfig
 } from '@parcel/types';
 import micromatch from 'micromatch';
-import localRequire from '@parcel/utils/localRequire';
+import {localRequire, md5} from '@parcel/utils';
 import path from 'path';
 // import Asset from './Asset';
 import clone from 'clone';
-import md5 from '@parcel/utils/md5';
 import Cache from '@parcel/cache';
 import fs from '@parcel/fs';
 

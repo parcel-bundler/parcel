@@ -1,5 +1,5 @@
 const postcss = require('postcss');
-const localRequire = require('../utils/localRequire');
+const {localRequire} = require('@parcel/utils');
 const Asset = require('../Asset');
 
 class SSSAsset extends Asset {

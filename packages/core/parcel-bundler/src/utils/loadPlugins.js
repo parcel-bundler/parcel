@@ -1,4 +1,4 @@
-const localRequire = require('./localRequire');
+const {localRequire} = require('@parcel/utils');
 
 module.exports = async function loadPlugins(plugins, relative) {
   if (Array.isArray(plugins)) {

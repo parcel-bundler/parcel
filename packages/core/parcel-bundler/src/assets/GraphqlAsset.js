@@ -1,5 +1,5 @@
 const Asset = require('../Asset');
-const localRequire = require('../utils/localRequire');
+const {localRequire} = require('@parcel/utils');
 const Resolver = require('../Resolver');
 const fs = require('@parcel/fs');
 const os = require('os');

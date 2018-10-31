@@ -1,5 +1,5 @@
 const Asset = require('../Asset');
-const localRequire = require('../utils/localRequire');
+const {localRequire} = require('@parcel/utils');
 
 class TypeScriptAsset extends Asset {
   constructor(name, options) {

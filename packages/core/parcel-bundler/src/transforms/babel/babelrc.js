@@ -1,8 +1,7 @@
 const semver = require('semver');
 const logger = require('@parcel/logger');
 const path = require('path');
-const localRequire = require('../../utils/localRequire');
-const installPackage = require('../../utils/installPackage');
+const {localRequire, installPackage} = require('@parcel/utils');
 const fs = require('@parcel/fs');
 const micromatch = require('micromatch');
 

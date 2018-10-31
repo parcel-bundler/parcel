@@ -1,6 +1,6 @@
 const path = require('path');
 const Asset = require('../Asset');
-const localRequire = require('../utils/localRequire');
+const {localRequire} = require('@parcel/utils');
 
 class PugAsset extends Asset {
   constructor(name, options) {

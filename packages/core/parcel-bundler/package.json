@@ -28,6 +28,7 @@
     "@babel/traverse": "^7.0.0",
     "@babel/types": "^7.0.0",
     "@parcel/logger": "^1.10.3",
+    "@parcel/utils": "^1.10.3",
     "@parcel/watcher": "1.10.3",
     "@parcel/workers": "^1.10.3",
     "ansi-to-html": "^0.6.4",

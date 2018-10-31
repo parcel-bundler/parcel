@@ -1,6 +1,6 @@
 // const CSSAsset = require('./CSSAsset');
 const Asset = require('../Asset');
-const localRequire = require('../utils/localRequire');
+const {localRequire} = require('@parcel/utils');
 const Resolver = require('../Resolver');
 const fs = require('@parcel/fs');
 const {dirname, resolve, relative} = require('path');

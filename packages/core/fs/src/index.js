@@ -1,4 +1,4 @@
-const {promisify} = require('util');
+const promisify = require('./promisify');
 const fs = require('fs');
 const mkdirp = require('mkdirp');
 

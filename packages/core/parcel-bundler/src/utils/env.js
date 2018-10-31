@@ -1,4 +1,4 @@
-const config = require('./config');
+const {config} = require('@parcel/utils');
 const dotenv = require('dotenv');
 const variableExpansion = require('dotenv-expand');
 

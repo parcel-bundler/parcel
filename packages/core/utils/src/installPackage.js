@@ -1,17 +1,23 @@
-const config = require('./config');
-const {promisify} = require('util');
-const resolve = promisify(require('resolve'));
 const commandExists = require('command-exists');
-const logger = require('../Logger');
+const path = require('path');
+// const logger = require('@parcel/logger');
+const fs = require('@parcel/fs');
+const WorkerFarm = require('@parcel/workers');
+const config = require('./config');
 const pipeSpawn = require('./pipeSpawn');
 const PromiseQueue = require('./PromiseQueue');
-const path = require('path');
-const fs = require('@parcel/fs');
+const promisify = require('./promisify');
+const resolve = promisify(require('resolve'));
+
+const YARN_LOCK = 'yarn.lock';
 
 async function install(modules, filepath, options = {}) {
   let {installPeers = true, saveDev = true, packageManager} = options;
+  if (typeof modules === 'string') {
+    modules = [modules];
+  }
 
-  logger.progress(`Installing ${modules.join(', ')}...`);
+  // logger.progress(`Installing ${modules.join(', ')}...`);
 
   let packageLocation = await config.resolve(filepath, ['package.json']);
   let cwd = packageLocation ? path.dirname(packageLocation) : process.cwd();
@@ -37,6 +43,7 @@ async function install(modules, filepath, options = {}) {
   try {
     await pipeSpawn(packageManager, args, {cwd});
   } catch (err) {
+    console.log('ERROR', err);
     throw new Error(`Failed to install ${modules.join(', ')}.`);
   }
 
@@ -49,7 +56,7 @@ async function install(modules, filepath, options = {}) {
 
 async function installPeerDependencies(filepath, name, options) {
   let basedir = path.dirname(filepath);
-  const resolved = await resolve(name, {basedir});
+  const [resolved] = await resolve(name, {basedir});
   const pkg = await config.load(resolved, ['package.json']);
   const peers = pkg.peerDependencies || {};
 
@@ -68,19 +75,22 @@ async function installPeerDependencies(filepath, name, options) {
 }
 
 async function determinePackageManager(filepath) {
-  let configFile = await config.resolve(filepath, [
-    'yarn.lock',
-    'package-lock.json'
-  ]);
-  let hasYarn = await checkForYarnCommand();
+  const yarnLockFile = await config.resolve(filepath, [YARN_LOCK]);
 
-  // If Yarn isn't available, or there is a package-lock.json file, use npm.
-  let configName = configFile && path.basename(configFile);
-  if (!hasYarn || configName === 'package-lock.json') {
+  /**
+   * no yarn.lock => use npm
+   * yarn.lock => Use yarn, fallback to npm
+   */
+  if (!yarnLockFile) {
     return 'npm';
   }
 
-  return 'yarn';
+  const hasYarn = await checkForYarnCommand();
+  if (hasYarn) {
+    return 'yarn';
+  }
+
+  return 'npm';
 }
 
 let hasYarn = null;
@@ -99,7 +109,17 @@ async function checkForYarnCommand() {
 }
 
 let queue = new PromiseQueue(install, {maxConcurrent: 1, retry: false});
-module.exports = function(...args) {
+module.exports = async function(...args) {
+  // Ensure that this function is always called on the master process so we
+  // don't call multiple installs in parallel.
+  if (WorkerFarm.isWorker()) {
+    await WorkerFarm.callMaster({
+      location: __filename,
+      args
+    });
+    return;
+  }
+
   queue.add(...args);
   return queue.run();
 };

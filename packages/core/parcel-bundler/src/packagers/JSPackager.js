@@ -1,9 +1,9 @@
 const path = require('path');
+const {objectHash} = require('@parcel/utils');
 const Packager = require('./Packager');
 const getExisting = require('../utils/getExisting');
 const urlJoin = require('../utils/urlJoin');
 const lineCounter = require('../utils/lineCounter');
-const objectHash = require('../utils/objectHash');
 
 const prelude = getExisting(
   path.join(__dirname, '../builtins/prelude.min.js'),

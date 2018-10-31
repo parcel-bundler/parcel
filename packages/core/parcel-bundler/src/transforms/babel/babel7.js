@@ -1,4 +1,4 @@
-const localRequire = require('../../utils/localRequire');
+const {localRequire} = require('@parcel/utils');
 
 async function babel7(asset, options) {
   let config = options.config;

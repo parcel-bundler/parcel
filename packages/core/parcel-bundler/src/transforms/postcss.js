@@ -1,4 +1,4 @@
-const localRequire = require('../utils/localRequire');
+const {localRequire} = require('@parcel/utils');
 const loadPlugins = require('../utils/loadPlugins');
 const postcss = require('postcss');
 const semver = require('semver');

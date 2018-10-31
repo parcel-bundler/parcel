@@ -1,6 +1,6 @@
 import {minify} from 'terser';
 import {transformer} from '@parcel/plugin';
-import config from '@parcel/utils/config';
+import {config} from '@parcel/utils';
 
 // TODO: extract SourceMap from parcel-bundler ?
 // Just using an empty class skeleton for now so that linting doesn't fail
