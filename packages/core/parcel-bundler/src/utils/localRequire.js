@@ -1,5 +1,5 @@
 const {dirname} = require('path');
-const promisify = require('../utils/promisify');
+const {promisify} = require('@parcel/utils');
 const resolve = promisify(require('resolve'));
 const installPackage = require('./installPackage');
 

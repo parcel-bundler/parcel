@@ -1,4 +1,4 @@
-const fs = require('./utils/fs');
+const fs = require('@parcel/fs');
 const Resolver = require('./Resolver');
 const Parser = require('./Parser');
 const WorkerFarm = require('@parcel/workers');
@@ -131,6 +131,7 @@ class Bundler extends EventEmitter {
         !scopeHoist,
       hmrHostname:
         options.hmrHostname ||
+        options.host ||
         (options.target === 'electron' ? 'localhost' : ''),
       detailedReport: options.detailedReport || false,
       global: options.global,
@@ -776,8 +777,8 @@ class Bundler extends EventEmitter {
     return Server.middleware(this);
   }
 
-  async serve(port = 1234, https = false) {
-    this.server = await Server.serve(this, port, https);
+  async serve(port = 1234, https = false, host) {
+    this.server = await Server.serve(this, port, host, https);
     try {
       await this.bundle();
     } catch (e) {
