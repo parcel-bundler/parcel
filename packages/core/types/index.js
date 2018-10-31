@@ -150,7 +150,7 @@ export type Transformer = {
     opts: CLIOptions
   ): AssetOutput,
   postProcess?: (
-    assets: Array<TransformerResult>,
+    assets: Array<Asset>,
     config: ?Config,
     opts: CLIOptions
   ) => Array<TransformerResult>

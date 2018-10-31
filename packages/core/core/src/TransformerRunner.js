@@ -3,8 +3,6 @@ import type {
   Asset,
   AssetOutput,
   CacheEntry,
-  Config,
-  Dependency,
   Environment,
   File,
   JSONObject,
@@ -97,11 +95,9 @@ class TransformerRunner {
     let inputType = path.extname(input.filePath).slice(1);
 
     // Run the first transformer in the pipeline.
-    let transformer = pipeline[0];
-
     let {results, generate, postProcess} = await this.runTransform(
       input,
-      transformer,
+      pipeline[0],
       previousGenerate
     );
 
@@ -172,10 +168,7 @@ class TransformerRunner {
     }
 
     // If the transformer has a postProcess function, execute that with the result of the pipeline.
-    let postProcessedAssets = null;
-    if (transformer.postProcess) {
-      postProcessedAssets = await postProcess(clone(assets));
-    }
+    let postProcessedAssets = await postProcess(assets);
 
     return {
       filePath: input.filePath,
@@ -205,7 +198,7 @@ class TransformerRunner {
     if (
       input.ast &&
       (!transformer.canReuseAST ||
-        !transformer.canReuseAST(asset.ast, this.cliOpts)) &&
+        !transformer.canReuseAST(input.ast, this.cliOpts)) &&
       previousGenerate
     ) {
       let output = await previousGenerate(input);
@@ -222,25 +215,30 @@ class TransformerRunner {
     let results = await transformer.transform(input, config, this.cliOpts);
 
     // Create a generate function that can be called later to lazily generate
-    let generate = async (input): Promise<AssetOutput> => {
+    let generate = async (input: TransformerInput): Promise<AssetOutput> => {
       return await transformer.generate(input, config, this.cliOpts);
     };
 
     // Create a postProcess function that can be called later
     let postProcess = async (
-      results: TransformerResult
-    ): Promise<Array<TransformerResult> | null> => {
+      assets: Array<Asset>
+    ): Promise<Array<Asset> | null> => {
       if (transformer.postProcess) {
-        return await transformer.postProcess(
-          clone(results),
+        let results = await transformer.postProcess(
+          assets,
           config,
           this.cliOpts
+        );
+
+        return Promise.all(
+          results.map(result => transformerResultToAsset(input, result))
         );
       }
 
       return null;
     };
 
+    // $FlowFixMe - I don't understand why this is broken.
     return {results, generate, postProcess};
   }
 }
@@ -266,6 +264,7 @@ async function transformerResultToAsset(
     id: '' + ID++, // TODO: make something deterministic
     hash: hash || md5(output.code),
     filePath: input.filePath,
+    type: result.type,
     output,
     dependencies: result.dependencies || [], // TODO: merge
     env: mergeEnvironment(input.env, result.env)
@@ -278,7 +277,7 @@ function transformerResultToInput(
 ): TransformerInput {
   return {
     filePath: input.filePath,
-    code: result.code || (result.output && result.output.code) || null,
+    code: result.code || (result.output && result.output.code) || '',
     ast: result.ast,
     env: mergeEnvironment(input.env, result.env)
   };
