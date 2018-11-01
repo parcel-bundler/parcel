@@ -17,7 +17,7 @@ describe('elm', function() {
   it('should produce a elm bundle with debugger', async function() {
     let b = await bundle(__dirname + '/integration/elm/index.js');
 
-    const output = await run(b);
+    await run(b);
     let js = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(js.includes('elm$browser$Debugger'));
   });
@@ -27,7 +27,7 @@ describe('elm', function() {
       production: true
     });
 
-    const output = await run(b);
+    await run(b);
     let js = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(!js.includes('elm$browser$Debugger'));
   });
