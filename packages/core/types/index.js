@@ -66,6 +66,10 @@ export type PackageJSON = {
   }
 };
 
+export type CLIOptions = {
+  cacheDir: FilePath
+};
+
 export type SourceLocation = {
   filePath: string,
   start: {line: number, column: number},
@@ -95,7 +99,8 @@ export type Asset = {
   type: string,
   hash: string,
   output: AssetOutput,
-  env: Environment
+  env: Environment,
+  meta?: JSONObject
 };
 
 export type AssetOutput = {
@@ -110,7 +115,6 @@ export type AST = {
   program: JSONObject
 };
 
-export type CLIOptions = JSONObject;
 export type Config = JSONObject;
 export type SourceMap = JSONObject;
 export type Blob = string | Buffer;
@@ -128,7 +132,8 @@ export type TransformerResult = {
   ast?: ?AST,
   dependencies?: Array<Dependency>,
   output?: AssetOutput,
-  env?: Environment
+  env?: Environment,
+  meta?: JSONObject
 };
 
 export type ConfigOutput = {
@@ -165,9 +170,10 @@ export type Transformer = {
 
 export type CacheEntry = {
   filePath: FilePath,
+  env: Environment,
   hash: string,
   assets: Array<Asset>,
-  postProcessedAssets: ?Array<Asset>,
+  initialAssets: ?Array<Asset>, // Initial assets, pre-post processing
   dependencies: Array<Dependency> // File-level dependencies, e.g. config files.
 };
 
