@@ -77,7 +77,7 @@ class TransformerRunner {
       dependencies: []
     };
 
-    let pipeline = await this.config.resolveTransformers(file.filePath);
+    let pipeline = await this.config.getTransformers(file.filePath);
     let {assets, initialAssets, dependencies} = await this.runPipeline(
       input,
       pipeline,
@@ -166,7 +166,7 @@ class TransformerRunner {
           result.type;
         let cacheEntry = await this.runPipeline(
           nextInput,
-          await this.config.resolveTransformers(nextFilePath),
+          await this.config.getTransformers(nextFilePath),
           null,
           getNextContext(context, result)
         );

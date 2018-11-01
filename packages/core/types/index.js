@@ -29,6 +29,7 @@ export type ParcelConfig = {
     [Glob]: PackageName
   },
   bundler: PackageName,
+  namers: Array<PackageName>,
   packagers: {
     [Glob]: PackageName
   },

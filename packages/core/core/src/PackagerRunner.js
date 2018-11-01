@@ -43,7 +43,7 @@ export default class PackagerRunner {
   }
 
   async package(bundle: Bundle): Promise<Blob> {
-    let packager = await this.config.resolvePackager(bundle.filePath);
+    let packager = await this.config.getPackager(bundle.filePath);
 
     await Promise.all(
       bundle.assets.map(async asset => {
@@ -55,7 +55,7 @@ export default class PackagerRunner {
   }
 
   async optimize(bundle: Bundle, contents: Blob): Promise<Blob> {
-    let optimizers = await this.config.resolveOptimizers(bundle.distPath);
+    let optimizers = await this.config.getOptimizers(bundle.distPath);
 
     for (let optimizer of optimizers) {
       contents = await optimizer.optimize(bundle, contents, this.cliOpts);

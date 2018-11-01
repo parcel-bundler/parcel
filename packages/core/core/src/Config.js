@@ -4,6 +4,9 @@ import type {
   FilePath,
   Glob,
   Transformer,
+  Resolver,
+  Bundler,
+  Namer,
   PackageName,
   Packager,
   Optimizer
@@ -31,7 +34,11 @@ export default class Config {
     return Promise.all(plugins.map(pluginName => this.loadPlugin(pluginName)));
   }
 
-  async resolveTransformers(filePath: FilePath): Promise<Array<Transformer>> {
+  async getResolvers(): Promise<Array<Resolver>> {
+    return this.loadPlugins(this.config.resolvers);
+  }
+
+  async getTransformers(filePath: FilePath): Promise<Array<Transformer>> {
     let transformers: Array<PackageName> | null = this.matchGlobMap(
       filePath,
       this.config.transforms
@@ -43,7 +50,15 @@ export default class Config {
     return this.loadPlugins(transformers);
   }
 
-  async resolvePackager(filePath: FilePath): Promise<Packager> {
+  async getBundler(): Promise<Bundler> {
+    return this.loadPlugin(this.config.bundler);
+  }
+
+  async getNamers(): Promise<Array<Namer>> {
+    return this.loadPlugins(this.config.namers);
+  }
+
+  async getPackager(filePath: FilePath): Promise<Packager> {
     let packagerName: PackageName | null = this.matchGlobMap(
       filePath,
       this.config.packagers
@@ -55,7 +70,7 @@ export default class Config {
     return await this.loadPlugin(packagerName);
   }
 
-  async resolveOptimizers(filePath: FilePath): Promise<Array<Optimizer>> {
+  async getOptimizers(filePath: FilePath): Promise<Array<Optimizer>> {
     let optimizers: Array<PackageName> | null = this.matchGlobMap(
       filePath,
       this.config.optimizers
