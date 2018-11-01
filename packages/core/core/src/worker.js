@@ -1,13 +1,13 @@
 // @flow
 
-import type {Bundle, File, ParcelConfig, JSONObject} from '@parcel/types';
+import type {Bundle, CLIOptions, File, ParcelConfig} from '@parcel/types';
 import TransformerRunner from './TransformerRunner';
 import PackagerRunner from './PackagerRunner';
 import Config from './Config';
 
 type Options = {
   parcelConfig: ParcelConfig,
-  cliOpts: JSONObject
+  cliOpts: CLIOptions
 };
 
 let transformerRunner: TransformerRunner | null = null;
