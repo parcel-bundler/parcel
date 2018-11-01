@@ -24,12 +24,12 @@ type ParcelOpts = {
   cliOpts: CLIOptions
 };
 
-export type Signal = {
+type Signal = {
   aborted: boolean,
   addEventListener?: Function
 };
 
-export type BuildOpts = {
+type BuildOpts = {
   signal: Signal,
   shallow?: boolean
 };
