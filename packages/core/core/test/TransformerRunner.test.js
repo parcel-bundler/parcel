@@ -10,7 +10,7 @@ const runner = new TransformerRunner({
   cliOpts: {}
 });
 
-describe.only('TransformerRunner', function() {
+describe('TransformerRunner', function() {
   it('should transform some shit', async function() {
     let dummyAsset = {
       filePath: __dirname + '/fixtures/module-a.js',
@@ -27,7 +27,7 @@ describe.only('TransformerRunner', function() {
     console.log(JSON.stringify(result, null, 2));
   });
 
-  it('should transform some shitty typescript', async function() {
+  it.skip('should transform some shitty typescript', async function() {
     let dummyAsset = {
       filePath: __dirname + '/fixtures/module-a.ts',
       code: `

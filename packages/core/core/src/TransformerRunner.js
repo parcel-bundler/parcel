@@ -7,7 +7,6 @@ import type {
   Environment,
   File,
   JSONObject,
-  ParcelConfig,
   Transformer,
   TransformerInput,
   TransformerResult,
@@ -20,9 +19,10 @@ import clone from 'clone';
 import md5 from '@parcel/utils/md5';
 import Cache from '@parcel/cache';
 import fs from '@parcel/fs';
+import Config from './Config';
 
 type Opts = {
-  parcelConfig: ParcelConfig,
+  config: Config,
   cliOpts: CLIOptions,
   cache?: Cache
 };
@@ -44,12 +44,12 @@ const DEFAULT_ENVIRONMENT = {
 
 class TransformerRunner {
   cliOpts: CLIOptions;
-  parcelConfig: ParcelConfig;
+  config: Config;
   cache: Cache;
 
   constructor(opts: Opts) {
     this.cliOpts = opts.cliOpts;
-    this.parcelConfig = opts.parcelConfig;
+    this.config = opts.config;
     this.cache = opts.cache || new Cache(opts.cliOpts);
   }
 
@@ -77,7 +77,7 @@ class TransformerRunner {
       dependencies: []
     };
 
-    let pipeline = await this.resolvePipeline(file.filePath);
+    let pipeline = await this.config.resolveTransformers(file.filePath);
     let {assets, initialAssets, dependencies} = await this.runPipeline(
       input,
       pipeline,
@@ -95,23 +95,6 @@ class TransformerRunner {
 
     await this.cache.write(cacheEntry);
     return cacheEntry;
-  }
-
-  async resolvePipeline(filePath: string): Promise<Array<Transformer>> {
-    for (let pattern in this.parcelConfig.transforms) {
-      if (
-        micromatch.isMatch(filePath, pattern) ||
-        micromatch.isMatch(path.basename(filePath), pattern)
-      ) {
-        return Promise.all(
-          this.parcelConfig.transforms[pattern].map(transform =>
-            localRequire(transform, filePath)
-          )
-        );
-      }
-    }
-
-    return [];
   }
 
   async runPipeline(
@@ -183,7 +166,7 @@ class TransformerRunner {
           result.type;
         let cacheEntry = await this.runPipeline(
           nextInput,
-          await this.resolvePipeline(nextFilePath),
+          await this.config.resolveTransformers(nextFilePath),
           null,
           getNextContext(context, result)
         );

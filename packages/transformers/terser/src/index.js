@@ -1,6 +1,6 @@
 // @flow
 import {minify} from 'terser';
-import {transformer} from '@parcel/plugin';
+import {Transformer} from '@parcel/plugin';
 import config from '@parcel/utils/config';
 
 // TODO: extract SourceMap from parcel-bundler ?
@@ -10,7 +10,7 @@ class SourceMap {
   extendSourceMap() {}
 }
 
-export default transformer({
+export default new Transformer({
   async getConfig(filePath /* , options */) {
     return config.load(filePath, [
       '.terserrc',

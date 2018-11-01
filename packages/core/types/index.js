@@ -12,9 +12,9 @@ export type JSONObject = {
   [key: string]: JSONValue
 };
 
-type PackageName = string;
+export type PackageName = string;
 export type FilePath = string;
-type Glob = string;
+export type Glob = string;
 type Semver = string;
 type SemverRange = string;
 type ModuleSpecifier = string;
@@ -46,7 +46,7 @@ export type Target = {
 
 export type Environment = {
   target: Target,
-  browserContext: string
+  browserContext: 'browser' | 'worker' | 'serviceworker'
 };
 
 export type PackageJSON = {
@@ -68,7 +68,8 @@ export type PackageJSON = {
 
 export type CLIOptions = {
   cacheDir?: FilePath,
-  watch?: boolean
+  watch?: boolean,
+  distDir?: FilePath
 };
 
 export type SourceLocation = {
@@ -184,7 +185,8 @@ interface AssetGraph {}
 
 export type Bundle = {
   type: string,
-  assets: Array<Asset>
+  assets: Array<Asset>,
+  filePath?: FilePath
 };
 
 export type Bundler = {
@@ -192,19 +194,19 @@ export type Bundler = {
 };
 
 export type Namer = {
-  name(bundle: Bundle, opts: CLIOptions): FilePath
+  name(bundle: Bundle, opts: CLIOptions): Async<FilePath>
 };
 
 export type Packager = {
-  package(assets: Array<Asset>, opts: CLIOptions): Blob
+  package(bundle: Bundle, opts: CLIOptions): Async<Blob>
 };
 
 export type Optimizer = {
-  optimize(contents: Blob, opts: CLIOptions): Blob
+  optimize(bundle: Bundle, contents: Blob, opts: CLIOptions): Async<Blob>
 };
 
 export type Resolver = {
-  resolve(dependency: Dependency, opts: CLIOptions): FilePath | null
+  resolve(dependency: Dependency, opts: CLIOptions): Async<FilePath | null>
 };
 
 export type Reporter = {

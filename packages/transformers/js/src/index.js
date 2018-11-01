@@ -1,7 +1,7 @@
 // @flow
 import semver from 'semver';
 import generate from 'babel-generator';
-import {transformer} from '@parcel/plugin';
+import {Transformer} from '@parcel/plugin';
 import collectDependencies from './visitors/dependencies';
 
 // Can't import these
@@ -20,7 +20,7 @@ function canHaveDependencies(code) {
   return IMPORT_RE.test(code) || SW_RE.test(code) || WORKER_RE.test(code);
 }
 
-export default transformer({
+export default new Transformer({
   canReuseAST(ast) {
     return ast.type === 'babel' && semver.satisfies(ast.version, '^6.0.0');
   },
