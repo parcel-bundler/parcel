@@ -5,7 +5,7 @@ import Watcher from '@parcel/watcher';
 import PQueue from 'p-queue';
 import AssetGraph from './AssetGraph';
 import {Node} from './Graph';
-import type {Dependency, File} from '@parcel/types';
+import type {Dependency, File, CLIOptions} from '@parcel/types';
 import TransformerRunner from './TransformerRunner';
 import ResolverRunner from './ResolverRunner';
 import BundlerRunner from './BundlerRunner';
@@ -16,14 +16,10 @@ const defaultConfig = require('@parcel/config-default');
 
 const abortError = new Error('Build aborted');
 
-type CliOpts = {
-  watch?: boolean
-};
-
 type ParcelOpts = {
   entries: Array<string>,
   cwd?: string,
-  cliOpts: CliOpts
+  cliOpts: CLIOptions
 };
 
 type Signal = {
@@ -169,7 +165,7 @@ export default class Parcel {
 
   async transform(file: File, {signal, shallow}: BuildOpts) {
     // console.log('transforming file', file);
-    let {children: childAssets} = await this.transformerRunner.transform(file);
+    let {assets: childAssets} = await this.transformerRunner.transform(file);
 
     if (signal && !signal.aborted) {
       let {prunedFiles, newDeps} = this.graph.updateFile(file, childAssets);

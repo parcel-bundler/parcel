@@ -1,13 +1,6 @@
 // @flow
 'use strict';
-import type {
-  TransformerAsset,
-  TransformerOutput,
-  Transformer,
-  AST,
-  Config,
-  ConfigOutput
-} from '@parcel/types';
+import type {Transformer} from '@parcel/types';
 
 /*
 type PackagerOpts<FileContents: string | Buffer | null> = {

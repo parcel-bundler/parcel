@@ -39,9 +39,9 @@ export type ParcelConfig = {
 };
 
 export type Target = {
-  node: SemverRange,
-  electron: SemverRange,
-  browsers: Array<string>
+  node?: SemverRange,
+  electron?: SemverRange,
+  browsers?: Array<string>
 };
 
 export type Environment = {
@@ -67,7 +67,8 @@ export type PackageJSON = {
 };
 
 export type CLIOptions = {
-  cacheDir: FilePath
+  cacheDir?: FilePath,
+  watch?: boolean
 };
 
 export type SourceLocation = {
@@ -99,6 +100,7 @@ export type Asset = {
   type: string,
   hash: string,
   output: AssetOutput,
+  dependencies: Array<Dependency>,
   env: Environment,
   meta?: JSONObject
 };
