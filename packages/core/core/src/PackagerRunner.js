@@ -1,47 +1,66 @@
-'use strict';
-const Cache = require('@parcel/cache');
-const {mkdirp} = require('@parcel/fs');
-const path = require('path');
+// @flow
+import type Config from './Config';
+import Cache from '@parcel/cache';
+import {mkdirp, writeFile} from '@parcel/fs';
+import path from 'path';
+import type {Bundle, CLIOptions, Blob, FilePath} from '@parcel/types';
 
-class PackagerRunner {
-  constructor({parcelConfig, cliOpts}) {
-    this.parcelConfig = parcelConfig;
-    this.cache = new Cache({parcelConfig, cliOpts});
-    this.dirExists = false;
+type Opts = {
+  config: Config,
+  cliOpts: CLIOptions
+};
+
+export default class PackagerRunner {
+  config: Config;
+  cliOpts: CLIOptions;
+  cache: Cache;
+  distDir: FilePath;
+  distExists: boolean;
+
+  constructor({config, cliOpts}: Opts) {
+    this.config = config;
+    this.cliOpts = cliOpts;
+    this.cache = new Cache(cliOpts);
+    this.distDir = path.resolve(this.cliOpts.distDir || 'dist');
+    this.distExists = false;
   }
 
-  async loadPackager() {
-    return require('@parcel/packager-js');
+  async writeBundle(bundle: Bundle) {
+    let contents = await this.package(bundle);
+    contents = await this.optimize(bundle, contents);
+
+    if (!this.distExists) {
+      await mkdirp(this.distDir);
+      this.distExists = true;
+    }
+
+    let filePath = path.join(this.distDir, bundle.filePath);
+    if (bundle.filePath.includes(path.sep)) {
+      await mkdirp(path.dirname(filePath));
+    }
+
+    await writeFile(filePath, contents);
   }
 
-  async runPackager({bundle}) {
-    let packager = await this.loadPackager();
+  async package(bundle: Bundle): Promise<Blob> {
+    let packager = await this.config.resolvePackager(bundle.filePath);
 
-    let modulesContents = await Promise.all(
+    await Promise.all(
       bundle.assets.map(async asset => {
-        // let fileContents = await packager.readFile({
-        //   filePath: asset.code,
-        // });
-        let blobs = await this.cache.readBlobs(asset);
-
-        let result = await packager.asset({blobs});
-
-        return result;
+        await this.cache.readBlobs(asset);
       })
     );
 
-    let packageFileContents = await packager.package(modulesContents);
+    return await packager.package(bundle, this.cliOpts);
+  }
 
-    if (!this.dirExists) {
-      await mkdirp(path.dirname(bundle.destPath));
-      this.dirExists = true;
+  async optimize(bundle: Bundle, contents: Blob): Promise<Blob> {
+    let optimizers = await this.config.resolveOptimizers(bundle.distPath);
+
+    for (let optimizer of optimizers) {
+      contents = await optimizer.optimize(bundle, contents, this.cliOpts);
     }
 
-    await packager.writeFile({
-      filePath: bundle.destPath,
-      fileContents: packageFileContents
-    });
+    return contents;
   }
 }
-
-module.exports = PackagerRunner;

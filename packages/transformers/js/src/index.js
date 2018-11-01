@@ -1,6 +1,7 @@
+// @flow
 import semver from 'semver';
 import generate from 'babel-generator';
-import {transformer} from '@parcel/plugin';
+import {Transformer} from '@parcel/plugin';
 import collectDependencies from './visitors/dependencies';
 
 // Can't import these
@@ -19,17 +20,17 @@ function canHaveDependencies(code) {
   return IMPORT_RE.test(code) || SW_RE.test(code) || WORKER_RE.test(code);
 }
 
-export default transformer({
-  async canReuseAST(ast) {
+export default new Transformer({
+  canReuseAST(ast) {
     return ast.type === 'babel' && semver.satisfies(ast.version, '^6.0.0');
   },
 
-  async parse(module /*, config , options */) {
-    if (!canHaveDependencies(module.code)) return null;
+  async parse(asset /*, config , options */) {
+    if (!canHaveDependencies(asset.code)) return null;
     return {
       type: 'babel',
       version: '6.0.0',
-      program: babylon.parse(module.code, {
+      program: babylon.parse(asset.code, {
         filename: this.filePath,
         allowReturnOutsideFunction: true,
         allowHashBang: true,
@@ -42,10 +43,23 @@ export default transformer({
     };
   },
 
-  async transform(module, config /*, options */) {
-    if (!module.ast) {
-      return [module];
+  async transform(asset, config /*, options */) {
+    if (!asset.ast) {
+      return [
+        {
+          type: 'js',
+          code: asset.code,
+          ast: asset.ast
+        }
+      ];
     }
+
+    let module = {
+      type: 'js',
+      dependencies: [],
+      code: asset.code,
+      ast: asset.ast
+    };
 
     walk.ancestor(module.ast.program, collectDependencies, {
       module,

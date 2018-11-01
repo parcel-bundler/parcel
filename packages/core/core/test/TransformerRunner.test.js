@@ -1,42 +1,46 @@
-// const TransformerRunner = require('../src/TransformerRunner');
+// @flow
+'use strict';
+import assert from 'assert';
 
-// const config = require('@parcel/config-default');
-// const runner = new TransformerRunner({
-//   parcelConfig: config,
-//   cliOpts: {}
-// });
+import TransformerRunner from '../src/TransformerRunner';
 
-// describe('TransformerRunner', function () {
-//   it('should transform some shit', async function () {
-//     let dummyAsset = {
-//       filePath: __dirname + '/index.js',
-//       code: `
-//         function helloworld() {
-//           return 1 + 1;
-//         }
+const config = require('@parcel/config-default');
+const runner = new TransformerRunner({
+  parcelConfig: config,
+  cliOpts: {}
+});
 
-//         console.log(helloworld());
-//       `
-//     };
+describe('TransformerRunner', function() {
+  it('should transform some shit', async function() {
+    let dummyAsset = {
+      filePath: __dirname + '/fixtures/module-a.js',
+      code: `
+        function helloworld() {
+          return 1 + 1;
+        }
 
-//     let result = await runner.transform(dummyAsset);
-//     console.log(result);
-//   });
+        console.log(helloworld());
+      `
+    };
 
-//   it('should transform some shitty typescript', async function () {
-//     let dummyAsset = {
-//       filePath: __dirname + '/index.ts',
-//       code: `
-//         var x = require('y');
-//         function helloworld(count: number) {
-//           return 1 + count;
-//         }
+    let result = await runner.transform(dummyAsset);
+    console.log(JSON.stringify(result, null, 2));
+  });
 
-//         console.log(helloworld(5));
-//       `
-//     };
+  it.skip('should transform some shitty typescript', async function() {
+    let dummyAsset = {
+      filePath: __dirname + '/fixtures/module-a.ts',
+      code: `
+        var x = require('y');
+        function helloworld(count: number) {
+          return 1 + count;
+        }
 
-//     let result = await runner.transform(dummyAsset);
-//     console.log(result);
-//   });
-// });
+        console.log(helloworld(5));
+      `
+    };
+
+    let result = await runner.transform(dummyAsset);
+    console.log(result);
+  });
+});

@@ -12,9 +12,9 @@ export type JSONObject = {
   [key: string]: JSONValue
 };
 
-type PackageName = string;
-type FilePath = string;
-type Glob = string;
+export type PackageName = string;
+export type FilePath = string;
+export type Glob = string;
 type Semver = string;
 type SemverRange = string;
 type ModuleSpecifier = string;
@@ -39,14 +39,14 @@ export type ParcelConfig = {
 };
 
 export type Target = {
-  node: SemverRange,
-  electron: SemverRange,
-  browsers: Array<string>
+  node?: SemverRange,
+  electron?: SemverRange,
+  browsers?: Array<string>
 };
 
 export type Environment = {
   target: Target,
-  browserContext: string
+  browserContext: 'browser' | 'worker' | 'serviceworker'
 };
 
 export type PackageJSON = {
@@ -66,6 +66,12 @@ export type PackageJSON = {
   }
 };
 
+export type CLIOptions = {
+  cacheDir?: FilePath,
+  watch?: boolean,
+  distDir?: FilePath
+};
+
 export type SourceLocation = {
   filePath: string,
   start: {line: number, column: number},
@@ -79,6 +85,7 @@ export type Dependency = {
   isEntry?: boolean,
   isOptional?: boolean,
   isIncluded?: boolean,
+  isConfig?: boolean,
   loc?: SourceLocation,
   env?: Environment,
   meta?: JSONObject
@@ -91,9 +98,12 @@ export type File = {
 export type Asset = {
   id: string,
   filePath: FilePath,
+  type: string,
   hash: string,
   output: AssetOutput,
-  env: Environment
+  dependencies: Array<Dependency>,
+  env: Environment,
+  meta?: JSONObject
 };
 
 export type AssetOutput = {
@@ -103,12 +113,11 @@ export type AssetOutput = {
 };
 
 export type AST = {
-  kind: string,
+  type: string,
   version: string,
   program: JSONObject
 };
 
-export type CLIOptions = JSONObject;
 export type Config = JSONObject;
 export type SourceMap = JSONObject;
 export type Blob = string | Buffer;
@@ -123,10 +132,11 @@ export type TransformerInput = {
 export type TransformerResult = {
   type: string,
   code?: string,
-  ast?: AST,
+  ast?: ?AST,
   dependencies?: Array<Dependency>,
   output?: AssetOutput,
-  env?: Environment
+  env?: Environment,
+  meta?: JSONObject
 };
 
 export type ConfigOutput = {
@@ -134,38 +144,40 @@ export type ConfigOutput = {
   dependencies: Array<Dependency>
 };
 
+type Async<T> = T | Promise<T>;
+
 export type Transformer = {
-  getConfig?: (filePath: FilePath, opts: CLIOptions) => ConfigOutput,
+  getConfig?: (filePath: FilePath, opts: CLIOptions) => Async<ConfigOutput>,
   canReuseAST?: (ast: AST, opts: CLIOptions) => boolean,
-  parse(asset: TransformerInput, config: ?Config, opts: CLIOptions): AST,
+  parse?: (
+    asset: TransformerInput,
+    config: ?Config,
+    opts: CLIOptions
+  ) => Async<?AST>,
   transform(
     asset: TransformerInput,
     config: ?Config,
     opts: CLIOptions
-  ): Array<TransformerResult>,
-  generate(
+  ): Async<Array<TransformerResult>>,
+  generate?: (
     asset: TransformerInput,
     config: ?Config,
     opts: CLIOptions
-  ): AssetOutput,
+  ) => Async<AssetOutput>,
   postProcess?: (
-    assets: Array<TransformerResult>,
+    assets: Array<Asset>,
     config: ?Config,
     opts: CLIOptions
-  ) => Array<TransformerResult>
-};
-
-export type CacheAsset = {
-  hash: string,
-  dependencies: Array<Dependency>,
-  output: TransformerOutput,
-  transformerOutput?: TransformerOutput // pre-postProcess cache. If not defined, use it is the same as output.
+  ) => Async<Array<TransformerResult>>
 };
 
 export type CacheEntry = {
   filePath: FilePath,
+  env: Environment,
   hash: string,
-  assets: Array<CacheAsset>
+  assets: Array<Asset>,
+  initialAssets: ?Array<Asset>, // Initial assets, pre-post processing
+  dependencies: Array<Dependency> // File-level dependencies, e.g. config files.
 };
 
 // TODO: what do we want to expose here?
@@ -173,7 +185,8 @@ interface AssetGraph {}
 
 export type Bundle = {
   type: string,
-  assets: Array<Asset>
+  assets: Array<Asset>,
+  filePath?: FilePath
 };
 
 export type Bundler = {
@@ -181,19 +194,19 @@ export type Bundler = {
 };
 
 export type Namer = {
-  name(bundle: Bundle, opts: CLIOptions): FilePath
+  name(bundle: Bundle, opts: CLIOptions): Async<FilePath>
 };
 
 export type Packager = {
-  package(assets: Array<Asset>, opts: CLIOptions): Blob
+  package(bundle: Bundle, opts: CLIOptions): Async<Blob>
 };
 
 export type Optimizer = {
-  optimize(contents: Blob, opts: CLIOptions): Blob
+  optimize(bundle: Bundle, contents: Blob, opts: CLIOptions): Async<Blob>
 };
 
 export type Resolver = {
-  resolve(dependency: Dependency, opts: CLIOptions): FilePath | null
+  resolve(dependency: Dependency, opts: CLIOptions): Async<FilePath | null>
 };
 
 export type Reporter = {

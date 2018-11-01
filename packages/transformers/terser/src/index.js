@@ -1,5 +1,6 @@
+// @flow
 import {minify} from 'terser';
-import {transformer} from '@parcel/plugin';
+import {Transformer} from '@parcel/plugin';
 import config from '@parcel/utils/config';
 
 // TODO: extract SourceMap from parcel-bundler ?
@@ -9,9 +10,9 @@ class SourceMap {
   extendSourceMap() {}
 }
 
-export default transformer({
-  async getConfig(module /* , options */) {
-    return config.load(module.filePath, [
+export default new Transformer({
+  async getConfig(filePath /* , options */) {
+    return config.load(filePath, [
       '.terserrc',
       '.uglifyrc',
       '.uglifyrc.js',
@@ -67,7 +68,7 @@ export default transformer({
     return [
       {
         type: 'js',
-        blobs: {
+        output: {
           code: result.code,
           map: sourceMap
         }

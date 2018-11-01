@@ -61,16 +61,32 @@ describe('AssetGraph', () => {
     let sourcePath = filePath;
     let assets = [
       {
+        id: '1',
         filePath,
+        type: 'js',
         hash: '#1',
-        dependencies: [{sourcePath, moduleSpecifier: './utils'}]
+        dependencies: [{sourcePath, moduleSpecifier: './utils'}],
+        env: {target: {node: '10'}, browserContext: 'browser'},
+        output: {code: ''}
       },
       {
+        id: '2',
         filePath,
+        type: 'js',
         hash: '#2',
-        dependencies: [{sourcePath, moduleSpecifier: './styles'}]
+        dependencies: [{sourcePath, moduleSpecifier: './styles'}],
+        env: {target: {node: '10'}, browserContext: 'browser'},
+        output: {code: ''}
       },
-      {filePath, hash: '#3', dependencies: []}
+      {
+        id: '3',
+        filePath,
+        type: 'js',
+        hash: '#3',
+        dependencies: [],
+        env: {target: {node: '10'}, browserContext: 'browser'},
+        output: {code: ''}
+      }
     ];
     graph.updateFile(file, assets);
     assert(graph.nodes.has('#1'));
@@ -97,11 +113,23 @@ describe('AssetGraph', () => {
 
     assets = [
       {
+        id: '1',
         filePath,
+        type: 'js',
         hash: '#1',
-        dependencies: [{sourcePath, moduleSpecifier: './utils'}]
+        dependencies: [{sourcePath, moduleSpecifier: './utils'}],
+        env: {target: {node: '10'}, browserContext: 'browser'},
+        output: {code: ''}
       },
-      {filePath, hash: '#2', dependencies: []}
+      {
+        id: '3',
+        filePath,
+        type: 'js',
+        hash: '#2',
+        dependencies: [],
+        env: {target: {node: '10'}, browserContext: 'browser'},
+        output: {code: ''}
+      }
     ];
     graph.updateFile(file, assets);
     assert(graph.nodes.has('#1'));

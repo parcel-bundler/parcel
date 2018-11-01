@@ -5,25 +5,22 @@ import Watcher from '@parcel/watcher';
 import PQueue from 'p-queue';
 import AssetGraph from './AssetGraph';
 import {Node} from './Graph';
-import type {Dependency, File} from '@parcel/types';
+import type {Dependency, File, CLIOptions} from '@parcel/types';
 import TransformerRunner from './TransformerRunner';
 import ResolverRunner from './ResolverRunner';
 import BundlerRunner from './BundlerRunner';
 import PackagerRunner from './PackagerRunner';
+import Config from './Config';
 
 // TODO: use custom config if present
 const defaultConfig = require('@parcel/config-default');
 
 const abortError = new Error('Build aborted');
 
-type CliOpts = {
-  watch?: boolean
-};
-
 type ParcelOpts = {
   entries: Array<string>,
   cwd?: string,
-  cliOpts: CliOpts
+  cliOpts: CLIOptions
 };
 
 type Signal = {
@@ -56,17 +53,21 @@ export default class Parcel {
     this.updateQueue = new PQueue({autoStart: false});
     this.mainQueue = new PQueue({autoStart: false});
 
+    let config = new Config(
+      defaultConfig,
+      require.resolve('@parcel/config-default')
+    );
     this.transformerRunner = new TransformerRunner({
-      parcelConfig: defaultConfig,
+      config,
       cliOpts
     });
     this.resolverRunner = new ResolverRunner();
     this.bundlerRunner = new BundlerRunner({
-      parcelConfig: defaultConfig,
+      config,
       cliOpts
     });
     this.packagerRunner = new PackagerRunner({
-      parcelConfig: defaultConfig,
+      config,
       cliOpts
     });
   }
@@ -169,7 +170,7 @@ export default class Parcel {
 
   async transform(file: File, {signal, shallow}: BuildOpts) {
     // console.log('transforming file', file);
-    let {children: childAssets} = await this.transformerRunner.transform(file);
+    let {assets: childAssets} = await this.transformerRunner.transform(file);
 
     if (signal && !signal.aborted) {
       let {prunedFiles, newDeps} = this.graph.updateFile(file, childAssets);
@@ -197,7 +198,7 @@ export default class Parcel {
   // TODO: implement bundle types
   package(bundles: any) {
     return Promise.all(
-      bundles.map(bundle => this.packagerRunner.runPackager({bundle}))
+      bundles.map(bundle => this.packagerRunner.writeBundle(bundle))
     );
   }
 

@@ -14,7 +14,8 @@ class BundlerRunner {
     return {
       bundles: [
         {
-          destPath: path.join(process.cwd(), 'dist/bundle.js'),
+          type: 'js',
+          filePath: 'bundle.js',
           assets
         }
       ]
