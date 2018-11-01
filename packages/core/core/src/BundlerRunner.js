@@ -1,26 +1,14 @@
-const path = require('path');
+import path from 'path';
+import Config from './Config';
 
-class BundlerRunner {
-  constructor() {
-    //...
+export default class BundlerRunner {
+  constructor(opts) {
+    this.config = opts.config;
   }
 
-  // TODO: use plugin to create bundles
-  bundle(graph /* , opts */) {
-    let assets = Array.from(graph.nodes.values())
-      .filter(node => node.type === 'asset')
-      .map(node => node.value);
+  async bundle(graph /* , opts */) {
+    let bundler = await this.config.getBundler();
 
-    return {
-      bundles: [
-        {
-          type: 'js',
-          filePath: 'bundle.js',
-          assets
-        }
-      ]
-    };
+    return bundler.bundle(graph);
   }
 }
-
-module.exports = BundlerRunner;
