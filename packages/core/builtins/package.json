@@ -6,7 +6,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "dependencies": {},
+  "dependencies": {
+    "node-libs-browser": "^2.1.0"
+  },
   "devDependencies": {
     "@parcel/eslint-config": "1.10.3"
   }
