@@ -5,12 +5,13 @@ import Watcher from '@parcel/watcher';
 import PQueue from 'p-queue';
 import AssetGraph from './AssetGraph';
 import {Node} from './Graph';
-import type {CLIOptions, Dependency, File} from '@parcel/types';
+import type {Bundle, CLIOptions, Dependency, File} from '@parcel/types';
 import TransformerRunner from './TransformerRunner';
 import ResolverRunner from './ResolverRunner';
 import BundlerRunner from './BundlerRunner';
 import PackagerRunner from './PackagerRunner';
 import Config from './Config';
+import WorkerFarm from '@parcel/workers';
 
 // TODO: use custom config if present
 const defaultConfig = require('@parcel/config-default');
@@ -40,10 +41,11 @@ export default class Parcel {
   watcher: Watcher;
   updateQueue: PQueue;
   mainQueue: PQueue;
-  transformerRunner: TransformerRunner;
   resolverRunner: ResolverRunner;
   bundlerRunner: BundlerRunner;
-  packagerRunner: PackagerRunner;
+  farm: WorkerFarm;
+  runTransform: (file: File) => Promise<any>;
+  runPackage: (bundle: Bundle) => Promise<any>;
 
   constructor({entries, cliOpts = {}}: ParcelOpts) {
     this.rootDir = process.cwd();
@@ -57,10 +59,6 @@ export default class Parcel {
       defaultConfig,
       require.resolve('@parcel/config-default')
     );
-    this.transformerRunner = new TransformerRunner({
-      config,
-      cliOpts
-    });
     this.resolverRunner = new ResolverRunner({
       config,
       cliOpts,
@@ -70,10 +68,18 @@ export default class Parcel {
       config,
       cliOpts
     });
-    this.packagerRunner = new PackagerRunner({
-      config,
-      cliOpts
-    });
+    this.farm = new WorkerFarm(
+      {
+        parcelConfig: defaultConfig,
+        cliOpts
+      },
+      {
+        workerPath: require.resolve('./worker')
+      }
+    );
+
+    this.runTransform = this.farm.mkhandle('runTransform');
+    this.runPackage = this.farm.mkhandle('runPackage');
   }
 
   async run() {
@@ -115,6 +121,11 @@ export default class Parcel {
       // await this.graph.dumpGraphViz();
       let {bundles} = await this.bundle();
       await this.package(bundles);
+
+      if (!this.watcher) {
+        await this.farm.end();
+      }
+
       console.log('Finished build'); // eslint-disable-line no-console
     } catch (e) {
       if (e !== abortError) {
@@ -174,7 +185,7 @@ export default class Parcel {
 
   async transform(file: File, {signal, shallow}: BuildOpts) {
     // console.log('transforming file', file);
-    let {assets: childAssets} = await this.transformerRunner.transform(file);
+    let {assets: childAssets} = await this.runTransform(file);
 
     if (signal && !signal.aborted) {
       let {prunedFiles, newDeps} = this.graph.updateFile(file, childAssets);
@@ -200,10 +211,8 @@ export default class Parcel {
   }
 
   // TODO: implement bundle types
-  package(bundles: any) {
-    return Promise.all(
-      bundles.map(bundle => this.packagerRunner.writeBundle(bundle))
-    );
+  package(bundles: any[]) {
+    return Promise.all(bundles.map(bundle => this.runPackage(bundle)));
   }
 
   handleChange(filePath: string) {

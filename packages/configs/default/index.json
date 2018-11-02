@@ -1,4 +1,5 @@
 {
+  "bundler": "@parcel/bundler-default",
   "transforms": {
     "*.{js,mjs,jsm,jsx,es6}": [
       "@parcel/transformer-js",

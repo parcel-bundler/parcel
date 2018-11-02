@@ -7,6 +7,7 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "dependencies": {
+    "@parcel/bundler-default": "^2.0.0",
     "@parcel/packager-js": "^2.0.0",
     "@parcel/transformer-js": "^2.0.0",
     "@parcel/transformer-terser": "^2.0.0"
