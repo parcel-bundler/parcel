@@ -19,4 +19,4 @@ let parcel = new Parcel({
   cliOpts
 });
 
-parcel.run();
+parcel.run().catch(console.error);

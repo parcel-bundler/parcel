@@ -53,10 +53,7 @@ class TransformerRunner {
     this.cache = opts.cache || new Cache(opts.cliOpts);
   }
 
-  async transform(
-    file: File,
-    env: Environment = DEFAULT_ENVIRONMENT
-  ): Promise<CacheEntry> {
+  async transform(file: File) {
     let code = await fs.readFile(file.filePath, 'utf8');
     let hash = md5(code);
 

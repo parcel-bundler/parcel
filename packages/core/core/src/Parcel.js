@@ -5,7 +5,7 @@ import Watcher from '@parcel/watcher';
 import PQueue from 'p-queue';
 import AssetGraph from './AssetGraph';
 import {Node} from './Graph';
-import type {Bundle, Dependency, File, CLIOptions} from '@parcel/types';
+import type {Bundle, CLIOptions, Dependency, File} from '@parcel/types';
 import TransformerRunner from './TransformerRunner';
 import ResolverRunner from './ResolverRunner';
 import BundlerRunner from './BundlerRunner';
@@ -59,7 +59,11 @@ export default class Parcel {
       defaultConfig,
       require.resolve('@parcel/config-default')
     );
-    this.resolverRunner = new ResolverRunner();
+    this.resolverRunner = new ResolverRunner({
+      config,
+      cliOpts,
+      rootDir: this.rootDir
+    });
     this.bundlerRunner = new BundlerRunner({
       config,
       cliOpts

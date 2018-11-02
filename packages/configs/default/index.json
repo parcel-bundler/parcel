@@ -8,5 +8,6 @@
   },
   "packagers": {
     "*.js": "@parcel/packager-js"
-  }
+  },
+  "resolvers": ["@parcel/resolver-default"]
 }
