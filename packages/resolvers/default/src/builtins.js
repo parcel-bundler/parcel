@@ -8,6 +8,4 @@ for (var key in nodeBuiltins) {
       : nodeBuiltins[key];
 }
 
-builtins['__empty'] = require.resolve('./_empty.js');
-
 export default builtins;

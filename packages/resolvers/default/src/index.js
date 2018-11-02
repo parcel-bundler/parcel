@@ -6,7 +6,7 @@ import path from 'path';
 import fs from '@parcel/fs';
 import {glob} from '@parcel/utils';
 import micromatch from 'micromatch';
-import builtins from '@parcel/builtins';
+import builtins from './builtins';
 import nodeBuiltins from 'node-libs-browser';
 
 export default new Resolver({
@@ -25,7 +25,7 @@ type InternalPackageJSON = PackageJSON & {
   pkgdir: string
 };
 
-const EMPTY_SHIM = builtins.__empty;
+const EMPTY_SHIM = require.resolve('./_empty');
 
 type Options = {
   cli: CLIOptions,
