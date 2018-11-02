@@ -1,9 +1,9 @@
 // @flow
 'use strict';
 
-import {Packager} from '@parcel/plugin';
+import {packager} from '@parcel/plugin';
 
-export default new Packager({
+export default packager({
   async package(bundle) {
     return bundle.assets.map(asset => asset.output.code).join('\n\n');
   }

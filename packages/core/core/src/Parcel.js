@@ -174,7 +174,7 @@ export default class Parcel {
 
   async transform(file: File, {signal, shallow}: BuildOpts) {
     console.log('transforming file', file, this);
-    let {children: childAssets} = await this.transformerRunner.transform(file);
+    let {assets: childAssets} = await this.transformerRunner.transform(file);
 
     if (signal && !signal.aborted) {
       let {prunedFiles, newDeps} = this.graph.updateFile(file, childAssets);
