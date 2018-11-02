@@ -62,9 +62,9 @@ export default class Parcel {
       cliOpts
     });
     this.resolverRunner = new ResolverRunner({
-      parcelConfig: defaultConfig,
-      rootDir: this.rootDir,
-      cliOpts
+      config,
+      cliOpts,
+      rootDir: this.rootDir
     });
     this.bundlerRunner = new BundlerRunner({
       config,
@@ -158,7 +158,7 @@ export default class Parcel {
   }
 
   async resolve(dep: Dependency, {signal}: BuildOpts) {
-    console.log('resolving dependency', dep);
+    // console.log('resolving dependency', dep);
     let resolvedPath = await this.resolverRunner.resolve(dep);
 
     let file = {filePath: resolvedPath};
@@ -173,7 +173,7 @@ export default class Parcel {
   }
 
   async transform(file: File, {signal, shallow}: BuildOpts) {
-    console.log('transforming file', file, this);
+    // console.log('transforming file', file);
     let {assets: childAssets} = await this.transformerRunner.transform(file);
 
     if (signal && !signal.aborted) {

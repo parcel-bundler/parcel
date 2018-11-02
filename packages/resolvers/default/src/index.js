@@ -1,6 +1,6 @@
 // @flow
 
-import {resolver} from '@parcel/plugin';
+import {Resolver} from '@parcel/plugin';
 import type {CLIOptions, Dependency, PackageJSON} from '@parcel/types';
 import path from 'path';
 import fs from '@parcel/fs';
@@ -9,9 +9,9 @@ import micromatch from 'micromatch';
 import builtins from '@parcel/builtins';
 import nodeBuiltins from 'node-libs-browser';
 
-export default resolver({
+export default new Resolver({
   async resolve(dep: Dependency, cli: CLIOptions, rootDir: string) {
-    const resolved = await new Resolver({
+    const resolved = await new NodeResolver({
       extensions: ['js', 'json'],
       cli,
       rootDir
@@ -46,7 +46,7 @@ type Options = {
  *   - The package.json browser and alias fields as an alias map within a local module.
  *   - The package.json alias field in the root package for global aliases across all modules.
  */
-class Resolver {
+class NodeResolver {
   options: Options;
   packageCache: Map<string, InternalPackageJSON>;
   rootPackage: InternalPackageJSON | null;
@@ -59,8 +59,6 @@ class Resolver {
 
   async resolve({moduleSpecifier: input, sourcePath: parent}: Dependency) {
     let filename = input;
-
-    console.log('resolving', input, parent);
 
     // Check if this is a glob
     if (glob.isGlob(filename)) {

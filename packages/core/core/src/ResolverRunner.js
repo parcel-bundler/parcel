@@ -7,9 +7,10 @@ import type {
   Resolver
 } from '@parcel/types';
 import path from 'path';
+import Config from './Config';
 
-type Options = {
-  parcelConfig: ParcelConfig,
+type Opts = {
+  config: Config,
   cliOpts: CLIOptions,
   rootDir: string
 };
@@ -20,13 +21,13 @@ const getCacheKey = (filename, parent) =>
   (parent ? path.dirname(parent) : '') + ':' + filename;
 
 export default class ResolverRunner {
-  config: ParcelConfig;
+  config: Config;
   cliOpts: CLIOptions;
   cache: Map<string, ResolverResult>;
   rootDir: string;
 
-  constructor({parcelConfig, cliOpts, rootDir}: Options) {
-    this.config = parcelConfig;
+  constructor({config, cliOpts, rootDir}: Opts) {
+    this.config = config;
     this.cliOpts = cliOpts;
     this.cache = new Map();
     this.rootDir = rootDir;
@@ -34,7 +35,6 @@ export default class ResolverRunner {
 
   async resolve(dependency: Dependency): Promise<ResolverResult> {
     // Check the cache first
-    console.log('Dependency', dependency);
     let key = getCacheKey(dependency.moduleSpecifier, dependency.sourcePath);
     let cached = this.cache.get(key);
 
@@ -42,8 +42,9 @@ export default class ResolverRunner {
       return cached;
     }
 
-    for (let resolverModule of this.config.resolvers) {
-      let resolver: Resolver = (require: Function)(resolverModule);
+    let resolvers = await this.config.getResolvers();
+
+    for (let resolver of resolvers) {
       let result = await resolver.resolve(
         dependency,
         this.cliOpts,
