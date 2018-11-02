@@ -8,8 +8,6 @@ for (var key in nodeBuiltins) {
       : nodeBuiltins[key];
 }
 
-builtins['_bundle_loader'] = require.resolve('./bundle-loader.js');
-builtins['_css_loader'] = require.resolve('./css-loader.js');
 builtins['__empty'] = require.resolve('./_empty.js');
 
 export default builtins;
