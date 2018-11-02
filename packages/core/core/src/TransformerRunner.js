@@ -12,8 +12,6 @@ import type {
   TransformerResult,
   CLIOptions
 } from '@parcel/types';
-import micromatch from 'micromatch';
-import localRequire from '@parcel/utils/localRequire';
 import path from 'path';
 import clone from 'clone';
 import md5 from '@parcel/utils/md5';

@@ -55,7 +55,7 @@ export default class PackagerRunner {
   }
 
   async optimize(bundle: Bundle, contents: Blob): Promise<Blob> {
-    let optimizers = await this.config.getOptimizers(bundle.distPath);
+    let optimizers = await this.config.getOptimizers(bundle.filePath);
 
     for (let optimizer of optimizers) {
       contents = await optimizer.optimize(bundle, contents, this.cliOpts);

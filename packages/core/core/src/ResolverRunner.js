@@ -1,11 +1,6 @@
 // @flow
 
-import type {
-  CLIOptions,
-  Dependency,
-  ParcelConfig,
-  Resolver
-} from '@parcel/types';
+import type {CLIOptions, Dependency} from '@parcel/types';
 import path from 'path';
 import Config from './Config';
 

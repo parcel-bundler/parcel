@@ -6,10 +6,8 @@ import PQueue from 'p-queue';
 import AssetGraph from './AssetGraph';
 import {Node} from './Graph';
 import type {Bundle, CLIOptions, Dependency, File} from '@parcel/types';
-import TransformerRunner from './TransformerRunner';
 import ResolverRunner from './ResolverRunner';
 import BundlerRunner from './BundlerRunner';
-import PackagerRunner from './PackagerRunner';
 import Config from './Config';
 import WorkerFarm from '@parcel/workers';
 

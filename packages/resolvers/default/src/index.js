@@ -80,7 +80,6 @@ class NodeResolver {
 
     // Resolve the module directory or local file path
     let module = await this.resolveModule(filename, parent);
-    let resolved;
 
     if (module.moduleDir) {
       return this.loadNodeModules(module, extensions);
