@@ -11,7 +11,6 @@ export default new Bundler({
       bundles: [
         {
           type: 'js',
-          filePath: 'bundle.js',
           assets
         }
       ]

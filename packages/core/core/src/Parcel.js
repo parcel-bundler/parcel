@@ -119,8 +119,8 @@ export default class Parcel {
       await this.updateGraph();
       await this.completeGraph({signal});
       // await this.graph.dumpGraphViz();
-      let {bundles} = await this.bundle();
-      await this.package(bundles);
+      let bundleMap = await this.bundle();
+      await this.package(bundleMap);
 
       if (!this.watcher) {
         await this.farm.end();
@@ -212,8 +212,12 @@ export default class Parcel {
   }
 
   // TODO: implement bundle types
-  package(bundles: any[]) {
-    return Promise.all(bundles.map(bundle => this.runPackage(bundle)));
+  package(bundleMap: any[]) {
+    return Promise.all(
+      Object.entries(bundleMap).map(([name, bundle]) =>
+        this.runPackage(name, bundle)
+      )
+    );
   }
 
   handleChange(filePath: string) {

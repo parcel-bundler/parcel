@@ -25,8 +25,8 @@ export default class PackagerRunner {
     this.distExists = false;
   }
 
-  async writeBundle(bundle: Bundle) {
-    let contents = await this.package(bundle);
+  async writeBundle(name: string, bundle: Bundle) {
+    let contents = await this.package(name, bundle);
     contents = await this.optimize(bundle, contents);
 
     if (!this.distExists) {
@@ -34,16 +34,16 @@ export default class PackagerRunner {
       this.distExists = true;
     }
 
-    let filePath = path.join(this.distDir, bundle.filePath);
-    if (bundle.filePath.includes(path.sep)) {
+    let filePath = path.join(this.distDir, name);
+    if (name.includes(path.sep)) {
       await mkdirp(path.dirname(filePath));
     }
 
     await writeFile(filePath, contents);
   }
 
-  async package(bundle: Bundle): Promise<Blob> {
-    let packager = await this.config.getPackager(bundle.filePath);
+  async package(name: string, bundle: Bundle): Promise<Blob> {
+    let packager = await this.config.getPackager(name);
 
     await Promise.all(
       bundle.assets.map(async asset => {

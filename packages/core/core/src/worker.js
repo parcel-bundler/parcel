@@ -36,10 +36,10 @@ export function runTransform(file: File) {
   return transformerRunner.transform(file);
 }
 
-export function runPackage(bundle: Bundle) {
+export function runPackage(name: string, bundle: Bundle) {
   if (!packagerRunner) {
     throw new Error('.runPackage() called before .init()');
   }
 
-  return packagerRunner.writeBundle(bundle);
+  return packagerRunner.writeBundle(name, bundle);
 }

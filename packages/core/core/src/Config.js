@@ -79,7 +79,7 @@ export default class Config {
       return [];
     }
 
-    return await this.loadPlugin(optimizers);
+    return await this.loadPlugins(optimizers);
   }
 
   matchGlobMap(filePath: FilePath, globMap: {[Glob]: any}) {
