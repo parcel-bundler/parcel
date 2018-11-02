@@ -119,7 +119,7 @@ export default class Parcel {
       await this.updateGraph();
       await this.completeGraph({signal});
       // await this.graph.dumpGraphViz();
-      let {bundles} = await this.bundle();
+      let bundles = await this.bundle();
       await this.package(bundles);
 
       if (!this.watcher) {
