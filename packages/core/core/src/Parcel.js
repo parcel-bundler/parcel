@@ -172,6 +172,7 @@ export default class Parcel {
 
     let file = {filePath: resolvedPath};
     if (signal && !signal.aborted) {
+      dep.resolvedPath = resolvedPath;
       let {newFile} = this.graph.updateDependency(dep, file);
 
       if (newFile) {
