@@ -1,7 +1,7 @@
 const Asset = require('../Asset');
 const commandExists = require('command-exists');
 const localRequire = require('../utils/localRequire');
-const {minify} = require('terser');
+const {minify} = require('elm-minify');
 const path = require('path');
 const spawn = require('cross-spawn');
 
@@ -82,41 +82,9 @@ class ElmAsset extends Asset {
       [this.type]: output
     };
 
-    // Recommended minification
-    // Based on:
-    // - http://elm-lang.org/0.19.0/optimize
     function pack(source) {
-      let options = {
-        compress: {
-          keep_fargs: false,
-          passes: 2,
-          pure_funcs: [
-            'F2',
-            'F3',
-            'F4',
-            'F5',
-            'F6',
-            'F7',
-            'F8',
-            'F9',
-            'A2',
-            'A3',
-            'A4',
-            'A5',
-            'A6',
-            'A7',
-            'A8',
-            'A9'
-          ],
-          pure_getters: true,
-          unsafe: true,
-          unsafe_comps: true
-        },
-        mangle: true,
-        rename: false
-      };
 
-      let result = minify(source, options);
+      let result = minify(source);
 
       if (result.error) {
         throw result.error;
