@@ -69,10 +69,12 @@ type AssetGraphOpts = {
  */
 export default class AssetGraph extends Graph {
   incompleteNodes: Map<NodeId, Node>;
+  invalidNodes: Map<NodeId, Node>;
 
   constructor({entries, rootDir}: AssetGraphOpts) {
     super();
     this.incompleteNodes = new Map();
+    this.invalidNodes = new Map();
     this.initializeGraph({entries, rootDir});
   }
 
@@ -104,6 +106,7 @@ export default class AssetGraph extends Graph {
 
     let depNode = nodeFromDep(dep);
     this.incompleteNodes.delete(depNode.id);
+    this.invalidNodes.delete(depNode.id);
 
     let fileNode = nodeFromFile(file);
     let {added, removed} = this.updateDownStreamNodes(depNode, [fileNode]);
@@ -123,6 +126,7 @@ export default class AssetGraph extends Graph {
 
     let fileNode = nodeFromFile(file);
     this.incompleteNodes.delete(fileNode.id);
+    this.invalidNodes.delete(fileNode.id);
 
     let assetNodes = assets.map(asset => nodeFromAsset(asset));
     let {removed} = this.updateDownStreamNodes(fileNode, assetNodes);
@@ -147,6 +151,11 @@ export default class AssetGraph extends Graph {
     let newDeps = newDepNodes.map(node => node.value);
 
     return {newDeps, prunedFiles};
+  }
+
+  invalidateNodeById(nodeId: string) {
+    let node = this.nodes.get(nodeId); //$FlowFixMe
+    this.invalidNodes.set(node.id, node);
   }
 
   async dumpGraphViz() {
