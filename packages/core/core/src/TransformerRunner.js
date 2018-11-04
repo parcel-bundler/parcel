@@ -29,6 +29,7 @@ type GenerateFunc = ?(input: TransformerInput) => Promise<AssetOutput>;
 type TransformContext = {
   hash?: string,
   dependencies: Array<Dependency>,
+  connectedFiles: Array<File>,
   generate?: GenerateFunc,
   meta?: JSONObject
 };
@@ -37,7 +38,7 @@ const DEFAULT_ENVIRONMENT = {
   target: {
     browsers: ['> 1%']
   },
-  browserContext: 'browser'
+  context: 'browser'
 };
 
 class TransformerRunner {
@@ -60,7 +61,11 @@ class TransformerRunner {
 
     // If a cache entry matches, no need to transform.
     let cacheEntry = await this.cache.read(file.filePath);
-    if (cacheEntry && cacheEntry.hash === hash) {
+    if (
+      cacheEntry &&
+      cacheEntry.hash === hash &&
+      (await checkCacheEntry(cacheEntry))
+    ) {
       return cacheEntry;
     }
 
@@ -72,11 +77,12 @@ class TransformerRunner {
     };
 
     let context = {
-      dependencies: []
+      dependencies: [],
+      connectedFiles: []
     };
 
     let pipeline = await this.config.getTransformers(file.filePath);
-    let {assets, initialAssets, dependencies} = await this.runPipeline(
+    let {assets, initialAssets, connectedFiles} = await this.runPipeline(
       input,
       pipeline,
       cacheEntry,
@@ -84,11 +90,10 @@ class TransformerRunner {
     );
     cacheEntry = {
       filePath: file.filePath,
-      env,
       hash,
       assets,
       initialAssets,
-      dependencies
+      connectedFiles
     };
 
     await this.cache.write(cacheEntry);
@@ -106,7 +111,7 @@ class TransformerRunner {
     // Run the first transformer in the pipeline.
     let {
       results,
-      dependencies,
+      connectedFiles,
       generate,
       postProcess
     } = await this.runTransform(input, pipeline[0], context.generate);
@@ -125,11 +130,14 @@ class TransformerRunner {
 
       // Check if any of the cached assets match the result.
       if (cacheEntry) {
-        let cachedAssets = cacheEntry.assets.filter(
-          child => child.hash === context.hash
-        );
+        let cachedAssets = (
+          cacheEntry.initialAssets || cacheEntry.assets
+        ).filter(child => child.hash === context.hash);
 
-        if (cachedAssets.length > 0) {
+        if (
+          cachedAssets.length > 0 &&
+          (await checkCachedAssets(cachedAssets))
+        ) {
           assets = assets.concat(cachedAssets);
           continue;
         }
@@ -153,7 +161,7 @@ class TransformerRunner {
           );
 
           assets = assets.concat(cacheEntry.assets);
-          dependencies = dependencies.concat(cacheEntry.dependencies);
+          connectedFiles = connectedFiles.concat(cacheEntry.connectedFiles);
         }
       } else {
         // Jump to a different pipeline for the generated asset.
@@ -170,7 +178,7 @@ class TransformerRunner {
         );
 
         assets = assets.concat(cacheEntry.assets);
-        dependencies = dependencies.concat(cacheEntry.dependencies);
+        connectedFiles = connectedFiles.concat(cacheEntry.connectedFiles);
       }
     }
 
@@ -180,7 +188,7 @@ class TransformerRunner {
     return {
       assets: finalAssets || assets,
       initialAssets: finalAssets ? assets : null,
-      dependencies
+      connectedFiles
     };
   }
 
@@ -191,12 +199,12 @@ class TransformerRunner {
   ) {
     // Load config for the transformer.
     let config = null;
-    let dependencies: Array<Dependency> = [];
+    let connectedFiles: Array<File> = [];
     if (transformer.getConfig) {
       let result = await transformer.getConfig(input.filePath, this.cliOpts);
       if (result) {
         config = result.config;
-        dependencies = result.dependencies;
+        connectedFiles = result.files;
       }
     }
 
@@ -254,15 +262,15 @@ class TransformerRunner {
       return null;
     };
 
-    return {results, dependencies, generate, postProcess};
+    return {results, connectedFiles, generate, postProcess};
   }
 }
 
-async function transformerResultToAsset(
+async function getOutput(
   input: TransformerInput,
   result: TransformerResult,
   context: TransformContext
-): Promise<Asset> {
+): Promise<AssetOutput> {
   let output: AssetOutput = result.output || {code: result.code || ''};
   if (result.code) {
     output = clone(output);
@@ -273,16 +281,38 @@ async function transformerResultToAsset(
     output = await context.generate(transformerResultToInput(input, result));
   }
 
+  return output;
+}
+
+async function transformerResultToAsset(
+  input: TransformerInput,
+  result: TransformerResult,
+  context: TransformContext
+): Promise<Asset> {
+  let output = await getOutput(input, result, context);
   let env = mergeEnvironment(input.env, result.env);
   let dependencies = (result.dependencies || []).map(dep =>
     toDependency(input, dep)
   );
+
+  let connectedFiles = context.connectedFiles.concat(
+    result.connectedFiles || []
+  );
+  await Promise.all(
+    connectedFiles.map(async file => {
+      if (!file.hash) {
+        file.hash = await md5.file(file.filePath);
+      }
+    })
+  );
+
   return {
     id: md5(input.filePath + result.type + JSON.stringify(env)),
     hash: context.hash || md5(output.code),
     filePath: input.filePath,
     type: result.type,
     dependencies: context.dependencies.concat(dependencies),
+    connectedFiles,
     output,
     env,
     meta: Object.assign({}, context.meta, result.meta)
@@ -317,9 +347,33 @@ function getNextContext(
   return {
     generate: context.generate,
     dependencies: context.dependencies.concat(result.dependencies || []),
+    connectedFiles: context.connectedFiles.concat(result.connectedFiles || []),
     hash: context.hash,
     meta: Object.assign({}, context.meta, result.meta)
   };
+}
+
+async function checkCacheEntry(cacheEntry: CacheEntry): Promise<boolean> {
+  let results = await Promise.all([
+    checkConnectedFiles(cacheEntry.connectedFiles),
+    checkCachedAssets(cacheEntry.assets)
+  ]);
+
+  return results.every(Boolean);
+}
+
+async function checkCachedAssets(assets: Array<Asset>): Promise<boolean> {
+  let results = await Promise.all(
+    assets.map(asset => checkConnectedFiles(asset.connectedFiles))
+  );
+
+  return results.every(Boolean);
+}
+
+async function checkConnectedFiles(files: Array<File>): Promise<boolean> {
+  let hashes = await Promise.all(files.map(file => md5.file(file.filePath)));
+
+  return files.every((file, index) => file.hash === hashes[index]);
 }
 
 module.exports = TransformerRunner;

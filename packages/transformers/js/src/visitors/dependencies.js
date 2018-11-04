@@ -1,32 +1,35 @@
-import traverse from 'babel-traverse';
-// import nodeBuiltins from 'node-libs-browser';
+import * as types from '@babel/types';
+import template from '@babel/template';
+import traverse from '@babel/traverse';
+import nodeBuiltins from 'node-libs-browser';
 
-// Can't use import for these deps
-const types = require('babel-types');
+const requireTemplate = template('require("_bundle_loader")');
+const argTemplate = template('require.resolve(MODULE)');
+const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
 export default {
-  ImportDeclaration(node, {module, config}) {
-    module.meta.isES6Module = true;
-    addDependency({module, config}, node.source);
+  ImportDeclaration(node, asset) {
+    asset.meta.isES6Module = true;
+    addDependency(asset, node.source);
   },
 
-  ExportNamedDeclaration(node, {module, config}) {
-    module.meta.isES6Module = true;
+  ExportNamedDeclaration(node, asset) {
+    asset.meta.isES6Module = true;
     if (node.source) {
-      addDependency({module, config}, node.source);
+      addDependency(asset, node.source);
     }
   },
 
-  ExportAllDeclaration(node, {module, config}) {
-    module.meta.isES6Module = true;
-    addDependency({module, config}, node.source);
+  ExportAllDeclaration(node, asset) {
+    asset.meta.isES6Module = true;
+    addDependency(asset, node.source);
   },
 
-  ExportDefaultDeclaration(node, {module /* , config */}) {
-    module.meta.isES6Module = true;
+  ExportDefaultDeclaration(node, asset) {
+    asset.meta.isES6Module = true;
   },
 
-  CallExpression(node, {module, config}, ancestors) {
+  CallExpression(node, asset, ancestors) {
     let {callee, arguments: args} = node;
 
     let isRequire =
@@ -38,8 +41,9 @@ export default {
       !isInFalsyBranch(ancestors);
 
     if (isRequire) {
-      let optional = ancestors.some(a => types.isTryStatement(a)) || undefined;
-      addDependency({module, config}, args[0], {optional});
+      let isOptional =
+        ancestors.some(a => types.isTryStatement(a)) || undefined;
+      addDependency(asset, args[0], {isOptional});
       return;
     }
 
@@ -49,10 +53,41 @@ export default {
       types.isStringLiteral(args[0]);
 
     if (isDynamicImport) {
-      addDependency({module, config}, args[0], {dynamic: true});
+      asset.dependencies.push({moduleSpecifier: '_bundle_loader'});
+      addDependency(asset, args[0], {isAsync: true});
 
-      // Transform into a normal require. The packager will handle the bundle loading.
-      node.callee = types.identifier('require');
+      node.callee = requireTemplate().expression;
+      node.arguments[0] = argTemplate({MODULE: args[0]}).expression;
+      asset.ast.isDirty = true;
+      return;
+    }
+
+    const isRegisterServiceWorker =
+      types.isStringLiteral(args[0]) &&
+      types.matchesPattern(callee, serviceWorkerPattern);
+
+    if (isRegisterServiceWorker) {
+      // Treat service workers as an entry point so filenames remain consistent across builds.
+      // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
+      addURLDependency(asset, args[0], {
+        isEntry: true,
+        context: 'serviceworker'
+      });
+      return;
+    }
+  },
+
+  NewExpression(node, asset) {
+    const {callee, arguments: args} = node;
+
+    const isWebWorker =
+      callee.type === 'Identifier' &&
+      (callee.name === 'Worker' || callee.name === 'SharedWorker') &&
+      args.length === 1 &&
+      types.isStringLiteral(args[0]);
+
+    if (isWebWorker) {
+      addURLDependency(asset, args[0], {context: 'webworker'});
       return;
     }
   }
@@ -73,7 +108,7 @@ function hasBinding(node, name) {
     types.isArrowFunctionExpression(node)
   ) {
     return (
-      (node.id !== null && node.id.name === name) ||
+      (node.id && node.id.name === name) ||
       node.params.some(
         param => types.isIdentifier(param) && param.name === name
       )
@@ -116,23 +151,49 @@ function evaluateExpression(node) {
   return res;
 }
 
-function addDependency({module /* , config */}, node, opts = {}) {
+function addDependency(asset, node, opts = {}) {
   // Don't bundle node builtins
-  /*if (config.target === 'node' && node.value in nodeBuiltins) {
+  if (asset.env.context === 'node' && node.value in nodeBuiltins) {
     return;
   }
 
-  if (!config.bundleNodeModules) {
-    const isRelativeImport = /^[/~.]/.test(node.value);
-    if (!isRelativeImport) return;
-  }*/
+  // If this came from an inline <script> tag, throw an error.
+  // TODO: run JSPackager on inline script tags.
+  // let inlineHTML =
+  //   asset.options.rendition && asset.options.rendition.inlineHTML;
+  // if (inlineHTML) {
+  //   let err = new Error(
+  //     'Imports and requires are not supported inside inline <script> tags yet.'
+  //   );
+  //   err.loc = node.loc && node.loc.start;
+  //   throw err;
+  // }
 
-  module.dependencies.push({
-    moduleSpecifier: node.value,
-    loc: node.loc && node.loc.start,
-    isAsync: opts.dynamic || false,
-    isEntry: opts.entry || false,
-    isOptional: opts.optional || false,
-    isIncluded: false
-  });
+  if (asset.env.includeNodeModules === false) {
+    const isRelativeImport = /^[/~.]/.test(node.value);
+    if (!isRelativeImport) {
+      return;
+    }
+  }
+
+  asset.dependencies.push(
+    Object.assign(
+      {
+        moduleSpecifier: node.value,
+        loc: node.loc && node.loc.start
+      },
+      opts
+    )
+  );
+}
+
+function addURLDependency(asset, node, opts = {}) {
+  opts.loc = node.loc && node.loc.start;
+
+  let assetPath = asset.addURLDependency(node.value, opts);
+  if (!isURL(assetPath)) {
+    assetPath = urlJoin(asset.options.publicURL, assetPath);
+  }
+  node.value = assetPath;
+  asset.ast.isDirty = true;
 }

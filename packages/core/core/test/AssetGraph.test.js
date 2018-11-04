@@ -66,8 +66,9 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#1',
         dependencies: [{sourcePath, moduleSpecifier: './utils'}],
-        env: {target: {node: '10'}, browserContext: 'browser'},
-        output: {code: ''}
+        env: {target: {node: '10'}, context: 'browser'},
+        output: {code: ''},
+        connectedFiles: []
       },
       {
         id: '2',
@@ -75,8 +76,9 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#2',
         dependencies: [{sourcePath, moduleSpecifier: './styles'}],
-        env: {target: {node: '10'}, browserContext: 'browser'},
-        output: {code: ''}
+        env: {target: {node: '10'}, context: 'browser'},
+        output: {code: ''},
+        connectedFiles: []
       },
       {
         id: '3',
@@ -84,11 +86,20 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#3',
         dependencies: [],
-        env: {target: {node: '10'}, browserContext: 'browser'},
-        output: {code: ''}
+        env: {target: {node: '10'}, context: 'browser'},
+        output: {code: ''},
+        connectedFiles: []
       }
     ];
-    graph.updateFile(file, assets);
+    let cacheEntry = {
+      filePath,
+      hash: '#hash',
+      assets,
+      initialAssets: null,
+      connectedFiles: []
+    };
+
+    graph.updateFile(file, cacheEntry);
     assert(graph.nodes.has('#1'));
     assert(graph.nodes.has('#2'));
     assert(graph.nodes.has('#3'));
@@ -118,8 +129,9 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#1',
         dependencies: [{sourcePath, moduleSpecifier: './utils'}],
-        env: {target: {node: '10'}, browserContext: 'browser'},
-        output: {code: ''}
+        env: {target: {node: '10'}, context: 'browser'},
+        output: {code: ''},
+        connectedFiles: []
       },
       {
         id: '3',
@@ -127,11 +139,20 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#2',
         dependencies: [],
-        env: {target: {node: '10'}, browserContext: 'browser'},
-        output: {code: ''}
+        env: {target: {node: '10'}, context: 'browser'},
+        output: {code: ''},
+        connectedFiles: []
       }
     ];
-    graph.updateFile(file, assets);
+    cacheEntry = {
+      filePath,
+      hash: '#hash',
+      assets,
+      initialAssets: null,
+      connectedFiles: []
+    };
+
+    graph.updateFile(file, cacheEntry);
     assert(graph.nodes.has('#1'));
     assert(graph.nodes.has('#2'));
     assert(!graph.nodes.has('#3'));
@@ -153,5 +174,53 @@ describe('AssetGraph', () => {
         nodeFromDep({sourcePath, moduleSpecifier: './styles'}).id
       )
     );
+  });
+
+  it('updateFile should add connected file nodes', () => {
+    let graph = new AssetGraph({
+      entries: ['./index'],
+      rootDir: '/'
+    });
+
+    let dep = {sourcePath: '/', moduleSpecifier: './index'};
+    let filePath = '/index.js';
+    let file = {filePath};
+    graph.updateDependency(dep, file);
+    let sourcePath = filePath;
+    let assets = [
+      {
+        id: '1',
+        filePath,
+        type: 'js',
+        hash: '#1',
+        dependencies: [{sourcePath, moduleSpecifier: './utils'}],
+        env: {target: {node: '10'}, context: 'browser'},
+        output: {code: ''},
+        connectedFiles: [
+          {
+            filePath: '/foo/bar'
+          }
+        ]
+      }
+    ];
+    let cacheEntry = {
+      filePath,
+      hash: '#hash',
+      assets,
+      initialAssets: null,
+      connectedFiles: [
+        {
+          filePath: '/foo/baz'
+        }
+      ]
+    };
+
+    graph.updateFile(file, cacheEntry);
+    assert(graph.nodes.has('#1'));
+    assert(graph.nodes.has('/foo/bar'));
+    assert(graph.nodes.has('/foo/baz'));
+    assert(graph.hasEdge({from: '/index.js', to: '#1'}));
+    assert(graph.hasEdge({from: '/index.js', to: '/foo/bar'}));
+    assert(graph.hasEdge({from: '/index.js', to: '/foo/baz'}));
   });
 });

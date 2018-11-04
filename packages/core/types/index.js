@@ -47,7 +47,8 @@ export type Target = {
 
 export type Environment = {
   target: Target,
-  browserContext: 'browser' | 'worker' | 'serviceworker'
+  context: 'browser' | 'webWorker' | 'serviceWorker' | 'node' | 'electron',
+  includeNodeModules?: boolean
 };
 
 export type PackageJSON = {
@@ -93,7 +94,8 @@ export type Dependency = {
 };
 
 export type File = {
-  filePath: FilePath
+  filePath: FilePath,
+  hash?: string
 };
 
 export type Asset = {
@@ -103,6 +105,7 @@ export type Asset = {
   hash: string,
   output: AssetOutput,
   dependencies: Array<Dependency>,
+  connectedFiles: Array<File>,
   env: Environment,
   meta?: JSONObject
 };
@@ -137,6 +140,7 @@ export type TransformerResult = {
   code?: string,
   ast?: ?AST,
   dependencies?: Array<Dependency>,
+  connectedFiles?: Array<File>,
   output?: AssetOutput,
   env?: Environment,
   meta?: JSONObject
@@ -144,7 +148,7 @@ export type TransformerResult = {
 
 export type ConfigOutput = {
   config: Config,
-  dependencies: Array<Dependency>
+  files: Array<File>
 };
 
 type Async<T> = T | Promise<T>;
@@ -176,11 +180,10 @@ export type Transformer = {
 
 export type CacheEntry = {
   filePath: FilePath,
-  env: Environment,
   hash: string,
   assets: Array<Asset>,
   initialAssets: ?Array<Asset>, // Initial assets, pre-post processing
-  dependencies: Array<Dependency> // File-level dependencies, e.g. config files.
+  connectedFiles: Array<File> // File-level dependencies, e.g. config files.
 };
 
 // TODO: what do we want to expose here?

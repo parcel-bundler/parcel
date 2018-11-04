@@ -1,7 +1,7 @@
 // @flow
 'use strict';
 import Graph, {Node, type NodeId} from './Graph';
-import type {Dependency, Asset, File} from '@parcel/types';
+import type {CacheEntry, Dependency, Asset, File} from '@parcel/types';
 import path from 'path';
 
 export const nodeFromRootDir = (rootDir: string) => ({
@@ -22,6 +22,12 @@ export const nodeFromFile = (file: File) => ({
   value: file
 });
 
+export const nodeFromConnectedFile = (file: File) => ({
+  id: file.filePath,
+  type: 'connected_file',
+  value: file
+});
+
 export const nodeFromAsset = (asset: Asset) => ({
   id: asset.hash,
   type: 'asset',
@@ -30,7 +36,7 @@ export const nodeFromAsset = (asset: Asset) => ({
 
 const getFileNodesFromGraph = (graph: Graph): Array<Node> => {
   return Array.from(graph.nodes.values()).filter(
-    (node: any) => node.type === 'file'
+    (node: any) => node.type === 'file' || node.type === 'connected_file'
   );
 };
 
@@ -51,7 +57,8 @@ type DepUpdates = {
 
 type FileUpdates = {
   newDeps: Array<Dependency>,
-  prunedFiles: Array<File>
+  addedFiles: Array<File>,
+  removedFiles: Array<File>
 };
 
 type AssetGraphOpts = {
@@ -121,17 +128,30 @@ export default class AssetGraph extends Graph {
   }
 
   // Once a file has been transformed, connect it to asset nodes representing the generated assets
-  updateFile(file: File, assets: Array<Asset>): FileUpdates {
+  updateFile(file: File, cacheEntry: CacheEntry): FileUpdates {
     let newDepNodes: Array<Node> = [];
 
     let fileNode = nodeFromFile(file);
     this.incompleteNodes.delete(fileNode.id);
     this.invalidNodes.delete(fileNode.id);
 
-    let assetNodes = assets.map(asset => nodeFromAsset(asset));
-    let {removed} = this.updateDownStreamNodes(fileNode, assetNodes);
+    // Get connected files at the file level and asset level and connect them to the file node
+    let fileNodes = cacheEntry.connectedFiles.map(file =>
+      nodeFromConnectedFile(file)
+    );
+    for (let asset of cacheEntry.assets) {
+      let files = asset.connectedFiles.map(file => nodeFromConnectedFile(file));
+      fileNodes = fileNodes.concat(files);
+    }
 
-    let prunedFiles = getFilesFromGraph(removed);
+    let assetNodes = cacheEntry.assets.map(asset => nodeFromAsset(asset));
+    let {added, removed} = this.updateDownStreamNodes(fileNode, [
+      ...assetNodes,
+      ...fileNodes
+    ]);
+
+    let addedFiles = getFilesFromGraph(added);
+    let removedFiles = getFilesFromGraph(removed);
 
     for (let assetNode of assetNodes) {
       // TODO: dep should already have sourcePath
@@ -140,7 +160,7 @@ export default class AssetGraph extends Graph {
         return nodeFromDep(dep);
       });
       let {removed, added} = this.updateDownStreamNodes(assetNode, depNodes);
-      prunedFiles = prunedFiles.concat(getFilesFromGraph(removed));
+      removedFiles = removedFiles.concat(getFilesFromGraph(removed));
       newDepNodes = newDepNodes.concat(getDepNodesFromGraph(added));
     }
 
@@ -150,11 +170,10 @@ export default class AssetGraph extends Graph {
 
     let newDeps = newDepNodes.map(node => node.value);
 
-    return {newDeps, prunedFiles};
+    return {newDeps, addedFiles, removedFiles};
   }
 
-  invalidateNodeById(nodeId: string) {
-    let node = this.nodes.get(nodeId); //$FlowFixMe
+  invalidateNode(node: Node) {
     this.invalidNodes.set(node.id, node);
   }
 
@@ -170,6 +189,7 @@ export default class AssetGraph extends Graph {
       asset: 'green',
       dependency: 'orange',
       file: 'cyan',
+      connected_file: 'gray',
       default: 'white'
     };
 
@@ -205,7 +225,7 @@ export default class AssetGraph extends Graph {
           path.relative(rootPath, node.value.filePath) +
           '#' +
           node.value.hash.slice(0, 8);
-      } else if (node.type === 'file') {
+      } else if (node.type === 'file' || node.type === 'connected_file') {
         label += path.relative(rootPath, node.value.filePath);
       } else {
         label += node.id;

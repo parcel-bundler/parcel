@@ -39,7 +39,7 @@ async function load(filepath, filenames, root = path.parse(filepath).root) {
       if (extname === 'js') {
         return {
           config: clone(require(configFile)),
-          dependencies: [{name: configFile}]
+          files: [{filePath: configFile}]
         };
       }
 
@@ -48,7 +48,7 @@ async function load(filepath, filenames, root = path.parse(filepath).root) {
       let config = configContent ? parse(configContent) : null;
       return {
         config: config,
-        dependencies: [{name: configFile}]
+        files: [{filePath: configFile}]
       };
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND' || err.code === 'ENOENT') {

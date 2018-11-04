@@ -88,7 +88,7 @@ export default class Parcel {
       this.watcher.on('change', filePath => {
         if (this.graph.hasNode(filePath)) {
           controller.abort();
-          this.graph.invalidateNodeById(filePath);
+          this.handleChange(filePath);
 
           controller = new AbortController();
           signal = controller.signal;
@@ -106,7 +106,7 @@ export default class Parcel {
       console.log('Starting build'); // eslint-disable-line no-console
       await this.updateGraph({signal});
       await this.completeGraph({signal});
-      // await this.graph.dumpGraphViz();
+      await this.graph.dumpGraphViz();
       let bundles = await this.bundle();
       await this.package(bundles);
 
@@ -126,7 +126,6 @@ export default class Parcel {
     for (let [, node] of this.graph.invalidNodes) {
       this.queue.add(() => this.processNode(node, {signal, shallow: true}));
     }
-
     await this.queue.run();
   }
 
@@ -167,14 +166,20 @@ export default class Parcel {
   }
 
   async transform(file: File, {signal, shallow}: BuildOpts) {
-    let {assets: childAssets} = await this.runTransform(file);
+    let cacheEntry = await this.runTransform(file);
 
     if (signal.aborted) throw abortError;
-
-    let {prunedFiles, newDeps} = this.graph.updateFile(file, childAssets);
+    let {addedFiles, removedFiles, newDeps} = this.graph.updateFile(
+      file,
+      cacheEntry
+    );
 
     if (this.watcher) {
-      for (let file of prunedFiles) {
+      for (let file of addedFiles) {
+        this.watcher.watch(file.filePath);
+      }
+
+      for (let file of removedFiles) {
         this.watcher.unwatch(file.filePath);
       }
     }
@@ -194,5 +199,25 @@ export default class Parcel {
   // TODO: implement bundle types
   package(bundles: any[]) {
     return Promise.all(bundles.map(bundle => this.runPackage(bundle)));
+  }
+
+  handleChange(filePath: string) {
+    let node = this.graph.getNode(filePath);
+    if (!node) {
+      return;
+    }
+
+    if (node.type === 'file') {
+      this.graph.invalidateNode(node);
+    }
+
+    if (node.type === 'connected_file') {
+      // Invalidate all file nodes connected to this node.
+      for (let connectedNode of this.graph.getConnectedNodes(node)) {
+        if (connectedNode.type === 'file') {
+          this.graph.invalidateNode(connectedNode);
+        }
+      }
+    }
   }
 }

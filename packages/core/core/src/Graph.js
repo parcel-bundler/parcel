@@ -37,6 +37,10 @@ export default class Graph {
     return this.nodes.has(id);
   }
 
+  getNode(id: string) {
+    return this.nodes.get(id);
+  }
+
   addEdge(edge: Edge) {
     this.edges.add(edge);
     return edge;
@@ -50,6 +54,12 @@ export default class Graph {
     }
 
     return false;
+  }
+
+  getConnectedNodes(node: Node): Array<Node> {
+    let edges = Array.from(this.edges).filter(edge => edge.to === node.id);
+
+    return edges.map(edge => this.nodes.get(edge.from));
   }
 
   merge(graph: Graph) {

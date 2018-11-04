@@ -4,6 +4,7 @@ import Cache from '@parcel/cache';
 import {mkdirp, writeFile} from '@parcel/fs';
 import path from 'path';
 import type {Bundle, CLIOptions, Blob, FilePath} from '@parcel/types';
+import clone from 'clone';
 
 type Opts = {
   config: Config,
@@ -45,6 +46,9 @@ export default class PackagerRunner {
   async package(bundle: Bundle): Promise<Blob> {
     let packager = await this.config.getPackager(bundle.filePath);
 
+    // Read the contents of each asset in the bundle from the cache.
+    // This mutates the assets, so clone the bundle first.
+    bundle = clone(bundle);
     await Promise.all(
       bundle.assets.map(async asset => {
         await this.cache.readBlobs(asset);
