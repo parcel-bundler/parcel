@@ -177,7 +177,6 @@ class HTMLAsset extends Asset {
           if (elements && elements.includes(node.tag)) {
             let depHandler = this.getAttrDepHandler(attr);
             let options = OPTIONS[node.tag];
-
             node.attrs[attr] = depHandler.call(
               this,
               node.attrs[attr],
