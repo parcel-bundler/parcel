@@ -3,6 +3,7 @@
 import Graph, {Node, type NodeId} from './Graph';
 import type {CacheEntry, Dependency, Asset, File} from '@parcel/types';
 import path from 'path';
+import md5 from '@parcel/utils/md5';
 
 export const nodeFromRootDir = (rootDir: string) => ({
   id: rootDir,
@@ -11,7 +12,9 @@ export const nodeFromRootDir = (rootDir: string) => ({
 });
 
 export const nodeFromDep = (dep: Dependency) => ({
-  id: `${dep.sourcePath}:${dep.moduleSpecifier}`,
+  id: md5(
+    `${dep.sourcePath}:${dep.moduleSpecifier}:${JSON.stringify(dep.env)}`
+  ),
   type: 'dependency',
   value: dep
 });
@@ -29,7 +32,7 @@ export const nodeFromConnectedFile = (file: File) => ({
 });
 
 export const nodeFromAsset = (asset: Asset) => ({
-  id: asset.hash,
+  id: asset.id,
   type: 'asset',
   value: asset
 });
@@ -222,13 +225,12 @@ export default class AssetGraph extends Graph {
         if (parts.length) label += '(' + parts.join(', ') + ')';
       } else if (node.type === 'asset') {
         label +=
-          path.relative(rootPath, node.value.filePath) +
-          '#' +
-          node.value.hash.slice(0, 8);
+          path.relative(rootPath, node.value.filePath) + '#' + node.value.type;
       } else if (node.type === 'file' || node.type === 'connected_file') {
         label += path.relative(rootPath, node.value.filePath);
       } else {
-        label += node.id;
+        // label += node.id;
+        label = node.type;
       }
 
       n.set('label', label);

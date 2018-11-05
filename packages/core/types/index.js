@@ -39,15 +39,20 @@ export type ParcelConfig = {
   reporters: Array<PackageName>
 };
 
-export type Target = {
+export type Engines = {
   node?: SemverRange,
   electron?: SemverRange,
   browsers?: Array<string>
 };
 
+export type Target = {
+  distPath: FilePath,
+  env: Environment
+};
+
 export type Environment = {
-  target: Target,
-  context: 'browser' | 'webWorker' | 'serviceWorker' | 'node' | 'electron',
+  context: 'browser' | 'worker' | 'service-worker' | 'node' | 'electron',
+  engines: Engines,
   includeNodeModules?: boolean
 };
 
@@ -56,15 +61,15 @@ export type PackageJSON = {
   version: Semver,
   main?: FilePath,
   module?: FilePath,
-  browser?: FilePath,
+  browser?: FilePath | {[FilePath]: FilePath},
   source?: FilePath | {[FilePath]: FilePath},
   alias?: {
     [PackageName | FilePath | Glob]: PackageName | FilePath
   },
   browserslist?: Array<string>,
-  engines?: Target,
+  engines?: Engines,
   targets?: {
-    [string]: Target
+    [string]: Environment
   }
 };
 
@@ -180,6 +185,7 @@ export type Transformer = {
 
 export type CacheEntry = {
   filePath: FilePath,
+  env: Environment,
   hash: string,
   assets: Array<Asset>,
   initialAssets: ?Array<Asset>, // Initial assets, pre-post processing

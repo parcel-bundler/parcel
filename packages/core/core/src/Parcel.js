@@ -5,11 +5,12 @@ import Watcher from '@parcel/watcher';
 import PromiseQueue from './PromiseQueue';
 import AssetGraph from './AssetGraph';
 import {Node} from './Graph';
-import type {Bundle, CLIOptions, Dependency, File} from '@parcel/types';
+import type {Bundle, CLIOptions, Dependency, File, Target} from '@parcel/types';
 import ResolverRunner from './ResolverRunner';
 import BundlerRunner from './BundlerRunner';
 import Config from './Config';
 import WorkerFarm from '@parcel/workers';
+import TargetResolver from './TargetResolver';
 
 // TODO: use custom config if present
 const defaultConfig = require('@parcel/config-default');
@@ -41,6 +42,8 @@ export default class Parcel {
   resolverRunner: ResolverRunner;
   bundlerRunner: BundlerRunner;
   farm: WorkerFarm;
+  targetResolver: TargetResolver;
+  targets: Array<Target>;
   runTransform: (file: File) => Promise<any>;
   runPackage: (bundle: Bundle) => Promise<any>;
 
@@ -74,6 +77,9 @@ export default class Parcel {
       }
     );
 
+    this.targetResolver = new TargetResolver();
+    this.targets = [];
+
     this.runTransform = this.farm.mkhandle('runTransform');
     this.runPackage = this.farm.mkhandle('runPackage');
   }
@@ -82,6 +88,7 @@ export default class Parcel {
     let controller = new AbortController();
     let signal = controller.signal;
 
+    this.targets = await this.targetResolver.resolve(this.rootDir);
     let buildPromise = this.build({signal});
 
     if (this.watcher) {
@@ -166,6 +173,14 @@ export default class Parcel {
   }
 
   async transform(file: File, {signal, shallow}: BuildOpts) {
+    let node = this.graph.getNode(file.filePath);
+    if (!node) {
+      return;
+    }
+
+    let incomingDeps = this.graph.getConnectedNodes(node);
+    let environments = incomingDeps.map(dep => dep.value.env);
+    console.log(environments);
     let cacheEntry = await this.runTransform(file);
 
     if (signal.aborted) throw abortError;
