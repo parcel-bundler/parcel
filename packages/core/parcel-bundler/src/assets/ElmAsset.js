@@ -83,14 +83,7 @@ class ElmAsset extends Asset {
     };
 
     function pack(source) {
-
-      let result = minify(source);
-
-      if (result.error) {
-        throw result.error;
-      }
-
-      return result.code;
+      return minify(source);
     }
   }
 }
