@@ -6,6 +6,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "main": "src/DefaultResolver",
   "dependencies": {
     "node-libs-browser": "^2.1.0"
   },
