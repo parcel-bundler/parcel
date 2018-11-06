@@ -6,7 +6,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@parcel/plugin": "^2.0.0"
+  },
   "devDependencies": {
     "@parcel/eslint-config": "1.10.3"
   }

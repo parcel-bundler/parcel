@@ -4,7 +4,10 @@
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 
-const PRELUDE = fs.readFileSync(__dirname + '/prelude.js');
+const PRELUDE = fs
+  .readFileSync(__dirname + '/prelude.js', 'utf8')
+  .trim()
+  .replace(/;$/, '');
 
 export default new Packager({
   async package(bundle) {
