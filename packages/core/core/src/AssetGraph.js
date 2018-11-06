@@ -96,7 +96,7 @@ export default class AssetGraph extends Graph {
       })
     );
 
-    this.updateDownStreamNodes(rootNode, depNodes);
+    this.replaceNodesConnectedTo(rootNode, depNodes);
     for (let depNode of depNodes) {
       this.incompleteNodes.set(depNode.id, depNode);
     }
@@ -116,7 +116,7 @@ export default class AssetGraph extends Graph {
     this.invalidNodes.delete(depNode.id);
 
     let fileNode = nodeFromFile(file);
-    let {added, removed} = this.updateDownStreamNodes(depNode, [fileNode]);
+    let {added, removed} = this.replaceNodesConnectedTo(depNode, [fileNode]);
 
     if (added.nodes.size) {
       newFile = file;
@@ -145,7 +145,7 @@ export default class AssetGraph extends Graph {
     }
 
     let assetNodes = cacheEntry.assets.map(asset => nodeFromAsset(asset));
-    let {added, removed} = this.updateDownStreamNodes(fileNode, [
+    let {added, removed} = this.replaceNodesConnectedTo(fileNode, [
       ...assetNodes,
       ...fileNodes
     ]);
@@ -159,7 +159,7 @@ export default class AssetGraph extends Graph {
         dep.sourcePath = file.filePath;
         return nodeFromDep(dep);
       });
-      let {removed, added} = this.updateDownStreamNodes(assetNode, depNodes);
+      let {removed, added} = this.replaceNodesConnectedTo(assetNode, depNodes);
       removedFiles = removedFiles.concat(getFilesFromGraph(removed));
       newDepNodes = newDepNodes.concat(getDepNodesFromGraph(added));
     }

@@ -77,7 +77,7 @@ describe('Graph', () => {
     let nodeD = {id: 'd', value: 'd'};
     let edgeAD = {from: 'a', to: 'd'};
 
-    let {removed} = graph.updateDownStreamNodes(nodeA, [nodeB, nodeD]);
+    let {removed} = graph.replaceNodesConnectedTo(nodeA, [nodeB, nodeD]);
 
     assert(graph.nodes.has('a'));
     assert(graph.nodes.has('b'));

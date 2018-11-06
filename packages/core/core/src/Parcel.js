@@ -213,7 +213,7 @@ export default class Parcel {
 
     if (node.type === 'connected_file') {
       // Invalidate all file nodes connected to this node.
-      for (let connectedNode of this.graph.getConnectedNodes(node)) {
+      for (let connectedNode of this.graph.getNodesConnectedTo(node)) {
         if (connectedNode.type === 'file') {
           this.graph.invalidateNode(connectedNode);
         }
