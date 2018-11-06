@@ -56,10 +56,14 @@ export default class Graph {
     return false;
   }
 
-  getConnectedNodes(node: Node): Array<Node> {
+  getNodesConnectedTo(node: Node): Array<Node> {
     let edges = Array.from(this.edges).filter(edge => edge.to === node.id);
-
     return edges.map(edge => this.nodes.get(edge.from));
+  }
+
+  getNodesConnectedFrom(node: Node): Array<Node> {
+    let edges = Array.from(this.edges).filter(edge => edge.from === node.id);
+    return edges.map(edge => this.nodes.get(edge.to));
   }
 
   merge(graph: Graph) {
@@ -117,7 +121,7 @@ export default class Graph {
 
   // Update a node's downstream nodes making sure to prune any orphaned branches
   // Also keeps track of all added and removed edges and nodes
-  updateDownStreamNodes(fromNode: Node, toNodes: Array<Node>): GraphUpdates {
+  replaceNodesConnectedTo(fromNode: Node, toNodes: Array<Node>): GraphUpdates {
     let removed = new Graph();
     let added = new Graph();
 

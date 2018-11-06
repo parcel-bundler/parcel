@@ -95,7 +95,7 @@ export default class Parcel {
       this.watcher.on('change', filePath => {
         if (this.graph.hasNode(filePath)) {
           controller.abort();
-          this.handleChange(filePath);
+          this.graph.invalidateFile(filePath);
 
           controller = new AbortController();
           signal = controller.signal;
@@ -214,25 +214,5 @@ export default class Parcel {
   // TODO: implement bundle types
   package(bundles: any[]) {
     return Promise.all(bundles.map(bundle => this.runPackage(bundle)));
-  }
-
-  handleChange(filePath: string) {
-    let node = this.graph.getNode(filePath);
-    if (!node) {
-      return;
-    }
-
-    if (node.type === 'file') {
-      this.graph.invalidateNode(node);
-    }
-
-    if (node.type === 'connected_file') {
-      // Invalidate all file nodes connected to this node.
-      for (let connectedNode of this.graph.getConnectedNodes(node)) {
-        if (connectedNode.type === 'file') {
-          this.graph.invalidateNode(connectedNode);
-        }
-      }
-    }
   }
 }

@@ -1,7 +1,13 @@
 // @flow
 'use strict';
 import Graph, {Node, type NodeId} from './Graph';
-import type {CacheEntry, Dependency, Asset, File} from '@parcel/types';
+import type {
+  CacheEntry,
+  Dependency,
+  Asset,
+  File,
+  FilePath
+} from '@parcel/types';
 import path from 'path';
 import md5 from '@parcel/utils/md5';
 
@@ -99,7 +105,7 @@ export default class AssetGraph extends Graph {
       })
     );
 
-    this.updateDownStreamNodes(rootNode, depNodes);
+    this.replaceNodesConnectedTo(rootNode, depNodes);
     for (let depNode of depNodes) {
       this.incompleteNodes.set(depNode.id, depNode);
     }
@@ -119,7 +125,7 @@ export default class AssetGraph extends Graph {
     this.invalidNodes.delete(depNode.id);
 
     let fileNode = nodeFromFile(file);
-    let {added, removed} = this.updateDownStreamNodes(depNode, [fileNode]);
+    let {added, removed} = this.replaceNodesConnectedTo(depNode, [fileNode]);
 
     if (added.nodes.size) {
       newFile = file;
@@ -148,7 +154,7 @@ export default class AssetGraph extends Graph {
     }
 
     let assetNodes = cacheEntry.assets.map(asset => nodeFromAsset(asset));
-    let {added, removed} = this.updateDownStreamNodes(fileNode, [
+    let {added, removed} = this.replaceNodesConnectedTo(fileNode, [
       ...assetNodes,
       ...fileNodes
     ]);
@@ -162,7 +168,7 @@ export default class AssetGraph extends Graph {
         dep.sourcePath = file.filePath;
         return nodeFromDep(dep);
       });
-      let {removed, added} = this.updateDownStreamNodes(assetNode, depNodes);
+      let {removed, added} = this.replaceNodesConnectedTo(assetNode, depNodes);
       removedFiles = removedFiles.concat(getFilesFromGraph(removed));
       newDepNodes = newDepNodes.concat(getDepNodesFromGraph(added));
     }
@@ -178,6 +184,26 @@ export default class AssetGraph extends Graph {
 
   invalidateNode(node: Node) {
     this.invalidNodes.set(node.id, node);
+  }
+
+  invalidateFile(filePath: FilePath) {
+    let node = this.getNode(filePath);
+    if (!node) {
+      return;
+    }
+
+    if (node.type === 'file') {
+      this.invalidateNode(node);
+    }
+
+    if (node.type === 'connected_file') {
+      // Invalidate all file nodes connected to this node.
+      for (let connectedNode of this.getNodesConnectedTo(node)) {
+        if (connectedNode.type === 'file') {
+          this.invalidateNode(connectedNode);
+        }
+      }
+    }
   }
 
   async dumpGraphViz() {
