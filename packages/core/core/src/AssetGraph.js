@@ -1,7 +1,13 @@
 // @flow
 'use strict';
 import Graph, {Node, type NodeId} from './Graph';
-import type {CacheEntry, Dependency, Asset, File} from '@parcel/types';
+import type {
+  CacheEntry,
+  Dependency,
+  Asset,
+  File,
+  FilePath
+} from '@parcel/types';
 import path from 'path';
 
 export const nodeFromRootDir = (rootDir: string) => ({
@@ -175,6 +181,26 @@ export default class AssetGraph extends Graph {
 
   invalidateNode(node: Node) {
     this.invalidNodes.set(node.id, node);
+  }
+
+  invalidateFile(filePath: FilePath) {
+    let node = this.getNode(filePath);
+    if (!node) {
+      return;
+    }
+
+    if (node.type === 'file') {
+      this.invalidateNode(node);
+    }
+
+    if (node.type === 'connected_file') {
+      // Invalidate all file nodes connected to this node.
+      for (let connectedNode of this.getNodesConnectedTo(node)) {
+        if (connectedNode.type === 'file') {
+          this.invalidateNode(connectedNode);
+        }
+      }
+    }
   }
 
   async dumpGraphViz() {
