@@ -2422,7 +2422,7 @@ browserslist@^4.0.0, browserslist@^4.1.0:
     electron-to-chromium "^1.3.81"
     node-releases "^1.0.0-alpha.15"
 
-bsb-js@^1.0.1:
+bsb-js@1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/bsb-js/-/bsb-js-1.0.2.tgz#b9e7af1dfdb8de6191bb36fdff43f59359a7dfe7"
   integrity sha512-vJODKWqPx4vFQoH+1s4l4ozys9UrJne1gu1G4AcPi/FZlJXdHHYtsYPy+FVHqaCWH6nlR9jh7dhVraVoGx+wPg==
