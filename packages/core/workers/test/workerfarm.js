@@ -1,7 +1,7 @@
 const assert = require('assert');
 const WorkerFarm = require('../index');
 
-describe('WorkerFarm', function() {
+describe('WorkerFarm', () => {
   it('Should start up workers', async () => {
     let workerfarm = new WorkerFarm(
       {},
