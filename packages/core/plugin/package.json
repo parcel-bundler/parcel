@@ -6,6 +6,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "main": "./src/PluginAPI.js",
   "dependencies": {
     "@parcel/types": "^2.0.0"
   },
