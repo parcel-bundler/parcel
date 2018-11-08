@@ -40,6 +40,7 @@ class ElmAsset extends Asset {
       await this.getConfig(['elm.json'], {load: false});
     }
 
+    options.debug = !this.options.production;
     if (this.options.minify) {
       options.optimize = true;
     }
