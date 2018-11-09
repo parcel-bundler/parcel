@@ -273,16 +273,20 @@ function normaliseNewlines(text) {
 }
 
 function packageInstall(dir) {
-  const {spawn} = require('child_process');
+  const spawn = require('cross-spawn');
   const isYarn = fs.exists(path.join(dir, 'yarn.lock'));
   const command = isYarn ? 'yarn' : 'npm install';
 
-  const installer = spawn(command, [], {cwd: dir, stdio: 'inherit'});
+  const cp = spawn(command, [], {cwd: dir, stdio: 'inherit'});
 
   return new Promise((resolve, reject) => {
-    installer.once('close', code => {
-      if (code) reject(code);
-      resolve();
+    cp.on('error', reject);
+    cp.on('close', function(code) {
+      if (code !== 0) {
+        return reject(new Error('Could not run the package installer.'));
+      }
+
+      return resolve();
     });
   });
 }

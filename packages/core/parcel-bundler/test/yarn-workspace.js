@@ -22,6 +22,10 @@ describe('yarn-workspace', function() {
     await run(b);
   });
 
+  after(async function() {
+    await rimraf(path.join(__dirname, '/input'));
+  });
+
   describe('package-a', function() {
     it('should install babel with `yarn add` (not `npm install`)', async function() {
       let packageLockFileExist = await fs.exists(
