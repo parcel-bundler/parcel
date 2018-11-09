@@ -1,3 +1,4 @@
+const path = require('path');
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 
@@ -24,13 +25,30 @@ class TypeScriptAsset extends Asset {
       fileName: this.relativeName
     };
 
-    let tsconfig = await this.getConfig(['tsconfig.json']);
+    // Resolve and parse tsconfig.json file
+    const tsconfigCompilerOptions = (() => {
+      const configFilename = typescript.findConfigFile(
+        this.name,
+        typescript.sys.fileExists
+      );
+      if (!configFilename) return;
+      const configFile = typescript.readConfigFile(
+        configFilename,
+        typescript.sys.readFile
+      );
+      if (!configFile || !configFile.config) return;
+      return typescript.parseJsonConfigFileContent(
+        configFile.config,
+        typescript.sys,
+        path.resolve(path.dirname(configFilename))
+      ).options;
+    })();
 
     // Overwrite default if config is found
-    if (tsconfig) {
+    if (tsconfigCompilerOptions) {
       transpilerOptions.compilerOptions = Object.assign(
         transpilerOptions.compilerOptions,
-        tsconfig.compilerOptions
+        tsconfigCompilerOptions
       );
     }
     transpilerOptions.compilerOptions.noEmit = false;

@@ -10,7 +10,7 @@ const PARSERS = {
 const existsCache = new Map();
 
 async function resolve(filepath, filenames, root = path.parse(filepath).root) {
-  filepath = path.dirname(filepath);
+  filepath = path.dirname(await fs.realpath(filepath));
 
   // Don't traverse above the module root
   if (filepath === root || path.basename(filepath) === 'node_modules') {
