@@ -1,0 +1,11 @@
+{
+  "name": "package-main",
+  "version": "0.0.0",
+  "private": true,
+  "main": "source.js",
+  "source": "source.ts",
+  "dependencies": {
+    "package-a": "*",
+    "package-b": "*"
+  }
+}

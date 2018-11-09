@@ -1,0 +1,6 @@
+{
+  "name": "package-a",
+  "version": "0.0.0",
+  "private": true,
+  "source": "source.js"
+}

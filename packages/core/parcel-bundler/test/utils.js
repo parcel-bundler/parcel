@@ -272,6 +272,21 @@ function normaliseNewlines(text) {
   return text.replace(/(\r\n|\n|\r)/g, '\n');
 }
 
+function packageInstall(dir) {
+  const {spawn} = require('child_process');
+  const isYarn = fs.exists(path.join(dir, 'yarn.lock'));
+  const command = isYarn ? 'yarn' : 'npm install';
+
+  const installer = spawn(command, [], {cwd: dir, stdio: 'inherit'});
+
+  return new Promise((resolve, reject) => {
+    installer.once('close', code => {
+      if (code) reject(code);
+      resolve();
+    });
+  });
+}
+
 exports.bundler = bundler;
 exports.bundle = bundle;
 exports.run = run;
@@ -281,3 +296,4 @@ exports.deferred = deferred;
 exports.rimraf = rimraf;
 exports.ncp = ncp;
 exports.normaliseNewlines = normaliseNewlines;
+exports.packageInstall = packageInstall;
