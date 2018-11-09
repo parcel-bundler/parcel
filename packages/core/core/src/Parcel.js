@@ -5,7 +5,14 @@ import Watcher from '@parcel/watcher';
 import PromiseQueue from './PromiseQueue';
 import AssetGraph from './AssetGraph';
 import {Node} from './Graph';
-import type {Bundle, CLIOptions, Dependency, File, Target} from '@parcel/types';
+import type {
+  Bundle,
+  CLIOptions,
+  Dependency,
+  File,
+  Target,
+  TransformerRequest
+} from '@parcel/types';
 import ResolverRunner from './ResolverRunner';
 import BundlerRunner from './BundlerRunner';
 import Config from './Config';
@@ -44,13 +51,14 @@ export default class Parcel {
   farm: WorkerFarm;
   targetResolver: TargetResolver;
   targets: Array<Target>;
-  runTransform: (file: File) => Promise<any>;
+  runTransform: (file: TransformerRequest) => Promise<any>;
   runPackage: (bundle: Bundle) => Promise<any>;
 
   constructor({entries, cliOpts = {}}: ParcelOpts) {
+    this.entries = entries;
     this.rootDir = process.cwd();
 
-    this.graph = new AssetGraph({entries, rootDir: this.rootDir});
+    this.graph = new AssetGraph();
     this.watcher = cliOpts.watch ? new Watcher() : null;
     this.queue = new PromiseQueue();
 
@@ -89,6 +97,12 @@ export default class Parcel {
     let signal = controller.signal;
 
     this.targets = await this.targetResolver.resolve(this.rootDir);
+    this.graph.initializeGraph({
+      entries: this.entries,
+      targets: this.targets,
+      rootDir: this.rootDir
+    });
+
     let buildPromise = this.build({signal});
 
     if (this.watcher) {
@@ -148,7 +162,7 @@ export default class Parcel {
     switch (node.type) {
       case 'dependency':
         return this.resolve(node.value, {signal});
-      case 'file':
+      case 'transformer_request':
         return this.transform(node.value, {signal});
       default:
         throw new Error(
@@ -162,30 +176,22 @@ export default class Parcel {
 
     if (signal.aborted) throw abortError;
 
-    let file = {filePath: resolvedPath};
+    let req = {filePath: resolvedPath, env: dep.env};
     dep.resolvedPath = resolvedPath;
-    let {newFile} = this.graph.updateDependency(dep, file);
+    let {newRequest} = this.graph.updateDependency(dep, req);
 
-    if (newFile) {
-      this.queue.add(() => this.transform(newFile, {signal}));
-      if (this.watcher) this.watcher.watch(newFile.filePath);
+    if (newRequest) {
+      this.queue.add(() => this.transform(newRequest, {signal}));
+      if (this.watcher) this.watcher.watch(newRequest.filePath);
     }
   }
 
-  async transform(file: File, {signal, shallow}: BuildOpts) {
-    let node = this.graph.getNode(file.filePath);
-    if (!node) {
-      return;
-    }
-
-    let incomingDeps = this.graph.getConnectedNodes(node);
-    let environments = incomingDeps.map(dep => dep.value.env);
-    console.log(environments);
-    let cacheEntry = await this.runTransform(file);
+  async transform(req: TransformerRequest, {signal, shallow}: BuildOpts) {
+    let cacheEntry = await this.runTransform(req);
 
     if (signal.aborted) throw abortError;
     let {addedFiles, removedFiles, newDeps} = this.graph.updateFile(
-      file,
+      req,
       cacheEntry
     );
 

@@ -8,17 +8,20 @@ const DEFAULT_ENGINES = {
   node: '8'
 };
 
-export default class TargetResolver {
-  constructor() {}
+const DEFAULT_ENV = {
+  context: 'browser',
+  includeNodeModules: true,
+  engines: DEFAULT_ENGINES
+};
 
+export default class TargetResolver {
   async resolve(rootDir: FilePath): Promise<Array<Target>> {
-    let pkg: PackageJSON = await config.load(path.join(rootDir, 'index'), [
-      'package.json'
-    ]);
-    if (!pkg) {
-      return [];
+    let conf = await config.load(path.join(rootDir, 'index'), ['package.json']);
+    if (!conf) {
+      return this.getDefaultTargets();
     }
 
+    let pkg: PackageJSON = conf.config;
     let pkgTargets = pkg.targets || {};
     let pkgEngines = pkg.engines || {};
     let targets = [];
@@ -86,11 +89,24 @@ export default class TargetResolver {
       if (distPath && env) {
         targets.push({
           distPath,
-          env
+          env: Object.assign({}, DEFAULT_ENV, env)
         });
       }
     }
 
+    if (targets.length === 0) {
+      return this.getDefaultTargets();
+    }
+
     return targets;
+  }
+
+  getDefaultTargets(): Array<Target> {
+    return [
+      {
+        distPath: process.cwd() + '/out.js', // TODO
+        env: DEFAULT_ENV
+      }
+    ];
   }
 }

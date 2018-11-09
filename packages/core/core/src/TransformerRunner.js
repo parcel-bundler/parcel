@@ -8,6 +8,7 @@ import type {
   File,
   JSONObject,
   Transformer,
+  TransformerRequest,
   TransformerInput,
   TransformerResult,
   CLIOptions
@@ -35,13 +36,6 @@ type TransformContext = {
   meta?: JSONObject
 };
 
-const DEFAULT_ENVIRONMENT = {
-  engines: {
-    browsers: ['> 1%']
-  },
-  context: 'browser'
-};
-
 class TransformerRunner {
   cliOpts: CLIOptions;
   config: Config;
@@ -53,15 +47,12 @@ class TransformerRunner {
     this.cache = opts.cache || new Cache(opts.cliOpts);
   }
 
-  async transform(
-    file: File,
-    env: Environment = DEFAULT_ENVIRONMENT
-  ): Promise<CacheEntry> {
-    let code = await fs.readFile(file.filePath, 'utf8');
+  async transform(req: TransformerRequest): Promise<CacheEntry> {
+    let code = await fs.readFile(req.filePath, 'utf8');
     let hash = md5(code);
 
     // If a cache entry matches, no need to transform.
-    let cacheEntry = await this.cache.read(file.filePath, env);
+    let cacheEntry = await this.cache.read(req.filePath, req.env);
     if (
       cacheEntry &&
       cacheEntry.hash === hash &&
@@ -71,19 +62,19 @@ class TransformerRunner {
     }
 
     let input: TransformerInput = {
-      filePath: file.filePath,
+      filePath: req.filePath,
       ast: null,
       code,
-      env
+      env: req.env
     };
 
     let context = {
-      type: path.extname(file.filePath).slice(1),
+      type: path.extname(req.filePath).slice(1),
       dependencies: [],
       connectedFiles: []
     };
 
-    let pipeline = await this.config.getTransformers(file.filePath);
+    let pipeline = await this.config.getTransformers(req.filePath);
     let {assets, initialAssets, connectedFiles} = await this.runPipeline(
       input,
       pipeline,
@@ -91,8 +82,8 @@ class TransformerRunner {
       context
     );
     cacheEntry = {
-      filePath: file.filePath,
-      env,
+      filePath: req.filePath,
+      env: req.env,
       hash,
       assets,
       initialAssets,

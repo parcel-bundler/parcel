@@ -103,6 +103,11 @@ export type File = {
   hash?: string
 };
 
+export type TransformerRequest = {
+  filePath: FilePath,
+  env: Environment
+};
+
 export type Asset = {
   id: string,
   filePath: FilePath,
