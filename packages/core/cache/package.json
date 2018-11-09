@@ -6,6 +6,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "main": "src/Cache",
   "devDependencies": {
     "@parcel/eslint-config": "1.10.3"
   }

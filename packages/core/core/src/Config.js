@@ -27,6 +27,7 @@ export default class Config {
 
   async loadPlugin(pluginName: PackageName) {
     let plugin = await localRequire(pluginName, this.configPath);
+    plugin = plugin.default ? plugin.default : plugin;
     return plugin[CONFIG];
   }
 

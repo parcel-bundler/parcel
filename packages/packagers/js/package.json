@@ -6,6 +6,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "main": "src/JSPackager",
   "dependencies": {
     "@parcel/plugin": "^2.0.0"
   },
