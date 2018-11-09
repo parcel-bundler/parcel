@@ -70,13 +70,17 @@ class Parser {
       return GlobAsset;
     }
 
-    let extension = path.extname(filename).toLowerCase();
-    let parser = this.extensions[extension] || RawAsset;
-    if (typeof parser === 'string') {
-      parser = this.extensions[extension] = require(parser);
+    let ext = path.basename(filename).toLowerCase();
+    while ((ext = extension(ext))) {
+      if (!this.extensions.hasOwnProperty(ext)) continue;
+      let parser = this.extensions[ext];
+      if (typeof parser === 'string') {
+        parser = this.extensions[ext] = require(parser);
+      }
+      return parser;
     }
 
-    return parser;
+    return RawAsset;
   }
 
   getAsset(filename, options = {}) {
@@ -84,6 +88,13 @@ class Parser {
     options.parser = this;
     return new Asset(filename, options);
   }
+}
+
+// The longest proper suffix that begins with a period.
+function extension(s) {
+  s = s.substring(1);
+  let i = s.indexOf('.');
+  return i < 0 ? '' : s.substring(i);
 }
 
 module.exports = Parser;
