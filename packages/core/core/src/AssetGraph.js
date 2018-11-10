@@ -125,8 +125,11 @@ export default class AssetGraph extends Graph {
     return super.removeNode(node);
   }
 
-  // Once a dependency is resolved, connect it to a node representing the file it was resolved to
-  updateDependency(dep: Dependency, req: TransformerRequest): DepUpdates {
+  /**
+   * Marks a dependency as resolved, and connects it to a transformer
+   * request node for the file it was resolved to.
+   */
+  resolveDependency(dep: Dependency, req: TransformerRequest): DepUpdates {
     let newRequest;
 
     let depNode = nodeFromDep(dep);
@@ -145,8 +148,14 @@ export default class AssetGraph extends Graph {
     return {newRequest, prunedFiles};
   }
 
-  // Once a file has been transformed, connect it to asset nodes representing the generated assets
-  updateFile(req: TransformerRequest, cacheEntry: CacheEntry): FileUpdates {
+  /**
+   * Marks a transformer request as resolved, and connects it to asset and file
+   * nodes for the generated assets and connected files.
+   */
+  resolveTransformerRequest(
+    req: TransformerRequest,
+    cacheEntry: CacheEntry
+  ): FileUpdates {
     let newDepNodes: Array<Node> = [];
 
     let requestNode = nodeFromTransformerRequest(req);

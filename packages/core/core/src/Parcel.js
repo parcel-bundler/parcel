@@ -178,7 +178,7 @@ export default class Parcel {
 
     let req = {filePath: resolvedPath, env: dep.env};
     dep.resolvedPath = resolvedPath;
-    let {newRequest} = this.graph.updateDependency(dep, req);
+    let {newRequest} = this.graph.resolveDependency(dep, req);
 
     if (newRequest) {
       this.queue.add(() => this.transform(newRequest, {signal}));
@@ -190,10 +190,11 @@ export default class Parcel {
     let cacheEntry = await this.runTransform(req);
 
     if (signal.aborted) throw abortError;
-    let {addedFiles, removedFiles, newDeps} = this.graph.updateFile(
-      req,
-      cacheEntry
-    );
+    let {
+      addedFiles,
+      removedFiles,
+      newDeps
+    } = this.graph.resolveTransformerRequest(req, cacheEntry);
 
     if (this.watcher) {
       for (let file of addedFiles) {

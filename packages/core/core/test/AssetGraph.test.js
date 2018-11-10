@@ -72,7 +72,7 @@ describe('AssetGraph', () => {
     );
   });
 
-  it('updateDependency should update the file a dependency is connected to', () => {
+  it('resolveDependency should update the file a dependency is connected to', () => {
     let graph = new AssetGraph();
     graph.initializeGraph({
       targets: TARGETS,
@@ -87,7 +87,7 @@ describe('AssetGraph', () => {
     };
     let req = {filePath: '/index.js', env: DEFAULT_ENV};
 
-    graph.updateDependency(dep, req);
+    graph.resolveDependency(dep, req);
     assert(graph.nodes.has(nodeFromTransformerRequest(req).id));
     assert(
       graph.hasEdge({
@@ -98,7 +98,7 @@ describe('AssetGraph', () => {
     assert(graph.incompleteNodes.has(nodeFromTransformerRequest(req).id));
 
     let req2 = {filePath: '/index.jsx', env: DEFAULT_ENV};
-    graph.updateDependency(dep, req2);
+    graph.resolveDependency(dep, req2);
     assert(!graph.nodes.has(nodeFromTransformerRequest(req).id));
     assert(graph.nodes.has(nodeFromTransformerRequest(req2).id));
     assert(
@@ -115,7 +115,7 @@ describe('AssetGraph', () => {
     );
     assert(graph.incompleteNodes.has(nodeFromTransformerRequest(req2).id));
 
-    graph.updateDependency(dep, req2);
+    graph.resolveDependency(dep, req2);
     assert(graph.nodes.has(nodeFromTransformerRequest(req2).id));
     assert(
       graph.hasEdge({
@@ -126,7 +126,7 @@ describe('AssetGraph', () => {
     assert(graph.incompleteNodes.has(nodeFromTransformerRequest(req2).id));
   });
 
-  it('updateFile should update the asset and dep nodes a file is connected to', () => {
+  it('resolveTransformerRequest should update the asset and dep nodes a file is connected to', () => {
     let graph = new AssetGraph();
     graph.initializeGraph({
       targets: TARGETS,
@@ -141,7 +141,7 @@ describe('AssetGraph', () => {
     };
     let filePath = '/index.js';
     let req = {filePath, env: DEFAULT_ENV};
-    graph.updateDependency(dep, req);
+    graph.resolveDependency(dep, req);
     let sourcePath = filePath;
     let assets = [
       {
@@ -184,7 +184,7 @@ describe('AssetGraph', () => {
       connectedFiles: []
     };
 
-    graph.updateFile(req, cacheEntry);
+    graph.resolveTransformerRequest(req, cacheEntry);
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(graph.nodes.has('3'));
@@ -270,7 +270,7 @@ describe('AssetGraph', () => {
       connectedFiles: []
     };
 
-    graph.updateFile(req, cacheEntry);
+    graph.resolveTransformerRequest(req, cacheEntry);
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(!graph.nodes.has('3'));
@@ -325,7 +325,7 @@ describe('AssetGraph', () => {
     );
   });
 
-  it('updateFile should add connected file nodes', () => {
+  it('resolveTransformerRequest should add connected file nodes', () => {
     let graph = new AssetGraph();
     graph.initializeGraph({
       targets: TARGETS,
@@ -336,7 +336,7 @@ describe('AssetGraph', () => {
     let dep = {sourcePath: '/', moduleSpecifier: './index', env: DEFAULT_ENV};
     let filePath = '/index.js';
     let req = {filePath, env: DEFAULT_ENV};
-    graph.updateDependency(dep, req);
+    graph.resolveDependency(dep, req);
     let sourcePath = filePath;
     let assets = [
       {
@@ -367,7 +367,7 @@ describe('AssetGraph', () => {
       ]
     };
 
-    graph.updateFile(req, cacheEntry);
+    graph.resolveTransformerRequest(req, cacheEntry);
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('/foo/bar'));
     assert(graph.nodes.has('/foo/baz'));
