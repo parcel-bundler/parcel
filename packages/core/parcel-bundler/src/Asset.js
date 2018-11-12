@@ -134,10 +134,6 @@ class Asset {
     return this._package;
   }
 
-  async getConfigLocation(filenames, opts = {}) {
-    return await config.resolve(opts.path || this.name, filenames);
-  }
-
   async getConfig(filenames, opts = {}) {
     if (opts.packageKey) {
       let pkg = await this.getPackage();
@@ -147,7 +143,7 @@ class Asset {
     }
 
     // Resolve the config file
-    let conf = this.getConfigLocation(filenames, opts);
+    let conf = await config.resolve(opts.path || this.name, filenames);
     if (conf) {
       // Add as a dependency so it is added to the watcher and invalidates
       // this asset when the config changes.
