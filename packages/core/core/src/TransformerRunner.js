@@ -8,6 +8,7 @@ import type {
   File,
   JSONObject,
   Transformer,
+  TransformerRequest,
   TransformerInput,
   TransformerResult,
   CLIOptions
@@ -27,18 +28,12 @@ type Opts = {
 
 type GenerateFunc = ?(input: TransformerInput) => Promise<AssetOutput>;
 type TransformContext = {
+  type: string,
   hash?: string,
   dependencies: Array<Dependency>,
   connectedFiles: Array<File>,
   generate?: GenerateFunc,
   meta?: JSONObject
-};
-
-const DEFAULT_ENVIRONMENT = {
-  target: {
-    browsers: ['> 1%']
-  },
-  context: 'browser'
 };
 
 class TransformerRunner {
@@ -52,15 +47,12 @@ class TransformerRunner {
     this.cache = opts.cache || new Cache(opts.cliOpts);
   }
 
-  async transform(
-    file: File,
-    env: Environment = DEFAULT_ENVIRONMENT
-  ): Promise<CacheEntry> {
-    let code = await fs.readFile(file.filePath, 'utf8');
+  async transform(req: TransformerRequest): Promise<CacheEntry> {
+    let code = await fs.readFile(req.filePath, 'utf8');
     let hash = md5(code);
 
     // If a cache entry matches, no need to transform.
-    let cacheEntry = await this.cache.read(file.filePath);
+    let cacheEntry = await this.cache.read(req.filePath, req.env);
     if (
       cacheEntry &&
       cacheEntry.hash === hash &&
@@ -70,18 +62,19 @@ class TransformerRunner {
     }
 
     let input: TransformerInput = {
-      filePath: file.filePath,
+      filePath: req.filePath,
       ast: null,
       code,
-      env
+      env: req.env
     };
 
     let context = {
+      type: path.extname(req.filePath).slice(1),
       dependencies: [],
       connectedFiles: []
     };
 
-    let pipeline = await this.config.getTransformers(file.filePath);
+    let pipeline = await this.config.getTransformers(req.filePath);
     let {assets, initialAssets, connectedFiles} = await this.runPipeline(
       input,
       pipeline,
@@ -89,7 +82,8 @@ class TransformerRunner {
       context
     );
     cacheEntry = {
-      filePath: file.filePath,
+      filePath: req.filePath,
+      env: req.env,
       hash,
       assets,
       initialAssets,
@@ -106,8 +100,6 @@ class TransformerRunner {
     cacheEntry: ?CacheEntry,
     context: TransformContext
   ) {
-    let inputType = path.extname(input.filePath).slice(1);
-
     // Run the first transformer in the pipeline.
     let {
       results,
@@ -144,7 +136,7 @@ class TransformerRunner {
       }
 
       // If the generated asset has the same type as the input...
-      if (result.type === inputType) {
+      if (result.type === context.type) {
         // If we have reached the last transform in the pipeline, then we are done.
         if (pipeline.length === 1) {
           assets.push(
@@ -345,6 +337,7 @@ function getNextContext(
   result: TransformerResult
 ): TransformContext {
   return {
+    type: result.type,
     generate: context.generate,
     dependencies: context.dependencies.concat(result.dependencies || []),
     connectedFiles: context.connectedFiles.concat(result.connectedFiles || []),

@@ -6,9 +6,13 @@ import type {
   Dependency,
   Asset,
   File,
-  FilePath
+  FilePath,
+  TransformerRequest,
+  Target,
+  Environment
 } from '@parcel/types';
 import path from 'path';
+import md5 from '@parcel/utils/md5';
 
 export const nodeFromRootDir = (rootDir: string) => ({
   id: rootDir,
@@ -17,7 +21,9 @@ export const nodeFromRootDir = (rootDir: string) => ({
 });
 
 export const nodeFromDep = (dep: Dependency) => ({
-  id: `${dep.sourcePath}:${dep.moduleSpecifier}`,
+  id: md5(
+    `${dep.sourcePath}:${dep.moduleSpecifier}:${JSON.stringify(dep.env)}`
+  ),
   type: 'dependency',
   value: dep
 });
@@ -28,21 +34,21 @@ export const nodeFromFile = (file: File) => ({
   value: file
 });
 
-export const nodeFromConnectedFile = (file: File) => ({
-  id: file.filePath,
-  type: 'connected_file',
-  value: file
+export const nodeFromTransformerRequest = (req: TransformerRequest) => ({
+  id: md5(`${req.filePath}:${JSON.stringify(req.env)}`),
+  type: 'transformer_request',
+  value: req
 });
 
 export const nodeFromAsset = (asset: Asset) => ({
-  id: asset.hash,
+  id: asset.id,
   type: 'asset',
   value: asset
 });
 
 const getFileNodesFromGraph = (graph: Graph): Array<Node> => {
   return Array.from(graph.nodes.values()).filter(
-    (node: any) => node.type === 'file' || node.type === 'connected_file'
+    (node: any) => node.type === 'file'
   );
 };
 
@@ -57,7 +63,7 @@ const getDepNodesFromGraph = (graph: Graph): Array<Node> => {
 };
 
 type DepUpdates = {
-  newFile?: File,
+  newRequest?: TransformerRequest,
   prunedFiles: Array<File>
 };
 
@@ -69,6 +75,7 @@ type FileUpdates = {
 
 type AssetGraphOpts = {
   entries: Array<string>,
+  targets: Array<Target>,
   rootDir: string
 };
 
@@ -84,23 +91,28 @@ export default class AssetGraph extends Graph {
   incompleteNodes: Map<NodeId, Node>;
   invalidNodes: Map<NodeId, Node>;
 
-  constructor({entries, rootDir}: AssetGraphOpts) {
+  constructor() {
     super();
     this.incompleteNodes = new Map();
     this.invalidNodes = new Map();
-    this.initializeGraph({entries, rootDir});
   }
 
-  initializeGraph({entries, rootDir}: AssetGraphOpts) {
+  initializeGraph({entries, targets, rootDir}: AssetGraphOpts) {
     let rootNode = nodeFromRootDir(rootDir);
     this.addNode(rootNode);
 
-    let depNodes = entries.map(entry =>
-      nodeFromDep({
-        sourcePath: path.resolve(rootDir, 'index'),
-        moduleSpecifier: entry
-      })
-    );
+    let depNodes = [];
+    for (let entry of entries) {
+      for (let target of targets) {
+        let node = nodeFromDep({
+          sourcePath: path.resolve(rootDir, 'index'),
+          moduleSpecifier: entry,
+          env: target.env
+        });
+
+        depNodes.push(node);
+      }
+    }
 
     this.replaceNodesConnectedTo(rootNode, depNodes);
     for (let depNode of depNodes) {
@@ -113,45 +125,55 @@ export default class AssetGraph extends Graph {
     return super.removeNode(node);
   }
 
-  // Once a dependency is resolved, connect it to a node representing the file it was resolved to
-  updateDependency(dep: Dependency, file: File): DepUpdates {
-    let newFile;
+  /**
+   * Marks a dependency as resolved, and connects it to a transformer
+   * request node for the file it was resolved to.
+   */
+  resolveDependency(dep: Dependency, req: TransformerRequest): DepUpdates {
+    let newRequest;
 
     let depNode = nodeFromDep(dep);
     this.incompleteNodes.delete(depNode.id);
     this.invalidNodes.delete(depNode.id);
 
-    let fileNode = nodeFromFile(file);
-    let {added, removed} = this.replaceNodesConnectedTo(depNode, [fileNode]);
+    let requestNode = nodeFromTransformerRequest(req);
+    let {added, removed} = this.replaceNodesConnectedTo(depNode, [requestNode]);
 
     if (added.nodes.size) {
-      newFile = file;
-      this.incompleteNodes.set(fileNode.id, fileNode);
+      newRequest = req;
+      this.incompleteNodes.set(requestNode.id, requestNode);
     }
 
     let prunedFiles = getFilesFromGraph(removed);
-    return {newFile, prunedFiles};
+    return {newRequest, prunedFiles};
   }
 
-  // Once a file has been transformed, connect it to asset nodes representing the generated assets
-  updateFile(file: File, cacheEntry: CacheEntry): FileUpdates {
+  /**
+   * Marks a transformer request as resolved, and connects it to asset and file
+   * nodes for the generated assets and connected files.
+   */
+  resolveTransformerRequest(
+    req: TransformerRequest,
+    cacheEntry: CacheEntry
+  ): FileUpdates {
     let newDepNodes: Array<Node> = [];
 
-    let fileNode = nodeFromFile(file);
-    this.incompleteNodes.delete(fileNode.id);
-    this.invalidNodes.delete(fileNode.id);
+    let requestNode = nodeFromTransformerRequest(req);
+    this.incompleteNodes.delete(requestNode.id);
+    this.invalidNodes.delete(requestNode.id);
 
     // Get connected files at the file level and asset level and connect them to the file node
-    let fileNodes = cacheEntry.connectedFiles.map(file =>
-      nodeFromConnectedFile(file)
-    );
+    let fileNodes = cacheEntry.connectedFiles.map(file => nodeFromFile(file));
     for (let asset of cacheEntry.assets) {
-      let files = asset.connectedFiles.map(file => nodeFromConnectedFile(file));
+      let files = asset.connectedFiles.map(file => nodeFromFile(file));
       fileNodes = fileNodes.concat(files);
     }
 
+    // Add a file node for the file that the transformer request resolved to
+    fileNodes.push(nodeFromFile({filePath: req.filePath}));
+
     let assetNodes = cacheEntry.assets.map(asset => nodeFromAsset(asset));
-    let {added, removed} = this.replaceNodesConnectedTo(fileNode, [
+    let {added, removed} = this.replaceNodesConnectedTo(requestNode, [
       ...assetNodes,
       ...fileNodes
     ]);
@@ -162,7 +184,7 @@ export default class AssetGraph extends Graph {
     for (let assetNode of assetNodes) {
       // TODO: dep should already have sourcePath
       let depNodes = assetNode.value.dependencies.map(dep => {
-        dep.sourcePath = file.filePath;
+        dep.sourcePath = req.filePath;
         return nodeFromDep(dep);
       });
       let {removed, added} = this.replaceNodesConnectedTo(assetNode, depNodes);
@@ -185,20 +207,14 @@ export default class AssetGraph extends Graph {
 
   invalidateFile(filePath: FilePath) {
     let node = this.getNode(filePath);
-    if (!node) {
+    if (!node || node.type !== 'file') {
       return;
     }
 
-    if (node.type === 'file') {
-      this.invalidateNode(node);
-    }
-
-    if (node.type === 'connected_file') {
-      // Invalidate all file nodes connected to this node.
-      for (let connectedNode of this.getNodesConnectedTo(node)) {
-        if (connectedNode.type === 'file') {
-          this.invalidateNode(connectedNode);
-        }
+    // Invalidate all file nodes connected to this node.
+    for (let connectedNode of this.getNodesConnectedTo(node)) {
+      if (connectedNode.type === 'transformer_request') {
+        this.invalidateNode(connectedNode);
       }
     }
   }
@@ -214,8 +230,8 @@ export default class AssetGraph extends Graph {
       root: 'gray',
       asset: 'green',
       dependency: 'orange',
-      file: 'cyan',
-      connected_file: 'gray',
+      transformer_request: 'cyan',
+      file: 'gray',
       default: 'white'
     };
 
@@ -246,15 +262,18 @@ export default class AssetGraph extends Graph {
         if (node.value.isIncluded) parts.push('included');
         if (node.value.isOptional) parts.push('optional');
         if (parts.length) label += '(' + parts.join(', ') + ')';
+        if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
       } else if (node.type === 'asset') {
+        label += path.basename(node.value.filePath) + '#' + node.value.type;
+      } else if (node.type === 'file') {
+        label += path.basename(node.value.filePath);
+      } else if (node.type === 'transformer_request') {
         label +=
-          path.relative(rootPath, node.value.filePath) +
-          '#' +
-          node.value.hash.slice(0, 8);
-      } else if (node.type === 'file' || node.type === 'connected_file') {
-        label += path.relative(rootPath, node.value.filePath);
+          path.basename(node.value.filePath) +
+          ` (${getEnvDescription(node.value.env)})`;
       } else {
-        label += node.id;
+        // label += node.id;
+        label = node.type;
       }
 
       n.set('label', label);
@@ -269,4 +288,19 @@ export default class AssetGraph extends Graph {
     await g.output('png', tmp);
     console.log(`open ${tmp}`); // eslint-disable-line no-console
   }
+}
+
+function getEnvDescription(env: Environment) {
+  let description = '';
+  if (
+    env.context === 'browser' ||
+    env.context === 'web-worker' ||
+    env.context === 'service-worker'
+  ) {
+    description = `${env.context}: ${env.engines.browsers.join(', ')}`;
+  } else if (env.context === 'node') {
+    description = `node: ${env.engines.node}`;
+  }
+
+  return description;
 }

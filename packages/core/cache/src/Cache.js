@@ -10,7 +10,8 @@ import type {
   CLIOptions,
   JSONObject,
   CacheEntry,
-  Asset
+  Asset,
+  Environment
 } from '@parcel/types';
 
 // These keys can affect the output, so if they differ, the cache should not match
@@ -49,8 +50,8 @@ export default class Cache {
     this.dirExists = true;
   }
 
-  getCacheId(appendedData: string) {
-    return md5(this.optionsHash + appendedData);
+  getCacheId(appendedData: string, env: Environment) {
+    return md5(this.optionsHash + appendedData + JSON.stringify(env));
   }
 
   getCachePath(cacheId: string, extension: string = '.json'): FilePath {
@@ -81,7 +82,7 @@ export default class Cache {
   async _writeBlobs(assets: Array<Asset>) {
     return await Promise.all(
       assets.map(async asset => {
-        let assetCacheId = this.getCacheId(asset.hash);
+        let assetCacheId = this.getCacheId(asset.hash, asset.env);
         for (let blobKey in asset.output) {
           asset.output[blobKey] = await this.writeBlob(
             blobKey,
@@ -108,7 +109,7 @@ export default class Cache {
   async write(cacheEntry: CacheEntry) {
     try {
       await this.ensureDirExists();
-      let cacheId = this.getCacheId(cacheEntry.filePath);
+      let cacheId = this.getCacheId(cacheEntry.filePath, cacheEntry.env);
       await this.writeBlobs(cacheEntry);
       await this.writeBlob('json', cacheId, cacheEntry);
       this.invalidated.delete(cacheEntry.filePath);
@@ -138,12 +139,12 @@ export default class Cache {
     );
   }
 
-  async read(filePath: FilePath): Promise<CacheEntry | null> {
+  async read(filePath: FilePath, env: Environment): Promise<CacheEntry | null> {
     if (this.invalidated.has(filePath)) {
       return null;
     }
 
-    let cacheId = this.getCacheId(filePath);
+    let cacheId = this.getCacheId(filePath, env);
     try {
       return await this.readBlob(this.getCachePath(cacheId));
     } catch (err) {
@@ -155,9 +156,9 @@ export default class Cache {
     this.invalidated.add(filePath);
   }
 
-  async delete(filePath: FilePath) {
+  async delete(filePath: FilePath, env: Environment) {
     try {
-      let cacheId = this.getCacheId(filePath);
+      let cacheId = this.getCacheId(filePath, env);
       // TODO: delete blobs
       await fs.unlink(this.getCachePath(cacheId));
       this.invalidated.delete(filePath);
