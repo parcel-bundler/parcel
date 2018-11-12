@@ -1,9 +1,6 @@
 {
   "name": "yarn-workspace",
   "private": true,
-  "engines": {
-    "yarn": "^1.10.0"
-  },
   "workspaces": {
     "packages": [
       "packages/*"
