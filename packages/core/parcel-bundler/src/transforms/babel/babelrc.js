@@ -1,9 +1,9 @@
 const semver = require('semver');
-const logger = require('../../Logger');
+const logger = require('@parcel/logger');
 const path = require('path');
 const localRequire = require('../../utils/localRequire');
 const installPackage = require('../../utils/installPackage');
-const fs = require('../../utils/fs');
+const fs = require('@parcel/fs');
 const micromatch = require('micromatch');
 
 async function getBabelConfig(asset, isSource) {

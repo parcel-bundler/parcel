@@ -1,7 +1,7 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const Resolver = require('../Resolver');
-const fs = require('../utils/fs');
+const fs = require('@parcel/fs');
 const os = require('os');
 
 const IMPORT_RE = /^# *import +['"](.*)['"] *;? *$/;

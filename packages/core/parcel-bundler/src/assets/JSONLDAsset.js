@@ -1,7 +1,7 @@
 const urlJoin = require('../utils/urlJoin');
 const isURL = require('../utils/is-url');
 const Asset = require('../Asset');
-const logger = require('../Logger');
+const logger = require('@parcel/logger');
 
 // A list of all attributes in a schema that may produce a dependency
 // Based on https://schema.org/ImageObject

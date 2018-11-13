@@ -1,5 +1,5 @@
 const assert = require('assert');
-const fs = require('../src/utils/fs');
+const fs = require('@parcel/fs');
 const {bundle, assertBundleTree} = require('./utils');
 const path = require('path');
 
@@ -589,6 +589,26 @@ describe('html', function() {
         }
       ]
     });
+  });
+
+  it("should treat webmanifest as an entry module so it doesn't get content hashed", async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/html-manifest/index.html')
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'webmanifest',
+          assets: ['manifest.webmanifest']
+        }
+      ]
+    });
+
+    const html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
+    assert(html.includes('<link rel="manifest" href="/manifest.webmanifest">'));
   });
 
   it('should bundle svg files correctly', async function() {

@@ -8,3 +8,4 @@ test/integration/**/Cargo.lock
 test/**/node_modules
 test/**/yarn.lock
 test/**/package-lock.json
+test/integration/babel-plugin-autoinstall/package.json
