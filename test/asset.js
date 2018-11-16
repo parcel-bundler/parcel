@@ -31,9 +31,9 @@ describe('Asset', () => {
     assert(await fs.exists(__dirname, `/dist/${outFile}`));
   });
 
-  it('should have backward compatibility for package field', function() {
+  it('should throw an error when the package field is accessed', function() {
     let a = new Asset(__filename, {rootDir: '/root/dir'});
-    assert.equal(a.package.name, 'parcel-bundler');
+    assert.throws(() => a.package);
   });
 
   describe('addURLDependency', () => {
