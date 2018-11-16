@@ -106,8 +106,8 @@ function getParents(bundle, id) {
   var parents = [];
   var k, d, dep;
 
-  for (k in modules) {
-    for (d in modules[k][1]) {
+  for (var k in modules) {
+    for (var d in modules[k][1]) {
       dep = modules[k][1][d];
       if (dep === id || (Array.isArray(dep) && dep[dep.length - 1] === id)) {
         parents.push(k);
