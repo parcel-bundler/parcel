@@ -89,6 +89,17 @@ describe('scope hoisting', function() {
       assert.equal(output, 2);
     });
 
+    it('supports renaming superclass identifiers', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/rename-superclass/a.js'
+        )
+      );
+      let output = await run(b);
+      assert.equal(output, 2);
+    });
+
     it('supports renaming imports', async function() {
       let b = await bundle(
         path.join(
