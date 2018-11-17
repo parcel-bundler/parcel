@@ -457,6 +457,19 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'bar');
     });
 
+    it('should support the jsx pragma', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/scope-hoisting/es6/jsx-pragma/a.js')
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, {
+        children: 'Test',
+        props: null,
+        type: 'span'
+      });
+    });
+
     it('should not nameclash with internal variables', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/scope-hoisting/es6/name-clash/a.js')
