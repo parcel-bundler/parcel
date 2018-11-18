@@ -152,7 +152,7 @@ class Bundle {
     }
 
     // Add the content hash and extension.
-    return name + '.' + (contentHash ? hash : '') + ext;
+    return name + (contentHash ? '.' + hash : '') + ext;
   }
 
   async package(bundler, oldHashes, newHashes = new Map()) {
