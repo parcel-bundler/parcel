@@ -25,9 +25,9 @@ function rename(scope, oldName, newName) {
   }
 
   // Rename binding identifier, and update scope.
-  binding.identifier.name = newName;
+  scope.removeOwnBinding(oldName);
   scope.bindings[newName] = binding;
-  delete scope.bindings[oldName];
+  binding.identifier.name = newName;
 }
 
 module.exports = rename;
