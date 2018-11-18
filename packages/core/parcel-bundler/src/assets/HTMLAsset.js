@@ -153,6 +153,20 @@ class HTMLAsset extends Asset {
           }
         }
 
+        if (
+          node.tag === 'link' &&
+          node.attrs.rel === 'manifest' &&
+          node.attrs.href
+        ) {
+          node.attrs.href = this.getAttrDepHandler('href').call(
+            this,
+            node.attrs.href,
+            {entry: true}
+          );
+          this.isAstDirty = true;
+          return node;
+        }
+
         for (let attr in node.attrs) {
           let elements = ATTRS[attr];
           // Check for virtual paths
