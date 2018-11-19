@@ -144,7 +144,7 @@ class TransformerRunner {
           );
         } else {
           // Recursively run the remaining transforms in the pipeline.
-          let nextInput = transformerResultToInput(input, result);
+          let nextInput = new TransformerAsset(input, result);
           let cacheEntry = await this.runPipeline(
             nextInput,
             pipeline.slice(1),
@@ -157,7 +157,7 @@ class TransformerRunner {
         }
       } else {
         // Jump to a different pipeline for the generated asset.
-        let nextInput = transformerResultToInput(input, result);
+        let nextInput = new TransformerAsset(input, result);
         let nextFilePath =
           input.filePath.slice(0, -path.extname(input.filePath).length) +
           '.' +
@@ -270,7 +270,7 @@ async function getOutput(
   }
 
   if (result.ast && context.generate) {
-    output = await context.generate(transformerResultToInput(input, result));
+    output = await context.generate(new TransformerAsset(input, result));
   }
 
   return output;
@@ -316,16 +316,32 @@ function toDependency(input: TransformerInput, dep: Dependency): Dependency {
   return dep;
 }
 
-function transformerResultToInput(
-  input: TransformerInput,
-  result: TransformerResult
-): TransformerInput {
-  return {
-    filePath: input.filePath,
-    code: result.code || (result.output && result.output.code) || '',
-    ast: result.ast,
-    env: mergeEnvironment(input.env, result.env)
-  };
+class TransformerAsset implements TransformerInput {
+  filePath: FilePath;
+  type: string;
+  code: string;
+  ast: ?AST;
+  dependencies: Array<Dependency>;
+  connectedFiles: Array<File>;
+  output: AssetOutput;
+  env: Environment;
+  meta: JSONObject;
+
+  constructor(input: TransformerInput, result: TransformerResult) {
+    this.filePath = input.filePath;
+    this.type = result.type;
+    this.code = result.code || (result.output && result.output.code) || '';
+    this.ast = result.ast;
+    this.env = mergeEnvironment(input.env, result.env);
+    this.dependencies = [];
+    this.connectedFiles = [];
+    this.output = {code: this.code};
+    this.meta = {};
+  }
+
+  addDependency(dep: Dependency) {
+    this.dependencies.push(dep);
+  }
 }
 
 function mergeEnvironment(a: Environment, b: ?Environment): Environment {

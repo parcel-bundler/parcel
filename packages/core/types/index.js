@@ -86,7 +86,7 @@ export type SourceLocation = {
 };
 
 export type Dependency = {
-  sourcePath: FilePath,
+  // sourcePath: FilePath,
   moduleSpecifier: ModuleSpecifier,
   isAsync?: boolean,
   isEntry?: boolean,
@@ -129,21 +129,19 @@ export type AssetOutput = {
 export type AST = {
   type: string,
   version: string,
-  program: JSONObject
+  program: any
 };
 
 export type Config = JSONObject;
 export type SourceMap = JSONObject;
 export type Blob = string | Buffer;
 
-export type TransformerInput = {
-  filePath: FilePath,
-  code: string,
-  ast: ?AST,
-  env: Environment
-};
-
-export type TransformerOutput = {};
+// export type TransformerInput = {
+//   filePath: FilePath,
+//   code: string,
+//   ast: ?AST,
+//   env: Environment
+// };
 
 export type TransformerResult = {
   type: string,
@@ -155,6 +153,23 @@ export type TransformerResult = {
   env?: Environment,
   meta?: JSONObject
 };
+
+export interface TransformerInput {
+  filePath: FilePath;
+  type: string;
+  code: string;
+  ast: ?AST;
+  dependencies: Array<Dependency>;
+  connectedFiles: Array<File>;
+  output: AssetOutput;
+  env: Environment;
+  meta: JSONObject;
+
+  getConfig(filePaths: Array<FilePath>): Async<ConfigOutput>;
+  getPackage(): Async<PackageJSON>;
+  addDependency(dep: Dependency): void;
+  addURLDependency(dep: Dependency): FilePath;
+}
 
 export type ConfigOutput = {
   config: Config,
@@ -175,7 +190,7 @@ export type Transformer = {
     asset: TransformerInput,
     config: ?Config,
     opts: CLIOptions
-  ): Async<Array<TransformerResult>>,
+  ): Async<Array<TransformerResult | TransformerInput>>,
   generate?: (
     asset: TransformerInput,
     config: ?Config,
