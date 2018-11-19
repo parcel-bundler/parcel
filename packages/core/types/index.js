@@ -250,6 +250,7 @@ export interface MutableAsset extends BaseAsset {
   setStream(Readable): void;
   addConnectedFile(file: File): Promise<void>;
   addDependency(opts: DependencyOptions): string;
+  addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
 }
 
 export interface Asset extends BaseAsset {
