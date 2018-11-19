@@ -1,0 +1,33 @@
+{
+  "name": "@parcel/logger",
+  "version": "1.10.3",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "index.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "engines": {
+    "node": ">= 6.0.0"
+  },
+  "scripts": {
+    "test": "cross-env NODE_ENV=test mocha",
+    "test-ci": "yarn build && yarn test",
+    "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
+    "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
+    "build": "babel src -d lib",
+    "prepublish": "yarn build"
+  },
+  "devDependencies": {
+    "mocha": "^5.2.0",
+    "sinon": "^5.0.1",
+    "@parcel/babel-register": "^1.10.3"
+  },
+  "dependencies": {
+    "chalk": "^2.1.0",
+    "grapheme-breaker": "^0.3.2",
+    "ora": "^2.1.0",
+    "strip-ansi": "^4.0.0"
+  }
+}

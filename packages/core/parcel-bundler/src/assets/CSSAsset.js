@@ -122,7 +122,7 @@ class CSSAsset extends Asset {
 
     if (this.cssModules) {
       js +=
-        'module.exports = ' + JSON.stringify(this.cssModules, false, 2) + ';';
+        'module.exports = ' + JSON.stringify(this.cssModules, null, 2) + ';';
     }
 
     return [

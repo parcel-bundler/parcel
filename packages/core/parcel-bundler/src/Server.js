@@ -5,9 +5,8 @@ const getPort = require('get-port');
 const serverErrors = require('./utils/customErrors').serverErrors;
 const generateCertificate = require('./utils/generateCertificate');
 const getCertificate = require('./utils/getCertificate');
-const prettyError = require('./utils/prettyError');
 const AnsiToHtml = require('ansi-to-html');
-const logger = require('./Logger');
+const logger = require('@parcel/logger');
 const path = require('path');
 const url = require('url');
 
@@ -83,7 +82,7 @@ function middleware(bundler) {
       if (process.env.NODE_ENV === 'production') {
         errorMesssge += '<p><b>Check the console for details.</b></p>';
       } else {
-        const {message, stack} = prettyError(error, {color: true});
+        const {message, stack} = logger.formatError(error, {color: true});
         errorMesssge += `<p><b>${message}</b></p>`;
         if (stack) {
           errorMesssge += `<div style="background: black; padding: 1rem;">${ansiToHtml.toHtml(
@@ -111,7 +110,7 @@ function middleware(bundler) {
   };
 }
 
-async function serve(bundler, port, useHTTPS = false) {
+async function serve(bundler, port, host, useHTTPS = false) {
   let handler = middleware(bundler);
   let server;
   if (!useHTTPS) {
@@ -123,10 +122,11 @@ async function serve(bundler, port, useHTTPS = false) {
   }
 
   let freePort = await getPort({port});
-  server.listen(freePort);
+  server.listen(freePort, host);
 
   return new Promise((resolve, reject) => {
     server.on('error', err => {
+      console.log(err);
       logger.error(new Error(serverErrors(err, server.address().port)));
       reject(err);
     });
@@ -141,7 +141,9 @@ async function serve(bundler, port, useHTTPS = false) {
 
       logger.persistent(
         `Server running at ${logger.chalk.cyan(
-          `${useHTTPS ? 'https' : 'http'}://localhost:${server.address().port}`
+          `${useHTTPS ? 'https' : 'http'}://${host || 'localhost'}:${
+            server.address().port
+          }`
         )} ${addon}`
       );
 

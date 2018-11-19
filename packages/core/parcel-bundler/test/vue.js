@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const {bundle, assertBundleTree, run} = require('./utils');
-const fs = require('../src/utils/fs');
+const fs = require('@parcel/fs');
 
 describe('vue', function() {
   it('should produce a basic vue bundle', async function() {

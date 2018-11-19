@@ -1,15 +1,15 @@
-const fs = require('./utils/fs');
+const fs = require('@parcel/fs');
 const Resolver = require('./Resolver');
 const Parser = require('./Parser');
-const WorkerFarm = require('./workerfarm/WorkerFarm');
+const WorkerFarm = require('@parcel/workers');
 const Path = require('path');
 const Bundle = require('./Bundle');
-const Watcher = require('./Watcher');
+const Watcher = require('@parcel/watcher');
 const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
 const {EventEmitter} = require('events');
-const logger = require('./Logger');
+const logger = require('@parcel/logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
@@ -131,6 +131,7 @@ class Bundler extends EventEmitter {
         !scopeHoist,
       hmrHostname:
         options.hmrHostname ||
+        options.host ||
         (options.target === 'electron' ? 'localhost' : ''),
       detailedReport: options.detailedReport || false,
       global: options.global,
@@ -379,7 +380,9 @@ class Bundler extends EventEmitter {
       this.options.hmrPort = await this.hmr.start(this.options);
     }
 
-    this.farm = WorkerFarm.getShared(this.options);
+    this.farm = await WorkerFarm.getShared(this.options, {
+      workerPath: require.resolve('./worker.js')
+    });
   }
 
   async stop() {
@@ -774,8 +777,8 @@ class Bundler extends EventEmitter {
     return Server.middleware(this);
   }
 
-  async serve(port = 1234, https = false) {
-    this.server = await Server.serve(this, port, https);
+  async serve(port = 1234, https = false, host) {
+    this.server = await Server.serve(this, port, host, https);
     try {
       await this.bundle();
     } catch (e) {

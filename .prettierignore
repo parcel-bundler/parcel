@@ -3,3 +3,4 @@ packages/core/parcel-bundler/test/integration
 packages/core/parcel-bundler/test/input
 packages/core/parcel-bundler/test/dist
 packages/core/parcel-bundler/test/mochareporters.json
+tmp
