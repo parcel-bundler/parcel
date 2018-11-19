@@ -11,8 +11,8 @@ class SourceMap {
 }
 
 export default new Transformer({
-  async getConfig(filePath /* , options */) {
-    return config.load(filePath, [
+  async getConfig(asset /* , options */) {
+    return config.load(asset.filePath, [
       '.terserrc',
       '.uglifyrc',
       '.uglifyrc.js',

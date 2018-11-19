@@ -2,6 +2,7 @@
   "bundler": "@parcel/bundler-default",
   "transforms": {
     "*.{js,mjs,jsm,jsx,es6}": [
+      "@parcel/transformer-babel",
       "@parcel/transformer-js",
       "@parcel/transformer-terser"
     ]

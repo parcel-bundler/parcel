@@ -149,7 +149,7 @@ class TransformerRunner {
             nextInput,
             pipeline.slice(1),
             null,
-            getNextContext(context, result)
+            getNextContext(context, input, result)
           );
 
           assets = assets.concat(cacheEntry.assets);
@@ -166,7 +166,7 @@ class TransformerRunner {
           nextInput,
           await this.config.getTransformers(nextFilePath),
           null,
-          getNextContext(context, result)
+          getNextContext(context, input, result)
         );
 
         assets = assets.concat(cacheEntry.assets);
@@ -193,7 +193,7 @@ class TransformerRunner {
     let config = null;
     let connectedFiles: Array<File> = [];
     if (transformer.getConfig) {
-      let result = await transformer.getConfig(input.filePath, this.cliOpts);
+      let result = await transformer.getConfig(input, this.cliOpts);
       if (result) {
         config = result.config;
         connectedFiles = result.files;
@@ -322,8 +322,8 @@ function transformerResultToInput(
 ): TransformerInput {
   return {
     filePath: input.filePath,
-    code: result.code || (result.output && result.output.code) || '',
-    ast: result.ast,
+    code: result.code || (result.output && result.output.code) || input.code,
+    ast: result.ast || input.ast,
     env: mergeEnvironment(input.env, result.env)
   };
 }
@@ -334,12 +334,17 @@ function mergeEnvironment(a: Environment, b: ?Environment): Environment {
 
 function getNextContext(
   context: TransformContext,
+  input: TransformerInput,
   result: TransformerResult
 ): TransformContext {
+  let dependencies = (result.dependencies || []).map(dep =>
+    toDependency(input, dep)
+  );
+
   return {
     type: result.type,
     generate: context.generate,
-    dependencies: context.dependencies.concat(result.dependencies || []),
+    dependencies: context.dependencies.concat(dependencies),
     connectedFiles: context.connectedFiles.concat(result.connectedFiles || []),
     hash: context.hash,
     meta: Object.assign({}, context.meta, result.meta)

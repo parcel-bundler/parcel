@@ -51,7 +51,7 @@ export type Target = {
 };
 
 export type Environment = {
-  context: 'browser' | 'worker' | 'service-worker' | 'node' | 'electron',
+  context: 'browser' | 'web-worker' | 'service-worker' | 'node' | 'electron',
   engines: Engines,
   includeNodeModules?: boolean
 };
@@ -164,7 +164,10 @@ export type ConfigOutput = {
 type Async<T> = T | Promise<T>;
 
 export type Transformer = {
-  getConfig?: (filePath: FilePath, opts: CLIOptions) => Async<ConfigOutput>,
+  getConfig?: (
+    asset: TransformerInput,
+    opts: CLIOptions
+  ) => Async<ConfigOutput>,
   canReuseAST?: (ast: AST, opts: CLIOptions) => boolean,
   parse?: (
     asset: TransformerInput,

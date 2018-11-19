@@ -1,6 +1,6 @@
 // @flow
 import semver from 'semver';
-import generate from 'babel-generator';
+import generate from '@babel/generator';
 import {Transformer} from '@parcel/plugin';
 import collectDependencies from './visitors/dependencies';
 import envVisitor from './visitors/env';
@@ -115,7 +115,7 @@ export default new Transformer({
   },
 
   async generate(module, config, options) {
-    if (!module.ast.isDirty) {
+    if (module.ast.isDirty === false) {
       return {
         code: module.code
         // TODO: sourcemaps
