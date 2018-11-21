@@ -11,5 +11,5 @@ jobs:
 
 - template: azure-pipelines-template.yml
   parameters:
-    name: Windows
-    vmImage: vs2017-win2016
+   name: Windows
+   vmImage: vs2017-win2016

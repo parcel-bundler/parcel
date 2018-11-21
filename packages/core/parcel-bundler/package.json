@@ -99,6 +99,8 @@
     "less": "^3.0.1",
     "lint-staged": "^7.1.2",
     "mocha": "^5.1.1",
+    "mocha-junit-reporter": "^1.18.0",
+    "mocha-multi-reporters": "^1.1.7",
     "ncp": "^2.0.0",
     "nib": "^1.1.2",
     "node-elm-compiler": "^5.0.1",
@@ -119,9 +121,9 @@
     "vue-template-compiler": "^2.5.16"
   },
   "scripts": {
-    "test": "cross-env NODE_ENV=test mocha",
+    "test": "cross-env NODE_ENV=test mocha --reporter mocha-multi-reporters --reporter-options configFile=./test/mochareporters.json",
     "test-coverage": "rm -rf coverage/* && nyc yarn test",
-    "report-coverage": "nyc report --reporter=lcov && codecov",
+    "report-coverage": "nyc report --reporter=lcov --reporter=cobertura --reporter=html && codecov",
     "test-ci": "yarn test-coverage && yarn report-coverage",
     "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
     "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
