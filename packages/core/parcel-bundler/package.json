@@ -27,6 +27,12 @@
     "@babel/template": "^7.0.0",
     "@babel/traverse": "^7.0.0",
     "@babel/types": "^7.0.0",
+    "@iarna/toml": "^2.2.0",
+    "@parcel/fs": "^1.10.3",
+    "@parcel/logger": "^1.10.3",
+    "@parcel/utils": "^1.10.3",
+    "@parcel/watcher": "1.10.3",
+    "@parcel/workers": "^1.10.3",
     "ansi-to-html": "^0.6.4",
     "babylon-walk": "^1.0.2",
     "browserslist": "^4.1.0",
@@ -64,15 +70,8 @@
     "serve-static": "^1.12.4",
     "source-map": "0.6.1",
     "terser": "^3.7.3",
-    "toml": "^2.3.3",
-    "tomlify-j0.4": "^3.0.0",
     "v8-compile-cache": "^2.0.0",
-    "ws": "^5.1.1",
-    "@parcel/watcher": "1.10.3",
-    "@parcel/workers": "^1.10.3",
-    "@parcel/logger": "^1.10.3",
-    "@parcel/utils": "^1.10.3",
-    "@parcel/fs": "^1.10.3"
+    "ws": "^5.1.1"
   },
   "devDependencies": {
     "@babel/cli": "^7.0.0",
@@ -80,6 +79,8 @@
     "@babel/plugin-syntax-export-namespace-from": "^7.0.0",
     "@babel/plugin-transform-runtime": "^7.0.0",
     "@babel/preset-flow": "^7.0.0",
+    "@parcel/babel-register": "^1.10.3",
+    "@parcel/test-utils": "^1.10.3",
     "@vue/component-compiler-utils": "^2.0.0",
     "babel-core": "^6.26.3",
     "babel-preset-env": "^1.7.0",
@@ -115,9 +116,7 @@
     "sugarss": "^2.0.0",
     "typescript": "^3.0.0",
     "vue": "^2.5.16",
-    "vue-template-compiler": "^2.5.16",
-    "@parcel/babel-register": "^1.10.3",
-    "@parcel/test-utils": "^1.10.3"
+    "vue-template-compiler": "^2.5.16"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
