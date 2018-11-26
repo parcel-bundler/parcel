@@ -66,6 +66,28 @@ describe('server', function() {
     );
   });
 
+  it('should serve an index.html automatically when we have multiple entry points', async function() {
+    const entries = [
+      path.join(__dirname, '/integration/html/index.html'),
+      path.join(__dirname, '/integration/multi-entry/one.html')
+    ];
+
+    let b = bundler(entries);
+    server = await b.serve(0);
+
+    let data = await get('/');
+    assert.equal(
+      data,
+      await fs.readFile(path.join(__dirname, '/dist/index.html', 'utf8'))
+    );
+
+    data = await get('/one.html');
+    assert.equal(
+      data,
+      await fs.readFile(path.join(__dirname, '/dist/one.html', 'utf8'))
+    );
+  });
+
   it('should serve a 404 if the file does not exist', async function() {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'));
     server = await b.serve(0);
