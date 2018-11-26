@@ -55,9 +55,14 @@ function middleware(bundler) {
         !pathname.startsWith(bundler.options.publicURL) ||
         path.extname(pathname) === ''
       ) {
-        // If the URL doesn't start with the public path, or the URL doesn't
-        // have a file extension, send the main HTML bundle.
-        return sendIndex();
+        // Try to find the index file. If not found, return a 404 error
+        const index = findIndex(pathname);
+        if (index) {
+          req.url = `/${path.basename(index)}`;
+          serve(req, res, send404);
+        } else {
+          send404();
+        }
       } else {
         // Otherwise, serve the file from the dist folder
         req.url = pathname.slice(bundler.options.publicURL.length);
@@ -65,14 +70,19 @@ function middleware(bundler) {
       }
     }
 
-    function sendIndex() {
-      // If the main asset is an HTML file, serve it
+    function findIndex(pathname) {
       if (bundler.mainBundle.type === 'html') {
-        req.url = `/${path.basename(bundler.mainBundle.name)}`;
-        serve(req, res, send404);
-      } else {
-        send404();
+        // If the bundle is HTML, send that
+        return bundler.mainBundle.name;
+      } else if (pathname === bundler.options.publicURL) {
+        // if the pathname is empty, look for files named index.html in the bundle and send back the first one. If there's nothing, return null;
+        const indexes = Array.from(bundler.mainBundle.childBundles).filter(
+          asset => path.basename(asset.name) === 'index.html'
+        );
+        return indexes[0].name;
       }
+
+      return null;
     }
 
     function send500(error) {
