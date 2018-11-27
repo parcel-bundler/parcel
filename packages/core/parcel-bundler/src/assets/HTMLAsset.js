@@ -178,9 +178,6 @@ class HTMLAsset extends Asset {
           if (node.tag === 'a' && attrVal.lastIndexOf('.') < 1) {
             continue;
           }
-
-          let elements = ATTRS[attr];
-
           if (elements && elements.includes(node.tag)) {
             let depHandler = this.getAttrDepHandler(attr);
             let options = OPTIONS[node.tag];
