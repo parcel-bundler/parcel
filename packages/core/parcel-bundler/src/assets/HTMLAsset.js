@@ -173,7 +173,6 @@ class HTMLAsset extends Asset {
           if (node.tag === 'a' && node.attrs[attr].lastIndexOf('.') < 1) {
             continue;
           }
-
           if (elements && elements.includes(node.tag)) {
             let depHandler = this.getAttrDepHandler(attr);
             let options = OPTIONS[node.tag];
@@ -270,6 +269,9 @@ class HTMLAsset extends Asset {
       } else if (type === 'tag') {
         if (rendition.isMain) {
           node.content = rendition.value;
+          if (node.attrs && rendition.type === 'js') {
+            node.attrs.type = 'application/javascript';
+          }
         }
 
         // Delete "type" attribute, since CSS and JS are the defaults.
