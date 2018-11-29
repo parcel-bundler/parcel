@@ -19,7 +19,9 @@ export default new Packager({
           let resolvedAsset = bundle.assets.find(
             a => a.filePath === dep.resolvedPath
           );
-          deps[dep.moduleSpecifier] = resolvedAsset.id;
+          if (resolvedAsset) {
+            deps[dep.moduleSpecifier] = resolvedAsset.id;
+          }
         }
 
         let wrapped = i === 0 ? '' : ',';
