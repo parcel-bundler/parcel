@@ -3,7 +3,7 @@ const commandExists = require('command-exists');
 const childProcess = require('child_process');
 const {promisify} = require('@parcel/utils');
 const exec = promisify(childProcess.execFile);
-const tomlify = require('tomlify-j0.4');
+const toml = require('@iarna/toml');
 const fs = require('@parcel/fs');
 const Asset = require('../Asset');
 const config = require('../utils/config');
@@ -118,7 +118,7 @@ class RustAsset extends Asset {
       cargoConfig.lib['crate-type'].push('cdylib');
       await fs.writeFile(
         path.join(cargoDir, 'Cargo.toml'),
-        tomlify.toToml(cargoConfig)
+        toml.stringify(cargoConfig)
       );
     }
 
