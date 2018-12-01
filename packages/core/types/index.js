@@ -171,7 +171,7 @@ export type ConfigOutput = {
 type Async<T> = T | Promise<T>;
 
 export type Transformer = {
-  getConfig?: (filePath: FilePath, opts: CLIOptions) => Async<ConfigOutput>,
+  getConfig?: (asset: Asset, opts: CLIOptions) => Async<ConfigOutput>,
   canReuseAST?: (ast: AST, opts: CLIOptions) => boolean,
   parse?: (asset: Asset, config: ?Config, opts: CLIOptions) => Async<?AST>,
   transform(

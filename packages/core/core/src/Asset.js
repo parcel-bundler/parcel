@@ -134,7 +134,7 @@ export default class Asset implements IAsset {
   }
 
   async getConfig(filePaths: Array<FilePath>) {
-    return config.load(filePaths);
+    return config.load(this.filePath, filePaths);
   }
 
   async getPackage() {

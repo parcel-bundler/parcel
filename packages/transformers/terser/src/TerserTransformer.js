@@ -1,7 +1,6 @@
 // @flow
 import {minify} from 'terser';
 import {Transformer} from '@parcel/plugin';
-import config from '@parcel/utils/config';
 
 // TODO: extract SourceMap from parcel-bundler ?
 // Just using an empty class skeleton for now so that linting doesn't fail
@@ -11,8 +10,8 @@ class SourceMap {
 }
 
 export default new Transformer({
-  async getConfig(filePath /* , options */) {
-    return config.load(filePath, [
+  async getConfig(asset) {
+    return asset.getConfig([
       '.terserrc',
       '.uglifyrc',
       '.uglifyrc.js',
@@ -20,7 +19,7 @@ export default new Transformer({
     ]);
   },
 
-  async transform(module, config, options) {
+  async transform(asset, config, options) {
     let terserOptions = {
       warnings: true,
       mangle: {
@@ -55,10 +54,13 @@ export default new Transformer({
       terserOptions = Object.assign({}, terserOptions, config);
     }
 
-    let result = minify(module.code, terserOptions);
+    let result = minify(asset.code, terserOptions);
 
-    if (sourceMap && module.map) {
-      sourceMap = await new SourceMap().extendSourceMap(module.map, sourceMap);
+    if (sourceMap && asset.output.map) {
+      sourceMap = await new SourceMap().extendSourceMap(
+        asset.output.map,
+        sourceMap
+      );
     }
 
     if (result.error) {

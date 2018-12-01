@@ -118,33 +118,35 @@ class TransformerRunner {
           assets.push(await finalize(asset, generate));
         } else {
           // Recursively run the remaining transforms in the pipeline.
-          let nextInput = input.createChildAsset(result);
-          let cacheEntry = await this.runPipeline(
-            nextInput,
+          let nextPipelineResult = await this.runPipeline(
+            asset,
             pipeline.slice(1),
             null,
             generate
           );
 
-          assets = assets.concat(cacheEntry.assets);
-          connectedFiles = connectedFiles.concat(cacheEntry.connectedFiles);
+          assets = assets.concat(nextPipelineResult.assets);
+          connectedFiles = connectedFiles.concat(
+            nextPipelineResult.connectedFiles
+          );
         }
       } else {
         // Jump to a different pipeline for the generated asset.
-        let nextInput = input.createChildAsset(result);
         let nextFilePath =
           input.filePath.slice(0, -path.extname(input.filePath).length) +
           '.' +
           result.type;
-        let cacheEntry = await this.runPipeline(
-          nextInput,
+        let nextPipelineResult = await this.runPipeline(
+          asset,
           await this.config.getTransformers(nextFilePath),
           null,
           generate
         );
 
-        assets = assets.concat(cacheEntry.assets);
-        connectedFiles = connectedFiles.concat(cacheEntry.connectedFiles);
+        assets = assets.concat(nextPipelineResult.assets);
+        connectedFiles = connectedFiles.concat(
+          nextPipelineResult.connectedFiles
+        );
       }
     }
 
@@ -167,7 +169,7 @@ class TransformerRunner {
     let config = null;
     let connectedFiles: Array<File> = [];
     if (transformer.getConfig) {
-      let result = await transformer.getConfig(input.filePath, this.cliOpts);
+      let result = await transformer.getConfig(input, this.cliOpts);
       if (result) {
         config = result.config;
         connectedFiles = result.files;
@@ -232,8 +234,10 @@ class TransformerRunner {
 async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
   if (asset.ast && generate) {
     asset.output = await generate(asset);
-    asset.ast = null;
   }
+
+  asset.ast = null;
+  asset.code = '';
 
   return asset;
 }
