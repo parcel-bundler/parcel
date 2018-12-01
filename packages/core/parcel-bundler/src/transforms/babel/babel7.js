@@ -7,7 +7,10 @@ async function babel7(asset, options) {
   // otherwise require a local version from the package we're compiling.
   let babel = options.internal
     ? require('@babel/core')
-    : await localRequire('@babel/core', asset.name);
+    : await localRequire(
+        '@babel/core',
+        path.join(asset.options.rootDir, 'index')
+      );
 
   let pkg = await asset.getPackage();
 

@@ -14,7 +14,7 @@ class SASSAsset extends Asset {
 
   async parse(code) {
     // node-sass or dart-sass should be installed locally in the module that's being required
-    let sass = await getSassRuntime(this.name);
+    let sass = await getSassRuntime(path.join(this.options.rootDir, 'index'));
     let render = promisify(sass.render.bind(sass));
     const resolver = new Resolver({
       extensions: ['.scss', '.sass'],

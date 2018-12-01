@@ -9,7 +9,10 @@ class ReasonAsset extends Asset {
   }
 
   async generate() {
-    const bsb = await localRequire('bsb-js', this.name);
+    const bsb = await localRequire(
+      'bsb-js',
+      path.join(this.options.rootDir, 'index')
+    );
 
     // This runs BuckleScript - the Reason to JS compiler.
     // Other Asset types use `localRequire` but the `bsb-js` package already

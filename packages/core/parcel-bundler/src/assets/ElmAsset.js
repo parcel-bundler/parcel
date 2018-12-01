@@ -21,7 +21,7 @@ class ElmAsset extends Asset {
     try {
       await commandExists('elm');
     } catch (err) {
-      await localRequire('elm', this.name);
+      await localRequire('elm', path.join(this.options.rootDir, 'index'));
       options.pathToElm = path.join(
         path.dirname(require.resolve('elm')),
         'bin',
@@ -29,7 +29,10 @@ class ElmAsset extends Asset {
       );
     }
 
-    this.elm = await localRequire('node-elm-compiler', this.name);
+    this.elm = await localRequire(
+      'node-elm-compiler',
+      path.join(this.options.rootDir, 'index')
+    );
 
     // Ensure that an elm.json file exists, and initialize one if not.
     let elmConfig = await this.getConfig(['elm.json'], {load: false});

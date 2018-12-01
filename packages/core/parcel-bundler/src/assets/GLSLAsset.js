@@ -11,7 +11,10 @@ class GLSLAsset extends Asset {
   }
 
   async parse() {
-    const glslifyDeps = await localRequire('glslify-deps', this.name);
+    const glslifyDeps = await localRequire(
+      'glslify-deps',
+      path.join(this.options.rootDir, 'index')
+    );
 
     // Use the Parcel resolver rather than the default glslify one.
     // This adds support for parcel features like aliases, and tilde paths.

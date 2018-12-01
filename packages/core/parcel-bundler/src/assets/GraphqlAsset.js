@@ -50,7 +50,10 @@ class GraphqlAsset extends Asset {
   }
 
   async parse(code) {
-    let gql = await localRequire('graphql-tag', this.name);
+    let gql = await localRequire(
+      'graphql-tag',
+      path.join(this.options.rootDir, 'index')
+    );
 
     await this.traverseImports(this.name, code);
 

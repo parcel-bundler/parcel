@@ -16,7 +16,10 @@ class StylusAsset extends Asset {
 
   async parse(code) {
     // stylus should be installed locally in the module that's being required
-    let stylus = await localRequire('stylus', this.name);
+    let stylus = await localRequire(
+      'stylus',
+      path.join(this.options.rootDir, 'index')
+    );
     let opts = await this.getConfig(['.stylusrc', '.stylusrc.js'], {
       packageKey: 'stylus'
     });
@@ -171,7 +174,7 @@ async function createEvaluator(code, asset, options) {
   const deps = await getDependencies(code, asset.name, asset, options);
   const Evaluator = await localRequire(
     'stylus/lib/visitor/evaluator',
-    asset.name
+    path.join(asset.options.rootDir, 'index')
   );
 
   // This is a custom stylus evaluator that extends stylus with support for the node

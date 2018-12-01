@@ -10,7 +10,10 @@ class PugAsset extends Asset {
   }
 
   async generate() {
-    const pug = await localRequire('pug', this.name);
+    const pug = await localRequire(
+      'pug',
+      path.join(this.options.rootDir, 'index')
+    );
     const config =
       (await this.getConfig(['.pugrc', '.pugrc.js', 'pug.config.js'])) || {};
 

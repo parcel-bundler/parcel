@@ -1,5 +1,6 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
+const path = require('path');
 
 class CoffeeScriptAsset extends Asset {
   constructor(name, options) {
@@ -9,7 +10,10 @@ class CoffeeScriptAsset extends Asset {
 
   async generate() {
     // require coffeescript, installed locally in the app
-    let coffee = await localRequire('coffeescript', this.name);
+    let coffee = await localRequire(
+      'coffeescript',
+      path.join(this.options.rootDir, 'index')
+    );
 
     // Transpile Module using CoffeeScript and parse result as ast format through babylon
     let transpiled = coffee.compile(this.contents, {

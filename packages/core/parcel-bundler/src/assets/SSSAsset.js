@@ -9,7 +9,10 @@ class SSSAsset extends Asset {
   }
 
   async generate() {
-    let sugarss = await localRequire('sugarss', this.name);
+    let sugarss = await localRequire(
+      'sugarss',
+      path.join(this.options.rootDir, 'index')
+    );
 
     await this.loadIfNeeded();
 

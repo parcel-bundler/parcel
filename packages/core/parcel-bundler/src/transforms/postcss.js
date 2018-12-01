@@ -49,14 +49,19 @@ async function getConfig(asset) {
   config.plugins = await loadPlugins(config.plugins, asset.name);
 
   if (config.modules || enableModules) {
-    let postcssModules = await localRequire('postcss-modules', asset.name);
+    let postcssModules = await localRequire(
+      'postcss-modules',
+      path.join(asset.options.rootDir, 'index')
+    );
     config.plugins.push(postcssModules(postcssModulesConfig));
   }
 
   if (asset.options.minify) {
     let [cssnano, {version}] = await Promise.all(
       ['cssnano', 'cssnano/package.json'].map(name =>
-        localRequire(name, asset.name).catch(() => require(name))
+        localRequire(name, path.join(asset.options.rootDir, 'index')).catch(
+          () => require(name)
+        )
       )
     );
     config.plugins.push(

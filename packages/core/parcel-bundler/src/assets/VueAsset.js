@@ -13,9 +13,12 @@ class VueAsset extends Asset {
     // Is being used in component-compiler-utils, errors if not installed...
     this.vueTemplateCompiler = await localRequire(
       'vue-template-compiler',
-      this.name
+      path.join(this.options.rootDir, 'index')
     );
-    this.vue = await localRequire('@vue/component-compiler-utils', this.name);
+    this.vue = await localRequire(
+      '@vue/component-compiler-utils',
+      path.join(this.options.rootDir, 'index')
+    );
 
     return this.vue.parse({
       source: code,
