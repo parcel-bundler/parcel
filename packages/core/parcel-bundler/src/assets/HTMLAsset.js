@@ -277,10 +277,10 @@ class HTMLAsset extends Asset {
       } else if (type === 'tag') {
         if (rendition.isMain) {
           node.content = rendition.value;
-          if (node.attrs && rendition.type === 'js') {
-            node.attrs.type = 'application/javascript';
-          }
-        }
+          if (node.attrs) {
+            if (rendition.type === 'js') {
+              node.attrs.type = 'application/javascript';
+            }
 
             if (rendition.type === 'css') {
               node.attrs.type = 'text/css';
