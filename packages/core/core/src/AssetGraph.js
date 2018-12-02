@@ -165,8 +165,8 @@ export default class AssetGraph extends Graph {
     this.incompleteNodes.delete(requestNode.id);
     this.invalidNodes.delete(requestNode.id);
 
-    // Get connected files at the file level and asset level and connect them to the file node
-    let fileNodes = cacheEntry.connectedFiles.map(file => nodeFromFile(file));
+    // Get connected files from each asset and connect them to the file node
+    let fileNodes = [];
     for (let asset of cacheEntry.assets) {
       let files = asset.connectedFiles.map(file => nodeFromFile(file));
       fileNodes = fileNodes.concat(files);

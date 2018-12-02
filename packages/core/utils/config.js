@@ -1,6 +1,17 @@
-const fs = require('@parcel/fs');
-const path = require('path');
-const clone = require('clone');
+// @flow
+import type {Config, File, FilePath} from '@parcel/types';
+import fs from '@parcel/fs';
+import path from 'path';
+import clone from 'clone';
+
+type ConfigOutput = {
+  config: Config,
+  files: Array<File>
+};
+
+type ConfigOptions = {
+  parse?: boolean
+};
 
 const PARSERS = {
   json: require('json5').parse,
@@ -9,7 +20,12 @@ const PARSERS = {
 
 const existsCache = new Map();
 
-async function resolve(filepath, filenames, root = path.parse(filepath).root) {
+export async function resolveConfig(
+  filepath: FilePath,
+  filenames: Array<FilePath>,
+  opts: ?ConfigOptions,
+  root: FilePath = path.parse(filepath).root
+): Promise<FilePath | null> {
   filepath = path.dirname(filepath);
 
   // Don't traverse above the module root
@@ -28,11 +44,15 @@ async function resolve(filepath, filenames, root = path.parse(filepath).root) {
     }
   }
 
-  return resolve(filepath, filenames, root);
+  return resolveConfig(filepath, filenames, opts);
 }
 
-async function load(filepath, filenames, root = path.parse(filepath).root) {
-  let configFile = await resolve(filepath, filenames, root);
+export async function loadConfig(
+  filepath: FilePath,
+  filenames: Array<FilePath>,
+  opts: ?ConfigOptions
+): Promise<ConfigOutput | null> {
+  let configFile = await resolveConfig(filepath, filenames, opts);
   if (configFile) {
     try {
       let extname = path.extname(configFile).slice(1);
@@ -43,9 +63,19 @@ async function load(filepath, filenames, root = path.parse(filepath).root) {
         };
       }
 
-      let configContent = (await fs.readFile(configFile)).toString();
-      let parse = PARSERS[extname] || PARSERS.json;
-      let config = configContent ? parse(configContent) : null;
+      let configContent = await fs.readFile(configFile, 'utf8');
+      if (!configContent) {
+        return null;
+      }
+
+      let config;
+      if (opts && opts.parse === false) {
+        config = configContent;
+      } else {
+        let parse = PARSERS[extname] || PARSERS.json;
+        config = parse(configContent);
+      }
+
       return {
         config: config,
         files: [{filePath: configFile}]
@@ -62,6 +92,3 @@ async function load(filepath, filenames, root = path.parse(filepath).root) {
 
   return null;
 }
-
-exports.resolve = resolve;
-exports.load = load;

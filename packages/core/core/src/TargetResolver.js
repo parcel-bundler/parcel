@@ -1,6 +1,6 @@
 // @flow
 import type {FilePath, PackageJSON, Target, Environment} from '@parcel/types';
-import config from '@parcel/utils/config';
+import {loadConfig} from '@parcel/utils/config';
 import path from 'path';
 
 const DEFAULT_ENGINES = {
@@ -16,7 +16,7 @@ const DEFAULT_ENV = {
 
 export default class TargetResolver {
   async resolve(rootDir: FilePath): Promise<Array<Target>> {
-    let conf = await config.load(path.join(rootDir, 'index'), ['package.json']);
+    let conf = await loadConfig(path.join(rootDir, 'index'), ['package.json']);
     if (!conf) {
       return this.getDefaultTargets();
     }

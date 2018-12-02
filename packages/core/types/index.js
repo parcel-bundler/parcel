@@ -130,8 +130,11 @@ export interface Asset {
   env: Environment;
   meta: JSONObject;
 
-  getConfig(filePaths: Array<FilePath>): Async<ConfigOutput>;
-  getPackage(): Async<PackageJSON>;
+  getConfig(
+    filePaths: Array<FilePath>,
+    options: ?{packageKey?: string, parse?: boolean}
+  ): Promise<Config | null>;
+  getPackage(): Promise<PackageJSON | null>;
   addDependency(dep: DependencyOptions): string;
   createChildAsset(result: TransformerResult): Asset;
 }
@@ -148,7 +151,7 @@ export type AST = {
   program: any
 };
 
-export type Config = JSONObject;
+export type Config = any;
 export type SourceMap = JSONObject;
 export type Blob = string | Buffer;
 
@@ -163,15 +166,10 @@ export type TransformerResult = {
   meta?: JSONObject
 };
 
-export type ConfigOutput = {
-  config: Config,
-  files: Array<File>
-};
-
 type Async<T> = T | Promise<T>;
 
 export type Transformer = {
-  getConfig?: (asset: Asset, opts: CLIOptions) => Async<ConfigOutput>,
+  getConfig?: (asset: Asset, opts: CLIOptions) => Async<Config | void>,
   canReuseAST?: (ast: AST, opts: CLIOptions) => boolean,
   parse?: (asset: Asset, config: ?Config, opts: CLIOptions) => Async<?AST>,
   transform(
@@ -196,8 +194,7 @@ export type CacheEntry = {
   env: Environment,
   hash: string,
   assets: Array<Asset>,
-  initialAssets: ?Array<Asset>, // Initial assets, pre-post processing
-  connectedFiles: Array<File> // File-level dependencies, e.g. config files.
+  initialAssets: ?Array<Asset> // Initial assets, pre-post processing
 };
 
 // TODO: what do we want to expose here?

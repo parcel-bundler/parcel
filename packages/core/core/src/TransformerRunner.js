@@ -44,7 +44,7 @@ class TransformerRunner {
     if (
       cacheEntry &&
       cacheEntry.hash === hash &&
-      (await checkCacheEntry(cacheEntry))
+      (await checkCachedAssets(cacheEntry.assets))
     ) {
       return cacheEntry;
     }
@@ -58,7 +58,7 @@ class TransformerRunner {
     });
 
     let pipeline = await this.config.getTransformers(req.filePath);
-    let {assets, initialAssets, connectedFiles} = await this.runPipeline(
+    let {assets, initialAssets} = await this.runPipeline(
       input,
       pipeline,
       cacheEntry
@@ -69,8 +69,7 @@ class TransformerRunner {
       env: req.env,
       hash,
       assets,
-      initialAssets,
-      connectedFiles
+      initialAssets
     };
 
     await this.cache.write(cacheEntry);
@@ -84,12 +83,11 @@ class TransformerRunner {
     previousGenerate: ?GenerateFunc
   ) {
     // Run the first transformer in the pipeline.
-    let {
-      results,
-      connectedFiles,
-      generate,
-      postProcess
-    } = await this.runTransform(input, pipeline[0], previousGenerate);
+    let {results, generate, postProcess} = await this.runTransform(
+      input,
+      pipeline[0],
+      previousGenerate
+    );
 
     let assets: Array<IAsset> = [];
     for (let result of results) {
@@ -126,9 +124,6 @@ class TransformerRunner {
           );
 
           assets = assets.concat(nextPipelineResult.assets);
-          connectedFiles = connectedFiles.concat(
-            nextPipelineResult.connectedFiles
-          );
         }
       } else {
         // Jump to a different pipeline for the generated asset.
@@ -144,9 +139,6 @@ class TransformerRunner {
         );
 
         assets = assets.concat(nextPipelineResult.assets);
-        connectedFiles = connectedFiles.concat(
-          nextPipelineResult.connectedFiles
-        );
       }
     }
 
@@ -155,8 +147,7 @@ class TransformerRunner {
 
     return {
       assets: finalAssets || assets,
-      initialAssets: finalAssets ? assets : null,
-      connectedFiles
+      initialAssets: finalAssets ? assets : null
     };
   }
 
@@ -167,13 +158,8 @@ class TransformerRunner {
   ) {
     // Load config for the transformer.
     let config = null;
-    let connectedFiles: Array<File> = [];
     if (transformer.getConfig) {
-      let result = await transformer.getConfig(input, this.cliOpts);
-      if (result) {
-        config = result.config;
-        connectedFiles = result.files;
-      }
+      config = await transformer.getConfig(input, this.cliOpts);
     }
 
     // If an ast exists on the input, but we cannot reuse it,
@@ -227,7 +213,7 @@ class TransformerRunner {
       return null;
     };
 
-    return {results, connectedFiles, generate, postProcess};
+    return {results, generate, postProcess};
   }
 }
 
@@ -240,15 +226,6 @@ async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
   asset.code = '';
 
   return asset;
-}
-
-async function checkCacheEntry(cacheEntry: CacheEntry): Promise<boolean> {
-  let results = await Promise.all([
-    checkConnectedFiles(cacheEntry.connectedFiles),
-    checkCachedAssets(cacheEntry.assets)
-  ]);
-
-  return results.every(Boolean);
 }
 
 async function checkCachedAssets(assets: Array<IAsset>): Promise<boolean> {
