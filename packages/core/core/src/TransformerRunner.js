@@ -1,18 +1,14 @@
 // @flow
 import type {
-  Asset,
+  Asset as IAsset,
   AssetOutput,
   CacheEntry,
-  Dependency,
-  Environment,
   File,
-  JSONObject,
   Transformer,
   TransformerRequest,
-  TransformerInput,
-  TransformerResult,
   CLIOptions
 } from '@parcel/types';
+import Asset from './Asset';
 import path from 'path';
 import clone from 'clone';
 import md5 from '@parcel/utils/md5';
@@ -26,15 +22,7 @@ type Opts = {
   cache?: Cache
 };
 
-type GenerateFunc = ?(input: TransformerInput) => Promise<AssetOutput>;
-type TransformContext = {
-  type: string,
-  hash?: string,
-  dependencies: Array<Dependency>,
-  connectedFiles: Array<File>,
-  generate?: GenerateFunc,
-  meta?: JSONObject
-};
+type GenerateFunc = ?(input: Asset) => Promise<AssetOutput>;
 
 class TransformerRunner {
   cliOpts: CLIOptions;
@@ -61,26 +49,21 @@ class TransformerRunner {
       return cacheEntry;
     }
 
-    let input: TransformerInput = {
+    let input = new Asset({
       filePath: req.filePath,
+      type: path.extname(req.filePath).slice(1),
       ast: null,
       code,
       env: req.env
-    };
-
-    let context = {
-      type: path.extname(req.filePath).slice(1),
-      dependencies: [],
-      connectedFiles: []
-    };
+    });
 
     let pipeline = await this.config.getTransformers(req.filePath);
     let {assets, initialAssets, connectedFiles} = await this.runPipeline(
       input,
       pipeline,
-      cacheEntry,
-      context
+      cacheEntry
     );
+
     cacheEntry = {
       filePath: req.filePath,
       env: req.env,
@@ -95,10 +78,10 @@ class TransformerRunner {
   }
 
   async runPipeline(
-    input: TransformerInput,
+    input: Asset,
     pipeline: Array<Transformer>,
     cacheEntry: ?CacheEntry,
-    context: TransformContext
+    previousGenerate: ?GenerateFunc
   ) {
     // Run the first transformer in the pipeline.
     let {
@@ -106,25 +89,17 @@ class TransformerRunner {
       connectedFiles,
       generate,
       postProcess
-    } = await this.runTransform(input, pipeline[0], context.generate);
+    } = await this.runTransform(input, pipeline[0], previousGenerate);
 
-    context.generate = generate;
-
-    let assets: Array<Asset> = [];
+    let assets: Array<IAsset> = [];
     for (let result of results) {
-      let asset;
-
-      // If this is the first transformer, create a hash for the asset.
-      if (!context.hash) {
-        asset = await transformerResultToAsset(input, result, context);
-        context.hash = asset.hash;
-      }
+      let asset = input.createChildAsset(result);
 
       // Check if any of the cached assets match the result.
       if (cacheEntry) {
         let cachedAssets = (
           cacheEntry.initialAssets || cacheEntry.assets
-        ).filter(child => child.hash === context.hash);
+        ).filter(child => child.hash === asset.hash);
 
         if (
           cachedAssets.length > 0 &&
@@ -136,46 +111,47 @@ class TransformerRunner {
       }
 
       // If the generated asset has the same type as the input...
-      if (result.type === context.type) {
+      // TODO: this is incorrect since multiple file types could map to the same pipeline. need to compare the pipelines.
+      if (result.type === input.type) {
         // If we have reached the last transform in the pipeline, then we are done.
         if (pipeline.length === 1) {
-          assets.push(
-            asset || (await transformerResultToAsset(input, result, context))
-          );
+          assets.push(await finalize(asset, generate));
         } else {
           // Recursively run the remaining transforms in the pipeline.
-          let nextInput = transformerResultToInput(input, result);
-          let cacheEntry = await this.runPipeline(
-            nextInput,
+          let nextPipelineResult = await this.runPipeline(
+            asset,
             pipeline.slice(1),
             null,
-            getNextContext(context, input, result)
+            generate
           );
 
-          assets = assets.concat(cacheEntry.assets);
-          connectedFiles = connectedFiles.concat(cacheEntry.connectedFiles);
+          assets = assets.concat(nextPipelineResult.assets);
+          connectedFiles = connectedFiles.concat(
+            nextPipelineResult.connectedFiles
+          );
         }
       } else {
         // Jump to a different pipeline for the generated asset.
-        let nextInput = transformerResultToInput(input, result);
         let nextFilePath =
           input.filePath.slice(0, -path.extname(input.filePath).length) +
           '.' +
           result.type;
-        let cacheEntry = await this.runPipeline(
-          nextInput,
+        let nextPipelineResult = await this.runPipeline(
+          asset,
           await this.config.getTransformers(nextFilePath),
           null,
-          getNextContext(context, input, result)
+          generate
         );
 
-        assets = assets.concat(cacheEntry.assets);
-        connectedFiles = connectedFiles.concat(cacheEntry.connectedFiles);
+        assets = assets.concat(nextPipelineResult.assets);
+        connectedFiles = connectedFiles.concat(
+          nextPipelineResult.connectedFiles
+        );
       }
     }
 
     // If the transformer has a postProcess function, execute that with the result of the pipeline.
-    let finalAssets = await postProcess(clone(assets), context);
+    let finalAssets = await postProcess(clone(assets));
 
     return {
       assets: finalAssets || assets,
@@ -185,7 +161,7 @@ class TransformerRunner {
   }
 
   async runTransform(
-    input: TransformerInput,
+    input: Asset,
     transformer: Transformer,
     previousGenerate: GenerateFunc
   ) {
@@ -222,7 +198,7 @@ class TransformerRunner {
     let results = await transformer.transform(input, config, this.cliOpts);
 
     // Create a generate function that can be called later to lazily generate
-    let generate = async (input: TransformerInput): Promise<AssetOutput> => {
+    let generate = async (input: Asset): Promise<AssetOutput> => {
       if (transformer.generate) {
         return await transformer.generate(input, config, this.cliOpts);
       }
@@ -234,8 +210,7 @@ class TransformerRunner {
 
     // Create a postProcess function that can be called later
     let postProcess = async (
-      assets: Array<Asset>,
-      context: TransformContext
+      assets: Array<IAsset>
     ): Promise<Array<Asset> | null> => {
       if (transformer.postProcess) {
         let results = await transformer.postProcess(
@@ -245,9 +220,7 @@ class TransformerRunner {
         );
 
         return Promise.all(
-          results.map(result =>
-            transformerResultToAsset(input, result, context)
-          )
+          results.map(result => input.createChildAsset(result))
         );
       }
 
@@ -258,97 +231,15 @@ class TransformerRunner {
   }
 }
 
-async function getOutput(
-  input: TransformerInput,
-  result: TransformerResult,
-  context: TransformContext
-): Promise<AssetOutput> {
-  let output: AssetOutput = result.output || {code: result.code || ''};
-  if (result.code) {
-    output = clone(output);
-    output.code = result.code || '';
+async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
+  if (asset.ast && generate) {
+    asset.output = await generate(asset);
   }
 
-  if (result.ast && context.generate) {
-    output = await context.generate(transformerResultToInput(input, result));
-  }
+  asset.ast = null;
+  asset.code = '';
 
-  return output;
-}
-
-async function transformerResultToAsset(
-  input: TransformerInput,
-  result: TransformerResult,
-  context: TransformContext
-): Promise<Asset> {
-  let output = await getOutput(input, result, context);
-  let env = mergeEnvironment(input.env, result.env);
-  let dependencies = (result.dependencies || []).map(dep =>
-    toDependency(input, dep)
-  );
-
-  let connectedFiles = context.connectedFiles.concat(
-    result.connectedFiles || []
-  );
-  await Promise.all(
-    connectedFiles.map(async file => {
-      if (!file.hash) {
-        file.hash = await md5.file(file.filePath);
-      }
-    })
-  );
-
-  return {
-    id: md5(input.filePath + result.type + JSON.stringify(env)),
-    hash: context.hash || md5(output.code),
-    filePath: input.filePath,
-    type: result.type,
-    dependencies: context.dependencies.concat(dependencies),
-    connectedFiles,
-    output,
-    env,
-    meta: Object.assign({}, context.meta, result.meta)
-  };
-}
-
-function toDependency(input: TransformerInput, dep: Dependency): Dependency {
-  dep.env = mergeEnvironment(input.env, dep.env);
-  return dep;
-}
-
-function transformerResultToInput(
-  input: TransformerInput,
-  result: TransformerResult
-): TransformerInput {
-  return {
-    filePath: input.filePath,
-    code: result.code || (result.output && result.output.code) || input.code,
-    ast: result.ast || input.ast,
-    env: mergeEnvironment(input.env, result.env)
-  };
-}
-
-function mergeEnvironment(a: Environment, b: ?Environment): Environment {
-  return Object.assign({}, a, b);
-}
-
-function getNextContext(
-  context: TransformContext,
-  input: TransformerInput,
-  result: TransformerResult
-): TransformContext {
-  let dependencies = (result.dependencies || []).map(dep =>
-    toDependency(input, dep)
-  );
-
-  return {
-    type: result.type,
-    generate: context.generate,
-    dependencies: context.dependencies.concat(dependencies),
-    connectedFiles: context.connectedFiles.concat(result.connectedFiles || []),
-    hash: context.hash,
-    meta: Object.assign({}, context.meta, result.meta)
-  };
+  return asset;
 }
 
 async function checkCacheEntry(cacheEntry: CacheEntry): Promise<boolean> {
@@ -360,7 +251,7 @@ async function checkCacheEntry(cacheEntry: CacheEntry): Promise<boolean> {
   return results.every(Boolean);
 }
 
-async function checkCachedAssets(assets: Array<Asset>): Promise<boolean> {
+async function checkCachedAssets(assets: Array<IAsset>): Promise<boolean> {
   let results = await Promise.all(
     assets.map(asset => checkConnectedFiles(asset.connectedFiles))
   );

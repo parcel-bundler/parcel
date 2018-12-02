@@ -141,9 +141,8 @@ export default class Graph {
 
       edgesToRemove = edgesToRemove.filter(edge => edge.to !== toNode.id);
 
-      let edge = edgesBefore.find(edge => edge.to === toNode.id);
-      if (!edge) {
-        edge = {from: fromNode.id, to: toNode.id};
+      let edge = {from: fromNode.id, to: toNode.id};
+      if (!this.hasEdge(edge)) {
         this.addEdge(edge);
         added.addEdge(edge);
       }

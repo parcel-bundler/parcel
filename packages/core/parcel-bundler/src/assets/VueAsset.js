@@ -100,7 +100,7 @@ class VueAsset extends Asset {
     supplemental += this.compileCSSModules(generated, optsVar);
     supplemental += this.compileHMR(generated, optsVar);
 
-    if (this.options.minify && !this.options.scopeHoist && supplemental) {
+    if (this.options.minify && !this.options.scopeHoist) {
       let {code, error} = minify(supplemental, {toplevel: true});
       if (error) {
         throw error;

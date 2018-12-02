@@ -60,7 +60,7 @@ class GraphqlAsset extends Asset {
   }
 
   generate() {
-    return `module.exports=${JSON.stringify(this.ast, false, 2)};`;
+    return `module.exports=${JSON.stringify(this.ast, null, 2)};`;
   }
 }
 

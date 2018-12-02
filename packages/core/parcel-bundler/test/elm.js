@@ -14,6 +14,23 @@ describe('elm', function() {
     let output = await run(b);
     assert.equal(typeof output().Elm.Main.init, 'function');
   });
+  it('should produce a elm bundle with debugger', async function() {
+    let b = await bundle(__dirname + '/integration/elm/index.js');
+
+    await run(b);
+    let js = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
+    assert(js.includes('elm$browser$Debugger'));
+  });
+
+  it('should remove debugger in production', async function() {
+    let b = await bundle(__dirname + '/integration/elm/index.js', {
+      production: true
+    });
+
+    await run(b);
+    let js = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
+    assert(!js.includes('elm$browser$Debugger'));
+  });
 
   it('should minify Elm in production mode', async function() {
     let b = await bundle(__dirname + '/integration/elm/index.js', {
