@@ -202,6 +202,7 @@ class HTMLAsset extends Asset {
 
   async generate() {
     // Extract inline <script> and <style> tags for processing.
+
     let parts = [];
     this.ast.walk(node => {
       if (node.tag === 'script' || node.tag === 'style') {
@@ -269,19 +270,15 @@ class HTMLAsset extends Asset {
       } else if (type === 'tag') {
         if (rendition.isMain) {
           node.content = rendition.value;
-          if (node.attrs && rendition.type === 'js') {
-            node.attrs.type = 'application/javascript';
-          }
-        }
+          if (node.attrs) {
+            if (rendition.type === 'js') {
+              node.attrs.type = 'application/javascript';
+            }
 
-        // Delete "type" attribute, since CSS and JS are the defaults.
-        // Unless it's application/ld+json
-        if (
-          node.attrs &&
-          (node.tag === 'style' ||
-            (node.attrs.type && SCRIPT_TYPES[node.attrs.type] === 'js'))
-        ) {
-          delete node.attrs.type;
+            if (rendition.type === 'css') {
+              node.attrs.type = 'text/css';
+            }
+          }
         }
       }
     }
