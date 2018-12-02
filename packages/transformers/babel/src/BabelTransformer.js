@@ -8,10 +8,7 @@ import getBabelConfig from './config';
 
 export default new Transformer({
   async getConfig(asset) {
-    return {
-      config: await getBabelConfig(asset),
-      files: []
-    };
+    return await getBabelConfig(asset);
   },
 
   canReuseAST(ast) {
@@ -19,28 +16,17 @@ export default new Transformer({
   },
 
   async transform(asset, config) {
-    let ast;
-    if (config[6]) {
-      ast = await babel6(asset, config[6]);
-    }
-
-    if (config[7]) {
-      ast = await babel7(asset, config[7]);
-    }
-
-    return [
-      {
-        type: 'js',
-        ast: ast
-          ? {
-              type: 'babel',
-              version: '7.0.0',
-              program: ast
-            }
-          : null,
-        code: asset.code
+    if (config) {
+      if (config[6]) {
+        asset.ast = await babel6(asset, config[6]);
       }
-    ];
+
+      if (config[7]) {
+        asset.ast = await babel7(asset, config[7]);
+      }
+    }
+
+    return [asset];
   },
 
   generate(asset, config, options) {

@@ -1,13 +1,17 @@
-const semver = require('semver');
-const logger = require('@parcel/logger');
-const path = require('path');
-const localRequire = require('@parcel/utils/localRequire');
-const installPackage = require('@parcel/utils/installPackage');
-const fs = require('@parcel/fs');
-const micromatch = require('micromatch');
-import Config from '@parcel/utils/config';
+// @flow
+import type {Asset, PackageJSON} from '@parcel/types';
+import semver from 'semver';
+import logger from '@parcel/logger';
+import path from 'path';
+import localRequire from '@parcel/utils/localRequire';
+import installPackage from '@parcel/utils/installPackage';
+import micromatch from 'micromatch';
 
-async function getBabelConfig(asset, pkg, isSource) {
+export default async function getBabelConfig(
+  asset: Asset,
+  pkg: ?PackageJSON,
+  isSource: boolean
+) {
   let config = await getBabelRc(asset, pkg, isSource);
   if (!config) {
     return null;
@@ -29,8 +33,6 @@ async function getBabelConfig(asset, pkg, isSource) {
     config
   };
 }
-
-module.exports = getBabelConfig;
 
 /**
  * Finds a .babelrc for an asset. By default, .babelrc files inside node_modules are not used.
@@ -70,16 +72,13 @@ async function findBabelRc(asset) {
   // TODO: use the babel API to do this config resolution and support all of its features.
   // This is not currently possible because babel tries to actually load plugins and presets
   // while resolving the config, but those plugins might not be installed yet.
-  let config = await Config.load(asset.filePath, ['.babelrc', '.babelrc.js']);
-  // let config = await asset.getConfig(['.babelrc', '.babelrc.js'], {
-  //   packageKey: 'babel'
-  // });
+  let config = await asset.getConfig(['.babelrc', '.babelrc.js'], {
+    packageKey: 'babel'
+  });
 
   if (!config) {
     return null;
   }
-
-  config = config.config;
 
   if (typeof config === 'function') {
     // We cannot support function configs since there is no exposed method in babel
@@ -112,16 +111,15 @@ async function findBabelRc(asset) {
 }
 
 async function getIgnoreConfig(asset) {
-  let ignoreFile = await asset.getConfig(['.babelignore'], {
-    load: false
+  let ignore: string | null = await asset.getConfig(['.babelignore'], {
+    parse: false
   });
 
-  if (!ignoreFile) {
+  if (!ignore) {
     return null;
   }
 
-  let data = await fs.readFile(ignoreFile, 'utf8');
-  let patterns = data
+  let patterns = ignore
     .split('\n')
     .map(line => line.replace(/#.*$/, '').trim())
     .filter(Boolean);
@@ -156,16 +154,18 @@ function matchesPatterns(patterns, path) {
 }
 
 async function getBabelVersion(asset, pkg, plugins) {
-  // Check the package.json to determine the babel version that is installed
-  let babelLegacy = getDependency(pkg, 'babel-core');
-  let babelModern = getDependency(pkg, '@babel/core');
+  if (pkg) {
+    // Check the package.json to determine the babel version that is installed
+    let babelLegacy = getDependency(pkg, 'babel-core');
+    let babelModern = getDependency(pkg, '@babel/core');
 
-  if (babelModern) {
-    return getMaxMajor(babelModern);
-  }
+    if (babelModern) {
+      return getMaxMajor(babelModern) || 7;
+    }
 
-  if (babelLegacy) {
-    return 6;
+    if (babelLegacy) {
+      return 6;
+    }
   }
 
   // No version was installed. This is either an old app where we didn't require a version to be installed,
@@ -174,7 +174,7 @@ async function getBabelVersion(asset, pkg, plugins) {
   // in the config. This should only happen once since we save babel core into package.json for subsequent runs.
   let inferred = await inferBabelVersion(asset, plugins);
   let name = inferred === 6 ? 'babel-core' : `@babel/core`;
-  await installPackage(name, asset.name);
+  await installPackage(name, asset.filePath);
   return inferred;
 }
 

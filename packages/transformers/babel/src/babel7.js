@@ -1,6 +1,8 @@
-const localRequire = require('@parcel/utils/localRequire');
+// @flow
+import type {Asset} from '@parcel/types';
+import localRequire from '@parcel/utils/localRequire';
 
-async function babel7(asset, options) {
+export default async function babel7(asset: Asset, options) {
   let config = options.config;
 
   // If this is an internally generated config, use our internal @babel/core,
@@ -13,7 +15,7 @@ async function babel7(asset, options) {
 
   config.code = false;
   config.ast = true;
-  config.filename = asset.name;
+  config.filename = asset.filePath;
   // config.cwd = pkg ? pkg.pkgdir : asset.options.rootDir;
   config.babelrc = false;
   config.configFile = false;
@@ -26,7 +28,7 @@ async function babel7(asset, options) {
 
   let res;
   if (asset.ast) {
-    res = babel.transformFromAst(asset.ast, asset.code, config);
+    res = babel.transformFromAst(asset.ast.program, asset.code, config);
   } else {
     res = babel.transformSync(asset.code, config);
   }
@@ -35,5 +37,3 @@ async function babel7(asset, options) {
     return res.ast;
   }
 }
-
-module.exports = babel7;

@@ -1,8 +1,8 @@
-const traverse = require('@babel/traverse').default;
+import traverse from '@babel/traverse';
 
 // Convert between babel 7 and babel 6 AST
 // More info on the AST Changes: https://babeljs.io/docs/en/v7-migration-api#ast-changes
-function babel7toBabel6(ast) {
+export function babel7toBabel6(ast) {
   const visitor = {
     ArrowFunctionExpression: node => {
       node.expression = node.body.type !== 'BlockStatement';
@@ -55,7 +55,7 @@ function babel7toBabel6(ast) {
   return ast;
 }
 
-function babel6toBabel7(ast) {
+export function babel6toBabel7(ast) {
   const visitor = {
     ArrowFunctionExpression: node => {
       delete node.expression;
@@ -100,6 +100,3 @@ function babel6toBabel7(ast) {
 
   return ast;
 }
-
-exports.babel7toBabel6 = babel7toBabel6;
-exports.babel6toBabel7 = babel6toBabel7;

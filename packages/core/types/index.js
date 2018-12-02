@@ -56,6 +56,10 @@ export type Environment = {
   includeNodeModules?: boolean
 };
 
+type PackageDependencies = {
+  [PackageName]: Semver
+};
+
 export type PackageJSON = {
   name: PackageName,
   version: Semver,
@@ -70,7 +74,10 @@ export type PackageJSON = {
   engines?: Engines,
   targets?: {
     [string]: Environment
-  }
+  },
+  dependencies?: PackageDependencies,
+  devDependencies?: PackageDependencies,
+  peerDependencies?: PackageDependencies
 };
 
 export type CLIOptions = {

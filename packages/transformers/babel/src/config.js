@@ -1,28 +1,18 @@
-const getBabelRc = require('./babelrc');
-const getEnvConfig = require('./env');
-const getJSXConfig = require('./jsx');
-const getFlowConfig = require('./flow');
-const path = require('path');
-const fs = require('@parcel/fs');
-import config from '@parcel/utils/config';
+// @flow
+import type {Asset} from '@parcel/types';
+import getBabelRc from './babelrc';
+import getEnvConfig from './env';
+import getJSXConfig from './jsx';
+import getFlowConfig from './flow';
+import path from 'path';
+import fs from 'fs';
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
-const ENV_PLUGINS = require('@babel/preset-env/data/plugins');
-const ENV_PRESETS = {
-  es2015: true,
-  es2016: true,
-  es2017: true,
-  latest: true,
-  env: true,
-  '@babel/preset-env': true,
-  '@babel/env': true
-};
 
-async function getBabelConfig(asset) {
+export default async function getBabelConfig(asset: Asset) {
   // Consider the module source code rather than precompiled if the resolver
   // used the `source` field, or it is not in node_modules.
-  let c = await config.load(asset.filePath, ['package.json']);
-  let pkg = c && c.config;
+  let pkg = await asset.getPackage();
   let isSource =
     !!(
       pkg &&
@@ -34,29 +24,22 @@ async function getBabelConfig(asset) {
   let babelrc = await getBabelRc(asset, pkg, isSource);
   isSource = isSource || !!babelrc;
 
-  let envConfig = await getEnvConfig(asset, isSource);
-  let jsxConfig = await getJSXConfig(asset, pkg, isSource);
-  let flowConfig = getFlowConfig(asset, isSource);
-
-  if (babelrc && envConfig) {
-    // Filter out presets that are already applied by @babel/preset-env
-    if (Array.isArray(babelrc.config.presets)) {
-      babelrc.config.presets = babelrc.config.presets.filter(preset => {
-        return !ENV_PRESETS[getPluginName(preset)];
-      });
-    }
-
-    // Filter out plugins that are already applied by @babel/preset-env
-    if (Array.isArray(babelrc.config.plugins)) {
-      babelrc.config.plugins = babelrc.config.plugins.filter(plugin => {
-        return !ENV_PLUGINS[getPluginName(plugin)];
-      });
-    }
-  }
-
   let result = {};
   mergeConfigs(result, babelrc);
-  mergeConfigs(result, envConfig);
+
+  // Add a generated babel-preset-env config if it is not already specified in the babelrc
+  let hasEnv =
+    babelrc &&
+    hasPlugin(babelrc.config.presets, [
+      'env',
+      '@babel/env',
+      '@babel/preset-env'
+    ]);
+
+  if (!hasEnv) {
+    let envConfig = await getEnvConfig(asset, isSource);
+    mergeConfigs(result, envConfig);
+  }
 
   // Add JSX config if it isn't already specified in the babelrc
   let hasReact =
@@ -73,6 +56,7 @@ async function getBabelConfig(asset) {
       ]));
 
   if (!hasReact) {
+    let jsxConfig = await getJSXConfig(asset, pkg, isSource);
     mergeConfigs(result, jsxConfig);
   }
 
@@ -86,13 +70,12 @@ async function getBabelConfig(asset) {
     ]);
 
   if (!hasFlow) {
+    let flowConfig = getFlowConfig(asset);
     mergeConfigs(result, flowConfig);
   }
 
   return result;
 }
-
-module.exports = getBabelConfig;
 
 function mergeConfigs(result, config) {
   if (

@@ -1,4 +1,6 @@
-const path = require('path');
+// @flow
+import type {Asset, PackageJSON} from '@parcel/types';
+import path from 'path';
 
 const JSX_EXTENSIONS = {
   '.jsx': true,
@@ -16,7 +18,11 @@ const JSX_PRAGMA = {
  * Generates a babel config for JSX. Attempts to detect react or react-like libraries
  * and changes the pragma accordingly.
  */
-async function getJSXConfig(asset, pkg, isSourceModule) {
+export default async function getJSXConfig(
+  asset: Asset,
+  pkg: ?PackageJSON,
+  isSourceModule: boolean
+) {
   // Don't enable JSX in node_modules
   if (!isSourceModule) {
     return null;
@@ -45,5 +51,3 @@ async function getJSXConfig(asset, pkg, isSourceModule) {
     };
   }
 }
-
-module.exports = getJSXConfig;

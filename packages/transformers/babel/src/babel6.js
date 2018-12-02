@@ -1,7 +1,9 @@
-const localRequire = require('@parcel/utils/localRequire');
-const {babel6toBabel7} = require('./astConverter');
+// @flow
+import type {Asset} from '@parcel/types';
+import localRequire from '@parcel/utils/localRequire';
+import {babel6toBabel7} from './astConverter';
 
-async function babel6(asset, options) {
+export default async function babel6(asset: Asset, options) {
   let babel = await localRequire('babel-core', asset.filePath);
 
   let config = options.config;
@@ -36,5 +38,3 @@ function dynamicImport() {
     }
   };
 }
-
-module.exports = babel6;

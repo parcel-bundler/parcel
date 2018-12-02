@@ -1,14 +1,18 @@
-const presetEnv = require('@babel/preset-env');
-const getTargetEngines = require('./getTargetEngines');
+// @flow
+import type {Asset} from '@parcel/types';
+import presetEnv from '@babel/preset-env';
+import getTargetEngines from './getTargetEngines';
 
 /**
  * Generates a @babel/preset-env config for an asset.
  * This is done by finding the source module's target engines, and the app's
  * target engines, and doing a diff to include only the necessary plugins.
  */
-async function getEnvConfig(asset, isSourceModule) {
+export default async function getEnvConfig(
+  asset: Asset,
+  isSourceModule: boolean
+) {
   // Load the target engines for the app and generate a @babel/preset-env config
-  // let targetEngines = await getTargetEngines(asset, true);
   let targetEngines = asset.env.engines;
   let targetEnv = await getEnvPlugins(targetEngines, true);
   if (!targetEnv) {
@@ -17,16 +21,16 @@ async function getEnvConfig(asset, isSourceModule) {
 
   // If this is the app module, the source and target will be the same, so just compile everything.
   // Otherwise, load the source engines and generate a babel-present-env config.
-  // if (!isSourceModule) {
-  //   let sourceEngines = await getTargetEngines(asset, false);
-  //   let sourceEnv = (await getEnvPlugins(sourceEngines, false)) || targetEnv;
+  if (!isSourceModule) {
+    let sourceEngines = await getTargetEngines(asset);
+    let sourceEnv = (await getEnvPlugins(sourceEngines, false)) || targetEnv;
 
-  //   // Do a diff of the returned plugins. We only need to process the remaining plugins to get to the app target.
-  //   let sourcePlugins = new Set(sourceEnv.map(p => p[0]));
-  //   targetEnv = targetEnv.filter(plugin => {
-  //     return !sourcePlugins.has(plugin[0]);
-  //   });
-  // }
+    // Do a diff of the returned plugins. We only need to process the remaining plugins to get to the app target.
+    let sourcePlugins = new Set(sourceEnv.map(p => p[0]));
+    targetEnv = targetEnv.filter(plugin => {
+      return !sourcePlugins.has(plugin[0]);
+    });
+  }
 
   return {
     internal: true,
@@ -49,12 +53,12 @@ async function getEnvPlugins(targets, useBuiltIns = false) {
     return envCache.get(key);
   }
 
-  let plugins = presetEnv.default(
+  let plugins = presetEnv(
     {assertVersion: () => true},
     {
       targets,
       modules: false,
-      useBuiltIns: useBuiltIns ? 'entry' : false,
+      useBuiltIns: useBuiltIns ? 'usage' : false,
       shippedProposals: true
     }
   ).plugins;
@@ -62,5 +66,3 @@ async function getEnvPlugins(targets, useBuiltIns = false) {
   envCache.set(key, plugins);
   return plugins;
 }
-
-module.exports = getEnvConfig;
