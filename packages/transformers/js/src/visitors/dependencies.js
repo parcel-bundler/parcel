@@ -53,7 +53,7 @@ export default {
       types.isStringLiteral(args[0]);
 
     if (isDynamicImport) {
-      asset.dependencies.push({moduleSpecifier: '_bundle_loader'});
+      asset.addDependency({moduleSpecifier: '_bundle_loader'});
       addDependency(asset, args[0], {isAsync: true});
 
       node.callee = requireTemplate().expression;
@@ -71,7 +71,7 @@ export default {
       // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
       addURLDependency(asset, args[0], {
         isEntry: true,
-        context: 'serviceworker'
+        context: 'service-worker'
       });
       return;
     }
@@ -87,7 +87,7 @@ export default {
       types.isStringLiteral(args[0]);
 
     if (isWebWorker) {
-      addURLDependency(asset, args[0], {context: 'webworker'});
+      addURLDependency(asset, args[0], {context: 'web-worker'});
       return;
     }
   }
@@ -176,7 +176,7 @@ function addDependency(asset, node, opts = {}) {
     }
   }
 
-  asset.dependencies.push(
+  asset.addDependency(
     Object.assign(
       {
         moduleSpecifier: node.value,
@@ -190,10 +190,6 @@ function addDependency(asset, node, opts = {}) {
 function addURLDependency(asset, node, opts = {}) {
   opts.loc = node.loc && node.loc.start;
 
-  let assetPath = asset.addURLDependency(node.value, opts);
-  if (!isURL(assetPath)) {
-    assetPath = urlJoin(asset.options.publicURL, assetPath);
-  }
-  node.value = assetPath;
+  node.value = asset.addDependency({moduleSpecifier: node.value, ...opts});
   asset.ast.isDirty = true;
 }

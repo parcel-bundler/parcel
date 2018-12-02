@@ -13,6 +13,7 @@ import type {
 } from '@parcel/types';
 import path from 'path';
 import md5 from '@parcel/utils/md5';
+import createDependency from './createDependency';
 
 export const nodeFromRootDir = (rootDir: string) => ({
   id: rootDir,
@@ -21,9 +22,7 @@ export const nodeFromRootDir = (rootDir: string) => ({
 });
 
 export const nodeFromDep = (dep: Dependency) => ({
-  id: md5(
-    `${dep.sourcePath}:${dep.moduleSpecifier}:${JSON.stringify(dep.env)}`
-  ),
+  id: dep.id,
   type: 'dependency',
   value: dep
 });
@@ -104,11 +103,15 @@ export default class AssetGraph extends Graph {
     let depNodes = [];
     for (let entry of entries) {
       for (let target of targets) {
-        let node = nodeFromDep({
-          sourcePath: path.resolve(rootDir, 'index'),
-          moduleSpecifier: entry,
-          env: target.env
-        });
+        let node = nodeFromDep(
+          createDependency(
+            {
+              moduleSpecifier: entry,
+              env: target.env
+            },
+            path.resolve(rootDir, 'index')
+          )
+        );
 
         depNodes.push(node);
       }
@@ -182,9 +185,7 @@ export default class AssetGraph extends Graph {
     let removedFiles = getFilesFromGraph(removed);
 
     for (let assetNode of assetNodes) {
-      // TODO: dep should already have sourcePath
       let depNodes = assetNode.value.dependencies.map(dep => {
-        dep.sourcePath = req.filePath;
         return nodeFromDep(dep);
       });
       let {removed, added} = this.replaceNodesConnectedTo(assetNode, depNodes);

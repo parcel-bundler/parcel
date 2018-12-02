@@ -85,8 +85,7 @@ export type SourceLocation = {
   end: {line: number, column: number}
 };
 
-export type Dependency = {
-  sourcePath: FilePath,
+export type DependencyOptions = {
   moduleSpecifier: ModuleSpecifier,
   isAsync?: boolean,
   isEntry?: boolean,
@@ -96,6 +95,16 @@ export type Dependency = {
   loc?: SourceLocation,
   env?: Environment,
   meta?: JSONObject
+};
+
+export type Dependency = {
+  ...DependencyOptions,
+  id: string,
+  env: Environment,
+
+  // TODO: get these from graph instead of storing them on dependencies
+  sourcePath: FilePath,
+  resolvedPath?: FilePath
 };
 
 export type File = {
@@ -108,17 +117,24 @@ export type TransformerRequest = {
   env: Environment
 };
 
-export type Asset = {
-  id: string,
-  filePath: FilePath,
-  type: string,
-  hash: string,
-  output: AssetOutput,
-  dependencies: Array<Dependency>,
-  connectedFiles: Array<File>,
-  env: Environment,
-  meta?: JSONObject
-};
+export interface Asset {
+  id: string;
+  hash: string;
+  filePath: FilePath;
+  type: string;
+  code: string;
+  ast: ?AST;
+  dependencies: Array<Dependency>;
+  connectedFiles: Array<File>;
+  output: AssetOutput;
+  env: Environment;
+  meta: JSONObject;
+
+  getConfig(filePaths: Array<FilePath>): Async<ConfigOutput>;
+  getPackage(): Async<PackageJSON>;
+  addDependency(dep: DependencyOptions): string;
+  createChildAsset(result: TransformerResult): Asset;
+}
 
 export type AssetOutput = {
   code: string,
@@ -129,27 +145,18 @@ export type AssetOutput = {
 export type AST = {
   type: string,
   version: string,
-  program: JSONObject
+  program: any
 };
 
 export type Config = JSONObject;
 export type SourceMap = JSONObject;
 export type Blob = string | Buffer;
 
-export type TransformerInput = {
-  filePath: FilePath,
-  code: string,
-  ast: ?AST,
-  env: Environment
-};
-
-export type TransformerOutput = {};
-
 export type TransformerResult = {
   type: string,
   code?: string,
   ast?: ?AST,
-  dependencies?: Array<Dependency>,
+  dependencies?: Array<DependencyOptions>,
   connectedFiles?: Array<File>,
   output?: AssetOutput,
   env?: Environment,
@@ -164,20 +171,16 @@ export type ConfigOutput = {
 type Async<T> = T | Promise<T>;
 
 export type Transformer = {
-  getConfig?: (filePath: FilePath, opts: CLIOptions) => Async<ConfigOutput>,
+  getConfig?: (asset: Asset, opts: CLIOptions) => Async<ConfigOutput>,
   canReuseAST?: (ast: AST, opts: CLIOptions) => boolean,
-  parse?: (
-    asset: TransformerInput,
-    config: ?Config,
-    opts: CLIOptions
-  ) => Async<?AST>,
+  parse?: (asset: Asset, config: ?Config, opts: CLIOptions) => Async<?AST>,
   transform(
-    asset: TransformerInput,
+    asset: Asset,
     config: ?Config,
     opts: CLIOptions
-  ): Async<Array<TransformerResult>>,
+  ): Async<Array<TransformerResult | Asset>>,
   generate?: (
-    asset: TransformerInput,
+    asset: Asset,
     config: ?Config,
     opts: CLIOptions
   ) => Async<AssetOutput>,

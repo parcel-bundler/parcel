@@ -60,38 +60,22 @@ export default new Transformer({
 
   async transform(asset, config, options) {
     if (!asset.ast) {
-      return [
-        {
-          type: 'js',
-          code: asset.code,
-          ast: asset.ast
-        }
-      ];
+      return [asset];
     }
-
-    let module = {
-      type: 'js',
-      filePath: asset.filePath,
-      dependencies: [],
-      connectedFiles: [],
-      code: asset.code,
-      ast: asset.ast,
-      env: asset.env
-    };
 
     // Collect dependencies
     if (canHaveDependencies(asset.code)) {
-      walk.ancestor(module.ast.program, collectDependencies, module);
+      walk.ancestor(asset.ast.program, collectDependencies, asset);
     }
 
     if (asset.env.context === 'browser') {
       // Inline environment variables
       if (ENV_RE.test(asset.code)) {
-        walk.simple(module.ast.program, envVisitor, module);
+        walk.simple(asset.ast.program, envVisitor, asset);
       }
 
       // Inline fs calls
-      let fsDep = module.dependencies.find(dep => dep.moduleSpecifier === 'fs');
+      let fsDep = asset.dependencies.find(dep => dep.moduleSpecifier === 'fs');
       if (fsDep && FS_RE.test(asset.code)) {
         // Check if we should ignore fs calls
         // See https://github.com/defunctzombie/node-browser-resolve#skip
@@ -100,18 +84,18 @@ export default new Transformer({
         let ignore;
 
         if (!ignore) {
-          traverse(module.ast.program, fsVisitor, null, module);
+          traverse(asset.ast.program, fsVisitor, null, asset);
         }
       }
 
       // Insert node globals
       if (GLOBAL_RE.test(asset.code)) {
-        walk.ancestor(module.ast.program, insertGlobals, module);
+        walk.ancestor(asset.ast.program, insertGlobals, asset);
       }
     }
 
     // Do some transforms
-    return [module];
+    return [asset];
   },
 
   async generate(module, config, options) {
