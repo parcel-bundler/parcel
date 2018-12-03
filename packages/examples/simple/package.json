@@ -10,16 +10,8 @@
     "@parcel/babel-register": "^2.0.0",
     "@parcel/core": "^2.0.0"
   },
-  "browser": "dist/browser.js",
   "browserModern": "dist/modern.js",
   "targets": {
-    "browser": {
-      "engines": {
-        "browsers": [
-          "> 1%"
-        ]
-      }
-    },
     "browserModern": {
       "engines": {
         "browsers": [

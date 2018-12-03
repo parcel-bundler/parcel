@@ -97,8 +97,6 @@ export type DependencyOptions = {
   isAsync?: boolean,
   isEntry?: boolean,
   isOptional?: boolean,
-  isIncluded?: boolean,
-  isConfig?: boolean,
   loc?: SourceLocation,
   env?: Environment,
   meta?: JSONObject
@@ -205,7 +203,9 @@ export type CacheEntry = {
 };
 
 // TODO: what do we want to expose here?
-interface AssetGraph {}
+interface AssetGraph {
+  filterAssets((asset: Asset) => boolean): AssetGraph;
+}
 
 export type Bundle = {
   type: string,

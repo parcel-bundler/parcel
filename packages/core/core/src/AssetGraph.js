@@ -98,7 +98,7 @@ export default class AssetGraph extends Graph {
 
   initializeGraph({entries, targets, rootDir}: AssetGraphOpts) {
     let rootNode = nodeFromRootDir(rootDir);
-    this.addNode(rootNode);
+    this.setRootNode(rootNode);
 
     let depNodes = [];
     for (let entry of entries) {
@@ -107,7 +107,8 @@ export default class AssetGraph extends Graph {
           createDependency(
             {
               moduleSpecifier: entry,
-              env: target.env
+              env: target.env,
+              isEntry: true
             },
             path.resolve(rootDir, 'index')
           )
@@ -220,6 +221,27 @@ export default class AssetGraph extends Graph {
     }
   }
 
+  getIncomingDependencies(asset: Asset): Array<Dependency> {
+    let assetNode = this.getNode(asset.id);
+    if (!assetNode) {
+      return [];
+    }
+
+    let transformerRequests = this.getNodesConnectedTo(assetNode);
+    let results = [];
+
+    for (let req of transformerRequests) {
+      let deps = this.getNodesConnectedTo(req);
+      for (let dep of deps) {
+        if (dep.type === 'dependency') {
+          results.push(dep.value);
+        }
+      }
+    }
+
+    return results;
+  }
+
   async dumpGraphViz() {
     let graphviz = require('graphviz');
     let tempy = require('tempy');
@@ -237,14 +259,6 @@ export default class AssetGraph extends Graph {
     };
 
     let nodes = Array.from(this.nodes.values());
-    let root;
-    for (let node of nodes) {
-      if (node.type === 'root') {
-        root = node;
-        break;
-      }
-    }
-    let rootPath = root ? root.value : '/';
 
     for (let node of nodes) {
       let n = g.addNode(node.id);
@@ -260,9 +274,8 @@ export default class AssetGraph extends Graph {
         let parts = [];
         if (node.value.isEntry) parts.push('entry');
         if (node.value.isAsync) parts.push('async');
-        if (node.value.isIncluded) parts.push('included');
         if (node.value.isOptional) parts.push('optional');
-        if (parts.length) label += '(' + parts.join(', ') + ')';
+        if (parts.length) label += ' (' + parts.join(', ') + ')';
         if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
       } else if (node.type === 'asset') {
         label += path.basename(node.value.filePath) + '#' + node.value.type;

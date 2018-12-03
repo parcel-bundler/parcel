@@ -22,10 +22,12 @@ type GraphUpdates = {
 export default class Graph {
   nodes: Map<NodeId, Node>;
   edges: Set<Edge>;
+  rootNodeId: ?NodeId;
 
   constructor() {
     this.nodes = new Map();
     this.edges = new Set();
+    this.rootNodeId = null;
   }
 
   addNode(node: Node) {
@@ -39,6 +41,15 @@ export default class Graph {
 
   getNode(id: string) {
     return this.nodes.get(id);
+  }
+
+  setRootNode(node: Node) {
+    this.addNode(node);
+    this.rootNodeId = node.id;
+  }
+
+  getRootNode(): ?Node {
+    return this.rootNodeId ? this.getNode(this.rootNodeId) : null;
   }
 
   addEdge(edge: Edge) {
@@ -78,10 +89,22 @@ export default class Graph {
 
   // Removes node and any edges coming from that node
   removeNode(node: Node): Graph {
-    let removed = new Graph();
+    let removed = new this.constructor();
 
     this.nodes.delete(node.id);
     removed.addNode(node);
+
+    for (let edge of this.edges) {
+      if (edge.from === node.id || edge.to === node.id) {
+        removed.merge(this.removeEdge(edge));
+      }
+    }
+
+    return removed;
+  }
+
+  removeEdges(node: Node): Graph {
+    let removed = new this.constructor();
 
     for (let edge of this.edges) {
       if (edge.from === node.id) {
@@ -94,7 +117,7 @@ export default class Graph {
 
   // Removes edge and node the edge is to if the node is orphaned
   removeEdge(edge: Edge): Graph {
-    let removed = new Graph();
+    let removed = new this.constructor();
 
     this.edges.delete(edge);
     removed.addEdge(edge);
@@ -119,11 +142,27 @@ export default class Graph {
     return true;
   }
 
+  replaceNode(fromNode: Node, toNode: Node) {
+    this.addNode(toNode);
+
+    for (let edge of this.edges) {
+      if (edge.from === fromNode.id) {
+        edge.from = toNode.id;
+      }
+
+      if (edge.to === fromNode.id) {
+        edge.to = toNode.id;
+      }
+    }
+
+    this.removeNode(fromNode);
+  }
+
   // Update a node's downstream nodes making sure to prune any orphaned branches
   // Also keeps track of all added and removed edges and nodes
   replaceNodesConnectedTo(fromNode: Node, toNodes: Array<Node>): GraphUpdates {
-    let removed = new Graph();
-    let added = new Graph();
+    let removed = new this.constructor();
+    let added = new this.constructor();
 
     let edgesBefore = Array.from(this.edges).filter(
       edge => edge.from === fromNode.id
@@ -153,5 +192,80 @@ export default class Graph {
     }
 
     return {removed, added};
+  }
+
+  dfs(visit: (node: Node, context?: any) => any, startNode: ?Node): ?Node {
+    let root = startNode || this.getRootNode();
+    if (!root) {
+      return null;
+    }
+
+    let visited = new Set<Node>();
+
+    let walk = (node, context) => {
+      visited.add(node);
+
+      let newContext = visit(node, context);
+      if (typeof newContext !== 'undefined') {
+        context = newContext;
+      }
+
+      for (let child of this.getNodesConnectedFrom(node)) {
+        if (visited.has(child)) {
+          continue;
+        }
+
+        visited.add(child);
+        let result = walk(child, context);
+        if (result) {
+          return result;
+        }
+      }
+    };
+
+    return walk(root);
+  }
+
+  bfs(visit: (node: Node) => ?boolean): ?Node {
+    let root = this.getRootNode();
+    if (!root) {
+      return null;
+    }
+
+    let queue: Array<Node> = [root];
+    let visited = new Set<Node>([root]);
+
+    while (queue.length > 0) {
+      let node = queue.shift();
+      let stop = visit(node);
+      if (stop === true) {
+        return node;
+      }
+
+      for (let child of this.getNodesConnectedFrom(node)) {
+        if (!visited.has(child)) {
+          visited.add(child);
+          queue.push(child);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  getSubGraph(node: Node): Graph {
+    let graph = new this.constructor();
+    graph.setRootNode(node);
+
+    this.dfs(node => {
+      graph.addNode(node);
+
+      let edges = Array.from(this.edges).filter(edge => edge.from === node.id);
+      for (let edge of edges) {
+        graph.addEdge(edge);
+      }
+    }, node);
+
+    return graph;
   }
 }
