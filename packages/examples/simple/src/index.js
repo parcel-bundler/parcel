@@ -1,7 +1,7 @@
 import('./async');
 import('./async2');
 
-const message = require('./message');
+// const message = require('./message');
 // const fs = require('fs');
 
 // console.log(message); // eslint-disable-line no-console

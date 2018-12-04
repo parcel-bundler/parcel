@@ -1,6 +1,7 @@
 // @flow
 import type {Asset, Bundle} from '@parcel/types';
 import {Bundler} from '@parcel/plugin';
+import Graph from '@parcel/core/src/Graph';
 
 const ISOLATED_ENVS = new Set(['web-worker', 'service-worker']);
 const OPTIONS = {
@@ -18,181 +19,133 @@ export default new Bundler({
     //    c. If the sub-graph from this asset is >= 30kb, and the number of parallel requests at the current entry point is < 5, create a new bundle containing the sub-graph.
     //    d. Else, hoist the asset to the nearest common ancestor.
 
-    // graph.walkAssets((asset, currentBundle) => {
-    //   let deps = graph.getIncomingDeps(asset);
-    //   let isIsolated = ISOLATED_ENVS.has(asset.env);
+    let bundleGraph = new graph.constructor();
 
-    //   // if (bundleAssetMap.has(asset)) {
-    //   //   let commonBundle = findCommonBundle()
-    //   // }
-
-    //   let isAsync = deps.some(dep => dep.isAsync || dep.isEntry);
-    //   let isSync = deps.some(dep => !dep.isSync && !dep.isEntry);
-    //   if (isAsync || currentBundle.type !== asset.type) {
-    //     // create new bundle
-    //     let subGraph = graph.getSubGraph(asset);
-    //   }
-
-    //   if (isSync) {
-
-    //   }
-    // });
-    let bundles = [];
-    // function createBundle(type) {
-    //   let bundle = {
-    //     type: type,
-    //     filePath: 'bundle.' + bundles.length + '.js',
-    //     assets: []
-    //   };
-
-    //   bundles.push(bundle);
-    //   return bundle;
-    // }
-
-    let bundleAssetMap = new Map();
-    let bundleTree = null;
-
-    graph.dfs((node, currentBundle) => {
-      // if (node.type === 'asset') {
-      //   // console.log(node.value.filePath, context && context.filePath)
-      //   // return node.value;
-      //   let asset: Asset = node.value;
-
-      //   let deps = graph.getIncomingDependencies(asset);
-      //   // console.log(asset.filePath, deps);
-
-      //   let isAsync = deps.some(dep => dep.isAsync || dep.isEntry);
-      //   if (isAsync) {
-      //     // currentBundle = createBundle(asset.type);
-      //     let bundle = graph.getSubGraph(node);
-      //     currentBundle && currentBundle.removeNode(node);
-      //     currentBundle = bundle;
-      //     bundles.push(currentBundle);
-
-      //     for (let node of currentBundle.nodes.values()) {
-      //       if (node.type === 'asset') {
-      //         if (!bundleAssetMap.has(node.value)) {
-      //           bundleAssetMap.set(node.value, new Set);
-      //         }
-
-      //         bundleAssetMap.get(node.value).add(currentBundle);
-      //       }
-      //     }
-      //   }
-
-      //   // currentBundle.assets.push(asset);
-      //   return currentBundle;
-      // }
-
+    // Step 1: create bundles for each of the explicit code split points.
+    graph.traverse((node, currentBundle) => {
       if (node.type === 'dependency') {
         let dep = node.value;
         if (dep.isAsync || dep.isEntry) {
           let bundle = graph.getSubGraph(node);
-          if (currentBundle) {
-            // currentBundle.removeEdges(node);
-
-            for (let req of graph.getNodesConnectedFrom(node)) {
-              let bundleNode = {
-                id: 'bundle:' + req.id,
-                type: 'bundle',
-                value: bundle
-              };
-
-              let b = currentBundle;
-              while (b) {
-                // b.addNode(bundleNode);
-                // for (let node of b.getNodesConnectedTo(req)) {
-                //   b.addEdge({from: node.id, to: bundleNode.id});
-                // }
-
-                // b.removeNode(req);
-                b.bundle.replaceNodesConnectedTo(node, [bundleNode]);
-                b = b.parent;
-                // b.replaceNode()
-              }
-            }
-          }
-
-          let newBundleNode = {
-            bundle,
-            parent: currentBundle,
-            children: []
+          let req = graph.getNodesConnectedFrom(node)[0];
+          let bundleNode = {
+            id: 'bundle:' + req.id,
+            type: 'bundle',
+            value: bundle
           };
 
-          if (!bundleTree) {
-            bundleTree = newBundleNode;
+          let bundleGroup = {
+            id: 'bundle_group' + req.id,
+            type: 'bundle_group',
+            value: ''
+          };
+
+          if (currentBundle) {
+            bundleGraph.traverseAncestors(currentBundle, bundle => {
+              if (bundle.type === 'bundle') {
+                bundle.value.replaceNodesConnectedTo(node, [bundleGroup]);
+                bundle.value.addNode(bundleNode);
+                bundle.value.addEdge({from: bundleGroup.id, to: bundleNode.id});
+              }
+            });
+
+            bundleGraph.addNode(bundleGroup);
+            bundleGraph.addEdge({from: currentBundle.id, to: bundleGroup.id});
           } else {
-            currentBundle.children.push(newBundleNode);
+            bundleGraph.setRootNode(bundleGroup);
           }
 
-          currentBundle = bundleTree;
-          bundles.push(bundle);
+          bundleGraph.addNode(bundleNode);
+          bundleGraph.addEdge({from: bundleGroup.id, to: bundleNode.id});
+
+          currentBundle = bundleNode;
         }
       }
 
       return currentBundle;
     });
 
-    let queue = [bundleTree];
-    while (queue.length > 0) {
-      let currentBundle = queue.shift();
+    // Step 2: remove assets that are duplicated in a parent bundle
+    bundleGraph.traverse(node => {
+      if (node.type !== 'bundle') return;
 
-      if (currentBundle.parent) {
-        let dep = currentBundle.bundle.getRootNode().value;
-        let isIsolated = dep.isEntry || ISOLATED_ENVS.has(dep.env.context);
-        if (!isIsolated) {
-          for (let node of currentBundle.bundle.nodes.values()) {
-            // if (node.type === 'transformer_request') { console.log(currentBundle, node)}
-            if (
-              node.type === 'transformer_request' &&
-              hasNode(currentBundle.parent, node)
-            ) {
-              console.log('dup', node);
-              currentBundle.removeNode(node);
-            }
+      let bundle = node.value;
+      let dep = bundle.getRootNode().value;
+      let isIsolated = dep.isEntry || ISOLATED_ENVS.has(dep.env.context);
+      if (!isIsolated) {
+        for (let assetNode of bundle.nodes.values()) {
+          if (
+            assetNode.type === 'transformer_request' &&
+            hasNode(node, assetNode.id)
+          ) {
+            console.log('dup', assetNode);
+            bundle.removeNode(assetNode);
           }
         }
       }
+    });
 
-      queue.push(...currentBundle.children);
-    }
-
-    function hasNode(treeNode, node) {
-      while (treeNode) {
-        if (treeNode.bundle.hasNode(node)) {
-          return true;
+    function hasNode(bundleNode, nodeId) {
+      let ret = true;
+      bundleGraph.traverseAncestors(bundleNode, node => {
+        if (node.type !== 'bundle') return;
+        if (!node.value.hasNode(nodeId)) {
+          ret = false;
+          // break
         }
+      });
 
-        treeNode = treeNode.parent;
+      return ret;
+    }
+
+    // Step 3: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
+    let bundleAssetMap = new Map();
+    bundleGraph.traverse(bundleGroup => {
+      if (bundleGroup.type !== 'bundle_group') return;
+      for (let bundle of bundleGraph.getNodesConnectedFrom(bundleGroup)) {
+        for (let node of bundle.value.nodes.values()) {
+          if (node.type === 'asset') {
+            if (!bundleAssetMap.has(node)) {
+              bundleAssetMap.set(node, new Set());
+            }
+
+            bundleAssetMap.get(node).add(bundleGroup);
+          }
+        }
       }
+    });
 
-      return false;
+    for (let [asset, bundleGroups] of bundleAssetMap) {
+      if (bundleGroups.size > 1) {
+        console.log(asset.value.filePath, bundleGroups.size);
+
+        let bundle = graph.getSubGraph(asset);
+        let bundleNode = {
+          id: 'bundle:' + asset.id,
+          type: 'bundle',
+          value: bundle
+        };
+
+        bundleGraph.addNode(bundleNode);
+
+        for (let bundleGroup of bundleGroups) {
+          for (let bundle of bundleGraph.getNodesConnectedTo(bundleGroup)) {
+            bundle.value.addNode(bundleNode);
+            bundle.value.addEdge({from: bundleGroup.id, to: bundleNode.id});
+          }
+
+          bundleGraph.addEdge({from: bundleGroup.id, to: bundleNode.id});
+        }
+      }
     }
 
-    // console.log(bundleTree)
+    bundleGraph.dumpGraphViz();
 
-    // for (let bundle of bundles) {
-    //   for (let node of bundle.nodes.values()) {
-    //     if (node.type === 'asset') {
-    //       if (!bundleAssetMap.has(node)) {
-    //         bundleAssetMap.set(node, new Set);
-    //       }
-
-    //       bundleAssetMap.get(node).add(bundle);
-    //     }
-    //   }
-    // }
-
-    // for (let [asset, bundles] of bundleAssetMap) {
-    //   if (bundles.size > 1) {
-    //     console.log(asset.value.filePath)
-    //   }
-    // }
-
-    for (let bundle of bundles) {
-      // console.log(bundle.nodes)
-      bundle.dumpGraphViz();
-    }
+    bundleGraph.traverse(bundle => {
+      if (bundle.type === 'bundle') {
+        bundle.value.dumpGraphViz();
+      }
+    });
 
     // console.log(bundles);
     throw 'stop';

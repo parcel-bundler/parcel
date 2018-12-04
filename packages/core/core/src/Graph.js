@@ -194,7 +194,34 @@ export default class Graph {
     return {removed, added};
   }
 
-  dfs(visit: (node: Node, context?: any) => any, startNode: ?Node): ?Node {
+  traverse(visit: (node: Node, context?: any) => any, startNode?: Node) {
+    return this.dfs({
+      visit,
+      startNode,
+      getChildren: this.getNodesConnectedFrom.bind(this)
+    });
+  }
+
+  traverseAncestors(
+    startNode: Node,
+    visit: (node: Node, context?: any) => any
+  ) {
+    return this.dfs({
+      visit,
+      startNode,
+      getChildren: this.getNodesConnectedTo.bind(this)
+    });
+  }
+
+  dfs({
+    visit,
+    startNode,
+    getChildren
+  }: {
+    visit(node: Node, context?: any): any,
+    getChildren(node: Node): Array<Node>,
+    startNode?: Node
+  }): ?Node {
     let root = startNode || this.getRootNode();
     if (!root) {
       return null;
@@ -210,7 +237,7 @@ export default class Graph {
         context = newContext;
       }
 
-      for (let child of this.getNodesConnectedFrom(node)) {
+      for (let child of getChildren(node)) {
         if (visited.has(child)) {
           continue;
         }
@@ -257,7 +284,7 @@ export default class Graph {
     let graph = new this.constructor();
     graph.setRootNode(node);
 
-    this.dfs(node => {
+    this.traverse(node => {
       graph.addNode(node);
 
       let edges = Array.from(this.edges).filter(edge => edge.from === node.id);
