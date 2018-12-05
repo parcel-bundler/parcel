@@ -3,7 +3,7 @@ function type(options) {
 }
 
 function encode(options) {
-  if (options.ignored) {
+  if (options && options.ignored) {
     const ignoredType = type(options.ignored);
     if (ignoredType !== 'Array') {
       options.ignored = [options.ignored];
@@ -25,13 +25,12 @@ function encode(options) {
 }
 
 function decode(options) {
-  if (options.ignored && options._regIndexs) {
+  if (options && options.ignored && options._regIndexs) {
     for (let index of options._regIndexs) {
       options.ignored[index] = new RegExp(options.ignored[index]);
     }
+    delete options._regIndexs;
   }
-
-  delete options._regIndexs;
 
   return options;
 }
