@@ -1,11 +1,49 @@
 const path = require('path');
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
+const config = require('../utils/config');
+const TSCONFIG_FILENAMES = ['tsconfig.json'];
 
 class TypeScriptAsset extends Asset {
   constructor(name, options) {
     super(name, options);
     this.type = 'js';
+  }
+
+  async readConfigFile(filepath = this.name, seenConfigPath = new Set()) {
+    const tsconfigPath = await config.resolve(filepath, TSCONFIG_FILENAMES);
+    if (!tsconfigPath) return;
+    if (seenConfigPath.has(tsconfigPath)) {
+      // Loop detected
+      // This shouldn't happen, but let's silently ignore it?
+      return;
+    }
+    seenConfigPath.add(tsconfigPath);
+
+    // Add as a dependency so it is added to the watcher and invalidates
+    // this asset when the config changes.
+    this.addDependency(tsconfigPath, {includedInParent: true});
+
+    const {extends: parent, ...tsconfig} = await config.load(
+      filepath,
+      TSCONFIG_FILENAMES
+    );
+    if (parent && typeof parent === 'string') {
+      const parentConfigPath = path.join(path.dirname(tsconfigPath), parent);
+      const parentConfig = await this.readConfigFile(
+        parentConfigPath,
+        seenConfigPath
+      );
+      const compilerOptions = Object.assign(
+        {},
+        parentConfig && parentConfig.compilerOptions,
+        tsconfig.compilerOptions
+      );
+      return Object.assign({}, parentConfig, tsconfig, {
+        compilerOptions
+      });
+    }
+    return tsconfig;
   }
 
   async generate() {
@@ -26,29 +64,13 @@ class TypeScriptAsset extends Asset {
     };
 
     // Resolve and parse tsconfig.json file
-    const tsconfigCompilerOptions = (() => {
-      const configFilename = typescript.findConfigFile(
-        this.name,
-        typescript.sys.fileExists
-      );
-      if (!configFilename) return;
-      const configFile = typescript.readConfigFile(
-        configFilename,
-        typescript.sys.readFile
-      );
-      if (!configFile || !configFile.config) return;
-      return typescript.parseJsonConfigFileContent(
-        configFile.config,
-        typescript.sys,
-        path.resolve(path.dirname(configFilename))
-      ).options;
-    })();
+    const tsconfig = await this.readConfigFile();
 
     // Overwrite default if config is found
-    if (tsconfigCompilerOptions) {
-      transpilerOptions.compilerOptions = Object.assign(
+    if (tsconfig) {
+      Object.assign(
         transpilerOptions.compilerOptions,
-        tsconfigCompilerOptions
+        tsconfig.compilerOptions
       );
     }
     transpilerOptions.compilerOptions.noEmit = false;
