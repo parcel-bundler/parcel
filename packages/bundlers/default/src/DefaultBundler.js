@@ -22,47 +22,65 @@ export default new Bundler({
     let bundleGraph = new graph.constructor();
 
     // Step 1: create bundles for each of the explicit code split points.
-    graph.traverse((node, currentBundle) => {
+    graph.traverse((node, context) => {
       if (node.type === 'dependency') {
         let dep = node.value;
         if (dep.isAsync || dep.isEntry) {
-          let bundle = graph.getSubGraph(node);
-          let req = graph.getNodesConnectedFrom(node)[0];
-          let bundleNode = {
-            id: 'bundle:' + req.id,
-            type: 'bundle',
-            value: bundle
-          };
-
           let bundleGroup = {
-            id: 'bundle_group' + req.id,
+            id: 'bundle_group' + dep.id,
             type: 'bundle_group',
             value: ''
           };
 
-          if (currentBundle) {
-            bundleGraph.traverseAncestors(currentBundle, bundle => {
+          if (context) {
+            bundleGraph.traverseAncestors(context.bundle, bundle => {
               if (bundle.type === 'bundle') {
                 bundle.value.replaceNodesConnectedTo(node, [bundleGroup]);
-                bundle.value.addNode(bundleNode);
-                bundle.value.addEdge({from: bundleGroup.id, to: bundleNode.id});
               }
             });
 
             bundleGraph.addNode(bundleGroup);
-            bundleGraph.addEdge({from: currentBundle.id, to: bundleGroup.id});
+            bundleGraph.addEdge({from: context.bundle.id, to: bundleGroup.id});
           } else {
             bundleGraph.setRootNode(bundleGroup);
           }
 
-          bundleGraph.addNode(bundleNode);
-          bundleGraph.addEdge({from: bundleGroup.id, to: bundleNode.id});
+          context = {bundleGroup};
+        }
+      } else if (node.type === 'asset') {
+        let bundles = bundleGraph.getNodesConnectedFrom(context.bundleGroup);
+        if (
+          !context.bundle ||
+          node.value.type !== context.bundle.value.getRootNode().value.type
+        ) {
+          let bundle = graph.getSubGraph(node);
+          let bundleNode = {
+            id: 'bundle:' + node.id,
+            type: 'bundle',
+            value: bundle
+          };
 
-          currentBundle = bundleNode;
+          bundleGraph.addNode(bundleNode);
+          bundleGraph.addEdge({
+            from: context.bundleGroup.id,
+            to: bundleNode.id
+          });
+
+          for (let bundle of bundleGraph.getNodesConnectedTo(
+            context.bundleGroup
+          )) {
+            bundle.value.addNode(bundleNode);
+            bundle.value.addEdge({
+              from: context.bundleGroup.id,
+              to: bundleNode.id
+            });
+          }
+
+          context = {bundleGroup: context.bundleGroup, bundle: bundleNode};
         }
       }
 
-      return currentBundle;
+      return context;
     });
 
     // Step 2: remove assets that are duplicated in a parent bundle
@@ -70,14 +88,11 @@ export default new Bundler({
       if (node.type !== 'bundle') return;
 
       let bundle = node.value;
-      let dep = bundle.getRootNode().value;
+      let dep = bundle.getRootNode().value; // TODO: fix
       let isIsolated = dep.isEntry || ISOLATED_ENVS.has(dep.env.context);
       if (!isIsolated) {
         for (let assetNode of bundle.nodes.values()) {
-          if (
-            assetNode.type === 'transformer_request' &&
-            hasNode(node, assetNode.id)
-          ) {
+          if (assetNode.type === 'asset' && hasNode(node, assetNode.id)) {
             console.log('dup', assetNode);
             bundle.removeNode(assetNode);
           }
@@ -132,6 +147,10 @@ export default new Bundler({
           for (let bundle of bundleGraph.getNodesConnectedTo(bundleGroup)) {
             bundle.value.addNode(bundleNode);
             bundle.value.addEdge({from: bundleGroup.id, to: bundleNode.id});
+          }
+
+          for (let bundle of bundleGraph.getNodesConnectedFrom(bundleGroup)) {
+            bundle.value.removeNode(asset);
           }
 
           bundleGraph.addEdge({from: bundleGroup.id, to: bundleNode.id});
