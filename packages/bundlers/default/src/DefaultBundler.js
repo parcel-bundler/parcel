@@ -1,13 +1,49 @@
 // @flow
 import type {Asset, Bundle} from '@parcel/types';
 import {Bundler} from '@parcel/plugin';
-import Graph from '@parcel/core/src/Graph';
+import Graph from '@parcel/core/src/AssetGraph';
 
 const ISOLATED_ENVS = new Set(['web-worker', 'service-worker']);
 const OPTIONS = {
   minBundleSize: 30000,
   maxParallelRequests: 5
 };
+
+class BundleGraph extends Graph {
+  constructor() {
+    super();
+    this.setRootNode({
+      type: 'root',
+      id: 'root'
+    });
+  }
+
+  addBundleGroup(parentBundleNode, bundleGroup) {
+    this.addNode(bundleGroup);
+    this.addEdge({
+      from: !parentBundleNode ? 'root' : parentBundleNode.id,
+      to: bundleGroup.id
+    });
+  }
+
+  addBundle(bundleGroup, bundle) {
+    this.addNode(bundle);
+    this.addEdge({
+      from: bundleGroup.id,
+      to: bundle.id
+    });
+
+    this.traverse(node => {
+      if (node.type === 'bundle' && node.value.hasNode(bundleGroup.id)) {
+        node.value.addNode(bundle);
+        node.value.addEdge({
+          from: bundleGroup.id,
+          to: bundle.id
+        });
+      }
+    });
+  }
+}
 
 export default new Bundler({
   async bundle(graph) {
@@ -19,7 +55,7 @@ export default new Bundler({
     //    c. If the sub-graph from this asset is >= 30kb, and the number of parallel requests at the current entry point is < 5, create a new bundle containing the sub-graph.
     //    d. Else, hoist the asset to the nearest common ancestor.
 
-    let bundleGraph = new graph.constructor();
+    let bundleGraph = new BundleGraph();
 
     // Step 1: create bundles for each of the explicit code split points.
     graph.traverse((node, context) => {
@@ -38,12 +74,16 @@ export default new Bundler({
                 bundle.value.replaceNodesConnectedTo(node, [bundleGroup]);
               }
             });
-
-            bundleGraph.addNode(bundleGroup);
-            bundleGraph.addEdge({from: context.bundle.id, to: bundleGroup.id});
-          } else {
-            bundleGraph.setRootNode(bundleGroup);
           }
+
+          let isIsolated =
+            !context || dep.isEntry || ISOLATED_ENVS.has(dep.env.context);
+          // bundleGraph.addNode(bundleGroup);
+          // bundleGraph.addEdge({from: isIsolated || !context ? 'root' : context.bundle.id, to: bundleGroup.id});
+          bundleGraph.addBundleGroup(
+            isIsolated ? null : context.bundle,
+            bundleGroup
+          );
 
           context = {bundleGroup};
         }
@@ -60,21 +100,7 @@ export default new Bundler({
             value: bundle
           };
 
-          bundleGraph.addNode(bundleNode);
-          bundleGraph.addEdge({
-            from: context.bundleGroup.id,
-            to: bundleNode.id
-          });
-
-          for (let bundle of bundleGraph.getNodesConnectedTo(
-            context.bundleGroup
-          )) {
-            bundle.value.addNode(bundleNode);
-            bundle.value.addEdge({
-              from: context.bundleGroup.id,
-              to: bundleNode.id
-            });
-          }
+          bundleGraph.addBundle(context.bundleGroup, bundleNode);
 
           context = {bundleGroup: context.bundleGroup, bundle: bundleNode};
         }
@@ -88,14 +114,14 @@ export default new Bundler({
       if (node.type !== 'bundle') return;
 
       let bundle = node.value;
-      let dep = bundle.getRootNode().value; // TODO: fix
-      let isIsolated = dep.isEntry || ISOLATED_ENVS.has(dep.env.context);
-      if (!isIsolated) {
-        for (let assetNode of bundle.nodes.values()) {
-          if (assetNode.type === 'asset' && hasNode(node, assetNode.id)) {
-            console.log('dup', assetNode);
-            bundle.removeNode(assetNode);
-          }
+      for (let assetNode of bundle.nodes.values()) {
+        if (
+          assetNode.type === 'asset' &&
+          hasNode(node, assetNode.id) &&
+          assetNode !== bundle.getRootNode()
+        ) {
+          console.log('dup', assetNode);
+          bundle.removeNode(assetNode);
         }
       }
     });
@@ -141,19 +167,12 @@ export default new Bundler({
           value: bundle
         };
 
-        bundleGraph.addNode(bundleNode);
-
         for (let bundleGroup of bundleGroups) {
-          for (let bundle of bundleGraph.getNodesConnectedTo(bundleGroup)) {
-            bundle.value.addNode(bundleNode);
-            bundle.value.addEdge({from: bundleGroup.id, to: bundleNode.id});
-          }
-
           for (let bundle of bundleGraph.getNodesConnectedFrom(bundleGroup)) {
             bundle.value.removeNode(asset);
           }
 
-          bundleGraph.addEdge({from: bundleGroup.id, to: bundleNode.id});
+          bundleGraph.addBundle(bundleGroup, bundleNode);
         }
       }
     }

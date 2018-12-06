@@ -71,7 +71,7 @@ export default {
       // https://developers.google.com/web/fundamentals/primers/service-workers/lifecycle#avoid_changing_the_url_of_your_service_worker_script
       addURLDependency(asset, args[0], {
         isEntry: true,
-        context: 'service-worker'
+        env: {context: 'service-worker'}
       });
       return;
     }
@@ -87,7 +87,7 @@ export default {
       types.isStringLiteral(args[0]);
 
     if (isWebWorker) {
-      addURLDependency(asset, args[0], {context: 'web-worker'});
+      addURLDependency(asset, args[0], {env: {context: 'web-worker'}});
       return;
     }
   }
@@ -190,6 +190,10 @@ function addDependency(asset, node, opts = {}) {
 function addURLDependency(asset, node, opts = {}) {
   opts.loc = node.loc && node.loc.start;
 
-  node.value = asset.addDependency({moduleSpecifier: node.value, ...opts});
+  node.value = asset.addDependency({
+    moduleSpecifier: node.value,
+    isAsync: true,
+    ...opts
+  });
   asset.ast.isDirty = true;
 }
