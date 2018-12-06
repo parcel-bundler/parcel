@@ -24,12 +24,12 @@ class TypeScriptAsset extends Asset {
     // this asset when the config changes.
     this.addDependency(tsconfigPath, {includedInParent: true});
 
-    const {extends: parent, ...tsconfig} = await config.load(
-      filepath,
-      TSCONFIG_FILENAMES
-    );
-    if (parent && typeof parent === 'string') {
-      const parentConfigPath = path.join(path.dirname(tsconfigPath), parent);
+    const tsconfig = await config.load(filepath, TSCONFIG_FILENAMES);
+    if (tsconfig.extends && typeof tsconfig.extends === 'string') {
+      const parentConfigPath = path.join(
+        path.dirname(tsconfigPath),
+        tsconfig.extends
+      );
       const parentConfig = await this.readConfigFile(
         parentConfigPath,
         seenConfigPath
@@ -39,9 +39,11 @@ class TypeScriptAsset extends Asset {
         parentConfig && parentConfig.compilerOptions,
         tsconfig.compilerOptions
       );
-      return Object.assign({}, parentConfig, tsconfig, {
+      const mergedConfig = Object.assign({}, parentConfig, tsconfig, {
         compilerOptions
       });
+      delete mergedConfig.extends;
+      return mergedConfig;
     }
     return tsconfig;
   }
