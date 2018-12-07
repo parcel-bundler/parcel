@@ -89,6 +89,15 @@ class Bundle {
     return bundle;
   }
 
+  addChildBundle(bundle) {
+    this.childBundles.add(bundle);
+  }
+
+  addSiblingBundle(bundle) {
+    this.addChildBundle(bundle);
+    this.siblingBundles.add(bundle);
+  }
+
   get isEmpty() {
     return this.assets.size === 0;
   }

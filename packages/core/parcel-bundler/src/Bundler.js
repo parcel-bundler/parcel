@@ -654,6 +654,7 @@ class Bundler extends EventEmitter {
     if ((dep && dep.dynamic) || !bundle.type) {
       // If the asset is already the entry asset of a bundle, don't create a duplicate.
       if (isEntryAsset) {
+        bundle.addChildBundle(asset.parentBundle);
         return;
       }
 
@@ -665,6 +666,7 @@ class Bundler extends EventEmitter {
     ) {
       // If the asset is already the entry asset of a bundle, don't create a duplicate.
       if (isEntryAsset) {
+        bundle.addSiblingBundle(asset.parentBundle);
         return;
       }
 
