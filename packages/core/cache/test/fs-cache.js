@@ -1,8 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {rimraf, ncp} = require('./utils');
-const {sleep} = require('@parcel/test-utils');
+const {rimraf, ncp, sleep} = require('@parcel/test-utils');
 const FSCache = require('../src/FSCache');
 
 const cachePath = path.join(__dirname, '.cache');
@@ -16,6 +15,10 @@ const getMTime = async file => {
 
 describe('FSCache', () => {
   beforeEach(async () => {
+    await rimraf(cachePath);
+    await rimraf(inputPath);
+  });
+  after(async () => {
     await rimraf(cachePath);
     await rimraf(inputPath);
   });
@@ -93,7 +96,7 @@ describe('FSCache', () => {
 
   it('should invalidate when dependency included in parent changes', async () => {
     const cache = new FSCache({cacheDir: cachePath});
-    await ncp(path.join(__dirname, '/integration/fs'), inputPath);
+    await ncp(path.join(__dirname, '/fs'), inputPath);
     const filePath = path.join(inputPath, 'test.txt');
 
     await cache.write(__filename, {
@@ -142,7 +145,7 @@ describe('FSCache', () => {
     const cache = new FSCache({cacheDir: cachePath});
     const wildcardPath = path.join(inputPath, 'wildcard');
     await fs.mkdirp(wildcardPath);
-    await ncp(path.join(__dirname, '/integration/fs'), wildcardPath);
+    await ncp(path.join(__dirname, '/fs'), wildcardPath);
     const filePath = path.join(wildcardPath, 'test.txt');
 
     await cache.write(__filename, {

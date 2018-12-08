@@ -1,7 +1,7 @@
 const Asset = require('../Asset');
 const micromatch = require('micromatch');
 const path = require('path');
-const {glob} = require('../utils/glob');
+const {glob} = require('@parcel/utils').glob;
 
 class GlobAsset extends Asset {
   constructor(name, options) {

@@ -1,6 +1,6 @@
 const Asset = require('../Asset');
 const urlJoin = require('../utils/urlJoin');
-const md5 = require('../utils/md5');
+const {md5} = require('@parcel/utils');
 
 class RawAsset extends Asset {
   // Don't load raw assets. They will be copied by the RawPackager directly.

@@ -1,5 +1,5 @@
 const urlJoin = require('../utils/urlJoin');
-const isURL = require('../utils/is-url');
+const {isURL} = require('@parcel/utils');
 const Asset = require('../Asset');
 const logger = require('@parcel/logger');
 

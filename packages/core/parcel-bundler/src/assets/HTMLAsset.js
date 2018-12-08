@@ -4,7 +4,7 @@ const urlJoin = require('../utils/urlJoin');
 const render = require('posthtml-render');
 const posthtmlTransform = require('../transforms/posthtml');
 const htmlnanoTransform = require('../transforms/htmlnano');
-const isURL = require('../utils/is-url');
+const {isURL} = require('@parcel/utils');
 
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes

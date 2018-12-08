@@ -8,7 +8,7 @@ const fs = require('@parcel/fs');
 const Asset = require('../Asset');
 const config = require('../utils/config');
 const pipeSpawn = require('../utils/pipeSpawn');
-const md5 = require('../utils/md5');
+const {md5} = require('@parcel/utils');
 
 const RUST_TARGET = 'wasm32-unknown-unknown';
 const MAIN_FILES = ['src/lib.rs', 'src/main.rs'];
