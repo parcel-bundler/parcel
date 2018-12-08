@@ -7,10 +7,7 @@ const path = require('path');
 const WebSocket = require('ws');
 const Module = require('module');
 
-const {promisify} = require('@parcel/utils');
-const {sleep} = require('@parcel/test-utils');
-const rimraf = promisify(require('rimraf'));
-const ncp = promisify(require('ncp'));
+const {sleep, rimraf, ncp} = require('@parcel/test-utils');
 
 const chalk = new (require('chalk')).constructor({enabled: true});
 const warning = chalk.keyword('orange');
