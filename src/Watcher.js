@@ -12,7 +12,8 @@ class Watcher {
     // FS events on macOS are flakey in the tests, which write lots of files very quickly
     // See https://github.com/paulmillr/chokidar/issues/612
     this.shouldWatchDirs =
-      process.platform === 'darwin' && process.env.NODE_ENV !== 'test';
+      process.platform === 'darwin' ? process.env.NODE_ENV !== 'test' : true;
+
     this.watcher = new FSWatcher({
       useFsEvents: this.shouldWatchDirs,
       ignoreInitial: true,
