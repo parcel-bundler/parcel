@@ -116,7 +116,10 @@ async function serve(bundler, port, host, useHTTPS = false) {
   if (!useHTTPS) {
     server = http.createServer(handler);
   } else if (typeof useHTTPS === 'boolean') {
-    server = https.createServer(generateCertificate(bundler.options), handler);
+    server = https.createServer(
+      await generateCertificate(bundler.options),
+      handler
+    );
   } else {
     server = https.createServer(await getCertificate(useHTTPS), handler);
   }
@@ -126,6 +129,7 @@ async function serve(bundler, port, host, useHTTPS = false) {
 
   return new Promise((resolve, reject) => {
     server.on('error', err => {
+      // eslint-disable-next-line no-console
       console.log(err);
       logger.error(new Error(serverErrors(err, server.address().port)));
       reject(err);

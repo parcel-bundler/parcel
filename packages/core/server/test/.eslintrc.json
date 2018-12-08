@@ -1,0 +1,6 @@
+{
+  "extends": "../../../../.eslintrc.json",
+  "env": {
+    "mocha": true
+  }
+}

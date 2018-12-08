@@ -4,17 +4,15 @@ const fs = require('@parcel/fs');
 const getCertificate = require('../src/utils/getCertificate');
 
 const https = {
-  key: path.join(__dirname, '/integration/https', 'private.pem'),
-  cert: path.join(__dirname, '/integration/https', 'primary.crt')
+  key: path.join(__dirname, 'https', 'private.pem'),
+  cert: path.join(__dirname, 'https', 'primary.crt')
 };
 
 describe('getCertificate', () => {
   it('should support custom certificate', async () => {
-    const key = await fs.readFile(
-      path.join(__dirname, '/integration/https', 'private.pem')
-    );
+    const key = await fs.readFile(path.join(__dirname, 'https', 'private.pem'));
     const cert = await fs.readFile(
-      path.join(__dirname, '/integration/https', 'primary.crt')
+      path.join(__dirname, 'https', 'primary.crt')
     );
 
     const retrieved = await getCertificate(https);

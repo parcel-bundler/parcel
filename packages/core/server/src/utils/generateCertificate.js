@@ -1,16 +1,16 @@
 const forge = require('node-forge');
-const fs = require('fs');
-const mkdirp = require('mkdirp');
+const fs = require('@parcel/fs');
 const path = require('path');
 const logger = require('@parcel/logger');
 
-function generateCertificate(options = {}) {
+async function generateCertificate(options = {}) {
   const privateKeyPath = path.join(options.cacheDir, 'private.pem');
   const certPath = path.join(options.cacheDir, 'primary.crt');
   if (options.cache) {
     const cachedKey =
-      fs.existsSync(privateKeyPath) && fs.readFileSync(privateKeyPath);
-    const cachedCert = fs.existsSync(certPath) && fs.readFileSync(certPath);
+      (await fs.exists(privateKeyPath)) && (await fs.readFile(privateKeyPath));
+    const cachedCert =
+      (await fs.exists(certPath)) && (await fs.readFile(certPath));
 
     if (cachedKey && cachedCert) {
       return {
@@ -116,9 +116,9 @@ function generateCertificate(options = {}) {
   const certPem = pki.certificateToPem(cert);
 
   if (options.cache) {
-    mkdirp.sync(options.cacheDir);
-    fs.writeFileSync(privateKeyPath, privPem);
-    fs.writeFileSync(certPath, certPem);
+    await fs.mkdirp(options.cacheDir);
+    await fs.writeFile(privateKeyPath, privPem);
+    await fs.writeFile(certPath, certPem);
   }
 
   return {
