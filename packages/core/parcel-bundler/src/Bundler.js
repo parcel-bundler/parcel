@@ -20,6 +20,7 @@ const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');
 const {glob} = require('./utils/glob');
+const isURL = require('./utils/is-url');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -496,6 +497,8 @@ class Bundler extends EventEmitter {
   }
 
   async installDep(asset, dep) {
+    // Check if module is a URL, skip trying to resolve
+    if (isURL(dep.name)) return;
     // Check if module exists, prevents useless installs
     let resolved = await this.resolver.resolveModule(dep.name, asset.name);
 
