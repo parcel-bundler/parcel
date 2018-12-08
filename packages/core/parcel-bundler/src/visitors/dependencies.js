@@ -2,7 +2,7 @@ const types = require('@babel/types');
 const template = require('@babel/template').default;
 const traverse = require('@babel/traverse').default;
 const urlJoin = require('../utils/urlJoin');
-const isURL = require('../utils/is-url');
+const {isURL} = require('@parcel/utils');
 const nodeBuiltins = require('node-libs-browser');
 
 const requireTemplate = template('require("_bundle_loader")');

@@ -5,7 +5,7 @@ const WorkerFarm = require('@parcel/workers');
 const Path = require('path');
 const Bundle = require('./Bundle');
 const Watcher = require('@parcel/watcher');
-const FSCache = require('./FSCache');
+const FSCache = require('@parcel/cache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
 const {EventEmitter} = require('events');
@@ -19,7 +19,7 @@ const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');
-const {glob} = require('./utils/glob');
+const {glob} = require('@parcel/utils').glob;
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,

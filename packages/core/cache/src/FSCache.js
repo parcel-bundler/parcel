@@ -1,10 +1,9 @@
 const fs = require('@parcel/fs');
 const path = require('path');
-const md5 = require('./utils/md5');
-const objectHash = require('./utils/objectHash');
+const {md5, objectHash} = require('@parcel/utils');
 const pkg = require('../package.json');
 const logger = require('@parcel/logger');
-const {isGlob, glob} = require('./utils/glob');
+const {isGlob, glob} = require('@parcel/utils').glob;
 
 // These keys can affect the output, so if they differ, the cache should not match
 const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];

@@ -1,5 +1,5 @@
 const assert = require('assert');
-const isURL = require('../src/utils/is-url');
+const isURL = require('../src/is-url');
 
 describe('isURL', () => {
   it('should match url', () => {
