@@ -11,38 +11,59 @@ const PRELUDE = fs
 
 export default new Packager({
   async package(bundle) {
-    let assets = bundle.assets
-      .map((asset, i) => {
-        let deps = {};
+    let promises = [];
+    bundle.assetGraph.traverseAssets(asset => {
+      promises.push(asset.getOutput());
+    });
+    let outputs = await Promise.all(promises);
 
-        for (let dep of asset.dependencies) {
-          let resolvedAsset = bundle.assets.find(
-            a => a.filePath === dep.resolvedPath
-          );
-          if (resolvedAsset) {
-            deps[dep.moduleSpecifier] = resolvedAsset.id;
+    let assets = '';
+    let i = 0;
+    bundle.assetGraph.traverseAssets(asset => {
+      let deps = {};
+
+      let dependencies = bundle.assetGraph.getNodesConnectedFrom(asset);
+      for (let dep of dependencies) {
+        let node = bundle.assetGraph.getNodesConnectedFrom(dep)[0];
+        if (node.type === 'transformer_request') {
+          let assetNode = bundle.assetGraph
+            .getNodesConnectedFrom(node)
+            .find(
+              node => node.type === 'asset' || node.type === 'asset_reference'
+            );
+          if (assetNode) {
+            deps[dep.value.moduleSpecifier] = assetNode.value.id;
           }
+        } else if (node.type === 'bundle_group') {
+          let bundles = bundle.assetGraph.getNodesConnectedFrom(node);
+          deps[dep.value.moduleSpecifier] = bundles.map(b => b.id);
         }
+      }
 
-        let wrapped = i === 0 ? '' : ',';
-        wrapped +=
-          JSON.stringify(asset.id) +
-          ':[function(require,module,exports) {\n' +
-          (asset.output.code || '') +
-          '\n},';
-        wrapped += JSON.stringify(deps);
-        wrapped += ']';
+      let output = outputs[i];
+      let wrapped = i === 0 ? '' : ',';
+      wrapped +=
+        JSON.stringify(asset.id) +
+        ':[function(require,module,exports) {\n' +
+        (output.code || '') +
+        '\n},';
+      wrapped += JSON.stringify(deps);
+      wrapped += ']';
 
-        return wrapped;
-      })
-      .join('');
+      i++;
+      assets += wrapped;
+    });
 
     return (
       PRELUDE +
       '({' +
       assets +
       '},{},' +
-      JSON.stringify([bundle.assets[0].id]) +
+      JSON.stringify(
+        bundle.assetGraph
+          .getNodesConnectedFrom(bundle.assetGraph.getRootNode())
+          .map(node => node.id)
+      ) +
       ', ' +
       'null' +
       ')'

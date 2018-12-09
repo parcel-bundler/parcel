@@ -9,11 +9,15 @@ import type {
   FilePath,
   TransformerRequest,
   Target,
-  Environment
+  Environment,
+  Bundle,
+  TraversalContext
 } from '@parcel/types';
 import path from 'path';
 import md5 from '@parcel/utils/md5';
 import createDependency from './createDependency';
+
+let BUNDLECOUNT = 0;
 
 export const nodeFromRootDir = (rootDir: string) => ({
   id: rootDir,
@@ -90,8 +94,8 @@ export default class AssetGraph extends Graph {
   incompleteNodes: Map<NodeId, Node>;
   invalidNodes: Map<NodeId, Node>;
 
-  constructor() {
-    super();
+  constructor(opts) {
+    super(opts);
     this.incompleteNodes = new Map();
     this.invalidNodes = new Map();
   }
@@ -240,6 +244,54 @@ export default class AssetGraph extends Graph {
     }
 
     return results;
+  }
+
+  traverseAssets(
+    visit: (node: Asset, context?: any, traversal: TraversalContext) => any,
+    startNode: ?Node
+  ) {
+    return this.traverse((node, ...args) => {
+      if (node.type === 'asset') {
+        return visit(node.value, ...args);
+      }
+    }, startNode);
+  }
+
+  createBundle(asset: Asset): Bundle {
+    let assetNode = this.getNode(asset.id);
+    if (!assetNode) {
+      throw new Error('Cannot get bundle for non-existant asset');
+    }
+
+    let graph = this.getSubGraph(assetNode);
+    graph.setRootNode({
+      type: 'root',
+      id: 'root',
+      value: null
+    });
+
+    graph.addEdge({from: 'root', to: assetNode.id});
+    return {
+      type: asset.type,
+      assetGraph: graph,
+      filePath: 'bundle.' + BUNDLECOUNT++ + '.js'
+    };
+  }
+
+  getTotalSize(asset?: Asset): number {
+    let size = 0;
+    let assetNode = asset ? this.getNode(asset.id) : null;
+    this.traverseAssets(asset => {
+      size += asset.outputSize;
+    }, assetNode);
+
+    return size;
+  }
+
+  getEntryAssets() {
+    return this.getNodesConnectedFrom(this.getRootNode()).map(
+      node => node.value
+    );
   }
 
   async dumpGraphViz() {

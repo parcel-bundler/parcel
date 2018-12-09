@@ -1,5 +1,6 @@
 // @flow
 'use strict';
+import {TraversalContext} from '@parcel/types';
 
 export type NodeId = string;
 
@@ -24,10 +25,18 @@ export default class Graph {
   edges: Set<Edge>;
   rootNodeId: ?NodeId;
 
-  constructor() {
-    this.nodes = new Map();
-    this.edges = new Set();
-    this.rootNodeId = null;
+  constructor(opts = {}) {
+    this.nodes = new Map(opts.nodes);
+    this.edges = new Set(opts.edges);
+    this.rootNodeId = opts.rootNodeId || null;
+  }
+
+  toJSON() {
+    return {
+      nodes: [...this.nodes],
+      edges: [...this.edges],
+      rootNodeId: this.rootNodeId
+    };
   }
 
   addNode(node: Node) {
@@ -88,7 +97,7 @@ export default class Graph {
   }
 
   // Removes node and any edges coming from that node
-  removeNode(node: Node): Graph {
+  removeNode(node: Node): this {
     let removed = new this.constructor();
 
     this.nodes.delete(node.id);
@@ -103,7 +112,7 @@ export default class Graph {
     return removed;
   }
 
-  removeEdges(node: Node): Graph {
+  removeEdges(node: Node): this {
     let removed = new this.constructor();
 
     for (let edge of this.edges) {
@@ -116,7 +125,7 @@ export default class Graph {
   }
 
   // Removes edge and node the edge is to if the node is orphaned
-  removeEdge(edge: Edge): Graph {
+  removeEdge(edge: Edge): this {
     let removed = new this.constructor();
 
     this.edges.delete(edge);
@@ -146,10 +155,6 @@ export default class Graph {
     this.addNode(toNode);
 
     for (let edge of this.edges) {
-      if (edge.from === fromNode.id) {
-        edge.from = toNode.id;
-      }
-
       if (edge.to === fromNode.id) {
         edge.to = toNode.id;
       }
@@ -194,7 +199,10 @@ export default class Graph {
     return {removed, added};
   }
 
-  traverse(visit: (node: Node, context?: any) => any, startNode?: Node) {
+  traverse(
+    visit: (node: Node, context?: any, traversal: TraversalContext) => any,
+    startNode: ?Node
+  ) {
     return this.dfs({
       visit,
       startNode,
@@ -204,7 +212,7 @@ export default class Graph {
 
   traverseAncestors(
     startNode: Node,
-    visit: (node: Node, context?: any) => any
+    visit: (node: Node, context?: any, traversal: TraversalContext) => any
   ) {
     return this.dfs({
       visit,
@@ -218,9 +226,9 @@ export default class Graph {
     startNode,
     getChildren
   }: {
-    visit(node: Node, context?: any): any,
+    visit(node: Node, context?: any, traversal: TraversalContext): any,
     getChildren(node: Node): Array<Node>,
-    startNode?: Node
+    startNode?: ?Node
   }): ?Node {
     let root = startNode || this.getRootNode();
     if (!root) {
@@ -230,7 +238,7 @@ export default class Graph {
     let visited = new Set<Node>();
     let stopped = false;
     let skipped = false;
-    let ctx = {
+    let ctx: TraversalContext = {
       skipChildren() {
         skipped = true;
       },
@@ -299,7 +307,7 @@ export default class Graph {
     return null;
   }
 
-  getSubGraph(node: Node): Graph {
+  getSubGraph(node: Node): this {
     let graph = new this.constructor();
     graph.setRootNode(node);
 

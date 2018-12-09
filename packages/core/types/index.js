@@ -202,14 +202,23 @@ export type CacheEntry = {
   initialAssets: ?Array<Asset> // Initial assets, pre-post processing
 };
 
+export interface TraversalContext {
+  skipChildren(): void;
+  stop(): void;
+}
+
 // TODO: what do we want to expose here?
 interface AssetGraph {
-  filterAssets((asset: Asset) => boolean): AssetGraph;
+  traverseAssets(
+    visit: (node: Asset, context?: any, traversal: TraversalContext) => any
+  ): any;
+  createBundle(asset: Asset): Bundle;
+  getTotalSize(asset?: Asset): number;
 }
 
 export type Bundle = {
   type: string,
-  assets: Array<Asset>,
+  assetGraph: AssetGraph,
   filePath?: FilePath
 };
 

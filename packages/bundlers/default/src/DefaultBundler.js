@@ -15,16 +15,37 @@ class BundleGraph extends Graph {
     super();
     this.setRootNode({
       type: 'root',
-      id: 'root'
+      id: 'root',
+      value: null
     });
   }
 
-  addBundleGroup(parentBundleNode, bundleGroup) {
+  addBundleGroup(parentBundleNode, dep) {
+    let bundleGroup = {
+      id: 'bundle_group:' + dep.id,
+      type: 'bundle_group',
+      value: null
+    };
+
+    // Add a connection from the dependency to the new bundle group in all bundles
+    this.traverse(bundle => {
+      if (bundle.type === 'bundle') {
+        let depNode = bundle.value.assetGraph.getNode(dep.id);
+        if (depNode) {
+          bundle.value.assetGraph.replaceNodesConnectedTo(depNode, [
+            bundleGroup
+          ]);
+        }
+      }
+    });
+
     this.addNode(bundleGroup);
     this.addEdge({
       from: !parentBundleNode ? 'root' : parentBundleNode.id,
       to: bundleGroup.id
     });
+
+    return bundleGroup;
   }
 
   addBundle(bundleGroup, bundle) {
@@ -34,15 +55,47 @@ class BundleGraph extends Graph {
       to: bundle.id
     });
 
+    // Add a connection from the bundle group to the bundle in all bundles
     this.traverse(node => {
-      if (node.type === 'bundle' && node.value.hasNode(bundleGroup.id)) {
-        node.value.addNode(bundle);
-        node.value.addEdge({
+      if (
+        node.type === 'bundle' &&
+        node.value.assetGraph.hasNode(bundleGroup.id)
+      ) {
+        node.value.assetGraph.addNode(bundle);
+        node.value.assetGraph.addEdge({
           from: bundleGroup.id,
           to: bundle.id
         });
       }
     });
+  }
+
+  isAssetInAncestorBundle(bundle, asset) {
+    let ret = null;
+    this.traverseAncestors(bundle, (node, context, traversal) => {
+      // Skip starting node
+      if (node === bundle) {
+        return;
+      }
+
+      // If this is the first bundle we've seen, initialize result to true
+      if (node.type === 'bundle' && ret === null) {
+        ret = true;
+      }
+
+      if (node.type === 'bundle' && !node.value.assetGraph.hasNode(asset.id)) {
+        ret = false;
+        traversal.stop();
+      }
+    });
+
+    return !!ret;
+  }
+
+  findBundlesWithAsset(asset) {
+    return Array.from(this.nodes.values()).filter(
+      node => node.type === 'bundle' && node.value.assetGraph.hasNode(asset.id)
+    );
   }
 }
 
@@ -63,36 +116,19 @@ export default new Bundler({
       if (node.type === 'dependency') {
         let dep = node.value;
         if (dep.isAsync || dep.isEntry) {
-          let bundleGroup = {
-            id: 'bundle_group' + dep.id,
-            type: 'bundle_group',
-            value: ''
-          };
-
-          if (context) {
-            bundleGraph.traverseAncestors(context.bundle, bundle => {
-              if (bundle.type === 'bundle') {
-                bundle.value.replaceNodesConnectedTo(node, [bundleGroup]);
-              }
-            });
-          }
-
           let isIsolated =
             !context || dep.isEntry || ISOLATED_ENVS.has(dep.env.context);
-          bundleGraph.addBundleGroup(
+          let bundleGroup = bundleGraph.addBundleGroup(
             isIsolated ? null : context.bundle,
-            bundleGroup
+            dep
           );
 
           context = {bundleGroup};
         }
       } else if (node.type === 'asset') {
         let bundles = bundleGraph.getNodesConnectedFrom(context.bundleGroup);
-        if (
-          !context.bundle ||
-          node.value.type !== context.bundle.value.getRootNode().value.type
-        ) {
-          let bundle = graph.getSubGraph(node);
+        if (!context.bundle || node.value.type !== context.bundle.value.type) {
+          let bundle = graph.createBundle(node.value);
           let bundleNode = {
             id: 'bundle:' + node.id,
             type: 'bundle',
@@ -100,7 +136,6 @@ export default new Bundler({
           };
 
           bundleGraph.addBundle(context.bundleGroup, bundleNode);
-
           context = {bundleGroup: context.bundleGroup, bundle: bundleNode};
         }
       }
@@ -112,69 +147,49 @@ export default new Bundler({
     bundleGraph.traverse(node => {
       if (node.type !== 'bundle') return;
 
-      let bundle = node.value;
-      for (let assetNode of bundle.nodes.values()) {
+      let assetGraph = node.value.assetGraph;
+      for (let assetNode of assetGraph.nodes.values()) {
         if (
           assetNode.type === 'asset' &&
-          hasNode(node, assetNode.id) &&
-          assetNode !== bundle.getRootNode()
+          bundleGraph.isAssetInAncestorBundle(node, assetNode)
         ) {
           console.log('dup', assetNode);
-          bundle.removeNode(assetNode);
+          assetGraph.replaceNode(assetNode, {
+            type: 'asset_reference',
+            id: 'asset_reference:' + assetNode.id,
+            value: {
+              id: assetNode.id
+            }
+          });
         }
       }
     });
-
-    function hasNode(bundleNode, nodeId) {
-      let ret = true;
-      bundleGraph.traverseAncestors(bundleNode, (node, context, traversal) => {
-        if (node.type === 'bundle' && !node.value.hasNode(nodeId)) {
-          ret = false;
-          traversal.stop();
-        }
-      });
-
-      return ret;
-    }
 
     // Step 3: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
     // If multiple assets are always seen together in the same bundles, combine them together.
 
     let candidateBundles = new Map();
 
-    graph.traverse((assetNode, context, traversal) => {
-      if (assetNode.type === 'asset') {
-        let bundles = Array.from(bundleGraph.nodes.values()).filter(
-          node => node.type === 'bundle' && node.value.hasNode(assetNode.id)
-        );
+    graph.traverseAssets((asset, context, traversal) => {
+      // If this asset is duplicated in the minimum number of bundles, it is a candidate to be separated into its own bundle.
+      let bundles = bundleGraph.findBundlesWithAsset(asset);
+      if (bundles.length > OPTIONS.minBundles) {
+        console.log('dup', asset.filePath);
 
-        // If this asset is duplicated in the minimum number of bundles, it is a candidate to be separated into its own bundle.
-        if (bundles.length > OPTIONS.minBundles) {
-          console.log('dup', assetNode.value.filePath);
+        let bundle = graph.createBundle(asset);
+        let size = bundle.assetGraph.getTotalSize();
 
-          let bundle = graph.getSubGraph(assetNode);
-          let size = getSize(bundle);
-
-          let id = bundles.map(b => b.id).join(':');
-          let candidate = candidateBundles.get(id);
-          if (!candidate) {
-            bundle.setRootNode({
-              type: 'root',
-              id: 'root'
-            });
-
-            bundle.addEdge({from: 'root', to: assetNode.id});
-
-            candidateBundles.set(id, {id, bundles, bundle, size});
-          } else {
-            candidate.size += size;
-            candidate.bundle.merge(bundle);
-            candidate.bundle.addEdge({from: 'root', to: assetNode.id});
-          }
-
-          // Skip children from consideration since we added a parent already.
-          traversal.skipChildren();
+        let id = bundles.map(b => b.id).join(':');
+        let candidate = candidateBundles.get(id);
+        if (!candidate) {
+          candidateBundles.set(id, {id, bundles, bundle, size});
+        } else {
+          candidate.size += size;
+          candidate.bundle.assetGraph.merge(bundle.assetGraph);
         }
+
+        // Skip children from consideration since we added a parent already.
+        traversal.skipChildren();
       }
     });
 
@@ -198,13 +213,21 @@ export default new Bundler({
             OPTIONS.maxParallelRequests
         )
       ) {
-        return;
+        continue;
       }
 
       // Remove all of the root assets from each of the original bundles
-      for (let asset of bundle.getNodesConnectedFrom(bundle.getRootNode())) {
+      for (let asset of bundle.assetGraph.getNodesConnectedFrom(
+        bundle.assetGraph.getRootNode()
+      )) {
         for (let bundle of bundles) {
-          bundle.value.removeNode(asset);
+          bundle.value.assetGraph.replaceNode(asset, {
+            type: 'asset_reference',
+            id: 'asset_reference:' + asset.id,
+            value: {
+              id: asset.id
+            }
+          });
         }
       }
 
@@ -220,39 +243,14 @@ export default new Bundler({
       }
     }
 
-    function getSize(graph) {
-      let size = 0;
-      for (let node of graph.nodes.values()) {
-        if (node.type === 'asset') {
-          size += node.value.outputSize;
-        }
-      }
-
-      return size;
-    }
-
     bundleGraph.dumpGraphViz();
 
     bundleGraph.traverse(bundle => {
       if (bundle.type === 'bundle') {
-        bundle.value.dumpGraphViz();
+        bundle.value.assetGraph.dumpGraphViz();
       }
     });
 
-    // console.log(bundles);
-    throw 'stop';
-    return bundles;
-
-    // let assets = Array.from(graph.nodes.values())
-    //   .filter(node => node.type === 'asset')
-    //   .map(node => node.value);
-
-    // return [
-    //   {
-    //     type: 'js',
-    //     filePath: 'bundle.js',
-    //     assets
-    //   }
-    // ];
+    return bundleGraph;
   }
 });
