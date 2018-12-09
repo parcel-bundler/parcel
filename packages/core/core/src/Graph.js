@@ -228,13 +228,32 @@ export default class Graph {
     }
 
     let visited = new Set<Node>();
+    let stopped = false;
+    let skipped = false;
+    let ctx = {
+      skipChildren() {
+        skipped = true;
+      },
+      stop() {
+        stopped = true;
+      }
+    };
 
     let walk = (node, context) => {
       visited.add(node);
 
-      let newContext = visit(node, context);
+      skipped = false;
+      let newContext = visit(node, context, ctx);
       if (typeof newContext !== 'undefined') {
         context = newContext;
+      }
+
+      if (skipped) {
+        return;
+      }
+
+      if (stopped) {
+        return context;
       }
 
       for (let child of getChildren(node)) {
@@ -244,7 +263,7 @@ export default class Graph {
 
         visited.add(child);
         let result = walk(child, context);
-        if (result) {
+        if (stopped) {
           return result;
         }
       }
