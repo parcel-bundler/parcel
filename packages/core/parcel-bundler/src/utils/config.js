@@ -4,7 +4,7 @@ const clone = require('clone');
 
 const PARSERS = {
   json: require('json5').parse,
-  toml: require('toml').parse
+  toml: require('@iarna/toml').parse
 };
 
 const existsCache = new Map();
