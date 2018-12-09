@@ -13,6 +13,7 @@ import type {
   Config,
   PackageJSON
 } from '@parcel/types';
+import type Cache from '@parcel/cache';
 import md5 from '@parcel/utils/md5';
 import {loadConfig} from '@parcel/utils/config';
 import createDependency from './createDependency';
@@ -28,7 +29,8 @@ type AssetOptions = {
   connectedFiles?: Array<File>,
   output?: AssetOutput,
   env: Environment,
-  meta?: JSONObject
+  meta?: JSONObject,
+  cache?: Cache
 };
 
 export default class Asset implements IAsset {
@@ -44,6 +46,7 @@ export default class Asset implements IAsset {
   outputSize: number;
   env: Environment;
   meta: JSONObject;
+  #cache; // no type annotation because prettier dies...
 
   constructor(options: AssetOptions) {
     this.id =
@@ -64,6 +67,7 @@ export default class Asset implements IAsset {
     this.outputSize = this.output.code.length;
     this.env = options.env;
     this.meta = options.meta || {};
+    this.#cache = options.cache;
   }
 
   toJSON(): AssetOptions {
@@ -104,7 +108,7 @@ export default class Asset implements IAsset {
   }
 
   createChildAsset(result: TransformerResult) {
-    let code = result.code || (result.output && result.output.code) || '';
+    let code = (result.output && result.output.code) || result.code || '';
     let opts: AssetOptions = {
       hash: this.hash || md5(code),
       filePath: this.filePath,
@@ -114,6 +118,7 @@ export default class Asset implements IAsset {
       env: mergeEnvironment(this.env, result.env),
       dependencies: this.dependencies,
       connectedFiles: this.connectedFiles,
+      output: result.output,
       meta: Object.assign({}, this.meta, result.meta)
     };
 
@@ -135,6 +140,11 @@ export default class Asset implements IAsset {
   }
 
   async getOutput() {
+    if (this.#cache) {
+      await this.#cache.readBlobs(this);
+      this.#cache = null;
+    }
+
     return this.output;
   }
 

@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "license": "MIT",
   "dependencies": {
+    "@babel/plugin-proposal-class-properties": "^7.1.0",
     "@babel/preset-env": "^7.1.0",
     "@babel/preset-flow": "^7.0.0"
   },
