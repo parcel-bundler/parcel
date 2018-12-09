@@ -5,7 +5,8 @@ import Graph from '@parcel/core/src/AssetGraph';
 
 const ISOLATED_ENVS = new Set(['web-worker', 'service-worker']);
 const OPTIONS = {
-  minBundleSize: 30000,
+  minBundles: 1,
+  minBundleSize: 10000,
   maxParallelRequests: 5
 };
 
@@ -78,8 +79,6 @@ export default new Bundler({
 
           let isIsolated =
             !context || dep.isEntry || ISOLATED_ENVS.has(dep.env.context);
-          // bundleGraph.addNode(bundleGroup);
-          // bundleGraph.addEdge({from: isIsolated || !context ? 'root' : context.bundle.id, to: bundleGroup.id});
           bundleGraph.addBundleGroup(
             isIsolated ? null : context.bundle,
             bundleGroup
@@ -128,11 +127,10 @@ export default new Bundler({
 
     function hasNode(bundleNode, nodeId) {
       let ret = true;
-      bundleGraph.traverseAncestors(bundleNode, node => {
-        if (node.type !== 'bundle') return;
-        if (!node.value.hasNode(nodeId)) {
+      bundleGraph.traverseAncestors(bundleNode, (node, context, traversal) => {
+        if (node.type === 'bundle' && !node.value.hasNode(nodeId)) {
           ret = false;
-          // break
+          traversal.stop();
         }
       });
 
@@ -140,41 +138,97 @@ export default new Bundler({
     }
 
     // Step 3: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
-    let bundleAssetMap = new Map();
-    bundleGraph.traverse(bundleGroup => {
-      if (bundleGroup.type !== 'bundle_group') return;
-      for (let bundle of bundleGraph.getNodesConnectedFrom(bundleGroup)) {
-        for (let node of bundle.value.nodes.values()) {
-          if (node.type === 'asset') {
-            if (!bundleAssetMap.has(node)) {
-              bundleAssetMap.set(node, new Set());
-            }
+    // If multiple assets are always seen together in the same bundles, combine them together.
 
-            bundleAssetMap.get(node).add(bundleGroup);
+    let candidateBundles = new Map();
+
+    graph.traverse((assetNode, context, traversal) => {
+      if (assetNode.type === 'asset') {
+        let bundles = Array.from(bundleGraph.nodes.values()).filter(
+          node => node.type === 'bundle' && node.value.hasNode(assetNode.id)
+        );
+
+        // If this asset is duplicated in the minimum number of bundles, it is a candidate to be separated into its own bundle.
+        if (bundles.length > OPTIONS.minBundles) {
+          console.log('dup', assetNode.value.filePath);
+
+          let bundle = graph.getSubGraph(assetNode);
+          let size = getSize(bundle);
+
+          let id = bundles.map(b => b.id).join(':');
+          let candidate = candidateBundles.get(id);
+          if (!candidate) {
+            bundle.setRootNode({
+              type: 'root',
+              id: 'root'
+            });
+
+            bundle.addEdge({from: 'root', to: assetNode.id});
+
+            candidateBundles.set(id, {id, bundles, bundle, size});
+          } else {
+            candidate.size += size;
+            candidate.bundle.merge(bundle);
+            candidate.bundle.addEdge({from: 'root', to: assetNode.id});
           }
+
+          // Skip children from consideration since we added a parent already.
+          traversal.skipChildren();
         }
       }
     });
 
-    for (let [asset, bundleGroups] of bundleAssetMap) {
-      if (bundleGroups.size > 1) {
-        console.log(asset.value.filePath, bundleGroups.size);
+    // Sort candidates by size (consider larger bundles first), and ensure they meet the threshold
+    let sortedCandidates = Array.from(candidateBundles.values())
+      .filter(bundle => bundle.size >= OPTIONS.minBundleSize)
+      .sort((a, b) => b.size - a.size);
 
-        let bundle = graph.getSubGraph(asset);
-        let bundleNode = {
-          id: 'bundle:' + asset.id,
-          type: 'bundle',
-          value: bundle
-        };
+    for (let {id, bundle, bundles} of sortedCandidates) {
+      // Find all bundle groups connected to the original bundles
+      let bundleGroups = bundles.reduce(
+        (arr, bundle) => arr.concat(bundleGraph.getNodesConnectedTo(bundle)),
+        []
+      );
 
-        for (let bundleGroup of bundleGroups) {
-          for (let bundle of bundleGraph.getNodesConnectedFrom(bundleGroup)) {
-            bundle.value.removeNode(asset);
-          }
+      // Check that all the bundle groups are inside the parallel request limit.
+      if (
+        !bundleGroups.every(
+          group =>
+            bundleGraph.getNodesConnectedFrom(group).length <
+            OPTIONS.maxParallelRequests
+        )
+      ) {
+        return;
+      }
 
-          bundleGraph.addBundle(bundleGroup, bundleNode);
+      // Remove all of the root assets from each of the original bundles
+      for (let asset of bundle.getNodesConnectedFrom(bundle.getRootNode())) {
+        for (let bundle of bundles) {
+          bundle.value.removeNode(asset);
         }
       }
+
+      // Create new bundle node and connect it to all of the original bundle groups
+      let bundleNode = {
+        id: id,
+        type: 'bundle',
+        value: bundle
+      };
+
+      for (let bundleGroup of bundleGroups) {
+        bundleGraph.addBundle(bundleGroup, bundleNode);
+      }
+    }
+
+    function getSize(graph) {
+      let size = 0;
+      for (let node of graph.nodes.values()) {
+        if (node.type === 'asset') {
+          size += node.value.outputSize;
+        }
+      }
+
+      return size;
     }
 
     bundleGraph.dumpGraphViz();

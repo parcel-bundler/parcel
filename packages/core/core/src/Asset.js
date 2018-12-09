@@ -41,6 +41,7 @@ export default class Asset implements IAsset {
   dependencies: Array<Dependency>;
   connectedFiles: Array<File>;
   output: AssetOutput;
+  outputSize: number;
   env: Environment;
   meta: JSONObject;
 
@@ -60,6 +61,7 @@ export default class Asset implements IAsset {
       ? options.connectedFiles.slice()
       : [];
     this.output = options.output || {code: this.code};
+    this.outputSize = this.output.code.length;
     this.env = options.env;
     this.meta = options.meta || {};
   }
@@ -74,6 +76,7 @@ export default class Asset implements IAsset {
       dependencies: this.dependencies,
       connectedFiles: this.connectedFiles,
       output: this.output,
+      outputSize: this.outputSize,
       env: this.env,
       meta: this.meta
     };

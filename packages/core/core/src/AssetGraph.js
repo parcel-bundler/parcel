@@ -285,6 +285,8 @@ export default class AssetGraph extends Graph {
         label +=
           path.basename(node.value.filePath) +
           ` (${getEnvDescription(node.value.env)})`;
+      } else if (node.type === 'bundle') {
+        label += node.id;
       } else {
         // label += node.id;
         label = node.type;

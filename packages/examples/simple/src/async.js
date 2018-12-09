@@ -1,1 +1,2 @@
-console.log(require('./message'));
+console.log(require('react'));
+require('lodash');
