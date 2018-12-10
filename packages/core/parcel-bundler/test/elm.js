@@ -22,6 +22,20 @@ describe('elm', function() {
     assert(js.includes('elm$browser$Debugger'));
   });
 
+  it('should apply elm-hot if HMR is enabled', async function() {
+    let b = await bundle(__dirname + '/integration/elm/index.js', {
+      hmr: true
+    });
+
+    await assertBundleTree(b, {
+      type: 'js',
+      assets: ['Main.elm', 'hmr-runtime.js', 'index.js']
+    });
+
+    let js = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
+    assert(js.includes('[elm-hot]'));
+  });
+
   it('should remove debugger in production', async function() {
     let b = await bundle(__dirname + '/integration/elm/index.js', {
       production: true

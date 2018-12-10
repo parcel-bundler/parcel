@@ -9,7 +9,6 @@ class ElmAsset extends Asset {
   constructor(name, options) {
     super(name, options);
     this.type = 'js';
-    this.hmrPageReload = true;
   }
 
   async parse() {
@@ -47,6 +46,10 @@ class ElmAsset extends Asset {
 
     let compiled = await this.elm.compileToString(this.name, options);
     this.contents = compiled.toString();
+    if (this.options.hmr) {
+      let {inject} = await localRequire('elm-hot', this.name);
+      this.contents = inject(this.contents);
+    }
   }
 
   async collectDependencies() {
