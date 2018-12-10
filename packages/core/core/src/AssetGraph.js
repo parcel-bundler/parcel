@@ -340,7 +340,7 @@ export default class AssetGraph extends Graph {
         if (node.value.isOptional) parts.push('optional');
         if (parts.length) label += ' (' + parts.join(', ') + ')';
         if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
-      } else if (node.type === 'asset') {
+      } else if (node.type === 'asset' || node.type === 'asset_reference') {
         label += path.basename(node.value.filePath) + '#' + node.value.type;
       } else if (node.type === 'file') {
         label += path.basename(node.value.filePath);
@@ -349,7 +349,20 @@ export default class AssetGraph extends Graph {
           path.basename(node.value.filePath) +
           ` (${getEnvDescription(node.value.env)})`;
       } else if (node.type === 'bundle') {
-        label += node.id;
+        let rootAssets = node.value.assetGraph.getNodesConnectedFrom(
+          node.value.assetGraph.getRootNode()
+        );
+        label += rootAssets
+          .map(asset => {
+            let parts = asset.value.filePath.split(path.sep);
+            let index = parts.lastIndexOf('node_modules');
+            if (index >= 0) {
+              return parts[index + 1];
+            }
+
+            return path.basename(asset.value.filePath);
+          })
+          .join(', ');
       } else {
         // label += node.id;
         label = node.type;
