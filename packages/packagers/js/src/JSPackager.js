@@ -24,19 +24,12 @@ export default new Packager({
 
       let dependencies = bundle.assetGraph.getNodesConnectedFrom(asset);
       for (let dep of dependencies) {
-        let node = bundle.assetGraph.getNodesConnectedFrom(dep)[0];
-        if (node.type === 'transformer_request') {
-          let assetNode = bundle.assetGraph
-            .getNodesConnectedFrom(node)
-            .find(
-              node => node.type === 'asset' || node.type === 'asset_reference'
-            );
-          if (assetNode) {
-            deps[dep.value.moduleSpecifier] = assetNode.value.id;
-          }
-        } else if (node.type === 'bundle_group') {
-          let bundles = bundle.assetGraph.getNodesConnectedFrom(node);
+        let resolved = bundle.assetGraph.getDependencyResolution(dep);
+        if (resolved.type === 'bundle_group') {
+          let bundles = bundle.assetGraph.getNodesConnectedFrom(resolved);
           deps[dep.value.moduleSpecifier] = bundles.map(b => b.id);
+        } else {
+          deps[dep.value.moduleSpecifier] = resolved.value.id;
         }
       }
 

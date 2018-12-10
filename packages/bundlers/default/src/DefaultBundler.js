@@ -48,11 +48,17 @@ class BundleGraph extends Graph {
     return bundleGroup;
   }
 
-  addBundle(bundleGroup, bundle) {
-    this.addNode(bundle);
+  addBundle(bundleGroup, bundle, id) {
+    let bundleNode = {
+      id: id,
+      type: 'bundle',
+      value: bundle
+    };
+
+    this.addNode(bundleNode);
     this.addEdge({
       from: bundleGroup.id,
-      to: bundle.id
+      to: bundleNode.id
     });
 
     // Add a connection from the bundle group to the bundle in all bundles
@@ -61,13 +67,15 @@ class BundleGraph extends Graph {
         node.type === 'bundle' &&
         node.value.assetGraph.hasNode(bundleGroup.id)
       ) {
-        node.value.assetGraph.addNode(bundle);
+        node.value.assetGraph.addNode(bundleNode);
         node.value.assetGraph.addEdge({
           from: bundleGroup.id,
-          to: bundle.id
+          to: bundleNode.id
         });
       }
     });
+
+    return bundleNode;
   }
 
   isAssetInAncestorBundle(bundle, asset) {
@@ -123,24 +131,38 @@ export default new Bundler({
             dep
           );
 
-          context = {bundleGroup};
+          return {bundleGroup};
         }
       } else if (node.type === 'asset') {
-        let bundles = bundleGraph.getNodesConnectedFrom(context.bundleGroup);
         if (!context.bundle || node.value.type !== context.bundle.value.type) {
           let bundle = graph.createBundle(node.value);
-          let bundleNode = {
-            id: 'bundle:' + node.id,
-            type: 'bundle',
-            value: bundle
-          };
 
-          bundleGraph.addBundle(context.bundleGroup, bundleNode);
-          context = {bundleGroup: context.bundleGroup, bundle: bundleNode};
+          // If there is a current bundle, but this asset is of a different type,
+          // separate it out into a different bundle.
+          if (context.bundle) {
+            let bundles = bundleGraph.getNodesConnectedFrom(
+              context.bundleGroup
+            );
+            let existingBundle = bundles.find(
+              b => b.value.type === node.value.type
+            );
+
+            // If there is an existing bundle of the asset's type, combine with that.
+            // Otherwise, a new bundle will be created.
+            if (existingBundle) {
+              existingBundle.value.assetGraph.merge(bundle);
+              return {bundleGroup: context.bundleGroup, bundle: existingBundle};
+            }
+          }
+
+          let bundleNode = bundleGraph.addBundle(
+            context.bundleGroup,
+            bundle,
+            'bundle:' + node.id
+          );
+          return {bundleGroup: context.bundleGroup, bundle: bundleNode};
         }
       }
-
-      return context;
     });
 
     // Step 2: remove assets that are duplicated in a parent bundle
@@ -148,21 +170,12 @@ export default new Bundler({
       if (node.type !== 'bundle') return;
 
       let assetGraph = node.value.assetGraph;
-      for (let assetNode of assetGraph.nodes.values()) {
-        if (
-          assetNode.type === 'asset' &&
-          bundleGraph.isAssetInAncestorBundle(node, assetNode)
-        ) {
-          console.log('dup', assetNode);
-          assetGraph.replaceNode(assetNode, {
-            type: 'asset_reference',
-            id: 'asset_reference:' + assetNode.id,
-            value: {
-              id: assetNode.id
-            }
-          });
+      assetGraph.traverseAssets(asset => {
+        if (bundleGraph.isAssetInAncestorBundle(node, asset)) {
+          console.log('dup', asset);
+          assetGraph.removeAsset(asset);
         }
-      }
+      });
     });
 
     // Step 3: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
@@ -217,29 +230,15 @@ export default new Bundler({
       }
 
       // Remove all of the root assets from each of the original bundles
-      for (let asset of bundle.assetGraph.getNodesConnectedFrom(
-        bundle.assetGraph.getRootNode()
-      )) {
+      for (let asset of bundle.assetGraph.getEntryAssets()) {
         for (let bundle of bundles) {
-          bundle.value.assetGraph.replaceNode(asset, {
-            type: 'asset_reference',
-            id: 'asset_reference:' + asset.id,
-            value: {
-              id: asset.id
-            }
-          });
+          bundle.value.assetGraph.removeAsset(asset);
         }
       }
 
       // Create new bundle node and connect it to all of the original bundle groups
-      let bundleNode = {
-        id: id,
-        type: 'bundle',
-        value: bundle
-      };
-
       for (let bundleGroup of bundleGroups) {
-        bundleGraph.addBundle(bundleGroup, bundleNode);
+        bundleGraph.addBundle(bundleGroup, bundle, id);
       }
     }
 

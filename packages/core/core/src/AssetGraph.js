@@ -225,25 +225,23 @@ export default class AssetGraph extends Graph {
     }
   }
 
-  getIncomingDependencies(asset: Asset): Array<Dependency> {
-    let assetNode = this.getNode(asset.id);
-    if (!assetNode) {
-      return [];
+  getDependencyResolution(dep: Dependency): ?Node {
+    let depNode = this.getNode(dep.id);
+    if (!depNode) {
+      return null;
     }
 
-    let transformerRequests = this.getNodesConnectedTo(assetNode);
-    let results = [];
-
-    for (let req of transformerRequests) {
-      let deps = this.getNodesConnectedTo(req);
-      for (let dep of deps) {
-        if (dep.type === 'dependency') {
-          results.push(dep.value);
-        }
+    let node = this.getNodesConnectedFrom(depNode)[0];
+    if (node.type === 'transformer_request') {
+      let assetNode = this.getNodesConnectedFrom(node).find(
+        node => node.type === 'asset' || node.type === 'asset_reference'
+      );
+      if (assetNode) {
+        return assetNode;
       }
+    } else if (node.type === 'bundle_group') {
+      return node;
     }
-
-    return results;
   }
 
   traverseAssets(
@@ -292,6 +290,19 @@ export default class AssetGraph extends Graph {
     return this.getNodesConnectedFrom(this.getRootNode()).map(
       node => node.value
     );
+  }
+
+  removeAsset(asset: Asset) {
+    let assetNode = this.getNode(asset.id);
+    if (!assetNode) {
+      return;
+    }
+
+    this.replaceNode(assetNode, {
+      type: 'asset_reference',
+      id: 'asset_reference:' + assetNode.id,
+      value: asset
+    });
   }
 
   async dumpGraphViz() {
