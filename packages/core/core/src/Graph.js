@@ -1,6 +1,6 @@
 // @flow
 'use strict';
-import {TraversalContext} from '@parcel/types';
+import type {TraversalContext} from '@parcel/types';
 
 export type NodeId = string;
 

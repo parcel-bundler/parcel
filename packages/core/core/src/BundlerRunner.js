@@ -1,7 +1,11 @@
+// @flow
 import path from 'path';
-import Config from './Config';
+import type Config from './Config';
+import BundleGraph from './BundleGraph';
 
 export default class BundlerRunner {
+  config: Config;
+
   constructor(opts) {
     this.config = opts.config;
   }
@@ -9,6 +13,8 @@ export default class BundlerRunner {
   async bundle(graph /* , opts */) {
     let bundler = await this.config.getBundler();
 
-    return bundler.bundle(graph);
+    let bundleGraph = new BundleGraph();
+    bundler.bundle(graph, bundleGraph);
+    return bundleGraph;
   }
 }

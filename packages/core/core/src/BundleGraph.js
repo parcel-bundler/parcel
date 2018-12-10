@@ -1,3 +1,4 @@
+// @flow
 import AssetGraph from './AssetGraph';
 
 export default class BundleGraph extends AssetGraph {

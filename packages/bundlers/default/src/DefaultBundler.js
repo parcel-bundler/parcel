@@ -1,31 +1,29 @@
 // @flow
-import type {Asset, Bundle} from '@parcel/types';
 import {Bundler} from '@parcel/plugin';
-import BundleGraph from '@parcel/core/src/BundleGraph';
 
 const ISOLATED_ENVS = new Set(['web-worker', 'service-worker']);
 const OPTIONS = {
   minBundles: 1,
-  minBundleSize: 10000,
+  minBundleSize: 30000,
   maxParallelRequests: 5
 };
 
 export default new Bundler({
-  async bundle(graph) {
-    // RULES
-    // 1. If dep.isAsync or dep.isEntry, start a new bundle.
-    // 2. If an asset has been seen before in a different bundle:
-    //    a. If the asset is already in a parent bundle in the same entry point, exclude from the current bundle.
-    //    b. If the asset is only in separate isolated entry points (e.g. workers, different HTML pages), duplicate it.
-    //    c. If the sub-graph from this asset is >= 30kb, and the number of parallel requests at the current entry point is < 5, create a new bundle containing the sub-graph.
-    //    d. Else, hoist the asset to the nearest common ancestor.
-
-    let bundleGraph = new BundleGraph();
+  bundle(assetGraph, bundleGraph) {
+    // RULES:
+    // 1. If dep.isAsync or dep.isEntry, start a new bundle group.
+    // 2. If an asset is a different type than the current bundle, make a parallel bundle in the same bundle group.
+    // 3. If an asset is already in a parent bundle in the same entry point, exclude from child bundles.
+    // 4. If an asset is only in separate isolated entry points (e.g. workers, different HTML pages), duplicate it.
+    // 5. If the sub-graph from an asset is >= 30kb, and the number of parallel requests in the bundle group is < 5, create a new bundle containing the sub-graph.
+    // 6. If two assets are always seen together, put them in the same extracted bundle.
 
     // Step 1: create bundles for each of the explicit code split points.
-    graph.traverse((node, context) => {
+    assetGraph.traverse((node, context) => {
       if (node.type === 'dependency') {
         let dep = node.value;
+
+        // Start a new bundle if this is an async dependency, or entry point.
         if (dep.isAsync || dep.isEntry) {
           let isIsolated =
             !context || dep.isEntry || ISOLATED_ENVS.has(dep.env.context);
@@ -38,10 +36,10 @@ export default new Bundler({
         }
       } else if (node.type === 'asset') {
         if (!context.bundle || node.value.type !== context.bundle.value.type) {
-          let bundle = graph.createBundle(node.value);
+          let bundle = assetGraph.createBundle(node.value);
 
           // If there is a current bundle, but this asset is of a different type,
-          // separate it out into a different bundle.
+          // separate it out into a parallel bundle in the same bundle group.
           if (context.bundle) {
             let bundles = bundleGraph.getNodesConnectedFrom(
               context.bundleGroup
@@ -53,7 +51,7 @@ export default new Bundler({
             // If there is an existing bundle of the asset's type, combine with that.
             // Otherwise, a new bundle will be created.
             if (existingBundle) {
-              existingBundle.value.assetGraph.merge(bundle);
+              existingBundle.value.assetGraph.merge(bundle.assetGraph);
               return {bundleGroup: context.bundleGroup, bundle: existingBundle};
             }
           }
@@ -86,13 +84,13 @@ export default new Bundler({
 
     let candidateBundles = new Map();
 
-    graph.traverseAssets((asset, context, traversal) => {
+    assetGraph.traverseAssets((asset, context, traversal) => {
       // If this asset is duplicated in the minimum number of bundles, it is a candidate to be separated into its own bundle.
       let bundles = bundleGraph.findBundlesWithAsset(asset);
       if (bundles.length > OPTIONS.minBundles) {
         console.log('dup', asset.filePath);
 
-        let bundle = graph.createBundle(asset);
+        let bundle = assetGraph.createBundle(asset);
         let size = bundle.assetGraph.getTotalSize();
 
         let id = bundles.map(b => b.id).join(':');
@@ -109,7 +107,7 @@ export default new Bundler({
       }
     });
 
-    // Sort candidates by size (consider larger bundles first), and ensure they meet the threshold
+    // Sort candidates by size (consider larger bundles first), and ensure they meet the size threshold
     let sortedCandidates = Array.from(candidateBundles.values())
       .filter(bundle => bundle.size >= OPTIONS.minBundleSize)
       .sort((a, b) => b.size - a.size);
@@ -152,7 +150,5 @@ export default new Bundler({
         bundle.value.assetGraph.dumpGraphViz();
       }
     });
-
-    return bundleGraph;
   }
 });

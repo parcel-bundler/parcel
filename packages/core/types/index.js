@@ -214,7 +214,13 @@ interface AssetGraph {
   ): any;
   createBundle(asset: Asset): Bundle;
   getTotalSize(asset?: Asset): number;
+  getEntryAssets(): Array<Asset>;
+  removeAsset(asset: Asset): void;
 }
+
+export type BundleGroup = {
+  dependency: Dependency
+};
 
 export type Bundle = {
   type: string,
@@ -222,8 +228,15 @@ export type Bundle = {
   filePath?: FilePath
 };
 
+interface BundleGraph {
+  addBundleGroup(parentBundle: ?Bundle, dep: Dependency): void;
+  addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
+  isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
+  findBundlesWithAsset(asset: Asset): Array<Bundle>;
+}
+
 export type Bundler = {
-  bundle(graph: AssetGraph, opts: CLIOptions): Array<Bundle>
+  bundle(graph: AssetGraph, bundleGraph: BundleGraph, opts: CLIOptions): void
 };
 
 export type Namer = {

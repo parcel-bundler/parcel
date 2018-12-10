@@ -286,7 +286,7 @@ export default class AssetGraph extends Graph {
     return size;
   }
 
-  getEntryAssets() {
+  getEntryAssets(): Array<Asset> {
     return this.getNodesConnectedFrom(this.getRootNode()).map(
       node => node.value
     );
