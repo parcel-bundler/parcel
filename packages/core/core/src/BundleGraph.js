@@ -1,5 +1,14 @@
 // @flow
+import type {
+  Asset,
+  Bundle,
+  BundleGroup,
+  GraphTraversalCallback
+} from '@parcel/types';
 import AssetGraph from './AssetGraph';
+
+const getBundleGroupId = (bundleGroup: BundleGroup) =>
+  'bundle_group:' + bundleGroup.dependency.id;
 
 export default class BundleGraph extends AssetGraph {
   constructor() {
@@ -11,44 +20,43 @@ export default class BundleGraph extends AssetGraph {
     });
   }
 
-  addBundleGroup(parentBundleNode, dep) {
-    let bundleGroup = {
-      id: 'bundle_group:' + dep.id,
+  addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup) {
+    let node = {
+      id: getBundleGroupId(bundleGroup),
       type: 'bundle_group',
-      value: null
+      value: bundleGroup
     };
 
     // Add a connection from the dependency to the new bundle group in all bundles
     this.traverse(bundle => {
       if (bundle.type === 'bundle') {
-        let depNode = bundle.value.assetGraph.getNode(dep.id);
+        let depNode = bundle.value.assetGraph.getNode(
+          bundleGroup.dependency.id
+        );
         if (depNode) {
-          bundle.value.assetGraph.replaceNodesConnectedTo(depNode, [
-            bundleGroup
-          ]);
+          bundle.value.assetGraph.replaceNodesConnectedTo(depNode, [node]);
         }
       }
     });
 
-    this.addNode(bundleGroup);
+    this.addNode(node);
     this.addEdge({
-      from: !parentBundleNode ? 'root' : parentBundleNode.id,
-      to: bundleGroup.id
+      from: !parentBundle ? 'root' : parentBundle.id,
+      to: node.id
     });
-
-    return bundleGroup;
   }
 
-  addBundle(bundleGroup, bundle, id) {
+  addBundle(bundleGroup: BundleGroup, bundle: Bundle) {
+    let bundleGroupId = getBundleGroupId(bundleGroup);
     let bundleNode = {
-      id: id,
+      id: bundle.id,
       type: 'bundle',
       value: bundle
     };
 
     this.addNode(bundleNode);
     this.addEdge({
-      from: bundleGroup.id,
+      from: bundleGroupId,
       to: bundleNode.id
     });
 
@@ -56,24 +64,46 @@ export default class BundleGraph extends AssetGraph {
     this.traverse(node => {
       if (
         node.type === 'bundle' &&
-        node.value.assetGraph.hasNode(bundleGroup.id)
+        node.value.assetGraph.hasNode(bundleGroupId)
       ) {
         node.value.assetGraph.addNode(bundleNode);
         node.value.assetGraph.addEdge({
-          from: bundleGroup.id,
+          from: bundleGroupId,
           to: bundleNode.id
         });
       }
     });
-
-    return bundleNode;
   }
 
-  isAssetInAncestorBundle(bundle, asset) {
+  getBundles(bundleGroup: BundleGroup): Array<Bundle> {
+    let bundleGroupId = getBundleGroupId(bundleGroup);
+    let node = this.getNode(bundleGroupId);
+    if (!node) {
+      return [];
+    }
+
+    return this.getNodesConnectedFrom(node).map(node => node.value);
+  }
+
+  getBundleGroups(bundle: Bundle): Array<BundleGroup> {
+    let node = this.getNode(bundle.id);
+    if (!node) {
+      return [];
+    }
+
+    return this.getNodesConnectedTo(node).map(node => node.value);
+  }
+
+  isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean {
+    let bundleNode = this.getNode(bundle.id);
+    if (!bundleNode) {
+      return false;
+    }
+
     let ret = null;
-    this.traverseAncestors(bundle, (node, context, traversal) => {
+    this.traverseAncestors(bundleNode, (node, context, traversal) => {
       // Skip starting node
-      if (node === bundle) {
+      if (node === bundleNode) {
         return;
       }
 
@@ -91,9 +121,20 @@ export default class BundleGraph extends AssetGraph {
     return !!ret;
   }
 
-  findBundlesWithAsset(asset) {
-    return Array.from(this.nodes.values()).filter(
-      node => node.type === 'bundle' && node.value.assetGraph.hasNode(asset.id)
-    );
+  findBundlesWithAsset(asset: Asset): Array<Bundle> {
+    return Array.from(this.nodes.values())
+      .filter(
+        node =>
+          node.type === 'bundle' && node.value.assetGraph.hasNode(asset.id)
+      )
+      .map(node => node.value);
+  }
+
+  traverseBundles(visit: GraphTraversalCallback<Bundle>): any {
+    return this.traverse((node, ...args) => {
+      if (node.type === 'bundle') {
+        return visit(node.value, ...args);
+      }
+    });
   }
 }

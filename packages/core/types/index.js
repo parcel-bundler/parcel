@@ -207,11 +207,15 @@ export interface TraversalContext {
   stop(): void;
 }
 
+export type GraphTraversalCallback<T> = (
+  asset: T,
+  context?: any,
+  traversal: TraversalContext
+) => any;
+
 // TODO: what do we want to expose here?
 interface AssetGraph {
-  traverseAssets(
-    visit: (node: Asset, context?: any, traversal: TraversalContext) => any
-  ): any;
+  traverseAssets(visit: GraphTraversalCallback<Asset>): any;
   createBundle(asset: Asset): Bundle;
   getTotalSize(asset?: Asset): number;
   getEntryAssets(): Array<Asset>;
@@ -223,16 +227,20 @@ export type BundleGroup = {
 };
 
 export type Bundle = {
+  id: string,
   type: string,
   assetGraph: AssetGraph,
   filePath?: FilePath
 };
 
-interface BundleGraph {
-  addBundleGroup(parentBundle: ?Bundle, dep: Dependency): void;
+export interface BundleGraph {
+  addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
   addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
   isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
   findBundlesWithAsset(asset: Asset): Array<Bundle>;
+  getBundles(bundleGroup: BundleGroup): Array<Bundle>;
+  getBundleGroups(bundle: Bundle): Array<BundleGroup>;
+  traverseBundles(visit: GraphTraversalCallback<Bundle>): any;
 }
 
 export type Bundler = {

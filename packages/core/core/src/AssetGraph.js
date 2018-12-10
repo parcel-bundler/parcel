@@ -11,7 +11,7 @@ import type {
   Target,
   Environment,
   Bundle,
-  TraversalContext
+  GraphTraversalCallback
 } from '@parcel/types';
 import path from 'path';
 import md5 from '@parcel/utils/md5';
@@ -244,10 +244,7 @@ export default class AssetGraph extends Graph {
     }
   }
 
-  traverseAssets(
-    visit: (node: Asset, context?: any, traversal: TraversalContext) => any,
-    startNode: ?Node
-  ) {
+  traverseAssets(visit: GraphTraversalCallback<Asset>, startNode: ?Node) {
     return this.traverse((node, ...args) => {
       if (node.type === 'asset') {
         return visit(node.value, ...args);
@@ -270,6 +267,7 @@ export default class AssetGraph extends Graph {
 
     graph.addEdge({from: 'root', to: assetNode.id});
     return {
+      id: 'bundle:' + asset.id,
       type: asset.type,
       assetGraph: graph,
       filePath: 'bundle.' + BUNDLECOUNT++ + '.js'
