@@ -342,6 +342,25 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
+  it('Should not run parcel over external modules', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-external/index.js'),
+      {
+        target: 'browser'
+      }
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+  });
+
   it('should support bundling workers', async function() {
     let b = await bundle(path.join(__dirname, '/integration/workers/index.js'));
 

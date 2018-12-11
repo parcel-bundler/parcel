@@ -54,6 +54,8 @@ module.exports = {
       types.isStringLiteral(args[0]);
 
     if (isDynamicImport) {
+      if (isURL(args[0].value)) return;
+
       asset.addDependency('_bundle_loader');
       addDependency(asset, args[0], {dynamic: true});
 
