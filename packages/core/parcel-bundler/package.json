@@ -121,8 +121,8 @@
     "vue-template-compiler": "^2.5.16"
   },
   "scripts": {
-    "test": "cross-env NODE_ENV=test mocha --reporter mocha-multi-reporters --reporter-options configFile=./test/mochareporters.json",
-    "test-coverage": "rm -rf coverage/* && nyc yarn test",
+    "test": "cross-env NODE_ENV=test mocha",
+    "test-coverage": "rm -rf coverage/* && nyc yarn test --reporter mocha-multi-reporters --reporter-options configFile=./test/mochareporters.json",
     "report-coverage": "nyc report --reporter=lcov --reporter=cobertura --reporter=html && codecov",
     "test-ci": "yarn test-coverage && yarn report-coverage",
     "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
