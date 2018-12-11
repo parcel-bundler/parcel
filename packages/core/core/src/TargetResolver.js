@@ -1,6 +1,6 @@
 // @flow
 import type {FilePath, PackageJSON, Target, Environment} from '@parcel/types';
-import {loadConfig} from '@parcel/utils/config';
+import {loadConfig} from '@parcel/utils/lib/config';
 import path from 'path';
 
 const DEFAULT_ENGINES = {

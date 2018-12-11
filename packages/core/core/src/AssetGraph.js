@@ -12,7 +12,7 @@ import type {
   Environment
 } from '@parcel/types';
 import path from 'path';
-import md5 from '@parcel/utils/md5';
+import md5 from '@parcel/utils/lib/md5';
 import createDependency from './createDependency';
 
 export const nodeFromRootDir = (rootDir: string) => ({

@@ -11,7 +11,7 @@ import type {
   Packager,
   Optimizer
 } from '@parcel/types';
-import localRequire from '@parcel/utils/localRequire';
+import localRequire from '@parcel/utils/lib/localRequire';
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
 import {CONFIG} from '@parcel/plugin';

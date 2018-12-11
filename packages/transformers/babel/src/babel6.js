@@ -1,6 +1,6 @@
 // @flow
 import type {Asset} from '@parcel/types';
-import localRequire from '@parcel/utils/localRequire';
+import localRequire from '@parcel/utils/lib/localRequire';
 import {babel6toBabel7} from './astConverter';
 
 export default async function babel6(asset: Asset, options) {

@@ -1,6 +1,6 @@
 // @flow
 import type {DependencyOptions, Dependency, FilePath} from '@parcel/types';
-import md5 from '@parcel/utils/md5';
+import md5 from '@parcel/utils/lib/md5';
 
 export default function createDependency(
   opts: DependencyOptions,
