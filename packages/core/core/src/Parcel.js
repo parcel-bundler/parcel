@@ -187,7 +187,6 @@ export default class Parcel {
   }
 
   async transform(req: TransformerRequest, {signal, shallow}: BuildOpts) {
-    console.log({req, opts: {signal, shallow}});
     let cacheEntry = await this.runTransform(req);
 
     if (signal.aborted) throw abortError;
@@ -196,8 +195,6 @@ export default class Parcel {
       removedFiles,
       newDeps
     } = this.graph.resolveTransformerRequest(req, cacheEntry);
-
-    console.log(cacheEntry);
 
     if (this.watcher) {
       for (let file of addedFiles) {
