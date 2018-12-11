@@ -9,10 +9,12 @@ import type {
   Environment,
   JSONObject,
   AST,
-  AssetOutput
+  AssetOutput,
+  Config,
+  PackageJSON
 } from '@parcel/types';
 import md5 from '@parcel/utils/md5';
-import config from '@parcel/utils/config';
+import {loadConfig} from '@parcel/utils/config';
 import createDependency from './createDependency';
 
 type AssetOptions = {
@@ -133,15 +135,32 @@ export default class Asset implements IAsset {
     return this.output;
   }
 
-  async getConfig(filePaths: Array<FilePath>) {
-    return config.load(this.filePath, filePaths);
+  async getConfig(
+    filePaths: Array<FilePath>,
+    options: ?{packageKey?: string, parse?: boolean}
+  ): Promise<Config | null> {
+    if (options && options.packageKey) {
+      let pkg = await this.getPackage();
+      if (pkg && options.packageKey && pkg[options.packageKey]) {
+        return pkg[options.packageKey];
+      }
+    }
+
+    let conf = await loadConfig(this.filePath, filePaths, options);
+    if (!conf) {
+      return null;
+    }
+
+    for (let file of conf.files) {
+      this.addConnectedFile(file);
+    }
+
+    return conf.config;
   }
 
-  async getPackage() {
-    return {
-      name: 'foo',
-      version: '1.2.3'
-    };
+  async getPackage(): Promise<PackageJSON | null> {
+    // $FlowFixMe
+    return await this.getConfig(['package.json']);
   }
 }
 
