@@ -17,25 +17,30 @@ function fileHandler(opts) {
   });
 
   return function(code, filename) {
-    // Not sure if this should work?
-    let result = syncPromise(
-      parcel.transform(
-        {
+    // TODO: Skip parcel's own code...
+
+    try {
+      // It appears pipeline always ends up being [undefined, undefined, undefined]
+      // TODO: Figure out why this happens and fix it.
+      let result = syncPromise(
+        parcel.runTransform({
           filePath: filename,
           env: {
             context: 'node',
-            engines: {} // TODO: figure this out
+            engines: {}
           }
-        },
-        {
-          signal: {
-            aborted: false
-          }
-        }
-      )
-    );
+        })
+      );
 
-    return 'module.exports = null;';
+      console.log('Successfully compiled: ', filename);
+      console.log(({assets, initialAssets} = result));
+    } catch (e) {
+      console.error('@parcel/register failed to process: ', filename);
+      console.error(e);
+    }
+
+    // Fallback
+    return 'module.exports = {};';
   };
 }
 
@@ -48,11 +53,12 @@ function register(opts = DEFAULT_CLI_OPTS) {
   // Register the hook
   revert = addHook(fileHandler(opts), {
     // Parcel should handle all the files?
-    matcher: () => true
+    matcher: () => true,
+    ignoreNodeModules: false
   });
 }
 
+module.exports = register;
+
 // Hook into require, this will be overwritten whenever it is called again or explicitly called with opts
 register();
-
-module.exports = register;
