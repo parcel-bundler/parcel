@@ -52,9 +52,7 @@ export default new Packager({
       assets +
       '},{},' +
       JSON.stringify(
-        bundle.assetGraph
-          .getNodesConnectedFrom(bundle.assetGraph.getRootNode())
-          .map(node => node.id)
+        bundle.assetGraph.getEntryAssets().map(asset => asset.id)
       ) +
       ', ' +
       'null' +
