@@ -18,20 +18,15 @@ function fileHandler(opts) {
   });
 
   return function(code, filename) {
-    let isInMonorepo =
-      filename.includes('parcel/packages') &&
-      !filename.includes('core/register');
-    if (filename.includes('@parcel') || isInMonorepo) {
-      return code;
-    }
-
     try {
       let result = syncPromise(
         parcel.runTransform({
           filePath: filename,
           env: {
             context: 'node',
-            engines: {}
+            engines: {
+              node: process.versions.node
+            }
           }
         })
       );
@@ -59,6 +54,15 @@ function fileHandler(opts) {
   };
 }
 
+function matcher(filename) {
+  let isInMonorepo =
+    filename.includes('parcel/packages') && !filename.includes('core/register');
+  if (filename.includes('@parcel') || isInMonorepo) {
+    return false;
+  }
+  return true;
+}
+
 export default function register(opts = DEFAULT_CLI_OPTS) {
   // Replace old hook, as this one likely contains options.
   if (revert) {
@@ -68,7 +72,7 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
   // Register the hook
   revert = addHook(fileHandler(opts), {
     // Parcel should handle all the files?
-    matcher: () => true,
+    matcher,
     ignoreNodeModules: true
   });
 }
