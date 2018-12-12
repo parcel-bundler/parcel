@@ -102,8 +102,7 @@ export type DependencyOptions = {
   meta?: JSONObject
 };
 
-export type Dependency = {
-  ...DependencyOptions,
+export type Dependency = DependencyOptions & {
   id: string,
   env: Environment,
 
@@ -142,6 +141,7 @@ export interface Asset {
   getPackage(): Promise<PackageJSON | null>;
   addDependency(dep: DependencyOptions): string;
   createChildAsset(result: TransformerResult): Asset;
+  getOutput(): AssetOutput;
 }
 
 export type AssetOutput = {
@@ -213,13 +213,24 @@ export type GraphTraversalCallback<T> = (
   traversal: TraversalContext
 ) => any;
 
+interface Graph {
+  merge(graph: Graph): void;
+}
+
+export type DependencyResolution = {
+  asset?: Asset,
+  bundles?: Array<Bundle>
+};
+
 // TODO: what do we want to expose here?
-interface AssetGraph {
+interface AssetGraph extends Graph {
   traverseAssets(visit: GraphTraversalCallback<Asset>): any;
   createBundle(asset: Asset): Bundle;
   getTotalSize(asset?: Asset): number;
   getEntryAssets(): Array<Asset>;
   removeAsset(asset: Asset): void;
+  getDependencies(asset: Asset): Array<Dependency>;
+  getDependencyResolution(dependency: Dependency): DependencyResolution;
 }
 
 export type BundleGroup = {

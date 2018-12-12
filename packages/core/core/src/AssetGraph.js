@@ -11,7 +11,8 @@ import type {
   Target,
   Environment,
   Bundle,
-  GraphTraversalCallback
+  GraphTraversalCallback,
+  DependencyResolution
 } from '@parcel/types';
 import path from 'path';
 import md5 from '@parcel/utils/md5';
@@ -225,10 +226,19 @@ export default class AssetGraph extends Graph {
     }
   }
 
-  getDependencyResolution(dep: Dependency): ?Node {
+  getDependencies(asset: Asset): Array<Dependency> {
+    let node = this.getNode(asset.id);
+    if (!node) {
+      return [];
+    }
+
+    return this.getNodesConnectedFrom(node).map(node => node.value);
+  }
+
+  getDependencyResolution(dep: Dependency): DependencyResolution {
     let depNode = this.getNode(dep.id);
     if (!depNode) {
-      return null;
+      return {};
     }
 
     let node = this.getNodesConnectedFrom(depNode)[0];
@@ -237,11 +247,14 @@ export default class AssetGraph extends Graph {
         node => node.type === 'asset' || node.type === 'asset_reference'
       );
       if (assetNode) {
-        return assetNode;
+        return {asset: assetNode.value};
       }
     } else if (node.type === 'bundle_group') {
-      return node;
+      let bundles = this.getNodesConnectedFrom(node).map(node => node.value);
+      return {bundles};
     }
+
+    return {};
   }
 
   traverseAssets(visit: GraphTraversalCallback<Asset>, startNode: ?Node) {

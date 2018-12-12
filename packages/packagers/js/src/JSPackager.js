@@ -22,14 +22,13 @@ export default new Packager({
     bundle.assetGraph.traverseAssets(asset => {
       let deps = {};
 
-      let dependencies = bundle.assetGraph.getNodesConnectedFrom(asset);
+      let dependencies = bundle.assetGraph.getDependencies(asset);
       for (let dep of dependencies) {
         let resolved = bundle.assetGraph.getDependencyResolution(dep);
-        if (resolved.type === 'bundle_group') {
-          let bundles = bundle.assetGraph.getNodesConnectedFrom(resolved);
-          deps[dep.value.moduleSpecifier] = bundles.map(b => b.id);
-        } else {
-          deps[dep.value.moduleSpecifier] = resolved.value.id;
+        if (resolved.bundles) {
+          deps[dep.moduleSpecifier] = resolved.bundles.map(b => b.id);
+        } else if (resolved.asset) {
+          deps[dep.moduleSpecifier] = resolved.asset.id;
         }
       }
 
