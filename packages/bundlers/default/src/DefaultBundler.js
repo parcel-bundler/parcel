@@ -64,7 +64,6 @@ export default new Bundler({
       let assetGraph = bundle.assetGraph;
       assetGraph.traverseAssets(asset => {
         if (bundleGraph.isAssetInAncestorBundle(bundle, asset)) {
-          console.log('dup', asset);
           assetGraph.removeAsset(asset);
         }
       });
@@ -79,8 +78,6 @@ export default new Bundler({
       // If this asset is duplicated in the minimum number of bundles, it is a candidate to be separated into its own bundle.
       let bundles = bundleGraph.findBundlesWithAsset(asset);
       if (bundles.length > OPTIONS.minBundles) {
-        console.log('dup', asset.filePath);
-
         let bundle = assetGraph.createBundle(asset);
         let size = bundle.assetGraph.getTotalSize();
 
