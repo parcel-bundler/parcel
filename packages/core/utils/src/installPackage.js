@@ -2,7 +2,7 @@ const config = require('./config');
 const {promisify} = require('util');
 const resolve = promisify(require('resolve'));
 const commandExists = require('command-exists');
-const logger = require('../Logger');
+const logger = require('@parcel/logger');
 const pipeSpawn = require('./pipeSpawn');
 const PromiseQueue = require('./PromiseQueue');
 const path = require('path');
@@ -13,7 +13,7 @@ async function install(modules, filepath, options = {}) {
 
   logger.progress(`Installing ${modules.join(', ')}...`);
 
-  let packageLocation = await config.resolve(filepath, ['package.json']);
+  let packageLocation = await config.resolveConfig(filepath, ['package.json']);
   let cwd = packageLocation ? path.dirname(packageLocation) : process.cwd();
 
   if (!packageManager) {
@@ -50,7 +50,7 @@ async function install(modules, filepath, options = {}) {
 async function installPeerDependencies(filepath, name, options) {
   let basedir = path.dirname(filepath);
   const resolved = await resolve(name, {basedir});
-  const pkg = await config.load(resolved, ['package.json']);
+  const pkg = await config.loadConfig(resolved, ['package.json']).config;
   const peers = pkg.peerDependencies || {};
 
   const modules = [];
@@ -68,7 +68,7 @@ async function installPeerDependencies(filepath, name, options) {
 }
 
 async function determinePackageManager(filepath) {
-  let configFile = await config.resolve(filepath, [
+  let configFile = await config.resolveConfig(filepath, [
     'yarn.lock',
     'package-lock.json'
   ]);

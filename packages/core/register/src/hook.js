@@ -2,6 +2,7 @@ import Parcel from '@parcel/core';
 import {addHook} from 'pirates';
 import process from 'process';
 import path from 'path';
+import fs from 'fs';
 import syncPromise from '@parcel/utils/lib/syncPromise';
 
 let revert = null;
@@ -17,11 +18,14 @@ function fileHandler(opts) {
   });
 
   return function(code, filename) {
-    // TODO: Skip parcel's own code...
+    let isInMonorepo =
+      filename.includes('parcel/packages') &&
+      !filename.includes('core/register');
+    if (filename.includes('@parcel') || isInMonorepo) {
+      return code;
+    }
 
     try {
-      // It appears pipeline always ends up being [undefined, undefined, undefined]
-      // TODO: Figure out why this happens and fix it.
       let result = syncPromise(
         parcel.runTransform({
           filePath: filename,
@@ -32,15 +36,26 @@ function fileHandler(opts) {
         })
       );
 
-      console.log('Successfully compiled: ', filename);
-      console.log(({assets, initialAssets} = result));
+      if (result.assets && result.assets.length >= 1) {
+        let codePath =
+          (result.assets[0].output && result.assets[0].output.code) ||
+          result.assets[0].code ||
+          '';
+
+        // Read blobs, replace with cache.readBlobs in the future.
+        let codeContent = fs.readFileSync(
+          path.join(process.cwd(), '.parcel-cache', codePath),
+          'utf-8'
+        );
+
+        return codeContent;
+      }
     } catch (e) {
       console.error('@parcel/register failed to process: ', filename);
       console.error(e);
     }
 
-    // Fallback
-    return 'module.exports = {};';
+    return '';
   };
 }
 
@@ -54,7 +69,7 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
   revert = addHook(fileHandler(opts), {
     // Parcel should handle all the files?
     matcher: () => true,
-    ignoreNodeModules: false
+    ignoreNodeModules: true
   });
 }
 

@@ -174,7 +174,7 @@ async function getBabelVersion(asset, pkg, plugins) {
   // in the config. This should only happen once since we save babel core into package.json for subsequent runs.
   let inferred = await inferBabelVersion(asset, plugins);
   let name = inferred === 6 ? 'babel-core' : `@babel/core`;
-  await installPackage(name, asset.filePath);
+  await installPackage([name], asset.filePath);
   return inferred;
 }
 
