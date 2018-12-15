@@ -433,6 +433,25 @@ describe('scope hoisting', function() {
       assert(!contents.includes('bar'));
     });
 
+    it('removes unused function exports', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-functions/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output.default, 9);
+
+      let contents = await fs.readFile(
+        path.join(__dirname, '/dist/a.js'),
+        'utf8'
+      );
+      assert(contents.includes('add'));
+      assert(!contents.includes('sub'));
+    });
+
     it('support exporting a ES6 module exported as CommonJS', async function() {
       let b = await bundle(
         path.join(
