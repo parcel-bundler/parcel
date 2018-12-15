@@ -433,12 +433,13 @@ describe('scope hoisting', function() {
       assert(!contents.includes('bar'));
     });
 
-    it('removes unused function exports', async function() {
+    it('removes unused function exports when minified', async function() {
       let b = await bundle(
         path.join(
           __dirname,
           '/integration/scope-hoisting/es6/tree-shaking-functions/a.js'
-        )
+        ),
+        {minify: true}
       );
 
       let output = await run(b);
@@ -448,8 +449,8 @@ describe('scope hoisting', function() {
         path.join(__dirname, '/dist/a.js'),
         'utf8'
       );
-      assert(contents.includes('add'));
-      assert(!contents.includes('sub'));
+      assert(/.\+./.test(contents));
+      assert(!/.-./.test(contents));
     });
 
     it('support exporting a ES6 module exported as CommonJS', async function() {
