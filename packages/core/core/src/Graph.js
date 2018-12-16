@@ -1,5 +1,6 @@
 // @flow
 'use strict';
+import type {TraversalContext} from '@parcel/types';
 
 export type NodeId = string;
 
@@ -22,10 +23,20 @@ type GraphUpdates = {
 export default class Graph {
   nodes: Map<NodeId, Node>;
   edges: Set<Edge>;
+  rootNodeId: ?NodeId;
 
-  constructor() {
-    this.nodes = new Map();
-    this.edges = new Set();
+  constructor(opts = {}) {
+    this.nodes = new Map(opts.nodes);
+    this.edges = new Set(opts.edges);
+    this.rootNodeId = opts.rootNodeId || null;
+  }
+
+  toJSON() {
+    return {
+      nodes: [...this.nodes],
+      edges: [...this.edges],
+      rootNodeId: this.rootNodeId
+    };
   }
 
   addNode(node: Node) {
@@ -39,6 +50,15 @@ export default class Graph {
 
   getNode(id: string) {
     return this.nodes.get(id);
+  }
+
+  setRootNode(node: Node) {
+    this.addNode(node);
+    this.rootNodeId = node.id;
+  }
+
+  getRootNode(): ?Node {
+    return this.rootNodeId ? this.getNode(this.rootNodeId) : null;
   }
 
   addEdge(edge: Edge) {
@@ -77,11 +97,23 @@ export default class Graph {
   }
 
   // Removes node and any edges coming from that node
-  removeNode(node: Node): Graph {
-    let removed = new Graph();
+  removeNode(node: Node): this {
+    let removed = new this.constructor();
 
     this.nodes.delete(node.id);
     removed.addNode(node);
+
+    for (let edge of this.edges) {
+      if (edge.from === node.id || edge.to === node.id) {
+        removed.merge(this.removeEdge(edge));
+      }
+    }
+
+    return removed;
+  }
+
+  removeEdges(node: Node): this {
+    let removed = new this.constructor();
 
     for (let edge of this.edges) {
       if (edge.from === node.id) {
@@ -93,8 +125,8 @@ export default class Graph {
   }
 
   // Removes edge and node the edge is to if the node is orphaned
-  removeEdge(edge: Edge): Graph {
-    let removed = new Graph();
+  removeEdge(edge: Edge): this {
+    let removed = new this.constructor();
 
     this.edges.delete(edge);
     removed.addEdge(edge);
@@ -119,11 +151,23 @@ export default class Graph {
     return true;
   }
 
+  replaceNode(fromNode: Node, toNode: Node) {
+    this.addNode(toNode);
+
+    for (let edge of this.edges) {
+      if (edge.to === fromNode.id) {
+        edge.to = toNode.id;
+      }
+    }
+
+    this.removeNode(fromNode);
+  }
+
   // Update a node's downstream nodes making sure to prune any orphaned branches
   // Also keeps track of all added and removed edges and nodes
   replaceNodesConnectedTo(fromNode: Node, toNodes: Array<Node>): GraphUpdates {
-    let removed = new Graph();
-    let added = new Graph();
+    let removed = new this.constructor();
+    let added = new this.constructor();
 
     let edgesBefore = Array.from(this.edges).filter(
       edge => edge.from === fromNode.id
@@ -153,5 +197,129 @@ export default class Graph {
     }
 
     return {removed, added};
+  }
+
+  traverse(
+    visit: (node: Node, context?: any, traversal: TraversalContext) => any,
+    startNode: ?Node
+  ) {
+    return this.dfs({
+      visit,
+      startNode,
+      getChildren: this.getNodesConnectedFrom.bind(this)
+    });
+  }
+
+  traverseAncestors(
+    startNode: Node,
+    visit: (node: Node, context?: any, traversal: TraversalContext) => any
+  ) {
+    return this.dfs({
+      visit,
+      startNode,
+      getChildren: this.getNodesConnectedTo.bind(this)
+    });
+  }
+
+  dfs({
+    visit,
+    startNode,
+    getChildren
+  }: {
+    visit(node: Node, context?: any, traversal: TraversalContext): any,
+    getChildren(node: Node): Array<Node>,
+    startNode?: ?Node
+  }): ?Node {
+    let root = startNode || this.getRootNode();
+    if (!root) {
+      return null;
+    }
+
+    let visited = new Set<Node>();
+    let stopped = false;
+    let skipped = false;
+    let ctx: TraversalContext = {
+      skipChildren() {
+        skipped = true;
+      },
+      stop() {
+        stopped = true;
+      }
+    };
+
+    let walk = (node, context) => {
+      visited.add(node);
+
+      skipped = false;
+      let newContext = visit(node, context, ctx);
+      if (typeof newContext !== 'undefined') {
+        context = newContext;
+      }
+
+      if (skipped) {
+        return;
+      }
+
+      if (stopped) {
+        return context;
+      }
+
+      for (let child of getChildren(node)) {
+        if (visited.has(child)) {
+          continue;
+        }
+
+        visited.add(child);
+        let result = walk(child, context);
+        if (stopped) {
+          return result;
+        }
+      }
+    };
+
+    return walk(root);
+  }
+
+  bfs(visit: (node: Node) => ?boolean): ?Node {
+    let root = this.getRootNode();
+    if (!root) {
+      return null;
+    }
+
+    let queue: Array<Node> = [root];
+    let visited = new Set<Node>([root]);
+
+    while (queue.length > 0) {
+      let node = queue.shift();
+      let stop = visit(node);
+      if (stop === true) {
+        return node;
+      }
+
+      for (let child of this.getNodesConnectedFrom(node)) {
+        if (!visited.has(child)) {
+          visited.add(child);
+          queue.push(child);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  getSubGraph(node: Node): this {
+    let graph = new this.constructor();
+    graph.setRootNode(node);
+
+    this.traverse(node => {
+      graph.addNode(node);
+
+      let edges = Array.from(this.edges).filter(edge => edge.from === node.id);
+      for (let edge of edges) {
+        graph.addEdge(edge);
+      }
+    }, node);
+
+    return graph;
   }
 }

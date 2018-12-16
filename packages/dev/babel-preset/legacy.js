@@ -11,5 +11,6 @@ module.exports = () => ({
       }
     ],
     ...common.presets
-  ]
+  ],
+  plugins: common.plugins
 });

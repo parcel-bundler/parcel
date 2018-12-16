@@ -97,15 +97,12 @@ export type DependencyOptions = {
   isAsync?: boolean,
   isEntry?: boolean,
   isOptional?: boolean,
-  isIncluded?: boolean,
-  isConfig?: boolean,
   loc?: SourceLocation,
   env?: Environment,
   meta?: JSONObject
 };
 
-export type Dependency = {
-  ...DependencyOptions,
+export type Dependency = DependencyOptions & {
   id: string,
   env: Environment,
 
@@ -144,6 +141,7 @@ export interface Asset {
   getPackage(): Promise<PackageJSON | null>;
   addDependency(dep: DependencyOptions): string;
   createChildAsset(result: TransformerResult): Asset;
+  getOutput(): AssetOutput;
 }
 
 export type AssetOutput = {
@@ -204,17 +202,60 @@ export type CacheEntry = {
   initialAssets: ?Array<Asset> // Initial assets, pre-post processing
 };
 
+export interface TraversalContext {
+  skipChildren(): void;
+  stop(): void;
+}
+
+export type GraphTraversalCallback<T> = (
+  asset: T,
+  context?: any,
+  traversal: TraversalContext
+) => any;
+
+interface Graph {
+  merge(graph: Graph): void;
+}
+
+export type DependencyResolution = {
+  asset?: Asset,
+  bundles?: Array<Bundle>
+};
+
 // TODO: what do we want to expose here?
-interface AssetGraph {}
+interface AssetGraph extends Graph {
+  traverseAssets(visit: GraphTraversalCallback<Asset>): any;
+  createBundle(asset: Asset): Bundle;
+  getTotalSize(asset?: Asset): number;
+  getEntryAssets(): Array<Asset>;
+  removeAsset(asset: Asset): void;
+  getDependencies(asset: Asset): Array<Dependency>;
+  getDependencyResolution(dependency: Dependency): DependencyResolution;
+}
+
+export type BundleGroup = {
+  dependency: Dependency
+};
 
 export type Bundle = {
+  id: string,
   type: string,
-  assets: Array<Asset>,
+  assetGraph: AssetGraph,
   filePath?: FilePath
 };
 
+export interface BundleGraph {
+  addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
+  addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
+  isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
+  findBundlesWithAsset(asset: Asset): Array<Bundle>;
+  getBundles(bundleGroup: BundleGroup): Array<Bundle>;
+  getBundleGroups(bundle: Bundle): Array<BundleGroup>;
+  traverseBundles(visit: GraphTraversalCallback<Bundle>): any;
+}
+
 export type Bundler = {
-  bundle(graph: AssetGraph, opts: CLIOptions): Array<Bundle>
+  bundle(graph: AssetGraph, bundleGraph: BundleGraph, opts: CLIOptions): void
 };
 
 export type Namer = {

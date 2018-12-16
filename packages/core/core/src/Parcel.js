@@ -7,6 +7,7 @@ import AssetGraph from './AssetGraph';
 import {Node} from './Graph';
 import type {
   Bundle,
+  BundleGraph,
   CLIOptions,
   Dependency,
   File,
@@ -128,8 +129,8 @@ export default class Parcel {
       await this.updateGraph({signal});
       await this.completeGraph({signal});
       await this.graph.dumpGraphViz();
-      let bundles = await this.bundle();
-      await this.package(bundles);
+      let bundleGraph = await this.bundle();
+      await this.package(bundleGraph);
 
       if (!this.watcher) {
         await this.farm.end();
@@ -218,8 +219,12 @@ export default class Parcel {
     return this.bundlerRunner.bundle(this.graph);
   }
 
-  // TODO: implement bundle types
-  package(bundles: any[]) {
-    return Promise.all(bundles.map(bundle => this.runPackage(bundle)));
+  package(bundleGraph: BundleGraph) {
+    let promises = [];
+    bundleGraph.traverseBundles(bundle => {
+      promises.push(this.runPackage(bundle));
+    });
+
+    return Promise.all(promises);
   }
 }
