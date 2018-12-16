@@ -1,0 +1,155 @@
+body {
+  color: #262626;
+  font-family: sans-serif;
+  font-size: 14px;
+  padding: 50px 10px 30px;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* 'i' is for 'icon', like at FB :P */
+i {
+  display: inline-block;
+  font-size: 80%;
+  position: relative;
+}
+
+.IsItReady {
+  text-align: center;
+  margin-bottom: -15px;
+  position: relative;
+}
+
+.IsItReady i {
+  margin-left: 5px;
+}
+
+.IsItReadyText {
+  font-size: 120px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.IsItReadyYes {
+  color: #8ec56a;
+  font-size: 40px;
+}
+
+.IsItReadyDetails {
+  font-weight: bold;
+  margin-top: 5px;
+}
+
+.ProgressBar {
+  background: #fff;
+  border-bottom: 1px solid #262626;
+  box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.2);
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 1;
+}
+
+.ProgressBarFill {
+  background: #262626;
+  color: #fff;
+  height: 30px;
+  line-height: 30px;
+  overflow: hidden;
+  text-indent: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.Graph {
+  margin: 0 0 10px 10px;
+}
+
+.HeatMap {
+  margin-bottom: 20px;
+}
+
+.HeatMap:after {
+  clear: both;
+  content: ' ';
+  display: table;
+}
+
+.Test {
+  background: #eee;
+  border: 1px solid #fff;
+  color: transparent;
+  cursor: default;
+  display: block;
+  float: left;
+  font-size: 0;
+  height: 10px;
+  overflow: hidden;
+  position: relative;
+  text-align: center;
+  width: 10px;
+}
+
+.Test.passing {
+  background: #8ec56a;
+}
+
+.Test.failing {
+  background: #f5a623;
+}
+
+.Test:hover {
+  border-color: #262626;
+}
+
+.Tooltip {
+  position: absolute;
+  line-height: 1.3;
+  pointer-events: none;
+}
+
+.TooltipContent {
+  background: rgb(38, 38, 38);
+  bottom: 8px;
+  color: white;
+  max-width: 300px;
+  overflow: hidden;
+  padding: 5px 10px;
+  position: absolute;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.TooltipStatus i {
+  left: -2px;
+  margin-right: 5px;
+  top: 1px;
+}
+
+.Tooltip:after {
+  background: #262626;
+  content: '';
+  height: 10px;
+  left: -5px;
+  position: absolute;
+  top: -13px;
+  transform: rotate(-45deg);
+  width: 10px;
+}
+
+.Footer {
+  text-align: center;
+}
+
+.FooterLink {
+  margin: 0 5px;
+}

@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('@parcel/fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
-describe('typescript', function() {
+describe.skip('typescript', function() {
   it('should produce a ts bundle using ES6 imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/typescript/index.ts')

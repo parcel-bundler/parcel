@@ -3,7 +3,7 @@ const fs = require('@parcel/fs');
 const path = require('path');
 const {bundle, run, assertBundleTree} = require('./utils');
 
-describe('glob', function() {
+describe.skip('glob', function() {
   it('should require a glob of files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/glob/index.js'));
 

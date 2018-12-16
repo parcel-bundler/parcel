@@ -7,7 +7,6 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "scripts": {
-    "test": "mocha",
     "build": "babel src --out-dir lib",
     "prepublish": "yarn build"
   },

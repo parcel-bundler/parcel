@@ -1,0 +1,21 @@
+{
+  "name": "@parcel/is-v2-ready-yet",
+  "version": "2.0.0",
+  "scripts": {
+    "start": "parcel index.html",
+    "build": "parcel build index.html"
+  },
+  "dependencies": {
+    "@parcel/integration-tests": "^2.0.0",
+    "react": "^16.6.3",
+    "react-dom": "^16.6.3",
+    "victory": "^31.0.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.2.0",
+    "@babel/plugin-proposal-class-properties": "^7.2.1",
+    "@babel/preset-env": "^7.2.0",
+    "@babel/preset-react": "^7.0.0",
+    "parcel-bundler": "^1.10.3"
+  }
+}

@@ -7,7 +7,7 @@ const WebSocket = require('ws');
 const json5 = require('json5');
 const sinon = require('sinon');
 
-describe('hmr', function() {
+describe.skip('hmr', function() {
   let b, ws, stub;
   beforeEach(async function() {
     stub = sinon.stub(console, 'clear');
