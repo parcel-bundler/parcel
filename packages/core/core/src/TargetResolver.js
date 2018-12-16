@@ -9,6 +9,7 @@ const DEFAULT_ENGINES = {
 };
 
 const DEFAULT_ENV = {
+  name: 'default',
   context: 'browser',
   includeNodeModules: true,
   engines: DEFAULT_ENGINES
@@ -34,6 +35,7 @@ export default class TargetResolver {
     // the `main` and `module` targets refer to node, otherwise browser context.
     let context = pkg.browser || pkgEngines.node ? 'node' : 'browser';
     let env: Environment = {
+      name: 'default',
       context,
       includeNodeModules: context === 'browser',
       engines: {
@@ -45,14 +47,14 @@ export default class TargetResolver {
     if (typeof pkg.main === 'string') {
       targets.push({
         distPath: pkg.main,
-        env: Object.assign({}, env, pkgTargets.main)
+        env: Object.assign({}, env, {name: 'main'}, pkgTargets.main)
       });
     }
 
     if (typeof pkg.module === 'string') {
       targets.push({
         distPath: pkg.module,
-        env: Object.assign({}, env, pkgTargets.module)
+        env: Object.assign({}, env, {name: 'module'}, pkgTargets.module)
       });
     }
 
@@ -67,6 +69,7 @@ export default class TargetResolver {
         distPath: browser,
         env: Object.assign(
           {
+            name: 'browser',
             context: 'browser',
             includeNodeModules: true,
             engines: {
@@ -89,7 +92,7 @@ export default class TargetResolver {
       if (distPath && env) {
         targets.push({
           distPath,
-          env: Object.assign({}, DEFAULT_ENV, env)
+          env: Object.assign({}, DEFAULT_ENV, {name}, env)
         });
       }
     }

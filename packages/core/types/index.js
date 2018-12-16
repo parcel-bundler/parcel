@@ -51,6 +51,7 @@ export type Target = {
 };
 
 export type Environment = {
+  name: string,
   context: 'browser' | 'web-worker' | 'service-worker' | 'node' | 'electron',
   engines: Engines,
   includeNodeModules?: boolean
@@ -99,7 +100,8 @@ export type DependencyOptions = {
   isOptional?: boolean,
   loc?: SourceLocation,
   env?: Environment,
-  meta?: JSONObject
+  meta?: JSONObject,
+  target?: Target
 };
 
 export type Dependency = DependencyOptions & {
@@ -131,6 +133,7 @@ export interface Asset {
   dependencies: Array<Dependency>;
   connectedFiles: Array<File>;
   output: AssetOutput;
+  outputSize: number;
   env: Environment;
   meta: JSONObject;
 
@@ -223,7 +226,7 @@ export type DependencyResolution = {
 };
 
 // TODO: what do we want to expose here?
-interface AssetGraph extends Graph {
+export interface AssetGraph extends Graph {
   traverseAssets(visit: GraphTraversalCallback<Asset>): any;
   createBundle(asset: Asset): Bundle;
   getTotalSize(asset?: Asset): number;
@@ -234,13 +237,16 @@ interface AssetGraph extends Graph {
 }
 
 export type BundleGroup = {
-  dependency: Dependency
+  dependency: Dependency,
+  target: ?Target
 };
 
 export type Bundle = {
   id: string,
   type: string,
   assetGraph: AssetGraph,
+  isEntry?: boolean,
+  target?: Target,
   filePath?: FilePath
 };
 
@@ -255,11 +261,15 @@ export interface BundleGraph {
 }
 
 export type Bundler = {
-  bundle(graph: AssetGraph, bundleGraph: BundleGraph, opts: CLIOptions): void
+  bundle(
+    graph: AssetGraph,
+    bundleGraph: BundleGraph,
+    opts: CLIOptions
+  ): Async<void>
 };
 
 export type Namer = {
-  name(bundle: Bundle, opts: CLIOptions): Async<FilePath>
+  name(bundle: Bundle, opts: CLIOptions): Async<?FilePath>
 };
 
 export type Packager = {

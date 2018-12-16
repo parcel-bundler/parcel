@@ -47,6 +47,11 @@ export default class BundleGraph extends AssetGraph {
   }
 
   addBundle(bundleGroup: BundleGroup, bundle: Bundle) {
+    // Propagate target from bundle group to bundle
+    if (bundleGroup.target && !bundle.target) {
+      bundle.target = bundleGroup.target;
+    }
+
     let bundleGroupId = getBundleGroupId(bundleGroup);
     let bundleNode = {
       id: bundle.id,
