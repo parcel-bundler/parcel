@@ -1,0 +1,11 @@
+lib
+test/dist
+test/input
+!test/**/node_modules
+test/integration/**/elm-stuff
+test/integration/**/target
+test/integration/**/Cargo.lock
+test/**/node_modules
+test/**/yarn.lock
+test/**/package-lock.json
+test/integration/babel-plugin-autoinstall/package.json
