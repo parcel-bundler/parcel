@@ -46,13 +46,19 @@ export type Engines = {
 };
 
 export type Target = {
-  distPath: FilePath,
+  name: string,
+  distPath?: FilePath,
   env: Environment
 };
 
+export type EnvironmentContext =
+  | 'browser'
+  | 'web-worker'
+  | 'service-worker'
+  | 'node'
+  | 'electron';
 export type Environment = {
-  name: string,
-  context: 'browser' | 'web-worker' | 'service-worker' | 'node' | 'electron',
+  context: EnvironmentContext,
   engines: Engines,
   includeNodeModules?: boolean
 };

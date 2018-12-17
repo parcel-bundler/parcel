@@ -45,9 +45,10 @@ export default new Namer({
       name = `${name}.${hash.slice(-8)}.${bundle.type}`;
     }
 
-    let distDir = bundle.target
-      ? path.dirname(bundle.target.distPath)
-      : DEFAULT_DIST_DIR;
+    let distDir =
+      bundle.target && bundle.target.distPath
+        ? path.dirname(bundle.target.distPath)
+        : DEFAULT_DIST_DIR;
     return path.join(distDir, name);
   }
 });
