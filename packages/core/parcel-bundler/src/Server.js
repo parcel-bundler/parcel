@@ -40,6 +40,8 @@ function middleware(bundler) {
   });
 
   return function(req, res, next) {
+    logAccessIfVerbose();
+
     // Wait for the bundler to finish bundling if needed
     if (bundler.pending) {
       bundler.once('bundled', respond);
@@ -106,6 +108,13 @@ function middleware(bundler) {
 
       res.writeHead(404);
       res.end();
+    }
+
+    function logAccessIfVerbose() {
+      const protocol = req.connection.encrypted ? 'https' : 'http';
+      const fullUrl = `${protocol}://${req.headers.host}${req.url}`;
+
+      logger.verbose(`Request: ${fullUrl}`);
     }
   };
 }
