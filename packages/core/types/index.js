@@ -140,6 +140,7 @@ export interface Asset {
   connectedFiles: Array<File>;
   output: AssetOutput;
   outputSize: number;
+  outputHash: string;
   env: Environment;
   meta: JSONObject;
 

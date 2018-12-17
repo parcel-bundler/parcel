@@ -56,7 +56,7 @@ export default new Namer({
 function getHash(bundle) {
   let hash = crypto.createHash('md5');
   bundle.assetGraph.traverseAssets(asset => {
-    hash.update(asset.hash);
+    hash.update(asset.outputHash);
   });
 
   return hash.digest('hex');

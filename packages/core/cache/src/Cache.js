@@ -82,7 +82,7 @@ export default class Cache {
   async _writeBlobs(assets: Array<Asset>) {
     return await Promise.all(
       assets.map(async asset => {
-        let assetCacheId = this.getCacheId(asset.hash, asset.env);
+        let assetCacheId = this.getCacheId(asset.id, asset.env);
         for (let blobKey in asset.output) {
           asset.output[blobKey] = await this.writeBlob(
             blobKey,
