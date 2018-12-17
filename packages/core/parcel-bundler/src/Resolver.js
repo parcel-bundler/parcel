@@ -104,7 +104,7 @@ class Resolver {
 
     // If we couldn't resolve the node_modules path, just return the module name info
     if (!resolved) {
-      let parts = this.getModuleParts(filename);
+      let parts = Resolver.getModuleParts(filename);
       resolved = {
         moduleName: parts[0],
         subPath: parts[1]
@@ -171,7 +171,7 @@ class Resolver {
       return {filePath: builtins[filename]};
     }
 
-    let parts = this.getModuleParts(filename);
+    let parts = Resolver.getModuleParts(filename);
     let root = path.parse(dir).root;
 
     while (dir !== root) {
@@ -374,7 +374,7 @@ class Resolver {
       alias = this.lookupAlias(aliases, filename, dir);
       if (alias == null) {
         // If it didn't match, try only the module name.
-        let parts = this.getModuleParts(filename);
+        let parts = Resolver.getModuleParts(filename);
         alias = this.lookupAlias(aliases, parts[0], dir);
         if (typeof alias === 'string') {
           // Append the filename back onto the aliased module.
@@ -438,16 +438,16 @@ class Resolver {
     let pkg = await this.findPackage(dir);
     return this.resolveAliases(filename, pkg);
   }
-
-  getModuleParts(name) {
-    let parts = path.normalize(name).split(path.sep);
-    if (parts[0].charAt(0) === '@') {
-      // Scoped module (e.g. @scope/module). Merge the first two parts back together.
-      parts.splice(0, 2, `${parts[0]}/${parts[1]}`);
-    }
-
-    return parts;
-  }
 }
+
+Resolver.getModuleParts = function(name) {
+  let parts = path.normalize(name).split(path.sep);
+  if (parts[0].charAt(0) === '@') {
+    // Scoped module (e.g. @scope/module). Merge the first two parts back together.
+    parts.splice(0, 2, `${parts[0]}/${parts[1]}`);
+  }
+
+  return parts;
+};
 
 module.exports = Resolver;
