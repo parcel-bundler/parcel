@@ -63,17 +63,17 @@ export default new Transformer({
       return [asset];
     }
 
+    // Inline environment variables
+    if (asset.env.context === 'browser' && ENV_RE.test(asset.code)) {
+      walk.simple(asset.ast.program, envVisitor, asset);
+    }
+
     // Collect dependencies
     if (canHaveDependencies(asset.code)) {
       walk.ancestor(asset.ast.program, collectDependencies, asset);
     }
 
     if (asset.env.context === 'browser') {
-      // Inline environment variables
-      if (ENV_RE.test(asset.code)) {
-        walk.simple(asset.ast.program, envVisitor, asset);
-      }
-
       // Inline fs calls
       let fsDep = asset.dependencies.find(dep => dep.moduleSpecifier === 'fs');
       if (fsDep && FS_RE.test(asset.code)) {
@@ -89,9 +89,9 @@ export default new Transformer({
       }
 
       // Insert node globals
-      if (GLOBAL_RE.test(asset.code)) {
-        walk.ancestor(asset.ast.program, insertGlobals, asset);
-      }
+      // if (GLOBAL_RE.test(asset.code)) {
+      //   walk.ancestor(asset.ast.program, insertGlobals, asset);
+      // }
     }
 
     // Do some transforms

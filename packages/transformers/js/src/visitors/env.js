@@ -11,7 +11,7 @@ export default {
           let value = types.valueToNode(prop);
           morph(node, value);
           asset.ast.isDirty = true;
-          asset.meta.env[key.value] = process.env[key.value];
+          // asset.meta.env[key.value] = process.env[key.value];
         }
       }
     }

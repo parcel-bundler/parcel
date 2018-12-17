@@ -51,6 +51,8 @@ function hasSideEffects(asset, {sideEffects} = asset._package) {
 module.exports = {
   Program: {
     enter(path, asset) {
+      path.scope.crawl();
+
       asset.cacheData.imports = asset.cacheData.imports || Object.create(null);
       asset.cacheData.exports = asset.cacheData.exports || Object.create(null);
       asset.cacheData.wildcards = asset.cacheData.wildcards || [];

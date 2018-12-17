@@ -5,6 +5,8 @@ import {mkdirp, writeFile} from '@parcel/fs';
 import path from 'path';
 import type {Bundle, CLIOptions, Blob, FilePath} from '@parcel/types';
 import clone from 'clone';
+import AssetGraph from './AssetGraph';
+import Asset from './Asset';
 
 type Opts = {
   config: Config,
@@ -27,6 +29,14 @@ export default class PackagerRunner {
   }
 
   async writeBundle(bundle: Bundle) {
+    // deserialize asset graph from JSON
+    bundle.assetGraph = new AssetGraph(bundle.assetGraph);
+    bundle.assetGraph.traverse(node => {
+      if (node.type === 'asset') {
+        node.value = new Asset({...node.value, cache: this.cache});
+      }
+    });
+
     let contents = await this.package(bundle);
     contents = await this.optimize(bundle, contents);
 
@@ -45,16 +55,6 @@ export default class PackagerRunner {
 
   async package(bundle: Bundle): Promise<Blob> {
     let packager = await this.config.getPackager(bundle.filePath);
-
-    // Read the contents of each asset in the bundle from the cache.
-    // This mutates the assets, so clone the bundle first.
-    bundle = clone(bundle);
-    await Promise.all(
-      bundle.assets.map(async asset => {
-        await this.cache.readBlobs(asset);
-      })
-    );
-
     return await packager.package(bundle, this.cliOpts);
   }
 
