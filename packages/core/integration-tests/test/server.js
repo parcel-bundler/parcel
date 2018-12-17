@@ -1,9 +1,11 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
+const logger = require('@parcel/logger');
 const {bundler} = require('./utils');
 const http = require('http');
 const https = require('https');
+const sinon = require('sinon');
 
 describe('server', function() {
   let server;
@@ -235,5 +237,40 @@ describe('server', function() {
       data,
       await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8')
     );
+  });
+
+  it('should not log dev server access for log level <= 3', async function() {
+    let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
+      publicUrl: '/'
+    });
+    server = await b.serve(0);
+    const spy = sinon.spy(logger, '_log');
+    await get('/');
+
+    assert(!spy.called);
+
+    // restore back defaults
+    logger._log.restore();
+  });
+
+  it('should log dev server access for log level > 3', async function() {
+    let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
+      publicUrl: '/'
+    });
+    server = await b.serve(0);
+    logger.setOptions({logLevel: 4});
+    const spy = sinon.spy(logger, '_log');
+
+    assert(!spy.called);
+
+    await get('/');
+
+    assert(spy.calledOnce);
+    // partial matching for call args, since port is a moving target
+    assert(spy.args[0][0].includes('Request: http://localhost'));
+
+    // restore back defaults
+    logger._log.restore();
+    logger.setOptions({logLevel: 3});
   });
 });

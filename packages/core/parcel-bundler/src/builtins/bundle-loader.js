@@ -59,6 +59,10 @@ function loadBundle(bundle) {
         }
 
         return resolved;
+      }).catch(function(e) {
+        delete bundles[bundle];
+        
+        throw e;
       });
   }
 }

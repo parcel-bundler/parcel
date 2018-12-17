@@ -29,9 +29,8 @@ function decode(options) {
     for (let index of options._regIndexs) {
       options.ignored[index] = new RegExp(options.ignored[index]);
     }
+    delete options._regIndexs;
   }
-
-  delete options._regIndexs;
 
   return options;
 }

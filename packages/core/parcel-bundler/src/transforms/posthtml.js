@@ -7,7 +7,6 @@ async function parse(code, asset) {
   if (!config) {
     config = {};
   }
-  config = Object.assign({lowerCaseAttributeNames: true}, config);
   return posthtmlParse(code, config);
 }
 
