@@ -47,7 +47,6 @@
     "dotenv-expand": "^4.2.0",
     "fast-glob": "^2.2.2",
     "filesize": "^3.6.0",
-    "fswatcher-child": "^1.0.5",
     "get-port": "^3.2.0",
     "htmlnano": "^0.1.9",
     "is-glob": "^4.0.0",
