@@ -1,5 +1,4 @@
 const assert = require('assert');
-const fs = require('@parcel/fs');
 const {bundle, assertBundleTree, run} = require('./utils');
 
 describe('kotlin', function() {

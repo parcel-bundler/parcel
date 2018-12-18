@@ -3,7 +3,6 @@ const localRequire = require('../utils/localRequire');
 const path = require('path');
 const fs = require('@parcel/fs');
 const os = require('os');
-const spawn = require('cross-spawn');
 
 class KotlinAsset extends Asset {
   constructor(name, options) {
