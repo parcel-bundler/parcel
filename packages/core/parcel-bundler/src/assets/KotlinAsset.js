@@ -1,5 +1,9 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
+const path = require('path');
+const fs = require('@parcel/fs');
+const os = require('os');
+const spawn = require('cross-spawn');
 
 class KotlinAsset extends Asset {
   constructor(name, options) {
@@ -13,29 +17,28 @@ class KotlinAsset extends Asset {
       '@jetbrains/kotlinc-js-api',
       this.name
     );
-    const fs = require('fs', this.name);
 
-    // remove extension and path
-    let slashyIndex = this.id.lastIndexOf('/'); // linux/mac
-    if (slashyIndex === -1) slashyIndex = this.id.lastIndexOf('\\'); // windows
-    const fileName = this.id.substring(slashyIndex, this.id.lastIndexOf('.'));
+    let id = Math.random()
+      .toString(36)
+      .slice(3);
+    let dir = path.join(os.tmpdir(), id);
+    let filename = path.join(dir, id + '.js');
+
+    await fs.mkdirp(dir);
 
     await kotlinCompiler.compile({
-      output: 'build/kt.temp/' + fileName + '.js',
+      output: filename,
       sources: [this.name],
       moduleKind: 'commonjs',
       noStdlib: false,
-      metaInfo: false,
+      metaInfo: true,
       sourceMaps: this.options.sourceMaps
     });
 
-    let source = fs.readFileSync('build/kt.temp/' + fileName + '.js', 'utf8');
+    let source = await fs.readFile(filename, 'utf8');
     let sourceMap;
     if (this.options.sourceMaps) {
-      sourceMap = fs.readFileSync(
-        'build/kt.temp/' + fileName + '.js.map',
-        'utf8'
-      );
+      sourceMap = await fs.readFile(filename + '.map', 'utf8');
 
       sourceMap = JSON.parse(sourceMap);
       sourceMap.sources = [this.relativeName];
@@ -45,12 +48,8 @@ class KotlinAsset extends Asset {
       source = source.substring(0, source.lastIndexOf('//# sourceMappingURL'));
     }
 
-    // delete old files
-    fs.unlinkSync('build/kt.temp/' + fileName + '.js');
-    fs.unlinkSync('build/kt.temp/' + fileName + '.js.map');
-    if (fs.readdirSync('build/kt.temp').length === 0)
-      fs.rmdirSync('build/kt.temp'); // Remove kt.temp directory if it is empty
-    if (fs.readdirSync('build').length === 0) fs.rmdirSync('build'); // Remove build directory if it is empty
+    // delete temp directory
+    await fs.rimraf(dir);
 
     return [
       {
