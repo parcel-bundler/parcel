@@ -152,7 +152,7 @@ class Graph extends React.Component {
                   },
                   onClick: (event, point) => {
                     let hash = point.datum.gitHash;
-                    let url = `https://github.com/padmaia/parcel/commit/${hash}`;
+                    let url = `https://github.com/parcel-bundler/parcel/commit/${hash}`;
                     window.open(url);
                   }
                 }

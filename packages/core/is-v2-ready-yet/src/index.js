@@ -12,8 +12,7 @@ let graphData = processGraphData(testHistory);
 
 function processGraphData(rawGraphData) {
   let toInt = str => parseInt(str, 10);
-  return rawGraphData.map((string, index) => {
-    let [gitHash, dateStr, progress] = string.split(/[\t]/);
+  return rawGraphData.map(([gitHash, dateStr, progress], index) => {
     let dateParts = dateStr.split(/[ :-]/).map(toInt);
     let [year, month, day, hours, minutes, seconds] = dateParts;
     let date = new Date(year, month - 1, day, hours, minutes, seconds);

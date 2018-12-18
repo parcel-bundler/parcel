@@ -30,7 +30,7 @@ class Footer extends React.Component {
           Project Board
         </FooterLink>
         &middot;
-        <FooterLink href="padmaia/parcel/tree/experimental-next/packages/core/integration-tests/ready-yet-app">
+        <FooterLink href="parcel-bundler/parcel/tree/v2/packages/core/is-v2-ready-yet">
           Page Source
         </FooterLink>
       </div>

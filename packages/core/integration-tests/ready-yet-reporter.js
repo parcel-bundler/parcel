@@ -8,7 +8,7 @@ function importantData(test, status) {
   let fileName = path.basename(test.file, '.js');
   return {
     fileName,
-    link: `https://github.com/padmaia/parcel/tree/pull-out-integration-tests/packages/core/integration-tests/test/${fileName}.js`,
+    link: `https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/${fileName}.js`,
     title: test.title,
     status
   };
@@ -34,8 +34,8 @@ function ReadyYetReporter(runner) {
 
   runner.on('end', function() {
     let ratio = `${numPassing}/${tests.length}`;
-    let commitHash = execSync('git rev-parse HEAD').toString(); // Get rid of newline
-    commitHash = commitHash.substring(0, commitHash.length - 1);
+    let commitHash = execSync('git rev-parse HEAD').toString();
+    commitHash = commitHash.substring(0, commitHash.length - 1); // Get rid of newline
     let commitDate = execSync(
       `git show -s --format=%ci ${commitHash}`
     ).toString();
@@ -43,13 +43,20 @@ function ReadyYetReporter(runner) {
     let testHistory = JSON.parse(
       fs.readFileSync('data/testHistory.json', 'utf8')
     );
-    testHistory.push(`${commitHash}\t${commitDate}\t${ratio}`);
-    fs.writeFileSync(
-      'data/testHistory.json',
-      JSON.stringify(testHistory),
-      'utf8'
-    );
-    fs.writeFileSync('data/lastTestRun.json', JSON.stringify({tests}), 'utf8');
+    let shouldWrite = testHistory.length === 0 || testHistory[0][2] !== ratio;
+    if (shouldWrite) {
+      testHistory.push([commitHash, commitDate, ratio]);
+      fs.writeFileSync(
+        'data/testHistory.json',
+        JSON.stringify(testHistory),
+        'utf8'
+      );
+      fs.writeFileSync(
+        'data/lastTestRun.json',
+        JSON.stringify({tests}),
+        'utf8'
+      );
+    }
   });
 }
 
