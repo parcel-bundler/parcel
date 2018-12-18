@@ -239,6 +239,19 @@ describe('server', function() {
     );
   });
 
+  it('should work with paths that contain a dot', async function() {
+    let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
+      publicUrl: '/'
+    });
+    server = await b.serve(0);
+
+    let data = await get('/bar.baz');
+    assert.equal(
+      data,
+      await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8')
+    );
+  });
+
   it('should not log dev server access for log level <= 3', async function() {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
       publicUrl: '/'
