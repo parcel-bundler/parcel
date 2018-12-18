@@ -1,6 +1,6 @@
 {
   "name": "@parcel/fs",
-  "version": "1.10.3",
+  "version": "1.11.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
   "license": "MIT",
@@ -20,7 +20,7 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "@parcel/utils": "^1.10.3",
+    "@parcel/utils": "^1.11.0",
     "mkdirp": "^0.5.1",
     "rimraf": "^2.6.2"
   }

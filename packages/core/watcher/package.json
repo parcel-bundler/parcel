@@ -1,6 +1,6 @@
 {
   "name": "@parcel/watcher",
-  "version": "1.10.3",
+  "version": "1.11.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
   "license": "MIT",
@@ -17,13 +17,13 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "@parcel/utils": "^1.10.3",
+    "@parcel/utils": "^1.11.0",
     "chokidar": "^2.0.3"
   },
   "devDependencies": {
-    "mocha": "^5.2.0",
-    "@parcel/babel-register": "^1.10.3",
-    "@parcel/fs": "^1.10.3",
-    "@parcel/test-utils": "^1.10.3"
+    "@parcel/babel-register": "^1.11.0",
+    "@parcel/fs": "^1.11.0",
+    "@parcel/test-utils": "^1.11.0",
+    "mocha": "^5.2.0"
   }
 }

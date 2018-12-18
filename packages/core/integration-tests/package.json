@@ -1,6 +1,6 @@
 {
   "name": "@parcel/integration-tests",
-  "version": "1.10.3",
+  "version": "1.11.0",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -14,8 +14,8 @@
   "devDependencies": {
     "@babel/core": "^7.2.0",
     "@jetbrains/kotlinc-js-api": "^1.2.12",
-    "@parcel/fs": "^1.10.3",
-    "@parcel/test-utils": "^1.10.3",
+    "@parcel/fs": "^1.11.0",
+    "@parcel/test-utils": "^1.11.0",
     "codecov": "^3.0.0",
     "command-exists": "^1.2.6",
     "graphql-tag": "^2.6.0",
@@ -26,7 +26,7 @@
     "mocha-multi-reporters": "^1.1.7",
     "ncp": "^2.0.0",
     "nyc": "^11.1.0",
-    "parcel-bundler": "^1.10.3",
+    "parcel-bundler": "^1.11.0",
     "rimraf": "^2.6.1",
     "sinon": "^5.0.1",
     "sourcemap-validator": "^1.0.6",
