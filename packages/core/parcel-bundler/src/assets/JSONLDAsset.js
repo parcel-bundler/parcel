@@ -59,6 +59,10 @@ class JSONLDAsset extends Asset {
         assetPath = urlJoin(this.options.publicURL, assetPath);
       }
       schema[schemaKey] = assetPath;
+    } else if (Array.isArray(schema[schemaKey])) {
+      Object.keys(schema[schemaKey]).forEach(i => {
+        this.collectFromKey(schema[schemaKey], i);
+      });
     } else {
       this.collectFromKey(schema[schemaKey], 'url');
     }
