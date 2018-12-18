@@ -150,6 +150,10 @@ i {
   text-align: center;
 }
 
+.FooterRow {
+  margin: 10px;
+}
+
 .FooterLink {
   margin: 0 5px;
 }

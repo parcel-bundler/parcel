@@ -22,17 +22,24 @@ class Footer extends React.Component {
   render() {
     return (
       <div className="Footer">
-        <FooterLink href="parcel-bundler/parcel/blob/master/PARCEL_2_RFC.md">
-          RFC
-        </FooterLink>
-        &middot;
-        <FooterLink href="parcel-bundler/parcel/projects/5">
-          Project Board
-        </FooterLink>
-        &middot;
-        <FooterLink href="parcel-bundler/parcel/tree/v2/packages/core/is-v2-ready-yet">
-          Page Source
-        </FooterLink>
+        <div className="FooterRow">
+          <FooterLink href="parcel-bundler/parcel/blob/master/PARCEL_2_RFC.md">
+            RFC
+          </FooterLink>
+          &middot;
+          <FooterLink href="parcel-bundler/parcel/projects/5">
+            Project Board
+          </FooterLink>
+          &middot;
+          <FooterLink href="parcel-bundler/parcel/tree/v2/packages/core/is-v2-ready-yet">
+            Page Source
+          </FooterLink>
+        </div>
+        <div className="FooterRow">
+          <FooterLink href="tomocchino/isfiberreadyyet">
+            Forked from "Is Fiber Ready Yet?"
+          </FooterLink>
+        </div>
       </div>
     );
   }
