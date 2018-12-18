@@ -104,7 +104,13 @@ function isUnusedWildcard(path) {
 
 function remove(path) {
   if (path.isAssignmentExpression()) {
-    if (!path.parentPath.isExpressionStatement()) {
+    if (path.parentPath.isSequenceExpression()) {
+      if (path.parent.expressions.length == 1) {
+        path.parentPath.remove();
+      } else {
+        path.remove();
+      }
+    } else if (!path.parentPath.isExpressionStatement()) {
       path.replaceWith(path.node.right);
     } else {
       path.remove();
@@ -112,11 +118,6 @@ function remove(path) {
   } else if (isExportAssignment(path)) {
     remove(path.parentPath.parentPath);
   } else if (isUnusedWildcard(path)) {
-    remove(path.parentPath);
-  } else if (
-    path.parentPath.isSequenceExpression() &&
-    path.parent.expressions.length === 1
-  ) {
     remove(path.parentPath);
   } else if (!path.removed) {
     path.remove();

@@ -20,7 +20,8 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
+    "@parcel/utils": "^1.10.3",
     "mkdirp": "^0.5.1",
-    "@parcel/utils": "^1.10.3"
+    "rimraf": "^2.6.2"
   }
 }
