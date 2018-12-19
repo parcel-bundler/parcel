@@ -1,6 +1,6 @@
 {
   "name": "@parcel/fs",
-  "version": "1.10.3",
+  "version": "1.11.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
   "license": "MIT",
@@ -11,6 +11,9 @@
   "engines": {
     "node": ">= 6.0.0"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "test": "echo this package has no tests yet",
     "test-ci": "yarn build && yarn test",
@@ -20,7 +23,8 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
+    "@parcel/utils": "^1.11.0",
     "mkdirp": "^0.5.1",
-    "@parcel/utils": "^1.10.3"
+    "rimraf": "^2.6.2"
   }
 }

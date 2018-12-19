@@ -1,12 +1,14 @@
 const {promisify} = require('@parcel/utils');
 const fs = require('fs');
 const mkdirp = require('mkdirp');
+const rimraf = require('rimraf');
 
 exports.readFile = promisify(fs.readFile);
 exports.writeFile = promisify(fs.writeFile);
 exports.stat = promisify(fs.stat);
 exports.readdir = promisify(fs.readdir);
 exports.unlink = promisify(fs.unlink);
+exports.rimraf = promisify(rimraf);
 exports.realpath = async function(path) {
   const realpath = promisify(fs.realpath);
   try {
