@@ -3,7 +3,7 @@ const sinon = require('sinon');
 const path = require('path');
 const {assertBundleTree, bundle, bundler, nextBundle} = require('./utils');
 
-describe('bundler', function() {
+describe.skip('bundler', function() {
   it('should bundle once before exporting middleware', async function() {
     let b = bundler(
       path.join(__dirname, '/integration/bundler-middleware/index.js')

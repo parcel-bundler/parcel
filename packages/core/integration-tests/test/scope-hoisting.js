@@ -6,7 +6,7 @@ const fs = require('@parcel/fs');
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
 
-describe('scope hoisting', function() {
+describe.skip('scope hoisting', function() {
   if (process.platform === 'win32') {
     // eslint-disable-next-line no-console
     console.warn(

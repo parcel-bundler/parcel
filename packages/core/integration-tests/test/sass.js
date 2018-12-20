@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('@parcel/fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
-describe('sass', function() {
+describe.skip('sass', function() {
   it('should support requiring sass files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/sass/index.js'));
 
