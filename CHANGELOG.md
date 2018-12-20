@@ -5,6 +5,41 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2018-12-18
+
+### Added
+
+- Add Kotlin asset support [Details](https://github.com/parcel-bundler/parcel/pull/2210)
+- Add --host option [Details](https://github.com/parcel-bundler/parcel/pull/2181)
+- Add support for HMR with elm-hot [Details](https://github.com/parcel-bundler/parcel/pull/2388)
+- Log dev server access for log level verbose or more [Details](https://github.com/parcel-bundler/parcel/pull/2402)
+- Process array of assets for JSON-LD [Details](https://github.com/parcel-bundler/parcel/pull/2319)
+- Extract workerfarm into separate package [Details](https://github.com/parcel-bundler/parcel/pull/2162)
+- Extract Logger into its own package [Details](https://github.com/parcel-bundler/parcel/pull/2165)
+- Extract watcher into its own package [Details](https://github.com/parcel-bundler/parcel/pull/2176)
+- Merge fs-watcher-child into Parcel's monorepo [Details](https://github.com/parcel-bundler/parcel/pull/2197)
+
+### Fixed
+
+- Use this.write and super.end for JSPackager [Details](https://github.com/parcel-bundler/parcel/pull/2126)
+- Make dynamic import name relative to the file importing it [Details](https://github.com/parcel-bundler/parcel/pull/2174)
+- update postcss and deps [Details](https://github.com/parcel-bundler/parcel/pull/2203)
+- catch css file not found [Details](https://github.com/parcel-bundler/parcel/pull/2206)
+- Treat webmanifest as an entry module [Details](https://github.com/parcel-bundler/parcel/pull/2254)
+- add debugger flag for non production builds in Elm [Details](https://github.com/parcel-bundler/parcel/pull/2225)
+- refactor: JSON.stringify replacer can not be boolean [Details](https://github.com/parcel-bundler/parcel/pull/2276)
+- Fix debug log files for certain locales [Details](https://github.com/parcel-bundler/parcel/pull/2288)
+- Scope hoisting renaming after babel transforms [Details](https://github.com/parcel-bundler/parcel/pull/2292)
+- Switch from toml to @iarna/toml [Details](https://github.com/parcel-bundler/parcel/pull/2298)
+- Update deasync to 0.1.14 (Node 11 fix) [Details](https://github.com/parcel-bundler/parcel/pull/2337)
+- Skip external imports from processing [Details](https://github.com/parcel-bundler/parcel/pull/2380)
+- Don't lowercase attributes in html files [Details](https://github.com/parcel-bundler/parcel/pull/2367)
+- refactor: remove unnecessary not null check [Details](https://github.com/parcel-bundler/parcel/pull/2349)
+- Don't cache dynamic bundles that had a network error [Details](https://github.com/parcel-bundler/parcel/pull/2400)
+- Treeshake functions properly [Details](https://github.com/parcel-bundler/parcel/pull/2418)
+- Fix autoinstall of cssnano [Details](https://github.com/parcel-bundler/parcel/pull/2415)
+- Fix server when there is a dot in the path [Details](https://github.com/parcel-bundler/parcel/pull/2429)
+
 ## [1.10.3] - 2018-10-11
 
 ### Fixed
@@ -503,7 +538,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 - Opencollective [Details](https://github.com/parcel-bundler/parcel/commit/0f554dc2f5c8f2557ec84eee5301b90ffb279764)
 - Use `JSON5` to parse config files [Details](https://github.com/parcel-bundler/parcel/commit/bd458660ce38e7a1d25bd9758084acc24418e054)
-- Move JSAsset options gathering into seperate function [Details](https://github.com/parcel-bundler/parcel/commit/333c3aa5d20f98a5f3c52635751032d12854c13c)
+- Move JSAsset options gathering into separate function [Details](https://github.com/parcel-bundler/parcel/commit/333c3aa5d20f98a5f3c52635751032d12854c13c)
 
 ### Fixed
 
