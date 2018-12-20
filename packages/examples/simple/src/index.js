@@ -1,3 +1,5 @@
+import styles from './styles.css';
+
 import('./async');
 import('./async2');
 

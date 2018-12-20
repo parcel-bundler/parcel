@@ -5,7 +5,8 @@
       "@parcel/transformer-babel",
       "@parcel/transformer-js",
       "@parcel/transformer-terser"
-    ]
+    ],
+    "*.css": ["@parcel/transformer-css"]
   },
   "namers": ["@parcel/namer-default"],
   "packagers": {
