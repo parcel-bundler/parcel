@@ -374,7 +374,12 @@ describe('resolver', function() {
       );
       assert.equal(
         resolved.path,
-        path.join(rootDir, 'node_modules', 'package-browser-alias', 'subfolder1/subfolder2/subfile.js')
+        path.join(
+          rootDir,
+          'node_modules',
+          'package-browser-alias',
+          'subfolder1/subfolder2/subfile.js'
+        )
       );
       assert.equal(resolved.pkg.name, 'package-browser-alias');
     });
