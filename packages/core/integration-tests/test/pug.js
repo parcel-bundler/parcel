@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('@parcel/fs');
 const {bundle, assertBundleTree, normaliseNewlines} = require('./utils');
 
-describe('pug', function() {
+describe.skip('pug', function() {
   it('should support bundling HTML', async function() {
     const b = await bundle(path.join(__dirname, '/integration/pug/index.pug'));
 

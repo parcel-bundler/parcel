@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('@parcel/fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
-describe('less', function() {
+describe.skip('less', function() {
   it('should support requiring less files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/less/index.js'));
 

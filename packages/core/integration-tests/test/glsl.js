@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('@parcel/fs');
 const {bundle, run, assertBundleTree, normaliseNewlines} = require('./utils');
 
-describe('glsl', function() {
+describe.skip('glsl', function() {
   it('should support requiring GLSL files via glslify', async function() {
     let b = await bundle(path.join(__dirname, '/integration/glsl/index.js'));
 

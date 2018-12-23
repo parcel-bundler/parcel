@@ -3,7 +3,7 @@ const path = require('path');
 const {bundle, assertBundleTree, run} = require('./utils');
 const fs = require('@parcel/fs');
 
-describe('vue', function() {
+describe.skip('vue', function() {
   it('should produce a basic vue bundle', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/vue-basic/Basic.vue')

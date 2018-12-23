@@ -5,7 +5,7 @@ const {bundler} = require('./utils');
 const http = require('http');
 const https = require('https');
 
-describe('server', function() {
+describe.skip('server', function() {
   let server;
   afterEach(function() {
     if (server) {

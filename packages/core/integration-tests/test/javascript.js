@@ -12,7 +12,7 @@ const {
 const {mkdirp} = require('@parcel/fs');
 const {symlinkSync} = require('fs');
 
-describe('javascript', function() {
+describe.skip('javascript', function() {
   it('should produce a basic JS bundle with CommonJS requires', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs/index.js')

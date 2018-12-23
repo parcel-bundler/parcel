@@ -3,7 +3,7 @@ const fs = require('@parcel/fs');
 const path = require('path');
 const {bundle, run, assertBundleTree} = require('./utils');
 
-describe('fs', function() {
+describe.skip('fs', function() {
   describe('--target=browser', function() {
     it('should inline a file as a string', async function() {
       let b = await bundle(path.join(__dirname, '/integration/fs/index.js'));

@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('@parcel/fs');
 const {bundle, run, assertBundleTree, rimraf, ncp} = require('./utils');
 
-describe('css', function() {
+describe.skip('css', function() {
   it('should produce two bundles when importing a CSS file', async function() {
     let b = await bundle(path.join(__dirname, '/integration/css/index.js'));
 
