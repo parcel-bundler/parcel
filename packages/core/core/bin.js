@@ -7,13 +7,13 @@ program
   .option('-w, --watch', 'runs the bundler in watch mode')
   .parse(process.argv);
 
-let entries = program.args.map(
-  entry => (entry.startsWith('./') ? entry : `./${entry}`)
+let entries = program.args.map(entry =>
+  entry.startsWith('./') ? entry : `./${entry}`
 );
 let cliOpts = {
   watch: program.watch
 };
-let Parcel = require('.');
+let Parcel = require('.').default;
 let parcel = new Parcel({
   entries,
   cliOpts

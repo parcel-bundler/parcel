@@ -1,38 +1,28 @@
-import Parcel, {Asset} from '@parcel/core';
-import Cache from '@parcel/cache';
-
-import {addHook} from 'pirates';
+import Module from 'module';
 import process from 'process';
 import path from 'path';
 import fs from 'fs';
+
+import Parcel, {Asset, createDependency} from '@parcel/core';
+import Cache from '@parcel/cache';
 import syncPromise from '@parcel/utils/lib/syncPromise';
 
+import {addHook} from 'pirates';
+
 let revert = null;
-let cache = null;
+const originalRequire = Module.prototype.require;
 const DEFAULT_CLI_OPTS = {
   watch: false
 };
 
 // The filehandler returns a function that transforms the code
-function fileHandler(opts) {
-  let parcel = new Parcel({
-    entries: [path.join(process.cwd(), 'index.js')],
-    cliOpts: opts
-  });
-
-  cache = new Cache(opts);
-
+function fileHandler({opts, parcel, cache, environment}) {
   // As Parcel is pretty much fully asynchronous, create an async function and return it wrapped in a syncPromise
-  async function runner(code, filename) {
+  async function fileProcessor(code, filename) {
     try {
       let result = await parcel.runTransform({
         filePath: filename,
-        env: {
-          context: 'node',
-          engines: {
-            node: process.versions.node
-          }
-        }
+        env: environment
       });
 
       if (result.assets && result.assets.length >= 1) {
@@ -49,7 +39,7 @@ function fileHandler(opts) {
     return '';
   }
 
-  return (...args) => syncPromise(runner(...args));
+  return (...args) => syncPromise(fileProcessor(...args));
 }
 
 function matcher(filename) {
@@ -67,9 +57,38 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
     revert();
   }
 
+  let parcel = new Parcel({
+    entries: [path.join(process.cwd(), 'index.js')],
+    cliOpts: opts
+  });
+
+  let cache = new Cache(opts);
+
+  let environment = {
+    context: 'node',
+    engines: {
+      node: process.versions.node
+    }
+  };
+
+  Module.prototype.require = function(filePath, ...args) {
+    // Figure this out...
+    /*if (!this.filename.includes('node_modules') && !filePath.includes('@parcel')) {
+      let dep = createDependency(
+        {
+          moduleSpecifier: filePath
+        },
+        this.filename
+      );
+
+      let resolved = syncPromise(parcel.resolverRunner.resolve(dep));
+    }*/
+
+    return originalRequire.bind(this)(filePath, ...args);
+  };
+
   // Register the hook
-  revert = addHook(fileHandler(opts), {
-    // Parcel should handle all the files?
+  revert = addHook(fileHandler({opts, parcel, cache, environment}), {
     matcher,
     ignoreNodeModules: true
   });

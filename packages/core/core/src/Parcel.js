@@ -230,3 +230,4 @@ export default class Parcel {
 }
 
 export {default as Asset} from './Asset';
+export {default as createDependency} from './createDependency';
