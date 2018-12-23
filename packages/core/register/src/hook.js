@@ -22,27 +22,24 @@ function fileHandler(opts) {
 
   cache = new Cache(opts);
 
-  return function(code, filename) {
+  // As Parcel is pretty much fully asynchronous, create an async function and return it wrapped in a syncPromise
+  async function runner(code, filename) {
     try {
-      let result = syncPromise(
-        parcel.runTransform({
-          filePath: filename,
-          env: {
-            context: 'node',
-            engines: {
-              node: process.versions.node
-            }
+      let result = await parcel.runTransform({
+        filePath: filename,
+        env: {
+          context: 'node',
+          engines: {
+            node: process.versions.node
           }
-        })
-      );
+        }
+      });
 
       if (result.assets && result.assets.length >= 1) {
         let asset = new Asset({...result.assets[0], cache});
-        let output = syncPromise(asset.getOutput());
+        let output = await asset.getOutput();
 
-        if (output.code) {
-          return output.code;
-        }
+        return output.code;
       }
     } catch (e) {
       console.error('@parcel/register failed to process: ', filename);
@@ -50,7 +47,9 @@ function fileHandler(opts) {
     }
 
     return '';
-  };
+  }
+
+  return (...args) => syncPromise(runner(...args));
 }
 
 function matcher(filename) {
