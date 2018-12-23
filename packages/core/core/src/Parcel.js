@@ -228,3 +228,5 @@ export default class Parcel {
     return Promise.all(promises);
   }
 }
+
+export {default as Asset} from './Asset';

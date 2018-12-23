@@ -1,4 +1,6 @@
-import Parcel from '@parcel/core';
+import Parcel, {Asset} from '@parcel/core';
+import Cache from '@parcel/cache';
+
 import {addHook} from 'pirates';
 import process from 'process';
 import path from 'path';
@@ -6,6 +8,7 @@ import fs from 'fs';
 import syncPromise from '@parcel/utils/lib/syncPromise';
 
 let revert = null;
+let cache = null;
 const DEFAULT_CLI_OPTS = {
   watch: false
 };
@@ -16,6 +19,8 @@ function fileHandler(opts) {
     entries: [path.join(process.cwd(), 'index.js')],
     cliOpts: opts
   });
+
+  cache = new Cache(opts);
 
   return function(code, filename) {
     try {
@@ -32,18 +37,12 @@ function fileHandler(opts) {
       );
 
       if (result.assets && result.assets.length >= 1) {
-        let codePath =
-          (result.assets[0].output && result.assets[0].output.code) ||
-          result.assets[0].code ||
-          '';
+        let asset = new Asset({...result.assets[0], cache});
+        let output = syncPromise(asset.getOutput());
 
-        // Read blobs, replace with cache.readBlobs in the future.
-        let codeContent = fs.readFileSync(
-          path.join(process.cwd(), '.parcel-cache', codePath),
-          'utf-8'
-        );
-
-        return codeContent;
+        if (output.code) {
+          return output.code;
+        }
       }
     } catch (e) {
       console.error('@parcel/register failed to process: ', filename);
