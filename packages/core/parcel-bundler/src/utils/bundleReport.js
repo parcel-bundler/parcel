@@ -34,7 +34,10 @@ function bundleReport(mainBundle, detailed = false) {
         .filter(a => a.type === bundle.type)
         .sort((a, b) => b.bundledSize - a.bundledSize);
 
-      let largestAssets = assets.slice(0, NUM_LARGE_ASSETS);
+      let largestAssets = assets.slice(
+        0,
+        isNaN(detailed) ? NUM_LARGE_ASSETS : detailed
+      );
       for (let asset of largestAssets) {
         // Add a row for the asset.
         rows.push([
