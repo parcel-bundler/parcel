@@ -405,6 +405,10 @@ class Resolver {
           }
         }
       }
+      // Or try a lookup replacing backslash characters with forward slash
+      if (alias == null && ~filename.indexOf('\\')) {
+        alias = aliases[filename.replace(/\\/g, '/')];
+      }
     }
 
     if (typeof alias === 'string') {
