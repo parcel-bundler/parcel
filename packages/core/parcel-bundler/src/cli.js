@@ -66,6 +66,11 @@ program
     /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
+  .option('--static-data-dir <path>', 'serve <path> as static data')
+  .option(
+    '--static-data-url <path>',
+    'serve the static data at this http path on the dev server, defaults to the directory name of --static-data-dir'
+  )
   .action(bundle);
 
 program

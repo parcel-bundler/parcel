@@ -109,6 +109,16 @@ class Bundler extends EventEmitter {
           : watch;
     const scopeHoist =
       options.scopeHoist !== undefined ? options.scopeHoist : false;
+    const staticDataDir =
+      typeof options.staticDataDir === 'string'
+        ? Path.resolve(options.staticDataDir)
+        : null;
+    const staticDataURL =
+      options.staticDataUrl ||
+      options.staticDataURL ||
+      (staticDataDir !== null
+        ? '/' + Path.basename(options.staticDataDir)
+        : null);
     return {
       production: isProduction,
       outDir: Path.resolve(options.outDir || 'dist'),
@@ -117,6 +127,8 @@ class Bundler extends EventEmitter {
       watch: watch,
       cache: typeof options.cache === 'boolean' ? options.cache : true,
       cacheDir: Path.resolve(options.cacheDir || '.cache'),
+      staticDataDir: staticDataDir,
+      staticDataURL: staticDataURL,
       killWorkers:
         typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
       minify:

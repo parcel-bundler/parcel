@@ -40,6 +40,18 @@ function middleware(bundler) {
     dotfiles: 'allow'
   });
 
+  let serveStaticDataDir = null,
+    staticDataURL = null;
+  if (bundler.options.staticDataDir) {
+    serveStaticDataDir = serveStatic(bundler.options.staticDataDir, {
+      index: false,
+      redirect: false,
+      setHeaders: setHeaders
+    });
+    staticDataURL = bundler.options.staticDataURL;
+    if (!staticDataURL.endsWith('/')) staticDataURL += '/';
+  }
+
   return function(req, res, next) {
     logAccessIfVerbose();
 
@@ -54,10 +66,11 @@ function middleware(bundler) {
       let {pathname} = url.parse(req.url);
       if (bundler.error) {
         return send500(bundler.error);
-      } else if (
-        !pathname.startsWith(bundler.options.publicURL) ||
-        path.extname(pathname) === ''
-      ) {
+      } else if (staticDataURL !== null && pathname.startsWith(staticDataURL)) {
+        // If the URL is in the static data path, then serve it directly.
+        req.url = pathname.slice(staticDataURL.length);
+        return serveStaticDataDir(req, res, send404);
+      } else if (!pathname.startsWith(bundler.options.publicURL)) {
         // If the URL doesn't start with the public path, or the URL doesn't
         // have a file extension, send the main HTML bundle.
         return sendIndex();

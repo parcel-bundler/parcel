@@ -9,11 +9,13 @@ const sinon = require('sinon');
 
 describe('server', function() {
   let server;
-  afterEach(function() {
+  afterEach(async function() {
     if (server) {
       server.close();
       server = null;
     }
+
+    await fs.rimraf(path.join(__dirname, 'data'));
   });
 
   function get(file, client = http) {
@@ -224,6 +226,74 @@ describe('server', function() {
     server = await b.serve(0);
 
     let data = await get('/bar.baz');
+    assert.equal(
+      data,
+      await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8')
+    );
+  });
+
+  it('should serve paths from the static data directory', async function() {
+    let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
+      staticDataDir: path.join(__dirname, 'data')
+    });
+    server = await b.serve(0);
+
+    // When accessing /data/hello.txt we should get txt document.
+    await fs.mkdirp(path.join(__dirname, '/data'));
+    await fs.writeFile(path.join(__dirname, '/data/hello.txt'), 'hello');
+    let data = await get('/data/hello.txt');
+    assert.equal(data, 'hello');
+
+    // When accessing non-existent thing in static dir we should get 404
+    let threw = false;
+    try {
+      await get('/data/nope.txt');
+    } catch (err) {
+      threw = true;
+    }
+
+    assert(threw);
+
+    // When accessing non-existent thing in regular we should get index
+    data = await get('/data.js');
+    assert.equal(
+      data,
+      await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8')
+    );
+  });
+
+  it('should serve paths from the static data directory with a custom url', async function() {
+    let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
+      staticDataDir: path.join(__dirname, 'data'),
+      staticDataURL: '/static/'
+    });
+    server = await b.serve(0);
+
+    // When accessing /data/hello.txt we should get txt document.
+    await fs.mkdirp(path.join(__dirname, '/data'));
+    await fs.writeFile(path.join(__dirname, '/data/hello.txt'), 'hello');
+    let data = await get('/static/hello.txt');
+    assert.equal(data, 'hello');
+
+    // When accessing non-existent thing in static dir we should get 404
+    let threw = false;
+    try {
+      await get('/static/nope.txt');
+    } catch (err) {
+      threw = true;
+    }
+
+    assert(threw);
+
+    // When accessing non-existent thing in dist dir we should get index
+    data = await get('/static.js');
+    assert.equal(
+      data,
+      await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8')
+    );
+
+    // When accessing non-existent thing in not our path we should get index
+    data = await get('/data/hello.txt');
     assert.equal(
       data,
       await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8')
