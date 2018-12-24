@@ -4,6 +4,8 @@ const getExisting = require('../utils/getExisting');
 const urlJoin = require('../utils/urlJoin');
 const lineCounter = require('../utils/lineCounter');
 const objectHash = require('../utils/objectHash');
+const babylon = require('@babel/parser');
+const generate = require('@babel/generator').default;
 
 const prelude = getExisting(
   path.join(__dirname, '../builtins/prelude.min.js'),
@@ -16,6 +18,18 @@ class JSPackager extends Packager {
     this.dedupe = new Map();
     this.bundleLoaders = new Set();
     this.externalModules = new Set();
+
+    if (this.bundle.entryAsset) {
+      // pull out any preserved comments if they exist.
+      const statements = this.parse(this.bundle.entryAsset);
+      if (statements[0] && statements[0].leadingComments)
+        this.write(
+          generate({
+            type: 'Noop',
+            leadingComments: statements[0].leadingComments
+          }).code + '\n'
+        );
+    }
 
     let preludeCode = this.options.minify ? prelude.minified : prelude.source;
     if (this.options.target === 'electron') {
@@ -245,6 +259,15 @@ class JSPackager extends Packager {
       }
     }
     await super.end();
+  }
+
+  parse(asset) {
+    let ast = babylon.parse(asset.generated.js, {
+      sourceFilename: asset.name,
+      allowReturnOutsideFunction: true
+    });
+
+    return ast.program.body;
   }
 }
 
