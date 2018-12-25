@@ -154,7 +154,7 @@ program
   .option(
     '--detailed-report [depth]',
     'print a detailed build report after a completed build. If enabled, defaults to depth "10"',
-    /^([0-9]+)$/
+    /^([0-9]+|all)$/
   )
   .option(
     '--log-level <level>',
@@ -215,10 +215,6 @@ async function bundle(main, command) {
 
   command.throwErrors = false;
   command.scopeHoist = command.experimentalScopeHoisting || false;
-  command.detailedReport =
-    typeof command.detailedReport === 'string'
-      ? parseInt(command.detailedReport, 10)
-      : Boolean(command.detailedReport);
 
   const bundler = new Bundler(main, command);
 
