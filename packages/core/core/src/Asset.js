@@ -28,6 +28,7 @@ type AssetOptions = {
   dependencies?: Array<Dependency>,
   connectedFiles?: Array<File>,
   output?: AssetOutput,
+  outputHash?: string,
   env: Environment,
   meta?: JSONObject,
   cache?: Cache
@@ -44,6 +45,7 @@ export default class Asset implements IAsset {
   connectedFiles: Array<File>;
   output: AssetOutput;
   outputSize: number;
+  outputHash: string;
   env: Environment;
   meta: JSONObject;
   #cache; // no type annotation because prettier dies...
@@ -65,6 +67,7 @@ export default class Asset implements IAsset {
       : [];
     this.output = options.output || {code: this.code};
     this.outputSize = this.output.code.length;
+    this.outputHash = options.outputHash || '';
     this.env = options.env;
     this.meta = options.meta || {};
     this.#cache = options.cache;
@@ -81,6 +84,7 @@ export default class Asset implements IAsset {
       connectedFiles: this.connectedFiles,
       output: this.output,
       outputSize: this.outputSize,
+      outputHash: this.outputHash,
       env: this.env,
       meta: this.meta
     };

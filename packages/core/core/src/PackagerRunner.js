@@ -18,14 +18,13 @@ export default class PackagerRunner {
   cliOpts: CLIOptions;
   cache: Cache;
   distDir: FilePath;
-  distExists: boolean;
+  distExists: Set<FilePath>;
 
   constructor({config, cliOpts}: Opts) {
     this.config = config;
     this.cliOpts = cliOpts;
     this.cache = new Cache(cliOpts);
-    this.distDir = path.resolve(this.cliOpts.distDir || 'dist');
-    this.distExists = false;
+    this.distExists = new Set();
   }
 
   async writeBundle(bundle: Bundle) {
@@ -40,17 +39,13 @@ export default class PackagerRunner {
     let contents = await this.package(bundle);
     contents = await this.optimize(bundle, contents);
 
-    if (!this.distExists) {
-      await mkdirp(this.distDir);
-      this.distExists = true;
+    let dir = path.dirname(bundle.filePath);
+    if (!this.distExists.has(dir)) {
+      await mkdirp(dir);
+      this.distExists.add(dir);
     }
 
-    let filePath = path.join(this.distDir, bundle.filePath);
-    if (bundle.filePath.includes(path.sep)) {
-      await mkdirp(path.dirname(filePath));
-    }
-
-    await writeFile(filePath, contents);
+    await writeFile(bundle.filePath, contents);
   }
 
   async package(bundle: Bundle): Promise<Blob> {

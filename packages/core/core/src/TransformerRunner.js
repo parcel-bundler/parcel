@@ -224,6 +224,7 @@ async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
 
   asset.ast = null;
   asset.code = '';
+  asset.outputHash = md5(asset.output.code);
 
   return asset;
 }

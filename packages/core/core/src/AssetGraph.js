@@ -18,8 +18,6 @@ import path from 'path';
 import md5 from '@parcel/utils/md5';
 import createDependency from './createDependency';
 
-let BUNDLECOUNT = 0;
-
 export const nodeFromRootDir = (rootDir: string) => ({
   id: rootDir,
   type: 'root',
@@ -112,6 +110,7 @@ export default class AssetGraph extends Graph {
           createDependency(
             {
               moduleSpecifier: entry,
+              target: target,
               env: target.env,
               isEntry: true
             },
@@ -282,8 +281,7 @@ export default class AssetGraph extends Graph {
     return {
       id: 'bundle:' + asset.id,
       type: asset.type,
-      assetGraph: graph,
-      filePath: 'bundle.' + BUNDLECOUNT++ + '.js'
+      assetGraph: graph
     };
   }
 

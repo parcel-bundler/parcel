@@ -10,12 +10,20 @@
     "@parcel/babel-register": "^2.0.0",
     "@parcel/core": "^2.0.0"
   },
-  "browserModern": "dist/modern.js",
+  "browser": "dist/legacy/index.js",
+  "browserModern": "dist/modern/index.js",
   "targets": {
     "browserModern": {
       "engines": {
         "browsers": [
           "last 1 Chrome version"
+        ]
+      }
+    },
+    "browser": {
+      "engines": {
+        "browsers": [
+          "> 0.25%"
         ]
       }
     }

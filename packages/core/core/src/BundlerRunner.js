@@ -1,4 +1,5 @@
 // @flow
+import type {AssetGraph, Namer, Bundle} from '@parcel/types';
 import path from 'path';
 import type Config from './Config';
 import BundleGraph from './BundleGraph';
@@ -10,11 +11,35 @@ export default class BundlerRunner {
     this.config = opts.config;
   }
 
-  async bundle(graph /* , opts */) {
+  async bundle(graph: AssetGraph /* , opts */) {
     let bundler = await this.config.getBundler();
 
     let bundleGraph = new BundleGraph();
-    bundler.bundle(graph, bundleGraph);
+    await bundler.bundle(graph, bundleGraph);
+    await this.nameBundles(bundleGraph);
+
     return bundleGraph;
+  }
+
+  async nameBundles(bundleGraph: BundleGraph) {
+    let namers = await this.config.getNamers();
+    let promises = [];
+    bundleGraph.traverseBundles(bundle => {
+      promises.push(this.nameBundle(namers, bundle));
+    });
+
+    await Promise.all(promises);
+  }
+
+  async nameBundle(namers: Array<Namer>, bundle: Bundle) {
+    for (let namer of namers) {
+      let filePath = await namer.name(bundle);
+      if (filePath) {
+        bundle.filePath = filePath;
+        return;
+      }
+    }
+
+    throw new Error('Unable to name bundle');
   }
 }
