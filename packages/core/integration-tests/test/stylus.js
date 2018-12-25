@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('@parcel/fs');
 const {bundle, run, assertBundleTree} = require('./utils');
 
-describe('stylus', function() {
+describe.skip('stylus', function() {
   it('should support requiring stylus files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/stylus/index.js'));
 

@@ -3,7 +3,7 @@ const path = require('path');
 const gql = require('graphql-tag');
 const {bundle, run, assertBundleTree} = require('./utils');
 
-describe('graphql', function() {
+describe.skip('graphql', function() {
   it('should support requiring graphql files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/graphql/index.js'));
 

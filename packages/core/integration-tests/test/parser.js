@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('@parcel/fs');
 const {bundle, assertBundleTree} = require('./utils');
 
-describe('parser', function() {
+describe.skip('parser', function() {
   it('should support case-insensitive file extension', async function() {
     let b = await bundle(
       path.join(

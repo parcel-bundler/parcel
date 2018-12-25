@@ -1,6 +1,6 @@
 const {bundle, assertBundleTree} = require('./utils');
 
-describe('schema ld+json', function() {
+describe.skip('schema ld+json', function() {
   it('Should parse a LD+JSON schema and collect dependencies', async function() {
     let b = await bundle(__dirname + '/integration/schema-jsonld/index.html', {
       production: true,

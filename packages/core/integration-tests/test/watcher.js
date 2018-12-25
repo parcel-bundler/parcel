@@ -15,7 +15,7 @@ const {symlinkSync} = require('fs');
 
 const inputDir = path.join(__dirname, '/input');
 
-describe('watcher', function() {
+describe.skip('watcher', function() {
   let b;
   beforeEach(async function() {
     await sleep(100);

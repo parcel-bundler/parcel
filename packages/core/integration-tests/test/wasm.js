@@ -2,7 +2,7 @@ const assert = require('assert');
 const path = require('path');
 const {bundle, run, assertBundleTree, deferred} = require('./utils');
 
-describe('wasm', function() {
+describe.skip('wasm', function() {
   if (typeof WebAssembly === 'undefined') {
     return;
   }

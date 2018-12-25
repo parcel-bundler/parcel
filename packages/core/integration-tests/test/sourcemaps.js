@@ -4,7 +4,7 @@ const path = require('path');
 const mapValidator = require('sourcemap-validator');
 const {bundler, bundle, run, assertBundleTree} = require('./utils');
 
-describe('sourcemaps', function() {
+describe.skip('sourcemaps', function() {
   it('should create a valid sourcemap as a child of a JS bundle', async function() {
     let b = bundler(path.join(__dirname, '/integration/sourcemap/index.js'));
     let bu = await b.bundle();

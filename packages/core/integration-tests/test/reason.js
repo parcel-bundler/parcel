@@ -2,7 +2,7 @@ const assert = require('assert');
 const path = require('path');
 const {bundle, run} = require('./utils');
 
-describe('reason', function() {
+describe.skip('reason', function() {
   it('should produce a bundle', async function() {
     let b = await bundle(path.join(__dirname, '/integration/reason/index.js'));
 
