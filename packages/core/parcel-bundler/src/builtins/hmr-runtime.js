@@ -57,7 +57,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     }
 
     if (data.type === 'error') {
-      console.error('[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack);
+      console.error(
+        '[parcel] 🚨  ' + data.error.message + '\n' + (data.error.stack || '')
+      );
 
       removeErrorOverlay();
 
@@ -82,7 +84,7 @@ function createErrorOverlay(data) {
   var message = document.createElement('div');
   var stackTrace = document.createElement('pre');
   message.innerText = data.error.message;
-  stackTrace.innerText = data.error.stack;
+  stackTrace.innerText = data.error.stack || '';
 
   overlay.innerHTML = (
     '<div style="background: black; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; opacity: 0.85; font-family: Menlo, Consolas, monospace; z-index: 9999;">' +

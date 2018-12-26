@@ -44,12 +44,7 @@ class ElmAsset extends Asset {
       options.optimize = true;
     }
 
-    let compiled = await this.elm.compileToString(this.name, options);
-    this.contents = compiled.toString();
-    if (this.options.hmr) {
-      let {inject} = await localRequire('elm-hot', this.name);
-      this.contents = inject(this.contents);
-    }
+    this.elmOpts = options;
   }
 
   async collectDependencies() {
@@ -76,7 +71,14 @@ class ElmAsset extends Asset {
   }
 
   async generate() {
-    let output = this.contents;
+    let compiled = null;
+    compiled = await this.elm.compileToString(this.name, this.elmOpts);
+    let output = compiled.toString();
+
+    if (this.options.hmr) {
+      let {inject} = await localRequire('elm-hot', this.name);
+      output = inject(output);
+    }
 
     if (this.options.minify) {
       output = pack(output);
@@ -128,6 +130,10 @@ class ElmAsset extends Asset {
 
       return result.code;
     }
+  }
+
+  generateErrorMessage(err) {
+    return err.message;
   }
 }
 
