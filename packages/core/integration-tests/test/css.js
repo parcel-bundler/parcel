@@ -12,7 +12,7 @@ describe('css', function() {
       assets: ['index.js', 'index.css', 'local.js', 'local.css'],
       childBundles: [
         {
-          name: 'index.map'
+          name: 'index.js.map'
         },
         {
           name: 'index.css',
@@ -88,7 +88,7 @@ describe('css', function() {
           childBundles: []
         },
         {
-          name: 'index.map',
+          name: 'index.js.map',
           type: 'map'
         }
       ]
