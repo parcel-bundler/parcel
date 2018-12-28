@@ -988,7 +988,7 @@ describe('javascript', function() {
     assert.deepEqual(output, err);
   });
 
-  it.skip('should support excluding dependencies in falsy branches', async function() {
+  it('should support excluding dependencies in falsy branches', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/falsy-dep/index.js')
     );

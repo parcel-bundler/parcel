@@ -106,7 +106,8 @@ export default new Transformer({
         plugins: [require('@babel/plugin-transform-modules-commonjs')]
       });
 
-      asset.ast = res.ast;
+      asset.ast.program = res.ast;
+      asset.ast.isDirty = true;
     }
 
     // Do some transforms
@@ -118,7 +119,7 @@ export default new Transformer({
       code: asset.code
     };
 
-    if (asset.ast.isDirty) {
+    if (asset.ast.isDirty !== false) {
       let generated = generate(
         asset.ast.program,
         {
