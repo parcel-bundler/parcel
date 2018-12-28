@@ -133,7 +133,16 @@ class ElmAsset extends Asset {
   }
 
   generateErrorMessage(err) {
-    return err.message;
+    // For some reason, if not converted to a plain object,
+    // the error message is lost somewhere between Pipeline.js
+    // and Bundler.js.
+
+    // The stack is not particularly useful, but other code may
+    // expect it and try to print it.
+    return {
+      message: err.message,
+      stack: ''
+    };
   }
 }
 
