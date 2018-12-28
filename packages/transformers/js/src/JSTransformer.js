@@ -90,9 +90,10 @@ export default new Transformer({
       }
 
       // Insert node globals
-      // if (GLOBAL_RE.test(asset.code)) {
-      //   walk.ancestor(asset.ast.program, insertGlobals, asset);
-      // }
+      if (GLOBAL_RE.test(asset.code)) {
+        asset.meta.globals = new Map();
+        walk.ancestor(asset.ast.program, insertGlobals, asset);
+      }
     }
 
     if (asset.meta.isES6Module) {
@@ -112,26 +113,31 @@ export default new Transformer({
     return [asset];
   },
 
-  async generate(module, config, options) {
-    if (module.ast.isDirty === false) {
-      return {
-        code: module.code
-        // TODO: sourcemaps
-      };
+  async generate(asset, config, options) {
+    let res = {
+      code: asset.code
+    };
+
+    if (asset.ast.isDirty) {
+      let generated = generate(
+        asset.ast.program,
+        {
+          sourceMaps: options.sourceMaps,
+          sourceFileName: asset.relativeName
+        },
+        asset.code
+      );
+
+      res.code = generated.code;
+      res.map = generated.map;
     }
 
-    let generated = generate(
-      module.ast.program,
-      {
-        sourceMaps: options.sourceMaps,
-        sourceFileName: module.relativeName
-      },
-      module.code
-    );
+    if (asset.meta.globals && asset.meta.globals.size > 0) {
+      res.code =
+        Array.from(asset.meta.globals.values()).join('\n') + '\n' + res.code;
+    }
 
-    return {
-      code: generated.code,
-      map: generated.map
-    };
+    delete asset.meta.globals;
+    return res;
   }
 });

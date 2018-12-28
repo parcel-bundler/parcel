@@ -628,7 +628,7 @@ describe('javascript', function() {
     assert(!js.includes('// This is a comment'));
   });
 
-  it.skip('should insert global variables when needed', async function() {
+  it('should insert global variables when needed', async function() {
     let b = await bundle(path.join(__dirname, '/integration/globals/index.js'));
 
     let output = await run(b);
@@ -640,7 +640,7 @@ describe('javascript', function() {
     });
   });
 
-  it.skip('should handle re-declaration of the global constant', async function() {
+  it('should handle re-declaration of the global constant', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/global-redeclare/index.js')
     );
