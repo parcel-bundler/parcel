@@ -529,4 +529,48 @@ describe('hmr', function() {
 
     await buildEnd;
   });
+
+  it('should watch new dependencies that cause errors', async function() {
+    await ncp(
+      path.join(__dirname, '/integration/elm'),
+      path.join(__dirname, '/input')
+    );
+
+    b = bundler(path.join(__dirname, '/input/index.js'), {
+      watch: true,
+      hmr: true
+    });
+    await b.bundle();
+
+    ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
+
+    const buildEnd = nextEvent(b, 'buildEnd');
+
+    await sleep(100);
+    ncp(
+      path.join(__dirname, '/input/src/MainWithBrokenDep.elm'),
+      path.join(__dirname, '/input/src/Main.elm')
+    );
+
+    let msg = JSON.parse(await nextEvent(ws, 'message'));
+    assert.equal(msg.type, 'error');
+
+    await sleep(100);
+    fs.writeFile(
+      path.join(__dirname, '/input/src/BrokenDep.elm'),
+      `
+module BrokenDep exposing (anError)
+
+
+anError : String
+anError =
+    "2"
+      `
+    );
+
+    msg = JSON.parse(await nextEvent(ws, 'message'));
+    assert.equal(msg.type, 'error-resolved');
+
+    await buildEnd;
+  });
 });
