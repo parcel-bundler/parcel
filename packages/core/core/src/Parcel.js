@@ -12,7 +12,8 @@ import type {
   Dependency,
   File,
   Target,
-  TransformerRequest
+  TransformerRequest,
+  JSONObject
 } from '@parcel/types';
 import ResolverRunner from './ResolverRunner';
 import BundlerRunner from './BundlerRunner';
@@ -20,6 +21,8 @@ import Config from './Config';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
 import getRootDir from '@parcel/utils/getRootDir';
+import loadEnv from '@parcel/utils/env';
+import path from 'path';
 
 // TODO: use custom config if present
 const defaultConfig = require('@parcel/config-default');
@@ -30,7 +33,8 @@ type ParcelOpts = {
   entries: string | Array<string>,
   cwd?: string,
   cliOpts: CLIOptions,
-  killWorkers: boolean
+  killWorkers?: boolean,
+  env?: JSONObject
 };
 
 type Signal = {
@@ -82,26 +86,33 @@ export default class Parcel {
       cliOpts,
       rootDir: this.rootDir
     });
+
+    this.targetResolver = new TargetResolver();
+    this.targets = [];
+  }
+
+  async run() {
+    let controller = new AbortController();
+    let signal = controller.signal;
+
+    if (!this.options.env) {
+      await loadEnv(path.join(this.rootDir, 'index'));
+      this.options.env = process.env;
+    }
+
     this.farm = new WorkerFarm(
       {
         parcelConfig: defaultConfig,
-        cliOpts
+        cliOpts: this.options.cliOpts,
+        env: this.options.env
       },
       {
         workerPath: require.resolve('./worker')
       }
     );
 
-    this.targetResolver = new TargetResolver();
-    this.targets = [];
-
     this.runTransform = this.farm.mkhandle('runTransform');
     this.runPackage = this.farm.mkhandle('runPackage');
-  }
-
-  async run() {
-    let controller = new AbortController();
-    let signal = controller.signal;
 
     this.targets = await this.targetResolver.resolve(this.rootDir);
     this.graph.initializeGraph({

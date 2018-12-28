@@ -1,8 +1,8 @@
-const config = require('./config');
-const dotenv = require('dotenv');
-const variableExpansion = require('dotenv-expand');
+import {resolveConfig} from './config';
+import dotenv from 'dotenv';
+import variableExpansion from 'dotenv-expand';
 
-async function loadEnv(filepath) {
+export default async function loadEnv(filepath) {
   const NODE_ENV = process.env.NODE_ENV || 'development';
   const dotenvFiles = [
     `.env.${NODE_ENV}.local`,
@@ -16,7 +16,7 @@ async function loadEnv(filepath) {
 
   await Promise.all(
     dotenvFiles.map(async dotenvFile => {
-      const envPath = await config.resolve(filepath, [dotenvFile]);
+      const envPath = await resolveConfig(filepath, [dotenvFile]);
       if (envPath) {
         const envs = dotenv.config({path: envPath});
         variableExpansion(envs);
@@ -24,5 +24,3 @@ async function loadEnv(filepath) {
     })
   );
 }
-
-module.exports = loadEnv;

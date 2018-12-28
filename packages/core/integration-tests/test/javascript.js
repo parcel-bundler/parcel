@@ -649,17 +649,17 @@ describe('javascript', function() {
     assert.deepEqual(output(), false);
   });
 
-  it.skip('should not insert environment variables on --target=node', async function() {
-    let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
-      target: 'node'
-    });
+  it('should not insert environment variables in node environment', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-node/index.js')
+    );
 
     let output = await run(b);
     assert.ok(output.toString().indexOf('process.env') > -1);
     assert.equal(output(), 'test:test');
   });
 
-  it.skip('should not insert environment variables on --target=electron', async function() {
+  it.skip('should not insert environment variables in electron environment', async function() {
     let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
       target: 'electron'
     });
@@ -669,17 +669,15 @@ describe('javascript', function() {
     assert.equal(output(), 'test:test');
   });
 
-  it.skip('should insert environment variables on --target=browser', async function() {
-    let b = await bundle(path.join(__dirname, '/integration/env/index.js'), {
-      target: 'browser'
-    });
+  it('should insert environment variables in browser environment', async function() {
+    let b = await bundle(path.join(__dirname, '/integration/env/index.js'));
 
     let output = await run(b);
     assert.ok(output.toString().indexOf('process.env') === -1);
     assert.equal(output(), 'test:test');
   });
 
-  it.skip('should insert environment variables from a file', async function() {
+  it('should insert environment variables from a file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/env-file/index.js')
     );

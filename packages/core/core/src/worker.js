@@ -1,19 +1,28 @@
 // @flow
 
-import type {Bundle, CLIOptions, File, ParcelConfig} from '@parcel/types';
+import type {
+  Bundle,
+  CLIOptions,
+  File,
+  ParcelConfig,
+  JSONObject
+} from '@parcel/types';
 import TransformerRunner from './TransformerRunner';
 import PackagerRunner from './PackagerRunner';
 import Config from './Config';
 
 type Options = {
   parcelConfig: ParcelConfig,
-  cliOpts: CLIOptions
+  cliOpts: CLIOptions,
+  env: JSONObject
 };
 
 let transformerRunner: TransformerRunner | null = null;
 let packagerRunner: PackagerRunner | null = null;
 
-export function init({parcelConfig, cliOpts}: Options) {
+export function init({parcelConfig, cliOpts, env}: Options) {
+  Object.assign(process.env, env || {});
+
   let config = new Config(
     parcelConfig,
     require.resolve('@parcel/config-default')
