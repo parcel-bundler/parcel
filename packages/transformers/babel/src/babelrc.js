@@ -128,11 +128,11 @@ async function getIgnoreConfig(asset) {
 }
 
 function shouldIgnore(asset, config) {
-  if (config.ignore && matchesPatterns(config.ignore, asset.name)) {
+  if (config.ignore && matchesPatterns(config.ignore, asset.filePath)) {
     return true;
   }
 
-  if (config.only && !matchesPatterns(config.only, asset.name)) {
+  if (config.only && !matchesPatterns(config.only, asset.filePath)) {
     return true;
   }
 
