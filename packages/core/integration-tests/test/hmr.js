@@ -532,7 +532,7 @@ describe('hmr', function() {
 
   it('should watch new dependencies that cause errors', async function() {
     await ncp(
-      path.join(__dirname, '/integration/elm'),
+      path.join(__dirname, '/integration/elm-dep-error'),
       path.join(__dirname, '/input')
     );
 
@@ -547,9 +547,17 @@ describe('hmr', function() {
     const buildEnd = nextEvent(b, 'buildEnd');
 
     await sleep(100);
-    ncp(
-      path.join(__dirname, '/input/src/MainWithBrokenDep.elm'),
-      path.join(__dirname, '/input/src/Main.elm')
+    fs.writeFile(
+      path.join(__dirname, '/input/src/Main.elm'),
+      `
+module Main exposing (main)
+
+import BrokenDep
+import Html
+
+main =
+    Html.text "Hello, world!"
+    `
     );
 
     let msg = JSON.parse(await nextEvent(ws, 'message'));
@@ -564,7 +572,7 @@ module BrokenDep exposing (anError)
 
 anError : String
 anError =
-    "2"
+    "fixed"
       `
     );
 
