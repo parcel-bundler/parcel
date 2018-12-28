@@ -9,6 +9,7 @@ import insertGlobals from './visitors/globals';
 import {parse} from '@babel/parser';
 import traverse from '@babel/traverse';
 import * as walk from 'babylon-walk';
+import * as babelCore from '@babel/core';
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -92,6 +93,19 @@ export default new Transformer({
       // if (GLOBAL_RE.test(asset.code)) {
       //   walk.ancestor(asset.ast.program, insertGlobals, asset);
       // }
+    }
+
+    if (asset.meta.isES6Module) {
+      let res = babelCore.transformFromAst(asset.ast.program, asset.code, {
+        code: false,
+        ast: true,
+        filename: asset.filePath,
+        babelrc: false,
+        configFile: false,
+        plugins: [require('@babel/plugin-transform-modules-commonjs')]
+      });
+
+      asset.ast = res.ast;
     }
 
     // Do some transforms
