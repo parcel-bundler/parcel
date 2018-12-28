@@ -18,7 +18,7 @@ const PromiseQueue = require('./utils/PromiseQueue');
 const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
-const getRootDir = require('./utils/getRootDir');
+const getRootDir = require('@parcel/utils/getRootDir');
 const {glob} = require('./utils/glob');
 
 /**
@@ -99,8 +99,8 @@ class Bundler extends EventEmitter {
       target === 'node'
         ? false
         : typeof options.hmr === 'boolean'
-          ? options.hmr
-          : watch;
+        ? options.hmr
+        : watch;
     const scopeHoist =
       options.scopeHoist !== undefined ? options.scopeHoist : false;
     return {

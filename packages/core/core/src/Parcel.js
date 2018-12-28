@@ -29,7 +29,8 @@ const abortError = new Error('Build aborted');
 type ParcelOpts = {
   entries: string | Array<string>,
   cwd?: string,
-  cliOpts: CLIOptions
+  cliOpts: CLIOptions,
+  killWorkers: boolean
 };
 
 type Signal = {
@@ -43,6 +44,7 @@ type BuildOpts = {
 };
 
 export default class Parcel {
+  options: ParcelOpts;
   entries: Array<string>;
   rootDir: string;
   graph: AssetGraph;
@@ -56,7 +58,9 @@ export default class Parcel {
   runTransform: (file: TransformerRequest) => Promise<any>;
   runPackage: (bundle: Bundle) => Promise<any>;
 
-  constructor({entries, cliOpts = {}}: ParcelOpts) {
+  constructor(options: ParcelOpts) {
+    let {entries, cliOpts} = options;
+    this.options = options;
     this.entries = Array.isArray(entries) ? entries : [entries];
     this.rootDir = getRootDir(this.entries);
 
@@ -122,7 +126,7 @@ export default class Parcel {
       });
     }
 
-    await buildPromise;
+    return await buildPromise;
   }
 
   async build({signal}: BuildOpts) {
@@ -134,11 +138,12 @@ export default class Parcel {
       let bundleGraph = await this.bundle();
       await this.package(bundleGraph);
 
-      if (!this.watcher) {
+      if (!this.watcher && this.options.killWorkers !== false) {
         await this.farm.end();
       }
 
       console.log('Finished build'); // eslint-disable-line no-console
+      return bundleGraph;
     } catch (e) {
       if (e !== abortError) {
         console.error(e); // eslint-disable-line no-console
@@ -175,7 +180,16 @@ export default class Parcel {
   }
 
   async resolve(dep: Dependency, {signal}: BuildOpts) {
-    let resolvedPath = await this.resolverRunner.resolve(dep);
+    let resolvedPath;
+    try {
+      resolvedPath = await this.resolverRunner.resolve(dep);
+    } catch (err) {
+      if (err.code === 'MODULE_NOT_FOUND' && dep.isOptional) {
+        return;
+      }
+
+      throw err;
+    }
 
     if (signal.aborted) throw abortError;
 

@@ -1,0 +1,6 @@
+{
+  "name": "node_require",
+  "engines": {
+    "node": "6"
+  }
+}
