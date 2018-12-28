@@ -7,7 +7,7 @@ const COMMON_NAMES = new Set(['index', 'src', 'lib']);
 const DEFAULT_DIST_DIR = 'dist';
 
 export default new Namer({
-  name(bundle) {
+  name(bundle, opts) {
     // If the bundle has an explicit file path given (e.g. by a target), use that.
     if (bundle.filePath) {
       // TODO: what about multiple assets in the same dep?
@@ -26,7 +26,7 @@ export default new Namer({
       name = path
         .join(
           path.relative(
-            process.cwd(), // TODO: root dir
+            opts.rootDir,
             path.dirname(entryFilePath)
           ),
           `${name}.${bundle.type}`

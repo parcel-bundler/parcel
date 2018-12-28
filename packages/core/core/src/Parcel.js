@@ -19,6 +19,7 @@ import BundlerRunner from './BundlerRunner';
 import Config from './Config';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
+import getRootDir from '@parcel/utils/getRootDir';
 
 // TODO: use custom config if present
 const defaultConfig = require('@parcel/config-default');
@@ -26,7 +27,7 @@ const defaultConfig = require('@parcel/config-default');
 const abortError = new Error('Build aborted');
 
 type ParcelOpts = {
-  entries: Array<string>,
+  entries: string | Array<string>,
   cwd?: string,
   cliOpts: CLIOptions
 };
@@ -56,8 +57,8 @@ export default class Parcel {
   runPackage: (bundle: Bundle) => Promise<any>;
 
   constructor({entries, cliOpts = {}}: ParcelOpts) {
-    this.entries = entries;
-    this.rootDir = process.cwd();
+    this.entries = Array.isArray(entries) ? entries : [entries];
+    this.rootDir = getRootDir(this.entries);
 
     this.graph = new AssetGraph();
     this.watcher = cliOpts.watch ? new Watcher() : null;
@@ -74,7 +75,8 @@ export default class Parcel {
     });
     this.bundlerRunner = new BundlerRunner({
       config,
-      cliOpts
+      cliOpts,
+      rootDir: this.rootDir
     });
     this.farm = new WorkerFarm(
       {

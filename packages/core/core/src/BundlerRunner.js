@@ -9,6 +9,7 @@ export default class BundlerRunner {
 
   constructor(opts) {
     this.config = opts.config;
+    this.rootDir = opts.rootDir;
   }
 
   async bundle(graph: AssetGraph /* , opts */) {
@@ -33,7 +34,10 @@ export default class BundlerRunner {
 
   async nameBundle(namers: Array<Namer>, bundle: Bundle) {
     for (let namer of namers) {
-      let filePath = await namer.name(bundle);
+      let filePath = await namer.name(bundle, {
+        rootDir: this.rootDir
+      });
+
       if (filePath) {
         bundle.filePath = filePath;
         return;
