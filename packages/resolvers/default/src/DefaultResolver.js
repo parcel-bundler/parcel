@@ -57,7 +57,11 @@ class NodeResolver {
     this.rootPackage = null;
   }
 
-  async resolve({moduleSpecifier: input, sourcePath: parent}: Dependency) {
+  async resolve({
+    moduleSpecifier: input,
+    sourcePath: parent,
+    isURL
+  }: Dependency) {
     let filename = input;
 
     // Check if this is a glob
@@ -72,14 +76,14 @@ class NodeResolver {
 
     if (parent) {
       // parent's extension given high priority
-      const parentExt = path.extname(parent);
+      let parentExt = path.extname(parent);
       extensions = [parentExt, ...extensions.filter(ext => ext !== parentExt)];
     }
 
     extensions.unshift('');
 
     // Resolve the module directory or local file path
-    let module = await this.resolveModule(filename, parent);
+    let module = await this.resolveModule(filename, parent, isURL);
 
     if (module.moduleDir) {
       return this.loadNodeModules(module, extensions);
@@ -90,12 +94,12 @@ class NodeResolver {
     }
   }
 
-  async resolveModule(filename, parent) {
+  async resolveModule(filename, parent, isURL) {
     let dir = parent ? path.dirname(parent) : process.cwd();
 
     // If this isn't the entrypoint, resolve the input file to an absolute path
     if (parent) {
-      filename = this.resolveFilename(filename, dir);
+      filename = this.resolveFilename(filename, dir, isURL);
     }
 
     // Resolve aliases in the parent module for this file.
@@ -132,7 +136,7 @@ class NodeResolver {
     return (parent ? path.dirname(parent) : '') + ':' + filename;
   }
 
-  resolveFilename(filename: string, dir: string) {
+  resolveFilename(filename: string, dir: string, isURL: boolean) {
     switch (filename[0]) {
       case '/':
         // Absolute path. Resolve relative to project root.
@@ -160,6 +164,10 @@ class NodeResolver {
         return path.resolve(dir, filename);
 
       default:
+        if (isURL) {
+          return path.resolve(dir, filename);
+        }
+
         // Module
         return filename;
     }

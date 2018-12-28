@@ -2,6 +2,7 @@ import * as types from '@babel/types';
 import template from '@babel/template';
 import traverse from '@babel/traverse';
 import nodeBuiltins from 'node-libs-browser';
+import isURL from '@parcel/utils/is-url';
 
 const requireTemplate = template('require("_bundle_loader")');
 const argTemplate = template('require.resolve(MODULE)');
@@ -53,6 +54,11 @@ export default {
       types.isStringLiteral(args[0]);
 
     if (isDynamicImport) {
+      // Ignore dynamic imports of fully specified urls
+      if (isURL(args[0].value)) {
+        return;
+      }
+
       // asset.addDependency({moduleSpecifier: '_bundle_loader'});
       addDependency(asset, args[0], {isAsync: true});
 
@@ -193,6 +199,7 @@ function addURLDependency(asset, node, opts = {}) {
   node.value = asset.addDependency({
     moduleSpecifier: node.value,
     isAsync: true,
+    isURL: true,
     ...opts
   });
   asset.ast.isDirty = true;

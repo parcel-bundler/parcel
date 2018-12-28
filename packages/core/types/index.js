@@ -104,6 +104,7 @@ export type DependencyOptions = {
   isAsync?: boolean,
   isEntry?: boolean,
   isOptional?: boolean,
+  isURL?: boolean,
   loc?: SourceLocation,
   env?: Environment,
   meta?: JSONObject,

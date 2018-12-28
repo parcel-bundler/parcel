@@ -107,15 +107,12 @@ export default class AssetGraph extends Graph {
     for (let entry of entries) {
       for (let target of targets) {
         let node = nodeFromDep(
-          createDependency(
-            {
-              moduleSpecifier: entry,
-              target: target,
-              env: target.env,
-              isEntry: true
-            },
-            path.resolve(rootDir, 'index')
-          )
+          createDependency({
+            moduleSpecifier: entry,
+            target: target,
+            env: target.env,
+            isEntry: true
+          })
         );
 
         depNodes.push(node);
@@ -241,6 +238,10 @@ export default class AssetGraph extends Graph {
     }
 
     let node = this.getNodesConnectedFrom(depNode)[0];
+    if (!node) {
+      return {};
+    }
+
     if (node.type === 'transformer_request') {
       let assetNode = this.getNodesConnectedFrom(node).find(
         node => node.type === 'asset' || node.type === 'asset_reference'
