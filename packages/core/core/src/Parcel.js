@@ -100,7 +100,7 @@ export default class Parcel {
       this.options.env = process.env;
     }
 
-    this.farm = new WorkerFarm(
+    this.farm = await WorkerFarm.getShared(
       {
         parcelConfig: defaultConfig,
         cliOpts: this.options.cliOpts,
