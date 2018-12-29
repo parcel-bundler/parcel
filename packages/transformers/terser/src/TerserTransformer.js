@@ -20,6 +20,10 @@ export default new Transformer({
   },
 
   async transform(asset, config, options) {
+    if (!options.production) {
+      return [asset];
+    }
+
     let terserOptions = {
       warnings: true,
       mangle: {
