@@ -171,6 +171,7 @@ class TransformerRunner {
       previousGenerate
     ) {
       let output = await previousGenerate(input);
+      input.output = output;
       input.code = output.code;
       input.ast = null;
     }
