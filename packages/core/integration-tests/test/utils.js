@@ -36,14 +36,16 @@ async function removeDistDirectory(count = 0) {
   }
 }
 
-beforeEach(async function() {
-  await removeDistDirectory();
-});
+// beforeEach(async function() {
+//   await removeDistDirectory();
+// });
 
 function bundler(entries, opts) {
   return new Parcel({
     entries,
-    cliOpts: {},
+    cliOpts: {
+      cache: false
+    },
     killWorkers: false
   });
   // return new Parcel(
