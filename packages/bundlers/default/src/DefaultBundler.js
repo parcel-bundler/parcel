@@ -150,10 +150,10 @@ export default new Bundler({
       }
     }
 
-    bundleGraph.dumpGraphViz();
+    // bundleGraph.dumpGraphViz();
 
-    bundleGraph.traverseBundles(bundle => {
-      bundle.assetGraph.dumpGraphViz();
-    });
+    // bundleGraph.traverseBundles(bundle => {
+    //   bundle.assetGraph.dumpGraphViz();
+    // });
   }
 });

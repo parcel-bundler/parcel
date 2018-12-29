@@ -17,15 +17,19 @@ import type {
 // These keys can affect the output, so if they differ, the cache should not match
 const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
 
+// Default cache directory name
+const DEFAULT_CACHE_DIR = '.parcel-cache';
+
+// Cache for whether a cache dir exists
+const existsCache = new Set();
+
 export default class Cache {
   dir: FilePath;
-  dirExists: boolean;
   invalidated: Set<FilePath>;
   optionsHash: string;
 
   constructor(options: CLIOptions) {
-    this.dir = Path.resolve(options.cacheDir || '.parcel-cache');
-    this.dirExists = false;
+    this.dir = Path.resolve(options.cacheDir || DEFAULT_CACHE_DIR);
     this.invalidated = new Set();
     this.optionsHash = objectHash(
       OPTION_KEYS.reduce((p: JSONObject, k) => ((p[k] = options[k]), p), {
@@ -34,20 +38,19 @@ export default class Cache {
     );
   }
 
-  async ensureDirExists() {
-    if (this.dirExists) {
+  static async createCacheDir(dir = DEFAULT_CACHE_DIR) {
+    dir = Path.resolve(dir);
+    if (existsCache.has(dir)) {
       return;
     }
-
-    await fs.mkdirp(this.dir);
 
     // Create sub-directories for every possible hex value
     // This speeds up large caches on many file systems since there are fewer files in a single directory.
     for (let i = 0; i < 256; i++) {
-      await fs.mkdirp(Path.join(this.dir, ('00' + i.toString(16)).slice(-2)));
+      await fs.mkdirp(Path.join(dir, ('00' + i.toString(16)).slice(-2)));
     }
 
-    this.dirExists = true;
+    existsCache.add(dir);
   }
 
   getCacheId(appendedData: string, env: Environment) {
@@ -108,7 +111,6 @@ export default class Cache {
 
   async write(cacheEntry: CacheEntry) {
     try {
-      await this.ensureDirExists();
       let cacheId = this.getCacheId(cacheEntry.filePath, cacheEntry.env);
       await this.writeBlobs(cacheEntry);
       await this.writeBlob('json', cacheId, cacheEntry);

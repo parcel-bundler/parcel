@@ -23,6 +23,7 @@ import TargetResolver from './TargetResolver';
 import getRootDir from '@parcel/utils/getRootDir';
 import loadEnv from '@parcel/utils/env';
 import path from 'path';
+import Cache from '@parcel/cache';
 
 // TODO: use custom config if present
 const defaultConfig = require('@parcel/config-default');
@@ -95,6 +96,8 @@ export default class Parcel {
     let controller = new AbortController();
     let signal = controller.signal;
 
+    Cache.createCacheDir(this.options.cliOpts.cacheDir);
+
     if (!this.options.env) {
       await loadEnv(path.join(this.rootDir, 'index'));
       this.options.env = process.env;
@@ -142,10 +145,10 @@ export default class Parcel {
 
   async build({signal}: BuildOpts) {
     try {
-      console.log('Starting build'); // eslint-disable-line no-console
+      // console.log('Starting build'); // eslint-disable-line no-console
       await this.updateGraph({signal});
       await this.completeGraph({signal});
-      await this.graph.dumpGraphViz();
+      // await this.graph.dumpGraphViz();
       let bundleGraph = await this.bundle();
       await this.package(bundleGraph);
 
@@ -153,7 +156,7 @@ export default class Parcel {
         await this.farm.end();
       }
 
-      console.log('Finished build'); // eslint-disable-line no-console
+      // console.log('Finished build'); // eslint-disable-line no-console
       return bundleGraph;
     } catch (e) {
       if (e !== abortError) {
