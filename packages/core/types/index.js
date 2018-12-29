@@ -90,7 +90,8 @@ export type PackageJSON = {
 export type CLIOptions = {
   cacheDir?: FilePath,
   watch?: boolean,
-  distDir?: FilePath
+  distDir?: FilePath,
+  production?: boolean
 };
 
 export type SourceLocation = {

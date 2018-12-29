@@ -80,9 +80,8 @@ export default new Transformer({
       if (fsDep && FS_RE.test(asset.code)) {
         // Check if we should ignore fs calls
         // See https://github.com/defunctzombie/node-browser-resolve#skip
-        // let pkg = await this.getPackage();
-        // let ignore = pkg && pkg.browser && pkg.browser.fs === false;
-        let ignore;
+        let pkg = await asset.getPackage();
+        let ignore = pkg && pkg.browser && pkg.browser.fs === false;
 
         if (!ignore) {
           traverse(asset.ast.program, fsVisitor, null, asset);
@@ -96,6 +95,7 @@ export default new Transformer({
       }
     }
 
+    // Convert ES6 modules to CommonJS
     if (asset.meta.isES6Module) {
       let res = babelCore.transformFromAst(asset.ast.program, asset.code, {
         code: false,
@@ -110,7 +110,6 @@ export default new Transformer({
       asset.ast.isDirty = true;
     }
 
-    // Do some transforms
     return [asset];
   },
 
