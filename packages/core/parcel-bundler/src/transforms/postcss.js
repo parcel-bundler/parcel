@@ -14,6 +14,7 @@ module.exports = async function(asset) {
 
   asset.ast.css = res.css;
   asset.ast.dirty = false;
+  asset.sourceMap = res.map;
 };
 
 async function getConfig(asset) {
@@ -29,6 +30,10 @@ async function getConfig(asset) {
   }
 
   config = config || {};
+
+  if (asset.options.sourceMaps) {
+    config.map = {inline: false, annotation: false, sourcesContent: false};
+  }
 
   if (typeof config !== 'object') {
     throw new Error('PostCSS config should be an object.');

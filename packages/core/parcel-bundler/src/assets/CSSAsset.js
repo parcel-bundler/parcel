@@ -3,6 +3,7 @@ const postcss = require('postcss');
 const valueParser = require('postcss-value-parser');
 const postcssTransform = require('../transforms/postcss');
 const CssSyntaxError = require('postcss/lib/css-syntax-error');
+const SourceMap = require('../SourceMap');
 
 const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
@@ -125,6 +126,25 @@ class CSSAsset extends Asset {
         'module.exports = ' + JSON.stringify(this.cssModules, null, 2) + ';';
     }
 
+    let map;
+    if (this.options.sourceMaps && this.sourceMap)
+      map = new SourceMap(
+        this.sourceMap._mappings._array.map(v => ({
+          source: v.source,
+          original: {
+            line: v.originalLine,
+            column: v.originalColumn
+          },
+          generated: {
+            line: v.generatedLine,
+            column: v.generatedColumn
+          }
+        })),
+        {
+          [this.relativeName]: this.contents
+        }
+      );
+
     return [
       {
         type: 'css',
@@ -135,6 +155,10 @@ class CSSAsset extends Asset {
         type: 'js',
         value: js,
         hasDependencies: false
+      },
+      {
+        type: 'map',
+        value: map
       }
     ];
   }

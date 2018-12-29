@@ -1,6 +1,13 @@
+const path = require('path');
 const Packager = require('./Packager');
+const lineCounter = require('../utils/lineCounter');
+const urlJoin = require('../utils/urlJoin');
 
 class CSSPackager extends Packager {
+  async start() {
+    this.lineOffset = 0;
+  }
+
   async addAsset(asset) {
     let css = asset.generated.css || '';
 
@@ -22,7 +29,23 @@ class CSSPackager extends Packager {
       css = `@media ${media.join(', ')} {\n${css.trim()}\n}\n`;
     }
 
+    this.bundle.addOffset(asset, this.lineOffset);
     await this.write(css);
+    this.lineOffset += lineCounter(css);
+  }
+
+  async end() {
+    if (this.options.sourceMaps) {
+      // Add source map url if a map bundle exists
+      let mapBundle = this.bundle.siblingBundlesMap.get('map');
+      if (mapBundle) {
+        let mapUrl = urlJoin(
+          this.options.publicURL,
+          path.basename(mapBundle.name)
+        );
+        await this.write(`\n/*# sourceMappingURL=${mapUrl}*/`);
+      }
+    }
   }
 }
 
