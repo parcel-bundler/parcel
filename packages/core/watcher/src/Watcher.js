@@ -19,7 +19,7 @@ class Watcher extends EventEmitter {
         process.platform === 'darwin' && process.env.NODE_ENV !== 'test',
       ignoreInitial: true,
       ignorePermissionErrors: true,
-      ignored: /\.cache|\.git/
+      ignored: /(^|[/\\])\.(git|cache)/
     }
   ) {
     super();
