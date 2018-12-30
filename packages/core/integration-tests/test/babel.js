@@ -7,7 +7,8 @@ const {
   run,
   assertBundleTree,
   deferred,
-  ncp
+  ncp,
+  rimraf
 } = require('./utils');
 const {mkdirp} = require('@parcel/fs');
 const {symlinkSync} = require('fs');
@@ -139,17 +140,17 @@ describe('babel', function() {
       let file;
       // Dev build test
       await bundle(path.join(__dirname, projectBasePath, '/index.js'));
-      (file = await fs.readFile('dist/index.js')), 'utf8';
-      assert(devRegExp.test(file) === true);
-      assert(prodRegExp.test(file) === false);
+      file = await fs.readFile('dist/index.js', 'utf8');
+      assert.equal(devRegExp.test(file), true);
+      assert.equal(prodRegExp.test(file), false);
       // Prod build test
       await bundle(path.join(__dirname, projectBasePath, '/index.js'), {
         minify: false,
         production: true
       });
-      (file = await fs.readFile('dist/index.js')), 'utf8';
-      assert(prodRegExp.test(file) === true);
-      assert(devRegExp.test(file) === false);
+      file = await fs.readFile('dist/index.js', 'utf8');
+      assert.equal(prodRegExp.test(file), true);
+      assert.equal(devRegExp.test(file), false);
     }
 
     await testBrowserListMultipleEnv(
@@ -198,6 +199,7 @@ describe('babel', function() {
 
   it('should compile node_modules when symlinked with a source field in package.json', async function() {
     const inputDir = path.join(__dirname, '/input');
+    await rimraf(inputDir);
     await mkdirp(path.join(inputDir, 'node_modules'));
     await ncp(
       path.join(path.join(__dirname, '/integration/babel-node-modules-source')),

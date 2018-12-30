@@ -60,6 +60,7 @@ export default new Transformer({
   },
 
   async transform(asset, config, options) {
+    asset.type = 'js';
     if (!asset.ast) {
       return [asset];
     }
