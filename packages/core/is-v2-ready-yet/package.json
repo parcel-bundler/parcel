@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "parcel index.html",
-    "build": "parcel build index.html"
+    "build-app": "parcel build index.html"
   },
   "dependencies": {
     "@parcel/integration-tests": "^2.0.0",
