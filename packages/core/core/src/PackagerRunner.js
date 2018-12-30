@@ -39,6 +39,7 @@ export default class PackagerRunner {
     let contents = await this.package(bundle);
     contents = await this.optimize(bundle, contents);
 
+    // $FlowFixMe - filePath should already be filled in at this point
     let dir = path.dirname(bundle.filePath);
     if (!this.distExists.has(dir)) {
       await mkdirp(dir);
@@ -49,11 +50,13 @@ export default class PackagerRunner {
   }
 
   async package(bundle: Bundle): Promise<Blob> {
+    // $FlowFixMe - filePath should already be filled in at this point
     let packager = await this.config.getPackager(bundle.filePath);
     return await packager.package(bundle, this.cliOpts);
   }
 
   async optimize(bundle: Bundle, contents: Blob): Promise<Blob> {
+    // $FlowFixMe - filePath should already be filled in at this point
     let optimizers = await this.config.getOptimizers(bundle.filePath);
 
     for (let optimizer of optimizers) {

@@ -93,7 +93,7 @@ export default class AssetGraph extends Graph {
   incompleteNodes: Map<NodeId, Node>;
   invalidNodes: Map<NodeId, Node>;
 
-  constructor(opts) {
+  constructor(opts: any) {
     super(opts);
     this.incompleteNodes = new Map();
     this.invalidNodes = new Map();
@@ -125,7 +125,7 @@ export default class AssetGraph extends Graph {
     }
   }
 
-  removeNode(node: Node) {
+  removeNode(node: Node): this {
     this.incompleteNodes.delete(node.id);
     return super.removeNode(node);
   }
@@ -297,9 +297,12 @@ export default class AssetGraph extends Graph {
   }
 
   getEntryAssets(): Array<Asset> {
-    return this.getNodesConnectedFrom(this.getRootNode()).map(
-      node => node.value
-    );
+    let root = this.getRootNode();
+    if (!root) {
+      return [];
+    }
+
+    return this.getNodesConnectedFrom(root).map(node => node.value);
   }
 
   removeAsset(asset: Asset) {
@@ -394,13 +397,9 @@ export default class AssetGraph extends Graph {
 
 function getEnvDescription(env: Environment) {
   let description = '';
-  if (
-    env.context === 'browser' ||
-    env.context === 'web-worker' ||
-    env.context === 'service-worker'
-  ) {
+  if (env.engines.browsers) {
     description = `${env.context}: ${env.engines.browsers.join(', ')}`;
-  } else if (env.context === 'node') {
+  } else if (env.engines.node) {
     description = `node: ${env.engines.node}`;
   }
 

@@ -1,22 +1,37 @@
 // @flow
-import type {AssetGraph, Namer, Bundle} from '@parcel/types';
+import type {
+  AssetGraph,
+  Namer,
+  Bundle,
+  FilePath,
+  CLIOptions
+} from '@parcel/types';
 import path from 'path';
 import type Config from './Config';
 import BundleGraph from './BundleGraph';
 
-export default class BundlerRunner {
-  config: Config;
+type Opts = {
+  cliOpts: CLIOptions,
+  config: Config,
+  rootDir: FilePath
+};
 
-  constructor(opts) {
+export default class BundlerRunner {
+  cliOpts: CLIOptions;
+  config: Config;
+  rootDir: FilePath;
+
+  constructor(opts: Opts) {
+    this.cliOpts = opts.cliOpts;
     this.config = opts.config;
     this.rootDir = opts.rootDir;
   }
 
-  async bundle(graph: AssetGraph /* , opts */) {
+  async bundle(graph: AssetGraph) {
     let bundler = await this.config.getBundler();
 
     let bundleGraph = new BundleGraph();
-    await bundler.bundle(graph, bundleGraph);
+    await bundler.bundle(graph, bundleGraph, this.cliOpts);
     await this.nameBundles(bundleGraph);
 
     return bundleGraph;

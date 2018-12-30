@@ -32,27 +32,27 @@ export default new Transformer({
     };
 
     let sourceMap = null;
-    if (options.sourceMaps) {
-      sourceMap = new SourceMap();
-      terserOptions.output = {
-        source_map: {
-          add(source, gen_line, gen_col, orig_line, orig_col, name) {
-            sourceMap.addMapping({
-              source,
-              name,
-              original: {
-                line: orig_line,
-                column: orig_col
-              },
-              generated: {
-                line: gen_line,
-                column: gen_col
-              }
-            });
-          }
-        }
-      };
-    }
+    // if (options.sourceMaps) {
+    //   sourceMap = new SourceMap();
+    //   terserOptions.output = {
+    //     source_map: {
+    //       add(source, gen_line, gen_col, orig_line, orig_col, name) {
+    //         sourceMap.addMapping({
+    //           source,
+    //           name,
+    //           original: {
+    //             line: orig_line,
+    //             column: orig_col
+    //           },
+    //           generated: {
+    //             line: gen_line,
+    //             column: gen_col
+    //           }
+    //         });
+    //       }
+    //     }
+    //   };
+    // }
 
     if (config) {
       terserOptions = Object.assign({}, terserOptions, config);
@@ -60,12 +60,12 @@ export default new Transformer({
 
     let result = minify(asset.code, terserOptions);
 
-    if (sourceMap && asset.output.map) {
-      sourceMap = await new SourceMap().extendSourceMap(
-        asset.output.map,
-        sourceMap
-      );
-    }
+    // if (sourceMap && asset.output.map) {
+    //   sourceMap = await new SourceMap().extendSourceMap(
+    //     asset.output.map,
+    //     sourceMap
+    //   );
+    // }
 
     if (result.error) {
       throw result.error;
@@ -75,8 +75,8 @@ export default new Transformer({
       {
         type: 'js',
         output: {
-          code: result.code,
-          map: sourceMap
+          code: result.code
+          // map: sourceMap
         }
       }
     ];

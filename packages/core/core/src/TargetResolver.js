@@ -70,7 +70,7 @@ export default class TargetResolver {
     if (typeof browser === 'string' || pkgTargets.browser) {
       targets.push({
         name: 'browser',
-        distPath: browser,
+        distPath: typeof browser === 'string' ? browser : undefined,
         env: Object.assign(
           this.getEnvironment(pkgEngines, 'browser'),
           pkgTargets.browser

@@ -26,6 +26,7 @@ export default new Namer({
       name = path
         .join(
           path.relative(
+            // $FlowFixMe
             opts.rootDir,
             path.dirname(entryFilePath)
           ),

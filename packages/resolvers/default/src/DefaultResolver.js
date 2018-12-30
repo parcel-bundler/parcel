@@ -136,7 +136,7 @@ class NodeResolver {
     return (parent ? path.dirname(parent) : '') + ':' + filename;
   }
 
-  resolveFilename(filename: string, dir: string, isURL: boolean) {
+  resolveFilename(filename: string, dir: string, isURL?: boolean) {
     switch (filename[0]) {
       case '/':
         // Absolute path. Resolve relative to project root.
@@ -186,9 +186,9 @@ class NodeResolver {
 
   async findNodeModulePath(filename: string, dir: string) {
     if (builtins[filename]) {
-      if (this.options.cli.target === 'node' && filename in nodeBuiltins) {
-        throw new Error('Cannot resolve builtin module for node target');
-      }
+      // if (this.options.cli.target === 'node' && filename in nodeBuiltins) {
+      //   throw new Error('Cannot resolve builtin module for node target');
+      // }
 
       return {filePath: builtins[filename]};
     }
@@ -307,7 +307,8 @@ class NodeResolver {
   }
 
   getBrowserField(pkg: InternalPackageJSON) {
-    let target = this.options.cli.target || 'browser';
+    // let target = this.options.cli.target || 'browser';
+    let target = 'browser';
     return target === 'browser' ? pkg.browser : null;
   }
 
@@ -438,10 +439,11 @@ class NodeResolver {
     if (alias == null) {
       // Otherwise, try replacing glob keys
       for (let key in aliases) {
-        if (glob.isGlob(key)) {
+        let val = aliases[key];
+        if (typeof val === 'string' && glob.isGlob(key)) {
           let re = micromatch.makeRe(key, {capture: true});
           if (re.test(filename)) {
-            alias = filename.replace(re, aliases[key]);
+            alias = filename.replace(re, val);
             break;
           }
         }
@@ -452,7 +454,7 @@ class NodeResolver {
       return this.resolveFilename(alias, dir);
     }
 
-    return alias;
+    return typeof alias === 'string' ? alias : null;
   }
 
   async findPackage(dir: string) {

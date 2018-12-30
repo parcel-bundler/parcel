@@ -1,6 +1,6 @@
 // @flow
 
-import type {CLIOptions, Dependency} from '@parcel/types';
+import type {CLIOptions, Dependency, FilePath} from '@parcel/types';
 import path from 'path';
 import Config from './Config';
 
@@ -10,15 +10,13 @@ type Opts = {
   rootDir: string
 };
 
-type ResolverResult = null | string;
-
 const getCacheKey = (filename, parent) =>
   (parent ? path.dirname(parent) : '') + ':' + filename;
 
 export default class ResolverRunner {
   config: Config;
   cliOpts: CLIOptions;
-  cache: Map<string, ResolverResult>;
+  cache: Map<string, FilePath>;
   rootDir: string;
 
   constructor({config, cliOpts, rootDir}: Opts) {
@@ -28,7 +26,7 @@ export default class ResolverRunner {
     this.rootDir = rootDir;
   }
 
-  async resolve(dependency: Dependency): Promise<ResolverResult> {
+  async resolve(dependency: Dependency): Promise<FilePath> {
     // Check the cache first
     let key = getCacheKey(dependency.moduleSpecifier, dependency.sourcePath);
     let cached = this.cache.get(key);

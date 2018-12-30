@@ -1,6 +1,6 @@
 // @flow
 'use strict';
-import type {TraversalContext} from '@parcel/types';
+import type {TraversalContext, Graph as IGraph} from '@parcel/types';
 
 export type NodeId = string;
 
@@ -20,18 +20,24 @@ type GraphUpdates = {
   removed: Graph
 };
 
-export default class Graph {
+type GraphOpts = {
+  nodes?: Array<[NodeId, Node]>,
+  edges?: Array<Edge>,
+  rootNodeId?: ?NodeId
+};
+
+export default class Graph implements IGraph {
   nodes: Map<NodeId, Node>;
   edges: Set<Edge>;
   rootNodeId: ?NodeId;
 
-  constructor(opts = {}) {
+  constructor(opts: GraphOpts = {}) {
     this.nodes = new Map(opts.nodes);
     this.edges = new Set(opts.edges);
     this.rootNodeId = opts.rootNodeId || null;
   }
 
-  toJSON() {
+  toJSON(): GraphOpts {
     return {
       nodes: [...this.nodes],
       edges: [...this.edges],
@@ -78,14 +84,21 @@ export default class Graph {
 
   getNodesConnectedTo(node: Node): Array<Node> {
     let edges = Array.from(this.edges).filter(edge => edge.to === node.id);
-    return edges.map(edge => this.nodes.get(edge.from));
+    return edges.map(edge => {
+      // $FlowFixMe
+      return this.nodes.get(edge.from);
+    });
   }
 
   getNodesConnectedFrom(node: Node): Array<Node> {
     let edges = Array.from(this.edges).filter(edge => edge.from === node.id);
-    return edges.map(edge => this.nodes.get(edge.to));
+    return edges.map(edge => {
+      // $FlowFixMe
+      return this.nodes.get(edge.to);
+    });
   }
 
+  // $FlowFixMe - fix interface
   merge(graph: Graph) {
     for (let [, node] of graph.nodes) {
       this.addNode(node);

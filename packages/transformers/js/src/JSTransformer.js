@@ -65,14 +65,16 @@ export default new Transformer({
       return [asset];
     }
 
+    let ast = asset.ast;
+
     // Inline environment variables
     if (asset.env.context === 'browser' && ENV_RE.test(asset.code)) {
-      walk.simple(asset.ast.program, envVisitor, asset);
+      walk.simple(ast.program, envVisitor, asset);
     }
 
     // Collect dependencies
     if (canHaveDependencies(asset.code)) {
-      walk.ancestor(asset.ast.program, collectDependencies, asset);
+      walk.ancestor(ast.program, collectDependencies, asset);
     }
 
     if (asset.env.context === 'browser') {
@@ -82,23 +84,27 @@ export default new Transformer({
         // Check if we should ignore fs calls
         // See https://github.com/defunctzombie/node-browser-resolve#skip
         let pkg = await asset.getPackage();
-        let ignore = pkg && pkg.browser && pkg.browser.fs === false;
+        let ignore =
+          pkg &&
+          pkg.browser &&
+          typeof pkg.browser === 'object' &&
+          pkg.browser.fs === false;
 
         if (!ignore) {
-          traverse(asset.ast.program, fsVisitor, null, asset);
+          traverse(ast.program, fsVisitor, null, asset);
         }
       }
 
       // Insert node globals
       if (GLOBAL_RE.test(asset.code)) {
         asset.meta.globals = new Map();
-        walk.ancestor(asset.ast.program, insertGlobals, asset);
+        walk.ancestor(ast.program, insertGlobals, asset);
       }
     }
 
     // Convert ES6 modules to CommonJS
     if (asset.meta.isES6Module) {
-      let res = babelCore.transformFromAst(asset.ast.program, asset.code, {
+      let res = babelCore.transformFromAst(ast.program, asset.code, {
         code: false,
         ast: true,
         filename: asset.filePath,
@@ -107,8 +113,8 @@ export default new Transformer({
         plugins: [require('@babel/plugin-transform-modules-commonjs')]
       });
 
-      asset.ast.program = res.ast;
-      asset.ast.isDirty = true;
+      ast.program = res.ast;
+      ast.isDirty = true;
     }
 
     return [asset];
@@ -119,18 +125,18 @@ export default new Transformer({
       code: asset.code
     };
 
-    if (asset.ast.isDirty !== false) {
+    if (asset.ast && asset.ast.isDirty !== false) {
       let generated = generate(
         asset.ast.program,
         {
-          sourceMaps: options.sourceMaps,
-          sourceFileName: asset.relativeName
+          // sourceMaps: options.sourceMaps,
+          // sourceFileName: asset.relativeName
         },
         asset.code
       );
 
       res.code = generated.code;
-      res.map = generated.map;
+      // res.map = generated.map;
     }
 
     if (asset.meta.globals && asset.meta.globals.size > 0) {

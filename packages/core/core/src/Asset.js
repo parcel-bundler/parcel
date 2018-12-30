@@ -176,7 +176,6 @@ export default class Asset implements IAsset {
   }
 
   async getPackage(): Promise<PackageJSON | null> {
-    // $FlowFixMe
     return await this.getConfig(['package.json']);
   }
 }

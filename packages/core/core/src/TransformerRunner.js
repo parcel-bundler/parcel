@@ -218,6 +218,7 @@ class TransformerRunner {
       return null;
     };
 
+    // $FlowFixMe
     return {results, generate, postProcess};
   }
 }

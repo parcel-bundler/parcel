@@ -42,6 +42,7 @@ export default async function getBabelConfig(
  */
 async function getBabelRc(asset, pkg, isSource) {
   // Support legacy browserify packages
+  // $FlowFixMe
   let browserify = pkg && pkg.browserify;
   if (browserify && Array.isArray(browserify.transform)) {
     // Look for babelify in the browserify transform list
@@ -132,6 +133,7 @@ function shouldIgnore(asset, config) {
     return true;
   }
 
+  // $FlowFixMe
   if (config.only && !matchesPatterns(config.only, asset.filePath)) {
     return true;
   }
@@ -253,6 +255,7 @@ function getPluginName(p) {
 
 function getMaxMajor(version) {
   try {
+    // $FlowFixMe
     let range = new semver.Range(version);
     let sorted = range.set.sort((a, b) => a[0].semver.compare(b[0].semver));
     return semver.major(sorted.pop()[0].semver.version);
@@ -263,10 +266,10 @@ function getMaxMajor(version) {
 
 async function installPlugins(asset, babelrc) {
   let presets = (babelrc.presets || []).map(p =>
-    resolveModule('preset', getPluginName(p), asset.name)
+    resolveModule('preset', getPluginName(p), asset.filePath)
   );
   let plugins = (babelrc.plugins || []).map(p =>
-    resolveModule('plugin', getPluginName(p), asset.name)
+    resolveModule('plugin', getPluginName(p), asset.filePath)
   );
   return await Promise.all([...presets, ...plugins]);
 }

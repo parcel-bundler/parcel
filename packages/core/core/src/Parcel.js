@@ -35,7 +35,7 @@ type ParcelOpts = {
   cwd?: string,
   cliOpts: CLIOptions,
   killWorkers?: boolean,
-  env?: JSONObject
+  env?: {[string]: ?string}
 };
 
 type Signal = {
@@ -205,7 +205,9 @@ export default class Parcel {
       throw err;
     }
 
-    if (signal.aborted) throw abortError;
+    if (signal.aborted) {
+      throw abortError;
+    }
 
     let req = {filePath: resolvedPath, env: dep.env};
     dep.resolvedPath = resolvedPath;

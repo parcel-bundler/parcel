@@ -26,6 +26,7 @@ export default new Bundler({
     // 6. If two assets are always seen together, put them in the same extracted bundle.
 
     // Step 1: create bundles for each of the explicit code split points.
+    // $FlowFixMe
     assetGraph.traverse((node, context: ?Context) => {
       if (node.type === 'dependency') {
         let dep: Dependency = node.value;

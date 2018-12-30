@@ -15,7 +15,8 @@ import type {
 } from '@parcel/types';
 
 // These keys can affect the output, so if they differ, the cache should not match
-const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
+// const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
+const OPTION_KEYS = [];
 
 // Default cache directory name
 const DEFAULT_CACHE_DIR = '.parcel-cache';
@@ -38,7 +39,7 @@ export default class Cache {
     );
   }
 
-  static async createCacheDir(dir = DEFAULT_CACHE_DIR) {
+  static async createCacheDir(dir: FilePath = DEFAULT_CACHE_DIR) {
     dir = Path.resolve(dir);
     if (existsCache.has(dir)) {
       return;
@@ -136,7 +137,9 @@ export default class Cache {
   async readBlobs(asset: Asset) {
     await Promise.all(
       Object.keys(asset.output).map(async blobKey => {
-        asset.output[blobKey] = await this.readBlob(asset.output[blobKey]);
+        if (typeof asset.output[blobKey] === 'string') {
+          asset.output[blobKey] = await this.readBlob(asset.output[blobKey]);
+        }
       })
     );
   }

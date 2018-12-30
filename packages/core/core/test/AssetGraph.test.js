@@ -3,6 +3,7 @@
 import assert from 'assert';
 import AssetGraph, {nodeFromTransformerRequest} from '../src/AssetGraph';
 import createDependency from '../src/createDependency';
+import Asset from '../src/Asset';
 
 const DEFAULT_ENV = {
   context: 'browser',
@@ -13,6 +14,7 @@ const DEFAULT_ENV = {
 
 const TARGETS = [
   {
+    name: 'test',
     distPath: 'dist/out.js',
     env: DEFAULT_ENV
   }
@@ -153,7 +155,7 @@ describe('AssetGraph', () => {
     graph.resolveDependency(dep, req);
     let sourcePath = filePath;
     let assets = [
-      {
+      new Asset({
         id: '1',
         filePath,
         type: 'js',
@@ -164,8 +166,8 @@ describe('AssetGraph', () => {
         env: DEFAULT_ENV,
         output: {code: ''},
         connectedFiles: []
-      },
-      {
+      }),
+      new Asset({
         id: '2',
         filePath,
         type: 'js',
@@ -176,8 +178,8 @@ describe('AssetGraph', () => {
         env: DEFAULT_ENV,
         output: {code: ''},
         connectedFiles: []
-      },
-      {
+      }),
+      new Asset({
         id: '3',
         filePath,
         type: 'js',
@@ -186,7 +188,7 @@ describe('AssetGraph', () => {
         env: DEFAULT_ENV,
         output: {code: ''},
         connectedFiles: []
-      }
+      })
     ];
     let cacheEntry = {
       filePath,
@@ -253,7 +255,7 @@ describe('AssetGraph', () => {
     );
 
     let assets2 = [
-      {
+      new Asset({
         id: '1',
         filePath,
         type: 'js',
@@ -264,8 +266,8 @@ describe('AssetGraph', () => {
         env: DEFAULT_ENV,
         output: {code: ''},
         connectedFiles: []
-      },
-      {
+      }),
+      new Asset({
         id: '2',
         filePath,
         type: 'js',
@@ -274,7 +276,7 @@ describe('AssetGraph', () => {
         env: DEFAULT_ENV,
         output: {code: ''},
         connectedFiles: []
-      }
+      })
     ];
     cacheEntry = {
       filePath,
@@ -357,7 +359,7 @@ describe('AssetGraph', () => {
     graph.resolveDependency(dep, req);
     let sourcePath = filePath;
     let assets = [
-      {
+      new Asset({
         id: '1',
         filePath,
         type: 'js',
@@ -372,7 +374,7 @@ describe('AssetGraph', () => {
             filePath: '/foo/bar'
           }
         ]
-      }
+      })
     ];
     let cacheEntry = {
       filePath,

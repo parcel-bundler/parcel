@@ -3,7 +3,7 @@
 import type {
   Bundle,
   CLIOptions,
-  File,
+  TransformerRequest,
   ParcelConfig,
   JSONObject
 } from '@parcel/types';
@@ -37,12 +37,12 @@ export function init({parcelConfig, cliOpts, env}: Options) {
   });
 }
 
-export function runTransform(file: File) {
+export function runTransform(req: TransformerRequest) {
   if (!transformerRunner) {
     throw new Error('.runTransform() called before .init()');
   }
 
-  return transformerRunner.transform(file);
+  return transformerRunner.transform(req);
 }
 
 export function runPackage(bundle: Bundle) {
