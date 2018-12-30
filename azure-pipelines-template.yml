@@ -44,11 +44,13 @@ jobs:
         displayName: 'Lint'
       - task: PublishTestResults@2
         displayName: 'Publish Test Results'
+        condition: succeededOrFailed()
         inputs:
           testResultsFiles: '**/junit-*.xml'
           testRunTitle: TestRun ${{ parameters.name }} $(node_version)
       - task: PublishCodeCoverageResults@1
         displayName: 'Publish code coverage results'
+        condition: succeededOrFailed()
         inputs: 
           codeCoverageTool: 'cobertura'
           summaryFileLocation: '**/coverage/cobertura-coverage.xml'

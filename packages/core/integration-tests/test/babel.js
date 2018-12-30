@@ -131,7 +131,7 @@ describe('babel', function() {
     assert(!file.includes('regenerator'));
   });
 
-  it('should support compiling with babel using browserslist for different environments', async function() {
+  it.skip('should support compiling with babel using browserslist for different environments', async function() {
     async function testBrowserListMultipleEnv(projectBasePath) {
       // Transpiled destructuring, like r = p.prop1, o = p.prop2, a = p.prop3;
       const prodRegExp = /\S+ ?= ?\S+\.prop1,\s*?\S+ ?= ?\S+\.prop2,\s*?\S+ ?= ?\S+\.prop3;/;
