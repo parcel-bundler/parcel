@@ -21,7 +21,7 @@ import Config from './Config';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
 import getRootDir from '@parcel/utils/getRootDir';
-import loadEnv from '@parcel/utils/env';
+import loadEnv from './loadEnv';
 import path from 'path';
 import Cache from '@parcel/cache';
 
