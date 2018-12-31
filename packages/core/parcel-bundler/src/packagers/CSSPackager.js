@@ -6,6 +6,7 @@ const urlJoin = require('../utils/urlJoin');
 class CSSPackager extends Packager {
   async start() {
     this.lineOffset = 0;
+    this.columnOffset = 0;
   }
 
   async addAsset(asset) {
@@ -29,9 +30,18 @@ class CSSPackager extends Packager {
       css = `@media ${media.join(', ')} {\n${css.trim()}\n}\n`;
     }
 
-    this.bundle.addOffset(asset, this.lineOffset);
-    await this.write(css);
-    this.lineOffset += lineCounter(css);
+    let lineCount = lineCounter(css) - 1;
+
+    if (lineCount == 0) {
+      this.bundle.addOffset(asset, this.lineOffset, this.columnOffset);
+      await this.write(css);
+      this.columnOffset = css.length;
+    } else {
+      this.bundle.addOffset(asset, this.lineOffset + 1, this.columnOffset);
+      await this.write(css + '\n');
+      this.columnOffset = 0;
+      this.lineOffset += lineCounter(css);
+    }
   }
 
   async end() {

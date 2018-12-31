@@ -46,12 +46,12 @@ class Bundle {
     this.assets.delete(asset);
   }
 
-  addOffset(asset, line) {
-    this.offsets.set(asset, line);
+  addOffset(asset, line, column = 0) {
+    this.offsets.set(asset, [line, column]);
   }
 
   getOffset(asset) {
-    return this.offsets.get(asset) || 0;
+    return this.offsets.get(asset) || [0, 0];
   }
 
   getSiblingBundle(type) {

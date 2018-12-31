@@ -130,7 +130,7 @@ class CSSAsset extends Asset {
     if (this.options.sourceMaps && this.sourceMap)
       map = new SourceMap(
         this.sourceMap._mappings._array.map(v => ({
-          source: v.source,
+          source: this.relativeName,
           original: {
             line: v.originalLine,
             column: v.originalColumn
