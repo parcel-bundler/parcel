@@ -135,7 +135,7 @@ class ElmAsset extends Asset {
   generateErrorMessage(err) {
     // The generated stack is not useful, but other code may
     // expect it and try to print it, so make it an empty string.
-    err.stack == '';
+    err.stack = '';
     return err;
   }
 }
