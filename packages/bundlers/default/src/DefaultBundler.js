@@ -1,7 +1,6 @@
 // @flow
 import type {Dependency, BundleGroup, Bundle} from '@parcel/types';
 import {Bundler} from '@parcel/plugin';
-import path from 'path';
 
 const ISOLATED_ENVS = new Set(['web-worker', 'service-worker']);
 const OPTIONS = {

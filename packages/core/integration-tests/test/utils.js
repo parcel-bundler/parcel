@@ -8,7 +8,6 @@ const WebSocket = require('ws');
 const Module = require('module');
 
 const {promisify} = require('@parcel/utils');
-const {sleep} = require('@parcel/test-utils');
 const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
 
@@ -20,34 +19,39 @@ console.warn = (...args) => {
   console.error(warning(...args));
 };
 
-async function removeDistDirectory(count = 0) {
-  try {
-    await rimraf('.parcel-cache');
-    await rimraf('dist');
-  } catch (e) {
-    if (count > 8) {
-      // eslint-disable-next-line no-console
-      console.warn('WARNING: Unable to remove dist directory:', e.message);
-      return;
-    }
+// async function removeDistDirectory(count = 0) {
+//   try {
+//     await rimraf('.parcel-cache');
+//     await rimraf('dist');
+//   } catch (e) {
+//     if (count > 8) {
+//       // eslint-disable-next-line no-console
+//       console.warn('WARNING: Unable to remove dist directory:', e.message);
+//       return;
+//     }
 
-    await sleep(250);
-    await removeDistDirectory(count + 1);
-  }
-}
+//     await sleep(250);
+//     await removeDistDirectory(count + 1);
+//   }
+// }
 
 // beforeEach(async function() {
 //   await removeDistDirectory();
 // });
 
 function bundler(entries, opts) {
-  return new Parcel({
-    entries,
-    cliOpts: {
-      cache: false
-    },
-    killWorkers: false
-  });
+  return new Parcel(
+    Object.assign(
+      {
+        entries,
+        cliOpts: {
+          cache: false
+        },
+        killWorkers: false
+      },
+      opts
+    )
+  );
   // return new Parcel(
   //   file,
   //   Object.assign(

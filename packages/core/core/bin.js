@@ -19,4 +19,5 @@ let parcel = new Parcel({
   cliOpts
 });
 
+// eslint-disable-next-line no-console
 parcel.run().catch(console.error);

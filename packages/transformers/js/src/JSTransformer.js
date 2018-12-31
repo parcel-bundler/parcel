@@ -59,7 +59,7 @@ export default new Transformer({
     };
   },
 
-  async transform(asset, config, options) {
+  async transform(asset) {
     asset.type = 'js';
     if (!asset.ast) {
       return [asset];
@@ -120,7 +120,7 @@ export default new Transformer({
     return [asset];
   },
 
-  async generate(asset, config, options) {
+  async generate(asset /*, config, options*/) {
     let res = {
       code: asset.code
     };

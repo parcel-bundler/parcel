@@ -6,7 +6,6 @@ import type {
   FilePath,
   CLIOptions
 } from '@parcel/types';
-import path from 'path';
 import type Config from './Config';
 import BundleGraph from './BundleGraph';
 

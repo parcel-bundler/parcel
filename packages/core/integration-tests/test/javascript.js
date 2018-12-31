@@ -1,9 +1,8 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
-const {bundle, bundler, run, assertBundles, deferred, ncp} = require('./utils');
+const {bundle, bundler, run, assertBundles, deferred} = require('./utils');
 const {mkdirp} = require('@parcel/fs');
-const {symlinkSync} = require('fs');
 
 describe('javascript', function() {
   it('should produce a basic JS bundle with CommonJS requires', async function() {
@@ -99,7 +98,7 @@ describe('javascript', function() {
       }
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'main.js',
       assets: ['main.js', 'local.js']
     });
@@ -141,7 +140,7 @@ describe('javascript', function() {
       }
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'main.js',
       assets: ['main.js', 'local.js', 'index.js']
     });
@@ -202,7 +201,7 @@ describe('javascript', function() {
       }
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
@@ -346,7 +345,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/workers-with-other-loaders/index.js')
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -387,7 +386,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/dynamic-references-raw/index.js')
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
@@ -418,7 +417,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/dynamic-esm/index.js')
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
       childBundles: [
@@ -476,7 +475,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/dynamic-hoist-dup/index.js')
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -513,7 +512,7 @@ describe('javascript', function() {
       }
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -546,7 +545,7 @@ describe('javascript', function() {
   it.skip('should support requiring JSON files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/json/index.js'));
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: ['index.js', 'local.json'],
       childBundles: [
@@ -564,7 +563,7 @@ describe('javascript', function() {
   it.skip('should support requiring JSON5 files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/json5/index.js'));
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: ['index.js', 'local.json5'],
       childBundles: [
@@ -584,7 +583,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/import-raw/index.js')
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: ['index.js', 'test.txt'],
       childBundles: [
@@ -697,7 +696,7 @@ describe('javascript', function() {
       }
     });
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: ['index.js', 'local.json', 'index.css'],
       childBundles: [
@@ -719,7 +718,7 @@ describe('javascript', function() {
   it.skip('should support requiring YAML files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/yaml/index.js'));
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: ['index.js', 'local.yaml'],
       childBundles: [
@@ -737,7 +736,7 @@ describe('javascript', function() {
   it.skip('should support requiring TOML files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/toml/index.js'));
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: ['index.js', 'local.toml'],
       childBundles: [
@@ -755,7 +754,7 @@ describe('javascript', function() {
   it.skip('should support requiring CoffeeScript files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/coffee/index.js'));
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: ['index.js', 'local.coffee'],
       childBundles: [
@@ -796,7 +795,7 @@ describe('javascript', function() {
       }
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'browser.js',
       assets: ['browser.js', 'node-module.js'],
       childBundles: [
@@ -817,7 +816,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/resolve-entries/browser-multiple.js')
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'browser-multiple.js',
       assets: [
         'browser-multiple.js',
@@ -847,7 +846,7 @@ describe('javascript', function() {
       }
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'browser-multiple.js',
       assets: ['browser-multiple.js', 'node-entry.js', 'projected.js'],
       childBundles: [
@@ -1195,7 +1194,7 @@ describe('javascript', function() {
       {sourceMaps: false}
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -1237,7 +1236,7 @@ describe('javascript', function() {
       }
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -1278,7 +1277,7 @@ describe('javascript', function() {
       }
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: [
         'index.js',

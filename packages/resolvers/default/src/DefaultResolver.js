@@ -7,7 +7,7 @@ import fs from '@parcel/fs';
 import {glob} from '@parcel/utils';
 import micromatch from 'micromatch';
 import builtins from './builtins';
-import nodeBuiltins from 'node-libs-browser';
+// import nodeBuiltins from 'node-libs-browser';
 
 export default new Resolver({
   async resolve(dep: Dependency, cli: CLIOptions, rootDir: string) {

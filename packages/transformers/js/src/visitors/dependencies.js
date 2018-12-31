@@ -1,11 +1,11 @@
 import * as types from '@babel/types';
-import template from '@babel/template';
+// import template from '@babel/template';
 import traverse from '@babel/traverse';
 import nodeBuiltins from 'node-libs-browser';
 import isURL from '@parcel/utils/is-url';
 
-const requireTemplate = template('require("_bundle_loader")');
-const argTemplate = template('require.resolve(MODULE)');
+// const requireTemplate = template('require("_bundle_loader")');
+// const argTemplate = template('require.resolve(MODULE)');
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
 export default {

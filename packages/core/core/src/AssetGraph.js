@@ -14,7 +14,6 @@ import type {
   GraphTraversalCallback,
   DependencyResolution
 } from '@parcel/types';
-import path from 'path';
 import md5 from '@parcel/utils/md5';
 import createDependency from './createDependency';
 

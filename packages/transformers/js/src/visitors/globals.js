@@ -6,7 +6,7 @@ const VARS = {
     asset.addDependency({moduleSpecifier: 'process'});
     return 'var process = require("process");';
   },
-  global: asset =>
+  global: () =>
     `var global = arguments[${/*asset.options.scopeHoist ? 0 : */ 3}];`,
   __dirname: asset =>
     `var __dirname = ${JSON.stringify(Path.dirname(asset.filePath))};`,

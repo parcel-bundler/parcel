@@ -10,10 +10,8 @@ import type {
   BundleGraph,
   CLIOptions,
   Dependency,
-  File,
   Target,
-  TransformerRequest,
-  JSONObject
+  TransformerRequest
 } from '@parcel/types';
 import ResolverRunner from './ResolverRunner';
 import BundlerRunner from './BundlerRunner';

@@ -29,7 +29,7 @@ export default new Transformer({
     return [asset];
   },
 
-  generate(asset, config, options) {
+  generate(asset /*, config, options*/) {
     // let opts = {
     //   sourceMaps: options.sourceMaps,
     //   sourceFileName: this.relativeName

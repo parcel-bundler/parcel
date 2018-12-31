@@ -1,15 +1,7 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
-const {
-  bundle,
-  bundler,
-  run,
-  assertBundleTree,
-  deferred,
-  ncp,
-  rimraf
-} = require('./utils');
+const {bundle, run, ncp, rimraf} = require('./utils');
 const {mkdirp} = require('@parcel/fs');
 const {symlinkSync} = require('fs');
 

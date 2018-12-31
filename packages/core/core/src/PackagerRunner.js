@@ -4,7 +4,6 @@ import Cache from '@parcel/cache';
 import {mkdirp, writeFile} from '@parcel/fs';
 import path from 'path';
 import type {Bundle, CLIOptions, Blob, FilePath} from '@parcel/types';
-import clone from 'clone';
 import AssetGraph from './AssetGraph';
 import Asset from './Asset';
 

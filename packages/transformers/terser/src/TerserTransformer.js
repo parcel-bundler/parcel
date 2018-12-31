@@ -4,10 +4,10 @@ import {Transformer} from '@parcel/plugin';
 
 // TODO: extract SourceMap from parcel-bundler ?
 // Just using an empty class skeleton for now so that linting doesn't fail
-class SourceMap {
-  addMapping() {}
-  extendSourceMap() {}
-}
+// class SourceMap {
+//   addMapping() {}
+//   extendSourceMap() {}
+// }
 
 export default new Transformer({
   async getConfig(asset) {
@@ -31,7 +31,7 @@ export default new Transformer({
       }
     };
 
-    let sourceMap = null;
+    // let sourceMap = null;
     // if (options.sourceMaps) {
     //   sourceMap = new SourceMap();
     //   terserOptions.output = {
