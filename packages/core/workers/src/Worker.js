@@ -1,6 +1,7 @@
 const childProcess = require('child_process');
 const {EventEmitter} = require('events');
 const {errorUtils} = require('@parcel/utils');
+const {serialize, deserialize} = require('@parcel/utils/serializer');
 
 const childModule = require.resolve('./child');
 
@@ -84,6 +85,7 @@ class Worker extends EventEmitter {
       return this.sendQueue.push(data);
     }
 
+    data = serialize(data);
     let result = this.child.send(data, error => {
       if (error && error instanceof Error) {
         // Ignore this, the workerfarm handles child errors
@@ -126,6 +128,8 @@ class Worker extends EventEmitter {
     if (this.stopped || this.isStopping) {
       return;
     }
+
+    data = deserialize(data);
 
     let idx = data.idx;
     let type = data.type;

@@ -13,6 +13,7 @@ import type {
   Asset,
   Environment
 } from '@parcel/types';
+import {serialize, deserialize} from '@parcel/utils/serializer';
 
 // These keys can affect the output, so if they differ, the cache should not match
 // const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
@@ -72,7 +73,7 @@ export default class Cache {
       if (Buffer.isBuffer(data)) {
         blobPath += '.bin';
       } else {
-        data = JSON.stringify(data);
+        data = serialize(data);
         if (type !== 'json') {
           blobPath += '.json';
         }
@@ -128,7 +129,7 @@ export default class Cache {
     });
 
     if (extension === '.json') {
-      data = JSON.parse(data);
+      data = deserialize(data);
     }
 
     return data;

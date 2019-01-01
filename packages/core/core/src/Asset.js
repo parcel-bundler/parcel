@@ -73,7 +73,7 @@ export default class Asset implements IAsset {
     this.#cache = options.cache;
   }
 
-  toJSON(): AssetOptions {
+  serialize(): AssetOptions {
     // Exclude `code` and `ast` from cache
     return {
       id: this.id,

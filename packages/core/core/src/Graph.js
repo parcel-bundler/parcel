@@ -37,7 +37,7 @@ export default class Graph implements IGraph {
     this.rootNodeId = opts.rootNodeId || null;
   }
 
-  toJSON(): GraphOpts {
+  serialize(): GraphOpts {
     return {
       nodes: [...this.nodes],
       edges: [...this.edges],

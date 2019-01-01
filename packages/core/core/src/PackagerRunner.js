@@ -1,6 +1,5 @@
 // @flow
 import type Config from './Config';
-import Cache from '@parcel/cache';
 import {mkdirp, writeFile} from '@parcel/fs';
 import path from 'path';
 import type {Bundle, CLIOptions, Blob, FilePath} from '@parcel/types';
@@ -22,19 +21,10 @@ export default class PackagerRunner {
   constructor({config, cliOpts}: Opts) {
     this.config = config;
     this.cliOpts = cliOpts;
-    this.cache = new Cache(cliOpts);
     this.distExists = new Set();
   }
 
   async writeBundle(bundle: Bundle) {
-    // deserialize asset graph from JSON
-    bundle.assetGraph = new AssetGraph(bundle.assetGraph);
-    bundle.assetGraph.traverse(node => {
-      if (node.type === 'asset') {
-        node.value = new Asset({...node.value, cache: this.cache});
-      }
-    });
-
     let contents = await this.package(bundle);
     contents = await this.optimize(bundle, contents);
 
