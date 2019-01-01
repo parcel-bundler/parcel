@@ -13,7 +13,7 @@ import type {
   Config,
   PackageJSON
 } from '@parcel/types';
-import type Cache from '@parcel/cache';
+import Cache from '@parcel/cache';
 import md5 from '@parcel/utils/md5';
 import {loadConfig} from '@parcel/utils/config';
 import createDependency from './createDependency';
@@ -30,8 +30,7 @@ type AssetOptions = {
   output?: AssetOutput,
   outputHash?: string,
   env: Environment,
-  meta?: JSONObject,
-  cache?: Cache
+  meta?: JSONObject
 };
 
 export default class Asset implements IAsset {
@@ -70,7 +69,6 @@ export default class Asset implements IAsset {
     this.outputHash = options.outputHash || '';
     this.env = options.env;
     this.meta = options.meta || {};
-    this.#cache = options.cache;
   }
 
   serialize(): AssetOptions {
@@ -144,11 +142,7 @@ export default class Asset implements IAsset {
   }
 
   async getOutput() {
-    if (this.#cache) {
-      await this.#cache.readBlobs(this);
-      this.#cache = null;
-    }
-
+    await Cache.readBlobs(this);
     return this.output;
   }
 

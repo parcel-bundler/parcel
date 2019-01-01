@@ -25,12 +25,12 @@ const DEFAULT_CACHE_DIR = '.parcel-cache';
 // Cache for whether a cache dir exists
 const existsCache = new Set();
 
-export default class Cache {
+export class Cache {
   dir: FilePath;
   invalidated: Set<FilePath>;
   optionsHash: string;
 
-  constructor(options: CLIOptions) {
+  init(options: CLIOptions) {
     this.dir = Path.resolve(options.cacheDir || DEFAULT_CACHE_DIR);
     this.invalidated = new Set();
     this.optionsHash = objectHash(
@@ -40,7 +40,7 @@ export default class Cache {
     );
   }
 
-  static async createCacheDir(dir: FilePath = DEFAULT_CACHE_DIR) {
+  async createCacheDir(dir: FilePath = DEFAULT_CACHE_DIR) {
     dir = Path.resolve(dir);
     if (existsCache.has(dir)) {
       return;
@@ -81,7 +81,7 @@ export default class Cache {
     }
 
     await fs.writeFile(blobPath, data);
-    return Path.relative(this.dir, blobPath);
+    return new CacheReference(Path.relative(this.dir, blobPath));
   }
 
   async _writeBlobs(assets: Array<Asset>) {
@@ -95,6 +95,7 @@ export default class Cache {
             asset.output[blobKey]
           );
         }
+
         return asset;
       })
     );
@@ -138,8 +139,10 @@ export default class Cache {
   async readBlobs(asset: Asset) {
     await Promise.all(
       Object.keys(asset.output).map(async blobKey => {
-        if (typeof asset.output[blobKey] === 'string') {
-          asset.output[blobKey] = await this.readBlob(asset.output[blobKey]);
+        if (asset.output[blobKey] instanceof CacheReference) {
+          asset.output[blobKey] = await this.readBlob(
+            asset.output[blobKey].filePath
+          );
         }
       })
     );
@@ -173,3 +176,12 @@ export default class Cache {
     }
   }
 }
+
+export class CacheReference {
+  filePath: FilePath;
+  constructor(filePath: FilePath) {
+    this.filePath = filePath;
+  }
+}
+
+export default new Cache();

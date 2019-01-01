@@ -163,7 +163,7 @@ export interface Asset {
 export type AssetOutput = {
   code: string,
   map?: SourceMap,
-  [string]: Blob
+  [string]: Blob | JSONValue
 };
 
 export type AST = {
