@@ -8,9 +8,11 @@ class SourceMapPackager extends Packager {
   }
 
   async addAsset(asset) {
+    let offsets = this.bundle.parentBundle.getOffset(asset);
     await this.sourceMap.addMap(
       asset.generated.map,
-      ...this.bundle.parentBundle.getOffset(asset)
+      offsets.line,
+      offsets.column
     );
   }
 
