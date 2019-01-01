@@ -2,7 +2,16 @@ const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
 const mapValidator = require('sourcemap-validator');
+const {SourceMapConsumer} = require('source-map');
 const {bundler, bundle, run, assertBundleTree} = require('./utils');
+
+function indexToLineCol(str, index) {
+  const beforeIndex = str.slice(0, index);
+  return {
+    line: beforeIndex.split('\n').length,
+    column: index - beforeIndex.lastIndexOf('\n') - 1
+  };
+}
 
 describe('sourcemaps', function() {
   it('should create a valid sourcemap as a child of a JS bundle', async function() {
@@ -313,5 +322,152 @@ describe('sourcemaps', function() {
       'Sourcemap should contain the existing sourcemap'
     );
     mapValidator(jsOutput, map);
+  });
+
+  it('should create a valid sourcemap as a child of a CSS bundle', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sourcemap-css/style.css'),
+      {minify: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'style.css',
+      assets: ['style.css'],
+      childBundles: [
+        {
+          name: 'style.css.map',
+          type: 'map'
+        }
+      ]
+    });
+
+    let input = (await fs.readFile(
+      path.join(__dirname, '/integration/sourcemap-css/style.css')
+    )).toString();
+    let raw = (await fs.readFile(
+      path.join(__dirname, '/dist/style.css')
+    )).toString();
+    let map = (await fs.readFile(
+      path.join(__dirname, '/dist/style.css.map')
+    )).toString();
+
+    assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
+
+    let consumer = await new SourceMapConsumer(map);
+
+    assert.deepStrictEqual(
+      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('body'))),
+      {
+        source: '../integration/sourcemap-css/style.css',
+        name: null,
+        ...indexToLineCol(input, input.indexOf('body'))
+      },
+      "map 'body'"
+    );
+
+    // assert.deepStrictEqual(
+    //   consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('{'))),
+    //   {
+    //     source: '../integration/sourcemap-css/style.css',
+    //     name: null,
+    //     ...indexToLineCol(input, input.indexOf('{'))
+    //   },
+    //   "map '{'"
+    // );
+
+    assert.deepStrictEqual(
+      consumer.originalPositionFor(
+        indexToLineCol(raw, raw.indexOf('background-color'))
+      ),
+      {
+        source: '../integration/sourcemap-css/style.css',
+        name: null,
+        ...indexToLineCol(input, input.indexOf('background-color'))
+      },
+      "map 'background'-color"
+    );
+
+    // assert.deepStrictEqual(
+    //   consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('}'))),
+    //   {
+    //     source: '../integration/sourcemap-css/style.css',
+    //     name: null,
+    //     ...indexToLineCol(input, input.indexOf('}'))
+    //   },
+    //   "map '}'"
+    // );
+  });
+
+  it('should create a valid sourcemap for a CSS bundle with imports', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sourcemap-css-import/style.css'),
+      {minify: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'style.css',
+      assets: ['style.css', 'other-style.css'],
+      childBundles: [
+        {
+          name: 'style.css.map',
+          type: 'map'
+        }
+      ]
+    });
+
+    let style = (await fs.readFile(
+      path.join(__dirname, '/integration/sourcemap-css-import/style.css')
+    )).toString();
+    let otherStyle = (await fs.readFile(
+      path.join(__dirname, '/integration/sourcemap-css-import/other-style.css')
+    )).toString();
+    let raw = (await fs.readFile(
+      path.join(__dirname, '/dist/style.css')
+    )).toString();
+    let map = (await fs.readFile(
+      path.join(__dirname, '/dist/style.css.map')
+    )).toString();
+
+    assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
+
+    let consumer = await new SourceMapConsumer(map);
+
+    // assert.deepStrictEqual(
+    //   consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('body'))),
+    //   {
+    //     source: '../integration/sourcemap-css-import/style.css',
+    //     name: null,
+    //     ...indexToLineCol(style, style.indexOf('body'))
+    //   }
+    // );
+
+    assert.deepStrictEqual(
+      consumer.originalPositionFor(
+        indexToLineCol(raw, raw.indexOf('background-color'))
+      ),
+      {
+        source: '../integration/sourcemap-css-import/style.css',
+        name: null,
+        ...indexToLineCol(style, style.indexOf('background-color'))
+      }
+    );
+
+    // assert.deepStrictEqual(
+    //   consumer.originalPositionFor({line: 1, column: raw.indexOf('div')}),
+    //   {
+    //     source: '../integration/sourcemap-css-import/other-style.css',
+    //     name: null,
+    //     ...indexToLineCol(otherStyle, otherStyle.indexOf('div'))
+    //   }
+    // );
+
+    assert.deepStrictEqual(
+      consumer.originalPositionFor({line: 1, column: raw.indexOf('width')}),
+      {
+        source: '../integration/sourcemap-css-import/other-style.css',
+        name: null,
+        ...indexToLineCol(otherStyle, otherStyle.indexOf('width'))
+      }
+    );
   });
 });
