@@ -13,12 +13,15 @@ class PugAsset extends Asset {
     const pug = await localRequire('pug', this.name);
     const config =
       (await this.getConfig(['.pugrc', '.pugrc.js', 'pug.config.js'])) || {};
-
+    var pretty=!this.options.minify;
+    if(pretty && 'pretty' in config){
+      pretty = config.pretty;
+    }
     const compiled = pug.compile(this.contents, {
       compileDebug: false,
       filename: this.name,
       basedir: path.dirname(this.name),
-      pretty: !this.options.minify,
+      pretty: pretty,
       templateName: path.basename(this.basename, path.extname(this.basename)),
       filters: config.filters,
       filterOptions: config.filterOptions,
