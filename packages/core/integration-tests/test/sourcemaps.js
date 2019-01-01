@@ -360,7 +360,8 @@ describe('sourcemaps', function() {
       {
         source: '../integration/sourcemap-css/style.css',
         name: null,
-        ...indexToLineCol(input, input.indexOf('body'))
+        line: indexToLineCol(input, input.indexOf('body')).line,
+        column: indexToLineCol(input, input.indexOf('body')).column
       },
       "map 'body'"
     );
@@ -382,9 +383,10 @@ describe('sourcemaps', function() {
       {
         source: '../integration/sourcemap-css/style.css',
         name: null,
-        ...indexToLineCol(input, input.indexOf('background-color'))
+        line: indexToLineCol(input, input.indexOf('background-color')).line,
+        column: indexToLineCol(input, input.indexOf('background-color')).column
       },
-      "map 'background'-color"
+      "map 'background-color'"
     );
 
     // assert.deepStrictEqual(
@@ -438,7 +440,8 @@ describe('sourcemaps', function() {
     //     source: '../integration/sourcemap-css-import/style.css',
     //     name: null,
     //     ...indexToLineCol(style, style.indexOf('body'))
-    //   }
+    //   },
+    //   "map 'body'"
     // );
 
     assert.deepStrictEqual(
@@ -448,8 +451,10 @@ describe('sourcemaps', function() {
       {
         source: '../integration/sourcemap-css-import/style.css',
         name: null,
-        ...indexToLineCol(style, style.indexOf('background-color'))
-      }
+        line: indexToLineCol(style, style.indexOf('background-color')).line,
+        column: indexToLineCol(style, style.indexOf('background-color')).column
+      },
+      "map 'background-color'"
     );
 
     // assert.deepStrictEqual(
@@ -458,7 +463,8 @@ describe('sourcemaps', function() {
     //     source: '../integration/sourcemap-css-import/other-style.css',
     //     name: null,
     //     ...indexToLineCol(otherStyle, otherStyle.indexOf('div'))
-    //   }
+    //   },
+    //   "map 'div'"
     // );
 
     assert.deepStrictEqual(
@@ -466,8 +472,10 @@ describe('sourcemaps', function() {
       {
         source: '../integration/sourcemap-css-import/other-style.css',
         name: null,
-        ...indexToLineCol(otherStyle, otherStyle.indexOf('width'))
-      }
+        line: indexToLineCol(otherStyle, otherStyle.indexOf('width')).line,
+        column: indexToLineCol(otherStyle, otherStyle.indexOf('width')).column
+      },
+      "map 'width'"
     );
   });
 });

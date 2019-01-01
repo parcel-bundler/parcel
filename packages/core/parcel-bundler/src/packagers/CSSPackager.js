@@ -38,7 +38,7 @@ class CSSPackager extends Packager {
       this.columnOffset = css.length;
     } else {
       this.bundle.addOffset(asset, this.lineOffset + 1, this.columnOffset);
-      await this.write(css + '\n');
+      await this.write('\n' + css);
       this.columnOffset = 0;
       this.lineOffset += lineCounter(css);
     }
