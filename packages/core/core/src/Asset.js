@@ -3,7 +3,7 @@ import type {
   Asset as IAsset,
   TransformerResult,
   DependencyOptions,
-  Dependency,
+  Dependency as IDependency,
   FilePath,
   File,
   Environment,
@@ -16,7 +16,7 @@ import type {
 import Cache from '@parcel/cache';
 import md5 from '@parcel/utils/md5';
 import {loadConfig} from '@parcel/utils/config';
-import createDependency from './createDependency';
+import Dependency from './Dependency';
 
 type AssetOptions = {
   id?: string,
@@ -25,7 +25,7 @@ type AssetOptions = {
   type: string,
   code?: string,
   ast?: ?AST,
-  dependencies?: Array<Dependency>,
+  dependencies?: Array<IDependency>,
   connectedFiles?: Array<File>,
   output?: AssetOutput,
   outputHash?: string,
@@ -40,14 +40,13 @@ export default class Asset implements IAsset {
   type: string;
   code: string;
   ast: ?AST;
-  dependencies: Array<Dependency>;
+  dependencies: Array<IDependency>;
   connectedFiles: Array<File>;
   output: AssetOutput;
   outputSize: number;
   outputHash: string;
   env: Environment;
   meta: JSONObject;
-  #cache; // no type annotation because prettier dies...
 
   constructor(options: AssetOptions) {
     this.id =
@@ -89,14 +88,12 @@ export default class Asset implements IAsset {
   }
 
   addDependency(opts: DependencyOptions) {
-    let dep = createDependency(
-      {
-        ...opts,
-        env: mergeEnvironment(this.env, opts.env)
-      },
-      this.filePath
-    );
-
+    // $FlowFixMe
+    let dep = new Dependency({
+      ...opts,
+      env: this.env.merge(opts.env),
+      sourcePath: this.filePath
+    });
     this.dependencies.push(dep);
     return dep.id;
   }
@@ -117,7 +114,7 @@ export default class Asset implements IAsset {
       type: result.type,
       code,
       ast: result.ast,
-      env: mergeEnvironment(this.env, result.env),
+      env: this.env.merge(result.env),
       dependencies: this.dependencies,
       connectedFiles: this.connectedFiles,
       output: result.output,
@@ -172,8 +169,4 @@ export default class Asset implements IAsset {
   async getPackage(): Promise<PackageJSON | null> {
     return await this.getConfig(['package.json']);
   }
-}
-
-function mergeEnvironment(a: Environment, b: ?Environment): Environment {
-  return Object.assign({}, a, b);
 }

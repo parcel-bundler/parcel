@@ -17,7 +17,7 @@ export type FilePath = string;
 export type Glob = string;
 type Semver = string;
 type SemverRange = string;
-type ModuleSpecifier = string;
+export type ModuleSpecifier = string;
 
 export type ParcelConfig = {
   extends: Array<PackageName | FilePath>,
@@ -57,11 +57,23 @@ export type EnvironmentContext =
   | 'service-worker'
   | 'node'
   | 'electron';
-export type Environment = {
+
+export type EnvironmentOpts = {
   context: EnvironmentContext,
   engines: Engines,
   includeNodeModules?: boolean
 };
+
+export interface Environment {
+  context: EnvironmentContext;
+  engines: Engines;
+  includeNodeModules: boolean;
+
+  merge(env: ?EnvironmentOpts): Environment;
+  isBrowser(): boolean;
+  isNode(): boolean;
+  isElectron(): boolean;
+}
 
 type PackageDependencies = {
   [PackageName]: Semver
@@ -80,7 +92,7 @@ export type PackageJSON = {
   browserslist?: Array<string>,
   engines?: Engines,
   targets?: {
-    [string]: Environment
+    [string]: EnvironmentOpts
   },
   dependencies?: PackageDependencies,
   devDependencies?: PackageDependencies,
@@ -101,29 +113,34 @@ export type SourceLocation = {
   end: {line: number, column: number}
 };
 
-type Meta = {[string]: any};
-export type DependencyOptions = {
+export type Meta = {[string]: any};
+export type DependencyOptions = {|
   moduleSpecifier: ModuleSpecifier,
   isAsync?: boolean,
   isEntry?: boolean,
   isOptional?: boolean,
   isURL?: boolean,
   loc?: SourceLocation,
-  env?: Environment,
+  env?: EnvironmentOpts,
   meta?: Meta,
   target?: Target
-};
+|};
 
-export type Dependency = {
-  ...DependencyOptions,
-  moduleSpecifier: ModuleSpecifier,
-  id: string,
-  env: Environment,
+export interface Dependency {
+  id: string;
+  moduleSpecifier: ModuleSpecifier;
+  isAsync: ?boolean;
+  isEntry: ?boolean;
+  isOptional: ?boolean;
+  isURL: ?boolean;
+  loc: ?SourceLocation;
+  env: Environment;
+  meta: ?Meta;
+  target: ?Target;
 
-  // TODO: get these from graph instead of storing them on dependencies
-  sourcePath: FilePath,
-  resolvedPath?: FilePath
-};
+  // TODO: get this from graph instead of storing them on dependencies
+  sourcePath: FilePath;
+}
 
 export type File = {
   filePath: FilePath,
@@ -184,7 +201,7 @@ export type TransformerResult = {
   dependencies?: Array<DependencyOptions>,
   connectedFiles?: Array<File>,
   output?: AssetOutput,
-  env?: Environment,
+  env?: EnvironmentOpts,
   meta?: Meta
 };
 

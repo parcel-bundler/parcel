@@ -54,7 +54,7 @@ export default new Bundler({
           let dep = context.bundleGroup.dependency;
 
           // Mark bundle as an entry, and set explicit file path from target if the dependency has one
-          bundle.isEntry = dep.isEntry;
+          bundle.isEntry = !!dep.isEntry;
           if (dep.target && dep.target.distPath) {
             bundle.filePath = dep.target.distPath;
           }

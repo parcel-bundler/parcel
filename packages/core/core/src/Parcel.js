@@ -208,7 +208,6 @@ export default class Parcel {
     }
 
     let req = {filePath: resolvedPath, env: dep.env};
-    dep.resolvedPath = resolvedPath;
     let {newRequest} = this.graph.resolveDependency(dep, req);
 
     if (newRequest) {

@@ -136,7 +136,7 @@ class NodeResolver {
     return (parent ? path.dirname(parent) : '') + ':' + filename;
   }
 
-  resolveFilename(filename: string, dir: string, isURL?: boolean) {
+  resolveFilename(filename: string, dir: string, isURL: ?boolean) {
     switch (filename[0]) {
       case '/':
         // Absolute path. Resolve relative to project root.
