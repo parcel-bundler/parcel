@@ -112,7 +112,10 @@ function prepareBrowserContext(bundle, globals) {
       document: fakeDocument,
       WebSocket,
       console,
-      location: {hostname: 'localhost'},
+      location: {
+        hostname: 'localhost',
+        origin: 'http://localhost:1234'
+      },
       fetch(url) {
         return Promise.resolve({
           arrayBuffer() {

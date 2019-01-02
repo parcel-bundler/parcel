@@ -48,14 +48,17 @@ describe('hmr', function() {
 
     b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
-      hmr: true
+      hmr: true,
+      hmrHostname: 'localhost'
     });
     await b.bundle();
 
-    ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
+    ws = new WebSocket('ws://localhost:' + b.options.hmrPort, {
+      origin: 'http://localhost:1234'
+    });
 
     const buildEnd = nextEvent(b, 'buildEnd');
-    await sleep(100);
+
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
       'exports.a = 5;\nexports.b = 5;'
@@ -79,6 +82,7 @@ describe('hmr', function() {
     b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
       hmr: true,
+      hmrHostname: 'localhost',
       target: 'node'
     });
     await b.bundle();
@@ -103,7 +107,9 @@ describe('hmr', function() {
     });
     await b.bundle();
 
-    ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
+    ws = new WebSocket('ws://localhost:' + b.options.hmrPort, {
+      origin: 'http://localhost:1234'
+    });
 
     const buildEnd = nextEvent(b, 'buildEnd');
 
@@ -130,11 +136,14 @@ describe('hmr', function() {
 
     b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
-      hmr: true
+      hmr: true,
+      hmrHostname: 'localhost'
     });
     await b.bundle();
 
-    ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
+    ws = new WebSocket('ws://localhost:' + b.options.hmrPort, {
+      origin: 'http://localhost:1234'
+    });
 
     const buildEnd = nextEvent(b, 'buildEnd');
 
@@ -159,11 +168,14 @@ describe('hmr', function() {
 
     b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
-      hmr: true
+      hmr: true,
+      hmrHostname: 'localhost'
     });
     await b.bundle();
 
-    ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
+    ws = new WebSocket('ws://localhost:' + b.options.hmrPort, {
+      origin: 'http://localhost:1234'
+    });
 
     const buildEnd = nextEvent(b, 'buildEnd');
 
@@ -198,7 +210,8 @@ describe('hmr', function() {
 
     b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
-      hmr: true
+      hmr: true,
+      hmrHostname: 'localhost'
     });
     await b.bundle();
 
@@ -210,7 +223,9 @@ describe('hmr', function() {
     await nextEvent(b, 'buildEnd');
     await sleep(50);
 
-    ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
+    ws = new WebSocket('ws://localhost:' + b.options.hmrPort, {
+      origin: 'http://localhost:1234'
+    });
     let msg = JSON.parse(await nextEvent(ws, 'message'));
     assert.equal(msg.type, 'error');
   });
@@ -223,11 +238,14 @@ describe('hmr', function() {
 
     b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
-      hmr: true
+      hmr: true,
+      hmrHostname: 'localhost'
     });
     await b.bundle();
 
-    ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
+    ws = new WebSocket('ws://localhost:' + b.options.hmrPort, {
+      origin: 'http://localhost:1234'
+    });
 
     const firstBuildEnd = nextEvent(b, 'buildEnd');
 
@@ -264,7 +282,8 @@ describe('hmr', function() {
 
     b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
-      hmr: true
+      hmr: true,
+      hmrHostname: 'localhost'
     });
     let bundle = await b.bundle();
     let outputs = [];
@@ -295,7 +314,8 @@ describe('hmr', function() {
 
     b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
-      hmr: true
+      hmr: true,
+      hmrHostname: 'localhost'
     });
     let bundle = await b.bundle();
     let outputs = [];
@@ -336,7 +356,8 @@ describe('hmr', function() {
 
     b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
-      hmr: true
+      hmr: true,
+      hmrHostname: 'localhost'
     });
     let bundle = await b.bundle();
     let outputs = [];
@@ -369,7 +390,8 @@ describe('hmr', function() {
 
     b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
-      hmr: true
+      hmr: true,
+      hmrHostname: 'localhost'
     });
     let bundle = await b.bundle();
 
@@ -410,7 +432,8 @@ describe('hmr', function() {
 
     b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
-      hmr: true
+      hmr: true,
+      hmrHostname: 'localhost'
     });
     let bundle = await b.bundle();
 
@@ -468,11 +491,13 @@ describe('hmr', function() {
     b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
       hmr: true,
+      hmrHostname: 'localhost',
       https: true
     });
     await b.bundle();
 
     ws = new WebSocket('wss://localhost:' + b.options.hmrPort, {
+      origin: 'http://localhost:1234',
       rejectUnauthorized: false
     });
 
@@ -502,6 +527,7 @@ describe('hmr', function() {
     b = bundler(path.join(__dirname, '/input/index.js'), {
       watch: true,
       hmr: true,
+      hmrHostname: 'localhost',
       https: {
         key: path.join(__dirname, '/integration/https/private.pem'),
         cert: path.join(__dirname, '/integration/https/primary.crt')
@@ -510,6 +536,7 @@ describe('hmr', function() {
     await b.bundle();
 
     ws = new WebSocket('wss://localhost:' + b.options.hmrPort, {
+      origin: 'http://localhost:1234',
       rejectUnauthorized: false
     });
 
