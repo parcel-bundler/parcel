@@ -214,7 +214,6 @@ async function bundle(main, command) {
 
   command.throwErrors = false;
   command.scopeHoist = command.experimentalScopeHoisting || false;
-  command.hmrHostname = command.hmrHostname || 'localhost';
   const bundler = new Bundler(main, command);
 
   command.target = command.target || 'browser';

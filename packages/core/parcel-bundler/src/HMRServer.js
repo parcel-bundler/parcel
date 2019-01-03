@@ -17,12 +17,15 @@ class HMRServer {
       }
 
       let websocketOptions = {
-        server: this.server,
-        verifyClient: (info) => {
+        server: this.server
+      };
+
+      if (options.hmrHostname) {
+        websocketOptions.verifyClient = info => {
           const originator = new URL(info.origin);
           return options.hmrHostname === originator.hostname;
-        }
-      };
+        };
+      }
 
       this.wss = new WebSocket.Server(websocketOptions);
       this.server.listen(options.hmrPort, resolve);
