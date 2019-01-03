@@ -163,7 +163,8 @@ export type AssetOutput = {
 export type AST = {
   type: string,
   version: string,
-  program: any
+  program: any,
+  isDirty: boolean
 };
 
 export type Config = any;

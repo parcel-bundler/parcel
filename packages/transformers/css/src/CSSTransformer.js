@@ -120,8 +120,13 @@ export default new Transformer({
   },
 
   generate(asset) {
-    let code = '';
-    postcss.stringify(asset.ast.program, c => (code += c));
+    let code;
+    if (!asset.ast.isDirty) {
+      code = asset.code;
+    } else {
+      code = '';
+      postcss.stringify(asset.ast.program, c => (code += c));
+    }
 
     return {
       code
