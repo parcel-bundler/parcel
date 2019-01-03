@@ -12,7 +12,7 @@ import nodeBuiltins from 'node-libs-browser';
 export default new Resolver({
   async resolve(dep: Dependency, cli: CLIOptions, rootDir: string) {
     const resolved = await new NodeResolver({
-      extensions: ['js', 'json'],
+      extensions: ['js', 'json', 'css'],
       cli,
       rootDir
     }).resolve(dep);
