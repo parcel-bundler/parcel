@@ -127,9 +127,10 @@ class CSSAsset extends Asset {
     }
 
     let map;
-    if (this.options.sourceMaps && this.sourceMap)
-      map = new SourceMap(
-        this.sourceMap._mappings._array.map(v => ({
+    if (this.options.sourceMaps && this.sourceMap) {
+      const source = this.contents.split('\n');
+      const mappings = this.sourceMap._mappings._array
+        .map(v => ({
           source: this.relativeName,
           original: {
             line: v.originalLine,
@@ -139,11 +140,15 @@ class CSSAsset extends Asset {
             line: v.generatedLine,
             column: v.generatedColumn
           }
-        })),
-        {
-          [this.relativeName]: this.contents
-        }
-      );
+        }))
+        .filter(
+          ({original: {line, column}}) =>
+            line - 1 < source.length && column < source[line - 1].length
+        );
+      map = new SourceMap(mappings, {
+        [this.relativeName]: this.contents
+      });
+    }
 
     return [
       {

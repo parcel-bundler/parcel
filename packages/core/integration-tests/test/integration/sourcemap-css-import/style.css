@@ -4,3 +4,5 @@
 body {
 	background-color: red;
 }
+
+@import "./another-style.css";

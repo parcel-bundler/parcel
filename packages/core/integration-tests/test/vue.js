@@ -14,10 +14,10 @@ describe('vue', function() {
       assets: ['Basic.vue'],
       childBundles: [
         {
-          type: 'css'
+          type: 'map'
         },
         {
-          type: 'map'
+          type: 'css'
         }
       ]
     });
@@ -39,10 +39,10 @@ describe('vue', function() {
       assets: ['App.vue'],
       childBundles: [
         {
-          type: 'css'
+          type: 'map'
         },
         {
-          type: 'map'
+          type: 'css'
         },
         {
           assets: ['logo.png'],
@@ -67,10 +67,10 @@ describe('vue', function() {
       assets: ['pre-processors.vue'],
       childBundles: [
         {
-          type: 'css'
+          type: 'map'
         },
         {
-          type: 'map'
+          type: 'css'
         }
       ]
     });
@@ -131,10 +131,10 @@ describe('vue', function() {
       assets: ['App.vue'],
       childBundles: [
         {
-          type: 'css'
+          type: 'map'
         },
         {
-          type: 'map'
+          type: 'css'
         }
       ]
     });
@@ -162,10 +162,10 @@ describe('vue', function() {
       assets: ['App.vue'],
       childBundles: [
         {
-          type: 'css'
+          type: 'map'
         },
         {
-          type: 'map'
+          type: 'css'
         }
       ]
     });
@@ -207,10 +207,10 @@ describe('vue', function() {
           assets: ['insidecomp.vue'],
           childBundles: [
             {
-              type: 'css'
+              type: 'map'
             },
             {
-              type: 'map'
+              type: 'css'
             }
           ]
         },
@@ -241,10 +241,10 @@ describe('vue', function() {
       assets: ['Basic.vue'],
       childBundles: [
         {
-          type: 'css'
+          type: 'map'
         },
         {
-          type: 'map'
+          type: 'css'
         }
       ]
     });
