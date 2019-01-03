@@ -39,12 +39,15 @@ class TransformerRunner {
     let code = await fs.readFile(req.filePath, 'utf8');
     let hash = md5(code);
 
+    let pipeline = await this.config.getTransformers(req.filePath);
+
     // If a cache entry matches, no need to transform.
     let cacheEntry = await this.cache.read(req.filePath, req.env);
     if (
       cacheEntry &&
       cacheEntry.hash === hash &&
-      (await checkCachedAssets(cacheEntry.assets))
+      (await checkCachedAssets(cacheEntry.assets)) &&
+      checkPipelineCacheInvalidation(pipeline, cacheEntry)
     ) {
       return cacheEntry;
     }
@@ -57,7 +60,6 @@ class TransformerRunner {
       env: req.env
     });
 
-    let pipeline = await this.config.getTransformers(req.filePath);
     let {assets, initialAssets} = await this.runPipeline(
       input,
       pipeline,
@@ -69,6 +71,7 @@ class TransformerRunner {
       env: req.env,
       hash,
       assets,
+      meta: input.meta,
       initialAssets
     };
 
@@ -227,6 +230,17 @@ async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
   asset.outputHash = md5(asset.output.code);
 
   return asset;
+}
+
+async function checkPipelineCacheInvalidation(
+  pipeline: Array<Transformer>,
+  cacheEntry: CacheEntry
+): boolean {
+  return pipeline.every(
+    transformer =>
+      !transformer.shouldInvalidateCache ||
+      !transformer.shouldInvalidateCache(cacheEntry.meta)
+  );
 }
 
 async function checkCachedAssets(assets: Array<IAsset>): Promise<boolean> {

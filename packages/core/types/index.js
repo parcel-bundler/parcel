@@ -201,7 +201,8 @@ export type Transformer = {
     assets: Array<Asset>,
     config: ?Config,
     opts: CLIOptions
-  ) => Async<Array<TransformerResult>>
+  ) => Async<Array<TransformerResult>>,
+  shouldInvalidateCache?: (meta: JSONObject) => boolean
 };
 
 export type CacheEntry = {
