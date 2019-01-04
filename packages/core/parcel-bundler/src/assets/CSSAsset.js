@@ -13,6 +13,9 @@ class CSSAsset extends Asset {
   constructor(name, options) {
     super(name, options);
     this.type = 'css';
+    this.previousSourceMap = this.options.rendition
+      ? this.options.rendition.map
+      : null;
   }
 
   mightHaveDependencies() {
@@ -107,7 +110,7 @@ class CSSAsset extends Asset {
     return this.ast.root;
   }
 
-  generate() {
+  async generate() {
     let css = this.ast ? this.ast.render() : this.contents;
 
     let js = '';
@@ -148,6 +151,20 @@ class CSSAsset extends Asset {
       map = new SourceMap(mappings, {
         [this.relativeName]: this.contents
       });
+
+      if (this.previousSourceMap) {
+        map = await new SourceMap().extendSourceMap(
+          this.previousSourceMap,
+          map
+        );
+        for (let i = 0; i < this.previousSourceMap.sourcesContent.length; i++) {
+          if (this.previousSourceMap.sourcesContent[i]) {
+            map.sources[
+              this.previousSourceMap.sources[i]
+            ] = this.previousSourceMap.sourcesContent[i];
+          }
+        }
+      }
     }
 
     return [
