@@ -130,40 +130,37 @@ class CSSAsset extends Asset {
     }
 
     let map;
-    if (this.options.sourceMaps && this.sourceMap) {
-      const source = this.contents.split('\n');
-      const mappings = this.sourceMap._mappings._array
-        .map(v => ({
-          source: this.relativeName,
-          original: {
-            line: v.originalLine,
-            column: v.originalColumn
-          },
-          generated: {
-            line: v.generatedLine,
-            column: v.generatedColumn
-          }
-        }))
-        .filter(
-          ({original: {line, column}}) =>
-            line - 1 < source.length && column < source[line - 1].length
-        );
-      map = new SourceMap(mappings, {
-        [this.relativeName]: this.contents
-      });
+    if (this.options.sourceMaps) {
+      if (this.sourceMap) {
+        const source = this.contents.split('\n');
+        const mappings = this.sourceMap._mappings._array
+          .map(v => ({
+            source: this.relativeName,
+            original: {
+              line: v.originalLine,
+              column: v.originalColumn
+            },
+            generated: {
+              line: v.generatedLine,
+              column: v.generatedColumn
+            }
+          }))
+          .filter(
+            ({original: {line, column}}) =>
+              line - 1 < source.length && column < source[line - 1].length
+          );
+        map = new SourceMap(mappings, {
+          [this.relativeName]: this.contents
+        });
 
-      if (this.previousSourceMap) {
-        map = await new SourceMap().extendSourceMap(
-          this.previousSourceMap,
-          map
-        );
-        for (let i = 0; i < this.previousSourceMap.sourcesContent.length; i++) {
-          if (this.previousSourceMap.sourcesContent[i]) {
-            map.sources[
-              this.previousSourceMap.sources[i]
-            ] = this.previousSourceMap.sourcesContent[i];
-          }
+        if (this.previousSourceMap) {
+          map = await new SourceMap().extendSourceMap(
+            this.previousSourceMap,
+            map
+          );
         }
+      } else if (this.previousSourceMap) {
+        map = this.previousSourceMap;
       }
     }
 

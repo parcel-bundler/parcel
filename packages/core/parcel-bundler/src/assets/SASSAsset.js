@@ -56,8 +56,8 @@ class SASSAsset extends Asset {
 
     if (this.options.sourceMaps) {
       opts.sourceMap = true;
-      opts.outFile = this.relativeName;
-      opts.file = this.relativeName;
+      opts.file = this.name;
+      opts.outFile = this.name;
       opts.omitSourceMapUrl = true;
       opts.sourceMapContents = true;
     }
@@ -80,19 +80,12 @@ class SASSAsset extends Asset {
     }
   }
 
-  async generate() {
-    let map;
-    if (this.ast.map) {
-      map = JSON.parse(this.ast.map.toString());
-      map.sources = map.sources.map(v =>
-        path.relative(this.options.rootDir, v.replace('file:', ''))
-      );
-    }
+  generate() {
     return [
       {
         type: 'css',
         value: this.ast ? this.ast.css.toString() : '',
-        map
+        map: this.ast.map ? this.ast.map.toString() : undefined
       }
     ];
   }
