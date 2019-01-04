@@ -73,7 +73,7 @@ export default new Transformer({
     }
 
     // Collect dependencies
-    if (canHaveDependencies(asset.code)) {
+    if (canHaveDependencies(asset.code) || ast.isDirty) {
       walk.ancestor(ast.program, collectDependencies, asset);
     }
 

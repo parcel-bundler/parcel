@@ -249,8 +249,8 @@ export default class AssetGraph extends Graph {
         return {asset: assetNode.value};
       }
     } else if (node.type === 'bundle_group') {
-      let bundles = this.getNodesConnectedFrom(node).map(node => node.value);
-      return {bundles};
+      let bundles = this.getNodesConnectedFrom(node).filter(node => node.type === 'bundle').map(node => node.value);
+      return {bundles, bundleGroupId: node.id, runtime: node.value.runtime, entryAssetId: node.value.entryAssetId};
     }
 
     return {};
@@ -296,12 +296,13 @@ export default class AssetGraph extends Graph {
   }
 
   getEntryAssets(): Array<Asset> {
-    let root = this.getRootNode();
-    if (!root) {
-      return [];
-    }
+    let entries = [];
+    this.traverseAssets((asset, ctx, traversal) => {
+      entries.push(asset);
+      traversal.skipChildren();
+    });
 
-    return this.getNodesConnectedFrom(root).map(node => node.value);
+    return entries;
   }
 
   removeAsset(asset: Asset) {

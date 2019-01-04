@@ -7,6 +7,7 @@ import type {
   Resolver,
   Bundler,
   Namer,
+  Loader,
   PackageName,
   Packager,
   Optimizer
@@ -57,6 +58,18 @@ export default class Config {
 
   async getNamers(): Promise<Array<Namer>> {
     return this.loadPlugins(this.config.namers);
+  }
+
+  async getLoader(filePath: FilePath): Promise<Loader> {
+    let loader: PackageName | null = this.matchGlobMap(
+      filePath,
+      this.config.loaders
+    );
+    if (!loader) {
+      throw new Error(`No loader found for "${filePath}".`);
+    }
+
+    return await this.loadPlugin(loader);
   }
 
   async getPackager(filePath: FilePath): Promise<Packager> {

@@ -1,5 +1,5 @@
 import * as types from '@babel/types';
-// import template from '@babel/template';
+import template from '@babel/template';
 import traverse from '@babel/traverse';
 import nodeBuiltins from 'node-libs-browser';
 import isURL from '@parcel/utils/is-url';
@@ -62,9 +62,10 @@ export default {
       // asset.addDependency({moduleSpecifier: '_bundle_loader'});
       addDependency(asset, args[0], {isAsync: true});
 
+      node.callee = types.identifier('require');
       // node.callee = requireTemplate().expression;
       // node.arguments[0] = argTemplate({MODULE: args[0]}).expression;
-      // asset.ast.isDirty = true;
+      asset.ast.isDirty = true;
       return;
     }
 

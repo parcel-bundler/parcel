@@ -304,6 +304,10 @@ export type Namer = {
   name(bundle: Bundle, opts: CLIOptions): Async<?FilePath>
 };
 
+export type Loader = {
+  generate(bundle: Bundle, opts: CLIOptions): Async<File>
+};
+
 export type Packager = {
   package(bundle: Bundle, opts: CLIOptions): Async<Blob>
 };
