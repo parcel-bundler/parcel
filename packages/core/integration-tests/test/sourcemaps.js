@@ -629,4 +629,58 @@ describe('sourcemaps', function() {
       "map 'font-family'"
     );
   });
+
+  it('should create a valid sourcemap for a LESS asset', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sourcemap-less/style.less'),
+      {minify: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'style.css',
+      assets: ['style.less'],
+      childBundles: [
+        {
+          name: 'style.css.map',
+          type: 'map'
+        }
+      ]
+    });
+
+    let input = (await fs.readFile(
+      path.join(__dirname, '/integration/sourcemap-less/style.less')
+    )).toString();
+    let raw = (await fs.readFile(
+      path.join(__dirname, '/dist/style.css')
+    )).toString();
+    let map = (await fs.readFile(
+      path.join(__dirname, '/dist/style.css.map')
+    )).toString();
+
+    assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
+
+    let consumer = await new SourceMapConsumer(map);
+
+    assert.deepStrictEqual(
+      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('div'))),
+      {
+        source: '../integration/sourcemap-less/style.less',
+        name: null,
+        line: indexToLineCol(input, input.indexOf('div')).line,
+        column: indexToLineCol(input, input.indexOf('div')).column
+      },
+      "map 'div'"
+    );
+
+    assert.deepStrictEqual(
+      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('width'))),
+      {
+        source: '../integration/sourcemap-less/style.less',
+        name: null,
+        line: indexToLineCol(input, input.indexOf('width')).line,
+        column: indexToLineCol(input, input.indexOf('width')).column
+      },
+      "map 'width'"
+    );
+  });
 });
