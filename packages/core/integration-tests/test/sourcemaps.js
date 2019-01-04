@@ -494,4 +494,139 @@ describe('sourcemaps', function() {
       "map 'font-family'"
     );
   });
+
+  it('should create a valid sourcemap for a SASS asset', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sourcemap-sass/style.scss'),
+      {minify: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'style.css',
+      assets: ['style.scss'],
+      childBundles: [
+        {
+          name: 'style.css.map',
+          type: 'map'
+        }
+      ]
+    });
+
+    let input = (await fs.readFile(
+      path.join(__dirname, '/integration/sourcemap-sass/style.scss')
+    )).toString();
+    let raw = (await fs.readFile(
+      path.join(__dirname, '/dist/style.css')
+    )).toString();
+    let map = (await fs.readFile(
+      path.join(__dirname, '/dist/style.css.map')
+    )).toString();
+
+    assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
+
+    let consumer = await new SourceMapConsumer(map);
+
+    assert.deepStrictEqual(
+      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('body'))),
+      {
+        source: '../integration/sourcemap-sass/style.scss',
+        name: null,
+        line: indexToLineCol(input, input.indexOf('body')).line,
+        column: indexToLineCol(input, input.indexOf('body')).column
+      },
+      "map 'body'"
+    );
+
+    assert.deepStrictEqual(
+      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('color'))),
+      {
+        source: '../integration/sourcemap-sass/style.scss',
+        name: null,
+        line: indexToLineCol(input, input.indexOf('color')).line,
+        column: indexToLineCol(input, input.indexOf('color')).column
+      },
+      "map 'color'"
+    );
+  });
+
+  it('should create a valid sourcemap when a CSS asset imports SASS', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sourcemap-sass-imported/style.css'),
+      {minify: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'style.css',
+      assets: ['style.css', 'other.scss'],
+      childBundles: [
+        {
+          name: 'style.css.map',
+          type: 'map'
+        }
+      ]
+    });
+
+    let style = (await fs.readFile(
+      path.join(__dirname, '/integration/sourcemap-sass-imported/style.css')
+    )).toString();
+    let other = (await fs.readFile(
+      path.join(__dirname, '/integration/sourcemap-sass-imported/other.scss')
+    )).toString();
+    let raw = (await fs.readFile(
+      path.join(__dirname, '/dist/style.css')
+    )).toString();
+    let map = (await fs.readFile(
+      path.join(__dirname, '/dist/style.css.map')
+    )).toString();
+
+    assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
+
+    let consumer = await new SourceMapConsumer(map);
+
+    assert.deepStrictEqual(
+      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('body'))),
+      {
+        source: '../integration/sourcemap-sass-imported/style.css',
+        name: null,
+        line: indexToLineCol(style, style.indexOf('body')).line,
+        column: indexToLineCol(style, style.indexOf('body')).column
+      },
+      "map 'body'"
+    );
+
+    assert.deepStrictEqual(
+      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('color'))),
+      {
+        source: '../integration/sourcemap-sass-imported/style.css',
+        name: null,
+        line: indexToLineCol(style, style.indexOf('color')).line,
+        column: indexToLineCol(style, style.indexOf('color')).column
+      },
+      "map 'color'"
+    );
+
+    assert.deepStrictEqual(
+      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('div'))),
+      {
+        source: '../integration/sourcemap-sass-imported/other.scss',
+        name: null,
+        line: indexToLineCol(other, other.indexOf('div')).line,
+        column: indexToLineCol(other, other.indexOf('div')).column
+      },
+      "map 'div'"
+    );
+
+    assert.deepStrictEqual(
+      consumer.originalPositionFor(
+        indexToLineCol(raw, raw.indexOf('font-family'))
+      ),
+      {
+        source: '../integration/sourcemap-sass-imported/other.scss',
+        name: null,
+        line: indexToLineCol(other, other.indexOf('font-family')).line,
+        column: indexToLineCol(other, other.indexOf('font-family')).column
+      },
+      "map 'font-family'"
+    );
+  });
 });
