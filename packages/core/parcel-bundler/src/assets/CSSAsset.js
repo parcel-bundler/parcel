@@ -153,19 +153,13 @@ class CSSAsset extends Asset {
       if (this.sourceMap) {
         if (this.sourceMap instanceof SourceMap) {
           map = this.sourceMap;
-        } else if (this.sourceMap) {
-          if (this.sourceMap.toJSON) {
-            // this.sourceMap instanceof SourceMapGenerator
-            map = this.sourceMap.toJSON();
-          } else if (typeof this.sourceMap === 'string') {
-            map = JSON.parse(this.sourceMap);
-          } else {
-            map = this.sourceMap;
-          }
+        } else {
+          map =
+            typeof this.sourceMap === 'string'
+              ? JSON.parse(this.sourceMap)
+              : this.sourceMap;
 
-          map = await new SourceMap([], {
-            [this.relativeName]: this.contents
-          }).addMap(map);
+          map = await new SourceMap().addMap(map);
 
           if (this.sourceMap.toJSON) {
             // this.sourceMap instanceof SourceMapGenerator
@@ -251,7 +245,7 @@ class CSSAst {
     if (this.dirty) {
       let {css, map} = this.root.toResult({
         to: name,
-        map: {inline: false, annotation: false, sourcesContent: false}
+        map: {inline: false, annotation: false, sourcesContent: true}
       });
 
       this.css = css;

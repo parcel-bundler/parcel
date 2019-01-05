@@ -38,7 +38,13 @@ class SourceMap {
   }
 
   async addMap(map, lineOffset = 0, columnOffset = 0) {
+    if (map.toJSON) {
+      // SourceMapGenerator
+      map = map.toJSON();
+    }
+
     if (!(map instanceof SourceMap) && map.version) {
+      // JSON
       let consumer = await this.getConsumer(map);
 
       consumer.eachMapping(mapping => {
@@ -57,6 +63,7 @@ class SourceMap {
       }
     } else {
       if (!map.eachMapping) {
+        // not a SourceMapConsumer
         map = new SourceMap(map.mappings, map.sources);
       }
 

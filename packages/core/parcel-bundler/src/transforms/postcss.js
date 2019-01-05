@@ -32,7 +32,7 @@ async function getConfig(asset) {
   config = config || {};
 
   if (asset.options.sourceMaps) {
-    config.map = {inline: false, annotation: false, sourcesContent: false};
+    config.map = {inline: false, annotation: false, sourcesContent: true};
   }
 
   if (typeof config !== 'object') {
