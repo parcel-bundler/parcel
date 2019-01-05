@@ -27,7 +27,9 @@ class CSSAsset extends Asset {
   }
 
   parse(code) {
-    let root = postcss.parse(code, {from: this.name, to: this.name});
+    let root = postcss.parse(code, {
+      from: this.name
+    });
     return new CSSAst(code, root);
   }
 
@@ -104,14 +106,24 @@ class CSSAsset extends Asset {
   getCSSAst() {
     // Converts the ast to a CSS ast if needed, so we can apply postcss transforms.
     if (!(this.ast instanceof CSSAst)) {
-      this.ast = CSSAsset.prototype.parse.call(this, this.ast.render());
+      this.ast = CSSAsset.prototype.parse.call(
+        this,
+        this.ast.render(this.name)
+      );
     }
 
     return this.ast.root;
   }
 
   async generate() {
-    let css = this.ast ? this.ast.render() : this.contents;
+    let css;
+    if (this.ast) {
+      let result = this.ast.render(this.name);
+      css = result.css;
+      if (result.map) this.sourceMap = result.map;
+    } else {
+      css = this.contents;
+    }
 
     let js = '';
     if (this.options.hmr) {
@@ -132,26 +144,19 @@ class CSSAsset extends Asset {
     let map;
     if (this.options.sourceMaps) {
       if (this.sourceMap) {
-        const source = this.contents.split('\n');
-        const mappings = this.sourceMap._mappings._array
-          .map(v => ({
-            source: this.relativeName,
-            original: {
-              line: v.originalLine,
-              column: v.originalColumn
-            },
-            generated: {
-              line: v.generatedLine,
-              column: v.generatedColumn
-            }
-          }))
-          .filter(
+        if (this.sourceMap instanceof SourceMap) {
+          map = this.sourceMap;
+        } else {
+          map = await new SourceMap([], {
+            [this.relativeName]: this.contents
+          }).addMap(this.sourceMap.toJSON());
+
+          const source = this.contents.split('\n');
+          map.mappings = map.mappings.filter(
             ({original: {line, column}}) =>
               line - 1 < source.length && column < source[line - 1].length
           );
-        map = new SourceMap(mappings, {
-          [this.relativeName]: this.contents
-        });
+        }
 
         if (this.previousSourceMap) {
           map = await new SourceMap().extendSourceMap(
@@ -160,7 +165,9 @@ class CSSAsset extends Asset {
           );
         }
       } else if (this.previousSourceMap) {
-        map = this.previousSourceMap;
+        map = await new SourceMap().addMap(this.previousSourceMap);
+      } else {
+        map = new SourceMap().generateEmptyMap(this.relativeName, css);
       }
     }
 
@@ -215,13 +222,24 @@ class CSSAst {
     this.dirty = false;
   }
 
-  render() {
+  render(name) {
     if (this.dirty) {
-      this.css = '';
-      postcss.stringify(this.root, c => (this.css += c));
+      let {css, map} = this.root.toResult({
+        to: name,
+        map: {inline: false, annotation: false, sourcesContent: false}
+      });
+
+      this.css = css;
+
+      return {
+        css: this.css,
+        map
+      };
     }
 
-    return this.css;
+    return {
+      css: this.css
+    };
   }
 }
 

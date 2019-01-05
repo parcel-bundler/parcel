@@ -85,7 +85,7 @@ class SASSAsset extends Asset {
       {
         type: 'css',
         value: this.ast ? this.ast.css.toString() : '',
-        map: this.ast.map ? this.ast.map.toString() : undefined
+        map: this.ast.map ? JSON.parse(this.ast.map.toString()) : undefined
       }
     ];
   }

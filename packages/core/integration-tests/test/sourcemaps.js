@@ -2,15 +2,63 @@ const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
 const mapValidator = require('sourcemap-validator');
+const SourceMap = require('parcel-bundler/src/SourceMap');
 const {SourceMapConsumer} = require('source-map');
 const {bundler, bundle, run, assertBundleTree} = require('./utils');
 
 function indexToLineCol(str, index) {
-  const beforeIndex = str.slice(0, index);
+  let beforeIndex = str.slice(0, index);
   return {
     line: beforeIndex.split('\n').length,
     column: index - beforeIndex.lastIndexOf('\n') - 1
   };
+}
+
+function checkSourceMapping({
+  map,
+  source,
+  generated,
+  str,
+  sourcePath,
+  msg = ''
+}) {
+  assert(generated.indexOf(str) !== -1, "'" + str + "' not in generated code");
+  assert(source.indexOf(str) !== -1, "'" + str + "' not in source code");
+
+  let generatedPosition = indexToLineCol(generated, generated.indexOf(str));
+  let sourcePosition = indexToLineCol(source, source.indexOf(str));
+
+  let index = map.findClosestGenerated(
+    generatedPosition.line,
+    generatedPosition.column
+  );
+
+  let mapping = map.mappings[index];
+  assert(mapping, "no mapping for '" + str + "'" + msg);
+
+  let generatedDiff = {
+    line: generatedPosition.line - mapping.generated.line,
+    column: generatedPosition.column - mapping.generated.column
+  };
+
+  let computedSourcePosition = {
+    line: mapping.original.line + generatedDiff.line,
+    column: mapping.original.column + generatedDiff.column
+  };
+
+  assert.deepStrictEqual(
+    {
+      line: computedSourcePosition.line,
+      column: computedSourcePosition.column,
+      source: mapping.source
+    },
+    {
+      line: sourcePosition.line,
+      column: sourcePosition.column,
+      source: sourcePath
+    },
+    "map '" + str + "'" + msg
+  );
 }
 
 describe('sourcemaps', function() {
@@ -353,146 +401,126 @@ describe('sourcemaps', function() {
 
     assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
 
-    let consumer = await new SourceMapConsumer(map);
+    let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('body'))),
-      {
-        source: '../integration/sourcemap-css/style.css',
-        name: null,
-        line: indexToLineCol(input, input.indexOf('body')).line,
-        column: indexToLineCol(input, input.indexOf('body')).column
-      },
-      "map 'body'"
-    );
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'body',
+      sourcePath: '../integration/sourcemap-css/style.css'
+    });
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(
-        indexToLineCol(raw, raw.indexOf('background-color'))
-      ),
-      {
-        source: '../integration/sourcemap-css/style.css',
-        name: null,
-        line: indexToLineCol(input, input.indexOf('background-color')).line,
-        column: indexToLineCol(input, input.indexOf('background-color')).column
-      },
-      "map 'background-color'"
-    );
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'background-color',
+      sourcePath: '../integration/sourcemap-css/style.css'
+    });
   });
 
   it('should create a valid sourcemap for a CSS bundle with imports', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/sourcemap-css-import/style.css'),
-      {minify: true}
-    );
+    async function test(minify) {
+      let b = await bundle(
+        path.join(__dirname, '/integration/sourcemap-css-import/style.css'),
+        {minify}
+      );
 
-    await assertBundleTree(b, {
-      name: 'style.css',
-      assets: ['style.css', 'other-style.css', 'another-style.css'],
-      childBundles: [
-        {
-          name: 'style.css.map',
-          type: 'map'
-        }
-      ]
-    });
+      await assertBundleTree(b, {
+        name: 'style.css',
+        assets: ['style.css', 'other-style.css', 'another-style.css'],
+        childBundles: [
+          {
+            name: 'style.css.map',
+            type: 'map'
+          }
+        ]
+      });
 
-    let style = (await fs.readFile(
-      path.join(__dirname, '/integration/sourcemap-css-import/style.css')
-    )).toString();
-    let otherStyle = (await fs.readFile(
-      path.join(__dirname, '/integration/sourcemap-css-import/other-style.css')
-    )).toString();
-    let anotherStyle = (await fs.readFile(
-      path.join(
-        __dirname,
-        '/integration/sourcemap-css-import/another-style.css'
-      )
-    )).toString();
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/style.css')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/style.css.map')
-    )).toString();
+      let style = (await fs.readFile(
+        path.join(__dirname, '/integration/sourcemap-css-import/style.css')
+      )).toString();
+      let otherStyle = (await fs.readFile(
+        path.join(
+          __dirname,
+          '/integration/sourcemap-css-import/other-style.css'
+        )
+      )).toString();
+      let anotherStyle = (await fs.readFile(
+        path.join(
+          __dirname,
+          '/integration/sourcemap-css-import/another-style.css'
+        )
+      )).toString();
+      let raw = (await fs.readFile(
+        path.join(__dirname, '/dist/style.css')
+      )).toString();
+      let map = (await fs.readFile(
+        path.join(__dirname, '/dist/style.css.map')
+      )).toString();
 
-    assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
+      assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
 
-    let consumer = await new SourceMapConsumer(map);
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('body'))),
-      {
-        source: '../integration/sourcemap-css-import/style.css',
-        name: null,
-        line: indexToLineCol(style, style.indexOf('body')).line,
-        column: indexToLineCol(style, style.indexOf('body')).column
-      },
-      "map 'body'"
-    );
+      let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(
-        indexToLineCol(raw, raw.indexOf('background-color'))
-      ),
-      {
-        source: '../integration/sourcemap-css-import/style.css',
-        name: null,
-        line: indexToLineCol(style, style.indexOf('background-color')).line,
-        column: indexToLineCol(style, style.indexOf('background-color')).column
-      },
-      "map 'background-color'"
-    );
+      checkSourceMapping({
+        map: sourceMap,
+        source: style,
+        generated: raw,
+        str: 'body',
+        sourcePath: '../integration/sourcemap-css-import/style.css',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('div'))),
-      {
-        source: '../integration/sourcemap-css-import/other-style.css',
-        name: null,
-        line: indexToLineCol(otherStyle, otherStyle.indexOf('div')).line,
-        column: indexToLineCol(otherStyle, otherStyle.indexOf('div')).column
-      },
-      "map 'div'"
-    );
+      checkSourceMapping({
+        map: sourceMap,
+        source: style,
+        generated: raw,
+        str: 'background-color',
+        sourcePath: '../integration/sourcemap-css-import/style.css',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('width'))),
-      {
-        source: '../integration/sourcemap-css-import/other-style.css',
-        name: null,
-        line: indexToLineCol(otherStyle, otherStyle.indexOf('width')).line,
-        column: indexToLineCol(otherStyle, otherStyle.indexOf('width')).column
-      },
-      "map 'width'"
-    );
+      checkSourceMapping({
+        map: sourceMap,
+        source: otherStyle,
+        generated: raw,
+        str: 'div',
+        sourcePath: '../integration/sourcemap-css-import/other-style.css',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('main'))),
-      {
-        source: '../integration/sourcemap-css-import/another-style.css',
-        name: null,
-        line: indexToLineCol(anotherStyle, anotherStyle.indexOf('main')).line,
-        column: indexToLineCol(anotherStyle, anotherStyle.indexOf('main'))
-          .column
-      },
-      "map 'main'"
-    );
+      checkSourceMapping({
+        map: sourceMap,
+        source: otherStyle,
+        generated: raw,
+        str: 'width',
+        sourcePath: '../integration/sourcemap-css-import/other-style.css',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(
-        indexToLineCol(raw, raw.indexOf('font-family'))
-      ),
-      {
-        source: '../integration/sourcemap-css-import/another-style.css',
-        name: null,
-        line: indexToLineCol(anotherStyle, anotherStyle.indexOf('font-family'))
-          .line,
-        column: indexToLineCol(
-          anotherStyle,
-          anotherStyle.indexOf('font-family')
-        ).column
-      },
-      "map 'font-family'"
-    );
+      checkSourceMapping({
+        map: sourceMap,
+        source: anotherStyle,
+        generated: raw,
+        str: 'main',
+        sourcePath: '../integration/sourcemap-css-import/another-style.css',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
+
+      checkSourceMapping({
+        map: sourceMap,
+        source: anotherStyle,
+        generated: raw,
+        str: 'font-family',
+        sourcePath: '../integration/sourcemap-css-import/another-style.css',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
+    }
+
+    await test(false);
+    await test(true);
   });
 
   it('should create a valid sourcemap for a SASS asset', async function() {
@@ -524,29 +552,23 @@ describe('sourcemaps', function() {
 
     assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
 
-    let consumer = await new SourceMapConsumer(map);
+    let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('body'))),
-      {
-        source: '../integration/sourcemap-sass/style.scss',
-        name: null,
-        line: indexToLineCol(input, input.indexOf('body')).line,
-        column: indexToLineCol(input, input.indexOf('body')).column
-      },
-      "map 'body'"
-    );
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'body',
+      sourcePath: '../integration/sourcemap-sass/style.scss'
+    });
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('color'))),
-      {
-        source: '../integration/sourcemap-sass/style.scss',
-        name: null,
-        line: indexToLineCol(input, input.indexOf('color')).line,
-        column: indexToLineCol(input, input.indexOf('color')).column
-      },
-      "map 'color'"
-    );
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'color',
+      sourcePath: '../integration/sourcemap-sass/style.scss'
+    });
   });
 
   it('should create a valid sourcemap when a CSS asset imports SASS', async function() {
@@ -581,53 +603,39 @@ describe('sourcemaps', function() {
 
     assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
 
-    let consumer = await new SourceMapConsumer(map);
+    let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('body'))),
-      {
-        source: '../integration/sourcemap-sass-imported/style.css',
-        name: null,
-        line: indexToLineCol(style, style.indexOf('body')).line,
-        column: indexToLineCol(style, style.indexOf('body')).column
-      },
-      "map 'body'"
-    );
+    checkSourceMapping({
+      map: sourceMap,
+      source: style,
+      generated: raw,
+      str: 'body',
+      sourcePath: '../integration/sourcemap-sass-imported/style.css'
+    });
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('color'))),
-      {
-        source: '../integration/sourcemap-sass-imported/style.css',
-        name: null,
-        line: indexToLineCol(style, style.indexOf('color')).line,
-        column: indexToLineCol(style, style.indexOf('color')).column
-      },
-      "map 'color'"
-    );
+    checkSourceMapping({
+      map: sourceMap,
+      source: style,
+      generated: raw,
+      str: 'color',
+      sourcePath: '../integration/sourcemap-sass-imported/style.css'
+    });
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('div'))),
-      {
-        source: '../integration/sourcemap-sass-imported/other.scss',
-        name: null,
-        line: indexToLineCol(other, other.indexOf('div')).line,
-        column: indexToLineCol(other, other.indexOf('div')).column
-      },
-      "map 'div'"
-    );
+    checkSourceMapping({
+      map: sourceMap,
+      source: other,
+      generated: raw,
+      str: 'div',
+      sourcePath: '../integration/sourcemap-sass-imported/other.scss'
+    });
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(
-        indexToLineCol(raw, raw.indexOf('font-family'))
-      ),
-      {
-        source: '../integration/sourcemap-sass-imported/other.scss',
-        name: null,
-        line: indexToLineCol(other, other.indexOf('font-family')).line,
-        column: indexToLineCol(other, other.indexOf('font-family')).column
-      },
-      "map 'font-family'"
-    );
+    checkSourceMapping({
+      map: sourceMap,
+      source: other,
+      generated: raw,
+      str: 'font-family',
+      sourcePath: '../integration/sourcemap-sass-imported/other.scss'
+    });
   });
 
   it('should create a valid sourcemap for a LESS asset', async function() {
@@ -659,28 +667,22 @@ describe('sourcemaps', function() {
 
     assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
 
-    let consumer = await new SourceMapConsumer(map);
+    let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('div'))),
-      {
-        source: '../integration/sourcemap-less/style.less',
-        name: null,
-        line: indexToLineCol(input, input.indexOf('div')).line,
-        column: indexToLineCol(input, input.indexOf('div')).column
-      },
-      "map 'div'"
-    );
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'div',
+      sourcePath: '../integration/sourcemap-less/style.less'
+    });
 
-    assert.deepStrictEqual(
-      consumer.originalPositionFor(indexToLineCol(raw, raw.indexOf('width'))),
-      {
-        source: '../integration/sourcemap-less/style.less',
-        name: null,
-        line: indexToLineCol(input, input.indexOf('width')).line,
-        column: indexToLineCol(input, input.indexOf('width')).column
-      },
-      "map 'width'"
-    );
+    checkSourceMapping({
+      map: sourceMap,
+      source: input,
+      generated: raw,
+      str: 'width',
+      sourcePath: '../integration/sourcemap-less/style.less'
+    });
   });
 });
