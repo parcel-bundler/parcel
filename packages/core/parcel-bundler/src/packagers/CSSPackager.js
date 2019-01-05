@@ -53,7 +53,7 @@ class CSSPackager extends Packager {
           this.options.publicURL,
           path.basename(mapBundle.name)
         );
-        await this.write(`\n/*# sourceMappingURL=${mapUrl}*/`);
+        await this.write(`\n/*# sourceMappingURL=${mapUrl} */`);
       }
     }
   }

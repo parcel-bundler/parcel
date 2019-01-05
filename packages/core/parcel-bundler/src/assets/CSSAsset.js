@@ -1,13 +1,18 @@
 const Asset = require('../Asset');
 const postcss = require('postcss');
+const path = require('path');
+const fs = require('@parcel/fs');
 const valueParser = require('postcss-value-parser');
 const postcssTransform = require('../transforms/postcss');
 const CssSyntaxError = require('postcss/lib/css-syntax-error');
 const SourceMap = require('../SourceMap');
+const logger = require('@parcel/logger');
 
 const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
 const PROTOCOL_RE = /^[a-z]+:/;
+const SOURCEMAP_RE = /\/\*\s*[@#]\s*sourceMappingURL\s*=\s*([^\s]+)\s*\*\//;
+const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
 
 class CSSAsset extends Asset {
   constructor(name, options) {
@@ -99,6 +104,12 @@ class CSSAsset extends Asset {
     });
   }
 
+  async pretransform() {
+    if (this.options.sourceMaps) {
+      await this.loadSourceMap();
+    }
+  }
+
   async transform() {
     await postcssTransform(this);
   }
@@ -113,6 +124,71 @@ class CSSAsset extends Asset {
     }
 
     return this.ast.root;
+  }
+
+  async loadSourceMap() {
+    let match = this.contents.match(SOURCEMAP_RE);
+    if (match) {
+      this.contents = this.contents.replace(SOURCEMAP_RE, '');
+
+      let url = match[1];
+      let dataURLMatch = url.match(DATA_URL_RE);
+
+      try {
+        let json, filename;
+        if (dataURLMatch) {
+          filename = this.name;
+          json = new Buffer(dataURLMatch[1], 'base64').toString();
+        } else {
+          filename = path.join(path.dirname(this.name), url);
+          json = await fs.readFile(filename, 'utf8');
+
+          // Add as a dep so we watch the source map for changes.
+          this.addDependency(filename, {includedInParent: true});
+        }
+
+        this.contentsSourceMap = JSON.parse(json);
+
+        // Attempt to read missing source contents
+        if (!this.contentsSourceMap.sourcesContent) {
+          this.contentsSourceMap.sourcesContent = [];
+        }
+
+        let missingSources = this.contentsSourceMap.sources.slice(
+          this.contentsSourceMap.sourcesContent.length
+        );
+        if (missingSources.length) {
+          let contents = await Promise.all(
+            missingSources.map(async source => {
+              try {
+                let sourceFile = path.join(
+                  path.dirname(filename),
+                  this.contentsSourceMap.sourceRoot || '',
+                  source
+                );
+                let result = await fs.readFile(sourceFile, 'utf8');
+                this.addDependency(sourceFile, {includedInParent: true});
+                return result;
+              } catch (err) {
+                logger.warn(
+                  `Could not load source file "${source}" in source map of "${
+                    this.relativeName
+                  }".`
+                );
+              }
+            })
+          );
+
+          this.contentsSourceMap.sourcesContent = this.contentsSourceMap.sourcesContent.concat(
+            contents
+          );
+        }
+      } catch (e) {
+        logger.warn(
+          `Could not load existing sourcemap of "${this.relativeName}".`
+        );
+      }
+    }
   }
 
   async generate() {
@@ -146,28 +222,46 @@ class CSSAsset extends Asset {
       if (this.sourceMap) {
         if (this.sourceMap instanceof SourceMap) {
           map = this.sourceMap;
-        } else {
+        } else if (this.sourceMap) {
+          if (this.sourceMap.toJSON) {
+            // this.sourceMap instanceof SourceMapGenerator
+            map = this.sourceMap.toJSON();
+          } else if (typeof this.sourceMap === 'string') {
+            map = JSON.parse(this.sourceMap);
+          } else {
+            map = this.sourceMap;
+          }
+
           map = await new SourceMap([], {
             [this.relativeName]: this.contents
-          }).addMap(this.sourceMap.toJSON());
+          }).addMap(map);
 
-          const source = this.contents.split('\n');
-          map.mappings = map.mappings.filter(
-            ({original: {line, column}}) =>
-              line - 1 < source.length && column < source[line - 1].length
-          );
+          if (this.sourceMap.toJSON) {
+            // this.sourceMap instanceof SourceMapGenerator
+            let sourceLines = this.contents.split('\n');
+            map.mappings = map.mappings.filter(
+              ({original: {line, column}}) =>
+                line - 1 < sourceLines.length &&
+                column < sourceLines[line - 1].length
+            );
+          }
         }
-
-        if (this.previousSourceMap) {
-          map = await new SourceMap().extendSourceMap(
-            this.previousSourceMap,
-            map
-          );
-        }
-      } else if (this.previousSourceMap) {
-        map = await new SourceMap().addMap(this.previousSourceMap);
       } else {
         map = new SourceMap().generateEmptyMap(this.relativeName, css);
+      }
+
+      if (this.previousSourceMap) {
+        map = await new SourceMap().extendSourceMap(
+          this.previousSourceMap,
+          map
+        );
+      }
+
+      if (this.contentsSourceMap) {
+        map = await new SourceMap().extendSourceMap(
+          this.contentsSourceMap,
+          map
+        );
       }
     }
 

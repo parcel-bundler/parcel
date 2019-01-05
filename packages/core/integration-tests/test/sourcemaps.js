@@ -18,13 +18,20 @@ function checkSourceMapping({
   source,
   generated,
   str,
+  generatedStr = str,
   sourcePath,
   msg = ''
 }) {
-  assert(generated.indexOf(str) !== -1, "'" + str + "' not in generated code");
+  assert(
+    generated.indexOf(generatedStr) !== -1,
+    "'" + generatedStr + "' not in generated code"
+  );
   assert(source.indexOf(str) !== -1, "'" + str + "' not in source code");
 
-  let generatedPosition = indexToLineCol(generated, generated.indexOf(str));
+  let generatedPosition = indexToLineCol(
+    generated,
+    generated.indexOf(generatedStr)
+  );
   let sourcePosition = indexToLineCol(source, source.indexOf(str));
 
   let index = map.findClosestGenerated(
@@ -398,7 +405,7 @@ describe('sourcemaps', function() {
       path.join(__dirname, '/dist/style.css.map')
     )).toString();
 
-    assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
+    assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
 
     let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
@@ -459,7 +466,7 @@ describe('sourcemaps', function() {
         path.join(__dirname, '/dist/style.css.map')
       )).toString();
 
-      assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
+      assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
 
       let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
@@ -549,7 +556,7 @@ describe('sourcemaps', function() {
       path.join(__dirname, '/dist/style.css.map')
     )).toString();
 
-    assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
+    assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
 
     let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
@@ -600,7 +607,7 @@ describe('sourcemaps', function() {
       path.join(__dirname, '/dist/style.css.map')
     )).toString();
 
-    assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
+    assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
 
     let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
@@ -664,7 +671,7 @@ describe('sourcemaps', function() {
       path.join(__dirname, '/dist/style.css.map')
     )).toString();
 
-    assert(raw.includes('/*# sourceMappingURL=/style.css.map*/'));
+    assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
 
     let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
@@ -682,6 +689,85 @@ describe('sourcemaps', function() {
       generated: raw,
       str: 'width',
       sourcePath: '../integration/sourcemap-less/style.less'
+    });
+  });
+
+  it('should load existing sourcemaps for CSS files', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sourcemap-css-existing/style.css'),
+      {minify: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'style.css',
+      assets: ['style.css', 'library.css'],
+      childBundles: [
+        {
+          name: 'style.css.map',
+          type: 'map'
+        }
+      ]
+    });
+
+    let style = (await fs.readFile(
+      path.join(__dirname, '/integration/sourcemap-css-existing/style.css')
+    )).toString();
+    let library = (await fs.readFile(
+      path.join(
+        __dirname,
+        '/integration/sourcemap-css-existing/library.raw.scss'
+      )
+    )).toString();
+    let raw = (await fs.readFile(
+      path.join(__dirname, '/dist/style.css')
+    )).toString();
+    let map = (await fs.readFile(
+      path.join(__dirname, '/dist/style.css.map')
+    )).toString();
+
+    assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
+
+    let sourceMap = await new SourceMap().addMap(JSON.parse(map));
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: style,
+      generated: raw,
+      str: 'main',
+      sourcePath: '../integration/sourcemap-css-existing/style.css'
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: style,
+      generated: raw,
+      str: 'display',
+      sourcePath: '../integration/sourcemap-css-existing/style.css'
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: library,
+      generated: raw,
+      str: 'body',
+      sourcePath: '../integration/sourcemap-css-existing/library.scss'
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: library,
+      generated: raw,
+      str: 'div',
+      generatedStr: 'body div',
+      sourcePath: '../integration/sourcemap-css-existing/library.scss'
+    });
+
+    checkSourceMapping({
+      map: sourceMap,
+      source: library,
+      generated: raw,
+      str: 'background-color',
+      sourcePath: '../integration/sourcemap-css-existing/library.scss'
     });
   });
 });
