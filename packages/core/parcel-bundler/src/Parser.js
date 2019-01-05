@@ -27,6 +27,7 @@ class Parser {
     this.registerExtension('toml', './assets/TOMLAsset');
     this.registerExtension('gql', './assets/GraphqlAsset');
     this.registerExtension('graphql', './assets/GraphqlAsset');
+    this.registerExtension('kt', './assets/KotlinAsset');
 
     this.registerExtension('css', './assets/CSSAsset');
     this.registerExtension('pcss', './assets/CSSAsset');

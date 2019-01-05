@@ -2,7 +2,7 @@ const Resolver = require('../src/Resolver');
 const path = require('path');
 const assert = require('assert');
 const {rimraf, ncp} = require('./utils');
-const {mkdirp} = require('../src/utils/fs');
+const {mkdirp} = require('@parcel/fs');
 const {symlinkSync} = require('fs');
 
 const rootDir = path.join(__dirname, 'input/resolver');
@@ -358,6 +358,28 @@ describe('resolver', function() {
       assert.equal(
         resolved.path,
         path.join(rootDir, 'node_modules', 'package-browser-alias', 'foo.js')
+      );
+      assert.equal(resolved.pkg.name, 'package-browser-alias');
+    });
+
+    it('should alias a deep nested relative file using the package.browser field', async function() {
+      let resolved = await resolver.resolve(
+        './nested',
+        path.join(
+          rootDir,
+          'node_modules',
+          'package-browser-alias',
+          'browser.js'
+        )
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules',
+          'package-browser-alias',
+          'subfolder1/subfolder2/subfile.js'
+        )
       );
       assert.equal(resolved.pkg.name, 'package-browser-alias');
     });

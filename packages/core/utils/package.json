@@ -1,0 +1,25 @@
+{
+  "name": "@parcel/utils",
+  "version": "1.11.0",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "index.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "engines": {
+    "node": ">= 6.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "echo this package has no tests yet",
+    "test-ci": "yarn build && yarn test",
+    "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
+    "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
+    "build": "babel src -d lib",
+    "prepublish": "yarn build"
+  }
+}

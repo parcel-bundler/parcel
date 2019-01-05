@@ -1,6 +1,6 @@
 const Packager = require('./Packager');
 const path = require('path');
-const fs = require('../utils/fs');
+const fs = require('@parcel/fs');
 
 class RawPackager extends Packager {
   static shouldAddAsset() {

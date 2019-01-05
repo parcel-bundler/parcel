@@ -9,7 +9,6 @@ class ElmAsset extends Asset {
   constructor(name, options) {
     super(name, options);
     this.type = 'js';
-    this.hmrPageReload = true;
   }
 
   async parse() {
@@ -40,12 +39,12 @@ class ElmAsset extends Asset {
       await this.getConfig(['elm.json'], {load: false});
     }
 
+    options.debug = !this.options.production;
     if (this.options.minify) {
       options.optimize = true;
     }
 
-    let compiled = await this.elm.compileToString(this.name, options);
-    this.contents = compiled.toString();
+    this.elmOpts = options;
   }
 
   async collectDependencies() {
@@ -72,6 +71,13 @@ class ElmAsset extends Asset {
   }
 
   async generate() {
+    let compiled = await this.elm.compileToString(this.name, this.elmOpts);
+    this.contents = compiled.toString();
+    if (this.options.hmr) {
+      let {inject} = await localRequire('elm-hot', this.name);
+      this.contents = inject(this.contents);
+    }
+
     let output = this.contents;
 
     if (this.options.minify) {
@@ -124,6 +130,13 @@ class ElmAsset extends Asset {
 
       return result.code;
     }
+  }
+
+  generateErrorMessage(err) {
+    // The generated stack is not useful, but other code may
+    // expect it and try to print it, so make it an empty string.
+    err.stack = '';
+    return err;
   }
 }
 

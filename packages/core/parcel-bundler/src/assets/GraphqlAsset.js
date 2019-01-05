@@ -1,7 +1,7 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const Resolver = require('../Resolver');
-const fs = require('../utils/fs');
+const fs = require('@parcel/fs');
 const os = require('os');
 
 const IMPORT_RE = /^# *import +['"](.*)['"] *;? *$/;
@@ -60,7 +60,7 @@ class GraphqlAsset extends Asset {
   }
 
   generate() {
-    return `module.exports=${JSON.stringify(this.ast, false, 2)};`;
+    return `module.exports=${JSON.stringify(this.ast, null, 2)};`;
   }
 }
 

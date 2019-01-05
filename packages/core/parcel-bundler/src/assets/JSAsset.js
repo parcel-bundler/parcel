@@ -14,7 +14,7 @@ const terser = require('../transforms/terser');
 const SourceMap = require('../SourceMap');
 const hoist = require('../scope-hoisting/hoist');
 const path = require('path');
-const fs = require('../utils/fs');
+const fs = require('@parcel/fs');
 const logger = require('@parcel/logger');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;

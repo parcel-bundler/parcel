@@ -1,6 +1,6 @@
 {
   "name": "@parcel/workers",
-  "version": "1.10.3",
+  "version": "1.11.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
   "license": "MIT",
@@ -10,6 +10,9 @@
   },
   "engines": {
     "node": ">= 6.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
@@ -23,6 +26,7 @@
     "mocha": "^5.2.0"
   },
   "dependencies": {
+    "@parcel/utils": "^1.11.0",
     "physical-cpu-count": "^2.0.0"
   }
 }

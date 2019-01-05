@@ -2,7 +2,7 @@ const builtins = require('./builtins');
 const nodeBuiltins = require('node-libs-browser');
 const path = require('path');
 const {isGlob} = require('./utils/glob');
-const fs = require('./utils/fs');
+const fs = require('@parcel/fs');
 const micromatch = require('micromatch');
 
 const EMPTY_SHIM = require.resolve('./builtins/_empty');
@@ -404,6 +404,10 @@ class Resolver {
             break;
           }
         }
+      }
+      // Or try a lookup replacing backslash characters with forward slash
+      if (alias == null && ~filename.indexOf('\\')) {
+        alias = aliases[filename.replace(/\\/g, '/')];
       }
     }
 
