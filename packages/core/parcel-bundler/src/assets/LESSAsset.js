@@ -37,7 +37,7 @@ class LESSAsset extends Asset {
 
   generate() {
     let map;
-    if (this.ast.map) {
+    if (this.ast && this.ast.map) {
       map = JSON.parse(this.ast.map.toString());
       map.sources = map.sources.map(v =>
         path.relative(this.options.rootDir, v)

@@ -24,7 +24,11 @@ describe('html', function() {
         {
           type: 'css',
           assets: ['index.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'html',
@@ -220,9 +224,6 @@ describe('html', function() {
           assets: ['index.css'],
           childBundles: [
             {
-              type: 'map'
-            },
-            {
               type: 'js',
               assets: [
                 'index.css',
@@ -231,6 +232,9 @@ describe('html', function() {
                 'hmr-runtime.js'
               ],
               childBundles: []
+            },
+            {
+              type: 'map'
             }
           ]
         }
