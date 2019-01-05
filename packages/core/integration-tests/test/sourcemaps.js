@@ -379,51 +379,60 @@ describe('sourcemaps', function() {
   });
 
   it('should create a valid sourcemap as a child of a CSS bundle', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/sourcemap-css/style.css'),
-      {minify: true}
-    );
+    async function test(minify) {
+      let b = await bundle(
+        path.join(__dirname, '/integration/sourcemap-css/style.css'),
+        {minify: true}
+      );
 
-    await assertBundleTree(b, {
-      name: 'style.css',
-      assets: ['style.css'],
-      childBundles: [
-        {
-          name: 'style.css.map',
-          type: 'map'
-        }
-      ]
-    });
+      await assertBundleTree(b, {
+        name: 'style.css',
+        assets: ['style.css'],
+        childBundles: [
+          {
+            name: 'style.css.map',
+            type: 'map'
+          }
+        ]
+      });
 
-    let input = (await fs.readFile(
-      path.join(__dirname, '/integration/sourcemap-css/style.css')
-    )).toString();
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/style.css')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/style.css.map')
-    )).toString();
+      let input = (await fs.readFile(
+        path.join(__dirname, '/integration/sourcemap-css/style.css')
+      )).toString();
+      let raw = (await fs.readFile(
+        path.join(__dirname, '/dist/style.css')
+      )).toString();
+      let map = (await fs.readFile(
+        path.join(__dirname, '/dist/style.css.map')
+      )).toString();
 
-    assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
+      assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
 
-    let sourceMap = await new SourceMap().addMap(JSON.parse(map));
+      assert(map.includes('background-color:'));
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: input,
-      generated: raw,
-      str: 'body',
-      sourcePath: '../integration/sourcemap-css/style.css'
-    });
+      let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: input,
-      generated: raw,
-      str: 'background-color',
-      sourcePath: '../integration/sourcemap-css/style.css'
-    });
+      checkSourceMapping({
+        map: sourceMap,
+        source: input,
+        generated: raw,
+        str: 'body',
+        sourcePath: '../integration/sourcemap-css/style.css',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
+
+      checkSourceMapping({
+        map: sourceMap,
+        source: input,
+        generated: raw,
+        str: 'background-color',
+        sourcePath: '../integration/sourcemap-css/style.css',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
+    }
+
+    await test(false);
+    await test(true);
   });
 
   it('should create a valid sourcemap for a CSS bundle with imports', async function() {
@@ -467,6 +476,10 @@ describe('sourcemaps', function() {
       )).toString();
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
+
+      assert(map.includes('background-color:'));
+      assert(map.includes('font-family:'));
+      assert(map.includes('width:'));
 
       let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
@@ -530,244 +543,284 @@ describe('sourcemaps', function() {
   });
 
   it('should create a valid sourcemap for a SASS asset', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/sourcemap-sass/style.scss'),
-      {minify: true}
-    );
+    async function test(minify) {
+      let b = await bundle(
+        path.join(__dirname, '/integration/sourcemap-sass/style.scss'),
+        {minify}
+      );
 
-    await assertBundleTree(b, {
-      name: 'style.css',
-      assets: ['style.scss'],
-      childBundles: [
-        {
-          name: 'style.css.map',
-          type: 'map'
-        }
-      ]
-    });
+      await assertBundleTree(b, {
+        name: 'style.css',
+        assets: ['style.scss'],
+        childBundles: [
+          {
+            name: 'style.css.map',
+            type: 'map'
+          }
+        ]
+      });
 
-    let input = (await fs.readFile(
-      path.join(__dirname, '/integration/sourcemap-sass/style.scss')
-    )).toString();
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/style.css')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/style.css.map')
-    )).toString();
+      let input = (await fs.readFile(
+        path.join(__dirname, '/integration/sourcemap-sass/style.scss')
+      )).toString();
+      let raw = (await fs.readFile(
+        path.join(__dirname, '/dist/style.css')
+      )).toString();
+      let map = (await fs.readFile(
+        path.join(__dirname, '/dist/style.css.map')
+      )).toString();
 
-    assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
+      assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
 
-    let sourceMap = await new SourceMap().addMap(JSON.parse(map));
+      assert(map.includes('$variable:'));
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: input,
-      generated: raw,
-      str: 'body',
-      sourcePath: '../integration/sourcemap-sass/style.scss'
-    });
+      let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: input,
-      generated: raw,
-      str: 'color',
-      sourcePath: '../integration/sourcemap-sass/style.scss'
-    });
+      checkSourceMapping({
+        map: sourceMap,
+        source: input,
+        generated: raw,
+        str: 'body',
+        sourcePath: '../integration/sourcemap-sass/style.scss',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
+
+      checkSourceMapping({
+        map: sourceMap,
+        source: input,
+        generated: raw,
+        str: 'color',
+        sourcePath: '../integration/sourcemap-sass/style.scss',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
+    }
+
+    await test(false);
+    await test(true);
   });
 
   it('should create a valid sourcemap when a CSS asset imports SASS', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/sourcemap-sass-imported/style.css'),
-      {minify: true}
-    );
+    async function test(minify) {
+      let b = await bundle(
+        path.join(__dirname, '/integration/sourcemap-sass-imported/style.css'),
+        {minify}
+      );
 
-    await assertBundleTree(b, {
-      name: 'style.css',
-      assets: ['style.css', 'other.scss'],
-      childBundles: [
-        {
-          name: 'style.css.map',
-          type: 'map'
-        }
-      ]
-    });
+      await assertBundleTree(b, {
+        name: 'style.css',
+        assets: ['style.css', 'other.scss'],
+        childBundles: [
+          {
+            name: 'style.css.map',
+            type: 'map'
+          }
+        ]
+      });
 
-    let style = (await fs.readFile(
-      path.join(__dirname, '/integration/sourcemap-sass-imported/style.css')
-    )).toString();
-    let other = (await fs.readFile(
-      path.join(__dirname, '/integration/sourcemap-sass-imported/other.scss')
-    )).toString();
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/style.css')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/style.css.map')
-    )).toString();
+      let style = (await fs.readFile(
+        path.join(__dirname, '/integration/sourcemap-sass-imported/style.css')
+      )).toString();
+      let other = (await fs.readFile(
+        path.join(__dirname, '/integration/sourcemap-sass-imported/other.scss')
+      )).toString();
+      let raw = (await fs.readFile(
+        path.join(__dirname, '/dist/style.css')
+      )).toString();
+      let map = (await fs.readFile(
+        path.join(__dirname, '/dist/style.css.map')
+      )).toString();
 
-    assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
+      assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
 
-    let sourceMap = await new SourceMap().addMap(JSON.parse(map));
+      assert(map.includes('$variable:'));
+      assert(map.includes('color:'));
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: style,
-      generated: raw,
-      str: 'body',
-      sourcePath: '../integration/sourcemap-sass-imported/style.css'
-    });
+      let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: style,
-      generated: raw,
-      str: 'color',
-      sourcePath: '../integration/sourcemap-sass-imported/style.css'
-    });
+      checkSourceMapping({
+        map: sourceMap,
+        source: style,
+        generated: raw,
+        str: 'body',
+        sourcePath: '../integration/sourcemap-sass-imported/style.css',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: other,
-      generated: raw,
-      str: 'div',
-      sourcePath: '../integration/sourcemap-sass-imported/other.scss'
-    });
+      checkSourceMapping({
+        map: sourceMap,
+        source: style,
+        generated: raw,
+        str: 'color',
+        sourcePath: '../integration/sourcemap-sass-imported/style.css',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: other,
-      generated: raw,
-      str: 'font-family',
-      sourcePath: '../integration/sourcemap-sass-imported/other.scss'
-    });
+      checkSourceMapping({
+        map: sourceMap,
+        source: other,
+        generated: raw,
+        str: 'div',
+        sourcePath: '../integration/sourcemap-sass-imported/other.scss',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
+
+      checkSourceMapping({
+        map: sourceMap,
+        source: other,
+        generated: raw,
+        str: 'font-family',
+        sourcePath: '../integration/sourcemap-sass-imported/other.scss',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
+    }
+    await test(false);
+    await test(true);
   });
 
   it('should create a valid sourcemap for a LESS asset', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/sourcemap-less/style.less'),
-      {minify: true}
-    );
+    async function test(minify) {
+      let b = await bundle(
+        path.join(__dirname, '/integration/sourcemap-less/style.less'),
+        {minify}
+      );
 
-    await assertBundleTree(b, {
-      name: 'style.css',
-      assets: ['style.less'],
-      childBundles: [
-        {
-          name: 'style.css.map',
-          type: 'map'
-        }
-      ]
-    });
+      await assertBundleTree(b, {
+        name: 'style.css',
+        assets: ['style.less'],
+        childBundles: [
+          {
+            name: 'style.css.map',
+            type: 'map'
+          }
+        ]
+      });
 
-    let input = (await fs.readFile(
-      path.join(__dirname, '/integration/sourcemap-less/style.less')
-    )).toString();
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/style.css')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/style.css.map')
-    )).toString();
+      let input = (await fs.readFile(
+        path.join(__dirname, '/integration/sourcemap-less/style.less')
+      )).toString();
+      let raw = (await fs.readFile(
+        path.join(__dirname, '/dist/style.css')
+      )).toString();
+      let map = (await fs.readFile(
+        path.join(__dirname, '/dist/style.css.map')
+      )).toString();
 
-    assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
+      assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
 
-    let sourceMap = await new SourceMap().addMap(JSON.parse(map));
+      assert(map.includes('@value:'));
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: input,
-      generated: raw,
-      str: 'div',
-      sourcePath: '../integration/sourcemap-less/style.less'
-    });
+      let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: input,
-      generated: raw,
-      str: 'width',
-      sourcePath: '../integration/sourcemap-less/style.less'
-    });
+      checkSourceMapping({
+        map: sourceMap,
+        source: input,
+        generated: raw,
+        str: 'div',
+        sourcePath: '../integration/sourcemap-less/style.less',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
+
+      checkSourceMapping({
+        map: sourceMap,
+        source: input,
+        generated: raw,
+        str: 'width',
+        sourcePath: '../integration/sourcemap-less/style.less',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
+    }
+    await test(false);
+    await test(true);
   });
 
   it('should load existing sourcemaps for CSS files', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/sourcemap-css-existing/style.css'),
-      {minify: true}
-    );
+    async function test(minify) {
+      let b = await bundle(
+        path.join(__dirname, '/integration/sourcemap-css-existing/style.css'),
+        {minify}
+      );
 
-    await assertBundleTree(b, {
-      name: 'style.css',
-      assets: ['style.css', 'library.css'],
-      childBundles: [
-        {
-          name: 'style.css.map',
-          type: 'map'
-        }
-      ]
-    });
+      await assertBundleTree(b, {
+        name: 'style.css',
+        assets: ['style.css', 'library.css'],
+        childBundles: [
+          {
+            name: 'style.css.map',
+            type: 'map'
+          }
+        ]
+      });
 
-    let style = (await fs.readFile(
-      path.join(__dirname, '/integration/sourcemap-css-existing/style.css')
-    )).toString();
-    let library = (await fs.readFile(
-      path.join(
-        __dirname,
-        '/integration/sourcemap-css-existing/library.raw.scss'
-      )
-    )).toString();
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/style.css')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/style.css.map')
-    )).toString();
+      let style = (await fs.readFile(
+        path.join(__dirname, '/integration/sourcemap-css-existing/style.css')
+      )).toString();
+      let library = (await fs.readFile(
+        path.join(
+          __dirname,
+          '/integration/sourcemap-css-existing/library.raw.scss'
+        )
+      )).toString();
+      let raw = (await fs.readFile(
+        path.join(__dirname, '/dist/style.css')
+      )).toString();
+      let map = (await fs.readFile(
+        path.join(__dirname, '/dist/style.css.map')
+      )).toString();
 
-    assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
+      assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
 
-    let sourceMap = await new SourceMap().addMap(JSON.parse(map));
+      assert(map.includes('$font-stack:'));
+      assert(map.includes('display:'));
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: style,
-      generated: raw,
-      str: 'main',
-      sourcePath: '../integration/sourcemap-css-existing/style.css'
-    });
+      let sourceMap = await new SourceMap().addMap(JSON.parse(map));
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: style,
-      generated: raw,
-      str: 'display',
-      sourcePath: '../integration/sourcemap-css-existing/style.css'
-    });
+      checkSourceMapping({
+        map: sourceMap,
+        source: style,
+        generated: raw,
+        str: 'main',
+        sourcePath: '../integration/sourcemap-css-existing/style.css',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: library,
-      generated: raw,
-      str: 'body',
-      sourcePath: '../integration/sourcemap-css-existing/library.scss'
-    });
+      checkSourceMapping({
+        map: sourceMap,
+        source: style,
+        generated: raw,
+        str: 'display',
+        sourcePath: '../integration/sourcemap-css-existing/style.css',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: library,
-      generated: raw,
-      str: 'div',
-      generatedStr: 'body div',
-      sourcePath: '../integration/sourcemap-css-existing/library.scss'
-    });
+      checkSourceMapping({
+        map: sourceMap,
+        source: library,
+        generated: raw,
+        str: 'body',
+        sourcePath: '../integration/sourcemap-css-existing/library.scss',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
 
-    checkSourceMapping({
-      map: sourceMap,
-      source: library,
-      generated: raw,
-      str: 'background-color',
-      sourcePath: '../integration/sourcemap-css-existing/library.scss'
-    });
+      checkSourceMapping({
+        map: sourceMap,
+        source: library,
+        generated: raw,
+        str: 'div',
+        generatedStr: 'body div',
+        sourcePath: '../integration/sourcemap-css-existing/library.scss',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
+
+      checkSourceMapping({
+        map: sourceMap,
+        source: library,
+        generated: raw,
+        str: 'background-color',
+        sourcePath: '../integration/sourcemap-css-existing/library.scss',
+        msg: ' ' + (minify ? 'with' : 'without') + ' minification'
+      });
+    }
+    await test(false);
+    await test(true);
   });
 });
