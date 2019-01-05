@@ -10,11 +10,19 @@ const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
 const PROTOCOL_RE = /^[a-z]+:/;
 
+async function sourceMapReplaceOrExtend(extension, base) {
+  if (base) {
+    return await new SourceMap().extendSourceMap(extension, base);
+  } else {
+    return await new SourceMap().addMap(extension);
+  }
+}
+
 class CSSAsset extends Asset {
   constructor(name, options) {
     super(name, options);
     this.type = 'css';
-    this.previousSourceMap = this.options.rendition
+    this.sourceMapFromPipeline = this.options.rendition
       ? this.options.rendition.map
       : null;
   }
@@ -102,7 +110,7 @@ class CSSAsset extends Asset {
 
   async pretransform() {
     if (this.options.sourceMaps) {
-      this.contentsSourceMap = await loadSourceMap(this);
+      this.sourceMapExisting = await loadSourceMap(this);
     }
   }
 
@@ -154,39 +162,34 @@ class CSSAsset extends Asset {
         if (this.sourceMap instanceof SourceMap) {
           map = this.sourceMap;
         } else {
-          map =
-            typeof this.sourceMap === 'string'
-              ? JSON.parse(this.sourceMap)
-              : this.sourceMap;
-
-          map = await new SourceMap().addMap(map);
+          map = await new SourceMap().addMap(this.sourceMap);
 
           if (this.sourceMap.toJSON) {
-            // this.sourceMap instanceof SourceMapGenerator
-            let sourceLines = this.contents.split('\n');
+            // a SourceMapGenerator, PostCSS's sourcemaps contain invalid entries
+            let sourceLines = {};
+            for (let [path, content] of Object.entries(map.sources)) {
+              sourceLines[path] = content.split('\n');
+            }
+
             map.mappings = map.mappings.filter(
-              ({original: {line, column}}) =>
-                line - 1 < sourceLines.length &&
-                column < sourceLines[line - 1].length
+              ({source, original: {line, column}}) =>
+                line - 1 < sourceLines[source].length &&
+                column < sourceLines[source][line - 1].length
             );
           }
         }
-      } else {
+      }
+
+      if (this.sourceMapFromPipeline) {
+        map = await sourceMapReplaceOrExtend(this.sourceMapFromPipeline, map);
+      }
+
+      if (this.sourceMapExisting) {
+        map = await sourceMapReplaceOrExtend(this.sourceMapExisting, map);
+      }
+
+      if (!map) {
         map = new SourceMap().generateEmptyMap(this.relativeName, css);
-      }
-
-      if (this.previousSourceMap) {
-        map = await new SourceMap().extendSourceMap(
-          this.previousSourceMap,
-          map
-        );
-      }
-
-      if (this.contentsSourceMap) {
-        map = await new SourceMap().extendSourceMap(
-          this.contentsSourceMap,
-          map
-        );
       }
     }
 

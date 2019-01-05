@@ -43,8 +43,10 @@ class SourceMap {
       map = map.toJSON();
     }
 
-    if (!(map instanceof SourceMap) && map.version) {
-      // JSON
+    if (
+      (!(map instanceof SourceMap) && map.version) ||
+      typeof map === 'string'
+    ) {
       let consumer = await this.getConsumer(map);
 
       consumer.eachMapping(mapping => {
@@ -63,7 +65,6 @@ class SourceMap {
       }
     } else {
       if (!map.eachMapping) {
-        // not a SourceMapConsumer
         map = new SourceMap(map.mappings, map.sources);
       }
 
