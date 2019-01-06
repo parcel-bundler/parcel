@@ -10,19 +10,11 @@ const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
 const PROTOCOL_RE = /^[a-z]+:/;
 
-async function sourceMapReplaceOrExtend(extension, base) {
-  if (base) {
-    return await new SourceMap().extendSourceMap(extension, base);
-  } else {
-    return await new SourceMap().addMap(extension);
-  }
-}
-
 class CSSAsset extends Asset {
   constructor(name, options) {
     super(name, options);
     this.type = 'css';
-    this.sourceMapFromPipeline = this.options.rendition
+    this.previousSourceMap = this.options.rendition
       ? this.options.rendition.map
       : null;
   }
@@ -109,8 +101,8 @@ class CSSAsset extends Asset {
   }
 
   async pretransform() {
-    if (this.options.sourceMaps) {
-      this.sourceMapExisting = await loadSourceMap(this);
+    if (this.options.sourceMaps && !this.previousSourceMap) {
+      this.previousSourceMap = await loadSourceMap(this);
     }
   }
 
@@ -180,12 +172,15 @@ class CSSAsset extends Asset {
         }
       }
 
-      if (this.sourceMapFromPipeline) {
-        map = await sourceMapReplaceOrExtend(this.sourceMapFromPipeline, map);
-      }
-
-      if (this.sourceMapExisting) {
-        map = await sourceMapReplaceOrExtend(this.sourceMapExisting, map);
+      if (this.previousSourceMap) {
+        if (map) {
+          map = await new SourceMap().extendSourceMap(
+            this.previousSourceMap,
+            map
+          );
+        } else {
+          map = await new SourceMap().addMap(this.previousSourceMap);
+        }
       }
 
       if (!map) {
