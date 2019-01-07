@@ -74,7 +74,6 @@ export default class BundlerRunner {
     // (e.g. WASM, HTML). These should be preloaded prior to the bundle being executed. Replace the entry asset(s)
     // with the preload module.
 
-    let loaders = new Set();
     let promises = [];
     bundleGraph.traverseBundles(bundle => {
       if (bundle.type !== 'js') {
@@ -82,47 +81,28 @@ export default class BundlerRunner {
       }
 
       bundle.assetGraph.traverse(node => {
-        if (node.type === 'bundle') {
-          console.log(node.value);
-          // console.log(await this.config.getLoader(node.value.filePath))
+        if (node.type === 'bundle_group') {
           promises.push(
             Promise.resolve().then(async () => {
-              let loader = await this.config.getLoader(
-                bundle.filePath,
-                node.value.filePath
-              );
-              // loaders.add(node.value.type);
-              let file = await loader.generate(bundle);
-              console.log(file);
-
-              let asset = await this.addRuntimeAsset(
-                bundleGraph,
-                bundle,
-                file.filePath
-              );
-              bundle.assetGraph.addEdge({from: node.id, to: asset.id});
-
-              node.value.loader = asset.id;
-            })
-          );
-        } else if (node.type === 'bundle_group') {
-          promises.push(
-            Promise.resolve().then(async () => {
-              // let runtime = await this.addRuntimeAsset(bundleGraph, bundle, __dirname + '/../../parcel-bundler/src/builtins/bundle-loader.js');
-
               let bundles = bundle.assetGraph
                 .getNodesConnectedFrom(node)
                 .map(node => node.value);
-              // let asset = new Asset({
-              //   filePath: 'test',
-              //   type: 'js',
-              //   output: {
-              //     code: `module.exports = require('${runtime.id}')(${JSON.stringify(bundles.map(b => [b.loader, path.basename(b.filePath)]).concat(node.value.entryAssetId))});`
-              //   },
-              //   env: node.value.dependency.env
-              // });
 
-              await new Promise(resolve => setTimeout(resolve, 100));
+              let loaders = await Promise.all(bundles.map(async b => {
+                 let loader = await this.config.getLoader(
+                  bundle.filePath,
+                  b.filePath
+                );
+                let file = await loader.generate(bundle);
+
+                let asset = await this.addRuntimeAsset(
+                  bundleGraph,
+                  bundle,
+                  file.filePath
+                );
+                bundle.assetGraph.addEdge({from: b.id, to: asset.id});
+                return asset;
+              }));
 
               let asset = await this.addRuntimeAsset(bundleGraph, bundle, {
                 filePath: this.rootDir + '/test.js',
@@ -133,7 +113,7 @@ export default class BundlerRunner {
                     '/../../parcel-bundler/src/builtins/bundle-loader.js'
                 )}')(${JSON.stringify(
                   bundles
-                    .map(b => [b.loader, path.basename(b.filePath)])
+                    .map((b, i) => [loaders[i].id, path.relative(path.dirname(bundle.filePath), b.filePath)])
                     .concat(node.value.entryAssetId)
                 )});`
               });
@@ -142,10 +122,7 @@ export default class BundlerRunner {
               // let res = await runtime.generate(node.value.dependency.env, bundles, node.value);
               // console.log(res);
 
-              // bundle.assetGraph.addNode({type: 'asset', id: asset.id, value: asset});
               bundle.assetGraph.addEdge({from: node.id, to: asset.id});
-              // bundle.assetGraph.addEdge({from: asset.id, to: runtime.id});
-
               bundle.assetGraph.dumpGraphViz();
             })
           );
@@ -153,7 +130,6 @@ export default class BundlerRunner {
       });
     });
 
-    console.log(loaders);
     await Promise.all(promises);
   }
 

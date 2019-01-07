@@ -83,12 +83,9 @@ export default class Config {
     fromBundlePath: FilePath,
     toBundlePath: FilePath
   ): Promise<Loader> {
-    let loaders: {[Glob]: PackageName} | null = this.matchGlobMap(
-      fromBundlePath,
-      this.config.loaders
-    );
+    let runtime: RuntimeConfig | null = this.getRuntime(fromBundlePath);
     let loader: PackageName | null =
-      loaders && this.matchGlobMap(toBundlePath, loaders);
+      runtime && this.matchGlobMap(toBundlePath, runtime.loaders);
     if (!loader) {
       throw new Error(`No loader found for "${toBundlePath}".`);
     }
