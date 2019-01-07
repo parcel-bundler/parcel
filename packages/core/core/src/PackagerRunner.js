@@ -3,8 +3,6 @@ import type Config from './Config';
 import {mkdirp, writeFile} from '@parcel/fs';
 import path from 'path';
 import type {Bundle, CLIOptions, Blob, FilePath} from '@parcel/types';
-import AssetGraph from './AssetGraph';
-import Asset from './Asset';
 
 type Opts = {
   config: Config,
@@ -14,7 +12,6 @@ type Opts = {
 export default class PackagerRunner {
   config: Config;
   cliOpts: CLIOptions;
-  cache: Cache;
   distDir: FilePath;
   distExists: Set<FilePath>;
 
