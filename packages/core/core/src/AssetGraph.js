@@ -75,7 +75,7 @@ type FileUpdates = {
 };
 
 type AssetGraphOpts = {
-  entries: Array<string>,
+  entries: Array<string | TransformerRequest>,
   targets: Array<Target>,
   rootDir: string
 };
@@ -104,16 +104,21 @@ export default class AssetGraph extends Graph {
 
     let depNodes = [];
     for (let entry of entries) {
-      for (let target of targets) {
-        let node = nodeFromDep(
-          new Dependency({
-            moduleSpecifier: entry,
-            target: target,
-            env: target.env,
-            isEntry: true
-          })
-        );
+      if (typeof entry === 'string') {
+        for (let target of targets) {
+          let node = nodeFromDep(
+            new Dependency({
+              moduleSpecifier: entry,
+              target: target,
+              env: target.env,
+              isEntry: true
+            })
+          );
 
+          depNodes.push(node);
+        }
+      } else {
+        let node = nodeFromTransformerRequest(entry);
         depNodes.push(node);
       }
     }
@@ -241,17 +246,17 @@ export default class AssetGraph extends Graph {
       return {};
     }
 
-    if (node.type === 'transformer_request') {
-      let assetNode = this.getNodesConnectedFrom(node).find(
-        node => node.type === 'asset' || node.type === 'asset_reference'
-      );
-      if (assetNode) {
-        return {asset: assetNode.value};
-      }
-    } else if (node.type === 'bundle_group') {
-      let bundles = this.getNodesConnectedFrom(node).filter(node => node.type === 'bundle').map(node => node.value);
-      return {bundles, bundleGroupId: node.id, runtime: node.value.runtime, entryAssetId: node.value.entryAssetId};
+    // if (node.type === 'transformer_request') {
+    let assetNode = this.getNodesConnectedFrom(node).find(
+      node => node.type === 'asset' || node.type === 'asset_reference'
+    );
+    if (assetNode) {
+      return {asset: assetNode.value};
     }
+    // } else if (node.type === 'bundle_group') {
+    //   let bundles = this.getNodesConnectedFrom(node).filter(node => node.type === 'bundle').map(node => node.value);
+    //   return {bundles, bundleGroupId: node.id, runtime: node.value.runtime, entryAssetId: node.value.entryAssetId};
+    // }
 
     return {};
   }

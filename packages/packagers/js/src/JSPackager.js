@@ -30,7 +30,7 @@ export default new Packager({
         if (resolved.bundles) {
           // deps[dep.moduleSpecifier] = resolved.bundles.map(b => [b.loader, path.basename(b.filePath)]);
           deps[dep.moduleSpecifier] = resolved.bundleGroupId;
-          writeBundleGroup(resolved.bundleGroupId, resolved.bundles, resolved.runtime, resolved.entryAssetId);
+          // writeBundleGroup(resolved.bundleGroupId, resolved.bundles, resolved.runtime, resolved.entryAssetId);
         } else if (resolved.asset) {
           deps[dep.moduleSpecifier] = resolved.asset.id;
         }
@@ -41,7 +41,9 @@ export default new Packager({
     });
 
     function writeBundleGroup(id, bundles, runtime, entry) {
-      let code = `module.exports = require('${runtime}')(${JSON.stringify(bundles.map(b => [b.loader, path.basename(b.filePath)]).concat(entry))});`;
+      let code = `module.exports = require('${runtime}')(${JSON.stringify(
+        bundles.map(b => [b.loader, path.basename(b.filePath)]).concat(entry)
+      )});`;
       writeModule(id, code, {});
     }
 

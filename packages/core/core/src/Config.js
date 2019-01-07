@@ -8,6 +8,7 @@ import type {
   Bundler,
   Namer,
   Loader,
+  RuntimeConfig,
   PackageName,
   Packager,
   Optimizer
@@ -60,13 +61,36 @@ export default class Config {
     return this.loadPlugins(this.config.namers);
   }
 
-  async getLoader(filePath: FilePath): Promise<Loader> {
-    let loader: PackageName | null = this.matchGlobMap(
+  getRuntime(filePath: FilePath): RuntimeConfig {
+    let runtime: RuntimeConfig | null = this.matchGlobMap(
       filePath,
+      this.config.runtime
+    );
+
+    if (!runtime) {
+      throw new Error(`No runtime found for "${filePath}`);
+    }
+
+    return runtime;
+  }
+
+  async getLoaderRuntime(filePath: FilePath) {
+    let runtime = this.getRuntime(filePath);
+    return await this.loadPlugin(runtime.loader);
+  }
+
+  async getLoader(
+    fromBundlePath: FilePath,
+    toBundlePath: FilePath
+  ): Promise<Loader> {
+    let loaders: {[Glob]: PackageName} | null = this.matchGlobMap(
+      fromBundlePath,
       this.config.loaders
     );
+    let loader: PackageName | null =
+      loaders && this.matchGlobMap(toBundlePath, loaders);
     if (!loader) {
-      throw new Error(`No loader found for "${filePath}".`);
+      throw new Error(`No loader found for "${toBundlePath}".`);
     }
 
     return await this.loadPlugin(loader);

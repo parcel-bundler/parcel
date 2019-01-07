@@ -25,11 +25,11 @@ export type ParcelConfig = {
   transforms: {
     [Glob]: Array<PackageName>
   },
-  loaders: {
-    [Glob]: PackageName
-  },
   bundler: PackageName,
   namers: Array<PackageName>,
+  runtimes: {
+    [Glob]: RuntimeConfig
+  },
   packagers: {
     [Glob]: PackageName
   },
@@ -37,6 +37,14 @@ export type ParcelConfig = {
     [Glob]: Array<PackageName>
   },
   reporters: Array<PackageName>
+};
+
+export type RuntimeConfig = {
+  hmr: PackageName,
+  loader: PackageName,
+  loaders: {
+    [Glob]: PackageName
+  }
 };
 
 export type Engines = {
@@ -150,7 +158,8 @@ export type File = {
 
 export type TransformerRequest = {
   filePath: FilePath,
-  env: Environment
+  env: Environment,
+  code?: string
 };
 
 export interface Asset {

@@ -33,7 +33,7 @@ class TransformerRunner {
   }
 
   async transform(req: TransformerRequest): Promise<CacheEntry> {
-    let code = await fs.readFile(req.filePath, 'utf8');
+    let code = req.code || (await fs.readFile(req.filePath, 'utf8'));
     let hash = md5(code);
 
     // If a cache entry matches, no need to transform.
