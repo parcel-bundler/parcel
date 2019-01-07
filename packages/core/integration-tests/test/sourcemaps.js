@@ -402,22 +402,24 @@ describe('sourcemaps', function() {
       let raw = (await fs.readFile(
         path.join(__dirname, '/dist/style.css')
       )).toString();
-      let map = (await fs.readFile(
-        path.join(__dirname, '/dist/style.css.map')
-      )).toString();
+      let map = JSON.parse(
+        (await fs.readFile(
+          path.join(__dirname, '/dist/style.css.map')
+        )).toString()
+      );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
+      assert(map.sourceRoot == '../integration/sourcemap-css');
 
-      assert(map.includes('background-color:'));
-
-      let sourceMap = await new SourceMap().addMap(JSON.parse(map));
+      let sourceMap = await new SourceMap().addMap(map);
+      assert.equal(sourceMap.sources['style.css'], input);
 
       checkSourceMapping({
         map: sourceMap,
         source: input,
         generated: raw,
         str: 'body',
-        sourcePath: '../integration/sourcemap-css/style.css',
+        sourcePath: 'style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -426,7 +428,7 @@ describe('sourcemaps', function() {
         source: input,
         generated: raw,
         str: 'background-color',
-        sourcePath: '../integration/sourcemap-css/style.css',
+        sourcePath: 'style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
     }
@@ -471,24 +473,26 @@ describe('sourcemaps', function() {
       let raw = (await fs.readFile(
         path.join(__dirname, '/dist/style.css')
       )).toString();
-      let map = (await fs.readFile(
-        path.join(__dirname, '/dist/style.css.map')
-      )).toString();
+      let map = JSON.parse(
+        (await fs.readFile(
+          path.join(__dirname, '/dist/style.css.map')
+        )).toString()
+      );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
+      assert(map.sourceRoot == '../integration/sourcemap-css-import');
 
-      assert(map.includes('background-color:'));
-      assert(map.includes('font-family:'));
-      assert(map.includes('width:'));
-
-      let sourceMap = await new SourceMap().addMap(JSON.parse(map));
+      let sourceMap = await new SourceMap().addMap(map);
+      assert.equal(sourceMap.sources['style.css'], style);
+      assert.equal(sourceMap.sources['other-style.css'], otherStyle);
+      assert.equal(sourceMap.sources['another-style.css'], anotherStyle);
 
       checkSourceMapping({
         map: sourceMap,
         source: style,
         generated: raw,
         str: 'body',
-        sourcePath: '../integration/sourcemap-css-import/style.css',
+        sourcePath: 'style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -497,7 +501,7 @@ describe('sourcemaps', function() {
         source: style,
         generated: raw,
         str: 'background-color',
-        sourcePath: '../integration/sourcemap-css-import/style.css',
+        sourcePath: 'style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -506,7 +510,7 @@ describe('sourcemaps', function() {
         source: otherStyle,
         generated: raw,
         str: 'div',
-        sourcePath: '../integration/sourcemap-css-import/other-style.css',
+        sourcePath: 'other-style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -515,7 +519,7 @@ describe('sourcemaps', function() {
         source: otherStyle,
         generated: raw,
         str: 'width',
-        sourcePath: '../integration/sourcemap-css-import/other-style.css',
+        sourcePath: 'other-style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -524,7 +528,7 @@ describe('sourcemaps', function() {
         source: anotherStyle,
         generated: raw,
         str: 'main',
-        sourcePath: '../integration/sourcemap-css-import/another-style.css',
+        sourcePath: 'another-style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -533,7 +537,7 @@ describe('sourcemaps', function() {
         source: anotherStyle,
         generated: raw,
         str: 'font-family',
-        sourcePath: '../integration/sourcemap-css-import/another-style.css',
+        sourcePath: 'another-style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
     }
@@ -566,22 +570,24 @@ describe('sourcemaps', function() {
       let raw = (await fs.readFile(
         path.join(__dirname, '/dist/style.css')
       )).toString();
-      let map = (await fs.readFile(
-        path.join(__dirname, '/dist/style.css.map')
-      )).toString();
+      let map = JSON.parse(
+        (await fs.readFile(
+          path.join(__dirname, '/dist/style.css.map')
+        )).toString()
+      );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
+      assert(map.sourceRoot == '../integration/sourcemap-sass');
 
-      assert(map.includes('$variable:'));
-
-      let sourceMap = await new SourceMap().addMap(JSON.parse(map));
+      let sourceMap = await new SourceMap().addMap(map);
+      assert.equal(sourceMap.sources['style.scss'], input);
 
       checkSourceMapping({
         map: sourceMap,
         source: input,
         generated: raw,
         str: 'body',
-        sourcePath: '../integration/sourcemap-sass/style.scss',
+        sourcePath: 'style.scss',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -590,7 +596,7 @@ describe('sourcemaps', function() {
         source: input,
         generated: raw,
         str: 'color',
-        sourcePath: '../integration/sourcemap-sass/style.scss',
+        sourcePath: 'style.scss',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
     }
@@ -626,23 +632,25 @@ describe('sourcemaps', function() {
       let raw = (await fs.readFile(
         path.join(__dirname, '/dist/style.css')
       )).toString();
-      let map = (await fs.readFile(
-        path.join(__dirname, '/dist/style.css.map')
-      )).toString();
+      let map = JSON.parse(
+        (await fs.readFile(
+          path.join(__dirname, '/dist/style.css.map')
+        )).toString()
+      );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
+      assert(map.sourceRoot == '../integration/sourcemap-sass-imported');
 
-      assert(map.includes('$variable:'));
-      assert(map.includes('color:'));
-
-      let sourceMap = await new SourceMap().addMap(JSON.parse(map));
+      let sourceMap = await new SourceMap().addMap(map);
+      assert.equal(sourceMap.sources['style.css'], style);
+      assert.equal(sourceMap.sources['other.scss'], other);
 
       checkSourceMapping({
         map: sourceMap,
         source: style,
         generated: raw,
         str: 'body',
-        sourcePath: '../integration/sourcemap-sass-imported/style.css',
+        sourcePath: 'style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -651,7 +659,7 @@ describe('sourcemaps', function() {
         source: style,
         generated: raw,
         str: 'color',
-        sourcePath: '../integration/sourcemap-sass-imported/style.css',
+        sourcePath: 'style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -660,7 +668,7 @@ describe('sourcemaps', function() {
         source: other,
         generated: raw,
         str: 'div',
-        sourcePath: '../integration/sourcemap-sass-imported/other.scss',
+        sourcePath: 'other.scss',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -669,7 +677,7 @@ describe('sourcemaps', function() {
         source: other,
         generated: raw,
         str: 'font-family',
-        sourcePath: '../integration/sourcemap-sass-imported/other.scss',
+        sourcePath: 'other.scss',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
     }
@@ -701,22 +709,24 @@ describe('sourcemaps', function() {
       let raw = (await fs.readFile(
         path.join(__dirname, '/dist/style.css')
       )).toString();
-      let map = (await fs.readFile(
-        path.join(__dirname, '/dist/style.css.map')
-      )).toString();
+      let map = JSON.parse(
+        (await fs.readFile(
+          path.join(__dirname, '/dist/style.css.map')
+        )).toString()
+      );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
+      assert(map.sourceRoot == '../integration/sourcemap-less');
 
-      assert(map.includes('@value:'));
-
-      let sourceMap = await new SourceMap().addMap(JSON.parse(map));
+      let sourceMap = await new SourceMap().addMap(map);
+      assert.equal(sourceMap.sources['style.less'], input);
 
       checkSourceMapping({
         map: sourceMap,
         source: input,
         generated: raw,
         str: 'div',
-        sourcePath: '../integration/sourcemap-less/style.less',
+        sourcePath: 'style.less',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -725,7 +735,7 @@ describe('sourcemaps', function() {
         source: input,
         generated: raw,
         str: 'width',
-        sourcePath: '../integration/sourcemap-less/style.less',
+        sourcePath: 'style.less',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
     }
@@ -763,23 +773,25 @@ describe('sourcemaps', function() {
       let raw = (await fs.readFile(
         path.join(__dirname, '/dist/style.css')
       )).toString();
-      let map = (await fs.readFile(
-        path.join(__dirname, '/dist/style.css.map')
-      )).toString();
+      let map = JSON.parse(
+        (await fs.readFile(
+          path.join(__dirname, '/dist/style.css.map')
+        )).toString()
+      );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
+      assert(map.sourceRoot == '../integration/sourcemap-css-existing');
 
-      assert(map.includes('$font-stack:'));
-      assert(map.includes('display:'));
-
-      let sourceMap = await new SourceMap().addMap(JSON.parse(map));
+      let sourceMap = await new SourceMap().addMap(map);
+      assert.equal(sourceMap.sources['style.css'], style);
+      assert.equal(sourceMap.sources['library.scss'], library);
 
       checkSourceMapping({
         map: sourceMap,
         source: style,
         generated: raw,
         str: 'main',
-        sourcePath: '../integration/sourcemap-css-existing/style.css',
+        sourcePath: 'style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -788,7 +800,7 @@ describe('sourcemaps', function() {
         source: style,
         generated: raw,
         str: 'display',
-        sourcePath: '../integration/sourcemap-css-existing/style.css',
+        sourcePath: 'style.css',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -797,7 +809,7 @@ describe('sourcemaps', function() {
         source: library,
         generated: raw,
         str: 'body',
-        sourcePath: '../integration/sourcemap-css-existing/library.scss',
+        sourcePath: 'library.scss',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -807,7 +819,7 @@ describe('sourcemaps', function() {
         generated: raw,
         str: 'div',
         generatedStr: 'body div',
-        sourcePath: '../integration/sourcemap-css-existing/library.scss',
+        sourcePath: 'library.scss',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -816,7 +828,7 @@ describe('sourcemaps', function() {
         source: library,
         generated: raw,
         str: 'background-color',
-        sourcePath: '../integration/sourcemap-css-existing/library.scss',
+        sourcePath: 'library.scss',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
     }

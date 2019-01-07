@@ -151,10 +151,13 @@ class CSSAsset extends Asset {
     let map;
     if (this.options.sourceMaps) {
       if (this.sourceMap) {
-        if (this.sourceMap instanceof SourceMap) {
-          map = this.sourceMap;
-        } else {
-          map = await new SourceMap().addMap(this.sourceMap);
+        map = this.sourceMap;
+        if (!(this.sourceMap instanceof SourceMap)) {
+          if (this.sourceMap.toJSON) {
+            map = this.sourceMap.toJSON();
+          }
+
+          map = await new SourceMap().addMap(map);
 
           if (this.sourceMap.toJSON) {
             // a SourceMapGenerator, PostCSS's sourcemaps contain invalid entries
