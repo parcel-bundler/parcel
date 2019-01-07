@@ -227,11 +227,12 @@ async function assertBundleTree(bundle, tree) {
 
   let childBundles = Array.isArray(tree) ? tree : tree.childBundles;
   if (childBundles) {
-    let children = Array.from(bundle.childBundles).sort((a, b) =>
-      Array.from(a.assets).sort()[0].basename <
-      Array.from(b.assets).sort()[0].basename
-        ? -1
-        : 1
+    let children = Array.from(bundle.childBundles).sort(
+      (a, b) =>
+        Array.from(a.assets).sort()[0].basename <
+        Array.from(b.assets).sort()[0].basename
+          ? -1
+          : 1
     );
     assert.equal(
       bundle.childBundles.size,
