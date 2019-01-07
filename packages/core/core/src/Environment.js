@@ -14,6 +14,7 @@ const BROWSER_ENVS = new Set([
 ]);
 const ELECTRON_ENVS = new Set(['electron-main', 'electron-renderer']);
 const NODE_ENVS = new Set(['node', ...ELECTRON_ENVS]);
+const ISOLATED_ENVS = new Set(['web-worker', 'service-worker']);
 
 export default class Environment implements IEnvironment {
   context: EnvironmentContext;
@@ -43,5 +44,9 @@ export default class Environment implements IEnvironment {
 
   isElectron() {
     return ELECTRON_ENVS.has(this.context);
+  }
+
+  isIsolated() {
+    return ISOLATED_ENVS.has(this.context);
   }
 }

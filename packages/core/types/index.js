@@ -73,6 +73,7 @@ export interface Environment {
   isBrowser(): boolean;
   isNode(): boolean;
   isElectron(): boolean;
+  isIsolated(): boolean;
 }
 
 type PackageDependencies = {
