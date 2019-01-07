@@ -182,6 +182,10 @@ export class CacheReference {
   constructor(filePath: FilePath) {
     this.filePath = filePath;
   }
+
+  static deserialize(value: {filePath: FilePath}) {
+    return new CacheReference(value.filePath);
+  }
 }
 
 export default new Cache();

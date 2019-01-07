@@ -8,8 +8,15 @@ function serialize(object) {
     }
 
     // Add a $$type property with the export specifier for this class, if any.
-    if (value && typeof value.constructor === 'function' && value.constructor.__exportSpecifier) {
-      serialized = Object.assign({$$type: value.constructor.__exportSpecifier}, serialized);
+    if (
+      value &&
+      typeof value.constructor === 'function' &&
+      value.constructor.__exportSpecifier
+    ) {
+      serialized = Object.assign(
+        {$$type: value.constructor.__exportSpecifier},
+        serialized
+      );
     }
 
     return serialized;
@@ -22,6 +29,10 @@ function deserialize(string) {
     if (value && value.$$type) {
       let Type = resolveType(value.$$type);
       delete value.$$type;
+      if (typeof Type.deserialize === 'function') {
+        return Type.deserialize(value);
+      }
+
       return new Type(value);
     }
 
