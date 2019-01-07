@@ -15,7 +15,7 @@ function serialize(object) {
     ) {
       serialized = {
         $$type: value.constructor.__exportSpecifier,
-        value: serialized
+        value: Object.assign({}, serialized)
       };
     }
 
