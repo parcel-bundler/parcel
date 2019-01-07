@@ -13,10 +13,10 @@ function serialize(object) {
       typeof value.constructor === 'function' &&
       value.constructor.__exportSpecifier
     ) {
-      serialized = Object.assign(
-        {$$type: value.constructor.__exportSpecifier},
-        serialized
-      );
+      serialized = {
+        $$type: value.constructor.__exportSpecifier,
+        value: serialized
+      };
     }
 
     return serialized;
@@ -28,12 +28,11 @@ function deserialize(string) {
     // If the value has a $$type property, use it to restore the object type
     if (value && value.$$type) {
       let Type = resolveType(value.$$type);
-      delete value.$$type;
       if (typeof Type.deserialize === 'function') {
-        return Type.deserialize(value);
+        return Type.deserialize(value.value);
       }
 
-      return new Type(value);
+      return new Type(value.value);
     }
 
     return value;
