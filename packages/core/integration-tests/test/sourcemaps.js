@@ -767,7 +767,7 @@ describe('sourcemaps', function() {
       let library = (await fs.readFile(
         path.join(
           __dirname,
-          '/integration/sourcemap-css-existing/library.raw.scss'
+          '/integration/sourcemap-css-existing/test/library.raw.scss'
         )
       )).toString();
       let raw = (await fs.readFile(
@@ -784,7 +784,7 @@ describe('sourcemaps', function() {
 
       let sourceMap = await new SourceMap().addMap(map);
       assert.equal(sourceMap.sources['style.css'], style);
-      assert.equal(sourceMap.sources['library.scss'], library);
+      assert.equal(sourceMap.sources['test/library.scss'], library);
 
       checkSourceMapping({
         map: sourceMap,
@@ -809,7 +809,7 @@ describe('sourcemaps', function() {
         source: library,
         generated: raw,
         str: 'body',
-        sourcePath: 'library.scss',
+        sourcePath: 'test/library.scss',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -819,7 +819,7 @@ describe('sourcemaps', function() {
         generated: raw,
         str: 'div',
         generatedStr: 'body div',
-        sourcePath: 'library.scss',
+        sourcePath: 'test/library.scss',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -828,7 +828,7 @@ describe('sourcemaps', function() {
         source: library,
         generated: raw,
         str: 'background-color',
-        sourcePath: 'library.scss',
+        sourcePath: 'test/library.scss',
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
     }

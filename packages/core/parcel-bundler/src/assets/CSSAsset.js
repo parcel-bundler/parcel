@@ -5,6 +5,7 @@ const postcssTransform = require('../transforms/postcss');
 const CssSyntaxError = require('postcss/lib/css-syntax-error');
 const SourceMap = require('../SourceMap');
 const loadSourceMap = require('../utils/loadSourceMap');
+const path = require('path');
 
 const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
@@ -176,6 +177,13 @@ class CSSAsset extends Asset {
       }
 
       if (this.previousSourceMap) {
+        this.previousSourceMap.sources = this.previousSourceMap.sources.map(v =>
+          path.join(
+            path.dirname(this.relativeName),
+            this.previousSourceMap.sourceRoot || '',
+            v
+          )
+        );
         if (map) {
           map = await new SourceMap().extendSourceMap(
             this.previousSourceMap,
