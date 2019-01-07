@@ -10,6 +10,7 @@ const Module = require('module');
 const {promisify} = require('@parcel/utils');
 const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
+const {sleep} = require('@parcel/test-utils');
 
 const chalk = new (require('chalk')).constructor({enabled: true});
 const warning = chalk.keyword('orange');
@@ -35,9 +36,10 @@ console.warn = (...args) => {
 //   }
 // }
 
-// beforeEach(async function() {
-//   await removeDistDirectory();
-// });
+beforeEach(async function() {
+  await sleep(250);
+  //   await removeDistDirectory();
+});
 
 function bundler(entries, opts) {
   return new Parcel(
