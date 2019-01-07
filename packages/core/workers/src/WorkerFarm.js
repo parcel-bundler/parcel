@@ -62,9 +62,7 @@ class WorkerFarm extends EventEmitter {
 
   shouldStartRemoteWorkers() {
     return (
-      this.options.maxConcurrentWorkers > 1 ||
-      process.env.NODE_ENV === 'test' ||
-      !this.options.useLocalWorker
+      this.options.maxConcurrentWorkers > 0 || !this.options.useLocalWorker
     );
   }
 
@@ -233,7 +231,7 @@ class WorkerFarm extends EventEmitter {
   }
 
   startMaxWorkers() {
-    // Starts workers untill the maximum is reached
+    // Starts workers until the maximum is reached
     if (this.workers.size < this.options.maxConcurrentWorkers) {
       for (
         let i = 0;
@@ -248,14 +246,19 @@ class WorkerFarm extends EventEmitter {
   shouldUseRemoteWorkers() {
     return (
       !this.options.useLocalWorker ||
-      (this.warmWorkers >= this.workers.size || !this.options.warmWorkers)
+      ((this.warmWorkers >= this.workers.size || !this.options.warmWorkers) &&
+        this.options.maxConcurrentWorkers > 0)
     );
   }
 
   static async getShared(options, farmOptions) {
     // Farm options shouldn't be considered safe to overwrite
     // and require an entire new instance to be created
-    if (shared && farmOptions) {
+    if (
+      shared &&
+      farmOptions &&
+      farmOptions.workerPath !== shared.options.workerPath
+    ) {
       await shared.end();
       shared = null;
     }
@@ -263,6 +266,7 @@ class WorkerFarm extends EventEmitter {
     if (!shared) {
       shared = new WorkerFarm(options, farmOptions);
     } else if (options) {
+      Object.assign(shared.options, farmOptions);
       shared.init(options);
     }
 

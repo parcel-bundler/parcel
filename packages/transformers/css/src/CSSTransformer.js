@@ -43,11 +43,12 @@ export default new Transformer({
   },
 
   transform(asset) {
-    if (!asset.ast) {
+    let ast = asset.ast;
+    if (!ast) {
       return [asset];
     }
 
-    asset.ast.program.walkAtRules('import', rule => {
+    ast.program.walkAtRules('import', rule => {
       let params = valueParser(rule.params);
       let [name, ...media] = params.nodes;
       let moduleSpecifier;
@@ -87,10 +88,10 @@ export default new Transformer({
       rule.remove();
       // }
 
-      asset.ast.isDirty = true;
+      ast.isDirty = true;
     });
 
-    asset.ast.program.walkDecls(decl => {
+    ast.program.walkDecls(decl => {
       if (URL_RE.test(decl.value)) {
         let parsed = valueParser(decl.value);
         let isDirty = false;
@@ -111,7 +112,7 @@ export default new Transformer({
 
         if (isDirty) {
           decl.value = parsed.toString();
-          asset.ast.isDirty = true;
+          ast.isDirty = true;
         }
       }
     });
@@ -121,7 +122,7 @@ export default new Transformer({
 
   generate(asset) {
     let code;
-    if (!asset.ast.isDirty) {
+    if (!asset.ast || !asset.ast.isDirty) {
       code = asset.code;
     } else {
       code = '';

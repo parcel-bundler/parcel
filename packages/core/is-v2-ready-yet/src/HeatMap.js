@@ -8,7 +8,7 @@ export default class HeatMap extends React.Component {
   render() {
     let {testData, onMouseOver, onMouseOut} = this.props;
     let items = testData.tests.map((test, i) => {
-      let {fileName, link, status, title} = test;
+      let {link, status} = test;
       return (
         <a
           key={i}

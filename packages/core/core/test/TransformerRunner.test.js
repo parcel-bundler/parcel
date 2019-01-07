@@ -1,7 +1,4 @@
 // @flow
-'use strict';
-import assert from 'assert';
-
 import TransformerRunner from '../src/TransformerRunner';
 import Config from '../src/Config';
 
@@ -26,7 +23,7 @@ describe('TransformerRunner', function() {
     };
 
     let result = await runner.transform(dummyAsset);
-    console.log(JSON.stringify(result, null, 2));
+    console.log(JSON.stringify(result, null, 2)); // eslint-disable-line no-console
   });
 
   it.skip('should transform some shitty typescript', async function() {
@@ -36,6 +33,6 @@ describe('TransformerRunner', function() {
     };
 
     let result = await runner.transform(dummyAsset);
-    console.log(result);
+    console.log(result); // eslint-disable-line no-console
   });
 });

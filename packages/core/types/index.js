@@ -72,7 +72,7 @@ export type PackageJSON = {
   version: Semver,
   main?: FilePath,
   module?: FilePath,
-  browser?: FilePath | {[FilePath]: FilePath},
+  browser?: FilePath | {[FilePath]: FilePath | boolean},
   source?: FilePath | {[FilePath]: FilePath},
   alias?: {
     [PackageName | FilePath | Glob]: PackageName | FilePath
@@ -90,7 +90,9 @@ export type PackageJSON = {
 export type CLIOptions = {
   cacheDir?: FilePath,
   watch?: boolean,
-  distDir?: FilePath
+  distDir?: FilePath,
+  production?: boolean,
+  cache?: boolean
 };
 
 export type SourceLocation = {
@@ -99,18 +101,22 @@ export type SourceLocation = {
   end: {line: number, column: number}
 };
 
+type Meta = {[string]: any};
 export type DependencyOptions = {
   moduleSpecifier: ModuleSpecifier,
   isAsync?: boolean,
   isEntry?: boolean,
   isOptional?: boolean,
+  isURL?: boolean,
   loc?: SourceLocation,
   env?: Environment,
-  meta?: JSONObject,
+  meta?: Meta,
   target?: Target
 };
 
-export type Dependency = DependencyOptions & {
+export type Dependency = {
+  ...DependencyOptions,
+  moduleSpecifier: ModuleSpecifier,
   id: string,
   env: Environment,
 
@@ -142,7 +148,7 @@ export interface Asset {
   outputSize: number;
   outputHash: string;
   env: Environment;
-  meta: JSONObject;
+  meta: Meta;
 
   getConfig(
     filePaths: Array<FilePath>,
@@ -151,7 +157,7 @@ export interface Asset {
   getPackage(): Promise<PackageJSON | null>;
   addDependency(dep: DependencyOptions): string;
   createChildAsset(result: TransformerResult): Asset;
-  getOutput(): AssetOutput;
+  getOutput(): Promise<AssetOutput>;
 }
 
 export type AssetOutput = {
@@ -164,7 +170,7 @@ export type AST = {
   type: string,
   version: string,
   program: any,
-  isDirty: boolean
+  isDirty?: boolean
 };
 
 export type Config = any;
@@ -179,7 +185,7 @@ export type TransformerResult = {
   connectedFiles?: Array<File>,
   output?: AssetOutput,
   env?: Environment,
-  meta?: JSONObject
+  meta?: Meta
 };
 
 type Async<T> = T | Promise<T>;
@@ -224,7 +230,7 @@ export type GraphTraversalCallback<T> = (
   traversal: TraversalContext
 ) => any;
 
-interface Graph {
+export interface Graph {
   merge(graph: Graph): void;
 }
 
@@ -293,7 +299,7 @@ export type Resolver = {
     dependency: Dependency,
     opts: CLIOptions,
     rootDir: string
-  ): FilePath | null
+  ): Async<FilePath | null>
 };
 
 export type Reporter = {

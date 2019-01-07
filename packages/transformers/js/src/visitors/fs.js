@@ -39,7 +39,7 @@ export default {
         if (err instanceof NodeNotEvaluatedError) {
           // Warn using a code frame
           err.fileName = asset.filePath;
-          asset.generateErrorMessage(err);
+          // asset.generateErrorMessage(err);
           logger.warn(err);
           return;
         }

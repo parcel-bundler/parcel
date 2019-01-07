@@ -29,12 +29,13 @@ export default new Transformer({
     return [asset];
   },
 
-  generate(asset, config, options) {
-    let opts = {
-      sourceMaps: options.sourceMaps,
-      sourceFileName: this.relativeName
-    };
+  generate(asset /*, config, options*/) {
+    // let opts = {
+    //   sourceMaps: options.sourceMaps,
+    //   sourceFileName: this.relativeName
+    // };
 
+    // $FlowFixMe: figure out how to make AST required in generate method
     let {code, map} = generate(asset.ast.program);
 
     return {

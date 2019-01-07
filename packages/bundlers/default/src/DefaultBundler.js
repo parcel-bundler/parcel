@@ -1,7 +1,6 @@
 // @flow
 import type {Dependency, BundleGroup, Bundle} from '@parcel/types';
 import {Bundler} from '@parcel/plugin';
-import path from 'path';
 
 const ISOLATED_ENVS = new Set(['web-worker', 'service-worker']);
 const OPTIONS = {
@@ -26,6 +25,7 @@ export default new Bundler({
     // 6. If two assets are always seen together, put them in the same extracted bundle.
 
     // Step 1: create bundles for each of the explicit code split points.
+    // $FlowFixMe
     assetGraph.traverse((node, context: ?Context) => {
       if (node.type === 'dependency') {
         let dep: Dependency = node.value;
@@ -150,10 +150,10 @@ export default new Bundler({
       }
     }
 
-    bundleGraph.dumpGraphViz();
+    // bundleGraph.dumpGraphViz();
 
-    bundleGraph.traverseBundles(bundle => {
-      bundle.assetGraph.dumpGraphViz();
-    });
+    // bundleGraph.traverseBundles(bundle => {
+    //   bundle.assetGraph.dumpGraphViz();
+    // });
   }
 });

@@ -4,8 +4,6 @@ jobs:
       vmImage: ${{ parameters.vmImage }}
     strategy:
       matrix:
-        node_6_x:
-          node_version: 6.x
         node_8_x:
           node_version: 8.x
         node_10_x:
@@ -44,14 +42,16 @@ jobs:
         displayName: 'Type check with Flow'
       - script: yarn lint
         displayName: 'Lint'
-    - task: PublishTestResults@2
-      displayName: 'Publish Test Results'
-      inputs:
-        testResultsFiles: '**/junit-*.xml'
-        testRunTitle: TestRun ${{ parameters.name }} $(node_version)
-    - task: PublishCodeCoverageResults@1
-      displayName: 'Publish code coverage results'
-      inputs: 
-        codeCoverageTool: 'cobertura'
-        summaryFileLocation: '**/coverage/cobertura-coverage.xml'
-        reportDirectory: '**/parcel-bundler/coverage'
+      - task: PublishTestResults@2
+        displayName: 'Publish Test Results'
+        condition: succeededOrFailed()
+        inputs:
+          testResultsFiles: '**/junit-*.xml'
+          testRunTitle: TestRun ${{ parameters.name }} $(node_version)
+      - task: PublishCodeCoverageResults@1
+        displayName: 'Publish code coverage results'
+        condition: succeededOrFailed()
+        inputs: 
+          codeCoverageTool: 'cobertura'
+          summaryFileLocation: '**/coverage/cobertura-coverage.xml'
+          reportDirectory: '**/parcel-bundler/coverage'
