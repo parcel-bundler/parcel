@@ -45,7 +45,7 @@
     "deasync": "^0.1.14",
     "dotenv": "^5.0.0",
     "dotenv-expand": "^4.2.0",
-    "fast-glob": "^2.2.2",
+    "fast-glob": "2.2.4",
     "filesize": "^3.6.0",
     "get-port": "^3.2.0",
     "htmlnano": "^0.2.2",
