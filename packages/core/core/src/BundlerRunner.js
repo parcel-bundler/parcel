@@ -4,7 +4,8 @@ import type {
   Namer,
   Bundle,
   FilePath,
-  CLIOptions
+  CLIOptions,
+  TransformerRequest
 } from '@parcel/types';
 import type Config from './Config';
 import BundleGraph from './BundleGraph';
@@ -67,75 +68,27 @@ export default class BundlerRunner {
   }
 
   async addLoaders(bundleGraph: BundleGraph) {
-    // Dependency ids in code replaced with referenced bundle names
-    // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
-    // and which are not loaded by a parent bundle.
-    // Loaders also added for modules that were moved to a separate bundle because they are a different type
-    // (e.g. WASM, HTML). These should be preloaded prior to the bundle being executed. Replace the entry asset(s)
-    // with the preload module.
-
     let promises = [];
     bundleGraph.traverseBundles(bundle => {
-      if (bundle.type !== 'js') {
-        return;
-      }
-
-      bundle.assetGraph.traverse(node => {
-        if (node.type === 'bundle_group') {
-          promises.push(
-            Promise.resolve().then(async () => {
-              let bundles = bundle.assetGraph
-                .getNodesConnectedFrom(node)
-                .map(node => node.value);
-
-              let loaders = await Promise.all(bundles.map(async b => {
-                 let loader = await this.config.getLoader(
-                  bundle.filePath,
-                  b.filePath
-                );
-                let file = await loader.generate(bundle);
-
-                let asset = await this.addRuntimeAsset(
-                  bundleGraph,
-                  bundle,
-                  file.filePath
-                );
-                bundle.assetGraph.addEdge({from: b.id, to: asset.id});
-                return asset;
-              }));
-
-              let asset = await this.addRuntimeAsset(bundleGraph, bundle, {
-                filePath: this.rootDir + '/test.js',
-                env: node.value.dependency.env,
-                code: `module.exports = require('${path.relative(
-                  this.rootDir,
-                  __dirname +
-                    '/../../parcel-bundler/src/builtins/bundle-loader.js'
-                )}')(${JSON.stringify(
-                  bundles
-                    .map((b, i) => [loaders[i].id, path.relative(path.dirname(bundle.filePath), b.filePath)])
-                    .concat(node.value.entryAssetId)
-                )});`
-              });
-
-              // let runtime = await this.config.getLoaderRuntime(bundle.filePath);
-              // let res = await runtime.generate(node.value.dependency.env, bundles, node.value);
-              // console.log(res);
-
-              bundle.assetGraph.addEdge({from: node.id, to: asset.id});
-              bundle.assetGraph.dumpGraphViz();
-            })
-          );
-        }
-      });
+      promises.push(this.applyRuntimes(bundle));
     });
 
     await Promise.all(promises);
   }
 
+  async applyRuntimes(bundle: Bundle) {
+    // HACK. TODO: move this into some sort of asset graph proxy
+    bundle.assetGraph.addRuntimeAsset = this.addRuntimeAsset.bind(this, bundle);
+
+    let runtimes = await this.config.getRuntimes(bundle.env.context);
+    for (let runtime of runtimes) {
+      await runtime.apply(bundle, this.cliOpts);
+    }
+  }
+
   async addRuntimeAsset(
-    bundleGraph: BundleGraph,
     bundle: Bundle,
+    node: {id: string},
     file: TransformerRequest
   ) {
     let builder = new AssetGraphBuilder({
@@ -151,6 +104,7 @@ export default class BundlerRunner {
     let entry = graph.getEntryAssets()[0];
     let subGraph = graph.getSubGraph(graph.getNode(entry.id));
     bundle.assetGraph.merge(subGraph);
+    bundle.assetGraph.addEdge({from: node.id, to: entry.id});
     return entry;
   }
 }

@@ -28,7 +28,7 @@ export type ParcelConfig = {
   bundler: PackageName,
   namers: Array<PackageName>,
   runtimes: {
-    [Glob]: RuntimeConfig
+    [EnvironmentContext]: Array<PackageName>
   },
   packagers: {
     [Glob]: PackageName
@@ -37,14 +37,6 @@ export type ParcelConfig = {
     [Glob]: Array<PackageName>
   },
   reporters: Array<PackageName>
-};
-
-export type RuntimeConfig = {
-  hmr: PackageName,
-  loader: PackageName,
-  loaders: {
-    [Glob]: PackageName
-  }
 };
 
 export type Engines = {
@@ -287,6 +279,7 @@ export type Bundle = {
   id: string,
   type: string,
   assetGraph: AssetGraph,
+  env: Environment,
   isEntry?: boolean,
   target?: Target,
   filePath?: FilePath
@@ -314,8 +307,8 @@ export type Namer = {
   name(bundle: Bundle, opts: CLIOptions): Async<?FilePath>
 };
 
-export type Loader = {
-  generate(bundle: Bundle, opts: CLIOptions): Async<File>
+export type Runtime = {
+  apply(bundle: Bundle, opts: CLIOptions): Async<void>
 };
 
 export type Packager = {

@@ -5,7 +5,7 @@ import type {
   Resolver as ResolverOpts,
   Bundler as BundlerOpts,
   Namer as NamerOpts,
-  Loader as LoaderOpts,
+  Runtime as RuntimeOpts,
   Packager as PackagerOpts,
   Optimizer as OptimizerOpts,
   Reporter as ReporterOpts
@@ -41,8 +41,8 @@ export class Namer {
   }
 }
 
-export class Loader {
-  constructor(opts: LoaderOpts) {
+export class Runtime {
+  constructor(opts: RuntimeOpts) {
     // $FlowFixMe
     this[CONFIG] = opts;
   }

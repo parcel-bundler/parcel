@@ -9,15 +9,9 @@
     "*.css": ["@parcel/transformer-css"]
   },
   "namers": ["@parcel/namer-default"],
-  "runtime": {
-    "*.js": {
-      "hmr": "@parcel/runtime-js-hmr",
-      "loader": "@parcel/runtime-loader-js",
-      "loaders": {
-        "*.js": "@parcel/loader-js",
-        "*.css": "@parcel/loader-js-css"
-      }
-    }
+  "runtimes": {
+    "browser": ["@parcel/runtime-web"],
+    "node": ["@parcel/runtime-node"]
   },
   "packagers": {
     "*.js": "@parcel/packager-js"

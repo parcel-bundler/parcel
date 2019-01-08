@@ -167,20 +167,21 @@ describe('javascript', function() {
   it.only('should split bundles when a dynamic import is used a browser environment', async function() {
     let b = await bundle(path.join(__dirname, '/integration/dynamic/index.js'));
 
-    // await assertBundles(b, [
-    //   {
-    //     name: 'index.js',
-    //     assets: [
-    //       'index.js',
-    //       'bundle-loader.js',
-    //       'bundle-url.js',
-    //       'js-loader.js'
-    //     ]
-    //   },
-    //   {
-    //     assets: ['local.js']
-    //   }
-    // ]);
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-loader.js',
+          'bundle-url.js',
+          'js-loader.js',
+          'WebRuntime.js'
+        ]
+      },
+      {
+        assets: ['local.js']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
