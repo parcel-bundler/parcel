@@ -362,6 +362,28 @@ describe('resolver', function() {
       assert.equal(resolved.pkg.name, 'package-browser-alias');
     });
 
+    it('should alias a deep nested relative file using the package.browser field', async function() {
+      let resolved = await resolver.resolve(
+        './nested',
+        path.join(
+          rootDir,
+          'node_modules',
+          'package-browser-alias',
+          'browser.js'
+        )
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules',
+          'package-browser-alias',
+          'subfolder1/subfolder2/subfile.js'
+        )
+      );
+      assert.equal(resolved.pkg.name, 'package-browser-alias');
+    });
+
     it('should alias a sub-file using the package.alias field', async function() {
       let resolved = await resolver.resolve(
         'package-alias/foo',

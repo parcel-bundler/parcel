@@ -802,7 +802,7 @@ describe('javascript', function() {
     assert.deepEqual(output(), {
       dir: path.join(__dirname, '/integration/globals'),
       file: path.join(__dirname, '/integration/globals/index.js'),
-      buf: new Buffer('browser').toString('base64'),
+      buf: Buffer.from('browser').toString('base64'),
       global: true
     });
   });
