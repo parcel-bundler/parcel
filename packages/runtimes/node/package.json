@@ -1,0 +1,16 @@
+{
+  "name": "@parcel/runtime-node",
+  "version": "2.0.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "src/NodeRuntime",
+  "dependencies": {
+    "@parcel/plugin": "^2.0.0"
+  },
+  "devDependencies": {
+    "@parcel/eslint-config": "1.10.3"
+  }
+}

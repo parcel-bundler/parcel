@@ -188,31 +188,26 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
-  it.skip('should split bundles when a dynamic import is used with --target=node', async function() {
+  it.only('should split bundles when a dynamic import is used with a node environment', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/dynamic/index.js'),
-      {
-        target: 'node'
-      }
+      path.join(__dirname, '/integration/dynamic-node/index.js')
     );
 
-    await assertBundles(b, {
-      name: 'index.js',
-      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          assets: ['local.js'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-loader.js',
+          'bundle-url.js',
+          'js-loader.js',
+          'NodeRuntime.js'
+        ]
+      },
+      {
+        assets: ['local.js']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
