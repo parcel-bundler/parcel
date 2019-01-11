@@ -402,28 +402,26 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
-  it.skip('should return all exports as an object when using ES modules', async function() {
+  it.only('should return all exports as an object when using ES modules', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-esm/index.js')
     );
 
-    await assertBundles(b, {
-      name: 'index.js',
-      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          assets: ['local.js'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-loader.js',
+          'bundle-url.js',
+          'js-loader.js',
+          'JSRuntime.js'
+        ]
+      },
+      {
+        assets: ['local.js']
+      }
+    ]);
 
     let output = (await run(b)).default;
     assert.equal(typeof output, 'function');
@@ -460,34 +458,27 @@ describe('javascript', function() {
     assert.equal(await output(), 7);
   });
 
-  it.skip('should not duplicate a module which is already in a parent bundle', async function() {
+  it.only('should not duplicate a module which is already in a parent bundle', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-hoist-dup/index.js')
     );
 
-    await assertBundles(b, {
-      name: 'index.js',
-      assets: [
-        'index.js',
-        'common.js',
-        'bundle-loader.js',
-        'bundle-url.js',
-        'js-loader.js'
-      ],
-      childBundles: [
-        {
-          assets: ['a.js'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        },
-        {
-          type: 'map'
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'common.js',
+          'bundle-loader.js',
+          'bundle-url.js',
+          'js-loader.js',
+          'JSRuntime.js'
+        ]
+      },
+      {
+        assets: ['a.js']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
