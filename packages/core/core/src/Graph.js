@@ -169,7 +169,8 @@ export default class Graph implements IGraph {
 
     for (let edge of this.edges) {
       if (edge.to === fromNode.id) {
-        edge.to = toNode.id;
+        this.addEdge({from: edge.from, to: toNode.id});
+        this.edges.delete(edge);
       }
     }
 
