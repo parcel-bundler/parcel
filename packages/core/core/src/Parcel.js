@@ -90,10 +90,7 @@ export default class Parcel {
     this.targets = [];
   }
 
-  async run() {
-    let controller = new AbortController();
-    let signal = controller.signal;
-
+  async init() {
     Cache.createCacheDir(this.options.cliOpts.cacheDir);
 
     if (!this.options.env) {
@@ -114,6 +111,13 @@ export default class Parcel {
 
     this.runTransform = this.farm.mkhandle('runTransform');
     this.runPackage = this.farm.mkhandle('runPackage');
+  }
+
+  async run() {
+    let controller = new AbortController();
+    let signal = controller.signal;
+
+    await this.init();
 
     this.targets = await this.targetResolver.resolve(this.rootDir);
     this.graph.initializeGraph({
