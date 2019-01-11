@@ -518,30 +518,31 @@ describe('javascript', function() {
     assert.equal(await output(), 5);
   });
 
-  it.skip('should support hoisting shared modules with async imports up multiple levels', async function() {
+  it('should support shared modules with async imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-hoist-deep/index.js')
     );
 
     await assertBundles(b, [
       {
-        assets: ['1.js']
-      },
-      {
-        assets: ['a.js']
-      },
-      {
-        assets: ['b.js']
-      },
-      {
         name: 'index.js',
         assets: [
           'index.js',
-          'c.js',
           'bundle-loader.js',
           'bundle-url.js',
-          'js-loader.js'
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js'
         ]
+      },
+      {
+        assets: ['a.js', 'c.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['b.js', 'c.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['1.js']
       }
     ]);
 

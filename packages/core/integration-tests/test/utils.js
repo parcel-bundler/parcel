@@ -229,7 +229,7 @@ async function assertBundles(bundleGraph, bundles) {
       assets.push(path.basename(asset.filePath));
     });
 
-    assets.sort();
+    assets.sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1));
     actualBundles.push({
       name: path.basename(bundle.filePath),
       type: bundle.type,
@@ -238,7 +238,7 @@ async function assertBundles(bundleGraph, bundles) {
   });
 
   for (let bundle of bundles) {
-    bundle.assets.sort();
+    bundle.assets.sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1));
   }
 
   bundles.sort((a, b) => (a.assets[0] < b.assets[0] ? -1 : 1));
@@ -261,7 +261,7 @@ async function assertBundles(bundleGraph, bundles) {
     }
 
     if (bundle.assets) {
-      assert.deepEqual(actualBundle.assets, bundle.assets.sort());
+      assert.deepEqual(actualBundle.assets, bundle.assets);
     }
 
     // assert(await fs.exists(bundle.filePath), 'expected file does not exist');
