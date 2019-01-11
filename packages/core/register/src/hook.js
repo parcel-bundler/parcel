@@ -7,8 +7,6 @@ import Parcel, {Asset, createDependency} from '@parcel/core';
 import Cache from '@parcel/cache';
 import syncPromise from '@parcel/utils/lib/syncPromise';
 
-import {addHook} from 'pirates';
-
 let revert = null;
 const originalRequire = Module.prototype.require;
 const DEFAULT_CLI_OPTS = {
@@ -42,15 +40,6 @@ function fileHandler({opts, parcel, cache, environment}) {
   return (...args) => syncPromise(fileProcessor(...args));
 }
 
-function matcher(filename) {
-  let isInMonorepo =
-    filename.includes('parcel/packages') && !filename.includes('core/register');
-  if (filename.includes('@parcel') || isInMonorepo) {
-    return false;
-  }
-  return true;
-}
-
 export default function register(opts = DEFAULT_CLI_OPTS) {
   // Replace old hook, as this one likely contains options.
   if (revert) {
@@ -73,7 +62,10 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
 
   Module.prototype.require = function(filePath, ...args) {
     // Figure this out...
-    /*if (!this.filename.includes('node_modules') && !filePath.includes('@parcel')) {
+    if (
+      !this.filename.includes('node_modules') &&
+      !filePath.includes('@parcel')
+    ) {
       let dep = createDependency(
         {
           moduleSpecifier: filePath
@@ -82,16 +74,11 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
       );
 
       let resolved = syncPromise(parcel.resolverRunner.resolve(dep));
-    }*/
+      console.log(resolved);
+    }
 
     return originalRequire.bind(this)(filePath, ...args);
   };
-
-  // Register the hook
-  revert = addHook(fileHandler({opts, parcel, cache, environment}), {
-    matcher,
-    ignoreNodeModules: true
-  });
 }
 
 // Hook into require, this will be overwritten whenever it is called again or explicitly called with opts

@@ -9,7 +9,6 @@
     "run-example": "node ./example/index.js"
   },
   "dependencies": {
-    "@parcel/core": "^2.0.0",
-    "pirates": "^4.0.0"
+    "@parcel/core": "^2.0.0"
   }
 }
