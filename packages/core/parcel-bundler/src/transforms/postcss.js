@@ -14,7 +14,7 @@ module.exports = async function(asset) {
 
   asset.ast.css = res.css;
   asset.ast.dirty = false;
-  asset.sourceMap = res.map;
+  asset.sourceMap = res.map ? res.map.toJSON() : null;
 };
 
 async function getConfig(asset) {

@@ -149,31 +149,9 @@ class CSSAsset extends Asset {
         'module.exports = ' + JSON.stringify(this.cssModules, null, 2) + ';';
     }
 
-    let map;
     if (this.options.sourceMaps) {
       if (this.sourceMap) {
-        map = this.sourceMap;
-        if (!(this.sourceMap instanceof SourceMap)) {
-          if (this.sourceMap.toJSON) {
-            map = this.sourceMap.toJSON();
-          }
-
-          map = await new SourceMap().addMap(map);
-
-          if (this.sourceMap.toJSON) {
-            // a SourceMapGenerator, PostCSS's sourcemaps contain invalid entries
-            let sourceLines = {};
-            for (let [path, content] of Object.entries(map.sources)) {
-              sourceLines[path] = content.split('\n');
-            }
-
-            map.mappings = map.mappings.filter(
-              ({source, original: {line, column}}) =>
-                line - 1 < sourceLines[source].length &&
-                column < sourceLines[source][line - 1].length
-            );
-          }
-        }
+        this.sourceMap = await new SourceMap().addMap(this.sourceMap);
       }
 
       if (this.previousSourceMap) {
@@ -184,18 +162,19 @@ class CSSAsset extends Asset {
             v
           )
         );
-        if (map) {
-          map = await new SourceMap().extendSourceMap(
+        if (this.sourceMap) {
+          this.sourceMap = await new SourceMap().extendSourceMap(
             this.previousSourceMap,
-            map
+            this.sourceMap
           );
         } else {
-          map = await new SourceMap().addMap(this.previousSourceMap);
+          this.sourceMap = await new SourceMap().addMap(this.previousSourceMap);
         }
-      }
-
-      if (!map) {
-        map = new SourceMap().generateEmptyMap(this.relativeName, css);
+      } else if (!this.sourceMap) {
+        this.sourceMap = new SourceMap().generateEmptyMap(
+          this.relativeName,
+          css
+        );
       }
     }
 
@@ -212,7 +191,7 @@ class CSSAsset extends Asset {
       },
       {
         type: 'map',
-        value: map
+        value: this.sourceMap
       }
     ];
   }
@@ -261,7 +240,7 @@ class CSSAst {
 
       return {
         css: this.css,
-        map
+        map: map ? map.toJSON() : null
       };
     }
 
