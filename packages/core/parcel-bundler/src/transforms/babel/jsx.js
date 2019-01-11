@@ -13,6 +13,26 @@ const JSX_PRAGMA = {
 };
 
 /**
+ * Solves a use case where people use JSX in .js files
+ */
+function isUsingJSXinJS(asset) {
+  // matches import * as React from 'react' and alike
+  const es6Candidate = /from\s+[`"'](react|preact|nervjs|hyperapp)[`"']/;
+  // matches const React = require('react') and alike
+  const commonJSCandidate = /require\([`"'](react|preact|nervjs|hyperapp)[`"']\)/;
+
+  if (asset.contents.match(es6Candidate)) {
+    return true;
+  }
+
+  if (asset.contents.match(commonJSCandidate)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Generates a babel config for JSX. Attempts to detect react or react-like libraries
  * and changes the pragma accordingly.
  */
@@ -37,7 +57,11 @@ async function getJSXConfig(asset, isSourceModule) {
     }
   }
 
-  if (pragma || JSX_EXTENSIONS[path.extname(asset.name)]) {
+  if (
+    pragma ||
+    JSX_EXTENSIONS[path.extname(asset.name)] ||
+    isUsingJSXinJS(asset)
+  ) {
     return {
       internal: true,
       babelVersion: 7,
