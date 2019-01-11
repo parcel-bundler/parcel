@@ -41,7 +41,11 @@ export default new Runtime({
     for (let bundleGroup of bundleGroups) {
       let bundles = bundle.assetGraph
         .getNodesConnectedFrom(bundleGroup)
-        .map(node => node.value);
+        .map(node => node.value)
+        .sort(
+          (a, b) =>
+            a.assetGraph.hasNode(bundleGroup.value.entryAssetId) ? 1 : -1
+        );
 
       let loaderModules = bundles.map(b => {
         let loader = loaders[b.type];

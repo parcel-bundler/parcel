@@ -65,6 +65,14 @@ class TransformerRunner {
       cacheEntry
     );
 
+    // If the transformer request passed code rather than a filename,
+    // use a hash as the id to ensure it is unique.
+    if (req.code) {
+      for (let asset of assets) {
+        asset.id = asset.outputHash;
+      }
+    }
+
     cacheEntry = {
       filePath: req.filePath,
       env: req.env,
