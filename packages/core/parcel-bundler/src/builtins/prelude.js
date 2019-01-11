@@ -77,8 +77,16 @@ parcelRequire = (function (modules, cache, entry, globalName) {
     }, {}];
   };
 
+  var error;
   for (var i = 0; i < entry.length; i++) {
-    newRequire(entry[i]);
+    try{
+      newRequire(entry[i]);
+    } catch(e){
+      // Save first error but execute all entries
+      if(!error){
+        error = e;
+      }
+    }
   }
 
   if (entry.length) {
@@ -103,5 +111,12 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   // Override the current require with this new one
+  parcelRequire = newRequire;
+
+  if(error){
+    // throw error from earlier, _after updating parcelRequire_
+    throw error;
+  }
+
   return newRequire;
 })
