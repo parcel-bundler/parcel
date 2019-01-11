@@ -18,8 +18,6 @@ import path from 'path';
 import md5 from '@parcel/utils/lib/md5';
 import createDependency from './createDependency';
 
-let BUNDLECOUNT = 0;
-
 export const nodeFromRootDir = (rootDir: string) => ({
   id: rootDir,
   type: 'root',
@@ -95,7 +93,7 @@ export default class AssetGraph extends Graph {
   incompleteNodes: Map<NodeId, Node>;
   invalidNodes: Map<NodeId, Node>;
 
-  constructor(opts) {
+  constructor(opts: any) {
     super(opts);
     this.incompleteNodes = new Map();
     this.invalidNodes = new Map();
@@ -109,14 +107,12 @@ export default class AssetGraph extends Graph {
     for (let entry of entries) {
       for (let target of targets) {
         let node = nodeFromDep(
-          createDependency(
-            {
-              moduleSpecifier: entry,
-              env: target.env,
-              isEntry: true
-            },
-            path.resolve(rootDir, 'index')
-          )
+          createDependency({
+            moduleSpecifier: entry,
+            target: target,
+            env: target.env,
+            isEntry: true
+          })
         );
 
         depNodes.push(node);
@@ -129,7 +125,7 @@ export default class AssetGraph extends Graph {
     }
   }
 
-  removeNode(node: Node) {
+  removeNode(node: Node): this {
     this.incompleteNodes.delete(node.id);
     return super.removeNode(node);
   }
@@ -242,6 +238,10 @@ export default class AssetGraph extends Graph {
     }
 
     let node = this.getNodesConnectedFrom(depNode)[0];
+    if (!node) {
+      return {};
+    }
+
     if (node.type === 'transformer_request') {
       let assetNode = this.getNodesConnectedFrom(node).find(
         node => node.type === 'asset' || node.type === 'asset_reference'
@@ -282,8 +282,7 @@ export default class AssetGraph extends Graph {
     return {
       id: 'bundle:' + asset.id,
       type: asset.type,
-      assetGraph: graph,
-      filePath: 'bundle.' + BUNDLECOUNT++ + '.js'
+      assetGraph: graph
     };
   }
 
@@ -298,9 +297,12 @@ export default class AssetGraph extends Graph {
   }
 
   getEntryAssets(): Array<Asset> {
-    return this.getNodesConnectedFrom(this.getRootNode()).map(
-      node => node.value
-    );
+    let root = this.getRootNode();
+    if (!root) {
+      return [];
+    }
+
+    return this.getNodesConnectedFrom(root).map(node => node.value);
   }
 
   removeAsset(asset: Asset) {
@@ -395,13 +397,9 @@ export default class AssetGraph extends Graph {
 
 function getEnvDescription(env: Environment) {
   let description = '';
-  if (
-    env.context === 'browser' ||
-    env.context === 'web-worker' ||
-    env.context === 'service-worker'
-  ) {
+  if (env.engines.browsers) {
     description = `${env.context}: ${env.engines.browsers.join(', ')}`;
-  } else if (env.context === 'node') {
+  } else if (env.engines.node) {
     description = `node: ${env.engines.node}`;
   }
 

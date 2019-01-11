@@ -1,8 +1,12 @@
 // @flow
-import type {Asset} from '@parcel/types';
+import type {Asset, AST} from '@parcel/types';
 import localRequire from '@parcel/utils/lib/localRequire';
+import localRequire from '@parcel/utils/localRequire';
 
-export default async function babel7(asset: Asset, options) {
+export default async function babel7(
+  asset: Asset,
+  options: any
+): Promise<?AST> {
   let config = options.config;
 
   // If this is an internally generated config, use our internal @babel/core,
@@ -34,6 +38,10 @@ export default async function babel7(asset: Asset, options) {
   }
 
   if (res.ast) {
-    return res.ast;
+    return {
+      type: 'babel',
+      version: '7.0.0',
+      program: res.ast
+    };
   }
 }

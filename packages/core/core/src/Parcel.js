@@ -10,7 +10,6 @@ import type {
   BundleGraph,
   CLIOptions,
   Dependency,
-  File,
   Target,
   TransformerRequest
 } from '@parcel/types';
@@ -19,6 +18,10 @@ import BundlerRunner from './BundlerRunner';
 import Config from './Config';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
+import getRootDir from '@parcel/utils/getRootDir';
+import loadEnv from './loadEnv';
+import path from 'path';
+import Cache from '@parcel/cache';
 
 // TODO: use custom config if present
 const defaultConfig = require('@parcel/config-default');
@@ -26,9 +29,11 @@ const defaultConfig = require('@parcel/config-default');
 const abortError = new Error('Build aborted');
 
 type ParcelOpts = {
-  entries: Array<string>,
+  entries: string | Array<string>,
   cwd?: string,
-  cliOpts: CLIOptions
+  cliOpts: CLIOptions,
+  killWorkers?: boolean,
+  env?: {[string]: ?string}
 };
 
 type Signal = {
@@ -42,6 +47,7 @@ type BuildOpts = {
 };
 
 export default class Parcel {
+  options: ParcelOpts;
   entries: Array<string>;
   rootDir: string;
   graph: AssetGraph;
@@ -55,9 +61,11 @@ export default class Parcel {
   runTransform: (file: TransformerRequest) => Promise<any>;
   runPackage: (bundle: Bundle) => Promise<any>;
 
-  constructor({entries, cliOpts = {}}: ParcelOpts) {
-    this.entries = entries;
-    this.rootDir = process.cwd();
+  constructor(options: ParcelOpts) {
+    let {entries, cliOpts} = options;
+    this.options = options;
+    this.entries = Array.isArray(entries) ? entries : [entries];
+    this.rootDir = getRootDir(this.entries);
 
     this.graph = new AssetGraph();
     this.watcher = cliOpts.watch ? new Watcher() : null;
@@ -74,28 +82,38 @@ export default class Parcel {
     });
     this.bundlerRunner = new BundlerRunner({
       config,
-      cliOpts
+      cliOpts,
+      rootDir: this.rootDir
     });
-    this.farm = new WorkerFarm(
+
+    this.targetResolver = new TargetResolver();
+    this.targets = [];
+  }
+
+  async run() {
+    let controller = new AbortController();
+    let signal = controller.signal;
+
+    Cache.createCacheDir(this.options.cliOpts.cacheDir);
+
+    if (!this.options.env) {
+      await loadEnv(path.join(this.rootDir, 'index'));
+      this.options.env = process.env;
+    }
+
+    this.farm = await WorkerFarm.getShared(
       {
         parcelConfig: defaultConfig,
-        cliOpts
+        cliOpts: this.options.cliOpts,
+        env: this.options.env
       },
       {
         workerPath: require.resolve('./worker')
       }
     );
 
-    this.targetResolver = new TargetResolver();
-    this.targets = [];
-
     this.runTransform = this.farm.mkhandle('runTransform');
     this.runPackage = this.farm.mkhandle('runPackage');
-  }
-
-  async run() {
-    let controller = new AbortController();
-    let signal = controller.signal;
 
     this.targets = await this.targetResolver.resolve(this.rootDir);
     this.graph.initializeGraph({
@@ -120,23 +138,24 @@ export default class Parcel {
       });
     }
 
-    await buildPromise;
+    return await buildPromise;
   }
 
   async build({signal}: BuildOpts) {
     try {
-      console.log('Starting build'); // eslint-disable-line no-console
+      // console.log('Starting build'); // eslint-disable-line no-console
       await this.updateGraph({signal});
       await this.completeGraph({signal});
-      await this.graph.dumpGraphViz();
+      // await this.graph.dumpGraphViz();
       let bundleGraph = await this.bundle();
       await this.package(bundleGraph);
 
-      if (!this.watcher) {
+      if (!this.watcher && this.options.killWorkers !== false) {
         await this.farm.end();
       }
 
-      console.log('Finished build'); // eslint-disable-line no-console
+      // console.log('Finished build'); // eslint-disable-line no-console
+      return bundleGraph;
     } catch (e) {
       if (e !== abortError) {
         console.error(e); // eslint-disable-line no-console
@@ -173,9 +192,20 @@ export default class Parcel {
   }
 
   async resolve(dep: Dependency, {signal}: BuildOpts) {
-    let resolvedPath = await this.resolverRunner.resolve(dep);
+    let resolvedPath;
+    try {
+      resolvedPath = await this.resolverRunner.resolve(dep);
+    } catch (err) {
+      if (err.code === 'MODULE_NOT_FOUND' && dep.isOptional) {
+        return;
+      }
 
-    if (signal.aborted) throw abortError;
+      throw err;
+    }
+
+    if (signal.aborted) {
+      throw abortError;
+    }
 
     let req = {filePath: resolvedPath, env: dep.env};
     dep.resolvedPath = resolvedPath;

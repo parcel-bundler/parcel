@@ -56,7 +56,7 @@ export default class App extends React.Component {
     this.setState({tooltipData: {left, top, content, status, flip}});
   };
 
-  handleMouseOut = event => {
+  handleMouseOut = () => {
     this.setState({tooltipData: null});
   };
 

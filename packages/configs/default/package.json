@@ -8,8 +8,10 @@
   },
   "dependencies": {
     "@parcel/bundler-default": "^2.0.0",
+    "@parcel/namer-default": "^2.0.0",
     "@parcel/packager-js": "^2.0.0",
     "@parcel/transformer-babel": "^2.0.0",
+    "@parcel/transformer-css": "^2.0.0",
     "@parcel/transformer-js": "^2.0.0",
     "@parcel/transformer-terser": "^2.0.0"
   }

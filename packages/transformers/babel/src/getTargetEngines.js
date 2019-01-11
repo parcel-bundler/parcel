@@ -47,9 +47,10 @@ export default async function getTargetEngines(asset: Asset) {
       typeof targets.browsers === 'object' &&
       !Array.isArray(targets.browsers)
     ) {
-      let env = asset.options.production
-        ? 'production'
-        : process.env.NODE_ENV || 'development';
+      // let env = asset.options.production
+      //   ? 'production'
+      //   : process.env.NODE_ENV || 'development';
+      let env = process.env.NODE_ENV || 'development';
       targets.browsers = targets.browsers[env] || targets.browsers.defaults;
     }
 

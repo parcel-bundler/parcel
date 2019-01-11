@@ -40,7 +40,11 @@ class TransformerRunner {
     let hash = md5(code);
 
     // If a cache entry matches, no need to transform.
-    let cacheEntry = await this.cache.read(req.filePath, req.env);
+    let cacheEntry;
+    if (this.cliOpts.cache !== false) {
+      cacheEntry = await this.cache.read(req.filePath, req.env);
+    }
+
     if (
       cacheEntry &&
       cacheEntry.hash === hash &&
@@ -171,6 +175,7 @@ class TransformerRunner {
       previousGenerate
     ) {
       let output = await previousGenerate(input);
+      input.output = output;
       input.code = output.code;
       input.ast = null;
     }
@@ -213,6 +218,7 @@ class TransformerRunner {
       return null;
     };
 
+    // $FlowFixMe
     return {results, generate, postProcess};
   }
 }
@@ -224,6 +230,7 @@ async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
 
   asset.ast = null;
   asset.code = '';
+  asset.outputHash = md5(asset.output.code);
 
   return asset;
 }

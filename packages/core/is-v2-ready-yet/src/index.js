@@ -1,6 +1,5 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import fs from 'fs';
 import App from './App';
 import testData from '@parcel/integration-tests/data/lastTestRun';
 import testHistory from '@parcel/integration-tests/data/testHistory';

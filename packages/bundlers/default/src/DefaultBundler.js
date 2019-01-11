@@ -1,4 +1,5 @@
 // @flow
+import type {Dependency, BundleGroup, Bundle} from '@parcel/types';
 import {Bundler} from '@parcel/plugin';
 
 const ISOLATED_ENVS = new Set(['web-worker', 'service-worker']);
@@ -6,6 +7,11 @@ const OPTIONS = {
   minBundles: 1,
   minBundleSize: 30000,
   maxParallelRequests: 5
+};
+
+type Context = {
+  bundleGroup: BundleGroup,
+  bundle: Bundle
 };
 
 export default new Bundler({
@@ -19,25 +25,39 @@ export default new Bundler({
     // 6. If two assets are always seen together, put them in the same extracted bundle.
 
     // Step 1: create bundles for each of the explicit code split points.
-    assetGraph.traverse((node, context) => {
+    // $FlowFixMe
+    assetGraph.traverse((node, context: ?Context) => {
       if (node.type === 'dependency') {
-        let dep = node.value;
+        let dep: Dependency = node.value;
 
         // Start a new bundle if this is an async dependency, or entry point.
         if (dep.isAsync || dep.isEntry) {
-          let isIsolated =
-            !context || dep.isEntry || ISOLATED_ENVS.has(dep.env.context);
-          let bundleGroup = {dependency: dep};
+          let isIsolated = dep.isEntry || ISOLATED_ENVS.has(dep.env.context);
+          let bundleGroup: BundleGroup = {
+            dependency: dep,
+            target: dep.target || (context && context.bundleGroup.target)
+          };
+
           bundleGraph.addBundleGroup(
-            isIsolated ? null : context.bundle,
+            isIsolated || !context ? null : context.bundle,
             bundleGroup
           );
 
           return {bundleGroup};
         }
       } else if (node.type === 'asset') {
-        if (!context.bundle || node.value.type !== context.bundle.type) {
+        if (
+          context &&
+          (!context.bundle || node.value.type !== context.bundle.type)
+        ) {
           let bundle = assetGraph.createBundle(node.value);
+          let dep = context.bundleGroup.dependency;
+
+          // Mark bundle as an entry, and set explicit file path from target if the dependency has one
+          bundle.isEntry = dep.isEntry;
+          if (dep.target && dep.target.distPath) {
+            bundle.filePath = dep.target.distPath;
+          }
 
           // If there is a current bundle, but this asset is of a different type,
           // separate it out into a parallel bundle in the same bundle group.
@@ -130,10 +150,10 @@ export default new Bundler({
       }
     }
 
-    bundleGraph.dumpGraphViz();
+    // bundleGraph.dumpGraphViz();
 
-    bundleGraph.traverseBundles(bundle => {
-      bundle.assetGraph.dumpGraphViz();
-    });
+    // bundleGraph.traverseBundles(bundle => {
+    //   bundle.assetGraph.dumpGraphViz();
+    // });
   }
 });

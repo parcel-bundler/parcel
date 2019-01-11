@@ -28,7 +28,7 @@ function ReadyYetReporter(runner) {
     tests.push(importantData(test, 'passing'));
   });
 
-  runner.on('fail', function(test, err) {
+  runner.on('fail', function(test) {
     tests.push(importantData(test, 'failing'));
   });
 

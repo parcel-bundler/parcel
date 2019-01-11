@@ -1,4 +1,4 @@
-const Bundler = require('parcel-bundler');
+const Parcel = require('@parcel/core');
 const assert = require('assert');
 const vm = require('vm');
 const fs = require('@parcel/fs');
@@ -8,9 +8,9 @@ const WebSocket = require('ws');
 const Module = require('module');
 
 const {promisify} = require('@parcel/utils');
-const {sleep} = require('@parcel/test-utils');
 const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
+const {sleep} = require('@parcel/test-utils');
 
 const chalk = new (require('chalk')).constructor({enabled: true});
 const warning = chalk.keyword('orange');
@@ -20,45 +20,59 @@ console.warn = (...args) => {
   console.error(warning(...args));
 };
 
-async function removeDistDirectory(count = 0) {
-  try {
-    await rimraf(path.join(__dirname, 'dist'));
-  } catch (e) {
-    if (count > 8) {
-      // eslint-disable-next-line no-console
-      console.warn('WARNING: Unable to remove dist directory:', e.message);
-      return;
-    }
+// async function removeDistDirectory(count = 0) {
+//   try {
+//     await rimraf('.parcel-cache');
+//     await rimraf('dist');
+//   } catch (e) {
+//     if (count > 8) {
+//       // eslint-disable-next-line no-console
+//       console.warn('WARNING: Unable to remove dist directory:', e.message);
+//       return;
+//     }
 
-    await sleep(250);
-    await removeDistDirectory(count + 1);
-  }
-}
+//     await sleep(250);
+//     await removeDistDirectory(count + 1);
+//   }
+// }
 
 beforeEach(async function() {
-  await removeDistDirectory();
+  await sleep(250);
+  //   await removeDistDirectory();
 });
 
-function bundler(file, opts) {
-  return new Bundler(
-    file,
+function bundler(entries, opts) {
+  return new Parcel(
     Object.assign(
       {
-        outDir: path.join(__dirname, 'dist'),
-        watch: false,
-        cache: false,
-        killWorkers: false,
-        hmr: false,
-        logLevel: 0,
-        throwErrors: true
+        entries,
+        cliOpts: {
+          cache: false
+        },
+        killWorkers: false
       },
       opts
     )
   );
+  // return new Parcel(
+  //   file,
+  //   Object.assign(
+  //     {
+  //       outDir: path.join(__dirname, 'dist'),
+  //       watch: false,
+  //       cache: false,
+  //       killWorkers: false,
+  //       hmr: false,
+  //       logLevel: 0,
+  //       throwErrors: true
+  //     },
+  //     opts
+  //   )
+  // );
 }
 
-function bundle(file, opts) {
-  return bundler(file, opts).bundle();
+function bundle(entries, opts) {
+  return bundler(entries, opts).run();
 }
 
 function prepareBrowserContext(bundle, globals) {
@@ -80,7 +94,7 @@ function prepareBrowserContext(bundle, globals) {
               if (el.tag === 'script') {
                 vm.runInContext(
                   nodeFS.readFileSync(
-                    path.join(path.dirname(bundle.name), el.src)
+                    path.join(path.dirname(bundle.filePath), el.src)
                   ),
                   ctx
                 );
@@ -118,14 +132,16 @@ function prepareBrowserContext(bundle, globals) {
           arrayBuffer() {
             return Promise.resolve(
               new Uint8Array(
-                nodeFS.readFileSync(path.join(path.dirname(bundle.name), url))
+                nodeFS.readFileSync(
+                  path.join(path.dirname(bundle.filePath), url)
+                )
               ).buffer
             );
           },
           text() {
             return Promise.resolve(
               nodeFS.readFileSync(
-                path.join(path.dirname(bundle.name), url),
+                path.join(path.dirname(bundle.filePath), url),
                 'utf8'
               )
             );
@@ -141,15 +157,15 @@ function prepareBrowserContext(bundle, globals) {
 }
 
 function prepareNodeContext(bundle, globals) {
-  var mod = new Module(bundle.name);
-  mod.paths = [path.dirname(bundle.name) + '/node_modules'];
+  var mod = new Module(bundle.filePath);
+  mod.paths = [path.dirname(bundle.filePath) + '/node_modules'];
 
   var ctx = Object.assign(
     {
       module: mod,
       exports: module.exports,
-      __filename: bundle.name,
-      __dirname: path.dirname(bundle.name),
+      __filename: bundle.filePath,
+      __dirname: path.dirname(bundle.filePath),
       require: function(path) {
         return mod.require(path);
       },
@@ -165,9 +181,15 @@ function prepareNodeContext(bundle, globals) {
   return ctx;
 }
 
-async function run(bundle, globals, opts = {}) {
+async function run(bundleGraph, globals, opts = {}) {
+  let bundle = Array.from(bundleGraph.nodes.values()).find(
+    node => node.type === 'bundle' && node.value.isEntry
+  ).value;
+  let entryAsset = bundle.assetGraph.getEntryAssets()[0];
+  let target = entryAsset.env.context;
+
   var ctx;
-  switch (bundle.entryAsset.options.target) {
+  switch (target) {
     case 'browser':
       ctx = prepareBrowserContext(bundle, globals);
       break;
@@ -183,11 +205,11 @@ async function run(bundle, globals, opts = {}) {
   }
 
   vm.createContext(ctx);
-  vm.runInContext(await fs.readFile(bundle.name), ctx);
+  vm.runInContext(await fs.readFile(bundle.filePath), ctx);
 
   if (opts.require !== false) {
     if (ctx.parcelRequire) {
-      return ctx.parcelRequire(bundle.entryAsset.id);
+      return ctx.parcelRequire(entryAsset.id);
     } else if (ctx.output) {
       return ctx.output;
     }
@@ -199,53 +221,50 @@ async function run(bundle, globals, opts = {}) {
   return ctx;
 }
 
-async function assertBundleTree(bundle, tree) {
-  if (tree.name) {
-    assert.equal(
-      path.basename(bundle.name),
-      tree.name,
-      'bundle names mismatched'
-    );
+async function assertBundles(bundleGraph, bundles) {
+  let actualBundles = [];
+  bundleGraph.traverseBundles(bundle => {
+    let assets = [];
+    bundle.assetGraph.traverseAssets(asset => {
+      assets.push(path.basename(asset.filePath));
+    });
+
+    assets.sort();
+    actualBundles.push({
+      name: path.basename(bundle.filePath),
+      type: bundle.type,
+      assets
+    });
+  });
+
+  for (let bundle of bundles) {
+    bundle.assets.sort();
   }
 
-  if (tree.type) {
-    assert.equal(
-      bundle.type.toLowerCase(),
-      tree.type.toLowerCase(),
-      'bundle types mismatched'
-    );
-  }
+  bundles.sort((a, b) => (a.assets[0] < b.assets[0] ? -1 : 1));
+  actualBundles.sort((a, b) => (a.assets[0] < b.assets[0] ? -1 : 1));
+  assert.equal(
+    actualBundles.length,
+    bundles.length,
+    'expected number of bundles mismatched'
+  );
 
-  if (tree.assets) {
-    assert.deepEqual(
-      Array.from(bundle.assets)
-        .map(a => a.basename)
-        .sort(),
-      tree.assets.sort()
-    );
-  }
+  let i = 0;
+  for (let bundle of bundles) {
+    let actualBundle = actualBundles[i++];
+    if (bundle.name) {
+      assert.equal(actualBundle.name, bundle.name);
+    }
 
-  let childBundles = Array.isArray(tree) ? tree : tree.childBundles;
-  if (childBundles) {
-    let children = Array.from(bundle.childBundles).sort(
-      (a, b) =>
-        Array.from(a.assets).sort()[0].basename <
-        Array.from(b.assets).sort()[0].basename
-          ? -1
-          : 1
-    );
-    assert.equal(
-      bundle.childBundles.size,
-      childBundles.length,
-      'expected number of child bundles mismatched'
-    );
-    await Promise.all(
-      childBundles.map((b, i) => assertBundleTree(children[i], b))
-    );
-  }
+    if (bundle.type) {
+      assert.equal(actualBundle.type, bundle.type);
+    }
 
-  if (/js|css/.test(bundle.type)) {
-    assert(await fs.exists(bundle.name), 'expected file does not exist');
+    if (bundle.assets) {
+      assert.deepEqual(actualBundle.assets, bundle.assets.sort());
+    }
+
+    // assert(await fs.exists(bundle.filePath), 'expected file does not exist');
   }
 }
 
@@ -275,7 +294,7 @@ function normaliseNewlines(text) {
 exports.bundler = bundler;
 exports.bundle = bundle;
 exports.run = run;
-exports.assertBundleTree = assertBundleTree;
+exports.assertBundles = assertBundles;
 exports.nextBundle = nextBundle;
 exports.deferred = deferred;
 exports.rimraf = rimraf;

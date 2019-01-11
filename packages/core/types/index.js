@@ -46,12 +46,19 @@ export type Engines = {
 };
 
 export type Target = {
-  distPath: FilePath,
+  name: string,
+  distPath?: FilePath,
   env: Environment
 };
 
+export type EnvironmentContext =
+  | 'browser'
+  | 'web-worker'
+  | 'service-worker'
+  | 'node'
+  | 'electron';
 export type Environment = {
-  context: 'browser' | 'web-worker' | 'service-worker' | 'node' | 'electron',
+  context: EnvironmentContext,
   engines: Engines,
   includeNodeModules?: boolean
 };
@@ -65,7 +72,7 @@ export type PackageJSON = {
   version: Semver,
   main?: FilePath,
   module?: FilePath,
-  browser?: FilePath | {[FilePath]: FilePath},
+  browser?: FilePath | {[FilePath]: FilePath | boolean},
   source?: FilePath | {[FilePath]: FilePath},
   alias?: {
     [PackageName | FilePath | Glob]: PackageName | FilePath
@@ -83,7 +90,9 @@ export type PackageJSON = {
 export type CLIOptions = {
   cacheDir?: FilePath,
   watch?: boolean,
-  distDir?: FilePath
+  distDir?: FilePath,
+  production?: boolean,
+  cache?: boolean
 };
 
 export type SourceLocation = {
@@ -92,17 +101,22 @@ export type SourceLocation = {
   end: {line: number, column: number}
 };
 
+type Meta = {[string]: any};
 export type DependencyOptions = {
   moduleSpecifier: ModuleSpecifier,
   isAsync?: boolean,
   isEntry?: boolean,
   isOptional?: boolean,
+  isURL?: boolean,
   loc?: SourceLocation,
   env?: Environment,
-  meta?: JSONObject
+  meta?: Meta,
+  target?: Target
 };
 
-export type Dependency = DependencyOptions & {
+export type Dependency = {
+  ...DependencyOptions,
+  moduleSpecifier: ModuleSpecifier,
   id: string,
   env: Environment,
 
@@ -131,8 +145,10 @@ export interface Asset {
   dependencies: Array<Dependency>;
   connectedFiles: Array<File>;
   output: AssetOutput;
+  outputSize: number;
+  outputHash: string;
   env: Environment;
-  meta: JSONObject;
+  meta: Meta;
 
   getConfig(
     filePaths: Array<FilePath>,
@@ -141,7 +157,7 @@ export interface Asset {
   getPackage(): Promise<PackageJSON | null>;
   addDependency(dep: DependencyOptions): string;
   createChildAsset(result: TransformerResult): Asset;
-  getOutput(): AssetOutput;
+  getOutput(): Promise<AssetOutput>;
 }
 
 export type AssetOutput = {
@@ -153,7 +169,8 @@ export type AssetOutput = {
 export type AST = {
   type: string,
   version: string,
-  program: any
+  program: any,
+  isDirty?: boolean
 };
 
 export type Config = any;
@@ -168,7 +185,7 @@ export type TransformerResult = {
   connectedFiles?: Array<File>,
   output?: AssetOutput,
   env?: Environment,
-  meta?: JSONObject
+  meta?: Meta
 };
 
 type Async<T> = T | Promise<T>;
@@ -213,7 +230,7 @@ export type GraphTraversalCallback<T> = (
   traversal: TraversalContext
 ) => any;
 
-interface Graph {
+export interface Graph {
   merge(graph: Graph): void;
 }
 
@@ -223,7 +240,7 @@ export type DependencyResolution = {
 };
 
 // TODO: what do we want to expose here?
-interface AssetGraph extends Graph {
+export interface AssetGraph extends Graph {
   traverseAssets(visit: GraphTraversalCallback<Asset>): any;
   createBundle(asset: Asset): Bundle;
   getTotalSize(asset?: Asset): number;
@@ -234,13 +251,16 @@ interface AssetGraph extends Graph {
 }
 
 export type BundleGroup = {
-  dependency: Dependency
+  dependency: Dependency,
+  target: ?Target
 };
 
 export type Bundle = {
   id: string,
   type: string,
   assetGraph: AssetGraph,
+  isEntry?: boolean,
+  target?: Target,
   filePath?: FilePath
 };
 
@@ -255,11 +275,15 @@ export interface BundleGraph {
 }
 
 export type Bundler = {
-  bundle(graph: AssetGraph, bundleGraph: BundleGraph, opts: CLIOptions): void
+  bundle(
+    graph: AssetGraph,
+    bundleGraph: BundleGraph,
+    opts: CLIOptions
+  ): Async<void>
 };
 
 export type Namer = {
-  name(bundle: Bundle, opts: CLIOptions): Async<FilePath>
+  name(bundle: Bundle, opts: CLIOptions): Async<?FilePath>
 };
 
 export type Packager = {
@@ -275,7 +299,7 @@ export type Resolver = {
     dependency: Dependency,
     opts: CLIOptions,
     rootDir: string
-  ): FilePath | null
+  ): Async<FilePath | null>
 };
 
 export type Reporter = {

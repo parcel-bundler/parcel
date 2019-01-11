@@ -1,6 +1,126 @@
 {
   "tests": [
     {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should produce a basic JS bundle using Babel 6",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should auto install babel-core v6",
+      "status": "pending"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should auto install @babel/core v7",
+      "status": "pending"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should auto install babel plugins",
+      "status": "pending"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should support compiling with babel using .babelrc config",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should compile with babel with default engines if no config",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should support compiling with babel using browserlist",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should support splitting babel-polyfill using browserlist",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should support compiling with babel using browserslist for different environments",
+      "status": "pending"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should not compile node_modules by default",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should compile node_modules if legacy browserify options are found",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should compile node_modules with browserslist to app target",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should compile node_modules when symlinked with a source field in package.json",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should not compile node_modules with a source field in package.json when not symlinked",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should support compiling JSX",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should support compiling JSX in JS files with React dependency",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should support compiling JSX in JS files with Preact dependency",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should support compiling JSX in JS files with Nerv dependency",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should support compiling JSX in JS files with Hyperapp dependency",
+      "status": "passing"
+    },
+    {
+      "fileName": "babel",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/babel.js",
+      "title": "should strip away flow types of node modules",
+      "status": "passing"
+    },
+    {
       "fileName": "bundler",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/bundler.js",
       "title": "should bundle once before exporting middleware",
@@ -148,73 +268,73 @@
       "fileName": "fs",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/fs.js",
       "title": "should inline a file as a string",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "fs",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/fs.js",
       "title": "should inline a file as a buffer",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "fs",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/fs.js",
       "title": "should inline a file with fs require alias",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "fs",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/fs.js",
       "title": "should inline a file with fs require inline",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "fs",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/fs.js",
       "title": "should inline a file with fs require assignment",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "fs",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/fs.js",
       "title": "should inline a file with fs require assignment alias",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "fs",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/fs.js",
       "title": "should inline a file with fs require destructure",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "fs",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/fs.js",
       "title": "should inline a file with fs require destructure assignment",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "fs",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/fs.js",
       "title": "should not evaluate fs calls when package.browser.fs is false",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "fs",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/fs.js",
       "title": "should ignore fs calls when the filename is not evaluable",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "fs",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/fs.js",
       "title": "should ignore fs calls when the options are not evaluable",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "fs",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/fs.js",
       "title": "should leave an attempt to read a file unchanged",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "fs",
@@ -556,55 +676,31 @@
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should produce a basic JS bundle with CommonJS requires",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should produce a basic JS bundle with ES6 imports",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should produce a basic JS bundle using Babel 6",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should auto install babel-core v6",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should auto install @babel/core v7",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should auto install babel plugins",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should produce a basic JS bundle with object rest spread support",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should bundle node_modules on --target=browser",
-      "status": "pending"
+      "title": "should bundle node_modules for a browser environment",
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should not bundle node_modules on --target=node",
-      "status": "pending"
+      "title": "should not bundle node_modules for a node environment",
+      "status": "passing"
     },
     {
       "fileName": "javascript",
@@ -615,8 +711,8 @@
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should bundle node_modules on --target=node and --bundle-node-modules",
-      "status": "pending"
+      "title": "should bundle node_modules for a node environment if includeNodeModules is specified",
+      "status": "passing"
     },
     {
       "fileName": "javascript",
@@ -628,12 +724,12 @@
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should produce a JS bundle with default exports and no imports",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should split bundles when a dynamic import is used with --target=browser",
+      "title": "should split bundles when a dynamic import is used a browser environment",
       "status": "pending"
     },
     {
@@ -652,31 +748,31 @@
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "Should not run parcel over external modules",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should support bundling workers",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should support bundling workers with different order",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should support bundling service-workers",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should support bundling workers with circular dependencies",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
@@ -748,37 +844,37 @@
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should insert global variables when needed",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should handle re-declaration of the global constant",
+      "status": "passing"
+    },
+    {
+      "fileName": "javascript",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
+      "title": "should not insert environment variables in node environment",
+      "status": "passing"
+    },
+    {
+      "fileName": "javascript",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
+      "title": "should not insert environment variables in electron environment",
       "status": "pending"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should not insert environment variables on --target=node",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should not insert environment variables on --target=electron",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should insert environment variables on --target=browser",
-      "status": "pending"
+      "title": "should insert environment variables in browser environment",
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should insert environment variables from a file",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
@@ -808,7 +904,7 @@
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should resolve the browser field before main",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
@@ -832,19 +928,19 @@
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should resolve the module field before main",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should resolve the module field before main",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should resolve the main field",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
@@ -873,104 +969,14 @@
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should support compiling with babel using .babelrc config",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should compile with babel with default engines if no config",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should support compiling with babel using browserlist",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should support splitting babel-polyfill using browserlist",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should support compiling with babel using browserslist for different environments",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should not compile node_modules by default",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should compile node_modules if legacy browserify options are found",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should compile node_modules with browserslist to app target",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should compile node_modules when symlinked with a source field in package.json",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should not compile node_modules with a source field in package.json when not symlinked",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should support compiling JSX",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should support compiling JSX in JS files with React dependency",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should support compiling JSX in JS files with Preact dependency",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should support compiling JSX in JS files with Nerv dependency",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should support compiling JSX in JS files with Hyperapp dependency",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should support optional dependencies in try...catch blocks",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should support excluding dependencies in falsy branches",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
@@ -988,19 +994,19 @@
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should ignore require if it is defined in the scope",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should expose to CommonJS entry point",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should expose to RequireJS entry point",
-      "status": "pending"
+      "status": "passing"
     },
     {
       "fileName": "javascript",
@@ -1054,12 +1060,6 @@
       "fileName": "javascript",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
       "title": "should support importing HTML from JS sync",
-      "status": "pending"
-    },
-    {
-      "fileName": "javascript",
-      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/javascript.js",
-      "title": "should strip away flow types of node modules",
       "status": "pending"
     },
     {
@@ -1150,6 +1150,36 @@
       "fileName": "reason",
       "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/reason.js",
       "title": "should produce a bundle",
+      "status": "pending"
+    },
+    {
+      "fileName": "rust",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/rust.js",
+      "title": "should generate a wasm file from a rust file with rustc with --target=browser",
+      "status": "pending"
+    },
+    {
+      "fileName": "rust",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/rust.js",
+      "title": "should generate a wasm file from a rust file with rustc with --target=node",
+      "status": "pending"
+    },
+    {
+      "fileName": "rust",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/rust.js",
+      "title": "should support rust files with dependencies via rustc",
+      "status": "pending"
+    },
+    {
+      "fileName": "rust",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/rust.js",
+      "title": "should generate a wasm file from a rust file with cargo",
+      "status": "pending"
+    },
+    {
+      "fileName": "rust",
+      "link": "https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/rust.js",
+      "title": "should generate a wasm file from a rust file in cargo workspace",
       "status": "pending"
     },
     {

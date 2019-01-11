@@ -7,8 +7,8 @@ program
   .option('-w, --watch', 'runs the bundler in watch mode')
   .parse(process.argv);
 
-let entries = program.args.map(entry =>
-  entry.startsWith('./') ? entry : `./${entry}`
+let entries = program.args.map(
+  entry => (entry.startsWith('./') ? entry : `./${entry}`)
 );
 let cliOpts = {
   watch: program.watch
@@ -19,4 +19,5 @@ let parcel = new Parcel({
   cliOpts
 });
 
+// eslint-disable-next-line no-console
 parcel.run().catch(console.error);

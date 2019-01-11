@@ -9,6 +9,7 @@ import insertGlobals from './visitors/globals';
 import {parse} from '@babel/parser';
 import traverse from '@babel/traverse';
 import * as walk from 'babylon-walk';
+import * as babelCore from '@babel/core';
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -58,19 +59,22 @@ export default new Transformer({
     };
   },
 
-  async transform(asset, config, options) {
+  async transform(asset) {
+    asset.type = 'js';
     if (!asset.ast) {
       return [asset];
     }
 
+    let ast = asset.ast;
+
     // Inline environment variables
     if (asset.env.context === 'browser' && ENV_RE.test(asset.code)) {
-      walk.simple(asset.ast.program, envVisitor, asset);
+      walk.simple(ast.program, envVisitor, asset);
     }
 
     // Collect dependencies
     if (canHaveDependencies(asset.code)) {
-      walk.ancestor(asset.ast.program, collectDependencies, asset);
+      walk.ancestor(ast.program, collectDependencies, asset);
     }
 
     if (asset.env.context === 'browser') {
@@ -79,45 +83,68 @@ export default new Transformer({
       if (fsDep && FS_RE.test(asset.code)) {
         // Check if we should ignore fs calls
         // See https://github.com/defunctzombie/node-browser-resolve#skip
-        // let pkg = await this.getPackage();
-        // let ignore = pkg && pkg.browser && pkg.browser.fs === false;
-        let ignore;
+        let pkg = await asset.getPackage();
+        let ignore =
+          pkg &&
+          pkg.browser &&
+          typeof pkg.browser === 'object' &&
+          pkg.browser.fs === false;
 
         if (!ignore) {
-          traverse(asset.ast.program, fsVisitor, null, asset);
+          traverse(ast.program, fsVisitor, null, asset);
         }
       }
 
       // Insert node globals
-      // if (GLOBAL_RE.test(asset.code)) {
-      //   walk.ancestor(asset.ast.program, insertGlobals, asset);
-      // }
+      if (GLOBAL_RE.test(asset.code)) {
+        asset.meta.globals = new Map();
+        walk.ancestor(ast.program, insertGlobals, asset);
+      }
     }
 
-    // Do some transforms
+    // Convert ES6 modules to CommonJS
+    if (asset.meta.isES6Module) {
+      let res = babelCore.transformFromAst(ast.program, asset.code, {
+        code: false,
+        ast: true,
+        filename: asset.filePath,
+        babelrc: false,
+        configFile: false,
+        plugins: [require('@babel/plugin-transform-modules-commonjs')]
+      });
+
+      ast.program = res.ast;
+      ast.isDirty = true;
+    }
+
     return [asset];
   },
 
-  async generate(module, config, options) {
-    if (module.ast.isDirty === false) {
-      return {
-        code: module.code
-        // TODO: sourcemaps
-      };
+  async generate(asset /*, config, options*/) {
+    let res = {
+      code: asset.code
+    };
+
+    if (asset.ast && asset.ast.isDirty !== false) {
+      let generated = generate(
+        asset.ast.program,
+        {
+          // sourceMaps: options.sourceMaps,
+          // sourceFileName: asset.relativeName
+        },
+        asset.code
+      );
+
+      res.code = generated.code;
+      // res.map = generated.map;
     }
 
-    let generated = generate(
-      module.ast.program,
-      {
-        sourceMaps: options.sourceMaps,
-        sourceFileName: module.relativeName
-      },
-      module.code
-    );
+    if (asset.meta.globals && asset.meta.globals.size > 0) {
+      res.code =
+        Array.from(asset.meta.globals.values()).join('\n') + '\n' + res.code;
+    }
 
-    return {
-      code: generated.code,
-      map: generated.map
-    };
+    delete asset.meta.globals;
+    return res;
   }
 });

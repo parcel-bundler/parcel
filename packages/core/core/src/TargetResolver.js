@@ -1,78 +1,78 @@
 // @flow
-import type {FilePath, PackageJSON, Target, Environment} from '@parcel/types';
+import type {
+  FilePath,
+  PackageJSON,
+  Target,
+  Environment,
+  EnvironmentContext,
+  Engines
+} from '@parcel/types';
 import {loadConfig} from '@parcel/utils/lib/config';
 import path from 'path';
+import browserslist from 'browserslist';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
   node: '8'
 };
 
-const DEFAULT_ENV = {
-  context: 'browser',
-  includeNodeModules: true,
-  engines: DEFAULT_ENGINES
-};
-
 export default class TargetResolver {
   async resolve(rootDir: FilePath): Promise<Array<Target>> {
     let conf = await loadConfig(path.join(rootDir, 'index'), ['package.json']);
-    if (!conf) {
-      return this.getDefaultTargets();
+
+    // $FlowFixMe
+    let pkg: PackageJSON = conf ? conf.config : {};
+    let pkgTargets = pkg.targets || {};
+    let pkgEngines = Object.assign({}, pkg.engines);
+    if (!pkgEngines.browsers) {
+      pkgEngines.browsers = browserslist.loadConfig({path: rootDir});
     }
 
-    let pkg: PackageJSON = conf.config;
-    let pkgTargets = pkg.targets || {};
-    let pkgEngines = pkg.engines || {};
     let targets = [];
+    let node = pkgEngines.node;
+    let browsers = pkgEngines.browsers;
 
-    let browsers =
-      pkgEngines.browsers || pkg.browserslist || DEFAULT_ENGINES.browsers;
-    let node = pkgEngines.node || DEFAULT_ENGINES.node;
+    // If there is a separate `browser` target, or an `engines.node` field but no browser targets, then
+    // the `main` and `module` targets refer to node, otherwise browser.
+    let mainContext =
+      pkg.browser || pkgTargets.browser || (node && !browsers)
+        ? 'node'
+        : 'browser';
 
-    // If there is a `browser` target or an `engines.node` field, then
-    // the `main` and `module` targets refer to node, otherwise browser context.
-    let context = pkg.browser || pkgEngines.node ? 'node' : 'browser';
-    let env: Environment = {
-      context,
-      includeNodeModules: context === 'browser',
-      engines: {
-        node: context === 'node' ? node : undefined,
-        browsers: context === 'browser' ? browsers : undefined
-      }
-    };
-
-    if (typeof pkg.main === 'string') {
+    if (typeof pkg.main === 'string' || pkgTargets.main) {
       targets.push({
+        name: 'main',
         distPath: pkg.main,
-        env: Object.assign({}, env, pkgTargets.main)
+        env: Object.assign(
+          this.getEnvironment(pkgEngines, mainContext),
+          pkgTargets.main
+        )
       });
     }
 
-    if (typeof pkg.module === 'string') {
+    if (typeof pkg.module === 'string' || pkgTargets.module) {
       targets.push({
+        name: 'module',
         distPath: pkg.module,
-        env: Object.assign({}, env, pkgTargets.module)
+        env: Object.assign(
+          this.getEnvironment(pkgEngines, mainContext),
+          pkgTargets.module
+        )
       });
     }
 
     // The `browser` field can be a file path or an alias map.
     let browser = pkg.browser;
-    if (browser && typeof browser === 'object' && browser[pkg.name]) {
+    if (browser && typeof browser === 'object') {
       browser = browser[pkg.name];
     }
 
-    if (typeof browser === 'string') {
+    if (typeof browser === 'string' || pkgTargets.browser) {
       targets.push({
-        distPath: browser,
+        name: 'browser',
+        distPath: typeof browser === 'string' ? browser : undefined,
         env: Object.assign(
-          {
-            context: 'browser',
-            includeNodeModules: true,
-            engines: {
-              browsers
-            }
-          },
+          this.getEnvironment(pkgEngines, 'browser'),
           pkgTargets.browser
         )
       });
@@ -86,27 +86,45 @@ export default class TargetResolver {
 
       let distPath = pkg[name];
       let env = pkgTargets[name];
-      if (distPath && env) {
+      if (env) {
+        let context =
+          env.context || (env.engines && env.engines.node ? 'node' : 'browser');
         targets.push({
+          name,
           distPath,
-          env: Object.assign({}, DEFAULT_ENV, env)
+          env: Object.assign(this.getEnvironment(pkgEngines, context), env)
         });
       }
     }
 
+    // If no explicit targets were defined, add a default.
     if (targets.length === 0) {
-      return this.getDefaultTargets();
+      let context = browsers || !node ? 'browser' : 'node';
+      targets.push({
+        name: 'default',
+        env: this.getEnvironment(pkgEngines, context)
+      });
     }
 
     return targets;
   }
 
-  getDefaultTargets(): Array<Target> {
-    return [
-      {
-        distPath: process.cwd() + '/out.js', // TODO
-        env: DEFAULT_ENV
-      }
-    ];
+  getEnvironment(
+    pkgEngines: Engines,
+    context: EnvironmentContext
+  ): Environment {
+    let env: Environment = {
+      context,
+      includeNodeModules: context === 'browser',
+      engines: {}
+    };
+
+    if (context === 'node') {
+      env.engines.node = pkgEngines.node || DEFAULT_ENGINES.node;
+    } else {
+      env.engines.browsers = pkgEngines.browsers || DEFAULT_ENGINES.browsers;
+    }
+
+    return env;
   }
 }
