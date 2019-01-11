@@ -13,7 +13,7 @@ class SourceMapPackager extends Packager {
   }
 
   async end() {
-    let file = path.basename(this.bundle.name);
+    let file = path.basename(this.bundle.parentBundle.name);
 
     await this.write(
       this.sourceMap.stringify(
