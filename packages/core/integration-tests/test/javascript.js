@@ -164,7 +164,7 @@ describe('javascript', function() {
     assert.equal(output.default(), 3);
   });
 
-  it.only('should split bundles when a dynamic import is used a browser environment', async function() {
+  it('should split bundles when a dynamic import is used a browser environment', async function() {
     let b = await bundle(path.join(__dirname, '/integration/dynamic/index.js'));
 
     await assertBundles(b, [
@@ -188,7 +188,7 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
-  it.only('should split bundles when a dynamic import is used with a node environment', async function() {
+  it('should split bundles when a dynamic import is used with a node environment', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-node/index.js')
     );
@@ -402,7 +402,7 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
-  it.only('should return all exports as an object when using ES modules', async function() {
+  it('should return all exports as an object when using ES modules', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-esm/index.js')
     );
@@ -428,28 +428,28 @@ describe('javascript', function() {
     assert.equal(await output(), 3);
   });
 
-  it.skip('should hoist common dependencies into a parent bundle', async function() {
+  it('should duplicate small modules across multiple bundles', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/dynamic-hoist/index.js')
+      path.join(__dirname, '/integration/dynamic-common-small/index.js')
     );
 
     await assertBundles(b, [
       {
+        assets: ['a.js', 'common.js', 'common-dep.js']
+      },
+      {
+        assets: ['b.js', 'common.js', 'common-dep.js']
+      },
+      {
         name: 'index.js',
         assets: [
           'index.js',
-          'common.js',
-          'common-dep.js',
           'bundle-loader.js',
           'bundle-url.js',
-          'js-loader.js'
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js'
         ]
-      },
-      {
-        assets: ['a.js']
-      },
-      {
-        assets: ['b.js']
       }
     ]);
 
@@ -458,7 +458,40 @@ describe('javascript', function() {
     assert.equal(await output(), 7);
   });
 
-  it.only('should not duplicate a module which is already in a parent bundle', async function() {
+  it('should create a separate bundle for large modules shared between bundles', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dynamic-common-large/index.js')
+    );
+
+    await assertBundles(b, [
+      {
+        assets: ['a.js']
+      },
+      {
+        assets: ['b.js']
+      },
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-loader.js',
+          'bundle-url.js',
+          'js-loader.js',
+          'JSRuntime.js',
+          'JSRuntime.js'
+        ]
+      },
+      {
+        assets: ['common.js', 'lodash.js']
+      }
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(await output(), 7);
+  });
+
+  it('should not duplicate a module which is already in a parent bundle', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-hoist-dup/index.js')
     );
@@ -487,37 +520,30 @@ describe('javascript', function() {
 
   it.skip('should support hoisting shared modules with async imports up multiple levels', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/dynamic-hoist-deep/index.js'),
-      {
-        sourceMaps: false
-      }
+      path.join(__dirname, '/integration/dynamic-hoist-deep/index.js')
     );
 
-    await assertBundles(b, {
-      name: 'index.js',
-      assets: [
-        'index.js',
-        'c.js',
-        'bundle-loader.js',
-        'bundle-url.js',
-        'js-loader.js'
-      ],
-      childBundles: [
-        {
-          assets: ['a.js'],
-          childBundles: [
-            {
-              assets: ['1.js'],
-              childBundles: []
-            }
-          ]
-        },
-        {
-          assets: ['b.js'],
-          childBundles: []
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        assets: ['1.js']
+      },
+      {
+        assets: ['a.js']
+      },
+      {
+        assets: ['b.js']
+      },
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'c.js',
+          'bundle-loader.js',
+          'bundle-url.js',
+          'js-loader.js'
+        ]
+      }
+    ]);
 
     let output = await run(b);
     assert.deepEqual(output, {default: {asdf: 1}});
