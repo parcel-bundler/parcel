@@ -10,8 +10,8 @@
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": {
-    "browser": ["@parcel/runtime-web"],
-    "node": ["@parcel/runtime-node"]
+    "browser": ["@parcel/runtime-js"],
+    "node": ["@parcel/runtime-js"]
   },
   "packagers": {
     "*.js": "@parcel/packager-js"

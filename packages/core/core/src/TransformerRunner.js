@@ -38,7 +38,7 @@ class TransformerRunner {
 
     // If a cache entry matches, no need to transform.
     let cacheEntry;
-    if (this.cliOpts.cache !== false) {
+    if (this.cliOpts.cache !== false && req.code == null) {
       cacheEntry = await Cache.read(req.filePath, req.env);
     }
 

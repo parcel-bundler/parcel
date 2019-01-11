@@ -8,6 +8,12 @@ const LOADERS = {
     html: './loaders/browser/html-loader',
     js: './loaders/browser/js-loader',
     wasm: './loaders/browser/wasm-loader'
+  },
+  node: {
+    css: './loaders/node/css-loader',
+    html: './loaders/node/html-loader',
+    js: './loaders/node/js-loader',
+    wasm: './loaders/node/wasm-loader'
   }
 };
 

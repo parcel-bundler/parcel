@@ -175,7 +175,7 @@ describe('javascript', function() {
           'bundle-loader.js',
           'bundle-url.js',
           'js-loader.js',
-          'WebRuntime.js'
+          'JSRuntime.js'
         ]
       },
       {
@@ -201,7 +201,7 @@ describe('javascript', function() {
           'bundle-loader.js',
           'bundle-url.js',
           'js-loader.js',
-          'NodeRuntime.js'
+          'JSRuntime.js'
         ]
       },
       {
