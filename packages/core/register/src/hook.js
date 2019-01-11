@@ -79,18 +79,18 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
   Module.prototype.require = function(filePath, ...args) {
     let pkg = readPkgUp(path.dirname(this.filename));
 
-    if (pkg.name.includes('@parcel') || pkg.name.includes('parcel')) {
-      return originalRequire.bind(this)(filePath, ...args);
+    let isParcelDep =
+      pkg && (pkg.name.includes('@parcel') || pkg.name.includes('parcel'));
+    if (!isParcelDep) {
+      let dep = createDependency(
+        {
+          moduleSpecifier: filePath
+        },
+        this.filename
+      );
+
+      filePath = syncPromise(parcel.resolverRunner.resolve(dep));
     }
-
-    let dep = createDependency(
-      {
-        moduleSpecifier: filePath
-      },
-      this.filename
-    );
-
-    let resolved = syncPromise(parcel.resolverRunner.resolve(dep));
 
     return originalRequire.bind(this)(filePath, ...args);
   };
