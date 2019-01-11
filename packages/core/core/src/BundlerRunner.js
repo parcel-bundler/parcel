@@ -70,15 +70,19 @@ export default class BundlerRunner {
   async addLoaders(bundleGraph: BundleGraph) {
     let promises = [];
     bundleGraph.traverseBundles(bundle => {
-      promises.push(this.applyRuntimes(bundle));
+      promises.push(this.applyRuntimes(bundleGraph, bundle));
     });
 
     await Promise.all(promises);
   }
 
-  async applyRuntimes(bundle: Bundle) {
+  async applyRuntimes(bundleGraph: BundleGraph, bundle: Bundle) {
     // HACK. TODO: move this into some sort of asset graph proxy
-    bundle.assetGraph.addRuntimeAsset = this.addRuntimeAsset.bind(this, bundle);
+    bundle.assetGraph.addRuntimeAsset = this.addRuntimeAsset.bind(
+      this,
+      bundleGraph,
+      bundle
+    );
 
     let runtimes = await this.config.getRuntimes(bundle.env.context);
     for (let runtime of runtimes) {
@@ -87,6 +91,7 @@ export default class BundlerRunner {
   }
 
   async addRuntimeAsset(
+    bundleGraph: BundleGraph,
     bundle: Bundle,
     node: {id: string},
     file: TransformerRequest
@@ -103,6 +108,14 @@ export default class BundlerRunner {
     let graph = await builder.build();
     let entry = graph.getEntryAssets()[0];
     let subGraph = graph.getSubGraph(graph.getNode(entry.id));
+
+    // Exclude modules that are already included in an ancestor bundle
+    subGraph.traverseAssets(asset => {
+      if (bundleGraph.isAssetInAncestorBundle(bundle, asset)) {
+        subGraph.removeAsset(asset);
+      }
+    });
+
     bundle.assetGraph.merge(subGraph);
     bundle.assetGraph.addEdge({from: node.id, to: entry.id});
     return entry;
