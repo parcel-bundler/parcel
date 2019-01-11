@@ -13,6 +13,22 @@ const DEFAULT_CLI_OPTS = {
   watch: false
 };
 
+function readPkgUp(dir) {
+  let dirContent = fs.readdirSync(dir);
+
+  for (let filename of dirContent) {
+    if (filename === 'package.json') {
+      return JSON.parse(fs.readFileSync(path.join(dir, 'package.json')));
+    }
+  }
+
+  if (dir === '/') {
+    return null;
+  }
+
+  return readPkgUp(path.dirname(dir));
+}
+
 // The filehandler returns a function that transforms the code
 function fileHandler({opts, parcel, cache, environment}) {
   // As Parcel is pretty much fully asynchronous, create an async function and return it wrapped in a syncPromise
@@ -61,21 +77,20 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
   };
 
   Module.prototype.require = function(filePath, ...args) {
-    // Figure this out...
-    if (
-      !this.filename.includes('node_modules') &&
-      !filePath.includes('@parcel')
-    ) {
-      let dep = createDependency(
-        {
-          moduleSpecifier: filePath
-        },
-        this.filename
-      );
+    let pkg = readPkgUp(path.dirname(this.filename));
 
-      let resolved = syncPromise(parcel.resolverRunner.resolve(dep));
-      console.log(resolved);
+    if (pkg.name.includes('@parcel') || pkg.name.includes('parcel')) {
+      return originalRequire.bind(this)(filePath, ...args);
     }
+
+    let dep = createDependency(
+      {
+        moduleSpecifier: filePath
+      },
+      this.filename
+    );
+
+    let resolved = syncPromise(parcel.resolverRunner.resolve(dep));
 
     return originalRequire.bind(this)(filePath, ...args);
   };
