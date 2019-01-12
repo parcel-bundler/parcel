@@ -12,24 +12,24 @@ const JSX_PRAGMA = {
   hyperapp: 'h'
 };
 
+function createJSXRegexFor(dependency) {
+  // result looks like /from\s+[`"']react[`"']|require\([`"']react[`"']\)/
+  return new RegExp(
+    `from\\s+[\`"']${dependency}[\`"']|require\\([\`"']${dependency}[\`"']\\)`
+  );
+}
+
 /**
- * Solves a use case where people use JSX in .js files
+ * Solves a use case where JSX is used in .js files or where
+ * package.json is empty yet and pragma can not be determined based
+ * on pkg.dependencies / pkg.devDependencies
  */
-function isUsingJSXinJS(asset) {
-  // matches import * as React from 'react' and alike
-  const es6Candidate = /from\s+[`"'](react|preact|nervjs|hyperapp)[`"']/;
-  // matches const React = require('react') and alike
-  const commonJSCandidate = /require\([`"'](react|preact|nervjs|hyperapp)[`"']\)/;
-
-  if (asset.contents.match(es6Candidate)) {
-    return true;
+function maybeCreateFallbackPragma(asset) {
+  for (const dep in JSX_PRAGMA) {
+    if (asset.contents.match(createJSXRegexFor(dep))) {
+      return JSX_PRAGMA[dep];
+    }
   }
-
-  if (asset.contents.match(commonJSCandidate)) {
-    return true;
-  }
-
-  return false;
 }
 
 /**
@@ -57,11 +57,11 @@ async function getJSXConfig(asset, isSourceModule) {
     }
   }
 
-  if (
-    pragma ||
-    JSX_EXTENSIONS[path.extname(asset.name)] ||
-    isUsingJSXinJS(asset)
-  ) {
+  if (!pragma) {
+    pragma = maybeCreateFallbackPragma(asset);
+  }
+
+  if (pragma || JSX_EXTENSIONS[path.extname(asset.name)]) {
     return {
       internal: true,
       babelVersion: 7,
