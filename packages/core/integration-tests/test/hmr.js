@@ -315,10 +315,10 @@ describe('hmr', function() {
     vm.createContext(ctx);
     vm.runInContext(
       `try {
-      ${(await fs.readFile(bundle.name)).toString()}
-    } catch(e) {
-      error(e);
-    }`,
+        ${(await fs.readFile(bundle.name)).toString()}
+      } catch(e) {
+        error(e);
+      }`,
       ctx
     );
 
