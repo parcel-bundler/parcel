@@ -38,7 +38,7 @@ exports.load = loadBundles;
 exports.register = registerBundleLoader;
 
 var bundles = {};
-function loadBundle([loader, bundle]) {
+function loadBundle(bundle) {
   var id;
   if (Array.isArray(bundle)) {
     id = bundle[1];
@@ -49,9 +49,8 @@ function loadBundle([loader, bundle]) {
     return bundles[bundle];
   }
 
-  // var type = (bundle.substring(bundle.lastIndexOf('.') + 1, bundle.length) || bundle).toLowerCase();
-  // var bundleLoader = bundleLoaders[type];
-  var bundleLoader = require(loader);
+  var type = (bundle.substring(bundle.lastIndexOf('.') + 1, bundle.length) || bundle).toLowerCase();
+  var bundleLoader = bundleLoaders[type];
   if (bundleLoader) {
     return bundles[bundle] = bundleLoader(getBundleURL() + bundle)
       .then(function (resolved) {
