@@ -11,8 +11,7 @@ import type {
   Target,
   Environment,
   Bundle,
-  GraphTraversalCallback,
-  DependencyResolution
+  GraphTraversalCallback
 } from '@parcel/types';
 import md5 from '@parcel/utils/md5';
 import Dependency from './Dependency';
@@ -75,8 +74,9 @@ type FileUpdates = {
 };
 
 type AssetGraphOpts = {
-  entries: Array<string | TransformerRequest>,
-  targets: Array<Target>,
+  entries?: Array<string>,
+  targets?: Array<Target>,
+  transformerRequest?: TransformerRequest,
   rootDir: string
 };
 
@@ -98,13 +98,22 @@ export default class AssetGraph extends Graph {
     this.invalidNodes = new Map();
   }
 
-  initializeGraph({entries, targets, rootDir}: AssetGraphOpts) {
+  initializeGraph({
+    entries,
+    targets,
+    transformerRequest,
+    rootDir
+  }: AssetGraphOpts) {
     let rootNode = nodeFromRootDir(rootDir);
     this.setRootNode(rootNode);
 
-    let depNodes = [];
-    for (let entry of entries) {
-      if (typeof entry === 'string') {
+    let nodes = [];
+    if (entries) {
+      if (!targets) {
+        throw new Error('Targets are required when entries are specified');
+      }
+
+      for (let entry of entries) {
         for (let target of targets) {
           let node = nodeFromDep(
             new Dependency({
@@ -115,16 +124,16 @@ export default class AssetGraph extends Graph {
             })
           );
 
-          depNodes.push(node);
+          nodes.push(node);
         }
-      } else {
-        let node = nodeFromTransformerRequest(entry);
-        depNodes.push(node);
       }
+    } else if (transformerRequest) {
+      let node = nodeFromTransformerRequest(transformerRequest);
+      nodes.push(node);
     }
 
-    this.replaceNodesConnectedTo(rootNode, depNodes);
-    for (let depNode of depNodes) {
+    this.replaceNodesConnectedTo(rootNode, nodes);
+    for (let depNode of nodes) {
       this.incompleteNodes.set(depNode.id, depNode);
     }
   }
@@ -235,30 +244,21 @@ export default class AssetGraph extends Graph {
     return this.getNodesConnectedFrom(node).map(node => node.value);
   }
 
-  getDependencyResolution(dep: IDependency): DependencyResolution {
+  getDependencyResolution(dep: IDependency): ?Asset {
     let depNode = this.getNode(dep.id);
     if (!depNode) {
-      return {};
+      return null;
     }
 
-    let node = this.getNodesConnectedFrom(depNode)[0];
-    if (!node) {
-      return {};
-    }
+    let res = null;
+    this.traverse((node, ctx, traversal) => {
+      if (node.type === 'asset' || node.type === 'asset_reference') {
+        res = (node.value: Asset);
+        traversal.stop();
+      }
+    }, depNode);
 
-    // if (node.type === 'transformer_request') {
-    let assetNode = this.getNodesConnectedFrom(node).find(
-      node => node.type === 'asset' || node.type === 'asset_reference'
-    );
-    if (assetNode) {
-      return {asset: assetNode.value};
-    }
-    // } else if (node.type === 'bundle_group') {
-    //   let bundles = this.getNodesConnectedFrom(node).filter(node => node.type === 'bundle').map(node => node.value);
-    //   return {bundles, bundleGroupId: node.id, runtime: node.value.runtime, entryAssetId: node.value.entryAssetId};
-    // }
-
-    return {};
+    return res;
   }
 
   traverseAssets(visit: GraphTraversalCallback<Asset>, startNode: ?Node) {

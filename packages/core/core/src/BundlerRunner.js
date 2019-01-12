@@ -1,6 +1,6 @@
 // @flow
+import type AssetGraph from './AssetGraph';
 import type {
-  AssetGraph,
   Namer,
   Bundle,
   FilePath,
@@ -10,8 +10,6 @@ import type {
 import type Config from './Config';
 import BundleGraph from './BundleGraph';
 import AssetGraphBuilder from './AssetGraphBuilder';
-import Asset from './Asset';
-import path from 'path';
 
 type Opts = {
   cliOpts: CLIOptions,
@@ -79,6 +77,7 @@ export default class BundlerRunner {
 
   async applyRuntimesToBundle(bundleGraph: BundleGraph, bundle: Bundle) {
     // HACK. TODO: move this into some sort of asset graph proxy
+    // $FlowFixMe
     bundle.assetGraph.addRuntimeAsset = this.addRuntimeAsset.bind(
       this,
       bundleGraph,
@@ -95,19 +94,18 @@ export default class BundlerRunner {
     bundleGraph: BundleGraph,
     bundle: Bundle,
     node: {id: string},
-    file: TransformerRequest
+    transformerRequest: TransformerRequest
   ) {
     let builder = new AssetGraphBuilder({
-      farm: this.farm,
       cliOpts: this.cliOpts,
       config: this.config,
-      entries: [file],
-      targets: [bundle.target],
-      rootDir: this.rootDir
+      rootDir: this.rootDir,
+      transformerRequest
     });
 
-    let graph = await builder.build();
+    let graph: AssetGraph = await builder.build();
     let entry = graph.getEntryAssets()[0];
+    // $FlowFixMe - node will always exist
     let subGraph = graph.getSubGraph(graph.getNode(entry.id));
 
     // Exclude modules that are already included in an ancestor bundle
@@ -118,6 +116,7 @@ export default class BundlerRunner {
     });
 
     bundle.assetGraph.merge(subGraph);
+    // $FlowFixMe
     bundle.assetGraph.addEdge({from: node.id, to: entry.id});
     return entry;
   }

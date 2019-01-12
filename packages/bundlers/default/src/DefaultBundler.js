@@ -32,10 +32,16 @@ export default new Bundler({
         // Start a new bundle if this is an async dependency, or entry point.
         if (dep.isAsync || dep.isEntry) {
           let isIsolated = dep.isEntry || dep.env.isIsolated();
+          let resolved = assetGraph.getDependencyResolution(dep);
+          if (!resolved) {
+            // TODO: is this right?
+            return;
+          }
+
           let bundleGroup: BundleGroup = {
             dependency: dep,
             target: dep.target || (context && context.bundleGroup.target),
-            entryAssetId: assetGraph.getDependencyResolution(dep).asset.id
+            entryAssetId: resolved.id
           };
 
           bundleGraph.addBundleGroup(

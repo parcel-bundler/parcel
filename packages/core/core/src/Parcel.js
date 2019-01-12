@@ -1,12 +1,7 @@
 // @flow
 'use strict';
 import AssetGraph from './AssetGraph';
-import type {
-  Bundle,
-  BundleGraph,
-  CLIOptions,
-  Target
-} from '@parcel/types';
+import type {Bundle, BundleGraph, CLIOptions} from '@parcel/types';
 import BundlerRunner from './BundlerRunner';
 import Config from './Config';
 import WorkerFarm from '@parcel/workers';
@@ -34,32 +29,16 @@ export default class Parcel {
   options: ParcelOpts;
   entries: Array<string>;
   rootDir: string;
+  assetGraphBuilder: AssetGraphBuilder;
   bundlerRunner: BundlerRunner;
   farm: WorkerFarm;
-  targetResolver: TargetResolver;
-  targets: Array<Target>;
-  // runTransform: (file: TransformerRequest) => Promise<any>;
   runPackage: (bundle: Bundle) => Promise<any>;
 
   constructor(options: ParcelOpts) {
-    let {entries, cliOpts} = options;
+    let {entries} = options;
     this.options = options;
     this.entries = Array.isArray(entries) ? entries : [entries];
     this.rootDir = getRootDir(this.entries);
-
-    let config = new Config(
-      defaultConfig,
-      require.resolve('@parcel/config-default')
-    );
-    this.config = config;
-    this.bundlerRunner = new BundlerRunner({
-      config,
-      cliOpts,
-      rootDir: this.rootDir
-    });
-
-    this.targetResolver = new TargetResolver();
-    this.targets = [];
   }
 
   async run() {
@@ -81,18 +60,28 @@ export default class Parcel {
       }
     );
 
-    // this.runTransform = this.farm.mkhandle('runTransform');
     this.runPackage = this.farm.mkhandle('runPackage');
 
-    this.targets = await this.targetResolver.resolve(this.rootDir);
+    // TODO: resolve config from filesystem
+    let config = new Config(
+      defaultConfig,
+      require.resolve('@parcel/config-default')
+    );
 
-    this.bundlerRunner.farm = this.farm;
-    this.assetGraphBuilder = new AssetGraphBuilder({
-      farm: this.farm,
+    this.bundlerRunner = new BundlerRunner({
+      config,
       cliOpts: this.options.cliOpts,
-      config: this.config,
+      rootDir: this.rootDir
+    });
+
+    let targetResolver = new TargetResolver();
+    let targets = await targetResolver.resolve(this.rootDir);
+
+    this.assetGraphBuilder = new AssetGraphBuilder({
+      cliOpts: this.options.cliOpts,
+      config,
       entries: this.entries,
-      targets: this.targets,
+      targets,
       rootDir: this.rootDir
     });
 

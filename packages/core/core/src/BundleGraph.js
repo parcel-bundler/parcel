@@ -70,10 +70,13 @@ export default class BundleGraph extends AssetGraph {
       // already created bundles in the bundle graph. This can happen when two
       // bundles point to the same dependency, which has an async import.
       if (node.type === 'bundle_group') {
-        let depNode = bundle.assetGraph.getNode(node.value.dependency.id);
-        if (depNode && !bundle.assetGraph.hasNode(node.id)) {
-          bundle.assetGraph.merge(this.getSubGraph(node));
-          bundle.assetGraph.replaceNodesConnectedTo(depNode, [node]);
+        // TODO: fix the AssetGraph interface so we don't need to do this
+        let assetGraph: AssetGraph = (bundle.assetGraph: any);
+        let bundleGroup: BundleGroup = node.value;
+        let depNode = assetGraph.getNode(bundleGroup.dependency.id);
+        if (depNode && !assetGraph.hasNode(node.id)) {
+          assetGraph.merge(this.getSubGraph(node));
+          assetGraph.replaceNodesConnectedTo(depNode, [node]);
           this.addEdge({from: bundle.id, to: node.id});
         }
       }

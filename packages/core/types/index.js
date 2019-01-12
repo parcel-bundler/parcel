@@ -253,11 +253,6 @@ export interface Graph {
   merge(graph: Graph): void;
 }
 
-export type DependencyResolution = {
-  asset?: Asset,
-  bundles?: Array<Bundle>
-};
-
 // TODO: what do we want to expose here?
 export interface AssetGraph extends Graph {
   traverseAssets(visit: GraphTraversalCallback<Asset>): any;
@@ -266,7 +261,7 @@ export interface AssetGraph extends Graph {
   getEntryAssets(): Array<Asset>;
   removeAsset(asset: Asset): void;
   getDependencies(asset: Asset): Array<Dependency>;
-  getDependencyResolution(dependency: Dependency): DependencyResolution;
+  getDependencyResolution(dependency: Dependency): ?Asset;
 }
 
 export type BundleGroup = {

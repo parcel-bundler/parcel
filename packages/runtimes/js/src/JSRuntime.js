@@ -30,11 +30,13 @@ export default new Runtime({
       return;
     }
 
+    // $FlowFixMe - ignore unknown properties?
     let loaders = LOADERS[bundle.env.context];
     if (!loaders) {
       return;
     }
 
+    // $FlowFixMe - define a better asset graph interface
     let bundleGroups = Array.from(bundle.assetGraph.nodes.values()).filter(
       n => n.type === 'bundle_group'
     );
@@ -45,11 +47,12 @@ export default new Runtime({
       }
 
       let bundles = bundle.assetGraph
+        // $FlowFixMe - define a better asset graph interface
         .getNodesConnectedFrom(bundleGroup)
         .map(node => node.value)
         .sort(
-          (a, b) =>
-            a.assetGraph.hasNode(bundleGroup.value.entryAssetId) ? 1 : -1
+          bundle =>
+            bundle.assetGraph.hasNode(bundleGroup.value.entryAssetId) ? 1 : -1
         );
 
       let loaderModules = bundles.map(b => {
@@ -59,10 +62,12 @@ export default new Runtime({
         }
 
         return `[require(${JSON.stringify(loader)}), ${JSON.stringify(
+          // $FlowFixMe - bundle.filePath already exists here
           path.relative(path.dirname(bundle.filePath), b.filePath)
         )}]`;
       });
 
+      // $FlowFixMe
       await bundle.assetGraph.addRuntimeAsset(bundleGroup, {
         filePath: __filename,
         env: bundle.env,

@@ -1,5 +1,14 @@
 // @flow
-import {EventEmitter} from 'events';
+import type {
+  CLIOptions,
+  Dependency,
+  FilePath,
+  Target,
+  TransformerRequest
+} from '@parcel/types';
+import type {Node} from './Graph';
+import type Config from './Config';
+import EventEmitter from 'events';
 import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import Watcher from '@parcel/watcher';
 import PromiseQueue from './PromiseQueue';
@@ -19,35 +28,40 @@ type BuildOpts = {
   shallow?: boolean
 };
 
+type Opts = {|
+  cliOpts: CLIOptions,
+  config: Config,
+  entries?: Array<string>,
+  targets?: Array<Target>,
+  transformerRequest?: TransformerRequest,
+  rootDir: FilePath
+|};
+
 export default class AssetGraphBuilder extends EventEmitter {
   graph: AssetGraph;
   watcher: Watcher;
   queue: PromiseQueue;
   resolverRunner: ResolverRunner;
+  controller: AbortController;
   farm: WorkerFarm;
   runTransform: (file: TransformerRequest) => Promise<any>;
 
-  constructor(opts) {
+  constructor(opts: Opts) {
     super();
 
-    this.farm = opts.farm;
-    this.runTransform = this.farm.mkhandle('runTransform');
-
-    this.graph = new AssetGraph();
-    this.watcher = opts.watch ? new Watcher() : null;
     this.queue = new PromiseQueue();
-
     this.resolverRunner = new ResolverRunner({
       config: opts.config,
       cliOpts: opts.cliOpts,
       rootDir: opts.rootDir
     });
 
+    this.graph = new AssetGraph();
     this.graph.initializeGraph(opts);
 
     this.controller = new AbortController();
-
-    if (this.watcher) {
+    if (opts.cliOpts.watch) {
+      this.watcher = new Watcher();
       this.watcher.on('change', async filePath => {
         if (this.graph.hasNode(filePath)) {
           this.controller.abort();
@@ -59,7 +73,18 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
   }
 
+  async initFarm() {
+    // This expects the worker farm to already be initialized by Parcel prior to calling
+    // AssetGraphBuilder, which avoids needing to pass the options through here.
+    this.farm = await WorkerFarm.getShared();
+    this.runTransform = this.farm.mkhandle('runTransform');
+  }
+
   async build() {
+    if (!this.farm) {
+      await this.initFarm();
+    }
+
     this.controller = new AbortController();
     let signal = this.controller.signal;
 
