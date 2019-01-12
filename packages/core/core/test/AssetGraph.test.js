@@ -2,15 +2,16 @@
 'use strict';
 import assert from 'assert';
 import AssetGraph, {nodeFromTransformerRequest} from '../src/AssetGraph';
-import createDependency from '../src/createDependency';
+import Dependency from '../src/Dependency';
 import Asset from '../src/Asset';
+import Environment from '../src/Environment';
 
-const DEFAULT_ENV = {
+const DEFAULT_ENV = new Environment({
   context: 'browser',
   engines: {
     browsers: ['> 1%']
   }
-};
+});
 
 const TARGETS = [
   {
@@ -32,24 +33,18 @@ describe('AssetGraph', () => {
     assert(graph.nodes.has('/'));
     assert(
       graph.nodes.has(
-        createDependency(
-          {
-            moduleSpecifier: './index1',
-            env: DEFAULT_ENV
-          },
-          '/index'
-        ).id
+        new Dependency({
+          moduleSpecifier: './index1',
+          env: DEFAULT_ENV
+        }).id
       )
     );
     assert(
       graph.nodes.has(
-        createDependency(
-          {
-            moduleSpecifier: './index2',
-            env: DEFAULT_ENV
-          },
-          '/index'
-        ).id
+        new Dependency({
+          moduleSpecifier: './index2',
+          env: DEFAULT_ENV
+        }).id
       )
     );
     assert.deepEqual(
@@ -57,23 +52,17 @@ describe('AssetGraph', () => {
       new Set([
         {
           from: '/',
-          to: createDependency(
-            {
-              moduleSpecifier: './index1',
-              env: DEFAULT_ENV
-            },
-            '/index'
-          ).id
+          to: new Dependency({
+            moduleSpecifier: './index1',
+            env: DEFAULT_ENV
+          }).id
         },
         {
           from: '/',
-          to: createDependency(
-            {
-              moduleSpecifier: './index2',
-              env: DEFAULT_ENV
-            },
-            '/index'
-          ).id
+          to: new Dependency({
+            moduleSpecifier: './index2',
+            env: DEFAULT_ENV
+          }).id
         }
       ])
     );
@@ -87,13 +76,11 @@ describe('AssetGraph', () => {
       rootDir: '/'
     });
 
-    let dep = createDependency(
-      {
-        moduleSpecifier: './index',
-        env: DEFAULT_ENV
-      },
-      '/index'
-    );
+    let dep = new Dependency({
+      moduleSpecifier: './index',
+      env: DEFAULT_ENV,
+      sourcePath: '/index'
+    });
     let req = {filePath: '/index.js', env: DEFAULT_ENV};
 
     graph.resolveDependency(dep, req);
@@ -143,13 +130,11 @@ describe('AssetGraph', () => {
       rootDir: '/'
     });
 
-    let dep = createDependency(
-      {
-        moduleSpecifier: './index',
-        env: DEFAULT_ENV
-      },
-      '/index'
-    );
+    let dep = new Dependency({
+      moduleSpecifier: './index',
+      env: DEFAULT_ENV,
+      sourcePath: '/index'
+    });
     let filePath = '/index.js';
     let req = {filePath, env: DEFAULT_ENV};
     graph.resolveDependency(dep, req);
@@ -161,7 +146,11 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#1',
         dependencies: [
-          createDependency({moduleSpecifier: './utils'}, sourcePath)
+          new Dependency({
+            moduleSpecifier: './utils',
+            env: DEFAULT_ENV,
+            sourcePath
+          })
         ],
         env: DEFAULT_ENV,
         output: {code: ''},
@@ -173,7 +162,11 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#2',
         dependencies: [
-          createDependency({moduleSpecifier: './styles'}, sourcePath)
+          new Dependency({
+            moduleSpecifier: './styles',
+            env: DEFAULT_ENV,
+            sourcePath
+          })
         ],
         env: DEFAULT_ENV,
         output: {code: ''},
@@ -245,12 +238,20 @@ describe('AssetGraph', () => {
     assert(!graph.incompleteNodes.has(nodeFromTransformerRequest(req).id));
     assert(
       graph.incompleteNodes.has(
-        createDependency({moduleSpecifier: './utils'}, sourcePath).id
+        new Dependency({
+          moduleSpecifier: './utils',
+          env: DEFAULT_ENV,
+          sourcePath
+        }).id
       )
     );
     assert(
       graph.incompleteNodes.has(
-        createDependency({moduleSpecifier: './styles'}, sourcePath).id
+        new Dependency({
+          moduleSpecifier: './styles',
+          env: DEFAULT_ENV,
+          sourcePath
+        }).id
       )
     );
 
@@ -261,7 +262,11 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#1',
         dependencies: [
-          createDependency({moduleSpecifier: './utils'}, sourcePath)
+          new Dependency({
+            moduleSpecifier: './utils',
+            env: DEFAULT_ENV,
+            sourcePath
+          })
         ],
         env: DEFAULT_ENV,
         output: {code: ''},
@@ -332,12 +337,20 @@ describe('AssetGraph', () => {
     assert(!graph.incompleteNodes.has(nodeFromTransformerRequest(req).id));
     assert(
       graph.incompleteNodes.has(
-        createDependency({moduleSpecifier: './utils'}, sourcePath).id
+        new Dependency({
+          moduleSpecifier: './utils',
+          env: DEFAULT_ENV,
+          sourcePath
+        }).id
       )
     );
     assert(
       !graph.incompleteNodes.has(
-        createDependency({moduleSpecifier: './styles'}, sourcePath).id
+        new Dependency({
+          moduleSpecifier: './styles',
+          env: DEFAULT_ENV,
+          sourcePath
+        }).id
       )
     );
   });
@@ -350,10 +363,7 @@ describe('AssetGraph', () => {
       rootDir: '/'
     });
 
-    let dep = createDependency(
-      {moduleSpecifier: './index', env: DEFAULT_ENV},
-      '/'
-    );
+    let dep = new Dependency({moduleSpecifier: './index', env: DEFAULT_ENV});
     let filePath = '/index.js';
     let req = {filePath, env: DEFAULT_ENV};
     graph.resolveDependency(dep, req);
@@ -365,7 +375,11 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#1',
         dependencies: [
-          createDependency({moduleSpecifier: './utils'}, sourcePath)
+          new Dependency({
+            moduleSpecifier: './utils',
+            env: DEFAULT_ENV,
+            sourcePath
+          })
         ],
         env: DEFAULT_ENV,
         output: {code: ''},
@@ -381,24 +395,15 @@ describe('AssetGraph', () => {
       env: DEFAULT_ENV,
       hash: '#hash',
       assets,
-      initialAssets: null,
-      connectedFiles: [
-        {
-          filePath: '/foo/baz'
-        }
-      ]
+      initialAssets: null
     };
 
     graph.resolveTransformerRequest(req, cacheEntry);
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('/foo/bar'));
-    assert(graph.nodes.has('/foo/baz'));
     assert(graph.hasEdge({from: nodeFromTransformerRequest(req).id, to: '1'}));
     assert(
       graph.hasEdge({from: nodeFromTransformerRequest(req).id, to: '/foo/bar'})
-    );
-    assert(
-      graph.hasEdge({from: nodeFromTransformerRequest(req).id, to: '/foo/baz'})
     );
   });
 });

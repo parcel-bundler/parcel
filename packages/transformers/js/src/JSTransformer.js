@@ -68,7 +68,7 @@ export default new Transformer({
     let ast = asset.ast;
 
     // Inline environment variables
-    if (asset.env.context === 'browser' && ENV_RE.test(asset.code)) {
+    if (!asset.env.isNode() && ENV_RE.test(asset.code)) {
       walk.simple(ast.program, envVisitor, asset);
     }
 
@@ -77,7 +77,7 @@ export default new Transformer({
       walk.ancestor(ast.program, collectDependencies, asset);
     }
 
-    if (asset.env.context === 'browser') {
+    if (!asset.env.isNode()) {
       // Inline fs calls
       let fsDep = asset.dependencies.find(dep => dep.moduleSpecifier === 'fs');
       if (fsDep && FS_RE.test(asset.code)) {

@@ -18,8 +18,7 @@ import Config from './Config';
 
 type Opts = {
   config: Config,
-  cliOpts: CLIOptions,
-  cache?: Cache
+  cliOpts: CLIOptions
 };
 
 type GenerateFunc = ?(input: Asset) => Promise<AssetOutput>;
@@ -27,12 +26,10 @@ type GenerateFunc = ?(input: Asset) => Promise<AssetOutput>;
 class TransformerRunner {
   cliOpts: CLIOptions;
   config: Config;
-  cache: Cache;
 
   constructor(opts: Opts) {
     this.cliOpts = opts.cliOpts;
     this.config = opts.config;
-    this.cache = opts.cache || new Cache(opts.cliOpts);
   }
 
   async transform(req: TransformerRequest): Promise<CacheEntry> {
@@ -42,7 +39,7 @@ class TransformerRunner {
     // If a cache entry matches, no need to transform.
     let cacheEntry;
     if (this.cliOpts.cache !== false) {
-      cacheEntry = await this.cache.read(req.filePath, req.env);
+      cacheEntry = await Cache.read(req.filePath, req.env);
     }
 
     if (
@@ -76,7 +73,7 @@ class TransformerRunner {
       initialAssets
     };
 
-    await this.cache.write(cacheEntry);
+    await Cache.write(cacheEntry);
     return cacheEntry;
   }
 

@@ -3,10 +3,10 @@ import type {
   FilePath,
   PackageJSON,
   Target,
-  Environment,
   EnvironmentContext,
   Engines
 } from '@parcel/types';
+import Environment from './Environment';
 import {loadConfig} from '@parcel/utils/config';
 import path from 'path';
 import browserslist from 'browserslist';
@@ -43,10 +43,7 @@ export default class TargetResolver {
       targets.push({
         name: 'main',
         distPath: pkg.main,
-        env: Object.assign(
-          this.getEnvironment(pkgEngines, mainContext),
-          pkgTargets.main
-        )
+        env: this.getEnvironment(pkgEngines, mainContext).merge(pkgTargets.main)
       });
     }
 
@@ -54,8 +51,7 @@ export default class TargetResolver {
       targets.push({
         name: 'module',
         distPath: pkg.module,
-        env: Object.assign(
-          this.getEnvironment(pkgEngines, mainContext),
+        env: this.getEnvironment(pkgEngines, mainContext).merge(
           pkgTargets.module
         )
       });
@@ -71,8 +67,7 @@ export default class TargetResolver {
       targets.push({
         name: 'browser',
         distPath: typeof browser === 'string' ? browser : undefined,
-        env: Object.assign(
-          this.getEnvironment(pkgEngines, 'browser'),
+        env: this.getEnvironment(pkgEngines, 'browser').merge(
           pkgTargets.browser
         )
       });
@@ -92,7 +87,7 @@ export default class TargetResolver {
         targets.push({
           name,
           distPath,
-          env: Object.assign(this.getEnvironment(pkgEngines, context), env)
+          env: this.getEnvironment(pkgEngines, context).merge(env)
         });
       }
     }
@@ -113,18 +108,18 @@ export default class TargetResolver {
     pkgEngines: Engines,
     context: EnvironmentContext
   ): Environment {
-    let env: Environment = {
-      context,
-      includeNodeModules: context === 'browser',
-      engines: {}
-    };
+    let engines = {};
 
     if (context === 'node') {
-      env.engines.node = pkgEngines.node || DEFAULT_ENGINES.node;
+      engines.node = pkgEngines.node || DEFAULT_ENGINES.node;
     } else {
-      env.engines.browsers = pkgEngines.browsers || DEFAULT_ENGINES.browsers;
+      engines.browsers = pkgEngines.browsers || DEFAULT_ENGINES.browsers;
     }
 
-    return env;
+    return new Environment({
+      context,
+      engines,
+      includeNodeModules: context === 'browser'
+    });
   }
 }

@@ -2,7 +2,6 @@
 import type {Dependency, BundleGroup, Bundle} from '@parcel/types';
 import {Bundler} from '@parcel/plugin';
 
-const ISOLATED_ENVS = new Set(['web-worker', 'service-worker']);
 const OPTIONS = {
   minBundles: 1,
   minBundleSize: 30000,
@@ -32,7 +31,7 @@ export default new Bundler({
 
         // Start a new bundle if this is an async dependency, or entry point.
         if (dep.isAsync || dep.isEntry) {
-          let isIsolated = dep.isEntry || ISOLATED_ENVS.has(dep.env.context);
+          let isIsolated = dep.isEntry || dep.env.isIsolated();
           let bundleGroup: BundleGroup = {
             dependency: dep,
             target: dep.target || (context && context.bundleGroup.target)
@@ -54,7 +53,7 @@ export default new Bundler({
           let dep = context.bundleGroup.dependency;
 
           // Mark bundle as an entry, and set explicit file path from target if the dependency has one
-          bundle.isEntry = dep.isEntry;
+          bundle.isEntry = !!dep.isEntry;
           if (dep.target && dep.target.distPath) {
             bundle.filePath = dep.target.distPath;
           }
