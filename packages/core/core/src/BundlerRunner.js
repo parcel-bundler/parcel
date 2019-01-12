@@ -36,8 +36,7 @@ export default class BundlerRunner {
     let bundleGraph = new BundleGraph();
     await bundler.bundle(graph, bundleGraph, this.cliOpts);
     await this.nameBundles(bundleGraph);
-
-    await this.addLoaders(bundleGraph);
+    await this.applyRuntimes(bundleGraph);
 
     return bundleGraph;
   }
@@ -67,16 +66,18 @@ export default class BundlerRunner {
     throw new Error('Unable to name bundle');
   }
 
-  async addLoaders(bundleGraph: BundleGraph) {
-    let promises = [];
+  async applyRuntimes(bundleGraph: BundleGraph) {
+    let bundles = [];
     bundleGraph.traverseBundles(bundle => {
-      promises.push(this.applyRuntimes(bundleGraph, bundle));
+      bundles.push(bundle);
     });
 
-    await Promise.all(promises);
+    for (let bundle of bundles) {
+      await this.applyRuntimesToBundle(bundleGraph, bundle);
+    }
   }
 
-  async applyRuntimes(bundleGraph: BundleGraph, bundle: Bundle) {
+  async applyRuntimesToBundle(bundleGraph: BundleGraph, bundle: Bundle) {
     // HACK. TODO: move this into some sort of asset graph proxy
     bundle.assetGraph.addRuntimeAsset = this.addRuntimeAsset.bind(
       this,
