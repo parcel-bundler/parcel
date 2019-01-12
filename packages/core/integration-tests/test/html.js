@@ -289,7 +289,7 @@ describe('html', function() {
       'utf8'
     );
     assert(html.includes('Other page'));
-    assert(!html.includes('\n'));
+    assert.equal(html.split('\n').length, 2);
   });
 
   it('should read .htmlnanorc and minify HTML in production mode', async function() {
@@ -338,7 +338,7 @@ describe('html', function() {
       'utf8'
     );
     assert(html.includes('<input type="text">'));
-    assert(!html.includes('\n'));
+    assert.equal(html.split('\n').length, 2);
   });
 
   it('should not prepend the public path to assets with remote URLs', async function() {
