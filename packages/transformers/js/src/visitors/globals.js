@@ -16,7 +16,7 @@ const VARS = {
   __filename: asset => ({
     code: `var __filename = ${JSON.stringify(asset.filePath)};`
   }),
-  Buffer: asset => ({
+  Buffer: () => ({
     code: 'var Buffer = require("buffer").Buffer;',
     deps: ['buffer']
   }),
