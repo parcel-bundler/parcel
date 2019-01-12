@@ -321,6 +321,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
+    it('supports requiring a re-exported and renamed ES6 import', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-renamed/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'foobar');
+    });
+
     it('keeps side effects by default', async function() {
       let b = await bundle(
         path.join(
