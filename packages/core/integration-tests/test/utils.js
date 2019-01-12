@@ -281,3 +281,4 @@ exports.deferred = deferred;
 exports.rimraf = rimraf;
 exports.ncp = ncp;
 exports.normaliseNewlines = normaliseNewlines;
+exports.prepareBrowserContext = prepareBrowserContext;
