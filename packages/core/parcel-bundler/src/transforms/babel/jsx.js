@@ -20,9 +20,9 @@ function createJSXRegexFor(dependency) {
 }
 
 /**
- * Solves a use case where JSX is used in .js files or where
- * package.json is empty yet and pragma can not be determined based
- * on pkg.dependencies / pkg.devDependencies
+ * Solves a use case when JSX is used in .js files, but
+ * package.json is empty or missing yet and therefore pragma cannot
+ * be determined based on pkg.dependencies / pkg.devDependencies
  */
 function maybeCreateFallbackPragma(asset) {
   for (const dep in JSX_PRAGMA) {
