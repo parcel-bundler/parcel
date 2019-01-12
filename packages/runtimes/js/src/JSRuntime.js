@@ -39,6 +39,11 @@ export default new Runtime({
       n => n.type === 'bundle_group'
     );
     for (let bundleGroup of bundleGroups) {
+      // Ignore deps with native loaders, e.g. workers.
+      if (bundleGroup.value.dependency.isURL) {
+        continue;
+      }
+
       let bundles = bundle.assetGraph
         .getNodesConnectedFrom(bundleGroup)
         .map(node => node.value)
