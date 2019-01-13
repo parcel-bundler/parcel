@@ -68,7 +68,6 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
         let output = '';
         let asset = result.assets.find(a => a.type === 'js');
         if (asset) {
-          asset = new Asset(asset);
           output = (await asset.getOutput()).code;
         }
         return output;
