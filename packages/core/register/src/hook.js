@@ -98,12 +98,10 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
     }
 
     if (!isParcelDep(filename)) {
-      let dep = new Dependency(
-        {
-          moduleSpecifier: filePath
-        },
-        filename
-      );
+      let dep = new Dependency({
+        moduleSpecifier: filePath,
+        sourcePath: filename
+      });
 
       filePath = syncPromise(parcel.resolverRunner.resolve(dep));
 
