@@ -5,7 +5,7 @@ import fs from 'fs';
 import {addHook} from 'pirates';
 import resolveFrom from 'resolve-from';
 
-import Parcel, {Asset, Dependency} from '@parcel/core';
+import Parcel, {Asset, Dependency, Environment} from '@parcel/core';
 import syncPromise from '@parcel/utils/lib/syncPromise';
 import {loadConfig} from '@parcel/utils/lib/config';
 
@@ -43,12 +43,12 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
     cliOpts: opts
   });
 
-  let environment = {
+  let environment = new Environment({
     context: 'node',
     engines: {
       node: process.versions.node
     }
-  };
+  });
 
   syncPromise(parcel.init());
 
