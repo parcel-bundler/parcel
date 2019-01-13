@@ -16,8 +16,11 @@ const DEFAULT_CLI_OPTS = {
 };
 
 function isParcelDep(filename) {
-  let pkg = syncPromise(loadConfig(path.dirname(filename), ['package.json']))
-    .config;
+  let loadedConfig = syncPromise(loadConfig(filename, ['package.json']));
+  if (loadedConfig === null) {
+    return false;
+  }
+  let pkg = loadedConfig.config;
   return pkg && (pkg.name.includes('@parcel') || pkg.name.includes('parcel-'));
 }
 
@@ -88,7 +91,8 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
     let fileExtension = path.extname(filePath);
     if (!hooks[fileExtension]) {
       hooks[fileExtension] = addHook(hookFunction, {
-        exts: [fileExtension]
+        exts: [fileExtension],
+        ignoreNodeModules: true // TODO: Figure out how to make this work without processing babel, postcss, ...
       });
     }
 
