@@ -1,6 +1,7 @@
 const Packager = require('./Packager');
 const path = require('path');
 const fs = require('@parcel/fs');
+const marked = require('marked');
 
 class MarkdownPackager extends Packager {
   static shouldAddAsset() {
@@ -13,8 +14,8 @@ class MarkdownPackager extends Packager {
   setup() {}
 
   async addAsset(asset) {
-    console.log('asset added', asset);
     let contents = asset.generated[this.bundle.type];
+    console.log('asset added', contents);
     if (!contents || (contents && contents.path)) {
       contents = await fs.readFile(contents ? contents.path : asset.name);
     }
@@ -25,7 +26,7 @@ class MarkdownPackager extends Packager {
     }
 
     this.size = contents.length;
-    await fs.writeFile(this.bundle.name, contents);
+    await fs.writeFile(this.bundle.name, marked(contents));
   }
 
   getSize() {
