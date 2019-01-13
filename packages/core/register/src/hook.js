@@ -6,7 +6,7 @@ import {addHook} from 'pirates';
 import resolveFrom from 'resolve-from';
 
 import Parcel, {Asset, Dependency} from '@parcel/core';
-import Cache from '@parcel/cache';
+import {Cache} from '@parcel/cache';
 import syncPromise from '@parcel/utils/lib/syncPromise';
 import {loadConfig} from '@parcel/utils/lib/config';
 
