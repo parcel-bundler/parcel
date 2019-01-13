@@ -1,6 +1,10 @@
 const flow = require('@babel/preset-flow');
+const serializerPlugin = require('./serializer');
 
 module.exports = {
   presets: [flow],
-  plugins: [require('@babel/plugin-proposal-class-properties')]
+  plugins: [
+    serializerPlugin,
+    require('@babel/plugin-proposal-class-properties')
+  ]
 };

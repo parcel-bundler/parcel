@@ -1,4 +1,5 @@
 const {errorUtils} = require('@parcel/utils');
+const {serialize, deserialize} = require('@parcel/utils/serializer');
 
 class Child {
   constructor() {
@@ -20,6 +21,8 @@ class Child {
       return this.end();
     }
 
+    data = deserialize(data);
+
     let type = data.type;
     if (type === 'response') {
       return this.handleResponse(data);
@@ -29,6 +32,7 @@ class Child {
   }
 
   async send(data) {
+    data = serialize(data);
     process.send(data, err => {
       if (err && err instanceof Error) {
         if (err.code === 'ERR_IPC_CHANNEL_CLOSED') {

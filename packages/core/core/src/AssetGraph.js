@@ -3,7 +3,7 @@
 import Graph, {Node, type NodeId} from './Graph';
 import type {
   CacheEntry,
-  Dependency,
+  Dependency as IDependency,
   Asset,
   File,
   FilePath,
@@ -16,7 +16,7 @@ import type {
 } from '@parcel/types';
 import path from 'path';
 import md5 from '@parcel/utils/lib/md5';
-import createDependency from './createDependency';
+import Dependency from './Dependency';
 
 export const nodeFromRootDir = (rootDir: string) => ({
   id: rootDir,
@@ -24,7 +24,7 @@ export const nodeFromRootDir = (rootDir: string) => ({
   value: rootDir
 });
 
-export const nodeFromDep = (dep: Dependency) => ({
+export const nodeFromDep = (dep: IDependency) => ({
   id: dep.id,
   type: 'dependency',
   value: dep
@@ -107,7 +107,7 @@ export default class AssetGraph extends Graph {
     for (let entry of entries) {
       for (let target of targets) {
         let node = nodeFromDep(
-          createDependency({
+          new Dependency({
             moduleSpecifier: entry,
             target: target,
             env: target.env,
@@ -134,7 +134,7 @@ export default class AssetGraph extends Graph {
    * Marks a dependency as resolved, and connects it to a transformer
    * request node for the file it was resolved to.
    */
-  resolveDependency(dep: Dependency, req: TransformerRequest): DepUpdates {
+  resolveDependency(dep: IDependency, req: TransformerRequest): DepUpdates {
     let newRequest;
 
     let depNode = nodeFromDep(dep);
@@ -222,7 +222,7 @@ export default class AssetGraph extends Graph {
     }
   }
 
-  getDependencies(asset: Asset): Array<Dependency> {
+  getDependencies(asset: Asset): Array<IDependency> {
     let node = this.getNode(asset.id);
     if (!node) {
       return [];
@@ -231,7 +231,7 @@ export default class AssetGraph extends Graph {
     return this.getNodesConnectedFrom(node).map(node => node.value);
   }
 
-  getDependencyResolution(dep: Dependency): DependencyResolution {
+  getDependencyResolution(dep: IDependency): DependencyResolution {
     let depNode = this.getNode(dep.id);
     if (!depNode) {
       return {};

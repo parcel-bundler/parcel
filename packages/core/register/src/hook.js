@@ -5,7 +5,7 @@ import fs from 'fs';
 import {addHook} from 'pirates';
 import resolveFrom from 'resolve-from';
 
-import Parcel, {Asset, createDependency} from '@parcel/core';
+import Parcel, {Asset, Dependency} from '@parcel/core';
 import Cache from '@parcel/cache';
 import syncPromise from '@parcel/utils/lib/syncPromise';
 import {loadConfig} from '@parcel/utils/lib/config';
@@ -98,7 +98,7 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
     }
 
     if (!isParcelDep(filename)) {
-      let dep = createDependency(
+      let dep = new Dependency(
         {
           moduleSpecifier: filePath
         },

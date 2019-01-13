@@ -212,7 +212,6 @@ export default class Parcel {
     }
 
     let req = {filePath: resolvedPath, env: dep.env};
-    dep.resolvedPath = resolvedPath;
     let {newRequest} = this.graph.resolveDependency(dep, req);
 
     if (newRequest) {
@@ -264,4 +263,4 @@ export default class Parcel {
 }
 
 export {default as Asset} from './Asset';
-export {default as createDependency} from './createDependency';
+export {default as Dependency} from './Dependency';

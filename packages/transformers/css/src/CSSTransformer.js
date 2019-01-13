@@ -81,8 +81,10 @@ export default new Transformer({
       media = valueParser.stringify(media).trim();
       let dep = {
         moduleSpecifier,
-        media,
-        loc: rule.source.start
+        loc: rule.source.start,
+        meta: {
+          media
+        }
       };
       asset.addDependency(dep);
       rule.remove();
