@@ -6,7 +6,6 @@ import {addHook} from 'pirates';
 import resolveFrom from 'resolve-from';
 
 import Parcel, {Asset, Dependency} from '@parcel/core';
-import {Cache} from '@parcel/cache';
 import syncPromise from '@parcel/utils/lib/syncPromise';
 import {loadConfig} from '@parcel/utils/lib/config';
 
@@ -44,8 +43,6 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
     cliOpts: opts
   });
 
-  let cache = new Cache(opts);
-
   let environment = {
     context: 'node',
     engines: {
@@ -71,7 +68,7 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
         let output = '';
         let asset = result.assets.find(a => a.type === 'js');
         if (asset) {
-          asset = new Asset({...asset, cache});
+          asset = new Asset(asset);
           output = (await asset.getOutput()).code;
         }
         return output;

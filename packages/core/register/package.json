@@ -6,7 +6,8 @@
   "scripts": {
     "build": "babel src -d lib",
     "prepublish": "yarn build",
-    "run-example": "node ./example/index.js"
+    "run-example": "node ./example/index.js",
+    "clean": "rm -rf .parcel-cache"
   },
   "dependencies": {
     "@parcel/core": "^2.0.0",
