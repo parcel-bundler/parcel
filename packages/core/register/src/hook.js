@@ -68,10 +68,13 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
       });
 
       if (result.assets && result.assets.length >= 1) {
-        let asset = new Asset({...result.assets[0], cache});
-        let output = await asset.getOutput();
-
-        return output.code;
+        let output = '';
+        let asset = result.assets.find(a => a.type === 'js');
+        if (asset) {
+          asset = new Asset({...asset, cache});
+          output = (await asset.getOutput()).code;
+        }
+        return output;
       }
     } catch (e) {
       console.error('@parcel/register failed to process: ', filename);
