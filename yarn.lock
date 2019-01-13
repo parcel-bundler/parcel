@@ -6717,11 +6717,6 @@ map-visit@^1.0.0:
   dependencies:
     object-visit "^1.0.0"
 
-marked@0.6.0:
-  version "0.6.0"
-  resolved "https://registry.yarnpkg.com/marked/-/marked-0.6.0.tgz#a18d01cfdcf8d15c3c455b71c8329e5e0f01faa1"
-  integrity sha512-HduzIW2xApSXKXJSpCipSxKyvMbwRRa/TwMbepmlZziKdH8548WSoDP4SxzulEKjlo8BE39l+2fwJZuRKOln6g==
-
 "match-stream@>= 0.0.2 < 1":
   version "0.0.2"
   resolved "https://registry.yarnpkg.com/match-stream/-/match-stream-0.0.2.tgz#99eb050093b34dffade421b9ac0b410a9cfa17cf"
