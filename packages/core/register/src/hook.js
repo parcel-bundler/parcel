@@ -18,7 +18,7 @@ const DEFAULT_CLI_OPTS = {
 function isParcelDep(filename) {
   let pkg = syncPromise(loadConfig(path.dirname(filename), ['package.json']))
     .config;
-  return pkg && (pkg.name.includes('@parcel') || pkg.name.includes('parcel'));
+  return pkg && (pkg.name.includes('@parcel') || pkg.name.includes('parcel-'));
 }
 
 export default function register(opts = DEFAULT_CLI_OPTS) {
