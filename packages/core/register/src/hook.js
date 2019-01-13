@@ -3,19 +3,26 @@ import process from 'process';
 import path from 'path';
 import fs from 'fs';
 import {addHook} from 'pirates';
+import resolveFrom from 'resolve-from';
 
 import Parcel, {Asset, createDependency} from '@parcel/core';
 import Cache from '@parcel/cache';
 import syncPromise from '@parcel/utils/lib/syncPromise';
 import {loadConfig} from '@parcel/utils/lib/config';
 
-let hooks = {};
 const originalRequire = Module.prototype.require;
 const DEFAULT_CLI_OPTS = {
   watch: false
 };
 
+let hooks = {};
+let parcelDeps = [];
+
 function isParcelDep(filename) {
+  if (parcelDeps.includes(filename)) {
+    return true;
+  }
+
   let loadedConfig = syncPromise(loadConfig(filename, ['package.json']));
   if (loadedConfig === null) {
     return false;
@@ -76,27 +83,55 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
 
   let hookFunction = (...args) => syncPromise(fileProcessor(...args));
 
-  Module.prototype.require = function(filePath, ...args) {
-    if (!isParcelDep(this.filename)) {
+  function resolveFile(filename, filePath) {
+    let resolvedFilePath = null;
+    try {
+      resolvedFilePath = resolveFrom(path.dirname(filename), filePath);
+      if (isParcelDep(resolvedFilePath)) {
+        return filePath;
+      }
+    } catch (e) {
+      // Do nothing, maybe the parcel resolver can resolve this require
+    }
+
+    if (!isParcelDep(filename)) {
       let dep = createDependency(
         {
           moduleSpecifier: filePath
         },
-        this.filename
+        filename
       );
 
       filePath = syncPromise(parcel.resolverRunner.resolve(dep));
+
+      let fileExtension = path.extname(filePath);
+      if (!hooks[fileExtension]) {
+        hooks[fileExtension] = addHook(hookFunction, {
+          exts: [fileExtension],
+          ignoreNodeModules: false
+        });
+      }
+    } else {
+      if (!parcelDeps.includes(filename)) {
+        parcelDeps.push(filename);
+      }
+
+      filePath = resolvedFilePath
+        ? resolvedFilePath
+        : resolveFrom(path.dirname(filename), filePath);
+      if (!parcelDeps.includes(filePath)) {
+        parcelDeps.push(filePath);
+      }
     }
 
-    let fileExtension = path.extname(filePath);
-    if (!hooks[fileExtension]) {
-      hooks[fileExtension] = addHook(hookFunction, {
-        exts: [fileExtension],
-        ignoreNodeModules: true // TODO: Figure out how to make this work without processing babel, postcss, ...
-      });
-    }
+    return filePath;
+  }
 
-    return originalRequire.bind(this)(filePath, ...args);
+  Module.prototype.require = function(filePath, ...args) {
+    return originalRequire.bind(this)(
+      resolveFile(this.filename, filePath),
+      ...args
+    );
   };
 }
 
