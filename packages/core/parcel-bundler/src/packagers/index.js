@@ -4,7 +4,6 @@ const CSSPackager = require('./CSSPackager');
 const HTMLPackager = require('./HTMLPackager');
 const SourceMapPackager = require('./SourceMapPackager');
 const RawPackager = require('./RawPackager');
-const MarkdownPackager = require('./MarkdownPackager');
 
 class PackagerRegistry {
   constructor(options) {
@@ -12,7 +11,6 @@ class PackagerRegistry {
 
     this.add('css', CSSPackager);
     this.add('html', HTMLPackager);
-    this.add('md', MarkdownPackager);
     this.add('map', SourceMapPackager);
     this.add('js', options.scopeHoist ? JSConcatPackager : JSPackager);
   }
