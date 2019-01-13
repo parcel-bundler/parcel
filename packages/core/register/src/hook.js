@@ -7,6 +7,7 @@ import {addHook} from 'pirates';
 import Parcel, {Asset, createDependency} from '@parcel/core';
 import Cache from '@parcel/cache';
 import syncPromise from '@parcel/utils/lib/syncPromise';
+import {loadConfig} from '@parcel/utils/lib/config';
 
 let hooks = {};
 const originalRequire = Module.prototype.require;
@@ -14,25 +15,9 @@ const DEFAULT_CLI_OPTS = {
   watch: false
 };
 
-// Cache this to make it a lil faster?
-function readPkgUp(dir) {
-  let dirContent = fs.readdirSync(dir);
-
-  for (let filename of dirContent) {
-    if (filename === 'package.json') {
-      return JSON.parse(fs.readFileSync(path.join(dir, 'package.json')));
-    }
-  }
-
-  if (dir === '/') {
-    return null;
-  }
-
-  return readPkgUp(path.dirname(dir));
-}
-
 function isParcelDep(filename) {
-  let pkg = readPkgUp(path.dirname(filename));
+  let pkg = syncPromise(loadConfig(path.dirname(filename), ['package.json']))
+    .config;
   return pkg && (pkg.name.includes('@parcel') || pkg.name.includes('parcel'));
 }
 

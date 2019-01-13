@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@parcel/core": "^2.0.0",
+    "@parcel/utils": "^1.10.3",
     "pirates": "^4.0.0"
   }
 }
