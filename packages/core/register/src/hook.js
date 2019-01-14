@@ -15,19 +15,48 @@ const DEFAULT_CLI_OPTS = {
 };
 
 let hooks = {};
-let parcelDeps = [];
+let parcelModuleDirs = [];
+
+function getPkgUp(filename) {
+  return syncPromise(loadConfig(filename, ['package.json']));
+}
+
+function getModuleDir(filename) {
+  let pkg = getPkgUp(filename);
+  if (!pkg || !pkg.files[0]) {
+    return null;
+  }
+
+  return path.dirname(pkg.files[0].filePath);
+}
+
+function isParcelModule(filename) {
+  return !!parcelModuleDirs.find(moduleDir => filename.startsWith(moduleDir));
+}
 
 function isParcelDep(filename) {
-  if (parcelDeps.includes(filename)) {
+  if (isParcelModule(filename)) {
     return true;
   }
 
-  let loadedConfig = syncPromise(loadConfig(filename, ['package.json']));
+  let loadedConfig = getPkgUp(filename);
   if (loadedConfig === null) {
     return false;
   }
+
   let pkg = loadedConfig.config;
   return pkg && (pkg.name.includes('@parcel') || pkg.name.includes('parcel-'));
+}
+
+function addParcelModuleDir(filename) {
+  if (!filename) {
+    return;
+  }
+
+  let moduleDir = getModuleDir(filename);
+  if (!parcelModuleDirs.includes(moduleDir)) {
+    parcelModuleDirs.push(moduleDir);
+  }
 }
 
 export default function register(opts = DEFAULT_CLI_OPTS) {
@@ -82,46 +111,42 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
 
   let hookFunction = (...args) => syncPromise(fileProcessor(...args));
 
-  function resolveFile(filename, filePath) {
-    let resolvedFilePath = null;
+  function resolveFile(currFile, targetFile) {
+    let resolvedTargetFile;
     try {
-      resolvedFilePath = resolveFrom(path.dirname(filename), filePath);
-      if (isParcelDep(resolvedFilePath)) {
-        return filePath;
-      }
+      resolvedTargetFile = resolveFrom(path.dirname(currFile), targetFile);
     } catch (e) {
-      // Do nothing, maybe the parcel resolver can resolve this require
+      resolvedTargetFile = e;
     }
 
-    if (!isParcelDep(filename)) {
+    if (
+      !isParcelDep(currFile) &&
+      (resolvedTargetFile instanceof Error || !isParcelDep(resolvedTargetFile))
+    ) {
       let dep = new Dependency({
-        moduleSpecifier: filePath,
-        sourcePath: filename
+        moduleSpecifier: targetFile,
+        sourcePath: currFile
       });
 
-      filePath = syncPromise(parcel.resolverRunner.resolve(dep));
+      targetFile = syncPromise(parcel.resolverRunner.resolve(dep));
 
-      let fileExtension = path.extname(filePath);
-      if (!hooks[fileExtension]) {
-        hooks[fileExtension] = addHook(hookFunction, {
-          exts: [fileExtension],
+      let targetFileExtension = path.extname(targetFile);
+      if (!hooks[targetFileExtension]) {
+        hooks[targetFileExtension] = addHook(hookFunction, {
+          exts: [targetFileExtension],
           ignoreNodeModules: false
         });
       }
     } else {
-      if (!parcelDeps.includes(filename)) {
-        parcelDeps.push(filename);
+      if (resolvedTargetFile instanceof Error) {
+        throw resolvedTargetFile;
       }
 
-      filePath = resolvedFilePath
-        ? resolvedFilePath
-        : resolveFrom(path.dirname(filename), filePath);
-      if (!parcelDeps.includes(filePath)) {
-        parcelDeps.push(filePath);
-      }
+      addParcelModuleDir(currFile);
+      addParcelModuleDir(resolvedTargetFile);
     }
 
-    return filePath;
+    return targetFile;
   }
 
   Module.prototype.require = function(filePath, ...args) {
