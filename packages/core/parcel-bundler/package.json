@@ -48,7 +48,7 @@
     "fast-glob": "^2.2.2",
     "filesize": "^3.6.0",
     "get-port": "^3.2.0",
-    "htmlnano": "^0.1.9",
+    "htmlnano": "^0.2.2",
     "is-glob": "^4.0.0",
     "is-url": "^1.2.2",
     "js-yaml": "^3.10.0",
