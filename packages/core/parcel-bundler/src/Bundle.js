@@ -39,6 +39,8 @@ class Bundle {
   addAsset(asset) {
     asset.bundles.add(this);
     this.assets.add(asset);
+    if (this.type != 'map' && asset.sourceMaps)
+      this.getSiblingBundle('map').addAsset(asset);
   }
 
   removeAsset(asset) {
@@ -126,7 +128,11 @@ class Bundle {
       ? this.getHash()
       : Path.basename(this.name, ext)
     ).slice(-8);
-    let entryAsset = this.entryAsset || this.parentBundle.entryAsset;
+    let entryAsset = this;
+    while (entryAsset.entryAsset == null) {
+      entryAsset = entryAsset.parentBundle;
+    }
+    entryAsset = entryAsset.entryAsset;
     let name = Path.basename(entryAsset.name, Path.extname(entryAsset.name));
     let isMainEntry = entryAsset.options.entryFiles[0] === entryAsset.name;
     let isEntry =

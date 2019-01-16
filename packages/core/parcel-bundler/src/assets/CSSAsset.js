@@ -178,20 +178,19 @@ class CSSAsset extends Asset {
       }
     }
 
+    this.sourceMaps = {
+      css: this.sourceMap
+    };
+
     return [
       {
         type: 'css',
-        value: css,
-        cssModules: this.cssModules
+        value: css
       },
       {
         type: 'js',
         value: js,
         hasDependencies: false
-      },
-      {
-        type: 'map',
-        value: this.sourceMap
       }
     ];
   }

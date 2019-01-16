@@ -187,10 +187,16 @@ class JSAsset extends Asset {
       }
     }
 
-    return {
-      js: code,
-      map: this.sourceMap
+    this.sourceMaps = {
+      js: this.sourceMap
     };
+
+    return [
+      {
+        type: 'js',
+        value: code
+      }
+    ];
   }
 
   generateErrorMessage(err) {

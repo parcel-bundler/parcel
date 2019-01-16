@@ -34,6 +34,7 @@ class Pipeline {
       id: asset.id,
       dependencies: Array.from(asset.dependencies.values()),
       generated: generatedMap,
+      sourceMaps: asset.sourceMaps,
       error: error,
       hash: asset.hash,
       cacheData: asset.cacheData
