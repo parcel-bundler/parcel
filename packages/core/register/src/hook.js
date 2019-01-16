@@ -34,13 +34,11 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
 
   syncPromise(parcel.init());
 
-  let inParcelRequire = false;
   let isProcessing = false;
-  let isParcelModule = new WeakSet();
 
   // As Parcel is pretty much fully asynchronous, create an async function and wrap it in a syncPromise later...
   async function fileProcessor(code, filename) {
-    if (inParcelRequire) {
+    if (isProcessing) {
       return code;
     }
 
@@ -97,23 +95,12 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
   }
 
   Module.prototype.require = function(filePath, ...args) {
-    let wasInParcelRequire = inParcelRequire;
-
-    // If this is a require while Parcel is processing, don't process it or any of its deps.
-    if (isProcessing || (this.parent && isParcelModule.has(this.parent))) {
-      inParcelRequire = true;
-      isParcelModule.add(this);
-    }
-
     let resolved = filePath;
-    if (!inParcelRequire) {
+    if (!isProcessing) {
       resolved = resolveFile(this.filename, filePath);
     }
 
-    let res = originalRequire.call(this, resolved, ...args);
-
-    inParcelRequire = wasInParcelRequire;
-    return res;
+    return originalRequire.call(this, resolved, ...args);
   };
 }
 
