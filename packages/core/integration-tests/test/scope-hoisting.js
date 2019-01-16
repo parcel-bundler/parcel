@@ -7,15 +7,6 @@ const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
 
 describe('scope hoisting', function() {
-  if (process.platform === 'win32') {
-    // eslint-disable-next-line no-console
-    console.warn(
-      'WARNING: Scope hoisting tests are disabled on windows due to ' +
-        'filesystem errors. Feel free to look into this and contribute a fix!'
-    );
-    return;
-  }
-
   describe('es6', function() {
     it('supports default imports and exports of expressions', async function() {
       let b = await bundle(
@@ -314,6 +305,18 @@ describe('scope hoisting', function() {
         path.join(
           __dirname,
           '/integration/scope-hoisting/es6/re-export-var/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'foobar');
+    });
+
+    it('supports requiring a re-exported and renamed ES6 import', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-renamed/a.js'
         )
       );
 
