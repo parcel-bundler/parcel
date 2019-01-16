@@ -100,6 +100,45 @@ export type PackageJSON = {
   peerDependencies?: PackageDependencies
 };
 
+export type ParcelOptions = {
+  entries?: Array<FilePath>,
+  rootDir?: FilePath,
+  config?: ParcelConfig,
+  defaultConfig?: ParcelConfig,
+  env?: {[string]: string},
+  targets?: Array<Target>,
+
+  watch?: boolean,
+  cache?: boolean,
+  cacheDir?: FilePath,
+  killWorkers?: boolean,
+  production?: boolean,
+  minify?: boolean,
+  sourceMaps?: boolean,
+  publicUrl?: string,
+  hot?: ServerOptions | boolean,
+  serve?: ServerOptions | boolean,
+  autoinstall?: boolean,
+  logLevel?: number
+
+  // contentHash
+  // scopeHoist
+  // throwErrors
+  // global?
+  // detailedReport
+};
+
+export type ServerOptions = {
+  host?: string,
+  port?: number,
+  https?: HTTPSOptions | boolean,
+};
+
+export type HTTPSOptions = {
+  cert?: FilePath,
+  key?: FilePath
+};
+
 export type CLIOptions = {
   cacheDir?: FilePath,
   watch?: boolean,
