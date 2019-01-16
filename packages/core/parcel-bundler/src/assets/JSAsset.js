@@ -37,13 +37,7 @@ class JSAsset extends Asset {
   }
 
   shouldInvalidate(cacheData) {
-    for (let key in cacheData.env) {
-      if (cacheData.env[key] !== process.env[key]) {
-        return true;
-      }
-    }
-
-    return false;
+    return isAccessedVarChanged(cacheData);
   }
 
   mightHaveDependencies() {
