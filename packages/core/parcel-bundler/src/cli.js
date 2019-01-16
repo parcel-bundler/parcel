@@ -247,6 +247,8 @@ async function bundle(main, command) {
         command.open
       );
     }
+  } else if (command.name() === 'serve' && command.target === 'node') {
+    await bundler.autorun();
   } else {
     bundler.bundle();
   }

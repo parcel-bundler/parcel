@@ -8,6 +8,7 @@ const Watcher = require('@parcel/watcher');
 const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
+const AutoRun = require('./AutoRun');
 const {EventEmitter} = require('events');
 const logger = require('@parcel/logger');
 const PackagerRegistry = require('./packagers');
@@ -844,6 +845,10 @@ class Bundler extends EventEmitter {
       // ignore: server can still work with errored bundler
     }
     return this.server;
+  }
+
+  autorun() {
+    new AutoRun(this);
   }
 }
 
