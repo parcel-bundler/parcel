@@ -1,10 +1,16 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
+const isAccessedVarChanged = require('../utils/isAccessedVarChanged');
 
 class TypeScriptAsset extends Asset {
   constructor(name, options) {
     super(name, options);
     this.type = 'js';
+    this.cacheData.env = {};
+  }
+
+  shouldInvalidate(cacheData) {
+    return isAccessedVarChanged(cacheData);
   }
 
   async generate() {
