@@ -7,8 +7,7 @@ const {
   run,
   assertBundleTree,
   deferred,
-  ncp,
-  rimraf
+  ncp
 } = require('./utils');
 const {mkdirp} = require('@parcel/fs');
 const {symlinkSync} = require('fs');
@@ -115,12 +114,6 @@ describe('javascript', function() {
     assert(JSON.parse(pkg).devDependencies['@babel/core']);
     assert(
       JSON.parse(pkg).devDependencies['@babel/plugin-proposal-class-properties']
-    );
-
-    // cleanup node_modules, otherwise the next time we run the tests
-    // it doesn't add it to the "package.json" cause it exists in the node_modules when required
-    await rimraf(
-      path.join(__dirname, '/integration/babel-plugin-autoinstall/node_modules')
     );
     await fs.writeFile(
       __dirname + '/integration/babel-plugin-autoinstall/package.json',
@@ -1272,7 +1265,6 @@ describe('javascript', function() {
 
   it('should compile node_modules when symlinked with a source field in package.json', async function() {
     const inputDir = path.join(__dirname, '/input');
-    await rimraf(inputDir);
     await mkdirp(path.join(inputDir, 'node_modules'));
     await ncp(
       path.join(path.join(__dirname, '/integration/babel-node-modules-source')),
