@@ -91,7 +91,7 @@ export default class Parcel {
   }
 
   async init() {
-    Cache.createCacheDir(this.options.cliOpts.cacheDir);
+    await Cache.createCacheDir(this.options.cliOpts.cacheDir);
 
     if (!this.options.env) {
       await loadEnv(path.join(this.rootDir, 'index'));
