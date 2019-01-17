@@ -18,13 +18,30 @@ import {isMatch} from 'micromatch';
 import {basename} from 'path';
 import {CONFIG} from '@parcel/plugin';
 
+type Pipeline = Array<PackageName>;
+type GlobMap<T> = {[Glob]: T};
+
 export default class Config {
-  config: ParcelConfig;
   configPath: FilePath;
+  resolvers: Pipeline;
+  transforms: GlobMap<Pipeline>;
+  loaders: GlobMap<PackageName>;
+  bundler: PackageName;
+  namers: Pipeline;
+  packagers: GlobMap<PackageName>;
+  optimizers: GlobMap<Pipeline>;
+  reporters: Pipeline;
 
   constructor(config: ParcelConfig, filePath: FilePath) {
-    this.config = config;
     this.configPath = filePath;
+    this.resolvers = config.resolvers || [];
+    this.transforms = config.transforms || {};
+    this.loaders = config.loaders || {};
+    this.bundler = config.bundler || '';
+    this.namers = config.namers || [];
+    this.packagers = config.packagers || {};
+    this.optimizers = config.optimizers || {};
+    this.reporters = config.reporters || [];
   }
 
   async loadPlugin(pluginName: PackageName) {
@@ -33,20 +50,24 @@ export default class Config {
     return plugin[CONFIG];
   }
 
-  async loadPlugins(plugins: Array<PackageName>) {
+  async loadPlugins(plugins: Pipeline) {
     return Promise.all(plugins.map(pluginName => this.loadPlugin(pluginName)));
   }
 
   async getResolvers(): Promise<Array<Resolver>> {
-    return this.loadPlugins(this.config.resolvers);
+    if (this.resolvers.length === 0) {
+      throw new Error('No resolver plugins specified in .parcelrc config');
+    }
+
+    return this.loadPlugins(this.resolvers);
   }
 
   async getTransformers(filePath: FilePath): Promise<Array<Transformer>> {
-    let transformers: Array<PackageName> | null = this.matchGlobMap(
+    let transformers: Pipeline | null = this.matchGlobMapPipelines(
       filePath,
-      this.config.transforms
+      this.transforms
     );
-    if (!transformers) {
+    if (!transformers || transformers.length === 0) {
       throw new Error(`No transformers found for "${filePath}".`);
     }
 
@@ -54,11 +75,19 @@ export default class Config {
   }
 
   async getBundler(): Promise<Bundler> {
-    return this.loadPlugin(this.config.bundler);
+    if (!this.bundler) {
+      throw new Error('No bundler specified in .parcelrc config');
+    }
+
+    return this.loadPlugin(this.bundler);
   }
 
   async getNamers(): Promise<Array<Namer>> {
-    return this.loadPlugins(this.config.namers);
+    if (this.namers.length === 0) {
+      throw new Error('No namer plugins specified in .parcelrc config');
+    }
+
+    return this.loadPlugins(this.namers);
   }
 
   async getRuntimes(context: EnvironmentContext): Promise<Array<Runtime>> {
@@ -71,9 +100,9 @@ export default class Config {
   }
 
   async getPackager(filePath: FilePath): Promise<Packager> {
-    let packagerName: PackageName | null = this.matchGlobMap(
+    let packagerName: ?PackageName = this.matchGlobMap(
       filePath,
-      this.config.packagers
+      this.packagers
     );
     if (!packagerName) {
       throw new Error(`No packager found for "${filePath}".`);
@@ -83,9 +112,9 @@ export default class Config {
   }
 
   async getOptimizers(filePath: FilePath): Promise<Array<Optimizer>> {
-    let optimizers: Array<PackageName> | null = this.matchGlobMap(
+    let optimizers: ?Pipeline = this.matchGlobMapPipelines(
       filePath,
-      this.config.optimizers
+      this.optimizers
     );
     if (!optimizers) {
       return [];
@@ -102,5 +131,37 @@ export default class Config {
     }
 
     return null;
+  }
+
+  matchGlobMapPipelines(filePath: FilePath, globMap: {[Glob]: Pipeline}) {
+    let matches = [];
+    for (let pattern in globMap) {
+      if (isMatch(filePath, pattern) || isMatch(basename(filePath), pattern)) {
+        matches.push(globMap[pattern]);
+      }
+    }
+
+    let flatten = () => {
+      let pipeline = matches.shift() || [];
+      let restIndex = pipeline.indexOf('...');
+      if (restIndex >= 0) {
+        pipeline = [
+          ...pipeline.slice(0, restIndex),
+          ...flatten(),
+          ...pipeline.slice(restIndex + 1)
+        ];
+      }
+
+      if (pipeline.includes('...')) {
+        throw new Error(
+          'Only one rest parameter can be included in a config pipeline'
+        );
+      }
+
+      return pipeline;
+    };
+
+    let res = flatten();
+    return res;
   }
 }

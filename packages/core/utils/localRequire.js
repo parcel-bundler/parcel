@@ -6,7 +6,7 @@ const WorkerFarm = require('@parcel/workers');
 const cache = new Map();
 
 async function localRequire(name, path, triedInstall = false) {
-  let [resolved] = await localResolve(name, path, triedInstall);
+  let resolved = await localResolve(name, path, triedInstall);
   return require(resolved);
 }
 
@@ -16,10 +16,13 @@ async function localResolve(name, path, triedInstall = false) {
   let resolved = cache.get(key);
   if (!resolved) {
     try {
-      resolved = await resolve(name, {basedir});
+      resolved = await resolve(name, {basedir, extensions: ['.js', '.json']});
     } catch (e) {
       if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
-        await installPackage(name, path);
+        await WorkerFarm.callMaster({
+          location: require.resolve('./installPackage.js'),
+          args: [[name], path]
+        });
         return await localResolve(name, path, true);
       }
       throw e;
