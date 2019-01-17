@@ -212,6 +212,19 @@ class Asset {
   }
 
   async postProcess(generated) {
+    let hasMap = false;
+    let sourceMaps = {};
+    for (let rendition of generated) {
+      if (rendition.map && rendition.type == this.type) {
+        sourceMaps[rendition.type] = rendition.map;
+        hasMap = true;
+      }
+    }
+
+    if (hasMap) {
+      this.sourceMaps = sourceMaps;
+    }
+
     return generated;
   }
 

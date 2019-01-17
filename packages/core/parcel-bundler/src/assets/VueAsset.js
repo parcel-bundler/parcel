@@ -59,6 +59,7 @@ class VueAsset extends Asset {
   }
 
   async postProcess(generated) {
+    generated = await super.postProcess(generated);
     let result = [];
 
     let hasScoped = this.ast.styles.some(s => s.scoped);

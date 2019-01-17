@@ -79,7 +79,7 @@ class JSAsset extends Asset {
   }
 
   async pretransform() {
-    if (this.options.sourceMaps) {
+    if (this.options.sourceMaps && !this.sourceMap) {
       this.sourceMap = await loadSourceMap(this);
     }
 
@@ -187,14 +187,11 @@ class JSAsset extends Asset {
       }
     }
 
-    this.sourceMaps = {
-      js: this.sourceMap
-    };
-
     return [
       {
         type: 'js',
-        value: code
+        value: code,
+        map: this.sourceMap
       }
     ];
   }
