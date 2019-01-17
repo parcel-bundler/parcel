@@ -201,12 +201,20 @@ export default class ConfigResolver {
   mergeConfigs(base: ParcelConfig, ext: ParcelConfig): ParcelConfig {
     return {
       resolvers: this.mergePipelines(base.resolvers, ext.resolvers),
-      transforms: this.mergeGlobMap(base.transforms, ext.transforms),
-      loaders: {...base.loaders, ...ext.loaders},
+      transforms: this.mergeGlobMap(
+        base.transforms,
+        ext.transforms,
+        this.mergePipelines
+      ),
+      loaders: this.mergeGlobMap(base.loaders, ext.loaders),
       bundler: ext.bundler || base.bundler,
       namers: this.mergePipelines(base.namers, ext.namers),
-      packagers: {...base.packagers, ...ext.packagers},
-      optimizers: this.mergeGlobMap(base.optimizers, ext.optimizers),
+      packagers: this.mergeGlobMap(base.packagers, ext.packagers),
+      optimizers: this.mergeGlobMap(
+        base.optimizers,
+        ext.optimizers,
+        this.mergePipelines
+      ),
       reporters: this.mergePipelines(base.reporters, ext.reporters)
     };
   }
@@ -217,6 +225,7 @@ export default class ConfigResolver {
     }
 
     if (base) {
+      // Merge the base pipeline if a rest element is defined
       let restIndex = ext.indexOf('...');
       if (restIndex >= 0) {
         ext = [
@@ -235,10 +244,11 @@ export default class ConfigResolver {
     return ext;
   }
 
-  mergeGlobMap(
-    base: ?GlobMap<Pipeline>,
-    ext: ?GlobMap<Pipeline>
-  ): GlobMap<Pipeline> {
+  mergeGlobMap<T>(
+    base: ?GlobMap<T>,
+    ext: ?GlobMap<T>,
+    merger?: (a: T, b: T) => T
+  ): GlobMap<T> {
     if (!ext) {
       return base || {};
     }
@@ -247,11 +257,14 @@ export default class ConfigResolver {
       return ext;
     }
 
-    let res: GlobMap<Pipeline> = {};
+    // Add the extension options first so they have higher precedence in the output glob map
+    let res: GlobMap<T> = {};
     for (let glob in ext) {
-      res[glob] = this.mergePipelines(base[glob], ext[glob]);
+      res[glob] =
+        merger && base[glob] ? merger(base[glob], ext[glob]) : ext[glob];
     }
 
+    // Add base options that aren't defined in the extension
     for (let glob in base) {
       if (!res[glob]) {
         res[glob] = base[glob];
