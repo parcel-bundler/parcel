@@ -24,9 +24,17 @@ function createJSXRegexFor(dependency) {
  * package.json is empty or missing yet and therefore pragma cannot
  * be determined based on pkg.dependencies / pkg.devDependencies
  */
+const cacheJsxRegexFor = {};
 function maybeCreateFallbackPragma(asset) {
   for (const dep in JSX_PRAGMA) {
-    if (asset.contents.match(createJSXRegexFor(dep))) {
+    let regex = cacheJsxRegexFor[dep];
+
+    if (!regex) {
+      regex = createJSXRegexFor(dep);
+      cacheJsxRegexFor[dep] = regex;
+    }
+
+    if (asset.contents.match(regex)) {
       return JSX_PRAGMA[dep];
     }
   }
