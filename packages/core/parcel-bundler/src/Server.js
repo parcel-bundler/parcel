@@ -9,6 +9,7 @@ const AnsiToHtml = require('ansi-to-html');
 const logger = require('@parcel/logger');
 const path = require('path');
 const url = require('url');
+const ProxyHelper = require('./utils/ProxyHelper.js');
 
 const ansiToHtml = new AnsiToHtml({newline: true});
 
@@ -39,6 +40,8 @@ function middleware(bundler) {
     setHeaders: setHeaders
   });
 
+  const proxy = ProxyHelper();
+
   return function(req, res, next) {
     logAccessIfVerbose();
 
@@ -51,6 +54,9 @@ function middleware(bundler) {
 
     function respond() {
       let {pathname} = url.parse(req.url);
+      if (proxy && proxy.shouldProxyPath(pathname)) {
+        return proxy.proxy(req, res);
+      }
       if (bundler.error) {
         return send500(bundler.error);
       } else if (

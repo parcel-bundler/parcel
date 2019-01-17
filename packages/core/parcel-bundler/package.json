@@ -49,6 +49,7 @@
     "filesize": "^3.6.0",
     "get-port": "^3.2.0",
     "htmlnano": "^0.2.2",
+    "http-proxy": "^1.17.0",
     "is-glob": "^4.0.0",
     "is-url": "^1.2.2",
     "js-yaml": "^3.10.0",
