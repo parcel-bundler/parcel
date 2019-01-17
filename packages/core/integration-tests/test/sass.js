@@ -229,7 +229,7 @@ describe('sass', function() {
     assert(css.includes('.bar { color: green;'));
   });
 
-  it.only('should support absolute imports', async function() {
+  it('should support absolute imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/scss-absolute-imports/style.scss')
     );
