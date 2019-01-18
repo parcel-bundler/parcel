@@ -195,14 +195,15 @@ export default class ConfigResolver {
         `Official parcel ${pluginType} packages must be named according to "@parcel/${pluginType}-{name}" but got "${pkg}" in ${relativePath}.`
       );
     } else if (pkg.startsWith('@')) {
+      let [scope, name] = pkg.split('/');
       assert(
-        pkg.replace(/^@[^/]\//, '').startsWith(`parcel-${pluginType}-`),
-        `Scoped parcel ${pluginType} packages must be named according to "@scope/parcel-${pluginType}-{name}" but got "${pkg}" in ${relativePath}.`
+        name.startsWith(`parcel-${pluginType}-`),
+        `Scoped parcel ${pluginType} packages must be named according to "${scope}/parcel-${pluginType}-{name}" but got "${pkg}" in ${relativePath}.`
       );
     } else {
       assert(
         pkg.startsWith(`parcel-${pluginType}-`),
-        `Parcel ${pluginType} packages must be named according to "@scope/parcel-${pluginType}-{name}" but got "${pkg}" in ${relativePath}.`
+        `Parcel ${pluginType} packages must be named according to "parcel-${pluginType}-{name}" but got "${pkg}" in ${relativePath}.`
       );
     }
   }
