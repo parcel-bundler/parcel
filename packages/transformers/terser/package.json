@@ -7,6 +7,9 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "main": "src/TerserTransformer",
+  "engines": {
+    "parcel": "2.x"
+  },
   "devDependencies": {
     "@parcel/eslint-config": "1.10.3"
   }

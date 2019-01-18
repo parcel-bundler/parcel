@@ -17,9 +17,13 @@ import localRequire from '@parcel/utils/localRequire';
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
 import {CONFIG} from '@parcel/plugin';
+import logger from '@parcel/logger';
+import semver from 'semver';
 
 type Pipeline = Array<PackageName>;
 type GlobMap<T> = {[Glob]: T};
+
+const PARCEL_VERSION = require('../package.json').version;
 
 export default class Config {
   configPath: FilePath;
@@ -31,6 +35,7 @@ export default class Config {
   packagers: GlobMap<PackageName>;
   optimizers: GlobMap<Pipeline>;
   reporters: Pipeline;
+  pluginCache: Map<PackageName, any>;
 
   constructor(config: ParcelConfig, filePath: FilePath) {
     this.configPath = filePath;
@@ -42,12 +47,43 @@ export default class Config {
     this.packagers = config.packagers || {};
     this.optimizers = config.optimizers || {};
     this.reporters = config.reporters || [];
+    this.pluginCache = new Map();
   }
 
   async loadPlugin(pluginName: PackageName) {
-    let plugin = await localRequire(pluginName, this.configPath);
+    let cached = this.pluginCache.get(pluginName);
+    if (cached) {
+      return cached;
+    }
+
+    let [resolved, pkg] = await localRequire.resolve(
+      pluginName,
+      this.configPath
+    );
+
+    // Validate the engines.parcel field in the plugin's package.json
+    let parcelVersionRange = pkg.engines && pkg.engines.parcel;
+    if (!parcelVersionRange) {
+      logger.warn(
+        `The plugin "${pluginName}" needs to specify a \`package.json#engines.parcel\` field with the supported Parcel version range.`
+      );
+    }
+
+    if (
+      parcelVersionRange &&
+      !semver.satisfies(PARCEL_VERSION, parcelVersionRange)
+    ) {
+      throw new Error(
+        `The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`
+      );
+    }
+
+    // $FlowFixMe
+    let plugin = require(resolved);
     plugin = plugin.default ? plugin.default : plugin;
-    return plugin[CONFIG];
+    plugin = plugin[CONFIG];
+    this.pluginCache.set(pluginName, plugin);
+    return plugin;
   }
 
   async loadPlugins(plugins: Pipeline) {

@@ -7,6 +7,9 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "main": "src/DefaultResolver",
+  "engines": {
+    "parcel": "2.x"
+  },
   "dependencies": {
     "node-libs-browser": "^2.1.0"
   },

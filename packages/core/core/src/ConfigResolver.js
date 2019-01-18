@@ -27,6 +27,14 @@ export default class ConfigResolver {
 
   async loadConfig(configPath: FilePath, rootDir: FilePath) {
     let config: ParcelConfig = parse(await fs.readFile(configPath));
+    return await this.processConfig(config, configPath, rootDir);
+  }
+
+  async processConfig(
+    config: ParcelConfig,
+    configPath: FilePath,
+    rootDir: FilePath
+  ) {
     let relativePath = path.relative(process.cwd(), configPath);
     this.validateConfig(config, relativePath);
 
@@ -48,7 +56,8 @@ export default class ConfigResolver {
     if (ext.startsWith('.')) {
       return path.resolve(configPath, ext);
     } else {
-      return await localRequire.resolve(ext, configPath);
+      let [resolved] = await localRequire.resolve(ext, configPath);
+      return resolved;
     }
   }
 

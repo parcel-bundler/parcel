@@ -1,12 +1,12 @@
 const {dirname} = require('path');
-const {promisify} = require('util');
+const promisify = require('./promisify');
 const resolve = promisify(require('resolve'));
 const WorkerFarm = require('@parcel/workers');
 
 const cache = new Map();
 
 async function localRequire(name, path, triedInstall = false) {
-  let resolved = await localResolve(name, path, triedInstall);
+  let [resolved] = await localResolve(name, path, triedInstall);
   return require(resolved);
 }
 
