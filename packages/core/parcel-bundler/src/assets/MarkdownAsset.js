@@ -5,6 +5,7 @@ class MarkdownAsset extends Asset {
   constructor(name, options) {
     super(name, options);
     this.type = 'html';
+    this.needsPipelineProcessing = true;
     this.hmrPageReload = true;
   }
   async parse(code) {

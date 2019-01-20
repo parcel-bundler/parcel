@@ -116,7 +116,9 @@ class Pipeline {
         type,
         value: asset.generated[type],
         // for scope hoisting, we need to post process all JS
-        final: !((type === 'js' && this.options.scopeHoist) || type === 'html')
+        final: asset.hasOwnProperty('needsPipelineProcessing')
+          ? !asset.needsPipelineProcessing
+          : !(type === 'js' && this.options.scopeHoist)
       };
     }
   }
