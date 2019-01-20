@@ -219,7 +219,7 @@ async function bundle(main, command) {
   command.target = command.target || 'browser';
   if (command.name() === 'serve' && command.target === 'browser') {
     const server = await bundler.serve(
-      command.port || 1234,
+      process.env.PORT || 1234,
       command.https,
       command.host
     );
