@@ -49,7 +49,6 @@ class Pipeline {
 
     let inputType = path.extname(asset.name).slice(1);
     let generated = [];
-
     for (let rendition of this.iterateRenditions(asset)) {
       let {type, value} = rendition;
       if (typeof value !== 'string' || rendition.final) {
@@ -117,7 +116,7 @@ class Pipeline {
         type,
         value: asset.generated[type],
         // for scope hoisting, we need to post process all JS
-        final: !(type === 'js' && this.options.scopeHoist)
+        final: !((type === 'js' && this.options.scopeHoist) || type === 'html')
       };
     }
   }

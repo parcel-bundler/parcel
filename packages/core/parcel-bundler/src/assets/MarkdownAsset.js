@@ -1,11 +1,16 @@
 const localRequire = require('../utils/localRequire');
-const HTMLAsset = require('./HTMLAsset');
+const Asset = require('../Asset');
 
-class MarkdownAsset extends HTMLAsset {
+class MarkdownAsset extends Asset {
+  constructor(name, options) {
+    super(name, options);
+    this.type = 'html';
+    this.hmrPageReload = true;
+  }
   async parse(code) {
     let marked = await localRequire('marked', this.name);
-    return HTMLAsset.prototype.parse.bind(this)(marked(code));
+    this.contents = marked(code);
+    return this.contents;
   }
 }
-
 module.exports = MarkdownAsset;
