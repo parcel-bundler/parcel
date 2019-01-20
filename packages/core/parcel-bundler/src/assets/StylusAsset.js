@@ -5,6 +5,7 @@ const Resolver = require('../Resolver');
 const fs = require('@parcel/fs');
 const {dirname, resolve, relative} = require('path');
 const {isGlob, glob} = require('../utils/glob');
+const {EOL} = require('os');
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
@@ -20,6 +21,10 @@ class StylusAsset extends Asset {
     let opts = await this.getConfig(['.stylusrc', '.stylusrc.js'], {
       packageKey: 'stylus'
     });
+    // inject content at beginning of stylus files
+    if (opts && opts.inject) {
+      code = opts.inject + EOL + code;
+    }
     let style = stylus(code, opts);
     style.set('filename', this.name);
     style.set('include css', true);
