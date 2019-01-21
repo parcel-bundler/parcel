@@ -31,6 +31,9 @@ class AutoRun {
   }
 
   run(bundle) {
+    if (!bundle.name) {
+      return;
+    }
     this.prog = spawn('node', [bundle.name], {
       stdio: [process.stdin, process.stdout, process.stderr],
       detached: false
