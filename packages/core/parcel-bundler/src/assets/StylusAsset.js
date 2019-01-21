@@ -30,7 +30,9 @@ class StylusAsset extends Asset {
     style.set('include css', true);
     // Setup a handler for the URL function so we add dependencies for linked assets.
     style.define('url', node => {
-      let filename = this.addURLDependency(node.val, node.filename);
+      let filename = /^=./.test(node.val)
+        ? node.val.slice(1)
+        : this.addURLDependency(node.val, node.filename);
       return new stylus.nodes.Literal(`url(${JSON.stringify(filename)})`);
     });
     style.set('Evaluator', await createEvaluator(code, this, style.options));
