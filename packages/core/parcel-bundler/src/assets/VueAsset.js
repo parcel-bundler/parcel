@@ -17,6 +17,17 @@ class VueAsset extends Asset {
     );
     this.vue = await localRequire('@vue/component-compiler-utils', this.name);
 
+    // handle mighty vue (initial, pretty basic version)
+    const regx = /(?<=\n|^)(template|script|style)(?:.*\n)([\s\S]*?)(\n(?=\S)|$)/g;
+    const lang = {
+      template: 'pug',
+      script: 'coffee',
+      style: 'stylus'
+    };
+    code = code.replace(regx, function(...hits) {
+      return `<${hits[1]} lang='${lang[hits[1]]}'>\n${hits[2]}</${hits[1]}>\n`;
+    });
+
     return this.vue.parse({
       source: code,
       needMap: this.options.sourceMaps,
