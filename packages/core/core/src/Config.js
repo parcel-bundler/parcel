@@ -11,7 +11,8 @@ import type {
   EnvironmentContext,
   PackageName,
   Packager,
-  Optimizer
+  Optimizer,
+  EnvironmentContext
 } from '@parcel/types';
 import localRequire from '@parcel/utils/localRequire';
 import {isMatch} from 'micromatch';
@@ -29,9 +30,9 @@ export default class Config {
   configPath: FilePath;
   resolvers: Pipeline;
   transforms: GlobMap<Pipeline>;
-  loaders: GlobMap<PackageName>;
   bundler: PackageName;
   namers: Pipeline;
+  runtimes: {[EnvironmentContext]: Pipeline};
   packagers: GlobMap<PackageName>;
   optimizers: GlobMap<Pipeline>;
   reporters: Pipeline;
@@ -41,7 +42,7 @@ export default class Config {
     this.configPath = filePath;
     this.resolvers = config.resolvers || [];
     this.transforms = config.transforms || {};
-    this.loaders = config.loaders || {};
+    this.runtimes = config.runtimes || {};
     this.bundler = config.bundler || '';
     this.namers = config.namers || [];
     this.packagers = config.packagers || {};

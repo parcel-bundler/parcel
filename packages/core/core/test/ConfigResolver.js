@@ -137,10 +137,10 @@ describe('ConfigResolver', () => {
     });
   });
 
-  describe('validateGlobMap', () => {
+  describe('validateMap', () => {
     it('should require glob map to be an object', () => {
       assert.throws(() => {
-        resolver.validateGlobMap(
+        resolver.validateMap(
           // $FlowFixMe
           'foo',
           () => {},
@@ -153,7 +153,7 @@ describe('ConfigResolver', () => {
 
     it('should trigger the validator function for each key', () => {
       assert.throws(() => {
-        resolver.validateGlobMap(
+        resolver.validateMap(
           {
             '*.js': ['foo']
           },
@@ -164,7 +164,7 @@ describe('ConfigResolver', () => {
         );
       });
 
-      resolver.validateGlobMap(
+      resolver.validateMap(
         {
           '*.js': ['parcel-transform-foo']
         },
@@ -288,26 +288,26 @@ describe('ConfigResolver', () => {
     });
   });
 
-  describe('mergeGlobMap', () => {
+  describe('mergeMaps', () => {
     it('should return an empty object if base and extension are null', () => {
-      assert.deepEqual(resolver.mergeGlobMap(null, null), {});
+      assert.deepEqual(resolver.mergeMaps(null, null), {});
     });
 
     it('should return base if extension is null', () => {
-      assert.deepEqual(resolver.mergeGlobMap({'*.js': 'foo'}, null), {
+      assert.deepEqual(resolver.mergeMaps({'*.js': 'foo'}, null), {
         '*.js': 'foo'
       });
     });
 
     it('should return extension if base is null', () => {
-      assert.deepEqual(resolver.mergeGlobMap(null, {'*.js': 'foo'}), {
+      assert.deepEqual(resolver.mergeMaps(null, {'*.js': 'foo'}), {
         '*.js': 'foo'
       });
     });
 
     it('should merge the objects', () => {
       assert.deepEqual(
-        resolver.mergeGlobMap(
+        resolver.mergeMaps(
           {'*.css': 'css', '*.js': 'base-js'},
           {'*.js': 'ext-js'}
         ),
@@ -317,12 +317,12 @@ describe('ConfigResolver', () => {
 
     it('should ensure that extension properties have a higher precidence than base properties', () => {
       assert.deepEqual(
-        resolver.mergeGlobMap({'*.{js,jsx}': 'base-js'}, {'*.js': 'ext-js'}),
+        resolver.mergeMaps({'*.{js,jsx}': 'base-js'}, {'*.js': 'ext-js'}),
         {'*.js': 'ext-js', '*.{js,jsx}': 'base-js'}
       );
       assert.deepEqual(
         Object.keys(
-          resolver.mergeGlobMap({'*.{js,jsx}': 'base-js'}, {'*.js': 'ext-js'})
+          resolver.mergeMaps({'*.{js,jsx}': 'base-js'}, {'*.js': 'ext-js'})
         ),
         ['*.js', '*.{js,jsx}']
       );
@@ -331,7 +331,7 @@ describe('ConfigResolver', () => {
     it('should call a merger function if provided', () => {
       let merger = (a, b) => [a, b];
       assert.deepEqual(
-        resolver.mergeGlobMap({'*.js': 'base-js'}, {'*.js': 'ext-js'}, merger),
+        resolver.mergeMaps({'*.js': 'base-js'}, {'*.js': 'ext-js'}, merger),
         {'*.js': ['base-js', 'ext-js']}
       );
     });
@@ -362,7 +362,7 @@ describe('ConfigResolver', () => {
           '*.css': ['parcel-transform-css']
         },
         bundler: 'parcel-bundler-base',
-        loaders: {},
+        runtimes: {},
         namers: [],
         optimizers: {},
         packagers: {},

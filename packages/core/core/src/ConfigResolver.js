@@ -1,5 +1,5 @@
 // @flow
-import type {FilePath, ParcelConfig, Glob, PackageName} from '@parcel/types';
+import type {FilePath, ParcelConfig, PackageName} from '@parcel/types';
 import {resolveConfig} from '@parcel/utils/config';
 import Config from './Config';
 import fs from '@parcel/fs';
@@ -9,7 +9,7 @@ import localRequire from '@parcel/utils/localRequire';
 import assert from 'assert';
 
 type Pipeline = Array<PackageName>;
-type GlobMap<T> = {[Glob]: T};
+type ConfigMap<K, V> = {[K]: V};
 
 export default class ConfigResolver {
   async resolve(rootDir: FilePath): Promise<?Config> {
@@ -68,7 +68,7 @@ export default class ConfigResolver {
       'resolvers',
       relativePath
     );
-    this.validateGlobMap(
+    this.validateMap(
       config.transforms,
       this.validatePipeline.bind(this),
       'transformer',
@@ -82,14 +82,21 @@ export default class ConfigResolver {
       relativePath
     );
     this.validatePipeline(config.namers, 'namer', 'namers', relativePath);
-    this.validateGlobMap(
+    this.validateMap(
+      config.runtimes,
+      this.validatePipeline.bind(this),
+      'runtime',
+      'runtimes',
+      relativePath
+    );
+    this.validateMap(
       config.packagers,
       this.validatePackageName.bind(this),
       'packager',
       'packagers',
       relativePath
     );
-    this.validateGlobMap(
+    this.validateMap(
       config.optimizers,
       this.validatePipeline.bind(this),
       'optimizer',
@@ -153,11 +160,11 @@ export default class ConfigResolver {
     }
   }
 
-  validateGlobMap<T>(
-    globMap: ?GlobMap<T>,
-    validator: (v: T, p: string, k: string, p: FilePath) => void,
+  validateMap<K, V>(
+    globMap: ?ConfigMap<K, V>,
+    validator: (v: V, p: string, k: string, p: FilePath) => void,
     pluginType: string,
-    key: string,
+    configKey: string,
     relativePath: FilePath
   ) {
     if (!globMap) {
@@ -166,10 +173,12 @@ export default class ConfigResolver {
 
     assert(
       typeof globMap === 'object',
-      `"${key}" must be an object in ${relativePath}`
+      `"${configKey}" must be an object in ${relativePath}`
     );
-    for (let glob in globMap) {
-      validator(globMap[glob], pluginType, `${key}["${glob}"]`, relativePath);
+    for (let k in globMap) {
+      // Flow doesn't correctly infer the type. See https://github.com/facebook/flow/issues/1736.
+      let key: K = (k: any);
+      validator(globMap[key], pluginType, `${configKey}["${k}"]`, relativePath);
     }
   }
 
@@ -210,16 +219,16 @@ export default class ConfigResolver {
   mergeConfigs(base: ParcelConfig, ext: ParcelConfig): ParcelConfig {
     return {
       resolvers: this.mergePipelines(base.resolvers, ext.resolvers),
-      transforms: this.mergeGlobMap(
+      transforms: this.mergeMaps(
         base.transforms,
         ext.transforms,
         this.mergePipelines
       ),
-      loaders: this.mergeGlobMap(base.loaders, ext.loaders),
       bundler: ext.bundler || base.bundler,
       namers: this.mergePipelines(base.namers, ext.namers),
-      packagers: this.mergeGlobMap(base.packagers, ext.packagers),
-      optimizers: this.mergeGlobMap(
+      runtimes: this.mergeMaps(base.runtimes, ext.runtimes),
+      packagers: this.mergeMaps(base.packagers, ext.packagers),
+      optimizers: this.mergeMaps(
         base.optimizers,
         ext.optimizers,
         this.mergePipelines
@@ -254,11 +263,11 @@ export default class ConfigResolver {
     return ext;
   }
 
-  mergeGlobMap<T>(
-    base: ?GlobMap<T>,
-    ext: ?GlobMap<T>,
-    merger?: (a: T, b: T) => T
-  ): GlobMap<T> {
+  mergeMaps<K, V>(
+    base: ?ConfigMap<K, V>,
+    ext: ?ConfigMap<K, V>,
+    merger?: (a: V, b: V) => V
+  ): ConfigMap<K, V> {
     if (!ext) {
       return base || {};
     }
@@ -268,16 +277,18 @@ export default class ConfigResolver {
     }
 
     // Add the extension options first so they have higher precedence in the output glob map
-    let res: GlobMap<T> = {};
-    for (let glob in ext) {
-      res[glob] =
-        merger && base[glob] ? merger(base[glob], ext[glob]) : ext[glob];
+    let res: ConfigMap<K, V> = {};
+    for (let k in ext) {
+      // Flow doesn't correctly infer the type. See https://github.com/facebook/flow/issues/1736.
+      let key: K = (k: any);
+      res[key] = merger && base[key] ? merger(base[key], ext[key]) : ext[key];
     }
 
     // Add base options that aren't defined in the extension
-    for (let glob in base) {
-      if (!res[glob]) {
-        res[glob] = base[glob];
+    for (let k in base) {
+      let key: K = (k: any);
+      if (!res[key]) {
+        res[key] = base[key];
       }
     }
 
