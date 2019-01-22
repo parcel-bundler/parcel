@@ -11,8 +11,7 @@ import type {
   EnvironmentContext,
   PackageName,
   Packager,
-  Optimizer,
-  EnvironmentContext
+  Optimizer
 } from '@parcel/types';
 import localRequire from '@parcel/utils/localRequire';
 import {isMatch} from 'micromatch';
@@ -128,7 +127,7 @@ export default class Config {
   }
 
   async getRuntimes(context: EnvironmentContext): Promise<Array<Runtime>> {
-    let runtimes = this.config.runtimes[context];
+    let runtimes = this.runtimes[context];
     if (!runtimes) {
       return [];
     }

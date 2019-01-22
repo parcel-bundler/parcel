@@ -1,9 +1,13 @@
 // @flow
 'use strict';
 import AssetGraph from './AssetGraph';
-import type {Bundle, BundleGraph, CLIOptions} from '@parcel/types';
+import type {
+  Bundle,
+  BundleGraph,
+  CLIOptions,
+  ParcelConfig
+} from '@parcel/types';
 import BundlerRunner from './BundlerRunner';
-import Config from './Config';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
 import getRootDir from '@parcel/utils/getRootDir';
@@ -13,9 +17,6 @@ import Cache from '@parcel/cache';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
 
-// TODO: use custom config if present
-const defaultConfig = require('@parcel/config-default');
-
 const abortError = new Error('Build aborted');
 
 type ParcelOpts = {
@@ -23,7 +24,9 @@ type ParcelOpts = {
   cwd?: string,
   cliOpts: CLIOptions,
   killWorkers?: boolean,
-  env?: {[string]: ?string}
+  env?: {[string]: ?string},
+  config?: ParcelConfig,
+  defaultConfig?: ParcelConfig
 };
 
 export default class Parcel {
@@ -51,16 +54,27 @@ export default class Parcel {
     }
 
     let configResolver = new ConfigResolver();
-    let config = await configResolver.resolve(this.rootDir);
-    if (!config) {
-      return;
+    let config;
+
+    // If an explicit `config` option is passed use that, otherwise resolve a .parcelrc from the filesystem.
+    if (this.options.config) {
+      config = await configResolver.create(this.options.config, this.rootDir);
+    } else {
+      config = await configResolver.resolve(this.rootDir);
     }
 
-    this.resolverRunner = new ResolverRunner({
-      config,
-      cliOpts: this.options.cliOpts,
-      rootDir: this.rootDir
-    });
+    // If no config was found, default to the `defaultConfig` option if one is provided.
+    if (!config && this.options.defaultConfig) {
+      config = await configResolver.create(
+        this.options.defaultConfig,
+        this.rootDir
+      );
+    }
+
+    if (!config) {
+      throw new Error('Could not find a .parcelrc');
+    }
+
     this.bundlerRunner = new BundlerRunner({
       config,
       cliOpts: this.options.cliOpts,
@@ -79,12 +93,6 @@ export default class Parcel {
     );
 
     this.runPackage = this.farm.mkhandle('runPackage');
-
-    // TODO: resolve config from filesystem
-    let config = new Config(
-      defaultConfig,
-      require.resolve('@parcel/config-default')
-    );
 
     this.bundlerRunner = new BundlerRunner({
       config,
