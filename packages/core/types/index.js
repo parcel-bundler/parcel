@@ -25,11 +25,11 @@ export type ParcelConfig = {
   transforms: {
     [Glob]: Array<PackageName>
   },
-  loaders: {
-    [Glob]: PackageName
-  },
   bundler: PackageName,
   namers: Array<PackageName>,
+  runtimes: {
+    [EnvironmentContext]: Array<PackageName>
+  },
   packagers: {
     [Glob]: PackageName
   },
@@ -150,7 +150,8 @@ export type File = {
 
 export type TransformerRequest = {
   filePath: FilePath,
-  env: Environment
+  env: Environment,
+  code?: string
 };
 
 export interface Asset {
@@ -252,11 +253,6 @@ export interface Graph {
   merge(graph: Graph): void;
 }
 
-export type DependencyResolution = {
-  asset?: Asset,
-  bundles?: Array<Bundle>
-};
-
 // TODO: what do we want to expose here?
 export interface AssetGraph extends Graph {
   traverseAssets(visit: GraphTraversalCallback<Asset>): any;
@@ -265,18 +261,20 @@ export interface AssetGraph extends Graph {
   getEntryAssets(): Array<Asset>;
   removeAsset(asset: Asset): void;
   getDependencies(asset: Asset): Array<Dependency>;
-  getDependencyResolution(dependency: Dependency): DependencyResolution;
+  getDependencyResolution(dependency: Dependency): ?Asset;
 }
 
 export type BundleGroup = {
   dependency: Dependency,
-  target: ?Target
+  target: ?Target,
+  entryAssetId: string
 };
 
 export type Bundle = {
   id: string,
   type: string,
   assetGraph: AssetGraph,
+  env: Environment,
   isEntry?: boolean,
   target?: Target,
   filePath?: FilePath
@@ -302,6 +300,10 @@ export type Bundler = {
 
 export type Namer = {
   name(bundle: Bundle, opts: CLIOptions): Async<?FilePath>
+};
+
+export type Runtime = {
+  apply(bundle: Bundle, opts: CLIOptions): Async<void>
 };
 
 export type Packager = {

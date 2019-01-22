@@ -7,6 +7,8 @@ import type {
   Resolver,
   Bundler,
   Namer,
+  Runtime,
+  EnvironmentContext,
   PackageName,
   Packager,
   Optimizer
@@ -57,6 +59,15 @@ export default class Config {
 
   async getNamers(): Promise<Array<Namer>> {
     return this.loadPlugins(this.config.namers);
+  }
+
+  async getRuntimes(context: EnvironmentContext): Promise<Array<Runtime>> {
+    let runtimes = this.config.runtimes[context];
+    if (!runtimes) {
+      return [];
+    }
+
+    return await this.loadPlugins(runtimes);
   }
 
   async getPackager(filePath: FilePath): Promise<Packager> {

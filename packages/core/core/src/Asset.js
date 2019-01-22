@@ -28,6 +28,7 @@ type AssetOptions = {
   dependencies?: Array<IDependency>,
   connectedFiles?: Array<File>,
   output?: AssetOutput,
+  outputSize?: number,
   outputHash?: string,
   env: Environment,
   meta?: JSONObject
@@ -64,7 +65,7 @@ export default class Asset implements IAsset {
       ? options.connectedFiles.slice()
       : [];
     this.output = options.output || {code: this.code};
-    this.outputSize = this.output.code.length;
+    this.outputSize = options.outputSize || this.output.code.length;
     this.outputHash = options.outputHash || '';
     this.env = options.env;
     this.meta = options.meta || {};

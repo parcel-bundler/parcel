@@ -5,6 +5,7 @@ import type {
   Resolver as ResolverOpts,
   Bundler as BundlerOpts,
   Namer as NamerOpts,
+  Runtime as RuntimeOpts,
   Packager as PackagerOpts,
   Optimizer as OptimizerOpts,
   Reporter as ReporterOpts
@@ -35,6 +36,13 @@ export class Bundler {
 
 export class Namer {
   constructor(opts: NamerOpts) {
+    // $FlowFixMe
+    this[CONFIG] = opts;
+  }
+}
+
+export class Runtime {
+  constructor(opts: RuntimeOpts) {
     // $FlowFixMe
     this[CONFIG] = opts;
   }

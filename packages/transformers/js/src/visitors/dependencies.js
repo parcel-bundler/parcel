@@ -1,11 +1,9 @@
 import * as types from '@babel/types';
-// import template from '@babel/template';
 import traverse from '@babel/traverse';
 import nodeBuiltins from 'node-libs-browser';
 import isURL from '@parcel/utils/is-url';
+import {hasBinding} from './utils';
 
-// const requireTemplate = template('require("_bundle_loader")');
-// const argTemplate = template('require.resolve(MODULE)');
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];
 
 export default {
@@ -59,12 +57,10 @@ export default {
         return;
       }
 
-      // asset.addDependency({moduleSpecifier: '_bundle_loader'});
       addDependency(asset, args[0], {isAsync: true});
 
-      // node.callee = requireTemplate().expression;
-      // node.arguments[0] = argTemplate({MODULE: args[0]}).expression;
-      // asset.ast.isDirty = true;
+      node.callee = types.identifier('require');
+      asset.ast.isDirty = true;
       return;
     }
 
@@ -98,33 +94,6 @@ export default {
     }
   }
 };
-
-function hasBinding(node, name) {
-  if (Array.isArray(node)) {
-    return node.some(ancestor => hasBinding(ancestor, name));
-  } else if (
-    types.isProgram(node) ||
-    types.isBlockStatement(node) ||
-    types.isBlock(node)
-  ) {
-    return node.body.some(statement => hasBinding(statement, name));
-  } else if (
-    types.isFunctionDeclaration(node) ||
-    types.isFunctionExpression(node) ||
-    types.isArrowFunctionExpression(node)
-  ) {
-    return (
-      (node.id && node.id.name === name) ||
-      node.params.some(
-        param => types.isIdentifier(param) && param.name === name
-      )
-    );
-  } else if (types.isVariableDeclaration(node)) {
-    return node.declarations.some(declaration => declaration.id.name === name);
-  }
-
-  return false;
-}
 
 function isInFalsyBranch(ancestors) {
   // Check if any ancestors are if statements

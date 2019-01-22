@@ -33,12 +33,12 @@ class TransformerRunner {
   }
 
   async transform(req: TransformerRequest): Promise<CacheEntry> {
-    let code = await fs.readFile(req.filePath, 'utf8');
+    let code = req.code || (await fs.readFile(req.filePath, 'utf8'));
     let hash = md5(code);
 
     // If a cache entry matches, no need to transform.
     let cacheEntry;
-    if (this.cliOpts.cache !== false) {
+    if (this.cliOpts.cache !== false && req.code == null) {
       cacheEntry = await Cache.read(req.filePath, req.env);
     }
 
@@ -64,6 +64,14 @@ class TransformerRunner {
       pipeline,
       cacheEntry
     );
+
+    // If the transformer request passed code rather than a filename,
+    // use a hash as the id to ensure it is unique.
+    if (req.code) {
+      for (let asset of assets) {
+        asset.id = asset.outputHash;
+      }
+    }
 
     cacheEntry = {
       filePath: req.filePath,
