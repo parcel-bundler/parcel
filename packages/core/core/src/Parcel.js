@@ -75,12 +75,6 @@ export default class Parcel {
       throw new Error('Could not find a .parcelrc');
     }
 
-    this.bundlerRunner = new BundlerRunner({
-      config,
-      cliOpts: this.options.cliOpts,
-      rootDir: this.rootDir
-    });
-
     this.farm = await WorkerFarm.getShared(
       {
         config,
