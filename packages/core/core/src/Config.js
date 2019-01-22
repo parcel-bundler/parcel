@@ -179,18 +179,18 @@ export default class Config {
 
     let flatten = () => {
       let pipeline = matches.shift() || [];
-      let restIndex = pipeline.indexOf('...');
-      if (restIndex >= 0) {
+      let spreadIndex = pipeline.indexOf('...');
+      if (spreadIndex >= 0) {
         pipeline = [
-          ...pipeline.slice(0, restIndex),
+          ...pipeline.slice(0, spreadIndex),
           ...flatten(),
-          ...pipeline.slice(restIndex + 1)
+          ...pipeline.slice(spreadIndex + 1)
         ];
       }
 
       if (pipeline.includes('...')) {
         throw new Error(
-          'Only one rest parameter can be included in a config pipeline'
+          'Only one spread parameter can be included in a config pipeline'
         );
       }
 

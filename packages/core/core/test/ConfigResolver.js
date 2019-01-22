@@ -1,3 +1,4 @@
+// @flow
 import ConfigResolver from '../src/ConfigResolver';
 import assert from 'assert';
 
@@ -79,6 +80,54 @@ describe.only('ConfigResolver', () => {
         '@test/parcel-transform-bar',
         'transform',
         'transforms',
+        '.parcelrc'
+      );
+    });
+  });
+
+  describe('validatePipeline', () => {
+    it('should require pipeline to be an array', () => {
+      assert.throws(() => {
+        resolver.validatePipeline('123', 'resolver', 'resolvers', '.parcelrc');
+      }, /"resolvers" must be an array in .parcelrc/);
+    });
+
+    it('should require pipeline elements to be strings', () => {
+      assert.throws(() => {
+        resolver.validatePipeline(
+          [1, 'foo', 3],
+          'resolver',
+          'resolvers',
+          '.parcelrc'
+        );
+      }, /"resolvers" elements must be strings in .parcelrc/);
+    });
+
+    it('should require package names to be valid', () => {
+      assert.throws(() => {
+        resolver.validatePipeline(
+          ['parcel-foo-bar'],
+          'resolver',
+          'resolvers',
+          '.parcelrc'
+        );
+      }, /Parcel resolver packages must be named according to "parcel-resolver-{name}" but got "parcel-foo-bar" in .parcelrc./);
+    });
+
+    it('should succeed with an array of valid package names', () => {
+      resolver.validatePipeline(
+        ['parcel-resolver-test'],
+        'resolver',
+        'resolvers',
+        '.parcelrc'
+      );
+    });
+
+    it('should support spread elements', () => {
+      resolver.validatePipeline(
+        ['parcel-resolver-test', '...'],
+        'resolver',
+        'resolvers',
         '.parcelrc'
       );
     });

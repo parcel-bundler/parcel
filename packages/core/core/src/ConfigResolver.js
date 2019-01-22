@@ -236,16 +236,16 @@ export default class ConfigResolver {
 
     if (base) {
       // Merge the base pipeline if a rest element is defined
-      let restIndex = ext.indexOf('...');
-      if (restIndex >= 0) {
+      let spreadIndex = ext.indexOf('...');
+      if (spreadIndex >= 0) {
         ext = [
-          ...ext.slice(0, restIndex),
+          ...ext.slice(0, spreadIndex),
           ...(base || []),
-          ...ext.slice(restIndex + 1)
+          ...ext.slice(spreadIndex + 1)
         ];
         if (ext.includes('...')) {
           throw new Error(
-            'Only one rest parameter can be included in a config pipeline'
+            'Only one spread element can be included in a config pipeline'
           );
         }
       }
