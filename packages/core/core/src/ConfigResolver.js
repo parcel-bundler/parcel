@@ -21,7 +21,6 @@ export default class ConfigResolver {
     }
 
     let config = await this.loadConfig(configPath, rootDir);
-    console.log(config);
     return new Config(config, configPath);
   }
 
@@ -54,10 +53,10 @@ export default class ConfigResolver {
 
   async resolveExtends(ext: string, configPath: FilePath) {
     if (ext.startsWith('.')) {
-      return path.resolve(configPath, ext);
+      return path.resolve(path.dirname(configPath), ext);
     } else {
       let [resolved] = await localRequire.resolve(ext, configPath);
-      return resolved;
+      return await fs.realpath(resolved);
     }
   }
 
@@ -167,7 +166,7 @@ export default class ConfigResolver {
 
     assert(
       typeof globMap === 'object',
-      `"${key} must be an object in ${relativePath}`
+      `"${key}" must be an object in ${relativePath}`
     );
     for (let glob in globMap) {
       validator(globMap[glob], pluginType, `${key}["${glob}"]`, relativePath);
@@ -238,16 +237,17 @@ export default class ConfigResolver {
       // Merge the base pipeline if a rest element is defined
       let spreadIndex = ext.indexOf('...');
       if (spreadIndex >= 0) {
+        if (ext.filter(v => v === '...').length > 1) {
+          throw new Error(
+            'Only one spread element can be included in a config pipeline'
+          );
+        }
+
         ext = [
           ...ext.slice(0, spreadIndex),
           ...(base || []),
           ...ext.slice(spreadIndex + 1)
         ];
-        if (ext.includes('...')) {
-          throw new Error(
-            'Only one spread element can be included in a config pipeline'
-          );
-        }
       }
     }
 
