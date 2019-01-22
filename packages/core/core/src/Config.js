@@ -159,9 +159,13 @@ export default class Config {
     return await this.loadPlugins(optimizers);
   }
 
+  isGlobMatch(filePath: FilePath, pattern: Glob) {
+    return isMatch(filePath, pattern) || isMatch(basename(filePath), pattern);
+  }
+
   matchGlobMap(filePath: FilePath, globMap: {[Glob]: any}) {
     for (let pattern in globMap) {
-      if (isMatch(filePath, pattern) || isMatch(basename(filePath), pattern)) {
+      if (this.isGlobMatch(filePath, pattern)) {
         return globMap[pattern];
       }
     }
@@ -172,7 +176,7 @@ export default class Config {
   matchGlobMapPipelines(filePath: FilePath, globMap: {[Glob]: Pipeline}) {
     let matches = [];
     for (let pattern in globMap) {
-      if (isMatch(filePath, pattern) || isMatch(basename(filePath), pattern)) {
+      if (this.isGlobMatch(filePath, pattern)) {
         matches.push(globMap[pattern]);
       }
     }

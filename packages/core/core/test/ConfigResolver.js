@@ -4,7 +4,7 @@ import assert from 'assert';
 import path from 'path';
 import Config from '../src/Config';
 
-describe.only('ConfigResolver', () => {
+describe('ConfigResolver', () => {
   let resolver = new ConfigResolver();
 
   describe('validatePackageName', () => {
