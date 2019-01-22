@@ -140,8 +140,8 @@ describe('ConfigResolver', () => {
   describe('validateGlobMap', () => {
     it('should require glob map to be an object', () => {
       assert.throws(() => {
-        // $FlowFixMe
         resolver.validateGlobMap(
+          // $FlowFixMe
           'foo',
           () => {},
           'transform',
