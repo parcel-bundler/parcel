@@ -73,7 +73,7 @@ export default new Transformer({
     }
 
     // Collect dependencies
-    if (canHaveDependencies(asset.code)) {
+    if (canHaveDependencies(asset.code) || ast.isDirty) {
       walk.ancestor(ast.program, collectDependencies, asset);
     }
 
@@ -141,7 +141,11 @@ export default new Transformer({
 
     if (asset.meta.globals && asset.meta.globals.size > 0) {
       res.code =
-        Array.from(asset.meta.globals.values()).join('\n') + '\n' + res.code;
+        Array.from(asset.meta.globals.values())
+          .map(g => (g ? g.code : ''))
+          .join('\n') +
+        '\n' +
+        res.code;
     }
 
     delete asset.meta.globals;

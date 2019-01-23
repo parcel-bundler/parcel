@@ -25,10 +25,8 @@ export default new Packager({
       let dependencies = bundle.assetGraph.getDependencies(asset);
       for (let dep of dependencies) {
         let resolved = bundle.assetGraph.getDependencyResolution(dep);
-        if (resolved.bundles) {
-          deps[dep.moduleSpecifier] = resolved.bundles.map(b => b.id);
-        } else if (resolved.asset) {
-          deps[dep.moduleSpecifier] = resolved.asset.id;
+        if (resolved) {
+          deps[dep.moduleSpecifier] = resolved.id;
         }
       }
 

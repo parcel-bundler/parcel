@@ -8,7 +8,7 @@ import type {
 import AssetGraph from './AssetGraph';
 
 const getBundleGroupId = (bundleGroup: BundleGroup) =>
-  'bundle_group:' + bundleGroup.dependency.id;
+  'bundle_group:' + bundleGroup.entryAssetId;
 
 export default class BundleGraph extends AssetGraph {
   constructor() {
@@ -65,8 +65,23 @@ export default class BundleGraph extends AssetGraph {
       to: bundleNode.id
     });
 
-    // Add a connection from the bundle group to the bundle in all bundles
     this.traverse(node => {
+      // Replace dependencies in this bundle with bundle group references for
+      // already created bundles in the bundle graph. This can happen when two
+      // bundles point to the same dependency, which has an async import.
+      if (node.type === 'bundle_group') {
+        // TODO: fix the AssetGraph interface so we don't need to do this
+        let assetGraph: AssetGraph = (bundle.assetGraph: any);
+        let bundleGroup: BundleGroup = node.value;
+        let depNode = assetGraph.getNode(bundleGroup.dependency.id);
+        if (depNode && !assetGraph.hasNode(node.id)) {
+          assetGraph.merge(this.getSubGraph(node));
+          assetGraph.replaceNodesConnectedTo(depNode, [node]);
+          this.addEdge({from: bundle.id, to: node.id});
+        }
+      }
+
+      // Add a connection from the bundle group to the bundle in all bundles
       if (
         node.type === 'bundle' &&
         node.value.assetGraph.hasNode(bundleGroupId)
