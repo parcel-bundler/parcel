@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundle} = require('./utils');
+const {bundler} = require('./utils');
 const http = require('http');
 const https = require('https');
 
@@ -38,17 +38,16 @@ describe.only('server', function() {
     });
   }
 
-  it.only('should serve files', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/commonjs/index.js'),
-      {
-        cliOpts: {
-          cache: false,
-          serve: true,
-          publicURL: '/'
-        }
+  it('should serve files', async function() {
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      cliOpts: {
+        cache: false,
+        serve: true,
+        publicURL: '/'
       }
-    );
+    });
+    await b.run();
+
     server = b.server;
 
     let data = await get('/index.js');
@@ -58,9 +57,17 @@ describe.only('server', function() {
     );
   });
 
-  it('should serve a default page if the main bundle is an HTML asset', async function() {
-    let b = bundler(path.join(__dirname, '/integration/html/index.html'));
-    server = await b.serve(0);
+  it.only('should serve a default page if the main bundle is an HTML asset', async function() {
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      cliOpts: {
+        cache: false,
+        serve: true,
+        publicURL: '/'
+      }
+    });
+    await b.run();
+
+    server = b.server;
 
     let data = await get('/');
     assert.equal(

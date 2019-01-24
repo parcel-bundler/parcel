@@ -12,6 +12,7 @@ const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
 const {sleep} = require('@parcel/test-utils');
 
+const merge = require('deepmerge');
 const chalk = new (require('chalk')).constructor({enabled: true});
 const warning = chalk.keyword('orange');
 // eslint-disable-next-line no-console
@@ -43,11 +44,12 @@ beforeEach(async function() {
 
 function bundler(entries, opts) {
   return new Parcel(
-    Object.assign(
+    merge(
       {
         entries,
         cliOpts: {
-          cache: false
+          cache: false,
+          distDir: path.join(__dirname, 'dist')
         },
         killWorkers: false
       },
