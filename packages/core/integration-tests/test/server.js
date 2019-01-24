@@ -1,11 +1,11 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundler} = require('./utils');
+const {bundle} = require('./utils');
 const http = require('http');
 const https = require('https');
 
-describe.skip('server', function() {
+describe.only('server', function() {
   let server;
   afterEach(function() {
     if (server) {
@@ -38,9 +38,18 @@ describe.skip('server', function() {
     });
   }
 
-  it('should serve files', async function() {
-    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'));
-    server = await b.serve(0);
+  it.only('should serve files', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/commonjs/index.js'),
+      {
+        cliOpts: {
+          cache: false,
+          serve: true,
+          publicURL: '/'
+        }
+      }
+    );
+    server = b.server;
 
     let data = await get('/index.js');
     assert.equal(

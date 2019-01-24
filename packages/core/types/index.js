@@ -105,7 +105,17 @@ export type CLIOptions = {
   watch?: boolean,
   distDir?: FilePath,
   production?: boolean,
-  cache?: boolean
+  cache?: boolean,
+  serve?: boolean,
+  hot?: boolean,
+  port?: number,
+  hostname?: string,
+  hotPort?: number,
+  hotHostname?: string,
+  https?: string,
+  cert?: string,
+  key?: string,
+  publicURL?: string
 };
 
 export type SourceLocation = {

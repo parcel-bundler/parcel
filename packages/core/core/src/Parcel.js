@@ -11,6 +11,8 @@ import loadEnv from './loadEnv';
 import path from 'path';
 import Cache from '@parcel/cache';
 import AssetGraphBuilder from './AssetGraphBuilder';
+import {Server, HMRServer} from '@parcel/server';
+import EventEmitter from 'events';
 
 // TODO: use custom config if present
 const defaultConfig = require('@parcel/config-default');
@@ -25,16 +27,20 @@ type ParcelOpts = {
   env?: {[string]: ?string}
 };
 
-export default class Parcel {
+export default class Parcel extends EventEmitter {
   options: ParcelOpts;
   entries: Array<string>;
   rootDir: string;
   assetGraphBuilder: AssetGraphBuilder;
   bundlerRunner: BundlerRunner;
   farm: WorkerFarm;
+  server: Server;
+  hmrServer: HMRServer;
   runPackage: (bundle: Bundle) => Promise<any>;
 
   constructor(options: ParcelOpts) {
+    super();
+
     let {entries} = options;
     this.options = options;
     this.entries = Array.isArray(entries) ? entries : [entries];
@@ -59,6 +65,19 @@ export default class Parcel {
         workerPath: require.resolve('./worker')
       }
     );
+
+    if (this.options.cliOpts.serve) {
+      this.server = await Server.serve(
+        this,
+        this.options.cliOpts.port,
+        this.options.cliOpts.hostname,
+        this.options.cliOpts.https
+      );
+    }
+
+    if (this.options.cliOpts.hot) {
+      this.hmrServer = new HMRServer(this.options.cliOpts);
+    }
 
     this.runPackage = this.farm.mkhandle('runPackage');
 
@@ -94,6 +113,8 @@ export default class Parcel {
 
   async build() {
     try {
+      this.pending = true;
+
       // console.log('Starting build'); // eslint-disable-line no-console
       let assetGraph = await this.assetGraphBuilder.build();
       // await graph.dumpGraphViz();
@@ -103,6 +124,9 @@ export default class Parcel {
       if (!this.options.cliOpts.watch && this.options.killWorkers !== false) {
         await this.farm.end();
       }
+
+      this.pending = false;
+      this.emit('bundled');
 
       // console.log('Finished build'); // eslint-disable-line no-console
       return bundleGraph;

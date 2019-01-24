@@ -17,6 +17,7 @@
     "@parcel/plugin": "^2.0.0",
     "@parcel/types": "^2.0.0",
     "@parcel/utils": "^1.10.3",
+    "@parcel/server": "^2.0.0",
     "abortcontroller-polyfill": "^1.1.9",
     "chalk": "^2.1.0",
     "commander": "^2.11.0",

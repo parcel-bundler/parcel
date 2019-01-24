@@ -1,0 +1,28 @@
+{
+  "name": "@parcel/server",
+  "version": "2.0.0",
+  "license": "MIT",
+  "main": "./lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "scripts": {
+    "test": "mocha",
+    "build": "babel src --out-dir lib",
+    "prepublish": "yarn build"
+  },
+  "dependencies": {
+    "@parcel/logger": "^1.10.3",
+    "@parcel/fs": "^1.10.3",
+    "ansi-to-html": "^0.6.10",
+    "get-port": "^4.1.0",
+    "mkdirp": "^0.5.1",
+    "node-forge": "^0.7.6",
+    "serve-static": "^1.13.2",
+    "ws": "^6.1.3"
+  },
+  "devDependencies": {
+    "mocha": "^5.2.0"
+  }
+}
