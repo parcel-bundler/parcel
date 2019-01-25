@@ -64,9 +64,6 @@ export default class Parcel {
   }
 
   async run() {
-    let controller = new AbortController();
-    let signal = controller.signal;
-
     await this.init();
 
     // TODO: resolve config from filesystem
