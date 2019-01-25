@@ -202,6 +202,10 @@ class Bundler extends EventEmitter {
 
     try {
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
+
+      // peer dependencies are external
+      this.externals = Object.keys(pkg.peerDependencies || {});
+
       for (let dep in deps) {
         const pattern = /^(@.*\/)?parcel-plugin-.+/;
         if (pattern.test(dep)) {
@@ -566,6 +570,14 @@ class Bundler extends EventEmitter {
 
     // Call the delegate to get implicit dependencies
     let dependencies = processed.dependencies;
+
+    // exlucde externals
+    if (this.externals.length && !this.options.hmr) {
+      dependencies.forEach((dep, i) => {
+        if (this.externals.includes(dep.name)) dependencies.splice(i, 1);
+      });
+    }
+
     if (this.delegate.getImplicitDependencies) {
       let implicitDeps = await this.delegate.getImplicitDependencies(asset);
       if (implicitDeps) {
