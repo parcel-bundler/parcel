@@ -19,9 +19,6 @@ import {serialize, deserialize} from '@parcel/utils/serializer';
 // const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
 const OPTION_KEYS = [];
 
-// Default cache directory name
-const DEFAULT_CACHE_DIR = '.parcel-cache';
-
 // Cache for whether a cache dir exists
 const existsCache = new Set();
 
@@ -31,7 +28,7 @@ export class Cache {
   optionsHash: string;
 
   init(options: CLIOptions) {
-    this.dir = Path.resolve(options.cacheDir || DEFAULT_CACHE_DIR);
+    this.dir = Path.resolve(options.cacheDir);
     this.invalidated = new Set();
     this.optionsHash = objectHash(
       OPTION_KEYS.reduce((p: JSONObject, k) => ((p[k] = options[k]), p), {
@@ -40,7 +37,7 @@ export class Cache {
     );
   }
 
-  async createCacheDir(dir: FilePath = DEFAULT_CACHE_DIR) {
+  async createCacheDir(dir: FilePath) {
     dir = Path.resolve(dir);
     if (existsCache.has(dir)) {
       return;

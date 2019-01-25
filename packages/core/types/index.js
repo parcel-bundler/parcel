@@ -100,8 +100,13 @@ export type PackageJSON = {
   peerDependencies?: PackageDependencies
 };
 
+export type Certificate = {
+  cert: string,
+  key: string
+};
+
 export type CLIOptions = {
-  cacheDir?: FilePath,
+  cacheDir: FilePath,
   watch?: boolean,
   distDir?: FilePath,
   production?: boolean,
@@ -112,10 +117,10 @@ export type CLIOptions = {
   hostname?: string,
   hotPort?: number,
   hotHostname?: string,
-  https?: string,
+  https?: boolean | Certificate,
   cert?: string,
   key?: string,
-  publicURL?: string
+  publicURL: string
 };
 
 export type SourceLocation = {

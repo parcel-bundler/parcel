@@ -42,7 +42,7 @@ beforeEach(async function() {
   //   await removeDistDirectory();
 });
 
-function bundler(entries, opts) {
+function bundler(entries, opts = {}) {
   return new Parcel(
     merge(
       {

@@ -19,6 +19,8 @@ const defaultConfig = require('@parcel/config-default');
 
 const abortError = new Error('Build aborted');
 
+const DEFAULT_CACHE_DIR = '.parcel-cache';
+
 type ParcelOpts = {
   entries: string | Array<string>,
   cwd?: string,
@@ -36,6 +38,7 @@ export default class Parcel extends EventEmitter {
   farm: WorkerFarm;
   server: Server;
   hmrServer: HMRServer;
+  pending: boolean;
   runPackage: (bundle: Bundle) => Promise<any>;
 
   constructor(options: ParcelOpts) {
@@ -45,6 +48,20 @@ export default class Parcel extends EventEmitter {
     this.options = options;
     this.entries = Array.isArray(entries) ? entries : [entries];
     this.rootDir = getRootDir(this.entries);
+
+    this.normaliseCliOptions();
+  }
+
+  normaliseCliOptions() {
+    this.options.cliOpts.cacheDir =
+      this.options.cliOpts.cacheDir || DEFAULT_CACHE_DIR;
+    if (this.options.cliOpts.cert && this.options.cliOpts.key) {
+      this.options.cliOpts.https = {
+        cert: this.options.cliOpts.cert,
+        key: this.options.cliOpts.key
+      };
+    }
+    this.options.cliOpts.publicURL = this.options.cliOpts.publicURL || '/';
   }
 
   async run() {

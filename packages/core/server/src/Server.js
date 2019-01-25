@@ -58,22 +58,13 @@ function middleware(bundler) {
         path.extname(pathname) === ''
       ) {
         // If the URL doesn't start with the public path, or the URL doesn't
-        // have a file extension, send the main HTML bundle.
-        return sendIndex();
+        // have a file extension, try index.html.
+        req.url = 'index.html';
+        return serve(req, res, send404);
       } else {
         // Otherwise, serve the file from the dist folder
         req.url = pathname.slice(bundler.options.cliOpts.publicURL.length);
         return serve(req, res, send404);
-      }
-    }
-
-    function sendIndex() {
-      // If the main asset is an HTML file, serve it
-      if (bundler.mainBundle.type === 'html') {
-        req.url = `/${path.basename(bundler.mainBundle.name)}`;
-        serve(req, res, send404);
-      } else {
-        send404();
       }
     }
 

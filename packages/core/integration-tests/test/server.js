@@ -5,7 +5,7 @@ const {bundler} = require('./utils');
 const http = require('http');
 const https = require('https');
 
-describe.only('server', function() {
+describe('server', function() {
   let server;
   afterEach(function() {
     if (server) {
@@ -57,7 +57,7 @@ describe.only('server', function() {
     );
   });
 
-  it.only('should serve a default page if the main bundle is an HTML asset', async function() {
+  it.skip('should serve a default page if the main bundle is an HTML asset', async function() {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       cliOpts: {
         cache: false,
@@ -83,8 +83,16 @@ describe.only('server', function() {
   });
 
   it('should serve a 404 if the file does not exist', async function() {
-    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'));
-    server = await b.serve(0);
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      cliOpts: {
+        cache: false,
+        serve: true,
+        publicURL: '/'
+      }
+    });
+    await b.run();
+
+    server = b.server;
 
     let threw = false;
     try {
@@ -96,9 +104,17 @@ describe.only('server', function() {
     assert(threw);
   });
 
-  it('should serve a 500 if the bundler errored', async function() {
-    let b = bundler(path.join(__dirname, '/integration/html/index.html'));
-    server = await b.serve(0);
+  it.skip('should serve a 500 if the bundler errored', async function() {
+    let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
+      cliOpts: {
+        cache: false,
+        serve: true,
+        publicURL: '/'
+      }
+    });
+    await b.run();
+
+    server = b.server;
 
     b.errored = true;
 
@@ -112,12 +128,24 @@ describe.only('server', function() {
     await get('/');
   });
 
-  it('should serve a 500 response with error stack trace when bundler has errors', async function() {
+  it.skip('should serve a 500 response with error stack trace when bundler has errors', async function() {
     let b = bundler(
-      path.join(__dirname, '/integration/bundler-error-syntax-error/index.html')
+      path.join(
+        __dirname,
+        '/integration/bundler-error-syntax-error/index.html'
+      ),
+      {
+        cliOpts: {
+          cache: false,
+          serve: true,
+          publicURL: '/'
+        }
+      }
     );
+    await b.run();
 
-    server = await b.serve(0);
+    server = b.server;
+
     let resp;
     try {
       await get('/');
@@ -134,14 +162,26 @@ describe.only('server', function() {
     assert(resp.includes('invalid_js'), 'code frame has invalid code');
   });
 
-  it('should serve a 500 response without stack trace when bundler has errors in production', async function() {
+  it.skip('should serve a 500 response without stack trace when bundler has errors in production', async function() {
     let NODE_ENV = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
     let b = bundler(
-      path.join(__dirname, '/integration/bundler-error-syntax-error/index.html')
+      path.join(
+        __dirname,
+        '/integration/bundler-error-syntax-error/index.html'
+      ),
+      {
+        cliOpts: {
+          cache: false,
+          serve: true,
+          publicURL: '/'
+        }
+      }
     );
+    await b.run();
 
-    server = await b.serve(0);
+    server = b.server;
+
     let resp;
     try {
       await get('/');
@@ -164,8 +204,17 @@ describe.only('server', function() {
   });
 
   it('should support HTTPS', async function() {
-    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'));
-    server = await b.serve(0, true);
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      cliOpts: {
+        cache: false,
+        serve: true,
+        publicURL: '/',
+        https: true
+      }
+    });
+    await b.run();
+
+    server = b.server;
 
     let data = await get('/index.js', https);
     assert.equal(
@@ -175,11 +224,19 @@ describe.only('server', function() {
   });
 
   it('should support HTTPS via custom certificate', async function() {
-    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'));
-    server = await b.serve(0, {
-      key: path.join(__dirname, '/integration/https/private.pem'),
-      cert: path.join(__dirname, '/integration/https/primary.crt')
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      cliOpts: {
+        cache: false,
+        serve: true,
+        publicURL: '/',
+        https: true,
+        key: path.join(__dirname, '/integration/https/private.pem'),
+        cert: path.join(__dirname, '/integration/https/primary.crt')
+      }
     });
+    await b.run();
+
+    server = b.server;
 
     let data = await get('/index.js', https);
     assert.equal(
@@ -190,9 +247,15 @@ describe.only('server', function() {
 
   it('should support setting a public url', async function() {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
-      publicUrl: '/dist'
+      cliOpts: {
+        cache: false,
+        serve: true,
+        publicURL: '/dist'
+      }
     });
-    server = await b.serve(0);
+    await b.run();
+
+    server = b.server;
 
     let data = await get('/dist/index.js');
     assert.equal(
@@ -201,28 +264,40 @@ describe.only('server', function() {
     );
   });
 
-  it('should serve static assets as well as html', async function() {
+  it.skip('should serve static assets as well as html', async function() {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
-      publicUrl: '/'
+      cliOpts: {
+        cache: false,
+        serve: true
+      }
     });
-    server = await b.serve(0);
+    await b.run();
+
+    server = b.server;
+
     // When accessing / we should get the index page.
     let data = await get('/');
     assert.equal(
       data,
       await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8')
     );
+
     // When accessing /hello.txt we should get txt document.
     await fs.writeFile(path.join(__dirname, '/dist/hello.txt'), 'hello');
     data = await get('/hello.txt');
     assert.equal(data, 'hello');
   });
 
-  it('should work with query parameters that contain a dot', async function() {
+  it.skip('should work with query parameters that contain a dot', async function() {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
-      publicUrl: '/'
+      cliOpts: {
+        cache: false,
+        serve: true
+      }
     });
-    server = await b.serve(0);
+    await b.run();
+
+    server = b.server;
 
     let data = await get('/?foo=bar.baz');
     assert.equal(
