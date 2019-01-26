@@ -6,28 +6,39 @@ const getCertificate = require('./utils/getCertificate');
 const logger = require('@parcel/logger');
 
 class HMRServer {
-  async start(options = {}) {
+  constructor(assetGraphBuilder, cliOpts) {
+    this.updatedAssets = [];
+    this.options = cliOpts;
+
+    assetGraphBuilder.on('buildEnd', this.emitUpdate.bind(this));
+
+    this.running = false;
+  }
+
+  async start() {
     await new Promise(async resolve => {
-      if (!options.https) {
+      if (!this.options.https) {
         this.server = http.createServer();
-      } else if (typeof options.https === 'boolean') {
-        this.server = https.createServer(generateCertificate(options));
+      } else if (typeof this.options.https === 'boolean') {
+        this.server = https.createServer(generateCertificate(this.options));
       } else {
-        this.server = https.createServer(await getCertificate(options.https));
+        this.server = https.createServer(
+          await getCertificate(this.options.https)
+        );
       }
 
       let websocketOptions = {
         server: this.server
       };
 
-      if (options.hmrHostname) {
-        websocketOptions.origin = `${options.https ? 'https' : 'http'}://${
-          options.hmrHostname
+      if (this.options.hmrHostname) {
+        websocketOptions.origin = `${this.options.https ? 'https' : 'http'}://${
+          this.options.hmrHostname
         }`;
       }
 
       this.wss = new WebSocket.Server(websocketOptions);
-      this.server.listen(options.hmrPort, resolve);
+      this.server.listen(this.options.hmrPort, resolve);
     });
 
     this.wss.on('connection', ws => {
@@ -39,12 +50,19 @@ class HMRServer {
 
     this.wss.on('error', this.handleSocketError);
 
+    this.running = true;
+
     return this.wss._server.address().port;
   }
 
   stop() {
     this.wss.close();
     this.server.close();
+  }
+
+  updateAsset(asset) {
+    console.log(asset);
+    this.updatedAssets.push(asset);
   }
 
   emitError(err) {
@@ -63,7 +81,7 @@ class HMRServer {
     this.broadcast(this.unresolvedError);
   }
 
-  emitUpdate(assets) {
+  emitUpdate() {
     if (this.unresolvedError) {
       this.unresolvedError = null;
       this.broadcast({
@@ -71,7 +89,8 @@ class HMRServer {
       });
     }
 
-    const shouldReload = assets.some(asset => asset.hmrPageReload);
+    let assets = this.updatedAssets;
+    let shouldReload = assets.some(asset => asset.hmrPageReload);
     if (shouldReload) {
       this.broadcast({
         type: 'reload'
@@ -93,6 +112,8 @@ class HMRServer {
         })
       });
     }
+
+    this.updatedAssets = [];
   }
 
   handleSocketError(err) {

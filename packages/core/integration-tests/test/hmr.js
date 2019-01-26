@@ -40,22 +40,26 @@ describe.skip('hmr', function() {
     });
   }
 
-  it('should emit an HMR update for the file that changed', async function() {
+  it.only('should emit an HMR update for the file that changed', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
     );
 
     b = bundler(path.join(__dirname, '/input/index.js'), {
-      watch: true,
-      hmr: true
+      cliOpts: {
+        watch: true,
+        hot: true
+      }
     });
-    await b.bundle();
+    await b.run();
 
     ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
 
-    const buildEnd = nextEvent(b, 'buildEnd');
+    const bundledEvent = nextEvent(b, 'bundled');
+
     await sleep(100);
+
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
       'exports.a = 5;\nexports.b = 5;'
@@ -67,7 +71,8 @@ describe.skip('hmr', function() {
     assert.equal(msg.assets[0].generated.js, 'exports.a = 5;\nexports.b = 5;');
     assert.deepEqual(msg.assets[0].deps, {});
 
-    await buildEnd;
+    // Wait for Parcel to become idle...
+    await bundledEvent;
   });
 
   it('should not enable HMR for --target=node', async function() {

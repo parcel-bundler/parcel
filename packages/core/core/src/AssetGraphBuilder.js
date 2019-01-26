@@ -75,7 +75,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
 
     if (opts.cliOpts.hot) {
-      this.hmrServer = new HMRServer(opts.cliOpts);
+      this.hmrServer = new HMRServer(this, opts.cliOpts);
     }
   }
 
@@ -91,11 +91,18 @@ export default class AssetGraphBuilder extends EventEmitter {
       await this.initFarm();
     }
 
+    if (this.hmrServer && !this.hmrServer.running) {
+      await this.hmrServer.start();
+    }
+
     this.controller = new AbortController();
     let signal = this.controller.signal;
 
     await this.updateGraph({signal});
     await this.completeGraph({signal});
+
+    this.emit('buildEnd');
+
     return this.graph;
   }
 
@@ -170,6 +177,12 @@ export default class AssetGraphBuilder extends EventEmitter {
       for (let file of removedFiles) {
         this.watcher.unwatch(file.filePath);
       }
+    }
+
+    if (this.hmrServer) {
+      this.hmrServer.updateAsset(cacheEntry);
+    } else {
+      console.log('no hmr server');
     }
 
     // The shallow option is used during the update phase

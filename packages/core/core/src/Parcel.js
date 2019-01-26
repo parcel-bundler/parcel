@@ -38,6 +38,7 @@ export default class Parcel extends EventEmitter {
   farm: WorkerFarm;
   server: Server;
   pending: boolean;
+  error: Error | null;
   runPackage: (bundle: Bundle) => Promise<any>;
 
   constructor(options: ParcelOpts) {
@@ -125,6 +126,7 @@ export default class Parcel extends EventEmitter {
 
   async build() {
     try {
+      this.error = null;
       this.pending = true;
 
       // console.log('Starting build'); // eslint-disable-line no-console
@@ -144,13 +146,19 @@ export default class Parcel extends EventEmitter {
       return bundleGraph;
     } catch (e) {
       if (e !== abortError) {
+        this.error = e;
+
+        if (this.assetGraphBuilder.hmrServer) {
+          this.assetGraphBuilder.hmrServer.emitError(e);
+        }
+
         console.error(e); // eslint-disable-line no-console
       }
     }
   }
 
   async stop() {
-    await this.stop();
+    await this.assetGraphBuilder.stop();
   }
 
   bundle(assetGraph: AssetGraph) {
