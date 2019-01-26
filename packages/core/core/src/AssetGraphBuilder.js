@@ -15,6 +15,7 @@ import PromiseQueue from './PromiseQueue';
 import AssetGraph from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import WorkerFarm from '@parcel/workers';
+import {HMRServer} from '@parcel/server';
 
 const abortError = new Error('Build aborted');
 
@@ -44,6 +45,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   resolverRunner: ResolverRunner;
   controller: AbortController;
   farm: WorkerFarm;
+  hmrServer: HMRServer;
   runTransform: (file: TransformerRequest) => Promise<any>;
 
   constructor(opts: Opts) {
@@ -70,6 +72,10 @@ export default class AssetGraphBuilder extends EventEmitter {
           this.emit('invalidate', filePath);
         }
       });
+    }
+
+    if (opts.cliOpts.hot) {
+      this.hmrServer = new HMRServer(opts.cliOpts);
     }
   }
 
@@ -171,6 +177,16 @@ export default class AssetGraphBuilder extends EventEmitter {
       for (let dep of newDeps) {
         this.queue.add(() => this.resolve(dep, {signal}));
       }
+    }
+  }
+
+  async stop() {
+    if (this.watcher) {
+      await this.watcher.stop();
+    }
+
+    if (this.hmrServer) {
+      await this.hmrServer.stop();
     }
   }
 }

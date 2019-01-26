@@ -11,7 +11,7 @@ import loadEnv from './loadEnv';
 import path from 'path';
 import Cache from '@parcel/cache';
 import AssetGraphBuilder from './AssetGraphBuilder';
-import {Server, HMRServer} from '@parcel/server';
+import {Server} from '@parcel/server';
 import EventEmitter from 'events';
 
 // TODO: use custom config if present
@@ -37,7 +37,6 @@ export default class Parcel extends EventEmitter {
   bundlerRunner: BundlerRunner;
   farm: WorkerFarm;
   server: Server;
-  hmrServer: HMRServer;
   pending: boolean;
   runPackage: (bundle: Bundle) => Promise<any>;
 
@@ -90,10 +89,6 @@ export default class Parcel extends EventEmitter {
         this.options.cliOpts.hostname,
         this.options.cliOpts.https
       );
-    }
-
-    if (this.options.cliOpts.hot) {
-      this.hmrServer = new HMRServer(this.options.cliOpts);
     }
 
     this.runPackage = this.farm.mkhandle('runPackage');
@@ -152,6 +147,10 @@ export default class Parcel extends EventEmitter {
         console.error(e); // eslint-disable-line no-console
       }
     }
+  }
+
+  async stop() {
+    await this.stop();
   }
 
   bundle(assetGraph: AssetGraph) {
