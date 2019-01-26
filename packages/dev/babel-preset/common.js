@@ -3,5 +3,8 @@ const serializerPlugin = require('./serializer');
 
 module.exports = {
   presets: [flow],
-  plugins: [serializerPlugin, require('@babel/plugin-proposal-class-properties')]
+  plugins: [
+    serializerPlugin,
+    require('@babel/plugin-proposal-class-properties')
+  ]
 };

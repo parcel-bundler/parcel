@@ -13,9 +13,9 @@ import type {
   Config,
   PackageJSON
 } from '@parcel/types';
+import md5 from '@parcel/utils/lib/md5';
+import {loadConfig} from '@parcel/utils/lib/config';
 import Cache from '@parcel/cache';
-import md5 from '@parcel/utils/md5';
-import {loadConfig} from '@parcel/utils/config';
 import Dependency from './Dependency';
 
 type AssetOptions = {

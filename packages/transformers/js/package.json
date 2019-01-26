@@ -6,9 +6,13 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/JSTransformer",
+  "main": "lib/JSTransformer",
   "engines": {
     "parcel": "2.x"
+  },
+  "scripts": {
+    "build": "babel src -d lib",
+    "prepublish": "yarn build"
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0"

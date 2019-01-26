@@ -45,7 +45,7 @@ export default class Parcel {
     this.rootDir = getRootDir(this.entries);
   }
 
-  async run() {
+  async init() {
     await Cache.createCacheDir(this.options.cliOpts.cacheDir);
 
     if (!this.options.env) {
@@ -87,6 +87,10 @@ export default class Parcel {
     );
 
     this.runPackage = this.farm.mkhandle('runPackage');
+  }
+
+  async run() {
+    await this.init();
 
     this.bundlerRunner = new BundlerRunner({
       config,
@@ -146,3 +150,7 @@ export default class Parcel {
     return Promise.all(promises);
   }
 }
+
+export {default as Asset} from './Asset';
+export {default as Dependency} from './Dependency';
+export {default as Environment} from './Environment';

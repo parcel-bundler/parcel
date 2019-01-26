@@ -1,4 +1,4 @@
-import {resolveConfig} from '@parcel/utils/config';
+import {resolveConfig} from '@parcel/utils/lib/config';
 import dotenv from 'dotenv';
 import variableExpansion from 'dotenv-expand';
 
