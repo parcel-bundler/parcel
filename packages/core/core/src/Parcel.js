@@ -41,8 +41,8 @@ export default class Parcel {
     this.rootDir = getRootDir(this.entries);
   }
 
-  async run() {
-    Cache.createCacheDir(this.options.cliOpts.cacheDir);
+  async init() {
+    await Cache.createCacheDir(this.options.cliOpts.cacheDir);
 
     if (!this.options.env) {
       await loadEnv(path.join(this.rootDir, 'index'));
@@ -61,6 +61,10 @@ export default class Parcel {
     );
 
     this.runPackage = this.farm.mkhandle('runPackage');
+  }
+
+  async run() {
+    await this.init();
 
     // TODO: resolve config from filesystem
     let config = new Config(
@@ -126,3 +130,7 @@ export default class Parcel {
     return Promise.all(promises);
   }
 }
+
+export {default as Asset} from './Asset';
+export {default as Dependency} from './Dependency';
+export {default as Environment} from './Environment';

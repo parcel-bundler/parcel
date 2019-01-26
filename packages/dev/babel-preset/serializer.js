@@ -8,8 +8,11 @@ function serializerPlugin({types: t}) {
     visitor: {
       Class(path, state) {
         let filename = state.file.opts.filename;
-        let {pkg, path: pkgPath} = readPkgUp.sync({cwd: Path.dirname(filename)});
-        filename = pkg.name + '/' + Path.relative(Path.dirname(pkgPath), filename);
+        let {pkg, path: pkgPath} = readPkgUp.sync({
+          cwd: Path.dirname(filename)
+        });
+        filename =
+          pkg.name + '/' + Path.relative(Path.dirname(pkgPath), filename);
 
         if (state.file.opts.caller.name === '@babel/cli') {
           filename = filename.replace('/src/', '/lib/');
@@ -41,7 +44,7 @@ function serializerPlugin({types: t}) {
         path.get('body').unshiftContainer('body', property);
       }
     }
-  }
+  };
 }
 
 module.exports = serializerPlugin;

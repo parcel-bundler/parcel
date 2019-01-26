@@ -6,8 +6,8 @@ import type {
   EnvironmentContext,
   Engines
 } from '@parcel/types';
+import {loadConfig} from '@parcel/utils/lib/config';
 import Environment from './Environment';
-import {loadConfig} from '@parcel/utils/config';
 import path from 'path';
 import browserslist from 'browserslist';
 

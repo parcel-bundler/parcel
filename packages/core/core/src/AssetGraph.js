@@ -13,7 +13,8 @@ import type {
   Bundle,
   GraphTraversalCallback
 } from '@parcel/types';
-import md5 from '@parcel/utils/md5';
+import path from 'path';
+import md5 from '@parcel/utils/lib/md5';
 import Dependency from './Dependency';
 
 export const nodeFromRootDir = (rootDir: string) => ({

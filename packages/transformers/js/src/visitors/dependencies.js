@@ -1,7 +1,7 @@
 import * as types from '@babel/types';
 import traverse from '@babel/traverse';
 import nodeBuiltins from 'node-libs-browser';
-import isURL from '@parcel/utils/is-url';
+import isURL from '@parcel/utils/lib/is-url';
 import {hasBinding} from './utils';
 
 const serviceWorkerPattern = ['navigator', 'serviceWorker', 'register'];

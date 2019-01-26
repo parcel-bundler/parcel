@@ -6,11 +6,16 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/DefaultResolver",
+  "main": "lib/DefaultResolver",
+  "scripts": {
+    "build": "babel src -d lib",
+    "prepublish": "yarn build"
+  },
   "dependencies": {
     "node-libs-browser": "^2.1.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.2.2",
     "@parcel/eslint-config": "1.10.3"
   }
 }
