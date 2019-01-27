@@ -855,6 +855,45 @@ describe('javascript', function() {
     assert.equal(output, 'bartest');
   });
 
+  it('should replace process.browser on --target=browser', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/process/index.js'),
+      {
+        target: 'browser'
+      }
+    );
+
+    let output = await run(b);
+    assert.ok(output.toString().indexOf('process.browser') === -1);
+    assert.equal(output(), true);
+  });
+
+  it('should not replace process.browser on --target=node', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/process/index.js'),
+      {
+        target: 'node'
+      }
+    );
+
+    let output = await run(b);
+    assert.ok(output.toString().indexOf('process.browser') !== -1);
+    assert.equal(output(), false);
+  });
+
+  it('should not replace process.browser on --target=electron', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/process/index.js'),
+      {
+        target: 'electron'
+      }
+    );
+
+    let output = await run(b);
+    assert.ok(output.toString().indexOf('process.browser') !== -1);
+    assert.equal(output(), false);
+  });
+
   it('should support adding implicit dependencies', async function() {
     let b = await bundle(path.join(__dirname, '/integration/json/index.js'), {
       delegate: {

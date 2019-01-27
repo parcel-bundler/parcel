@@ -7,6 +7,7 @@ const babelParser = require('@babel/parser');
 const insertGlobals = require('../visitors/globals');
 const fsVisitor = require('../visitors/fs');
 const envVisitor = require('../visitors/env');
+const processVisitor = require('../visitors/process');
 const babel = require('../transforms/babel/transform');
 const babel7 = require('../transforms/babel/babel7');
 const generate = require('@babel/generator').default;
@@ -20,6 +21,7 @@ const isAccessedVarChanged = require('../utils/isAccessedVarChanged');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
+const BROWSER_RE = /\b(?:process\.browser)\b/;
 const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer|define)\b/;
 const FS_RE = /\breadFileSync\b/;
 const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
@@ -154,6 +156,13 @@ class JSAsset extends Asset {
     if (this.options.target === 'browser' && ENV_RE.test(this.contents)) {
       await this.parseIfNeeded();
       this.traverseFast(envVisitor);
+    }
+
+    // Inline process.browser
+    if (this.options.target === 'browser' && BROWSER_RE.test(this.contents)) {
+      await this.parseIfNeeded();
+      this.traverse(processVisitor);
+      this.isAstDirty = true;
     }
   }
 
