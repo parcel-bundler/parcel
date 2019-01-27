@@ -1,5 +1,6 @@
 const Parser = require('./Parser');
 const path = require('path');
+const {errorUtils} = require('@parcel/utils');
 
 /**
  * A Pipeline composes multiple Asset types together.
@@ -17,16 +18,23 @@ class Pipeline {
     }
 
     let asset = this.parser.getAsset(path, options);
-    let generated = await this.processAsset(asset);
+    let error = null;
     let generatedMap = {};
-    for (let rendition of generated) {
-      generatedMap[rendition.type] = rendition.value;
+    try {
+      let generated = await this.processAsset(asset);
+      for (let rendition of generated) {
+        generatedMap[rendition.type] = rendition.value;
+      }
+    } catch (err) {
+      error = errorUtils.errorToJson(err);
+      error.fileName = path;
     }
 
     return {
       id: asset.id,
       dependencies: Array.from(asset.dependencies.values()),
       generated: generatedMap,
+      error: error,
       hash: asset.hash,
       cacheData: asset.cacheData
     };

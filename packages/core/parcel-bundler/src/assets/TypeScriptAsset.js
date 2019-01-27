@@ -3,11 +3,17 @@ const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const config = require('../utils/config');
 const TSCONFIG_FILENAMES = ['tsconfig.json'];
+const isAccessedVarChanged = require('../utils/isAccessedVarChanged');
 
 class TypeScriptAsset extends Asset {
   constructor(name, options) {
     super(name, options);
     this.type = 'js';
+    this.cacheData.env = {};
+  }
+
+  shouldInvalidate(cacheData) {
+    return isAccessedVarChanged(cacheData);
   }
 
   async readConfigFile(filepath = this.name, seenConfigPath = new Set()) {

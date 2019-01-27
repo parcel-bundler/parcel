@@ -7,15 +7,6 @@ const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
 
 describe('scope hoisting', function() {
-  if (process.platform === 'win32') {
-    // eslint-disable-next-line no-console
-    console.warn(
-      'WARNING: Scope hoisting tests are disabled on windows due to ' +
-        'filesystem errors. Feel free to look into this and contribute a fix!'
-    );
-    return;
-  }
-
   describe('es6', function() {
     it('supports default imports and exports of expressions', async function() {
       let b = await bundle(
@@ -321,6 +312,18 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
+    it('supports requiring a re-exported and renamed ES6 import', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-renamed/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'foobar');
+    });
+
     it('keeps side effects by default', async function() {
       let b = await bundle(
         path.join(
@@ -431,6 +434,26 @@ describe('scope hoisting', function() {
       );
       assert(contents.includes('foo'));
       assert(!contents.includes('bar'));
+    });
+
+    it('removes unused function exports when minified', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-functions/a.js'
+        ),
+        {minify: true}
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output.default, 9);
+
+      let contents = await fs.readFile(
+        path.join(__dirname, '/dist/a.js'),
+        'utf8'
+      );
+      assert(/.\+./.test(contents));
+      assert(!/.-./.test(contents));
     });
 
     it('support exporting a ES6 module exported as CommonJS', async function() {

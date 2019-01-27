@@ -513,36 +513,42 @@ class JSConcatPackager extends Packager {
       `);
     }
 
-    let ast = t.file(t.program(this.statements));
-    let {code: output} = concat(this, ast);
+    try {
+      let ast = t.file(t.program(this.statements));
+      let {code: output} = concat(this, ast);
 
-    if (!this.options.minify) {
-      output = '\n' + output + '\n';
-    }
-
-    let preludeCode = this.options.minify ? prelude.minified : prelude.source;
-    if (this.needsPrelude) {
-      output = preludeCode + '(function (require) {' + output + '});';
-    } else {
-      output = '(function () {' + output + '})();';
-    }
-
-    this.size = output.length;
-
-    let {sourceMaps} = this.options;
-    if (sourceMaps) {
-      // Add source map url if a map bundle exists
-      let mapBundle = this.bundle.siblingBundlesMap.get('map');
-      if (mapBundle) {
-        let mapUrl = urlJoin(
-          this.options.publicURL,
-          path.basename(mapBundle.name)
-        );
-        output += `\n//# sourceMappingURL=${mapUrl}`;
+      if (!this.options.minify) {
+        output = '\n' + output + '\n';
       }
-    }
 
-    await super.write(output);
+      let preludeCode = this.options.minify ? prelude.minified : prelude.source;
+      if (this.needsPrelude) {
+        output = preludeCode + '(function (require) {' + output + '});';
+      } else {
+        output = '(function () {' + output + '})();';
+      }
+
+      this.size = output.length;
+
+      let {sourceMaps} = this.options;
+      if (sourceMaps) {
+        // Add source map url if a map bundle exists
+        let mapBundle = this.bundle.siblingBundlesMap.get('map');
+        if (mapBundle) {
+          let mapUrl = urlJoin(
+            this.options.publicURL,
+            path.basename(mapBundle.name)
+          );
+          output += `\n//# sourceMappingURL=${mapUrl}`;
+        }
+      }
+
+      await super.write(output);
+    } catch (e) {
+      throw e;
+    } finally {
+      await super.end();
+    }
   }
 
   resolveModule(id, name) {
