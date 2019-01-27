@@ -13,7 +13,7 @@ let entries = program.args.map(
 let cliOpts = {
   watch: program.watch
 };
-let Parcel = require('.');
+let Parcel = require('.').default;
 let parcel = new Parcel({
   entries,
   cliOpts

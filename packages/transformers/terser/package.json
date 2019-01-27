@@ -6,7 +6,11 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/TerserTransformer",
+  "main": "lib/TerserTransformer",
+  "scripts": {
+    "build": "babel src -d lib",
+    "prepublish": "yarn build"
+  },
   "devDependencies": {
     "@parcel/eslint-config": "1.10.3"
   }

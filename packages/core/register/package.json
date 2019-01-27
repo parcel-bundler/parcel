@@ -1,0 +1,17 @@
+{
+  "name": "@parcel/register",
+  "version": "2.0.0",
+  "main": "./lib/register.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "babel src -d lib",
+    "prepublish": "yarn build",
+    "run-example": "node ./example/index.js",
+    "clean": "rm -rf .parcel-cache"
+  },
+  "dependencies": {
+    "@parcel/core": "^2.0.0",
+    "@parcel/utils": "^1.10.3",
+    "pirates": "^4.0.0"
+  }
+}

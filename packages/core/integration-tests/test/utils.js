@@ -1,4 +1,4 @@
-const Parcel = require('@parcel/core');
+const Parcel = require('@parcel/core').default;
 const assert = require('assert');
 const vm = require('vm');
 const fs = require('@parcel/fs');

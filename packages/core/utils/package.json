@@ -22,5 +22,8 @@
   "dependencies": {
     "@parcel/fs": "^1.10.3",
     "@parcel/workers": "^1.10.3"
+  },
+  "devDependencies": {
+    "@babel/plugin-transform-flow-strip-types": "^7.2.0"
   }
 }
