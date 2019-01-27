@@ -94,7 +94,7 @@ export default class Parcel extends EventEmitter {
     }
 
     if (this.options.cliOpts.hot) {
-      this.hmrServer = new HMRServer(this, this.options.cliOpts);
+      this.hmrServer = new HMRServer(this.options.cliOpts);
       await this.hmrServer.start();
     }
 
@@ -130,6 +130,12 @@ export default class Parcel extends EventEmitter {
     this.assetGraphBuilder.on('invalidate', () => {
       this.build();
     });
+
+    if (this.hmrServer) {
+      this.assetGraphBuilder.on('buildEnd', () => {
+        this.hmrServer.emitUpdate();
+      });
+    }
 
     return await this.build();
   }

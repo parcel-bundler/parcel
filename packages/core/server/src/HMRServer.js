@@ -6,13 +6,9 @@ const getCertificate = require('./utils/getCertificate');
 const logger = require('@parcel/logger');
 
 class HMRServer {
-  constructor(assetGraphBuilder, cliOpts) {
+  constructor(cliOpts) {
     this.updatedAssets = [];
     this.options = cliOpts;
-
-    assetGraphBuilder.on('buildEnd', this.emitUpdate.bind(this));
-
-    this.running = false;
   }
 
   async start() {
@@ -49,8 +45,6 @@ class HMRServer {
     });
 
     this.wss.on('error', this.handleSocketError);
-
-    this.running = true;
 
     return this.wss._server.address().port;
   }
