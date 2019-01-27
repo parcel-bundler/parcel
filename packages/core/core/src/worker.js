@@ -11,17 +11,25 @@ import TransformerRunner from './TransformerRunner';
 import PackagerRunner from './PackagerRunner';
 import Config from './Config';
 import Cache from '@parcel/cache';
+import ConfigProvider from './ConfigProvider';
 
 type Options = {
   parcelConfig: ParcelConfig,
   cliOpts: CLIOptions,
-  env: JSONObject
+  env: JSONObject,
+  configProvider?: ConfigProvider
 };
 
-let transformerRunner: TransformerRunner | null = null;
-let packagerRunner: PackagerRunner | null = null;
+let transformerRunner: ?TransformerRunner = null;
+let packagerRunner: ?PackagerRunner = null;
+export let configProvider: ?ConfigProvider = null;
 
-export function init({parcelConfig, cliOpts, env}: Options) {
+export function init({
+  parcelConfig,
+  cliOpts,
+  env,
+  configProvider: provider
+}: Options) {
   Object.assign(process.env, env || {});
 
   Cache.init(cliOpts);
@@ -38,6 +46,8 @@ export function init({parcelConfig, cliOpts, env}: Options) {
     config,
     cliOpts
   });
+
+  configProvider = provider || new ConfigProvider();
 }
 
 export function runTransform(req: TransformerRequest) {

@@ -11,7 +11,7 @@ import type {
 import Asset from './Asset';
 import path from 'path';
 import clone from 'clone';
-import md5 from '@parcel/utils/lib/md5';
+import md5 from '@parcel/utils/src/md5';
 import Cache from '@parcel/cache';
 import fs from '@parcel/fs';
 import Config from './Config';

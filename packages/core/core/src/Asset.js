@@ -13,10 +13,11 @@ import type {
   Config,
   PackageJSON
 } from '@parcel/types';
-import md5 from '@parcel/utils/lib/md5';
-import {loadConfig} from '@parcel/utils/lib/config';
+import md5 from '@parcel/utils/src/md5';
+import {loadConfig} from '@parcel/utils/src/config';
 import Cache from '@parcel/cache';
 import Dependency from './Dependency';
+import {configProvider} from './worker';
 
 type AssetOptions = {
   id?: string,
@@ -155,13 +156,19 @@ export default class Asset implements IAsset {
       }
     }
 
-    let conf = await loadConfig(this.filePath, filePaths, options);
+    let conf = await configProvider.getConfig(
+      this.filePath,
+      filePaths,
+      options
+    );
     if (!conf) {
       return null;
     }
 
-    for (let file of conf.files) {
-      this.addConnectedFile(file);
+    if (conf.files) {
+      for (let file of conf.files) {
+        this.addConnectedFile(file);
+      }
     }
 
     return conf.config;

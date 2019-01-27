@@ -2,8 +2,8 @@
 import fs from '@parcel/fs';
 import pkg from '../package.json';
 import Path from 'path';
-import md5 from '@parcel/utils/lib/md5';
-import objectHash from '@parcel/utils/lib/objectHash';
+import md5 from '@parcel/utils/src/md5';
+import objectHash from '@parcel/utils/src/objectHash';
 import logger from '@parcel/logger';
 import type {
   FilePath,

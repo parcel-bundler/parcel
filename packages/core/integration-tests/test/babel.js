@@ -4,6 +4,7 @@ const path = require('path');
 const {bundle, run, ncp, rimraf} = require('./utils');
 const {mkdirp} = require('@parcel/fs');
 const {symlinkSync} = require('fs');
+const {ConfigProvider} = require('@parcel/core');
 
 describe('babel', function() {
   it('should produce a basic JS bundle using Babel 6', async function() {
@@ -91,6 +92,21 @@ describe('babel', function() {
 
   it('should support compiling with babel using .babelrc config', async function() {
     await bundle(path.join(__dirname, '/integration/babel/index.js'));
+
+    let file = await fs.readFile('dist/index.js', 'utf8');
+    assert(!file.includes('function Foo'));
+    assert(!file.includes('function Bar'));
+  });
+
+  it.only('should use a custom babel config via ConfigProvider API', async function() {
+    await bundle(path.join(__dirname, '/integration/babel/index.js'), {
+      configProvider: new ConfigProvider({
+        getConfig(sourcePath, configFileName) {
+          console.log(sourcePath, configFileName);
+          return {};
+        }
+      })
+    });
 
     let file = await fs.readFile('dist/index.js', 'utf8');
     assert(!file.includes('function Foo'));

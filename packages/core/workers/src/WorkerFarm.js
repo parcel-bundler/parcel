@@ -2,6 +2,7 @@ const {EventEmitter} = require('events');
 const {errorUtils} = require('@parcel/utils');
 const Worker = require('./Worker');
 const cpuCount = require('./cpuCount');
+import Handle from './Handle';
 
 let shared = null;
 
@@ -9,14 +10,14 @@ let shared = null;
  * workerPath should always be defined inside farmOptions
  */
 
-class WorkerFarm extends EventEmitter {
+export default class WorkerFarm extends EventEmitter {
   constructor(options, farmOptions = {}) {
     super();
     this.options = {
       maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
       maxConcurrentCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(),
       forcedKillTime: 500,
-      warmWorkers: true,
+      warmWorkers: false,
       useLocalWorker: true
     };
 
@@ -27,6 +28,7 @@ class WorkerFarm extends EventEmitter {
     this.warmWorkers = 0;
     this.workers = new Map();
     this.callQueue = [];
+    this.handles = new Map();
 
     if (!this.options.workerPath) {
       throw new Error('Please provide a worker path!');
@@ -158,14 +160,20 @@ class WorkerFarm extends EventEmitter {
 
     let method = data.method;
     let args = data.args;
-    let location = data.location;
     let awaitResponse = data.awaitResponse;
 
-    if (!location) {
+    let mod;
+    if (data.handle) {
+      mod = this.handles.get(data.handle);
+      if (!mod) {
+        throw new Error('Unknown handle');
+      }
+    } else if (data.location) {
+      mod = require(data.location);
+    } else {
       throw new Error('Unknown request');
     }
 
-    const mod = require(location);
     try {
       result.contentType = 'data';
       if (method) {
@@ -202,6 +210,12 @@ class WorkerFarm extends EventEmitter {
       });
       this.processQueue();
     });
+  }
+
+  createHandle(fn) {
+    let handle = new Handle();
+    this.handles.set(handle.id, fn);
+    return handle;
   }
 
   async end() {
@@ -292,6 +306,13 @@ class WorkerFarm extends EventEmitter {
     }
   }
 
+  static createHandle(fn) {
+    if (WorkerFarm.isWorker()) {
+    } else {
+      return shared.createHandle(fn);
+    }
+  }
+
   static isWorker() {
     return process.send && require.main.filename === require.resolve('./child');
   }
@@ -300,5 +321,3 @@ class WorkerFarm extends EventEmitter {
     return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
   }
 }
-
-module.exports = WorkerFarm;

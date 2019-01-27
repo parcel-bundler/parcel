@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/BabelTransformer.js",
+  "main": "src/BabelTransformer.js",
   "scripts": {
     "build": "babel src -d lib",
     "prepublish": "yarn build"

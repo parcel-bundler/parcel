@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/Cache",
+  "main": "src/Cache",
   "scripts": {
     "build": "babel src --out-dir lib",
     "prepublish": "yarn build"

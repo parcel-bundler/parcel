@@ -9,7 +9,7 @@ import type {
   ModuleSpecifier,
   FilePath
 } from '@parcel/types';
-import md5 from '@parcel/utils/lib/md5';
+import md5 from '@parcel/utils/src/md5';
 
 type DependencyOpts = {
   ...DependencyOptions,

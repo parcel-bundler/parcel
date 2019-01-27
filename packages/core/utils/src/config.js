@@ -6,7 +6,7 @@ import clone from 'clone';
 
 type ConfigOutput = {
   config: Config,
-  files: Array<File>
+  files?: Array<File>
 };
 
 type ConfigOptions = {

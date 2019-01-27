@@ -14,7 +14,7 @@ import type {
   GraphTraversalCallback
 } from '@parcel/types';
 import path from 'path';
-import md5 from '@parcel/utils/lib/md5';
+import md5 from '@parcel/utils/src/md5';
 import Dependency from './Dependency';
 
 export const nodeFromRootDir = (rootDir: string) => ({

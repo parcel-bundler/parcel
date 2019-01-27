@@ -11,6 +11,7 @@ import loadEnv from './loadEnv';
 import path from 'path';
 import Cache from '@parcel/cache';
 import AssetGraphBuilder from './AssetGraphBuilder';
+import ConfigProvider from './ConfigProvider';
 
 // TODO: use custom config if present
 const defaultConfig = require('@parcel/config-default');
@@ -22,7 +23,8 @@ type ParcelOpts = {
   cwd?: string,
   cliOpts: CLIOptions,
   killWorkers?: boolean,
-  env?: {[string]: ?string}
+  env?: {[string]: ?string},
+  configProvider?: ConfigProvider
 };
 
 export default class Parcel {
@@ -53,7 +55,8 @@ export default class Parcel {
       {
         parcelConfig: defaultConfig,
         cliOpts: this.options.cliOpts,
-        env: this.options.env
+        env: this.options.env,
+        configProvider: this.options.configProvider
       },
       {
         workerPath: require.resolve('./worker')
@@ -134,3 +137,4 @@ export default class Parcel {
 export {default as Asset} from './Asset';
 export {default as Dependency} from './Dependency';
 export {default as Environment} from './Environment';
+export {default as ConfigProvider} from './ConfigProvider';
