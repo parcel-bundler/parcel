@@ -17,6 +17,7 @@
     "@parcel/test-utils": "^1.10.3",
     "codecov": "^3.0.0",
     "command-exists": "^1.2.6",
+    "deepmerge": "^3.1.0",
     "graphql-tag": "^2.6.0",
     "json5": "^1.0.1",
     "mocha": "^5.1.1",
@@ -28,7 +29,6 @@
     "rimraf": "^2.6.1",
     "sinon": "^5.0.1",
     "sourcemap-validator": "^1.0.6",
-    "ws": "^5.1.1",
-    "deepmerge": "^3.1.0"
+    "ws": "^5.1.1"
   }
 }

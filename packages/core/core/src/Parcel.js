@@ -63,6 +63,7 @@ export default class Parcel extends EventEmitter {
       };
     }
     this.options.cliOpts.publicURL = this.options.cliOpts.publicURL || '/';
+    this.options.cliOpts.hmrPort = this.options.cliOpts.hmrPort || 0;
   }
 
   async init() {
@@ -147,7 +148,7 @@ export default class Parcel extends EventEmitter {
 
       // console.log('Starting build'); // eslint-disable-line no-console
       let assetGraph = await this.assetGraphBuilder.build();
-      // await graph.dumpGraphViz();
+      // await assetGraph.dumpGraphViz();
       let bundleGraph = await this.bundle(assetGraph);
       await this.package(bundleGraph);
 

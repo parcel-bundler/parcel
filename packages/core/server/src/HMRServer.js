@@ -9,6 +9,7 @@ class HMRServer {
   constructor(cliOpts) {
     this.updatedAssets = [];
     this.options = cliOpts;
+    this.port = this.options.hmrPort;
   }
 
   async start() {
@@ -34,7 +35,7 @@ class HMRServer {
       }
 
       this.wss = new WebSocket.Server(websocketOptions);
-      this.server.listen(this.options.hmrPort, resolve);
+      this.server.listen(this.port, resolve);
     });
 
     this.wss.on('connection', ws => {
@@ -46,7 +47,8 @@ class HMRServer {
 
     this.wss.on('error', this.handleSocketError);
 
-    return this.wss._server.address().port;
+    this.port = this.wss._server.address().port;
+    return this.port;
   }
 
   stop() {

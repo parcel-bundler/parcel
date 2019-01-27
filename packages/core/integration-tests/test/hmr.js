@@ -40,7 +40,7 @@ describe.skip('hmr', function() {
     });
   }
 
-  it.only('should emit an HMR update for the file that changed', async function() {
+  it('should emit an HMR update for the file that changed', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
@@ -54,7 +54,7 @@ describe.skip('hmr', function() {
     });
     await b.run();
 
-    ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
+    ws = new WebSocket('ws://localhost:' + b.hmrServer.port);
 
     const bundledEvent = nextEvent(b, 'bundled');
 
