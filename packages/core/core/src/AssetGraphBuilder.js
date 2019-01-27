@@ -15,7 +15,6 @@ import PromiseQueue from './PromiseQueue';
 import AssetGraph from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import WorkerFarm from '@parcel/workers';
-import {HMRServer} from '@parcel/server';
 
 const abortError = new Error('Build aborted');
 
@@ -45,7 +44,6 @@ export default class AssetGraphBuilder extends EventEmitter {
   resolverRunner: ResolverRunner;
   controller: AbortController;
   farm: WorkerFarm;
-  hmrServer: HMRServer;
   runTransform: (file: TransformerRequest) => Promise<any>;
 
   constructor(opts: Opts) {
@@ -73,10 +71,6 @@ export default class AssetGraphBuilder extends EventEmitter {
         }
       });
     }
-
-    if (opts.cliOpts.hot) {
-      this.hmrServer = new HMRServer(this, opts.cliOpts);
-    }
   }
 
   async initFarm() {
@@ -89,10 +83,6 @@ export default class AssetGraphBuilder extends EventEmitter {
   async build() {
     if (!this.farm) {
       await this.initFarm();
-    }
-
-    if (this.hmrServer && !this.hmrServer.running) {
-      await this.hmrServer.start();
     }
 
     this.controller = new AbortController();
@@ -179,12 +169,6 @@ export default class AssetGraphBuilder extends EventEmitter {
       }
     }
 
-    if (this.hmrServer) {
-      this.hmrServer.updateAsset(cacheEntry);
-    } else {
-      console.log('no hmr server');
-    }
-
     // The shallow option is used during the update phase
     if (!shallow) {
       for (let dep of newDeps) {
@@ -196,10 +180,6 @@ export default class AssetGraphBuilder extends EventEmitter {
   async stop() {
     if (this.watcher) {
       await this.watcher.stop();
-    }
-
-    if (this.hmrServer) {
-      await this.hmrServer.stop();
     }
   }
 }
