@@ -573,8 +573,8 @@ class Bundler extends EventEmitter {
 
     // exlucde externals
     if (this.externals.length && !this.options.hmr) {
-      dependencies.forEach((dep, i) => {
-        if (this.externals.includes(dep.name)) dependencies.splice(i, 1);
+      dependencies = dependencies.filter(dep => {
+        return !this.externals.includes(dep.name);
       });
     }
 
