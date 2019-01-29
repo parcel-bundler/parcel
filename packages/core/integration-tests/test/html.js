@@ -3,7 +3,7 @@ const fs = require('@parcel/fs');
 const {bundle, assertBundleTree} = require('./utils');
 const path = require('path');
 
-describe.only('html', function() {
+describe('html', function() {
   it('should support bundling HTML', async function() {
     let b = await bundle(path.join(__dirname, '/integration/html/index.html'));
 
