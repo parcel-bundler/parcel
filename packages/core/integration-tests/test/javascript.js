@@ -10,7 +10,7 @@ const {
   ncp
 } = require('./utils');
 const {mkdirp} = require('@parcel/fs');
-const {symlinkPrivilegeWarning} = require('@parcel/utils').errorUtils;
+const {symlinkPrivilegeWarning} = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
 
 describe('javascript', function() {

@@ -11,7 +11,7 @@ const {
   ncp
 } = require('./utils');
 const {sleep} = require('@parcel/test-utils');
-const {symlinkPrivilegeWarning} = require('@parcel/utils').errorUtils;
+const {symlinkPrivilegeWarning} = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
 
 const inputDir = path.join(__dirname, '/input');

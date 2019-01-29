@@ -3,7 +3,7 @@ const path = require('path');
 const assert = require('assert');
 const {rimraf, ncp} = require('./utils');
 const {mkdirp} = require('@parcel/fs');
-const {symlinkPrivilegeWarning} = require('@parcel/utils').errorUtils;
+const {symlinkPrivilegeWarning} = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
 
 const rootDir = path.join(__dirname, 'input/resolver');
