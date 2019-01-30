@@ -17,7 +17,11 @@ describe('css', function() {
         {
           name: 'index.css',
           assets: ['index.css', 'local.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -46,7 +50,11 @@ describe('css', function() {
         {
           name: 'index.css',
           assets: ['index.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -58,7 +66,11 @@ describe('css', function() {
             {
               type: 'css',
               assets: ['local.css'],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'map'
+                }
+              ]
             },
             {
               type: 'map'
@@ -85,7 +97,11 @@ describe('css', function() {
         {
           name: 'index.css',
           assets: ['index.css', 'other.css', 'local.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           name: 'index.js.map',
@@ -118,7 +134,11 @@ describe('css', function() {
         {
           name: 'index.css',
           assets: ['index.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -173,7 +193,11 @@ describe('css', function() {
         {
           name: 'index.css',
           assets: ['index.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -271,7 +295,11 @@ describe('css', function() {
         {
           name: 'index.css',
           assets: ['index.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -325,7 +353,7 @@ describe('css', function() {
     );
     assert(css.includes('.local'));
     assert(css.includes('.index'));
-    assert(!css.includes('\n'));
+    assert.equal(css.split('\n').length, 2); // sourceMappingURL
   });
 
   it('should automatically install postcss plugins with npm if needed', async function() {

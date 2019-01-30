@@ -39,7 +39,12 @@ class Bundle {
   addAsset(asset) {
     asset.bundles.add(this);
     this.assets.add(asset);
-    if (this.type != 'map' && asset.sourceMaps) {
+    if (
+      this.type != 'map' &&
+      this.type == asset.type &&
+      asset.options.sourceMaps &&
+      asset.sourceMaps
+    ) {
       this.getSiblingBundle('map').addAsset(asset);
     }
   }

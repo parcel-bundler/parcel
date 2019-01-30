@@ -32,7 +32,7 @@ class JSAsset extends Asset {
     this.outputCode = null;
     this.cacheData.env = {};
     this.rendition = options.rendition;
-    this.sourceMap = this.rendition ? this.rendition.sourceMap : null;
+    this.sourceMap = this.rendition ? this.rendition.map : null;
   }
 
   shouldInvalidate(cacheData) {

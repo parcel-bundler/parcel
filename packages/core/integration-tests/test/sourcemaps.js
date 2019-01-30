@@ -106,6 +106,7 @@ describe('sourcemaps', function() {
       ),
       'combining sourceRoot and sources object should resolve to the original file'
     );
+    assert.equal(mapObject.sources.length, 1);
 
     let output = await run(bu);
     assert.equal(typeof output, 'function');
@@ -134,6 +135,7 @@ describe('sourcemaps', function() {
     let map = (await fs.readFile(
       path.join(__dirname, '/dist/index.js.map')
     )).toString();
+    assert.equal(JSON.parse(map).sources.length, 1);
     mapValidator(raw, map);
 
     let output = await run(b);
@@ -163,6 +165,7 @@ describe('sourcemaps', function() {
     let map = (await fs.readFile(
       path.join(__dirname, '/dist/index.js.map')
     )).toString();
+    assert.equal(JSON.parse(map).sources.length, 2);
     mapValidator(raw, map);
 
     let output = await run(b);
@@ -224,6 +227,7 @@ describe('sourcemaps', function() {
     let map = (await fs.readFile(
       path.join(__dirname, '/dist/index.js.map')
     )).toString();
+    assert.equal(JSON.parse(map).sources.length, 3);
     mapValidator(raw, map);
 
     let output = await run(b);
@@ -267,6 +271,7 @@ describe('sourcemaps', function() {
     );
 
     let map = (await fs.readFile(path.join(sourcemapReference))).toString();
+    assert.equal(JSON.parse(map).sources.length, 2);
     mapValidator(jsOutput, map);
   });
 
@@ -412,6 +417,7 @@ describe('sourcemaps', function() {
       assert(map.sourceRoot == '../integration/sourcemap-css');
 
       let sourceMap = await new SourceMap().addMap(map);
+      assert.equal(Object.keys(sourceMap.sources).length, 1);
       assert.equal(sourceMap.sources['style.css'], input);
 
       checkSourceMapping({
@@ -483,6 +489,7 @@ describe('sourcemaps', function() {
       assert(map.sourceRoot == '../integration/sourcemap-css-import');
 
       let sourceMap = await new SourceMap().addMap(map);
+      assert.equal(Object.keys(sourceMap.sources).length, 3);
       assert.equal(sourceMap.sources['style.css'], style);
       assert.equal(sourceMap.sources['other-style.css'], otherStyle);
       assert.equal(sourceMap.sources['another-style.css'], anotherStyle);
@@ -580,6 +587,7 @@ describe('sourcemaps', function() {
       assert(map.sourceRoot == '../integration/sourcemap-sass');
 
       let sourceMap = await new SourceMap().addMap(map);
+      assert.equal(Object.keys(sourceMap.sources).length, 1);
       assert.equal(sourceMap.sources['style.scss'], input);
 
       checkSourceMapping({
@@ -642,6 +650,7 @@ describe('sourcemaps', function() {
       assert(map.sourceRoot == '../integration/sourcemap-sass-imported');
 
       let sourceMap = await new SourceMap().addMap(map);
+      assert.equal(Object.keys(sourceMap.sources).length, 2);
       assert.equal(sourceMap.sources['style.css'], style);
       assert.equal(sourceMap.sources['other.scss'], other);
 
@@ -719,6 +728,7 @@ describe('sourcemaps', function() {
       assert(map.sourceRoot == '../integration/sourcemap-less');
 
       let sourceMap = await new SourceMap().addMap(map);
+      assert.equal(Object.keys(sourceMap.sources).length, 1);
       assert.equal(sourceMap.sources['style.less'], input);
 
       checkSourceMapping({
@@ -783,6 +793,7 @@ describe('sourcemaps', function() {
       assert(map.sourceRoot == '../integration/sourcemap-css-existing');
 
       let sourceMap = await new SourceMap().addMap(map);
+      assert.equal(Object.keys(sourceMap.sources).length, 2);
       assert.equal(sourceMap.sources['style.css'], style);
       assert.equal(sourceMap.sources['test/library.scss'], library);
 
