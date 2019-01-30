@@ -58,17 +58,13 @@ describe('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = normaliseNewlines(
-      await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf-8')
-    );
-    const expect = normaliseNewlines(
-      await fs.readFile(
-        path.join(__dirname, '/integration/pug-include-extends/expect.html'),
-        'utf-8'
-      )
+    const html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf-8'
     );
 
-    assert.equal(html, expect, 'Content mismatch');
+    assert(html.includes('<!DOCTYPE html>'));
+    assert(html.includes("<h1>Yep, it's working!</h1>"));
   });
 
   it('should support variables', async function() {
