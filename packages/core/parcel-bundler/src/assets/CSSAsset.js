@@ -182,6 +182,7 @@ class CSSAsset extends Asset {
       {
         type: 'css',
         value: css,
+        cssModules: this.cssModules,
         map: this.sourceMap
       },
       {
