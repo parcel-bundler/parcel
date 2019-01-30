@@ -30,17 +30,28 @@ class CSSPackager extends Packager {
       css = `@media ${media.join(', ')} {\n${css.trim()}\n}\n`;
     }
 
-    let lineCount = lineCounter(css) - 1;
+    if (asset.options.sourceMaps) {
+      let lineCount = lineCounter(css);
 
-    if (lineCount == 0) {
-      this.bundle.addOffset(asset, this.lineOffset, this.columnOffset);
-      await this.write(css);
-      this.columnOffset += css.length;
+      if (lineCount == 1) {
+        this.bundle.addOffset(asset, this.lineOffset, this.columnOffset);
+        await this.write(css);
+        this.columnOffset += css.length;
+      } else {
+        const lines = css.split('\n');
+        if (this.columnOffset == 0) {
+          this.bundle.addOffset(asset, this.lineOffset, 0);
+          await this.write(css + '\n');
+        } else {
+          this.columnOffset = 0;
+          this.bundle.addOffset(asset, this.lineOffset + 1, 0);
+          this.columnOffset = lines[lines.length - 1].length;
+          await this.write('\n' + css);
+        }
+        this.lineOffset += lineCount;
+      }
     } else {
-      this.bundle.addOffset(asset, this.lineOffset + 1, this.columnOffset);
-      await this.write('\n' + css);
-      this.columnOffset = 0;
-      this.lineOffset += lineCounter(css);
+      await this.write(css);
     }
   }
 
