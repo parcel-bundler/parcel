@@ -14,6 +14,7 @@ const terser = require('../transforms/terser');
 const SourceMap = require('../SourceMap');
 const hoist = require('../scope-hoisting/hoist');
 const loadSourceMap = require('../utils/loadSourceMap');
+const isAccessedVarChanged = require('../utils/isAccessedVarChanged');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -36,13 +37,7 @@ class JSAsset extends Asset {
   }
 
   shouldInvalidate(cacheData) {
-    for (let key in cacheData.env) {
-      if (cacheData.env[key] !== process.env[key]) {
-        return true;
-      }
-    }
-
-    return false;
+    return isAccessedVarChanged(cacheData);
   }
 
   mightHaveDependencies() {
