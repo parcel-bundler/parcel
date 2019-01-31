@@ -11,6 +11,7 @@ const {
   ncp
 } = require('./utils');
 const {sleep} = require('@parcel/test-utils');
+const {symlinkPrivilegeWarning} = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
 
 const inputDir = path.join(__dirname, '/input');
@@ -274,29 +275,36 @@ describe('watcher', function() {
       inputDir
     );
 
-    // Create the symlink here to prevent cross platform and git issues
-    symlinkSync(
-      path.join(inputDir, 'local.js'),
-      path.join(inputDir, 'src/symlinked_local.js')
-    );
+    try {
+      // Create the symlink here to prevent cross platform and git issues
+      symlinkSync(
+        path.join(inputDir, 'local.js'),
+        path.join(inputDir, 'src/symlinked_local.js')
+      );
 
-    b = bundler(path.join(inputDir, '/src/index.js'), {
-      watch: true
-    });
+      b = bundler(path.join(inputDir, '/src/index.js'), {
+        watch: true
+      });
 
-    let bundle = await b.bundle();
-    let output = await run(bundle);
+      let bundle = await b.bundle();
+      let output = await run(bundle);
 
-    assert.equal(output(), 3);
+      assert.equal(output(), 3);
 
-    await sleep(100);
-    fs.writeFile(
-      path.join(inputDir, '/local.js'),
-      'exports.a = 5; exports.b = 5;'
-    );
+      await sleep(100);
+      fs.writeFile(
+        path.join(inputDir, '/local.js'),
+        'exports.a = 5; exports.b = 5;'
+      );
 
-    bundle = await nextBundle(b);
-    output = await run(bundle);
-    assert.equal(output(), 10);
+      bundle = await nextBundle(b);
+      output = await run(bundle);
+      assert.equal(output(), 10);
+    } catch(e) {
+      if(e.code == 'EPERM') {
+        symlinkPrivilegeWarning();
+        this.skip();
+      }
+    }
   });
 });
