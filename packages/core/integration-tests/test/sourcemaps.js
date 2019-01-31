@@ -2,7 +2,10 @@ const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
 const mapValidator = require('sourcemap-validator');
-const SourceMap = require('parcel-bundler/src/SourceMap');
+const SourceMap =
+  parseInt(process.versions.node, 10) < 8
+    ? require('parcel-bundler/lib/SourceMap')
+    : require('parcel-bundler/src/SourceMap');
 const {bundler, bundle, run, assertBundleTree} = require('./utils');
 
 function indexToLineCol(str, index) {
