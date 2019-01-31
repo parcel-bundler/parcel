@@ -298,11 +298,6 @@ class Bundler extends EventEmitter {
         asset.replaceBundleNames(this.bundleNameMap);
       }
 
-      // Emit an HMR update if this is not the initial bundle.
-      if (this.hmr && !isInitialBundle) {
-        this.hmr.emitUpdate(changedAssets);
-      }
-
       logger.progress(`Packaging...`);
 
       // Package everything up
@@ -310,6 +305,11 @@ class Bundler extends EventEmitter {
         this,
         this.bundleHashes
       );
+
+      // Emit an HMR update if this is not the initial bundle.
+      if (this.hmr && !isInitialBundle) {
+        this.hmr.emitUpdate(changedAssets);
+      }
 
       // Unload any orphaned assets
       this.unloadOrphanedAssets();
