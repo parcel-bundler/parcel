@@ -1,5 +1,10 @@
 // @flow
-import {ReporterEvent, BuildProgressEvent} from '@parcel/types';
+import {
+  ReporterEvent,
+  BuildProgressEvent,
+  LogEvent,
+  BundleGraph
+} from '@parcel/types';
 import {Box, Color} from 'ink';
 import Spinner from './Spinner';
 import React from 'react';
@@ -9,13 +14,15 @@ import BundleReport from './BundleReport';
 
 type UIState = {
   progress: ?BuildProgressEvent,
-  logs: Array<LogEvent>
+  logs: Array<LogEvent>,
+  bundleGraph: ?BundleGraph
 };
 
 export default class UI extends React.Component<{}, UIState> {
   state = {
     progress: null,
-    logs: []
+    logs: [],
+    bundleGraph: null
   };
 
   render() {
@@ -26,9 +33,9 @@ export default class UI extends React.Component<{}, UIState> {
           {this.state.progress ? (
             <Progress event={this.state.progress} />
           ) : null}
-          {this.state.bundleGraph && (
+          {this.state.bundleGraph ? (
             <BundleReport bundleGraph={this.state.bundleGraph} />
-          )}
+          ) : null}
         </div>
       </Color>
     );

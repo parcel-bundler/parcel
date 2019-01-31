@@ -1,7 +1,12 @@
 // @flow
 'use strict';
 import AssetGraph from './AssetGraph';
-import type {Bundle, BundleGraph, ParcelOptions} from '@parcel/types';
+import type {
+  Bundle,
+  BundleGraph,
+  ParcelOptions,
+  TransformerRequest
+} from '@parcel/types';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
@@ -109,33 +114,50 @@ export default class Parcel {
       this.build();
     });
 
+    this.assetGraphBuilder.on('transform', (req: TransformerRequest) => {
+      this.reporterRunner.report({
+        type: 'buildProgress',
+        message: `Building ${path.basename(req.filePath)}`
+      });
+    });
+
     return await this.build();
   }
 
   async build() {
     try {
-      // console.log('Starting build'); // eslint-disable-line no-console
-      let startTime = Date.now();
       this.reporterRunner.report({
         type: 'buildStart'
       });
 
+      let startTime = Date.now();
       let assetGraph = await this.assetGraphBuilder.build();
+
+      this.reporterRunner.report({
+        type: 'buildProgress',
+        message: 'Bundling...'
+      });
+
       // await graph.dumpGraphViz();
       let bundleGraph = await this.bundle(assetGraph);
+
+      this.reporterRunner.report({
+        type: 'buildProgress',
+        message: 'Packaging...'
+      });
+
       await this.package(bundleGraph);
 
-      if (!this.options.watch && this.options.killWorkers !== false) {
-        await this.farm.end();
-      }
-
-      // console.log('Finished build'); // eslint-disable-line no-console
       this.reporterRunner.report({
         type: 'buildSuccess',
         assetGraph,
         bundleGraph,
         buildTime: Date.now() - startTime
       });
+
+      if (!this.options.watch && this.options.killWorkers !== false) {
+        await this.farm.end();
+      }
 
       return bundleGraph;
     } catch (e) {

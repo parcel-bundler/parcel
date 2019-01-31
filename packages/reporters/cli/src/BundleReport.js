@@ -3,7 +3,6 @@ import React from 'react';
 import {BundleGraph} from '@parcel/types';
 import filesize from 'filesize';
 import {Box} from 'ink';
-import prettyTime from '@parcel/logger/src/prettyTime';
 
 type ReportProps = {
   bundleGraph: BundleGraph
