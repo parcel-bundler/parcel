@@ -68,7 +68,7 @@ function middleware(bundler) {
       } else {
         // Otherwise, serve the file from the dist folder
         req.url = pathname.slice(bundler.options.publicURL.length);
-        return serve(req, res, sendIndex);
+        return serve(req, res, send404);
       }
     }
 
