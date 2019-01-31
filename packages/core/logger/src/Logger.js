@@ -8,9 +8,11 @@ const ora = require('ora');
 const WorkerFarm = require('@parcel/workers');
 const path = require('path');
 const fs = require('fs');
+const EventEmitter = require('events');
 
-class Logger {
+class Logger extends EventEmitter {
   constructor(options) {
+    super();
     this.lines = 0;
     this.spinner = null;
     this.warnings = new Set();
@@ -71,17 +73,23 @@ class Logger {
       return;
     }
 
-    let currDate = new Date();
-    message = `[${currDate.toLocaleTimeString()}]: ${message}`;
-    if (this.logLevel > 4) {
-      if (!this.logFile) {
-        this.logFile = fs.createWriteStream(
-          path.join(process.cwd(), `parcel-debug-${currDate.toISOString()}.log`)
-        );
-      }
-      this.logFile.write(stripAnsi(message) + '\n');
-    }
-    this._log(message);
+    // let currDate = new Date();
+    // message = `[${currDate.toLocaleTimeString()}]: ${message}`;
+    // if (this.logLevel > 4) {
+    //   if (!this.logFile) {
+    //     this.logFile = fs.createWriteStream(
+    //       path.join(process.cwd(), `parcel-debug-${currDate.toISOString()}.log`)
+    //     );
+    //   }
+    //   this.logFile.write(stripAnsi(message) + '\n');
+    // }
+    // this._log(message);
+
+    this.emit('log', {
+      type: 'log',
+      level: 'verbose',
+      message
+    });
   }
 
   log(message) {
@@ -89,7 +97,12 @@ class Logger {
       return;
     }
 
-    this.write(message);
+    // this.write(message);
+    this.emit('log', {
+      type: 'log',
+      level: 'info',
+      message
+    });
   }
 
   persistent(message) {
@@ -106,7 +119,12 @@ class Logger {
     }
 
     this.warnings.add(err);
-    this._writeError(err, this.emoji.warning, this.chalk.yellow);
+    // this._writeError(err, this.emoji.warning, this.chalk.yellow);
+    this.emit('log', {
+      type: 'log',
+      level: 'warn',
+      message: err
+    });
   }
 
   error(err) {
@@ -114,7 +132,12 @@ class Logger {
       return;
     }
 
-    this._writeError(err, this.emoji.error, this.chalk.red.bold);
+    // this._writeError(err, this.emoji.error, this.chalk.red.bold);
+    this.emit('log', {
+      type: 'log',
+      level: 'error',
+      message: err
+    });
   }
 
   success(message) {

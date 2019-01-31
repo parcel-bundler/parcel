@@ -11,9 +11,10 @@ import type {
   EnvironmentContext,
   PackageName,
   Packager,
-  Optimizer
+  Optimizer,
+  Reporter
 } from '@parcel/types';
-import localRequire from '@parcel/utils/lib/localRequire';
+import localRequire from '@parcel/utils/src/localRequire';
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
 import {CONFIG} from '@parcel/plugin';
@@ -38,7 +39,7 @@ export default class Config {
   pluginCache: Map<PackageName, any>;
 
   constructor(config: ParcelConfig, filePath: FilePath) {
-    this.configPath = filePath;
+    this.configPath = config.configPath || filePath;
     this.resolvers = config.resolvers || [];
     this.transforms = config.transforms || {};
     this.runtimes = config.runtimes || {};
@@ -157,6 +158,10 @@ export default class Config {
     }
 
     return await this.loadPlugins(optimizers);
+  }
+
+  async getReporters(): Promise<Array<Reporter>> {
+    return await this.loadPlugins(this.reporters);
   }
 
   isGlobMatch(filePath: FilePath, pattern: Glob) {

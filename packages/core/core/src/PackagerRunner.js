@@ -24,6 +24,7 @@ export default class PackagerRunner {
   async writeBundle(bundle: Bundle) {
     let contents = await this.package(bundle);
     contents = await this.optimize(bundle, contents);
+    bundle.outputSize = contents.length;
 
     // $FlowFixMe - filePath should already be filled in at this point
     let dir = path.dirname(bundle.filePath);

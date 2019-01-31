@@ -288,7 +288,8 @@ export default class AssetGraph extends Graph {
       id: 'bundle:' + asset.id,
       type: asset.type,
       assetGraph: graph,
-      env: asset.env
+      env: asset.env,
+      outputSize: 0
     };
   }
 

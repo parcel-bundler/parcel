@@ -1,11 +1,7 @@
 // @flow
 'use strict';
 import AssetGraph from './AssetGraph';
-import type {
-  Bundle,
-  BundleGraph,
-  ParcelOptions
-} from '@parcel/types';
+import type {Bundle, BundleGraph, ParcelOptions} from '@parcel/types';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
@@ -15,6 +11,7 @@ import path from 'path';
 import Cache from '@parcel/cache';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
+import ReporterRunner from './ReporterRunner';
 
 const abortError = new Error('Build aborted');
 
@@ -30,7 +27,9 @@ export default class Parcel {
 
   constructor(options: ParcelOptions) {
     this.options = options;
-    this.entries = Array.isArray(options.entries) ? options.entries : [options.entries];
+    this.entries = Array.isArray(options.entries)
+      ? options.entries
+      : [options.entries];
     this.rootDir = getRootDir(this.entries);
   }
 
@@ -47,7 +46,10 @@ export default class Parcel {
 
     // If an explicit `config` option is passed use that, otherwise resolve a .parcelrc from the filesystem.
     if (this.options.config) {
-      config = await configResolver.create(this.options.config, this.options.configPath || this.rootDir);
+      config = await configResolver.create(
+        this.options.config,
+        this.options.configPath || this.rootDir
+      );
     } else {
       config = await configResolver.resolve(this.rootDir);
     }
@@ -68,6 +70,11 @@ export default class Parcel {
       config,
       options: this.options,
       rootDir: this.rootDir
+    });
+
+    this.reporterRunner = new ReporterRunner({
+      config,
+      options: this.options
     });
 
     let targetResolver = new TargetResolver();
@@ -108,20 +115,36 @@ export default class Parcel {
   async build() {
     try {
       // console.log('Starting build'); // eslint-disable-line no-console
+      let startTime = Date.now();
+      this.reporterRunner.report({
+        type: 'buildStart'
+      });
+
       let assetGraph = await this.assetGraphBuilder.build();
       // await graph.dumpGraphViz();
       let bundleGraph = await this.bundle(assetGraph);
       await this.package(bundleGraph);
 
-      if (!this.options.cliOpts.watch && this.options.killWorkers !== false) {
+      if (!this.options.watch && this.options.killWorkers !== false) {
         await this.farm.end();
       }
 
       // console.log('Finished build'); // eslint-disable-line no-console
+      this.reporterRunner.report({
+        type: 'buildSuccess',
+        assetGraph,
+        bundleGraph,
+        buildTime: Date.now() - startTime
+      });
+
       return bundleGraph;
     } catch (e) {
       if (e !== abortError) {
-        console.error(e); // eslint-disable-line no-console
+        // console.error(e); // eslint-disable-line no-console
+        this.reporterRunner.report({
+          type: 'buildFailure',
+          error: e
+        });
       }
     }
   }

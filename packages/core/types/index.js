@@ -200,6 +200,7 @@ export interface Asset {
   outputHash: string;
   env: Environment;
   meta: Meta;
+  buildTime: number;
 
   getConfig(
     filePaths: Array<FilePath>,
@@ -309,7 +310,8 @@ export type Bundle = {
   env: Environment,
   isEntry?: boolean,
   target?: Target,
-  filePath?: FilePath
+  filePath?: FilePath,
+  outputSize: number
 };
 
 export interface BundleGraph {
@@ -335,7 +337,7 @@ export type Namer = {
 };
 
 export type Runtime = {
-  apply(bundle: Bundle, opts: CLIOptions): Async<void>
+  apply(bundle: Bundle, opts: ParcelOptions): Async<void>
 };
 
 export type Packager = {
@@ -354,6 +356,40 @@ export type Resolver = {
   ): Async<FilePath | null>
 };
 
+export type LogEvent = {
+  type: 'log',
+  level: 'info' | 'warn' | 'error' | 'success' | 'verbose',
+  message: string | Error
+};
+
+export type BuildStartEvent = {
+  type: 'buildStart'
+};
+
+export type BuildProgressEvent = {
+  type: 'buildProgress',
+  message: string
+};
+
+export type BuildSuccessEvent = {
+  type: 'buildSuccess',
+  assetGraph: AssetGraph,
+  bundleGraph: BundleGraph,
+  buildTime: number
+};
+
+export type BuildFailureEvent = {
+  type: 'buildFailure',
+  error: Error
+};
+
+export type ReporterEvent =
+  | LogEvent
+  | BuildStartEvent
+  | BuildProgressEvent
+  | BuildSuccessEvent
+  | BuildFailureEvent;
+
 export type Reporter = {
-  report(bundles: Array<Bundle>, opts: ParcelOptions): void
+  report(event: ReporterEvent, opts: ParcelOptions): Async<void>
 };

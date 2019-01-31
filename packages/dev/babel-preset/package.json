@@ -5,7 +5,8 @@
   "dependencies": {
     "@babel/plugin-proposal-class-properties": "^7.1.0",
     "@babel/preset-env": "^7.1.0",
-    "@babel/preset-flow": "^7.0.0"
+    "@babel/preset-flow": "^7.0.0",
+    "@babel/preset-react": "^7.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.1.2"
