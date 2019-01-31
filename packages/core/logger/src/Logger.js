@@ -1,20 +1,11 @@
-const chalk = require('chalk');
-const readline = require('readline');
-const prettyError = require('./prettyError');
-const emoji = require('./emoji');
 const {countBreaks} = require('grapheme-breaker');
 const stripAnsi = require('strip-ansi');
-const ora = require('ora');
 const WorkerFarm = require('@parcel/workers');
-const path = require('path');
-const fs = require('fs');
 const EventEmitter = require('events');
 
 class Logger extends EventEmitter {
   constructor(options) {
     super();
-    this.lines = 0;
-    this.spinner = null;
     this.warnings = new Set();
     this.setOptions(options);
   }
@@ -24,66 +15,12 @@ class Logger extends EventEmitter {
       options && isNaN(options.logLevel) === false
         ? Number(options.logLevel)
         : 3;
-    this.color =
-      options && typeof options.color === 'boolean'
-        ? options.color
-        : chalk.supportsColor;
-    this.emoji = (options && options.emoji) || emoji;
-    this.chalk = new chalk.constructor({enabled: this.color});
-    this.isTest =
-      options && typeof options.isTest === 'boolean'
-        ? options.isTest
-        : process.env.NODE_ENV === 'test';
-  }
-
-  countLines(message) {
-    return stripAnsi(message)
-      .split('\n')
-      .reduce((p, line) => {
-        if (process.stdout.columns) {
-          return p + Math.ceil((line.length || 1) / process.stdout.columns);
-        }
-
-        return p + 1;
-      }, 0);
-  }
-
-  writeRaw(message) {
-    this.stopSpinner();
-
-    this.lines += this.countLines(message) - 1;
-    process.stdout.write(message);
-  }
-
-  write(message, persistent = false) {
-    if (this.logLevel > 3) {
-      return this.verbose(message);
-    }
-
-    if (!persistent) {
-      this.lines += this.countLines(message);
-    }
-
-    this.stopSpinner();
-    this._log(message);
   }
 
   verbose(message) {
     if (this.logLevel < 4) {
       return;
     }
-
-    // let currDate = new Date();
-    // message = `[${currDate.toLocaleTimeString()}]: ${message}`;
-    // if (this.logLevel > 4) {
-    //   if (!this.logFile) {
-    //     this.logFile = fs.createWriteStream(
-    //       path.join(process.cwd(), `parcel-debug-${currDate.toISOString()}.log`)
-    //     );
-    //   }
-    //   this.logFile.write(stripAnsi(message) + '\n');
-    // }
-    // this._log(message);
 
     this.emit('log', {
       type: 'log',
@@ -97,20 +34,11 @@ class Logger extends EventEmitter {
       return;
     }
 
-    // this.write(message);
     this.emit('log', {
       type: 'log',
       level: 'info',
       message
     });
-  }
-
-  persistent(message) {
-    if (this.logLevel < 3) {
-      return;
-    }
-
-    this.write(this.chalk.bold(message), true);
   }
 
   warn(err) {
@@ -119,7 +47,6 @@ class Logger extends EventEmitter {
     }
 
     this.warnings.add(err);
-    // this._writeError(err, this.emoji.warning, this.chalk.yellow);
     this.emit('log', {
       type: 'log',
       level: 'warn',
@@ -132,7 +59,6 @@ class Logger extends EventEmitter {
       return;
     }
 
-    // this._writeError(err, this.emoji.error, this.chalk.red.bold);
     this.emit('log', {
       type: 'log',
       level: 'error',
@@ -140,73 +66,8 @@ class Logger extends EventEmitter {
     });
   }
 
-  success(message) {
-    this.log(`${this.emoji.success}  ${this.chalk.green.bold(message)}`);
-  }
-
-  formatError(err, opts) {
-    return prettyError(err, opts);
-  }
-
-  _writeError(err, emoji, color) {
-    let {message, stack} = this.formatError(err, {color: this.color});
-    this.write(color(`${emoji}  ${message}`));
-    if (stack) {
-      this.write(stack);
-    }
-  }
-
-  clear() {
-    if (!this.color || this.isTest || this.logLevel > 3) {
-      return;
-    }
-
-    while (this.lines > 0) {
-      readline.clearLine(process.stdout, 0);
-      readline.moveCursor(process.stdout, 0, -1);
-      this.lines--;
-    }
-
-    readline.cursorTo(process.stdout, 0);
-    this.stopSpinner();
-    this.warnings.clear();
-  }
-
-  progress(message) {
-    if (this.logLevel < 3) {
-      return;
-    }
-
-    if (this.logLevel > 3) {
-      return this.verbose(message);
-    }
-
-    let styledMessage = this.chalk.gray.bold(message);
-    if (!this.spinner) {
-      this.spinner = ora({
-        text: styledMessage,
-        stream: process.stdout,
-        enabled: this.isTest ? false : undefined // fall back to ora default unless we need to explicitly disable it.
-      }).start();
-    } else {
-      this.spinner.text = styledMessage;
-    }
-  }
-
-  stopSpinner() {
-    if (this.spinner) {
-      this.spinner.stop();
-      this.spinner = null;
-    }
-  }
-
   handleMessage(options) {
     this[options.method](...options.args);
-  }
-
-  _log(message) {
-    // eslint-disable-next-line no-console
-    console.log(message);
   }
 
   table(columns, table) {
