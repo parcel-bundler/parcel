@@ -102,18 +102,18 @@ export type PackageJSON = {
 };
 
 export type ParcelOptions = {
-  entries?: Array<FilePath>,
+  entries?: FilePath | Array<FilePath>,
   rootDir?: FilePath,
   config?: ParcelConfig,
   defaultConfig?: ParcelConfig,
-  env?: {[string]: string},
+  env?: {[string]: ?string},
   targets?: Array<Target>,
 
   watch?: boolean,
   cache?: boolean,
   cacheDir?: FilePath,
   killWorkers?: boolean,
-  production?: boolean,
+  mode?: 'development' | 'production' | string,
   minify?: boolean,
   sourceMaps?: boolean,
   publicUrl?: string,
@@ -138,14 +138,6 @@ export type ServerOptions = {
 export type HTTPSOptions = {
   cert?: FilePath,
   key?: FilePath
-};
-
-export type CLIOptions = {
-  cacheDir?: FilePath,
-  watch?: boolean,
-  distDir?: FilePath,
-  production?: boolean,
-  cache?: boolean
 };
 
 export type SourceLocation = {
@@ -250,23 +242,23 @@ export type TransformerResult = {
 type Async<T> = T | Promise<T>;
 
 export type Transformer = {
-  getConfig?: (asset: Asset, opts: CLIOptions) => Async<Config | void>,
-  canReuseAST?: (ast: AST, opts: CLIOptions) => boolean,
-  parse?: (asset: Asset, config: ?Config, opts: CLIOptions) => Async<?AST>,
+  getConfig?: (asset: Asset, opts: ParcelOptions) => Async<Config | void>,
+  canReuseAST?: (ast: AST, opts: ParcelOptions) => boolean,
+  parse?: (asset: Asset, config: ?Config, opts: ParcelOptions) => Async<?AST>,
   transform(
     asset: Asset,
     config: ?Config,
-    opts: CLIOptions
+    opts: ParcelOptions
   ): Async<Array<TransformerResult | Asset>>,
   generate?: (
     asset: Asset,
     config: ?Config,
-    opts: CLIOptions
+    opts: ParcelOptions
   ) => Async<AssetOutput>,
   postProcess?: (
     assets: Array<Asset>,
     config: ?Config,
-    opts: CLIOptions
+    opts: ParcelOptions
   ) => Async<Array<TransformerResult>>
 };
 
@@ -334,12 +326,12 @@ export type Bundler = {
   bundle(
     graph: AssetGraph,
     bundleGraph: BundleGraph,
-    opts: CLIOptions
+    opts: ParcelOptions
   ): Async<void>
 };
 
 export type Namer = {
-  name(bundle: Bundle, opts: CLIOptions): Async<?FilePath>
+  name(bundle: Bundle, opts: ParcelOptions): Async<?FilePath>
 };
 
 export type Runtime = {
@@ -347,21 +339,21 @@ export type Runtime = {
 };
 
 export type Packager = {
-  package(bundle: Bundle, opts: CLIOptions): Async<Blob>
+  package(bundle: Bundle, opts: ParcelOptions): Async<Blob>
 };
 
 export type Optimizer = {
-  optimize(bundle: Bundle, contents: Blob, opts: CLIOptions): Async<Blob>
+  optimize(bundle: Bundle, contents: Blob, opts: ParcelOptions): Async<Blob>
 };
 
 export type Resolver = {
   resolve(
     dependency: Dependency,
-    opts: CLIOptions,
+    opts: ParcelOptions,
     rootDir: string
   ): Async<FilePath | null>
 };
 
 export type Reporter = {
-  report(bundles: Array<Bundle>, opts: CLIOptions): void
+  report(bundles: Array<Bundle>, opts: ParcelOptions): void
 };

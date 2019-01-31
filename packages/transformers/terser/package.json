@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "lib/TerserTransformer",
+  "main": "src/TerserTransformer",
   "engines": {
     "parcel": "2.x"
   },

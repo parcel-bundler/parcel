@@ -2,22 +2,22 @@
 import type Config from './Config';
 import {mkdirp, writeFile} from '@parcel/fs';
 import path from 'path';
-import type {Bundle, CLIOptions, Blob, FilePath} from '@parcel/types';
+import type {Bundle, ParcelOptions, Blob, FilePath} from '@parcel/types';
 
 type Opts = {
   config: Config,
-  cliOpts: CLIOptions
+  options: ParcelOptions
 };
 
 export default class PackagerRunner {
   config: Config;
-  cliOpts: CLIOptions;
+  options: ParcelOptions;
   distDir: FilePath;
   distExists: Set<FilePath>;
 
-  constructor({config, cliOpts}: Opts) {
+  constructor({config, options}: Opts) {
     this.config = config;
-    this.cliOpts = cliOpts;
+    this.options = options;
     this.distExists = new Set();
   }
 
@@ -38,7 +38,7 @@ export default class PackagerRunner {
   async package(bundle: Bundle): Promise<Blob> {
     // $FlowFixMe - filePath should already be filled in at this point
     let packager = await this.config.getPackager(bundle.filePath);
-    return await packager.package(bundle, this.cliOpts);
+    return await packager.package(bundle, this.options);
   }
 
   async optimize(bundle: Bundle, contents: Blob): Promise<Blob> {
@@ -46,7 +46,7 @@ export default class PackagerRunner {
     let optimizers = await this.config.getOptimizers(bundle.filePath);
 
     for (let optimizer of optimizers) {
-      contents = await optimizer.optimize(bundle, contents, this.cliOpts);
+      contents = await optimizer.optimize(bundle, contents, this.options);
     }
 
     return contents;

@@ -1,7 +1,7 @@
 // @flow
 
 import {Resolver} from '@parcel/plugin';
-import type {CLIOptions, Dependency, PackageJSON} from '@parcel/types';
+import type {ParcelOptions, Dependency, PackageJSON} from '@parcel/types';
 import path from 'path';
 import fs from '@parcel/fs';
 import {glob} from '@parcel/utils';
@@ -10,10 +10,10 @@ import builtins from './builtins';
 // import nodeBuiltins from 'node-libs-browser';
 
 export default new Resolver({
-  async resolve(dep: Dependency, cli: CLIOptions, rootDir: string) {
+  async resolve(dep: Dependency, options: ParcelOptions, rootDir: string) {
     const resolved = await new NodeResolver({
       extensions: ['js', 'json', 'css'],
-      cli,
+      options,
       rootDir
     }).resolve(dep);
 
@@ -28,7 +28,7 @@ type InternalPackageJSON = PackageJSON & {
 const EMPTY_SHIM = require.resolve('./_empty');
 
 type Options = {
-  cli: CLIOptions,
+  options: ParcelOptions,
   rootDir: string,
   extensions: Array<string>
 };

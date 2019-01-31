@@ -7,7 +7,7 @@ import objectHash from '@parcel/utils/lib/objectHash';
 import logger from '@parcel/logger';
 import type {
   FilePath,
-  CLIOptions,
+  ParcelOptions,
   JSONObject,
   CacheEntry,
   Asset,
@@ -30,7 +30,7 @@ export class Cache {
   invalidated: Set<FilePath>;
   optionsHash: string;
 
-  init(options: CLIOptions) {
+  init(options: ParcelOptions) {
     this.dir = Path.resolve(options.cacheDir || DEFAULT_CACHE_DIR);
     this.invalidated = new Set();
     this.optionsHash = objectHash(

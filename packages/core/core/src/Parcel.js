@@ -4,8 +4,7 @@ import AssetGraph from './AssetGraph';
 import type {
   Bundle,
   BundleGraph,
-  CLIOptions,
-  ParcelConfig
+  ParcelOptions
 } from '@parcel/types';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
@@ -19,37 +18,27 @@ import ConfigResolver from './ConfigResolver';
 
 const abortError = new Error('Build aborted');
 
-type ParcelOpts = {
-  entries: string | Array<string>,
-  cwd?: string,
-  cliOpts: CLIOptions,
-  killWorkers?: boolean,
-  env?: {[string]: ?string},
-  config?: ParcelConfig,
-  defaultConfig?: ParcelConfig
-};
-
 export default class Parcel {
-  options: ParcelOpts;
+  options: ParcelOptions;
   entries: Array<string>;
   rootDir: string;
   assetGraphBuilder: AssetGraphBuilder;
   bundlerRunner: BundlerRunner;
+  reporterRunner: ReporterRunner;
   farm: WorkerFarm;
   runPackage: (bundle: Bundle) => Promise<any>;
 
-  constructor(options: ParcelOpts) {
-    let {entries} = options;
+  constructor(options: ParcelOptions) {
     this.options = options;
-    this.entries = Array.isArray(entries) ? entries : [entries];
+    this.entries = Array.isArray(options.entries) ? options.entries : [options.entries];
     this.rootDir = getRootDir(this.entries);
   }
 
   async init() {
-    await Cache.createCacheDir(this.options.cliOpts.cacheDir);
+    await Cache.createCacheDir(this.options.cacheDir);
 
     if (!this.options.env) {
-      await loadEnv(path.join(this.rootDir, 'index'));
+      // await loadEnv(path.join(this.rootDir, 'index'));
       this.options.env = process.env;
     }
 
@@ -58,7 +47,7 @@ export default class Parcel {
 
     // If an explicit `config` option is passed use that, otherwise resolve a .parcelrc from the filesystem.
     if (this.options.config) {
-      config = await configResolver.create(this.options.config, this.rootDir);
+      config = await configResolver.create(this.options.config, this.options.configPath || this.rootDir);
     } else {
       config = await configResolver.resolve(this.rootDir);
     }
@@ -67,7 +56,7 @@ export default class Parcel {
     if (!config && this.options.defaultConfig) {
       config = await configResolver.create(
         this.options.defaultConfig,
-        this.rootDir
+        this.options.defaultConfigPath || this.rootDir
       );
     }
 
@@ -75,10 +64,27 @@ export default class Parcel {
       throw new Error('Could not find a .parcelrc');
     }
 
+    this.bundlerRunner = new BundlerRunner({
+      config,
+      options: this.options,
+      rootDir: this.rootDir
+    });
+
+    let targetResolver = new TargetResolver();
+    let targets = await targetResolver.resolve(this.rootDir);
+
+    this.assetGraphBuilder = new AssetGraphBuilder({
+      options: this.options,
+      config,
+      entries: this.entries,
+      targets,
+      rootDir: this.rootDir
+    });
+
     this.farm = await WorkerFarm.getShared(
       {
         config,
-        cliOpts: this.options.cliOpts,
+        options: this.options,
         env: this.options.env
       },
       {
@@ -91,23 +97,6 @@ export default class Parcel {
 
   async run() {
     await this.init();
-
-    this.bundlerRunner = new BundlerRunner({
-      config,
-      cliOpts: this.options.cliOpts,
-      rootDir: this.rootDir
-    });
-
-    let targetResolver = new TargetResolver();
-    let targets = await targetResolver.resolve(this.rootDir);
-
-    this.assetGraphBuilder = new AssetGraphBuilder({
-      cliOpts: this.options.cliOpts,
-      config,
-      entries: this.entries,
-      targets,
-      rootDir: this.rootDir
-    });
 
     this.assetGraphBuilder.on('invalidate', () => {
       this.build();

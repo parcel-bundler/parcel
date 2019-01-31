@@ -6,7 +6,7 @@ import Environment from '../src/Environment';
 const config = require('@parcel/config-default');
 const runner = new TransformerRunner({
   config: new Config(config, require.resolve('@parcel/config-default')),
-  cliOpts: {}
+  options: {}
 });
 
 const DEFAULT_ENV = new Environment({

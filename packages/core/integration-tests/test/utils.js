@@ -47,7 +47,7 @@ function bundler(entries, opts) {
     Object.assign(
       {
         entries,
-        cliOpts: {
+        options: {
           cache: false
         },
         killWorkers: false,

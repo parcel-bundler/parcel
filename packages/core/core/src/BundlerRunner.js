@@ -4,7 +4,7 @@ import type {
   Namer,
   Bundle,
   FilePath,
-  CLIOptions,
+  ParcelOptions,
   TransformerRequest
 } from '@parcel/types';
 import type Config from './Config';
@@ -12,18 +12,18 @@ import BundleGraph from './BundleGraph';
 import AssetGraphBuilder from './AssetGraphBuilder';
 
 type Opts = {
-  cliOpts: CLIOptions,
+  options: ParcelOptions,
   config: Config,
   rootDir: FilePath
 };
 
 export default class BundlerRunner {
-  cliOpts: CLIOptions;
+  options: ParcelOptions;
   config: Config;
   rootDir: FilePath;
 
   constructor(opts: Opts) {
-    this.cliOpts = opts.cliOpts;
+    this.options = opts.options;
     this.config = opts.config;
     this.rootDir = opts.rootDir;
   }
@@ -32,7 +32,7 @@ export default class BundlerRunner {
     let bundler = await this.config.getBundler();
 
     let bundleGraph = new BundleGraph();
-    await bundler.bundle(graph, bundleGraph, this.cliOpts);
+    await bundler.bundle(graph, bundleGraph, this.options);
     await this.nameBundles(bundleGraph);
     await this.applyRuntimes(bundleGraph);
 
@@ -86,7 +86,7 @@ export default class BundlerRunner {
 
     let runtimes = await this.config.getRuntimes(bundle.env.context);
     for (let runtime of runtimes) {
-      await runtime.apply(bundle, this.cliOpts);
+      await runtime.apply(bundle, this.options);
     }
   }
 
@@ -97,7 +97,7 @@ export default class BundlerRunner {
     transformerRequest: TransformerRequest
   ) {
     let builder = new AssetGraphBuilder({
-      cliOpts: this.cliOpts,
+      options: this.options,
       config: this.config,
       rootDir: this.rootDir,
       transformerRequest

@@ -2,7 +2,7 @@
 
 import type {
   Bundle,
-  CLIOptions,
+  ParcelOptions,
   TransformerRequest,
   JSONObject
 } from '@parcel/types';
@@ -13,25 +13,25 @@ import Cache from '@parcel/cache';
 
 type Options = {
   config: Config,
-  cliOpts: CLIOptions,
+  options: ParcelOptions,
   env: JSONObject
 };
 
 let transformerRunner: TransformerRunner | null = null;
 let packagerRunner: PackagerRunner | null = null;
 
-export function init({config, cliOpts, env}: Options) {
+export function init({config, options, env}: Options) {
   Object.assign(process.env, env || {});
 
-  Cache.init(cliOpts);
+  Cache.init(options);
 
   transformerRunner = new TransformerRunner({
     config,
-    cliOpts
+    options
   });
   packagerRunner = new PackagerRunner({
     config,
-    cliOpts
+    options
   });
 }
 

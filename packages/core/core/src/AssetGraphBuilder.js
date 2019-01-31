@@ -1,6 +1,6 @@
 // @flow
 import type {
-  CLIOptions,
+  ParcelOptions,
   Dependency,
   FilePath,
   Target,
@@ -29,7 +29,7 @@ type BuildOpts = {
 };
 
 type Opts = {|
-  cliOpts: CLIOptions,
+  options: ParcelOptions,
   config: Config,
   entries?: Array<string>,
   targets?: Array<Target>,
@@ -52,7 +52,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.queue = new PromiseQueue();
     this.resolverRunner = new ResolverRunner({
       config: opts.config,
-      cliOpts: opts.cliOpts,
+      options: opts.options,
       rootDir: opts.rootDir
     });
 
@@ -60,7 +60,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.graph.initializeGraph(opts);
 
     this.controller = new AbortController();
-    if (opts.cliOpts.watch) {
+    if (opts.options.watch) {
       this.watcher = new Watcher();
       this.watcher.on('change', async filePath => {
         if (this.graph.hasNode(filePath)) {
