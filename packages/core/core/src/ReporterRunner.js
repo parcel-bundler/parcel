@@ -1,6 +1,6 @@
 // @flow
 import Config from './Config';
-import {ParcelOptions, ReporterEvent} from '@parcel/types';
+import type {ParcelOptions, ReporterEvent} from '@parcel/types';
 import logger from '@parcel/logger';
 
 type Opts = {
