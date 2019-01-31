@@ -280,16 +280,20 @@ describe('html', function() {
   });
 
   it('should minify HTML in production mode', async function() {
-    await bundle(path.join(__dirname, '/integration/htmlnano/index.html'), {
+    let inputFile = path.join(__dirname, '/integration/htmlnano/index.html');
+    await bundle(inputFile, {
       production: true
     });
 
-    let html = await fs.readFile(
-      path.join(__dirname, '/dist/index.html'),
-      'utf8'
-    );
+    let inputSize = (await fs.stat(inputFile)).size;
+
+    let outputFile = path.join(__dirname, '/dist/index.html');
+    let outputSize = (await fs.stat(outputFile)).size;
+
+    assert(inputSize > outputSize);
+
+    let html = await fs.readFile(outputFile, 'utf8');
     assert(html.includes('Other page'));
-    assert(!html.includes('\n'));
   });
 
   it('should read .htmlnanorc and minify HTML in production mode', async function() {
@@ -320,25 +324,29 @@ describe('html', function() {
     // minifySvg is false
     assert(
       html.includes(
-        '<svg version="1.1" baseprofile="full" width="300" height="200" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="red"></rect><circle cx="150" cy="100" r="80" fill="green"></circle><text x="150" y="125" font-size="60" text-anchor="middle" fill="white">SVG</text></svg>'
+        '<svg version="1.1" baseProfile="full" width="300" height="200" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="red"></rect><circle cx="150" cy="100" r="80" fill="green"></circle><text x="150" y="125" font-size="60" text-anchor="middle" fill="white">SVG</text></svg>'
       )
     );
   });
 
   it('should not minify default values inside HTML in production mode', async function() {
-    await bundle(
-      path.join(__dirname, '/integration/htmlnano-defaults-form/index.html'),
-      {
-        production: true
-      }
+    let inputFile = path.join(
+      __dirname,
+      '/integration/htmlnano-defaults-form/index.html'
     );
+    await bundle(inputFile, {
+      production: true
+    });
 
-    let html = await fs.readFile(
-      path.join(__dirname, '/dist/index.html'),
-      'utf8'
-    );
+    let inputSize = (await fs.stat(inputFile)).size;
+
+    let outputFile = path.join(__dirname, '/dist/index.html');
+    let outputSize = (await fs.stat(outputFile)).size;
+
+    assert(inputSize > outputSize);
+
+    let html = await fs.readFile(outputFile, 'utf8');
     assert(html.includes('<input type="text">'));
-    assert(!html.includes('\n'));
   });
 
   it('should not prepend the public path to assets with remote URLs', async function() {
