@@ -14,7 +14,7 @@ describe('sourcemaps', function() {
       assets: ['index.js'],
       childBundles: [
         {
-          name: 'index.map',
+          name: 'index.js.map',
           type: 'map'
         }
       ]
@@ -24,7 +24,7 @@ describe('sourcemaps', function() {
       path.join(__dirname, '/dist/index.js')
     )).toString();
     let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.map')
+      path.join(__dirname, '/dist/index.js.map')
     )).toString();
     mapValidator(raw, map);
     let mapObject = JSON.parse(map);
@@ -59,7 +59,7 @@ describe('sourcemaps', function() {
       assets: ['index.ts'],
       childBundles: [
         {
-          name: 'index.map',
+          name: 'index.js.map',
           type: 'map'
         }
       ]
@@ -69,7 +69,7 @@ describe('sourcemaps', function() {
       path.join(__dirname, '/dist/index.js')
     )).toString();
     let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.map')
+      path.join(__dirname, '/dist/index.js.map')
     )).toString();
     mapValidator(raw, map);
 
@@ -88,7 +88,7 @@ describe('sourcemaps', function() {
       assets: ['index.ts', 'local.ts'],
       childBundles: [
         {
-          name: 'index.map',
+          name: 'index.js.map',
           type: 'map'
         }
       ]
@@ -98,7 +98,7 @@ describe('sourcemaps', function() {
       path.join(__dirname, '/dist/index.js')
     )).toString();
     let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.map')
+      path.join(__dirname, '/dist/index.js.map')
     )).toString();
     mapValidator(raw, map);
 
@@ -117,7 +117,7 @@ describe('sourcemaps', function() {
       assets: ['index.js', 'local.js', 'util.js'],
       childBundles: [
         {
-          name: 'index.map',
+          name: 'index.js.map',
           type: 'map'
         }
       ]
@@ -127,7 +127,7 @@ describe('sourcemaps', function() {
       path.join(__dirname, '/dist/index.js')
     )).toString();
     let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.map')
+      path.join(__dirname, '/dist/index.js.map')
     )).toString();
     mapValidator(raw, map);
 
@@ -149,7 +149,7 @@ describe('sourcemaps', function() {
       assets: ['index.js', 'local.js', 'util.js'],
       childBundles: [
         {
-          name: 'index.map',
+          name: 'index.js.map',
           type: 'map'
         }
       ]
@@ -159,7 +159,7 @@ describe('sourcemaps', function() {
       path.join(__dirname, '/dist/index.js')
     )).toString();
     let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.map')
+      path.join(__dirname, '/dist/index.js.map')
     )).toString();
     mapValidator(raw, map);
 
