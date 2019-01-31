@@ -57,18 +57,24 @@ function middleware(bundler) {
         !pathname.startsWith(bundler.options.publicURL) ||
         path.extname(pathname) === ''
       ) {
-        // Try to find the index file. If not found, return a 404 error
-        const index = findIndex(pathname);
-        if (index) {
-          req.url = `/${path.basename(index)}`;
-          serve(req, res, send404);
-        } else {
-          send404();
-        }
+        sendIndex();
       } else {
         // Otherwise, serve the file from the dist folder
         req.url = pathname.slice(bundler.options.publicURL.length);
-        return serve(req, res, send404);
+        return serve(req, res, sendIndex);
+      }
+    }
+
+    function sendIndex() {
+      const {pathname} = url.parse(req.url);
+
+      // Try to find the index file. If not found, return a 404 error
+      const index = findIndex(pathname);
+      if (index) {
+        req.url = `/${path.basename(index)}`;
+        serve(req, res, send404);
+      } else {
+        send404();
       }
     }
 
