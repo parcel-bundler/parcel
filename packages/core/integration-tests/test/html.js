@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
-const {bundle, assertBundleTree} = require('./utils');
+const {bundle, assertBundleTree} = require('@parcel/test-utils');
 const path = require('path');
 
 describe('html', function() {

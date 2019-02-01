@@ -9,7 +9,7 @@ const {
   nextBundle,
   rimraf,
   ncp
-} = require('./utils');
+} = require('@parcel/test-utils');
 const {sleep} = require('@parcel/test-utils');
 const {symlinkPrivilegeWarning} = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
@@ -300,8 +300,8 @@ describe('watcher', function() {
       bundle = await nextBundle(b);
       output = await run(bundle);
       assert.equal(output(), 10);
-    } catch(e) {
-      if(e.code == 'EPERM') {
+    } catch (e) {
+      if (e.code == 'EPERM') {
         symlinkPrivilegeWarning();
         this.skip();
       }

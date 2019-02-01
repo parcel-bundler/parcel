@@ -1,6 +1,6 @@
 const assert = require('assert');
-const {bundle, assertBundleTree, run} = require('./utils');
-const commandExists = require('command-exists')
+const {bundle, assertBundleTree, run} = require('@parcel/test-utils');
+const commandExists = require('command-exists');
 
 describe('kotlin', function() {
   if (!commandExists.sync('java')) {

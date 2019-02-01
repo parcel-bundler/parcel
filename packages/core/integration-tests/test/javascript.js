@@ -8,7 +8,7 @@ const {
   assertBundleTree,
   deferred,
   ncp
-} = require('./utils');
+} = require('@parcel/test-utils');
 const {mkdirp} = require('@parcel/fs');
 const {symlinkPrivilegeWarning} = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
@@ -1307,8 +1307,8 @@ describe('javascript', function() {
       );
       assert(file.includes('function Foo'));
       assert(file.includes('function Bar'));
-    } catch(e) {
-      if(e.perm == 'EPERM') {
+    } catch (e) {
+      if (e.perm == 'EPERM') {
         symlinkPrivilegeWarning();
         this.skip();
       }
