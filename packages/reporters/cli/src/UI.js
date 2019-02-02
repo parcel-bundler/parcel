@@ -1,12 +1,12 @@
 // @flow
-import {
+import type {
   ReporterEvent,
   BuildProgressEvent,
   LogEvent,
-  BundleGraph
+  BundleGraph,
+  ParcelOptions
 } from '@parcel/types';
-import {Box, Color} from 'ink';
-import Spinner from './Spinner';
+import {Color} from 'ink';
 import React from 'react';
 import {Log, Progress} from './Log';
 import prettifyTime from '@parcel/utils/src/prettifyTime';
@@ -18,7 +18,16 @@ type UIState = {
   bundleGraph: ?BundleGraph
 };
 
-export default class UI extends React.Component<{}, UIState> {
+const LOG_LEVELS = {
+  none: 0,
+  error: 1,
+  warn: 2,
+  info: 3,
+  success: 3,
+  verbose: 4
+};
+
+export default class UI extends React.PureComponent<{}, UIState> {
   state = {
     progress: null,
     logs: [],
@@ -29,7 +38,7 @@ export default class UI extends React.Component<{}, UIState> {
     return (
       <Color reset>
         <div>
-          {this.state.logs.map(log => <Log log={log} />)}
+          {this.state.logs.map((log, i) => <Log key={i} log={log} />)}
           {this.state.progress ? (
             <Progress event={this.state.progress} />
           ) : null}
@@ -41,14 +50,24 @@ export default class UI extends React.Component<{}, UIState> {
     );
   }
 
-  report(event: ReporterEvent) {
-    this.setState(state => reducer(state, event));
+  report(event: ReporterEvent, options: ParcelOptions) {
+    this.setState(state => reducer(state, event, options));
   }
 }
 
-function reducer(state: UIState, event: ReporterEvent): UIState {
+function reducer(
+  state: UIState,
+  event: ReporterEvent,
+  options: ParcelOptions
+): UIState {
+  let logLevel = LOG_LEVELS[options.logLevel || 'info'];
+
   switch (event.type) {
     case 'buildStart':
+      if (logLevel < LOG_LEVELS.info) {
+        break;
+      }
+
       return {
         ...state,
         logs: [],
@@ -60,17 +79,25 @@ function reducer(state: UIState, event: ReporterEvent): UIState {
       };
 
     case 'buildProgress':
+      if (logLevel < LOG_LEVELS.info) {
+        break;
+      }
+
       return {
         ...state,
         progress: event
       };
 
     case 'buildSuccess':
+      if (logLevel < LOG_LEVELS.success) {
+        break;
+      }
+
       var time = prettifyTime(event.buildTime);
       return {
         ...state,
         progress: null,
-        bundleGraph: event.bundleGraph,
+        bundleGraph: options.mode === 'production' ? event.bundleGraph : null,
         logs: [
           ...state.logs,
           {
@@ -82,6 +109,10 @@ function reducer(state: UIState, event: ReporterEvent): UIState {
       };
 
     case 'buildFailure':
+      if (logLevel < LOG_LEVELS.error) {
+        break;
+      }
+
       return {
         ...state,
         progress: null,
@@ -96,6 +127,16 @@ function reducer(state: UIState, event: ReporterEvent): UIState {
       };
 
     case 'log':
+      if (logLevel < LOG_LEVELS[event.level]) {
+        break;
+      }
+
+      // Skip duplicate logs
+      var messages = new Set(state.logs.map(l => l.message));
+      if (messages.has(event.message)) {
+        break;
+      }
+
       return {
         ...state,
         logs: [...state.logs, event]

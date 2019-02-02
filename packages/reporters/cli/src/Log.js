@@ -1,5 +1,5 @@
 // @flow
-import {LogEvent} from '@parcel/types';
+import type {LogEvent, BuildProgressEvent} from '@parcel/types';
 import {Box, Text, Color} from 'ink';
 import Spinner from './Spinner';
 import React from 'react';
@@ -8,6 +8,10 @@ import emoji from '@parcel/logger/src/emoji';
 
 type LogProps = {
   log: LogEvent
+};
+
+type ProgressProps = {
+  event: BuildProgressEvent
 };
 
 let logTypes = {
@@ -24,15 +28,15 @@ export function Log({log}: LogProps) {
 }
 
 function InfoLog({log}) {
-  return <Text>{log}</Text>;
+  return <Text>{log.message}</Text>;
 }
 
-function Stack({err, emoji, color, bold}) {
+function Stack({err, emoji, color, ...otherProps}) {
   let {message, stack} = prettyError(err, {color: true});
   return (
     <React.Fragment>
       <div>
-        <Color keyword={color} bold={bold}>
+        <Color keyword={color} {...otherProps}>
           {emoji} {message}
         </Color>
       </div>
@@ -61,7 +65,7 @@ function SuccessLog({log}) {
   );
 }
 
-export function Progress({event}) {
+export function Progress({event}: ProgressProps) {
   return (
     <Box>
       <Color gray bold>

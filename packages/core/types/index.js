@@ -120,7 +120,7 @@ export type ParcelOptions = {
   hot?: ServerOptions | boolean,
   serve?: ServerOptions | boolean,
   autoinstall?: boolean,
-  logLevel?: number
+  logLevel?: 'none' | 'error' | 'warn' | 'info' | 'verbose'
 
   // contentHash
   // scopeHoist
@@ -201,6 +201,7 @@ export interface Asset {
   env: Environment;
   meta: Meta;
   buildTime: number;
+  stats: Stats;
 
   getConfig(
     filePaths: Array<FilePath>,
@@ -211,6 +212,11 @@ export interface Asset {
   createChildAsset(result: TransformerResult): Asset;
   getOutput(): Promise<AssetOutput>;
 }
+
+export type Stats = {
+  time: number,
+  size: number
+};
 
 export type AssetOutput = {
   code: string,
@@ -311,7 +317,7 @@ export type Bundle = {
   isEntry?: boolean,
   target?: Target,
   filePath?: FilePath,
-  outputSize: number
+  stats: Stats
 };
 
 export interface BundleGraph {

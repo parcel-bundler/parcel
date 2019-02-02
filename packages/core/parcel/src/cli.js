@@ -17,8 +17,8 @@ var commonOptions = {
   '--no-autoinstall': 'disable autoinstall',
   '--public-url <url>': 'set the public URL to serve on. defaults to "/"',
   '--log-level <level>': [
-    'set the log level, either "0" (no output), "1" (errors), "2" (warnings), "3" (info), "4" (verbose) or "5" (debug, creates a log file).',
-    /^([0-5])$/
+    'set the log level, either "none", "error", "warn", "info", or "verbose".',
+    /^(none|error|warn|info|verbose)$/
   ],
   '-V, --version': 'output the version number'
 };
