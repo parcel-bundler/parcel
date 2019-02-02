@@ -178,7 +178,11 @@ export default class Parcel {
   package(bundleGraph: BundleGraph) {
     let promises = [];
     bundleGraph.traverseBundles(bundle => {
-      promises.push(this.runPackage(bundle));
+      promises.push(
+        this.runPackage(bundle).then(stats => {
+          bundle.stats = stats;
+        })
+      );
     });
 
     return Promise.all(promises);
