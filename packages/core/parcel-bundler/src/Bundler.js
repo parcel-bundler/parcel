@@ -29,7 +29,9 @@ class Bundler extends EventEmitter {
   constructor(entryFiles, options = {}) {
     super();
 
-    this.entryFiles = this.normalizeEntries(entryFiles);
+    entryFiles = this.normalizeEntries(entryFiles);
+    this.watchedGlobs = entryFiles.filter(entry => isGlob(entry));
+    this.entryFiles = this.findEntryFiles(entryFiles);
     this.options = this.normalizeOptions(options);
 
     this.resolver = new Resolver(this.options);
@@ -59,7 +61,6 @@ class Bundler extends EventEmitter {
     this.pending = false;
     this.loadedAssets = new Map();
     this.watchedAssets = new Map();
-    this.watchedGlobs = entryFiles.filter(entry => isGlob(entry));
 
     this.farm = null;
     this.watcher = null;
@@ -83,6 +84,10 @@ class Bundler extends EventEmitter {
       entryFiles = [process.cwd()];
     }
 
+    return entryFiles;
+  }
+
+  findEntryFiles(entryFiles) {
     // Match files as globs
     return entryFiles
       .reduce((p, m) => p.concat(glob.sync(m)), [])
