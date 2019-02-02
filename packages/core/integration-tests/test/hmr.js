@@ -36,7 +36,7 @@ describe('hmr', function() {
 
   function nextEvent(emitter, event) {
     return new Promise(resolve => {
-      emitter.once(event, resolve);
+      emitter.once(event, (...args) => setTimeout(resolve, 0, ...args));
     });
   }
 
