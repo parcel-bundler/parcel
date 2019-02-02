@@ -1,7 +1,7 @@
 const assert = require('assert');
 const Path = require('path');
 const fs = require('@parcel/fs');
-const {rimraf, ncp, bundler, run, nextBundle} = require('./utils');
+const {rimraf, ncp, bundler} = require('./utils');
 const {sleep} = require('@parcel/test-utils');
 
 let inputRoot = Path.join(__dirname, 'input', 'detect-dir-change');
@@ -19,7 +19,7 @@ describe('detect directory changes', function() {
       let b = bundler('test/input/detect-dir-change/src/*.js', {
         watch: true
       });
-      let bundle = await b.bundle();
+      await b.bundle();
 
       assert(await fs.exists(Path.join(__dirname, '/dist/', 'index.js')));
 
@@ -81,8 +81,7 @@ describe('detect directory changes', function() {
       let b = bundler('test/input/detect-dir-change/src/*.js', {
         watch: true
       });
-      let bundle = await b.bundle();
-      let output = await run(bundle);
+      await b.bundle();
 
       assert(await fs.exists(Path.join(__dirname, '/dist/', 'index.js')));
 
