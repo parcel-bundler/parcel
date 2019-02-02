@@ -816,6 +816,8 @@ class Bundler extends EventEmitter {
     let asset = this.getLoadedAsset(path);
     this.entryAssets.delete(asset);
     this.unloadAsset(asset);
+
+    this.bundle();
   }
 
   middleware() {
