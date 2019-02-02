@@ -4,6 +4,7 @@ const commandExists = require('command-exists');
 
 describe('kotlin', function() {
   if (!commandExists.sync('java')) {
+    // eslint-disable-next-line no-console
     console.log(
       'Skipping Kotlin tests. Install https://www.java.com/download/ to run them.'
     );

@@ -40,13 +40,14 @@ function sleep(ms) {
 }
 
 function symlinkPrivilegeWarning() {
-  console.warn('-----------------------------------');
+  // eslint-disable-next-line no-console
   console.warn(
-    "Skipping symbolic link test(s) because you don't have the privilege."
+    `-----------------------------------
+Skipping symbolic link test(s) because you don't have the privilege.
+Run tests with Administrator privilege.
+If you don't know how, check here: https://bit.ly/2UmWsbD
+-----------------------------------`
   );
-  console.warn('Run tests with Administrator privilege.');
-  console.warn("If you don't know how, check here: https://bit.ly/2UmWsbD");
-  console.warn('-----------------------------------');
 }
 
 function bundler(file, opts) {
