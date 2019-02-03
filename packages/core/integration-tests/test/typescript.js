@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe('typescript', function() {
   it('should produce a ts bundle using ES6 imports', async function() {
