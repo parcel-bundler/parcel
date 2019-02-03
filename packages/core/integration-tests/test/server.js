@@ -70,24 +70,28 @@ describe('server', function() {
 
   it('should serve an index.html automatically when we have multiple entry points', async function() {
     const entries = [
-      path.join(__dirname, '/integration/html/index.html'),
-      path.join(__dirname, '/integration/multi-entry/one.html')
+      path.join(__dirname, '/integration/multi-entry-default/index.html'),
+      path.join(__dirname, '/integration/multi-entry-default/other.html')
     ];
 
     let b = bundler(entries);
     server = await b.serve(0);
 
     let data = await get('/');
-    assert.equal(
-      data,
-      await fs.readFile(path.join(__dirname, '/dist/index.html', 'utf8'))
+    let fileContent = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
     );
 
-    data = await get('/one.html');
-    assert.equal(
-      data,
-      await fs.readFile(path.join(__dirname, '/dist/one.html', 'utf8'))
+    assert.equal(data, fileContent);
+
+    data = await get('/other.html');
+    fileContent = await fs.readFile(
+      path.join(__dirname, '/dist/other.html'),
+      'utf8'
     );
+
+    assert.equal(data, fileContent);
   });
 
   it('should serve a 404 if the file does not exist', async function() {
