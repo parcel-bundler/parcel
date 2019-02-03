@@ -25,8 +25,7 @@ describe('Watcher', function() {
     assert(!!watcher.child);
     assert(watcher.ready);
 
-    let time = Date.now();
     await watcher.stop();
-    assert.notEqual(time, Date.now());
+    assert(watcher.child.killed);
   });
 });
