@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
-const {bundler, run, rimraf, ncp} = require('./utils');
+const {bundler, run, rimraf, ncp} = require('@parcel/test-utils');
 const {sleep} = require('@parcel/test-utils');
 const WebSocket = require('ws');
 const json5 = require('json5');

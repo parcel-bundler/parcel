@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe('stylus', function() {
   it('should support requiring stylus files', async function() {

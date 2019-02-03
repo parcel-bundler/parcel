@@ -1,6 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe('plugins', function() {
   it('should load plugins and apply custom asset type', async function() {
