@@ -8,8 +8,9 @@ const {
   assertBundleTree,
   deferred,
   ncp
-} = require('./utils');
+} = require('@parcel/test-utils');
 const {mkdirp} = require('@parcel/fs');
+const {symlinkPrivilegeWarning} = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
 
 describe('javascript', function() {
@@ -1290,21 +1291,28 @@ describe('javascript', function() {
       inputDir
     );
 
-    // Create the symlink here to prevent cross platform and git issues
-    symlinkSync(
-      path.join(inputDir, 'packages/foo'),
-      path.join(inputDir, 'node_modules/foo'),
-      'dir'
-    );
+    try {
+      // Create the symlink here to prevent cross platform and git issues
+      symlinkSync(
+        path.join(inputDir, 'packages/foo'),
+        path.join(inputDir, 'node_modules/foo'),
+        'dir'
+      );
 
-    await bundle(inputDir + '/index.js');
+      await bundle(inputDir + '/index.js');
 
-    let file = await fs.readFile(
-      path.join(__dirname, '/dist/index.js'),
-      'utf8'
-    );
-    assert(file.includes('function Foo'));
-    assert(file.includes('function Bar'));
+      let file = await fs.readFile(
+        path.join(__dirname, '/dist/index.js'),
+        'utf8'
+      );
+      assert(file.includes('function Foo'));
+      assert(file.includes('function Bar'));
+    } catch (e) {
+      if (e.perm == 'EPERM') {
+        symlinkPrivilegeWarning();
+        this.skip();
+      }
+    }
   });
 
   it('should not compile node_modules with a source field in package.json when not symlinked', async function() {
