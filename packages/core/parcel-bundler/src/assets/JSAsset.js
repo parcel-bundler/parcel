@@ -16,6 +16,7 @@ const hoist = require('../scope-hoisting/hoist');
 const path = require('path');
 const fs = require('@parcel/fs');
 const logger = require('@parcel/logger');
+const isAccessedVarChanged = require('../utils/isAccessedVarChanged');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -40,13 +41,7 @@ class JSAsset extends Asset {
   }
 
   shouldInvalidate(cacheData) {
-    for (let key in cacheData.env) {
-      if (cacheData.env[key] !== process.env[key]) {
-        return true;
-      }
-    }
-
-    return false;
+    return isAccessedVarChanged(cacheData);
   }
 
   mightHaveDependencies() {

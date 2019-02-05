@@ -1,6 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle, run, assertBundleTree, deferred} = require('./utils');
+const {bundle, run, assertBundleTree, deferred} = require('@parcel/test-utils');
 
 describe('wasm', function() {
   if (typeof WebAssembly === 'undefined') {
