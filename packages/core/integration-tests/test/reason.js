@@ -1,6 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle, run} = require('./utils');
+const {bundle, run} = require('@parcel/test-utils');
 
 describe('reason', function() {
   it('should produce a bundle', async function() {
