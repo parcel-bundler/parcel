@@ -1,7 +1,13 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundle, run, assertBundleTree, rimraf, ncp} = require('./utils');
+const {
+  bundle,
+  run,
+  assertBundleTree,
+  rimraf,
+  ncp
+} = require('@parcel/test-utils');
 
 describe('css', function() {
   it('should produce two bundles when importing a CSS file', async function() {

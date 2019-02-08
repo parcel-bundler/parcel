@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe('glob', function() {
   it('should require a glob of files', async function() {

@@ -6,7 +6,7 @@ const SourceMap =
   parseInt(process.versions.node, 10) < 8
     ? require('parcel-bundler/lib/SourceMap')
     : require('parcel-bundler/src/SourceMap');
-const {bundler, bundle, run, assertBundleTree} = require('./utils');
+const {bundler, bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 function indexToLineCol(str, index) {
   let beforeIndex = str.slice(0, index);
