@@ -1,7 +1,16 @@
 const assert = require('assert');
-const {bundle, assertBundleTree, run} = require('./utils');
+const {bundle, assertBundleTree, run} = require('@parcel/test-utils');
+const commandExists = require('command-exists');
 
 describe('kotlin', function() {
+  if (!commandExists.sync('java')) {
+    // eslint-disable-next-line no-console
+    console.log(
+      'Skipping Kotlin tests. Install https://www.java.com/download/ to run them.'
+    );
+    return;
+  }
+
   it('should produce a basic kotlin bundle', async function() {
     let b = await bundle(__dirname + '/integration/kotlin/index.js');
 

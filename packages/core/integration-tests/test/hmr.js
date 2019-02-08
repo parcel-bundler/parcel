@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
-const {bundler, run, rimraf, ncp} = require('./utils');
+const {bundler, run, rimraf, ncp} = require('@parcel/test-utils');
 const {sleep} = require('@parcel/test-utils');
 const WebSocket = require('ws');
 const json5 = require('json5');
@@ -553,6 +553,58 @@ describe('hmr', function() {
     assert.equal(msg.assets.length, 1);
     assert.equal(msg.assets[0].generated.js, 'exports.a = 5;\nexports.b = 5;');
     assert.deepEqual(msg.assets[0].deps, {});
+
+    await buildEnd;
+  });
+
+  it('should watch new dependencies that cause errors', async function() {
+    await ncp(
+      path.join(__dirname, '/integration/elm-dep-error'),
+      path.join(__dirname, '/input')
+    );
+
+    b = bundler(path.join(__dirname, '/input/index.js'), {
+      watch: true,
+      hmr: true
+    });
+    await b.bundle();
+
+    ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
+
+    const buildEnd = nextEvent(b, 'buildEnd');
+
+    await sleep(100);
+    fs.writeFile(
+      path.join(__dirname, '/input/src/Main.elm'),
+      `
+module Main exposing (main)
+
+import BrokenDep
+import Html
+
+main =
+    Html.text "Hello, world!"
+    `
+    );
+
+    let msg = JSON.parse(await nextEvent(ws, 'message'));
+    assert.equal(msg.type, 'error');
+
+    await sleep(100);
+    fs.writeFile(
+      path.join(__dirname, '/input/src/BrokenDep.elm'),
+      `
+module BrokenDep exposing (anError)
+
+
+anError : String
+anError =
+    "fixed"
+      `
+    );
+
+    msg = JSON.parse(await nextEvent(ws, 'message'));
+    assert.equal(msg.type, 'error-resolved');
 
     await buildEnd;
   });

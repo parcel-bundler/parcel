@@ -1,7 +1,13 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundle, run, assertBundleTree, rimraf, ncp} = require('./utils');
+const {
+  bundle,
+  run,
+  assertBundleTree,
+  rimraf,
+  ncp
+} = require('@parcel/test-utils');
 
 describe('css', function() {
   it('should produce two bundles when importing a CSS file', async function() {
@@ -210,6 +216,54 @@ describe('css', function() {
           css.match(/url\((test\.[0-9a-f]+\.woff2)\)/)[1]
         )
       )
+    );
+  });
+
+  it('should support linking to assets in parent folders with url() from CSS', async function() {
+    let b = await bundle(
+      [
+        path.join(__dirname, '/integration/css-url-relative/src/a/style1.css'),
+        path.join(__dirname, '/integration/css-url-relative/src/b/style2.css')
+      ],
+      {
+        production: true,
+        sourceMaps: false
+      }
+    );
+
+    await assertBundleTree(b, [
+      {
+        type: 'css',
+        assets: ['style1.css'],
+        childBundles: [
+          {
+            type: 'png'
+          }
+        ]
+      },
+      {
+        type: 'css',
+        assets: ['style2.css']
+      }
+    ]);
+
+    let css = await fs.readFile(
+      path.join(__dirname, '/dist/a/style1.css'),
+      'utf8'
+    );
+
+    assert(css.includes('background-image'), 'includes `background-image`');
+    assert(/url\([^)]*\)/.test(css), 'includes url()');
+
+    assert(
+      await fs.exists(
+        path.join(
+          __dirname,
+          path.dirname('/dist/a/style1.css'),
+          css.match(/url\(([^)]*)\)/)[1]
+        )
+      ),
+      'path specified in url() exists'
     );
   });
 
