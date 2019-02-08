@@ -1390,6 +1390,28 @@ describe('javascript', function() {
     assert(file.includes('React.createElement("div"'));
   });
 
+  it('should support compiling JSX in JS files with React dependency even if React is not specified as dependency', async function() {
+    let originalPkg = await fs.readFile(
+      __dirname + '/integration/jsx-react-no-dep/package.json'
+    );
+
+    await bundle(
+      path.join(__dirname, '/integration/jsx-react-no-dep/index.js')
+    );
+
+    let file = await fs.readFile(
+      path.join(__dirname, '/dist/index.js'),
+      'utf8'
+    );
+
+    assert(file.includes('React.createElement("div"'));
+
+    await fs.writeFile(
+      __dirname + '/integration/jsx-react-no-dep/package.json',
+      originalPkg
+    );
+  });
+
   it('should support compiling JSX in JS files with Preact dependency', async function() {
     await bundle(path.join(__dirname, '/integration/jsx-preact/index.js'));
 
@@ -1398,6 +1420,28 @@ describe('javascript', function() {
       'utf8'
     );
     assert(file.includes('h("div"'));
+  });
+
+  it('should support compiling JSX in JS files with Preact dependency even if Preact is not specified as dependency', async function() {
+    let originalPkg = await fs.readFile(
+      __dirname + '/integration/jsx-preact-no-dep/package.json'
+    );
+
+    await bundle(
+      path.join(__dirname, '/integration/jsx-preact-no-dep/index.js')
+    );
+
+    let file = await fs.readFile(
+      path.join(__dirname, '/dist/index.js'),
+      'utf8'
+    );
+
+    assert(file.includes('h("div"'));
+
+    await fs.writeFile(
+      __dirname + '/integration/jsx-preact-no-dep/package.json',
+      originalPkg
+    );
   });
 
   it('should support compiling JSX in JS files with Nerv dependency', async function() {
@@ -1410,6 +1454,28 @@ describe('javascript', function() {
     assert(file.includes('Nerv.createElement("div"'));
   });
 
+  it('should support compiling JSX in JS files with Nerv dependency even if Nerv is not specified as dependency', async function() {
+    let originalPkg = await fs.readFile(
+      __dirname + '/integration/jsx-nervjs-no-dep/package.json'
+    );
+
+    await bundle(
+      path.join(__dirname, '/integration/jsx-nervjs-no-dep/index.js')
+    );
+
+    let file = await fs.readFile(
+      path.join(__dirname, '/dist/index.js'),
+      'utf8'
+    );
+
+    assert(file.includes('Nerv.createElement("div"'));
+
+    await fs.writeFile(
+      __dirname + '/integration/jsx-nervjs-no-dep/package.json',
+      originalPkg
+    );
+  });
+
   it('should support compiling JSX in JS files with Hyperapp dependency', async function() {
     await bundle(path.join(__dirname, '/integration/jsx-hyperapp/index.js'));
 
@@ -1417,7 +1483,30 @@ describe('javascript', function() {
       path.join(__dirname, '/dist/index.js'),
       'utf8'
     );
+
     assert(file.includes('h("div"'));
+  });
+
+  it('should support compiling JSX in JS files with Hyperapp dependency even if Hyperapp is not specified as dependency', async function() {
+    let originalPkg = await fs.readFile(
+      __dirname + '/integration/jsx-hyperapp-no-dep/package.json'
+    );
+
+    await bundle(
+      path.join(__dirname, '/integration/jsx-hyperapp-no-dep/index.js')
+    );
+
+    let file = await fs.readFile(
+      path.join(__dirname, '/dist/index.js'),
+      'utf8'
+    );
+
+    assert(file.includes('h("div"'));
+
+    await fs.writeFile(
+      __dirname + '/integration/jsx-hyperapp-no-dep/package.json',
+      originalPkg
+    );
   });
 
   it('should support optional dependencies in try...catch blocks', async function() {
