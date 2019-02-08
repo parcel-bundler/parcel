@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
-const {bundle, assertBundleTree, run} = require('./utils');
+const {bundle, assertBundleTree, run} = require('@parcel/test-utils');
 
 describe('elm', function() {
   it('should produce a basic Elm bundle', async function() {
