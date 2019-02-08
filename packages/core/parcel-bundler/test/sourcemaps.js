@@ -1,5 +1,4 @@
 const assert = require('assert');
-const fs = require('@parcel/fs');
 const SourceMap = require('../src/SourceMap');
 
 describe('sourcemaps', function() {
