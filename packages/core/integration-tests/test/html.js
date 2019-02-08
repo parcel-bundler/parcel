@@ -296,6 +296,18 @@ describe('html', function() {
     assert(html.includes('Other page'));
   });
 
+  it('should work with an empty html file', async function() {
+    let inputFile = path.join(__dirname, '/integration/html-empty/index.html');
+    await bundle(inputFile, {
+      minify: false
+    });
+
+    let outputFile = path.join(__dirname, '/dist/index.html');
+
+    let html = await fs.readFile(outputFile, 'utf8');
+    assert.equal(html.length, 0);
+  });
+
   it('should read .htmlnanorc and minify HTML in production mode', async function() {
     await bundle(
       path.join(__dirname, '/integration/htmlnano-config/index.html'),
