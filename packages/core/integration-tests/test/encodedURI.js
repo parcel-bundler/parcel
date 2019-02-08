@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundle, assertBundleTree} = require('./utils');
+const {bundle, assertBundleTree} = require('@parcel/test-utils');
 
 describe('encodedURI', function() {
   it('should support bundling files which names in encoded URI', async function() {

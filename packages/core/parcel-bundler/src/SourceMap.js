@@ -10,20 +10,20 @@ class SourceMap {
 
   purifyMappings(mappings) {
     if (Array.isArray(mappings)) {
-      return mappings.filter(mapping => {
-        return (
+      return mappings.filter(
+        mapping =>
           mapping &&
-          mapping.source &&
-          mapping.original &&
-          typeof mapping.original.line === 'number' &&
-          mapping.original.line > 0 &&
-          typeof mapping.original.column === 'number' &&
+          (typeof mapping.original === 'object' &&
+            (mapping.original === null ||
+              (typeof mapping.original.line === 'number' &&
+                mapping.original.line > 0 &&
+                typeof mapping.original.column === 'number' &&
+                mapping.source))) &&
           mapping.generated &&
           typeof mapping.generated.line === 'number' &&
           mapping.generated.line > 0 &&
           typeof mapping.generated.column === 'number'
-        );
-      });
+      );
     }
 
     return [];
@@ -34,12 +34,14 @@ class SourceMap {
       return map;
     }
     map = typeof map === 'string' ? JSON.parse(map) : map;
+    if (map.sourceRoot) delete map.sourceRoot;
     return await new SourceMapConsumer(map);
   }
 
   async addMap(map, lineOffset = 0, columnOffset = 0) {
-    if (!(map instanceof SourceMap) && map.version) {
+    if (typeof map === 'string' || (typeof map === 'object' && map.version)) {
       let consumer = await this.getConsumer(map);
+      if (!consumer) return this;
 
       consumer.eachMapping(mapping => {
         this.addConsumerMapping(mapping, lineOffset, columnOffset);
@@ -55,7 +57,7 @@ class SourceMap {
         // Only needs to happen in source-map 0.7
         consumer.destroy();
       }
-    } else {
+    } else if (map.mappings && map.sources) {
       if (!map.eachMapping) {
         map = new SourceMap(map.mappings, map.sources);
       }
@@ -91,21 +93,22 @@ class SourceMap {
   }
 
   addConsumerMapping(mapping, lineOffset = 0, columnOffset = 0) {
+    let original = null;
     if (
-      !mapping.source ||
-      !mapping.originalLine ||
-      (!mapping.originalColumn && mapping.originalColumn !== 0)
+      typeof mapping.originalLine === 'number' &&
+      mapping.originalLine > 0 &&
+      typeof mapping.originalColumn === 'number'
     ) {
-      return;
+      original = {
+        line: mapping.originalLine,
+        column: mapping.originalColumn
+      };
     }
 
     this.mappings.push({
-      source: mapping.source,
+      source: original ? mapping.source : null,
       name: mapping.name,
-      original: {
-        line: mapping.originalLine,
-        column: mapping.originalColumn
-      },
+      original,
       generated: {
         line: mapping.generatedLine + lineOffset,
         column: mapping.generatedColumn + columnOffset
