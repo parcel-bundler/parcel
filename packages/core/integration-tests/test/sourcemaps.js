@@ -2,7 +2,7 @@ const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
 const mapValidator = require('sourcemap-validator');
-const {bundler, bundle, run, assertBundleTree} = require('./utils');
+const {bundler, bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe('sourcemaps', function() {
   it('should create a valid sourcemap as a child of a JS bundle', async function() {
