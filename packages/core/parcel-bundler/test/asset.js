@@ -2,7 +2,7 @@ const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
 const Asset = require('../src/Asset');
-const {bundle} = require('./utils');
+const {bundle} = require('@parcel/test-utils');
 
 describe('Asset', () => {
   it('should include default implementations', async () => {

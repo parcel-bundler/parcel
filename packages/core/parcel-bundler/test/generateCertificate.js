@@ -2,7 +2,7 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
 const generateCertificate = require('../src/utils/generateCertificate');
-const {rimraf, ncp} = require('./utils');
+const {rimraf, ncp} = require('@parcel/test-utils');
 
 const cachePath = path.join(__dirname, '.cache');
 const inputPath = path.join(__dirname, '/input');

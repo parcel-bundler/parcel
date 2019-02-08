@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
-const {bundle, assertBundleTree} = require('./utils');
+const {bundle, assertBundleTree} = require('@parcel/test-utils');
 const path = require('path');
 
 describe('html', function() {
@@ -294,6 +294,18 @@ describe('html', function() {
 
     let html = await fs.readFile(outputFile, 'utf8');
     assert(html.includes('Other page'));
+  });
+
+  it('should work with an empty html file', async function() {
+    let inputFile = path.join(__dirname, '/integration/html-empty/index.html');
+    await bundle(inputFile, {
+      minify: false
+    });
+
+    let outputFile = path.join(__dirname, '/dist/index.html');
+
+    let html = await fs.readFile(outputFile, 'utf8');
+    assert.equal(html.length, 0);
   });
 
   it('should read .htmlnanorc and minify HTML in production mode', async function() {
