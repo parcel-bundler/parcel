@@ -168,18 +168,25 @@ class HTMLAsset extends Asset {
         }
 
         for (let attr in node.attrs) {
-          let elements = ATTRS[attr];
-          // Check for virtual paths
-          if (node.tag === 'a' && node.attrs[attr].lastIndexOf('.') < 1) {
+          const attrVal = node.attrs[attr];
+
+          if (!attrVal) {
             continue;
           }
+
+          // Check for virtual paths
+          if (node.tag === 'a' && attrVal.lastIndexOf('.') < 1) {
+            continue;
+          }
+
+          let elements = ATTRS[attr];
 
           if (elements && elements.includes(node.tag)) {
             let depHandler = this.getAttrDepHandler(attr);
             let options = OPTIONS[node.tag];
             node.attrs[attr] = depHandler.call(
               this,
-              node.attrs[attr],
+              attrVal,
               options && options[attr]
             );
             this.isAstDirty = true;
