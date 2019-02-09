@@ -57,7 +57,7 @@ function middleware(bundler) {
         !pathname.startsWith(bundler.options.publicURL) ||
         path.extname(pathname) === ''
       ) {
-        sendIndex();
+        return sendIndex();
       } else {
         // Otherwise, serve the file from the dist folder
         req.url = pathname.slice(bundler.options.publicURL.length);
