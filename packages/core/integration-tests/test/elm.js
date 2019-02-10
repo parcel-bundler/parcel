@@ -14,7 +14,8 @@ describe('elm', function() {
     let output = await run(b);
     assert.equal(typeof output().Elm.Main.init, 'function');
   });
-  it('should produce a elm bundle with debugger', async function() {
+  // Waiting for the elm compiler bug to be fixed https://github.com/elm/compiler/issues/1851
+  xit('should produce a elm bundle with debugger', async function() {
     let b = await bundle(__dirname + '/integration/elm/index.js');
 
     await run(b);

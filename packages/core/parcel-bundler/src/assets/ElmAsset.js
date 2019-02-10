@@ -39,7 +39,9 @@ class ElmAsset extends Asset {
       await this.getConfig(['elm.json'], {load: false});
     }
 
-    options.debug = !this.options.production;
+    // Disabling for now due to a bug in the Elm compiler:
+    // https://github.com/elm/compiler/issues/1851
+    // options.debug = !this.options.production;
     if (this.options.minify) {
       options.optimize = true;
     }
