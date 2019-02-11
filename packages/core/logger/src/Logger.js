@@ -13,6 +13,7 @@ class Logger {
   constructor(options) {
     this.lines = 0;
     this.spinner = null;
+    this.warnings = new Set();
     this.setOptions(options);
   }
 
@@ -100,10 +101,11 @@ class Logger {
   }
 
   warn(err) {
-    if (this.logLevel < 2) {
+    if (this.logLevel < 2 || this.warnings.has(err)) {
       return;
     }
 
+    this.warnings.add(err);
     this._writeError(err, this.emoji.warning, this.chalk.yellow);
   }
 
@@ -144,6 +146,7 @@ class Logger {
 
     readline.cursorTo(process.stdout, 0);
     this.stopSpinner();
+    this.warnings.clear();
   }
 
   progress(message) {
