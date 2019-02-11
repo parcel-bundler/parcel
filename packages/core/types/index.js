@@ -21,6 +21,7 @@ export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T};
 export type ParcelConfig = {
+  filePath: FilePath,
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: Array<PackageName>,
   transforms?: {
@@ -196,11 +197,9 @@ export interface Asset {
   dependencies: Array<Dependency>;
   connectedFiles: Array<File>;
   output: AssetOutput;
-  outputSize: number;
   outputHash: string;
   env: Environment;
   meta: Meta;
-  buildTime: number;
   stats: Stats;
 
   getConfig(
@@ -364,7 +363,7 @@ export type Resolver = {
 
 export type LogEvent = {
   type: 'log',
-  level: 'error' | 'warn' | 'info' | 'progress' | 'verbose',
+  level: 'error' | 'warn' | 'info' | 'progress' | 'success' | 'verbose',
   message: string | Error
 };
 

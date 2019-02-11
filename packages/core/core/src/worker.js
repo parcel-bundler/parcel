@@ -11,9 +11,6 @@ import PackagerRunner from './PackagerRunner';
 import Config from './Config';
 import Cache from '@parcel/cache';
 
-console.warn = () => {};
-console.log = () => {};
-
 type Options = {
   config: Config,
   options: ParcelOptions,

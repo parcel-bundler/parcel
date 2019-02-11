@@ -5,7 +5,10 @@ import Environment from '../src/Environment';
 
 const config = require('@parcel/config-default');
 const runner = new TransformerRunner({
-  config: new Config(config, require.resolve('@parcel/config-default')),
+  config: new Config({
+    ...config,
+    filePath: require.resolve('@parcel/config-default')
+  }),
   options: {}
 });
 

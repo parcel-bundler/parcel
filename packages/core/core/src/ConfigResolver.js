@@ -20,28 +20,23 @@ export default class ConfigResolver {
       return null;
     }
 
-    let config = await this.loadConfig(configPath, rootDir);
-    return new Config(config, configPath);
+    let config = await this.loadConfig(configPath);
+    return new Config({...config, filePath: configPath});
   }
 
-  async create(config: ParcelConfig, rootDir: FilePath) {
+  async create(config: ParcelConfig) {
     // Resolve plugins from the root when a config is passed programmatically
-    let configPath = path.join(rootDir, '.parcelrc');
-    let result = await this.processConfig(config, configPath, rootDir);
-    return new Config(result, configPath);
+    let result = await this.processConfig(config);
+    return new Config(result);
   }
 
-  async loadConfig(configPath: FilePath, rootDir: FilePath) {
+  async loadConfig(configPath: FilePath) {
     let config: ParcelConfig = parse(await fs.readFile(configPath));
-    return await this.processConfig(config, configPath, rootDir);
+    return await this.processConfig({...config, filePath: configPath});
   }
 
-  async processConfig(
-    config: ParcelConfig,
-    configPath: FilePath,
-    rootDir: FilePath
-  ) {
-    let relativePath = path.relative(process.cwd(), configPath);
+  async processConfig(config: ParcelConfig) {
+    let relativePath = path.relative(process.cwd(), config.filePath);
     this.validateConfig(config, relativePath);
 
     if (config.extends) {
@@ -49,8 +44,8 @@ export default class ConfigResolver {
         ? config.extends
         : [config.extends];
       for (let ext of exts) {
-        let resolved = await this.resolveExtends(ext, configPath);
-        let baseConfig = await this.loadConfig(resolved, rootDir);
+        let resolved = await this.resolveExtends(ext, config.filePath);
+        let baseConfig = await this.loadConfig(resolved);
         config = this.mergeConfigs(baseConfig, config);
       }
     }
@@ -225,6 +220,7 @@ export default class ConfigResolver {
 
   mergeConfigs(base: ParcelConfig, ext: ParcelConfig): ParcelConfig {
     return {
+      filePath: base.filePath, // TODO: revisit this - it should resolve plugins based on the actual config they are defined in
       resolvers: this.mergePipelines(base.resolvers, ext.resolvers),
       transforms: this.mergeMaps(
         base.transforms,

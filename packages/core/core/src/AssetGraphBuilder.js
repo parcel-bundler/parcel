@@ -152,7 +152,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     let time = Date.now() - start;
 
     for (let asset of cacheEntry.assets) {
-      asset.buildTime = time;
+      asset.stats.time = time;
     }
 
     if (signal.aborted) throw abortError;

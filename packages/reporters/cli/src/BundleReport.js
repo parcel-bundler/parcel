@@ -5,7 +5,7 @@ import filesize from 'filesize';
 import {Box, Color} from 'ink';
 import prettifyTime from '@parcel/utils/src/prettifyTime';
 import path from 'path';
-import emoji from '@parcel/logger/src/emoji';
+import emoji from './emoji';
 import {Table, Row, Cell} from './Table';
 
 const LARGE_BUNDLE_SIZE = 1024 * 1024;
@@ -44,7 +44,7 @@ export default function BundleReport(props: ReportProps) {
 
     let assets = [];
     bundle.assetGraph.traverseAssets(asset => assets.push(asset));
-    assets.sort((a, b) => b.outputSize - a.outputSize);
+    assets.sort((a, b) => b.stats.size - a.stats.size);
 
     let largestAssets = assets.slice(0, 10);
 
@@ -57,11 +57,11 @@ export default function BundleReport(props: ReportProps) {
             {formatFilename(asset.filePath, {})}
           </Cell>
           <Cell align="right">
-            <Color dim>{prettifySize(asset.outputSize)}</Color>
+            <Color dim>{prettifySize(asset.stats.size)}</Color>
           </Cell>
           <Cell align="right">
             <Color green dim>
-              {prettifyTime(asset.buildTime)}
+              {prettifyTime(asset.stats.time)}
             </Color>
           </Cell>
         </Row>

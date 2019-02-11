@@ -29,7 +29,9 @@ export default class Parcel {
     this.options = options;
     this.entries = Array.isArray(options.entries)
       ? options.entries
-      : [options.entries];
+      : options.entries
+        ? [options.entries]
+        : [];
     this.rootDir = getRootDir(this.entries);
   }
 
@@ -46,20 +48,14 @@ export default class Parcel {
 
     // If an explicit `config` option is passed use that, otherwise resolve a .parcelrc from the filesystem.
     if (this.options.config) {
-      config = await configResolver.create(
-        this.options.config,
-        this.options.configPath || this.rootDir
-      );
+      config = await configResolver.create(this.options.config);
     } else {
       config = await configResolver.resolve(this.rootDir);
     }
 
     // If no config was found, default to the `defaultConfig` option if one is provided.
     if (!config && this.options.defaultConfig) {
-      config = await configResolver.create(
-        this.options.defaultConfig,
-        this.options.defaultConfigPath || this.rootDir
-      );
+      config = await configResolver.create(this.options.defaultConfig);
     }
 
     if (!config) {

@@ -27,7 +27,7 @@ type GlobMap<T> = {[Glob]: T};
 const PARCEL_VERSION = require('../package.json').version;
 
 export default class Config {
-  configPath: FilePath;
+  filePath: FilePath;
   resolvers: Pipeline;
   transforms: GlobMap<Pipeline>;
   bundler: PackageName;
@@ -38,8 +38,8 @@ export default class Config {
   reporters: Pipeline;
   pluginCache: Map<PackageName, any>;
 
-  constructor(config: ParcelConfig, filePath: FilePath) {
-    this.configPath = config.configPath || filePath;
+  constructor(config: ParcelConfig) {
+    this.filePath = config.filePath;
     this.resolvers = config.resolvers || [];
     this.transforms = config.transforms || {};
     this.runtimes = config.runtimes || {};
@@ -51,16 +51,27 @@ export default class Config {
     this.pluginCache = new Map();
   }
 
+  serialize(): ParcelConfig {
+    return {
+      filePath: this.filePath,
+      resolvers: this.resolvers,
+      transforms: this.transforms,
+      runtimes: this.runtimes,
+      bundler: this.bundler,
+      namers: this.namers,
+      packagers: this.packagers,
+      optimizers: this.optimizers,
+      reporters: this.reporters
+    };
+  }
+
   async loadPlugin(pluginName: PackageName) {
     let cached = this.pluginCache.get(pluginName);
     if (cached) {
       return cached;
     }
 
-    let [resolved, pkg] = await localRequire.resolve(
-      pluginName,
-      this.configPath
-    );
+    let [resolved, pkg] = await localRequire.resolve(pluginName, this.filePath);
 
     // Validate the engines.parcel field in the plugin's package.json
     let parcelVersionRange = pkg.engines && pkg.engines.parcel;

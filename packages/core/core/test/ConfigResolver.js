@@ -216,6 +216,7 @@ describe('ConfigResolver', () => {
       assert.throws(() => {
         resolver.validateConfig(
           {
+            filePath: '.parcelrc',
             extends: 'parcel-config-foo',
             transforms: {
               '*.js': ['parcel-invalid-plugin']
@@ -229,6 +230,7 @@ describe('ConfigResolver', () => {
     it('should succeed on valid config', () => {
       resolver.validateConfig(
         {
+          filePath: '.parcelrc',
           extends: 'parcel-config-foo',
           transforms: {
             '*.js': ['parcel-transformer-foo']
@@ -340,6 +342,7 @@ describe('ConfigResolver', () => {
   describe('mergeConfigs', () => {
     it('should merge configs', () => {
       let base = {
+        filePath: '.parcelrc',
         resolvers: ['parcel-resolver-base'],
         transforms: {
           '*.js': ['parcel-transform-base'],
@@ -349,6 +352,7 @@ describe('ConfigResolver', () => {
       };
 
       let ext = {
+        filePath: '.parcelrc',
         resolvers: ['parcel-resolver-ext', '...'],
         transforms: {
           '*.js': ['parcel-transform-ext', '...']
@@ -356,6 +360,7 @@ describe('ConfigResolver', () => {
       };
 
       let merged = {
+        filePath: '.parcelrc',
         resolvers: ['parcel-resolver-ext', 'parcel-resolver-base'],
         transforms: {
           '*.js': ['parcel-transform-ext', 'parcel-transform-base'],

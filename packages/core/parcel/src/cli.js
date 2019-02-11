@@ -1,5 +1,6 @@
-#!/usr/bin/env node -r @parcel/babel-register
+// @flow
 require('v8-compile-cache');
+import type {ParcelConfig, ParcelOptions} from '@parcel/types';
 const chalk = require('chalk');
 const program = require('commander');
 const version = require('../package.json').version;
@@ -108,7 +109,7 @@ if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
 
 program.parse(args);
 
-function run(entries, command) {
+function run(entries: Array<string>, command: any) {
   entries = entries.map(entry => path.resolve(entry));
 
   if (entries.length === 0) {
@@ -116,17 +117,20 @@ function run(entries, command) {
     return;
   }
   let Parcel = require('@parcel/core').default;
+  let defaultConfig: ParcelConfig = require('@parcel/config-default');
   let parcel = new Parcel({
     entries,
-    defaultConfig: require('@parcel/config-default'),
-    defaultConfigPath: require.resolve('@parcel/config-default'),
+    defaultConfig: {
+      ...defaultConfig,
+      filePath: require.resolve('@parcel/config-default')
+    },
     ...normalizeOptions(command)
   });
 
   parcel.run().catch(console.error);
 }
 
-function normalizeOptions(command) {
+function normalizeOptions(command): ParcelOptions {
   if (command.name() === 'build') {
     process.env.NODE_ENV = process.env.NODE_ENV || 'production';
   } else {

@@ -13,7 +13,6 @@ import type {
   Bundle,
   GraphTraversalCallback
 } from '@parcel/types';
-import path from 'path';
 import md5 from '@parcel/utils/lib/md5';
 import Dependency from './Dependency';
 
@@ -289,7 +288,10 @@ export default class AssetGraph extends Graph {
       type: asset.type,
       assetGraph: graph,
       env: asset.env,
-      outputSize: 0
+      stats: {
+        size: 0,
+        time: 0
+      }
     };
   }
 
@@ -297,7 +299,7 @@ export default class AssetGraph extends Graph {
     let size = 0;
     let assetNode = asset ? this.getNode(asset.id) : null;
     this.traverseAssets(asset => {
-      size += asset.outputSize;
+      size += asset.stats.size;
     }, assetNode);
 
     return size;

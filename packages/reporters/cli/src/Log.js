@@ -3,8 +3,8 @@ import type {LogEvent} from '@parcel/types';
 import {Box, Text, Color} from 'ink';
 import Spinner from './Spinner';
 import React from 'react';
-import prettyError from '@parcel/logger/src/prettyError';
-import emoji from '@parcel/logger/src/emoji';
+import prettyError from './prettyError';
+import emoji from './emoji';
 
 type LogProps = {
   event: LogEvent

@@ -65,3 +65,20 @@ if (WorkerFarm.isWorker()) {
 } else {
   module.exports = new Logger();
 }
+
+let logger = module.exports;
+
+// eslint-disable-next-line no-console
+console.log = message => {
+  logger.info(message);
+};
+
+// eslint-disable-next-line no-console
+console.warn = message => {
+  logger.warn(message);
+};
+
+// eslint-disable-next-line no-console
+console.error = message => {
+  logger.error(message);
+};
