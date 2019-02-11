@@ -1,8 +1,7 @@
 const assert = require('assert');
 const Path = require('path');
 const fs = require('@parcel/fs');
-const {rimraf, ncp, bundler} = require('./utils');
-const {sleep} = require('@parcel/test-utils');
+const {sleep, rimraf, ncp, bundler} = require('@parcel/test-utils');
 
 let inputRoot = Path.join(__dirname, 'input', 'detect-dir-change');
 
