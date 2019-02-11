@@ -34,8 +34,12 @@ class Logger extends EventEmitter {
     });
   }
 
-  handleMessage(options) {
-    this[options.method](...options.args);
+  progress(message) {
+    this.emit('log', {
+      type: 'log',
+      level: 'progress',
+      message
+    });
   }
 }
 

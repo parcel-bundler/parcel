@@ -147,8 +147,6 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async transform(req: TransformerRequest, {signal, shallow}: BuildOpts) {
-    this.emit('transform', req);
-
     let start = Date.now();
     let cacheEntry = await this.runTransform(req);
     let time = Date.now() - start;

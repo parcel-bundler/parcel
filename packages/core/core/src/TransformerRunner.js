@@ -15,6 +15,7 @@ import md5 from '@parcel/utils/lib/md5';
 import Cache from '@parcel/cache';
 import fs from '@parcel/fs';
 import Config from './Config';
+import {report} from './ReporterRunner';
 
 type Opts = {
   config: Config,
@@ -33,6 +34,12 @@ class TransformerRunner {
   }
 
   async transform(req: TransformerRequest): Promise<CacheEntry> {
+    report({
+      type: 'buildProgress',
+      phase: 'transforming',
+      request: req
+    });
+
     let code = req.code || (await fs.readFile(req.filePath, 'utf8'));
     let hash = md5(code);
 

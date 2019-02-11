@@ -10,6 +10,7 @@ import type {
 import type Config from './Config';
 import BundleGraph from './BundleGraph';
 import AssetGraphBuilder from './AssetGraphBuilder';
+import {report} from './ReporterRunner';
 
 type Opts = {
   options: ParcelOptions,
@@ -29,6 +30,11 @@ export default class BundlerRunner {
   }
 
   async bundle(graph: AssetGraph) {
+    report({
+      type: 'buildProgress',
+      phase: 'bundling'
+    });
+
     let bundler = await this.config.getBundler();
 
     let bundleGraph = new BundleGraph();

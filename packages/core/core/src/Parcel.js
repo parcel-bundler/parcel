@@ -1,12 +1,7 @@
 // @flow
 'use strict';
 import AssetGraph from './AssetGraph';
-import type {
-  Bundle,
-  BundleGraph,
-  ParcelOptions,
-  TransformerRequest
-} from '@parcel/types';
+import type {Bundle, BundleGraph, ParcelOptions} from '@parcel/types';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
@@ -42,7 +37,7 @@ export default class Parcel {
     await Cache.createCacheDir(this.options.cacheDir);
 
     if (!this.options.env) {
-      // await loadEnv(path.join(this.rootDir, 'index'));
+      await loadEnv(path.join(this.rootDir, 'index'));
       this.options.env = process.env;
     }
 
@@ -114,13 +109,6 @@ export default class Parcel {
       this.build();
     });
 
-    this.assetGraphBuilder.on('transform', (req: TransformerRequest) => {
-      this.reporterRunner.report({
-        type: 'buildProgress',
-        message: `Building ${path.basename(req.filePath)}`
-      });
-    });
-
     return await this.build();
   }
 
@@ -132,20 +120,7 @@ export default class Parcel {
 
       let startTime = Date.now();
       let assetGraph = await this.assetGraphBuilder.build();
-
-      this.reporterRunner.report({
-        type: 'buildProgress',
-        message: 'Bundling...'
-      });
-
-      // await graph.dumpGraphViz();
       let bundleGraph = await this.bundle(assetGraph);
-
-      this.reporterRunner.report({
-        type: 'buildProgress',
-        message: 'Packaging...'
-      });
-
       await this.package(bundleGraph);
 
       this.reporterRunner.report({

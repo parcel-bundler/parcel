@@ -3,6 +3,7 @@
 import type {ParcelOptions, Dependency, FilePath} from '@parcel/types';
 import path from 'path';
 import Config from './Config';
+import {report} from './ReporterRunner';
 
 type Opts = {
   config: Config,
@@ -27,6 +28,12 @@ export default class ResolverRunner {
   }
 
   async resolve(dependency: Dependency): Promise<FilePath> {
+    report({
+      type: 'buildProgress',
+      phase: 'resolving',
+      dependency
+    });
+
     // Check the cache first
     let key = getCacheKey(dependency.moduleSpecifier, dependency.sourcePath);
     let cached = this.cache.get(key);

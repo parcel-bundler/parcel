@@ -364,7 +364,7 @@ export type Resolver = {
 
 export type LogEvent = {
   type: 'log',
-  level: 'info' | 'warn' | 'error' | 'success' | 'verbose',
+  level: 'error' | 'warn' | 'info' | 'progress' | 'verbose',
   message: string | Error
 };
 
@@ -372,10 +372,41 @@ export type BuildStartEvent = {
   type: 'buildStart'
 };
 
-export type BuildProgressEvent = {
+type ResolvingProgressEvent = {
   type: 'buildProgress',
-  message: string
+  phase: 'resolving',
+  dependency: Dependency
 };
+
+type TransformingProgressEvent = {
+  type: 'buildProgress',
+  phase: 'transforming',
+  request: TransformerRequest
+};
+
+type BundlingProgressEvent = {
+  type: 'buildProgress',
+  phase: 'bundling'
+};
+
+type PackagingProgressEvent = {
+  type: 'buildProgress',
+  phase: 'packaging',
+  bundle: Bundle
+};
+
+type OptimizingProgressEvent = {
+  type: 'buildProgress',
+  phase: 'optimizing',
+  bundle: Bundle
+};
+
+export type BuildProgressEvent =
+  | ResolvingProgressEvent
+  | TransformingProgressEvent
+  | BundlingProgressEvent
+  | PackagingProgressEvent
+  | OptimizingProgressEvent;
 
 export type BuildSuccessEvent = {
   type: 'buildSuccess',

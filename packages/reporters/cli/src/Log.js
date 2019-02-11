@@ -1,5 +1,5 @@
 // @flow
-import type {LogEvent, BuildProgressEvent} from '@parcel/types';
+import type {LogEvent} from '@parcel/types';
 import {Box, Text, Color} from 'ink';
 import Spinner from './Spinner';
 import React from 'react';
@@ -7,28 +7,25 @@ import prettyError from '@parcel/logger/src/prettyError';
 import emoji from '@parcel/logger/src/emoji';
 
 type LogProps = {
-  log: LogEvent
-};
-
-type ProgressProps = {
-  event: BuildProgressEvent
+  event: LogEvent
 };
 
 let logTypes = {
   info: InfoLog,
+  progress: Progress,
   verbose: InfoLog,
   warn: WarnLog,
   error: ErrorLog,
   success: SuccessLog
 };
 
-export function Log({log}: LogProps) {
-  let LogType = logTypes[log.level];
-  return <LogType log={log} />;
+export function Log({event}: LogProps) {
+  let LogType = logTypes[event.level];
+  return <LogType event={event} />;
 }
 
-function InfoLog({log}) {
-  return <Text>{log.message}</Text>;
+function InfoLog({event}) {
+  return <Text>{event.message}</Text>;
 }
 
 function Stack({err, emoji, color, ...otherProps}) {
@@ -49,23 +46,23 @@ function Stack({err, emoji, color, ...otherProps}) {
   );
 }
 
-function WarnLog({log}) {
-  return <Stack err={log.message} emoji={emoji.warning} color="yellow" />;
+function WarnLog({event}) {
+  return <Stack err={event.message} emoji={emoji.warning} color="yellow" />;
 }
 
-function ErrorLog({log}) {
-  return <Stack err={log.message} emoji={emoji.error} color="red" bold />;
+function ErrorLog({event}) {
+  return <Stack err={event.message} emoji={emoji.error} color="red" bold />;
 }
 
-function SuccessLog({log}) {
+function SuccessLog({event}) {
   return (
     <Color green bold>
-      {emoji.success} {log.message}
+      {emoji.success} {event.message}
     </Color>
   );
 }
 
-export function Progress({event}: ProgressProps) {
+export function Progress({event}: LogProps) {
   return (
     <Box>
       <Color gray bold>

@@ -2,6 +2,7 @@
 import Config from './Config';
 import type {ParcelOptions, ReporterEvent} from '@parcel/types';
 import logger from '@parcel/logger';
+import bus from './bus';
 
 type Opts = {
   config: Config,
@@ -17,6 +18,7 @@ export default class ReporterRunner {
     this.options = opts.options;
 
     logger.on('log', event => this.report(event));
+    bus.on('reporterEvent', event => this.report(event));
   }
 
   async report(event: ReporterEvent) {
@@ -26,4 +28,8 @@ export default class ReporterRunner {
       await reporter.report(event, this.options);
     }
   }
+}
+
+export function report(event: ReporterEvent) {
+  bus.emit('reporterEvent', event);
 }

@@ -1,7 +1,6 @@
 // @flow
 import type {
   ReporterEvent,
-  BuildProgressEvent,
   LogEvent,
   BundleGraph,
   ParcelOptions
@@ -11,9 +10,10 @@ import React from 'react';
 import {Log, Progress} from './Log';
 import prettifyTime from '@parcel/utils/src/prettifyTime';
 import BundleReport from './BundleReport';
+import path from 'path';
 
 type UIState = {
-  progress: ?BuildProgressEvent,
+  progress: ?LogEvent,
   logs: Array<LogEvent>,
   bundleGraph: ?BundleGraph
 };
@@ -23,7 +23,7 @@ const LOG_LEVELS = {
   error: 1,
   warn: 2,
   info: 3,
-  success: 3,
+  progress: 3,
   verbose: 4
 };
 
@@ -38,7 +38,7 @@ export default class UI extends React.PureComponent<{}, UIState> {
     return (
       <Color reset>
         <div>
-          {this.state.logs.map((log, i) => <Log key={i} log={log} />)}
+          {this.state.logs.map((log, i) => <Log key={i} event={log} />)}
           {this.state.progress ? (
             <Progress event={this.state.progress} />
           ) : null}
@@ -71,25 +71,31 @@ function reducer(
       return {
         ...state,
         logs: [],
-        bundleGraph: null,
-        progress: {
-          type: 'buildProgress',
-          message: 'Building...'
-        }
+        bundleGraph: null
       };
 
     case 'buildProgress':
-      if (logLevel < LOG_LEVELS.info) {
+      if (logLevel < LOG_LEVELS.progress) {
         break;
+      }
+
+      var message = getProgressMessage(event);
+      var progress = state.progress;
+      if (message) {
+        progress = {
+          type: 'log',
+          level: 'progress',
+          message
+        };
       }
 
       return {
         ...state,
-        progress: event
+        progress
       };
 
     case 'buildSuccess':
-      if (logLevel < LOG_LEVELS.success) {
+      if (logLevel < LOG_LEVELS.info) {
         break;
       }
 
@@ -131,6 +137,13 @@ function reducer(
         break;
       }
 
+      if (event.level === 'progress') {
+        return {
+          ...state,
+          progress: event
+        };
+      }
+
       // Skip duplicate logs
       var messages = new Set(state.logs.map(l => l.message));
       if (messages.has(event.message)) {
@@ -144,4 +157,22 @@ function reducer(
   }
 
   return state;
+}
+
+function getProgressMessage(event) {
+  switch (event.phase) {
+    case 'transforming':
+      return `Building ${path.basename(event.request.filePath)}...`;
+
+    case 'bundling':
+      return 'Bundling...';
+
+    case 'packaging':
+      return `Packaging ${path.basename(event.bundle.filePath || '')}...`;
+
+    case 'optimizing':
+      return `Optimizing ${path.basename(event.bundle.filePath || '')}...`;
+  }
+
+  return '';
 }
