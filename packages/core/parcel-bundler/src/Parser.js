@@ -74,7 +74,14 @@ class Parser {
     let extension = path.extname(filename).toLowerCase();
     let parser = this.extensions[extension] || RawAsset;
     if (typeof parser === 'string') {
-      parser = this.extensions[extension] = require(parser);
+      try {
+        parser = this.extensions[extension] = require(parser);
+      } catch (origErr) {
+        let err = new Error(`Cannot require parser: ${parser}`);
+        err.original = origErr;
+        err.stack = err.stack.split('\n').slice(0, 2).join('\n') + '\n' + origErr.stack;
+        throw err;
+      }
     }
 
     return parser;
