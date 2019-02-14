@@ -122,14 +122,14 @@ class Bundle {
   getHashedBundleName(contentHash) {
     // If content hashing is enabled, generate a hash from all assets in the bundle.
     // Otherwise, use a hash of the filename so it remains consistent across builds.
+
+    if (this.type == 'map') {
+      return this.parentBundle.getHashedBundleName(contentHash) + '.map';
+    }
+
     let basename = Path.basename(this.name);
 
     let ext = Path.extname(basename);
-    if (this.type === 'map') {
-      // Using this instead of Path.extname because the source map files have long
-      // extensions like '.js.map' but extname only return the last piece (.map).
-      ext = basename.substring(basename.indexOf('.'));
-    }
     let hash = (contentHash
       ? this.getHash()
       : Path.basename(this.name, ext)
