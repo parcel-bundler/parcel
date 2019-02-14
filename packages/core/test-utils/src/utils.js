@@ -141,6 +141,7 @@ async function assertBundleTree(bundle, tree) {
           ? -1
           : 1
     );
+    console.log(children.map(b => path.basename(b.name)));
     assert.equal(
       bundle.childBundles.size,
       childBundles.length,

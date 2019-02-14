@@ -215,7 +215,7 @@ describe('html', function() {
     );
   });
 
-  it('should insert sibling JS bundles for CSS files in the HEAD', async function() {
+  it.only('should insert sibling JS bundles for CSS files in the HEAD', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css-js/index.html'),
       {
