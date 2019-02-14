@@ -36,7 +36,8 @@ class Pipeline {
       generated: generatedMap,
       error: error,
       hash: asset.hash,
-      cacheData: asset.cacheData
+      cacheData: asset.cacheData,
+      resolvePaths: asset.resolvePaths
     };
   }
 
@@ -70,6 +71,7 @@ class Pipeline {
         subAsset.contents = value;
         subAsset.dependencies = asset.dependencies;
         subAsset.cacheData = Object.assign(asset.cacheData, subAsset.cacheData);
+        subAsset.resolvePaths = asset.resolvePaths;
 
         let processed = await this.processAsset(subAsset);
         if (rendition.meta) {

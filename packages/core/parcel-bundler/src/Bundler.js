@@ -419,8 +419,8 @@ class Bundler extends EventEmitter {
     return asset;
   }
 
-  async resolveAsset(name, parent) {
-    let {path} = await this.resolver.resolve(name, parent);
+  async resolveAsset(name, parent, resolvePaths) {
+    let {path} = await this.resolver.resolve(name, parent, resolvePaths);
     return this.getLoadedAsset(path);
   }
 
@@ -471,7 +471,7 @@ class Bundler extends EventEmitter {
         return this.getLoadedAsset(dep.resolved);
       }
 
-      return await this.resolveAsset(dep.name, asset.name);
+      return await this.resolveAsset(dep.name, asset.name, asset.resolvePaths);
     } catch (err) {
       // If the dep is optional, return before we throw
       if (dep.optional) {
@@ -574,6 +574,7 @@ class Bundler extends EventEmitter {
     asset.generated = processed.generated;
     asset.hash = processed.hash;
     asset.cacheData = processed.cacheData;
+    asset.resolvePaths = processed.resolvePaths;
 
     // Call the delegate to get implicit dependencies
     let dependencies = processed.dependencies;

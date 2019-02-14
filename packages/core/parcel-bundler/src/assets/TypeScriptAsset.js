@@ -62,6 +62,8 @@ class TypeScriptAsset extends Asset {
       );
     }
 
+    this.resolvePaths = transpilerOptions.compilerOptions.paths;
+
     return [
       {
         type: 'js',

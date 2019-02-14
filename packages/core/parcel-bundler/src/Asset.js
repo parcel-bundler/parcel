@@ -45,6 +45,7 @@ class Asset {
     this.buildTime = 0;
     this.bundledSize = 0;
     this.resolver = new Resolver(options);
+    this.resolvePaths = {};
   }
 
   shouldInvalidate() {

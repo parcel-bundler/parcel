@@ -1,7 +1,7 @@
 const builtins = require('./builtins');
 const nodeBuiltins = require('node-libs-browser');
 const path = require('path');
-const {isGlob} = require('./utils/glob');
+const {isGlob, glob} = require('./utils/glob');
 const fs = require('@parcel/fs');
 const micromatch = require('micromatch');
 const getModuleParts = require('./utils/getModuleParts');
@@ -29,7 +29,7 @@ class Resolver {
     this.rootPackage = null;
   }
 
-  async resolve(input, parent) {
+  async resolve(input, parent, resolvePaths) {
     let filename = input;
 
     // Check the cache first
@@ -64,6 +64,20 @@ class Resolver {
       resolved = await this.loadNodeModules(module, extensions);
     } else if (module.filePath) {
       resolved = await this.loadRelative(module.filePath, extensions);
+    }
+
+    // Resolve the module in custom module path
+    if (!resolved) {
+      try {
+        resolved = await this.findCustomResolvePath(
+          filename,
+          parent,
+          resolvePaths,
+          extensions
+        );
+      } catch (err) {
+        // ignore
+      }
     }
 
     if (!resolved) {
@@ -199,6 +213,48 @@ class Resolver {
 
       // Move up a directory
       dir = path.dirname(dir);
+    }
+  }
+
+  async findCustomResolvePath(filename, parent, paths, extensions) {
+    const dir = path.dirname(parent);
+
+    for (let [globPattern, resolvePaths] of Object.entries(paths)) {
+      const re = micromatch.makeRe(globPattern, {capture: true});
+      const matcher = re.exec(filename);
+      if (matcher) {
+        filename = matcher[1];
+        for (let resolvePath of resolvePaths) {
+          if (isGlob(resolvePath)) {
+            let globPath;
+            if (path.isAbsolute(resolvePath)) {
+              globPath = path.normalize(resolvePath);
+            } else {
+              globPath = path.normalize(path.join(dir, resolvePath));
+            }
+            const entries = glob.sync(globPath);
+            for (let entry of entries) {
+              for (let ext of extensions) {
+                const module = path.normalize(filename + ext);
+                if (entry.endsWith(module)) {
+                  const pkg = await this.findPackage(path.dirname(entry));
+                  return {path: entry, pkg};
+                }
+              }
+            }
+          } else {
+            for (let ext of extensions) {
+              const entry = path.normalize(
+                path.join(dir, resolvePath, filename + ext)
+              );
+              if (await fs.exists(entry)) {
+                const pkg = await this.findPackage(path.dirname(entry));
+                return {path: entry, pkg};
+              }
+            }
+          }
+        }
+      }
     }
   }
 
