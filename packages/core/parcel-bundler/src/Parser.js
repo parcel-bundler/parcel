@@ -79,11 +79,16 @@ class Parser {
       } catch (origErr) {
         let err = new Error(`Cannot require parser: ${parser}`);
         err.original = origErr;
-        err.stack = err.stack.split('\n').slice(0, 2).join('\n') + '\n' + origErr.stack;
+        err.stack =
+          err.stack
+            .split('\n')
+            .slice(0, 2)
+            .join('\n') +
+          '\n' +
+          origErr.stack;
         throw err;
       }
     }
-
     return parser;
   }
 
