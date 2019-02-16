@@ -136,7 +136,7 @@ async function assertBundleTree(bundle, tree) {
   if (childBundles) {
     let children = Array.from(bundle.childBundles).sort((a, b) => {
       let assetA = Array.from(a.assets).sort()[0];
-      let assetB = Array.from(a.assets).sort()[0];
+      let assetB = Array.from(b.assets).sort()[0];
       if (assetA.basename < assetB.basename) {
         return -1;
       } else if (assetA.basename > assetB.basename) {
