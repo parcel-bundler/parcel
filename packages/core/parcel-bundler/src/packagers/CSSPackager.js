@@ -67,6 +67,7 @@ class CSSPackager extends Packager {
         await this.write(`\n/*# sourceMappingURL=${mapUrl} */`);
       }
     }
+    await super.end();
   }
 }
 
