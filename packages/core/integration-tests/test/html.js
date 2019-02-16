@@ -215,7 +215,7 @@ describe('html', function() {
     );
   });
 
-  it.only('should insert sibling JS bundles for CSS files in the HEAD', async function() {
+  it('should insert sibling JS bundles for CSS files in the HEAD', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css-js/index.html'),
       {
@@ -232,9 +232,6 @@ describe('html', function() {
           assets: ['index.css'],
           childBundles: [
             {
-              type: 'map'
-            },
-            {
               type: 'js',
               assets: [
                 'index.css',
@@ -247,6 +244,9 @@ describe('html', function() {
                   type: 'map'
                 }
               ]
+            },
+            {
+              type: 'map'
             }
           ]
         }

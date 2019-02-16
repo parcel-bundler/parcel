@@ -18,9 +18,6 @@ describe('css', function() {
       assets: ['index.js', 'index.css', 'local.js', 'local.css'],
       childBundles: [
         {
-          name: 'index.js.map'
-        },
-        {
           name: 'index.css',
           assets: ['index.css', 'local.css'],
           childBundles: [
@@ -28,6 +25,9 @@ describe('css', function() {
               type: 'map'
             }
           ]
+        },
+        {
+          name: 'index.js.map'
         }
       ]
     });
@@ -54,20 +54,18 @@ describe('css', function() {
       ],
       childBundles: [
         {
+          type: 'css',
           name: 'index.css',
           assets: ['index.css'],
           childBundles: [
             {
-              type: 'map'
+              name: 'index.css.map'
             }
           ]
         },
         {
-          type: 'map'
-        },
-        {
           type: 'js',
-          assets: ['local.js', 'local.css'],
+          assets: ['local.css', 'local.js'],
           childBundles: [
             {
               type: 'css',
@@ -82,6 +80,9 @@ describe('css', function() {
               type: 'map'
             }
           ]
+        },
+        {
+          name: 'index.js.map'
         }
       ]
     });
