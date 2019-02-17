@@ -313,6 +313,126 @@ describe('css', function() {
     assert.equal(run1(), run2());
   });
 
+  it('should support postcss composes imports', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-composes/index.js')
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'composes-1.css', 'composes-2.css', 'mixins.css'],
+      childBundles: [
+        {
+          name: 'index.css',
+          assets: ['composes-1.css', 'composes-2.css', 'mixins.css'],
+          childBundles: []
+        },
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+
+    let value = output();
+    assert.equal(value.composes1, '_composes1_29315 _test_19e21');
+    assert.equal(value.composes2, '_composes2_b5878 _test_19e21');
+
+    let css = await fs.readFile(
+      path.join(__dirname, '/dist/index.css'),
+      'utf8'
+    );
+    let cssClass1 = value.composes1.match(/(_composes1_[0-9a-z]+)/)[1];
+    assert(css.includes(`.${cssClass1}`));
+    let cssClass2 = value.composes2.match(/(_composes2_[0-9a-z]+)/)[1];
+    assert(css.includes(`.${cssClass2}`));
+  });
+
+  it('should not include css twice for postcss composes imports', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-composes/index.js')
+    );
+
+    await run(b);
+
+    let css = await fs.readFile(
+      path.join(__dirname, '/dist/index.css'),
+      'utf8'
+    );
+    assert.equal(
+      css.indexOf('height: 100px;'),
+      css.lastIndexOf('height: 100px;')
+    );
+  });
+
+  it('should support postcss composes imports for sass', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-composes/index2.js')
+    );
+
+    await assertBundleTree(b, {
+      name: 'index2.js',
+      assets: ['index2.js', 'composes-3.css', 'mixins.scss'],
+      childBundles: [
+        {
+          name: 'index2.css',
+          assets: ['composes-3.css', 'mixins.scss'],
+          childBundles: []
+        },
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+
+    let value = output();
+    assert.equal(value.composes3, '_composes3_6834d _test_c0a12');
+
+    let css = await fs.readFile(
+      path.join(__dirname, '/dist/index2.css'),
+      'utf8'
+    );
+    assert(css.includes('height: 200px;'));
+  });
+
+  it('should support postcss composes imports with custom path names', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-composes/index3.js')
+    );
+
+    await assertBundleTree(b, {
+      name: 'index3.js',
+      assets: ['index3.js', 'composes-4.css', 'mixins.css'],
+      childBundles: [
+        {
+          name: 'index3.css',
+          assets: ['composes-4.css', 'mixins.css'],
+          childBundles: []
+        },
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+
+    let value = output();
+    assert.equal(value.composes4, '_composes4_7038c _test_19e21');
+
+    let css = await fs.readFile(
+      path.join(__dirname, '/dist/index3.css'),
+      'utf8'
+    );
+    assert(css.includes('height: 100px;'));
+  });
+
   it('should minify CSS in production mode', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/cssnano/index.js'),
