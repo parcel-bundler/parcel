@@ -433,6 +433,76 @@ describe('css', function() {
     assert(css.includes('height: 100px;'));
   });
 
+  it('should support deep nested postcss composes imports', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-composes/index4.js')
+    );
+
+    await assertBundleTree(b, {
+      name: 'index4.js',
+      assets: [
+        'index4.js',
+        'composes-5.css',
+        'mixins-intermediate.css',
+        'mixins.css'
+      ],
+      childBundles: [
+        {
+          name: 'index4.css',
+          assets: ['composes-5.css', 'mixins-intermediate.css', 'mixins.css'],
+          childBundles: []
+        },
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+
+    let value = output();
+    assert.equal(
+      value.composes5,
+      '_composes5_c6088 _intermediate_6b681 _test_19e21'
+    );
+
+    let css = await fs.readFile(
+      path.join(__dirname, '/dist/index4.css'),
+      'utf8'
+    );
+    assert(css.includes('height: 100px;'));
+    assert(css.includes('height: 300px;'));
+    assert(css.indexOf('_test_19e21') < css.indexOf('_intermediate_6b681'));
+  });
+
+  it('should support postcss composes imports for multiple selectors', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-composes/index5.js')
+    );
+
+    await assertBundleTree(b, {
+      name: 'index5.js',
+      assets: ['index5.js', 'composes-6.css', 'mixins.css'],
+      childBundles: [
+        {
+          name: 'index5.css',
+          assets: ['composes-6.css', 'mixins.css'],
+          childBundles: []
+        },
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+
+    let value = output();
+    assert.equal(value.composes6, '_composes6_d20ad _test_19e21 _test-2_19e21');
+  });
+
   it('should minify CSS in production mode', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/cssnano/index.js'),
