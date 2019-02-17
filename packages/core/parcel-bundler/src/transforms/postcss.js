@@ -88,4 +88,7 @@ const createLoader = asset =>
         trace
       );
     }
+    get finalSource() {
+      return '';
+    }
   };
