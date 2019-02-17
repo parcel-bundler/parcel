@@ -4,6 +4,8 @@ const md5 = require('../utils/md5');
 const postcss = require('postcss');
 const FileSystemLoader = require('css-modules-loader-core/lib/file-system-loader');
 const semver = require('semver');
+const path = require('path');
+const fs = require('fs');
 
 module.exports = async function(asset) {
   let config = await getConfig(asset);
@@ -80,15 +82,25 @@ async function getConfig(asset) {
 
 const createLoader = asset =>
   class ParcelFileSystemLoader extends FileSystemLoader {
-    async fetch(composesPath, relativeTo, trace) {
+    async fetch(composesPath, relativeTo) {
       let importPath = composesPath.replace(/^["']|["']$/g, '');
       const {resolved} = asset.resolveDependency(importPath, relativeTo);
-      return FileSystemLoader.prototype.fetch.call(
-        this,
-        resolved,
-        relativeTo,
-        trace
-      );
+      let rootRelativePath = path.resolve(path.dirname(relativeTo), resolved);
+      const root = path.resolve('/');
+      // fixes an issue on windows which is part of the css-modules-loader-core
+      // see https://github.com/css-modules/css-modules-loader-core/issues/230
+      if (rootRelativePath.startsWith(path.resolve('/'))) {
+        rootRelativePath = rootRelativePath.substr(root.length);
+      }
+
+      return new Promise((resolve, reject) => {
+        fs.readFile(resolved, 'utf-8', (err, source) => {
+          if (err) reject(err);
+          this.core
+            .load(source, rootRelativePath, undefined, this.fetch.bind(this))
+            .then(({exportTokens}) => resolve(exportTokens), reject);
+        });
+      });
     }
     get finalSource() {
       return '';
