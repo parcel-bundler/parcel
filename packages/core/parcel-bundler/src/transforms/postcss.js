@@ -1,6 +1,8 @@
 const localRequire = require('../utils/localRequire');
 const loadPlugins = require('../utils/loadPlugins');
+const md5 = require('../utils/md5');
 const postcss = require('postcss');
+const FileSystemLoader = require('css-modules-loader-core/lib/file-system-loader');
 const semver = require('semver');
 
 module.exports = async function(asset) {
@@ -35,7 +37,8 @@ async function getConfig(asset) {
   }
 
   let postcssModulesConfig = {
-    getJSON: (filename, json) => (asset.cssModules = json)
+    getJSON: (filename, json) => (asset.cssModules = json),
+    Loader: createLoader(asset)
   };
 
   if (config.plugins && config.plugins['postcss-modules']) {
@@ -72,3 +75,17 @@ async function getConfig(asset) {
   config.to = asset.name;
   return config;
 }
+
+const createLoader = asset =>
+  class ParcelFileSystemLoader extends FileSystemLoader {
+    async fetch(composesPath, relativeTo, trace) {
+      let importPath = composesPath.replace(/^["']|["']$/g, '');
+      const {resolved} = asset.resolveDependency(importPath, relativeTo);
+      return FileSystemLoader.prototype.fetch.call(
+        this,
+        resolved,
+        relativeTo,
+        trace
+      );
+    }
+  };

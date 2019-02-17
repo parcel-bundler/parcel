@@ -84,16 +84,7 @@ class Asset {
     this.dependencies.set(name, Object.assign({name}, opts));
   }
 
-  addURLDependency(url, from = this.name, opts) {
-    if (!url || isURL(url)) {
-      return url;
-    }
-
-    if (typeof from === 'object') {
-      opts = from;
-      from = this.name;
-    }
-
+  resolveDependency(url, from = this.name) {
     const parsed = URL.parse(url);
     let depName;
     let resolved;
@@ -110,8 +101,24 @@ class Asset {
       depName = './' + path.relative(path.dirname(this.name), resolved);
     }
 
+    return {depName, resolved};
+  }
+
+  addURLDependency(url, from = this.name, opts) {
+    if (!url || isURL(url)) {
+      return url;
+    }
+
+    if (typeof from === 'object') {
+      opts = from;
+      from = this.name;
+    }
+
+    const {depName, resolved} = this.resolveDependency(url, from);
+
     this.addDependency(depName, Object.assign({dynamic: true, resolved}, opts));
 
+    const parsed = URL.parse(url);
     parsed.pathname = this.options.parser
       .getAsset(resolved, this.options)
       .generateBundleName();
