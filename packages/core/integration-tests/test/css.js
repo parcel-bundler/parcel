@@ -337,8 +337,12 @@ describe('css', function() {
     assert.equal(typeof output, 'function');
 
     let value = output();
-    assert.equal(value.composes1, '_composes1_29315 _test_19e21');
-    assert.equal(value.composes2, '_composes2_b5878 _test_19e21');
+    const composes1Classes = value.composes1.split(' ');
+    const composes2Classes = value.composes2.split(' ');
+    assert(composes1Classes[0].startsWith('_composes1_'));
+    assert(composes1Classes[1].startsWith('_test_'));
+    assert(composes2Classes[0].startsWith('_composes2_'));
+    assert(composes2Classes[1].startsWith('_test_'));
 
     let css = await fs.readFile(
       path.join(__dirname, '/dist/index.css'),
@@ -391,7 +395,9 @@ describe('css', function() {
     assert.equal(typeof output, 'function');
 
     let value = output();
-    assert.equal(value.composes3, '_composes3_6834d _test_c0a12');
+    const composes3Classes = value.composes3.split(' ');
+    assert(composes3Classes[0].startsWith('_composes3_'));
+    assert(composes3Classes[1].startsWith('_test_'));
 
     let css = await fs.readFile(
       path.join(__dirname, '/dist/index2.css'),
@@ -424,7 +430,9 @@ describe('css', function() {
     assert.equal(typeof output, 'function');
 
     let value = output();
-    assert.equal(value.composes4, '_composes4_7038c _test_19e21');
+    const composes4Classes = value.composes4.split(' ');
+    assert(composes4Classes[0].startsWith('_composes4_'));
+    assert(composes4Classes[1].startsWith('_test_'));
 
     let css = await fs.readFile(
       path.join(__dirname, '/dist/index3.css'),
@@ -462,10 +470,10 @@ describe('css', function() {
     assert.equal(typeof output, 'function');
 
     let value = output();
-    assert.equal(
-      value.composes5,
-      '_composes5_c6088 _intermediate_6b681 _test_19e21'
-    );
+    const composes5Classes = value.composes5.split(' ');
+    assert(composes5Classes[0].startsWith('_composes5_'));
+    assert(composes5Classes[1].startsWith('_intermediate_'));
+    assert(composes5Classes[2].startsWith('_test_'));
 
     let css = await fs.readFile(
       path.join(__dirname, '/dist/index4.css'),
@@ -473,7 +481,7 @@ describe('css', function() {
     );
     assert(css.includes('height: 100px;'));
     assert(css.includes('height: 300px;'));
-    assert(css.indexOf('_test_19e21') < css.indexOf('_intermediate_6b681'));
+    assert(css.indexOf('._test_') < css.indexOf('._intermediate_'));
   });
 
   it('should support postcss composes imports for multiple selectors', async function() {
@@ -500,7 +508,10 @@ describe('css', function() {
     assert.equal(typeof output, 'function');
 
     let value = output();
-    assert.equal(value.composes6, '_composes6_d20ad _test_19e21 _test-2_19e21');
+    const composes6Classes = value.composes6.split(' ');
+    assert(composes6Classes[0].startsWith('_composes6_'));
+    assert(composes6Classes[1].startsWith('_test_'));
+    assert(composes6Classes[2].startsWith('_test-2_'));
   });
 
   it('should minify CSS in production mode', async function() {
