@@ -86,12 +86,11 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js.map')
-    )).toString();
+    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    let map = await fs.readFile(
+      path.join(__dirname, '/dist/index.js.map'),
+      'utf8'
+    );
     mapValidator(raw, map);
     let mapObject = JSON.parse(map);
     assert(
@@ -132,12 +131,11 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js.map')
-    )).toString();
+    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    let map = await fs.readFile(
+      path.join(__dirname, '/dist/index.js.map'),
+      'utf8'
+    );
     assert.equal(JSON.parse(map).sources.length, 1);
     mapValidator(raw, map);
 
@@ -162,12 +160,11 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js.map')
-    )).toString();
+    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    let map = await fs.readFile(
+      path.join(__dirname, '/dist/index.js.map'),
+      'utf8'
+    );
     assert.equal(JSON.parse(map).sources.length, 2);
     mapValidator(raw, map);
 
@@ -192,12 +189,11 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js.map')
-    )).toString();
+    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    let map = await fs.readFile(
+      path.join(__dirname, '/dist/index.js.map'),
+      'utf8'
+    );
     mapValidator(raw, map);
 
     let output = await run(b);
@@ -224,12 +220,11 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js.map')
-    )).toString();
+    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    let map = await fs.readFile(
+      path.join(__dirname, '/dist/index.js.map'),
+      'utf8'
+    );
     assert.equal(JSON.parse(map).sources.length, 3);
     mapValidator(raw, map);
 
@@ -259,9 +254,10 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let jsOutput = (await fs.readFile(
-      Array.from(b.childBundles)[0].name
-    )).toString();
+    let jsOutput = await fs.readFile(
+      Array.from(b.childBundles)[0].name,
+      'utf8'
+    );
 
     let sourcemapReference = path.join(
       __dirname,
@@ -273,7 +269,7 @@ describe('sourcemaps', function() {
       'referenced sourcemap should exist'
     );
 
-    let map = (await fs.readFile(path.join(sourcemapReference))).toString();
+    let map = await fs.readFile(path.join(sourcemapReference), 'utf8');
     assert.equal(JSON.parse(map).sources.length, 2);
     mapValidator(jsOutput, map);
   });
@@ -434,16 +430,16 @@ describe('sourcemaps', function() {
         ]
       });
 
-      let input = (await fs.readFile(
-        path.join(__dirname, '/integration/sourcemap-css/style.css')
-      )).toString();
-      let raw = (await fs.readFile(
-        path.join(__dirname, '/dist/style.css')
-      )).toString();
+      let input = await fs.readFile(
+        path.join(__dirname, '/integration/sourcemap-css/style.css'),
+        'utf8'
+      );
+      let raw = await fs.readFile(
+        path.join(__dirname, '/dist/style.css'),
+        'utf8'
+      );
       let map = JSON.parse(
-        (await fs.readFile(
-          path.join(__dirname, '/dist/style.css.map')
-        )).toString()
+        await fs.readFile(path.join(__dirname, '/dist/style.css.map'), 'utf8')
       );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
@@ -494,28 +490,30 @@ describe('sourcemaps', function() {
         ]
       });
 
-      let style = (await fs.readFile(
-        path.join(__dirname, '/integration/sourcemap-css-import/style.css')
-      )).toString();
-      let otherStyle = (await fs.readFile(
+      let style = await fs.readFile(
+        path.join(__dirname, '/integration/sourcemap-css-import/style.css'),
+        'utf8'
+      );
+      let otherStyle = await fs.readFile(
         path.join(
           __dirname,
           '/integration/sourcemap-css-import/other-style.css'
-        )
-      )).toString();
-      let anotherStyle = (await fs.readFile(
+        ),
+        'utf8'
+      );
+      let anotherStyle = await fs.readFile(
         path.join(
           __dirname,
           '/integration/sourcemap-css-import/another-style.css'
-        )
-      )).toString();
-      let raw = (await fs.readFile(
-        path.join(__dirname, '/dist/style.css')
-      )).toString();
+        ),
+        'utf8'
+      );
+      let raw = await fs.readFile(
+        path.join(__dirname, '/dist/style.css'),
+        'utf8'
+      );
       let map = JSON.parse(
-        (await fs.readFile(
-          path.join(__dirname, '/dist/style.css.map')
-        )).toString()
+        await fs.readFile(path.join(__dirname, '/dist/style.css.map'), 'utf8')
       );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
@@ -604,16 +602,16 @@ describe('sourcemaps', function() {
         ]
       });
 
-      let input = (await fs.readFile(
-        path.join(__dirname, '/integration/sourcemap-sass/style.scss')
-      )).toString();
-      let raw = (await fs.readFile(
-        path.join(__dirname, '/dist/style.css')
-      )).toString();
+      let input = await fs.readFile(
+        path.join(__dirname, '/integration/sourcemap-sass/style.scss'),
+        'utf8'
+      );
+      let raw = await fs.readFile(
+        path.join(__dirname, '/dist/style.css'),
+        'utf8'
+      );
       let map = JSON.parse(
-        (await fs.readFile(
-          path.join(__dirname, '/dist/style.css.map')
-        )).toString()
+        await fs.readFile(path.join(__dirname, '/dist/style.css.map'), 'utf8')
       );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
@@ -664,19 +662,20 @@ describe('sourcemaps', function() {
         ]
       });
 
-      let style = (await fs.readFile(
-        path.join(__dirname, '/integration/sourcemap-sass-imported/style.css')
-      )).toString();
-      let other = (await fs.readFile(
-        path.join(__dirname, '/integration/sourcemap-sass-imported/other.scss')
-      )).toString();
-      let raw = (await fs.readFile(
-        path.join(__dirname, '/dist/style.css')
-      )).toString();
+      let style = await fs.readFile(
+        path.join(__dirname, '/integration/sourcemap-sass-imported/style.css'),
+        'utf8'
+      );
+      let other = await fs.readFile(
+        path.join(__dirname, '/integration/sourcemap-sass-imported/other.scss'),
+        'utf8'
+      );
+      let raw = await fs.readFile(
+        path.join(__dirname, '/dist/style.css'),
+        'utf8'
+      );
       let map = JSON.parse(
-        (await fs.readFile(
-          path.join(__dirname, '/dist/style.css.map')
-        )).toString()
+        await fs.readFile(path.join(__dirname, '/dist/style.css.map'), 'utf8')
       );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
@@ -745,16 +744,16 @@ describe('sourcemaps', function() {
         ]
       });
 
-      let input = (await fs.readFile(
-        path.join(__dirname, '/integration/sourcemap-less/style.less')
-      )).toString();
-      let raw = (await fs.readFile(
-        path.join(__dirname, '/dist/style.css')
-      )).toString();
+      let input = await fs.readFile(
+        path.join(__dirname, '/integration/sourcemap-less/style.less'),
+        'utf8'
+      );
+      let raw = await fs.readFile(
+        path.join(__dirname, '/dist/style.css'),
+        'utf8'
+      );
       let map = JSON.parse(
-        (await fs.readFile(
-          path.join(__dirname, '/dist/style.css.map')
-        )).toString()
+        await fs.readFile(path.join(__dirname, '/dist/style.css.map'), 'utf8')
       );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
@@ -804,22 +803,23 @@ describe('sourcemaps', function() {
         ]
       });
 
-      let style = (await fs.readFile(
-        path.join(__dirname, '/integration/sourcemap-css-existing/style.css')
-      )).toString();
-      let library = (await fs.readFile(
+      let style = await fs.readFile(
+        path.join(__dirname, '/integration/sourcemap-css-existing/style.css'),
+        'utf8'
+      );
+      let library = await fs.readFile(
         path.join(
           __dirname,
           '/integration/sourcemap-css-existing/test/library.raw.scss'
-        )
-      )).toString();
-      let raw = (await fs.readFile(
-        path.join(__dirname, '/dist/style.css')
-      )).toString();
+        ),
+        'utf8'
+      );
+      let raw = await fs.readFile(
+        path.join(__dirname, '/dist/style.css'),
+        'utf8'
+      );
       let map = JSON.parse(
-        (await fs.readFile(
-          path.join(__dirname, '/dist/style.css.map')
-        )).toString()
+        await fs.readFile(path.join(__dirname, '/dist/style.css.map'), 'utf8')
       );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
