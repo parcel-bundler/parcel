@@ -6,8 +6,8 @@ const CssSyntaxError = require('postcss/lib/css-syntax-error');
 
 const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
-const COMPOSES_RE = /composes:\s*[a-zA-Z,\s]+from\s*("|').*("|')\s*;?/;
-const FROM_IMPORT_RE = /[a-zA-Z,\s]+from\s*(?:"|')(.*)(?:"|')\s*;?/;
+const COMPOSES_RE = /composes:.+from\s*("|').*("|')\s*;?/;
+const FROM_IMPORT_RE = /.+from\s*(?:"|')(.*)(?:"|')\s*;?/;
 const PROTOCOL_RE = /^[a-z]+:/;
 
 class CSSAsset extends Asset {
