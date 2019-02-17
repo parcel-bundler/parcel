@@ -386,6 +386,36 @@ describe('sourcemaps', function() {
     mapValidator(jsOutput, map);
   });
 
+  it('should create correct sourceMappingURL', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/sourcemap-sourcemappingurl/index.js')
+    );
+
+    const jsOutput = await fs.readFile(b.name, 'utf8');
+    assert(jsOutput.includes('//# sourceMappingURL=/index.js.map'));
+  });
+
+  it('should create correct sourceMappingURL with multiple entrypoints', async function() {
+    const b = await bundle([
+      path.join(
+        __dirname,
+        '/integration/sourcemap-sourcemappingurl-multiple-entrypoints/a/index.js'
+      ),
+      path.join(
+        __dirname,
+        '/integration/sourcemap-sourcemappingurl-multiple-entrypoints/b/index.js'
+      )
+    ]);
+
+    const bundle1 = [...b.childBundles][0];
+    const bundle2 = [...b.childBundles][1];
+    const jsOutput1 = await fs.readFile(bundle1.name, 'utf8');
+    const jsOutput2 = await fs.readFile(bundle2.name, 'utf8');
+
+    assert(jsOutput1.includes('//# sourceMappingURL=/a/index.js.map'));
+    assert(jsOutput2.includes('//# sourceMappingURL=/b/index.js.map'));
+  });
+
   it('should create a valid sourcemap as a child of a CSS bundle', async function() {
     async function test(minify) {
       let b = await bundle(
