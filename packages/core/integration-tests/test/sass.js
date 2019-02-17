@@ -228,4 +228,22 @@ describe('sass', function() {
     assert(css.includes('.foo { color: blue;'));
     assert(css.includes('.bar { color: green;'));
   });
+
+  it('should support absolute imports', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/scss-absolute-imports/style.scss')
+    );
+
+    await assertBundleTree(b, {
+      name: 'style.css',
+      assets: ['style.scss']
+    });
+
+    let css = await fs.readFile(
+      path.join(__dirname, '/dist/style.css'),
+      'utf8'
+    );
+    assert(css.includes('.a'));
+    assert(css.includes('.b'));
+  });
 });
