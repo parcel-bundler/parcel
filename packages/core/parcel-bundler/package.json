@@ -34,6 +34,7 @@
     "@parcel/watcher": "^1.11.0",
     "@parcel/workers": "^1.11.0",
     "ansi-to-html": "^0.6.4",
+    "babel-plugin-minify-dead-code-elimination": "^0.5.0",
     "babylon-walk": "^1.0.2",
     "browserslist": "^4.1.0",
     "chalk": "^2.1.0",

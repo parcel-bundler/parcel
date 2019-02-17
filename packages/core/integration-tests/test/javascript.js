@@ -895,6 +895,72 @@ describe('javascript', function() {
     assert.equal(output(), false);
   });
 
+  it('should eliminate dead dependencies on --target=browser when minified', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/process/index-dead.js'),
+      {
+        minify: true,
+        target: 'browser'
+      }
+    );
+
+    await assertBundleTree(b, {
+      name: 'index-dead.js',
+      assets: ['index-dead.js', 'browser.js', 'browser-dep.js']
+    });
+
+    let output = await run(b);
+    assert.equal(output, 'browser');
+  });
+
+  it('should not eliminate dead dependencies on --target=node', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/process/index-dead.js'),
+      {
+        minify: true,
+        target: 'node'
+      }
+    );
+
+    await assertBundleTree(b, {
+      name: 'index-dead.js',
+      assets: [
+        'index-dead.js',
+        'browser.js',
+        'browser-dep.js',
+        'server.js',
+        'server-dep.js'
+      ]
+    });
+
+    let output = await run(b);
+    assert.equal(output, 'server');
+  });
+
+  it('should not eliminate dead dependencies on --target=electron', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/process/index-dead.js'),
+      {
+        minify: true,
+        target: 'node'
+      }
+    );
+
+    await assertBundleTree(b, {
+      name: 'index-dead.js',
+      assets: [
+        'index-dead.js',
+        'browser.js',
+        'browser-dep.js',
+        'server.js',
+        'server-dep.js'
+      ]
+    });
+
+    let output = await run(b);
+    assert.equal(output, 'server');
+  });
+
   it('should support adding implicit dependencies', async function() {
     let b = await bundle(path.join(__dirname, '/integration/json/index.js'), {
       delegate: {

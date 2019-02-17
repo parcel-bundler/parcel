@@ -153,16 +153,40 @@ class JSAsset extends Asset {
     await babel(this);
 
     // Inline environment variables
-    if (this.options.target === 'browser' && ENV_RE.test(this.contents)) {
+    const hasProcessEnv = ENV_RE.test(this.contents);
+    if (this.options.target === 'browser' && hasProcessEnv) {
       await this.parseIfNeeded();
       this.traverseFast(envVisitor);
     }
 
     // Inline process.browser
-    if (this.options.target === 'browser' && BROWSER_RE.test(this.contents)) {
+    const hasProcessBrowser = BROWSER_RE.test(this.contents);
+    if (this.options.target === 'browser' && hasProcessBrowser) {
       await this.parseIfNeeded();
       this.traverse(processVisitor);
       this.isAstDirty = true;
+    }
+
+    if (
+      this.options.minify &&
+      this.options.target === 'browser' &&
+      (hasProcessBrowser || hasProcessEnv)
+    ) {
+      await babel7(this, {
+        internal: true,
+        config: {
+          plugins: [
+            [
+              require('babel-plugin-minify-dead-code-elimination'),
+              {
+                keepFnName: true,
+                keepFnArgs: true,
+                keepClassName: true
+              }
+            ]
+          ]
+        }
+      });
     }
   }
 
