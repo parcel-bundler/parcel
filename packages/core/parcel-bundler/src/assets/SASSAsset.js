@@ -45,6 +45,7 @@ class SASSAsset extends Asset {
       ? opts.importer
       : [opts.importer];
     opts.importer.push((url, prev, done) => {
+      url = url.replace(/^file:\/\//, '');
       url = parseCSSImport(url);
       resolver
         .resolve(url, prev === 'stdin' ? this.name : prev)
