@@ -289,9 +289,9 @@ describe('css', function() {
     assert.equal(typeof output, 'function');
 
     let value = output();
-    assert(/_index_[0-9a-z]+_1/.test(value));
+    assert(/_index_[0-9a-z]/.test(value));
 
-    let cssClass = value.match(/(_index_[0-9a-z]+_1)/)[1];
+    let cssClass = value.match(/(_index_[0-9a-z]+)/)[1];
 
     let css = await fs.readFile(
       path.join(__dirname, '/dist/index.css'),

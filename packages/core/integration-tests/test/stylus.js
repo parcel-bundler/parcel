@@ -139,13 +139,13 @@ describe('stylus', function() {
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
-    assert.equal(output(), '_index_g9mqo_1');
+    assert.equal(output(), '_index_6768d');
 
     let css = await fs.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
-    assert(css.includes('._index_g9mqo_1'));
+    assert(css.includes('._index_6768d'));
   });
 
   it('should support requiring stylus files with glob dependencies', async function() {

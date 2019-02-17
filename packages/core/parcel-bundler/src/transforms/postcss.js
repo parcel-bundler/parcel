@@ -40,7 +40,7 @@ async function getConfig(asset) {
     getJSON: (filename, json) => (asset.cssModules = json),
     Loader: createLoader(asset),
     generateScopedName: (name, filename) =>
-      `${name}_${md5(filename).substr(0, 5)}`
+      `_${name}_${md5(filename).substr(0, 5)}`
   };
 
   if (config.plugins && config.plugins['postcss-modules']) {
