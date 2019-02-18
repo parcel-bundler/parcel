@@ -65,6 +65,38 @@ describe('less', function() {
     assert(css.includes('.base'));
   });
 
+  it('should support less import paths', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/less-import-paths/index.js')
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'index.less'],
+      childBundles: [
+        {
+          type: 'map'
+        },
+        {
+          name: 'index.css',
+          assets: ['index.less'],
+          childBundles: []
+        }
+      ]
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = await fs.readFile(
+      path.join(__dirname, '/dist/index.css'),
+      'utf8'
+    );
+    assert(css.includes('.index'));
+    assert(css.includes('.imported'));
+  });
+
   it('should support advanced less imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/less-advanced-import/index.js')

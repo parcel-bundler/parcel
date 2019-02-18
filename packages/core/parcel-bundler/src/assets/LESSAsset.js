@@ -82,10 +82,30 @@ function getFileManager(less, options) {
 
     async loadFile(filename, currentDirectory) {
       filename = parseCSSImport(filename);
-      let resolved = await resolver.resolve(
-        filename,
-        path.join(currentDirectory, 'index')
-      );
+
+      const directories = [
+        currentDirectory,
+        ...less.importManager.context.paths.map(includePath =>
+          path.resolve(options.rootDir, includePath)
+        )
+      ];
+      let resolved, err;
+      for (let directory of directories) {
+        try {
+          resolved = await resolver.resolve(
+            filename,
+            path.join(directory, 'index')
+          );
+          break;
+        } catch (e) {
+          err = e;
+        }
+      }
+
+      if (!resolved) {
+        throw err;
+      }
+
       return {
         contents: await fs.readFile(resolved.path, 'utf8'),
         filename: resolved.path
