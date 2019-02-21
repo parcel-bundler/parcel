@@ -1,5 +1,5 @@
 // @flow
-'use strict';
+
 import type {
   Transformer as TransformerOpts,
   Resolver as ResolverOpts,
