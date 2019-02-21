@@ -1,5 +1,5 @@
 // @flow
-'use strict';
+
 import assert from 'assert';
 
 import Graph from '../src/Graph';

@@ -1,5 +1,5 @@
 // @flow
-'use strict';
+
 import AssetGraph from './AssetGraph';
 import type {
   Bundle,

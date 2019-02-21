@@ -1,5 +1,5 @@
 // @flow
-'use strict';
+
 import Graph, {Node, type NodeId} from './Graph';
 import type {
   CacheEntry,
