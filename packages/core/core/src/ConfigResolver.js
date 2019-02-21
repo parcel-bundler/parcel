@@ -1,11 +1,11 @@
 // @flow
 import type {FilePath, ParcelConfig, PackageName} from '@parcel/types';
-import {resolveConfig} from '@parcel/utils/config';
+import {resolveConfig} from '@parcel/utils/lib/config';
 import Config from './Config';
 import fs from '@parcel/fs';
 import {parse} from 'json5';
 import path from 'path';
-import localRequire from '@parcel/utils/localRequire';
+import localRequire from '@parcel/utils/lib/localRequire';
 import assert from 'assert';
 
 type Pipeline = Array<PackageName>;
