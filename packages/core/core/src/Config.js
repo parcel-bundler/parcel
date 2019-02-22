@@ -13,7 +13,7 @@ import type {
   Packager,
   Optimizer
 } from '@parcel/types';
-import localRequire from '@parcel/utils/lib/localRequire';
+import localRequire from '@parcel/utils/src/localRequire';
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
 import {CONFIG} from '@parcel/plugin';
@@ -37,16 +37,11 @@ export default class Config {
   reporters: Pipeline;
   pluginCache: Map<PackageName, any>;
 
-  constructor(config: ParcelConfig, filePath: FilePath) {
-    this.configPath = filePath;
-    this.resolvers = config.resolvers || [];
-    this.transforms = config.transforms || {};
-    this.runtimes = config.runtimes || {};
-    this.bundler = config.bundler || '';
-    this.namers = config.namers || [];
-    this.packagers = config.packagers || {};
-    this.optimizers = config.optimizers || {};
-    this.reporters = config.reporters || [];
+  constructor(config: ParcelConfig) {
+    for (let [k, v] of Object.entries(config)) {
+      this[k] = v;
+    }
+
     this.pluginCache = new Map();
   }
 

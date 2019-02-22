@@ -21,14 +21,14 @@ export default class ConfigResolver {
     }
 
     let config = await this.loadConfig(configPath, rootDir);
-    return new Config(config, configPath);
+    return new Config({configPath, ...config});
   }
 
   async create(config: ParcelConfig, rootDir: FilePath) {
     // Resolve plugins from the root when a config is passed programmatically
     let configPath = path.join(rootDir, '.parcelrc');
     let result = await this.processConfig(config, configPath, rootDir);
-    return new Config(result, configPath);
+    return new Config({configPath, ...result});
   }
 
   async loadConfig(configPath: FilePath, rootDir: FilePath) {

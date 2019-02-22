@@ -7,15 +7,13 @@ import logger from '@parcel/logger';
 
 describe('Config', () => {
   describe('matchGlobMap', () => {
-    let config = new Config(
-      {
-        packagers: {
-          '*.css': 'parcel-packager-css',
-          '*.js': 'parcel-packager-js'
-        }
-      },
-      '.parcelrc'
-    );
+    let config = new Config({
+      configPath: '.parcelrc',
+      packagers: {
+        '*.css': 'parcel-packager-css',
+        '*.js': 'parcel-packager-js'
+      }
+    });
 
     it('should return null array if no glob matches', () => {
       let result = config.matchGlobMap('foo.wasm', config.packagers);
@@ -29,15 +27,13 @@ describe('Config', () => {
   });
 
   describe('matchGlobMapPipelines', () => {
-    let config = new Config(
-      {
-        transforms: {
-          '*.jsx': ['parcel-transform-jsx', '...'],
-          '*.{js,jsx}': ['parcel-transform-js']
-        }
-      },
-      '.parcelrc'
-    );
+    let config = new Config({
+      configPath: '.parcelrc',
+      transforms: {
+        '*.jsx': ['parcel-transform-jsx', '...'],
+        '*.{js,jsx}': ['parcel-transform-js']
+      }
+    });
 
     it('should return an empty array if no pipeline matches', () => {
       let pipeline = config.matchGlobMapPipelines('foo.css', config.transforms);
@@ -60,14 +56,12 @@ describe('Config', () => {
 
   describe('loadPlugin', () => {
     it('should warn if a plugin needs to specify an engines.parcel field in package.json', async () => {
-      let config = new Config(
-        {
-          transforms: {
-            '*.js': ['parcel-transformer-no-engines']
-          }
-        },
-        path.join(__dirname, 'fixtures', 'plugins', '.parcelrc')
-      );
+      let config = new Config({
+        configPath: path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
+        transforms: {
+          '*.js': ['parcel-transformer-no-engines']
+        }
+      });
 
       sinon.stub(logger, 'warn');
       let plugin = await config.loadPlugin('parcel-transformer-no-engines');
@@ -82,14 +76,12 @@ describe('Config', () => {
     });
 
     it('should error if a plugin specifies an invalid engines.parcel field in package.json', async () => {
-      let config = new Config(
-        {
-          transforms: {
-            '*.js': ['parcel-transformer-bad-engines']
-          }
-        },
-        path.join(__dirname, 'fixtures', 'plugins', '.parcelrc')
-      );
+      let config = new Config({
+        configPath: path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
+        transforms: {
+          '*.js': ['parcel-transformer-bad-engines']
+        }
+      });
 
       let errored = false;
       try {
