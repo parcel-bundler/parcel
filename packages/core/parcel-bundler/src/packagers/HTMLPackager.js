@@ -16,6 +16,10 @@ const metadataContent = new Set([
 ]);
 
 class HTMLPackager extends Packager {
+  async start() {
+    await this.writeBundleBanner('<!--', '-->');
+  }
+
   static shouldAddAsset() {
     // We cannot combine multiple HTML files together - they should be written as separate bundles.
     return false;

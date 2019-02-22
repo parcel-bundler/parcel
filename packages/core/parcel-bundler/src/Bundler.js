@@ -141,6 +141,7 @@ class Bundler extends EventEmitter {
         (options.target === 'electron' ? 'localhost' : ''),
       detailedReport: options.detailedReport || false,
       global: options.global,
+      banner: options.banner || '',
       autoinstall:
         typeof options.autoinstall === 'boolean'
           ? options.autoinstall

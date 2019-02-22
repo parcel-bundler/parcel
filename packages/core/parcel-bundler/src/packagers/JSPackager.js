@@ -26,6 +26,7 @@ class JSPackager extends Packager {
           this.options.hmrHostname
         )};` + preludeCode;
     }
+    await this.writeBundleBanner('//');
     await this.write(preludeCode + '({');
     this.lineOffset = lineCounter(preludeCode);
   }

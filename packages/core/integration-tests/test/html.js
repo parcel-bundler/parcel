@@ -54,6 +54,20 @@ describe('html', function() {
     }
   });
 
+  it('should include a banner when supplied', async function() {
+    const bannerString = 'Welcome to my bundle, v0';
+    let b = await bundle(path.join(__dirname, '/integration/html/index.html'), {
+      banner: bannerString
+    });
+
+    await run(b);
+    let file = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
+    assert(file.startsWith(`<!-- ${bannerString} -->\n`));
+  });
+
   it('should find href attr when not first', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-attr-order/index.html')

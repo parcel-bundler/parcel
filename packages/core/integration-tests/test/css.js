@@ -33,6 +33,20 @@ describe('css', function() {
     assert.equal(output(), 3);
   });
 
+  it('should include a banner when supplied', async function() {
+    const bannerString = 'Welcome to my bundle, v0';
+    let b = await bundle(path.join(__dirname, '/integration/css/index.js'), {
+      banner: bannerString
+    });
+
+    await run(b);
+    let file = await fs.readFile(
+      path.join(__dirname, '/dist/index.css'),
+      'utf8'
+    );
+    assert(file.startsWith(`// ${bannerString} \n`));
+  });
+
   it('should support loading a CSS bundle along side dynamic imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-css/index.js')

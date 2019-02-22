@@ -36,6 +36,16 @@ class Packager {
     throw new Error('Must be implemented by subclasses');
   }
 
+  async writeBundleBanner(commentBegin, commentEnd) {
+    commentBegin = commentBegin || '';
+    commentEnd = commentEnd || '';
+    if (this.options.banner) {
+      await this.write(
+        `${commentBegin} ${this.options.banner} ${commentEnd}\n`
+      );
+    }
+  }
+
   getSize() {
     return this.dest.bytesWritten;
   }

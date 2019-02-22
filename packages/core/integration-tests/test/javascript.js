@@ -1889,4 +1889,19 @@ describe('javascript', function() {
 
     await run(b);
   });
+
+  it('should start with a banner when supplied', async function() {
+    const bannerString = 'Welcome to my bundle, v0';
+    let b = await bundle(
+      path.join(__dirname, '/integration/commonjs/index.js'),
+      {banner: bannerString}
+    );
+
+    await run(b);
+    let file = await fs.readFile(
+      path.join(__dirname, '/dist/index.js'),
+      'utf8'
+    );
+    assert(file.startsWith(`// ${bannerString} \n`));
+  });
 });
