@@ -54,9 +54,10 @@ export default class Worker extends EventEmitter {
       cwd: process.cwd()
     });
 
-    // Unref the child and IPC channel so that the workers don't prevent the main process from exiting
-    this.child.unref();
-    this.child.channel.unref();
+    // TODO: This was causing odd behavior, need to fix
+    // // Unref the child and IPC channel so that the workers don't prevent the main process from exiting
+    // this.child.unref();
+    // this.child.channel.unref();
 
     this.child.on('message', data => this.receive(data));
 
