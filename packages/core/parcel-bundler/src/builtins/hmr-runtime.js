@@ -28,7 +28,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
   var ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
   ws.onmessage = function(event) {
-    updatedAssets = new Set();
+    updatedAssets = {};
     
     var data = JSON.parse(event.data);
 
@@ -150,10 +150,10 @@ function hmrAccept(bundle, id) {
     return hmrAccept(bundle.parent, id);
   }
 
-  if (updatedAssets.has(id)) {
+  if (updatedAssets[id]) {
     return;
   }
-  updatedAssets.add(id);
+  updatedAssets[id] = true;
 
   var cached = bundle.cache[id];
   bundle.hotData = {};
