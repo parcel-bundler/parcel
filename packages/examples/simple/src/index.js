@@ -1,9 +1,13 @@
-import styles from './styles.css';
+// import styles from './styles.css';
 
-import('./async');
-import('./async2');
+// import('./async');
+// import('./async2');
 
-new Worker('./worker.js');
+// new Worker('./worker.js');
+
+import {message} from './message';
+
+console.log(message);
 
 // const message = require('./message');
 // const fs = require('fs');
@@ -11,4 +15,4 @@ new Worker('./worker.js');
 // console.log(message); // eslint-disable-line no-console
 // console.log(fs.readFileSync(__dirname + '/test.txt', 'utf8'));
 
-class Test {}
+// class Test {}

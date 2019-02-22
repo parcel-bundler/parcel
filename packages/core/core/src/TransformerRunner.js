@@ -58,6 +58,7 @@ class TransformerRunner {
     }
 
     let input = new Asset({
+      id: hash,
       filePath: req.filePath,
       type: path.extname(req.filePath).slice(1),
       ast: null,
@@ -74,11 +75,11 @@ class TransformerRunner {
 
     // If the transformer request passed code rather than a filename,
     // use a hash as the id to ensure it is unique.
-    if (req.code) {
-      for (let asset of assets) {
-        asset.id = asset.outputHash;
-      }
-    }
+    // if (req.code) {
+    //   for (let asset of assets) {
+    //     asset.id = asset.outputHash;
+    //   }
+    // }
 
     cacheEntry = {
       filePath: req.filePath,

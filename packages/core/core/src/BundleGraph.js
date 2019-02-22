@@ -157,4 +157,20 @@ export default class BundleGraph extends AssetGraph {
       }
     });
   }
+
+  isAssetReferenced(asset: Asset) {
+    let result = false;
+
+    this.traverseBundles((bundle, context, traversal) => {
+      let isReferenced = Array.from(bundle.assetGraph.nodes.values()).find(
+        node => node.type === 'asset_reference' && node.value.id === asset.id
+      );
+      if (isReferenced) {
+        result = true;
+        traversal.stop();
+      }
+    });
+
+    return result;
+  }
 }

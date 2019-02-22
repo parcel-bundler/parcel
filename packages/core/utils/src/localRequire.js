@@ -18,13 +18,13 @@ async function localResolve(name, path, triedInstall = false) {
     try {
       resolved = await resolve(name, {basedir, extensions: ['.js', '.json']});
     } catch (e) {
-      if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
-        await WorkerFarm.callMaster({
-          location: require.resolve('./installPackage.js'),
-          args: [[name], path]
-        });
-        return await localResolve(name, path, true);
-      }
+      // if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
+      //   await WorkerFarm.callMaster({
+      //     location: require.resolve('./installPackage.js'),
+      //     args: [[name], path]
+      //   });
+      //   return await localResolve(name, path, true);
+      // }
       throw e;
     }
     cache.set(key, resolved);

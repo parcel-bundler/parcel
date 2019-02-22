@@ -1,5 +1,6 @@
 const WorkerFarm = require('@parcel/workers');
 const EventEmitter = require('events');
+const inspect = require('util').inspect;
 
 class Logger extends EventEmitter {
   verbose(message) {
@@ -10,11 +11,19 @@ class Logger extends EventEmitter {
     });
   }
 
-  log(message) {
+  info(...args) {
+    let messages = args.map(arg => {
+      if (typeof arg !== 'string') {
+        arg = inspect(arg, {colors: true, depth: 50});
+      }
+
+      return arg;
+    });
+
     this.emit('log', {
       type: 'log',
       level: 'info',
-      message
+      message: messages.join(' ')
     });
   }
 
@@ -69,16 +78,16 @@ if (WorkerFarm.isWorker()) {
 let logger = module.exports;
 
 // eslint-disable-next-line no-console
-console.log = message => {
-  logger.info(message);
-};
+// console.log = (...args) => {
+//   logger.info(...args);
+// };
 
-// eslint-disable-next-line no-console
-console.warn = message => {
-  logger.warn(message);
-};
+// // eslint-disable-next-line no-console
+// console.warn = (...args) => {
+//   logger.warn(...args);
+// };
 
-// eslint-disable-next-line no-console
-console.error = message => {
-  logger.error(message);
-};
+// // eslint-disable-next-line no-console
+// console.error = (...args) => {
+//   logger.error(...args);
+// };

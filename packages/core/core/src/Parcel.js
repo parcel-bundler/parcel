@@ -32,6 +32,7 @@ export default class Parcel {
       : options.entries
         ? [options.entries]
         : [];
+
     this.rootDir = getRootDir(this.entries);
   }
 
@@ -138,6 +139,8 @@ export default class Parcel {
           type: 'buildFailure',
           error: e
         });
+
+        throw e;
       }
     }
   }

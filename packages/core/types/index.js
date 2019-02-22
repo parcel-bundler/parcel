@@ -99,7 +99,8 @@ export type PackageJSON = {
   },
   dependencies?: PackageDependencies,
   devDependencies?: PackageDependencies,
-  peerDependencies?: PackageDependencies
+  peerDependencies?: PackageDependencies,
+  sideEffects?: boolean | FilePath | Array<FilePath>
 };
 
 export type ParcelOptions = {
@@ -147,6 +148,8 @@ export type SourceLocation = {
   end: {line: number, column: number}
 };
 
+export type Symbol = string;
+
 export type Meta = {[string]: any};
 export type DependencyOptions = {|
   moduleSpecifier: ModuleSpecifier,
@@ -157,7 +160,8 @@ export type DependencyOptions = {|
   loc?: SourceLocation,
   env?: EnvironmentOpts,
   meta?: Meta,
-  target?: Target
+  target?: Target,
+  symbols?: Map<Symbol, Symbol> | Array<[Symbol, Symbol]>
 |};
 
 export interface Dependency {
@@ -169,8 +173,9 @@ export interface Dependency {
   isURL: ?boolean;
   loc: ?SourceLocation;
   env: Environment;
-  meta: ?Meta;
+  meta: Meta;
   target: ?Target;
+  symbols: Map<Symbol, Symbol>;
 
   // TODO: get this from graph instead of storing them on dependencies
   sourcePath: FilePath;
@@ -201,6 +206,7 @@ export interface Asset {
   env: Environment;
   meta: Meta;
   stats: Stats;
+  symbols: Map<Symbol, Symbol>;
 
   getConfig(
     filePaths: Array<FilePath>,
@@ -242,7 +248,8 @@ export type TransformerResult = {
   connectedFiles?: Array<File>,
   output?: AssetOutput,
   env?: EnvironmentOpts,
-  meta?: Meta
+  meta?: Meta,
+  symbols?: Map<Symbol, Symbol>
 };
 
 type Async<T> = T | Promise<T>;
@@ -281,6 +288,13 @@ export interface TraversalContext {
   stop(): void;
 }
 
+export type GraphVisitor<T> =
+  | GraphTraversalCallback<T>
+  | {|
+      enter?: GraphTraversalCallback<T>,
+      exit?: GraphTraversalCallback<T>
+    |};
+
 export type GraphTraversalCallback<T> = (
   asset: T,
   context?: any,
@@ -293,13 +307,14 @@ export interface Graph {
 
 // TODO: what do we want to expose here?
 export interface AssetGraph extends Graph {
-  traverseAssets(visit: GraphTraversalCallback<Asset>): any;
+  traverseAssets(visit: GraphVisitor<Asset>): any;
   createBundle(asset: Asset): Bundle;
   getTotalSize(asset?: Asset): number;
   getEntryAssets(): Array<Asset>;
   removeAsset(asset: Asset): void;
   getDependencies(asset: Asset): Array<Dependency>;
   getDependencyResolution(dependency: Dependency): ?Asset;
+  resolveSymbol(asset: Asset, symbol: Symbol): {asset: Asset, symbol: Symbol};
 }
 
 export type BundleGroup = {

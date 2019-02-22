@@ -10,6 +10,7 @@ import {parse} from '@babel/parser';
 import traverse from '@babel/traverse';
 import * as walk from 'babylon-walk';
 import * as babelCore from '@babel/core';
+import {hoist} from '@parcel/scope-hoisting';
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -37,13 +38,13 @@ export default new Transformer({
   },
 
   async parse(asset /*, config , options */) {
-    if (
-      !canHaveDependencies(asset.code) &&
-      !ENV_RE.test(asset.code) &&
-      !FS_RE.test(asset.code)
-    ) {
-      return null;
-    }
+    // if (
+    //   !canHaveDependencies(asset.code) &&
+    //   !ENV_RE.test(asset.code) &&
+    //   !FS_RE.test(asset.code)
+    // ) {
+    //   return null;
+    // }
 
     return {
       type: 'babel',
@@ -102,20 +103,22 @@ export default new Transformer({
       }
     }
 
-    // Convert ES6 modules to CommonJS
-    if (asset.meta.isES6Module) {
-      let res = babelCore.transformFromAst(ast.program, asset.code, {
-        code: false,
-        ast: true,
-        filename: asset.filePath,
-        babelrc: false,
-        configFile: false,
-        plugins: [require('@babel/plugin-transform-modules-commonjs')]
-      });
+    await hoist(asset);
 
-      ast.program = res.ast;
-      ast.isDirty = true;
-    }
+    // Convert ES6 modules to CommonJS
+    // if (asset.meta.isES6Module) {
+    //   let res = babelCore.transformFromAst(ast.program, asset.code, {
+    //     code: false,
+    //     ast: true,
+    //     filename: asset.filePath,
+    //     babelrc: false,
+    //     configFile: false,
+    //     plugins: [require('@babel/plugin-transform-modules-commonjs')]
+    //   });
+
+    //   ast.program = res.ast;
+    //   ast.isDirty = true;
+    // }
 
     return [asset];
   },

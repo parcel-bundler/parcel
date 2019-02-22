@@ -20,14 +20,14 @@ export default new Transformer({
   },
 
   async transform(asset, config, options) {
-    if (options.mode !== 'production') {
+    if (!options.minify) {
       return [asset];
     }
 
     let terserOptions = {
       warnings: true,
       mangle: {
-        toplevel: true
+        toplevel: false
       }
     };
 

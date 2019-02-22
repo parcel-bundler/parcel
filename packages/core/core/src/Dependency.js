@@ -7,7 +7,8 @@ import type {
   Meta,
   Target,
   ModuleSpecifier,
-  FilePath
+  FilePath,
+  Symbol
 } from '@parcel/types';
 import md5 from '@parcel/utils/lib/md5';
 
@@ -28,9 +29,10 @@ export default class Dependency implements IDependency {
   isURL: ?boolean;
   loc: ?SourceLocation;
   env: IEnvironment;
-  meta: ?Meta;
+  meta: Meta;
   target: ?Target;
   sourcePath: FilePath;
+  symbols: Map<Symbol, Symbol>;
 
   constructor(opts: DependencyOpts) {
     this.moduleSpecifier = opts.moduleSpecifier;
@@ -39,14 +41,36 @@ export default class Dependency implements IDependency {
     this.isOptional = opts.isOptional;
     this.isURL = opts.isURL;
     this.loc = opts.loc;
-    this.meta = opts.meta;
+    this.meta = opts.meta || {};
     this.target = opts.target;
     this.env = opts.env;
     this.sourcePath = opts.sourcePath || ''; // TODO: get from graph?
+    this.symbols = new Map(opts.symbols || []);
     this.id =
       opts.id ||
       md5(
         `${this.sourcePath}:${this.moduleSpecifier}:${JSON.stringify(this.env)}`
       );
+  }
+
+  merge(other: Dependency) {
+    Object.assign(this.meta, other.meta);
+    this.symbols = new Map([...this.symbols, ...other.symbols]);
+  }
+
+  serialize() {
+    return {
+      moduleSpecifier: this.moduleSpecifier,
+      isAsync: this.isAsync,
+      isEntry: this.isEntry,
+      isURL: this.isURL,
+      loc: this.loc,
+      meta: this.meta,
+      target: this.target,
+      env: this.env,
+      sourcePath: this.sourcePath,
+      symbols: [...this.symbols],
+      id: this.id
+    };
   }
 }

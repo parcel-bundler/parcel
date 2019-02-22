@@ -12,6 +12,8 @@ const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
 const {sleep} = require('@parcel/test-utils');
 const defaultConfig = require('@parcel/config-default');
+defaultConfig.reporters = [];
+defaultConfig.filePath = require.resolve('@parcel/config-default');
 
 const chalk = new (require('chalk')).constructor({enabled: true});
 const warning = chalk.keyword('orange');
@@ -47,9 +49,7 @@ function bundler(entries, opts) {
     Object.assign(
       {
         entries,
-        options: {
-          cache: false
-        },
+        cache: false,
         killWorkers: false,
         defaultConfig
       },

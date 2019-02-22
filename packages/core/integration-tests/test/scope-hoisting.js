@@ -6,16 +6,7 @@ const fs = require('@parcel/fs');
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
 
-describe.skip('scope hoisting', function() {
-  if (process.platform === 'win32') {
-    // eslint-disable-next-line no-console
-    console.warn(
-      'WARNING: Scope hoisting tests are disabled on windows due to ' +
-        'filesystem errors. Feel free to look into this and contribute a fix!'
-    );
-    return;
-  }
-
+describe.only('scope hoisting', function() {
   describe('es6', function() {
     it('supports default imports and exports of expressions', async function() {
       let b = await bundle(
@@ -321,6 +312,18 @@ describe.skip('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
+    it('supports requiring a re-exported and renamed ES6 import', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-renamed/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'foobar');
+    });
+
     it('keeps side effects by default', async function() {
       let b = await bundle(
         path.join(
@@ -340,7 +343,7 @@ describe.skip('scope hoisting', function() {
       assert.deepEqual(output, 4);
     });
 
-    it('supports the package.json sideEffects: false flag', async function() {
+    it.only('supports the package.json sideEffects: false flag', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -426,11 +429,31 @@ describe.skip('scope hoisting', function() {
       assert.deepEqual(output.default, 2);
 
       let contents = await fs.readFile(
-        path.join(__dirname, '/dist/a.js'),
+        path.join(__dirname, '/../dist/a.js'),
         'utf8'
       );
       assert(contents.includes('foo'));
       assert(!contents.includes('bar'));
+    });
+
+    it('removes unused function exports when minified', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-functions/a.js'
+        ),
+        {minify: true}
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output.default, 9);
+
+      let contents = await fs.readFile(
+        path.join(__dirname, '/../dist/a.js'),
+        'utf8'
+      );
+      assert(/.\+./.test(contents));
+      assert(!/.-./.test(contents));
     });
 
     it('support exporting a ES6 module exported as CommonJS', async function() {
@@ -801,10 +824,15 @@ describe.skip('scope hoisting', function() {
         )
       );
 
+      let entryBundle = Array.from(b.nodes.values()).find(
+        node => node.type === 'bundle' && node.value.isEntry
+      ).value;
+      let entryAsset = entryBundle.assetGraph.getEntryAssets()[0];
+
       // TODO: this test doesn't currently work in older browsers since babel
       // replaces the typeof calls before we can get to them.
       let output = await run(b);
-      assert.equal(output.id, b.entryAsset.id);
+      assert.equal(output.id, entryAsset.id);
       assert.equal(output.hot, null);
       assert.equal(output.type, 'object');
       assert.deepEqual(output.exports, {});
@@ -820,11 +848,15 @@ describe.skip('scope hoisting', function() {
         )
       );
 
-      let output = await run(b);
-      assert.equal(
-        output,
-        Array.from(b.assets).find(a => a.name.endsWith('b.js')).id
+      let entryBundle = Array.from(b.nodes.values()).find(
+        node => node.type === 'bundle' && node.value.isEntry
+      ).value;
+      let asset = Array.from(entryBundle.assetGraph.nodes.values()).find(
+        node => node.type === 'asset' && node.value.filePath.endsWith('b.js')
       );
+
+      let output = await run(b);
+      assert.equal(output, asset.id);
     });
 
     it('supports requiring a re-exported ES6 import', async function() {
@@ -1044,7 +1076,7 @@ describe.skip('scope hoisting', function() {
       assert.deepEqual(output, 2);
 
       let contents = await fs.readFile(
-        path.join(__dirname, '/dist/a.js'),
+        path.join(__dirname, '/../dist/a.js'),
         'utf8'
       );
       assert(contents.includes('foo'));

@@ -11,7 +11,8 @@ import type {
   Target,
   Environment,
   Bundle,
-  GraphTraversalCallback
+  GraphVisitor,
+  Symbol
 } from '@parcel/types';
 import md5 from '@parcel/utils/lib/md5';
 import Dependency from './Dependency';
@@ -201,6 +202,12 @@ export default class AssetGraph extends Graph {
 
     for (let assetNode of assetNodes) {
       let depNodes = assetNode.value.dependencies.map(dep => {
+        let node = this.getNode(dep.id);
+        if (node) {
+          node.value.merge(dep);
+          return node;
+        }
+
         return nodeFromDep(dep);
       });
       let {removed, added} = this.replaceNodesConnectedTo(assetNode, depNodes);
@@ -261,12 +268,23 @@ export default class AssetGraph extends Graph {
     return res;
   }
 
-  traverseAssets(visit: GraphTraversalCallback<Asset>, startNode: ?Node) {
-    return this.traverse((node, ...args) => {
-      if (node.type === 'asset') {
-        return visit(node.value, ...args);
-      }
-    }, startNode);
+  traverseAssets(visit: GraphVisitor<Asset>, startNode: ?Node) {
+    return this.traverse(
+      {
+        enter: (node, ...args) => {
+          let fn = visit.enter || visit;
+          if (node.type === 'asset' && typeof fn === 'function') {
+            return fn(node.value, ...args);
+          }
+        },
+        exit: (node, ...args) => {
+          if (node.type === 'asset' && typeof visit.exit === 'function') {
+            return visit.exit(node.value, ...args);
+          }
+        }
+      },
+      startNode
+    );
   }
 
   createBundle(asset: Asset): Bundle {
@@ -321,11 +339,45 @@ export default class AssetGraph extends Graph {
       return;
     }
 
+    asset.meta.isReferenced = true; // FIXME
     this.replaceNode(assetNode, {
       type: 'asset_reference',
       id: 'asset_reference:' + assetNode.id,
       value: asset
     });
+  }
+
+  resolveSymbol(asset: Asset, symbol: Symbol) {
+    if (symbol === '*') {
+      return {asset, exportSymbol: '*', symbol: '*'};
+    }
+
+    let identifier = asset.symbols.get(symbol);
+
+    let deps = this.getDependencies(asset).reverse();
+    for (let dep of deps) {
+      // If this is a re-export, find the original module.
+      let symbolLookup = new Map(
+        [...dep.symbols].map(([key, val]) => [val, key])
+      );
+      let depSymbol = symbolLookup.get(identifier);
+      if (depSymbol) {
+        let resolved = this.getDependencyResolution(dep);
+        return this.resolveSymbol(resolved, depSymbol);
+      }
+
+      // If this module exports wildcards, resolve the original module.
+      // Default exports are excluded from wildcard exports.
+      if (dep.symbols.get('*') === '*' && symbol !== 'default') {
+        let resolved = this.getDependencyResolution(dep);
+        let result = this.resolveSymbol(resolved, symbol);
+        if (result.symbol) {
+          return result;
+        }
+      }
+    }
+
+    return {asset, exportSymbol: symbol, symbol: identifier};
   }
 
   async dumpGraphViz() {

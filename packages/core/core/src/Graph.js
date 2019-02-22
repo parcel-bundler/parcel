@@ -1,6 +1,10 @@
 // @flow
 'use strict';
-import type {TraversalContext, Graph as IGraph} from '@parcel/types';
+import type {
+  TraversalContext,
+  Graph as IGraph,
+  GraphVisitor
+} from '@parcel/types';
 
 export type NodeId = string;
 
@@ -213,10 +217,7 @@ export default class Graph implements IGraph {
     return {removed, added};
   }
 
-  traverse(
-    visit: (node: Node, context?: any, traversal: TraversalContext) => any,
-    startNode: ?Node
-  ) {
+  traverse(visit: GraphVisitor<Node>, startNode: ?Node) {
     return this.dfs({
       visit,
       startNode,
@@ -224,10 +225,7 @@ export default class Graph implements IGraph {
     });
   }
 
-  traverseAncestors(
-    startNode: Node,
-    visit: (node: Node, context?: any, traversal: TraversalContext) => any
-  ) {
+  traverseAncestors(startNode: Node, visit: GraphVisitor<Node>) {
     return this.dfs({
       visit,
       startNode,
@@ -240,7 +238,7 @@ export default class Graph implements IGraph {
     startNode,
     getChildren
   }: {
-    visit(node: Node, context?: any, traversal: TraversalContext): any,
+    visit: GraphVisitor<Node>,
     getChildren(node: Node): Array<Node>,
     startNode?: ?Node
   }): ?Node {
@@ -265,9 +263,12 @@ export default class Graph implements IGraph {
       visited.add(node);
 
       skipped = false;
-      let newContext = visit(node, context, ctx);
-      if (typeof newContext !== 'undefined') {
-        context = newContext;
+      let enter = typeof visit === 'function' ? visit : visit.enter;
+      if (enter) {
+        let newContext = enter(node, context, ctx);
+        if (typeof newContext !== 'undefined') {
+          context = newContext;
+        }
       }
 
       if (skipped) {
@@ -288,6 +289,21 @@ export default class Graph implements IGraph {
         if (stopped) {
           return result;
         }
+      }
+
+      if (visit.exit) {
+        let newContext = visit.exit(node, context, ctx);
+        if (typeof newContext !== 'undefined') {
+          context = newContext;
+        }
+      }
+
+      if (skipped) {
+        return;
+      }
+
+      if (stopped) {
+        return context;
       }
     };
 

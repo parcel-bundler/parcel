@@ -1,1 +1,1 @@
-module.exports = 'hi!';
+export let message = 'hi!';

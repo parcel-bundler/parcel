@@ -12,7 +12,8 @@ import type {
   AssetOutput,
   Config,
   PackageJSON,
-  Stats
+  Stats,
+  Symbol
 } from '@parcel/types';
 import md5 from '@parcel/utils/lib/md5';
 import {loadConfig} from '@parcel/utils/lib/config';
@@ -32,7 +33,8 @@ type AssetOptions = {
   outputHash?: string,
   env: Environment,
   meta?: JSONObject,
-  stats?: Stats
+  stats?: Stats,
+  symbols?: Map<Symbol, Symbol> | Array<[Symbol, Symbol]>
 };
 
 export default class Asset implements IAsset {
@@ -49,6 +51,7 @@ export default class Asset implements IAsset {
   env: Environment;
   meta: JSONObject;
   stats: Stats;
+  symbols: Map<Symbol, Symbol>;
 
   constructor(options: AssetOptions) {
     this.id =
@@ -73,6 +76,7 @@ export default class Asset implements IAsset {
       time: 0,
       size: this.output.code.length
     };
+    this.symbols = new Map(options.symbols || []);
   }
 
   serialize(): AssetOptions {
@@ -88,7 +92,8 @@ export default class Asset implements IAsset {
       outputHash: this.outputHash,
       env: this.env,
       meta: this.meta,
-      stats: this.stats
+      stats: this.stats,
+      symbols: [...this.symbols]
     };
   }
 
@@ -99,7 +104,12 @@ export default class Asset implements IAsset {
       env: this.env.merge(opts.env),
       sourcePath: this.filePath
     });
-    this.dependencies.push(dep);
+    let existing = this.dependencies.find(d => d.id === dep.id);
+    if (existing) {
+      existing.merge(dep);
+    } else {
+      this.dependencies.push(dep);
+    }
     return dep.id;
   }
 
@@ -123,7 +133,8 @@ export default class Asset implements IAsset {
       dependencies: this.dependencies,
       connectedFiles: this.connectedFiles,
       output: result.output,
-      meta: Object.assign({}, this.meta, result.meta)
+      meta: Object.assign({}, this.meta, result.meta),
+      symbols: new Map([...this.symbols, ...(result.symbols || [])])
     };
 
     let asset = new Asset(opts);
