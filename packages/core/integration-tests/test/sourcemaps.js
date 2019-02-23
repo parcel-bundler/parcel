@@ -1,6 +1,7 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
+const os = require('os');
 const mapValidator = require('sourcemap-validator');
 const SourceMap =
   parseInt(process.versions.node, 10) < 8
@@ -443,7 +444,10 @@ describe('sourcemaps', function() {
       );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
-      assert(map.sourceRoot == '../integration/sourcemap-css');
+      assert.equal(
+        map.sourceRoot,
+        path.normalize('../integration/sourcemap-css')
+      );
 
       let sourceMap = await new SourceMap().addMap(map);
       assert.equal(Object.keys(sourceMap.sources).length, 1);
@@ -517,7 +521,10 @@ describe('sourcemaps', function() {
       );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
-      assert(map.sourceRoot == '../integration/sourcemap-css-import');
+      assert.equal(
+        map.sourceRoot,
+        path.normalize('../integration/sourcemap-css-import')
+      );
 
       let sourceMap = await new SourceMap().addMap(map);
       assert.equal(Object.keys(sourceMap.sources).length, 3);
@@ -615,7 +622,10 @@ describe('sourcemaps', function() {
       );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
-      assert(map.sourceRoot == '../integration/sourcemap-sass');
+      assert.equal(
+        map.sourceRoot,
+        path.normalize('../integration/sourcemap-sass')
+      );
 
       let sourceMap = await new SourceMap().addMap(map);
       assert.equal(Object.keys(sourceMap.sources).length, 1);
@@ -679,7 +689,10 @@ describe('sourcemaps', function() {
       );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
-      assert(map.sourceRoot == '../integration/sourcemap-sass-imported');
+      assert.equal(
+        map.sourceRoot,
+        path.normalize('../integration/sourcemap-sass-imported')
+      );
 
       let sourceMap = await new SourceMap().addMap(map);
       assert.equal(Object.keys(sourceMap.sources).length, 2);
@@ -757,11 +770,17 @@ describe('sourcemaps', function() {
       );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
-      assert(map.sourceRoot == '../integration/sourcemap-less');
+      assert.equal(
+        map.sourceRoot,
+        path.normalize('../integration/sourcemap-less')
+      );
 
       let sourceMap = await new SourceMap().addMap(map);
       assert.equal(Object.keys(sourceMap.sources).length, 1);
-      assert.equal(sourceMap.sources['style.less'], input);
+      assert.equal(
+        sourceMap.sources['style.less'],
+        input.replace(new RegExp(os.EOL, 'g'), '\n')
+      );
 
       checkSourceMapping({
         map: sourceMap,
@@ -823,12 +842,18 @@ describe('sourcemaps', function() {
       );
 
       assert(raw.includes('/*# sourceMappingURL=/style.css.map */'));
-      assert(map.sourceRoot == '../integration/sourcemap-css-existing');
+      assert.equal(
+        map.sourceRoot,
+        path.normalize('../integration/sourcemap-css-existing')
+      );
 
       let sourceMap = await new SourceMap().addMap(map);
       assert.equal(Object.keys(sourceMap.sources).length, 2);
       assert.equal(sourceMap.sources['style.css'], style);
-      assert.equal(sourceMap.sources['test/library.scss'], library);
+      assert.equal(
+        sourceMap.sources[path.normalize('test/library.scss')],
+        library.replace(new RegExp(os.EOL, 'g'), '\n')
+      );
 
       checkSourceMapping({
         map: sourceMap,
@@ -853,7 +878,7 @@ describe('sourcemaps', function() {
         source: library,
         generated: raw,
         str: 'body',
-        sourcePath: 'test/library.scss',
+        sourcePath: path.normalize('test/library.scss'),
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -863,7 +888,7 @@ describe('sourcemaps', function() {
         generated: raw,
         str: 'div',
         generatedStr: 'body div',
-        sourcePath: 'test/library.scss',
+        sourcePath: path.normalize('test/library.scss'),
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
 
@@ -872,7 +897,7 @@ describe('sourcemaps', function() {
         source: library,
         generated: raw,
         str: 'background-color',
-        sourcePath: 'test/library.scss',
+        sourcePath: path.normalize('test/library.scss'),
         msg: ' ' + (minify ? 'with' : 'without') + ' minification'
       });
     }
