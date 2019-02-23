@@ -7,6 +7,8 @@ const logger = require('@parcel/logger');
 
 class HMRServer {
   async start(options = {}) {
+    this.reload = options.reload;
+
     await new Promise(async resolve => {
       if (!options.https) {
         this.server = http.createServer();
@@ -71,7 +73,8 @@ class HMRServer {
       });
     }
 
-    const shouldReload = assets.some(asset => asset.hmrPageReload);
+    const shouldReload =
+      this.reload || assets.some(asset => asset.hmrPageReload);
     if (shouldReload) {
       this.broadcast({
         type: 'reload'

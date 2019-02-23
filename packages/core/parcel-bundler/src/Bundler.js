@@ -127,6 +127,7 @@ class Bundler extends EventEmitter {
           ? options.bundleNodeModules
           : target === 'browser',
       hmr: hmr,
+      reload: options.reload || false,
       https: options.https || false,
       logLevel: isNaN(options.logLevel) ? 3 : options.logLevel,
       entryFiles: this.entryFiles,
