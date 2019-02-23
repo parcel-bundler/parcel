@@ -56,11 +56,10 @@ describe('html', function() {
 
   it('should include a banner when supplied', async function() {
     const bannerString = 'Welcome to my bundle, v0';
-    let b = await bundle(path.join(__dirname, '/integration/html/index.html'), {
+    await bundle(path.join(__dirname, '/integration/html/index.html'), {
       banner: bannerString
     });
 
-    await run(b);
     let file = await fs.readFile(
       path.join(__dirname, '/dist/index.html'),
       'utf8'
