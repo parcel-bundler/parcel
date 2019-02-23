@@ -44,7 +44,7 @@ describe('css', function() {
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
-    assert(file.startsWith(`// ${bannerString} \n`));
+    assert(file.startsWith(`/* ${bannerString} */\n`));
   });
 
   it('should support loading a CSS bundle along side dynamic imports', async function() {

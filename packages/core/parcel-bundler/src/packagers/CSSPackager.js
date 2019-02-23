@@ -2,7 +2,7 @@ const Packager = require('./Packager');
 
 class CSSPackager extends Packager {
   async start() {
-    await this.writeBundleBanner('//');
+    await this.writeBundleBanner('/*', '*/');
   }
 
   async addAsset(asset) {

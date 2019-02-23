@@ -1902,6 +1902,6 @@ describe('javascript', function() {
       path.join(__dirname, '/dist/index.js'),
       'utf8'
     );
-    assert(file.startsWith(`// ${bannerString} \n`));
+    assert(file.startsWith(`/** ${bannerString} */\n`));
   });
 });
