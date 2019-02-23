@@ -361,6 +361,32 @@ describe('hmr', function() {
     assert.deepEqual(outputs, [3, 10]);
   });
 
+  it('should bubble up HMR events to a page reload', async function() {
+    await ncp(
+      path.join(__dirname, '/integration/hmr'),
+      path.join(__dirname, '/input')
+    );
+
+    b = bundler(path.join(__dirname, '/input/index.js'), {
+      watch: true,
+      hmr: true
+    });
+    let bundle = await b.bundle();
+
+    let ctx = await run(bundle, {output() {}}, {require: false});
+
+    let spy = sinon.spy(ctx.location, 'reload');
+
+    await sleep(100);
+    fs.writeFile(
+      path.join(__dirname, '/input/local.js'),
+      'exports.a = 5; exports.b = 5;'
+    );
+
+    await nextEvent(b, 'bundled');
+    assert(spy.calledOnce);
+  });
+
   it('should log emitted errors and show an error overlay', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
