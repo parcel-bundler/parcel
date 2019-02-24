@@ -361,6 +361,45 @@ describe('hmr', function() {
     assert.deepEqual(outputs, [3, 10]);
   });
 
+  it('should always do a full page reload with the reload option', async function() {
+    await ncp(
+      path.join(__dirname, '/integration/hmr-callbacks'),
+      path.join(__dirname, '/input')
+    );
+
+    b = bundler(path.join(__dirname, '/input/index.js'), {
+      watch: true,
+      hmr: true,
+      reload: true
+    });
+    let bundle = await b.bundle();
+
+    let outputs = [];
+
+    let ctx = await run(
+      bundle,
+      {
+        output(o) {
+          outputs.push(o);
+        },
+        reportModuleId() {}
+      },
+      {require: false}
+    );
+
+    let spy = sinon.spy(ctx.location, 'reload');
+
+    await sleep(100);
+    fs.writeFile(
+      path.join(__dirname, '/input/local.js'),
+      'exports.a = 5; exports.b = 5;'
+    );
+
+    await nextEvent(b, 'bundled');
+    assert(spy.calledOnce);
+    assert.deepEqual(outputs, [3]);
+  });
+
   it('should log emitted errors and show an error overlay', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
