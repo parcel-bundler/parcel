@@ -1,6 +1,12 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle, bundler, run, assertBundleTree} = require('@parcel/test-utils');
+const {
+  bundle,
+  bundler,
+  run,
+  assertBundleTree,
+  sleep
+} = require('@parcel/test-utils');
 const fs = require('@parcel/fs');
 const commandExists = require('command-exists');
 
@@ -167,5 +173,43 @@ describe('rust', function() {
 
     var res = await run(b);
     assert.equal(res, 5);
+  });
+
+  it('should live compile and load the new wasm file', async function() {
+    this.timeout(500000);
+    let b = await bundle(path.join(__dirname, '/integration/rust/index.js'));
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: [
+        'bundle-loader.js',
+        'bundle-url.js',
+        'index.js',
+        'wasm-loader.js'
+      ],
+      childBundles: [
+        {
+          type: 'wasm',
+          assets: ['add.rs'],
+          childBundles: []
+        },
+        {
+          type: 'map'
+        }
+      ]
+    });
+
+    assert.equal(5);
+    await sleep(100); //TODO: IDK MAN
+    fs.writeFile(
+      path.join(__dirname, '/integration/rust/add.rs'),
+      '#[no_mangle]\npub fn add(a: i32, b: i32) -> i32 {\n    return 2 * (a + b)\n}'
+    );
+
+    var res = await await run(b);
+    assert.equal(res, 10);
+
+    // not minified
+    assert((await fs.stat(Array.from(b.childBundles)[0].name)).size > 500);
   });
 });
