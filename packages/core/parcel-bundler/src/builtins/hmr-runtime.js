@@ -1,3 +1,5 @@
+var b = require('./bundle-loader')
+b.register("wasm",require("./loaders/browser/wasm-loader.js"));
 var OVERLAY_ID = '__parcel__error__overlay__';
 
 var OldModule = module.bundle.Module;
@@ -31,16 +33,16 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
     if (data.type === 'update') {
       console.clear();
-
+      
       data.assets.forEach(function (asset) {
         hmrApply(global.parcelRequire, asset);
-      });
-
+      })
+      
       data.assets.forEach(function (asset) {
         if (!asset.isNew) {
           hmrAccept(global.parcelRequire, asset.id);
         }
-      });
+      })
     }
 
     if (data.type === 'reload') {
@@ -123,18 +125,31 @@ function getParents(bundle, id) {
 }
 
 function hmrApply(bundle, asset) {
-  var modules = bundle.modules;
-  if (!modules) {
-    return;
-  }
+    var modules = bundle.modules;
+    console.log(modules);
+    if (!modules) {
+      return;
+    }
+    
+    if (modules[asset.id] || !bundle.parent) {
+      if ('wasm' in (asset.generated || {})) {
 
-  if (modules[asset.id] || !bundle.parent) {
-    var fn = new Function('require', 'module', 'exports', asset.generated.js);
-    asset.isNew = !modules[asset.id];
-    modules[asset.id] = [fn, asset.deps];
-  } else if (bundle.parent) {
-    hmrApply(bundle.parent, asset);
-  }
+        b.load([[asset.generated.wasm.url, asset.id]]).then(function(data, err) {
+          asset.isNew = !modules[asset.id];
+          console.log(modules[asset.id]);
+          setTimeout( () => {
+            console.log(modules[asset.id]);
+          },1);
+          modules[asset.id] = [data, asset.deps];
+        });
+      } else {
+        var fn = new Function('require', 'module', 'exports', asset.generated.js);
+        asset.isNew = !modules[asset.id];
+        modules[asset.id] = [fn, asset.deps];
+      }
+    } else if (bundle.parent) {
+      hmrApply(bundle.parent, asset);
+    }
 }
 
 function hmrAccept(bundle, id) {

@@ -16,7 +16,6 @@
     "test-ci": "lerna run test-ci --stream",
     "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different",
     "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\"",
-    "precommit": "lint-staged",
     "clean": "lerna clean --yes && lerna exec -- rm -rf ./lib && yarn",
     "postinstall": "yarn build"
   },

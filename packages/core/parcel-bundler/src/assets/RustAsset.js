@@ -5,6 +5,7 @@ const {promisify} = require('@parcel/utils');
 const exec = promisify(childProcess.execFile);
 const toml = require('@iarna/toml');
 const fs = require('@parcel/fs');
+const urlJoin = require('../utils/urlJoin');
 const Asset = require('../Asset');
 const config = require('../utils/config');
 const pipeSpawn = require('../utils/pipeSpawn');
@@ -186,6 +187,8 @@ class RustAsset extends Asset {
   async generate() {
     return {
       wasm: {
+        url: '/factorial.d88df7f7.wasm',/* urlJoin(this.options.publicURL, this.generateBundleName()) , */
+        name: 'factorial.rs',
         path: this.wasmPath, // pass output path to RawPackager
         mtime: Date.now() // force re-bundling since otherwise the hash would never change
       }
