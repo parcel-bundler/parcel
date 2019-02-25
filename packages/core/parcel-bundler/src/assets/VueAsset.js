@@ -2,6 +2,7 @@ const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const md5 = require('../utils/md5');
 const {minify} = require('terser');
+const t = require('@babel/types');
 
 class VueAsset extends Asset {
   constructor(name, options) {
@@ -72,10 +73,10 @@ class VueAsset extends Asset {
 
     // TODO: make it possible to process this code with the normal scope hoister
     if (this.options.scopeHoist) {
-      optsVar = `$${this.id}$export$default`;
+      optsVar = `$${t.toIdentifier(this.id)}$export$default`;
 
       if (!js.includes(optsVar)) {
-        optsVar = `$${this.id}$exports`;
+        optsVar = `$${t.toIdentifier(this.id)}$exports`;
         if (!js.includes(optsVar)) {
           supplemental += `
             var ${optsVar} = {};
