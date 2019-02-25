@@ -5,7 +5,7 @@ const postcss = require('postcss');
 const FileSystemLoader = require('css-modules-loader-core/lib/file-system-loader');
 const semver = require('semver');
 const path = require('path');
-const fs = require('fs');
+const fs = require('@parcel/fs');
 
 module.exports = async function(asset) {
   let config = await getConfig(asset);
@@ -89,19 +89,20 @@ const createLoader = asset =>
       const root = path.resolve('/');
       // fixes an issue on windows which is part of the css-modules-loader-core
       // see https://github.com/css-modules/css-modules-loader-core/issues/230
-      if (rootRelativePath.startsWith(path.resolve('/'))) {
+      if (rootRelativePath.startsWith(root)) {
         rootRelativePath = rootRelativePath.substr(root.length);
       }
 
-      return new Promise((resolve, reject) => {
-        fs.readFile(resolved, 'utf-8', (err, source) => {
-          if (err) reject(err);
-          this.core
-            .load(source, rootRelativePath, undefined, this.fetch.bind(this))
-            .then(({exportTokens}) => resolve(exportTokens), reject);
-        });
-      });
+      const source = await fs.readFile(resolved, 'utf-8');
+      const {exportTokens} = await this.core.load(
+        source,
+        rootRelativePath,
+        undefined,
+        this.fetch.bind(this)
+      );
+      return exportTokens;
     }
+
     get finalSource() {
       return '';
     }
