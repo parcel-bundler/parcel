@@ -196,7 +196,9 @@ class Asset {
     if (!this.id) {
       this.id =
         this.options.production || this.options.scopeHoist
-          ? md5(this.relativeName, 'base64').slice(0, 4)
+          ? md5(this.relativeName, 'base64')
+              .slice(0, 4)
+              .replace(/\+\//g, '_')
           : this.relativeName;
     }
 
