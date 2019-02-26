@@ -34,15 +34,37 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
     if (data.type === 'update') {
       console.clear();
+      
+      // Handle WebAssembly
+      Promise.all(data.assets.map(function(asset) {
+        if ('wasm' in (asset.generated || {})) { // Inject wasm into runtime
+          var binStr = window.atob(asset.generated.wasm.blob);
+          var len = binStr.length;
+          var bytes = new Uint8Array(len);
+          for (var i = 0; i < len; ++i)
+            bytes[i] = binStr.charCodeAt(i);
 
-      data.assets.forEach(function (asset) {
-        hmrApply(global.parcelRequire, asset);
-      });
+          return WebAssembly.instantiate(bytes).then(function(wasmModule) {
+            var newAsset = Object.assign({generated: {wasm: {wasmModule: wasmModule}}}, asset);
+            newAsset.generated.wasm.wasmModule = wasmModule;
 
-      data.assets.forEach(function (asset) {
-        if (!asset.isNew) {
-          hmrAccept(global.parcelRequire, asset.id);
-        }
+            return newAsset;
+          });
+        } 
+
+        // else return the asset unchanged
+        return new Promise(function(resolve) {resolve(asset)});
+
+      })).then(function(assets) {
+        assets.forEach(function(asset) {
+          hmrApply(global.parcelRequire, asset);
+        });
+  
+        assets.forEach(function (asset) {
+          if (!asset.isNew) {
+            hmrAccept(global.parcelRequire, asset.id);
+          }
+        });
       });
     }
 
@@ -132,7 +154,14 @@ function hmrApply(bundle, asset) {
   }
 
   if (modules[asset.id] || !bundle.parent) {
-    var fn = new Function('require', 'module', 'exports', asset.generated.js);
+    var fn = ('wasm' in (asset.generated || {})) ?
+      function(require, module, exports) {
+        Object.keys(asset.generated.wasm.wasmModule.instance.exports).map(function(key) {
+          exports[key] = asset.generated.wasm.wasmModule.instance.exports[key];
+        })
+      }
+      : new Function('require', 'module', 'exports', asset.generated.js)
+
     asset.isNew = !modules[asset.id];
     modules[asset.id] = [fn, asset.deps];
   } else if (bundle.parent) {
