@@ -1,4 +1,16 @@
-// @flow
+// @flow strict-local
+
+import type {
+  AST as _AST,
+  Config as _Config,
+  Node as _Node,
+  TraversalContext as _TraversalContext
+} from './unsafe';
+
+export type AST = _AST;
+export type Config = _Config;
+export type Node = _Node;
+export type TraversalContext = _TraversalContext;
 
 export type JSONValue =
   | null
@@ -154,7 +166,7 @@ export type SourceLocation = {
   end: {line: number, column: number}
 };
 
-export type Meta = {[string]: any};
+export type Meta = {[string]: JSONValue};
 export type DependencyOptions = {|
   moduleSpecifier: ModuleSpecifier,
   isAsync?: boolean,
@@ -225,14 +237,6 @@ export type AssetOutput = {
   [string]: Blob | JSONValue
 };
 
-export type AST = {
-  type: string,
-  version: string,
-  program: any,
-  isDirty?: boolean
-};
-
-export type Config = any;
 export type SourceMap = JSONObject;
 export type Blob = string | Buffer;
 
@@ -278,16 +282,16 @@ export type CacheEntry = {
   initialAssets: ?Array<Asset> // Initial assets, pre-post processing
 };
 
-export interface TraversalContext {
+export interface TraversalActions {
   skipChildren(): void;
   stop(): void;
 }
 
 export type GraphTraversalCallback<T> = (
   asset: T,
-  context?: any,
-  traversal: TraversalContext
-) => any;
+  context?: TraversalContext,
+  traversal: TraversalActions
+) => ?Node;
 
 export interface Graph {
   merge(graph: Graph): void;
@@ -295,7 +299,7 @@ export interface Graph {
 
 // TODO: what do we want to expose here?
 export interface AssetGraph extends Graph {
-  traverseAssets(visit: GraphTraversalCallback<Asset>): any;
+  traverseAssets(visit: GraphTraversalCallback<Asset>): ?Node;
   createBundle(asset: Asset): Bundle;
   getTotalSize(asset?: Asset): number;
   getEntryAssets(): Array<Asset>;
@@ -327,7 +331,7 @@ export interface BundleGraph {
   findBundlesWithAsset(asset: Asset): Array<Bundle>;
   getBundles(bundleGroup: BundleGroup): Array<Bundle>;
   getBundleGroups(bundle: Bundle): Array<BundleGroup>;
-  traverseBundles(visit: GraphTraversalCallback<Bundle>): any;
+  traverseBundles(visit: GraphTraversalCallback<Bundle>): ?Node;
 }
 
 export type Bundler = {
