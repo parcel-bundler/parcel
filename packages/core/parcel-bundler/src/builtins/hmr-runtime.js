@@ -202,7 +202,9 @@ function hmrAccept(bundle, id) {
   var cached = bundle.cache[id];
   bundle.hotData = {};
   if (cached) {
-    cached.hot.data = bundle.hotData;
+    if (cached.hot) {
+      cached.hot.data = bundle.hotData;
+    }
   }
 
   if (cached && cached.hot && cached.hot._disposeCallbacks.length) {
