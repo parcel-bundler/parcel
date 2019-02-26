@@ -36,36 +36,51 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       console.clear();
       
       // Handle WebAssembly
-      Promise.all(data.assets.map(function(asset) {
-        if ('wasm' in (asset.generated || {})) { // Inject wasm into runtime
-          var binStr = window.atob(asset.generated.wasm.blob);
-          var len = binStr.length;
-          var bytes = new Uint8Array(len);
-          for (var i = 0; i < len; ++i)
-            bytes[i] = binStr.charCodeAt(i);
+      if (data.assets.some(function(asset) {
+        return ('wasm' in (asset.generated || {}))
+      }) && window.Promise) {
+        Promise.all(data.assets.map(function(asset) {
+          if ('wasm' in (asset.generated || {})) { // Inject wasm into runtime
+            var binStr = window.atob(asset.generated.wasm.blob);
+            var len = binStr.length;
+            var bytes = new Uint8Array(len);
+            for (var i = 0; i < len; ++i)
+              bytes[i] = binStr.charCodeAt(i);
 
-          return WebAssembly.instantiate(bytes).then(function(wasmModule) {
-            var newAsset = Object.assign({generated: {wasm: {wasmModule: wasmModule}}}, asset);
-            newAsset.generated.wasm.wasmModule = wasmModule;
+            return WebAssembly.instantiate(bytes).then(function(wasmModule) {
+              var newAsset = Object.assign({generated: {wasm: {wasmModule: wasmModule}}}, asset);
+              newAsset.generated.wasm.wasmModule = wasmModule;
 
-            return newAsset;
+              return newAsset;
+            });
+          } 
+
+          // else return the asset unchanged
+          return new Promise(function(resolve) {resolve(asset)});
+
+        })).then(function(assets) {
+          assets.forEach(function(asset) {
+            hmrApply(global.parcelRequire, asset);
           });
-        } 
-
-        // else return the asset unchanged
-        return new Promise(function(resolve) {resolve(asset)});
-
-      })).then(function(assets) {
-        assets.forEach(function(asset) {
+    
+          assets.forEach(function (asset) {
+            if (!asset.isNew) {
+              hmrAccept(global.parcelRequire, asset.id);
+            }
+          });
+        });
+      } else {
+        // Run synchronously to support Internet Explorer. WASM isn't supported anyway.
+        data.assets.forEach(function(asset) {
           hmrApply(global.parcelRequire, asset);
         });
   
-        assets.forEach(function (asset) {
+        data.assets.forEach(function (asset) {
           if (!asset.isNew) {
             hmrAccept(global.parcelRequire, asset.id);
           }
         });
-      });
+      }
     }
 
     if (data.type === 'reload') {
