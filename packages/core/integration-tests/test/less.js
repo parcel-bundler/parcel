@@ -198,12 +198,12 @@ describe('less', function() {
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
-    assert.equal(output(), '_index_ku5n8_1');
+    assert(output().startsWith('_index_'));
 
     let css = await fs.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
-    assert(css.includes('._index_ku5n8_1'));
+    assert(css.includes('._index_'));
   });
 });
