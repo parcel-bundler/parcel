@@ -1,7 +1,15 @@
 const Packager = require('./Packager');
 const posthtml = require('posthtml');
 const path = require('path');
+const crypto = require('crypto');
 const urlJoin = require('../utils/urlJoin');
+
+function sha384(string, encoding = 'base64') {
+  return crypto
+    .createHash('sha384')
+    .update(string)
+    .digest(encoding);
+}
 
 // https://www.w3.org/TR/html5/dom.html#metadata-content-2
 const metadataContent = new Set([
@@ -36,6 +44,22 @@ class HTMLPackager extends Packager {
       ).process(html, {sync: true}).html;
     }
 
+    if (this.bundler.options.production) {
+      let bundleNameMap = this.bundle.getBundleNameMap(
+        this.bundler.options.contentHash
+      );
+      let childBundles = Array.from(this.bundle.childBundles);
+      for (let name of Array.from(bundleNameMap.values()).filter(
+        v => v.endsWith('.js') || v.endsWith('.css')
+      )) {
+        let b = childBundles.find(v => v.name.endsWith(name)).entryAsset;
+        console.log(b.generated[b.type]); //FIXME isn't the bundle output, but the asset output!
+        html = html.replace(
+          name + ':hash',
+          'sha384-' + sha384(b.generated[b.type])
+        );
+      }
+    }
     await this.write(html);
   }
 

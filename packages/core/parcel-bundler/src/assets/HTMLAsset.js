@@ -2,6 +2,7 @@ const Asset = require('../Asset');
 const api = require('posthtml/lib/api');
 const urlJoin = require('../utils/urlJoin');
 const render = require('posthtml-render');
+const path = require('path');
 const posthtmlTransform = require('../transforms/posthtml');
 const htmlnanoTransform = require('../transforms/htmlnano');
 const isURL = require('../utils/is-url');
@@ -184,11 +185,18 @@ class HTMLAsset extends Asset {
           if (elements && elements.includes(node.tag)) {
             let depHandler = this.getAttrDepHandler(attr);
             let options = OPTIONS[node.tag];
-            node.attrs[attr] = depHandler.call(
+            let tempName = depHandler.call(
               this,
               attrVal,
               options && options[attr]
             );
+            node.attrs[attr] = tempName;
+            if (
+              this.options.production &&
+              (node.tag === 'link' || node.tag === 'script')
+            ) {
+              node.attrs['integrity'] = path.basename(tempName) + ':hash';
+            }
             this.isAstDirty = true;
           }
         }
@@ -292,7 +300,7 @@ class HTMLAsset extends Asset {
         }
       }
     }
-
+    // console.log(render(this.ast))
     return [
       {
         type: 'html',

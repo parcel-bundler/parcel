@@ -2,6 +2,9 @@ const assert = require('assert');
 const fs = require('@parcel/fs');
 const {bundle, assertBundleTree} = require('@parcel/test-utils');
 const path = require('path');
+const crypto = require('crypto');
+const posthtmlParse = require('posthtml-parser');
+const api = require('posthtml/lib/api');
 
 describe('html', function() {
   it('should support bundling HTML', async function() {
@@ -815,5 +818,60 @@ describe('html', function() {
       err.message,
       'Imports and requires are not supported inside inline <script> tags yet.'
     );
+  });
+
+  it('should add subresource integrity attributes to processed script and link tags in production', async () => {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/html-subresource-integrity/index.html'
+      ),
+      {production: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'js',
+          assets: ['script.js']
+        },
+        {
+          type: 'css',
+          assets: ['style.css']
+        }
+      ]
+    });
+
+    let html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
+
+    let hashMap = new Map();
+    api.walk.call(await posthtmlParse(html), node => {
+      if (node.attrs && node.attrs['integrity']) {
+        hashMap.set(
+          node.attrs['src'] || node.attrs['href'],
+          node.attrs['integrity']
+        );
+      }
+      return node;
+    });
+
+    for (let [file, hash] of hashMap) {
+      let content = await fs.readFile(
+        path.join(__dirname, 'dist', file),
+        'utf8'
+      );
+      assert.equal(
+        crypto
+          .createHash('sha384')
+          .update(content)
+          .digest('base64'),
+        hash.replace('sha384-', '')
+      );
+    }
   });
 });
