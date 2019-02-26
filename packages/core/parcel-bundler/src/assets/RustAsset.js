@@ -184,8 +184,11 @@ class RustAsset extends Asset {
   }
 
   async generate() {
+    const binaryBlob = await fs.readFile(this.wasmPath, {encoding: 'base64'});
+
     return {
       wasm: {
+        blob: binaryBlob, // content of WASM binary as base64
         path: this.wasmPath, // pass output path to RawPackager
         mtime: Date.now() // force re-bundling since otherwise the hash would never change
       }
