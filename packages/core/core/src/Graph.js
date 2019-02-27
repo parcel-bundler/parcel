@@ -1,5 +1,5 @@
 // @flow
-'use strict';
+
 import type {TraversalContext, Graph as IGraph} from '@parcel/types';
 
 export type NodeId = string;

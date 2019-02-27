@@ -8,7 +8,8 @@
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0",
-    "@parcel/core": "^2.0.0"
+    "@parcel/core": "^2.0.0",
+    "@parcel/config-default": "^2.0.0"
   },
   "browser": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",

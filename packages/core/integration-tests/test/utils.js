@@ -11,6 +11,7 @@ const {promisify} = require('@parcel/utils');
 const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
 const {sleep} = require('@parcel/test-utils');
+const defaultConfig = require('@parcel/config-default');
 
 const merge = require('deepmerge');
 const chalk = new (require('chalk')).constructor({enabled: true});
@@ -51,7 +52,8 @@ function bundler(entries, opts = {}) {
           cache: false,
           distDir: path.join(__dirname, 'dist')
         },
-        killWorkers: false
+        killWorkers: false,
+        defaultConfig
       },
       opts
     )

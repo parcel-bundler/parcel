@@ -7,6 +7,9 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "main": "src/DefaultBundler",
+  "engines": {
+    "parcel": "2.x"
+  },
   "dependencies": {
     "@parcel/plugin": "^2.0.0"
   },

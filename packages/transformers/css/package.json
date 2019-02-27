@@ -7,6 +7,9 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "main": "src/CSSTransformer.js",
+  "engines": {
+    "parcel": "2.x"
+  },
   "dependencies": {
     "@parcel/plugin": "2.0.0",
     "postcss": "^7.0.5",
