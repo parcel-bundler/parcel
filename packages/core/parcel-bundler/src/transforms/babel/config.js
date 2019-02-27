@@ -29,7 +29,11 @@ function normalizeBabelPlugin(value) {
   } else return [value, {}];
 }
 
-async function doPresetsSetJSXPragma(asset, presets) {
+async function doPresetsSetJSXPragma(
+  requireFrom,
+  presets,
+  tryToInstall = true
+) {
   let jsxPlugins = [];
   for (let plugin of [
     'transform-react-jsx',
@@ -38,7 +42,7 @@ async function doPresetsSetJSXPragma(asset, presets) {
   ]) {
     try {
       jsxPlugins.push(
-        interopDefault(await localRequire(plugin, asset.name, true))
+        interopDefault(await localRequire(plugin, requireFrom, true))
       );
     } catch (e) {}
   }
@@ -46,12 +50,15 @@ async function doPresetsSetJSXPragma(asset, presets) {
   if (!presets) return false;
   for (let presetName of presets) {
     let [preset, presetOpts] = normalizeBabelPlugin(presetName);
+    let presetFunc = preset;
 
     if (typeof preset !== 'function') {
-      preset = interopDefault(await localRequire(preset, asset.name));
+      presetFunc = interopDefault(
+        await localRequire(preset, requireFrom, !tryToInstall)
+      );
     }
 
-    const presetConfig = preset({assertVersion() {}}, presetOpts);
+    const presetConfig = presetFunc({assertVersion() {}}, presetOpts);
     for (let plugin of presetConfig.plugins) {
       let [realPlugin] = normalizeBabelPlugin(plugin);
       if (jsxPlugins.some(v => realPlugin == v)) return true;
@@ -59,7 +66,15 @@ async function doPresetsSetJSXPragma(asset, presets) {
 
     if (
       presetConfig.presets &&
-      (await doPresetsSetJSXPragma(asset, nextPresets))
+      (await doPresetsSetJSXPragma(
+        await localRequire.resolve(
+          typeof preset === 'function' ? requireFrom : preset,
+          requireFrom,
+          true
+        ),
+        nextPresets
+      ),
+      false)
     )
       return true;
   }
@@ -116,7 +131,7 @@ async function getBabelConfig(asset) {
         '@babel/transform-react-jsx',
         '@babel/plugin-transform-react-jsx'
       ]) ||
-      (await doPresetsSetJSXPragma(asset, babelrc.config.presets)));
+      (await doPresetsSetJSXPragma(asset.name, babelrc.config.presets)));
 
   if (!jsxPragmaAlreadySet) {
     mergeConfigs(result, jsxConfig);
