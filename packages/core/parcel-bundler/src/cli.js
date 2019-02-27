@@ -1,6 +1,7 @@
 require('v8-compile-cache');
 const chalk = require('chalk');
 const program = require('commander');
+const os = require('os');
 const version = require('../package.json').version;
 
 program.version(version);
@@ -228,6 +229,14 @@ async function bundle(main, command) {
         command.open
       );
     }
+
+    process.stdin.on('data', data => {
+      const inputString = data.toString();
+
+      if (inputString === 'rs' + os.EOL) {
+        bundler.bundle();
+      }
+    });
   } else {
     bundler.bundle();
   }
