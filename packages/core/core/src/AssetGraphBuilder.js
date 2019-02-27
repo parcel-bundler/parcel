@@ -1,4 +1,5 @@
 // @flow
+
 import type {
   CLIOptions,
   Dependency,
@@ -18,15 +19,10 @@ import WorkerFarm from '@parcel/workers';
 
 const abortError = new Error('Build aborted');
 
-type Signal = {
-  aborted: boolean,
-  addEventListener?: Function
-};
-
-type BuildOpts = {
-  signal: Signal,
+type BuildOpts = {|
+  signal: AbortSignal,
   shallow?: boolean
-};
+|};
 
 type Opts = {|
   cliOpts: CLIOptions,
@@ -48,16 +44,17 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   constructor(opts: Opts) {
     super();
+    let {config, cliOpts, rootDir, entries, targets, transformerRequest} = opts;
 
     this.queue = new PromiseQueue();
     this.resolverRunner = new ResolverRunner({
-      config: opts.config,
-      cliOpts: opts.cliOpts,
-      rootDir: opts.rootDir
+      config,
+      cliOpts,
+      rootDir
     });
 
     this.graph = new AssetGraph();
-    this.graph.initializeGraph(opts);
+    this.graph.initializeGraph({entries, targets, transformerRequest, rootDir});
 
     this.controller = new AbortController();
     if (opts.cliOpts.watch) {

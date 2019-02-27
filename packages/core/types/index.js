@@ -32,7 +32,7 @@ type SemverRange = string;
 export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T};
-export type ParcelConfig = {
+export type ParcelConfig = {|
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: Array<PackageName>,
   transforms?: {
@@ -50,7 +50,7 @@ export type ParcelConfig = {
     [Glob]: Array<PackageName>
   },
   reporters?: Array<PackageName>
-};
+|};
 
 export type Engines = {
   node?: SemverRange,
@@ -58,11 +58,11 @@ export type Engines = {
   browsers?: Array<string>
 };
 
-export type Target = {
+export type Target = {|
   name: string,
   distPath?: FilePath,
   env: Environment
-};
+|};
 
 export type EnvironmentContext =
   | 'browser'
@@ -89,9 +89,9 @@ export interface Environment {
   isIsolated(): boolean;
 }
 
-type PackageDependencies = {
+type PackageDependencies = {|
   [PackageName]: Semver
-};
+|};
 
 export type PackageJSON = {
   name: PackageName,
@@ -113,7 +113,7 @@ export type PackageJSON = {
   peerDependencies?: PackageDependencies
 };
 
-export type ParcelOptions = {
+export type ParcelOptions = {|
   entries?: Array<FilePath>,
   rootDir?: FilePath,
   config?: ParcelConfig,
@@ -139,18 +139,18 @@ export type ParcelOptions = {
   // throwErrors
   // global?
   // detailedReport
-};
+|};
 
-export type ServerOptions = {
+export type ServerOptions = {|
   host?: string,
   port?: number,
   https?: HTTPSOptions | boolean
-};
+|};
 
-export type HTTPSOptions = {
+export type HTTPSOptions = {|
   cert?: FilePath,
   key?: FilePath
-};
+|};
 
 export type CLIOptions = {
   cacheDir?: FilePath,
@@ -160,11 +160,11 @@ export type CLIOptions = {
   cache?: boolean
 };
 
-export type SourceLocation = {
+export type SourceLocation = {|
   filePath: string,
   start: {line: number, column: number},
   end: {line: number, column: number}
-};
+|};
 
 export type Meta = {[string]: JSONValue};
 export type DependencyOptions = {|
@@ -231,11 +231,11 @@ export interface Asset {
   getOutput(): Promise<AssetOutput>;
 }
 
-export type AssetOutput = {
+export type AssetOutput = {|
   code: string,
   map?: SourceMap,
   [string]: Blob | JSONValue
-};
+|};
 
 export type SourceMap = JSONObject;
 export type Blob = string | Buffer;
@@ -314,7 +314,7 @@ export type BundleGroup = {
   entryAssetId: string
 };
 
-export type Bundle = {
+export type Bundle = {|
   id: string,
   type: string,
   assetGraph: AssetGraph,
@@ -322,7 +322,7 @@ export type Bundle = {
   isEntry?: boolean,
   target?: Target,
   filePath?: FilePath
-};
+|};
 
 export interface BundleGraph {
   addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
@@ -334,38 +334,38 @@ export interface BundleGraph {
   traverseBundles(visit: GraphTraversalCallback<Bundle>): ?Node;
 }
 
-export type Bundler = {
+export type Bundler = {|
   bundle(
     graph: AssetGraph,
     bundleGraph: BundleGraph,
     opts: CLIOptions
   ): Async<void>
-};
+|};
 
-export type Namer = {
+export type Namer = {|
   name(bundle: Bundle, opts: CLIOptions): Async<?FilePath>
-};
+|};
 
-export type Runtime = {
+export type Runtime = {|
   apply(bundle: Bundle, opts: CLIOptions): Async<void>
-};
+|};
 
-export type Packager = {
+export type Packager = {|
   package(bundle: Bundle, opts: CLIOptions): Async<Blob>
-};
+|};
 
-export type Optimizer = {
+export type Optimizer = {|
   optimize(bundle: Bundle, contents: Blob, opts: CLIOptions): Async<Blob>
-};
+|};
 
-export type Resolver = {
+export type Resolver = {|
   resolve(
     dependency: Dependency,
     opts: CLIOptions,
     rootDir: string
   ): Async<FilePath | null>
-};
+|};
 
-export type Reporter = {
+export type Reporter = {|
   report(bundles: Array<Bundle>, opts: CLIOptions): void
-};
+|};

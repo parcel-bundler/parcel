@@ -16,10 +16,10 @@ import Cache from '@parcel/cache';
 import fs from '@parcel/fs';
 import Config from './Config';
 
-type Opts = {
+type Opts = {|
   config: Config,
   cliOpts: CLIOptions
-};
+|};
 
 type GenerateFunc = ?(input: Asset) => Promise<AssetOutput>;
 

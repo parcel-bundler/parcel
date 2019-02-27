@@ -27,11 +27,11 @@ type InternalPackageJSON = PackageJSON & {
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
-type Options = {
+type Options = {|
   cli: CLIOptions,
   rootDir: string,
   extensions: Array<string>
-};
+|};
 
 /**
  * This resolver implements a modified version of the node_modules resolution algorithm:

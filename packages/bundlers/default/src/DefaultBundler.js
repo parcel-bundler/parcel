@@ -8,10 +8,10 @@ const OPTIONS = {
   maxParallelRequests: 5
 };
 
-type Context = {
+type Context = {|
   bundleGroup: BundleGroup,
   bundle: Bundle
-};
+|};
 
 export default new Bundler({
   bundle(assetGraph, bundleGraph) {

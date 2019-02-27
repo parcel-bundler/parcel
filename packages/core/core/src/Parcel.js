@@ -19,7 +19,7 @@ import ConfigResolver from './ConfigResolver';
 
 const abortError = new Error('Build aborted');
 
-type ParcelOpts = {
+type ParcelOpts = {|
   entries: string | Array<string>,
   cwd?: string,
   cliOpts: CLIOptions,
@@ -27,7 +27,7 @@ type ParcelOpts = {
   env?: {[string]: ?string},
   config?: ParcelConfig,
   defaultConfig?: ParcelConfig
-};
+|};
 
 export default class Parcel {
   options: ParcelOpts;

@@ -11,13 +11,13 @@ import type {
 } from '@parcel/types';
 import md5 from '@parcel/utils/lib/md5';
 
-type DependencyOpts = {
+type DependencyOpts = {|
   ...DependencyOptions,
   moduleSpecifier: ModuleSpecifier,
   env: IEnvironment,
   id?: string,
   sourcePath?: FilePath
-};
+|};
 
 export default class Dependency implements IDependency {
   id: string;

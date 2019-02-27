@@ -63,23 +63,23 @@ const getDepNodesFromGraph = (graph: Graph): Array<Node> => {
   );
 };
 
-type DepUpdates = {
+type DepUpdates = {|
   newRequest?: TransformerRequest,
   prunedFiles: Array<File>
-};
+|};
 
-type FileUpdates = {
+type FileUpdates = {|
   newDeps: Array<Dependency>,
   addedFiles: Array<File>,
   removedFiles: Array<File>
-};
+|};
 
-type AssetGraphOpts = {
+type AssetGraphOpts = {|
   entries?: Array<string>,
   targets?: Array<Target>,
   transformerRequest?: TransformerRequest,
   rootDir: string
-};
+|};
 
 /**
  * AssetGraph is a Graph with some extra rules.

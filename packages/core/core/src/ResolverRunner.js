@@ -4,11 +4,11 @@ import type {CLIOptions, Dependency, FilePath} from '@parcel/types';
 import path from 'path';
 import Config from './Config';
 
-type Opts = {
+type Opts = {|
   config: Config,
   cliOpts: CLIOptions,
   rootDir: string
-};
+|};
 
 const getCacheKey = (filename, parent) =>
   (parent ? path.dirname(parent) : '') + ':' + filename;

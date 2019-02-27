@@ -4,14 +4,14 @@ import fs from '@parcel/fs';
 import path from 'path';
 import clone from 'clone';
 
-type ConfigOutput = {
+type ConfigOutput = {|
   config: Config,
   files: Array<File>
-};
+|};
 
-type ConfigOptions = {
+type ConfigOptions = {|
   parse?: boolean
-};
+|};
 
 const PARSERS = {
   json: require('json5').parse,
