@@ -1,19 +1,19 @@
 // @flow
 
-import type {TraversalContext, Graph as IGraph} from '@parcel/types';
+import type {
+  Node as _Node,
+  TraversalActions,
+  TraversalContext,
+  Graph as IGraph
+} from '@parcel/types';
 
+export type Node = _Node;
 export type NodeId = string;
 
 export type Edge = {
   from: NodeId,
   to: NodeId
 };
-
-export interface Node {
-  id: string;
-  type?: string;
-  value: any;
-}
 
 type GraphUpdates = {
   added: Graph,
@@ -25,6 +25,12 @@ type GraphOpts = {
   edges?: Array<Edge>,
   rootNodeId?: ?NodeId
 };
+
+type VisitCallback = (
+  node: Node,
+  context?: TraversalContext,
+  actions: TraversalActions
+) => ?Node;
 
 export default class Graph implements IGraph {
   nodes: Map<NodeId, Node>;
@@ -213,10 +219,7 @@ export default class Graph implements IGraph {
     return {removed, added};
   }
 
-  traverse(
-    visit: (node: Node, context?: any, traversal: TraversalContext) => any,
-    startNode: ?Node
-  ) {
+  traverse(visit: VisitCallback, startNode: ?Node): ?Node {
     return this.dfs({
       visit,
       startNode,
@@ -224,10 +227,7 @@ export default class Graph implements IGraph {
     });
   }
 
-  traverseAncestors(
-    startNode: Node,
-    visit: (node: Node, context?: any, traversal: TraversalContext) => any
-  ) {
+  traverseAncestors(startNode: Node, visit: VisitCallback) {
     return this.dfs({
       visit,
       startNode,
@@ -240,7 +240,7 @@ export default class Graph implements IGraph {
     startNode,
     getChildren
   }: {
-    visit(node: Node, context?: any, traversal: TraversalContext): any,
+    visit: VisitCallback,
     getChildren(node: Node): Array<Node>,
     startNode?: ?Node
   }): ?Node {
@@ -252,7 +252,7 @@ export default class Graph implements IGraph {
     let visited = new Set<Node>();
     let stopped = false;
     let skipped = false;
-    let ctx: TraversalContext = {
+    let actions: TraversalActions = {
       skipChildren() {
         skipped = true;
       },
@@ -265,7 +265,7 @@ export default class Graph implements IGraph {
       visited.add(node);
 
       skipped = false;
-      let newContext = visit(node, context, ctx);
+      let newContext = visit(node, context, actions);
       if (typeof newContext !== 'undefined') {
         context = newContext;
       }

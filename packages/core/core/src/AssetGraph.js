@@ -1,6 +1,6 @@
 // @flow
 
-import Graph, {Node, type NodeId} from './Graph';
+import Graph, {type Node, type NodeId} from './Graph';
 import type {
   CacheEntry,
   Dependency as IDependency,
@@ -262,7 +262,10 @@ export default class AssetGraph extends Graph {
     return res;
   }
 
-  traverseAssets(visit: GraphTraversalCallback<Asset>, startNode: ?Node) {
+  traverseAssets(
+    visit: GraphTraversalCallback<Asset>,
+    startNode: ?Node
+  ): ?Node {
     return this.traverse((node, ...args) => {
       if (node.type === 'asset') {
         return visit(node.value, ...args);

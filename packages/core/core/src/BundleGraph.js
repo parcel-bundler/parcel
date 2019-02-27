@@ -3,7 +3,8 @@ import type {
   Asset,
   Bundle,
   BundleGroup,
-  GraphTraversalCallback
+  GraphTraversalCallback,
+  Node
 } from '@parcel/types';
 import AssetGraph from './AssetGraph';
 
@@ -150,7 +151,7 @@ export default class BundleGraph extends AssetGraph {
       .map(node => node.value);
   }
 
-  traverseBundles(visit: GraphTraversalCallback<Bundle>): any {
+  traverseBundles(visit: GraphTraversalCallback<Bundle>): ?Node {
     return this.traverse((node, ...args) => {
       if (node.type === 'bundle') {
         return visit(node.value, ...args);
