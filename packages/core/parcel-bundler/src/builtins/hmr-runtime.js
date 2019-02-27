@@ -20,6 +20,7 @@ function Module(moduleName) {
 }
 
 module.bundle.Module = Module;
+var updatedAssets;
 
 var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
@@ -27,6 +28,8 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
   var ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
   ws.onmessage = function(event) {
+    updatedAssets = {};
+    
     var data = JSON.parse(event.data);
 
     if (data.type === 'update') {
@@ -146,6 +149,11 @@ function hmrAccept(bundle, id) {
   if (!modules[id] && bundle.parent) {
     return hmrAccept(bundle.parent, id);
   }
+
+  if (updatedAssets[id]) {
+    return;
+  }
+  updatedAssets[id] = true;
 
   var cached = bundle.cache[id];
   bundle.hotData = {};
