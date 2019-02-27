@@ -80,13 +80,7 @@ describe('plugins', function() {
     sinon.assert.calledWith(
       logger.warn,
       sinon.match(
-        'Parser "test/integration/plugins/throwing-plugin-parser/node_modules/' +
-          'parcel-plugin-test/TextAsset.js" failed to initialize when processing ' +
-          'asset "test/integration/plugins/throwing-plugin-parser/test.txt". ' +
-          'Threw the following error:\nError: Parser error'.replace(
-            /\//g,
-            path.sep
-          )
+        /Parser "test.integration.plugins.throwing-plugin-parser.node_modules.parcel-plugin-test.TextAsset\.js" failed to initialize when processing asset "test.integration.plugins.throwing-plugin-parser.test\.txt"\. Threw the following error:\nError: Parser error/
       )
     );
 
