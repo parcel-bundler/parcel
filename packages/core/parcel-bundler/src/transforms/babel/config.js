@@ -4,6 +4,7 @@ const getJSXConfig = require('./jsx');
 const getFlowConfig = require('./flow');
 const path = require('path');
 const fs = require('@parcel/fs');
+const localRequire = require('../../utils/localRequire');
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 const ENV_PLUGINS = require('@babel/preset-env/data/plugins');
@@ -16,6 +17,54 @@ const ENV_PRESETS = {
   '@babel/preset-env': true,
   '@babel/env': true
 };
+
+function interopDefault(mod) {
+  if (mod.__esModule) return mod.default;
+  else return mod;
+}
+
+function normalizeBabelPlugin(value) {
+  if (Array.isArray(value)) {
+    return value;
+  } else return [value, {}];
+}
+
+async function doPresetsSetJSXPragma(asset, presets) {
+  let jsxPlugins = [];
+  for (let plugin of [
+    'transform-react-jsx',
+    '@babel/transform-react-jsx',
+    '@babel/plugin-transform-react-jsx'
+  ]) {
+    try {
+      jsxPlugins.push(
+        interopDefault(await localRequire(plugin, asset.name, true))
+      );
+    } catch (e) {}
+  }
+
+  if (!presets) return false;
+  for (let presetName of presets) {
+    let [preset, presetOpts] = normalizeBabelPlugin(presetName);
+
+    if (typeof preset !== 'function') {
+      preset = interopDefault(await localRequire(preset, asset.name));
+    }
+
+    const presetConfig = preset({assertVersion() {}}, presetOpts);
+    for (let plugin of presetConfig.plugins) {
+      let [realPlugin] = normalizeBabelPlugin(plugin);
+      if (jsxPlugins.some(v => realPlugin == v)) return true;
+    }
+
+    if (
+      presetConfig.presets &&
+      (await doPresetsSetJSXPragma(asset, nextPresets))
+    )
+      return true;
+  }
+  return false;
+}
 
 async function getBabelConfig(asset) {
   // Consider the module source code rather than precompiled if the resolver
@@ -54,9 +103,10 @@ async function getBabelConfig(asset) {
   mergeConfigs(result, envConfig);
 
   // Add JSX config if it isn't already specified in the babelrc
-  let hasReact =
+  let jsxPragmaAlreadySet =
     babelrc &&
     (hasPlugin(babelrc.config.presets, [
+      // technically covered by doPresetsSetJSXPragma, but keeping because of popularity
       'react',
       '@babel/react',
       '@babel/preset-react'
@@ -65,9 +115,10 @@ async function getBabelConfig(asset) {
         'transform-react-jsx',
         '@babel/transform-react-jsx',
         '@babel/plugin-transform-react-jsx'
-      ]));
+      ]) ||
+      (await doPresetsSetJSXPragma(asset, babelrc.config.presets)));
 
-  if (!hasReact) {
+  if (!jsxPragmaAlreadySet) {
     mergeConfigs(result, jsxConfig);
   }
 
