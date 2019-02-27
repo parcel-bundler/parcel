@@ -354,7 +354,11 @@ describe('css', function() {
         {
           name: 'index.css',
           assets: ['composes-1.css', 'composes-2.css', 'mixins.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -412,7 +416,11 @@ describe('css', function() {
         {
           name: 'index2.css',
           assets: ['composes-3.css', 'mixins.scss'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -447,7 +455,11 @@ describe('css', function() {
         {
           name: 'index3.css',
           assets: ['composes-4.css', 'mixins.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -487,7 +499,11 @@ describe('css', function() {
         {
           name: 'index4.css',
           assets: ['composes-5.css', 'mixins-intermediate.css', 'mixins.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -525,7 +541,11 @@ describe('css', function() {
         {
           name: 'index5.css',
           assets: ['composes-6.css', 'mixins.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
