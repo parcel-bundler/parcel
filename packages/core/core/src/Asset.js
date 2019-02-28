@@ -14,7 +14,7 @@ import type {
   Config,
   PackageJSON
 } from '@parcel/types';
-import md5 from '@parcel/utils/lib/md5';
+import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
 import {loadConfig} from '@parcel/utils/lib/config';
 import Cache from '@parcel/cache';
 import Dependency from './Dependency';
@@ -53,7 +53,9 @@ export default class Asset implements IAsset {
   constructor(options: AssetOptions) {
     this.id =
       options.id ||
-      md5(options.filePath + options.type + JSON.stringify(options.env));
+      md5FromString(
+        options.filePath + options.type + JSON.stringify(options.env)
+      );
     this.hash = options.hash || '';
     this.filePath = options.filePath;
     this.type = options.type;
@@ -102,7 +104,7 @@ export default class Asset implements IAsset {
 
   async addConnectedFile(file: File) {
     if (!file.hash) {
-      file.hash = await md5.file(file.filePath);
+      file.hash = await md5FromFilePath(file.filePath);
     }
 
     this.connectedFiles.push(file);
@@ -111,7 +113,7 @@ export default class Asset implements IAsset {
   createChildAsset(result: TransformerResult) {
     let code = (result.output && result.output.code) || result.code || '';
     let opts: AssetOptions = {
-      hash: this.hash || md5(code),
+      hash: this.hash || md5FromString(code),
       filePath: this.filePath,
       type: result.type,
       code,

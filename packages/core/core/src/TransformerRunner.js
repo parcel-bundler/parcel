@@ -11,7 +11,7 @@ import type {
 import Asset from './Asset';
 import path from 'path';
 import clone from 'clone';
-import md5 from '@parcel/utils/lib/md5';
+import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
 import Cache from '@parcel/cache';
 import * as fs from '@parcel/fs';
 import Config from './Config';
@@ -34,7 +34,7 @@ class TransformerRunner {
 
   async transform(req: TransformerRequest): Promise<CacheEntry> {
     let code = req.code || (await fs.readFile(req.filePath, 'utf8'));
-    let hash = md5(code);
+    let hash = md5FromString(code);
 
     // If a cache entry matches, no need to transform.
     let cacheEntry;
@@ -235,7 +235,7 @@ async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
 
   asset.ast = null;
   asset.code = '';
-  asset.outputHash = md5(asset.output.code);
+  asset.outputHash = md5FromString(asset.output.code);
 
   return asset;
 }
@@ -249,7 +249,9 @@ async function checkCachedAssets(assets: Array<IAsset>): Promise<boolean> {
 }
 
 async function checkConnectedFiles(files: Array<File>): Promise<boolean> {
-  let hashes = await Promise.all(files.map(file => md5.file(file.filePath)));
+  let hashes = await Promise.all(
+    files.map(file => md5FromFilePath(file.filePath))
+  );
 
   return files.every((file, index) => file.hash === hashes[index]);
 }

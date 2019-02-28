@@ -9,7 +9,7 @@ import type {
   ModuleSpecifier,
   FilePath
 } from '@parcel/types';
-import md5 from '@parcel/utils/lib/md5';
+import {md5FromString} from '@parcel/utils/src/md5';
 
 type DependencyOpts = {|
   ...DependencyOptions,
@@ -45,7 +45,7 @@ export default class Dependency implements IDependency {
     this.sourcePath = opts.sourcePath || ''; // TODO: get from graph?
     this.id =
       opts.id ||
-      md5(
+      md5FromString(
         `${this.sourcePath}:${this.moduleSpecifier}:${JSON.stringify(this.env)}`
       );
   }
