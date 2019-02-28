@@ -1,0 +1,6 @@
+{
+  "alias": {
+    "@emotion/core": "./stub",
+    "react": "./stub"
+  }
+}

@@ -1380,6 +1380,26 @@ describe('javascript', function() {
     assert(file.includes('React.createElement("div"'));
   });
 
+  it('should not overwrite JSX pragma from presets', async function() {
+    let originalPkg = await fs.readFile(
+      __dirname + '/integration/jsx-dont-overwrite-preset/package.json'
+    );
+    await bundle(
+      path.join(__dirname, '/integration/jsx-dont-overwrite-preset/index.jsx')
+    );
+
+    let file = await fs.readFile(
+      path.join(__dirname, '/dist/index.js'),
+      'utf8'
+    );
+
+    assert(file.includes('(0, _core.jsx)("div"'));
+    await fs.writeFile(
+      __dirname + '/integration/jsx-dont-overwrite-preset/package.json',
+      originalPkg
+    );
+  });
+
   it('should support compiling JSX in JS files with React dependency', async function() {
     await bundle(path.join(__dirname, '/integration/jsx-react/index.js'));
 

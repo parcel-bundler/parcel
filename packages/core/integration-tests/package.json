@@ -13,6 +13,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.2.0",
+    "@emotion/babel-preset-css-prop": "^10.0.7",
     "@jetbrains/kotlinc-js-api": "^1.2.12",
     "@parcel/fs": "^1.11.0",
     "@parcel/test-utils": "^1.11.0",
