@@ -60,7 +60,9 @@ async function doPresetsSetJSXPragma(
             )
           )
         );
-      } catch (e) {}
+      } catch (e) {
+        // do nothing
+      }
     }
 
     const presetConfig = presetFunc({assertVersion() {}}, presetOpts);
