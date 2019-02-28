@@ -2,7 +2,7 @@
 import type {FilePath, ParcelConfig, PackageName} from '@parcel/types';
 import {resolveConfig} from '@parcel/utils/src/config';
 import Config from './Config';
-import fs from '@parcel/fs';
+import * as fs from '@parcel/fs';
 import {parse} from 'json5';
 import path from 'path';
 import localRequire from '@parcel/utils/src/localRequire';

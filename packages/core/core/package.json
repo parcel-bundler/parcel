@@ -23,6 +23,7 @@
     "commander": "^2.11.0",
     "graphviz": "^0.0.8",
     "minimatch": "^3.0.4",
+    "nullthrows": "^1.1.1",
     "p-queue": "^2.4.2",
     "pretty-format": "^23.5.0",
     "resolve-from": "^4.0.0",

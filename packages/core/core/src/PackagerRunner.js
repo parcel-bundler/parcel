@@ -1,8 +1,10 @@
 // @flow
-import type Config from './Config';
-import {mkdirp, writeFile} from '@parcel/fs';
-import path from 'path';
 import type {Bundle, CLIOptions, Blob, FilePath} from '@parcel/types';
+import type Config from './Config';
+
+import {mkdirp, writeFile} from '@parcel/fs';
+import nullthrows from 'nullthrows';
+import path from 'path';
 
 type Opts = {
   config: Config,
@@ -25,14 +27,14 @@ export default class PackagerRunner {
     let contents = await this.package(bundle);
     contents = await this.optimize(bundle, contents);
 
-    // $FlowFixMe - filePath should already be filled in at this point
-    let dir = path.dirname(bundle.filePath);
+    let filePath = nullthrows(bundle.filePath);
+    let dir = path.dirname(filePath);
     if (!this.distExists.has(dir)) {
       await mkdirp(dir);
       this.distExists.add(dir);
     }
 
-    await writeFile(bundle.filePath, contents);
+    await writeFile(filePath, contents);
   }
 
   async package(bundle: Bundle): Promise<Blob> {
