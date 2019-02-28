@@ -1,5 +1,5 @@
 // @flow
-import fs from '@parcel/fs';
+import * as fs from '@parcel/fs';
 import pkg from '../package.json';
 import Path from 'path';
 import md5 from '@parcel/utils/lib/md5';
@@ -126,7 +126,7 @@ export class Cache {
   async readBlob(blobKey: FilePath) {
     let extension = Path.extname(blobKey);
     let data = await fs.readFile(Path.resolve(this.dir, blobKey), {
-      encoding: extension === '.bin' ? null : 'utf8'
+      encoding: extension === '.bin' ? undefined : 'utf8'
     });
 
     if (extension === '.json') {

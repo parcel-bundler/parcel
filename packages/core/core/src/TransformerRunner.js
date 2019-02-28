@@ -13,7 +13,7 @@ import path from 'path';
 import clone from 'clone';
 import md5 from '@parcel/utils/lib/md5';
 import Cache from '@parcel/cache';
-import fs from '@parcel/fs';
+import * as fs from '@parcel/fs';
 import Config from './Config';
 
 type Opts = {|

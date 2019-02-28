@@ -1,27 +1,49 @@
-const {promisify} = require('util');
-const fs = require('fs');
-const mkdirp = require('mkdirp');
+// @flow strict-local
 
-exports.readFile = promisify(fs.readFile);
-exports.writeFile = promisify(fs.writeFile);
-exports.stat = promisify(fs.stat);
-exports.readdir = promisify(fs.readdir);
-exports.unlink = promisify(fs.unlink);
-exports.realpath = async function(path) {
-  const realpath = promisify(fs.realpath);
+import type {FSPromise, Stats} from 'fs';
+
+import {promisify} from 'util';
+import fs from 'fs';
+import _mkdirp from 'mkdirp';
+
+// Most of this can go away once we only support Node 10+, which includes
+// require('fs').promises
+
+export const readFile: $PropertyType<FSPromise, 'readFile'> = promisify(
+  fs.readFile
+);
+
+export const writeFile: $PropertyType<FSPromise, 'writeFile'> = promisify(
+  fs.writeFile
+);
+
+export const stat: $PropertyType<FSPromise, 'stat'> = promisify(fs.stat);
+
+export const readdir: $PropertyType<FSPromise, 'readdir'> = promisify(
+  fs.readdir
+);
+
+export const unlink: $PropertyType<FSPromise, 'unlink'> = promisify(fs.unlink);
+
+const _realpath = promisify(fs.realpath);
+export const realpath: $PropertyType<FSPromise, 'realpath'> = function(
+  originalPath
+) {
   try {
-    path = await realpath(path);
+    return _realpath(originalPath);
   } catch (e) {
     // do nothing
   }
-  return path;
-};
-exports.lstat = promisify(fs.lstat);
 
-exports.exists = function(filename) {
+  return originalPath;
+};
+
+export const lstat: (path: string) => Promise<Stats> = promisify(fs.lstat);
+
+export const exists = function(filename: string): Promise<boolean> {
   return new Promise(resolve => {
     fs.exists(filename, resolve);
   });
 };
 
-exports.mkdirp = promisify(mkdirp);
+export const mkdirp: (path: string) => Promise<void> = promisify(_mkdirp);

@@ -3,7 +3,7 @@
 import {Resolver} from '@parcel/plugin';
 import type {CLIOptions, Dependency, PackageJSON} from '@parcel/types';
 import path from 'path';
-import fs from '@parcel/fs';
+import * as fs from '@parcel/fs';
 import {glob} from '@parcel/utils';
 import micromatch from 'micromatch';
 import builtins from './builtins';

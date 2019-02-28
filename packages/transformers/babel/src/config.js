@@ -5,7 +5,7 @@ import getEnvConfig from './env';
 import getJSXConfig from './jsx';
 import getFlowConfig from './flow';
 import path from 'path';
-import fs from '@parcel/fs';
+import * as fs from '@parcel/fs';
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
