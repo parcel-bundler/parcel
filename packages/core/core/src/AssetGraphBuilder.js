@@ -18,13 +18,8 @@ import WorkerFarm from '@parcel/workers';
 
 const abortError = new Error('Build aborted');
 
-type Signal = {
-  aborted: boolean,
-  addEventListener?: Function
-};
-
 type BuildOpts = {
-  signal: Signal,
+  signal: AbortSignal,
   shallow?: boolean
 };
 

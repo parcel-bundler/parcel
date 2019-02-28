@@ -1,0 +1,6 @@
+declare module 'abortcontroller-polyfill/dist/cjs-ponyfill' {
+  declare export class AbortController {
+    +signal: AbortSignal;
+    abort(): void;
+  }
+}
