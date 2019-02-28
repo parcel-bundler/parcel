@@ -52,18 +52,22 @@ class NodeResolver {
   rootPackage: InternalPackageJSON | null;
 
   constructor(options: Options) {
-    this.options = options;
+    // $FlowFixMe
+    this.options = Object.assign({}, options, {
+      // normalize extensions that don't lead with '.'
+      extensions: options.extensions.map(
+        ext => (ext.startsWith('.') ? ext : '.' + ext)
+      )
+    });
     this.packageCache = new Map();
     this.rootPackage = null;
   }
 
   async resolve({
-    moduleSpecifier: input,
+    moduleSpecifier: filename,
     sourcePath: parent,
     isURL
   }: Dependency) {
-    let filename = input;
-
     // Check if this is a glob
     if (glob.isGlob(filename)) {
       return {path: path.resolve(path.dirname(parent), filename)};
