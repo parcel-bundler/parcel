@@ -1,4 +1,5 @@
 // @flow
+
 import type {
   Asset as IAsset,
   TransformerResult,
