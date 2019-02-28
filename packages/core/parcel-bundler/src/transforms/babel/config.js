@@ -34,49 +34,60 @@ async function doPresetsSetJSXPragma(
   presets,
   tryToInstall = true
 ) {
-  let jsxPlugins = [];
-  for (let plugin of [
-    'transform-react-jsx',
-    '@babel/transform-react-jsx',
-    '@babel/plugin-transform-react-jsx'
-  ]) {
-    try {
-      jsxPlugins.push(
-        interopDefault(await localRequire(plugin, requireFrom, true))
-      );
-    } catch (e) {}
-  }
-
   if (!presets) return false;
+
   for (let presetName of presets) {
     let [preset, presetOpts] = normalizeBabelPlugin(presetName);
     let presetFunc = preset;
-
-    if (typeof preset !== 'function') {
+    if (typeof presetFunc !== 'function') {
       presetFunc = interopDefault(
         await localRequire(preset, requireFrom, !tryToInstall)
       );
     }
 
+    let jsxPlugins = [];
+    for (let plugin of [
+      'babel-plugin-transform-react-jsx',
+      '@babel/plugin-transform-react-jsx'
+    ]) {
+      try {
+        jsxPlugins.push(
+          interopDefault(
+            await localRequire(
+              plugin,
+              typeof preset === 'string'
+                ? (await localRequire.resolve(preset, requireFrom, true))[0]
+                : requireFrom,
+              true
+            )
+          )
+        );
+      } catch (e) {}
+    }
+
     const presetConfig = presetFunc({assertVersion() {}}, presetOpts);
     for (let plugin of presetConfig.plugins) {
-      let [realPlugin] = normalizeBabelPlugin(plugin);
+      let realPlugin = interopDefault(normalizeBabelPlugin(plugin)[0]);
       if (jsxPlugins.some(v => realPlugin == v)) return true;
     }
 
-    if (
-      presetConfig.presets &&
-      (await doPresetsSetJSXPragma(
-        await localRequire.resolve(
-          typeof preset === 'function' ? requireFrom : preset,
-          requireFrom,
-          true
-        ),
-        nextPresets
-      ),
-      false)
-    )
-      return true;
+    // Running recursively won't work reliably because presets always
+    // declare plugins/presets as functions and localRequire can't be run
+    // from the perspective of the preset if it's package name is unknown
+    //
+    // if (
+    //   presetConfig.presets &&
+    //   (await doPresetsSetJSXPragma(
+    //     await localRequire.resolve(
+    //       typeof preset === 'function' ? requireFrom : preset,
+    //       requireFrom,
+    //       true
+    //     ),
+    //     nextPresets
+    //   ),
+    //   false)
+    // )
+    //   return true;
   }
   return false;
 }
