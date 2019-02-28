@@ -1,0 +1,13 @@
+declare module 'abortcontroller-polyfill/dist/cjs-ponyfill' {
+  // Identical to https://github.com/facebook/flow/blob/v0.92.1/lib/bom.js#L1048
+  declare export class AbortController {
+    constructor(): void;
+    +signal: AbortSignal;
+    abort(): void;
+  }
+
+  declare export class AbortSignal extends EventTarget {
+    +aborted: boolean;
+    onabort: (event: 'abort') => mixed;
+  }
+}
