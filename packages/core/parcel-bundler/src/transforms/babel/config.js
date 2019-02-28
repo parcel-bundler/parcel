@@ -55,9 +55,7 @@ async function doPresetsSetJSXPragma(
           interopDefault(
             await localRequire(
               plugin,
-              typeof preset === 'string'
-                ? (await localRequire.resolve(preset, requireFrom, true))[0]
-                : requireFrom,
+              (await localRequire.resolve(preset, requireFrom, true))[0],
               true
             )
           )
