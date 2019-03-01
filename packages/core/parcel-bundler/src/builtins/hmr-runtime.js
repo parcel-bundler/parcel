@@ -22,6 +22,7 @@ function Module(moduleName) {
 }
 
 module.bundle.Module = Module;
+var updatedAssets;
 
 var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
@@ -29,20 +30,59 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
   var ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
   ws.onmessage = function(event) {
+    updatedAssets = {};
+    
     var data = JSON.parse(event.data);
 
     if (data.type === 'update') {
       console.clear();
       
-      data.assets.forEach(function (asset) {
-        hmrApply(global.parcelRequire, asset);
-      })
-      
-      data.assets.forEach(function (asset) {
-        if (!asset.isNew) {
-          hmrAccept(global.parcelRequire, asset.id);
-        }
-      })
+      // Handle WebAssembly
+      if (data.assets.some(function(asset) {
+        return ('wasm' in (asset.generated || {}))
+      }) && window.Promise) {
+        Promise.all(data.assets.map(function(asset) {
+          if ('wasm' in (asset.generated || {})) { // Inject wasm into runtime
+            var binStr = window.atob(asset.generated.wasm.blob);
+            var len = binStr.length;
+            var bytes = new Uint8Array(len);
+            for (var i = 0; i < len; ++i)
+              bytes[i] = binStr.charCodeAt(i);
+
+            return WebAssembly.instantiate(bytes).then(function(wasmModule) {
+              var newAsset = Object.assign({generated: {wasm: {wasmModule: wasmModule}}}, asset);
+              newAsset.generated.wasm.wasmModule = wasmModule;
+
+              return newAsset;
+            });
+          } 
+
+          // else return the asset unchanged
+          return new Promise(function(resolve) {resolve(asset)});
+
+        })).then(function(assets) {
+          assets.forEach(function(asset) {
+            hmrApply(global.parcelRequire, asset);
+          });
+    
+          assets.forEach(function (asset) {
+            if (!asset.isNew) {
+              hmrAccept(global.parcelRequire, asset.id);
+            }
+          });
+        });
+      } else {
+        // Run synchronously to support Internet Explorer. WASM isn't supported anyway.
+        data.assets.forEach(function(asset) {
+          hmrApply(global.parcelRequire, asset);
+        });
+  
+        data.assets.forEach(function (asset) {
+          if (!asset.isNew) {
+            hmrAccept(global.parcelRequire, asset.id);
+          }
+        });
+      }
     }
 
     if (data.type === 'reload') {
@@ -125,31 +165,25 @@ function getParents(bundle, id) {
 }
 
 function hmrApply(bundle, asset) {
-    var modules = bundle.modules;
-    console.log(modules);
-    if (!modules) {
-      return;
-    }
-    
-    if (modules[asset.id] || !bundle.parent) {
-      if ('wasm' in (asset.generated || {})) {
+  var modules = bundle.modules;
+  if (!modules) {
+    return;
+  }
 
-        b.load([[asset.generated.wasm.url, asset.id]]).then(function(data, err) {
-          asset.isNew = !modules[asset.id];
-          console.log(modules[asset.id]);
-          setTimeout( () => {
-            console.log(modules[asset.id]);
-          },1);
-          modules[asset.id] = [data, asset.deps];
-        });
-      } else {
-        var fn = new Function('require', 'module', 'exports', asset.generated.js);
-        asset.isNew = !modules[asset.id];
-        modules[asset.id] = [fn, asset.deps];
+  if (modules[asset.id] || !bundle.parent) {
+    var fn = ('wasm' in (asset.generated || {})) ?
+      function(require, module, exports) {
+        Object.keys(asset.generated.wasm.wasmModule.instance.exports).map(function(key) {
+          exports[key] = asset.generated.wasm.wasmModule.instance.exports[key];
+        })
       }
-    } else if (bundle.parent) {
-      hmrApply(bundle.parent, asset);
-    }
+      : new Function('require', 'module', 'exports', asset.generated.js)
+
+    asset.isNew = !modules[asset.id];
+    modules[asset.id] = [fn, asset.deps];
+  } else if (bundle.parent) {
+    hmrApply(bundle.parent, asset);
+  }
 }
 
 function hmrAccept(bundle, id) {
@@ -162,10 +196,17 @@ function hmrAccept(bundle, id) {
     return hmrAccept(bundle.parent, id);
   }
 
+  if (updatedAssets[id]) {
+    return;
+  }
+  updatedAssets[id] = true;
+
   var cached = bundle.cache[id];
   bundle.hotData = {};
   if (cached) {
-    cached.hot.data = bundle.hotData;
+    if (cached.hot) {
+      cached.hot.data = bundle.hotData;
+    }
   }
 
   if (cached && cached.hot && cached.hot._disposeCallbacks.length) {

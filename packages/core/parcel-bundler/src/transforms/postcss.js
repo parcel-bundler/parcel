@@ -1,7 +1,11 @@
 const localRequire = require('../utils/localRequire');
 const loadPlugins = require('../utils/loadPlugins');
+const md5 = require('../utils/md5');
 const postcss = require('postcss');
+const FileSystemLoader = require('css-modules-loader-core/lib/file-system-loader');
 const semver = require('semver');
+const path = require('path');
+const fs = require('@parcel/fs');
 
 module.exports = async function(asset) {
   let config = await getConfig(asset);
@@ -35,7 +39,10 @@ async function getConfig(asset) {
   }
 
   let postcssModulesConfig = {
-    getJSON: (filename, json) => (asset.cssModules = json)
+    getJSON: (filename, json) => (asset.cssModules = json),
+    Loader: createLoader(asset),
+    generateScopedName: (name, filename) =>
+      `_${name}_${md5(filename).substr(0, 5)}`
   };
 
   if (config.plugins && config.plugins['postcss-modules']) {
@@ -72,3 +79,31 @@ async function getConfig(asset) {
   config.to = asset.name;
   return config;
 }
+
+const createLoader = asset =>
+  class ParcelFileSystemLoader extends FileSystemLoader {
+    async fetch(composesPath, relativeTo) {
+      let importPath = composesPath.replace(/^["']|["']$/g, '');
+      const {resolved} = asset.resolveDependency(importPath, relativeTo);
+      let rootRelativePath = path.resolve(path.dirname(relativeTo), resolved);
+      const root = path.resolve('/');
+      // fixes an issue on windows which is part of the css-modules-loader-core
+      // see https://github.com/css-modules/css-modules-loader-core/issues/230
+      if (rootRelativePath.startsWith(root)) {
+        rootRelativePath = rootRelativePath.substr(root.length);
+      }
+
+      const source = await fs.readFile(resolved, 'utf-8');
+      const {exportTokens} = await this.core.load(
+        source,
+        rootRelativePath,
+        undefined,
+        this.fetch.bind(this)
+      );
+      return exportTokens;
+    }
+
+    get finalSource() {
+      return '';
+    }
+  };
