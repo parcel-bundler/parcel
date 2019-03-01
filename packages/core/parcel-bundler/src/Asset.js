@@ -152,7 +152,7 @@ class Asset {
         return conf;
       }
 
-      return await config.load(opts.path || this.name, filenames);
+      return config.load(opts.path || this.name, filenames);
     }
 
     return null;
@@ -163,7 +163,7 @@ class Asset {
   }
 
   async load() {
-    return await fs.readFile(this.name, this.encoding);
+    return fs.readFile(this.name, this.encoding);
   }
 
   parse() {

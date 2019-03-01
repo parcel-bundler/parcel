@@ -251,7 +251,7 @@ class Resolver {
     }
 
     // Fall back to an index file inside the directory.
-    return await this.loadAsFile(path.join(dir, 'index'), extensions, pkg);
+    return this.loadAsFile(path.join(dir, 'index'), extensions, pkg);
   }
 
   async readPackage(dir) {
