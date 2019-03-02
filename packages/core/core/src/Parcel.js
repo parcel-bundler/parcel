@@ -75,23 +75,6 @@ export default class Parcel {
       throw new Error('Could not find a .parcelrc');
     }
 
-    this.farm = await WorkerFarm.getShared(
-      {
-        config,
-        cliOpts: this.options.cliOpts,
-        env: this.options.env
-      },
-      {
-        workerPath: require.resolve('./worker')
-      }
-    );
-
-    this.runPackage = this.farm.mkhandle('runPackage');
-  }
-
-  async run() {
-    await this.init();
-
     this.bundlerRunner = new BundlerRunner({
       config,
       cliOpts: this.options.cliOpts,
@@ -108,6 +91,23 @@ export default class Parcel {
       targets,
       rootDir: this.rootDir
     });
+
+    this.farm = await WorkerFarm.getShared(
+      {
+        config,
+        cliOpts: this.options.cliOpts,
+        env: this.options.env
+      },
+      {
+        workerPath: require.resolve('./worker')
+      }
+    );
+
+    this.runPackage = this.farm.mkhandle('runPackage');
+  }
+
+  async run() {
+    await this.init();
 
     this.assetGraphBuilder.on('invalidate', () => {
       this.build();

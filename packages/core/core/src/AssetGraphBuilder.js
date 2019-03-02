@@ -10,7 +10,10 @@ import type {
 import type {Node} from './Graph';
 import type Config from './Config';
 import EventEmitter from 'events';
-import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import {
+  AbortController,
+  type AbortSignal
+} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import Watcher from '@parcel/watcher';
 import PromiseQueue from './PromiseQueue';
 import AssetGraph from './AssetGraph';
