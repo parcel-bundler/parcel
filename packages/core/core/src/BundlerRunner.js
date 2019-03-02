@@ -11,11 +11,11 @@ import type Config from './Config';
 import BundleGraph from './BundleGraph';
 import AssetGraphBuilder from './AssetGraphBuilder';
 
-type Opts = {
+type Opts = {|
   cliOpts: CLIOptions,
   config: Config,
   rootDir: FilePath
-};
+|};
 
 export default class BundlerRunner {
   cliOpts: CLIOptions;

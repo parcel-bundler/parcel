@@ -11,11 +11,11 @@ import PackagerRunner from './PackagerRunner';
 import Config from './Config';
 import Cache from '@parcel/cache';
 
-type Options = {
+type Options = {|
   config: Config,
   cliOpts: CLIOptions,
   env: JSONObject
-};
+|};
 
 let transformerRunner: TransformerRunner | null = null;
 let packagerRunner: PackagerRunner | null = null;

@@ -18,7 +18,7 @@ import {loadConfig} from '@parcel/utils/lib/config';
 import Cache from '@parcel/cache';
 import Dependency from './Dependency';
 
-type AssetOptions = {
+type AssetOptions = {|
   id?: string,
   hash?: string,
   filePath: FilePath,
@@ -32,7 +32,7 @@ type AssetOptions = {
   outputHash?: string,
   env: Environment,
   meta?: JSONObject
-};
+|};
 
 export default class Asset implements IAsset {
   id: string;

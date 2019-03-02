@@ -4,10 +4,10 @@ import {mkdirp, writeFile} from '@parcel/fs';
 import path from 'path';
 import type {Bundle, CLIOptions, Blob, FilePath} from '@parcel/types';
 
-type Opts = {
+type Opts = {|
   config: Config,
   cliOpts: CLIOptions
-};
+|};
 
 export default class PackagerRunner {
   config: Config;

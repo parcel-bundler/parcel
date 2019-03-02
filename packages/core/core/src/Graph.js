@@ -10,21 +10,21 @@ import type {
 export type Node = _Node;
 export type NodeId = string;
 
-export type Edge = {
+export type Edge = {|
   from: NodeId,
   to: NodeId
-};
+|};
 
-type GraphUpdates = {
+type GraphUpdates = {|
   added: Graph,
   removed: Graph
-};
+|};
 
-type GraphOpts = {
+type GraphOpts = {|
   nodes?: Array<[NodeId, Node]>,
   edges?: Array<Edge>,
   rootNodeId?: ?NodeId
-};
+|};
 
 type VisitCallback = (
   node: Node,
@@ -37,10 +37,10 @@ export default class Graph implements IGraph {
   edges: Set<Edge>;
   rootNodeId: ?NodeId;
 
-  constructor(opts: GraphOpts = {}) {
+  constructor(opts: GraphOpts = {nodes: [], edges: [], rootNodeId: null}) {
     this.nodes = new Map(opts.nodes);
     this.edges = new Set(opts.edges);
-    this.rootNodeId = opts.rootNodeId || null;
+    this.rootNodeId = opts.rootNodeId;
   }
 
   serialize(): GraphOpts {

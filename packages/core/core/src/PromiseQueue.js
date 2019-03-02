@@ -1,8 +1,8 @@
 // @flow
 
-type PromiseQueueOpts = {
-  maxConcurrent?: number
-};
+type PromiseQueueOpts = {|
+  maxConcurrent: number
+|};
 
 export default class PromiseQueue {
   _queue: Array<Function>;
@@ -12,10 +12,9 @@ export default class PromiseQueue {
   _resolve: Function;
   _reject: Function;
 
-  constructor(opts: PromiseQueueOpts = {}) {
+  constructor(opts: PromiseQueueOpts = {maxConcurrent: Infinity}) {
     this._resetState();
-
-    this._maxConcurrent = opts.maxConcurrent || Infinity;
+    this._maxConcurrent = opts.maxConcurrent;
   }
 
   _resetState() {
