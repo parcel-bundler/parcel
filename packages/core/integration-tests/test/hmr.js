@@ -287,6 +287,37 @@ describe('hmr', function() {
     assert.deepEqual(outputs, [3, 10]);
   });
 
+  it('should work with circular dependencies', async function() {
+    await ncp(
+      path.join(__dirname, '/integration/hmr-circular'),
+      path.join(__dirname, '/input')
+    );
+
+    b = bundler(path.join(__dirname, '/input/index.js'), {
+      watch: true,
+      hmr: true
+    });
+    let bundle = await b.bundle();
+    let outputs = [];
+
+    await run(bundle, {
+      output(o) {
+        outputs.push(o);
+      }
+    });
+
+    assert.deepEqual(outputs, [3]);
+
+    await sleep(100);
+    fs.writeFile(
+      path.join(__dirname, '/input/local.js'),
+      "var other = require('./index.js'); exports.a = 5; exports.b = 5;"
+    );
+
+    await nextEvent(b, 'bundled');
+    assert.deepEqual(outputs, [3, 10]);
+  });
+
   it('should call dispose and accept callbacks', async function() {
     await ncp(
       path.join(__dirname, '/integration/hmr-callbacks'),

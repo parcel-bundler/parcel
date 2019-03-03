@@ -58,7 +58,7 @@ async function getBabelRc(asset, isSource) {
 
   // If this asset is not in node_modules, always use the .babelrc
   if (isSource) {
-    return await findBabelRc(asset);
+    return findBabelRc(asset);
   }
 
   // Otherwise, don't load .babelrc for node_modules.
@@ -266,7 +266,7 @@ async function installPlugins(asset, babelrc) {
   let plugins = (babelrc.plugins || []).map(p =>
     resolveModule('plugin', getPluginName(p), asset.name)
   );
-  return await Promise.all([...presets, ...plugins]);
+  return Promise.all([...presets, ...plugins]);
 }
 
 async function resolveModule(type, name, path) {
