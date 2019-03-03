@@ -33,23 +33,27 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     var data = JSON.parse(event.data);
 
     if (data.type === 'update') {
-      console.clear();
-
-      data.assets.forEach(function (asset) {
-        hmrApply(global.parcelRequire, asset);
-      });
-
       var handled = false;
-      data.assets.forEach(function (asset) {
-        if (!asset.isNew) {
-          var didAccept = hmrAccept(global.parcelRequire, asset.id);
-          if (didAccept) {
-            handled = true;
-          }
-        }
+      data.assets.forEach(function(asset){
+        handled = handled ||
+          Boolean(global.parcelRequire.cache[asset.id].hot._acceptCallbacks.length) ||
+          Boolean(global.parcelRequire.cache[asset.id].hot._disposeCallbacks.length);
       });
 
-      if(!handled) {
+      if(handled){
+        console.clear();
+
+        data.assets.forEach(function (asset) {
+          hmrApply(global.parcelRequire, asset);
+        });
+
+        var handled = false;
+        data.assets.forEach(function (asset) {
+          if (!asset.isNew) {
+            hmrAccept(global.parcelRequire, asset.id);
+          }
+        });
+      } else {
         window.location.reload();
       }
     }

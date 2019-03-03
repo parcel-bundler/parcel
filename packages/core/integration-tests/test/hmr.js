@@ -404,9 +404,21 @@ describe('hmr', function() {
     });
     let bundle = await b.bundle();
 
-    let ctx = await run(bundle, {output() {}}, {require: false});
-
+    let outputs = [];
+    let ctx = await run(
+      bundle,
+      {
+        output(o) {
+          outputs.push(o);
+        }
+      },
+      {require: false}
+    );
     let spy = sinon.spy(ctx.location, 'reload');
+
+    await sleep(50);
+    assert.deepEqual(outputs, [3]);
+    assert(spy.notCalled);
 
     await sleep(100);
     fs.writeFile(
@@ -415,6 +427,7 @@ describe('hmr', function() {
     );
 
     await nextEvent(b, 'bundled');
+    assert.deepEqual(outputs, [3]);
     assert(spy.calledOnce);
   });
 
