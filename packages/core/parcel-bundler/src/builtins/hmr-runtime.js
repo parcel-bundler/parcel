@@ -29,7 +29,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
   ws.onmessage = function(event) {
     updatedAssets = {};
-    
+
     var data = JSON.parse(event.data);
 
     if (data.type === 'update') {
@@ -42,7 +42,10 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       var handled = false;
       data.assets.forEach(function (asset) {
         if (!asset.isNew) {
-          handled = handled || hmrAccept(global.parcelRequire, asset.id);
+          var didAccept = hmrAccept(global.parcelRequire, asset.id);
+          if (didAccept) {
+            handled = true;
+          }
         }
       });
 
