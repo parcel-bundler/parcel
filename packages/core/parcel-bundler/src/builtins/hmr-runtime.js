@@ -47,7 +47,6 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
           hmrApply(global.parcelRequire, asset);
         });
 
-        var handled = false;
         data.assets.forEach(function (asset) {
           if (!asset.isNew) {
             hmrAccept(global.parcelRequire, asset.id);
