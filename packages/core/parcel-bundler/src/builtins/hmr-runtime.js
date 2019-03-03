@@ -34,10 +34,14 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
     if (data.type === 'update') {
       var handled = false;
-      data.assets.forEach(function(asset){
-        handled = handled ||
-          Boolean(global.parcelRequire.cache[asset.id].hot._acceptCallbacks.length) ||
-          Boolean(global.parcelRequire.cache[asset.id].hot._disposeCallbacks.length);
+      data.assets.forEach(function(asset) {
+        handled =
+          handled ||
+          (global.parcelRequire.cache[asset.id] &&
+            (Boolean(global.parcelRequire.cache[asset.id].hot._acceptCallbacks.length) ||
+             Boolean(global.parcelRequire.cache[asset.id].hot._disposeCallbacks.length)
+             )
+          );
       });
 
       if(handled){
