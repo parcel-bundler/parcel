@@ -16,6 +16,7 @@
     "@jetbrains/kotlinc-js-api": "^1.2.12",
     "@parcel/fs": "^1.11.0",
     "@parcel/test-utils": "^1.11.0",
+    "atob": "^2.1.2",
     "codecov": "^3.0.0",
     "command-exists": "^1.2.6",
     "graphql-tag": "^2.6.0",

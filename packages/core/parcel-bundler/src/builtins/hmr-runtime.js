@@ -43,6 +43,9 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       }) && window.Promise) {
         Promise.all(data.assets.map(function(asset) {
           if ('wasm' in (asset.generated || {})) { // Inject wasm into runtime
+            if(window.atob == null) {
+              window.atob = require('atob'); // polyfill for tests
+            }
             var binStr = window.atob(asset.generated.wasm.blob);
             var len = binStr.length;
             var bytes = new Uint8Array(len);

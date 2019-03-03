@@ -176,37 +176,24 @@ describe('rust', function() {
   });
 
   it('should live compile and load the new wasm file', async function() {
-    this.timeout(500000);
-    let b = await bundle(path.join(__dirname, '/integration/rust/index.js'));
-
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: [
-        'bundle-loader.js',
-        'bundle-url.js',
-        'index.js',
-        'wasm-loader.js'
-      ],
-      childBundles: [
-        {
-          type: 'wasm',
-          assets: ['add.rs'],
-          childBundles: []
-        },
-        {
-          type: 'map'
-        }
-      ]
+    // this.timeout(500000);
+    let b = await bundle(path.join(__dirname, '/integration/rust/index.js'), {
+      hmr: true,
+      watch: true
     });
 
-    assert.equal(5);
-    await sleep(100); //TODO: IDK MAN
+    // await b.bundle();
+
+    let res = await await run(b);
+    assert.equal(res, 5);
+    await sleep(100);
     fs.writeFile(
       path.join(__dirname, '/integration/rust/add.rs'),
       '#[no_mangle]\npub fn add(a: i32, b: i32) -> i32 {\n    return 2 * (a + b)\n}'
     );
+    await sleep(3000); // wait for live reload
 
-    var res = await await run(b);
+    res = await await run(b);
     assert.equal(res, 10);
 
     // not minified
