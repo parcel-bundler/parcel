@@ -394,7 +394,7 @@ describe('hmr', function() {
 
   it('should bubble up HMR events to a page reload', async function() {
     await ncp(
-      path.join(__dirname, '/integration/hmr'),
+      path.join(__dirname, '/integration/hmr-reload'),
       path.join(__dirname, '/input')
     );
 
