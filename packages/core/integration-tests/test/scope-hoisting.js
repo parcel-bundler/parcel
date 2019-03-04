@@ -343,7 +343,7 @@ describe.only('scope hoisting', function() {
       assert.deepEqual(output, 4);
     });
 
-    it.only('supports the package.json sideEffects: false flag', async function() {
+    it('supports the package.json sideEffects: false flag', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -369,8 +369,14 @@ describe.only('scope hoisting', function() {
           '/integration/scope-hoisting/es6/side-effects-false-wildcards/a.js'
         )
       );
-      let output = await run(b);
+      let called = false;
+      let output = await run(b, {
+        sideEffect: () => {
+          called = true;
+        }
+      });
 
+      assert(!called, 'side effect called');
       assert.deepEqual(output, 'bar');
     });
 
@@ -391,6 +397,25 @@ describe.only('scope hoisting', function() {
 
       assert(calls.toString() == 'foo', "side effect called for 'foo'");
       assert.deepEqual(output, 4);
+    });
+
+    it('supports the package.json sideEffects: false flag with shared dependencies', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/side-effects-false-duplicate/a.js'
+        )
+      );
+
+      let called = false;
+      let output = await run(b, {
+        sideEffect: () => {
+          called = true;
+        }
+      });
+
+      assert(!called, 'side effect called');
+      assert.deepEqual(output, 6);
     });
 
     it('missing exports should be replaced with an empty object', async function() {

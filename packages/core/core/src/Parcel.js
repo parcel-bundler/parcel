@@ -1,7 +1,7 @@
 // @flow
 'use strict';
 import AssetGraph from './AssetGraph';
-import type {Bundle, BundleGraph, ParcelOptions} from '@parcel/types';
+import type {Bundle, BundleGraph, ParcelOptions, FilePath} from '@parcel/types';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
@@ -18,7 +18,7 @@ const abortError = new Error('Build aborted');
 export default class Parcel {
   options: ParcelOptions;
   entries: Array<string>;
-  rootDir: string;
+  rootDir: FilePath;
   assetGraphBuilder: AssetGraphBuilder;
   bundlerRunner: BundlerRunner;
   reporterRunner: ReporterRunner;
@@ -33,7 +33,8 @@ export default class Parcel {
         ? [options.entries]
         : [];
 
-    this.rootDir = getRootDir(this.entries);
+    this.rootDir = options.rootDir || getRootDir(this.entries);
+    options.rootDir = this.rootDir;
   }
 
   async init() {

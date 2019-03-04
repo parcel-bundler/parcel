@@ -34,7 +34,8 @@ type AssetOptions = {
   env: Environment,
   meta?: JSONObject,
   stats?: Stats,
-  symbols?: Map<Symbol, Symbol> | Array<[Symbol, Symbol]>
+  symbols?: Map<Symbol, Symbol> | Array<[Symbol, Symbol]>,
+  sideEffects?: boolean
 };
 
 export default class Asset implements IAsset {
@@ -52,6 +53,7 @@ export default class Asset implements IAsset {
   meta: JSONObject;
   stats: Stats;
   symbols: Map<Symbol, Symbol>;
+  sideEffects: boolean;
 
   constructor(options: AssetOptions) {
     this.id =
@@ -77,6 +79,7 @@ export default class Asset implements IAsset {
       size: this.output.code.length
     };
     this.symbols = new Map(options.symbols || []);
+    this.sideEffects = options.sideEffects != null ? options.sideEffects : true;
   }
 
   serialize(): AssetOptions {
@@ -93,7 +96,8 @@ export default class Asset implements IAsset {
       env: this.env,
       meta: this.meta,
       stats: this.stats,
-      symbols: [...this.symbols]
+      symbols: [...this.symbols],
+      sideEffects: this.sideEffects
     };
   }
 
@@ -134,7 +138,9 @@ export default class Asset implements IAsset {
       connectedFiles: this.connectedFiles,
       output: result.output,
       meta: Object.assign({}, this.meta, result.meta),
-      symbols: new Map([...this.symbols, ...(result.symbols || [])])
+      symbols: new Map([...this.symbols, ...(result.symbols || [])]),
+      sideEffects:
+        result.sideEffects != null ? result.sideEffects : this.sideEffects
     };
 
     let asset = new Asset(opts);

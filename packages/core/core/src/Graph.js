@@ -352,4 +352,48 @@ export default class Graph implements IGraph {
 
     return graph;
   }
+
+  findAncestor(node: Node, fn: (node: Node) => boolean): ?Node {
+    let res = null;
+    this.traverseAncestors(node, (node, ctx, traversal) => {
+      if (fn(node)) {
+        res = node;
+        traversal.stop();
+      }
+    });
+    return res;
+  }
+
+  findAncestors(node: Node, fn: (node: Node) => boolean): Array<Node> {
+    let res = [];
+    this.traverseAncestors(node, (node, ctx, traversal) => {
+      if (fn(node)) {
+        res.push(node);
+        traversal.skipChildren();
+      }
+    });
+    return res;
+  }
+
+  findDescendant(node: Node, fn: (node: Node) => boolean): ?Node {
+    let res = null;
+    this.traverse((node, ctx, traversal) => {
+      if (fn(node)) {
+        res = node;
+        traversal.stop();
+      }
+    }, node);
+    return res;
+  }
+
+  findDescendants(node: Node, fn: (node: Node) => boolean): Array<Node> {
+    let res = [];
+    this.traverse((node, ctx, traversal) => {
+      if (fn(node)) {
+        res.push(node);
+        traversal.skipChildren();
+      }
+    }, node);
+    return res;
+  }
 }

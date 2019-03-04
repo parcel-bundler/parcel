@@ -27,6 +27,7 @@ export default class Dependency implements IDependency {
   isEntry: ?boolean;
   isOptional: ?boolean;
   isURL: ?boolean;
+  isWeak: ?boolean;
   loc: ?SourceLocation;
   env: IEnvironment;
   meta: Meta;
@@ -40,6 +41,7 @@ export default class Dependency implements IDependency {
     this.isEntry = opts.isEntry;
     this.isOptional = opts.isOptional;
     this.isURL = opts.isURL;
+    this.isWeak = opts.isWeak;
     this.loc = opts.loc;
     this.meta = opts.meta || {};
     this.target = opts.target;
@@ -63,7 +65,9 @@ export default class Dependency implements IDependency {
       moduleSpecifier: this.moduleSpecifier,
       isAsync: this.isAsync,
       isEntry: this.isEntry,
+      isOptional: this.isOptional,
       isURL: this.isURL,
+      isWeak: this.isWeak,
       loc: this.loc,
       meta: this.meta,
       target: this.target,

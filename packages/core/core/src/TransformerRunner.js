@@ -63,7 +63,8 @@ class TransformerRunner {
       type: path.extname(req.filePath).slice(1),
       ast: null,
       code,
-      env: req.env
+      env: req.env,
+      sideEffects: req.sideEffects
     });
 
     let pipeline = await this.config.getTransformers(req.filePath);

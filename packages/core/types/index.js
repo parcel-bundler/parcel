@@ -171,6 +171,7 @@ export interface Dependency {
   isEntry: ?boolean;
   isOptional: ?boolean;
   isURL: ?boolean;
+  isWeak: ?boolean;
   loc: ?SourceLocation;
   env: Environment;
   meta: Meta;
@@ -189,6 +190,7 @@ export type File = {
 export type TransformerRequest = {
   filePath: FilePath,
   env: Environment,
+  sideEffects?: boolean,
   code?: string
 };
 
@@ -207,6 +209,7 @@ export interface Asset {
   meta: Meta;
   stats: Stats;
   symbols: Map<Symbol, Symbol>;
+  sideEffects: boolean;
 
   getConfig(
     filePaths: Array<FilePath>,
@@ -249,7 +252,8 @@ export type TransformerResult = {
   output?: AssetOutput,
   env?: EnvironmentOpts,
   meta?: Meta,
-  symbols?: Map<Symbol, Symbol>
+  symbols?: Map<Symbol, Symbol>,
+  sideEffects?: boolean
 };
 
 type Async<T> = T | Promise<T>;
@@ -373,7 +377,7 @@ export type Resolver = {
     dependency: Dependency,
     opts: ParcelOptions,
     rootDir: string
-  ): Async<FilePath | null>
+  ): Async<?TransformerRequest>
 };
 
 export type LogEvent = {

@@ -26,8 +26,10 @@ export function link(bundle: Bundle, ast, options: ParcelOptions) {
     exportsMap.set(getName(asset, 'exports'), asset);
     for (let dep of bundle.assetGraph.getDependencies(asset)) {
       let resolved = bundle.assetGraph.getDependencyResolution(dep);
-      for (let [imported, local] of dep.symbols) {
-        imports.set(local, [resolved, imported]);
+      if (resolved) {
+        for (let [imported, local] of dep.symbols) {
+          imports.set(local, [resolved, imported]);
+        }
       }
     }
   });
@@ -67,8 +69,8 @@ export function link(bundle: Bundle, ast, options: ParcelOptions) {
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
     if (!node && !mod.meta.isCommonJS && mod.meta.isES6Module) {
-      // let relativePath = relative(packager.options.rootDir, mod.filePath);
-      throw new Error(`${mod.filePath} does not export '${symbol}'`);
+      let relativePath = relative(options.rootDir, mod.filePath);
+      throw new Error(`${relativePath} does not export '${symbol}'`);
     }
 
     // If it is CommonJS, look for an exports object.
@@ -168,6 +170,8 @@ export function link(bundle: Bundle, ast, options: ParcelOptions) {
             path.replaceWith(
               THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)})
             );
+          } else if (dep.isWeak) {
+            path.remove();
           } else {
             throw new Error(
               `Cannot find module "${source.value}" in asset ${id.value}`

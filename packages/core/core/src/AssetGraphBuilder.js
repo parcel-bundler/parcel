@@ -122,9 +122,9 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async resolve(dep: Dependency, {signal}: BuildOpts) {
-    let resolvedPath;
+    let req;
     try {
-      resolvedPath = await this.resolverRunner.resolve(dep);
+      req = await this.resolverRunner.resolve(dep);
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND' && dep.isOptional) {
         return;
@@ -137,9 +137,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       throw abortError;
     }
 
-    let req = {filePath: resolvedPath, env: dep.env};
     let {newRequest} = this.graph.resolveDependency(dep, req);
-
     if (newRequest) {
       this.queue.add(() => this.transform(newRequest, {signal}));
       if (this.watcher) this.watcher.watch(newRequest.filePath);

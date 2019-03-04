@@ -103,7 +103,7 @@ export default new Transformer({
       }
     }
 
-    await hoist(asset);
+    hoist(asset);
 
     // Convert ES6 modules to CommonJS
     // if (asset.meta.isES6Module) {

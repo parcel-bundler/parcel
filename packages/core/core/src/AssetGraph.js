@@ -63,6 +63,9 @@ const getDepNodesFromGraph = (graph: Graph): Array<Node> => {
   );
 };
 
+const invertMap = (map: Map<K, V>): Map<V, K> =>
+  new Map([...map].map(([key, val]) => [val, key]));
+
 type DepUpdates = {
   newRequest?: TransformerRequest,
   prunedFiles: Array<File>
@@ -92,11 +95,13 @@ type AssetGraphOpts = {
 export default class AssetGraph extends Graph {
   incompleteNodes: Map<NodeId, Node>;
   invalidNodes: Map<NodeId, Node>;
+  deferredNodes: Set<NodeId>;
 
   constructor(opts: any) {
     super(opts);
     this.incompleteNodes = new Map();
     this.invalidNodes = new Map();
+    this.deferredNodes = new Set();
   }
 
   initializeGraph({
@@ -158,9 +163,32 @@ export default class AssetGraph extends Graph {
     let requestNode = nodeFromTransformerRequest(req);
     let {added, removed} = this.replaceNodesConnectedTo(depNode, [requestNode]);
 
+    // Defer transforming this dependency if it is marked as weak, there are no side effects,
+    // and no re-exported symbols are used by ancestor dependencies.
+    // This helps with performance building large libraries like `lodash-es`, which re-exports
+    // a huge number of functions since we can avoid even transforming the files that aren't used.
+    let defer = false;
+    if (dep.isWeak && req.sideEffects === false) {
+      let assets = this.getNodesConnectedTo(depNode);
+      let symbols = invertMap(dep.symbols);
+      let deps = this.getAncestorDependencies(assets[0]);
+      defer = deps.every(
+        d =>
+          !d.symbols.has('*') &&
+          ![...d.symbols.keys()].some(symbol =>
+            symbols.has(assets[0].value.symbols.get(symbol))
+          )
+      );
+    }
+
     if (added.nodes.size) {
+      this.deferredNodes.add(requestNode.id);
+    }
+
+    if (!defer && this.deferredNodes.has(requestNode.id)) {
       newRequest = req;
       this.incompleteNodes.set(requestNode.id, requestNode);
+      this.deferredNodes.delete(requestNode.id);
     }
 
     let prunedFiles = getFilesFromGraph(removed);
@@ -266,6 +294,17 @@ export default class AssetGraph extends Graph {
     }, depNode);
 
     return res;
+  }
+
+  getAncestorDependencies(asset: Asset): Array<IDependency> {
+    let node = this.getNode(asset.id);
+    if (!node) {
+      return null;
+    }
+
+    return this.findAncestors(node, node => node.type === 'dependency').map(
+      node => node.value
+    );
   }
 
   traverseAssets(visit: GraphVisitor<Asset>, startNode: ?Node) {
@@ -413,6 +452,7 @@ export default class AssetGraph extends Graph {
         if (node.value.isEntry) parts.push('entry');
         if (node.value.isAsync) parts.push('async');
         if (node.value.isOptional) parts.push('optional');
+        if (node.value.isWeak) parts.push('weak');
         if (parts.length) label += ' (' + parts.join(', ') + ')';
         if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
       } else if (node.type === 'asset' || node.type === 'asset_reference') {

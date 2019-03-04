@@ -32,26 +32,7 @@ const TYPEOF = {
   require: 'function'
 };
 
-async function hasSideEffects(asset: Asset, {sideEffects}) {
-  switch (typeof sideEffects) {
-    case 'boolean':
-      return sideEffects;
-    case 'string':
-      return mm.isMatch(
-        path.relative(asset._package.pkgdir, asset.filePath),
-        sideEffects,
-        {matchBase: true}
-      );
-    case 'object':
-      return sideEffects.some(sideEffects =>
-        hasSideEffects(asset, {sideEffects})
-      );
-  }
-
-  return true;
-}
-
-export async function hoist(asset: Asset) {
+export function hoist(asset: Asset) {
   if (
     !asset.ast ||
     asset.ast.type !== 'babel' ||
@@ -59,10 +40,6 @@ export async function hoist(asset: Asset) {
   ) {
     throw new Error('Asset does not have a babel AST');
   }
-
-  let pkg = await asset.getPackage();
-  asset.meta.sideEffects = await hasSideEffects(asset, pkg);
-  console.log(asset.meta.sideEffects);
 
   asset.ast.isDirty = true;
   traverse(asset.ast.program, VISITOR, null, asset);
@@ -366,9 +343,7 @@ const VISITOR = {
         dep.meta.shouldWrap = true;
       }
 
-      // asset.cacheData.imports['$require$' + source] = [source, '*'];
-      // FIXME??
-      dep.symbols.set('$require$' + source, '*');
+      dep.symbols.set('*', getName(asset, 'require', source));
 
       // Generate a variable name based on the current asset id and the module name to require.
       // This will be replaced by the final variable name of the resolved asset in the packager.
@@ -487,6 +462,7 @@ const VISITOR = {
         );
         if (dep && imported) {
           dep.symbols.set(imported, id.name);
+          dep.isWeak = true;
         }
 
         path.insertAfter(

@@ -1,5 +1,5 @@
 // @flow
-import type {Bundle, Asset, ParcelOptions} from '@parcel/types';
+import type {Bundle, Asset, ParcelOptions, Symbol} from '@parcel/types';
 import * as babylon from '@babel/parser';
 import path from 'path';
 import * as t from '@babel/types';
@@ -32,14 +32,24 @@ export async function concat(bundle: Bundle, options: ParcelOptions) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }
 
+  let usedExports = getUsedExports(bundle);
+
   bundle.assetGraph.traverseAssets({
     enter(asset, context) {
+      if (shouldExcludeAsset(asset, usedExports)) {
+        return context;
+      }
+
       return {
         parent: context && context.children,
         children: new Map()
       };
     },
     exit(asset, context) {
+      if (shouldExcludeAsset(asset, usedExports)) {
+        return;
+      }
+
       let statements = outputs.get(asset);
       let statementIndices = new Map();
       for (let i = 0; i < statements.length; i++) {
@@ -135,6 +145,56 @@ function addComment(statement, comment) {
     type: 'CommentLine',
     value: comment
   });
+}
+
+function getUsedExports(bundle: Bundle): Map<Asset, Set<Symbol>> {
+  let usedExports = new Map();
+  bundle.assetGraph.traverseAssets(asset => {
+    for (let dep of bundle.assetGraph.getDependencies(asset)) {
+      let resolvedAsset = bundle.assetGraph.getDependencyResolution(dep);
+      if (!resolvedAsset) {
+        continue;
+      }
+
+      for (let [symbol, identifier] of dep.symbols) {
+        if (identifier === '*') {
+          continue;
+        }
+
+        if (symbol === '*') {
+          for (let symbol of resolvedAsset.symbols.keys()) {
+            markUsed(resolvedAsset, symbol);
+          }
+        }
+
+        markUsed(resolvedAsset, symbol);
+      }
+    }
+  });
+
+  function markUsed(asset, symbol) {
+    let resolved = bundle.assetGraph.resolveSymbol(asset, symbol);
+
+    let used = usedExports.get(resolved.asset);
+    if (!used) {
+      used = new Set();
+      usedExports.set(resolved.asset, used);
+    }
+
+    used.add(resolved.exportSymbol);
+  }
+
+  return usedExports;
+}
+
+function shouldExcludeAsset(
+  asset: Asset,
+  usedExports: Map<Asset, Set<Symbol>>
+) {
+  return (
+    asset.sideEffects === false &&
+    (!usedExports.has(asset) || usedExports.get(asset).size === 0)
+  );
 }
 
 function findRequires(bundle: Bundle, asset: Asset, ast) {
