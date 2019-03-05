@@ -35,7 +35,6 @@ class Resolver {
       let normalizer = baseModulesPath.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
       input = input.replace(new RegExp("^" + normalizer), '');
     }
-
     
     let filename = input;
 
