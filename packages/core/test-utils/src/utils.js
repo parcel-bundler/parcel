@@ -230,7 +230,7 @@ function prepareBrowserContext(bundle, globals) {
       document: fakeDocument,
       WebSocket,
       console,
-      location: {hostname: 'localhost'},
+      location: {hostname: 'localhost', reload() {}},
       fetch(url) {
         return Promise.resolve({
           arrayBuffer() {

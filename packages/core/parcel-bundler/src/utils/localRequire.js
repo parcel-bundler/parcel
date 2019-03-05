@@ -22,7 +22,7 @@ async function localResolve(name, path, triedInstall = false) {
       if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
         const packageName = getModuleParts(name)[0];
         await installPackage(packageName, path);
-        return await localResolve(name, path, true);
+        return localResolve(name, path, true);
       }
       throw e;
     }
