@@ -31,9 +31,11 @@ class Resolver {
 
   async resolve(input, parent) {
     if (this.rootPackage) {
-      let rootNodeModules = this.rootPackage.pkgdir + "/node_modules/"
-      input = input.replace(rootNodeModules, '');
+      let baseModulesPath = this.rootPackage.pkgdir + '/node_modules/';
+      let normalizer = baseModulesPath.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+      input = input.replace(new RegExp("^" + normalizer), '');
     }
+
     
     let filename = input;
 
