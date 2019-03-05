@@ -1,5 +1,5 @@
 module.exports = {
-  extends: 'eslint:recommended',
+  extends: ['eslint:recommended', 'plugin:flowtype/recommended'],
   parser: 'babel-eslint',
   plugins: ['flowtype'],
   parserOptions: {

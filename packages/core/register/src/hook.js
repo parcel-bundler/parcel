@@ -58,8 +58,10 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
         return output;
       }
     } catch (e) {
+      /* eslint-disable no-console */
       console.error('@parcel/register failed to process: ', filename);
       console.error(e);
+      /* eslint-enable */
     } finally {
       isProcessing = false;
     }
