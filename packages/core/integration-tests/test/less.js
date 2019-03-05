@@ -17,7 +17,11 @@ describe('less', function() {
         {
           name: 'index.css',
           assets: ['index.less'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -48,7 +52,11 @@ describe('less', function() {
         {
           name: 'index.css',
           assets: ['index.less'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -80,7 +88,11 @@ describe('less', function() {
         {
           name: 'index.css',
           assets: ['index.less'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -112,7 +124,11 @@ describe('less', function() {
         {
           name: 'index.css',
           assets: ['index.less'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -125,7 +141,11 @@ describe('less', function() {
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
-    assert.equal(css, '');
+    assert(
+      /^\/\*# sourceMappingURL=\/\w*\.css\.map \*\/$/.test(
+        css.replace('\n', '')
+      )
+    );
   });
 
   it('should support linking to assets with url() from less', async function() {
@@ -143,7 +163,11 @@ describe('less', function() {
         {
           name: 'index.css',
           assets: ['index.less'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'woff2',
@@ -191,7 +215,11 @@ describe('less', function() {
         {
           name: 'index.css',
           assets: ['index.less'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
