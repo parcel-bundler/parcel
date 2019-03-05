@@ -15,5 +15,8 @@ module.exports = {
   globals: {
     parcelRequire: true,
     define: true
+  },
+  rules: {
+    'no-return-await': 'error'
   }
 };
