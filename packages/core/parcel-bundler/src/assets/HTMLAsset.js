@@ -271,8 +271,6 @@ class HTMLAsset extends Asset {
   }
 
   async postProcess(generated) {
-    generated = await super.postProcess(generated);
-
     // Replace inline scripts and styles with processed results.
     for (let rendition of generated) {
       let {type, node} = rendition.meta;

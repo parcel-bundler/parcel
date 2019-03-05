@@ -654,7 +654,7 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
-  it('should create a valid sourcemap when a CSS asset imports SASS', async function() {
+  it('should create a valid sourcemap when for a CSS asset importing SASS', async function() {
     async function test(minify) {
       let b = await bundle(
         path.join(__dirname, '/integration/sourcemap-sass-imported/style.css'),

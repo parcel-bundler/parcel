@@ -139,9 +139,6 @@ class JSAsset extends Asset {
   }
 
   async generate() {
-    let enableSourceMaps =
-      this.options.sourceMaps &&
-      (!this.rendition || !!this.rendition.sourceMap);
     let code;
     if (this.isAstDirty) {
       let opts = {
@@ -151,7 +148,7 @@ class JSAsset extends Asset {
 
       let generated = generate(this.ast, opts, this.contents);
 
-      if (enableSourceMaps && generated.rawMappings) {
+      if (this.options.sourceMaps && generated.rawMappings) {
         let rawMap = new SourceMap(generated.rawMappings, {
           [this.relativeName]: this.contents
         });
@@ -173,7 +170,7 @@ class JSAsset extends Asset {
       code = this.outputCode != null ? this.outputCode : this.contents;
     }
 
-    if (enableSourceMaps && !this.sourceMap) {
+    if (this.options.sourceMaps && !this.sourceMap) {
       this.sourceMap = new SourceMap().generateEmptyMap(
         this.relativeName,
         this.contents
@@ -182,7 +179,7 @@ class JSAsset extends Asset {
 
     if (this.globals.size > 0) {
       code = Array.from(this.globals.values()).join('\n') + '\n' + code;
-      if (enableSourceMaps) {
+      if (this.options.sourceMaps) {
         if (!(this.sourceMap instanceof SourceMap)) {
           this.sourceMap = await new SourceMap().addMap(this.sourceMap);
         }

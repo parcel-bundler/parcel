@@ -34,6 +34,7 @@ class Asset {
     this.ast = null;
     this.generated = null;
     this.hash = null;
+    this.sourceMaps = null;
     this.parentDeps = new Set();
     this.dependencies = new Map();
     this.depAssets = new Map();
@@ -219,19 +220,6 @@ class Asset {
   }
 
   async postProcess(generated) {
-    let hasMap = false;
-    let sourceMaps = {};
-    for (let rendition of generated) {
-      if (rendition.map && rendition.type == this.type) {
-        sourceMaps[rendition.type] = rendition.map;
-        hasMap = true;
-      }
-    }
-
-    if (hasMap) {
-      this.sourceMaps = sourceMaps;
-    }
-
     return generated;
   }
 

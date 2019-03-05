@@ -93,6 +93,19 @@ class Pipeline {
       throw asset.generateErrorMessage(err);
     }
 
+    let hasMap = false;
+    let sourceMaps = {};
+    for (let rendition of generated) {
+      if (rendition.map && rendition.type == asset.type) {
+        sourceMaps[rendition.type] = rendition.map;
+        hasMap = true;
+      }
+    }
+
+    if (hasMap) {
+      asset.sourceMaps = sourceMaps;
+    }
+
     asset.generated = generated;
     asset.hash = await asset.generateHash();
 
