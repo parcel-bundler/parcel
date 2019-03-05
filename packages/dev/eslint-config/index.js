@@ -20,6 +20,7 @@ module.exports = {
     'import/first': 'error',
     'import/newline-after-import': 'error',
     'import/no-extraneous-dependencies': 'error',
-    'import/no-self-import': 'error'
+    'import/no-self-import': 'error',
+    'no-return-await': 'error'
   }
 };
