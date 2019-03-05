@@ -287,6 +287,37 @@ describe('hmr', function() {
     assert.deepEqual(outputs, [3, 10]);
   });
 
+  it('should work with circular dependencies', async function() {
+    await ncp(
+      path.join(__dirname, '/integration/hmr-circular'),
+      path.join(__dirname, '/input')
+    );
+
+    b = bundler(path.join(__dirname, '/input/index.js'), {
+      watch: true,
+      hmr: true
+    });
+    let bundle = await b.bundle();
+    let outputs = [];
+
+    await run(bundle, {
+      output(o) {
+        outputs.push(o);
+      }
+    });
+
+    assert.deepEqual(outputs, [3]);
+
+    await sleep(100);
+    fs.writeFile(
+      path.join(__dirname, '/input/local.js'),
+      "var other = require('./index.js'); exports.a = 5; exports.b = 5;"
+    );
+
+    await nextEvent(b, 'bundled');
+    assert.deepEqual(outputs, [3, 10]);
+  });
+
   it('should call dispose and accept callbacks', async function() {
     await ncp(
       path.join(__dirname, '/integration/hmr-callbacks'),
@@ -359,6 +390,45 @@ describe('hmr', function() {
     await nextEvent(b, 'bundled');
     await sleep(50);
     assert.deepEqual(outputs, [3, 10]);
+  });
+
+  it('should bubble up HMR events to a page reload', async function() {
+    await ncp(
+      path.join(__dirname, '/integration/hmr-reload'),
+      path.join(__dirname, '/input')
+    );
+
+    b = bundler(path.join(__dirname, '/input/index.js'), {
+      watch: true,
+      hmr: true
+    });
+    let bundle = await b.bundle();
+
+    let outputs = [];
+    let ctx = await run(
+      bundle,
+      {
+        output(o) {
+          outputs.push(o);
+        }
+      },
+      {require: false}
+    );
+    let spy = sinon.spy(ctx.location, 'reload');
+
+    await sleep(50);
+    assert.deepEqual(outputs, [3]);
+    assert(spy.notCalled);
+
+    await sleep(100);
+    fs.writeFile(
+      path.join(__dirname, '/input/local.js'),
+      'exports.a = 5; exports.b = 5;'
+    );
+
+    await nextEvent(b, 'bundled');
+    assert.deepEqual(outputs, [3]);
+    assert(spy.calledOnce);
   });
 
   it('should log emitted errors and show an error overlay', async function() {

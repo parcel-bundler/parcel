@@ -176,7 +176,7 @@ class RustAsset extends Asset {
       .slice(1);
 
     for (let dep of deps) {
-      dep = path.resolve(dir, dep.slice(0, dep.indexOf(':')));
+      dep = path.resolve(dir, dep.slice(0, dep.indexOf(': ')));
       if (dep !== this.name) {
         this.addDependency(dep, {includedInParent: true});
       }
