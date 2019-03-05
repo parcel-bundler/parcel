@@ -24,7 +24,7 @@ function enableCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader(
     'Access-Control-Allow-Methods',
-    'GET, HEAD, PUT, PATCH, POST, DELETE'
+    'GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS'
   );
   res.setHeader(
     'Access-Control-Allow-Headers',
