@@ -54,7 +54,11 @@ describe.skip('glob', function() {
         {
           name: 'index.css',
           assets: ['index.css', 'other.css', 'local.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'

@@ -343,7 +343,6 @@ class SourceMap {
 
   stringify(file, sourceRoot) {
     let generator = new SourceMapGenerator({file, sourceRoot});
-
     this.eachMapping(mapping => generator.addMapping(mapping));
     Object.keys(this.sources).forEach(sourceName =>
       generator.setSourceContent(sourceName, this.sources[sourceName])
