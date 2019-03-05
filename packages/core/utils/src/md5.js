@@ -15,9 +15,9 @@ export function md5FromString(
     .digest(encoding);
 }
 
-export function md5FromFilePath(filename: string): Promise<string> {
+export function md5FromFilePath(filePath: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    fs.createReadStream(filename)
+    fs.createReadStream(filePath)
       // $FlowFixMe A Hash is a duplex stream
       .pipe(crypto.createHash('md5').setEncoding('hex'))
       .on('finish', function() {
