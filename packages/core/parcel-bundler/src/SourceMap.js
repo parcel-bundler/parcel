@@ -35,7 +35,7 @@ class SourceMap {
     }
     map = typeof map === 'string' ? JSON.parse(map) : map;
     if (map.sourceRoot) delete map.sourceRoot;
-    return await new SourceMapConsumer(map);
+    return new SourceMapConsumer(map);
   }
 
   async addMap(map, lineOffset = 0, columnOffset = 0) {

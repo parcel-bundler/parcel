@@ -26,7 +26,7 @@ class LESSAsset extends Asset {
       opts.sourceMap = {outputSourceFiles: true};
     }
 
-    return await render(code, opts);
+    return render(code, opts);
   }
 
   collectDependencies() {

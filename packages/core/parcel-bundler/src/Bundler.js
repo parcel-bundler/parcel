@@ -490,7 +490,7 @@ class Bundler extends EventEmitter {
           this.options.autoinstall &&
           install
         ) {
-          return await this.installDep(asset, dep);
+          return this.installDep(asset, dep);
         }
 
         err.message = `Cannot resolve dependency '${dep.name}'`;
@@ -521,7 +521,7 @@ class Bundler extends EventEmitter {
       }
     }
 
-    return await this.resolveDep(asset, dep, false);
+    return this.resolveDep(asset, dep, false);
   }
 
   async throwDepError(asset, dep, err) {
