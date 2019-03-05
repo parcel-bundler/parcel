@@ -1,7 +1,8 @@
 const parcelBabelPreset = require('@parcel/babel-preset');
+const path = require('path');
 
 require('@babel/register')({
-  ignore: [filepath => filepath.includes('/node_modules/')],
+  ignore: [filepath => filepath.includes(path.sep + 'node_modules' + path.sep)],
   presets: [parcelBabelPreset]
 });
 

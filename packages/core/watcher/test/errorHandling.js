@@ -2,83 +2,53 @@ const Watcher = require('../index');
 const fs = require('@parcel/fs');
 const path = require('path');
 const assert = require('assert');
-const {sleep} = require('@parcel/test-utils');
 
 describe('error handling', function() {
   let tmpFolder = path.join(__dirname, './tmp/');
 
-  before(() => {
-    fs.mkdirp(tmpFolder);
+  before(async () => {
+    await fs.mkdirp(tmpFolder);
   });
 
   it('Should restart child process if it dies', async () => {
-    let watcher = new Watcher({});
-
     let filepath = path.join(tmpFolder, 'file1.txt');
-
     await fs.writeFile(filepath, 'this is a text document');
 
+    let watcher = new Watcher({});
     watcher.add(filepath);
-
-    let changed = false;
-    watcher.once('change', () => {
-      changed = true;
-    });
-
-    if (!watcher.ready) {
-      await new Promise(resolve => watcher.once('ready', resolve));
-    }
-
-    await sleep(250);
+    await new Promise(resolve => watcher.once('ready', resolve));
 
     watcher._emulateChildDead();
+    await new Promise(resolve => watcher.once('_chokidarReady', resolve));
 
-    await sleep(1000);
-
+    let changePromise = new Promise(resolve => watcher.once('change', resolve));
     await fs.writeFile(filepath, 'this is not a text document');
-
-    await sleep(500);
-
-    assert(changed, 'Should have emitted a change event.');
+    // if this doesn't happen, the test will time out and fail.
+    await changePromise;
 
     await watcher.stop();
   });
 
   it('Should restart child process on errors', async () => {
-    let watcher = new Watcher({});
-
     let filepath = path.join(tmpFolder, 'file1.txt');
-
     await fs.writeFile(filepath, 'this is a text document');
 
+    let watcher = new Watcher({});
     watcher.add(filepath);
 
     let hasThrown = false;
     watcher.on('watcherError', () => (hasThrown = true));
 
-    let changed = false;
-    watcher.once('change', () => {
-      changed = true;
-    });
-
-    if (!watcher.ready) {
-      await new Promise(resolve => watcher.once('ready', resolve));
-    }
-
-    await sleep(250);
+    await new Promise(resolve => watcher.once('ready', resolve));
 
     watcher._emulateChildError();
+    await new Promise(resolve => watcher.once('_chokidarReady', resolve));
 
-    await sleep(1000);
-
+    let changePromise = new Promise(resolve => watcher.once('change', resolve));
     await fs.writeFile(filepath, 'this is not a text document');
-
-    await sleep(500);
-
-    assert(changed, 'Should have emitted a change event.');
+    await changePromise;
 
     await watcher.stop();
-
     assert(hasThrown, 'Should have emitted an error event.');
   });
 });
