@@ -13,7 +13,6 @@ import type {
   Bundle,
   GraphTraversalCallback
 } from '@parcel/types';
-import path from 'path';
 import md5 from '@parcel/utils/lib/md5';
 import Dependency from './Dependency';
 
