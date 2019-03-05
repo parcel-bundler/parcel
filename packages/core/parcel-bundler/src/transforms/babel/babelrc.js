@@ -53,7 +53,7 @@ async function getBabelRc(asset, isSource) {
     }
 
     // Otherwise, return the .babelrc if babelify was found
-    return babelify ? await findBabelRc(asset) : null;
+    return babelify ? findBabelRc(asset) : null;
   }
 
   // If this asset is not in node_modules, always use the .babelrc
