@@ -23,7 +23,11 @@ describe('css', function() {
         {
           name: 'index.css',
           assets: ['index.css', 'local.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -50,21 +54,30 @@ describe('css', function() {
       ],
       childBundles: [
         {
+          type: 'css',
           name: 'index.css',
           assets: ['index.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
-          type: 'map'
+          name: 'index.js.map'
         },
         {
           type: 'js',
-          assets: ['local.js', 'local.css'],
+          assets: ['local.css', 'local.js'],
           childBundles: [
             {
               type: 'css',
               assets: ['local.css'],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'map'
+                }
+              ]
             },
             {
               type: 'map'
@@ -91,7 +104,11 @@ describe('css', function() {
         {
           name: 'index.css',
           assets: ['index.css', 'other.css', 'local.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           name: 'index.js.map',
@@ -124,7 +141,11 @@ describe('css', function() {
         {
           name: 'index.css',
           assets: ['index.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -179,7 +200,11 @@ describe('css', function() {
         {
           name: 'index.css',
           assets: ['index.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -277,7 +302,11 @@ describe('css', function() {
         {
           name: 'index.css',
           assets: ['index.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -325,7 +354,11 @@ describe('css', function() {
         {
           name: 'index.css',
           assets: ['composes-1.css', 'composes-2.css', 'mixins.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -383,7 +416,11 @@ describe('css', function() {
         {
           name: 'index2.css',
           assets: ['composes-3.css', 'mixins.scss'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -418,7 +455,11 @@ describe('css', function() {
         {
           name: 'index3.css',
           assets: ['composes-4.css', 'mixins.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -458,7 +499,11 @@ describe('css', function() {
         {
           name: 'index4.css',
           assets: ['composes-5.css', 'mixins-intermediate.css', 'mixins.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -496,7 +541,11 @@ describe('css', function() {
         {
           name: 'index5.css',
           assets: ['composes-6.css', 'mixins.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'
@@ -532,7 +581,7 @@ describe('css', function() {
     );
     assert(css.includes('.local'));
     assert(css.includes('.index'));
-    assert(!css.includes('\n'));
+    assert.equal(css.split('\n').length, 2); // sourceMappingURL
   });
 
   it('should automatically install postcss plugins with npm if needed', async function() {

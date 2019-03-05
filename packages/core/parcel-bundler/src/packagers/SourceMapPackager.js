@@ -8,14 +8,18 @@ class SourceMapPackager extends Packager {
   }
 
   async addAsset(asset) {
-    await this.sourceMap.addMap(
-      asset.generated.map,
-      this.bundle.parentBundle.getOffset(asset)
-    );
+    let offsets = this.bundle.parentBundle.getOffset(asset);
+    if (asset.sourceMaps[asset.type]) {
+      await this.sourceMap.addMap(
+        asset.sourceMaps[asset.type],
+        offsets[0],
+        offsets[1]
+      );
+    }
   }
 
   async end() {
-    let file = path.basename(this.bundle.name);
+    let file = path.basename(this.bundle.parentBundle.name);
 
     await this.write(
       this.sourceMap.stringify(

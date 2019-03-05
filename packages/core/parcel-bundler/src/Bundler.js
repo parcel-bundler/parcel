@@ -572,6 +572,7 @@ class Bundler extends EventEmitter {
     asset.buildTime = asset.endTime - asset.startTime;
     asset.id = processed.id;
     asset.generated = processed.generated;
+    asset.sourceMaps = processed.sourceMaps;
     asset.hash = processed.hash;
     asset.cacheData = processed.cacheData;
 

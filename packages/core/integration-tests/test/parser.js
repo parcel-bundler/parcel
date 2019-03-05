@@ -24,7 +24,11 @@ describe('parser', function() {
         {
           type: 'css',
           assets: ['index.cSs'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'html',

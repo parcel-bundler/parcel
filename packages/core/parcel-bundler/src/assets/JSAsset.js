@@ -14,9 +14,7 @@ const generate = require('@babel/generator').default;
 const terser = require('../transforms/terser');
 const SourceMap = require('../SourceMap');
 const hoist = require('../scope-hoisting/hoist');
-const path = require('path');
-const fs = require('@parcel/fs');
-const logger = require('@parcel/logger');
+const loadSourceMap = require('../utils/loadSourceMap');
 const isAccessedVarChanged = require('../utils/isAccessedVarChanged');
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
@@ -26,8 +24,6 @@ const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer|define)\b/;
 const FS_RE = /\breadFileSync\b/;
 const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
 const WORKER_RE = /\bnew\s*(?:Shared)?Worker\s*\(/;
-const SOURCEMAP_RE = /\/\/\s*[@#]\s*sourceMappingURL\s*=\s*([^\s]+)/;
-const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
 
 class JSAsset extends Asset {
   constructor(name, options) {
@@ -39,7 +35,7 @@ class JSAsset extends Asset {
     this.outputCode = null;
     this.cacheData.env = {};
     this.rendition = options.rendition;
-    this.sourceMap = this.rendition ? this.rendition.sourceMap : null;
+    this.sourceMap = this.rendition ? this.rendition.map : null;
   }
 
   shouldInvalidate(cacheData) {
@@ -79,75 +75,9 @@ class JSAsset extends Asset {
     walk.ancestor(this.ast, collectDependencies, this);
   }
 
-  async loadSourceMap() {
-    // Get original sourcemap if there is any
-    let match = this.contents.match(SOURCEMAP_RE);
-    if (match) {
-      this.contents = this.contents.replace(SOURCEMAP_RE, '');
-
-      let url = match[1];
-      let dataURLMatch = url.match(DATA_URL_RE);
-
-      try {
-        let json, filename;
-        if (dataURLMatch) {
-          filename = this.name;
-          json = new Buffer(dataURLMatch[1], 'base64').toString();
-        } else {
-          filename = path.join(path.dirname(this.name), url);
-          json = await fs.readFile(filename, 'utf8');
-
-          // Add as a dep so we watch the source map for changes.
-          this.addDependency(filename, {includedInParent: true});
-        }
-
-        this.sourceMap = JSON.parse(json);
-
-        // Attempt to read missing source contents
-        if (!this.sourceMap.sourcesContent) {
-          this.sourceMap.sourcesContent = [];
-        }
-
-        let missingSources = this.sourceMap.sources.slice(
-          this.sourceMap.sourcesContent.length
-        );
-        if (missingSources.length) {
-          let contents = await Promise.all(
-            missingSources.map(async source => {
-              try {
-                let sourceFile = path.join(
-                  path.dirname(filename),
-                  this.sourceMap.sourceRoot || '',
-                  source
-                );
-                let result = await fs.readFile(sourceFile, 'utf8');
-                this.addDependency(sourceFile, {includedInParent: true});
-                return result;
-              } catch (err) {
-                logger.warn(
-                  `Could not load source file "${source}" in source map of "${
-                    this.relativeName
-                  }".`
-                );
-              }
-            })
-          );
-
-          this.sourceMap.sourcesContent = this.sourceMap.sourcesContent.concat(
-            contents
-          );
-        }
-      } catch (e) {
-        logger.warn(
-          `Could not load existing sourcemap of "${this.relativeName}".`
-        );
-      }
-    }
-  }
-
   async pretransform() {
-    if (this.options.sourceMaps) {
-      await this.loadSourceMap();
+    if (this.options.sourceMaps && !this.sourceMap) {
+      this.sourceMap = await loadSourceMap(this);
     }
 
     await babel(this);
@@ -209,9 +139,6 @@ class JSAsset extends Asset {
   }
 
   async generate() {
-    let enableSourceMaps =
-      this.options.sourceMaps &&
-      (!this.rendition || !!this.rendition.sourceMap);
     let code;
     if (this.isAstDirty) {
       let opts = {
@@ -221,7 +148,7 @@ class JSAsset extends Asset {
 
       let generated = generate(this.ast, opts, this.contents);
 
-      if (enableSourceMaps && generated.rawMappings) {
+      if (this.options.sourceMaps && generated.rawMappings) {
         let rawMap = new SourceMap(generated.rawMappings, {
           [this.relativeName]: this.contents
         });
@@ -243,7 +170,7 @@ class JSAsset extends Asset {
       code = this.outputCode != null ? this.outputCode : this.contents;
     }
 
-    if (enableSourceMaps && !this.sourceMap) {
+    if (this.options.sourceMaps && !this.sourceMap) {
       this.sourceMap = new SourceMap().generateEmptyMap(
         this.relativeName,
         this.contents
@@ -252,7 +179,7 @@ class JSAsset extends Asset {
 
     if (this.globals.size > 0) {
       code = Array.from(this.globals.values()).join('\n') + '\n' + code;
-      if (enableSourceMaps) {
+      if (this.options.sourceMaps) {
         if (!(this.sourceMap instanceof SourceMap)) {
           this.sourceMap = await new SourceMap().addMap(this.sourceMap);
         }
@@ -261,10 +188,13 @@ class JSAsset extends Asset {
       }
     }
 
-    return {
-      js: code,
-      map: this.sourceMap
-    };
+    return [
+      {
+        type: 'js',
+        value: code,
+        map: this.sourceMap
+      }
+    ];
   }
 
   generateErrorMessage(err) {

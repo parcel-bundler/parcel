@@ -34,6 +34,7 @@ class Pipeline {
       id: asset.id,
       dependencies: Array.from(asset.dependencies.values()),
       generated: generatedMap,
+      sourceMaps: asset.sourceMaps,
       error: error,
       hash: asset.hash,
       cacheData: asset.cacheData
@@ -90,6 +91,19 @@ class Pipeline {
       generated = await asset.postProcess(generated);
     } catch (err) {
       throw asset.generateErrorMessage(err);
+    }
+
+    let hasMap = false;
+    let sourceMaps = {};
+    for (let rendition of generated) {
+      if (rendition.map && rendition.type == asset.type) {
+        sourceMaps[rendition.type] = rendition.map;
+        hasMap = true;
+      }
+    }
+
+    if (hasMap) {
+      asset.sourceMaps = sourceMaps;
     }
 
     asset.generated = generated;
