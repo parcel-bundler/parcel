@@ -60,7 +60,7 @@ class TypeScriptAsset extends Asset {
       {
         type: 'js',
         value: transpiled.outputText,
-        sourceMap
+        map: sourceMap
       }
     ];
   }

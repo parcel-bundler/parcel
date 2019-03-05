@@ -9715,6 +9715,15 @@ postcss@^7.0.0, postcss@^7.0.1, postcss@^7.0.2, postcss@^7.0.5:
     source-map "^0.6.1"
     supports-color "^5.5.0"
 
+postcss@^7.0.11:
+  version "7.0.11"
+  resolved "https://registry.yarnpkg.com/postcss/-/postcss-7.0.11.tgz#f63c513b78026d66263bb2ca995bf02e3d1a697d"
+  integrity sha512-9AXb//5UcjeOEof9T+yPw3XTa5SL207ZOIC/lHYP4mbUTEh4M0rDAQekQpVANCZdwQwKhBtFZCk3i3h3h2hdWg==
+  dependencies:
+    chalk "^2.4.2"
+    source-map "^0.6.1"
+    supports-color "^6.1.0"
+
 posthtml-extend@^0.2.1:
   version "0.2.1"
   resolved "https://registry.yarnpkg.com/posthtml-extend/-/posthtml-extend-0.2.1.tgz#d023ce7ce4dd6071071b50e315dfefa87da8a979"
@@ -11533,6 +11542,13 @@ supports-color@^5.3.0, supports-color@^5.4.0, supports-color@^5.5.0:
   version "5.5.0"
   resolved "https://registry.yarnpkg.com/supports-color/-/supports-color-5.5.0.tgz#e2e69a44ac8772f78a1ec0b35b689df6530efc8f"
   integrity sha512-QjVjwdXIt408MIiAqCX4oUKsgU2EqAGzs2Ppkm4aQYbjm+ZEWEcW4SfFNTr4uMNZma0ey4f5lgLrkB0aX0QMow==
+  dependencies:
+    has-flag "^3.0.0"
+
+supports-color@^6.1.0:
+  version "6.1.0"
+  resolved "https://registry.yarnpkg.com/supports-color/-/supports-color-6.1.0.tgz#0764abc69c63d5ac842dd4867e8d025e880df8f3"
+  integrity sha512-qe1jfm1Mg7Nq/NSh6XE24gPXROEVsWHxC1LIx//XNlD9iw7YZQGjZNjYN7xGaEG6iKdA8EtNFW6R0gjnVXp+wQ==
   dependencies:
     has-flag "^3.0.0"
 
