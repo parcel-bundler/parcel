@@ -19,6 +19,14 @@ function init(options) {
   watcher = new FSWatcher(options);
   watcher.on('all', sendEvent);
   sendEvent('ready');
+
+  // only used for testing
+  watcher.once('ready', async () => {
+    // Wait an additional macrotask. This seems to be necessary before changes
+    // can be picked up.
+    await new Promise(resolve => setImmediate(resolve));
+    sendEvent('_chokidarReady');
+  });
 }
 
 function executeFunction(functionName, args) {

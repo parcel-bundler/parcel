@@ -1,32 +1,32 @@
 const Watcher = require('../index');
-const {sleep} = require('@parcel/test-utils');
 const assert = require('assert');
 
 describe('Watcher', function() {
   it('Should be able to create a new watcher', async () => {
     let watcher = new Watcher();
 
-    assert(!!watcher.child);
+    assert(watcher.child);
     assert(!watcher.ready);
 
-    await sleep(1000);
+    await new Promise(resolve => watcher.once('ready', resolve));
 
-    assert(!!watcher.child);
+    assert(watcher.child);
     assert(watcher.ready);
 
     await watcher.stop();
   });
 
-  it('Should be able to properly destroy the watcher', async () => {
+  it('Cleans up the related child process', async () => {
     let watcher = new Watcher();
+    await new Promise(resolve => watcher.once('ready', resolve));
 
-    await sleep(1000);
-
-    assert(!!watcher.child);
+    assert(watcher.child);
     assert(watcher.ready);
 
-    let time = Date.now();
+    let childDeadPromise = new Promise(resolve =>
+      watcher.once('childDead', resolve)
+    );
     await watcher.stop();
-    assert.notEqual(time, Date.now());
+    await childDeadPromise;
   });
 });
