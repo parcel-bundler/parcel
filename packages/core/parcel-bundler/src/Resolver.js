@@ -30,6 +30,11 @@ class Resolver {
   }
 
   async resolve(input, parent) {
+    if (this.rootPackage) {
+      let rootNodeModules = this.rootPackage.pkgdir + "/node_modules/"
+      input = input.replace(rootNodeModules, '');
+    }
+    
     let filename = input;
 
     // Check the cache first
