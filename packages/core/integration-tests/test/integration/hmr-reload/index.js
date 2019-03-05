@@ -4,6 +4,4 @@ function run() {
   output(local.a + local.b);
 }
 
-module.hot.accept();
-
 run();
