@@ -5,6 +5,60 @@ All notable changes to parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2019-02-06
+
+### Added
+
+- CSS/SASS/LESS sourcemaps [Details](https://github.com/parcel-bundler/parcel/pull/2489)
+- Add Markdown support [Details](https://github.com/parcel-bundler/parcel/pull/2538)
+- Unhandled HMR updates should cause a page reload [Details](https://github.com/parcel-bundler/parcel/pull/2676)
+- Enables jsx plugin in case jsx syntax is used in js files [Details](https://github.com/parcel-bundler/parcel/pull/2530)
+- Add disabling of autoinstall globally via environment variable [Details](https://github.com/parcel-bundler/parcel/pull/2152)
+- Add support for `chrome-extension://` protocol to bundle-url.js [Details](https://github.com/parcel-bundler/parcel/pull/2434)
+- Add support for Firefox's 'moz-extension://' protocol, to bundle-url.js [Details](https://github.com/parcel-bundler/parcel/pull/2465)
+- Generate source map files with long extentions (e.g. .js.map) [Details](https://github.com/parcel-bundler/parcel/pull/2472)
+- upgrade htmlnano dep [Details](https://github.com/parcel-bundler/parcel/pull/2506)
+- Default port to process.env.PORT [Details](https://github.com/parcel-bundler/parcel/pull/2559)
+- Inline process.browser for better code elimination [Details](https://github.com/parcel-bundler/parcel/pull/2583)
+- Detect files added to/removed from directories. [Details](https://github.com/parcel-bundler/parcel/pull/2615)
+- Implement depth option for detailed report [Details](https://github.com/parcel-bundler/parcel/pull/2466)
+
+### Fixed
+
+- Resolve package.browser in subfolders (with backslashes) [Details](https://github.com/parcel-bundler/parcel/pull/2445)
+- fix chokidar ignored regex [Details](https://github.com/parcel-bundler/parcel/pull/2479)
+- Defer throwing asset errors until after dependencies are handled. [Details](https://github.com/parcel-bundler/parcel/pull/2475)
+- fix(sourcemaps): Handle null mappings properly [Details](https://github.com/parcel-bundler/parcel/pull/2149)
+- Use Buffer.from [Details](https://github.com/parcel-bundler/parcel/pull/2512)
+- addURLDependency: use always relative path [Details](https://github.com/parcel-bundler/parcel/pull/2518)
+- reexporting + renaming when scopehoisting [Details](https://github.com/parcel-bundler/parcel/pull/2491)
+- Fix and reenable windows scope-hoisting tests [Details](https://github.com/parcel-bundler/parcel/pull/2537)
+- Fix for typescript asset invalidation [Details](https://github.com/parcel-bundler/parcel/pull/2485)
+- Fix hang up when a lot of parallel operation request the file system [Details](https://github.com/parcel-bundler/parcel/pull/2452)
+- Fix localRequire with package/path requests [Details](https://github.com/parcel-bundler/parcel/pull/2425)
+- Refactor htmlnano tests to test for filesize [Details](https://github.com/parcel-bundler/parcel/pull/2591)
+- pug Deprecated pretty [Details](https://github.com/parcel-bundler/parcel/pull/2582)
+- Fix pug test [Details](https://github.com/parcel-bundler/parcel/pull/2600)
+- Use the test to assert this.child.killed rather than checking time difference [Details](https://github.com/parcel-bundler/parcel/pull/2612)
+- Improve tests: symlink tests, Kotlin tests, and maybe test-util module [Details](https://github.com/parcel-bundler/parcel/pull/2605)
+- Handle empty html files [Details](https://github.com/parcel-bundler/parcel/pull/2621)
+- Fix HTMLAsset dependency tag with empty src value [Details](https://github.com/parcel-bundler/parcel/pull/2553)
+- Allow dotfiles to be served [Details](https://github.com/parcel-bundler/parcel/pull/2641)
+- Fix sourceMappingURL for bundles with multiple entry points [Details](https://github.com/parcel-bundler/parcel/pull/2645)
+- Fix absolute path importing in sass [Details](https://github.com/parcel-bundler/parcel/pull/2432)
+- Fix dependency list parsing in RustAsset for paths on Windows [Details](https://github.com/parcel-bundler/parcel/pull/2651)
+- For scope hoisting, Asset IDs cannot contain + or / (base64) [Details](https://github.com/parcel-bundler/parcel/pull/2681)
+- Send CORS headers when a file does not exist [Details](https://github.com/parcel-bundler/parcel/pull/2669)
+- Prevent circular deps from causing a stack overflow in HMR runtime [Details](https://github.com/parcel-bundler/parcel/pull/2660)
+- Fix postcss modules composes imports [Details](https://github.com/parcel-bundler/parcel/pull/2642)
+- fix: set default pragmaFrag option for JSX [Details](https://github.com/parcel-bundler/parcel/pull/2486)
+- Remove unnecessary return await [Details](https://github.com/parcel-bundler/parcel/pull/2705)
+- Fix scopehositing with nested dynamic imports [Details](https://github.com/parcel-bundler/parcel/pull/2712)
+- eslint: enable no-return-await [Details](https://github.com/parcel-bundler/parcel/pull/2707)
+- Throw meaningful error on undefined exports [Details](https://github.com/parcel-bundler/parcel/pull/2693)
+- Add helpful plugin errors [Details](https://github.com/parcel-bundler/parcel/pull/2691)
+- Fix HMR failure with js error on load [Details](https://github.com/parcel-bundler/parcel/pull/2531)
+
 ## [1.11.0] - 2018-12-18
 
 ### Added
