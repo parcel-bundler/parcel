@@ -1,4 +1,5 @@
-// @flow
+// @flow strict-local
+
 import type AssetGraph from './AssetGraph';
 import type {
   Namer,
@@ -55,7 +56,7 @@ export default class BundlerRunner {
         rootDir: this.rootDir
       });
 
-      if (filePath) {
+      if (filePath != null) {
         bundle.filePath = filePath;
         return;
       }

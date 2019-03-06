@@ -2,7 +2,7 @@
 import * as fs from '@parcel/fs';
 import pkg from '../package.json';
 import Path from 'path';
-import md5 from '@parcel/utils/lib/md5';
+import {md5FromString} from '@parcel/utils/src/md5';
 import objectHash from '@parcel/utils/lib/objectHash';
 import logger from '@parcel/logger';
 import type {
@@ -56,7 +56,7 @@ export class Cache {
   }
 
   getCacheId(appendedData: string, env: Environment) {
-    return md5(this.optionsHash + appendedData + JSON.stringify(env));
+    return md5FromString(this.optionsHash + appendedData + JSON.stringify(env));
   }
 
   getCachePath(cacheId: string, extension: string = '.json'): FilePath {
