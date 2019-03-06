@@ -8,9 +8,9 @@ const OPTIONS = {
   maxParallelRequests: 5
 };
 
-type Context = {|
+type BundleContext = {|
   bundleGroup: BundleGroup,
-  bundle: Bundle
+  bundle?: Bundle
 |};
 
 export default new Bundler({
@@ -24,65 +24,72 @@ export default new Bundler({
     // 6. If two assets are always seen together, put them in the same extracted bundle.
 
     // Step 1: create bundles for each of the explicit code split points.
-    assetGraph.traverse((node, context: ?Context) => {
-      if (node.type === 'dependency') {
-        let dep: Dependency = node.value;
+    assetGraph.traverse(
+      (node, context: ?BundleContext): ?BundleContext => {
+        if (node.type === 'dependency') {
+          let dep: Dependency = node.value;
 
-        // Start a new bundle if this is an async dependency, or entry point.
-        if (dep.isAsync || dep.isEntry) {
-          let isIsolated = dep.isEntry || dep.env.isIsolated();
-          let resolved = assetGraph.getDependencyResolution(dep);
-          if (!resolved) {
-            // TODO: is this right?
-            return;
-          }
-
-          let bundleGroup: BundleGroup = {
-            dependency: dep,
-            target: dep.target || (context && context.bundleGroup.target),
-            entryAssetId: resolved.id
-          };
-
-          bundleGraph.addBundleGroup(
-            isIsolated || !context ? null : context.bundle,
-            bundleGroup
-          );
-
-          return {bundleGroup};
-        }
-      } else if (node.type === 'asset') {
-        if (
-          context &&
-          (!context.bundle || node.value.type !== context.bundle.type)
-        ) {
-          let bundle = assetGraph.createBundle(node.value);
-          let dep = context.bundleGroup.dependency;
-
-          // Mark bundle as an entry, and set explicit file path from target if the dependency has one
-          bundle.isEntry = !!dep.isEntry;
-          if (dep.target && dep.target.distPath) {
-            bundle.filePath = dep.target.distPath;
-          }
-
-          // If there is a current bundle, but this asset is of a different type,
-          // separate it out into a parallel bundle in the same bundle group.
-          if (context.bundle) {
-            let bundles = bundleGraph.getBundles(context.bundleGroup);
-            let existingBundle = bundles.find(b => b.type === node.value.type);
-
-            // If there is an existing bundle of the asset's type, combine with that.
-            // Otherwise, a new bundle will be created.
-            if (existingBundle) {
-              existingBundle.assetGraph.merge(bundle.assetGraph);
-              return {bundleGroup: context.bundleGroup, bundle: existingBundle};
+          // Start a new bundle if this is an async dependency, or entry point.
+          if (dep.isAsync || dep.isEntry) {
+            let isIsolated = dep.isEntry || dep.env.isIsolated();
+            let resolved = assetGraph.getDependencyResolution(dep);
+            if (!resolved) {
+              // TODO: is this right?
+              return;
             }
-          }
 
-          bundleGraph.addBundle(context.bundleGroup, bundle);
-          return {bundleGroup: context.bundleGroup, bundle};
+            let bundleGroup: BundleGroup = {
+              dependency: dep,
+              target: dep.target || (context && context.bundleGroup.target),
+              entryAssetId: resolved.id
+            };
+
+            bundleGraph.addBundleGroup(
+              isIsolated || !context ? null : context.bundle,
+              bundleGroup
+            );
+
+            return {bundleGroup};
+          }
+        } else if (node.type === 'asset') {
+          if (
+            context &&
+            (!context.bundle || node.value.type !== context.bundle.type)
+          ) {
+            let bundle = assetGraph.createBundle(node.value);
+            let dep = context.bundleGroup.dependency;
+
+            // Mark bundle as an entry, and set explicit file path from target if the dependency has one
+            bundle.isEntry = !!dep.isEntry;
+            if (dep.target && dep.target.distPath) {
+              bundle.filePath = dep.target.distPath;
+            }
+
+            // If there is a current bundle, but this asset is of a different type,
+            // separate it out into a parallel bundle in the same bundle group.
+            if (context.bundle) {
+              let bundles = bundleGraph.getBundles(context.bundleGroup);
+              let existingBundle = bundles.find(
+                b => b.type === node.value.type
+              );
+
+              // If there is an existing bundle of the asset's type, combine with that.
+              // Otherwise, a new bundle will be created.
+              if (existingBundle) {
+                existingBundle.assetGraph.merge(bundle.assetGraph);
+                return {
+                  bundleGroup: context.bundleGroup,
+                  bundle: existingBundle
+                };
+              }
+            }
+
+            bundleGraph.addBundle(context.bundleGroup, bundle);
+            return {bundleGroup: context.bundleGroup, bundle};
+          }
         }
       }
-    });
+    );
 
     // Step 2: remove assets that are duplicated in a parent bundle
     bundleGraph.traverseBundles(bundle => {

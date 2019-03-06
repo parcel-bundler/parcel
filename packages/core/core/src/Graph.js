@@ -2,8 +2,8 @@
 
 import type {
   Node as _Node,
+  GraphTraversalCallback,
   TraversalActions,
-  TraversalContext,
   Graph as IGraph
 } from '@parcel/types';
 
@@ -25,13 +25,6 @@ type GraphOpts = {|
   edges?: Array<Edge>,
   rootNodeId?: ?NodeId
 |};
-
-type VisitCallback = (
-  node: Node,
-  context?: TraversalContext,
-  actions: TraversalActions
-) => ?Node;
-
 export default class Graph implements IGraph {
   nodes: Map<NodeId, Node>;
   edges: Set<Edge>;
@@ -219,7 +212,10 @@ export default class Graph implements IGraph {
     return {removed, added};
   }
 
-  traverse(visit: VisitCallback, startNode: ?Node): ?Node {
+  traverse<TContext>(
+    visit: GraphTraversalCallback<Node, TContext>,
+    startNode: ?Node
+  ): ?TContext {
     return this.dfs({
       visit,
       startNode,
@@ -227,7 +223,10 @@ export default class Graph implements IGraph {
     });
   }
 
-  traverseAncestors(startNode: Node, visit: VisitCallback) {
+  traverseAncestors<TContext>(
+    startNode: Node,
+    visit: GraphTraversalCallback<Node, TContext>
+  ) {
     return this.dfs({
       visit,
       startNode,
@@ -235,15 +234,15 @@ export default class Graph implements IGraph {
     });
   }
 
-  dfs({
+  dfs<TContext>({
     visit,
     startNode,
     getChildren
   }: {
-    visit: VisitCallback,
+    visit: GraphTraversalCallback<Node, TContext>,
     getChildren(node: Node): Array<Node>,
     startNode?: ?Node
-  }): ?Node {
+  }): ?TContext {
     let root = startNode || this.getRootNode();
     if (!root) {
       return null;

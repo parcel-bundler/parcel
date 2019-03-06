@@ -2,8 +2,6 @@
 
 export type Config = any;
 
-export type TraversalContext = any;
-
 export type AST = {|
   type: string,
   version: string,
