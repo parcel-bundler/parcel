@@ -293,6 +293,7 @@ exports.symlinkPrivilegeWarning = symlinkPrivilegeWarning;
 exports.bundler = bundler;
 exports.bundle = bundle;
 exports.run = run;
+exports.prepareBrowserContext = prepareBrowserContext;
 exports.assertBundleTree = assertBundleTree;
 exports.nextBundle = nextBundle;
 exports.deferred = deferred;
