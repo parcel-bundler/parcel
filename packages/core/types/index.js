@@ -1,16 +1,10 @@
 // @flow strict-local
 
-import type {
-  AST as _AST,
-  Config as _Config,
-  Node as _Node,
-  TraversalContext as _TraversalContext
-} from './unsafe';
+import type {AST as _AST, Config as _Config, Node as _Node} from './unsafe';
 
 export type AST = _AST;
 export type Config = _Config;
 export type Node = _Node;
-export type TraversalContext = _TraversalContext;
 
 export type JSONValue =
   | null
@@ -287,19 +281,23 @@ export interface TraversalActions {
   stop(): void;
 }
 
-export type GraphTraversalCallback<T> = (
-  asset: T,
-  context?: TraversalContext,
+export type GraphTraversalCallback<TNode, TContext> = (
+  node: TNode,
+  context: ?TContext,
   traversal: TraversalActions
-) => ?Node;
+) => ?TContext;
 
 export interface Graph {
   merge(graph: Graph): void;
+  traverse<TContext>(
+    visit: GraphTraversalCallback<Node, TContext>,
+    startNode: ?Node
+  ): ?TContext;
 }
 
 // TODO: what do we want to expose here?
 export interface AssetGraph extends Graph {
-  traverseAssets(visit: GraphTraversalCallback<Asset>): ?Node;
+  traverseAssets(visit: GraphTraversalCallback<Asset, Node>): ?Node;
   createBundle(asset: Asset): Bundle;
   getTotalSize(asset?: Asset): number;
   getEntryAssets(): Array<Asset>;
@@ -331,7 +329,9 @@ export interface BundleGraph {
   findBundlesWithAsset(asset: Asset): Array<Bundle>;
   getBundles(bundleGroup: BundleGroup): Array<Bundle>;
   getBundleGroups(bundle: Bundle): Array<BundleGroup>;
-  traverseBundles(visit: GraphTraversalCallback<Bundle>): ?Node;
+  traverseBundles<TContext>(
+    visit: GraphTraversalCallback<Bundle, TContext>
+  ): ?TContext;
 }
 
 export type Bundler = {|

@@ -2,7 +2,7 @@
   "name": "@parcel/core",
   "version": "2.0.0",
   "license": "MIT",
-  "main": "./lib/Parcel.js",
+  "main": "./src/Parcel.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
