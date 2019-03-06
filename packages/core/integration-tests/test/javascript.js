@@ -68,6 +68,8 @@ describe('javascript', function() {
       assert(pkgName in pkg.dependencies === false);
       assert(e.message.includes("Cannot resolve dependency 'lodash'"));
     }
+
+    delete process.env.PARCEL_AUTOINSTALL;
   });
 
   it('should auto install babel-core v6', async function() {
