@@ -533,7 +533,11 @@ function addExport(asset, path, local, exported) {
     asset.cacheData.exports[exported.name] = identifier.name;
   }
 
-  rename(scope, local.name, identifier.name);
+  try {
+    rename(scope, local.name, identifier.name);
+  } catch (e) {
+    throw new Error('export ' + e.message);
+  }
 
   constantViolations.forEach(path => path.insertAfter(t.cloneDeep(assignNode)));
 }
