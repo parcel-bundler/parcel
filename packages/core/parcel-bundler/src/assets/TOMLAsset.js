@@ -1,5 +1,5 @@
 const Asset = require('../Asset');
-const toml = require('toml');
+const toml = require('@iarna/toml');
 const serializeObject = require('../utils/serializeObject');
 
 class TOMLAsset extends Asset {

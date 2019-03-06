@@ -27,6 +27,7 @@ class Parser {
     this.registerExtension('toml', './assets/TOMLAsset');
     this.registerExtension('gql', './assets/GraphqlAsset');
     this.registerExtension('graphql', './assets/GraphqlAsset');
+    this.registerExtension('kt', './assets/KotlinAsset');
 
     this.registerExtension('css', './assets/CSSAsset');
     this.registerExtension('pcss', './assets/CSSAsset');
@@ -50,6 +51,7 @@ class Parser {
 
     this.registerExtension('jade', './assets/PugAsset');
     this.registerExtension('pug', './assets/PugAsset');
+    this.registerExtension('md', './assets/MarkdownAsset');
 
     let extensions = options.extensions || {};
     for (let ext in extensions) {

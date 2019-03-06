@@ -1,5 +1,6 @@
 const Parser = require('./Parser');
 const path = require('path');
+const {errorUtils} = require('@parcel/utils');
 
 /**
  * A Pipeline composes multiple Asset types together.
@@ -17,16 +18,24 @@ class Pipeline {
     }
 
     let asset = this.parser.getAsset(path, options);
-    let generated = await this.processAsset(asset);
+    let error = null;
     let generatedMap = {};
-    for (let rendition of generated) {
-      generatedMap[rendition.type] = rendition.value;
+    try {
+      let generated = await this.processAsset(asset);
+      for (let rendition of generated) {
+        generatedMap[rendition.type] = rendition.value;
+      }
+    } catch (err) {
+      error = errorUtils.errorToJson(err);
+      error.fileName = path;
     }
 
     return {
       id: asset.id,
       dependencies: Array.from(asset.dependencies.values()),
       generated: generatedMap,
+      sourceMaps: asset.sourceMaps,
+      error: error,
       hash: asset.hash,
       cacheData: asset.cacheData
     };
@@ -41,7 +50,6 @@ class Pipeline {
 
     let inputType = path.extname(asset.name).slice(1);
     let generated = [];
-
     for (let rendition of this.iterateRenditions(asset)) {
       let {type, value} = rendition;
       if (typeof value !== 'string' || rendition.final) {
@@ -82,6 +90,19 @@ class Pipeline {
       generated = await asset.postProcess(generated);
     } catch (err) {
       throw asset.generateErrorMessage(err);
+    }
+
+    let hasMap = false;
+    let sourceMaps = {};
+    for (let rendition of generated) {
+      if (rendition.map && rendition.type == asset.type) {
+        sourceMaps[rendition.type] = rendition.map;
+        hasMap = true;
+      }
+    }
+
+    if (hasMap) {
+      asset.sourceMaps = sourceMaps;
     }
 
     asset.generated = generated;

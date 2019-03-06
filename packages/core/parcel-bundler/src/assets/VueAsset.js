@@ -2,6 +2,7 @@ const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const md5 = require('../utils/md5');
 const {minify} = require('terser');
+const t = require('@babel/types');
 
 class VueAsset extends Asset {
   constructor(name, options) {
@@ -34,7 +35,7 @@ class VueAsset extends Asset {
       parts.push({
         type: descriptor.script.lang || 'js',
         value: descriptor.script.content,
-        sourceMap: descriptor.script.map
+        map: descriptor.script.map
       });
     }
 
@@ -72,10 +73,10 @@ class VueAsset extends Asset {
 
     // TODO: make it possible to process this code with the normal scope hoister
     if (this.options.scopeHoist) {
-      optsVar = `$${this.id}$export$default`;
+      optsVar = `$${t.toIdentifier(this.id)}$export$default`;
 
       if (!js.includes(optsVar)) {
-        optsVar = `$${this.id}$exports`;
+        optsVar = `$${t.toIdentifier(this.id)}$exports`;
         if (!js.includes(optsVar)) {
           supplemental += `
             var ${optsVar} = {};
@@ -100,7 +101,7 @@ class VueAsset extends Asset {
     supplemental += this.compileCSSModules(generated, optsVar);
     supplemental += this.compileHMR(generated, optsVar);
 
-    if (this.options.minify && !this.options.scopeHoist && supplemental) {
+    if (this.options.minify && !this.options.scopeHoist) {
       let {code, error} = minify(supplemental, {toplevel: true});
       if (error) {
         throw error;
@@ -116,13 +117,9 @@ class VueAsset extends Asset {
     if (js) {
       result.push({
         type: 'js',
-        value: js
+        value: js,
+        map: this.options.sourceMaps && this.ast.script && generated[0].map
       });
-    }
-
-    let map = generated.find(r => r.type === 'map');
-    if (map) {
-      result.push(map);
     }
 
     let css = this.compileStyle(generated, scopeId);

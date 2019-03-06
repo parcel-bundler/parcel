@@ -1,35 +1,45 @@
 const Resolver = require('../src/Resolver');
 const path = require('path');
 const assert = require('assert');
-const {rimraf, ncp} = require('./utils');
+const {rimraf, ncp} = require('@parcel/test-utils');
 const {mkdirp} = require('@parcel/fs');
+const {symlinkPrivilegeWarning} = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
 
 const rootDir = path.join(__dirname, 'input/resolver');
 
 describe('resolver', function() {
   let resolver;
+  let hasPrivilege = true;
+
   before(async function() {
     await rimraf(path.join(__dirname, '/input'));
     await mkdirp(rootDir);
     await ncp(path.join(__dirname, 'integration/resolver'), rootDir);
 
     // Create the symlinks here to prevent cross platform and git issues
-    symlinkSync(
-      path.join(rootDir, 'packages/source'),
-      path.join(rootDir, 'node_modules/source'),
-      'dir'
-    );
-    symlinkSync(
-      path.join(rootDir, 'packages/source-alias'),
-      path.join(rootDir, 'node_modules/source-alias'),
-      'dir'
-    );
-    symlinkSync(
-      path.join(rootDir, 'packages/source-alias-glob'),
-      path.join(rootDir, 'node_modules/source-alias-glob'),
-      'dir'
-    );
+    try {
+      symlinkSync(
+        path.join(rootDir, 'packages/source'),
+        path.join(rootDir, 'node_modules/source'),
+        'dir'
+      );
+      symlinkSync(
+        path.join(rootDir, 'packages/source-alias'),
+        path.join(rootDir, 'node_modules/source-alias'),
+        'dir'
+      );
+      symlinkSync(
+        path.join(rootDir, 'packages/source-alias-glob'),
+        path.join(rootDir, 'node_modules/source-alias-glob'),
+        'dir'
+      );
+    } catch (e) {
+      if (e.code == 'EPERM') {
+        symlinkPrivilegeWarning();
+        hasPrivilege = false;
+      }
+    }
 
     resolver = new Resolver({
       rootDir,
@@ -362,6 +372,28 @@ describe('resolver', function() {
       assert.equal(resolved.pkg.name, 'package-browser-alias');
     });
 
+    it('should alias a deep nested relative file using the package.browser field', async function() {
+      let resolved = await resolver.resolve(
+        './nested',
+        path.join(
+          rootDir,
+          'node_modules',
+          'package-browser-alias',
+          'browser.js'
+        )
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules',
+          'package-browser-alias',
+          'subfolder1/subfolder2/subfile.js'
+        )
+      );
+      assert.equal(resolved.pkg.name, 'package-browser-alias');
+    });
+
     it('should alias a sub-file using the package.alias field', async function() {
       let resolved = await resolver.resolve(
         'package-alias/foo',
@@ -557,6 +589,8 @@ describe('resolver', function() {
 
   describe('source field', function() {
     it('should use the source field when symlinked', async function() {
+      if (!hasPrivilege) this.skip();
+
       let resolved = await resolver.resolve(
         'source',
         path.join(rootDir, 'foo.js')
@@ -569,6 +603,8 @@ describe('resolver', function() {
     });
 
     it('should not use the source field when not symlinked', async function() {
+      if (!hasPrivilege) this.skip();
+
       let resolved = await resolver.resolve(
         'source-not-symlinked',
         path.join(rootDir, 'foo.js')
@@ -581,6 +617,8 @@ describe('resolver', function() {
     });
 
     it('should use the source field as an alias when symlinked', async function() {
+      if (!hasPrivilege) this.skip();
+
       let resolved = await resolver.resolve(
         'source-alias/dist',
         path.join(rootDir, 'foo.js')
@@ -593,6 +631,8 @@ describe('resolver', function() {
     });
 
     it('should use the source field as a glob alias when symlinked', async function() {
+      if (!hasPrivilege) this.skip();
+
       let resolved = await resolver.resolve(
         'source-alias-glob',
         path.join(rootDir, 'foo.js')

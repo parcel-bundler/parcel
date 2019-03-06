@@ -36,7 +36,7 @@ or with npm:
 npm install -g parcel-bundler
 ```
 
-2.  Parcel can take any type of file as an entry point, but an HTML or JavaScript file is a good place to start. If you link your main JavaScript file in the HTML using a relative path, Parcel will also process it for you, and replace the reference with a URL to the output file.
+2.  Parcel can take any type of file as an entry point, but a HTML or JavaScript file is a good place to start. If you link your main JavaScript file in the HTML using a relative path, Parcel will also process it for you, and replace the reference with a URL to the output file.
 
 ```html
 <html>
@@ -46,7 +46,7 @@ npm install -g parcel-bundler
 </html>
 ```
 
-3.  Parcel has a development server built in, which will automatically rebuild your app as you change files and supports hot module replacement for fast development. Just point it at your entry file:
+3.  Parcel has a development server built in which will automatically rebuild your app as you change files and supports hot module replacement for fast development. Just point it at your entry file:
 
 ```shell
 parcel index.html

@@ -1,9 +1,15 @@
+const t = require('@babel/types');
+
 function rename(scope, oldName, newName) {
   if (oldName === newName) {
     return;
   }
 
   let binding = scope.getBinding(oldName);
+
+  if (!binding) {
+    throw new Error("'" + oldName + "' is not defined");
+  }
 
   // Rename all constant violations
   for (let violation of binding.constantViolations) {
@@ -19,15 +25,18 @@ function rename(scope, oldName, newName) {
 
   // Rename all references
   for (let path of binding.referencePaths) {
+    if (t.isExportSpecifier(path.parent) && path.parentPath.parent.source) {
+      continue;
+    }
     if (path.node.name === oldName) {
       path.node.name = newName;
     }
   }
 
   // Rename binding identifier, and update scope.
-  binding.identifier.name = newName;
+  scope.removeOwnBinding(oldName);
   scope.bindings[newName] = binding;
-  delete scope.bindings[oldName];
+  binding.identifier.name = newName;
 }
 
 module.exports = rename;
