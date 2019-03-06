@@ -1,4 +1,5 @@
 const path = require('path');
+const logger = require('@parcel/logger');
 const RawAsset = require('./assets/RawAsset');
 const GlobAsset = require('./assets/GlobAsset');
 const {isGlob} = require('./utils/glob');
@@ -75,7 +76,21 @@ class Parser {
     let extension = path.extname(filename).toLowerCase();
     let parser = this.extensions[extension] || RawAsset;
     if (typeof parser === 'string') {
-      parser = this.extensions[extension] = require(parser);
+      try {
+        parser = this.extensions[extension] = require(parser);
+      } catch (err) {
+        let relFilename = path.relative(process.cwd(), filename);
+        let relParserName = path.relative(process.cwd(), parser);
+        if (relParserName.slice(0, 12) === 'node_modules') {
+          relParserName = relParserName.slice(13);
+        }
+        logger.warn(
+          `Parser "${relParserName}" failed to initialize when processing ` +
+            `asset "${relFilename}". Threw the following error:\n` +
+            `${err.stack || err.message || err} falling back to RawAsset`
+        );
+        return RawAsset;
+      }
     }
 
     return parser;
