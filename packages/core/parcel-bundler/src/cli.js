@@ -152,8 +152,9 @@ program
     'force bundling node modules, even on node/electron target'
   )
   .option(
-    '--detailed-report',
-    'print a detailed build report after a completed build'
+    '--detailed-report [depth]',
+    'print a detailed build report after a completed build. If enabled, defaults to depth "10"',
+    /^([0-9]+|all)$/
   )
   .option(
     '--log-level <level>',
@@ -214,6 +215,7 @@ async function bundle(main, command) {
 
   command.throwErrors = false;
   command.scopeHoist = command.experimentalScopeHoisting || false;
+
   const bundler = new Bundler(main, command);
 
   command.target = command.target || 'browser';
