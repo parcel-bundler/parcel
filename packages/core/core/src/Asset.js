@@ -15,7 +15,7 @@ import type {
   PackageJSON
 } from '@parcel/types';
 import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
-import {loadConfig} from '@parcel/utils/lib/config';
+import {loadConfig} from '@parcel/utils/src/config';
 import Cache from '@parcel/cache';
 import Dependency from './Dependency';
 
@@ -151,14 +151,21 @@ export default class Asset implements IAsset {
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
   ): Promise<Config | null> {
-    if (options && options.packageKey) {
+    let packageKey = options && options.packageKey;
+    let parse = options && options.parse;
+
+    if (packageKey) {
       let pkg = await this.getPackage();
-      if (pkg && options.packageKey && pkg[options.packageKey]) {
-        return pkg[options.packageKey];
+      if (pkg && pkg[packageKey]) {
+        return pkg[packageKey];
       }
     }
 
-    let conf = await loadConfig(this.filePath, filePaths, options);
+    let conf = await loadConfig(
+      this.filePath,
+      filePaths,
+      parse == null ? null : {parse}
+    );
     if (!conf) {
       return null;
     }
