@@ -8,6 +8,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
     "test-ci": "yarn build && yarn test",

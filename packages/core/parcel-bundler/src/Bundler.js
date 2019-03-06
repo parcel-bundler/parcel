@@ -19,7 +19,7 @@ const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');
-const {glob} = require('./utils/glob');
+const {glob, isGlob} = require('./utils/glob');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -29,7 +29,9 @@ class Bundler extends EventEmitter {
   constructor(entryFiles, options = {}) {
     super();
 
-    this.entryFiles = this.normalizeEntries(entryFiles);
+    entryFiles = this.normalizeEntries(entryFiles);
+    this.watchedGlobs = entryFiles.filter(entry => isGlob(entry));
+    this.entryFiles = this.findEntryFiles(entryFiles);
     this.options = this.normalizeOptions(options);
 
     this.resolver = new Resolver(this.options);
@@ -82,6 +84,10 @@ class Bundler extends EventEmitter {
       entryFiles = [process.cwd()];
     }
 
+    return entryFiles;
+  }
+
+  findEntryFiles(entryFiles) {
     // Match files as globs
     return entryFiles
       .reduce((p, m) => p.concat(glob.sync(m)), [])
@@ -372,7 +378,12 @@ class Bundler extends EventEmitter {
       if (process.env.NODE_ENV === 'test' && !this.watcher.ready) {
         await new Promise(resolve => this.watcher.once('ready', resolve));
       }
+      this.watchedGlobs.forEach(glob => {
+        this.watcher.add(glob);
+      });
+      this.watcher.on('add', this.onAdd.bind(this));
       this.watcher.on('change', this.onChange.bind(this));
+      this.watcher.on('unlink', this.onUnlink.bind(this));
     }
 
     if (this.options.hmr) {
@@ -479,7 +490,7 @@ class Bundler extends EventEmitter {
           this.options.autoinstall &&
           install
         ) {
-          return await this.installDep(asset, dep);
+          return this.installDep(asset, dep);
         }
 
         err.message = `Cannot resolve dependency '${dep.name}'`;
@@ -510,7 +521,7 @@ class Bundler extends EventEmitter {
       }
     }
 
-    return await this.resolveDep(asset, dep, false);
+    return this.resolveDep(asset, dep, false);
   }
 
   async throwDepError(asset, dep, err) {
@@ -561,6 +572,7 @@ class Bundler extends EventEmitter {
     asset.buildTime = asset.endTime - asset.startTime;
     asset.id = processed.id;
     asset.generated = processed.generated;
+    asset.sourceMaps = processed.sourceMaps;
     asset.hash = processed.hash;
     asset.cacheData = processed.cacheData;
 
@@ -592,6 +604,13 @@ class Bundler extends EventEmitter {
         }
       })
     );
+
+    // If there was a processing error, re-throw now that we've set up
+    // depdenency watchers. This keeps reloading working if there is an
+    // error in a dependency not directly handled by Parcel.
+    if (processed.error !== null) {
+      throw processed.error;
+    }
 
     // Store resolved assets in their original order
     dependencies.forEach((dep, i) => {
@@ -751,7 +770,24 @@ class Bundler extends EventEmitter {
     }
   }
 
+  async onAdd(path) {
+    path = Path.join(process.cwd(), path);
+
+    let asset = this.parser.getAsset(path, this.options);
+    this.loadedAssets.set(path, asset);
+
+    this.entryAssets.add(asset);
+
+    await this.watch(path, asset);
+    this.onChange(path);
+  }
+
   async onChange(path) {
+    // The path to the newly-added items are not absolute.
+    if (!Path.isAbsolute(path)) {
+      path = Path.resolve(process.cwd(), path);
+    }
+
     let assets = this.watchedAssets.get(path);
     if (!assets || !assets.size) {
       return;
@@ -770,6 +806,19 @@ class Bundler extends EventEmitter {
     this.rebuildTimeout = setTimeout(async () => {
       await this.bundle();
     }, 100);
+  }
+
+  async onUnlink(path) {
+    // The path to the newly-added items are not absolute.
+    if (!Path.isAbsolute(path)) {
+      path = Path.resolve(process.cwd(), path);
+    }
+
+    let asset = this.getLoadedAsset(path);
+    this.entryAssets.delete(asset);
+    this.unloadAsset(asset);
+
+    this.bundle();
   }
 
   middleware() {

@@ -4,6 +4,7 @@ const path = require('path');
 const {isGlob} = require('./utils/glob');
 const fs = require('@parcel/fs');
 const micromatch = require('micromatch');
+const getModuleParts = require('./utils/getModuleParts');
 
 const EMPTY_SHIM = require.resolve('./builtins/_empty');
 
@@ -104,7 +105,7 @@ class Resolver {
 
     // If we couldn't resolve the node_modules path, just return the module name info
     if (!resolved) {
-      let parts = this.getModuleParts(filename);
+      let parts = getModuleParts(filename);
       resolved = {
         moduleName: parts[0],
         subPath: parts[1]
@@ -158,7 +159,7 @@ class Resolver {
     // First try as a file, then as a directory.
     return (
       (await this.loadAsFile(filename, extensions, pkg)) ||
-      (await this.loadDirectory(filename, extensions, pkg))
+      (await this.loadDirectory(filename, extensions, pkg)) // eslint-disable-line no-return-await
     );
   }
 
@@ -171,7 +172,7 @@ class Resolver {
       return {filePath: builtins[filename]};
     }
 
-    let parts = this.getModuleParts(filename);
+    let parts = getModuleParts(filename);
     let root = path.parse(dir).root;
 
     while (dir !== root) {
@@ -250,7 +251,7 @@ class Resolver {
     }
 
     // Fall back to an index file inside the directory.
-    return await this.loadAsFile(path.join(dir, 'index'), extensions, pkg);
+    return this.loadAsFile(path.join(dir, 'index'), extensions, pkg);
   }
 
   async readPackage(dir) {
@@ -374,7 +375,7 @@ class Resolver {
       alias = this.lookupAlias(aliases, filename, dir);
       if (alias == null) {
         // If it didn't match, try only the module name.
-        let parts = this.getModuleParts(filename);
+        let parts = getModuleParts(filename);
         alias = this.lookupAlias(aliases, parts[0], dir);
         if (typeof alias === 'string') {
           // Append the filename back onto the aliased module.
@@ -404,6 +405,10 @@ class Resolver {
             break;
           }
         }
+      }
+      // Or try a lookup replacing backslash characters with forward slash
+      if (alias == null && ~filename.indexOf('\\')) {
+        alias = aliases[filename.replace(/\\/g, '/')];
       }
     }
 
@@ -437,16 +442,6 @@ class Resolver {
     // Load the local package, and resolve aliases
     let pkg = await this.findPackage(dir);
     return this.resolveAliases(filename, pkg);
-  }
-
-  getModuleParts(name) {
-    let parts = path.normalize(name).split(path.sep);
-    if (parts[0].charAt(0) === '@') {
-      // Scoped module (e.g. @scope/module). Merge the first two parts back together.
-      parts.splice(0, 2, `${parts[0]}/${parts[1]}`);
-    }
-
-    return parts;
   }
 }
 

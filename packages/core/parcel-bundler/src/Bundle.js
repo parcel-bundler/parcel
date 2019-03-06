@@ -39,6 +39,14 @@ class Bundle {
   addAsset(asset) {
     asset.bundles.add(this);
     this.assets.add(asset);
+    if (
+      this.type != 'map' &&
+      this.type == asset.type &&
+      asset.options.sourceMaps &&
+      asset.sourceMaps
+    ) {
+      this.getSiblingBundle('map').addAsset(asset);
+    }
   }
 
   removeAsset(asset) {
@@ -46,12 +54,12 @@ class Bundle {
     this.assets.delete(asset);
   }
 
-  addOffset(asset, line) {
-    this.offsets.set(asset, line);
+  addOffset(asset, line, column = 0) {
+    this.offsets.set(asset, [line, column]);
   }
 
   getOffset(asset) {
-    return this.offsets.get(asset) || 0;
+    return this.offsets.get(asset) || [0, 0];
   }
 
   getSiblingBundle(type) {
@@ -64,7 +72,11 @@ class Bundle {
         type,
         Path.join(
           Path.dirname(this.name),
-          Path.basename(this.name, Path.extname(this.name)) + '.' + type
+          // keep the original extension for source map files, so we have
+          // .js.map instead of just .map
+          type === 'map'
+            ? Path.basename(this.name) + '.' + type
+            : Path.basename(this.name, Path.extname(this.name)) + '.' + type
         ),
         this
       );
@@ -110,12 +122,23 @@ class Bundle {
   getHashedBundleName(contentHash) {
     // If content hashing is enabled, generate a hash from all assets in the bundle.
     // Otherwise, use a hash of the filename so it remains consistent across builds.
-    let ext = Path.extname(this.name);
+
+    if (this.type == 'map') {
+      return this.parentBundle.getHashedBundleName(contentHash) + '.map';
+    }
+
+    let basename = Path.basename(this.name);
+
+    let ext = Path.extname(basename);
     let hash = (contentHash
       ? this.getHash()
       : Path.basename(this.name, ext)
     ).slice(-8);
-    let entryAsset = this.entryAsset || this.parentBundle.entryAsset;
+    let entryAsset = this;
+    while (!entryAsset.entryAsset && entryAsset.parentBundle) {
+      entryAsset = entryAsset.parentBundle;
+    }
+    entryAsset = entryAsset.entryAsset;
     let name = Path.basename(entryAsset.name, Path.extname(entryAsset.name));
     let isMainEntry = entryAsset.options.entryFiles[0] === entryAsset.name;
     let isEntry =

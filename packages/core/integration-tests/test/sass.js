@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe('sass', function() {
   it('should support requiring sass files', async function() {
@@ -17,7 +17,11 @@ describe('sass', function() {
         {
           name: 'index.css',
           assets: ['index.sass'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -46,7 +50,11 @@ describe('sass', function() {
         {
           name: 'index.css',
           assets: ['index.scss'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -77,7 +85,11 @@ describe('sass', function() {
         {
           name: 'index.css',
           assets: ['index.scss'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -110,7 +122,11 @@ describe('sass', function() {
         {
           name: 'index.css',
           assets: ['index.scss'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -123,7 +139,11 @@ describe('sass', function() {
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
-    assert.equal(css, '');
+    assert(
+      /^\/\*# sourceMappingURL=\/\w*\.css\.map \*\/$/.test(
+        css.replace('\n', '')
+      )
+    );
   });
 
   it('should support linking to assets with url() from scss', async function() {
@@ -146,7 +166,11 @@ describe('sass', function() {
         {
           name: 'index.css',
           assets: ['index.scss'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'woff2',
@@ -194,7 +218,11 @@ describe('sass', function() {
         {
           name: 'index.css',
           assets: ['index.scss'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -218,7 +246,12 @@ describe('sass', function() {
 
     await assertBundleTree(b, {
       name: 'index.css',
-      assets: ['index.sass']
+      assets: ['index.sass'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
     });
 
     let css = (await fs.readFile(
@@ -227,5 +260,23 @@ describe('sass', function() {
     )).replace(/\s+/g, ' ');
     assert(css.includes('.foo { color: blue;'));
     assert(css.includes('.bar { color: green;'));
+  });
+
+  it('should support absolute imports', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/scss-absolute-imports/style.scss')
+    );
+
+    await assertBundleTree(b, {
+      name: 'style.css',
+      assets: ['style.scss']
+    });
+
+    let css = await fs.readFile(
+      path.join(__dirname, '/dist/style.css'),
+      'utf8'
+    );
+    assert(css.includes('.a'));
+    assert(css.includes('.b'));
   });
 });

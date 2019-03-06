@@ -34,6 +34,7 @@ class Asset {
     this.ast = null;
     this.generated = null;
     this.hash = null;
+    this.sourceMaps = null;
     this.parentDeps = new Set();
     this.dependencies = new Map();
     this.depAssets = new Map();
@@ -84,16 +85,7 @@ class Asset {
     this.dependencies.set(name, Object.assign({name}, opts));
   }
 
-  addURLDependency(url, from = this.name, opts) {
-    if (!url || isURL(url)) {
-      return url;
-    }
-
-    if (typeof from === 'object') {
-      opts = from;
-      from = this.name;
-    }
-
+  resolveDependency(url, from = this.name) {
     const parsed = URL.parse(url);
     let depName;
     let resolved;
@@ -110,8 +102,24 @@ class Asset {
       depName = './' + path.relative(path.dirname(this.name), resolved);
     }
 
+    return {depName, resolved};
+  }
+
+  addURLDependency(url, from = this.name, opts) {
+    if (!url || isURL(url)) {
+      return url;
+    }
+
+    if (typeof from === 'object') {
+      opts = from;
+      from = this.name;
+    }
+
+    const {depName, resolved} = this.resolveDependency(url, from);
+
     this.addDependency(depName, Object.assign({dynamic: true, resolved}, opts));
 
+    const parsed = URL.parse(url);
     parsed.pathname = this.options.parser
       .getAsset(resolved, this.options)
       .generateBundleName();
@@ -152,7 +160,7 @@ class Asset {
         return conf;
       }
 
-      return await config.load(opts.path || this.name, filenames);
+      return config.load(opts.path || this.name, filenames);
     }
 
     return null;
@@ -163,7 +171,7 @@ class Asset {
   }
 
   async load() {
-    return await fs.readFile(this.name, this.encoding);
+    return fs.readFile(this.name, this.encoding);
   }
 
   parse() {
@@ -249,7 +257,8 @@ class Asset {
         // Replace temporary bundle names in the output with the final content-hashed names.
         let newValue = value;
         for (let [name, map] of bundleNameMap) {
-          newValue = newValue.split(name).join(map);
+          let mapRelative = path.relative(path.dirname(this.relativeName), map);
+          newValue = newValue.split(name).join(mapRelative);
         }
 
         // Copy `this.generated` on write so we don't end up writing the final names to the cache.

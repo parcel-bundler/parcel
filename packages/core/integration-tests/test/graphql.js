@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const gql = require('graphql-tag');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe('graphql', function() {
   it('should support requiring graphql files', async function() {

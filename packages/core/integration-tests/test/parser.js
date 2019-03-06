@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundle, assertBundleTree} = require('./utils');
+const {bundle, assertBundleTree} = require('@parcel/test-utils');
 
 describe('parser', function() {
   it('should support case-insensitive file extension', async function() {
@@ -24,7 +24,11 @@ describe('parser', function() {
         {
           type: 'css',
           assets: ['index.cSs'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'html',

@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe('stylus', function() {
   it('should support requiring stylus files', async function() {
@@ -17,7 +17,11 @@ describe('stylus', function() {
         {
           name: 'index.css',
           assets: ['index.styl'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -50,7 +54,11 @@ describe('stylus', function() {
         {
           name: 'index.css',
           assets: ['index.styl'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -84,7 +92,11 @@ describe('stylus', function() {
         {
           name: 'index.css',
           assets: ['index.styl'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'woff2',
@@ -132,20 +144,24 @@ describe('stylus', function() {
         {
           name: 'index.css',
           assets: ['index.styl'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
-    assert.equal(output(), '_index_g9mqo_1');
+    assert(output().startsWith('_index_'));
 
     let css = await fs.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
-    assert(css.includes('._index_g9mqo_1'));
+    assert(css.includes('._index_'));
   });
 
   it('should support requiring stylus files with glob dependencies', async function() {
@@ -163,7 +179,11 @@ describe('stylus', function() {
         {
           name: 'index.css',
           assets: ['index.styl'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });

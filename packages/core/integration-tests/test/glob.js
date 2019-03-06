@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe('glob', function() {
   it('should require a glob of files', async function() {
@@ -54,7 +54,11 @@ describe('glob', function() {
         {
           name: 'index.css',
           assets: ['index.css', 'other.css', 'local.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'map'

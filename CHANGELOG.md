@@ -14,7 +14,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 - Add support for HMR with elm-hot [Details](https://github.com/parcel-bundler/parcel/pull/2388)
 - Log dev server access for log level verbose or more [Details](https://github.com/parcel-bundler/parcel/pull/2402)
 - Process array of assets for JSON-LD [Details](https://github.com/parcel-bundler/parcel/pull/2319)
-- Extract workerfarm into seperate package [Details](https://github.com/parcel-bundler/parcel/pull/2162)
+- Extract workerfarm into separate package [Details](https://github.com/parcel-bundler/parcel/pull/2162)
 - Extract Logger into its own package [Details](https://github.com/parcel-bundler/parcel/pull/2165)
 - Extract watcher into its own package [Details](https://github.com/parcel-bundler/parcel/pull/2176)
 - Merge fs-watcher-child into Parcel's monorepo [Details](https://github.com/parcel-bundler/parcel/pull/2197)
@@ -538,7 +538,7 @@ and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 - Opencollective [Details](https://github.com/parcel-bundler/parcel/commit/0f554dc2f5c8f2557ec84eee5301b90ffb279764)
 - Use `JSON5` to parse config files [Details](https://github.com/parcel-bundler/parcel/commit/bd458660ce38e7a1d25bd9758084acc24418e054)
-- Move JSAsset options gathering into seperate function [Details](https://github.com/parcel-bundler/parcel/commit/333c3aa5d20f98a5f3c52635751032d12854c13c)
+- Move JSAsset options gathering into separate function [Details](https://github.com/parcel-bundler/parcel/commit/333c3aa5d20f98a5f3c52635751032d12854c13c)
 
 ### Fixed
 

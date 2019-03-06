@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundle, assertBundleTree, normaliseNewlines} = require('./utils');
+const {bundle, assertBundleTree} = require('@parcel/test-utils');
 
 describe('pug', function() {
   it('should support bundling HTML', async function() {
@@ -24,7 +24,11 @@ describe('pug', function() {
         {
           type: 'css',
           assets: ['index.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'js',
@@ -58,17 +62,13 @@ describe('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = normaliseNewlines(
-      await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf-8')
-    );
-    const expect = normaliseNewlines(
-      await fs.readFile(
-        path.join(__dirname, '/integration/pug-include-extends/expect.html'),
-        'utf-8'
-      )
+    const html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf-8'
     );
 
-    assert.equal(html, expect, 'Content mismatch');
+    assert(html.includes('<!DOCTYPE html>'));
+    assert(html.includes("<h1>Yep, it's working!</h1>"));
   });
 
   it('should support variables', async function() {

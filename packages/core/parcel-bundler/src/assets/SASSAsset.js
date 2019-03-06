@@ -45,6 +45,7 @@ class SASSAsset extends Asset {
       ? opts.importer
       : [opts.importer];
     opts.importer.push((url, prev, done) => {
+      url = url.replace(/^file:\/\//, '');
       url = parseCSSImport(url);
       resolver
         .resolve(url, prev === 'stdin' ? this.name : prev)
@@ -53,6 +54,14 @@ class SASSAsset extends Asset {
         .then(file => done({file}))
         .catch(err => done(normalizeError(err)));
     });
+
+    if (this.options.sourceMaps) {
+      opts.sourceMap = true;
+      opts.file = this.name;
+      opts.outFile = this.name;
+      opts.omitSourceMapUrl = true;
+      opts.sourceMapContents = true;
+    }
 
     try {
       return await render(opts);
@@ -76,7 +85,11 @@ class SASSAsset extends Asset {
     return [
       {
         type: 'css',
-        value: this.ast ? this.ast.css.toString() : ''
+        value: this.ast ? this.ast.css.toString() : '',
+        map:
+          this.ast && this.ast.map
+            ? JSON.parse(this.ast.map.toString())
+            : undefined
       }
     ];
   }
@@ -89,7 +102,7 @@ async function getSassRuntime(searchPath) {
     return await localRequire('node-sass', searchPath, true);
   } catch (e) {
     // If node-sass is not used locally, install dart-sass, as this causes no freezing issues
-    return await localRequire('sass', searchPath);
+    return localRequire('sass', searchPath);
   }
 }
 

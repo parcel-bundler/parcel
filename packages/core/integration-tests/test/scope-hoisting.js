@@ -1,21 +1,12 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle: _bundle, run} = require('./utils');
+const {bundle: _bundle, run} = require('@parcel/test-utils');
 const fs = require('@parcel/fs');
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
 
 describe('scope hoisting', function() {
-  if (process.platform === 'win32') {
-    // eslint-disable-next-line no-console
-    console.warn(
-      'WARNING: Scope hoisting tests are disabled on windows due to ' +
-        'filesystem errors. Feel free to look into this and contribute a fix!'
-    );
-    return;
-  }
-
   describe('es6', function() {
     it('supports default imports and exports of expressions', async function() {
       let b = await bundle(
@@ -273,6 +264,18 @@ describe('scope hoisting', function() {
       assert.equal(await output.default, 5);
     });
 
+    it('supports nested dynamic imports', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/dynamic-import-dynamic/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.equal(await output.default, 123);
+    });
+
     it('should not export function arguments', async function() {
       let b = await bundle(
         path.join(
@@ -283,6 +286,23 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, ['test']);
+    });
+
+    it('throws a meaningful error on undefined exports', async function() {
+      let threw = false;
+      try {
+        await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/export-undefined/a.js'
+          )
+        );
+      } catch (err) {
+        threw = true;
+        assert.equal(err.message, "export 'Test' is not defined");
+      }
+
+      assert(threw);
     });
 
     it('supports import default CommonJS interop', async function() {
@@ -314,6 +334,18 @@ describe('scope hoisting', function() {
         path.join(
           __dirname,
           '/integration/scope-hoisting/es6/re-export-var/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 'foobar');
+    });
+
+    it('supports requiring a re-exported and renamed ES6 import', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/re-export-renamed/a.js'
         )
       );
 
