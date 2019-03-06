@@ -50,6 +50,28 @@ describe('javascript', function() {
     assert.equal(output.default(), 3);
   });
 
+  it('should not autoinstall if PARCEL_AUTOINSTALL is set to false', async function() {
+    const inputDir = path.join(
+      __dirname,
+      '/integration/dont-autoinstall-if-env-var-is-false/'
+    );
+    try {
+      let a = await bundle(path.resolve(inputDir, './index.js'));
+      await run(a);
+    } catch (e) {
+      let pkg = await fs.readFile(
+        path.resolve(inputDir, 'package.json'),
+        'utf8'
+      );
+      const pkgName = 'lodash';
+      pkg = JSON.parse(pkg);
+      assert(pkgName in pkg.dependencies === false);
+      assert(e.message.includes("Cannot resolve dependency 'lodash'"));
+    }
+
+    delete process.env.PARCEL_AUTOINSTALL;
+  });
+
   it('should auto install babel-core v6', async function() {
     let originalPkg = await fs.readFile(
       __dirname + '/integration/babel-6-autoinstall/package.json'
