@@ -3,6 +3,9 @@ const postcss = require('postcss');
 const valueParser = require('postcss-value-parser');
 const postcssTransform = require('../transforms/postcss');
 const CssSyntaxError = require('postcss/lib/css-syntax-error');
+const SourceMap = require('../SourceMap');
+const loadSourceMap = require('../utils/loadSourceMap');
+const path = require('path');
 
 const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
@@ -14,6 +17,9 @@ class CSSAsset extends Asset {
   constructor(name, options) {
     super(name, options);
     this.type = 'css';
+    this.previousSourceMap = this.options.rendition
+      ? this.options.rendition.map
+      : null;
   }
 
   mightHaveDependencies() {
@@ -26,7 +32,9 @@ class CSSAsset extends Asset {
   }
 
   parse(code) {
-    let root = postcss.parse(code, {from: this.name, to: this.name});
+    let root = postcss.parse(code, {
+      from: this.name
+    });
     return new CSSAst(code, root);
   }
 
@@ -110,6 +118,12 @@ class CSSAsset extends Asset {
     });
   }
 
+  async pretransform() {
+    if (this.options.sourceMaps && !this.previousSourceMap) {
+      this.previousSourceMap = await loadSourceMap(this);
+    }
+  }
+
   async transform() {
     await postcssTransform(this);
   }
@@ -117,14 +131,24 @@ class CSSAsset extends Asset {
   getCSSAst() {
     // Converts the ast to a CSS ast if needed, so we can apply postcss transforms.
     if (!(this.ast instanceof CSSAst)) {
-      this.ast = CSSAsset.prototype.parse.call(this, this.ast.render());
+      this.ast = CSSAsset.prototype.parse.call(
+        this,
+        this.ast.render(this.name)
+      );
     }
 
     return this.ast.root;
   }
 
-  generate() {
-    let css = this.ast ? this.ast.render() : this.contents;
+  async generate() {
+    let css;
+    if (this.ast) {
+      let result = this.ast.render(this.name);
+      css = result.css;
+      if (result.map) this.sourceMap = result.map;
+    } else {
+      css = this.contents;
+    }
 
     let js = '';
     if (this.options.hmr) {
@@ -142,11 +166,41 @@ class CSSAsset extends Asset {
         'module.exports = ' + JSON.stringify(this.cssModules, null, 2) + ';';
     }
 
+    if (this.options.sourceMaps) {
+      if (this.sourceMap) {
+        this.sourceMap = await new SourceMap().addMap(this.sourceMap);
+      }
+
+      if (this.previousSourceMap) {
+        this.previousSourceMap.sources = this.previousSourceMap.sources.map(v =>
+          path.join(
+            path.dirname(this.relativeName),
+            this.previousSourceMap.sourceRoot || '',
+            v
+          )
+        );
+        if (this.sourceMap) {
+          this.sourceMap = await new SourceMap().extendSourceMap(
+            this.previousSourceMap,
+            this.sourceMap
+          );
+        } else {
+          this.sourceMap = await new SourceMap().addMap(this.previousSourceMap);
+        }
+      } else if (!this.sourceMap) {
+        this.sourceMap = new SourceMap().generateEmptyMap(
+          this.relativeName,
+          css
+        );
+      }
+    }
+
     return [
       {
         type: 'css',
         value: css,
-        cssModules: this.cssModules
+        cssModules: this.cssModules,
+        map: this.sourceMap
       },
       {
         type: 'js',
@@ -189,13 +243,24 @@ class CSSAst {
     this.dirty = false;
   }
 
-  render() {
+  render(name) {
     if (this.dirty) {
-      this.css = '';
-      postcss.stringify(this.root, c => (this.css += c));
+      let {css, map} = this.root.toResult({
+        to: name,
+        map: {inline: false, annotation: false, sourcesContent: true}
+      });
+
+      this.css = css;
+
+      return {
+        css: this.css,
+        map: map ? map.toJSON() : null
+      };
     }
 
-    return this.css;
+    return {
+      css: this.css
+    };
   }
 }
 

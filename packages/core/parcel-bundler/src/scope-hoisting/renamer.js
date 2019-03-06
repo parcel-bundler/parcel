@@ -7,6 +7,10 @@ function rename(scope, oldName, newName) {
 
   let binding = scope.getBinding(oldName);
 
+  if (!binding) {
+    throw new Error("'" + oldName + "' is not defined");
+  }
+
   // Rename all constant violations
   for (let violation of binding.constantViolations) {
     let bindingIds = violation.getBindingIdentifierPaths(true, false);

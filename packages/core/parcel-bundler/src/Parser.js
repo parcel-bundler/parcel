@@ -52,6 +52,7 @@ class Parser {
 
     this.registerExtension('jade', './assets/PugAsset');
     this.registerExtension('pug', './assets/PugAsset');
+    this.registerExtension('md', './assets/MarkdownAsset');
 
     let extensions = options.extensions || {};
     for (let ext in extensions) {

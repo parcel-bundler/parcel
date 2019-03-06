@@ -17,7 +17,11 @@ describe('stylus', function() {
         {
           name: 'index.css',
           assets: ['index.styl'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -50,7 +54,11 @@ describe('stylus', function() {
         {
           name: 'index.css',
           assets: ['index.styl'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -84,7 +92,11 @@ describe('stylus', function() {
         {
           name: 'index.css',
           assets: ['index.styl'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'woff2',
@@ -132,7 +144,11 @@ describe('stylus', function() {
         {
           name: 'index.css',
           assets: ['index.styl'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
@@ -163,7 +179,11 @@ describe('stylus', function() {
         {
           name: 'index.css',
           assets: ['index.styl'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         }
       ]
     });
