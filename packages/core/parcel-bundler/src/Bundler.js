@@ -206,9 +206,11 @@ class Bundler extends EventEmitter {
       return;
     }
 
+    let lastDep;
     try {
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
       for (let dep in deps) {
+        lastDep = dep;
         const pattern = /^(@.*\/)?parcel-plugin-.+/;
         if (pattern.test(dep)) {
           let plugin = await localRequire(dep, relative);
@@ -216,7 +218,11 @@ class Bundler extends EventEmitter {
         }
       }
     } catch (err) {
-      logger.warn(err);
+      logger.warn(
+        `Plugin ${lastDep} failed to initialize: ${err.stack ||
+          err.message ||
+          err}`
+      );
     }
   }
 
