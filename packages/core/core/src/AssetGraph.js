@@ -262,7 +262,7 @@ export default class AssetGraph extends Graph {
   }
 
   traverseAssets(
-    visit: GraphTraversalCallback<Asset>,
+    visit: GraphTraversalCallback<Asset, Node>,
     startNode: ?Node
   ): ?Node {
     return this.traverse((node, ...args) => {

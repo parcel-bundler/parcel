@@ -1,5 +1,5 @@
 // @flow
-import localRequire from '@parcel/utils/lib/localRequire';
+import localRequire from '@parcel/utils/src/localRequire';
 import type {Asset, AST} from '@parcel/types';
 import {babel6toBabel7} from './astConverter';
 
