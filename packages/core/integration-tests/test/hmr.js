@@ -1,7 +1,14 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
-const {bundler, run, rimraf, ncp} = require('@parcel/test-utils');
+const {
+  bundler,
+  run,
+  rimraf,
+  ncp,
+  prepareBrowserContext
+} = require('@parcel/test-utils');
+const vm = require('vm');
 const {sleep} = require('@parcel/test-utils');
 const WebSocket = require('ws');
 const json5 = require('json5');
@@ -287,6 +294,83 @@ describe('hmr', function() {
     assert.deepEqual(outputs, [3, 10]);
   });
 
+  it('should work with circular dependencies', async function() {
+    await ncp(
+      path.join(__dirname, '/integration/hmr-circular'),
+      path.join(__dirname, '/input')
+    );
+
+    b = bundler(path.join(__dirname, '/input/index.js'), {
+      watch: true,
+      hmr: true
+    });
+    let bundle = await b.bundle();
+    let outputs = [];
+
+    await run(bundle, {
+      output(o) {
+        outputs.push(o);
+      }
+    });
+
+    assert.deepEqual(outputs, [3]);
+
+    await sleep(100);
+    fs.writeFile(
+      path.join(__dirname, '/input/local.js'),
+      "var other = require('./index.js'); exports.a = 5; exports.b = 5;"
+    );
+
+    await nextEvent(b, 'bundled');
+    assert.deepEqual(outputs, [3, 10]);
+  });
+
+  it('should accept HMR updates in the runtime after an initial error', async function() {
+    await fs.mkdirp(path.join(__dirname, '/input'));
+    fs.writeFile(
+      path.join(__dirname, '/input/index.js'),
+      'module.hot.accept();throw new Error("Something");\noutput(123);'
+    );
+
+    b = bundler(path.join(__dirname, '/input/index.js'), {
+      watch: true,
+      hmr: true
+    });
+    let bundle = await b.bundle();
+
+    let outputs = [];
+    let errors = [];
+
+    var ctx = prepareBrowserContext(bundle, {
+      output(o) {
+        outputs.push(o);
+      },
+      error(e) {
+        errors.push(e);
+      }
+    });
+    vm.createContext(ctx);
+    vm.runInContext(
+      `try {
+        ${(await fs.readFile(bundle.name)).toString()}
+      } catch(e) {
+        error(e);
+      }`,
+      ctx
+    );
+
+    assert.deepEqual(outputs, []);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].message, 'Something');
+
+    await sleep(100);
+    fs.writeFile(path.join(__dirname, '/input/index.js'), 'output(123);');
+
+    await nextEvent(b, 'bundled');
+    assert.deepEqual(outputs, [123]);
+    assert.equal(errors.length, 1);
+  });
+
   it('should call dispose and accept callbacks', async function() {
     await ncp(
       path.join(__dirname, '/integration/hmr-callbacks'),
@@ -359,6 +443,45 @@ describe('hmr', function() {
     await nextEvent(b, 'bundled');
     await sleep(50);
     assert.deepEqual(outputs, [3, 10]);
+  });
+
+  it('should bubble up HMR events to a page reload', async function() {
+    await ncp(
+      path.join(__dirname, '/integration/hmr-reload'),
+      path.join(__dirname, '/input')
+    );
+
+    b = bundler(path.join(__dirname, '/input/index.js'), {
+      watch: true,
+      hmr: true
+    });
+    let bundle = await b.bundle();
+
+    let outputs = [];
+    let ctx = await run(
+      bundle,
+      {
+        output(o) {
+          outputs.push(o);
+        }
+      },
+      {require: false}
+    );
+    let spy = sinon.spy(ctx.location, 'reload');
+
+    await sleep(50);
+    assert.deepEqual(outputs, [3]);
+    assert(spy.notCalled);
+
+    await sleep(100);
+    fs.writeFile(
+      path.join(__dirname, '/input/local.js'),
+      'exports.a = 5; exports.b = 5;'
+    );
+
+    await nextEvent(b, 'bundled');
+    assert.deepEqual(outputs, [3]);
+    assert(spy.calledOnce);
   });
 
   it('should log emitted errors and show an error overlay', async function() {

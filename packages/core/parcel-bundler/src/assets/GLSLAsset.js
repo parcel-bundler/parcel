@@ -37,7 +37,7 @@ class GLSLAsset extends Asset {
       }
     });
 
-    return await promisify(depper.inline.bind(depper))(this.contents, cwd);
+    return promisify(depper.inline.bind(depper))(this.contents, cwd);
   }
 
   collectDependencies() {

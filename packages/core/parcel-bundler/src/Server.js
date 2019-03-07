@@ -36,7 +36,8 @@ function middleware(bundler) {
   const serve = serveStatic(bundler.options.outDir, {
     index: false,
     redirect: false,
-    setHeaders: setHeaders
+    setHeaders: setHeaders,
+    dotfiles: 'allow'
   });
 
   return function(req, res, next) {
@@ -78,6 +79,7 @@ function middleware(bundler) {
     }
 
     function send500(error) {
+      setHeaders(res);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.writeHead(500);
       let errorMesssge = '<h1>🚨 Build Error</h1>';
@@ -105,7 +107,7 @@ function middleware(bundler) {
       if (next) {
         return next();
       }
-
+      setHeaders(res);
       res.writeHead(404);
       res.end();
     }
