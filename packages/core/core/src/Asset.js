@@ -2,17 +2,17 @@
 
 import type {
   Asset as IAsset,
-  TransformerResult,
-  DependencyOptions,
-  Dependency as IDependency,
-  FilePath,
-  File,
-  Environment,
-  JSONObject,
-  AST,
   AssetOutput,
+  AST,
   Config,
-  PackageJSON
+  Dependency as IDependency,
+  DependencyOptions,
+  Environment,
+  File,
+  FilePath,
+  Meta,
+  PackageJSON,
+  TransformerResult
 } from '@parcel/types';
 import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
 import {loadConfig} from '@parcel/utils/src/config';
@@ -32,7 +32,7 @@ type AssetOptions = {|
   outputSize?: number,
   outputHash?: string,
   env: Environment,
-  meta?: JSONObject
+  meta?: Meta
 |};
 
 export default class Asset implements IAsset {
@@ -48,7 +48,7 @@ export default class Asset implements IAsset {
   outputSize: number;
   outputHash: string;
   env: Environment;
-  meta: JSONObject;
+  meta: Meta;
 
   constructor(options: AssetOptions) {
     this.id =

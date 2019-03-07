@@ -160,7 +160,10 @@ export type SourceLocation = {|
   end: {line: number, column: number}
 |};
 
-export type Meta = {[string]: JSONValue};
+export type Meta = {
+  globals?: Map<string, Asset>,
+  [string]: JSONValue
+};
 export type DependencyOptions = {|
   moduleSpecifier: ModuleSpecifier,
   isAsync?: boolean,

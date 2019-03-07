@@ -10,7 +10,7 @@
     "build": "babel src --out-dir lib",
     "prepublish": "yarn build"
   },
-  "main": "./lib/PluginAPI.js",
+  "main": "./src/PluginAPI.js",
   "dependencies": {
     "@parcel/types": "^2.0.0"
   },
