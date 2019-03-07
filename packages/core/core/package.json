@@ -34,7 +34,8 @@
     "@parcel/babel-register": "2.0.0",
     "@parcel/eslint-config": "1.10.3",
     "delay": "^4.1.0",
-    "random-int": "^1.0.0"
+    "random-int": "^1.0.0",
+    "shallowequal": "^1.1.0"
   },
   "bin": {
     "parcel": "bin.js"
