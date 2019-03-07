@@ -24,6 +24,7 @@ const GLOBAL_RE = /\b(?:process|__dirname|__filename|global|Buffer|define)\b/;
 const FS_RE = /\breadFileSync\b/;
 const SW_RE = /\bnavigator\s*\.\s*serviceWorker\s*\.\s*register\s*\(/;
 const WORKER_RE = /\bnew\s*(?:Shared)?Worker\s*\(/;
+const WORKERMODULE_RE = /(?:type)\s*:\s*[\'"](?:module)[\'"]/;
 
 class JSAsset extends Asset {
   constructor(name, options) {
@@ -76,6 +77,10 @@ class JSAsset extends Asset {
   }
 
   async pretransform() {
+    if (WORKER_RE.test(this.contents) && WORKERMODULE_RE.test(this.contents)) {
+      this.contents = this.contents.replace(WORKERMODULE_RE, "type: 'classic'");
+    }
+
     if (this.options.sourceMaps && !this.sourceMap) {
       this.sourceMap = await loadSourceMap(this);
     }
