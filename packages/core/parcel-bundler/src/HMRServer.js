@@ -87,6 +87,7 @@ class HMRServer {
 
           return {
             id: asset.id,
+            type: asset.type,
             generated: asset.generated,
             deps: deps
           };
