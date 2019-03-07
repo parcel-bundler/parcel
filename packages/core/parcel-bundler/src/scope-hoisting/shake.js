@@ -106,7 +106,9 @@ function remove(path) {
   if (path.isAssignmentExpression()) {
     if (path.parentPath.isSequenceExpression()) {
       if (path.parent.expressions.length == 1) {
-        path.parentPath.remove();
+        // replace sequence expression with it's sole child
+        path.parentPath.replaceWith(path);
+        remove(path.parentPath);
       } else {
         path.remove();
       }
