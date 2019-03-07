@@ -44,7 +44,12 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         }
       });
 
-      if(handled){
+      // Enable HMR for CSS by default.
+      handled = handled || data.assets.every(function(asset) {
+        return asset.type === 'css' && asset.generated.js;
+      });
+
+      if (handled) {
         console.clear();
 
         data.assets.forEach(function (asset) {
@@ -170,7 +175,7 @@ function hmrAcceptCheck(bundle, id) {
 
   var cached = bundle.cache[id];
 
-  assetsToAccept.push([bundle, id])
+  assetsToAccept.push([bundle, id]);
 
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
     return true;
