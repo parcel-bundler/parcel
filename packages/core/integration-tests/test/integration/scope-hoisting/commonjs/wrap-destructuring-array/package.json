@@ -1,4 +1,4 @@
 {
-    "private": false,
+    "private": true,
     "browserslist": ["node 8"]
 }

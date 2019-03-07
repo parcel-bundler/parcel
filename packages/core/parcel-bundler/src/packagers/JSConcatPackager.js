@@ -298,6 +298,22 @@ class JSConcatPackager extends Packager {
                 );
               }
             }
+          } else if (t.isArrayPattern(decl.id)) {
+            for (let i = 0; i < decl.id.elements.length; i++) {
+              let prop = decl.id.elements[i];
+              decls.push(t.variableDeclarator(prop));
+              if (decl.init) {
+                body.push(
+                  t.expressionStatement(
+                    t.assignmentExpression(
+                      '=',
+                      prop,
+                      t.memberExpression(decl.init, t.numericLiteral(i), true)
+                    )
+                  )
+                );
+              }
+            }
           } else {
             decls.push(t.variableDeclarator(decl.id));
             if (decl.init) {
