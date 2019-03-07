@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 
 import type {
   Asset as IAsset,
@@ -51,15 +51,30 @@ export default class Asset implements IAsset {
   meta: Meta;
 
   constructor(options: AssetOptions) {
-    this.id =
-      options.id ||
-      md5FromString(
+    if (options.id == null) {
+      this.id = md5FromString(
         options.filePath + options.type + JSON.stringify(options.env)
       );
+    } else {
+      this.id = options.id;
+    }
+
+    if (options.code == null) {
+      this.code = options.output ? options.output.code : '';
+    } else {
+      this.code = options.code;
+    }
+
+    this.output = options.output || {code: this.code};
+    if (options.outputSize == null) {
+      this.outputSize = this.output.code.length;
+    } else {
+      this.outputSize = options.outputSize;
+    }
+
     this.hash = options.hash || '';
     this.filePath = options.filePath;
     this.type = options.type;
-    this.code = options.code || (options.output ? options.output.code : '');
     this.ast = options.ast || null;
     this.dependencies = options.dependencies
       ? options.dependencies.slice()
@@ -67,8 +82,6 @@ export default class Asset implements IAsset {
     this.connectedFiles = options.connectedFiles
       ? options.connectedFiles.slice()
       : [];
-    this.output = options.output || {code: this.code};
-    this.outputSize = options.outputSize || this.output.code.length;
     this.outputHash = options.outputHash || '';
     this.env = options.env;
     this.meta = options.meta || {};
@@ -103,7 +116,7 @@ export default class Asset implements IAsset {
   }
 
   async addConnectedFile(file: File) {
-    if (!file.hash) {
+    if (file.hash == null) {
       file.hash = await md5FromFilePath(file.filePath);
     }
 
@@ -111,7 +124,15 @@ export default class Asset implements IAsset {
   }
 
   createChildAsset(result: TransformerResult) {
-    let code = (result.output && result.output.code) || result.code || '';
+    let code: string;
+    if (result.output && result.output.code != null) {
+      code = result.output.code;
+    } else if (result.code != null) {
+      code = result.code;
+    } else {
+      code = '';
+    }
+
     let opts: AssetOptions = {
       hash: this.hash || md5FromString(code),
       filePath: this.filePath,
@@ -154,7 +175,7 @@ export default class Asset implements IAsset {
     let packageKey = options && options.packageKey;
     let parse = options && options.parse;
 
-    if (packageKey) {
+    if (packageKey != null) {
       let pkg = await this.getPackage();
       if (pkg && pkg[packageKey]) {
         return pkg[packageKey];
