@@ -282,11 +282,7 @@ describe('css', function() {
 
     assert(
       await fs.exists(
-        path.join(
-          __dirname,
-          path.dirname('/dist/a/style1.css'),
-          css.match(/url\(([^)]*)\)/)[1]
-        )
+        path.join(__dirname, 'dist', css.match(/url\(([^)]*)\)/)[1])
       ),
       'path specified in url() exists'
     );
