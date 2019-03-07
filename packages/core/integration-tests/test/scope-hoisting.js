@@ -1172,5 +1172,17 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, 42);
     });
+
+    it('should support wrapping destructuring declarations', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-destructuring/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [4, 2]);
+    });
   });
 });
