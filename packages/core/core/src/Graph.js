@@ -1,19 +1,15 @@
 // @flow
 
 import type {
+  Edge,
   Node as _Node,
+  NodeId,
   GraphTraversalCallback,
   TraversalActions,
   Graph as IGraph
 } from '@parcel/types';
 
 export type Node = _Node;
-export type NodeId = string;
-
-export type Edge = {|
-  from: NodeId,
-  to: NodeId
-|};
 
 type GraphUpdates = {|
   added: Graph,

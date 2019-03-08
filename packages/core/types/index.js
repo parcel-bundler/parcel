@@ -290,7 +290,16 @@ export type GraphTraversalCallback<TNode, TContext> = (
   traversal: TraversalActions
 ) => ?TContext;
 
+export type NodeId = string;
+
+export type Edge = {|
+  from: NodeId,
+  to: NodeId
+|};
+
 export interface Graph {
+  nodes: Map<string, Node>;
+  edges: Set<Edge>;
   merge(graph: Graph): void;
   traverse<TContext>(
     visit: GraphTraversalCallback<Node, TContext>,
@@ -325,7 +334,7 @@ export type Bundle = {|
   filePath?: FilePath
 |};
 
-export interface BundleGraph {
+export interface BundleGraph extends Graph {
   addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
   addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
   isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;

@@ -162,10 +162,14 @@ export default new Bundler({
       }
     }
 
-    // bundleGraph.dumpGraphViz();
-
-    // bundleGraph.traverseBundles(bundle => {
-    //   bundle.assetGraph.dumpGraphViz();
-    // });
+    if (process.env.PARCEL_DUMP_GRAPH != null) {
+      const dumpGraphToGraphViz = require('@parcel/utils/src/dumpGraphToGraphViz')
+        .default;
+      dumpGraphToGraphViz(assetGraph, 'BundlerInputAssetGraph');
+      dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
+      bundleGraph.traverseBundles(bundle => {
+        dumpGraphToGraphViz(bundle.assetGraph, `${bundle.id}`);
+      });
+    }
   }
 });

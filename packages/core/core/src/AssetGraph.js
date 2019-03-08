@@ -1,17 +1,18 @@
 // @flow
 
-import Graph, {type Node, type NodeId} from './Graph';
+import Graph from './Graph';
 import type {
+  Asset,
+  Bundle,
   CacheEntry,
   Dependency as IDependency,
-  Asset,
   File,
   FilePath,
-  TransformerRequest,
+  GraphTraversalCallback,
+  Node,
+  NodeId,
   Target,
-  Environment,
-  Bundle,
-  GraphTraversalCallback
+  TransformerRequest
 } from '@parcel/types';
 import {md5FromString} from '@parcel/utils/src/md5';
 import Dependency from './Dependency';
@@ -89,14 +90,8 @@ type AssetGraphOpts = {|
  *  * A file node can have one to many edges to asset nodes which can have zero to many edges dependency nodes
  */
 export default class AssetGraph extends Graph {
-  incompleteNodes: Map<NodeId, Node>;
-  invalidNodes: Map<NodeId, Node>;
-
-  constructor(opts: any) {
-    super(opts);
-    this.incompleteNodes = new Map();
-    this.invalidNodes = new Map();
-  }
+  incompleteNodes: Map<NodeId, Node> = new Map();
+  invalidNodes: Map<NodeId, Node> = new Map();
 
   initializeGraph({
     entries,
@@ -326,91 +321,4 @@ export default class AssetGraph extends Graph {
       value: asset
     });
   }
-
-  async dumpGraphViz() {
-    let graphviz = require('graphviz');
-    let tempy = require('tempy');
-    let path = require('path');
-
-    let g = graphviz.digraph('G');
-
-    let colors = {
-      root: 'gray',
-      asset: 'green',
-      dependency: 'orange',
-      transformer_request: 'cyan',
-      file: 'gray',
-      default: 'white'
-    };
-
-    let nodes = Array.from(this.nodes.values());
-
-    for (let node of nodes) {
-      let n = g.addNode(node.id);
-
-      n.set('color', colors[node.type || 'default']);
-      n.set('shape', 'box');
-      n.set('style', 'filled');
-
-      let label = `${node.type || 'No Type'}: `;
-
-      if (node.type === 'dependency') {
-        label += node.value.moduleSpecifier;
-        let parts = [];
-        if (node.value.isEntry) parts.push('entry');
-        if (node.value.isAsync) parts.push('async');
-        if (node.value.isOptional) parts.push('optional');
-        if (parts.length) label += ' (' + parts.join(', ') + ')';
-        if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
-      } else if (node.type === 'asset' || node.type === 'asset_reference') {
-        label += path.basename(node.value.filePath) + '#' + node.value.type;
-      } else if (node.type === 'file') {
-        label += path.basename(node.value.filePath);
-      } else if (node.type === 'transformer_request') {
-        label +=
-          path.basename(node.value.filePath) +
-          ` (${getEnvDescription(node.value.env)})`;
-      } else if (node.type === 'bundle') {
-        let rootAssets = node.value.assetGraph.getNodesConnectedFrom(
-          node.value.assetGraph.getRootNode()
-        );
-        label += rootAssets
-          .map(asset => {
-            let parts = asset.value.filePath.split(path.sep);
-            let index = parts.lastIndexOf('node_modules');
-            if (index >= 0) {
-              return parts[index + 1];
-            }
-
-            return path.basename(asset.value.filePath);
-          })
-          .join(', ');
-      } else {
-        // label += node.id;
-        label = node.type;
-      }
-
-      n.set('label', label);
-    }
-
-    for (let edge of this.edges) {
-      g.addEdge(edge.from, edge.to);
-    }
-
-    let tmp = tempy.file({name: 'graph.png'});
-
-    await g.output('png', tmp);
-    console.log(`open ${tmp}`); // eslint-disable-line no-console
-  }
-}
-
-function getEnvDescription(env: Environment) {
-  let description = '';
-  if (env.engines.browsers) {
-    description = `${env.context}: ${env.engines.browsers.join(', ')}`;
-  } else if (env.engines.node) {
-    description = `node: ${env.engines.node}`;
-  }
-
-  return description;
 }

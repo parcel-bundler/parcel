@@ -5,12 +5,14 @@ import type {
   BundleGroup,
   GraphTraversalCallback
 } from '@parcel/types';
-import AssetGraph from './AssetGraph';
+import type AssetGraph from './AssetGraph';
+
+import Graph from './Graph';
 
 const getBundleGroupId = (bundleGroup: BundleGroup) =>
   'bundle_group:' + bundleGroup.entryAssetId;
 
-export default class BundleGraph extends AssetGraph {
+export default class BundleGraph extends Graph {
   constructor() {
     super();
     this.setRootNode({
