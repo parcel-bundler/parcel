@@ -166,7 +166,7 @@ describe('css', function() {
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
-    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
+    assert(/url\("\/test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
     assert(css.includes('url("data:image/gif;base64,quotes")'));
@@ -179,7 +179,7 @@ describe('css', function() {
         path.join(
           __dirname,
           '/dist/',
-          css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
+          css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1]
         )
       )
     );
@@ -225,7 +225,10 @@ describe('css', function() {
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
-    assert(/url\(test\.[0-9a-f]+\.woff2\)/.test(css), 'woff ext found in css');
+    assert(
+      /url\(\/test\.[0-9a-f]+\.woff2\)/.test(css),
+      'woff ext found in css'
+    );
     assert(css.includes('url(http://google.com)'), 'url() found');
     assert(css.includes('.index'), '.index found');
     assert(css.includes('url("data:image/gif;base64,quotes")'));
@@ -238,7 +241,7 @@ describe('css', function() {
         path.join(
           __dirname,
           '/dist/',
-          css.match(/url\((test\.[0-9a-f]+\.woff2)\)/)[1]
+          css.match(/url\((\/test\.[0-9a-f]+\.woff2)\)/)[1]
         )
       )
     );
