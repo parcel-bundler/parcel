@@ -499,6 +499,24 @@ describe('javascript', function() {
     });
   });
 
+  it('should support bundling workers with two arguments', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-type-module/index.js'),
+      {
+        sourceMaps: false
+      }
+    );
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js'],
+      childBundles: [
+        {
+          assets: ['myWorker.js']
+        }
+      ]
+    });
+  });
+
   it('should support bundling workers with circular dependencies', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/worker-circular/index.js'),

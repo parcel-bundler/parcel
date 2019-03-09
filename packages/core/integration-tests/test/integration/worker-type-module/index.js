@@ -1,0 +1,1 @@
+new Worker('myWorker.js', { type: 'module' })

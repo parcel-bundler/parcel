@@ -85,6 +85,12 @@ module.exports = {
       (callee.name === 'Worker' || callee.name === 'SharedWorker') &&
       types.isStringLiteral(args[0]);
 
+    const workerArgs = isWebWorker && args[1];
+
+    if (workerArgs) {
+      workerArgs.properties[0].value = types.stringLiteral('classic');
+    }
+
     if (isWebWorker) {
       addURLDependency(asset, args[0], {isolated: true});
       return;
