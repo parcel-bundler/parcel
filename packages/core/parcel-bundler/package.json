@@ -58,7 +58,7 @@
     "micromatch": "^3.0.4",
     "mkdirp": "^0.5.1",
     "node-forge": "^0.7.1",
-    "node-libs-browser": "^2.2.0",
+    "node-libs-browser": "^2.0.0",
     "opn": "^5.1.0",
     "path-browserify": "1.0.0",
     "postcss": "^7.0.11",

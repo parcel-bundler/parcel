@@ -1,4 +1,4 @@
-import {h, Component} from 'preact';
+import {h} from 'preact';
 import path from 'path';
 import mime from 'mime-types';
 

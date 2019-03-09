@@ -48,6 +48,8 @@ class App extends Component {
   }
 
   async startBundling() {
+    if (this.state.bundling) return;
+
     this.setState({bundling: true});
 
     const output = [];
@@ -58,7 +60,6 @@ class App extends Component {
         await fs.writeFile(fixPath(f.name), f.content);
       }
 
-      // console.log(Bundler);
       const bundler = new (await Bundler)(
         this.state.assets
           .filter(v => v.isEntry)
@@ -67,7 +68,7 @@ class App extends Component {
         {
           outDir: '/mem/dist',
           watch: false,
-          cache: false,
+          cache: true,
           minify: this.state.options.minify,
           scopeHoist: this.state.options.scopeHoist,
           hmr: false,
@@ -91,6 +92,12 @@ class App extends Component {
     }
   }
 
+  componentDidMount() {
+    document.addEventListener('keydown', e => {
+      if (e.metaKey && e.code === 'Enter') this.startBundling();
+    });
+  }
+
   render() {
     // console.log(JSON.stringify(this.state.assets));
     return (
@@ -104,38 +111,41 @@ class App extends Component {
               content={content}
               onChangeName={v =>
                 this.setState({
-                  asset: this.state.assets.map(a =>
-                    a.name === name
-                      ? {
-                          ...a,
-                          name: v
-                        }
-                      : a
+                  asset: this.state.assets.map(
+                    a =>
+                      a.name === name
+                        ? {
+                            ...a,
+                            name: v
+                          }
+                        : a
                   )
                 })
               }
               isEntry={isEntry}
               onChangeEntry={v =>
                 this.setState(state => ({
-                  assets: state.assets.map(a =>
-                    a.name === name
-                      ? {
-                          ...a,
-                          isEntry: v
-                        }
-                      : a
+                  assets: state.assets.map(
+                    a =>
+                      a.name === name
+                        ? {
+                            ...a,
+                            isEntry: v
+                          }
+                        : a
                   )
                 }))
               }
               onChangeContent={v =>
                 this.setState(state => ({
-                  assets: state.assets.map(a =>
-                    a.name === name
-                      ? {
-                          ...a,
-                          content: v
-                        }
-                      : a
+                  assets: state.assets.map(
+                    a =>
+                      a.name === name
+                        ? {
+                            ...a,
+                            content: v
+                          }
+                        : a
                   )
                 }))
               }

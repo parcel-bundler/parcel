@@ -1,21 +1,21 @@
 const getBabelRc = require('./babelrc');
-const getEnvConfig = require('./env');
-const getJSXConfig = require('./jsx');
-const getFlowConfig = require('./flow');
+// const getEnvConfig = require('./env');
+// const getJSXConfig = require('./jsx');
+// const getFlowConfig = require('./flow');
 const path = require('path');
 const fs = require('@parcel/fs');
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
-const ENV_PLUGINS = require('@babel/preset-env/data/plugins');
-const ENV_PRESETS = {
-  es2015: true,
-  es2016: true,
-  es2017: true,
-  latest: true,
-  env: true,
-  '@babel/preset-env': true,
-  '@babel/env': true
-};
+// const ENV_PLUGINS = require('@babel/preset-env/data/plugins');
+// const ENV_PRESETS = {
+//   es2015: true,
+//   es2016: true,
+//   es2017: true,
+//   latest: true,
+//   env: true,
+//   '@babel/preset-env': true,
+//   '@babel/env': true
+// };
 
 async function getBabelConfig(asset) {
   // Consider the module source code rather than precompiled if the resolver
@@ -111,12 +111,12 @@ function mergeConfigs(result, config) {
   }
 }
 
-function hasPlugin(arr, plugins) {
-  return (
-    Array.isArray(arr) && arr.some(p => plugins.includes(getPluginName(p)))
-  );
-}
+// function hasPlugin(arr, plugins) {
+//   return (
+//     Array.isArray(arr) && arr.some(p => plugins.includes(getPluginName(p)))
+//   );
+// }
 
-function getPluginName(p) {
-  return Array.isArray(p) ? p[0] : p;
-}
+// function getPluginName(p) {
+//   return Array.isArray(p) ? p[0] : p;
+// }

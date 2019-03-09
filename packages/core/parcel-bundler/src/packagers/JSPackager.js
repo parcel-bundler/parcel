@@ -12,7 +12,10 @@ const objectHash = require('../utils/objectHash');
 // );
 const prelude = {
   source: fs.readFileSync(__dirname + '/../builtins/prelude.js', 'utf8'),
-  minified: fs.readFileSync(__dirname + '/../builtins/prelude.min.js', 'utf8')
+  minified: fs
+    .readFileSync(__dirname + '/../builtins/prelude.min.js', 'utf8')
+    .trim()
+    .replace(/;$/, '')
 };
 
 class JSPackager extends Packager {

@@ -1,4 +1,5 @@
 var nodeBuiltins = require('node-libs-browser');
+ // patch with v1.0.0 to get path.parse
 nodeBuiltins.path = require.resolve("path-browserify");
 
 var builtins = Object.create(null);

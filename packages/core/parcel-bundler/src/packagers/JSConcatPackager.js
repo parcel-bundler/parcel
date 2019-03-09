@@ -15,7 +15,10 @@ const {getName, getIdentifier} = require('../scope-hoisting/utils');
 // );
 const prelude = {
   source: fs.readFileSync(__dirname + '/../builtins/prelude2.js', 'utf8'),
-  minified: fs.readFileSync(__dirname + '/../builtins/prelude2.min.js', 'utf8')
+  minified: fs
+    .readFileSync(__dirname + '/../builtins/prelude2.min.js', 'utf8')
+    .trim()
+    .replace(/;$/, '')
 };
 
 // const helpers = getExisting(
@@ -24,7 +27,10 @@ const prelude = {
 // );
 const helpers = {
   source: fs.readFileSync(__dirname + '/../builtins/helpers.js', 'utf8'),
-  minified: fs.readFileSync(__dirname + '/../builtins/helpers.js', 'utf8')
+  minified: fs
+    .readFileSync(__dirname + '/../builtins/helpers.js', 'utf8')
+    .trim()
+    .replace(/;$/, '')
 };
 
 class JSConcatPackager extends Packager {

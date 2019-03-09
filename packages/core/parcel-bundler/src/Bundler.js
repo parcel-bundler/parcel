@@ -94,11 +94,13 @@ class Bundler extends EventEmitter {
 
   findEntryFiles(entryFiles) {
     // Match files as globs
-    return (
-      entryFiles
-        // .reduce((p, m) => p.concat(glob.sync(m)), [])
-        .map(f => Path.resolve(f))
-    );
+    if (process.browser) {
+      return entryFiles.map(f => Path.resolve(f));
+    } else {
+      return entryFiles
+        .reduce((p, m) => p.concat(glob.sync(m)), [])
+        .map(f => Path.resolve(f));
+    }
   }
 
   normalizeOptions(options) {
@@ -390,17 +392,19 @@ class Bundler extends EventEmitter {
     this.options.bundleLoaders = this.bundleLoaders;
 
     if (this.options.watch) {
-      // this.watcher = new Watcher();
-      // // Wait for ready event for reliable testing on watcher
-      // if (process.env.NODE_ENV === 'test' && !this.watcher.ready) {
-      //   await new Promise(resolve => this.watcher.once('ready', resolve));
-      // }
-      // this.watchedGlobs.forEach(glob => {
-      //   this.watcher.add(glob);
-      // });
-      // this.watcher.on('add', this.onAdd.bind(this));
-      // this.watcher.on('change', this.onChange.bind(this));
-      // this.watcher.on('unlink', this.onUnlink.bind(this));
+      if (!process.browser) {
+        this.watcher = new Watcher();
+        // Wait for ready event for reliable testing on watcher
+        if (process.env.NODE_ENV === 'test' && !this.watcher.ready) {
+          await new Promise(resolve => this.watcher.once('ready', resolve));
+        }
+        this.watchedGlobs.forEach(glob => {
+          this.watcher.add(glob);
+        });
+        this.watcher.on('add', this.onAdd.bind(this));
+        this.watcher.on('change', this.onChange.bind(this));
+        this.watcher.on('unlink', this.onUnlink.bind(this));
+      }
     }
 
     if (this.options.hmr) {
@@ -587,7 +591,7 @@ class Bundler extends EventEmitter {
     let processed = this.cache && (await this.cache.read(asset.name));
     let cacheMiss = false;
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
-      if(process.browser){
+      if (process.browser) {
         processed = await Worker.run(asset.name);
       } else {
         processed = await this.farm.run(asset.name);
@@ -848,20 +852,20 @@ class Bundler extends EventEmitter {
     this.bundle();
   }
 
-  // middleware() {
-  //   this.bundle();
-  //   return Server.middleware(this);
-  // }
+  middleware() {
+    this.bundle();
+    return Server.middleware(this);
+  }
 
-  // async serve(port = 1234, https = false, host) {
-  //   this.server = await Server.serve(this, port, host, https);
-  //   try {
-  //     await this.bundle();
-  //   } catch (e) {
-  //     // ignore: server can still work with errored bundler
-  //   }
-  //   return this.server;
-  // }
+  async serve(port = 1234, https = false, host) {
+    this.server = await Server.serve(this, port, host, https);
+    try {
+      await this.bundle();
+    } catch (e) {
+      // ignore: server can still work with errored bundler
+    }
+    return this.server;
+  }
 }
 
 module.exports = Bundler;
