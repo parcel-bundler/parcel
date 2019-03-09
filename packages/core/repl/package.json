@@ -9,7 +9,11 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "scripts": {
-    "prod": "/Users/niklas/Documents/_dev/_git/parcel/parcel2/packages/core/parcel-bundler/bin/cli.js build src/index.html --no-content-hash --no-source-maps"
+    "dev": "/Users/niklas/Documents/_dev/_git/parcel/parcel2/packages/core/parcel-bundler/bin/cli.js build src/index.html --no-source-maps --no-content-hash --no-minify",
+    "dev:self": "parcel build src/index.html --no-source-maps --no-content-hash --no-minify",
+    "prod": "rm -rf dist/*; /Users/niklas/Documents/_dev/_git/parcel/parcel2/packages/core/parcel-bundler/bin/cli.js build src/index.html --no-source-maps",
+    "prod:self": "rm -rf dist/*; parcel build src/index.html --no-source-maps",
+    "publish": "yarn prod && now && now alias"
   },
   "dependencies": {
     "@babel/core": "^7.3.4",

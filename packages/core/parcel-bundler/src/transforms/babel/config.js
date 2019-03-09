@@ -27,62 +27,62 @@ async function getBabelConfig(asset) {
 
   // Try to resolve a .babelrc file. If one is found, consider the module source code.
   let babelrc = await getBabelRc(asset, isSource);
-  isSource = isSource || !!babelrc;
+  // isSource = isSource || !!babelrc;
 
-  let envConfig = await getEnvConfig(asset, isSource);
-  let jsxConfig = await getJSXConfig(asset, isSource);
-  let flowConfig = getFlowConfig(asset, isSource);
+  // let envConfig = await getEnvConfig(asset, isSource);
+  // let jsxConfig = await getJSXConfig(asset, isSource);
+  // let flowConfig = getFlowConfig(asset, isSource);
 
-  if (babelrc && envConfig) {
-    // Filter out presets that are already applied by @babel/preset-env
-    if (Array.isArray(babelrc.config.presets)) {
-      babelrc.config.presets = babelrc.config.presets.filter(preset => {
-        return !ENV_PRESETS[getPluginName(preset)];
-      });
-    }
+  // if (babelrc && envConfig) {
+  //   // Filter out presets that are already applied by @babel/preset-env
+  //   if (Array.isArray(babelrc.config.presets)) {
+  //     babelrc.config.presets = babelrc.config.presets.filter(preset => {
+  //       return !ENV_PRESETS[getPluginName(preset)];
+  //     });
+  //   }
 
-    // Filter out plugins that are already applied by @babel/preset-env
-    if (Array.isArray(babelrc.config.plugins)) {
-      babelrc.config.plugins = babelrc.config.plugins.filter(plugin => {
-        return !ENV_PLUGINS[getPluginName(plugin)];
-      });
-    }
-  }
+  //   // Filter out plugins that are already applied by @babel/preset-env
+  //   if (Array.isArray(babelrc.config.plugins)) {
+  //     babelrc.config.plugins = babelrc.config.plugins.filter(plugin => {
+  //       return !ENV_PLUGINS[getPluginName(plugin)];
+  //     });
+  //   }
+  // }
 
   let result = {};
   mergeConfigs(result, babelrc);
-  mergeConfigs(result, envConfig);
+  // mergeConfigs(result, envConfig);
 
-  // Add JSX config if it isn't already specified in the babelrc
-  let hasReact =
-    babelrc &&
-    (hasPlugin(babelrc.config.presets, [
-      'react',
-      '@babel/react',
-      '@babel/preset-react'
-    ]) ||
-      hasPlugin(babelrc.config.plugins, [
-        'transform-react-jsx',
-        '@babel/transform-react-jsx',
-        '@babel/plugin-transform-react-jsx'
-      ]));
+  // // Add JSX config if it isn't already specified in the babelrc
+  // let hasReact =
+  //   babelrc &&
+  //   (hasPlugin(babelrc.config.presets, [
+  //     'react',
+  //     '@babel/react',
+  //     '@babel/preset-react'
+  //   ]) ||
+  //     hasPlugin(babelrc.config.plugins, [
+  //       'transform-react-jsx',
+  //       '@babel/transform-react-jsx',
+  //       '@babel/plugin-transform-react-jsx'
+  //     ]));
 
-  if (!hasReact) {
-    mergeConfigs(result, jsxConfig);
-  }
+  // if (!hasReact) {
+  //   mergeConfigs(result, jsxConfig);
+  // }
 
-  // Add Flow stripping config if it isn't already specified in the babelrc
-  let hasFlow =
-    babelrc &&
-    hasPlugin(babelrc.config.plugins, [
-      'transform-flow-strip-types',
-      '@babel/transform-flow-strip-types',
-      '@babel/plugin-transform-flow-strip-types'
-    ]);
+  // // Add Flow stripping config if it isn't already specified in the babelrc
+  // let hasFlow =
+  //   babelrc &&
+  //   hasPlugin(babelrc.config.plugins, [
+  //     'transform-flow-strip-types',
+  //     '@babel/transform-flow-strip-types',
+  //     '@babel/plugin-transform-flow-strip-types'
+  //   ]);
 
-  if (!hasFlow) {
-    mergeConfigs(result, flowConfig);
-  }
+  // if (!hasFlow) {
+  //   mergeConfigs(result, flowConfig);
+  // }
 
   return result;
 }

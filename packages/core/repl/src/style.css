@@ -1,76 +1,76 @@
 html {
-	box-sizing: border-box;
-	font-family: sans-serif;
+  box-sizing: border-box;
+  font-family: sans-serif;
 }
 * {
-	box-sizing: inherit;
+  box-sizing: inherit;
 }
 html,
 body,
 #root,
 #root {
-	height: 100%;
-	width: 100%;
-	margin: 0;
+  height: 100%;
+  width: 100%;
+  margin: 0;
 }
 
 #app {
-	display: flex;
-	width: 100%;
-	height: 100%;
+  display: flex;
+  width: 100%;
+  height: 100%;
 }
 
 .row {
-	width: 50%;
-	padding: 0.8em;
+  width: 50%;
+  padding: 0.8em;
 }
 .row > * {
-	margin-bottom: 0.5em;
+  margin-bottom: 0.5em;
 }
 .file {
-	border: 0.15em solid #ddd;
+  border: 0.15em solid #ddd;
 }
 .file > * {
-	width: 100%;
-	background-color: white;
+  width: 100%;
+  background-color: white;
 }
 .file > .header {
-	padding: 0.3em;
-	border-bottom: inherit;
+  padding: 0.3em;
+  border-bottom: inherit;
 }
 .file > .header > .setEntry {
-	float: right;
+  float: right;
 }
 
 .file > .source .CodeMirror {
-	height: auto;
+  height: auto;
 }
 
 .row > button {
-	width: 100%;
-	font-size: 1em;
-	padding: 0.4em;
-	background-color: #ddd;
-	cursor: pointer;
+  width: 100%;
+  font-size: 1em;
+  padding: 0.4em;
+  background-color: #ddd;
+  cursor: pointer;
 }
 .row > .start {
-	cursor: initial;
+  cursor: initial;
 }
 .row > .start:enabled {
-	cursor: pointer;
+  cursor: pointer;
 }
 .row > .start:enabled:active {
-	background-color: #bbb;
+  background-color: #bbb;
 }
 
 .options > label {
-	padding: 0.3em;
-	display: block;
+  padding: 0.3em;
+  display: block;
 }
 .options > label > input {
-	float: right;
+  float: right;
 }
 
 .output {
-	width: 50%;
+  width: 50%;
 }

@@ -12,32 +12,32 @@ function unfixPath(f) {
   return f.replace(/^\/mem\//, '');
 }
 
+const presetDefault = [
+  {
+    name: 'index.js',
+    content: `import {a, x} from "./other.js";\nconsole.log(x);`,
+    isEntry: true
+  },
+  {
+    name: 'other.js',
+    content: `function a(){return "asd";}\nconst x = 123;\nexport {a, x};`
+  }
+];
+
+const presetJSON = [
+  {
+    name: 'index.js',
+    content: "import x from './test.json';\nconsole.log(x);",
+    isEntry: true
+  },
+  {name: 'test.json', content: '{a: 2, b: 3}'}
+];
+
 class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      assets: [
-        // {
-        // 	name: 'index.js',
-        // 	content: `import {a, x} from "./other.js";\nconsole.log(x);`,
-        // 	isEntry: true
-        // },
-        // 				{
-        // 					name: 'other.js',
-        // 					content: `function a(){
-        //   return "asd";
-        // }
-        // const x = 123;
-        // export {a, x};`
-        // 				}
-
-        {
-          name: 'index.js',
-          content: "import x from './test.json';\nconsole.log(x);",
-          isEntry: true
-        },
-        {name: 'test.json', content: '{a: 2, b: 3}'}
-      ],
+      assets: presetDefault,
       output: [],
       bundling: false,
       options: {
@@ -104,41 +104,38 @@ class App extends Component {
               content={content}
               onChangeName={v =>
                 this.setState({
-                  asset: this.state.assets.map(
-                    a =>
-                      a.name === name
-                        ? {
-                            ...a,
-                            name: v
-                          }
-                        : a
+                  asset: this.state.assets.map(a =>
+                    a.name === name
+                      ? {
+                          ...a,
+                          name: v
+                        }
+                      : a
                   )
                 })
               }
               isEntry={isEntry}
               onChangeEntry={v =>
                 this.setState(state => ({
-                  assets: state.assets.map(
-                    a =>
-                      a.name === name
-                        ? {
-                            ...a,
-                            isEntry: v
-                          }
-                        : a
+                  assets: state.assets.map(a =>
+                    a.name === name
+                      ? {
+                          ...a,
+                          isEntry: v
+                        }
+                      : a
                   )
                 }))
               }
               onChangeContent={v =>
                 this.setState(state => ({
-                  assets: state.assets.map(
-                    a =>
-                      a.name === name
-                        ? {
-                            ...a,
-                            content: v
-                          }
-                        : a
+                  assets: state.assets.map(a =>
+                    a.name === name
+                      ? {
+                          ...a,
+                          content: v
+                        }
+                      : a
                   )
                 }))
               }
@@ -212,5 +209,3 @@ class App extends Component {
 }
 
 render(<App />, document.getElementById('root'));
-
-if (module.hot) module.hot.accept();

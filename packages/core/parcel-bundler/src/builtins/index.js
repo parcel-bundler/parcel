@@ -1,4 +1,5 @@
 var nodeBuiltins = require('node-libs-browser');
+nodeBuiltins.path = require.resolve("path-browserify");
 
 var builtins = Object.create(null);
 for (var key in nodeBuiltins) {
