@@ -2,12 +2,16 @@ const logger = require('@parcel/logger');
 const path = require('path');
 const fs = require('@parcel/fs');
 
-const SOURCEMAP_RE = /(?:\/\*|\/\/)\s*[@#]\s*sourceMappingURL\s*=\s*([^\s*]+)(?:\s*\*\/)?/;
+const SOURCEMAP_RE = /(?:\/\*|\/\/)\s*[@#]\s*sourceMappingURL\s*=\s*([^\s*]+)(?:\s*\*\/)?\s*$/;
 const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
+
+function matchSourceMappingURL(asset) {
+  return asset.contents.match(SOURCEMAP_RE);
+}
 
 async function loadSourceMap(asset) {
   // Get original sourcemap if there is any
-  let match = asset.contents.match(SOURCEMAP_RE);
+  let match = matchSourceMappingURL(asset);
   let sourceMap;
   if (match) {
     asset.contents = asset.contents.replace(SOURCEMAP_RE, '');
@@ -71,5 +75,7 @@ async function loadSourceMap(asset) {
   }
   return sourceMap;
 }
+
+loadSourceMap.matchSourceMappingURL = matchSourceMappingURL;
 
 module.exports = loadSourceMap;
