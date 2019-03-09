@@ -298,8 +298,9 @@ class SourceMap {
       generatedPosition.line,
       generatedPosition.column
     );
+
     let mapping = this.mappings[index];
-    if (!mapping) {
+    if (!mapping || !mapping.original) {
       return null;
     }
 
@@ -317,11 +318,13 @@ class SourceMap {
       originalPosition.column,
       'original'
     );
+
+    let mapping = this.mappings[index];
     return {
-      source: this.mappings[index].source,
-      name: this.mappings[index].name,
-      line: this.mappings[index].generated.line,
-      column: this.mappings[index].generated.column
+      source: mapping.source,
+      name: mapping.name,
+      line: mapping.generated.line,
+      column: mapping.generated.column
     };
   }
 
