@@ -11,6 +11,7 @@ const processVisitor = require('../visitors/process');
 const babel = require('../transforms/babel/transform');
 const babel7 = require('../transforms/babel/babel7');
 const generate = require('@babel/generator').default;
+const types = require('@babel/types');
 const terser = require('../transforms/terser');
 const SourceMap = require('../SourceMap');
 const hoist = require('../scope-hoisting/hoist');
@@ -81,6 +82,44 @@ class JSAsset extends Asset {
     }
 
     await babel(this);
+
+    // if (process.browser) {
+    await this.parseIfNeeded();
+    this.traverse({
+      CallExpression(path) {
+        let {callee, arguments: args} = path.node;
+
+        if (
+          types.isIdentifier(callee) &&
+          callee.name === 'localRequire' &&
+          types.isStringLiteral(args[0])
+        ) {
+          callee.name = 'require';
+          path.node.arguments = [args[0]];
+        } else if (
+          types.isIdentifier(callee) &&
+          callee.name === 'setImmediate' &&
+          types.isFunction(args[0])
+        ) {
+          path
+            .get('callee')
+            .replaceWith(
+              types.memberExpression(
+                types.callExpression(
+                  types.memberExpression(
+                    types.identifier('Promise'),
+                    types.identifier('resolve')
+                  ),
+                  []
+                ),
+                types.identifier('then')
+              )
+            );
+        }
+      }
+    });
+    this.isAstDirty = true;
+    // }
 
     // Inline environment variables
     if (this.options.target === 'browser' && ENV_RE.test(this.contents)) {

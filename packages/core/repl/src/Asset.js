@@ -10,6 +10,7 @@ const Asset = props => {
     onChangeName,
     onChangeContent,
     onChangeEntry,
+    onClickRemove,
     additionalHeader
   } = props;
 
@@ -23,6 +24,9 @@ const Asset = props => {
         >
           {name}
           {additionalHeader}
+          <button class="remove" onClick={() => onClickRemove(name)}>
+            -
+          </button>
           <input
             type="checkbox"
             class="setEntry"

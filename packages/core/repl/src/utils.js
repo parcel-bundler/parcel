@@ -1,45 +1,55 @@
 import {h} from 'preact';
 
 export function ParcelError(props) {
-  let {highlightedCodeFrame, loc, fileName, message} = props.children;
-  window.thing = props.children;
+  let {highlightedCodeFrame, loc, fileName, message, stack} = props.children;
+  window.lastError = props.children;
 
   fileName = fileName
-    ? unfixPath(fileName) + (loc ? `:${loc.line}:${loc.column}:` : ':')
+    ? fileName.replace(/^\/src\//, '') +
+      (loc && loc.line ? `:${loc.line}:${loc.column}:` : ':')
     : '';
   highlightedCodeFrame = highlightedCodeFrame || '';
+  stack = (!highlightedCodeFrame && stack) || '';
   return (
     <div class="file error">
-      {`${fileName} ${message}\n${highlightedCodeFrame}`.trim()}
+      {`${fileName} ${message}\n${highlightedCodeFrame}\n${stack}`.trim()}
     </div>
   );
 }
 
-export function fixPath(f) {
-  return '/mem/' + f;
-}
-
-export function unfixPath(f) {
-  return f.replace(/^\/mem\//, '');
-}
-
-export const presetDefault = [
-  {
-    name: 'index.js',
-    content: `import {a, x} from "./other.js";\nconsole.log(x);`,
-    isEntry: true
-  },
-  {
-    name: 'other.js',
-    content: `function a(){return "asd";}\nconst x = 123;\nexport {a, x};`
-  }
-];
-
-export const presetJSON = [
-  {
-    name: 'index.js',
-    content: "import x from './test.json';\nconsole.log(x);",
-    isEntry: true
-  },
-  {name: 'test.json', content: '{a: 2, b: 3}'}
-];
+export const PRESETS = {
+  Javascript: [
+    {
+      name: 'index.js',
+      content: `import {a, x} from "./other.js";\nconsole.log(x);`,
+      isEntry: true
+    },
+    {
+      name: 'other.js',
+      content: `function a(){return "asd";}\nconst x = 123;\nexport {a, x};`
+    }
+  ],
+  "Basic Page (don't minify!)": [
+    {
+      name: 'index.html',
+      content: `<link rel="stylesheet" type="text/css" href="./style.css">\n<script src="./index.js"></script>`,
+      isEntry: true
+    },
+    {
+      name: 'index.js',
+      content: `function a(){\n return "asd";\n}\ndocument.body.innerText += a();`
+    },
+    {
+      name: 'style.css',
+      content: `body {\n  color: red;\n}`
+    }
+  ],
+  JSON: [
+    {
+      name: 'index.js',
+      content: "import x from './test.json';\nconsole.log(x);",
+      isEntry: true
+    },
+    {name: 'test.json', content: '{a: 2, b: 3}'}
+  ]
+};

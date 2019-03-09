@@ -3,15 +3,11 @@ import filesize from 'filesize';
 
 import Asset from './Asset';
 import Options from './Options';
-import {
-  ParcelError,
-  presetDefault,
-  presetJSON,
-  fixPath,
-  unfixPath
-} from './utils.js';
+import {ParcelError, PRESETS} from './utils.js';
 
 import fs from '@parcel/fs';
+import fsNative from 'fs';
+
 let Bundler;
 setTimeout(() => (Bundler = import('parcel-bundler').then(v => v)), 50);
 
@@ -19,7 +15,8 @@ class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      assets: presetDefault,
+      currentPreset: 'Javascript',
+      assets: PRESETS.Javascript,
       output: [],
       bundling: false,
       bundlingError: null,
@@ -37,36 +34,38 @@ class App extends Component {
     this.setState({bundling: true});
 
     try {
-      fs.memoryFSClear();
+      fsNative.data = {};
 
+      await fs.mkdirp('/src/');
       for (let f of this.state.assets) {
-        await fs.writeFile(fixPath(f.name), f.content);
+        await fs.writeFile(`/src/${f.name}`, f.content);
       }
 
-      const bundler = new (await Bundler)(
-        this.state.assets
-          .filter(v => v.isEntry)
-          .map(v => v.name)
-          .map(fixPath),
-        {
-          outDir: '/mem/dist',
-          watch: false,
-          cache: true,
-          hmr: false,
-          logLevel: 0,
-          minify: this.state.options.minify,
-          scopeHoist: this.state.options.scopeHoist,
-          sourceMaps: this.state.options.sourceMaps
-        }
-      );
+      const entryPoints = this.state.assets
+        .filter(v => v.isEntry)
+        .map(v => v.name)
+        .map(v => `/src/${v}`);
+
+      if (!entryPoints.length) throw new Error('No asset marked as entrypoint');
+
+      const bundler = new (await Bundler)(entryPoints, {
+        outDir: '/dist',
+        watch: false,
+        cache: true,
+        hmr: false,
+        logLevel: 0,
+        minify: this.state.options.minify,
+        scopeHoist: this.state.options.scopeHoist,
+        sourceMaps: this.state.options.sourceMaps
+      });
 
       const bundle = await bundler.bundle();
 
       const output = [];
-      for (let f of await fs.readdir('/mem/dist')) {
+      for (let f of await fs.readdir('/dist')) {
         output.push({
-          name: unfixPath(f),
-          content: await fs.readFile(f)
+          name: f,
+          content: await fs.readFile('/dist/' + f, 'utf8')
         });
       }
 
@@ -88,6 +87,22 @@ class App extends Component {
     return (
       <div id="app">
         <div class="row">
+          <select
+            class="presets"
+            onChange={e =>
+              this.setState({
+                currentPreset: e.target.value,
+                assets: PRESETS[e.target.value]
+              })
+            }
+            value={this.state.currentPreset}
+          >
+            {Object.keys(PRESETS).map(v => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
           {this.state.assets.map(({name, content, isEntry}) => (
             <Asset
               editable
@@ -132,6 +147,11 @@ class App extends Component {
                           }
                         : a
                   )
+                }))
+              }
+              onClickRemove={v =>
+                this.setState(state => ({
+                  assets: state.assets.filter(a => a.name !== v)
                 }))
               }
             />
