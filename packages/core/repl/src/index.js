@@ -1,37 +1,19 @@
 import {h, render, Component} from 'preact';
+import filesize from 'filesize';
+
 import Asset from './Asset';
+import Options from './Options';
+import {
+  ParcelError,
+  presetDefault,
+  presetJSON,
+  fixPath,
+  unfixPath
+} from './utils.js';
 
 import fs from '@parcel/fs';
 let Bundler;
-setTimeout(() => (Bundler = import('parcel-bundler').then(v => v)), 1);
-
-function fixPath(f) {
-  return '/mem/' + f;
-}
-function unfixPath(f) {
-  return f.replace(/^\/mem\//, '');
-}
-
-const presetDefault = [
-  {
-    name: 'index.js',
-    content: `import {a, x} from "./other.js";\nconsole.log(x);`,
-    isEntry: true
-  },
-  {
-    name: 'other.js',
-    content: `function a(){return "asd";}\nconst x = 123;\nexport {a, x};`
-  }
-];
-
-const presetJSON = [
-  {
-    name: 'index.js',
-    content: "import x from './test.json';\nconsole.log(x);",
-    isEntry: true
-  },
-  {name: 'test.json', content: '{a: 2, b: 3}'}
-];
+setTimeout(() => (Bundler = import('parcel-bundler').then(v => v)), 50);
 
 class App extends Component {
   constructor(props) {
@@ -40,9 +22,11 @@ class App extends Component {
       assets: presetDefault,
       output: [],
       bundling: false,
+      bundlingError: null,
       options: {
         minify: true,
-        scopeHoist: true
+        scopeHoist: true,
+        sourceMaps: false
       }
     };
   }
@@ -52,7 +36,6 @@ class App extends Component {
 
     this.setState({bundling: true});
 
-    const output = [];
     try {
       fs.memoryFSClear();
 
@@ -69,26 +52,28 @@ class App extends Component {
           outDir: '/mem/dist',
           watch: false,
           cache: true,
+          hmr: false,
+          logLevel: 0,
           minify: this.state.options.minify,
           scopeHoist: this.state.options.scopeHoist,
-          hmr: false,
-          sourceMaps: false,
-          logLevel: 0
+          sourceMaps: this.state.options.sourceMaps
         }
       );
 
       const bundle = await bundler.bundle();
 
+      const output = [];
       for (let f of await fs.readdir('/mem/dist')) {
         output.push({
           name: unfixPath(f),
           content: await fs.readFile(f)
         });
       }
-    } catch (e) {
-      throw e;
-    } finally {
-      this.setState({bundling: false, output});
+
+      this.setState({bundling: false, bundlingError: null, output});
+    } catch (error) {
+      this.setState({bundling: false, bundlingError: error});
+      console.error(error);
     }
   }
 
@@ -106,7 +91,7 @@ class App extends Component {
           {this.state.assets.map(({name, content, isEntry}) => (
             <Asset
               editable
-              key="name"
+              key={name}
               name={name}
               content={content}
               onChangeName={v =>
@@ -175,43 +160,33 @@ class App extends Component {
           >
             Bundle!
           </button>
-          <div class="options file">
-            <label>
-              Minify
-              <input
-                type="checkbox"
-                checked={this.state.options.minify}
-                onChange={e =>
-                  this.setState(state => ({
-                    options: {
-                      ...state.options,
-                      minify: e.target.checked
-                    }
-                  }))
+          <Options
+            values={this.state.options}
+            onChange={(name, value) =>
+              this.setState(state => ({
+                options: {
+                  ...state.options,
+                  [name]: value
                 }
-              />
-            </label>
-            <label>
-              Experimental scope hoisting
-              <input
-                type="checkbox"
-                checked={this.state.options.scopeHoist}
-                onChange={e =>
-                  this.setState(state => ({
-                    options: {
-                      ...state.options,
-                      scopeHoist: e.target.checked
-                    }
-                  }))
-                }
-              />
-            </label>
-          </div>
+              }))
+            }
+          />
         </div>
         <div class="row">
-          {this.state.output.map(({name, content}) => (
-            <Asset key={name} name={name.trim()} content={content} />
-          ))}
+          {this.state.bundlingError ? (
+            <ParcelError>{this.state.bundlingError}</ParcelError>
+          ) : (
+            this.state.output.map(({name, content}) => (
+              <Asset
+                key={name}
+                name={name.trim()}
+                content={content}
+                additionalHeader={
+                  <div class="outputSize">{filesize(content.length)}</div>
+                }
+              />
+            ))
+          )}
         </div>
       </div>
     );

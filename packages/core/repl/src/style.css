@@ -41,11 +41,13 @@ body,
 .file > .header > .setEntry {
   float: right;
 }
+.file > .header > .outputSize {
+  float: right;
+}
 
 .file > .source .CodeMirror {
   height: auto;
 }
-
 .row > button {
   width: 100%;
   font-size: 1em;
@@ -73,4 +75,11 @@ body,
 
 .output {
   width: 50%;
+}
+.error {
+  color: red;
+  white-space: pre;
+  font-family: monospace;
+  padding: 0.3em;
+  font-size: 1.2em;
 }

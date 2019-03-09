@@ -1,5 +1,4 @@
 import {h} from 'preact';
-
 import Editor from './Editor';
 
 const Asset = props => {
@@ -10,7 +9,8 @@ const Asset = props => {
     editable,
     onChangeName,
     onChangeContent,
-    onChangeEntry
+    onChangeEntry,
+    additionalHeader
   } = props;
 
   if (editable) {
@@ -22,6 +22,7 @@ const Asset = props => {
           onBlur={e => onChangeName(e.target.textContent.trim())}
         >
           {name}
+          {additionalHeader}
           <input
             type="checkbox"
             class="setEntry"
@@ -43,7 +44,10 @@ const Asset = props => {
   } else {
     return (
       <div class="file">
-        <div class="header">{name.trim()}</div>
+        <div class="header">
+          {name}
+          {additionalHeader}
+        </div>
         <div class="source">
           <Editor filename={name} content={content} />
         </div>
