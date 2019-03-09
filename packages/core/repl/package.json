@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "parcel build src/index.html --no-source-maps --no-content-hash --no-minify",
     "prod": "rm -rf dist/*; parcel build src/index.html --no-source-maps",
+    "prod:shake": "rm -rf dist/*; parcel build src/index.html --experimental-scope-hoisting",
     "publish": "yarn prod && now && now alias"
   },
   "dependencies": {
