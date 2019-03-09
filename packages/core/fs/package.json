@@ -3,6 +3,7 @@
   "version": "1.11.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
+  "browser": "src/fs.js",
   "license": "MIT",
   "repository": {
     "type": "git",

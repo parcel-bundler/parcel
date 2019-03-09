@@ -1,0 +1,4 @@
+{
+	"presets": [["@babel/preset-env", {"targets": "Chrome 70"}]],
+	"plugins": [["@babel/plugin-transform-react-jsx", {"pragma": "h"}]]
+}

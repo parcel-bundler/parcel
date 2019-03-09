@@ -3,6 +3,7 @@
   "version": "1.12.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
+  "browser": "src/Bundler.js",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -57,7 +58,7 @@
     "micromatch": "^3.0.4",
     "mkdirp": "^0.5.1",
     "node-forge": "^0.7.1",
-    "node-libs-browser": "^2.0.0",
+    "node-libs-browser": "^2.2.0",
     "opn": "^5.1.0",
     "postcss": "^7.0.11",
     "postcss-value-parser": "^3.3.1",

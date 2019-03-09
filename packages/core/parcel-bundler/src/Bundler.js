@@ -1,19 +1,24 @@
 const fs = require('@parcel/fs');
 const Resolver = require('./Resolver');
 const Parser = require('./Parser');
-const WorkerFarm = require('@parcel/workers');
 const Path = require('path');
 const Bundle = require('./Bundle');
-const Watcher = require('@parcel/watcher');
 const FSCache = require('./FSCache');
-const HMRServer = require('./HMRServer');
-const Server = require('./Server');
+let Worker, Watcher, WorkerFarm, HMRServer, Server, loadEnv;
+if (process.browser) {
+  Worker = require('./worker.js');
+} else {
+  Watcher = require('@parcel/watcher');
+  WorkerFarm = require('@parcel/workers');
+  HMRServer = require('./HMRServer');
+  Server = require('./Server');
+  loadEnv = require('./utils/env');
+}
 const {EventEmitter} = require('events');
 const logger = require('@parcel/logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
-const loadEnv = require('./utils/env');
 const PromiseQueue = require('./utils/PromiseQueue');
 const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
@@ -89,9 +94,11 @@ class Bundler extends EventEmitter {
 
   findEntryFiles(entryFiles) {
     // Match files as globs
-    return entryFiles
-      .reduce((p, m) => p.concat(glob.sync(m)), [])
-      .map(f => Path.resolve(f));
+    return (
+      entryFiles
+        // .reduce((p, m) => p.concat(glob.sync(m)), [])
+        .map(f => Path.resolve(f))
+    );
   }
 
   normalizeOptions(options) {
@@ -373,7 +380,9 @@ class Bundler extends EventEmitter {
     await this.loadPlugins();
 
     if (!this.options.env) {
-      await loadEnv(Path.join(this.options.rootDir, 'index'));
+      if (!process.browser) {
+        await loadEnv(Path.join(this.options.rootDir, 'index'));
+      }
       this.options.env = process.env;
     }
 
@@ -381,27 +390,33 @@ class Bundler extends EventEmitter {
     this.options.bundleLoaders = this.bundleLoaders;
 
     if (this.options.watch) {
-      this.watcher = new Watcher();
-      // Wait for ready event for reliable testing on watcher
-      if (process.env.NODE_ENV === 'test' && !this.watcher.ready) {
-        await new Promise(resolve => this.watcher.once('ready', resolve));
-      }
-      this.watchedGlobs.forEach(glob => {
-        this.watcher.add(glob);
-      });
-      this.watcher.on('add', this.onAdd.bind(this));
-      this.watcher.on('change', this.onChange.bind(this));
-      this.watcher.on('unlink', this.onUnlink.bind(this));
+      // this.watcher = new Watcher();
+      // // Wait for ready event for reliable testing on watcher
+      // if (process.env.NODE_ENV === 'test' && !this.watcher.ready) {
+      //   await new Promise(resolve => this.watcher.once('ready', resolve));
+      // }
+      // this.watchedGlobs.forEach(glob => {
+      //   this.watcher.add(glob);
+      // });
+      // this.watcher.on('add', this.onAdd.bind(this));
+      // this.watcher.on('change', this.onChange.bind(this));
+      // this.watcher.on('unlink', this.onUnlink.bind(this));
     }
 
     if (this.options.hmr) {
-      this.hmr = new HMRServer();
-      this.options.hmrPort = await this.hmr.start(this.options);
+      if (!process.browser) {
+        this.hmr = new HMRServer();
+        this.options.hmrPort = await this.hmr.start(this.options);
+      }
     }
 
-    this.farm = await WorkerFarm.getShared(this.options, {
-      workerPath: require.resolve('./worker.js')
-    });
+    if (process.browser) {
+      await Worker.init(this.options);
+    } else {
+      this.farm = await WorkerFarm.getShared(this.options, {
+        workerPath: require.resolve('./worker.js')
+      });
+    }
   }
 
   async stop() {
@@ -572,7 +587,8 @@ class Bundler extends EventEmitter {
     let processed = this.cache && (await this.cache.read(asset.name));
     let cacheMiss = false;
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
-      processed = await this.farm.run(asset.name);
+      processed = await Worker.run(asset.name);
+      // processed = await this.farm.run(asset.name);
       cacheMiss = true;
     }
 
@@ -829,20 +845,20 @@ class Bundler extends EventEmitter {
     this.bundle();
   }
 
-  middleware() {
-    this.bundle();
-    return Server.middleware(this);
-  }
+  // middleware() {
+  //   this.bundle();
+  //   return Server.middleware(this);
+  // }
 
-  async serve(port = 1234, https = false, host) {
-    this.server = await Server.serve(this, port, host, https);
-    try {
-      await this.bundle();
-    } catch (e) {
-      // ignore: server can still work with errored bundler
-    }
-    return this.server;
-  }
+  // async serve(port = 1234, https = false, host) {
+  //   this.server = await Server.serve(this, port, host, https);
+  //   try {
+  //     await this.bundle();
+  //   } catch (e) {
+  //     // ignore: server can still work with errored bundler
+  //   }
+  //   return this.server;
+  // }
 }
 
 module.exports = Bundler;

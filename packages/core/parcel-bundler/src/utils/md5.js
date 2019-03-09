@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const fs = require('fs');
+const fs = require('@parcel/fs');
 
 function md5(string, encoding = 'hex') {
   return crypto

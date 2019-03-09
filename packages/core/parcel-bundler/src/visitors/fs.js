@@ -1,6 +1,6 @@
 const t = require('@babel/types');
 const Path = require('path');
-const fs = require('fs');
+const fs = require('@parcel/fs');
 const template = require('@babel/template').default;
 const logger = require('@parcel/logger');
 

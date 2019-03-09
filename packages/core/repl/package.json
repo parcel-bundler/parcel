@@ -1,0 +1,30 @@
+{
+  "name": "@parcel/repl",
+  "private": true,
+  "version": "1.12.0",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "scripts": {
+    "prod": "/Users/niklas/Documents/_dev/_git/parcel/parcel2/packages/core/parcel-bundler/bin/cli.js build src/index.html --no-content-hash --no-source-maps"
+  },
+  "dependencies": {
+    "@babel/core": "^7.3.4",
+    "@babel/preset-env": "^7.3.4",
+    "codemirror": "^5.44.0",
+    "contentstream": "^1.0.0",
+    "preact": "next",
+    "react-codemirror2": "^5.1.0",
+    "toml": "^3.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.3.4"
+  },
+  "alias": {
+    "react": "preact",
+    "@iarna/toml": "toml"
+  }
+}
