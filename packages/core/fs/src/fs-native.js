@@ -21,8 +21,6 @@ if (process.browser) {
       }
     };
   };
-  // eslint-disable-next-line no-undef
-  window.fs = fs;
   module.exports = fs;
 } else {
   module.exports = require('fs');

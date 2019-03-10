@@ -82,6 +82,11 @@ body,
 .options > label > input {
   float: right;
 }
+.options > label > input[type='text'] {
+  width: 50%;
+  padding: 0;
+  font-size: 0.9em;
+}
 .notes {
   padding: 0.3em;
   padding-right: 0;

@@ -30,5 +30,8 @@
     "node-sass": "sass",
     "@iarna/toml": "toml",
     "fs": "@parcel/fs/src/fs-native.js"
-  }
+  },
+  "browserslist": [
+    "Chrome 70"
+  ]
 }

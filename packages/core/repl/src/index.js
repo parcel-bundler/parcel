@@ -3,7 +3,7 @@ import filesize from 'filesize';
 
 import Asset from './Asset';
 import Options from './Options';
-import {ParcelError, PRESETS, bundle} from './utils.js';
+import {ParcelError, PRESETS, bundle, hasBrowserslist} from './utils.js';
 
 const DEFAULT_PRESET = 'Javascript';
 
@@ -19,19 +19,18 @@ class App extends Component {
       options: {
         minify: true,
         scopeHoist: true,
-        sourceMaps: false
+        sourceMaps: false,
+        browserslist: 'Chrome 70'
       }
     };
   }
 
   async startBundling() {
     if (this.state.bundling) return;
-
     this.setState({bundling: true});
 
     try {
       const output = await bundle(this.state.assets, this.state.options);
-
       this.setState({bundling: false, bundlingError: null, output});
     } catch (error) {
       this.setState({bundling: false, bundlingError: error});
@@ -54,6 +53,7 @@ class App extends Component {
   }
 
   render() {
+    // console.log(JSON.stringify(this.state.assets));
     return (
       <div id="app">
         <div class="row">
@@ -124,6 +124,7 @@ class App extends Component {
                 }
               }))
             }
+            enableBrowserslist={!hasBrowserslist(this.state.assets)}
           />
           <div class="file notes">
             Yes, this is Parcel as a (nearly) self-hosting bundler (self-
@@ -147,12 +148,13 @@ class App extends Component {
               </li>
               <li>Parcel doesn't run in a worker</li>
             </ul>
-            (PS: The Parcel portion of this page is a 1.9MB gzipped bundle)
+            (PS: The Parcel portion of this page, including all compilers, is a
+            1.9MB gzipped bundle)
           </div>
         </div>
         <div class="row">
           {this.state.bundlingError ? (
-            <ParcelError>{this.state.bundlingError}</ParcelError>
+            <ParcelError error={this.state.bundlingError} />
           ) : (
             this.state.output.map(({name, content}) => (
               <Asset

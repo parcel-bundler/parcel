@@ -1,4 +1,54 @@
 const browserslist = require('browserslist');
+const fs = require('fs');
+if (process.browser) {
+  // monkeypatch because it noops load/readConfig for browser
+  var BrowserslistError = require('browserslist/error');
+  var IS_SECTION = /^\s*\[(.+)\]\s*$/;
+
+  browserslist.readConfig = function(file) {
+    if (!fs.existsSync(file)) {
+      return null;
+    }
+
+    var string = fs.readFileSync(file);
+
+    var result = {defaults: []};
+    var sections = ['defaults'];
+
+    string
+      .toString()
+      .replace(/#[^\n]*/g, '')
+      .split(/\n|,/)
+      .map(function(line) {
+        return line.trim();
+      })
+      .filter(function(line) {
+        return line !== '';
+      })
+      .forEach(function(line) {
+        if (IS_SECTION.test(line)) {
+          sections = line
+            .match(IS_SECTION)[1]
+            .trim()
+            .split(' ');
+          sections.forEach(function(section) {
+            if (result[section]) {
+              throw new BrowserslistError(
+                'Duplicate section ' + section + ' in Browserslist config'
+              );
+            }
+            result[section] = [];
+          });
+        } else {
+          sections.forEach(function(section) {
+            result[section].push(line);
+          });
+        }
+      });
+
+    return result;
+  };
+}
 const semver = require('semver');
 const Path = require('path');
 

@@ -3,14 +3,24 @@ import {h} from 'preact';
 
 import fs from '@parcel/fs';
 import fsNative from 'fs';
+// eslint-disable-next-line no-undef
+window.fs = fsNative;
 
 let Bundler;
+// document.addEventListener('DOMContentLoaded', () => (Bundler = import('./parcel-vendor').then(v => v)));
 setTimeout(() => (Bundler = import('./parcel-vendor').then(v => v)), 200);
 
 export async function bundle(assets, options) {
   fsNative.data = {};
 
   await fs.mkdirp('/src/');
+
+  if (options.browserslist) {
+    if (!hasBrowserslist(assets)) {
+      await fs.writeFile(`/src/.browserslistrc`, options.browserslist);
+    }
+  }
+
   for (let f of assets) {
     await fs.writeFile(`/src/${f.name}`, f.content);
   }
@@ -46,10 +56,25 @@ export async function bundle(assets, options) {
   return output;
 }
 
+export function hasBrowserslist(assets) {
+  const configExists = assets.some(
+    v => v.name === 'browserslist' || v.name === '.browserslistrc'
+  );
+  if (configExists) return true;
+
+  const pkg = assets.find(v => v.name.endsWith('package.json'));
+  try {
+    const configInPackage = pkg && !!JSON.parse(pkg.content).browserslist;
+    return configInPackage;
+  } catch (e) {
+    return false;
+  }
+}
+
 export function ParcelError(props) {
-  let {highlightedCodeFrame, loc, fileName, message, stack} = props.children;
+  let {highlightedCodeFrame, loc, fileName, message, stack} = props.error;
   // eslint-disable-next-line no-undef
-  window.lastError = props.children;
+  window.lastError = props.error;
 
   fileName = fileName
     ? fileName.replace(/^\/src\//, '') +
@@ -68,12 +93,12 @@ export const PRESETS = {
   Javascript: [
     {
       name: 'index.js',
-      content: `import {a, x} from "./other.js";\nconsole.log(x);`,
+      content: `import {Thing, x} from "./other.js";\nnew Thing().run();`,
       isEntry: true
     },
     {
       name: 'other.js',
-      content: `function a(){return "asd";}\nconst x = 123;\nexport {a, x};`
+      content: `class Thing {\n  run() {\n    console.log("Test");\n  } \n}\n\nconst x = 123;\nexport {Thing, x};`
     }
   ],
   Babel: [
