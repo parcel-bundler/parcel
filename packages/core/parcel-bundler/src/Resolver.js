@@ -121,6 +121,7 @@ class Resolver {
 
   resolveFilename(filename, dir) {
     switch (filename[0]) {
+      case '\\':
       case '/':
         // Absolute path. Resolve relative to project root.
         return path.resolve(this.options.rootDir, filename.slice(1));
