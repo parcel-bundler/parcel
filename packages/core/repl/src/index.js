@@ -3,13 +3,7 @@ import filesize from 'filesize';
 
 import Asset from './Asset';
 import Options from './Options';
-import {ParcelError, PRESETS} from './utils.js';
-
-import fs from '@parcel/fs';
-import fsNative from 'fs';
-
-let Bundler;
-setTimeout(() => (Bundler = import('./parcel-vendor').then(v => v)), 50);
+import {ParcelError, PRESETS, bundle} from './utils.js';
 
 const DEFAULT_PRESET = 'Javascript';
 
@@ -36,41 +30,7 @@ class App extends Component {
     this.setState({bundling: true});
 
     try {
-      fsNative.data = {};
-
-      await fs.mkdirp('/src/');
-      for (let f of this.state.assets) {
-        await fs.writeFile(`/src/${f.name}`, f.content);
-      }
-
-      const entryPoints = this.state.assets
-        .filter(v => v.isEntry)
-        .map(v => v.name)
-        .map(v => `/src/${v}`);
-
-      if (!entryPoints.length) throw new Error('No asset marked as entrypoint');
-
-      const bundler = new (await Bundler)(entryPoints, {
-        outDir: '/dist',
-        autoinstall: false,
-        watch: false,
-        cache: true,
-        hmr: false,
-        logLevel: 0,
-        minify: this.state.options.minify,
-        scopeHoist: this.state.options.scopeHoist,
-        sourceMaps: this.state.options.sourceMaps
-      });
-
-      const bundle = await bundler.bundle();
-
-      const output = [];
-      for (let f of await fs.readdir('/dist')) {
-        output.push({
-          name: f,
-          content: await fs.readFile('/dist/' + f, 'utf8')
-        });
-      }
+      const output = await bundle(this.state.assets, this.state.options);
 
       this.setState({bundling: false, bundlingError: null, output});
     } catch (error) {
@@ -85,8 +45,15 @@ class App extends Component {
     });
   }
 
+  updateAsset(name, prop, value) {
+    this.setState(state => ({
+      assets: state.assets.map(
+        a => (a.name === name ? {...a, [prop]: value} : a)
+      )
+    }));
+  }
+
   render() {
-    // console.log(JSON.stringify(this.state.assets));
     return (
       <div id="app">
         <div class="row">
@@ -112,46 +79,10 @@ class App extends Component {
               key={name}
               name={name}
               content={content}
-              onChangeName={v =>
-                this.setState({
-                  asset: this.state.assets.map(
-                    a =>
-                      a.name === name
-                        ? {
-                            ...a,
-                            name: v
-                          }
-                        : a
-                  )
-                })
-              }
+              onChangeName={v => this.updateAsset(name, 'name', v)}
               isEntry={isEntry}
-              onChangeEntry={v =>
-                this.setState(state => ({
-                  assets: state.assets.map(
-                    a =>
-                      a.name === name
-                        ? {
-                            ...a,
-                            isEntry: v
-                          }
-                        : a
-                  )
-                }))
-              }
-              onChangeContent={v =>
-                this.setState(state => ({
-                  assets: state.assets.map(
-                    a =>
-                      a.name === name
-                        ? {
-                            ...a,
-                            content: v
-                          }
-                        : a
-                  )
-                }))
-              }
+              onChangeEntry={v => this.updateAsset(name, 'isEntry', v)}
+              onChangeContent={v => this.updateAsset(name, 'content', v)}
               onClickRemove={v =>
                 this.setState(state => ({
                   assets: state.assets.filter(a => a.name !== v)
@@ -216,7 +147,7 @@ class App extends Component {
               </li>
               <li>Parcel doesn't run in a worker</li>
             </ul>
-            (PS: The Parcel portion of this page is a 2.1MB gzipped bundle)
+            (PS: The Parcel portion of this page is a 1.9MB gzipped bundle)
           </div>
         </div>
         <div class="row">

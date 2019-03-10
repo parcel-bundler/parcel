@@ -33,7 +33,6 @@ export default function Editor({
     indentUnit: 2,
     tabSize: 2,
     mode: patchMime(mime.lookup(path.extname(filename))),
-    value: content,
     readOnly: !editable
   };
   return (
@@ -41,9 +40,7 @@ export default function Editor({
       value={content}
       options={options}
       onBeforeChange={(editor, data, value) => {
-        if (data.origin !== 'setValue') {
-          onChange(value);
-        }
+        onChange(value);
       }}
       autoCursor={true}
     />

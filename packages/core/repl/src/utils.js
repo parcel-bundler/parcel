@@ -1,6 +1,51 @@
 // eslint-disable-next-line no-unused-vars
 import {h} from 'preact';
 
+import fs from '@parcel/fs';
+import fsNative from 'fs';
+
+let Bundler;
+setTimeout(() => (Bundler = import('./parcel-vendor').then(v => v)), 200);
+
+export async function bundle(assets, options) {
+  fsNative.data = {};
+
+  await fs.mkdirp('/src/');
+  for (let f of assets) {
+    await fs.writeFile(`/src/${f.name}`, f.content);
+  }
+
+  const entryPoints = assets
+    .filter(v => v.isEntry)
+    .map(v => v.name)
+    .map(v => `/src/${v}`);
+
+  if (!entryPoints.length) throw new Error('No asset marked as entrypoint');
+
+  const bundler = new (await Bundler)(entryPoints, {
+    outDir: '/dist',
+    autoinstall: false,
+    watch: false,
+    cache: true,
+    hmr: false,
+    logLevel: 0,
+    minify: options.minify,
+    scopeHoist: options.scopeHoist,
+    sourceMaps: options.sourceMaps
+  });
+
+  const bundle = await bundler.bundle();
+
+  const output = [];
+  for (let f of await fs.readdir('/dist')) {
+    output.push({
+      name: f,
+      content: await fs.readFile('/dist/' + f, 'utf8')
+    });
+  }
+  return output;
+}
+
 export function ParcelError(props) {
   let {highlightedCodeFrame, loc, fileName, message, stack} = props.children;
   // eslint-disable-next-line no-undef
