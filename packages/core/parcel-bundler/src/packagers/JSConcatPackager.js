@@ -247,7 +247,11 @@ class JSConcatPackager extends Packager {
     ) {
       statements = [];
     } else {
-      statements = this.parse(asset.generated.js, asset.name);
+      try {
+        statements = this.parse(asset.generated.js, asset.name);
+      } catch (e) {
+        e.filename = asset.name;
+      }
     }
 
     if (this.shouldWrap(asset)) {

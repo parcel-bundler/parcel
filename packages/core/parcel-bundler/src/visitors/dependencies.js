@@ -35,8 +35,9 @@ module.exports = {
     let {callee, arguments: args} = node;
 
     let isRequire =
-      types.isIdentifier(callee) &&
-      callee.name === 'require' &&
+      ((types.isIdentifier(callee) && callee.name === 'require') ||
+        (types.isMemberExpression(callee) &&
+          types.matchesPattern(callee, 'require.resolve'))) &&
       args.length === 1 &&
       types.isStringLiteral(args[0]) &&
       !hasBinding(ancestors, 'require') &&

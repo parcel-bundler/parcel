@@ -13,46 +13,51 @@ class Parser {
     this.registerExtension('es6', require('./assets/JSAsset'));
     this.registerExtension('jsm', require('./assets/JSAsset'));
     this.registerExtension('mjs', require('./assets/JSAsset'));
-    // this.registerExtension('ml', './assets/ReasonAsset');
-    // this.registerExtension('re', './assets/ReasonAsset');
-    // this.registerExtension('ts', './assets/TypeScriptAsset');
-    // this.registerExtension('tsx', './assets/TypeScriptAsset');
-    // this.registerExtension('coffee', './assets/CoffeeScriptAsset');
-    // this.registerExtension('elm', './assets/ElmAsset');
-    // this.registerExtension('vue', './assets/VueAsset');
-    this.registerExtension('json', './assets/JSONAsset');
-    this.registerExtension('json5', './assets/JSONAsset');
-    // this.registerExtension('jsonld', './assets/JSONLDAsset');
-    this.registerExtension('yaml', './assets/YAMLAsset');
-    this.registerExtension('yml', './assets/YAMLAsset');
-    // this.registerExtension('toml', './assets/TOMLAsset');
-    // this.registerExtension('gql', './assets/GraphqlAsset');
-    // this.registerExtension('graphql', './assets/GraphqlAsset');
-    // this.registerExtension('kt', './assets/KotlinAsset');
+    this.registerExtension('ts', require('./assets/TypeScriptAsset'));
+    this.registerExtension('tsx', require('./assets/TypeScriptAsset'));
+    this.registerExtension('json', require('./assets/JSONAsset'));
+    this.registerExtension('json5', require('./assets/JSONAsset'));
+    this.registerExtension('jsonld', './assets/JSONLDAsset');
+    this.registerExtension('yaml', require('./assets/YAMLAsset'));
+    this.registerExtension('yml', require('./assets/YAMLAsset'));
+    this.registerExtension('toml', require('./assets/TOMLAsset'));
+    this.registerExtension('gql', require('./assets/GraphqlAsset'));
+    this.registerExtension('graphql', require('./assets/GraphqlAsset'));
+
+    if (!process.browser) {
+      this.registerExtension('vue', require('./assets/VueAsset'));
+      this.registerExtension('ml', require('./assets/ReasonAsset'));
+      this.registerExtension('re', require('./assets/ReasonAsset'));
+      this.registerExtension('coffee', require('./assets/CoffeeScriptAsset'));
+      this.registerExtension('elm', require('./assets/ElmAsset'));
+      this.registerExtension('kt', require('./assets/KotlinAsset'));
+      this.registerExtension('rs', './assets/RustAsset');
+    }
 
     this.registerExtension('css', require('./assets/CSSAsset'));
-    this.registerExtension('pcss', './assets/CSSAsset');
-    this.registerExtension('postcss', './assets/CSSAsset');
-    // this.registerExtension('sss', './assets/SSSAsset');
-    // this.registerExtension('styl', './assets/StylusAsset');
-    // this.registerExtension('stylus', './assets/StylusAsset');
-    // this.registerExtension('less', './assets/LESSAsset');
-    // this.registerExtension('sass', './assets/SASSAsset');
-    // this.registerExtension('scss', './assets/SASSAsset');
+    this.registerExtension('pcss', require('./assets/CSSAsset'));
+    this.registerExtension('postcss', require('./assets/CSSAsset'));
+    if (!process.browser) {
+      this.registerExtension('sss', require('./assets/SSSAsset'));
+      this.registerExtension('styl', require('./assets/StylusAsset'));
+      this.registerExtension('stylus', require('./assets/StylusAsset'));
+    }
+    this.registerExtension('scss', require('./assets/SASSAsset'));
+    this.registerExtension('sass', require('./assets/SASSAsset'));
+    this.registerExtension('less', require('./assets/LESSAsset'));
 
     this.registerExtension('html', require('./assets/HTMLAsset'));
     this.registerExtension('htm', require('./assets/HTMLAsset'));
-    // this.registerExtension('rs', './assets/RustAsset');
 
-    this.registerExtension('webmanifest', './assets/WebManifestAsset');
+    this.registerExtension('webmanifest', require('./assets/WebManifestAsset'));
 
-    // this.registerExtension('glsl', './assets/GLSLAsset');
-    // this.registerExtension('vert', './assets/GLSLAsset');
-    // this.registerExtension('frag', './assets/GLSLAsset');
+    this.registerExtension('glsl', require('./assets/GLSLAsset'));
+    this.registerExtension('vert', require('./assets/GLSLAsset'));
+    this.registerExtension('frag', require('./assets/GLSLAsset'));
 
-    // this.registerExtension('jade', './assets/PugAsset');
-    // this.registerExtension('pug', './assets/PugAsset');
-    // this.registerExtension('md', './assets/MarkdownAsset');
+    this.registerExtension('jade', require('./assets/PugAsset'));
+    this.registerExtension('pug', require('./assets/PugAsset'));
+    this.registerExtension('md', require('./assets/MarkdownAsset'));
 
     let extensions = options.extensions || {};
     for (let ext in extensions) {

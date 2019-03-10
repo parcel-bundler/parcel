@@ -1,4 +1,6 @@
+// eslint-disable-next-line no-unused-vars
 import {h} from 'preact';
+// eslint-disable-next-line no-unused-vars
 import Editor from './Editor';
 
 const Asset = props => {

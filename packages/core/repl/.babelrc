@@ -1,4 +1,7 @@
 {
 	"presets": [["@babel/preset-env", {"targets": "Chrome 70"}]],
-	"plugins": [["@babel/plugin-transform-react-jsx", {"pragma": "h"}]]
+	"plugins": [
+		["@babel/plugin-transform-react-jsx", {"pragma": "h"}]
+		// "@babel/plugin-proposal-object-rest-spread"
+	]
 }

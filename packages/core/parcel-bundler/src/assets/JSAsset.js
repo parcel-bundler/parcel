@@ -124,7 +124,7 @@ class JSAsset extends Asset {
     // Inline environment variables
     if (this.options.target === 'browser' && ENV_RE.test(this.contents)) {
       await this.parseIfNeeded();
-      this.traverseFast(envVisitor);
+      this.traverse(envVisitor);
     }
 
     // Inline process.browser

@@ -26,6 +26,14 @@ const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');
 const {glob, isGlob} = require('./utils/glob');
 
+if (process.browser) {
+  // eslint-disable-next-line no-undef
+  if (!window.Buffer) {
+    // eslint-disable-next-line no-undef
+    window.Buffer = require('buffer').Buffer;
+  }
+}
+
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
  * creates the bundle tree, and manages the worker farm, cache, and file watcher.

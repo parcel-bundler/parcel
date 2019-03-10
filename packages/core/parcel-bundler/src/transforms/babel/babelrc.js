@@ -178,9 +178,10 @@ async function getBabelVersion(asset, plugins) {
 
 function getDependency(pkg, dep) {
   return (
-    (pkg.dependencies && pkg.dependencies[dep]) ||
-    (pkg.peerDependencies && pkg.peerDependencies[dep]) ||
-    (pkg.devDependencies && pkg.devDependencies[dep])
+    pkg &&
+    ((pkg.dependencies && pkg.dependencies[dep]) ||
+      (pkg.peerDependencies && pkg.peerDependencies[dep]) ||
+      (pkg.devDependencies && pkg.devDependencies[dep]))
   );
 }
 

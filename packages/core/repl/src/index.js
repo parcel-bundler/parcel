@@ -9,14 +9,16 @@ import fs from '@parcel/fs';
 import fsNative from 'fs';
 
 let Bundler;
-setTimeout(() => (Bundler = import('parcel-bundler').then(v => v)), 50);
+setTimeout(() => (Bundler = import('./parcel-vendor').then(v => v)), 50);
+
+const DEFAULT_PRESET = 'Javascript';
 
 class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      currentPreset: 'Javascript',
-      assets: PRESETS.Javascript,
+      currentPreset: DEFAULT_PRESET,
+      assets: PRESETS[DEFAULT_PRESET],
       output: [],
       bundling: false,
       bundlingError: null,
@@ -50,6 +52,7 @@ class App extends Component {
 
       const bundler = new (await Bundler)(entryPoints, {
         outDir: '/dist',
+        autoinstall: false,
         watch: false,
         cache: true,
         hmr: false,
@@ -191,6 +194,30 @@ class App extends Component {
               }))
             }
           />
+          <div class="file notes">
+            Yes, this is Parcel as a (nearly) self-hosting bundler (self-
+            <i>hoisting</i> doesn't work....)
+            <br />
+            <br />
+            Known issues:
+            <ul>
+              <li>
+                Minifying CSS doesn't work (runtime <code>require</code> calls
+                by cssnano, even for the config to disable the corresponding
+                plugin...)
+              </li>
+              <li>
+                Node builtin modules can't be polyfilled for the browser (the
+                page freezes)
+              </li>
+              <li>
+                Babel would need to <code>require</code> plugins at runtime (at
+                least without workarounds)
+              </li>
+              <li>Parcel doesn't run in a worker</li>
+            </ul>
+            (PS: The Parcel portion of this page is a 2.1MB gzipped bundle)
+          </div>
         </div>
         <div class="row">
           {this.state.bundlingError ? (

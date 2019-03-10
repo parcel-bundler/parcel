@@ -11,23 +11,23 @@
   "scripts": {
     "dev": "parcel build src/index.html --no-source-maps --no-content-hash --no-minify",
     "prod": "rm -rf dist/*; parcel build src/index.html --no-source-maps",
-    "prod:shake": "rm -rf dist/*; parcel build src/index.html --experimental-scope-hoisting",
+    "prod:shake": "rm -rf dist/*; NODE_OPTIONS='--max-old-space-size=2048' parcel build src/index.html --experimental-scope-hoisting",
     "now": "yarn prod && now && now alias"
   },
   "dependencies": {
-    "@babel/core": "^7.3.4",
-    "@babel/preset-env": "^7.3.4",
     "codemirror": "^5.44.0",
-    "contentstream": "^1.0.0",
     "preact": "next",
     "react-codemirror2": "^5.1.0",
     "toml": "^3.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.3.4"
+    "@babel/core": "^7.3.4",
+    "@babel/plugin-proposal-object-rest-spread": "^7.3.4",
+    "@babel/preset-env": "^7.3.4"
   },
   "alias": {
     "react": "preact",
+    "node-sass": "sass",
     "@iarna/toml": "toml",
     "fs": "@parcel/fs/src/fs-native.js"
   }
