@@ -17,6 +17,7 @@ import 'codemirror/lib/codemirror.css';
 
 function patchMime(v) {
   if (/(?:application|text)\/javascript/.test(v)) return 'text/jsx';
+  else if (v === 'text/less') return 'text/x-less';
   else return v;
 }
 

@@ -22,7 +22,7 @@ export async function bundle(assets, options) {
   }
 
   for (let f of assets) {
-    await fs.writeFile(`/src/${f.name}`, f.content);
+    await fs.writeFile(`/src/${f.name}`, f.content || ' ');
   }
 
   const entryPoints = assets

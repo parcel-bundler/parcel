@@ -38,21 +38,24 @@ body,
   width: 100%;
 }
 .file > .header {
+  display: flex;
   padding: 0.3em;
   border-bottom: inherit;
 }
-.file > .header:focus {
+.file > .header > .filename {
+  flex-grow: 1;
+}
+.file > .header > .filename:focus {
   outline: none;
 }
 .file > .header > .setEntry {
-  float: right;
+  margin-left: auto;
 }
 .file > .header > .remove {
-  float: right;
   margin-left: 0.3em;
 }
 .file > .header > .outputSize {
-  float: right;
+  margin-left: auto;
 }
 
 .file > .source .CodeMirror {

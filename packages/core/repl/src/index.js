@@ -128,7 +128,7 @@ class App extends Component {
           />
           <div class="file notes">
             Yes, this is Parcel as a (nearly) self-hosting bundler (self-
-            <i>hoisting</i> doesn't work....)
+            <i>hoisting</i> doesn't work ...)
             <br />
             <br />
             Known issues:

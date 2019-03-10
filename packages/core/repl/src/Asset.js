@@ -19,16 +19,15 @@ const Asset = props => {
   if (editable) {
     return (
       <div class="file">
-        <div
-          class="header"
-          contenteditable
-          onBlur={e => onChangeName(e.target.textContent.trim())}
-        >
-          {name}
+        <div class="header">
+          <div
+            class="filename"
+            contenteditable
+            onBlur={e => onChangeName(e.target.textContent.trim())}
+          >
+            {name}
+          </div>
           {additionalHeader}
-          <button class="remove" onClick={() => onClickRemove(name)}>
-            -
-          </button>
           <input
             type="checkbox"
             class="setEntry"
@@ -36,6 +35,9 @@ const Asset = props => {
             checked={isEntry}
             onChange={e => onChangeEntry(e.target.checked)}
           />
+          <button class="remove" onClick={() => onClickRemove(name)}>
+            -
+          </button>
         </div>
         <div class="source">
           <Editor
@@ -51,7 +53,7 @@ const Asset = props => {
     return (
       <div class="file">
         <div class="header">
-          {name}
+          <div class="filename">{name}</div>
           {additionalHeader}
         </div>
         <div class="source">
