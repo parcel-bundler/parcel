@@ -25,7 +25,7 @@ body,
   padding: 0.8em;
 }
 .row > * {
-  margin: .5em 0;
+  margin: 0.5em 0;
   width: 100%;
 }
 
@@ -114,8 +114,23 @@ button:enabled:active {
 }
 
 .row > .gettingStarted {
-  padding: 3em 0.3em;
+  padding: 2em 0.3em;
   text-align: center;
+}
+
+.row > .gettingStarted > * {
+  margin: 1em 0;
+}
+
+.row > .loadState {
+  padding: 0.4em;
+  text-align: center;
+}
+.row > .loadState.loading {
+  background-color: orange;
+}
+.row > .loadState.ready {
+  background-color: #4CAF50;
 }
 
 .row > .output {

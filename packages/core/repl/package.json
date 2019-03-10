@@ -12,7 +12,7 @@
     "dev": "parcel build src/index.html --no-source-maps --no-content-hash --no-minify",
     "prod": "rm -rf dist/*; parcel build src/index.html --no-source-maps",
     "prod:shake": "rm -rf dist/*; NODE_OPTIONS='--max-old-space-size=2048' parcel build src/index.html --experimental-scope-hoisting",
-    "now": "yarn prod && now && now alias"
+    "deploy": "yarn prod && now && now alias"
   },
   "dependencies": {
     "codemirror": "^5.44.0",

@@ -4,7 +4,7 @@ import filesize from 'filesize';
 import Asset from './components/Asset';
 import Options from './components/Options';
 import {ParcelError, PRESETS, hasBrowserslist} from './utils';
-import bundle from './bundle';
+import bundle, {workerLoaded} from './bundle';
 
 const DEFAULT_PRESET = 'Javascript';
 
@@ -15,8 +15,12 @@ class App extends Component {
       currentPreset: DEFAULT_PRESET,
       assets: PRESETS[DEFAULT_PRESET],
       output: null,
+
       bundling: false,
       bundlingError: null,
+
+      workerReady: false,
+
       options: {
         minify: true,
         scopeHoist: true,
@@ -24,6 +28,7 @@ class App extends Component {
         browserslist: 'Chrome 70'
       }
     };
+    workerLoaded.then(() => this.setState({workerReady: true}));
   }
 
   async startBundling() {
@@ -138,8 +143,8 @@ class App extends Component {
           <div class="file notes">
             Yes, this is Parcel as a (nearly) self-hosting bundler (self-
             <i>hoisting</i> doesn't work ...)<br />
-            (PS: The Parcel portion of this page, including all compilers, is a
-            2MB gzipped bundle running in a Web Worker)<br />
+            The Parcel portion of this page, including all compilers, is a 2MB
+            gzipped bundle running in a Web Worker<br />
             <br />
             Known issues:
             <ul>
@@ -150,7 +155,8 @@ class App extends Component {
               </li>
               <li>
                 Node builtin modules can't be polyfilled for the browser (the
-                page freezes)
+                page freezes, caused by Parcel's <code>require.resolve</code>{' '}
+                handling)
               </li>
               <li>
                 Babel would need to <code>require</code> plugins at runtime (at
@@ -160,6 +166,11 @@ class App extends Component {
           </div>
         </div>
         <div class="row">
+          {this.state.workerReady ? (
+            <div class="loadState ready">Parcel is ready!</div>
+          ) : (
+            <div class="loadState loading">Parcel is being loaded...</div>
+          )}
           {(() => {
             if (this.state.bundlingError) {
               return <ParcelError error={this.state.bundlingError} />;
