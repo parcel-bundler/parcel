@@ -400,26 +400,22 @@ class Bundler extends EventEmitter {
     this.options.bundleLoaders = this.bundleLoaders;
 
     if (this.options.watch) {
-      if (!process.browser) {
-        this.watcher = new Watcher();
-        // Wait for ready event for reliable testing on watcher
-        if (process.env.NODE_ENV === 'test' && !this.watcher.ready) {
-          await new Promise(resolve => this.watcher.once('ready', resolve));
-        }
-        this.watchedGlobs.forEach(glob => {
-          this.watcher.add(glob);
-        });
-        this.watcher.on('add', this.onAdd.bind(this));
-        this.watcher.on('change', this.onChange.bind(this));
-        this.watcher.on('unlink', this.onUnlink.bind(this));
+      this.watcher = new Watcher();
+      // Wait for ready event for reliable testing on watcher
+      if (process.env.NODE_ENV === 'test' && !this.watcher.ready) {
+        await new Promise(resolve => this.watcher.once('ready', resolve));
       }
+      this.watchedGlobs.forEach(glob => {
+        this.watcher.add(glob);
+      });
+      this.watcher.on('add', this.onAdd.bind(this));
+      this.watcher.on('change', this.onChange.bind(this));
+      this.watcher.on('unlink', this.onUnlink.bind(this));
     }
 
     if (this.options.hmr) {
-      if (!process.browser) {
-        this.hmr = new HMRServer();
-        this.options.hmrPort = await this.hmr.start(this.options);
-      }
+      this.hmr = new HMRServer();
+      this.options.hmrPort = await this.hmr.start(this.options);
     }
 
     if (process.browser) {

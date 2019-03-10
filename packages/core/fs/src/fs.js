@@ -19,11 +19,7 @@ exports.realpath = async function(path) {
   }
   return path;
 };
-if (fs.lstat) {
-  exports.lstat = promisify(fs.lstat);
-} else {
-  exports.lstat = promisify(fs.stat);
-}
+exports.lstat = promisify(fs.lstat);
 
 exports.exists = function(filename) {
   return new Promise(resolve => {

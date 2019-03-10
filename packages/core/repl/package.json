@@ -30,7 +30,8 @@
     "react": "preact",
     "node-sass": "sass",
     "@iarna/toml": "toml",
-    "fs": "@parcel/fs/src/fs-native.js"
+    "fs": "@parcel/fs/src/fs-native.js",
+    "deasync": "./noop.js"
   },
   "browserslist": [
     "Chrome 70"

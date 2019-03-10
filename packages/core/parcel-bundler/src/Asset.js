@@ -5,10 +5,7 @@ const fs = require('@parcel/fs');
 const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const config = require('./utils/config');
-let syncPromise;
-if (!process.browser) {
-  syncPromise = require('./utils/syncPromise');
-}
+const syncPromise = require('./utils/syncPromise');
 const logger = require('@parcel/logger');
 const Resolver = require('./Resolver');
 const objectHash = require('./utils/objectHash');

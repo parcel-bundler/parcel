@@ -83,43 +83,44 @@ class JSAsset extends Asset {
 
     await babel(this);
 
-    // if (process.browser) {
-    await this.parseIfNeeded();
-    this.traverse({
-      CallExpression(path) {
-        let {callee, arguments: args} = path.node;
+    if (this.options.target === 'browser') {
+      await this.parseIfNeeded();
+      this.traverse({
+        CallExpression(path) {
+          let {callee, arguments: args} = path.node;
 
-        if (
-          types.isIdentifier(callee) &&
-          callee.name === 'localRequire' &&
-          types.isStringLiteral(args[0])
-        ) {
-          callee.name = 'require';
-          path.node.arguments = [args[0]];
-        } else if (
-          types.isIdentifier(callee) &&
-          callee.name === 'setImmediate' &&
-          types.isFunction(args[0])
-        ) {
-          path
-            .get('callee')
-            .replaceWith(
-              types.memberExpression(
-                types.callExpression(
-                  types.memberExpression(
-                    types.identifier('Promise'),
-                    types.identifier('resolve')
+          if (
+            types.isIdentifier(callee) &&
+            callee.name === 'localRequire' &&
+            types.isStringLiteral(args[0])
+          ) {
+            //TODO, better check for localRequire
+            callee.name = 'require';
+            path.node.arguments = [args[0]];
+          } else if (
+            types.isIdentifier(callee) &&
+            callee.name === 'setImmediate' &&
+            types.isFunction(args[0])
+          ) {
+            path
+              .get('callee')
+              .replaceWith(
+                types.memberExpression(
+                  types.callExpression(
+                    types.memberExpression(
+                      types.identifier('Promise'),
+                      types.identifier('resolve')
+                    ),
+                    []
                   ),
-                  []
-                ),
-                types.identifier('then')
-              )
-            );
+                  types.identifier('then')
+                )
+              );
+          }
         }
-      }
-    });
-    this.isAstDirty = true;
-    // }
+      });
+      this.isAstDirty = true;
+    }
 
     // Inline environment variables
     if (this.options.target === 'browser' && ENV_RE.test(this.contents)) {

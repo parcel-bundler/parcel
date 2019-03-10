@@ -23,6 +23,7 @@ const Asset = props => {
           <div
             class="filename"
             contenteditable
+            spellcheck="false"
             onBlur={e => onChangeName(e.target.textContent.trim())}
           >
             {name}

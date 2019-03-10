@@ -110,7 +110,7 @@ button:enabled:active {
 }
 .notes {
   padding: 0.3em;
-  padding-right: 0;
+  padding-right: 0.2em;
 }
 
 .row > .gettingStarted {
