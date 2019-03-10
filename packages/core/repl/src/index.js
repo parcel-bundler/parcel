@@ -1,9 +1,10 @@
-import {h, render, Component} from 'preact';
+import {h, render, Component, Fragment} from 'preact';
 import filesize from 'filesize';
 
-import Asset from './Asset';
-import Options from './Options';
-import {ParcelError, PRESETS, bundle, hasBrowserslist} from './utils.js';
+import Asset from './components/Asset';
+import Options from './components/Options';
+import {ParcelError, PRESETS, hasBrowserslist} from './utils';
+import bundle from './bundle';
 
 const DEFAULT_PRESET = 'Javascript';
 
@@ -13,7 +14,7 @@ class App extends Component {
     this.state = {
       currentPreset: DEFAULT_PRESET,
       assets: PRESETS[DEFAULT_PRESET],
-      output: [],
+      output: null,
       bundling: false,
       bundlingError: null,
       options: {
@@ -31,9 +32,17 @@ class App extends Component {
 
     try {
       const output = await bundle(this.state.assets, this.state.options);
-      this.setState({bundling: false, bundlingError: null, output});
+      this.setState({
+        bundling: false,
+        bundlingError: null,
+        output
+      });
     } catch (error) {
-      this.setState({bundling: false, bundlingError: error});
+      this.setState({
+        bundling: false,
+        bundlingError: error,
+        output: null
+      });
       console.error(error);
     }
   }
@@ -53,7 +62,7 @@ class App extends Component {
   }
 
   render() {
-    // console.log(JSON.stringify(this.state.assets));
+    // console.log(JSON.stringify(this.state.output));
     return (
       <div id="app">
         <div class="row">
@@ -146,27 +155,44 @@ class App extends Component {
                 Babel would need to <code>require</code> plugins at runtime (at
                 least without workarounds)
               </li>
-              <li>Parcel doesn't run in a worker</li>
             </ul>
             (PS: The Parcel portion of this page, including all compilers, is a
-            1.9MB gzipped bundle)
+            2MB gzipped bundle running in a Web Worker)
           </div>
         </div>
         <div class="row">
-          {this.state.bundlingError ? (
-            <ParcelError error={this.state.bundlingError} />
-          ) : (
-            this.state.output.map(({name, content}) => (
-              <Asset
-                key={name}
-                name={name.trim()}
-                content={content}
-                additionalHeader={
-                  <div class="outputSize">{filesize(content.length)}</div>
-                }
-              />
-            ))
-          )}
+          {(() => {
+            if (this.state.bundlingError) {
+              return <ParcelError error={this.state.bundlingError} />;
+            } else {
+              return this.state.output ? (
+                this.state.output.map(({name, content}) => (
+                  <Asset
+                    key={name}
+                    name={name.trim()}
+                    content={content}
+                    additionalHeader={
+                      <div class="outputSize">{filesize(content.length)}</div>
+                    }
+                  />
+                ))
+              ) : (
+                <div class="file gettingStarted">
+                  <div>
+                    Click on{' '}
+                    <button
+                      class="start"
+                      disabled={this.state.bundling}
+                      onClick={() => this.startBundling()}
+                    >
+                      Bundle!
+                    </button>{' '}
+                    to get started!
+                  </div>
+                </div>
+              );
+            }
+          })()}
         </div>
       </div>
     );

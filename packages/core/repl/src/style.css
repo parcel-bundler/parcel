@@ -25,9 +25,38 @@ body,
   padding: 0.8em;
 }
 .row > * {
-  margin-bottom: 0.5em;
+  margin: .5em 0;
   width: 100%;
 }
+
+@media (max-width: 45rem) {
+  #app {
+    flex-direction: column;
+  }
+  .row {
+    width: 100%;
+  }
+  .row:first-child {
+    border-bottom: 4px solid #ddd;
+  }
+}
+
+button {
+  background-color: #ddd;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: none;
+  padding: 2px 8px;
+}
+button:enabled {
+  background-color: #ddd;
+  cursor: pointer;
+}
+button:enabled:active {
+  background-color: #bbb;
+}
+
 .row > .presets {
   font-size: inherit;
 }
@@ -65,17 +94,6 @@ body,
   width: 100%;
   font-size: 1em;
   padding: 0.4em;
-  background-color: #ddd;
-  cursor: pointer;
-}
-.row > .start {
-  cursor: initial;
-}
-.row > .start:enabled {
-  cursor: pointer;
-}
-.row > .start:enabled:active {
-  background-color: #bbb;
 }
 
 .options > label {
@@ -95,10 +113,15 @@ body,
   padding-right: 0;
 }
 
-.output {
+.row > .gettingStarted {
+  padding: 3em 0.3em;
+  text-align: center;
+}
+
+.row > .output {
   width: 50%;
 }
-.error {
+.row > .error {
   white-space: pre;
   font-family: monospace;
   overflow-y: scroll;

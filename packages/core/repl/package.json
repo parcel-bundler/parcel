@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "codemirror": "^5.44.0",
+    "comlink": "^3.2.0",
     "preact": "next",
     "react-codemirror2": "^5.1.0",
     "toml": "^3.0.0"

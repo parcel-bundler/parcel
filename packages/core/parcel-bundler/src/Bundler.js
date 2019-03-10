@@ -28,9 +28,9 @@ const {glob, isGlob} = require('./utils/glob');
 
 if (process.browser) {
   // eslint-disable-next-line no-undef
-  if (!window.Buffer) {
+  if (!self.Buffer) {
     // eslint-disable-next-line no-undef
-    window.Buffer = require('buffer').Buffer;
+    self.Buffer = require('buffer').Buffer;
   }
 }
 
