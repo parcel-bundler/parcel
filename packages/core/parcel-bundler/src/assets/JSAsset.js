@@ -45,7 +45,7 @@ class JSAsset extends Asset {
   mightHaveDependencies() {
     return (
       this.isAstDirty ||
-      !/.js$/.test(this.name) ||
+      !/\.js$/.test(this.name) ||
       IMPORT_RE.test(this.contents) ||
       GLOBAL_RE.test(this.contents) ||
       SW_RE.test(this.contents) ||
