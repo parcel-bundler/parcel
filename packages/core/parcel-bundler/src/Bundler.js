@@ -142,9 +142,11 @@ class Bundler extends EventEmitter {
       detailedReport: options.detailedReport || false,
       global: options.global,
       autoinstall:
-        typeof options.autoinstall === 'boolean'
-          ? options.autoinstall
-          : !isProduction,
+        typeof options.autoInstall === 'boolean'
+          ? options.autoInstall
+          : process.env.PARCEL_AUTOINSTALL === 'false'
+            ? false
+            : !isProduction,
       scopeHoist: scopeHoist,
       contentHash:
         typeof options.contentHash === 'boolean'
@@ -206,9 +208,11 @@ class Bundler extends EventEmitter {
       return;
     }
 
+    let lastDep;
     try {
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
       for (let dep in deps) {
+        lastDep = dep;
         const pattern = /^(@.*\/)?parcel-plugin-.+/;
         if (pattern.test(dep)) {
           let plugin = await localRequire(dep, relative);
@@ -216,7 +220,11 @@ class Bundler extends EventEmitter {
         }
       }
     } catch (err) {
-      logger.warn(err);
+      logger.warn(
+        `Plugin ${lastDep} failed to initialize: ${err.stack ||
+          err.message ||
+          err}`
+      );
     }
   }
 

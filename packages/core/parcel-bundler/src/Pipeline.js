@@ -50,7 +50,6 @@ class Pipeline {
 
     let inputType = path.extname(asset.name).slice(1);
     let generated = [];
-
     for (let rendition of this.iterateRenditions(asset)) {
       let {type, value} = rendition;
       if (typeof value !== 'string' || rendition.final) {

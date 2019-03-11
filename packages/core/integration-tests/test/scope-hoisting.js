@@ -288,6 +288,23 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, ['test']);
     });
 
+    it('throws a meaningful error on undefined exports', async function() {
+      let threw = false;
+      try {
+        await bundle(
+          path.join(
+            __dirname,
+            '/integration/scope-hoisting/es6/export-undefined/a.js'
+          )
+        );
+      } catch (err) {
+        threw = true;
+        assert.equal(err.message, "export 'Test' is not defined");
+      }
+
+      assert(threw);
+    });
+
     it('supports import default CommonJS interop', async function() {
       let b = await bundle(
         path.join(
@@ -466,6 +483,25 @@ describe('scope hoisting', function() {
       );
       assert(/.\+./.test(contents));
       assert(!/.-./.test(contents));
+    });
+
+    it('handle export multi-assignment', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-multiassignment/a.js'
+        ),
+        {minify: true}
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output.default, [undefined, 'y']);
+
+      // let contents = await fs.readFile(
+      //   path.join(__dirname, '/dist/a.js'),
+      //   'utf8'
+      // );
+      // assert(!/["']z["']/.test(contents));
     });
 
     it('support exporting a ES6 module exported as CommonJS', async function() {

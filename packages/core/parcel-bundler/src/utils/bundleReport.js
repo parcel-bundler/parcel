@@ -4,7 +4,7 @@ const logger = require('@parcel/logger');
 const filesize = require('filesize');
 
 const LARGE_BUNDLE_SIZE = 1024 * 1024;
-const NUM_LARGE_ASSETS = 10;
+const DEFAULT_NUM_LARGE_ASSETS = 10;
 const COLUMNS = [
   {align: 'left'}, // name
   {align: 'right'}, // size
@@ -28,13 +28,20 @@ function bundleReport(mainBundle, detailed = false) {
       logger.chalk.green.bold(prettifyTime(bundle.bundleTime))
     ]);
 
-    // If detailed, generate a list of the top 10 largest assets in the bundle
+    // If detailed, generate a list of the largest assets in the bundle
     if (detailed && bundle.assets.size > 1) {
       let assets = Array.from(bundle.assets)
         .filter(a => a.type === bundle.type)
         .sort((a, b) => b.bundledSize - a.bundledSize);
-
-      let largestAssets = assets.slice(0, NUM_LARGE_ASSETS);
+      let largestAssets = (() => {
+        if (detailed === 'all') {
+          return assets;
+        }
+        return assets.slice(
+          0,
+          isNaN(detailed) ? DEFAULT_NUM_LARGE_ASSETS : parseInt(detailed, 10)
+        );
+      })();
       for (let asset of largestAssets) {
         // Add a row for the asset.
         rows.push([
