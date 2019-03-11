@@ -14,7 +14,10 @@ class LESSAsset extends Asset {
 
   async parse(code) {
     // less should be installed locally in the module that's being required
-    let less = await localRequire('less', this.name);
+    let less;
+    if (process.browser) {
+      less = require('less/lib/less-node/');
+    } else less = await localRequire('less', this.name);
     let render = promisify(less.render.bind(less));
 
     let opts =

@@ -144,7 +144,7 @@ class App extends Component {
             Yes, this is Parcel as a (nearly) self-hosting bundler (self-
             <i>hoisting</i> doesn't work ...)
             <br />
-            The Parcel portion of this page, including all compilers, is a 2MB
+            The Parcel portion of this page, including all compilers, is a 2.2MB
             gzipped bundle running in a Web Worker
             <br />
             <br />
@@ -169,6 +169,7 @@ class App extends Component {
                 <a href="https://github.com/sass/dart-sass/issues/621">issue</a>
                 )
               </li>
+              <li>Generating source maps SASS throws an error</li>
             </ul>
           </div>
         </div>
