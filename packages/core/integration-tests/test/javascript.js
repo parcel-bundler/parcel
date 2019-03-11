@@ -795,6 +795,32 @@ describe('javascript', function() {
     assert(await fs.exists(path.join(__dirname, '/dist/', output())));
   });
 
+  it('should support importing a URL to a raw asset in a subfolder', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/import-raw-subfolder/index.js')
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.js',
+      assets: ['index.js', 'test.txt'],
+      childBundles: [
+        {
+          type: 'map'
+        },
+        {
+          type: 'txt',
+          assets: ['test.txt'],
+          childBundles: []
+        }
+      ]
+    });
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
+    assert(await fs.exists(path.join(__dirname, '/dist/', output())));
+  });
+
   it('should minify JS in production mode', async function() {
     let b = await bundle(path.join(__dirname, '/integration/uglify/index.js'), {
       production: true
