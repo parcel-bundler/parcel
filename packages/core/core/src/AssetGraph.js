@@ -1,19 +1,25 @@
 // @flow
 
-import Graph from './Graph';
 import type {
   Asset,
+  AssetGraph as IAssetGraph,
+  AssetGraphNode,
   Bundle,
   CacheEntry,
   Dependency as IDependency,
+  DependencyNode,
   File,
   FilePath,
+  FileNode,
+  Graph as IGraph,
   GraphTraversalCallback,
-  Node,
   NodeId,
   Target,
   TransformerRequest
 } from '@parcel/types';
+
+import invariant from 'assert';
+import Graph from './Graph';
 import {md5FromString} from '@parcel/utils/src/md5';
 import Dependency from './Dependency';
 
@@ -47,19 +53,23 @@ export const nodeFromAsset = (asset: Asset) => ({
   value: asset
 });
 
-const getFileNodesFromGraph = (graph: Graph<Node>): Array<Node> => {
-  return Array.from(graph.nodes.values()).filter(
-    (node: any) => node.type === 'file'
-  );
+const getFileNodesFromGraph = (
+  graph: IGraph<AssetGraphNode>
+): Array<FileNode> => {
+  // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414
+  return Array.from(graph.nodes.values()).filter(node => node.type === 'file');
 };
 
-const getFilesFromGraph = (graph: Graph<Node>): Array<File> => {
+const getFilesFromGraph = (graph: IGraph<AssetGraphNode>): Array<File> => {
   return getFileNodesFromGraph(graph).map(node => node.value);
 };
 
-const getDepNodesFromGraph = (graph: Graph<Node>): Array<Node> => {
+const getDepNodesFromGraph = (
+  graph: IGraph<AssetGraphNode>
+): Array<DependencyNode> => {
+  // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414
   return Array.from(graph.nodes.values()).filter(
-    (node: any) => node.type === 'dependency'
+    node => node.type === 'dependency'
   );
 };
 
@@ -69,7 +79,7 @@ type DepUpdates = {|
 |};
 
 type FileUpdates = {|
-  newDeps: Array<Dependency>,
+  newDeps: Array<IDependency>,
   addedFiles: Array<File>,
   removedFiles: Array<File>
 |};
@@ -89,9 +99,10 @@ type AssetGraphOpts = {|
  *  * A dependency node should have an edge to exactly one file node
  *  * A file node can have one to many edges to asset nodes which can have zero to many edges dependency nodes
  */
-export default class AssetGraph extends Graph<Node> {
-  incompleteNodes: Map<NodeId, Node> = new Map();
-  invalidNodes: Map<NodeId, Node> = new Map();
+export default class AssetGraph extends Graph<AssetGraphNode>
+  implements IAssetGraph {
+  incompleteNodes: Map<NodeId, AssetGraphNode> = new Map();
+  invalidNodes: Map<NodeId, AssetGraphNode> = new Map();
 
   initializeGraph({
     entries,
@@ -133,7 +144,7 @@ export default class AssetGraph extends Graph<Node> {
     }
   }
 
-  removeNode(node: Node): this {
+  removeNode(node: AssetGraphNode): this {
     this.incompleteNodes.delete(node.id);
     return super.removeNode(node);
   }
@@ -169,7 +180,7 @@ export default class AssetGraph extends Graph<Node> {
     req: TransformerRequest,
     cacheEntry: CacheEntry
   ): FileUpdates {
-    let newDepNodes: Array<Node> = [];
+    let newDepNodes: Array<DependencyNode> = [];
 
     let requestNode = nodeFromTransformerRequest(req);
     this.incompleteNodes.delete(requestNode.id);
@@ -212,7 +223,7 @@ export default class AssetGraph extends Graph<Node> {
     return {newDeps, addedFiles, removedFiles};
   }
 
-  invalidateNode(node: Node) {
+  invalidateNode(node: AssetGraphNode) {
     this.invalidNodes.set(node.id, node);
   }
 
@@ -236,7 +247,10 @@ export default class AssetGraph extends Graph<Node> {
       return [];
     }
 
-    return this.getNodesConnectedFrom(node).map(node => node.value);
+    return this.getNodesConnectedFrom(node).map(node => {
+      invariant(node.type === 'dependency');
+      return node.value;
+    });
   }
 
   getDependencyResolution(dep: IDependency): ?Asset {
@@ -245,10 +259,10 @@ export default class AssetGraph extends Graph<Node> {
       return null;
     }
 
-    let res = null;
+    let res: ?Asset = null;
     this.traverse((node, ctx, traversal) => {
       if (node.type === 'asset' || node.type === 'asset_reference') {
-        res = (node.value: Asset);
+        res = node.value;
         traversal.stop();
       }
     }, depNode);
@@ -257,9 +271,9 @@ export default class AssetGraph extends Graph<Node> {
   }
 
   traverseAssets(
-    visit: GraphTraversalCallback<Asset, Node>,
-    startNode: ?Node
-  ): ?Node {
+    visit: GraphTraversalCallback<Asset, AssetGraphNode>,
+    startNode: ?AssetGraphNode
+  ): ?AssetGraphNode {
     return this.traverse((node, ...args) => {
       if (node.type === 'asset') {
         return visit(node.value, ...args);

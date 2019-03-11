@@ -11,6 +11,6 @@ export type AST = {|
 
 export interface Node {
   id: string;
-  type?: string;
+  +type?: string;
   value: any;
 }
