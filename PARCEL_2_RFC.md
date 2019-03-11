@@ -1030,16 +1030,16 @@ system.
 
 All plugins must follow a naming system:
 
-|            | Official package           | Community packages        | Private company/scoped team packages |
-| ---------- | -------------------------- | ------------------------- | ------------------------------------ |
-| Configs    | `@parcel/config-{name}`    | `parcel-config-{name}`    | `@scope/parcel-config-{name}`        |
-| Resolvers  | `@parcel/resolver-{name}`  | `parcel-resolver-{name}`  | `@scope/parcel-resolver-{name}`      |
-| Transforms | `@parcel/transform-{name}` | `parcel-transform-{name}` | `@scope/parcel-transform-{name}`     |
-| Loaders    | `@parcel/loader-{name}`    | `parcel-loader-{name}`    | `@scope/parcel-loader-{name}`        |
-| Bundlers   | `@parcel/bundler-{name}`   | `parcel-bundler-{name}`   | `@scope/parcel-bundler-{name}`       |
-| Packagers  | `@parcel/packager-{name}`  | `parcel-packager-{name}`  | `@scope/parcel-packager-{name}`      |
-| Namers     | `@parcel/namer-{name}`     | `parcel-namer-{name}`     | `@scope/parcel-namer-{name}`         |
-| Reporters  | `@parcel/reporter-{name}`  | `parcel-reporter-{name}`  | `@scope/parcel-reporter-{name}`      |
+|            | Official package           | Community packages        | Private company/scoped team packages   |
+| ---------- | -------------------------- | ------------------------- | -------------------------------------- |
+| Configs    | `@parcel/config-{name}`    | `parcel-config-{name}`    | `@scope/parcel-config[-{name}]`        |
+| Resolvers  | `@parcel/resolver-{name}`  | `parcel-resolver-{name}`  | `@scope/parcel-resolver[-{name}]`      |
+| Transforms | `@parcel/transform-{name}` | `parcel-transform-{name}` | `@scope/parcel-transform[-{name}]`     |
+| Loaders    | `@parcel/loader-{name}`    | `parcel-loader-{name}`    | `@scope/parcel-loader[-{name}]`        |
+| Bundlers   | `@parcel/bundler-{name}`   | `parcel-bundler-{name}`   | `@scope/parcel-bundler[-{name}]`       |
+| Packagers  | `@parcel/packager-{name}`  | `parcel-packager-{name}`  | `@scope/parcel-packager[-{name}]`      |
+| Namers     | `@parcel/namer-{name}`     | `parcel-namer-{name}`     | `@scope/parcel-namer[-{name}]`         |
+| Reporters  | `@parcel/reporter-{name}`  | `parcel-reporter-{name}`  | `@scope/parcel-reporter[-{name}]`      |
 
 The `{name}` must be descriptive and directly related to the purpose of the
 package. Someone should be able to have an idea of what the package does simply
