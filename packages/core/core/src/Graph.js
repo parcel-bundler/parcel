@@ -2,14 +2,12 @@
 
 import type {
   Edge,
-  Node as _Node,
+  Node,
   NodeId,
   GraphTraversalCallback,
   TraversalActions,
   Graph as IGraph
 } from '@parcel/types';
-
-export type Node = _Node;
 
 type GraphUpdates<TNode> = {|
   added: Graph<TNode>,

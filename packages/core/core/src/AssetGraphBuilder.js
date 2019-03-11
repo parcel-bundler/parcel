@@ -4,10 +4,10 @@ import type {
   CLIOptions,
   Dependency,
   FilePath,
+  Node,
   Target,
   TransformerRequest
 } from '@parcel/types';
-import type {Node} from './Graph';
 import type Config from './Config';
 import EventEmitter from 'events';
 import {
