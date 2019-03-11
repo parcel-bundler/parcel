@@ -292,6 +292,43 @@ export type GraphTraversalCallback<TNode, TContext> = (
 
 export type NodeId = string;
 
+export type AssetNode = {|id: string, type: 'asset', value: Asset|};
+export type AssetReferenceNode = {|
+  id: string,
+  type: 'asset_reference',
+  value: Asset
+|};
+
+export type BundleGroupNode = {|
+  id: string,
+  type: 'bundle_group',
+  value: BundleGroup
+|};
+
+export type DependencyNode = {|
+  id: string,
+  type: 'dependency',
+  value: Dependency
+|};
+
+export type FileNode = {|id: string, type: 'file', value: File|};
+export type RootNode = {|id: string, type: 'root', value: string | null|};
+
+export type TransformerRequestNode = {|
+  id: string,
+  type: 'transformer_request',
+  value: TransformerRequest
+|};
+
+export type AssetGraphNode =
+  | AssetNode
+  | AssetReferenceNode
+  | BundleGroupNode
+  | DependencyNode
+  | FileNode
+  | RootNode
+  | TransformerRequestNode;
+
 export type Edge = {|
   from: NodeId,
   to: NodeId
@@ -308,8 +345,10 @@ export interface Graph<TNode: Node> {
 }
 
 // TODO: what do we want to expose here?
-export interface AssetGraph extends Graph<Node> {
-  traverseAssets(visit: GraphTraversalCallback<Asset, Node>): ?Node;
+export interface AssetGraph extends Graph<AssetGraphNode> {
+  traverseAssets(
+    visit: GraphTraversalCallback<Asset, AssetGraphNode>
+  ): ?AssetGraphNode;
   createBundle(asset: Asset): Bundle;
   getTotalSize(asset?: Asset): number;
   getEntryAssets(): Array<Asset>;

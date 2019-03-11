@@ -1,4 +1,7 @@
 // @flow
+
+import type {BundleGroup} from '@parcel/types';
+
 import {Runtime} from '@parcel/plugin';
 import path from 'path';
 
@@ -36,9 +39,11 @@ export default new Runtime({
       return;
     }
 
-    let bundleGroups = Array.from(bundle.assetGraph.nodes.values()).filter(
-      n => n.type === 'bundle_group'
-    );
+    // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414
+    let bundleGroups: Array<BundleGroup> = Array.from(
+      bundle.assetGraph.nodes.values()
+    ).filter(n => n.type === 'bundle_group');
+
     for (let bundleGroup of bundleGroups) {
       // Ignore deps with native loaders, e.g. workers.
       if (bundleGroup.value.dependency.isURL) {
