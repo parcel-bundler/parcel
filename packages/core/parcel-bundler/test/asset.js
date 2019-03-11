@@ -48,7 +48,7 @@ describe('Asset', () => {
         }
       }
     };
-    const asset = new Asset('test', options);
+    const asset = new Asset('/root/dir/test', options);
 
     it('should ignore urls', () => {
       const url = 'https://parceljs.org/assets.html';
@@ -61,6 +61,11 @@ describe('Asset', () => {
 
     it('should generate bundle name', () => {
       assert.strictEqual(asset.addURLDependency('foo'), bundleName);
+    });
+
+    it('should generate relative path', () => {
+      const asset = new Asset('/root/dir/test/baz', options);
+      assert.strictEqual(asset.addURLDependency('foo'), '../' + bundleName);
     });
 
     it('should preserve query and hash', () => {
