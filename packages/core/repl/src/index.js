@@ -156,8 +156,8 @@ class App extends Component {
                 plugin...)
               </li>
               <li>
-                Node builtin modules can't be polyfilled for the browser (the
-                page freezes, caused by Parcel's <code>require.resolve</code>{' '}
+                Node builtin modules can't be polyfilled for the browser (looks
+                up the bundler, caused by Parcel's <code>require.resolve</code>{' '}
                 handling)
               </li>
               <li>

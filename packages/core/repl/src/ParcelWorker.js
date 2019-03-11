@@ -1,5 +1,22 @@
+/* eslint-disable no-undef */
 const Comlink = require('comlink');
 import {hasBrowserslist} from './utils';
+
+// needed by Less when running in a Worker (during require, duh)
+self.window = self;
+self.document = {
+  createElement: () => ({appendChild() {}}),
+  createTextNode: () => ({}),
+  currentScript: () => null,
+  getElementsByTagName: () => [
+    {
+      dataset: {},
+      appendChild: () => {},
+      removeChild: () => {},
+      rel: {match: () => {}}
+    }
+  ]
+};
 
 import fs from '@parcel/fs';
 import fsNative from 'fs';
@@ -7,6 +24,8 @@ self.fs = fsNative;
 import Bundler from 'parcel-bundler';
 
 export async function bundle(assets, options) {
+  // if (fsNative.data.src) delete fsNative.data.src;
+  // if (fsNative.data.dist) delete fsNative.data.dist;
   fsNative.data = {};
 
   await fs.mkdirp('/src/');
@@ -39,7 +58,7 @@ export async function bundle(assets, options) {
     scopeHoist: options.scopeHoist,
     sourceMaps: options.sourceMaps
   });
-  const bundle = await bundler.bundle();
+  await bundler.bundle();
 
   const output = [];
   for (let f of await fs.readdir('/dist')) {
