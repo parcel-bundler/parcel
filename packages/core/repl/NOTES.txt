@@ -1,0 +1,18 @@
+needed for self hosting:
+    change process.browser replacement to also remove other if case completely (for `requires`)
+    (scope hoisting destructuring: #2742)
+    (sourcemap only at end: #2427)
+
+
+Out of Memory with scope hoisting or source maps
+
+
+scope hoisting doesn't work:
+.../parcel/packages/core/parcel-bundler/src/builtins/index.js:
+    node-libs-browser:
+        require.resolve()
+
+require.resolve: should return module id that can be required
+    naive attempt breaks dynamic import
+
+Connecting with Chrome Devtools to Chrome on Android silently prevents the execution of Web Workers

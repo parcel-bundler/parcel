@@ -142,9 +142,11 @@ class App extends Component {
           />
           <div class="file notes">
             Yes, this is Parcel as a (nearly) self-hosting bundler (self-
-            <i>hoisting</i> doesn't work ...)<br />
+            <i>hoisting</i> doesn't work ...)
+            <br />
             The Parcel portion of this page, including all compilers, is a 2MB
-            gzipped bundle running in a Web Worker<br />
+            gzipped bundle running in a Web Worker
+            <br />
             <br />
             Known issues:
             <ul>
@@ -161,6 +163,11 @@ class App extends Component {
               <li>
                 Babel would need to <code>require</code> plugins at runtime (at
                 least without workarounds)
+              </li>
+              <li>
+                SASS importing is disabled for now (
+                <a href="https://github.com/sass/dart-sass/issues/621">issue</a>
+                )
               </li>
             </ul>
           </div>

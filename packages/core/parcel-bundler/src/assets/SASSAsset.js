@@ -40,20 +40,23 @@ class SASSAsset extends Asset {
         ? opts.indentedSyntax
         : type === 'sass';
 
-    opts.importer = opts.importer || [];
-    opts.importer = Array.isArray(opts.importer)
-      ? opts.importer
-      : [opts.importer];
-    opts.importer.push((url, prev, done) => {
-      url = url.replace(/^file:\/\//, '');
-      url = parseCSSImport(url);
-      resolver
-        .resolve(url, prev === 'stdin' ? this.name : prev)
-        .then(resolved => resolved.path)
-        .catch(() => url)
-        .then(file => done({file}))
-        .catch(err => done(normalizeError(err)));
-    });
+    if (!process.browser) {
+      // Workaround for https://github.com/sass/dart-sass/issues/621
+      opts.importer = opts.importer || [];
+      opts.importer = Array.isArray(opts.importer)
+        ? opts.importer
+        : [opts.importer];
+      opts.importer.push((url, prev, done) => {
+        url = url.replace(/^file:\/\//, '');
+        url = parseCSSImport(url);
+        resolver
+          .resolve(url, prev === 'stdin' ? this.name : prev)
+          .then(resolved => resolved.path)
+          .catch(() => url)
+          .then(file => done({file}))
+          .catch(err => done(normalizeError(err)));
+      });
+    }
 
     if (this.options.sourceMaps) {
       opts.sourceMap = true;

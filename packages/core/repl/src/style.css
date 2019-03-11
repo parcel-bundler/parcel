@@ -95,6 +95,9 @@ button:enabled:active {
   font-size: 1em;
   padding: 0.4em;
 }
+.start {
+  filter: brightness(80%);
+}
 
 .options > label {
   padding: 0.3em;
@@ -130,7 +133,7 @@ button:enabled:active {
   background-color: orange;
 }
 .row > .loadState.ready {
-  background-color: #4CAF50;
+  background-color: #5cb35f;
 }
 
 .row > .output {
