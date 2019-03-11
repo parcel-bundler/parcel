@@ -166,7 +166,7 @@ describe('css', function() {
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
-    assert(/url\("\/test\.[0-9a-f]+\.woff2"\)/.test(css));
+    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
     assert(css.includes('url("data:image/gif;base64,quotes")'));
@@ -179,7 +179,7 @@ describe('css', function() {
         path.join(
           __dirname,
           '/dist/',
-          css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1]
+          css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
         )
       )
     );
@@ -225,10 +225,7 @@ describe('css', function() {
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
-    assert(
-      /url\(\/test\.[0-9a-f]+\.woff2\)/.test(css),
-      'woff ext found in css'
-    );
+    assert(/url\(test\.[0-9a-f]+\.woff2\)/.test(css), 'woff ext found in css');
     assert(css.includes('url(http://google.com)'), 'url() found');
     assert(css.includes('.index'), '.index found');
     assert(css.includes('url("data:image/gif;base64,quotes")'));
@@ -241,7 +238,7 @@ describe('css', function() {
         path.join(
           __dirname,
           '/dist/',
-          css.match(/url\((\/test\.[0-9a-f]+\.woff2)\)/)[1]
+          css.match(/url\((test\.[0-9a-f]+\.woff2)\)/)[1]
         )
       )
     );
@@ -275,17 +272,15 @@ describe('css', function() {
       }
     ]);
 
-    let css = await fs.readFile(
-      path.join(__dirname, '/dist/a/style1.css'),
-      'utf8'
-    );
+    let cssPath = path.join(__dirname, '/dist/a/style1.css');
+    let css = await fs.readFile(cssPath, 'utf8');
 
     assert(css.includes('background-image'), 'includes `background-image`');
     assert(/url\([^)]*\)/.test(css), 'includes url()');
 
     assert(
       await fs.exists(
-        path.join(__dirname, 'dist', css.match(/url\(([^)]*)\)/)[1])
+        path.join(path.dirname(cssPath), css.match(/url\(([^)]*)\)/)[1])
       ),
       'path specified in url() exists'
     );

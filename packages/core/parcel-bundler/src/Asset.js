@@ -119,11 +119,12 @@ class Asset {
 
     this.addDependency(depName, Object.assign({dynamic: true, resolved}, opts));
 
-    const parsed = URL.parse(url);
-    parsed.pathname = this.options.parser
+    let parsed = URL.parse(url);
+    let name = this.options.parser
       .getAsset(resolved, this.options)
       .generateBundleName();
 
+    parsed.pathname = path.relative(path.dirname(this.relativeName), name);
     return URL.format(parsed);
   }
 

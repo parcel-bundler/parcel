@@ -188,7 +188,7 @@ describe('sass', function() {
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
-    assert(/url\("\/test\.[0-9a-f]+\.woff2"\)/.test(css));
+    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
 
@@ -197,7 +197,7 @@ describe('sass', function() {
         path.join(
           __dirname,
           '/dist/',
-          css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1]
+          css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
         )
       )
     );
