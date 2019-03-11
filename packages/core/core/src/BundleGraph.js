@@ -3,7 +3,8 @@ import type {
   Asset,
   Bundle,
   BundleGroup,
-  GraphTraversalCallback
+  GraphTraversalCallback,
+  Node
 } from '@parcel/types';
 import type AssetGraph from './AssetGraph';
 
@@ -12,7 +13,7 @@ import Graph from './Graph';
 const getBundleGroupId = (bundleGroup: BundleGroup) =>
   'bundle_group:' + bundleGroup.entryAssetId;
 
-export default class BundleGraph extends Graph {
+export default class BundleGraph extends Graph<Node> {
   constructor() {
     super();
     this.setRootNode({
