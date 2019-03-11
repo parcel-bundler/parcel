@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 const Comlink = require('comlink');
 import {hasBrowserslist} from './utils';
 

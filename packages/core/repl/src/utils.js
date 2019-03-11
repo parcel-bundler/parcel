@@ -9,7 +9,8 @@ export function hasBrowserslist(assets) {
 
   const pkg = assets.find(v => v.name.endsWith('package.json'));
   try {
-    const configInPackage = pkg && !!JSON.parse(pkg.content).browserslist;
+    const configInPackage =
+      pkg && Boolean(JSON.parse(pkg.content).browserslist);
     return configInPackage;
   } catch (e) {
     return false;
@@ -187,3 +188,37 @@ h2 {
     }
   ]
 };
+
+export function Notes() {
+  return (
+    <div class="file notes">
+      Yes, this is Parcel as a (nearly) self-hosting bundler (self-
+      <i>hoisting</i> doesn't work ...)
+      <br />
+      The Parcel portion of this page, including all compilers, is a 2.2MB
+      gzipped bundle running in a Web Worker
+      <br />
+      <br />
+      Known issues:
+      <ul>
+        <li>
+          Minifying CSS doesn't work (runtime <code>require</code> calls by
+          cssnano, even for the config to disable the corresponding plugin...)
+        </li>
+        <li>
+          Node builtin modules can't be polyfilled for the browser (looks up the
+          bundler, caused by Parcel's <code>require.resolve</code> handling)
+        </li>
+        <li>
+          Babel would need to <code>require</code> plugins at runtime (at least
+          without workarounds)
+        </li>
+        <li>
+          SASS importing is disabled for now (
+          <a href="https://github.com/sass/dart-sass/issues/621">issue</a>)
+        </li>
+        <li>Generating source maps SASS throws an error</li>
+      </ul>
+    </div>
+  );
+}

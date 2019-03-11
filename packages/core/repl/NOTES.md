@@ -42,9 +42,6 @@ Connecting with Chrome Devtools to Chrome on Android silently prevents the execu
 ```js
   findEntryFiles(entryFiles) {
     // Match files as globs
-    return entryFiles
-      .reduce((p, m) => p.concat(glob.sync(m)), [])
-      .map(f => Path.resolve(f));
     if (process.browser) {
       return entryFiles.map(f => Path.resolve(f));
     } else {

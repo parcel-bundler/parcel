@@ -3,31 +3,75 @@ import filesize from 'filesize';
 
 import Asset from './components/Asset';
 import Options from './components/Options';
-import {ParcelError, PRESETS, hasBrowserslist} from './utils';
+import {Notes, ParcelError, PRESETS, hasBrowserslist} from './utils';
 import bundle, {workerLoaded} from './bundle';
 
 const DEFAULT_PRESET = 'Javascript';
 
+function saveState(curPreset, options, assets) {
+  let data = {
+    currentPreset: curPreset,
+    options,
+    assets: assets.map(
+      ({name, content, isEntry = false}) =>
+        isEntry ? [name, content, 1] : [name, content]
+    )
+  };
+
+  window.location.hash = btoa(encodeURIComponent(JSON.stringify(data)));
+}
+
+function loadState() {
+  const hash = window.location.hash.replace(/^#/, '');
+
+  try {
+    const data = JSON.parse(decodeURIComponent(atob(hash)));
+    data.assets = data.assets.map(([name, content, isEntry = false]) => ({
+      name,
+      content,
+      isEntry: Boolean(isEntry)
+    }));
+    return data;
+  } catch (e) {
+    console.error('Hash decoding failed:', e);
+    window.location.hash = '';
+    return null;
+  }
+}
+
 class App extends Component {
   constructor(props) {
     super(props);
+
     this.state = {
-      currentPreset: DEFAULT_PRESET,
-      assets: PRESETS[DEFAULT_PRESET],
       output: null,
 
       bundling: false,
       bundlingError: null,
 
-      workerReady: false,
-
-      options: {
-        minify: true,
-        scopeHoist: true,
-        sourceMaps: false,
-        browserslist: 'Chrome 70'
-      }
+      workerReady: false
     };
+
+    let hashData;
+    if (window.location.hash && (hashData = loadState())) {
+      this.state = {
+        ...this.state,
+        ...hashData
+      };
+    } else {
+      this.state = {
+        ...this.state,
+        currentPreset: DEFAULT_PRESET,
+        assets: PRESETS[DEFAULT_PRESET],
+        options: {
+          minify: true,
+          scopeHoist: true,
+          sourceMaps: false,
+          browserslist: 'Chrome 70'
+        }
+      };
+    }
+
     workerLoaded.then(() => this.setState({workerReady: true}));
   }
 
@@ -56,6 +100,20 @@ class App extends Component {
     document.addEventListener('keydown', e => {
       if (e.metaKey && e.code === 'Enter') this.startBundling();
     });
+  }
+
+  componentDidUpdate(prevProps, prevState) {
+    if (
+      this.state.assets !== prevState.assets ||
+      this.state.options !== prevState.options ||
+      this.state.currentPreset !== prevState.currentPreset
+    ) {
+      saveState(
+        this.state.currentPreset,
+        this.state.options,
+        this.state.assets
+      );
+    }
   }
 
   updateAsset(name, prop, value) {
@@ -89,14 +147,14 @@ class App extends Component {
           </select>
           {this.state.assets.map(({name, content, isEntry}) => (
             <Asset
-              editable
               key={name}
               name={name}
-              content={content}
               onChangeName={v => this.updateAsset(name, 'name', v)}
+              content={content}
+              onChangeContent={v => this.updateAsset(name, 'content', v)}
+              editable
               isEntry={isEntry}
               onChangeEntry={v => this.updateAsset(name, 'isEntry', v)}
-              onChangeContent={v => this.updateAsset(name, 'content', v)}
               onClickRemove={v =>
                 this.setState(state => ({
                   assets: state.assets.filter(a => a.name !== v)
@@ -140,38 +198,7 @@ class App extends Component {
             }
             enableBrowserslist={!hasBrowserslist(this.state.assets)}
           />
-          <div class="file notes">
-            Yes, this is Parcel as a (nearly) self-hosting bundler (self-
-            <i>hoisting</i> doesn't work ...)
-            <br />
-            The Parcel portion of this page, including all compilers, is a 2.2MB
-            gzipped bundle running in a Web Worker
-            <br />
-            <br />
-            Known issues:
-            <ul>
-              <li>
-                Minifying CSS doesn't work (runtime <code>require</code> calls
-                by cssnano, even for the config to disable the corresponding
-                plugin...)
-              </li>
-              <li>
-                Node builtin modules can't be polyfilled for the browser (looks
-                up the bundler, caused by Parcel's <code>require.resolve</code>{' '}
-                handling)
-              </li>
-              <li>
-                Babel would need to <code>require</code> plugins at runtime (at
-                least without workarounds)
-              </li>
-              <li>
-                SASS importing is disabled for now (
-                <a href="https://github.com/sass/dart-sass/issues/621">issue</a>
-                )
-              </li>
-              <li>Generating source maps SASS throws an error</li>
-            </ul>
-          </div>
+          <Notes />
         </div>
         <div class="row">
           {this.state.workerReady ? (
