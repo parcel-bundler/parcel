@@ -224,7 +224,7 @@ async function bundle(main, command) {
     const server = await bundler.serve(port, command.https, command.host);
     if (server && command.open) {
       await require('./utils/openInBrowser')(
-        `${command.https ? 'https' : 'http'}://localhost:${
+        `${command.https ? 'https' : 'http'}://${command.host || 'localhost'}:${
           server.address().port
         }`,
         command.open
