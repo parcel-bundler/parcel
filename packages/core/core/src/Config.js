@@ -204,4 +204,11 @@ export default class Config {
     let res = flatten();
     return res;
   }
+
+  static deserialize({
+    configPath,
+    ...config
+  }: ParcelConfig & {|configPath: string|}) {
+    return new Config(config, configPath);
+  }
 }
