@@ -1,13 +1,13 @@
 // @flow
 
-import type {Environment, Graph} from '@parcel/types';
+import type {Environment, Graph, Node} from '@parcel/types';
 
 import graphviz from 'graphviz';
 import tempy from 'tempy';
 import path from 'path';
 
 export default async function dumpGraphToGraphViz(
-  graph: Graph,
+  graph: Graph<Node>,
   name: string
 ): Promise<void> {
   let g = graphviz.digraph('G');
@@ -21,7 +21,7 @@ export default async function dumpGraphToGraphViz(
     default: 'white'
   };
 
-  let nodes = Array.from(graph.nodes.values());
+  let nodes: Array<Node> = Array.from(graph.nodes.values());
   for (let node of nodes) {
     let n = g.addNode(node.id);
 

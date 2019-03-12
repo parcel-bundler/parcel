@@ -297,18 +297,18 @@ export type Edge = {|
   to: NodeId
 |};
 
-export interface Graph {
-  nodes: Map<string, Node>;
+export interface Graph<TNode: Node> {
+  nodes: Map<string, TNode>;
   edges: Set<Edge>;
-  merge(graph: Graph): void;
+  merge(graph: Graph<TNode>): void;
   traverse<TContext>(
-    visit: GraphTraversalCallback<Node, TContext>,
-    startNode: ?Node
+    visit: GraphTraversalCallback<TNode, TContext>,
+    startNode: ?TNode
   ): ?TContext;
 }
 
 // TODO: what do we want to expose here?
-export interface AssetGraph extends Graph {
+export interface AssetGraph extends Graph<Node> {
   traverseAssets(visit: GraphTraversalCallback<Asset, Node>): ?Node;
   createBundle(asset: Asset): Bundle;
   getTotalSize(asset?: Asset): number;
@@ -334,7 +334,7 @@ export type Bundle = {|
   filePath?: FilePath
 |};
 
-export interface BundleGraph extends Graph {
+export interface BundleGraph extends Graph<Node> {
   addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
   addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
   isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;

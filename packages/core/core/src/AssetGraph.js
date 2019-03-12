@@ -47,17 +47,17 @@ export const nodeFromAsset = (asset: Asset) => ({
   value: asset
 });
 
-const getFileNodesFromGraph = (graph: Graph): Array<Node> => {
+const getFileNodesFromGraph = (graph: Graph<Node>): Array<Node> => {
   return Array.from(graph.nodes.values()).filter(
     (node: any) => node.type === 'file'
   );
 };
 
-const getFilesFromGraph = (graph: Graph): Array<File> => {
+const getFilesFromGraph = (graph: Graph<Node>): Array<File> => {
   return getFileNodesFromGraph(graph).map(node => node.value);
 };
 
-const getDepNodesFromGraph = (graph: Graph): Array<Node> => {
+const getDepNodesFromGraph = (graph: Graph<Node>): Array<Node> => {
   return Array.from(graph.nodes.values()).filter(
     (node: any) => node.type === 'dependency'
   );
@@ -89,7 +89,7 @@ type AssetGraphOpts = {|
  *  * A dependency node should have an edge to exactly one file node
  *  * A file node can have one to many edges to asset nodes which can have zero to many edges dependency nodes
  */
-export default class AssetGraph extends Graph {
+export default class AssetGraph extends Graph<Node> {
   incompleteNodes: Map<NodeId, Node> = new Map();
   invalidNodes: Map<NodeId, Node> = new Map();
 
