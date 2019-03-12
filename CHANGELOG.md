@@ -1,11 +1,21 @@
 # Changelog
 
-All notable changes to parcel will be documented in this file.
+All notable changes to Parcel will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
-and parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
+and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [1.12.0] - 2019-02-06
+## [1.12.1] - 2019-03-12
+
+### Fixed
+
+- Correctly build dependency URLs (for CSS) [Details](https://github.com/parcel-bundler/parcel/pull/2740)
+- Fix bug with original null mappings [Details](https://github.com/parcel-bundler/parcel/pull/2748)
+- Regenerate all bundles and trigger an HMR page reload when a new bundle is created [Details](https://github.com/parcel-bundler/parcel/pull/2762)
+- Unescaped "." in regex for JSAsset [Details](https://github.com/parcel-bundler/parcel/pull/2759)
+- Open the specified host [Details](https://github.com/parcel-bundler/parcel/pull/2763)
+
+## [1.12.0] - 2019-03-06
 
 ### Added
 
