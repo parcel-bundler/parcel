@@ -166,6 +166,7 @@ export default new Bundler({
       const dumpGraphToGraphViz = require('@parcel/utils/src/dumpGraphToGraphViz')
         .default;
       dumpGraphToGraphViz(assetGraph, 'BundlerInputAssetGraph');
+      // $FlowFixMe
       dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
       bundleGraph.traverseBundles(bundle => {
         dumpGraphToGraphViz(bundle.assetGraph, `${bundle.id}`);

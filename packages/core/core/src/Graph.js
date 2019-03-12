@@ -5,20 +5,19 @@ import type {
   Node,
   NodeId,
   GraphTraversalCallback,
+  GraphUpdates,
   TraversalActions,
   Graph as IGraph
 } from '@parcel/types';
 
-type GraphUpdates<TNode> = {|
-  added: Graph<TNode>,
-  removed: Graph<TNode>
-|};
+import nullthrows from 'nullthrows';
 
 type GraphOpts<TNode> = {|
   nodes?: Array<[NodeId, TNode]>,
   edges?: Array<Edge>,
   rootNodeId?: ?NodeId
 |};
+
 export default class Graph<TNode: Node> implements IGraph<TNode> {
   nodes: Map<NodeId, TNode>;
   edges: Set<Edge>;
@@ -87,10 +86,7 @@ export default class Graph<TNode: Node> implements IGraph<TNode> {
 
   getNodesConnectedFrom(node: TNode): Array<TNode> {
     let edges = Array.from(this.edges).filter(edge => edge.from === node.id);
-    return edges.map(edge => {
-      // $FlowFixMe
-      return this.nodes.get(edge.to);
-    });
+    return edges.map(edge => nullthrows(this.nodes.get(edge.to)));
   }
 
   merge(graph: IGraph<TNode>): void {

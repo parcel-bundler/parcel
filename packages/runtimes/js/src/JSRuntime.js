@@ -1,9 +1,10 @@
 // @flow
 
-import type {BundleGroup} from '@parcel/types';
+import type {BundleGroupNode} from '@parcel/types';
 
-import {Runtime} from '@parcel/plugin';
+import invariant from 'assert';
 import path from 'path';
+import {Runtime} from '@parcel/plugin';
 
 const LOADERS = {
   browser: {
@@ -40,7 +41,7 @@ export default new Runtime({
     }
 
     // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414
-    let bundleGroups: Array<BundleGroup> = Array.from(
+    let bundleGroups: Array<BundleGroupNode> = Array.from(
       bundle.assetGraph.nodes.values()
     ).filter(n => n.type === 'bundle_group');
 
@@ -51,9 +52,11 @@ export default new Runtime({
       }
 
       let bundles = bundle.assetGraph
-        // $FlowFixMe - define a better asset graph interface
         .getNodesConnectedFrom(bundleGroup)
-        .map(node => node.value)
+        .map(node => {
+          invariant(node.type === 'bundle');
+          return node.value;
+        })
         .sort(
           bundle =>
             bundle.assetGraph.hasNode(bundleGroup.value.entryAssetId) ? 1 : -1

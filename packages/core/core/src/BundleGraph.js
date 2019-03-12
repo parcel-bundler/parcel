@@ -2,18 +2,21 @@
 import type {
   Asset,
   Bundle,
+  BundleGraph as IBundleGraph,
+  BundleGraphNode,
   BundleGroup,
-  GraphTraversalCallback,
-  Node
+  BundleNode,
+  GraphTraversalCallback
 } from '@parcel/types';
-import type AssetGraph from './AssetGraph';
 
+import invariant from 'assert';
 import Graph from './Graph';
 
 const getBundleGroupId = (bundleGroup: BundleGroup) =>
   'bundle_group:' + bundleGroup.entryAssetId;
 
-export default class BundleGraph extends Graph<Node> {
+export default class BundleGraph extends Graph<BundleGraphNode>
+  implements IBundleGraph {
   constructor() {
     super();
     this.setRootNode({
@@ -56,7 +59,7 @@ export default class BundleGraph extends Graph<Node> {
     }
 
     let bundleGroupId = getBundleGroupId(bundleGroup);
-    let bundleNode = {
+    let bundleNode: BundleNode = {
       id: bundle.id,
       type: 'bundle',
       value: bundle
@@ -73,11 +76,11 @@ export default class BundleGraph extends Graph<Node> {
       // already created bundles in the bundle graph. This can happen when two
       // bundles point to the same dependency, which has an async import.
       if (node.type === 'bundle_group') {
-        // TODO: fix the AssetGraph interface so we don't need to do this
-        let assetGraph: AssetGraph = (bundle.assetGraph: any);
+        let {assetGraph} = bundle;
         let bundleGroup: BundleGroup = node.value;
         let depNode = assetGraph.getNode(bundleGroup.dependency.id);
         if (depNode && !assetGraph.hasNode(node.id)) {
+          // $FlowFixMe Merging a graph of a subtype into a graph of the supertype
           assetGraph.merge(this.getSubGraph(node));
           assetGraph.replaceNodesConnectedTo(depNode, [node]);
           this.addEdge({from: bundle.id, to: node.id});
@@ -105,7 +108,10 @@ export default class BundleGraph extends Graph<Node> {
       return [];
     }
 
-    return this.getNodesConnectedFrom(node).map(node => node.value);
+    return this.getNodesConnectedFrom(node).map(node => {
+      invariant(node.type === 'bundle');
+      return node.value;
+    });
   }
 
   getBundleGroups(bundle: Bundle): Array<BundleGroup> {
@@ -114,7 +120,10 @@ export default class BundleGraph extends Graph<Node> {
       return [];
     }
 
-    return this.getNodesConnectedTo(node).map(node => node.value);
+    return this.getNodesConnectedTo(node).map(node => {
+      invariant(node.type === 'bundle_group');
+      return node.value;
+    });
   }
 
   isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean {
@@ -145,12 +154,15 @@ export default class BundleGraph extends Graph<Node> {
   }
 
   findBundlesWithAsset(asset: Asset): Array<Bundle> {
-    return Array.from(this.nodes.values())
-      .filter(
-        node =>
-          node.type === 'bundle' && node.value.assetGraph.hasNode(asset.id)
-      )
-      .map(node => node.value);
+    return (
+      Array.from(this.nodes.values())
+        .filter(
+          node =>
+            node.type === 'bundle' && node.value.assetGraph.hasNode(asset.id)
+        )
+        // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414
+        .map(node => node.value)
+    );
   }
 
   traverseBundles<TContext>(
