@@ -36,7 +36,6 @@ export default new Runtime({
       return;
     }
 
-    // $FlowFixMe - define a better asset graph interface
     let bundleGroups = Array.from(bundle.assetGraph.nodes.values()).filter(
       n => n.type === 'bundle_group'
     );

@@ -1,42 +1,38 @@
 // @flow
 
 import type {
-  Node as _Node,
+  Edge,
+  Node,
+  NodeId,
   GraphTraversalCallback,
   TraversalActions,
   Graph as IGraph
 } from '@parcel/types';
 
-export type Node = _Node;
-export type NodeId = string;
-
-export type Edge = {|
-  from: NodeId,
-  to: NodeId
+type GraphUpdates<TNode> = {|
+  added: Graph<TNode>,
+  removed: Graph<TNode>
 |};
 
-type GraphUpdates = {|
-  added: Graph,
-  removed: Graph
-|};
-
-type GraphOpts = {|
-  nodes?: Array<[NodeId, Node]>,
+type GraphOpts<TNode> = {|
+  nodes?: Array<[NodeId, TNode]>,
   edges?: Array<Edge>,
   rootNodeId?: ?NodeId
 |};
-export default class Graph implements IGraph {
-  nodes: Map<NodeId, Node>;
+export default class Graph<TNode: Node> implements IGraph<TNode> {
+  nodes: Map<NodeId, TNode>;
   edges: Set<Edge>;
   rootNodeId: ?NodeId;
 
-  constructor(opts: GraphOpts = {nodes: [], edges: [], rootNodeId: null}) {
+  constructor(
+    opts: GraphOpts<TNode> = {nodes: [], edges: [], rootNodeId: null}
+  ) {
     this.nodes = new Map(opts.nodes);
     this.edges = new Set(opts.edges);
     this.rootNodeId = opts.rootNodeId;
   }
 
-  serialize(): GraphOpts {
+  serialize(): GraphOpts<TNode> {
     return {
       nodes: [...this.nodes],
       edges: [...this.edges],
@@ -44,34 +40,34 @@ export default class Graph implements IGraph {
     };
   }
 
-  addNode(node: Node) {
+  addNode(node: TNode): TNode {
     this.nodes.set(node.id, node);
     return node;
   }
 
-  hasNode(id: string) {
+  hasNode(id: string): boolean {
     return this.nodes.has(id);
   }
 
-  getNode(id: string) {
+  getNode(id: string): ?TNode {
     return this.nodes.get(id);
   }
 
-  setRootNode(node: Node) {
+  setRootNode(node: TNode): void {
     this.addNode(node);
     this.rootNodeId = node.id;
   }
 
-  getRootNode(): ?Node {
+  getRootNode(): ?TNode {
     return this.rootNodeId ? this.getNode(this.rootNodeId) : null;
   }
 
-  addEdge(edge: Edge) {
+  addEdge(edge: Edge): Edge {
     this.edges.add(edge);
     return edge;
   }
 
-  hasEdge(edge: Edge) {
+  hasEdge(edge: Edge): boolean {
     for (let e of this.edges) {
       if (edge.from == e.from && edge.to === e.to) {
         return true;
@@ -81,7 +77,7 @@ export default class Graph implements IGraph {
     return false;
   }
 
-  getNodesConnectedTo(node: Node): Array<Node> {
+  getNodesConnectedTo(node: TNode): Array<TNode> {
     let edges = Array.from(this.edges).filter(edge => edge.to === node.id);
     return edges.map(edge => {
       // $FlowFixMe
@@ -89,7 +85,7 @@ export default class Graph implements IGraph {
     });
   }
 
-  getNodesConnectedFrom(node: Node): Array<Node> {
+  getNodesConnectedFrom(node: TNode): Array<TNode> {
     let edges = Array.from(this.edges).filter(edge => edge.from === node.id);
     return edges.map(edge => {
       // $FlowFixMe
@@ -97,8 +93,7 @@ export default class Graph implements IGraph {
     });
   }
 
-  // $FlowFixMe - fix interface
-  merge(graph: Graph) {
+  merge(graph: IGraph<TNode>): void {
     for (let [, node] of graph.nodes) {
       this.addNode(node);
     }
@@ -109,7 +104,7 @@ export default class Graph implements IGraph {
   }
 
   // Removes node and any edges coming from that node
-  removeNode(node: Node): this {
+  removeNode(node: TNode): this {
     let removed = new this.constructor();
 
     this.nodes.delete(node.id);
@@ -124,7 +119,7 @@ export default class Graph implements IGraph {
     return removed;
   }
 
-  removeEdges(node: Node): this {
+  removeEdges(node: TNode): this {
     let removed = new this.constructor();
 
     for (let edge of this.edges) {
@@ -154,7 +149,7 @@ export default class Graph implements IGraph {
     return removed;
   }
 
-  isOrphanedNode(node: Node) {
+  isOrphanedNode(node: TNode): boolean {
     for (let edge of this.edges) {
       if (edge.to === node.id) {
         return false;
@@ -163,7 +158,7 @@ export default class Graph implements IGraph {
     return true;
   }
 
-  replaceNode(fromNode: Node, toNode: Node) {
+  replaceNode(fromNode: TNode, toNode: TNode): void {
     this.addNode(toNode);
 
     for (let edge of this.edges) {
@@ -178,7 +173,10 @@ export default class Graph implements IGraph {
 
   // Update a node's downstream nodes making sure to prune any orphaned branches
   // Also keeps track of all added and removed edges and nodes
-  replaceNodesConnectedTo(fromNode: Node, toNodes: Array<Node>): GraphUpdates {
+  replaceNodesConnectedTo(
+    fromNode: TNode,
+    toNodes: Array<TNode>
+  ): GraphUpdates<TNode> {
     let removed = new this.constructor();
     let added = new this.constructor();
 
@@ -213,8 +211,8 @@ export default class Graph implements IGraph {
   }
 
   traverse<TContext>(
-    visit: GraphTraversalCallback<Node, TContext>,
-    startNode: ?Node
+    visit: GraphTraversalCallback<TNode, TContext>,
+    startNode: ?TNode
   ): ?TContext {
     return this.dfs({
       visit,
@@ -224,8 +222,8 @@ export default class Graph implements IGraph {
   }
 
   traverseAncestors<TContext>(
-    startNode: Node,
-    visit: GraphTraversalCallback<Node, TContext>
+    startNode: TNode,
+    visit: GraphTraversalCallback<TNode, TContext>
   ) {
     return this.dfs({
       visit,
@@ -239,16 +237,16 @@ export default class Graph implements IGraph {
     startNode,
     getChildren
   }: {
-    visit: GraphTraversalCallback<Node, TContext>,
-    getChildren(node: Node): Array<Node>,
-    startNode?: ?Node
+    visit: GraphTraversalCallback<TNode, TContext>,
+    getChildren(node: TNode): Array<TNode>,
+    startNode?: ?TNode
   }): ?TContext {
     let root = startNode || this.getRootNode();
     if (!root) {
       return null;
     }
 
-    let visited = new Set<Node>();
+    let visited = new Set<TNode>();
     let stopped = false;
     let skipped = false;
     let actions: TraversalActions = {
@@ -293,14 +291,14 @@ export default class Graph implements IGraph {
     return walk(root);
   }
 
-  bfs(visit: (node: Node) => ?boolean): ?Node {
+  bfs(visit: (node: TNode) => ?boolean): ?TNode {
     let root = this.getRootNode();
     if (!root) {
       return null;
     }
 
-    let queue: Array<Node> = [root];
-    let visited = new Set<Node>([root]);
+    let queue: Array<TNode> = [root];
+    let visited = new Set<TNode>([root]);
 
     while (queue.length > 0) {
       let node = queue.shift();
@@ -320,7 +318,7 @@ export default class Graph implements IGraph {
     return null;
   }
 
-  getSubGraph(node: Node): this {
+  getSubGraph(node: TNode): this {
     let graph = new this.constructor();
     graph.setRootNode(node);
 
