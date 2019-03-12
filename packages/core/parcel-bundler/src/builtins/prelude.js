@@ -8,7 +8,8 @@
 parcelRequire = (function (modules, cache, entry, globalName) {
   // Save the require from previous bundle to this closure if any
   var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
-  var nodeRequire = typeof require === 'function' && require;
+  var isAmd = typeof define === 'function' && define.amd;
+  var nodeRequire = !isAmd && typeof require === 'function' && require;
 
   function newRequire(name, jumped) {
     if (!cache[name]) {

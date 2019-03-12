@@ -1,7 +1,8 @@
 parcelRequire = (function (init) {
   // Save the require from previous bundle to this closure if any
   var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
-  var nodeRequire = typeof require === 'function' && require;
+  var isAmd = typeof define === 'function' && define.amd;
+  var nodeRequire = !isAmd && typeof require === 'function' && require;
   var modules = {};
 
   function localRequire(name, jumped) {
