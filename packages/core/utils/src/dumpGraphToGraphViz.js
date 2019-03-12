@@ -1,31 +1,39 @@
 // @flow
 
-import type {Environment, Graph, Node} from '@parcel/types';
+import type {
+  Environment,
+  Graph,
+  BundleGraphNode,
+  AssetGraphNode
+} from '@parcel/types';
 
+import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import graphviz from 'graphviz';
 import tempy from 'tempy';
 import path from 'path';
 
+const COLORS = {
+  root: 'gray',
+  asset: 'green',
+  dependency: 'orange',
+  transformer_request: 'cyan',
+  file: 'gray',
+  default: 'white'
+};
+
 export default async function dumpGraphToGraphViz(
-  graph: Graph<Node>,
+  graph: Graph<AssetGraphNode | BundleGraphNode>,
   name: string
 ): Promise<void> {
   let g = graphviz.digraph('G');
 
-  let colors = {
-    root: 'gray',
-    asset: 'green',
-    dependency: 'orange',
-    transformer_request: 'cyan',
-    file: 'gray',
-    default: 'white'
-  };
-
-  let nodes: Array<Node> = Array.from(graph.nodes.values());
+  let nodes = Array.from(graph.nodes.values());
   for (let node of nodes) {
     let n = g.addNode(node.id);
 
-    n.set('color', colors[node.type || 'default']);
+    // $FlowFixMe default is fine. Not every type needs to be in the map.
+    n.set('color', COLORS[node.type || 'default']);
     n.set('shape', 'box');
     n.set('style', 'filled');
 
@@ -49,10 +57,11 @@ export default async function dumpGraphToGraphViz(
         ` (${getEnvDescription(node.value.env)})`;
     } else if (node.type === 'bundle') {
       let rootAssets = node.value.assetGraph.getNodesConnectedFrom(
-        node.value.assetGraph.getRootNode()
+        nullthrows(node.value.assetGraph.getRootNode())
       );
       label += rootAssets
         .map(asset => {
+          invariant(asset.type === 'asset');
           let parts = asset.value.filePath.split(path.sep);
           let index = parts.lastIndexOf('node_modules');
           if (index >= 0) {
