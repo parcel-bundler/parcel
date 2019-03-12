@@ -304,6 +304,7 @@ class Bundler extends EventEmitter {
       }
 
       // Generate the final bundle names, and replace references in the built assets.
+      let numBundles = this.bundleNameMap ? this.bundleNameMap.size : 0;
       this.bundleNameMap = this.mainBundle.getBundleNameMap(
         this.options.contentHash
       );
@@ -313,8 +314,9 @@ class Bundler extends EventEmitter {
       }
 
       // Emit an HMR update if this is not the initial bundle.
+      let bundlesChanged = numBundles !== this.bundleNameMap.size;
       if (this.hmr && !isInitialBundle) {
-        this.hmr.emitUpdate(changedAssets);
+        this.hmr.emitUpdate(changedAssets, bundlesChanged);
       }
 
       logger.progress(`Packaging...`);
@@ -322,7 +324,7 @@ class Bundler extends EventEmitter {
       // Package everything up
       this.bundleHashes = await this.mainBundle.package(
         this,
-        this.bundleHashes
+        bundlesChanged ? null : this.bundleHashes
       );
 
       // Unload any orphaned assets
