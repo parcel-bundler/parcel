@@ -2,10 +2,11 @@
 
 import type AssetGraph from './AssetGraph';
 import type {
-  Namer,
+  Asset,
   Bundle,
-  FilePath,
   CLIOptions,
+  FilePath,
+  Namer,
   TransformerRequest
 } from '@parcel/types';
 import type Config from './Config';
@@ -31,7 +32,7 @@ export default class BundlerRunner {
     this.rootDir = opts.rootDir;
   }
 
-  async bundle(graph: AssetGraph) {
+  async bundle(graph: AssetGraph): Promise<BundleGraph> {
     let bundler = await this.config.getBundler();
 
     let bundleGraph = new BundleGraph();
@@ -42,7 +43,7 @@ export default class BundlerRunner {
     return bundleGraph;
   }
 
-  async nameBundles(bundleGraph: BundleGraph) {
+  async nameBundles(bundleGraph: BundleGraph): Promise<void> {
     let namers = await this.config.getNamers();
     let promises = [];
     bundleGraph.traverseBundles(bundle => {
@@ -52,7 +53,7 @@ export default class BundlerRunner {
     await Promise.all(promises);
   }
 
-  async nameBundle(namers: Array<Namer>, bundle: Bundle) {
+  async nameBundle(namers: Array<Namer>, bundle: Bundle): Promise<void> {
     for (let namer of namers) {
       let filePath = await namer.name(bundle, {
         rootDir: this.rootDir
@@ -67,7 +68,7 @@ export default class BundlerRunner {
     throw new Error('Unable to name bundle');
   }
 
-  async applyRuntimes(bundleGraph: BundleGraph) {
+  async applyRuntimes(bundleGraph: BundleGraph): Promise<void> {
     let bundles = [];
     bundleGraph.traverseBundles(bundle => {
       bundles.push(bundle);
@@ -78,7 +79,10 @@ export default class BundlerRunner {
     }
   }
 
-  async applyRuntimesToBundle(bundleGraph: BundleGraph, bundle: Bundle) {
+  async applyRuntimesToBundle(
+    bundleGraph: BundleGraph,
+    bundle: Bundle
+  ): Promise<void> {
     // HACK. TODO: move this into some sort of asset graph proxy
     // $FlowFixMe
     bundle.assetGraph.addRuntimeAsset = this.addRuntimeAsset.bind(
@@ -98,7 +102,7 @@ export default class BundlerRunner {
     bundle: Bundle,
     node: {id: string},
     transformerRequest: TransformerRequest
-  ) {
+  ): Promise<Asset> {
     let builder = new AssetGraphBuilder({
       cliOpts: this.cliOpts,
       config: this.config,
