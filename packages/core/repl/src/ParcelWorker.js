@@ -82,7 +82,7 @@ export async function bundle(assets, options) {
 
   for (let f of await fastGlob('/dist/**/*')) {
     output.push({
-      name: f,
+      name: f.replace(/^\/dist\//, ''),
       content: await fs.readFile(f, 'utf8')
     });
   }

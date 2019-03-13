@@ -34,35 +34,12 @@ Connecting with Chrome Devtools to Chrome on Android silently prevents the execu
 
 ### Other TODOs
 
-- envfile: cached until reload?
-- fix htmlnano/postcss/cssnano runtime `require`s
-- use cache (if enabeld, Markdown isn't updating)
-- with cache, maybe even a watcher-like functionality (on state change with debouncing - debounce also hash change)
-- Fix `existsCache` map for getConfig (parser.js) (file issue: not reset at runtime, not an issue with cli ???)
-- PWA for caching
-- fix glob in `Bundler.???EntryAssets()`
-- Lazy load large assets
-- Preview using blob url
-
-```js
-  findEntryFiles(entryFiles) {
-    // Match files as globs
-    if (process.browser) {
-      return entryFiles.map(f => Path.resolve(f));
-    } else {
-      return entryFiles
-        .reduce((p, m) => p.concat(glob.sync(m)), [])
-        .map(f => Path.resolve(f));
-    }
-  }
-```
-
 ```js
 if(process.env.NODE_ENV === "development"){
-	require("preact/debug");
+  require("preact/debug");
 }
-if(module.hot)
-if(process.browser)
+if(module.hot) ...
+if(process.browser) ...
 
 
 
@@ -74,3 +51,21 @@ use for parcel-bundler: (logger, worker)
   }
 }
 ```
+
+- envfile: is somehow cached until reload?
+- fix htmlnano/postcss/cssnano runtime `require`s
+
+- use cache (if enabeld, Markdown isn't updating)
+- with cache, maybe even a watcher-like functionality (on state change with debouncing - debounce also hash change)
+- Fix `existsCache` map for getConfig (parser.js) (file issue: not reset at runtime, not an issue with cli ???)
+- non existing css linked by html: undefined line/column by css
+
+#### Performance
+
+- PWA for caching
+- Lazy load large assets
+
+#### Maybe/Longterm
+
+- Preview using blob url
+- Parcel 2 REPL: display graph

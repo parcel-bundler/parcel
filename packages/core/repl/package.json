@@ -28,10 +28,11 @@
   },
   "alias": {
     "react": "preact",
-    "node-sass": "sass",
     "@iarna/toml": "toml",
+    "deasync": "./noop.js",
+    "node-sass": "sass",
     "fs": "@parcel/fs/src/fs-native.js",
-    "deasync": "./noop.js"
+    "v8-compile-cache": "./noop.js"
   },
   "browserslist": [
     "Chrome 70"

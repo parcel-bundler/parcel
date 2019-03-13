@@ -97,7 +97,7 @@ button:enabled:active {
 }
 .options > label > input[type='text'] {
 	width: 50%;
-	padding: 0;
+	padding: 0 0.2em;
 	font-size: 0.9em;
 }
 .notes {

@@ -36,7 +36,7 @@ export default function Options({values, onChange, enableBrowserslist}) {
         />
       </label>
       <label title="Not an actual CLI option, put this into a .browserslistrc 😁">
-        Browserslist
+        Browserslist target, example: <code>Chrome 70</code>
         <input
           type="text"
           value={enableBrowserslist ? values.browserslist : undefined}

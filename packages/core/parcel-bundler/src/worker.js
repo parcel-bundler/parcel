@@ -21,3 +21,4 @@ async function run(path, isWarmUp) {
 
 exports.init = init;
 exports.run = run;
+exports.end = function() {}; //"polyfill" for Web Worker
