@@ -20,9 +20,24 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
+    "@iarna/toml": "^2.2.0",
     "@parcel/fs": "^1.10.3",
+    "@parcel/logger": "^1.10.3",
     "@parcel/workers": "^1.10.3",
-    "nullthrows": "^1.1.1"
+    "clone": "^2.1.1",
+    "command-exists": "^1.2.6",
+    "cross-spawn": "^6.0.4",
+    "deasync": "^0.1.14",
+    "fast-glob": "^2.2.2",
+    "graphviz": "^0.0.8",
+    "is-glob": "^4.0.0",
+    "is-url": "^1.2.2",
+    "json5": "^1.0.1",
+    "nullthrows": "^1.1.1",
+    "resolve": "^1.4.0",
+    "serialize-to-js": "^1.1.1",
+    "tempy": "^0.2.1",
+    "terser": "^3.7.3"
   },
   "devDependencies": {
     "@babel/plugin-transform-flow-strip-types": "^7.2.0"
