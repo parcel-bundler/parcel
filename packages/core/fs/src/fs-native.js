@@ -8,6 +8,13 @@ if (process.browser) {
   }
   fs.lstat = fs.stat;
   fs.lstatSync = fs.statSync;
+
+  const readFileSync = fs.readFileSync;
+  fs.readFileSync = (path, encoding) => {
+    if (encoding && encoding.encoding) encoding = encoding.encoding;
+    return readFileSync(path, encoding);
+  };
+
   const createWriteStream = fs.createWriteStream;
   fs.createWriteStream = path => {
     const s = createWriteStream(path);

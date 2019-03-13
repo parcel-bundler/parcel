@@ -4,7 +4,7 @@ const Parser = require('./Parser');
 const Path = require('path');
 const Bundle = require('./Bundle');
 const FSCache = require('./FSCache');
-let Worker, Watcher, WorkerFarm, HMRServer, Server, loadEnv;
+let Worker, Watcher, WorkerFarm, HMRServer, Server;
 if (process.browser) {
   Worker = require('./worker.js');
 } else {
@@ -12,8 +12,8 @@ if (process.browser) {
   WorkerFarm = require('@parcel/workers');
   HMRServer = require('./HMRServer');
   Server = require('./Server');
-  loadEnv = require('./utils/env');
 }
+const loadEnv = require('./utils/env');
 const {EventEmitter} = require('events');
 const logger = require('@parcel/logger');
 const PackagerRegistry = require('./packagers');
@@ -388,9 +388,7 @@ class Bundler extends EventEmitter {
     await this.loadPlugins();
 
     if (!this.options.env) {
-      if (!process.browser) {
-        await loadEnv(Path.join(this.options.rootDir, 'index'));
-      }
+      await loadEnv(Path.join(this.options.rootDir, 'index'));
       this.options.env = process.env;
     }
 

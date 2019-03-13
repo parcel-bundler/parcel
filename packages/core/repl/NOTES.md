@@ -34,6 +34,7 @@ Connecting with Chrome Devtools to Chrome on Android silently prevents the execu
 
 ### Other TODOs
 
+- envfile: cached until reload?
 - fix htmlnano/postcss/cssnano runtime `require`s
 - use cache (if enabeld, Markdown isn't updating)
 - with cache, maybe even a watcher-like functionality (on state change with debouncing - debounce also hash change)
