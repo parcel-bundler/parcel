@@ -78,10 +78,7 @@ export default class Graph<TNode: Node> implements IGraph<TNode> {
 
   getNodesConnectedTo(node: TNode): Array<TNode> {
     let edges = Array.from(this.edges).filter(edge => edge.to === node.id);
-    return edges.map(edge => {
-      // $FlowFixMe
-      return this.nodes.get(edge.from);
-    });
+    return edges.map(edge => nullthrows(this.nodes.get(edge.from)));
   }
 
   getNodesConnectedFrom(node: TNode): Array<TNode> {

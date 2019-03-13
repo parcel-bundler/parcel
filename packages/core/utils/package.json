@@ -21,10 +21,10 @@
   },
   "dependencies": {
     "@parcel/fs": "^1.10.3",
-    "@parcel/workers": "^1.10.3"
+    "@parcel/workers": "^1.10.3",
+    "nullthrows": "^1.1.1"
   },
   "devDependencies": {
-    "@babel/plugin-transform-flow-strip-types": "^7.2.0",
-    "nullthrows": "^1.1.1"
+    "@babel/plugin-transform-flow-strip-types": "^7.2.0"
   }
 }
