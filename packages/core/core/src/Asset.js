@@ -178,6 +178,6 @@ export default class Asset implements IAsset {
   }
 
   async getPackage(): Promise<PackageJSON | null> {
-    return await this.getConfig(['package.json']);
+    return this.getConfig(['package.json']);
   }
 }

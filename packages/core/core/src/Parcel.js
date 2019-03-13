@@ -113,7 +113,7 @@ export default class Parcel {
       this.build();
     });
 
-    return await this.build();
+    return this.build();
   }
 
   async build() {
