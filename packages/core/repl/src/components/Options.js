@@ -35,7 +35,7 @@ export default function Options({values, onChange, enableBrowserslist}) {
           onChange={e => onChange('sourceMaps', e.target.checked)}
         />
       </label>
-      <label title="Not an actual CLI option, gets put into a .browserslistrc 😁">
+      <label title="Not an actual CLI option, put this into a .browserslistrc 😁">
         Browserslist
         <input
           type="text"
@@ -45,6 +45,15 @@ export default function Options({values, onChange, enableBrowserslist}) {
             enableBrowserslist ? '> 0.25%' : "You've already specified a config"
           }
           onChange={e => onChange('browserslist', e.target.value)}
+        />
+      </label>
+      <label title="Gets set as `--public-url <value>`">
+        Public URL
+        <input
+          type="text"
+          value={values.publicUrl}
+          placeholder="/"
+          onChange={e => onChange('publicUrl', e.target.value)}
         />
       </label>
     </div>

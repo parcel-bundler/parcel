@@ -1,5 +1,7 @@
 const Comlink = require('comlink');
 import {hasBrowserslist} from './utils';
+import path from 'path';
+import fastGlob from 'fast-glob';
 
 // needed by Less when running in a Worker (during require, duh)
 self.window = self;
@@ -19,8 +21,9 @@ self.document = {
 
 import fs from '@parcel/fs';
 import fsNative from 'fs';
-self.fs = fsNative;
 import Bundler from 'parcel-bundler';
+
+self.fs = fsNative;
 
 export async function bundle(assets, options) {
   // if (fsNative.data.src) delete fsNative.data.src;
@@ -36,13 +39,12 @@ export async function bundle(assets, options) {
   }
 
   for (let f of assets) {
-    await fs.writeFile(`/src/${f.name}`, f.content || ' ');
+    const p = `/src/${f.name}`;
+    fsNative.mkdirpSync(path.dirname(p));
+    await fs.writeFile(p, f.content || ' ');
   }
 
-  const entryPoints = assets
-    .filter(v => v.isEntry)
-    .map(v => v.name)
-    .map(v => `/src/${v}`);
+  const entryPoints = assets.filter(v => v.isEntry).map(v => `/src/${v.name}`);
 
   if (!entryPoints.length) throw new Error('No asset marked as entrypoint');
 
@@ -55,15 +57,17 @@ export async function bundle(assets, options) {
     logLevel: 0,
     minify: options.minify,
     scopeHoist: options.scopeHoist,
-    sourceMaps: options.sourceMaps
+    sourceMaps: options.sourceMaps,
+    publicUrl: options.publicUrl
   });
   await bundler.bundle();
 
   const output = [];
-  for (let f of await fs.readdir('/dist')) {
+
+  for (let f of await fastGlob('/dist/**/*')) {
     output.push({
       name: f,
-      content: await fs.readFile('/dist/' + f, 'utf8')
+      content: await fs.readFile(f, 'utf8')
     });
   }
   return output;
