@@ -34,10 +34,11 @@ Connecting with Chrome Devtools to Chrome on Android silently prevents the execu
 
 ### Other TODOs
 
-- use cache (Markdown isn't updating if enabled)
-- with cache, maybe even a watcher-like functionality (on state change with debouncing)
-
-- fix glob?
+- use cache (if enabeld, Markdown isn't updating)
+- with cache, maybe even a watcher-like functionality (on state change with debouncing - debounce also hash change)
+- Fix `existsCache` map for getConfig (parser.js) (file issue: not reset at runtime, not an issue with cli ???)
+- PWA for caching
+- fix glob in `Bundler.???EntryAssets()`
 
 ```js
   findEntryFiles(entryFiles) {
@@ -50,4 +51,22 @@ Connecting with Chrome Devtools to Chrome on Android silently prevents the execu
         .map(f => Path.resolve(f));
     }
   }
+```
+
+```js
+if(process.env.NODE_ENV === "development"){
+	require("preact/debug");
+}
+if(module.hot)
+if(process.browser)
+
+
+
+use for parcel-bundler: (logger, worker)
+{
+  "browser": {
+    "./node.js": "./browser.js",
+    "path": false
+  }
+}
 ```
