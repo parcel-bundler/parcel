@@ -36,7 +36,7 @@ export default class Parcel {
   assetGraphBuilder: AssetGraphBuilder;
   bundlerRunner: BundlerRunner;
   farm: WorkerFarm;
-  runPackage: (bundle: Bundle) => Promise<any>;
+  runPackage: (bundle: Bundle) => Promise<mixed>;
 
   constructor(options: ParcelOpts) {
     let {entries} = options;
@@ -45,7 +45,7 @@ export default class Parcel {
     this.rootDir = getRootDir(this.entries);
   }
 
-  async init() {
+  async init(): Promise<void> {
     await Cache.createCacheDir(this.options.cliOpts.cacheDir);
 
     if (!this.options.env) {
@@ -106,7 +106,7 @@ export default class Parcel {
     this.runPackage = this.farm.mkhandle('runPackage');
   }
 
-  async run() {
+  async run(): Promise<BundleGraph> {
     await this.init();
 
     this.assetGraphBuilder.on('invalidate', () => {
@@ -116,7 +116,7 @@ export default class Parcel {
     return await this.build();
   }
 
-  async build() {
+  async build(): Promise<BundleGraph> {
     try {
       // console.log('Starting build'); // eslint-disable-line no-console
       let assetGraph = await this.assetGraphBuilder.build();
@@ -140,14 +140,15 @@ export default class Parcel {
       if (e !== abortError) {
         console.error(e); // eslint-disable-line no-console
       }
+      throw e;
     }
   }
 
-  bundle(assetGraph: AssetGraph) {
+  bundle(assetGraph: AssetGraph): Promise<BundleGraph> {
     return this.bundlerRunner.bundle(assetGraph);
   }
 
-  package(bundleGraph: BundleGraph) {
+  package(bundleGraph: BundleGraph): Promise<mixed> {
     let promises = [];
     bundleGraph.traverseBundles(bundle => {
       promises.push(this.runPackage(bundle));
