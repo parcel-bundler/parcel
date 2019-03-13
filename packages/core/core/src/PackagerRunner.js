@@ -38,14 +38,14 @@ export default class PackagerRunner {
   }
 
   async package(bundle: Bundle): Promise<Blob> {
-    // $FlowFixMe - filePath should already be filled in at this point
-    let packager = await this.config.getPackager(bundle.filePath);
+    let packager = await this.config.getPackager(nullthrows(bundle.filePath));
     return await packager.package(bundle, this.cliOpts);
   }
 
   async optimize(bundle: Bundle, contents: Blob): Promise<Blob> {
-    // $FlowFixMe - filePath should already be filled in at this point
-    let optimizers = await this.config.getOptimizers(bundle.filePath);
+    let optimizers = await this.config.getOptimizers(
+      nullthrows(bundle.filePath)
+    );
 
     for (let optimizer of optimizers) {
       contents = await optimizer.optimize(bundle, contents, this.cliOpts);

@@ -119,7 +119,6 @@ export default class Parcel {
   async build() {
     try {
       // console.log('Starting build'); // eslint-disable-line no-console
-      // $FlowFixMe This reliably fails on Windows. Not sure why.
       let assetGraph = await this.assetGraphBuilder.build();
 
       if (process.env.PARCEL_DUMP_GRAPH != null) {

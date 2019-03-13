@@ -9,6 +9,8 @@ import type {
   TransformerRequest
 } from '@parcel/types';
 import type Config from './Config';
+
+import nullthrows from 'nullthrows';
 import BundleGraph from './BundleGraph';
 import AssetGraphBuilder from './AssetGraphBuilder';
 
@@ -106,8 +108,7 @@ export default class BundlerRunner {
 
     let graph: AssetGraph = await builder.build();
     let entry = graph.getEntryAssets()[0];
-    // $FlowFixMe - node will always exist
-    let subGraph = graph.getSubGraph(graph.getNode(entry.id));
+    let subGraph = graph.getSubGraph(nullthrows(graph.getNode(entry.id)));
 
     // Exclude modules that are already included in an ancestor bundle
     subGraph.traverseAssets(asset => {
@@ -117,7 +118,6 @@ export default class BundlerRunner {
     });
 
     bundle.assetGraph.merge(subGraph);
-    // $FlowFixMe
     bundle.assetGraph.addEdge({from: node.id, to: entry.id});
     return entry;
   }
