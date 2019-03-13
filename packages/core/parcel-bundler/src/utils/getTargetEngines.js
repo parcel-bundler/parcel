@@ -1,7 +1,8 @@
 const browserslist = require('browserslist');
-const fs = require('fs');
 if (process.browser) {
-  // monkeypatch because it noops load/readConfig for browser
+  const fs = require('fs');
+
+  // monkeypatch because load/readConfig is noop-ed for the browser
   var BrowserslistError = require('browserslist/error');
   var IS_SECTION = /^\s*\[(.+)\]\s*$/;
 

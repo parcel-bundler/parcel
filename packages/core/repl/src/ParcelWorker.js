@@ -1,3 +1,7 @@
+if (!self.Buffer) {
+  self.Buffer = require('buffer').Buffer;
+}
+
 const Comlink = require('comlink');
 import {hasBrowserslist} from './utils';
 import path from 'path';

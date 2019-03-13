@@ -13,26 +13,18 @@ if (process.browser) {
   HMRServer = require('./HMRServer');
   Server = require('./Server');
 }
-const loadEnv = require('./utils/env');
 const {EventEmitter} = require('events');
 const logger = require('@parcel/logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
+const loadEnv = require('./utils/env');
 const PromiseQueue = require('./utils/PromiseQueue');
 const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');
 const {glob, isGlob} = require('./utils/glob');
-
-if (process.browser) {
-  // eslint-disable-next-line no-undef
-  if (!self.Buffer) {
-    // eslint-disable-next-line no-undef
-    self.Buffer = require('buffer').Buffer;
-  }
-}
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -416,6 +408,7 @@ class Bundler extends EventEmitter {
 
     if (process.browser) {
       await Worker.init(this.options);
+      this.farm = Worker;
     } else {
       this.farm = await WorkerFarm.getShared(this.options, {
         workerPath: require.resolve('./worker.js')
@@ -591,11 +584,7 @@ class Bundler extends EventEmitter {
     let processed = this.cache && (await this.cache.read(asset.name));
     let cacheMiss = false;
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
-      if (process.browser) {
-        processed = await Worker.run(asset.name);
-      } else {
-        processed = await this.farm.run(asset.name);
-      }
+      processed = await this.farm.run(asset.name);
       cacheMiss = true;
     }
 

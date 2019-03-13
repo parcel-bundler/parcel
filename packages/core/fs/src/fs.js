@@ -1,5 +1,5 @@
 const {promisify} = require('@parcel/utils');
-const fs = require('./fs-native');
+const fs = require('fs');
 const mkdirp = require('mkdirp');
 const rimraf = require('rimraf');
 
