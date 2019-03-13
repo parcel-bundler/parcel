@@ -1,0 +1,139 @@
+#app {
+	display: flex;
+	width: 100%;
+	height: 100%;
+}
+
+.row {
+	width: 50%;
+}
+.row:not(:first-child) {
+	padding-left: 0.8em;
+}
+.row:not(:last-child) {
+	padding-right: 0.8em;
+}
+.row > * {
+	margin: 0.5em 0;
+	width: 100%;
+}
+
+@media (max-width: 45rem) {
+	#app {
+		flex-direction: column;
+	}
+	.row {
+		width: 100%;
+	}
+	.row:first-child {
+		border-bottom: 4px solid #ddd;
+	}
+}
+
+button {
+	background-color: #ddd;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	border: none;
+	padding: 2px 8px;
+}
+button:enabled {
+	background-color: #ddd;
+	cursor: pointer;
+}
+button:enabled:active {
+	background-color: #bbb;
+}
+
+.row > .presets {
+	font-size: inherit;
+}
+.file {
+	border: 0.15em solid #ddd;
+}
+.file > * {
+	width: 100%;
+}
+.file > .header {
+	display: flex;
+	padding: 0.3em;
+	border-bottom: inherit;
+}
+.file > .header > .filename {
+	flex-grow: 1;
+}
+.file > .header > .filename:focus {
+	outline: none;
+}
+.file > .header > .setEntry {
+	margin-left: auto;
+}
+.file > .header > .remove {
+	margin-left: 0.3em;
+}
+.file > .header > .outputSize {
+	margin-left: auto;
+}
+
+.file > .source .CodeMirror {
+	height: auto;
+}
+.row > button {
+	width: 100%;
+	font-size: 1em;
+	padding: 0.4em;
+}
+.start {
+	filter: brightness(80%);
+}
+
+.options > label {
+	padding: 0.3em;
+	display: block;
+}
+.options > label > input {
+	float: right;
+}
+.options > label > input[type='text'] {
+	width: 50%;
+	padding: 0;
+	font-size: 0.9em;
+}
+.notes {
+	padding: 0.3em;
+	padding-right: 0.2em;
+}
+
+.row > .gettingStarted {
+	padding: 2em 0.3em;
+	text-align: center;
+}
+
+.row > .gettingStarted > * {
+	margin: 1em 0;
+}
+
+.row > .loadState {
+	padding: 0.4em;
+	text-align: center;
+}
+.row > .loadState.loading {
+	background-color: orange;
+}
+.row > .loadState.ready {
+	background-color: #5cb35f;
+}
+
+.row > .output {
+	width: 50%;
+}
+.row > .error {
+	white-space: pre;
+	font-family: monospace;
+	overflow-y: scroll;
+
+	color: red;
+
+	padding: 0.3em;
+}

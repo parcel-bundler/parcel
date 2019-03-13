@@ -1,0 +1,19 @@
+html,
+body,
+#root {
+	height: 100%;
+	width: 100%;
+	margin: 0;
+}
+
+body {
+	padding: 1em;
+}
+
+header > h1 {
+	margin: 0;
+}
+header > h1 a {
+	text-decoration: none;
+	color: initial;
+}

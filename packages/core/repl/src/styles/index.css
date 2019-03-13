@@ -1,0 +1,10 @@
+html {
+	box-sizing: border-box;
+	font-family: sans-serif;
+}
+* {
+	box-sizing: inherit;
+}
+
+@import './main.css';
+@import './app.css';
