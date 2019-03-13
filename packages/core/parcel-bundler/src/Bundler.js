@@ -102,13 +102,9 @@ class Bundler extends EventEmitter {
 
   findEntryFiles(entryFiles) {
     // Match files as globs
-    if (process.browser) {
-      return entryFiles.map(f => Path.resolve(f));
-    } else {
-      return entryFiles
-        .reduce((p, m) => p.concat(glob.sync(m)), [])
-        .map(f => Path.resolve(f));
-    }
+    return entryFiles
+      .reduce((p, m) => p.concat(glob.sync(m)), [])
+      .map(f => Path.resolve(f));
   }
 
   normalizeOptions(options) {

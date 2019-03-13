@@ -100,7 +100,8 @@ class App extends Component {
 
   componentDidMount() {
     document.addEventListener('keydown', e => {
-      if (e.metaKey && e.code === 'Enter') this.startBundling();
+      if (e.metaKey && (e.code === 'Enter' || e.code === 'KeyB'))
+        this.startBundling();
     });
   }
 

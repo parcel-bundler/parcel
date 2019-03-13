@@ -7,6 +7,7 @@ if (process.browser) {
     }
   }
   fs.lstat = fs.stat;
+  fs.lstatSync = fs.statSync;
   const createWriteStream = fs.createWriteStream;
   fs.createWriteStream = path => {
     const s = createWriteStream(path);
