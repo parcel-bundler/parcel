@@ -18,21 +18,7 @@ export function hasBrowserslist(assets) {
 }
 
 export function ParcelError(props) {
-  let {highlightedCodeFrame, loc, fileName, message, stack} = props.error;
-  // eslint-disable-next-line no-undef
-  window.lastError = props.error;
-
-  fileName = fileName
-    ? fileName.replace(/^\/src\//, '') +
-      (loc && loc.line ? `:${loc.line}:${loc.column}:` : ':')
-    : '';
-  highlightedCodeFrame = highlightedCodeFrame || '';
-  stack = (!highlightedCodeFrame && stack) || '';
-  return (
-    <div class="file error">
-      {`${fileName} ${message}\n${highlightedCodeFrame}\n${stack}`.trim()}
-    </div>
-  );
+  return <div class="file error">{props.error.message.trim()}</div>;
 }
 
 export const PRESETS = {

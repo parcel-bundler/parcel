@@ -20,6 +20,7 @@ self.document = {
 };
 
 import fs from '@parcel/fs';
+import prettyError from '@parcel/logger/src/prettyError';
 import fsNative from 'fs';
 import Bundler from 'parcel-bundler';
 
@@ -48,19 +49,30 @@ export async function bundle(assets, options) {
 
   if (!entryPoints.length) throw new Error('No asset marked as entrypoint');
 
-  const bundler = new Bundler(entryPoints, {
-    outDir: '/dist',
-    autoinstall: false,
-    watch: false,
-    cache: true,
-    hmr: false,
-    logLevel: 0,
-    minify: options.minify,
-    scopeHoist: options.scopeHoist,
-    sourceMaps: options.sourceMaps,
-    publicUrl: options.publicUrl
-  });
-  await bundler.bundle();
+  try {
+    const bundler = new Bundler(entryPoints, {
+      outDir: '/dist',
+      autoinstall: false,
+      watch: false,
+      cache: true,
+      hmr: false,
+      logLevel: 0,
+      minify: options.minify,
+      scopeHoist: options.scopeHoist,
+      sourceMaps: options.sourceMaps,
+      publicUrl: options.publicUrl
+    });
+    await bundler.bundle();
+  } catch (e) {
+    let result = '';
+
+    const {message, stack} = prettyError(e, {color: true});
+    result += message + '\n';
+    if (stack) {
+      result += stack + '\n';
+    }
+    throw new Error(result);
+  }
 
   const output = [];
 
