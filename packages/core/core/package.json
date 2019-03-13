@@ -15,24 +15,37 @@
   "dependencies": {
     "@parcel/cache": "^2.0.0",
     "@parcel/config-default": "^2.0.0",
+    "@parcel/fs": "^1.10.3",
+    "@parcel/logger": "^1.10.3",
     "@parcel/plugin": "^2.0.0",
     "@parcel/types": "^2.0.0",
     "@parcel/utils": "^1.10.3",
+    "@parcel/watcher": "^1.10.3",
+    "@parcel/workers": "^1.10.3",
     "abortcontroller-polyfill": "^1.1.9",
+    "browserslist": "^4.1.0",
     "chalk": "^2.1.0",
+    "clone": "^2.1.1",
     "commander": "^2.11.0",
+    "dotenv": "^5.0.0",
+    "dotenv-expand": "^4.2.0",
+    "json5": "^1.0.1",
+    "micromatch": "^3.0.4",
     "minimatch": "^3.0.4",
     "nullthrows": "^1.1.1",
     "p-queue": "^2.4.2",
     "pretty-format": "^23.5.0",
     "resolve-from": "^4.0.0",
+    "semver": "^5.4.1",
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
     "@parcel/babel-register": "2.0.0",
     "@parcel/eslint-config": "1.10.3",
+    "@parcel/logger": "1.10.3",
     "delay": "^4.1.0",
-    "random-int": "^1.0.0"
+    "random-int": "^1.0.0",
+    "sinon": "^5.0.1"
   },
   "bin": {
     "parcel": "bin.js"
