@@ -55,13 +55,13 @@ use for parcel-bundler: (logger, worker)
 #### core issues
 
 - remove sourcemap from libs if --no-source-map (`preact`, `performance-now)
-- envfile: is somehow not busting cache
 - Fix `existsCache` map for getConfig (parser.js) (file issue: not reset at runtime, not an issue with cli ???)
 - non existing css linked by html: undefined line/column by css
 - (scope hoisting: don't replace node builtins) -> #2796
 
 ### REPL Issues
 
+- use `memfs` for mtime (but: `require(...).emitWarning is not a function`)
 - "Production" ? NODE_ENV ? As cli flag?
 - use cache (if enabeld, Markdown isn't updating)
 - fix htmlnano/postcss/cssnano runtime `require`s

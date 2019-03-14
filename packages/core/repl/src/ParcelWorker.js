@@ -23,6 +23,9 @@ self.document = {
   ]
 };
 
+import process from 'process';
+self.process = process;
+
 import fs from '@parcel/fs';
 import prettyError from '@parcel/logger/src/prettyError';
 import fsNative from 'fs';
@@ -34,6 +37,7 @@ export async function bundle(assets, options) {
   // if (fsNative.data.src) delete fsNative.data.src;
   // if (fsNative.data.dist) delete fsNative.data.dist;
   fsNative.data = {};
+  process.env = {};
 
   await fs.mkdirp('/src/');
 

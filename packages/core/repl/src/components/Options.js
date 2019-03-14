@@ -76,7 +76,7 @@ export default function Options({values, onChange, enableBrowserslist}) {
         Target
         <select
           onChange={e => onChange('target', e.target.value)}
-          value={this.state.target}
+          value={values.target}
         >
           <option value="browser">Browser</option>
           <option value="node">Node</option>

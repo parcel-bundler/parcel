@@ -71,6 +71,14 @@ export const PRESETS = {
     },
     {name: 'test.json', content: '{a: 2, b: 3}'}
   ],
+  Envfile: [
+    {
+      name: 'index.js',
+      content: 'console.log(process.env.SOMETHING);',
+      isEntry: true
+    },
+    {name: '.env', content: 'SOMETHING=124'}
+  ],
   Typescript: [
     {
       name: 'index.ts',
