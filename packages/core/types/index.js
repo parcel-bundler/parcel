@@ -444,3 +444,5 @@ export type Resolver = {|
 export type Reporter = {|
   report(bundles: Array<Bundle>, opts: CLIOptions): void
 |};
+
+export type ErrorWithCode = Error & {code?: string};

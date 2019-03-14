@@ -1,39 +1,54 @@
-const {errorUtils} = require('@parcel/utils');
-const {serialize, deserialize} = require('@parcel/utils/serializer');
+// @flow
+
+import type {
+  CallRequest,
+  WorkerDataResponse,
+  WorkerErrorResponse,
+  WorkerMessage,
+  WorkerRequest,
+  WorkerResponse
+} from './types';
+
+import invariant from 'assert';
+import nullthrows from 'nullthrows';
+import {errorUtils} from '@parcel/utils';
+import {serialize, deserialize} from '@parcel/utils/serializer';
+
+type ChildCall = WorkerRequest & {|
+  resolve: (result: Promise<any> | any) => void,
+  reject: (error: any) => void
+|};
 
 class Child {
+  callQueue: Array<ChildCall> = [];
+  childId: ?number;
+  maxConcurrentCalls: number = 10;
+  module: ?any;
+  responseId = 0;
+  responseQueue: Map<number, ChildCall> = new Map();
+
   constructor() {
     if (!process.send) {
       throw new Error('Only create Child instances in a worker!');
     }
-
-    this.module = undefined;
-    this.childId = undefined;
-
-    this.callQueue = [];
-    this.responseQueue = new Map();
-    this.responseId = 0;
-    this.maxConcurrentCalls = 10;
   }
 
-  messageListener(data) {
+  messageListener(data: string): void | Promise<void> {
     if (data === 'die') {
       return this.end();
     }
 
-    data = deserialize(data);
-
-    let type = data.type;
-    if (type === 'response') {
-      return this.handleResponse(data);
-    } else if (type === 'request') {
-      return this.handleRequest(data);
+    let message: WorkerMessage = deserialize(data);
+    if (message.type === 'response') {
+      return this.handleResponse(message);
+    } else if (message.type === 'request') {
+      return this.handleRequest(message);
     }
   }
 
-  async send(data) {
-    data = serialize(data);
-    process.send(data, err => {
+  async send(data: WorkerMessage): Promise<void> {
+    let processSend = nullthrows(process.send).bind(process);
+    processSend(serialize(data), err => {
       if (err && err instanceof Error) {
         if (err.code === 'ERR_IPC_CHANNEL_CLOSED') {
           // IPC connection closed
@@ -44,38 +59,56 @@ class Child {
     });
   }
 
-  childInit(module, childId) {
+  childInit(module: any, childId: number): void {
+    // $FlowFixMe this must be dynamic
     this.module = require(module);
     this.childId = childId;
   }
 
-  async handleRequest(data) {
-    let idx = data.idx;
-    let child = data.child;
-    let method = data.method;
-    let args = data.args;
+  async handleRequest(data: WorkerRequest): Promise<void> {
+    let {idx, method, args} = data;
+    let child = nullthrows(data.child);
 
-    let result = {idx, child, type: 'response'};
-    try {
-      result.contentType = 'data';
-      if (method === 'childInit') {
-        result.content = this.childInit(...args, child);
-      } else {
-        result.content = await this.module[method](...args);
+    const responseFromContent = (content: any): WorkerDataResponse => ({
+      idx,
+      child,
+      type: 'response',
+      contentType: 'data',
+      content
+    });
+
+    const errorResponseFromError = (e: Error): WorkerErrorResponse => ({
+      idx,
+      child,
+      type: 'response',
+      contentType: 'error',
+      content: errorUtils.errorToJson(e)
+    });
+
+    let result;
+    if (method === 'childInit') {
+      try {
+        result = responseFromContent(this.childInit(...args, child));
+      } catch (e) {
+        result = errorResponseFromError(e);
       }
-    } catch (e) {
-      result.contentType = 'error';
-      result.content = errorUtils.errorToJson(e);
+    } else {
+      try {
+        // $FlowFixMe
+        result = responseFromContent(await this.module[method](...args));
+      } catch (e) {
+        result = errorResponseFromError(e);
+      }
     }
 
     this.send(result);
   }
 
-  async handleResponse(data) {
-    let idx = data.idx;
+  async handleResponse(data: WorkerResponse): Promise<void> {
+    let idx = nullthrows(data.idx);
     let contentType = data.contentType;
     let content = data.content;
-    let call = this.responseQueue.get(idx);
+    let call = nullthrows(this.responseQueue.get(idx));
 
     if (contentType === 'error') {
       call.reject(errorUtils.jsonToError(content));
@@ -90,11 +123,19 @@ class Child {
   }
 
   // Keep in mind to make sure responses to these calls are JSON.Stringify safe
-  async addCall(request, awaitResponse = true) {
-    let call = request;
-    call.type = 'request';
-    call.child = this.childId;
-    call.awaitResponse = awaitResponse;
+  async addCall(
+    request: CallRequest,
+    awaitResponse: boolean = true
+  ): Promise<mixed> {
+    // $FlowFixMe
+    let call: ChildCall = {
+      ...request,
+      type: 'request',
+      child: nullthrows(this.childId),
+      awaitResponse,
+      resolve: () => {},
+      reject: () => {}
+    };
 
     let promise;
     if (awaitResponse) {
@@ -110,14 +151,17 @@ class Child {
     return promise;
   }
 
-  async sendRequest(call) {
+  async sendRequest(call: ChildCall): Promise<void> {
     let idx;
     if (call.awaitResponse) {
       idx = this.responseId++;
       this.responseQueue.set(idx, call);
     }
+
+    invariant(idx != null);
+
     this.send({
-      idx: idx,
+      idx,
       child: call.child,
       type: call.type,
       location: call.location,
@@ -127,7 +171,7 @@ class Child {
     });
   }
 
-  async processQueue() {
+  async processQueue(): Promise<void> {
     if (!this.callQueue.length) {
       return;
     }
@@ -137,7 +181,7 @@ class Child {
     }
   }
 
-  end() {
+  end(): void {
     process.exit();
   }
 }
