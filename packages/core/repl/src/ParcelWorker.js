@@ -64,7 +64,10 @@ export async function bundle(assets, options) {
       minify: options.minify,
       scopeHoist: options.scopeHoist,
       sourceMaps: options.sourceMaps,
-      publicUrl: options.publicUrl
+      publicUrl: options.publicUrl,
+      global: options.global,
+      contentHash: options.contentHash,
+      target: options.target
     });
     await bundler.bundle();
   } catch (e) {

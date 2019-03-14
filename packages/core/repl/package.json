@@ -15,8 +15,11 @@
     "deploy": "yarn prod && now && now alias"
   },
   "dependencies": {
+    "@parcel/fs": "^1.11.0",
+    "@parcel/logger": "^1.11.0",
     "codemirror": "^5.44.0",
     "comlink": "^3.2.0",
+    "parcel-bundler": "^1.12.1",
     "preact": "next",
     "react-codemirror2": "^5.1.0",
     "toml": "^3.0.0"

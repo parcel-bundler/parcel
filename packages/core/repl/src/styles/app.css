@@ -92,10 +92,12 @@ button:enabled:active {
 	padding: 0.3em;
 	display: block;
 }
-.options > label > input {
+.options > label > input,
+.options > label > select {
 	float: right;
 }
-.options > label > input[type='text'] {
+.options > label > input[type='text'],
+.options > label > select {
 	width: 50%;
 	padding: 0 0.2em;
 	font-size: 0.9em;

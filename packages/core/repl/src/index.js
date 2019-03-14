@@ -64,16 +64,19 @@ class App extends Component {
         currentPreset: DEFAULT_PRESET,
         assets: PRESETS[DEFAULT_PRESET],
         options: {
+          minify: true,
+          scopeHoist: true,
+          sourceMaps: false,
+          contentHash: true,
           browserslist: '',
-          publicUrl: ''
+          publicUrl: '',
+          target: 'browser',
+          global: ''
         }
       };
     }
 
     const options = this.state.options;
-    if (!('minify' in options)) options.minify = true;
-    if (!('scopeHoist' in options)) options.scopeHoist = true;
-    if (!('sourceMaps' in options)) options.sourceMaps = false;
 
     workerLoaded.then(() => this.setState({workerReady: true}));
   }

@@ -35,6 +35,14 @@ export default function Options({values, onChange, enableBrowserslist}) {
           onChange={e => onChange('sourceMaps', e.target.checked)}
         />
       </label>
+      <label title="Sets `--no-content-hash`">
+        Content hashing (as opposed to path-based)
+        <input
+          type="checkbox"
+          checked={values.contentHash}
+          onChange={e => onChange('contentHash', e.target.checked)}
+        />
+      </label>
       <label title="Not an actual CLI option, put this into a .browserslistrc 😁">
         Browserslist target, example: <code>Chrome 70</code>
         <input
@@ -47,6 +55,14 @@ export default function Options({values, onChange, enableBrowserslist}) {
           onChange={e => onChange('browserslist', e.target.value)}
         />
       </label>
+      <label title="Sets `--global <value>`">
+        Global (expose module as UMD)
+        <input
+          type="text"
+          placeholder="[disabled]"
+          onChange={e => onChange('global', e.target.value)}
+        />
+      </label>
       <label title="Gets set as `--public-url <value>`">
         Public URL
         <input
@@ -55,6 +71,17 @@ export default function Options({values, onChange, enableBrowserslist}) {
           placeholder="/"
           onChange={e => onChange('publicUrl', e.target.value)}
         />
+      </label>
+      <label title="Gets set as `--target <value>`">
+        Target
+        <select
+          onChange={e => onChange('target', e.target.value)}
+          value={this.state.target}
+        >
+          <option value="browser">Browser</option>
+          <option value="node">Node</option>
+          <option value="electron">Electron</option>
+        </select>
       </label>
     </div>
   );

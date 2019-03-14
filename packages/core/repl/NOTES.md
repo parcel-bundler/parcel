@@ -34,6 +34,8 @@ Connecting with Chrome Devtools to Chrome on Android silently prevents the execu
 
 ### Other TODOs
 
+"Production" ? NODE_ENV ? As cli flag?
+
 ```js
 if(process.env.NODE_ENV === "development"){
   require("preact/debug");
@@ -52,6 +54,7 @@ use for parcel-bundler: (logger, worker)
 }
 ```
 
+- scope hoisting: keep node builtins
 - envfile: is somehow cached until reload?
 - fix htmlnano/postcss/cssnano runtime `require`s
 
