@@ -257,7 +257,9 @@ class Asset {
         // Replace temporary bundle names in the output with the final content-hashed names.
         let newValue = value;
         for (let [name, map] of bundleNameMap) {
-          newValue = newValue.split(name).join(map);
+          newValue = newValue
+            .split(name)
+            .join(this.makeBundlePathRelativeToParentBundle(map));
         }
 
         // Copy `this.generated` on write so we don't end up writing the final names to the cache.
@@ -269,6 +271,29 @@ class Asset {
         this.generated[key] = newValue;
       }
     }
+  }
+
+  makeBundlePathRelativeToParentBundle(bundlePath) {
+    if (path.isAbsolute(bundlePath)) {
+      return bundlePath;
+    }
+    if (!this.options || !this.options.publicURL) {
+      return bundlePath;
+    }
+    const urlPath = URL.parse(this.options.publicURL).path;
+    if (path.isAbsolute(urlPath)) {
+      return bundlePath;
+    }
+
+    // contentHash true or false does not matter because
+    // we only use the directory part of the path.
+    const parentBundleRelativePath = this.parentBundle.getHashedBundleName();
+    const parentBundleRelativeDir =
+      path.dirname(parentBundleRelativePath) || '.';
+    const relativeBundlePath = path
+      .relative(parentBundleRelativeDir, bundlePath)
+      .replace('\\', '/');
+    return relativeBundlePath;
   }
 
   generateErrorMessage(err) {

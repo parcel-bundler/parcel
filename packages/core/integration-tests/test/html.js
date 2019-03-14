@@ -836,4 +836,134 @@ describe('html', function() {
       'Imports and requires are not supported inside inline <script> tags yet.'
     );
   });
+
+  it('should write correct relative urls in html file in sub directory when relative public url is specified', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/html-js-in-subdir/index.html'),
+      {
+        publicURL: './'
+      }
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'html',
+          assets: ['page1-in-subdir.html'],
+          childBundles: [
+            {
+              type: 'html',
+              assets: ['page2-in-subdir.html']
+            }
+          ]
+        }
+      ]
+    });
+
+    let html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
+
+    // link to html page in sub dir
+    assert(
+      html.includes(
+        '<a href="subdir/page1-in-subdir.html">./subdir/page1-in-subdir.html</a>'
+      )
+    );
+
+    let htmlInSubDir1 = await fs.readFile(
+      path.join(__dirname, '/dist/subdir/page1-in-subdir.html'),
+      'utf8'
+    );
+
+    const href = htmlInSubDir1.match(/href="(.*)"/);
+    assert(href, 'href contained in page1-in-subdir.html');
+    assert.equal(href[1], 'page2-in-subdir.html');
+
+    const src = htmlInSubDir1.match(/<script src="(.+)"/);
+    assert(src, '<script src="..."> contained in page1-in-subdir.html');
+    const jsLink = src[1];
+    const jsFileLinkStart = '../in-subdir';
+    assert(
+      jsLink.startsWith(jsFileLinkStart),
+      `JavaScript file link should start with '${jsFileLinkStart}' but is '${jsLink}'`
+    );
+
+    let htmlInSubDir2 = await fs.readFile(
+      path.join(__dirname, '/dist/subdir/page2-in-subdir.html'),
+      'utf8'
+    );
+
+    const href2 = htmlInSubDir2.match(/href="(.*)"/);
+    assert(href2, 'href contained in page1-in-subdir.html');
+    assert.equal(href2[1], 'page1-in-subdir.html');
+  });
+
+  it('should write correct absolute urls in html file in sub directory when absolute public url is specified', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/html-js-in-subdir/index.html'),
+      {
+        publicURL: '/'
+      }
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'html',
+          assets: ['page1-in-subdir.html'],
+          childBundles: [
+            {
+              type: 'html',
+              assets: ['page2-in-subdir.html']
+            }
+          ]
+        }
+      ]
+    });
+
+    let html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
+
+    // link to html page in sub dir
+    assert(
+      html.includes(
+        '<a href="/subdir/page1-in-subdir.html">./subdir/page1-in-subdir.html</a>'
+      )
+    );
+
+    let htmlInSubDir1 = await fs.readFile(
+      path.join(__dirname, '/dist/subdir/page1-in-subdir.html'),
+      'utf8'
+    );
+
+    const href = htmlInSubDir1.match(/href="(.*)"/);
+    assert(href, 'href contained in page1-in-subdir.html');
+    assert.equal(href[1], '/subdir/page2-in-subdir.html');
+
+    const src = htmlInSubDir1.match(/<script src="(.+)"/);
+    assert(src, '<script src="..."> contained in page1-in-subdir.html');
+    const jsLink = src[1];
+    const jsFileLinkStart = '/in-subdir';
+    assert(
+      jsLink.startsWith(jsFileLinkStart),
+      `JavaScript file link should start with '${jsFileLinkStart}' but is '${jsLink}'`
+    );
+
+    let htmlInSubDir2 = await fs.readFile(
+      path.join(__dirname, '/dist/subdir/page2-in-subdir.html'),
+      'utf8'
+    );
+
+    const href2 = htmlInSubDir2.match(/href="(.*)"/);
+    assert(href2, 'href contained in page1-in-subdir.html');
+    assert.equal(href2[1], '/subdir/page1-in-subdir.html');
+  });
 });
