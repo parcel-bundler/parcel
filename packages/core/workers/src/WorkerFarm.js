@@ -1,44 +1,74 @@
-const {EventEmitter} = require('events');
-const {errorUtils} = require('@parcel/utils');
-const Worker = require('./Worker');
-const cpuCount = require('./cpuCount');
+// @flow
+
+import type {ErrorWithCode, FilePath} from '@parcel/types';
+import type {
+  BundlerOptions,
+  CallRequest,
+  WorkerRequest,
+  WorkerResponse,
+  WorkerDataResponse,
+  WorkerErrorResponse
+} from './types';
+
+import nullthrows from 'nullthrows';
+import EventEmitter from 'events';
+import {errorUtils} from '@parcel/utils';
+import Worker, {type WorkerCall} from './Worker';
+import cpuCount from './cpuCount';
 
 let shared = null;
+
+type FarmOptions = {|
+  maxConcurrentWorkers: number,
+  maxConcurrentCallsPerWorker: number,
+  forcedKillTime: number,
+  useLocalWorker: boolean,
+  warmWorkers: boolean,
+  workerPath?: FilePath
+|};
+
+type HandleFunction = (...args: Array<any>) => Promise<any>;
 
 /**
  * workerPath should always be defined inside farmOptions
  */
 
-class WorkerFarm extends EventEmitter {
-  constructor(options, farmOptions = {}) {
+export default class WorkerFarm extends EventEmitter {
+  bundlerOptions: BundlerOptions;
+  callQueue: Array<WorkerCall> = [];
+  ending: boolean = false;
+  localWorker: Worker;
+  options: FarmOptions;
+  run: HandleFunction;
+  warmWorkers: number = 0;
+  workers: Map<number, Worker> = new Map();
+
+  constructor(
+    bundlerOptions: BundlerOptions,
+    farmOptions: $Shape<FarmOptions> = {}
+  ) {
     super();
     this.options = {
       maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
       maxConcurrentCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(),
       forcedKillTime: 500,
       warmWorkers: true,
-      useLocalWorker: true
+      useLocalWorker: true,
+      ...farmOptions
     };
-
-    if (farmOptions) {
-      this.options = Object.assign(this.options, farmOptions);
-    }
-
-    this.warmWorkers = 0;
-    this.workers = new Map();
-    this.callQueue = [];
 
     if (!this.options.workerPath) {
       throw new Error('Please provide a worker path!');
     }
 
+    // $FlowFixMe this must be dynamic
     this.localWorker = require(this.options.workerPath);
     this.run = this.mkhandle('run');
 
-    this.init(options);
+    this.init(bundlerOptions);
   }
 
-  warmupWorker(method, args) {
+  warmupWorker(method: string, args: Array<any>): void {
     // Workers are already stopping
     if (this.ending) {
       return;
@@ -60,13 +90,13 @@ class WorkerFarm extends EventEmitter {
     }
   }
 
-  shouldStartRemoteWorkers() {
+  shouldStartRemoteWorkers(): boolean {
     return (
       this.options.maxConcurrentWorkers > 0 || !this.options.useLocalWorker
     );
   }
 
-  mkhandle(method) {
+  mkhandle(method: string): HandleFunction {
     return (...args) => {
       // Child process workers are slow to start (~600ms).
       // While we're waiting, just run on the main thread.
@@ -78,12 +108,13 @@ class WorkerFarm extends EventEmitter {
           this.warmupWorker(method, args);
         }
 
+        // $FlowFixMe
         return this.localWorker[method](...args, false);
       }
     };
   }
 
-  onError(error, worker) {
+  onError(error: ErrorWithCode, worker: Worker) {
     // Handle ipc errors
     if (error.code === 'ERR_IPC_CHANNEL_CLOSED') {
       return this.stopWorker(worker);
@@ -91,9 +122,9 @@ class WorkerFarm extends EventEmitter {
   }
 
   startChild() {
-    let worker = new Worker(this.options);
+    let worker = new Worker({forcedKillTime: this.options.forcedKillTime});
 
-    worker.fork(this.options.workerPath, this.bundlerOptions);
+    worker.fork(nullthrows(this.options.workerPath), this.bundlerOptions);
 
     worker.on('request', data => this.processRequest(data, worker));
 
@@ -106,7 +137,7 @@ class WorkerFarm extends EventEmitter {
     this.workers.set(worker.id, worker);
   }
 
-  async stopWorker(worker) {
+  async stopWorker(worker: Worker): Promise<void> {
     if (!worker.stopped) {
       this.workers.delete(worker.id);
 
@@ -119,7 +150,7 @@ class WorkerFarm extends EventEmitter {
         }
       }
 
-      worker.calls = null;
+      worker.calls.clear();
 
       await worker.stop();
 
@@ -128,7 +159,7 @@ class WorkerFarm extends EventEmitter {
     }
   }
 
-  async processQueue() {
+  async processQueue(): Promise<void> {
     if (this.ending || !this.callQueue.length) return;
 
     if (this.workers.size < this.options.maxConcurrentWorkers) {
@@ -150,32 +181,46 @@ class WorkerFarm extends EventEmitter {
     }
   }
 
-  async processRequest(data, worker = false) {
-    let result = {
-      idx: data.idx,
-      type: 'response'
-    };
-
-    let method = data.method;
-    let args = data.args;
-    let location = data.location;
-    let awaitResponse = data.awaitResponse;
-
+  async processRequest(
+    data: {|
+      location: FilePath
+    |} & $Shape<WorkerRequest>,
+    worker?: Worker
+  ): Promise<?WorkerResponse> {
+    let {method, args, location, awaitResponse, idx} = data;
     if (!location) {
       throw new Error('Unknown request');
     }
 
+    const responseFromContent = (content: any): WorkerDataResponse => ({
+      idx,
+      type: 'response',
+      contentType: 'data',
+      content
+    });
+
+    const errorResponseFromError = (e: Error): WorkerErrorResponse => ({
+      idx,
+      type: 'response',
+      contentType: 'error',
+      content: errorUtils.errorToJson(e)
+    });
+
+    // $FlowFixMe this must be dynamic
     const mod = require(location);
-    try {
-      result.contentType = 'data';
-      if (method) {
-        result.content = await mod[method](...args);
-      } else {
-        result.content = await mod(...args);
+    let result;
+    if (method == null) {
+      try {
+        result = responseFromContent(await mod(...args));
+      } catch (e) {
+        result = errorResponseFromError(e);
       }
-    } catch (e) {
-      result.contentType = 'error';
-      result.content = errorUtils.errorToJson(e);
+    } else {
+      try {
+        result = responseFromContent(await mod[method](...args));
+      } catch (e) {
+        result = errorResponseFromError(e);
+      }
     }
 
     if (awaitResponse) {
@@ -187,7 +232,7 @@ class WorkerFarm extends EventEmitter {
     }
   }
 
-  addCall(method, args) {
+  addCall(method: string, args: Array<any>): Promise<any> {
     if (this.ending) {
       throw new Error('Cannot add a worker call if workerfarm is ending.');
     }
@@ -204,7 +249,7 @@ class WorkerFarm extends EventEmitter {
     });
   }
 
-  async end() {
+  async end(): Promise<void> {
     this.ending = true;
     await Promise.all(
       Array.from(this.workers.values()).map(worker => this.stopWorker(worker))
@@ -213,7 +258,7 @@ class WorkerFarm extends EventEmitter {
     shared = null;
   }
 
-  init(bundlerOptions) {
+  init(bundlerOptions: BundlerOptions): void {
     this.bundlerOptions = bundlerOptions;
 
     if (this.shouldStartRemoteWorkers()) {
@@ -224,13 +269,13 @@ class WorkerFarm extends EventEmitter {
     this.startMaxWorkers();
   }
 
-  persistBundlerOptions() {
+  persistBundlerOptions(): void {
     for (let worker of this.workers.values()) {
       worker.init(this.bundlerOptions);
     }
   }
 
-  startMaxWorkers() {
+  startMaxWorkers(): void {
     // Starts workers until the maximum is reached
     if (this.workers.size < this.options.maxConcurrentWorkers) {
       for (
@@ -243,7 +288,7 @@ class WorkerFarm extends EventEmitter {
     }
   }
 
-  shouldUseRemoteWorkers() {
+  shouldUseRemoteWorkers(): boolean {
     return (
       !this.options.useLocalWorker ||
       ((this.warmWorkers >= this.workers.size || !this.options.warmWorkers) &&
@@ -251,7 +296,14 @@ class WorkerFarm extends EventEmitter {
     );
   }
 
-  static async getShared(options, farmOptions) {
+  static async getShared(
+    options?: BundlerOptions,
+    farmOptions?: $Shape<FarmOptions>
+  ): Promise<WorkerFarm> {
+    if (!shared && !options) {
+      throw new Error('Workerfarm should be initialised using options');
+    }
+
     // Farm options shouldn't be considered safe to overwrite
     // and require an entire new instance to be created
     if (
@@ -264,14 +316,10 @@ class WorkerFarm extends EventEmitter {
     }
 
     if (!shared) {
-      shared = new WorkerFarm(options, farmOptions);
+      shared = new WorkerFarm(nullthrows(options), farmOptions);
     } else if (options) {
       Object.assign(shared.options, farmOptions);
       shared.init(options);
-    }
-
-    if (!shared && !options) {
-      throw new Error('Workerfarm should be initialised using options');
     }
 
     return shared;
@@ -283,11 +331,15 @@ class WorkerFarm extends EventEmitter {
       : cpuCount();
   }
 
-  static async callMaster(request, awaitResponse = true) {
+  static async callMaster(
+    request: CallRequest,
+    awaitResponse: boolean = true
+  ): Promise<mixed> {
     if (WorkerFarm.isWorker()) {
       const child = require('./child');
       return child.addCall(request, awaitResponse);
     } else {
+      // $FlowFixMe
       return (await WorkerFarm.getShared()).processRequest(request);
     }
   }
@@ -300,5 +352,3 @@ class WorkerFarm extends EventEmitter {
     return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
   }
 }
-
-module.exports = WorkerFarm;
