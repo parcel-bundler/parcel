@@ -2,7 +2,7 @@
   "name": "@parcel/logger",
   "version": "1.10.3",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "index.js",
+  "main": "src/Logger.js",
   "license": "MIT",
   "repository": {
     "type": "git",
