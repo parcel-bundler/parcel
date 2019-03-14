@@ -1,6 +1,6 @@
 {
   "name": "@parcel/integration-tests",
-  "version": "1.12.1",
+  "version": "1.12.2",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -27,7 +27,7 @@
     "mocha-multi-reporters": "^1.1.7",
     "ncp": "^2.0.0",
     "nyc": "^11.1.0",
-    "parcel-bundler": "^1.12.1",
+    "parcel-bundler": "^1.12.2",
     "rimraf": "^2.6.1",
     "sinon": "^5.0.1",
     "sourcemap-validator": "^1.0.6",
