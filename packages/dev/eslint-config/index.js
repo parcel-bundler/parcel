@@ -1,7 +1,7 @@
 module.exports = {
   extends: ['eslint:recommended', 'plugin:flowtype/recommended'],
   parser: 'babel-eslint',
-  plugins: ['flowtype'],
+  plugins: ['flowtype', 'import'],
   parserOptions: {
     ecmaVersion: 8,
     ecmaFeatures: {
@@ -15,5 +15,11 @@ module.exports = {
   globals: {
     parcelRequire: true,
     define: true
+  },
+  rules: {
+    'import/first': 'error',
+    'import/newline-after-import': 'error',
+    'import/no-extraneous-dependencies': 'error',
+    'import/no-self-import': 'error'
   }
 };

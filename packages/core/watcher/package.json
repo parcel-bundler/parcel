@@ -17,7 +17,7 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "fswatcher-child": "^1.0.5"
+    "chokidar": "^2.0.4"
   },
   "devDependencies": {
     "mocha": "^5.2.0",

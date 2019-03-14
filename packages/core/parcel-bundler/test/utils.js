@@ -13,6 +13,7 @@ const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
 
 const chalk = new (require('chalk')).constructor({enabled: true});
+
 const warning = chalk.keyword('orange');
 // eslint-disable-next-line no-console
 console.warn = (...args) => {

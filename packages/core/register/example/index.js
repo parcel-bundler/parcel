@@ -1,4 +1,4 @@
-require('@parcel/register');
+require('../');
 
 const count = require('./count.js');
 const number = require('./number.js');

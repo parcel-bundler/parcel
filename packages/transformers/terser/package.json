@@ -14,6 +14,10 @@
     "build": "babel src -d lib",
     "prepublish": "yarn build"
   },
+  "dependencies": {
+    "@parcel/plugin": "^2.0.0",
+    "terser": "^3.7.3"
+  },
   "devDependencies": {
     "@parcel/eslint-config": "1.10.3"
   }

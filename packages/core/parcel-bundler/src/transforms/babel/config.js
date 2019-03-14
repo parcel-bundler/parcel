@@ -7,6 +7,7 @@ const fs = require('@parcel/fs');
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 const ENV_PLUGINS = require('@babel/preset-env/data/plugins');
+
 const ENV_PRESETS = {
   es2015: true,
   es2016: true,

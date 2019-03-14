@@ -15,7 +15,19 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0"
+    "@babel/core": "^7.0.0",
+    "@babel/generator": "^7.0.0",
+    "@babel/plugin-transform-flow-strip-types": "^7.0.0",
+    "@babel/plugin-transform-react-jsx": "^7.0.0",
+    "@babel/preset-env": "^7.0.0",
+    "@babel/traverse": "^7.0.0",
+    "@parcel/fs": "^1.10.3",
+    "@parcel/logger": "^1.10.3",
+    "@parcel/plugin": "^2.0.0",
+    "@parcel/utils": "^1.10.3",
+    "browserslist": "^4.1.0",
+    "micromatch": "^3.0.4",
+    "semver": "^5.4.1"
   },
   "devDependencies": {
     "@parcel/eslint-config": "1.10.3"
