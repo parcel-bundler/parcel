@@ -1,5 +1,5 @@
 const spawn = require('cross-spawn');
-const logger = require('@parcel/logger');
+const logger = require('@parcel/logger').default;
 
 function pipeSpawn(cmd, params, opts) {
   const cp = spawn(

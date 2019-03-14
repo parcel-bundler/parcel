@@ -1,6 +1,6 @@
-const assert = require('assert');
-const sinon = require('sinon');
-const Logger = require('../src/Logger');
+import assert from 'assert';
+import sinon from 'sinon';
+import Logger from '../src/Logger';
 
 describe('Logger', () => {
   let log;
