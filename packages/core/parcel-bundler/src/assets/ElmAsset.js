@@ -39,7 +39,9 @@ class ElmAsset extends Asset {
       await this.getConfig(['elm.json'], {load: false});
     }
 
-    options.debug = !this.options.production;
+    options.debug = (!this.options.production) && 
+      (process.env.PARCEL_ELM_NO_DEBUG === undefined);
+    
     if (this.options.minify) {
       options.optimize = true;
     }
