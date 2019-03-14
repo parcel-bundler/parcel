@@ -1,4 +1,6 @@
-function serialize(object) {
+// @flow
+
+export function serialize(object: any): string {
   return JSON.stringify(object, (key, value) => {
     let serialized = value;
 
@@ -23,7 +25,7 @@ function serialize(object) {
   });
 }
 
-function deserialize(string) {
+export function deserialize(string: string): any {
   return JSON.parse(string, (key, value) => {
     // If the value has a $$type property, use it to restore the object type
     if (value && value.$$type) {
@@ -39,7 +41,7 @@ function deserialize(string) {
   });
 }
 
-function resolveType(type) {
+export function resolveType(type: [string, string] | string): any {
   let filename, exportName;
   if (Array.isArray(type)) {
     [filename, exportName] = type;
@@ -48,6 +50,7 @@ function resolveType(type) {
     exportName = 'default';
   }
 
+  // $FlowFixMe this must be dynamic
   let module = require(filename);
   if (exportName === 'default') {
     return module.__esModule ? module.default : module;
@@ -55,6 +58,3 @@ function resolveType(type) {
 
   return module[exportName];
 }
-
-exports.serialize = serialize;
-exports.deserialize = deserialize;

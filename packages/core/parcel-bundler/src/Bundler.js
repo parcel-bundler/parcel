@@ -18,7 +18,7 @@ const PromiseQueue = require('./utils/PromiseQueue');
 const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
-const getRootDir = require('@parcel/utils/getRootDir');
+const getRootDir = require('@parcel/utils/getRootDir').default;
 const {glob} = require('./utils/glob');
 
 /**

@@ -1,6 +1,10 @@
-const path = require('path');
+// @flow strict-local
 
-function getRootDir(files) {
+import type {FilePath} from '@parcel/types';
+
+import path from 'path';
+
+export default function getRootDir(files: Array<FilePath>): FilePath {
   let cur = null;
 
   for (let file of files) {
@@ -27,5 +31,3 @@ function getRootDir(files) {
 
   return cur ? cur.dir : process.cwd();
 }
-
-module.exports = getRootDir;

@@ -1,7 +1,7 @@
 // @flow
 
 import * as fs from '@parcel/fs';
-import pkg from '../package.json';
+import invariant from 'assert';
 import path from 'path';
 import {md5FromString} from '@parcel/utils/src/md5';
 import objectHash from '@parcel/utils/src/objectHash';
@@ -15,6 +15,7 @@ import type {
   Environment
 } from '@parcel/types';
 import {serialize, deserialize} from '@parcel/utils/serializer';
+import pkg from '../package.json';
 
 // These keys can affect the output, so if they differ, the cache should not match
 // const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
@@ -135,7 +136,8 @@ export class Cache {
     });
 
     if (extension === '.json') {
-      data = deserialize(data);
+      invariant(typeof data === 'string');
+      return deserialize(data);
     }
 
     return data;
