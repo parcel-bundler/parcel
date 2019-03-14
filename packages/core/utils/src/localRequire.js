@@ -23,7 +23,7 @@ async function localResolve(name, path, triedInstall = false) {
           location: require.resolve('./installPackage.js'),
           args: [[name], path]
         });
-        return await localResolve(name, path, true);
+        return localResolve(name, path, true);
       }
       throw e;
     }

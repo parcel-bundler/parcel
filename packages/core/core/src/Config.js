@@ -1,4 +1,5 @@
 // @flow
+
 import type {
   ParcelConfig,
   FilePath,
@@ -132,7 +133,7 @@ export default class Config {
       return [];
     }
 
-    return await this.loadPlugins(runtimes);
+    return this.loadPlugins(runtimes);
   }
 
   async getPackager(filePath: FilePath): Promise<Packager> {
@@ -144,7 +145,7 @@ export default class Config {
       throw new Error(`No packager found for "${filePath}".`);
     }
 
-    return await this.loadPlugin(packagerName);
+    return this.loadPlugin(packagerName);
   }
 
   async getOptimizers(filePath: FilePath): Promise<Array<Optimizer>> {
@@ -156,7 +157,7 @@ export default class Config {
       return [];
     }
 
-    return await this.loadPlugins(optimizers);
+    return this.loadPlugins(optimizers);
   }
 
   isGlobMatch(filePath: FilePath, pattern: Glob) {

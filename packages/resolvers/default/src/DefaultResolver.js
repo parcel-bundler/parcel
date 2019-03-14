@@ -180,7 +180,7 @@ class NodeResolver {
     // First try as a file, then as a directory.
     return (
       (await this.loadAsFile(filename, extensions, pkg)) ||
-      (await this.loadDirectory(filename, extensions, pkg))
+      (await this.loadDirectory(filename, extensions, pkg)) // eslint-disable-line no-return-await
     );
   }
 
@@ -276,7 +276,7 @@ class NodeResolver {
     }
 
     // Fall back to an index file inside the directory.
-    return await this.loadAsFile(path.join(dir, 'index'), extensions, pkg);
+    return this.loadAsFile(path.join(dir, 'index'), extensions, pkg);
   }
 
   async readPackage(dir: string): Promise<InternalPackageJSON> {

@@ -1,4 +1,5 @@
 // @flow
+
 import type {
   Asset as IAsset,
   AssetOutput,
@@ -196,7 +197,7 @@ class TransformerRunner {
     // Create a generate function that can be called later to lazily generate
     let generate = async (input: Asset): Promise<AssetOutput> => {
       if (transformer.generate) {
-        return await transformer.generate(input, config, this.cliOpts);
+        return transformer.generate(input, config, this.cliOpts);
       }
 
       throw new Error(

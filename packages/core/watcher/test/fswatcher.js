@@ -23,10 +23,7 @@ describe('Watcher', function() {
     assert(watcher.child);
     assert(watcher.ready);
 
-    let childDeadPromise = new Promise(resolve =>
-      watcher.once('childDead', resolve)
-    );
     await watcher.stop();
-    await childDeadPromise;
+    assert(watcher.child.killed);
   });
 });

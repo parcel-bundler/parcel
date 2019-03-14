@@ -39,7 +39,7 @@ export default class PackagerRunner {
 
   async package(bundle: Bundle): Promise<Blob> {
     let packager = await this.config.getPackager(nullthrows(bundle.filePath));
-    return await packager.package(bundle, this.cliOpts);
+    return packager.package(bundle, this.cliOpts);
   }
 
   async optimize(bundle: Bundle, contents: Blob): Promise<Blob> {
