@@ -1,4 +1,4 @@
-### Needed Changes for self-hosting
+### REPL Summary
 
 It might look like much, but these are the important changes:
 
@@ -28,13 +28,11 @@ parcel/packages/core/parcel-bundler/src/builtins/index.js:
 
 - naive attempt breaks dynamic import
 
-### Other
+### Peculiarities
 
 Connecting with Chrome Devtools to Chrome on Android silently prevents the execution of Web Workers
 
 ### Other TODOs
-
-"Production" ? NODE_ENV ? As cli flag?
 
 ```js
 if(process.env.NODE_ENV === "development"){
@@ -54,21 +52,28 @@ use for parcel-bundler: (logger, worker)
 }
 ```
 
-- scope hoisting: keep node builtins
-- envfile: is somehow cached until reload?
-- fix htmlnano/postcss/cssnano runtime `require`s
+#### core issues
 
-- use cache (if enabeld, Markdown isn't updating)
-- with cache, maybe even a watcher-like functionality (on state change with debouncing - debounce also hash change)
+- remove sourcemap from libs if --no-source-map (`preact`, `performance-now)
+- envfile: is somehow not busting cache
 - Fix `existsCache` map for getConfig (parser.js) (file issue: not reset at runtime, not an issue with cli ???)
 - non existing css linked by html: undefined line/column by css
+- (scope hoisting: don't replace node builtins) -> #2796
 
-#### Performance
+### REPL Issues
+
+- "Production" ? NODE_ENV ? As cli flag?
+- use cache (if enabeld, Markdown isn't updating)
+- fix htmlnano/postcss/cssnano runtime `require`s
+- with cache, maybe even a watcher-like functionality (on state change with debouncing - debounce also hash change)
+
+##### Performance
 
 - PWA for caching
 - Lazy load large assets
 
-#### Maybe/Longterm
+##### Maybe/Longterm
 
 - Preview using blob url
 - Parcel 2 REPL: display graph
+- Add a "expand" pull tab to options box
