@@ -1,0 +1,7 @@
+// @flow strict-local
+
+declare module 'dotenv-expand' {
+  import type {DotenvConfigOutput} from 'dotenv';
+
+  declare module.exports: (config: DotenvConfigOutput) => DotenvConfigOutput;
+}
