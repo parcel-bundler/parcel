@@ -3,18 +3,18 @@ if (!self.Buffer) {
 }
 
 const Comlink = require('comlink');
-import {hasBrowserslist} from './utils';
+import {hasBrowserslist} from '../utils';
 import path from 'path';
 import fastGlob from 'fast-glob';
 
 import process from 'process';
-self.process = process;
 
 import fs from '@parcel/fs';
 import prettyError from '@parcel/logger/src/prettyError';
 import fsNative from 'fs';
 import Bundler from 'parcel-bundler';
 
+self.process = process;
 self.fs = fsNative;
 
 export async function bundle(assets, options) {
@@ -25,10 +25,8 @@ export async function bundle(assets, options) {
 
   await fs.mkdirp('/src/');
 
-  if (options.browserslist) {
-    if (!hasBrowserslist(assets)) {
-      await fs.writeFile(`/src/.browserslistrc`, options.browserslist);
-    }
+  if (options.browserslist && !hasBrowserslist(assets)) {
+    await fs.writeFile(`/src/.browserslistrc`, options.browserslist);
   }
 
   for (let f of assets) {

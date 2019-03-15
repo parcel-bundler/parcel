@@ -7,8 +7,9 @@ import filesize from 'filesize';
 
 import Asset from './components/Asset';
 import Options from './components/Options';
-import {Notes, ParcelError, PRESETS, hasBrowserslist} from './utils';
-import bundle, {workerLoaded} from './bundle';
+import Notes from './components/Notes';
+import {ParcelError, PRESETS, hasBrowserslist} from './utils';
+import bundle, {workerLoaded} from './parcel/';
 
 const DEFAULT_PRESET = 'Javascript';
 

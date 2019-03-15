@@ -59,27 +59,19 @@ use for parcel-bundler: (logger, worker)
 - non existing css linked by html: undefined line/column by css
 - (scope hoisting: don't replace node builtins) -> #2796
 
-sass.dart.js:
-
-```
-var self = Object.create(global);
-=>
-var self = global;
-
-
-self.require("fs")
-=>
-require("fs")
-```
-
 ### REPL Issues
 
-- use `memfs` for mtime (but: `require(...).emitWarning is not a function`)
 - "Production" ? NODE_ENV ? As cli flag?
-- use cache (if enabeld, Markdown isn't updating)
-- fix htmlnano/postcss/cssnano runtime `require`s
-- with cache, maybe even a watcher-like functionality (on state change with debouncing - debounce also hash change)
 - sass illegal invocation: https://github.com/mbullington/node_preamble.dart/issues/14
+- fix htmlnano/postcss/cssnano runtime `require`s
+
+#### Cache
+
+- mtime
+  - "polyfill"
+  - use `memfs` for mtime (but: `require(...).emitWarning is not a function`)
+- use cache (when enabled atm, Markdown isn't updating)
+- with cache, watcher-like functionality (on state change with debouncing - debounce also hash change)
 
 ##### Performance
 
@@ -91,3 +83,4 @@ require("fs")
 - Preview using blob url
 - Parcel 2 REPL: display graph
 - Add a "expand" pull tab to options box
+- Feedback that bundling was started/finished

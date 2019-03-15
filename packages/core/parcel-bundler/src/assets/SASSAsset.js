@@ -2,7 +2,6 @@ const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const {promisify} = require('@parcel/utils');
 const path = require('path');
-const fs = require('@parcel/fs');
 const os = require('os');
 const Resolver = require('../Resolver');
 const parseCSSImport = require('../utils/parseCSSImport');
