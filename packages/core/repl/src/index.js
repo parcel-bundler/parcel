@@ -1,3 +1,7 @@
+if (process.env.NODE_ENV === 'development') {
+  require('preact/debug');
+}
+
 import {h, render, Component, Fragment} from 'preact';
 import filesize from 'filesize';
 
@@ -157,8 +161,11 @@ class App extends Component {
               key={name}
               name={name}
               onChangeName={v => {
-                if (!this.state.assets.find(a => (a.name = v)))
+                if (this.state.assets.find(a => a.name === v)) {
+                  this.updateAsset(name, 'name', name);
+                } else {
                   this.updateAsset(name, 'name', v);
+                }
               }}
               content={content}
               onChangeContent={v => this.updateAsset(name, 'content', v)}
@@ -264,7 +271,3 @@ class App extends Component {
 }
 
 render(<App />, document.getElementById('root'));
-
-if (process.env.NODE_ENV === 'development') {
-  require('preact/debug');
-}

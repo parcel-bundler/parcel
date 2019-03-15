@@ -24,6 +24,7 @@
   }
   .row {
     width: 100%;
+    padding: 0 !important;
   }
   .row:first-child {
     border-bottom: 4px solid #ddd;
@@ -61,7 +62,10 @@ button:enabled:active {
   border-bottom: inherit;
 }
 .file > .header > .filename {
-  flex-grow: 1;
+  border: none;
+  font-size: 1em;
+  flex: 1;
+  min-width: 0;
 }
 .file > .header > .filename:focus {
   outline: none;
@@ -95,6 +99,10 @@ select {
   padding: 0.1em 0.2em;
 }
 
+.options {
+  display: flex;
+  flex-direction: column;
+}
 .options > label {
   padding: 0.3em;
   display: block;

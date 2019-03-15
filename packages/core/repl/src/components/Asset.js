@@ -20,14 +20,13 @@ const Asset = props => {
     return (
       <div class="file">
         <div class="header">
-          <div
+          <input
+            type="text"
             class="filename"
-            contenteditable
             spellcheck="false"
-            onBlur={e => onChangeName(e.target.textContent.trim())}
-          >
-            {name}
-          </div>
+            onChange={e => onChangeName(e.target.value)}
+            value={name}
+          />
           {additionalHeader}
           <input
             type="checkbox"
@@ -54,7 +53,7 @@ const Asset = props => {
     return (
       <div class="file">
         <div class="header">
-          <div class="filename">{name}</div>
+          <input type="text" class="filename" readonly value={name} />
           {additionalHeader}
         </div>
         <div class="source">
