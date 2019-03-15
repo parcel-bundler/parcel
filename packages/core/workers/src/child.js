@@ -9,7 +9,6 @@ import type {
   WorkerResponse
 } from './types';
 
-import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {errorUtils} from '@parcel/utils';
 import {serialize, deserialize} from '@parcel/utils/serializer';
@@ -157,8 +156,6 @@ class Child {
       idx = this.responseId++;
       this.responseQueue.set(idx, call);
     }
-
-    invariant(idx != null);
 
     this.send({
       idx,
