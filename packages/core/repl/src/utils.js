@@ -208,10 +208,11 @@ export function Notes() {
           without workarounds)
         </li>
         <li>
-          SASS importing is disabled for now (
-          <a href="https://github.com/sass/dart-sass/issues/621">issue</a>)
+          SASS: importing is disabled for now and generating source maps throws
+          an error (waiting on{' '}
+          <a href="https://github.com/dart-lang/sdk/issues/36225">this issue</a>
+          )
         </li>
-        <li>Generating source maps SASS throws an error</li>
       </ul>
     </div>
   );

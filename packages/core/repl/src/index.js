@@ -132,7 +132,7 @@ class App extends Component {
   }
 
   render() {
-    // console.log(JSON.stringify(this.state.output));
+    // console.log(JSON.stringify(this.state.assets));
     return (
       <div id="app">
         <div class="row">
@@ -156,7 +156,10 @@ class App extends Component {
             <Asset
               key={name}
               name={name}
-              onChangeName={v => this.updateAsset(name, 'name', v)}
+              onChangeName={v => {
+                if (!this.state.assets.find(a => (a.name = v)))
+                  this.updateAsset(name, 'name', v);
+              }}
               content={content}
               onChangeContent={v => this.updateAsset(name, 'content', v)}
               editable
@@ -171,18 +174,27 @@ class App extends Component {
           ))}
           <button
             class="addAsset"
-            onClick={() =>
+            onClick={() => {
+              let nameIndex = 0;
+              while (
+                this.state.assets.find(
+                  v =>
+                    v.name == 'new' + (nameIndex ? `-${nameIndex}` : '') + '.js'
+                )
+              )
+                nameIndex++;
+
               this.setState(state => ({
                 assets: [
                   ...state.assets,
                   {
-                    name: 'new.js',
+                    name: 'new' + (nameIndex ? `-${nameIndex}` : '') + '.js',
                     content: '',
                     isEntry: false
                   }
                 ]
-              }))
-            }
+              }));
+            }}
           >
             Add asset
           </button>
@@ -252,3 +264,7 @@ class App extends Component {
 }
 
 render(<App />, document.getElementById('root'));
+
+if (process.env.NODE_ENV === 'development') {
+  require('preact/debug');
+}

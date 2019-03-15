@@ -7,22 +7,6 @@ import {hasBrowserslist} from './utils';
 import path from 'path';
 import fastGlob from 'fast-glob';
 
-// needed by Less when running in a Worker (during require, duh)
-self.window = self;
-self.document = {
-  createElement: () => ({appendChild() {}}),
-  createTextNode: () => ({}),
-  currentScript: () => null,
-  getElementsByTagName: () => [
-    {
-      dataset: {},
-      appendChild: () => {},
-      removeChild: () => {},
-      rel: {match: () => {}}
-    }
-  ]
-};
-
 import process from 'process';
 self.process = process;
 
