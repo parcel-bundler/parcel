@@ -1,6 +1,5 @@
 const config = require('./config');
-const {promisify} = require('util');
-const resolve = promisify(require('resolve'));
+const resolve = require('./resolve').default;
 const commandExists = require('command-exists');
 const logger = require('@parcel/logger').default;
 const pipeSpawn = require('./pipeSpawn');
