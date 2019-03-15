@@ -257,9 +257,10 @@ class Asset {
         // Replace temporary bundle names in the output with the final content-hashed names.
         let newValue = value;
         for (let [name, map] of bundleNameMap) {
-          newValue = newValue
-            .split(name)
-            .join(this.makeBundlePathRelativeToParentBundle(map));
+          const newBundlePath = this.convertToUnixStyleDirectorySeparators(
+            this.makeBundlePathRelativeToParentBundle(map)
+          );
+          newValue = newValue.split(name).join(newBundlePath);
         }
 
         // Copy `this.generated` on write so we don't end up writing the final names to the cache.
@@ -290,10 +291,15 @@ class Asset {
     const parentBundleRelativePath = this.parentBundle.getHashedBundleName();
     const parentBundleRelativeDir =
       path.dirname(parentBundleRelativePath) || '.';
-    const relativeBundlePath = path
-      .relative(parentBundleRelativeDir, bundlePath)
-      .replace('\\', '/');
+    const relativeBundlePath = path.relative(
+      parentBundleRelativeDir,
+      bundlePath
+    );
     return relativeBundlePath;
+  }
+
+  convertToUnixStyleDirectorySeparators(bundlePath) {
+    return bundlePath.replace('\\', '/');
   }
 
   generateErrorMessage(err) {
