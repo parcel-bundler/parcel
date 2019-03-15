@@ -868,20 +868,18 @@ describe('html', function() {
     );
 
     // link to html page in sub dir
-    assert(
-      html.includes(
-        '<a href="subdir/page1-in-subdir.html">./subdir/page1-in-subdir.html</a>'
-      )
-    );
+    const href = html.match(/href="(.*)"/);
+    assert(href, 'href contained in index.html');
+    assert.equal(href[1], 'subdir/page1-in-subdir.html');
 
     let htmlInSubDir1 = await fs.readFile(
       path.join(__dirname, '/dist/subdir/page1-in-subdir.html'),
       'utf8'
     );
 
-    const href = htmlInSubDir1.match(/href="(.*)"/);
-    assert(href, 'href contained in page1-in-subdir.html');
-    assert.equal(href[1], 'page2-in-subdir.html');
+    const hrefInSubDir1 = htmlInSubDir1.match(/href="(.*)"/);
+    assert(hrefInSubDir1, 'href contained in page1-in-subdir.html');
+    assert.equal(hrefInSubDir1[1], 'page2-in-subdir.html');
 
     const src = htmlInSubDir1.match(/<script src="(.+)"/);
     assert(src, '<script src="..."> contained in page1-in-subdir.html');
@@ -897,9 +895,9 @@ describe('html', function() {
       'utf8'
     );
 
-    const href2 = htmlInSubDir2.match(/href="(.*)"/);
-    assert(href2, 'href contained in page1-in-subdir.html');
-    assert.equal(href2[1], 'page1-in-subdir.html');
+    const hrefInSubDir2 = htmlInSubDir2.match(/href="(.*)"/);
+    assert(hrefInSubDir2, 'href contained in page1-in-subdir.html');
+    assert.equal(hrefInSubDir2[1], 'page1-in-subdir.html');
   });
 
   it('should write correct absolute urls in html file in sub directory when absolute public url is specified', async function() {
@@ -933,20 +931,18 @@ describe('html', function() {
     );
 
     // link to html page in sub dir
-    assert(
-      html.includes(
-        '<a href="/subdir/page1-in-subdir.html">./subdir/page1-in-subdir.html</a>'
-      )
-    );
+    const href = html.match(/href="(.*)"/);
+    assert(href, 'href contained in index.html');
+    assert.equal(href[1], '/subdir/page1-in-subdir.html');
 
     let htmlInSubDir1 = await fs.readFile(
       path.join(__dirname, '/dist/subdir/page1-in-subdir.html'),
       'utf8'
     );
 
-    const href = htmlInSubDir1.match(/href="(.*)"/);
-    assert(href, 'href contained in page1-in-subdir.html');
-    assert.equal(href[1], '/subdir/page2-in-subdir.html');
+    const hrefInSubDir1 = htmlInSubDir1.match(/href="(.*)"/);
+    assert(hrefInSubDir1, 'href contained in page1-in-subdir.html');
+    assert.equal(hrefInSubDir1[1], '/subdir/page2-in-subdir.html');
 
     const src = htmlInSubDir1.match(/<script src="(.+)"/);
     assert(src, '<script src="..."> contained in page1-in-subdir.html');
@@ -962,8 +958,8 @@ describe('html', function() {
       'utf8'
     );
 
-    const href2 = htmlInSubDir2.match(/href="(.*)"/);
-    assert(href2, 'href contained in page1-in-subdir.html');
-    assert.equal(href2[1], '/subdir/page1-in-subdir.html');
+    const hrefInSubDir2 = htmlInSubDir2.match(/href="(.*)"/);
+    assert(hrefInSubDir2, 'href contained in page1-in-subdir.html');
+    assert.equal(hrefInSubDir2[1], '/subdir/page1-in-subdir.html');
   });
 });
