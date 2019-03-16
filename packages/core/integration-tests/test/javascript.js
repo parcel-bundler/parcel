@@ -917,70 +917,137 @@ describe('javascript', function() {
     assert.equal(output(), false);
   });
 
-  it('should eliminate dead dependencies on --target=browser when minified', async function() {
+  [
+    'if-else-statement-browser',
+    'if-else-statement-alternate-browser',
+    'if-statement-early-return-browser',
+    'if-statement-early-return-alternate-browser',
+    'ternary-operator-browser',
+    'ternary-operator-alternate-browser'
+  ].forEach(name => {
+    const filename = `${name}.js`;
+    it(`should eliminate dead dependencies on --target=browser for ${name}`, async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/dead-modules-elimination', filename),
+        {
+          target: 'browser'
+        }
+      );
+
+      await assertBundleTree(b, {
+        name: filename,
+        assets: [filename, 'dep1.js', 'dep1-sub.js']
+      });
+
+      let output = await run(b);
+      assert.equal(output, 'dep1');
+    });
+
+    it(`should not eliminate dead dependencies on --target=node for ${name}`, async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/dead-modules-elimination', filename),
+        {
+          target: 'node'
+        }
+      );
+
+      await assertBundleTree(b, {
+        name: filename,
+        assets: [filename, 'dep1.js', 'dep1-sub.js', 'dep2.js', 'dep2-sub.js']
+      });
+
+      let output = await run(b);
+      assert.equal(output, 'dep2');
+    });
+
+    it(`should not eliminate dead dependencies on --target=electron for ${name}`, async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/dead-modules-elimination', filename),
+        {
+          target: 'electron'
+        }
+      );
+
+      await assertBundleTree(b, {
+        name: filename,
+        assets: [filename, 'dep1.js', 'dep1-sub.js', 'dep2.js', 'dep2-sub.js']
+      });
+
+      let output = await run(b);
+      assert.equal(output, 'dep2');
+    });
+  });
+
+  it(`should eliminate dead dependencies on --target=browser for combination`, async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/process/index-dead.js'),
+      path.join(
+        __dirname,
+        '/integration/dead-modules-elimination/combination.js'
+      ),
       {
-        minify: true,
         target: 'browser'
       }
     );
 
     await assertBundleTree(b, {
-      name: 'index-dead.js',
-      assets: ['index-dead.js', 'browser.js', 'browser-dep.js']
+      name: 'combination.js',
+      assets: ['combination.js', 'dep1.js', 'dep1-sub.js']
     });
 
     let output = await run(b);
-    assert.equal(output, 'browser');
+    assert.equal(output, 'browser:dep1,dep1,dep1,dep1');
   });
 
-  it('should not eliminate dead dependencies on --target=node', async function() {
+  it(`should not eliminate dead dependencies on --target=node for combination`, async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/process/index-dead.js'),
+      path.join(
+        __dirname,
+        '/integration/dead-modules-elimination/combination.js'
+      ),
       {
-        minify: true,
         target: 'node'
       }
     );
 
     await assertBundleTree(b, {
-      name: 'index-dead.js',
+      name: 'combination.js',
       assets: [
-        'index-dead.js',
-        'browser.js',
-        'browser-dep.js',
-        'server.js',
-        'server-dep.js'
+        'combination.js',
+        'dep1.js',
+        'dep1-sub.js',
+        'dep2.js',
+        'dep2-sub.js'
       ]
     });
 
     let output = await run(b);
-    assert.equal(output, 'server');
+    assert.equal(output, 'nobrowser:dep1,dep1,dep1,dep1');
   });
 
-  it('should not eliminate dead dependencies on --target=electron', async function() {
+  it(`should not eliminate dead dependencies on --target=electron for combination`, async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/process/index-dead.js'),
+      path.join(
+        __dirname,
+        '/integration/dead-modules-elimination/combination.js'
+      ),
       {
-        minify: true,
-        target: 'node'
+        target: 'electron'
       }
     );
 
     await assertBundleTree(b, {
-      name: 'index-dead.js',
+      name: 'combination.js',
       assets: [
-        'index-dead.js',
-        'browser.js',
-        'browser-dep.js',
-        'server.js',
-        'server-dep.js'
+        'combination.js',
+        'dep1.js',
+        'dep1-sub.js',
+        'dep2.js',
+        'dep2-sub.js'
       ]
     });
 
     let output = await run(b);
-    assert.equal(output, 'server');
+    assert.equal(output, 'nobrowser:dep1,dep1,dep1,dep1');
   });
 
   it('should support adding implicit dependencies', async function() {

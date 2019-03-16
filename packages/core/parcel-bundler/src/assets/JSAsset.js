@@ -6,8 +6,7 @@ const Asset = require('../Asset');
 const babelParser = require('@babel/parser');
 const insertGlobals = require('../visitors/globals');
 const fsVisitor = require('../visitors/fs');
-const envVisitor = require('../visitors/env');
-const processVisitor = require('../visitors/process');
+const deadCodeEliminationVisitor = require('../visitors/dead-code-elimination');
 const babel = require('../transforms/babel/transform');
 const babel7 = require('../transforms/babel/babel7');
 const generate = require('@babel/generator').default;
@@ -82,41 +81,16 @@ class JSAsset extends Asset {
 
     await babel(this);
 
-    // Inline environment variables
-    const hasProcessEnv = ENV_RE.test(this.contents);
-    if (this.options.target === 'browser' && hasProcessEnv) {
-      await this.parseIfNeeded();
-      this.traverseFast(envVisitor);
-    }
-
-    // Inline process.browser
+    // Inline process.env and process.browser variables
     const hasProcessBrowser = BROWSER_RE.test(this.contents);
-    if (this.options.target === 'browser' && hasProcessBrowser) {
-      await this.parseIfNeeded();
-      this.traverse(processVisitor);
-      this.isAstDirty = true;
-    }
-
+    const hasProcessEnv = ENV_RE.test(this.contents);
     if (
-      this.options.minify &&
       this.options.target === 'browser' &&
       (hasProcessBrowser || hasProcessEnv)
     ) {
-      await babel7(this, {
-        internal: true,
-        config: {
-          plugins: [
-            [
-              require('babel-plugin-minify-dead-code-elimination'),
-              {
-                keepFnName: true,
-                keepFnArgs: true,
-                keepClassName: true
-              }
-            ]
-          ]
-        }
-      });
+      await this.parseIfNeeded();
+      this.traverse(deadCodeEliminationVisitor);
+      this.isAstDirty = true;
     }
   }
 
