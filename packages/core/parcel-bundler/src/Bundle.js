@@ -39,6 +39,14 @@ class Bundle {
   addAsset(asset) {
     asset.bundles.add(this);
     this.assets.add(asset);
+    if (
+      this.type != 'map' &&
+      this.type == asset.type &&
+      asset.options.sourceMaps &&
+      asset.sourceMaps
+    ) {
+      this.getSiblingBundle('map').addAsset(asset);
+    }
   }
 
   removeAsset(asset) {
@@ -46,12 +54,12 @@ class Bundle {
     this.assets.delete(asset);
   }
 
-  addOffset(asset, line) {
-    this.offsets.set(asset, line);
+  addOffset(asset, line, column = 0) {
+    this.offsets.set(asset, [line, column]);
   }
 
   getOffset(asset) {
-    return this.offsets.get(asset) || 0;
+    return this.offsets.get(asset) || [0, 0];
   }
 
   getSiblingBundle(type) {
@@ -114,19 +122,23 @@ class Bundle {
   getHashedBundleName(contentHash) {
     // If content hashing is enabled, generate a hash from all assets in the bundle.
     // Otherwise, use a hash of the filename so it remains consistent across builds.
+
+    if (this.type == 'map') {
+      return this.parentBundle.getHashedBundleName(contentHash) + '.map';
+    }
+
     let basename = Path.basename(this.name);
 
     let ext = Path.extname(basename);
-    if (this.type === 'map') {
-      // Using this instead of Path.extname because the source map files have long
-      // extensions like '.js.map' but extname only return the last piece (.map).
-      ext = basename.substring(basename.indexOf('.'));
-    }
     let hash = (contentHash
       ? this.getHash()
       : Path.basename(this.name, ext)
     ).slice(-8);
-    let entryAsset = this.entryAsset || this.parentBundle.entryAsset;
+    let entryAsset = this;
+    while (!entryAsset.entryAsset && entryAsset.parentBundle) {
+      entryAsset = entryAsset.parentBundle;
+    }
+    entryAsset = entryAsset.entryAsset;
     let name = Path.basename(entryAsset.name, Path.extname(entryAsset.name));
     let isMainEntry = entryAsset.options.entryFiles[0] === entryAsset.name;
     let isEntry =

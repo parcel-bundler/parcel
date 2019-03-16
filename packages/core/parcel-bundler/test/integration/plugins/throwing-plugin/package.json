@@ -1,5 +1,5 @@
 {
-  "name": "parcel-test",
+  "name": "throwing-plugin-project",
   "private": true,
   "dependencies": {
     "parcel-plugin-test": "*"

@@ -6,4 +6,6 @@ function run() {
   });
 };
 
+module.hot.accept();
+
 run();

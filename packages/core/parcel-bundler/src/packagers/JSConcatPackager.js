@@ -384,6 +384,7 @@ class JSConcatPackager extends Packager {
     if (this.bundle.assets.has(asset)) {
       return;
     }
+    this.assets.set(asset.id, asset);
     this.bundle.addAsset(asset);
     if (!asset.parentBundle) {
       asset.parentBundle = this.bundle;

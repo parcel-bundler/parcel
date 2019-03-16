@@ -35,7 +35,7 @@ class SourceMap {
     }
     map = typeof map === 'string' ? JSON.parse(map) : map;
     if (map.sourceRoot) delete map.sourceRoot;
-    return await new SourceMapConsumer(map);
+    return new SourceMapConsumer(map);
   }
 
   async addMap(map, lineOffset = 0, columnOffset = 0) {
@@ -298,8 +298,9 @@ class SourceMap {
       generatedPosition.line,
       generatedPosition.column
     );
+
     let mapping = this.mappings[index];
-    if (!mapping) {
+    if (!mapping || !mapping.original) {
       return null;
     }
 
@@ -317,11 +318,13 @@ class SourceMap {
       originalPosition.column,
       'original'
     );
+
+    let mapping = this.mappings[index];
     return {
-      source: this.mappings[index].source,
-      name: this.mappings[index].name,
-      line: this.mappings[index].generated.line,
-      column: this.mappings[index].generated.column
+      source: mapping.source,
+      name: mapping.name,
+      line: mapping.generated.line,
+      column: mapping.generated.column
     };
   }
 
@@ -343,7 +346,6 @@ class SourceMap {
 
   stringify(file, sourceRoot) {
     let generator = new SourceMapGenerator({file, sourceRoot});
-
     this.eachMapping(mapping => generator.addMapping(mapping));
     Object.keys(this.sources).forEach(sourceName =>
       generator.setSourceContent(sourceName, this.sources[sourceName])

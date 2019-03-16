@@ -24,7 +24,11 @@ describe('html', function() {
         {
           type: 'css',
           assets: ['index.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'html',
@@ -151,7 +155,11 @@ describe('html', function() {
             {
               type: 'css',
               assets: ['index.css'],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'map'
+                }
+              ]
             },
             {
               type: 'map'
@@ -185,7 +193,11 @@ describe('html', function() {
             {
               type: 'css',
               assets: ['index.css'],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'map'
+                }
+              ]
             },
             {
               type: 'map'
@@ -220,9 +232,6 @@ describe('html', function() {
           assets: ['index.css'],
           childBundles: [
             {
-              type: 'map'
-            },
-            {
               type: 'js',
               assets: [
                 'index.css',
@@ -230,7 +239,14 @@ describe('html', function() {
                 'css-loader.js',
                 'hmr-runtime.js'
               ],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'map'
+                }
+              ]
+            },
+            {
+              type: 'map'
             }
           ]
         }
@@ -257,7 +273,11 @@ describe('html', function() {
             {
               type: 'css',
               assets: ['index.css'],
-              childBundles: []
+              childBundles: [
+                {
+                  type: 'map'
+                }
+              ]
             },
             {
               type: 'map'

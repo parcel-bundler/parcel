@@ -142,9 +142,11 @@ class Bundler extends EventEmitter {
       detailedReport: options.detailedReport || false,
       global: options.global,
       autoinstall:
-        typeof options.autoinstall === 'boolean'
-          ? options.autoinstall
-          : !isProduction,
+        typeof options.autoInstall === 'boolean'
+          ? options.autoInstall
+          : process.env.PARCEL_AUTOINSTALL === 'false'
+            ? false
+            : !isProduction,
       scopeHoist: scopeHoist,
       contentHash:
         typeof options.contentHash === 'boolean'
@@ -206,9 +208,11 @@ class Bundler extends EventEmitter {
       return;
     }
 
+    let lastDep;
     try {
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
       for (let dep in deps) {
+        lastDep = dep;
         const pattern = /^(@.*\/)?parcel-plugin-.+/;
         if (pattern.test(dep)) {
           let plugin = await localRequire(dep, relative);
@@ -216,7 +220,11 @@ class Bundler extends EventEmitter {
         }
       }
     } catch (err) {
-      logger.warn(err);
+      logger.warn(
+        `Plugin ${lastDep} failed to initialize: ${err.stack ||
+          err.message ||
+          err}`
+      );
     }
   }
 
@@ -296,6 +304,7 @@ class Bundler extends EventEmitter {
       }
 
       // Generate the final bundle names, and replace references in the built assets.
+      let numBundles = this.bundleNameMap ? this.bundleNameMap.size : 0;
       this.bundleNameMap = this.mainBundle.getBundleNameMap(
         this.options.contentHash
       );
@@ -305,8 +314,9 @@ class Bundler extends EventEmitter {
       }
 
       // Emit an HMR update if this is not the initial bundle.
+      let bundlesChanged = numBundles !== this.bundleNameMap.size;
       if (this.hmr && !isInitialBundle) {
-        this.hmr.emitUpdate(changedAssets);
+        this.hmr.emitUpdate(changedAssets, bundlesChanged);
       }
 
       logger.progress(`Packaging...`);
@@ -314,7 +324,7 @@ class Bundler extends EventEmitter {
       // Package everything up
       this.bundleHashes = await this.mainBundle.package(
         this,
-        this.bundleHashes
+        bundlesChanged ? null : this.bundleHashes
       );
 
       // Unload any orphaned assets
@@ -490,7 +500,7 @@ class Bundler extends EventEmitter {
           this.options.autoinstall &&
           install
         ) {
-          return await this.installDep(asset, dep);
+          return this.installDep(asset, dep);
         }
 
         err.message = `Cannot resolve dependency '${dep.name}'`;
@@ -521,7 +531,7 @@ class Bundler extends EventEmitter {
       }
     }
 
-    return await this.resolveDep(asset, dep, false);
+    return this.resolveDep(asset, dep, false);
   }
 
   async throwDepError(asset, dep, err) {
@@ -572,6 +582,7 @@ class Bundler extends EventEmitter {
     asset.buildTime = asset.endTime - asset.startTime;
     asset.id = processed.id;
     asset.generated = processed.generated;
+    asset.sourceMaps = processed.sourceMaps;
     asset.hash = processed.hash;
     asset.cacheData = processed.cacheData;
 

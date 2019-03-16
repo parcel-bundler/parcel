@@ -35,7 +35,7 @@ class VueAsset extends Asset {
       parts.push({
         type: descriptor.script.lang || 'js',
         value: descriptor.script.content,
-        sourceMap: descriptor.script.map
+        map: descriptor.script.map
       });
     }
 
@@ -117,13 +117,9 @@ class VueAsset extends Asset {
     if (js) {
       result.push({
         type: 'js',
-        value: js
+        value: js,
+        map: this.options.sourceMaps && this.ast.script && generated[0].map
       });
-    }
-
-    let map = generated.find(r => r.type === 'map');
-    if (map) {
-      result.push(map);
     }
 
     let css = this.compileStyle(generated, scopeId);
