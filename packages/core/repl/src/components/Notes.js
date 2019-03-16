@@ -18,12 +18,8 @@ export default function Notes() {
       Known issues:
       <ul>
         <li>
-          Minifying CSS doesn't work (runtime <code>require</code> calls by
-          cssnano, even for the config to disable the corresponding plugin...)
-        </li>
-        <li>
-          Node builtin modules can't be polyfilled for the browser (looks up the
-          bundler, caused by Parcel's <code>require.resolve</code> handling)
+          Bundle loaders (async import, importing CSS in JS) locks up the
+          bundler, caused by Parcel's <code>require.resolve</code> handling
         </li>
         <li>
           Babel would need to <code>require</code> plugins at runtime (at least
@@ -31,7 +27,9 @@ export default function Notes() {
         </li>
         <li>
           Currently patching SASS because of{' '}
-          <a href="https://github.com/dart-lang/sdk/issues/36225">this issue</a>
+          <a href="https://github.com/mbullington/node_preamble.dart/issues/14">
+            this issue
+          </a>
         </li>
       </ul>
     </div>

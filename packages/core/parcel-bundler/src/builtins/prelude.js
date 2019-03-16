@@ -34,9 +34,15 @@ parcelRequire = (function (modules, cache, entry, globalName) {
           return nodeRequire(name);
         }
 
-        var err = new Error('Cannot find module \'' + name + '\'');
-        err.code = 'MODULE_NOT_FOUND';
-        throw err;
+        try {
+          let x = {exports: {}};
+          (new Function('require', 'module', 'exports', self.fs.readFileSync(name, "utf8")))(localRequire, x, x.exports);
+          return x.exports;
+        } catch(_){
+          var err = new Error('Cannot find module \'' + name + '\'');
+          err.code = 'MODULE_NOT_FOUND';
+          throw err;
+        }
       }
 
       localRequire.resolve = resolve;

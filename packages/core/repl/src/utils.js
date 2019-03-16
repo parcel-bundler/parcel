@@ -54,7 +54,7 @@ export const PRESETS = {
       content: `{\n "devDependencies": {\n  "@babel/core": "^7.3.4",\n  "@babel/preset-env": "^7.3.4"\n  }\n}`
     }
   ],
-  "Basic Page (don't minify!)": [
+  'Basic Page': [
     {
       name: 'index.html',
       content: `<link rel="stylesheet" type="text/css" href="./style.css">\n<script src="./index.js"></script>`,
@@ -67,6 +67,14 @@ export const PRESETS = {
     {
       name: 'style.css',
       content: `body {\n  color: red;\n}`
+    },
+    {
+      name: '.htmlnanorc',
+      content: `{\n  minifySvg: false\n}`
+    },
+    {
+      name: 'cssnano.config.js',
+      content: `module.exports = {\n  preset: [\n    'default',\n    {\n      svgo: false\n    }\n  ]\n}`
     }
   ],
   JSON: [
