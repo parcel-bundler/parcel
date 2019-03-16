@@ -107,11 +107,15 @@ document.body.innerHTML = greeter(user);
       isEntry: true
     }
   ],
-  "Markdown (don't minify!)": [
+  Markdown: [
     {
       name: 'Article.md',
       content: '# My Title\n\nHello, ...\n\n```js\nconsole.log("test");\n```\n',
       isEntry: true
+    },
+    {
+      name: '.htmlnanorc',
+      content: `{\n  minifySvg: false\n}`
     }
   ],
   //   "Vue (don't minify!)": [
@@ -160,7 +164,7 @@ document.body.innerHTML = greeter(user);
   // </style>`
   //     }
   //   ]
-  "SCSS (don't minify!)": [
+  SCSS: [
     {
       name: 'style.scss',
       content: `$colorRed: red;
@@ -179,9 +183,13 @@ document.body.innerHTML = greeter(user);
   }
 }`,
       isEntry: true
+    },
+    {
+      name: 'cssnano.config.js',
+      content: `module.exports = {\n  preset: [\n    'default',\n    {\n      svgo: false\n    }\n  ]\n}`
     }
   ],
-  "LESS (don't minify!)": [
+  LESS: [
     {
       name: 'style.less',
       content: `@some-color: #143352;
@@ -193,6 +201,10 @@ h2 {
   color: @some-color;
 }`,
       isEntry: true
+    },
+    {
+      name: 'cssnano.config.js',
+      content: `module.exports = {\n  preset: [\n    'default',\n    {\n      svgo: false\n    }\n  ]\n}`
     }
   ]
 };
