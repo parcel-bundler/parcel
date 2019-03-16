@@ -25,6 +25,7 @@ module.exports = {
       } else {
         path.replaceWith(t.booleanLiteral(true));
         eliminateDead(path);
+        asset.isAstDirty = true;
       }
     }
   }

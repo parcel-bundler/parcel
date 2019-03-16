@@ -82,15 +82,12 @@ class JSAsset extends Asset {
     await babel(this);
 
     // Inline process.env and process.browser variables
-    const hasProcessBrowser = BROWSER_RE.test(this.contents);
-    const hasProcessEnv = ENV_RE.test(this.contents);
     if (
       this.options.target === 'browser' &&
-      (hasProcessBrowser || hasProcessEnv)
+      (BROWSER_RE.test(this.contents) || ENV_RE.test(this.contents))
     ) {
       await this.parseIfNeeded();
       this.traverse(deadCodeEliminationVisitor);
-      this.isAstDirty = true;
     }
   }
 
