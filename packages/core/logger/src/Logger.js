@@ -1,23 +1,44 @@
-const chalk = require('chalk');
-const readline = require('readline');
-const prettyError = require('./prettyError');
-const emoji = require('./emoji');
-const {countBreaks} = require('grapheme-breaker');
-const stripAnsi = require('strip-ansi');
-const ora = require('ora');
-const WorkerFarm = require('@parcel/workers').default;
-const path = require('path');
-const fs = require('fs');
+// @flow strict-local
+
+import {countBreaks} from 'grapheme-breaker';
+import chalk, {type Chalk} from 'chalk';
+import fs from 'fs';
+import ora, {type Ora} from 'ora';
+import path from 'path';
+import readline from 'readline';
+import stripAnsi from 'strip-ansi';
+import WorkerFarm from '@parcel/workers';
+
+import * as emoji from './emoji';
+import prettyError, {
+  type PrettyError,
+  type PrettyErrorOpts,
+  type PrintableError
+} from './prettyError';
+
+type LoggerOpts = {|
+  color: boolean,
+  emoji?: typeof emoji,
+  isTest?: boolean,
+  logLevel?: mixed
+|};
 
 class Logger {
-  constructor(options) {
-    this.lines = 0;
-    this.spinner = null;
-    this.warnings = new Set();
+  chalk: Chalk;
+  color: boolean;
+  emoji: typeof emoji;
+  isTest: boolean;
+  lines: number = 0;
+  logLevel: number;
+  logFile: ?stream$Writable;
+  spinner: ?Ora = null;
+  warnings: Set<PrintableError> = new Set();
+
+  constructor(options: ?LoggerOpts) {
     this.setOptions(options);
   }
 
-  setOptions(options) {
+  setOptions(options: ?LoggerOpts) {
     this.logLevel =
       options && isNaN(options.logLevel) === false
         ? Number(options.logLevel)
@@ -25,7 +46,7 @@ class Logger {
     this.color =
       options && typeof options.color === 'boolean'
         ? options.color
-        : chalk.supportsColor;
+        : Boolean(chalk.supportsColor);
     this.emoji = (options && options.emoji) || emoji;
     this.chalk = new chalk.constructor({enabled: this.color});
     this.isTest =
@@ -34,11 +55,11 @@ class Logger {
         : process.env.NODE_ENV === 'test';
   }
 
-  countLines(message) {
+  countLines(message: string): number {
     return stripAnsi(message)
       .split('\n')
       .reduce((p, line) => {
-        if (process.stdout.columns) {
+        if (typeof process.stdout.columns === 'number') {
           return p + Math.ceil((line.length || 1) / process.stdout.columns);
         }
 
@@ -46,14 +67,14 @@ class Logger {
       }, 0);
   }
 
-  writeRaw(message) {
+  writeRaw(message: string): void {
     this.stopSpinner();
 
     this.lines += this.countLines(message) - 1;
     process.stdout.write(message);
   }
 
-  write(message, persistent = false) {
+  write(message: string, persistent: boolean = false) {
     if (this.logLevel > 3) {
       return this.verbose(message);
     }
@@ -66,25 +87,25 @@ class Logger {
     this._log(message);
   }
 
-  verbose(message) {
+  verbose(message: string): void {
     if (this.logLevel < 4) {
       return;
     }
 
     let currDate = new Date();
-    message = `[${currDate.toLocaleTimeString()}]: ${message}`;
+    let toLog = `[${currDate.toLocaleTimeString()}]: ${message}`;
     if (this.logLevel > 4) {
       if (!this.logFile) {
         this.logFile = fs.createWriteStream(
           path.join(process.cwd(), `parcel-debug-${currDate.toISOString()}.log`)
         );
       }
-      this.logFile.write(stripAnsi(message) + '\n');
+      this.logFile.write(stripAnsi(toLog) + '\n');
     }
-    this._log(message);
+    this._log(toLog);
   }
 
-  log(message) {
+  log(message: string): void {
     if (this.logLevel < 3) {
       return;
     }
@@ -92,7 +113,7 @@ class Logger {
     this.write(message);
   }
 
-  persistent(message) {
+  persistent(message: string): void {
     if (this.logLevel < 3) {
       return;
     }
@@ -100,7 +121,7 @@ class Logger {
     this.write(this.chalk.bold(message), true);
   }
 
-  warn(err) {
+  warn(err: PrintableError): void {
     if (this.logLevel < 2 || this.warnings.has(err)) {
       return;
     }
@@ -109,7 +130,7 @@ class Logger {
     this._writeError(err, this.emoji.warning, this.chalk.yellow);
   }
 
-  error(err) {
+  error(err: PrintableError): void {
     if (this.logLevel < 1) {
       return;
     }
@@ -117,23 +138,27 @@ class Logger {
     this._writeError(err, this.emoji.error, this.chalk.red.bold);
   }
 
-  success(message) {
+  success(message: string): void {
     this.log(`${this.emoji.success}  ${this.chalk.green.bold(message)}`);
   }
 
-  formatError(err, opts) {
+  formatError(err: PrintableError, opts: PrettyErrorOpts): PrettyError {
     return prettyError(err, opts);
   }
 
-  _writeError(err, emoji, color) {
+  _writeError(
+    err: PrintableError,
+    emoji: string,
+    color: (msg: string) => string
+  ): void {
     let {message, stack} = this.formatError(err, {color: this.color});
     this.write(color(`${emoji}  ${message}`));
-    if (stack) {
+    if (stack != null) {
       this.write(stack);
     }
   }
 
-  clear() {
+  clear(): void {
     if (!this.color || this.isTest || this.logLevel > 3) {
       return;
     }
@@ -149,7 +174,7 @@ class Logger {
     this.warnings.clear();
   }
 
-  progress(message) {
+  progress(message: string): void {
     if (this.logLevel < 3) {
       return;
     }
@@ -170,23 +195,28 @@ class Logger {
     }
   }
 
-  stopSpinner() {
+  stopSpinner(): void {
     if (this.spinner) {
       this.spinner.stop();
       this.spinner = null;
     }
   }
 
-  handleMessage(options) {
+  // $FlowFixMe
+  handleMessage(options: {method: string, args: Array<any>}): void {
+    // $FlowFixMe
     this[options.method](...options.args);
   }
 
-  _log(message) {
+  _log(message: string): void {
     // eslint-disable-next-line no-console
     console.log(message);
   }
 
-  table(columns, table) {
+  table(
+    columns: Array<{|align: 'left' | 'right'|}>,
+    table: Array<Array<string>>
+  ): void {
     // Measure column widths
     let colWidths = [];
     for (let row of table) {
@@ -213,7 +243,11 @@ class Logger {
 }
 
 // Pad a string with spaces on either side
-function pad(text, length, align = 'left') {
+function pad(
+  text: string,
+  length: number,
+  align: 'left' | 'right' = 'left'
+): string {
   let pad = ' '.repeat(length - stringWidth(text));
   if (align === 'right') {
     return pad + text;
@@ -223,16 +257,18 @@ function pad(text, length, align = 'left') {
 }
 
 // Count visible characters in a string
-function stringWidth(string) {
+function stringWidth(string: string): number {
   return countBreaks(stripAnsi('' + string));
 }
 
+let loggerExport: Logger;
 // If we are in a worker, make a proxy class which will
 // send the logger calls to the main process via IPC.
 // These are handled in WorkerFarm and directed to handleMessage above.
 if (WorkerFarm.isWorker()) {
   class LoggerProxy {}
   for (let method of Object.getOwnPropertyNames(Logger.prototype)) {
+    // $FlowFixMe
     LoggerProxy.prototype[method] = (...args) => {
       WorkerFarm.callMaster(
         {
@@ -245,7 +281,10 @@ if (WorkerFarm.isWorker()) {
     };
   }
 
-  module.exports = new LoggerProxy();
+  // $FlowFixMe Pretend as if this were a logger. We should probably export an interface instead.
+  loggerExport = new LoggerProxy();
 } else {
-  module.exports = new Logger();
+  loggerExport = new Logger();
 }
+
+export default loggerExport;
