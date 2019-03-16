@@ -17,8 +17,14 @@ export function hasBrowserslist(assets) {
   }
 }
 
+const PATH_REGEX = /\/src\//g;
+
 export function ParcelError(props) {
-  return <div class="file error">{props.error.message.trim()}</div>;
+  return (
+    <div class="file error">
+      {props.error.message.trim().replace(PATH_REGEX, '')}
+    </div>
+  );
 }
 
 export const PRESETS = {

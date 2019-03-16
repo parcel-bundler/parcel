@@ -26,8 +26,6 @@ parcel/packages/core/parcel-bundler/src/builtins/index.js:
 
 `require.resolve` should return module id that can be required?
 
-- naive attempt breaks dynamic import
-
 ### Peculiarities
 
 Connecting with Chrome Devtools to Chrome on Android silently prevents the execution of Web Workers
@@ -41,9 +39,7 @@ if(process.env.NODE_ENV === "development"){
 if(module.hot) ...
 if(process.browser) ...
 
-
-
-use for parcel-bundler: (logger, worker)
+parcel-bundler: (worker)
 {
   "browser": {
     "./node.js": "./browser.js",
@@ -64,6 +60,7 @@ use for parcel-bundler: (logger, worker)
 - "Production" ? NODE_ENV ? As cli flag?
 - sass illegal invocation: https://github.com/mbullington/node_preamble.dart/issues/14
 - fix htmlnano/postcss/cssnano runtime `require`s
+- builtins/bundle loaders: fs.readFileSync(require.resolve)
 
 #### Cache
 
@@ -76,11 +73,11 @@ use for parcel-bundler: (logger, worker)
 ##### Performance
 
 - PWA for caching
-- Lazy load large assets
+- Lazy load large asset types
 
 ##### Maybe/Longterm
 
-- Preview using blob url
-- Parcel 2 REPL: display graph
+- Preview using blob url in iframe?
 - Add a "expand" pull tab to options box
 - Feedback that bundling was started/finished
+- with Parcel 2: display graph
