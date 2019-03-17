@@ -20,7 +20,7 @@ import AssetGraphBuilder from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
 import {HMRServer, serve} from '@parcel/server';
 import type {Server} from '@parcel/server';
-import {EventEmitter} from 'events';
+import EventEmitter from 'events';
 
 const abortError = new Error('Build aborted');
 
@@ -45,7 +45,9 @@ export default class Parcel extends EventEmitter {
   farm: WorkerFarm;
   runPackage: (bundle: Bundle) => Promise<mixed>;
   server: Server;
+  pending: boolean;
   error: PrintableError;
+  bundleGraph: BundleGraph;
 
   constructor(options: ParcelOpts) {
     super();
@@ -154,6 +156,7 @@ export default class Parcel extends EventEmitter {
         await this.farm.end();
       }
 
+      this.bundleGraph = bundleGraph;
       this.emit('bundled');
       // console.log('Finished build'); // eslint-disable-line no-console
       return bundleGraph;

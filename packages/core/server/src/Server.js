@@ -91,15 +91,21 @@ export function middleware(parcelInstance: Parcel) {
       }
     }
 
-    function sendIndex() {
+    async function sendIndex() {
       // If the main asset is an HTML file, serve it
-      // TODO: Figure out getting mainBundle
-      /*if (bundler.mainBundle.type === 'html') {
-        req.url = `/${path.basename(bundler.mainBundle.name)}`;
+      let htmlBundle = null;
+      parcelInstance.bundleGraph.traverseBundles(bundle => {
+        if (bundle.type === 'html' && bundle.isEntry) {
+          htmlBundle = bundle;
+        }
+      });
+
+      if (htmlBundle) {
+        req.url = `/${path.basename(htmlBundle.filePath)}`;
         serve(req, res, send404);
       } else {
         send404();
-      }*/
+      }
 
       send404();
     }
