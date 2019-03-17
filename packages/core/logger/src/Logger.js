@@ -142,7 +142,7 @@ class Logger {
     this.log(`${this.emoji.success}  ${this.chalk.green.bold(message)}`);
   }
 
-  formatError(err: PrintableError, opts: PrettyErrorOpts): PrettyError {
+  formatError(err: PrintableError, opts: PrettyErrorOpts = {}): PrettyError {
     return prettyError(err, opts);
   }
 

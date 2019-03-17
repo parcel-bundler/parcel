@@ -1,11 +1,39 @@
+// @flow
+import type {ServerOptions} from '@parcel/types';
+import type {PrintableError} from '@parcel/logger/src/prettyError';
+import type {Server} from './types.js.flow';
 import http from 'http';
 import https from 'https';
 import WebSocket from 'ws';
 import generateCertificate from './generateCertificate';
+import getCertificate from './getCertificate';
 import logger from '@parcel/logger';
 
+type HMROptions = ServerOptions;
+type SocketError = Error & {
+  code?: string
+};
+
+type HMRMessage = {|
+  type: string,
+  error?: {
+    message: string,
+    stack?: string
+  },
+  // TODO: Update assets type once it actually works
+  assets?: Array<any>
+|};
+
 export default class HMRServer {
-  async start(options = {}) {
+  server: Server;
+  wss: WebSocket.Server;
+  unresolvedError: HMRMessage | null = null;
+
+  async start(
+    options: HMROptions = {
+      port: 0
+    }
+  ) {
     await new Promise(async resolve => {
       if (!options.https) {
         this.server = http.createServer();
@@ -16,21 +44,19 @@ export default class HMRServer {
       }
 
       let websocketOptions = {
-        server: this.server
+        server: this.server,
+        origin: options.host
+          ? `${options.https ? 'https' : 'http'}://${options.host}`
+          : undefined
       };
 
-      if (options.hmrHostname) {
-        websocketOptions.origin = `${options.https ? 'https' : 'http'}://${
-          options.hmrHostname
-        }`;
-      }
-
       this.wss = new WebSocket.Server(websocketOptions);
-      this.server.listen(options.hmrPort, resolve);
+      this.server.listen(options.port, resolve);
     });
 
     this.wss.on('connection', ws => {
       ws.onerror = this.handleSocketError;
+
       if (this.unresolvedError) {
         ws.send(JSON.stringify(this.unresolvedError));
       }
@@ -46,7 +72,7 @@ export default class HMRServer {
     this.server.close();
   }
 
-  emitError(err) {
+  emitError(err: PrintableError) {
     let {message, stack} = logger.formatError(err);
 
     // store the most recent error so we can notify new connections
@@ -62,7 +88,7 @@ export default class HMRServer {
     this.broadcast(this.unresolvedError);
   }
 
-  emitUpdate(assets, reload = false) {
+  emitUpdate(assets: Array<Object>, reload: boolean = false) {
     if (this.unresolvedError) {
       this.unresolvedError = null;
       this.broadcast({
@@ -95,15 +121,16 @@ export default class HMRServer {
     }
   }
 
-  handleSocketError(err) {
-    if (err.error.code === 'ECONNRESET') {
+  handleSocketError(err: SocketError) {
+    if (err.code === 'ECONNRESET') {
       // This gets triggered on page refresh, ignore this
       return;
     }
+
     logger.warn(err);
   }
 
-  broadcast(msg) {
+  broadcast(msg: HMRMessage) {
     const json = JSON.stringify(msg);
     for (let ws of this.wss.clients) {
       ws.send(json);

@@ -2,16 +2,9 @@
 import type {ServerOptions} from '@parcel/types';
 import type Parcel from '@parcel/core';
 import type {PrintableError} from '@parcel/logger/src/prettyError';
-import http, {
-  IncomingMessage as HTTPIncomingMessage,
-  ServerResponse as HTTPServerResponse,
-  Server as HTTPServer
-} from 'http';
-import https, {
-  IncomingMessage as HTTPSIncomingMessage,
-  ServerResponse as HTTPSServerResponse,
-  Server as HTTPSServer
-} from 'https';
+import type {Request, Response, Server} from './types.js.flow';
+import http from 'http';
+import https from 'https';
 import serveStatic from 'serve-static';
 import getPort from 'get-port';
 import serverErrors from './serverErrors';
@@ -21,14 +14,6 @@ import AnsiToHtml from 'ansi-to-html';
 import logger from '@parcel/logger';
 import path from 'path';
 import url from 'url';
-
-type Request = (HTTPIncomingMessage | HTTPSIncomingMessage) & {
-  connection?: {
-    encrypted?: boolean
-  }
-};
-type Response = HTTPServerResponse | HTTPSServerResponse;
-export type Server = HTTPServer | HTTPSServer;
 
 const ansiToHtml = new AnsiToHtml({newline: true});
 
@@ -145,11 +130,7 @@ export function middleware(parcelInstance: Parcel) {
     }
 
     function logAccessIfVerbose() {
-      const protocol =
-        req.connection && req.connection.encrypted ? 'https' : 'http';
-      const fullUrl = `${protocol}://${req.headers.host}${req.url}`;
-
-      logger.verbose(`Request: ${fullUrl}`);
+      logger.verbose(`Request: ${req.headers.host}${req.url}`);
     }
   };
 }
