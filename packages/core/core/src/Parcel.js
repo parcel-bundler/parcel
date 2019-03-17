@@ -19,6 +19,7 @@ import Cache from '@parcel/cache';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
 import {HMRServer, serve} from '@parcel/server';
+import type {Server} from '@parcel/server';
 
 const abortError = new Error('Build aborted');
 
@@ -42,7 +43,7 @@ export default class Parcel {
   bundlerRunner: BundlerRunner;
   farm: WorkerFarm;
   runPackage: (bundle: Bundle) => Promise<mixed>;
-  server: any;
+  server: Server;
   error: PrintableError;
 
   constructor(options: ParcelOpts) {
