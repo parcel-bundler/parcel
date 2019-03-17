@@ -48,7 +48,16 @@ button:enabled:active {
 }
 
 .row > .presets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.row > .presets > span {
+  padding: .1em .2em;
+}
+.row > .presets > select {
   font-size: inherit;
+  flex: 0.5;
 }
 .file {
   border: 0.15em solid #ddd;

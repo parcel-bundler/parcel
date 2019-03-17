@@ -141,22 +141,24 @@ class App extends Component {
     return (
       <div id="app">
         <div class="row">
-          <select
-            class="presets"
-            onChange={e =>
-              this.setState({
-                currentPreset: e.target.value,
-                assets: PRESETS[e.target.value]
-              })
-            }
-            value={this.state.currentPreset}
-          >
-            {Object.keys(PRESETS).map(v => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
+          <label class="presets">
+            <span>Preset</span>
+            <select
+              onChange={e =>
+                this.setState({
+                  currentPreset: e.target.value,
+                  assets: PRESETS[e.target.value]
+                })
+              }
+              value={this.state.currentPreset}
+            >
+              {Object.keys(PRESETS).map(v => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </label>
           {this.state.assets.map(({name, content, isEntry}) => (
             <Asset
               key={name}

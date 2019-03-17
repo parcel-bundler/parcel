@@ -26,6 +26,7 @@ const Asset = props => {
             spellcheck="false"
             onChange={e => onChangeName(e.target.value)}
             value={name}
+            aria-label="Asset filename"
           />
           {additionalHeader}
           <input

@@ -54,12 +54,14 @@ parcel-bundler: (worker)
 - Fix `existsCache` map for getConfig (parser.js) (file issue: not reset at runtime, not an issue with cli ???)
 - non existing css linked by html: undefined line/column by css
 - (scope hoisting: don't replace node builtins) -> #2796
+- codecov
+- `<link rel=preload>` for dynamic imports
 
 ### REPL Issues
 
+- use onInput (debounce hash updating)
 - "Production" ? NODE_ENV ? As cli flag?
 - sass illegal invocation: https://github.com/mbullington/node_preamble.dart/issues/14
-- fix htmlnano/postcss/cssnano runtime `require`s
 - builtins/bundle loaders: fs.readFileSync(require.resolve)
 
 #### Cache
