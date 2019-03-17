@@ -13,3 +13,8 @@ import {
 export type Request = HTTPIncomingMessage | HTTPSIncomingMessage;
 export type Response = HTTPServerResponse | HTTPSServerResponse;
 export type Server = HTTPServer | HTTPSServer;
+
+// TODO: Figure out if there is a node.js type that could be imported with a complete ServerError
+export type ServerError = Error & {|
+  code: string
+|};

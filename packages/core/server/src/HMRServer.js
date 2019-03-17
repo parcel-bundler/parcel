@@ -1,18 +1,13 @@
 // @flow
 import type {ServerOptions} from '@parcel/types';
 import type {PrintableError} from '@parcel/logger/src/prettyError';
-import type {Server} from './types.js.flow';
+import type {Server, ServerError} from './types.js.flow';
 import http from 'http';
 import https from 'https';
 import WebSocket from 'ws';
 import generateCertificate from './generateCertificate';
 import getCertificate from './getCertificate';
 import logger from '@parcel/logger';
-
-type HMROptions = ServerOptions;
-type SocketError = Error & {
-  code?: string
-};
 
 type HMRMessage = {|
   type: string,
@@ -30,8 +25,9 @@ export default class HMRServer {
   unresolvedError: HMRMessage | null = null;
 
   async start(
-    options: HMROptions = {
-      port: 0
+    options: ServerOptions = {
+      port: 0,
+      certificateDir: '.parcel-cert'
     }
   ) {
     await new Promise(async resolve => {
@@ -121,7 +117,7 @@ export default class HMRServer {
     }
   }
 
-  handleSocketError(err: SocketError) {
+  handleSocketError(err: ServerError) {
     if (err.code === 'ECONNRESET') {
       // This gets triggered on page refresh, ignore this
       return;

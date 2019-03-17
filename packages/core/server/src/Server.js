@@ -154,10 +154,7 @@ export async function serve(
   if (!realOptions.https) {
     server = http.createServer(handler);
   } else if (typeof realOptions.https === 'boolean') {
-    server = https.createServer(
-      generateCertificate(parcelInstance.options),
-      handler
-    );
+    server = https.createServer(generateCertificate(realOptions), handler);
   } else {
     server = https.createServer(
       await getCertificate(realOptions.https),

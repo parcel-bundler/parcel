@@ -1,23 +1,27 @@
+// @flow
+import type {ServerOptions} from '@parcel/types';
 import forge from 'node-forge';
 import fs from 'fs';
 import mkdirp from 'mkdirp';
 import path from 'path';
 import logger from '@parcel/logger';
 
-export default function generateCertificate(options = {}) {
-  const privateKeyPath = path.join(options.cacheDir, 'private.pem');
-  const certPath = path.join(options.cacheDir, 'primary.crt');
-  if (options.cache) {
-    const cachedKey =
-      fs.existsSync(privateKeyPath) && fs.readFileSync(privateKeyPath);
-    const cachedCert = fs.existsSync(certPath) && fs.readFileSync(certPath);
+const DEFAULT_CERTIFICATE_DIR = '.parcel-cert';
 
-    if (cachedKey && cachedCert) {
-      return {
-        key: cachedKey,
-        cert: cachedCert
-      };
-    }
+export default function generateCertificate(options: ServerOptions) {
+  let certDirectory = options.certificateDir || DEFAULT_CERTIFICATE_DIR;
+
+  const privateKeyPath = path.join(certDirectory, 'private.pem');
+  const certPath = path.join(certDirectory, 'primary.crt');
+  const cachedKey =
+    fs.existsSync(privateKeyPath) && fs.readFileSync(privateKeyPath);
+  const cachedCert = fs.existsSync(certPath) && fs.readFileSync(certPath);
+
+  if (cachedKey && cachedCert) {
+    return {
+      key: cachedKey,
+      cert: cachedCert
+    };
   }
 
   logger.progress('Generating SSL Certificate...');
@@ -115,11 +119,9 @@ export default function generateCertificate(options = {}) {
   const privPem = pki.privateKeyToPem(keys.privateKey);
   const certPem = pki.certificateToPem(cert);
 
-  if (options.cache) {
-    mkdirp.sync(options.cacheDir);
-    fs.writeFileSync(privateKeyPath, privPem);
-    fs.writeFileSync(certPath, certPem);
-  }
+  mkdirp.sync(certDirectory);
+  fs.writeFileSync(privateKeyPath, privPem);
+  fs.writeFileSync(certPath, certPem);
 
   return {
     key: privPem,

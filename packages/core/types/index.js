@@ -138,7 +138,8 @@ export type ParcelOptions = {|
 export type ServerOptions = {|
   host?: string,
   port: number,
-  https?: HTTPSOptions | boolean
+  https?: HTTPSOptions | boolean,
+  certificateDir?: string
 |};
 
 export type HTTPSOptions = {|
