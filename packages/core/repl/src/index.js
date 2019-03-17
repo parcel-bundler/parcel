@@ -8,6 +8,7 @@ import filesize from 'filesize';
 import Asset from './components/Asset';
 import Options from './components/Options';
 import Notes from './components/Notes';
+import Preview from './components/Preview';
 import {ParcelError, PRESETS, hasBrowserslist} from './utils';
 import bundle, {workerLoaded} from './parcel/';
 
@@ -240,16 +241,22 @@ class App extends Component {
               return <ParcelError error={this.state.bundlingError} />;
             } else {
               return this.state.output ? (
-                this.state.output.map(({name, content}) => (
-                  <Asset
-                    key={name}
-                    name={name.trim()}
-                    content={content}
-                    additionalHeader={
-                      <div class="outputSize">{filesize(content.length)}</div>
-                    }
+                <Fragment>
+                  {this.state.output.map(({name, content}) => (
+                    <Asset
+                      key={name}
+                      name={name.trim()}
+                      content={content}
+                      additionalHeader={
+                        <div class="outputSize">{filesize(content.length)}</div>
+                      }
+                    />
+                  ))}
+                  <Preview
+                    assets={this.state.assets}
+                    output={this.state.output}
                   />
-                ))
+                </Fragment>
               ) : (
                 <div class="file gettingStarted">
                   <div>

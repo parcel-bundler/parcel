@@ -53,7 +53,7 @@ button:enabled:active {
   justify-content: space-between;
 }
 .row > .presets > span {
-  padding: .1em .2em;
+  padding: 0.1em 0.2em;
 }
 .row > .presets > select {
   font-size: inherit;
