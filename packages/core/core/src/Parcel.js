@@ -8,6 +8,7 @@ import type {
   ParcelConfig,
   ServerOptions
 } from '@parcel/types';
+import type {PrintableError} from '@parcel/logger/src/prettyError';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
@@ -42,6 +43,7 @@ export default class Parcel {
   farm: WorkerFarm;
   runPackage: (bundle: Bundle) => Promise<mixed>;
   server: any;
+  error: PrintableError;
 
   constructor(options: ParcelOpts) {
     let {entries} = options;
@@ -111,6 +113,8 @@ export default class Parcel {
     this.runPackage = this.farm.mkhandle('runPackage');
 
     if (this.options.serve) {
+      // Not sure if the server should even be mentioned in the core?
+      // Perhaps it should be part of the cli?
       this.server = await serve(this, this.options.serve);
     }
   }
@@ -149,6 +153,7 @@ export default class Parcel {
       if (e !== abortError) {
         console.error(e); // eslint-disable-line no-console
       }
+      this.error = e;
       throw e;
     }
   }

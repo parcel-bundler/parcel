@@ -50,31 +50,31 @@ function enableCors(res) {
   );
 }
 
-export function middleware(bundler: Parcel) {
-  const serve = serveStatic(bundler.options.cliOpts.distDir, {
+export function middleware(parcelInstance: Parcel) {
+  const serve = serveStatic(parcelInstance.options.cliOpts.distDir, {
     index: false,
     redirect: false,
     setHeaders: setHeaders,
     dotfiles: 'allow'
   });
 
-  let publicUrl = bundler.options.cliOpts.publicURL || '/';
+  let publicUrl = parcelInstance.options.cliOpts.publicURL || '/';
 
   return function(req: Request, res: Response, next?: any => any) {
     logAccessIfVerbose();
 
-    // Wait for the bundler to finish bundling if needed
+    // Wait for the parcelInstance to finish bundling if needed
     // TODO: Figure this out...
-    /*if (bundler.pending) {
-      bundler.once('bundled', respond);
+    /*if (parcelInstance.pending) {
+      parcelInstance.once('bundled', respond);
     } else {
       respond();
     }*/
 
     function respond() {
       let {pathname} = url.parse(req.url);
-      if (bundler.error) {
-        return send500(bundler.error);
+      if (parcelInstance.error) {
+        return send500(parcelInstance.error);
       } else if (
         !pathname ||
         !pathname.startsWith(publicUrl) ||
@@ -147,8 +147,11 @@ export function middleware(bundler: Parcel) {
   };
 }
 
-export async function serve(bundler: Parcel, options: ServerOptions | boolean) {
-  let handler = middleware(bundler);
+export async function serve(
+  parcelInstance: Parcel,
+  options: ServerOptions | boolean
+) {
+  let handler = middleware(parcelInstance);
 
   let realOptions: ServerOptions =
     typeof options === 'boolean'
@@ -163,7 +166,10 @@ export async function serve(bundler: Parcel, options: ServerOptions | boolean) {
   if (!realOptions.https) {
     server = http.createServer(handler);
   } else if (typeof realOptions.https === 'boolean') {
-    server = https.createServer(generateCertificate(bundler.options), handler);
+    server = https.createServer(
+      generateCertificate(parcelInstance.options),
+      handler
+    );
   } else {
     server = https.createServer(
       await getCertificate(realOptions.https),
