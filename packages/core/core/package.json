@@ -22,6 +22,7 @@
     "@parcel/utils": "^1.10.3",
     "@parcel/watcher": "^1.10.3",
     "@parcel/workers": "^1.10.3",
+    "@parcel/server": "^2.0.0",
     "abortcontroller-polyfill": "^1.1.9",
     "browserslist": "^4.1.0",
     "chalk": "^2.1.0",

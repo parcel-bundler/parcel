@@ -2041,6 +2041,13 @@ ansi-styles@^3.2.0, ansi-styles@^3.2.1:
   dependencies:
     color-convert "^1.9.0"
 
+ansi-to-html@^0.6.10:
+  version "0.6.10"
+  resolved "https://registry.yarnpkg.com/ansi-to-html/-/ansi-to-html-0.6.10.tgz#412114353bac2589a034db7ec5b371b8ba771131"
+  integrity sha512-znsY3gvsk4CiApWu1yVYF8Nx5Vy0FEe8B0YwyxdbCdErJu5lfKlRHB2twtUjR+dxR4WewTk2OP8XqTmWYnImOg==
+  dependencies:
+    entities "^1.1.1"
+
 ansi-to-html@^0.6.4:
   version "0.6.8"
   resolved "https://registry.yarnpkg.com/ansi-to-html/-/ansi-to-html-0.6.8.tgz#2a4468b45a5d2a2c1a51eb1a1175eda8acb4f07a"
@@ -5508,6 +5515,11 @@ get-port@^3.2.0:
   resolved "https://registry.yarnpkg.com/get-port/-/get-port-3.2.0.tgz#dd7ce7de187c06c8bf353796ac71e099f0980ebc"
   integrity sha1-3Xzn3hh8Bsi/NTeWrHHgmfCYDrw=
 
+get-port@^4.2.0:
+  version "4.2.0"
+  resolved "https://registry.yarnpkg.com/get-port/-/get-port-4.2.0.tgz#e37368b1e863b7629c43c5a323625f95cf24b119"
+  integrity sha512-/b3jarXkH8KJoOMQc3uVGHASwGLPq3gSFJ7tgJm2diza+bydJPTGOibin2steecKeOylE8oY2JERlVWkAJO6yw==
+
 get-stdin@^4.0.1:
   version "4.0.1"
   resolved "https://registry.yarnpkg.com/get-stdin/-/get-stdin-4.0.1.tgz#b968c6b0a04384324902e8bf1a5df32579a450fe"
@@ -7984,6 +7996,11 @@ node-forge@^0.7.1:
   version "0.7.6"
   resolved "https://registry.yarnpkg.com/node-forge/-/node-forge-0.7.6.tgz#fdf3b418aee1f94f0ef642cd63486c77ca9724ac"
   integrity sha512-sol30LUpz1jQFBjOKwbjxijiE3b6pjd74YwfD0fJOKPjF+fONKb2Yg8rYgS6+bK6VDl+/wfr4IYpC7jDzLUIfw==
+
+node-forge@^0.8.1:
+  version "0.8.1"
+  resolved "https://registry.yarnpkg.com/node-forge/-/node-forge-0.8.1.tgz#67aeb9df7bb78d15444ec04a0162d2c565559c37"
+  integrity sha512-C/42HVb5eRtnDgRKOFx4bJH6LwbGQwbEHOC/trQwQSR6xWAUR/jlWoUJnxOmFTvdmDIZtjl2VH4dl3VpQuIz5g==
 
 node-gyp@^3.8.0:
   version "3.8.0"
@@ -10504,7 +10521,7 @@ serialize-to-js@^1.1.1:
     js-beautify "^1.7.5"
     safer-eval "^1.2.3"
 
-serve-static@^1.12.4:
+serve-static@^1.12.4, serve-static@^1.13.2:
   version "1.13.2"
   resolved "https://registry.yarnpkg.com/serve-static/-/serve-static-1.13.2.tgz#095e8472fd5b46237db50ce486a43f4b86c6cec1"
   integrity sha512-p/tdJrO4U387R9oMjb1oj7qSMaMfmOyd4j9hOFoxZe2baQszgHcSWjuya/CiT5kgZZKRudHNOA0pYXOl8rQ5nw==
@@ -12119,6 +12136,13 @@ ws@^5.1.1:
   version "5.2.2"
   resolved "https://registry.yarnpkg.com/ws/-/ws-5.2.2.tgz#dffef14866b8e8dc9133582514d1befaf96e980f"
   integrity sha512-jaHFD6PFv6UgoIVda6qZllptQsMlDEJkTQcybzzXDYM1XO9Y8em691FGMPmM46WGyLU4z9KMgQN+qrux/nhlHA==
+  dependencies:
+    async-limiter "~1.0.0"
+
+ws@^6.2.0:
+  version "6.2.0"
+  resolved "https://registry.yarnpkg.com/ws/-/ws-6.2.0.tgz#13806d9913b2a5f3cbb9ba47b563c002cbc7c526"
+  integrity sha512-deZYUNlt2O4buFCa3t5bKLf8A7FPP/TVjwOeVNpw818Ma5nk4MLXls2eoEGS39o8119QIYxTrTDoPQ5B/gTD6w==
   dependencies:
     async-limiter "~1.0.0"
 
