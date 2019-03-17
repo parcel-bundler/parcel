@@ -1,5 +1,15 @@
-import http from 'http';
-import https from 'https';
+// @flow
+import type {ServerOptions} from '@parcel/types';
+import type Parcel from '@parcel/core';
+import type {PrintableError} from '@parcel/logger/src/prettyError';
+import http, {
+  IncomingMessage as HTTPIncomingMessage,
+  ServerResponse as HTTPServerResponse
+} from 'http';
+import https, {
+  IncomingMessage as HTTPSIncomingMessage,
+  ServerResponse as HTTPSServerResponse
+} from 'https';
 import serveStatic from 'serve-static';
 import getPort from 'get-port';
 import serverErrors from './serverErrors';
@@ -9,6 +19,14 @@ import AnsiToHtml from 'ansi-to-html';
 import logger from '@parcel/logger';
 import path from 'path';
 import url from 'url';
+
+type Request = (HTTPIncomingMessage | HTTPSIncomingMessage) & {
+  connection?: {
+    encrypted?: boolean
+  }
+};
+
+type Response = HTTPServerResponse | HTTPSServerResponse;
 
 const ansiToHtml = new AnsiToHtml({newline: true});
 
@@ -32,30 +50,34 @@ function enableCors(res) {
   );
 }
 
-export function middleware(bundler) {
-  const serve = serveStatic(bundler.options.outDir, {
+export function middleware(bundler: Parcel) {
+  const serve = serveStatic(bundler.options.cliOpts.distDir, {
     index: false,
     redirect: false,
     setHeaders: setHeaders,
     dotfiles: 'allow'
   });
 
-  return function(req, res, next) {
+  let publicUrl = bundler.options.cliOpts.publicURL || '/';
+
+  return function(req: Request, res: Response, next?: any => any) {
     logAccessIfVerbose();
 
     // Wait for the bundler to finish bundling if needed
-    if (bundler.pending) {
+    // TODO: Figure this out...
+    /*if (bundler.pending) {
       bundler.once('bundled', respond);
     } else {
       respond();
-    }
+    }*/
 
     function respond() {
       let {pathname} = url.parse(req.url);
       if (bundler.error) {
         return send500(bundler.error);
       } else if (
-        !pathname.startsWith(bundler.options.publicURL) ||
+        !pathname ||
+        !pathname.startsWith(publicUrl) ||
         path.extname(pathname) === ''
       ) {
         // If the URL doesn't start with the public path, or the URL doesn't
@@ -63,22 +85,25 @@ export function middleware(bundler) {
         return sendIndex();
       } else {
         // Otherwise, serve the file from the dist folder
-        req.url = pathname.slice(bundler.options.publicURL.length);
+        req.url = pathname.slice(publicUrl.length);
         return serve(req, res, sendIndex);
       }
     }
 
     function sendIndex() {
       // If the main asset is an HTML file, serve it
-      if (bundler.mainBundle.type === 'html') {
+      // TODO: Figure out getting mainBundle
+      /*if (bundler.mainBundle.type === 'html') {
         req.url = `/${path.basename(bundler.mainBundle.name)}`;
         serve(req, res, send404);
       } else {
         send404();
-      }
+      }*/
+
+      send404();
     }
 
-    function send500(error) {
+    function send500(error: PrintableError) {
       setHeaders(res);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.writeHead(500);
@@ -113,7 +138,8 @@ export function middleware(bundler) {
     }
 
     function logAccessIfVerbose() {
-      const protocol = req.connection.encrypted ? 'https' : 'http';
+      const protocol =
+        req.connection && req.connection.encrypted ? 'https' : 'http';
       const fullUrl = `${protocol}://${req.headers.host}${req.url}`;
 
       logger.verbose(`Request: ${fullUrl}`);
@@ -121,19 +147,32 @@ export function middleware(bundler) {
   };
 }
 
-export async function serve(bundler, port, host, useHTTPS = false) {
+export async function serve(bundler: Parcel, options: ServerOptions | boolean) {
   let handler = middleware(bundler);
+
+  let realOptions: ServerOptions =
+    typeof options === 'boolean'
+      ? {
+          host: '',
+          port: 1234,
+          https: false
+        }
+      : options;
+
   let server;
-  if (!useHTTPS) {
+  if (!realOptions.https) {
     server = http.createServer(handler);
-  } else if (typeof useHTTPS === 'boolean') {
+  } else if (typeof realOptions.https === 'boolean') {
     server = https.createServer(generateCertificate(bundler.options), handler);
   } else {
-    server = https.createServer(await getCertificate(useHTTPS), handler);
+    server = https.createServer(
+      await getCertificate(realOptions.https),
+      handler
+    );
   }
 
-  let freePort = await getPort({port});
-  server.listen(freePort, host);
+  let freePort = await getPort({port: realOptions.port});
+  server.listen(freePort, realOptions.host);
 
   return new Promise((resolve, reject) => {
     server.on('error', err => {
@@ -144,17 +183,16 @@ export async function serve(bundler, port, host, useHTTPS = false) {
 
     server.once('listening', () => {
       let addon =
-        server.address().port !== port
+        server.address().port !== realOptions.port
           ? `- ${logger.chalk.yellow(
-              `configured port ${port} could not be used.`
+              `configured port ${realOptions.port.toString()} could not be used.`
             )}`
           : '';
 
       logger.persistent(
         `Server running at ${logger.chalk.cyan(
-          `${useHTTPS ? 'https' : 'http'}://${host || 'localhost'}:${
-            server.address().port
-          }`
+          `${realOptions.https ? 'https' : 'http'}://${realOptions.host ||
+            'localhost'}:${server.address().port}`
         )} ${addon}`
       );
 

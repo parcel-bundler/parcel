@@ -137,13 +137,13 @@ export type ParcelOptions = {|
 
 export type ServerOptions = {|
   host?: string,
-  port?: number,
+  port: number,
   https?: HTTPSOptions | boolean
 |};
 
 export type HTTPSOptions = {|
-  cert?: FilePath,
-  key?: FilePath
+  cert: FilePath,
+  key: FilePath
 |};
 
 export type CLIOptions = {
@@ -151,7 +151,8 @@ export type CLIOptions = {
   watch?: boolean,
   distDir?: FilePath,
   production?: boolean,
-  cache?: boolean
+  cache?: boolean,
+  publicURL?: string
 };
 
 export type SourceLocation = {|

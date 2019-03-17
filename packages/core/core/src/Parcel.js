@@ -5,7 +5,8 @@ import type {
   Bundle,
   BundleGraph,
   CLIOptions,
-  ParcelConfig
+  ParcelConfig,
+  ServerOptions
 } from '@parcel/types';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
@@ -16,6 +17,7 @@ import path from 'path';
 import Cache from '@parcel/cache';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
+import {HMRServer, serve} from '@parcel/server';
 
 const abortError = new Error('Build aborted');
 
@@ -26,7 +28,9 @@ type ParcelOpts = {|
   killWorkers?: boolean,
   env?: {[string]: ?string},
   config?: ParcelConfig,
-  defaultConfig?: ParcelConfig
+  defaultConfig?: ParcelConfig,
+  hot?: ServerOptions | boolean,
+  serve?: ServerOptions | boolean
 |};
 
 export default class Parcel {
@@ -37,6 +41,7 @@ export default class Parcel {
   bundlerRunner: BundlerRunner;
   farm: WorkerFarm;
   runPackage: (bundle: Bundle) => Promise<mixed>;
+  server: any;
 
   constructor(options: ParcelOpts) {
     let {entries} = options;
@@ -104,6 +109,10 @@ export default class Parcel {
     );
 
     this.runPackage = this.farm.mkhandle('runPackage');
+
+    if (this.options.serve) {
+      this.server = await serve(this, this.options.serve);
+    }
   }
 
   async run(): Promise<BundleGraph> {
