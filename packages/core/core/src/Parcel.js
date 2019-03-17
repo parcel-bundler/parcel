@@ -20,6 +20,7 @@ import AssetGraphBuilder from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
 import {HMRServer, serve} from '@parcel/server';
 import type {Server} from '@parcel/server';
+import {EventEmitter} from 'events';
 
 const abortError = new Error('Build aborted');
 
@@ -35,7 +36,7 @@ type ParcelOpts = {|
   serve?: ServerOptions | boolean
 |};
 
-export default class Parcel {
+export default class Parcel extends EventEmitter {
   options: ParcelOpts;
   entries: Array<string>;
   rootDir: string;
@@ -47,7 +48,10 @@ export default class Parcel {
   error: PrintableError;
 
   constructor(options: ParcelOpts) {
+    super();
+
     let {entries} = options;
+
     this.options = options;
     this.entries = Array.isArray(entries) ? entries : [entries];
     this.rootDir = getRootDir(this.entries);
@@ -133,6 +137,8 @@ export default class Parcel {
   async build(): Promise<BundleGraph> {
     try {
       // console.log('Starting build'); // eslint-disable-line no-console
+      this.pending = true;
+
       let assetGraph = await this.assetGraphBuilder.build();
 
       if (process.env.PARCEL_DUMP_GRAPH != null) {
@@ -148,6 +154,7 @@ export default class Parcel {
         await this.farm.end();
       }
 
+      this.emit('bundled');
       // console.log('Finished build'); // eslint-disable-line no-console
       return bundleGraph;
     } catch (e) {

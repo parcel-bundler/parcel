@@ -66,13 +66,11 @@ export function middleware(parcelInstance: Parcel) {
     logAccessIfVerbose();
 
     // Wait for the parcelInstance to finish bundling if needed
-    // TODO: Figure this out...
-    // Should probably not be Parcel.pending but parcel.queue.pending
-    /*if (parcelInstance.pending) {
+    if (parcelInstance.pending) {
       parcelInstance.once('bundled', respond);
     } else {
       respond();
-    }*/
+    }
 
     function respond() {
       let {pathname} = url.parse(req.url);
