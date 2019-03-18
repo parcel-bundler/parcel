@@ -9,7 +9,7 @@ function Module(moduleName) {
     _acceptCallbacks: [],
     _disposeCallbacks: [],
     accept: function (fn) {
-      this._acceptCallbacks.push(fn || function () {});
+      this._acceptCallbacks.push(fn || () => {});
     },
     dispose: function (fn) {
       this._disposeCallbacks.push(fn);
@@ -27,7 +27,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = process.env.HMR_HOSTNAME || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
   var ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
-  ws.onmessage = function(event) {
+  ws.onmessage = event => {
     checkedAssets = {};
     assetsToAccept = [];
 
@@ -35,7 +35,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
     if (data.type === 'update') {
       var handled = false;
-      data.assets.forEach(function(asset) {
+      data.assets.forEach(asset => {
         if (!asset.isNew) {
           var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
           if (didAccept) {
@@ -45,18 +45,16 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       });
 
       // Enable HMR for CSS by default.
-      handled = handled || data.assets.every(function(asset) {
-        return asset.type === 'css' && asset.generated.js;
-      });
+      handled = handled || data.assets.every(asset => asset.type === 'css' && asset.generated.js);
 
       if (handled) {
         console.clear();
 
-        data.assets.forEach(function (asset) {
+        data.assets.forEach(asset => {
           hmrApply(global.parcelRequire, asset);
         });
 
-        assetsToAccept.forEach(function (v) {
+        assetsToAccept.forEach(v => {
           hmrAcceptRun(v[0], v[1]);
         });
       } else {
@@ -66,7 +64,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
     if (data.type === 'reload') {
       ws.close();
-      ws.onclose = function () {
+      ws.onclose = () => {
         location.reload();
       }
     }
@@ -181,9 +179,7 @@ function hmrAcceptCheck(bundle, id) {
     return true;
   }
 
-  return getParents(global.parcelRequire, id).some(function (id) {
-    return hmrAcceptCheck(global.parcelRequire, id)
-  });
+  return getParents(global.parcelRequire, id).some(id => hmrAcceptCheck(global.parcelRequire, id));
 }
 
 function hmrAcceptRun(bundle, id) {
@@ -194,7 +190,7 @@ function hmrAcceptRun(bundle, id) {
   }
 
   if (cached && cached.hot && cached.hot._disposeCallbacks.length) {
-    cached.hot._disposeCallbacks.forEach(function (cb) {
+    cached.hot._disposeCallbacks.forEach(cb => {
       cb(bundle.hotData);
     });
   }
@@ -204,7 +200,7 @@ function hmrAcceptRun(bundle, id) {
 
   cached = bundle.cache[id];
   if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
-    cached.hot._acceptCallbacks.forEach(function (cb) {
+    cached.hot._acceptCallbacks.forEach(cb => {
       cb();
     });
     return true;
