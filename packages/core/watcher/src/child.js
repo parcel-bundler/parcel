@@ -5,8 +5,8 @@ const optionsTransfer = require('./options');
 let watcher;
 function sendEvent(event, path) {
   process.send({
-    event: event,
-    path: path
+    event,
+    path
   });
 }
 
