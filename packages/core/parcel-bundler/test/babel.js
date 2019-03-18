@@ -10,9 +10,9 @@ const babelPresetEnv = require('@babel/preset-env');
 const traverse = require('@babel/traverse').default;
 const assert = require('assert');
 
-describe('babel', function() {
+describe('babel', () => {
   let ast;
-  before(async function() {
+  before(async () => {
     const options = {
       parserOpts: {
         allowReturnOutsideFunction: true,
@@ -34,7 +34,7 @@ describe('babel', function() {
     ast = babelCore.parse(code, options);
   });
 
-  it('Should be able to convert Babel 7 => Babel 6 AST', async function() {
+  it('Should be able to convert Babel 7 => Babel 6 AST', async () => {
     ast = babel7toBabel6(ast);
 
     let elementCount = {};
@@ -81,7 +81,7 @@ describe('babel', function() {
     assert.equal(elementCount['ArrowFunctionExpression'], 2);
   });
 
-  it('Should be able to convert Babel 6 => Babel 7 AST', async function() {
+  it('Should be able to convert Babel 6 => Babel 7 AST', async () => {
     ast = babel6toBabel7(ast);
 
     let elementCount = {};
