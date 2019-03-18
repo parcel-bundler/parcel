@@ -14,7 +14,7 @@ import type {
   Packager,
   Optimizer
 } from '@parcel/types';
-import localRequire from '@parcel/utils/src/localRequire';
+import {localResolve} from '@parcel/utils/src/localRequire';
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
 import {CONFIG} from '@parcel/plugin';
@@ -57,13 +57,10 @@ export default class Config {
       return cached;
     }
 
-    let [resolved, pkg] = await localRequire.resolve(
-      pluginName,
-      this.configPath
-    );
+    let [resolved, pkg] = await localResolve(pluginName, this.configPath);
 
     // Validate the engines.parcel field in the plugin's package.json
-    let parcelVersionRange = pkg.engines && pkg.engines.parcel;
+    let parcelVersionRange = pkg && pkg.engines && pkg.engines.parcel;
     if (!parcelVersionRange) {
       logger.warn(
         `The plugin "${pluginName}" needs to specify a \`package.json#engines.parcel\` field with the supported Parcel version range.`
