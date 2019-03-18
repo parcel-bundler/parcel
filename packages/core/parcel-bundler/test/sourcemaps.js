@@ -1,8 +1,8 @@
 const assert = require('assert');
 const SourceMap = require('../src/SourceMap');
 
-describe('sourcemaps', function() {
-  it('should purify mappings properly', async function() {
+describe('sourcemaps', () => {
+  it('should purify mappings properly', async () => {
     let mappings = [
       {
         source: 'index.js',
@@ -145,7 +145,7 @@ describe('sourcemaps', function() {
     assert.deepEqual(sourcemap.mappings, expectedResult);
   });
 
-  it('should be able to handle null mappings properly', async function() {
+  it('should be able to handle null mappings properly', async () => {
     let mappings = [
       {
         generated: {
