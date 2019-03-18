@@ -189,7 +189,7 @@ class Resolver {
           return {
             moduleName: parts[0],
             subPath: parts[1],
-            moduleDir: moduleDir,
+            moduleDir,
             filePath: path.join(dir, 'node_modules', filename)
           };
         }
