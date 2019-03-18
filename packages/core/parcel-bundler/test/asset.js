@@ -22,7 +22,7 @@ describe('Asset', () => {
     assert.equal(a.generateErrorMessage(err), err);
   });
 
-  it('should support overriding the filename of the root bundle', async function() {
+  it('should support overriding the filename of the root bundle', async () => {
     const outFile = 'custom-out-file.html';
     await bundle(path.join(__dirname, '/integration/html/index.html'), {
       outFile
@@ -31,7 +31,7 @@ describe('Asset', () => {
     assert(await fs.exists(__dirname, `/dist/${outFile}`));
   });
 
-  it('should have backward compatibility for package field', function() {
+  it('should have backward compatibility for package field', () => {
     let a = new Asset(__filename, {rootDir: '/root/dir'});
     assert.equal(a.package.name, 'parcel-bundler');
   });
