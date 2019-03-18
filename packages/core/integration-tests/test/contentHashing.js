@@ -3,12 +3,12 @@ const path = require('path');
 const fs = require('@parcel/fs');
 const {bundle, rimraf, ncp} = require('@parcel/test-utils');
 
-describe('content hashing', function() {
-  beforeEach(async function() {
+describe('content hashing', () => {
+  beforeEach(async () => {
     await rimraf(path.join(__dirname, '/input'));
   });
 
-  it('should update content hash when content changes', async function() {
+  it('should update content hash when content changes', async () => {
     await ncp(
       path.join(__dirname, '/integration/html-css'),
       path.join(__dirname, '/input')
@@ -45,7 +45,7 @@ describe('content hashing', function() {
     assert.notEqual(filename, newFilename);
   });
 
-  it('should update content hash when raw asset changes', async function() {
+  it('should update content hash when raw asset changes', async () => {
     await ncp(
       path.join(__dirname, '/integration/import-raw'),
       path.join(__dirname, '/input')
