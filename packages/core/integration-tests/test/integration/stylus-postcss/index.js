@@ -1,5 +1,3 @@
 var map = require('./index.styl');
 
-module.exports = function () {
-  return map.index;
-};
+module.exports = () => map.index;
