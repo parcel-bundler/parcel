@@ -113,20 +113,20 @@ class Bundler extends EventEmitter {
       production: isProduction,
       outDir: Path.resolve(options.outDir || 'dist'),
       outFile: options.outFile || '',
-      publicURL: publicURL,
-      watch: watch,
+      publicURL,
+      watch,
       cache: typeof options.cache === 'boolean' ? options.cache : true,
       cacheDir: Path.resolve(options.cacheDir || '.cache'),
       killWorkers:
         typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
       minify:
         typeof options.minify === 'boolean' ? options.minify : isProduction,
-      target: target,
+      target,
       bundleNodeModules:
         typeof options.bundleNodeModules === 'boolean'
           ? options.bundleNodeModules
           : target === 'browser',
-      hmr: hmr,
+      hmr,
       https: options.https || false,
       logLevel: isNaN(options.logLevel) ? 3 : options.logLevel,
       entryFiles: this.entryFiles,
@@ -147,7 +147,7 @@ class Bundler extends EventEmitter {
           : process.env.PARCEL_AUTOINSTALL === 'false'
             ? false
             : !isProduction,
-      scopeHoist: scopeHoist,
+      scopeHoist,
       contentHash:
         typeof options.contentHash === 'boolean'
           ? options.contentHash
