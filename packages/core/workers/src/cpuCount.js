@@ -1,6 +1,6 @@
 const os = require('os');
 
-module.exports = function() {
+module.exports = () => {
   let cores;
   try {
     cores = require('physical-cpu-count');
