@@ -1,12 +1,16 @@
 module.exports = function loadWASMBundle(bundle) {
   return fetch(bundle)
-    .then(res => {
+    .then(function (res) {
       if (WebAssembly.instantiateStreaming) {
         return WebAssembly.instantiateStreaming(res);
       } else {
         return res.arrayBuffer()
-          .then(data => WebAssembly.instantiate(data));
+          .then(function (data) {
+            return WebAssembly.instantiate(data);
+          });
       }
     })
-    .then(wasmModule => wasmModule.instance.exports);
+    .then(function (wasmModule) {
+      return wasmModule.instance.exports;
+    });
 };
