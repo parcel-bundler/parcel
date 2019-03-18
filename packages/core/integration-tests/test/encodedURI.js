@@ -3,8 +3,8 @@ const path = require('path');
 const fs = require('@parcel/fs');
 const {bundle, assertBundleTree} = require('@parcel/test-utils');
 
-describe('encodedURI', function() {
-  it('should support bundling files which names in encoded URI', async function() {
+describe('encodedURI', () => {
+  it('should support bundling files which names in encoded URI', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/encodedURI/index.html')
     );
