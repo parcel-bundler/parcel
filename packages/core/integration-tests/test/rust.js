@@ -4,7 +4,7 @@ const {bundle, bundler, run, assertBundleTree} = require('@parcel/test-utils');
 const fs = require('@parcel/fs');
 const commandExists = require('command-exists');
 
-describe('rust', function() {
+describe('rust', () => {
   if (typeof WebAssembly === 'undefined' || !commandExists.sync('rustup')) {
     // eslint-disable-next-line no-console
     console.log(
