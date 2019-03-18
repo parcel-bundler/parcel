@@ -198,7 +198,7 @@ function prepareBrowserContext(bundle, globals) {
       return [
         {
           appendChild(el) {
-            setTimeout(function() {
+            setTimeout(() => {
               if (el.tag === 'script') {
                 vm.runInContext(
                   nodeFS.readFileSync(
@@ -272,9 +272,7 @@ function prepareNodeContext(bundle, globals) {
       exports: module.exports,
       __filename: bundle.name,
       __dirname: path.dirname(bundle.name),
-      require: function(path) {
-        return mod.require(path);
-      },
+      require: path => mod.require(path),
       console,
       process: process,
       setTimeout: setTimeout,
