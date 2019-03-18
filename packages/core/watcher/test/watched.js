@@ -3,7 +3,7 @@ const fs = require('@parcel/fs');
 const path = require('path');
 const assert = require('assert');
 
-describe('watched paths', function() {
+describe('watched paths', () => {
   let tmpFolder = path.join(__dirname, './tmp/');
 
   before(() => {
