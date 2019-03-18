@@ -407,7 +407,7 @@ class Resolver {
         }
       }
       // Or try a lookup replacing backslash characters with forward slash
-      if (alias == null && ~filename.indexOf('\\')) {
+      if (alias == null && filename.includes('\\')) {
         alias = aliases[filename.replace(/\\/g, '/')];
       }
     }
