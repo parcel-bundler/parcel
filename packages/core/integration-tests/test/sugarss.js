@@ -3,8 +3,8 @@ const {bundle, assertBundleTree} = require('@parcel/test-utils');
 const fs = require('@parcel/fs');
 const path = require('path');
 
-describe('sugarss', function() {
-  it('should correctly parse SugarSS asset', async function() {
+describe('sugarss', () => {
+  it('should correctly parse SugarSS asset', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/sugarss/index.sss')
     );
