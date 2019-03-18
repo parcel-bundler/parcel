@@ -3,8 +3,8 @@ const path = require('path');
 const fs = require('@parcel/fs');
 const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
-describe('sass', function() {
-  it('should support requiring sass files', async function() {
+describe('sass', () => {
+  it('should support requiring sass files', async () => {
     let b = await bundle(path.join(__dirname, '/integration/sass/index.js'));
 
     await assertBundleTree(b, {
@@ -37,7 +37,7 @@ describe('sass', function() {
     assert(css.includes('.index'));
   });
 
-  it('should support requiring scss files', async function() {
+  it('should support requiring scss files', async () => {
     let b = await bundle(path.join(__dirname, '/integration/scss/index.js'));
 
     await assertBundleTree(b, {
@@ -70,7 +70,7 @@ describe('sass', function() {
     assert(css.includes('.index'));
   });
 
-  it('should support scss imports', async function() {
+  it('should support scss imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/scss-import/index.js')
     );
@@ -107,7 +107,7 @@ describe('sass', function() {
     assert(css.includes('.bar'));
   });
 
-  it('should support requiring empty scss files', async function() {
+  it('should support requiring empty scss files', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/scss-empty/index.js')
     );
@@ -146,7 +146,7 @@ describe('sass', function() {
     );
   });
 
-  it('should support linking to assets with url() from scss', async function() {
+  it('should support linking to assets with url() from scss', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/scss-url/index.js')
     );
@@ -203,7 +203,7 @@ describe('sass', function() {
     );
   });
 
-  it('should support transforming scss with postcss', async function() {
+  it('should support transforming scss with postcss', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/scss-postcss/index.js')
     );
@@ -239,7 +239,7 @@ describe('sass', function() {
     assert(css.includes(`.${className}`));
   });
 
-  it('should support advanced import syntax', async function() {
+  it('should support advanced import syntax', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/sass-advanced-import/index.sass')
     );
@@ -262,7 +262,7 @@ describe('sass', function() {
     assert(css.includes('.bar { color: green;'));
   });
 
-  it('should support absolute imports', async function() {
+  it('should support absolute imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/scss-absolute-imports/style.scss')
     );
