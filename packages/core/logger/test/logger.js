@@ -4,7 +4,7 @@ const Logger = require('../src/Logger');
 
 describe('Logger', () => {
   let log;
-  beforeEach(function() {
+  beforeEach(() => {
     log = [];
   });
 
