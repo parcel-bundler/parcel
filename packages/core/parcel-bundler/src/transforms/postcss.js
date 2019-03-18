@@ -7,7 +7,7 @@ const semver = require('semver');
 const path = require('path');
 const fs = require('@parcel/fs');
 
-module.exports = async function(asset) {
+module.exports = async asset => {
   let config = await getConfig(asset);
   if (!config) {
     return;
