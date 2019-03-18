@@ -4,8 +4,8 @@ const path = require('path');
 const logger = require('@parcel/logger');
 const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
-describe('plugins', function() {
-  it('should load plugins and apply custom asset type', async function() {
+describe('plugins', () => {
+  it('should load plugins and apply custom asset type', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/plugins/test-plugin/index.js')
     );
@@ -24,7 +24,7 @@ describe('plugins', function() {
     assert.equal(output, 'hello world');
   });
 
-  it('should load package.json from parent tree', async function() {
+  it('should load package.json from parent tree', async () => {
     let b = await bundle(
       path.join(
         __dirname,
@@ -46,7 +46,7 @@ describe('plugins', function() {
     assert.equal(output, 'hello world');
   });
 
-  it('log a warning if a plugin throws an exception during initialization', async function() {
+  it('log a warning if a plugin throws an exception during initialization', async () => {
     sinon.stub(logger, 'warn');
 
     let b = await bundle(
@@ -65,7 +65,7 @@ describe('plugins', function() {
     logger.warn.restore();
   });
 
-  it('log a warning if a parser throws an exception during initialization', async function() {
+  it('log a warning if a parser throws an exception during initialization', async () => {
     sinon.stub(logger, 'warn');
 
     let b = await bundle(
