@@ -2,7 +2,7 @@ const assert = require('assert');
 const {bundle, assertBundleTree, run} = require('@parcel/test-utils');
 const commandExists = require('command-exists');
 
-describe('kotlin', function() {
+describe('kotlin', () => {
   if (!commandExists.sync('java')) {
     // eslint-disable-next-line no-console
     console.log(
@@ -11,7 +11,7 @@ describe('kotlin', function() {
     return;
   }
 
-  it('should produce a basic kotlin bundle', async function() {
+  it('should produce a basic kotlin bundle', async () => {
     let b = await bundle(__dirname + '/integration/kotlin/index.js');
 
     await assertBundleTree(b, {
