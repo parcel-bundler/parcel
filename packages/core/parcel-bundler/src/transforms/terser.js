@@ -1,7 +1,7 @@
 const {minify} = require('terser');
 const SourceMap = require('../SourceMap');
 
-module.exports = async function(asset) {
+module.exports = async asset => {
   await asset.parseIfNeeded();
 
   // Convert AST into JS
