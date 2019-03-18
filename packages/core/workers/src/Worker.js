@@ -115,7 +115,7 @@ class Worker extends EventEmitter {
 
     this.send({
       type: 'request',
-      idx: idx,
+      idx,
       child: this.id,
       method: call.method,
       args: call.args
