@@ -27,10 +27,10 @@ function checkSourceMapping({
   msg = ''
 }) {
   assert(
-    generated.indexOf(generatedStr) !== -1,
+    generated.includes(generatedStr),
     "'" + generatedStr + "' not in generated code"
   );
-  assert(source.indexOf(str) !== -1, "'" + str + "' not in source code");
+  assert(source.includes(str), "'" + str + "' not in source code");
 
   let generatedPosition = indexToLineCol(
     generated,
