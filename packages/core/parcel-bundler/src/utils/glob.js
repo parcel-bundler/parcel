@@ -5,14 +5,8 @@ function normalisePath(p) {
   return p.replace(/\\/g, '/');
 }
 
-exports.isGlob = function(p) {
-  return isGlob(normalisePath(p));
-};
+exports.isGlob = p => isGlob(normalisePath(p));
 
-exports.glob = function(p, options) {
-  return fastGlob(normalisePath(p), options);
-};
+exports.glob = (p, options) => fastGlob(normalisePath(p), options);
 
-exports.glob.sync = function(p, options) {
-  return fastGlob.sync(normalisePath(p), options);
-};
+exports.glob.sync = (p, options) => fastGlob.sync(normalisePath(p), options);
