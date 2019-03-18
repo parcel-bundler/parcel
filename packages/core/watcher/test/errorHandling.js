@@ -4,7 +4,7 @@ const path = require('path');
 const assert = require('assert');
 const {sleep} = require('@parcel/test-utils');
 
-describe('error handling', function() {
+describe('error handling', () => {
   let tmpFolder = path.join(__dirname, './tmp/');
 
   before(() => {
