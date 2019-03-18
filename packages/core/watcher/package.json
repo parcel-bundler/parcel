@@ -2,7 +2,7 @@
   "name": "@parcel/watcher",
   "version": "1.10.3",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "index.js",
+  "main": "src/Watcher.js",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -17,7 +17,8 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "chokidar": "^2.0.4"
+    "chokidar": "^2.0.4",
+    "nullthrows": "^1.1.1"
   },
   "devDependencies": {
     "mocha": "^5.2.0",

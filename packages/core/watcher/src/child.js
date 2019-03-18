@@ -1,22 +1,29 @@
-const {FSWatcher} = require('chokidar');
-const {errorToJson} = require('@parcel/utils/src/errorUtils');
-const optionsTransfer = require('./options');
+// @flow strict-local
+
+import type {FilePath} from '@parcel/types';
+
+import {errorToJson, type JSONError} from '@parcel/utils/src/errorUtils';
+import {FSWatcher} from 'chokidar';
+import invariant from 'assert';
+
+import {decodeOptions, type EncodedFSWatcherOptions} from './options';
 
 let watcher;
-function sendEvent(event, path) {
+function sendEvent(event: string, path?: FilePath | JSONError) {
+  invariant(process.send != null);
   process.send({
     event: event,
     path: path
   });
 }
 
-function handleError(e) {
+function handleError(e: Error) {
   sendEvent('watcherError', errorToJson(e));
 }
 
-function init(options) {
-  options = optionsTransfer.decode(options);
-  watcher = new FSWatcher(options);
+function init(options: EncodedFSWatcherOptions) {
+  let decodedOptions = decodeOptions(options);
+  watcher = new FSWatcher(decodedOptions);
   watcher.on('all', sendEvent);
   sendEvent('ready');
 
@@ -31,6 +38,7 @@ function init(options) {
 
 function executeFunction(functionName, args) {
   try {
+    // $FlowFixMe this must be dynamic
     watcher[functionName](...args);
   } catch (e) {
     handleError(e);
