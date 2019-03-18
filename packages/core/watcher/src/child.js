@@ -1,5 +1,5 @@
 const {FSWatcher} = require('chokidar');
-const {errorUtils} = require('@parcel/utils');
+const {errorToJson} = require('@parcel/utils/src/errorUtils');
 const optionsTransfer = require('./options');
 
 let watcher;
@@ -11,7 +11,7 @@ function sendEvent(event, path) {
 }
 
 function handleError(e) {
-  sendEvent('watcherError', errorUtils.errorToJson(e));
+  sendEvent('watcherError', errorToJson(e));
 }
 
 function init(options) {

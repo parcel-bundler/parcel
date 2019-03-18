@@ -2,7 +2,7 @@ const fork = require('child_process').fork;
 const optionsTransfer = require('./options');
 const Path = require('path');
 const {EventEmitter} = require('events');
-const {errorUtils} = require('@parcel/utils');
+const {jsonToError} = require('@parcel/utils/src/errorUtils');
 
 /**
  * This watcher wraps chokidar so that we watch directories rather than individual files on macOS.
@@ -85,7 +85,7 @@ class Watcher extends EventEmitter {
 
   handleEmit(event, data) {
     if (event === 'watcherError') {
-      data = errorUtils.jsonToError(data);
+      data = jsonToError(data);
     }
 
     this.emit(event, data);

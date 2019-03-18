@@ -14,7 +14,7 @@ import type {
   Asset,
   Environment
 } from '@parcel/types';
-import {serialize, deserialize} from '@parcel/utils/serializer';
+import {serialize, deserialize} from '@parcel/utils/src/serializer';
 import pkg from '../package.json';
 
 // These keys can affect the output, so if they differ, the cache should not match

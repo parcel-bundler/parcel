@@ -9,9 +9,10 @@ import type {
   WorkerResponse
 } from './types';
 
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {errorUtils} from '@parcel/utils';
-import {serialize, deserialize} from '@parcel/utils/serializer';
+import {errorToJson, jsonToError} from '@parcel/utils/src/errorUtils';
+import {serialize, deserialize} from '@parcel/utils/src/serializer';
 
 type ChildCall = WorkerRequest & {|
   resolve: (result: Promise<any> | any) => void,
@@ -81,7 +82,7 @@ class Child {
       child,
       type: 'response',
       contentType: 'error',
-      content: errorUtils.errorToJson(e)
+      content: errorToJson(e)
     });
 
     let result;
@@ -110,7 +111,8 @@ class Child {
     let call = nullthrows(this.responseQueue.get(idx));
 
     if (contentType === 'error') {
-      call.reject(errorUtils.jsonToError(content));
+      invariant(typeof content !== 'string');
+      call.reject(jsonToError(content));
     } else {
       call.resolve(content);
     }

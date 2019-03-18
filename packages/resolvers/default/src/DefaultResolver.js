@@ -4,7 +4,7 @@ import {Resolver} from '@parcel/plugin';
 import type {CLIOptions, Dependency, PackageJSON} from '@parcel/types';
 import path from 'path';
 import * as fs from '@parcel/fs';
-import {glob} from '@parcel/utils';
+import {isGlob} from '@parcel/utils/src/glob';
 import micromatch from 'micromatch';
 import builtins from './builtins';
 // import nodeBuiltins from 'node-libs-browser';
@@ -65,7 +65,7 @@ class NodeResolver {
     let filename = input;
 
     // Check if this is a glob
-    if (glob.isGlob(filename)) {
+    if (isGlob(filename)) {
       return {path: path.resolve(path.dirname(parent), filename)};
     }
 
@@ -440,7 +440,7 @@ class NodeResolver {
       // Otherwise, try replacing glob keys
       for (let key in aliases) {
         let val = aliases[key];
-        if (typeof val === 'string' && glob.isGlob(key)) {
+        if (typeof val === 'string' && isGlob(key)) {
           let re = micromatch.makeRe(key, {capture: true});
           if (re.test(filename)) {
             alias = filename.replace(re, val);

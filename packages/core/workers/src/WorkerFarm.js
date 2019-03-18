@@ -12,7 +12,7 @@ import type {
 
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
-import {errorUtils} from '@parcel/utils';
+import {errorToJson} from '@parcel/utils/src/errorUtils';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 
@@ -203,7 +203,7 @@ export default class WorkerFarm extends EventEmitter {
       idx,
       type: 'response',
       contentType: 'error',
-      content: errorUtils.errorToJson(e)
+      content: errorToJson(e)
     });
 
     // $FlowFixMe this must be dynamic
