@@ -1,5 +1,3 @@
 require('./index.scss');
 
-module.exports = function () {
-  return 2;
-};
+module.exports = () => 2;
