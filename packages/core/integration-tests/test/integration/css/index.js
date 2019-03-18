@@ -1,6 +1,4 @@
 var local = require('./local');
 require('./index.css');
 
-module.exports = function () {
-  return local.a + local.b;
-};
+module.exports = () => local.a + local.b;
