@@ -1,4 +1,4 @@
-parcelRequire = (function (init) {
+parcelRequire = (init => {
   // Save the require from previous bundle to this closure if any
   var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
   var nodeRequire = typeof require === 'function' && require;
