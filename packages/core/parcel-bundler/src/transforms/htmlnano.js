@@ -1,7 +1,7 @@
 const posthtml = require('posthtml');
 const htmlnano = require('htmlnano');
 
-module.exports = async function(asset) {
+module.exports = async asset => {
   await asset.parseIfNeeded();
 
   let htmlNanoConfig = Object.assign(
