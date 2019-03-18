@@ -1,8 +1,8 @@
 var fs = require('fs');
 
 module.exports = function loadWASMBundle(bundle) {
-  return new Promise((resolve, reject) => {
-    fs.readFile(__dirname + bundle, (err, data) => {
+  return new Promise(function(resolve, reject) {
+    fs.readFile(__dirname + bundle, function(err, data) {
       if (err) {
         reject(err);
       } else {
@@ -10,6 +10,10 @@ module.exports = function loadWASMBundle(bundle) {
       }
     });
   })
-  .then(data => WebAssembly.instantiate(data))
-  .then(wasmModule => wasmModule.instance.exports);
+  .then(function(data) {
+    return WebAssembly.instantiate(data);
+  })
+  .then(function(wasmModule) {
+    return wasmModule.instance.exports;
+  });
 };
