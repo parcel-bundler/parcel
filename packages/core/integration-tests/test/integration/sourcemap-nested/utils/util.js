@@ -1,3 +1,1 @@
-exports.count = function(a, b) {
-  return a + b;
-}
+exports.count = (a, b) => a + b
