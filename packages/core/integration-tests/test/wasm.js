@@ -2,14 +2,14 @@ const assert = require('assert');
 const path = require('path');
 const {bundle, run, assertBundleTree, deferred} = require('@parcel/test-utils');
 
-describe('wasm', function() {
+describe('wasm', () => {
   if (typeof WebAssembly === 'undefined') {
     return;
   }
 
   for (const target of ['browser', 'node']) {
-    describe(`--target=${target}`, function() {
-      it('should preload a wasm file for a sync require', async function() {
+    describe(`--target=${target}`, () => {
+      it('should preload a wasm file for a sync require', async () => {
         let b = await bundle(
           path.join(__dirname, '/integration/wasm-sync/index.js'),
           {
@@ -42,7 +42,7 @@ describe('wasm', function() {
         assert.equal(await promise, 5);
       });
 
-      it('should load a wasm file asynchronously with dynamic import', async function() {
+      it('should load a wasm file asynchronously with dynamic import', async () => {
         let b = await bundle(
           path.join(__dirname, '/integration/wasm-async/index.js'),
           {
@@ -74,7 +74,7 @@ describe('wasm', function() {
         assert.equal(await res, 5);
       });
 
-      it('should load a wasm file in parallel with a dynamic JS import', async function() {
+      it('should load a wasm file in parallel with a dynamic JS import', async () => {
         let b = await bundle(
           path.join(__dirname, '/integration/wasm-dynamic/index.js'),
           {
