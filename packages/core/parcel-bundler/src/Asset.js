@@ -299,7 +299,7 @@ class Asset {
   }
 
   convertToUnixStyleDirectorySeparators(bundlePath) {
-    return bundlePath.replace('\\', '/');
+    return bundlePath.replace(/\\/g, '/');
   }
 
   generateErrorMessage(err) {
