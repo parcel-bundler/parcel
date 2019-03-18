@@ -16,21 +16,21 @@ const {symlinkSync} = require('fs');
 
 const inputDir = path.join(__dirname, '/input');
 
-describe('watcher', function() {
+describe('watcher', () => {
   let b;
-  beforeEach(async function() {
+  beforeEach(async () => {
     await sleep(100);
     await rimraf(inputDir);
     await sleep(100);
   });
 
-  afterEach(async function() {
+  afterEach(async () => {
     if (b) {
       await b.stop();
     }
   });
 
-  it('should rebuild on file change', async function() {
+  it('should rebuild on file change', async () => {
     await ncp(path.join(__dirname, '/integration/commonjs'), inputDir);
 
     b = bundler(path.join(inputDir, '/index.js'), {watch: true});
@@ -49,7 +49,7 @@ describe('watcher', function() {
     assert.equal(output(), 10);
   });
 
-  it('should re-generate bundle tree when files change', async function() {
+  it('should re-generate bundle tree when files change', async () => {
     await ncp(path.join(__dirname, '/integration/dynamic-hoist'), inputDir);
 
     b = bundler(path.join(inputDir, '/index.js'), {watch: true});
@@ -127,7 +127,7 @@ describe('watcher', function() {
     assert.equal(await output(), 8);
   });
 
-  it('should only re-package bundles that changed', async function() {
+  it('should only re-package bundles that changed', async () => {
     await ncp(path.join(__dirname, '/integration/dynamic-hoist'), inputDir);
     b = bundler(path.join(inputDir, '/index.js'), {watch: true});
 
@@ -156,7 +156,7 @@ describe('watcher', function() {
     assert.notEqual(mtimes[mtimes.length - 1], newMtimes[newMtimes.length - 1]);
   });
 
-  it('should unload assets that are orphaned', async function() {
+  it('should unload assets that are orphaned', async () => {
     await ncp(path.join(__dirname, '/integration/dynamic-hoist'), inputDir);
     b = bundler(path.join(inputDir, '/index.js'), {watch: true});
 
@@ -242,7 +242,7 @@ describe('watcher', function() {
     assert(!b.loadedAssets.has(path.join(inputDir, 'common-dep.js')));
   });
 
-  it('should recompile all assets when a config file changes', async function() {
+  it('should recompile all assets when a config file changes', async () => {
     await ncp(path.join(__dirname, '/integration/babel'), inputDir);
     b = bundler(path.join(inputDir, 'index.js'), {watch: true});
 
