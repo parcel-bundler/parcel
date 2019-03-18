@@ -865,7 +865,7 @@ describe('javascript', function() {
     });
 
     let output = await run(b);
-    assert.ok(output.toString().indexOf('process.env') === -1);
+    assert.ok(!output.toString().includes('process.env'));
     assert.equal(output(), 'test:test');
   });
 
@@ -887,7 +887,7 @@ describe('javascript', function() {
     );
 
     let output = await run(b);
-    assert.ok(output.toString().indexOf('process.browser') === -1);
+    assert.ok(!output.toString().includes('process.browser'));
     assert.equal(output(), true);
   });
 
@@ -900,7 +900,7 @@ describe('javascript', function() {
     );
 
     let output = await run(b);
-    assert.ok(output.toString().indexOf('process.browser') !== -1);
+    assert.ok(output.toString().includes('process.browser'));
     assert.equal(output(), false);
   });
 
@@ -913,7 +913,7 @@ describe('javascript', function() {
     );
 
     let output = await run(b);
-    assert.ok(output.toString().indexOf('process.browser') !== -1);
+    assert.ok(output.toString().includes('process.browser'));
     assert.equal(output(), false);
   });
 
