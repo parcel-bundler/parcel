@@ -9,8 +9,8 @@ const {
   ncp
 } = require('@parcel/test-utils');
 
-describe('css', function() {
-  it('should produce two bundles when importing a CSS file', async function() {
+describe('css', () => {
+  it('should produce two bundles when importing a CSS file', async () => {
     let b = await bundle(path.join(__dirname, '/integration/css/index.js'));
 
     await assertBundleTree(b, {
@@ -37,7 +37,7 @@ describe('css', function() {
     assert.equal(output(), 3);
   });
 
-  it('should support loading a CSS bundle along side dynamic imports', async function() {
+  it('should support loading a CSS bundle along side dynamic imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-css/index.js')
     );
@@ -92,7 +92,7 @@ describe('css', function() {
     assert.equal(await output(), 3);
   });
 
-  it('should support importing CSS from a CSS file', async function() {
+  it('should support importing CSS from a CSS file', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/css-import/index.js')
     );
@@ -131,7 +131,7 @@ describe('css', function() {
     assert(css.includes('.index'));
   });
 
-  it('should support linking to assets with url() from CSS', async function() {
+  it('should support linking to assets with url() from CSS', async () => {
     let b = await bundle(path.join(__dirname, '/integration/css-url/index.js'));
 
     await assertBundleTree(b, {
@@ -185,7 +185,7 @@ describe('css', function() {
     );
   });
 
-  it('should support linking to assets with url() from CSS in production', async function() {
+  it('should support linking to assets with url() from CSS in production', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/css-url/index.js'),
       {
@@ -244,7 +244,7 @@ describe('css', function() {
     );
   });
 
-  it('should support linking to assets in parent folders with url() from CSS', async function() {
+  it('should support linking to assets in parent folders with url() from CSS', async () => {
     let b = await bundle(
       [
         path.join(__dirname, '/integration/css-url-relative/src/a/style1.css'),
@@ -292,7 +292,7 @@ describe('css', function() {
     );
   });
 
-  it('should support transforming with postcss', async function() {
+  it('should support transforming with postcss', async () => {
     let b = await bundle(path.join(__dirname, '/integration/postcss/index.js'));
 
     await assertBundleTree(b, {
@@ -329,7 +329,7 @@ describe('css', function() {
     assert(css.includes(`.${cssClass}`));
   });
 
-  it('should support transforming with postcss twice with the same result', async function() {
+  it('should support transforming with postcss twice with the same result', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-plugins/index.js')
     );
@@ -342,7 +342,7 @@ describe('css', function() {
     assert.equal(run1(), run2());
   });
 
-  it('should support postcss composes imports', async function() {
+  it('should support postcss composes imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-composes/index.js')
     );
@@ -387,7 +387,7 @@ describe('css', function() {
     assert(css.includes(`.${cssClass2}`));
   });
 
-  it('should not include css twice for postcss composes imports', async function() {
+  it('should not include css twice for postcss composes imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-composes/index.js')
     );
@@ -404,7 +404,7 @@ describe('css', function() {
     );
   });
 
-  it('should support postcss composes imports for sass', async function() {
+  it('should support postcss composes imports for sass', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-composes/index2.js')
     );
@@ -443,7 +443,7 @@ describe('css', function() {
     assert(css.includes('height: 200px;'));
   });
 
-  it('should support postcss composes imports with custom path names', async function() {
+  it('should support postcss composes imports with custom path names', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-composes/index3.js')
     );
@@ -482,7 +482,7 @@ describe('css', function() {
     assert(css.includes('height: 100px;'));
   });
 
-  it('should support deep nested postcss composes imports', async function() {
+  it('should support deep nested postcss composes imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-composes/index4.js')
     );
@@ -529,7 +529,7 @@ describe('css', function() {
     assert(css.indexOf('._test_') < css.indexOf('._intermediate_'));
   });
 
-  it('should support postcss composes imports for multiple selectors', async function() {
+  it('should support postcss composes imports for multiple selectors', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-composes/index5.js')
     );
@@ -563,7 +563,7 @@ describe('css', function() {
     assert(composes6Classes[2].startsWith('_test-2_'));
   });
 
-  it('should minify CSS in production mode', async function() {
+  it('should minify CSS in production mode', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/cssnano/index.js'),
       {
@@ -584,7 +584,7 @@ describe('css', function() {
     assert.equal(css.split('\n').length, 2); // sourceMappingURL
   });
 
-  it('should automatically install postcss plugins with npm if needed', async function() {
+  it('should automatically install postcss plugins with npm if needed', async () => {
     await rimraf(path.join(__dirname, '/input'));
     await ncp(
       path.join(__dirname, '/integration/autoinstall/npm'),
@@ -607,7 +607,7 @@ describe('css', function() {
     assert(css.includes('rgba'));
   });
 
-  it('should automatically install postcss plugins with yarn if needed', async function() {
+  it('should automatically install postcss plugins with yarn if needed', async () => {
     await rimraf(path.join(__dirname, '/input'));
     await ncp(
       path.join(__dirname, '/integration/autoinstall/yarn'),
