@@ -14,7 +14,7 @@ function main(require) {
 
 main(x => test.fnDecl = x);
 
-(function(require) {
+(require => {
   require('test passed')
 })(x => test.fnExpr = x);
 
