@@ -7,9 +7,9 @@ const http = require('http');
 const https = require('https');
 const sinon = require('sinon');
 
-describe('server', function() {
+describe('server', () => {
   let server;
-  afterEach(function() {
+  afterEach(() => {
     if (server) {
       server.close();
       server = null;
@@ -40,7 +40,7 @@ describe('server', function() {
     });
   }
 
-  it('should serve files', async function() {
+  it('should serve files', async () => {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'));
     server = await b.serve(0);
 
@@ -51,7 +51,7 @@ describe('server', function() {
     );
   });
 
-  it('should serve a default page if the main bundle is an HTML asset', async function() {
+  it('should serve a default page if the main bundle is an HTML asset', async () => {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'));
     server = await b.serve(0);
 
@@ -68,7 +68,7 @@ describe('server', function() {
     );
   });
 
-  it('should serve a 404 if the file does not exist', async function() {
+  it('should serve a 404 if the file does not exist', async () => {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'));
     server = await b.serve(0);
 
@@ -82,7 +82,7 @@ describe('server', function() {
     assert(threw);
   });
 
-  it('should serve a 500 if the bundler errored', async function() {
+  it('should serve a 500 if the bundler errored', async () => {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'));
     server = await b.serve(0);
 
@@ -98,7 +98,7 @@ describe('server', function() {
     await get('/');
   });
 
-  it('should serve a 500 response with error stack trace when bundler has errors', async function() {
+  it('should serve a 500 response with error stack trace when bundler has errors', async () => {
     let b = bundler(
       path.join(__dirname, '/integration/bundler-error-syntax-error/index.html')
     );
@@ -120,7 +120,7 @@ describe('server', function() {
     assert(resp.includes('invalid_js'), 'code frame has invalid code');
   });
 
-  it('should serve a 500 response without stack trace when bundler has errors in production', async function() {
+  it('should serve a 500 response without stack trace when bundler has errors in production', async () => {
     let NODE_ENV = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
     let b = bundler(
@@ -149,7 +149,7 @@ describe('server', function() {
     process.env.NODE_ENV = NODE_ENV;
   });
 
-  it('should support HTTPS', async function() {
+  it('should support HTTPS', async () => {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'));
     server = await b.serve(0, true);
 
@@ -160,7 +160,7 @@ describe('server', function() {
     );
   });
 
-  it('should support HTTPS via custom certificate', async function() {
+  it('should support HTTPS via custom certificate', async () => {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'));
     server = await b.serve(0, {
       key: path.join(__dirname, '/integration/https/private.pem'),
@@ -174,7 +174,7 @@ describe('server', function() {
     );
   });
 
-  it('should support setting a public url', async function() {
+  it('should support setting a public url', async () => {
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
       publicUrl: '/dist'
     });
@@ -187,7 +187,7 @@ describe('server', function() {
     );
   });
 
-  it('should serve static assets as well as html', async function() {
+  it('should serve static assets as well as html', async () => {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
       publicUrl: '/'
     });
@@ -204,7 +204,7 @@ describe('server', function() {
     assert.equal(data, 'hello');
   });
 
-  it('should work with query parameters that contain a dot', async function() {
+  it('should work with query parameters that contain a dot', async () => {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
       publicUrl: '/'
     });
@@ -217,7 +217,7 @@ describe('server', function() {
     );
   });
 
-  it('should work with paths that contain a dot', async function() {
+  it('should work with paths that contain a dot', async () => {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
       publicUrl: '/'
     });
@@ -230,7 +230,7 @@ describe('server', function() {
     );
   });
 
-  it('should not log dev server access for log level <= 3', async function() {
+  it('should not log dev server access for log level <= 3', async () => {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
       publicUrl: '/'
     });
@@ -244,7 +244,7 @@ describe('server', function() {
     logger._log.restore();
   });
 
-  it('should log dev server access for log level > 3', async function() {
+  it('should log dev server access for log level > 3', async () => {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
       publicUrl: '/'
     });
