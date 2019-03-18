@@ -9,7 +9,7 @@ exports.stat = promisify(fs.stat);
 exports.readdir = promisify(fs.readdir);
 exports.unlink = promisify(fs.unlink);
 exports.rimraf = promisify(rimraf);
-exports.realpath = async function(path) {
+exports.realpath = async path => {
   const realpath = promisify(fs.realpath);
   try {
     path = await realpath(path);
@@ -20,10 +20,8 @@ exports.realpath = async function(path) {
 };
 exports.lstat = promisify(fs.lstat);
 
-exports.exists = function(filename) {
-  return new Promise(resolve => {
-    fs.exists(filename, resolve);
-  });
-};
+exports.exists = filename => new Promise(resolve => {
+  fs.exists(filename, resolve);
+});
 
 exports.mkdirp = promisify(mkdirp);
