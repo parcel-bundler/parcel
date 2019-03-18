@@ -5,7 +5,7 @@ import Config from './Config';
 import * as fs from '@parcel/fs';
 import {parse} from 'json5';
 import path from 'path';
-import localRequire from '@parcel/utils/src/localRequire';
+import {localResolve} from '@parcel/utils/src/localRequire';
 import assert from 'assert';
 
 type Pipeline = Array<PackageName>;
@@ -62,7 +62,7 @@ export default class ConfigResolver {
     if (ext.startsWith('.')) {
       return path.resolve(path.dirname(configPath), ext);
     } else {
-      let [resolved] = await localRequire.resolve(ext, configPath);
+      let [resolved] = await localResolve(ext, configPath);
       return fs.realpath(resolved);
     }
   }

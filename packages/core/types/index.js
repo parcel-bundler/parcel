@@ -47,9 +47,10 @@ export type ParcelConfig = {|
 |};
 
 export type Engines = {
-  node?: SemverRange,
+  browsers?: Array<string>,
   electron?: SemverRange,
-  browsers?: Array<string>
+  node?: SemverRange,
+  parcel?: SemverRange
 };
 
 export type Target = {|

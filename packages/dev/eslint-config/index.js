@@ -17,10 +17,16 @@ module.exports = {
     define: true
   },
   rules: {
+    'flowtype/space-after-type-colon': 'off', // conflicts with prettier
     'import/first': 'error',
     'import/newline-after-import': 'error',
     'import/no-extraneous-dependencies': 'error',
     'import/no-self-import': 'error',
     'no-return-await': 'error'
+  },
+  settings: {
+    flowtype: {
+      onlyFilesWithFlowAnnotation: true
+    }
   }
 };

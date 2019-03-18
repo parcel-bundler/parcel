@@ -4,7 +4,7 @@ import type {FilePath} from '@parcel/types';
 
 const path = require('path');
 
-function getRootDir(files: Array<FilePath>): FilePath {
+export default function getRootDir(files: Array<FilePath>): FilePath {
   let cur = null;
 
   for (let file of files) {
@@ -31,5 +31,3 @@ function getRootDir(files: Array<FilePath>): FilePath {
 
   return cur ? cur.dir : process.cwd();
 }
-
-module.exports = getRootDir;

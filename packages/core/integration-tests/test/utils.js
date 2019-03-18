@@ -7,7 +7,7 @@ const path = require('path');
 const WebSocket = require('ws');
 const Module = require('module');
 
-const {promisify} = require('@parcel/utils');
+const promisify = require('@parcel/utils/src/promisify');
 const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
 const {sleep} = require('@parcel/test-utils');
