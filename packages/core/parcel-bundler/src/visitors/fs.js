@@ -177,7 +177,7 @@ function NodeNotEvaluatedError(node) {
 function evaluate(path, vars) {
   // Inline variables
   path.traverse({
-    Identifier: function(ident) {
+    Identifier: ident => {
       let key = ident.node.name;
       if (key in vars) {
         ident.replaceWith(t.valueToNode(vars[key]));
