@@ -1,5 +1,3 @@
 var map6 = require('./composes-6.css');
 
-module.exports = function () {
-  return map6;
-};
+module.exports = () => map6;
