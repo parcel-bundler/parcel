@@ -5,7 +5,7 @@ function $parcel$interopDefault(a) {
 }
 
 function $parcel$exportWildcard(dest, source) {
-  Object.keys(source).forEach(function(key) {
+  Object.keys(source).forEach(key => {
     if(key === "default" || key === "__esModule") {
       return;
     }
