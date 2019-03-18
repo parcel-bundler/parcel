@@ -1,8 +1,10 @@
-const Watcher = require('../index');
-const fs = require('@parcel/fs');
-const path = require('path');
-const assert = require('assert');
-const {sleep} = require('@parcel/test-utils');
+// @flow
+
+import Watcher from '../';
+import * as fs from '@parcel/fs';
+import path from 'path';
+import assert from 'assert';
+import {sleep} from '@parcel/test-utils';
 
 describe('change event', function() {
   let tmpFolder = path.join(__dirname, './tmp/');
