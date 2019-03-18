@@ -8,8 +8,8 @@ const {
   normaliseNewlines
 } = require('@parcel/test-utils');
 
-describe('glsl', function() {
-  it('should support requiring GLSL files via glslify', async function() {
+describe('glsl', () => {
+  it('should support requiring GLSL files via glslify', async () => {
     let b = await bundle(path.join(__dirname, '/integration/glsl/index.js'));
 
     await assertBundleTree(b, {
