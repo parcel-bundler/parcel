@@ -3,8 +3,8 @@ const path = require('path');
 const fs = require('@parcel/fs');
 const {bundle, assertBundleTree} = require('@parcel/test-utils');
 
-describe('pug', function() {
-  it('should support bundling HTML', async function() {
+describe('pug', () => {
+  it('should support bundling HTML', async () => {
     const b = await bundle(path.join(__dirname, '/integration/pug/index.pug'));
 
     await assertBundleTree(b, {
@@ -52,7 +52,7 @@ describe('pug', function() {
     }
   });
 
-  it('should support include and extends files', async function() {
+  it('should support include and extends files', async () => {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-include-extends/index.pug')
     );
@@ -71,7 +71,7 @@ describe('pug', function() {
     assert(html.includes("<h1>Yep, it's working!</h1>"));
   });
 
-  it('should support variables', async function() {
+  it('should support variables', async () => {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-var/index.pug')
     );
@@ -89,7 +89,7 @@ describe('pug', function() {
     assert(/src="\/?100x100.*.png"/.test(html));
   });
 
-  it('should support mixins', async function() {
+  it('should support mixins', async () => {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-mixins/index.pug')
     );
@@ -106,7 +106,7 @@ describe('pug', function() {
     assert(html.includes('Greetings, Parcel'));
   });
 
-  it('should support filters', async function() {
+  it('should support filters', async () => {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-filters/index.pug')
     );
@@ -123,7 +123,7 @@ describe('pug', function() {
     assert(html.includes('FILTERED: Hello!'));
   });
 
-  it('should minify HTML in production mode', async function() {
+  it('should minify HTML in production mode', async () => {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-minify/index.pug'),
       {
