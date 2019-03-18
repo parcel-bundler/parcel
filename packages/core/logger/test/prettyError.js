@@ -57,7 +57,7 @@ describe('prettyError', () => {
     const err = prettyError({
       message,
       stack,
-      codeFrame: codeFrame
+      codeFrame
     });
 
     assert.equal(err.message, message);
@@ -82,7 +82,7 @@ describe('prettyError', () => {
       {
         message,
         stack,
-        codeFrame: codeFrame,
+        codeFrame,
         highlightedCodeFrame: '<not>a code frame</not>'
       },
       {color: false}
