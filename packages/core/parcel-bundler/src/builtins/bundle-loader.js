@@ -11,11 +11,9 @@ function loadBundlesLazy(bundles) {
     return Promise.resolve(require(id));
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') {
-      return new LazyPromise(function (resolve, reject) {
+      return new LazyPromise((resolve, reject) => {
         loadBundles(bundles.slice(0, -1))
-          .then(function () {
-            return require(id);
-          })
+          .then(() => require(id))
           .then(resolve, reject);
       });
     }
@@ -53,13 +51,13 @@ function loadBundle(bundle) {
   var bundleLoader = bundleLoaders[type];
   if (bundleLoader) {
     return bundles[bundle] = bundleLoader(getBundleURL() + bundle)
-      .then(function (resolved) {
+      .then(resolved => {
         if (resolved) {
           module.bundle.register(id, resolved);
         }
 
         return resolved;
-      }).catch(function(e) {
+      }).catch(e => {
         delete bundles[bundle];
         
         throw e;
