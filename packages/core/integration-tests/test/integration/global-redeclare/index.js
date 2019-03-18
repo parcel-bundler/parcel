@@ -1,4 +1,2 @@
 const global = {};
-module.exports = function () {
-  return !!global.document;
-};
+module.exports = () => !!global.document;
