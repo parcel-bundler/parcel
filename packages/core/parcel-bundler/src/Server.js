@@ -40,7 +40,7 @@ function middleware(bundler) {
     dotfiles: 'allow'
   });
 
-  return function(req, res, next) {
+  return (req, res, next) => {
     logAccessIfVerbose();
 
     // Wait for the bundler to finish bundling if needed
