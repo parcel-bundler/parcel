@@ -26,7 +26,7 @@ function pipeSpawn(cmd, params, opts) {
 
   return new Promise((resolve, reject) => {
     cp.on('error', reject);
-    cp.on('close', function(code) {
+    cp.on('close', code => {
       if (code !== 0) {
         return reject(new Error(cmd + ' failed.'));
       }
