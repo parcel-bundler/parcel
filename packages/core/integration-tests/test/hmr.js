@@ -14,14 +14,14 @@ const WebSocket = require('ws');
 const json5 = require('json5');
 const sinon = require('sinon');
 
-describe('hmr', function() {
+describe('hmr', () => {
   let b, ws, stub;
-  beforeEach(async function() {
+  beforeEach(async () => {
     stub = sinon.stub(console, 'clear');
     await rimraf(path.join(__dirname, '/input'));
   });
 
-  afterEach(async function() {
+  afterEach(async () => {
     stub.restore();
     let finalise = async () => {
       if (b) {
@@ -47,7 +47,7 @@ describe('hmr', function() {
     });
   }
 
-  it('should emit an HMR update for the file that changed', async function() {
+  it('should emit an HMR update for the file that changed', async () => {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
@@ -77,7 +77,7 @@ describe('hmr', function() {
     await buildEnd;
   });
 
-  it('should not enable HMR for --target=node', async function() {
+  it('should not enable HMR for --target=node', async () => {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
@@ -97,7 +97,7 @@ describe('hmr', function() {
     ws = null;
   });
 
-  it('should enable HMR for --target=electron', async function() {
+  it('should enable HMR for --target=electron', async () => {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
@@ -129,7 +129,7 @@ describe('hmr', function() {
     await buildEnd;
   });
 
-  it('should emit an HMR update for all new dependencies along with the changed file', async function() {
+  it('should emit an HMR update for all new dependencies along with the changed file', async () => {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
@@ -158,7 +158,7 @@ describe('hmr', function() {
     await buildEnd;
   });
 
-  it('should emit an HMR error on bundle failure', async function() {
+  it('should emit an HMR error on bundle failure', async () => {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
@@ -197,7 +197,7 @@ describe('hmr', function() {
     await buildEnd;
   });
 
-  it('should emit an HMR error to new connections after a bundle failure', async function() {
+  it('should emit an HMR error to new connections after a bundle failure', async () => {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
@@ -222,7 +222,7 @@ describe('hmr', function() {
     assert.equal(msg.type, 'error');
   });
 
-  it('should emit an HMR error-resolved on build after error', async function() {
+  it('should emit an HMR error-resolved on build after error', async () => {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
@@ -263,7 +263,7 @@ describe('hmr', function() {
     await secondBuildEnd;
   });
 
-  it('should accept HMR updates in the runtime', async function() {
+  it('should accept HMR updates in the runtime', async () => {
     await ncp(
       path.join(__dirname, '/integration/hmr'),
       path.join(__dirname, '/input')
@@ -294,7 +294,7 @@ describe('hmr', function() {
     assert.deepEqual(outputs, [3, 10]);
   });
 
-  it('should work with circular dependencies', async function() {
+  it('should work with circular dependencies', async () => {
     await ncp(
       path.join(__dirname, '/integration/hmr-circular'),
       path.join(__dirname, '/input')
@@ -325,7 +325,7 @@ describe('hmr', function() {
     assert.deepEqual(outputs, [3, 10]);
   });
 
-  it('should accept HMR updates in the runtime after an initial error', async function() {
+  it('should accept HMR updates in the runtime after an initial error', async () => {
     await fs.mkdirp(path.join(__dirname, '/input'));
     fs.writeFile(
       path.join(__dirname, '/input/index.js'),
@@ -371,7 +371,7 @@ describe('hmr', function() {
     assert.equal(errors.length, 1);
   });
 
-  it('should call dispose and accept callbacks', async function() {
+  it('should call dispose and accept callbacks', async () => {
     await ncp(
       path.join(__dirname, '/integration/hmr-callbacks'),
       path.join(__dirname, '/input')
@@ -412,7 +412,7 @@ describe('hmr', function() {
     ]);
   });
 
-  it('should work across bundles', async function() {
+  it('should work across bundles', async () => {
     await ncp(
       path.join(__dirname, '/integration/hmr-dynamic'),
       path.join(__dirname, '/input')
@@ -445,7 +445,7 @@ describe('hmr', function() {
     assert.deepEqual(outputs, [3, 10]);
   });
 
-  it('should bubble up HMR events to a page reload', async function() {
+  it('should bubble up HMR events to a page reload', async () => {
     await ncp(
       path.join(__dirname, '/integration/hmr-reload'),
       path.join(__dirname, '/input')
@@ -484,7 +484,7 @@ describe('hmr', function() {
     assert(spy.calledOnce);
   });
 
-  it('should trigger a page reload when a new bundle is created', async function() {
+  it('should trigger a page reload when a new bundle is created', async () => {
     await ncp(
       path.join(__dirname, '/integration/hmr-new-bundle'),
       path.join(__dirname, '/input')
@@ -518,7 +518,7 @@ describe('hmr', function() {
     assert(contents.includes('.css'));
   });
 
-  it('should log emitted errors and show an error overlay', async function() {
+  it('should log emitted errors and show an error overlay', async () => {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
@@ -559,7 +559,7 @@ describe('hmr', function() {
     assert(spy.calledOnce);
   });
 
-  it('should log when errors resolve', async function() {
+  it('should log when errors resolve', async () => {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
@@ -616,7 +616,7 @@ describe('hmr', function() {
     assert(logs[1].trim().startsWith('[parcel] ✨'));
   });
 
-  it('should make a secure connection', async function() {
+  it('should make a secure connection', async () => {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
@@ -650,7 +650,7 @@ describe('hmr', function() {
     await buildEnd;
   });
 
-  it('should make a secure connection with custom certificate', async function() {
+  it('should make a secure connection with custom certificate', async () => {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
@@ -687,7 +687,7 @@ describe('hmr', function() {
     await buildEnd;
   });
 
-  it('should watch new dependencies that cause errors', async function() {
+  it('should watch new dependencies that cause errors', async () => {
     await ncp(
       path.join(__dirname, '/integration/elm-dep-error'),
       path.join(__dirname, '/input')
