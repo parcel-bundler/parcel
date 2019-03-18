@@ -113,7 +113,7 @@ class Child {
       this.responseQueue.set(idx, call);
     }
     this.send({
-      idx: idx,
+      idx,
       child: call.child,
       type: call.type,
       location: call.location,
