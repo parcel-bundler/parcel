@@ -89,7 +89,7 @@ class HMRServer {
             id: asset.id,
             type: asset.type,
             generated: asset.generated,
-            deps: deps
+            deps
           };
         })
       });
