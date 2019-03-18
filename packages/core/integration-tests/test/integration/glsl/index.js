@@ -4,6 +4,4 @@ const shaders = [
   require('./local.frag'),
 ];
 
-module.exports = function () {
-  return shaders;
-};
+module.exports = () => shaders;
