@@ -1,3 +1,1 @@
-module.exports = function() {
-  return process.pid;
-};
+module.exports = () => process.pid;
