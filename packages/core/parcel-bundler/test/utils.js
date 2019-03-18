@@ -1,5 +1,5 @@
 const {removeDistDirectory} = require('@parcel/test-utils');
 
-beforeEach(async function() {
+beforeEach(async () => {
   await removeDistDirectory();
 });
