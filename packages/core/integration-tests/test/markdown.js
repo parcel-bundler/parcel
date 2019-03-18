@@ -3,8 +3,8 @@ const path = require('path');
 const fs = require('@parcel/fs');
 const {bundle, assertBundleTree} = require('@parcel/test-utils');
 
-describe('markdown', function() {
-  it('should support bundling Markdown', async function() {
+describe('markdown', () => {
+  it('should support bundling Markdown', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/markdown/index.md')
     );
