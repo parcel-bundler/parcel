@@ -2,7 +2,7 @@ var bundle = require('./bundle-url');
 
 function updateLink(link) {
   var newLink = link.cloneNode();
-  newLink.onload = () => {
+  newLink.onload = function () {
     link.remove();
   };
   newLink.href = link.href.split('?')[0] + '?' + Date.now();
@@ -15,7 +15,7 @@ function reloadCSS() {
     return;
   }
 
-  cssTimeout = setTimeout(() => {
+  cssTimeout = setTimeout(function () {
     var links = document.querySelectorAll('link[rel="stylesheet"]');
     for (var i = 0; i < links.length; i++) {
       if (bundle.getBaseURL(links[i].href) === bundle.getBundleURL()) {
