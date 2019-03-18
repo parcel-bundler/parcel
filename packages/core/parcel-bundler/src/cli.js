@@ -167,12 +167,12 @@ program
 program
   .command('help [command]')
   .description('display help information for a command')
-  .action(function(command) {
+  .action(command => {
     let cmd = program.commands.find(c => c.name() === command) || program;
     cmd.help();
   });
 
-program.on('--help', function() {
+program.on('--help', () => {
   console.log('');
   console.log(
     '  Run `' +
