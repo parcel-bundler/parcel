@@ -69,8 +69,8 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   newRequire.modules = modules;
   newRequire.cache = cache;
   newRequire.parent = previousRequire;
-  newRequire.register = function (id, exports) {
-    modules[id] = [function (require, module) {
+  newRequire.register = (id, exports) => {
+    modules[id] = [(require, module) => {
       module.exports = exports;
     }, {}];
   };
@@ -98,9 +98,7 @@ parcelRequire = (function (modules, cache, entry, globalName) {
 
     // RequireJS
     } else if (typeof define === "function" && define.amd) {
-     define(function () {
-       return mainExports;
-     });
+     define(() => mainExports);
 
     // <script>
     } else if (globalName) {
