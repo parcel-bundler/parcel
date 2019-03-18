@@ -1,14 +1,14 @@
 module.exports = function loadCSSBundle(bundle) {
-  return new Promise(function (resolve, reject) {
+  return new Promise((resolve, reject) => {
     var link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = bundle;
-    link.onerror = function (e) {
+    link.onerror = e => {
       link.onerror = link.onload = null;
       reject(e);
     };
 
-    link.onload = function () {
+    link.onload = () => {
       link.onerror = link.onload = null;
       resolve();
     };
