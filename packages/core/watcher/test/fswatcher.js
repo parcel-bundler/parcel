@@ -2,7 +2,7 @@ const Watcher = require('../index');
 const {sleep} = require('@parcel/test-utils');
 const assert = require('assert');
 
-describe('Watcher', function() {
+describe('Watcher', () => {
   it('Should be able to create a new watcher', async () => {
     let watcher = new Watcher();
 
