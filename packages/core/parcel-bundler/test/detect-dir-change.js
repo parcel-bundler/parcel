@@ -5,15 +5,15 @@ const {sleep, rimraf, ncp, bundler} = require('@parcel/test-utils');
 
 let inputRoot = Path.join(__dirname, 'input', 'detect-dir-change');
 
-describe('detect directory changes', function() {
-  beforeEach(async function() {
+describe('detect directory changes', () => {
+  beforeEach(async () => {
     await rimraf(inputRoot);
     await fs.mkdirp(inputRoot);
     await ncp(__dirname + '/integration/detect-dir-change/', inputRoot);
   });
 
-  describe('when a file matches a glob', async function() {
-    it('should rebuild when the file is added', async function() {
+  describe('when a file matches a glob', async () => {
+    it('should rebuild when the file is added', async () => {
       // 1. Bundle
       let b = bundler('test/input/detect-dir-change/src/*.js', {
         watch: true
@@ -39,7 +39,7 @@ describe('detect directory changes', function() {
       assert(bundled);
     });
 
-    it('should rebuild when the file is removed', async function() {
+    it('should rebuild when the file is removed', async () => {
       // 1. Add file and check the result bundle has all files.
       let filePath = Path.join(inputRoot, './src/app.js');
       await fs.writeFile(
@@ -74,8 +74,8 @@ describe('detect directory changes', function() {
     });
   });
 
-  describe('when a file does not match a glob', async function() {
-    it('should not rebuild when the file is added', async function() {
+  describe('when a file does not match a glob', async () => {
+    it('should not rebuild when the file is added', async () => {
       // 1. Bundle
       let b = bundler('test/input/detect-dir-change/src/*.js', {
         watch: true
@@ -100,7 +100,7 @@ describe('detect directory changes', function() {
       assert(!bundled);
     });
 
-    it('should not rebuild when the file is removed', async function() {
+    it('should not rebuild when the file is removed', async () => {
       // 1. Add file and check bundle has all files.
       let filePath = Path.join(inputRoot, './src/test.html');
       await fs.writeFile(filePath, '<html></html>');
