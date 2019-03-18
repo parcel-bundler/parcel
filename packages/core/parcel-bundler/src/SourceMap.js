@@ -128,11 +128,11 @@ class SourceMap {
       this.addMapping({
         source: sourceName,
         original: {
-          line: line,
+          line,
           column: 0
         },
         generated: {
-          line: line,
+          line,
           column: 0
         }
       });
