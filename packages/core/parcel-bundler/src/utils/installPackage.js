@@ -108,7 +108,7 @@ async function checkForYarnCommand() {
 }
 
 let queue = new PromiseQueue(install, {maxConcurrent: 1, retry: false});
-module.exports = async function(...args) {
+module.exports = async (...args) => {
   // Ensure that this function is always called on the master process so we
   // don't call multiple installs in parallel.
   if (WorkerFarm.isWorker()) {
