@@ -1,5 +1,5 @@
 // @flow
-import type {Dependency, BundleGroup, Bundle} from '@parcel/types';
+import type {BundleGroup, Bundle} from '@parcel/types';
 import {Bundler} from '@parcel/plugin';
 
 const OPTIONS = {
@@ -24,10 +24,9 @@ export default new Bundler({
     // 6. If two assets are always seen together, put them in the same extracted bundle.
 
     // Step 1: create bundles for each of the explicit code split points.
-    // $FlowFixMe
     assetGraph.traverse((node, context: ?Context) => {
       if (node.type === 'dependency') {
-        let dep: Dependency = node.value;
+        let dep = node.value;
 
         // Start a new bundle if this is an async dependency, or entry point.
         if (dep.isAsync || dep.isEntry) {

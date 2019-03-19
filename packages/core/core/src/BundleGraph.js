@@ -3,14 +3,17 @@ import type {
   Asset,
   Bundle,
   BundleGroup,
-  GraphTraversalCallback
+  GraphTraversalCallback,
+  BundleGraph as IBundleGraph,
+  BundleGraphNode
 } from '@parcel/types';
-import AssetGraph from './AssetGraph';
+import Graph from './Graph';
 
 const getBundleGroupId = (bundleGroup: BundleGroup) =>
   'bundle_group:' + bundleGroup.entryAssetId;
 
-export default class BundleGraph extends AssetGraph {
+export default class BundleGraph extends Graph<BundleGraphNode>
+  implements IBundleGraph {
   constructor() {
     super();
     this.setRootNode({
@@ -142,12 +145,9 @@ export default class BundleGraph extends AssetGraph {
   }
 
   findBundlesWithAsset(asset: Asset): Array<Bundle> {
-    return Array.from(this.nodes.values())
-      .filter(
-        node =>
-          node.type === 'bundle' && node.value.assetGraph.hasNode(asset.id)
-      )
-      .map(node => node.value);
+    return this.findNodes(
+      node => node.type === 'bundle' && node.value.assetGraph.hasNode(asset.id)
+    ).map(node => node.value);
   }
 
   traverseBundles(visit: GraphTraversalCallback<Bundle>): any {

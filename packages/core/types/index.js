@@ -282,24 +282,93 @@ export interface TraversalContext {
 }
 
 export type GraphTraversalCallback<T> = (
-  asset: T,
+  node: T,
   context?: any,
   traversal: TraversalContext
 ) => any;
 
-export interface Graph {
-  merge(graph: Graph): void;
+export type Node = {
+  id: string,
+  +type: string,
+  value: any
+};
+
+export interface Graph<T: Node> {
+  traverse(visit: GraphTraversalCallback<T>): any;
+
+  hasNode(id: string): boolean;
+  getNode(id: string): ?T;
+  findNodes(callback: (node: T) => boolean): Array<T>;
 }
 
+type AssetNode = {
+  id: string,
+  type: 'asset' | 'asset_reference',
+  value: Asset
+};
+
+export type DependencyNode = {
+  id: string,
+  type: 'dependency',
+  value: Dependency
+};
+
+type BundleGroupNode = {
+  id: string,
+  type: 'bundle_group',
+  value: BundleGroup
+};
+
+type BundleNode = {
+  id: string,
+  type: 'bundle',
+  value: Bundle
+};
+
+export type AssetGraphNode =
+  | AssetNode
+  | DependencyNode
+  | BundleGroupNode
+  | BundleNode;
+
 // TODO: what do we want to expose here?
-export interface AssetGraph extends Graph {
+export interface AssetGraph extends Graph<AssetGraphNode> {
   traverseAssets(visit: GraphTraversalCallback<Asset>): any;
-  createBundle(asset: Asset): Bundle;
   getTotalSize(asset?: Asset): number;
   getEntryAssets(): Array<Asset>;
-  removeAsset(asset: Asset): void;
+  // removeAsset(asset: Asset): void;
   getDependencies(asset: Asset): Array<Dependency>;
   getDependencyResolution(dependency: Dependency): ?Asset;
+
+  getBundles(bundleGroup: BundleGroup): Array<Bundle>;
+
+  createBundle(asset: Asset): Bundle;
+  // traverse
+  // traverseAssets
+  // getAssets?
+  // getDependencies?
+  // getBundleGroups?
+  // getBundles?
+
+  // getDependencies(asset)
+  // getResolvedAsset(dep)
+  // getEntryAssets()
+
+  // hasNode(id)
+  // getNode(id)
+  // merge
+  // findNodes(callback: (node: Node) => boolean)
+
+  // addAsset(node: AssetGraphNode, req: TransformerRequest)
+  // removeAsset(asset: Asset)
+
+  // createBundle
+}
+
+export interface MutableAssetGraph extends AssetGraph {
+  addAsset(node: AssetGraphNode, req: TransformerRequest): Promise<void>;
+  removeAsset(asset: Asset): void;
+  merge(graph: AssetGraph): void;
 }
 
 export type BundleGroup = {
@@ -308,20 +377,24 @@ export type BundleGroup = {
   entryAssetId: string
 };
 
-export type Bundle = {
-  id: string,
-  type: string,
-  assetGraph: AssetGraph,
-  env: Environment,
-  isEntry?: boolean,
-  target?: Target,
-  filePath?: FilePath,
-  stats: Stats
-};
+export interface Bundle {
+  id: string;
+  type: string;
+  +assetGraph: AssetGraph;
+  env: Environment;
+  isEntry?: boolean;
+  target?: Target;
+  filePath: FilePath;
+  stats: Stats;
+}
 
-export interface BundleGraph {
-  addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
-  addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
+export interface MutableBundle extends Bundle {
+  assetGraph: MutableAssetGraph;
+}
+
+export type BundleGraphNode = BundleGroupNode | BundleNode;
+
+export interface BundleGraph extends Graph<BundleGraphNode> {
   isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
   findBundlesWithAsset(asset: Asset): Array<Bundle>;
   getBundles(bundleGroup: BundleGroup): Array<Bundle>;
@@ -329,20 +402,25 @@ export interface BundleGraph {
   traverseBundles(visit: GraphTraversalCallback<Bundle>): any;
 }
 
+export interface MutableBundleGraph extends BundleGraph {
+  addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
+  addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
+}
+
 export type Bundler = {
   bundle(
     graph: AssetGraph,
-    bundleGraph: BundleGraph,
+    bundleGraph: MutableBundleGraph,
     opts: ParcelOptions
   ): Async<void>
 };
 
-export type Namer = {
-  name(bundle: Bundle, opts: ParcelOptions): Async<?FilePath>
+export type Runtime = {
+  apply(bundle: MutableBundle, opts: ParcelOptions): Async<void>
 };
 
-export type Runtime = {
-  apply(bundle: Bundle, opts: ParcelOptions): Async<void>
+export type Namer = {
+  name(bundle: Bundle, opts: ParcelOptions): Async<?FilePath>
 };
 
 export type Packager = {

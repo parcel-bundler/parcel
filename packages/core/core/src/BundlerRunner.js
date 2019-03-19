@@ -1,11 +1,11 @@
 // @flow
-import type AssetGraph from './AssetGraph';
 import type {
   Namer,
   Bundle,
   FilePath,
   ParcelOptions,
-  TransformerRequest
+  TransformerRequest,
+  AssetGraph
 } from '@parcel/types';
 import type Config from './Config';
 import BundleGraph from './BundleGraph';
@@ -39,8 +39,8 @@ export default class BundlerRunner {
 
     let bundleGraph = new BundleGraph();
     await bundler.bundle(graph, bundleGraph, this.options);
-    await this.nameBundles(bundleGraph);
     await this.applyRuntimes(bundleGraph);
+    await this.nameBundles(bundleGraph);
 
     return bundleGraph;
   }

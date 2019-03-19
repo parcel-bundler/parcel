@@ -36,20 +36,20 @@ export default new Runtime({
       return;
     }
 
-    // $FlowFixMe - define a better asset graph interface
-    let bundleGroups = Array.from(bundle.assetGraph.nodes.values()).filter(
+    let bundleGroups = bundle.assetGraph.findNodes(
       n => n.type === 'bundle_group'
     );
     for (let bundleGroup of bundleGroups) {
       // Ignore deps with native loaders, e.g. workers.
-      if (bundleGroup.value.dependency.isURL) {
+      if (
+        bundleGroup.type !== 'bundle_group' ||
+        bundleGroup.value.dependency.isURL
+      ) {
         continue;
       }
 
       let bundles = bundle.assetGraph
-        // $FlowFixMe - define a better asset graph interface
-        .getNodesConnectedFrom(bundleGroup)
-        .map(node => node.value)
+        .getBundles(bundleGroup.value)
         .sort(
           bundle =>
             bundle.assetGraph.hasNode(bundleGroup.value.entryAssetId) ? 1 : -1
@@ -62,13 +62,11 @@ export default new Runtime({
         }
 
         return `[require(${JSON.stringify(loader)}), ${JSON.stringify(
-          // $FlowFixMe - bundle.filePath already exists here
           path.relative(path.dirname(bundle.filePath), b.filePath)
         )}]`;
       });
 
-      // $FlowFixMe
-      await bundle.assetGraph.addRuntimeAsset(bundleGroup, {
+      await bundle.assetGraph.addAsset(bundleGroup, {
         filePath: __filename,
         env: bundle.env,
         code: `module.exports = require('./bundle-loader')([${loaderModules.join(

@@ -6,7 +6,7 @@ import type {
   Target,
   TransformerRequest
 } from '@parcel/types';
-import type {Node} from './Graph';
+import type {Node} from './AssetGraph';
 import type Config from './Config';
 import EventEmitter from 'events';
 import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';

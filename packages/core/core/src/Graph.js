@@ -1,6 +1,10 @@
 // @flow
 'use strict';
-import type {TraversalContext, Graph as IGraph} from '@parcel/types';
+import type {
+  TraversalContext,
+  Node as INode,
+  Graph as IGraph
+} from '@parcel/types';
 
 export type NodeId = string;
 
@@ -9,35 +13,29 @@ export type Edge = {
   to: NodeId
 };
 
-export interface Node {
-  id: string;
-  type?: string;
-  value: any;
-}
-
-type GraphUpdates = {
-  added: Graph,
-  removed: Graph
+type GraphUpdates<T> = {
+  added: Graph<T>,
+  removed: Graph<T>
 };
 
-type GraphOpts = {
-  nodes?: Array<[NodeId, Node]>,
+export type GraphOpts<T> = {
+  nodes?: Array<[NodeId, T]>,
   edges?: Array<Edge>,
   rootNodeId?: ?NodeId
 };
 
-export default class Graph implements IGraph {
+export default class Graph<Node: INode> implements IGraph<Node> {
   nodes: Map<NodeId, Node>;
   edges: Set<Edge>;
   rootNodeId: ?NodeId;
 
-  constructor(opts: GraphOpts = {}) {
+  constructor(opts: GraphOpts<Node> = {}) {
     this.nodes = new Map(opts.nodes);
     this.edges = new Set(opts.edges);
     this.rootNodeId = opts.rootNodeId || null;
   }
 
-  serialize(): GraphOpts {
+  serialize(): GraphOpts<Node> {
     return {
       nodes: [...this.nodes],
       edges: [...this.edges],
@@ -54,7 +52,7 @@ export default class Graph implements IGraph {
     return this.nodes.has(id);
   }
 
-  getNode(id: string) {
+  getNode(id: string): ?Node {
     return this.nodes.get(id);
   }
 
@@ -98,8 +96,7 @@ export default class Graph implements IGraph {
     });
   }
 
-  // $FlowFixMe - fix interface
-  merge(graph: Graph) {
+  merge(graph: Graph<Node>) {
     for (let [, node] of graph.nodes) {
       this.addNode(node);
     }
@@ -179,9 +176,12 @@ export default class Graph implements IGraph {
 
   // Update a node's downstream nodes making sure to prune any orphaned branches
   // Also keeps track of all added and removed edges and nodes
-  replaceNodesConnectedTo(fromNode: Node, toNodes: Array<Node>): GraphUpdates {
-    let removed = new this.constructor();
-    let added = new this.constructor();
+  replaceNodesConnectedTo(
+    fromNode: Node,
+    toNodes: Array<Node>
+  ): GraphUpdates<Node> {
+    let removed = new Graph();
+    let added = new Graph();
 
     let edgesBefore = Array.from(this.edges).filter(
       edge => edge.from === fromNode.id
@@ -335,5 +335,9 @@ export default class Graph implements IGraph {
     }, node);
 
     return graph;
+  }
+
+  findNodes(callback: (node: Node) => boolean): Array<Node> {
+    return Array.from(this.nodes.values()).filter(callback);
   }
 }
