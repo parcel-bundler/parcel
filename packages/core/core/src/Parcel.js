@@ -48,6 +48,7 @@ export default class Parcel extends EventEmitter {
   pending: boolean;
   error: PrintableError;
   bundleGraph: BundleGraph;
+  hmrServer: HMRServer;
 
   constructor(options: ParcelOpts) {
     super();
@@ -123,6 +124,14 @@ export default class Parcel extends EventEmitter {
       // Not sure if the server should even be mentioned in the core?
       // Perhaps it should be part of the cli?
       this.server = await serve(this, this.options.serve);
+    }
+
+    if (this.options.hot) {
+      this.hmrServer = await serve(this, this.options.hot);
+
+      this.assetGraphBuilder.on('transformed', cacheEntry => {
+        this.hmrServer.addChangedAsset(cacheEntry);
+      });
     }
   }
 

@@ -149,6 +149,8 @@ export default class AssetGraphBuilder extends EventEmitter {
   async transform(req: TransformerRequest, {signal, shallow}: BuildOpts) {
     let cacheEntry = await this.runTransform(req);
 
+    this.emit('transformed', cacheEntry);
+
     if (signal.aborted) throw abortError;
     let {
       addedFiles,

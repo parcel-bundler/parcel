@@ -1,5 +1,5 @@
 // @flow
-import type {ServerOptions} from '@parcel/types';
+import type {ServerOptions, CacheEntry, Asset} from '@parcel/types';
 import type {PrintableError} from '@parcel/logger/src/prettyError';
 import type {Server, ServerError} from './types.js.flow';
 import http from 'http';
@@ -23,6 +23,7 @@ export default class HMRServer {
   server: Server;
   wss: WebSocket.Server;
   unresolvedError: HMRMessage | null = null;
+  changedAssets: Array<CacheEntry> = [];
 
   async start(
     options: ServerOptions = {
@@ -84,37 +85,53 @@ export default class HMRServer {
     this.broadcast(this.unresolvedError);
   }
 
-  emitUpdate(assets: Array<Object>, reload: boolean = false) {
+  addChangedAsset(asset: CacheEntry) {
+    this.changedAssets.push(asset);
+  }
+
+  emitUpdate(reload: boolean = false) {
     if (this.unresolvedError) {
       this.unresolvedError = null;
       this.broadcast({
         type: 'error-resolved'
       });
+
+      return;
     }
 
-    const shouldReload = reload || assets.some(asset => asset.hmrPageReload);
-    if (shouldReload) {
+    if (reload) {
       this.broadcast({
         type: 'reload'
       });
     } else {
       this.broadcast({
         type: 'update',
-        assets: assets.map(asset => {
-          let deps = {};
-          for (let [dep, depAsset] of asset.depAssets) {
-            deps[dep.name] = depAsset.id;
-          }
+        assets: this.changedAssets.reduce((acc, cacheEntry) => {
+          return [
+            ...acc,
+            ...cacheEntry.assets.map((asset: Asset) => {
+              let deps = {};
+              for (let dependency of asset.dependencies) {
+                // ? SourcePath should come from graph?
+                deps[dependency.sourcePath] = dependency.id;
+              }
 
-          return {
-            id: asset.id,
-            type: asset.type,
-            generated: asset.generated,
-            deps: deps
-          };
-        })
+              return {
+                id: asset.id,
+                type: asset.type,
+                code: asset.code, // ? This should probably be resolved from cache?
+                deps: deps
+              };
+            })
+          ];
+        }, [])
       });
     }
+
+    // TODO: Figure out how we'll let assets refresh browsers
+    /*const shouldReload = this.changedAssets.some(asset => asset.hmrPageReload);*/
+
+    this.changedAssets = [];
   }
 
   handleSocketError(err: ServerError) {
