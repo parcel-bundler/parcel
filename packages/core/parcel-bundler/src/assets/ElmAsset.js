@@ -5,8 +5,6 @@ const {minify} = require('terser');
 const path = require('path');
 const spawn = require('cross-spawn');
 
-const ELM_DISABLE_DEBUG = process.env.PARCEL_ELM_DISABLE_DEBUG;
-
 class ElmAsset extends Asset {
   constructor(name, options) {
     super(name, options);
