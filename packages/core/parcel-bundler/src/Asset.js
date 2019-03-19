@@ -6,7 +6,7 @@ const md5 = require('./utils/md5');
 const isURL = require('./utils/is-url');
 const config = require('./utils/config');
 const syncPromise = require('./utils/syncPromise');
-const logger = require('@parcel/logger');
+const logger = require('@parcel/logger').default;
 const Resolver = require('./Resolver');
 const objectHash = require('./utils/objectHash');
 
@@ -152,7 +152,7 @@ class Asset {
         return conf;
       }
 
-      return await config.load(opts.path || this.name, filenames);
+      return config.load(opts.path || this.name, filenames);
     }
 
     return null;
@@ -163,7 +163,7 @@ class Asset {
   }
 
   async load() {
-    return await fs.readFile(this.name, this.encoding);
+    return fs.readFile(this.name, this.encoding);
   }
 
   parse() {

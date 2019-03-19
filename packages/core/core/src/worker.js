@@ -11,11 +11,11 @@ import PackagerRunner from './PackagerRunner';
 import Config from './Config';
 import Cache from '@parcel/cache';
 
-type Options = {
+type Options = {|
   config: Config,
   options: ParcelOptions,
   env: JSONObject
-};
+|};
 
 let transformerRunner: TransformerRunner | null = null;
 let packagerRunner: PackagerRunner | null = null;

@@ -1,4 +1,10 @@
-// @flow
+// @flow strict-local
+
+import type {AST as _AST, Config as _Config, Node as _Node} from './unsafe';
+
+export type AST = _AST;
+export type Config = _Config;
+export type Node = _Node;
 
 export type JSONValue =
   | null
@@ -20,7 +26,8 @@ type SemverRange = string;
 export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T};
-export type ParcelConfig = {
+
+export type ParcelConfig = {|
   filePath: FilePath,
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: Array<PackageName>,
@@ -39,19 +46,20 @@ export type ParcelConfig = {
     [Glob]: Array<PackageName>
   },
   reporters?: Array<PackageName>
-};
+|};
 
 export type Engines = {
-  node?: SemverRange,
+  browsers?: Array<string>,
   electron?: SemverRange,
-  browsers?: Array<string>
+  node?: SemverRange,
+  parcel?: SemverRange
 };
 
-export type Target = {
+export type Target = {|
   name: string,
   distPath?: FilePath,
   env: Environment
-};
+|};
 
 export type EnvironmentContext =
   | 'browser'
@@ -78,9 +86,9 @@ export interface Environment {
   isIsolated(): boolean;
 }
 
-type PackageDependencies = {
+type PackageDependencies = {|
   [PackageName]: Semver
-};
+|};
 
 export type PackageJSON = {
   name: PackageName,
@@ -102,7 +110,7 @@ export type PackageJSON = {
   peerDependencies?: PackageDependencies
 };
 
-export type ParcelOptions = {
+export type ParcelOptions = {|
   entries?: FilePath | Array<FilePath>,
   rootDir?: FilePath,
   config?: ParcelConfig,
@@ -128,26 +136,38 @@ export type ParcelOptions = {
   // throwErrors
   // global?
   // detailedReport
-};
+|};
 
-export type ServerOptions = {
+export type ServerOptions = {|
   host?: string,
   port?: number,
   https?: HTTPSOptions | boolean
-};
+|};
 
-export type HTTPSOptions = {
+export type HTTPSOptions = {|
   cert?: FilePath,
   key?: FilePath
+|};
+
+export type CLIOptions = {
+  cacheDir?: FilePath,
+  watch?: boolean,
+  distDir?: FilePath,
+  production?: boolean,
+  cache?: boolean
 };
 
-export type SourceLocation = {
+export type SourceLocation = {|
   filePath: string,
   start: {line: number, column: number},
   end: {line: number, column: number}
+|};
+
+export type Meta = {
+  globals?: Map<string, Asset>,
+  [string]: JSONValue
 };
 
-export type Meta = {[string]: any};
 export type DependencyOptions = {|
   moduleSpecifier: ModuleSpecifier,
   isAsync?: boolean,
@@ -212,25 +232,17 @@ export interface Asset {
   getOutput(): Promise<AssetOutput>;
 }
 
-export type Stats = {
+export type Stats = {|
   time: number,
   size: number
-};
+|};
 
-export type AssetOutput = {
+export type AssetOutput = {|
   code: string,
   map?: SourceMap,
   [string]: Blob | JSONValue
-};
+|};
 
-export type AST = {
-  type: string,
-  version: string,
-  program: any,
-  isDirty?: boolean
-};
-
-export type Config = any;
 export type SourceMap = JSONObject;
 export type Blob = string | Buffer;
 
@@ -276,31 +288,52 @@ export type CacheEntry = {
   initialAssets: ?Array<Asset> // Initial assets, pre-post processing
 };
 
-export interface TraversalContext {
+export interface TraversalActions {
   skipChildren(): void;
   stop(): void;
 }
 
-export type GraphTraversalCallback<T> = (
-  asset: T,
-  context?: any,
-  traversal: TraversalContext
-) => any;
+export type GraphTraversalCallback<TNode, TContext> = (
+  node: TNode,
+  context: ?TContext,
+  traversal: TraversalActions
+) => ?TContext;
 
-export interface Graph {
-  merge(graph: Graph): void;
-}
+export type NodeId = string;
 
-// TODO: what do we want to expose here?
-export interface AssetGraph extends Graph {
-  traverseAssets(visit: GraphTraversalCallback<Asset>): any;
-  createBundle(asset: Asset): Bundle;
-  getTotalSize(asset?: Asset): number;
-  getEntryAssets(): Array<Asset>;
-  removeAsset(asset: Asset): void;
-  getDependencies(asset: Asset): Array<Dependency>;
-  getDependencyResolution(dependency: Dependency): ?Asset;
-}
+export type AssetNode = {|id: string, type: 'asset', value: Asset|};
+export type AssetReferenceNode = {|
+  id: string,
+  type: 'asset_reference',
+  value: Asset
+|};
+
+export type BundleNode = {|
+  id: string,
+  type: 'bundle',
+  value: Bundle
+|};
+
+export type BundleGroupNode = {|
+  id: string,
+  type: 'bundle_group',
+  value: BundleGroup
+|};
+
+export type DependencyNode = {|
+  id: string,
+  type: 'dependency',
+  value: Dependency
+|};
+
+export type FileNode = {|id: string, type: 'file', value: File|};
+export type RootNode = {|id: string, type: 'root', value: string | null|};
+
+export type TransformerRequestNode = {|
+  id: string,
+  type: 'transformer_request',
+  value: TransformerRequest
+|};
 
 export type BundleGroup = {
   dependency: Dependency,
@@ -308,7 +341,7 @@ export type BundleGroup = {
   entryAssetId: string
 };
 
-export type Bundle = {
+export type Bundle = {|
   id: string,
   type: string,
   assetGraph: AssetGraph,
@@ -317,88 +350,145 @@ export type Bundle = {
   target?: Target,
   filePath?: FilePath,
   stats: Stats
-};
+|};
 
-export interface BundleGraph {
-  addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
-  addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
-  isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
-  findBundlesWithAsset(asset: Asset): Array<Bundle>;
-  getBundles(bundleGroup: BundleGroup): Array<Bundle>;
-  getBundleGroups(bundle: Bundle): Array<BundleGroup>;
-  traverseBundles(visit: GraphTraversalCallback<Bundle>): any;
+export type AssetGraphNode =
+  | AssetNode
+  | AssetReferenceNode
+  | DependencyNode
+  | FileNode
+  | RootNode
+  | TransformerRequestNode
+  // Bundle graphs are merged into asset graphs during the bundling phase
+  | BundleGraphNode;
+
+export type BundleGraphNode = BundleNode | BundleGroupNode | RootNode;
+
+export type Edge = {|
+  from: NodeId,
+  to: NodeId
+|};
+
+export type GraphUpdates<TNode> = {|
+  added: Graph<TNode>,
+  removed: Graph<TNode>
+|};
+
+export interface Graph<TNode: Node> {
+  edges: Set<Edge>;
+  nodes: Map<string, TNode>;
+  addEdge(edge: Edge): Edge;
+  addNode(node: TNode): TNode;
+  getNode(id: string): ?TNode;
+  getNodesConnectedFrom(node: TNode): Array<TNode>;
+  getRootNode(): ?TNode;
+  hasNode(id: string): boolean;
+  merge(graph: Graph<TNode>): void;
+  replaceNodesConnectedTo(
+    fromNode: TNode,
+    toNodes: Array<TNode>
+  ): GraphUpdates<TNode>;
+  traverse<TContext>(
+    visit: GraphTraversalCallback<TNode, TContext>,
+    startNode: ?TNode
+  ): ?TContext;
 }
 
-export type Bundler = {
+// TODO: what do we want to expose here?
+export interface AssetGraph extends Graph<AssetGraphNode> {
+  createBundle(asset: Asset): Bundle;
+  getDependencies(asset: Asset): Array<Dependency>;
+  getDependencyResolution(dependency: Dependency): ?Asset;
+  getEntryAssets(): Array<Asset>;
+  getTotalSize(asset?: Asset): number;
+  removeAsset(asset: Asset): void;
+  traverseAssets(
+    visit: GraphTraversalCallback<Asset, AssetGraphNode>
+  ): ?AssetGraphNode;
+}
+
+export interface BundleGraph extends Graph<BundleGraphNode> {
+  addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
+  addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
+  findBundlesWithAsset(asset: Asset): Array<Bundle>;
+  getBundleGroups(bundle: Bundle): Array<BundleGroup>;
+  getBundles(bundleGroup: BundleGroup): Array<Bundle>;
+  isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
+  traverseBundles<TContext>(
+    visit: GraphTraversalCallback<Bundle, TContext>
+  ): ?TContext;
+}
+
+export type Bundler = {|
   bundle(
     graph: AssetGraph,
     bundleGraph: BundleGraph,
     opts: ParcelOptions
   ): Async<void>
-};
+|};
 
-export type Namer = {
+export type Namer = {|
   name(bundle: Bundle, opts: ParcelOptions): Async<?FilePath>
-};
+|};
 
-export type Runtime = {
+export type Runtime = {|
   apply(bundle: Bundle, opts: ParcelOptions): Async<void>
-};
+|};
 
-export type Packager = {
+export type Packager = {|
   package(bundle: Bundle, opts: ParcelOptions): Async<Blob>
-};
+|};
 
-export type Optimizer = {
+export type Optimizer = {|
   optimize(bundle: Bundle, contents: Blob, opts: ParcelOptions): Async<Blob>
-};
+|};
 
-export type Resolver = {
+export type Resolver = {|
   resolve(
     dependency: Dependency,
     opts: ParcelOptions,
     rootDir: string
   ): Async<FilePath | null>
-};
+|};
 
-export type LogEvent = {
+export type LogEvent = {|
   type: 'log',
   level: 'error' | 'warn' | 'info' | 'progress' | 'success' | 'verbose',
   message: string | Error
-};
+|};
 
-export type BuildStartEvent = {
+export type BuildStartEvent = {|
   type: 'buildStart'
-};
+|};
 
-type ResolvingProgressEvent = {
+type ResolvingProgressEvent = {|
   type: 'buildProgress',
   phase: 'resolving',
   dependency: Dependency
-};
+|};
 
-type TransformingProgressEvent = {
+type TransformingProgressEvent = {|
   type: 'buildProgress',
   phase: 'transforming',
   request: TransformerRequest
-};
+|};
 
-type BundlingProgressEvent = {
+type BundlingProgressEvent = {|
   type: 'buildProgress',
   phase: 'bundling'
-};
+|};
 
-type PackagingProgressEvent = {
+type PackagingProgressEvent = {|
   type: 'buildProgress',
   phase: 'packaging',
   bundle: Bundle
-};
+|};
 
-type OptimizingProgressEvent = {
+type OptimizingProgressEvent = {|
   type: 'buildProgress',
   phase: 'optimizing',
   bundle: Bundle
-};
+|};
 
 export type BuildProgressEvent =
   | ResolvingProgressEvent
@@ -407,17 +497,17 @@ export type BuildProgressEvent =
   | PackagingProgressEvent
   | OptimizingProgressEvent;
 
-export type BuildSuccessEvent = {
+export type BuildSuccessEvent = {|
   type: 'buildSuccess',
   assetGraph: AssetGraph,
   bundleGraph: BundleGraph,
   buildTime: number
-};
+|};
 
-export type BuildFailureEvent = {
+export type BuildFailureEvent = {|
   type: 'buildFailure',
   error: Error
-};
+|};
 
 export type ReporterEvent =
   | LogEvent
@@ -426,6 +516,10 @@ export type ReporterEvent =
   | BuildSuccessEvent
   | BuildFailureEvent;
 
-export type Reporter = {
+export type Reporter = {|
   report(event: ReporterEvent, opts: ParcelOptions): Async<void>
-};
+|};
+
+export interface ErrorWithCode extends Error {
+  code?: string;
+}

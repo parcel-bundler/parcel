@@ -1,11 +1,12 @@
 // @flow
+
 import React from 'react';
 import {BundleGraph} from '@parcel/types';
 import filesize from 'filesize';
 import {Box, Color} from 'ink';
 import prettifyTime from '@parcel/utils/src/prettifyTime';
 import path from 'path';
-import emoji from './emoji';
+import * as emoji from './emoji';
 import {Table, Row, Cell} from './Table';
 
 const LARGE_BUNDLE_SIZE = 1024 * 1024;
@@ -43,7 +44,9 @@ export default function BundleReport(props: ReportProps) {
     );
 
     let assets = [];
-    bundle.assetGraph.traverseAssets(asset => assets.push(asset));
+    bundle.assetGraph.traverseAssets(asset => {
+      assets.push(asset);
+    });
     assets.sort((a, b) => b.stats.size - a.stats.size);
 
     let largestAssets = assets.slice(0, 10);

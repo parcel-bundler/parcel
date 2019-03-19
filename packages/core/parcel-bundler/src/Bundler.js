@@ -1,7 +1,7 @@
 const fs = require('@parcel/fs');
 const Resolver = require('./Resolver');
 const Parser = require('./Parser');
-const WorkerFarm = require('@parcel/workers');
+const WorkerFarm = require('@parcel/workers').default;
 const Path = require('path');
 const Bundle = require('./Bundle');
 const Watcher = require('@parcel/watcher');
@@ -9,7 +9,7 @@ const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
 const {EventEmitter} = require('events');
-const logger = require('@parcel/logger');
+const logger = require('@parcel/logger').default;
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
@@ -18,7 +18,7 @@ const PromiseQueue = require('./utils/PromiseQueue');
 const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
-const getRootDir = require('@parcel/utils/getRootDir');
+const getRootDir = require('@parcel/utils/src/getRootDir').default;
 const {glob} = require('./utils/glob');
 
 /**
@@ -479,7 +479,7 @@ class Bundler extends EventEmitter {
           this.options.autoinstall &&
           install
         ) {
-          return await this.installDep(asset, dep);
+          return this.installDep(asset, dep);
         }
 
         err.message = `Cannot resolve dependency '${dep.name}'`;
@@ -510,7 +510,7 @@ class Bundler extends EventEmitter {
       }
     }
 
-    return await this.resolveDep(asset, dep, false);
+    return this.resolveDep(asset, dep, false);
   }
 
   async throwDepError(asset, dep, err) {

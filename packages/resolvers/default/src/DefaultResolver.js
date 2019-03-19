@@ -3,8 +3,8 @@
 import {Resolver} from '@parcel/plugin';
 import type {ParcelOptions, Dependency, PackageJSON} from '@parcel/types';
 import path from 'path';
-import fs from '@parcel/fs';
-import {glob} from '@parcel/utils';
+import * as fs from '@parcel/fs';
+import {isGlob} from '@parcel/utils/src/glob';
 import micromatch from 'micromatch';
 import builtins from './builtins';
 // import nodeBuiltins from 'node-libs-browser';
@@ -27,11 +27,11 @@ type InternalPackageJSON = PackageJSON & {
 
 const EMPTY_SHIM = require.resolve('./_empty');
 
-type Options = {
+type Options = {|
   options: ParcelOptions,
   rootDir: string,
   extensions: Array<string>
-};
+|};
 
 /**
  * This resolver implements a modified version of the node_modules resolution algorithm:
@@ -52,20 +52,24 @@ class NodeResolver {
   rootPackage: InternalPackageJSON | null;
 
   constructor(options: Options) {
-    this.options = options;
+    // $FlowFixMe
+    this.options = Object.assign({}, options, {
+      // normalize extensions that don't lead with '.'
+      extensions: options.extensions.map(
+        ext => (ext.startsWith('.') ? ext : '.' + ext)
+      )
+    });
     this.packageCache = new Map();
     this.rootPackage = null;
   }
 
   async resolve({
-    moduleSpecifier: input,
+    moduleSpecifier: filename,
     sourcePath: parent,
     isURL
   }: Dependency) {
-    let filename = input;
-
     // Check if this is a glob
-    if (glob.isGlob(filename)) {
+    if (isGlob(filename)) {
       return {path: path.resolve(path.dirname(parent), filename)};
     }
 
@@ -180,7 +184,7 @@ class NodeResolver {
     // First try as a file, then as a directory.
     return (
       (await this.loadAsFile(filename, extensions, pkg)) ||
-      (await this.loadDirectory(filename, extensions, pkg))
+      (await this.loadDirectory(filename, extensions, pkg)) // eslint-disable-line no-return-await
     );
   }
 
@@ -276,7 +280,7 @@ class NodeResolver {
     }
 
     // Fall back to an index file inside the directory.
-    return await this.loadAsFile(path.join(dir, 'index'), extensions, pkg);
+    return this.loadAsFile(path.join(dir, 'index'), extensions, pkg);
   }
 
   async readPackage(dir: string): Promise<InternalPackageJSON> {
@@ -440,7 +444,7 @@ class NodeResolver {
       // Otherwise, try replacing glob keys
       for (let key in aliases) {
         let val = aliases[key];
-        if (typeof val === 'string' && glob.isGlob(key)) {
+        if (typeof val === 'string' && isGlob(key)) {
           let re = micromatch.makeRe(key, {capture: true});
           if (re.test(filename)) {
             alias = filename.replace(re, val);

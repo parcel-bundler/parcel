@@ -1,31 +1,49 @@
-const childProcess = require('child_process');
-const {EventEmitter} = require('events');
-const {errorUtils} = require('@parcel/utils');
-const {serialize, deserialize} = require('@parcel/utils/serializer');
+// @flow
+
+import type {FilePath} from '@parcel/types';
+import type {BundlerOptions, WorkerMessage} from './types';
+
+import childProcess, {type ChildProcess} from 'child_process';
+import EventEmitter from 'events';
+import {jsonToError} from '@parcel/utils/src/errorUtils';
+import {serialize, deserialize} from '@parcel/utils/src/serializer';
 
 const childModule = require.resolve('./child');
 
+export type WorkerCall = {|
+  method: string,
+  args: Array<any>,
+  retries: number,
+  resolve: (result: Promise<any> | any) => void,
+  reject: (error: any) => void
+|};
+
+type WorkerOpts = {|
+  forcedKillTime: number
+|};
+
 let WORKER_ID = 0;
-class Worker extends EventEmitter {
-  constructor(options) {
+export default class Worker extends EventEmitter {
+  +options: WorkerOpts;
+  child: ChildProcess;
+  id: number = WORKER_ID++;
+  processQueue: boolean = true;
+  sendQueue: Array<any> = [];
+
+  calls: Map<number, WorkerCall> = new Map();
+  exitCode = null;
+  callId = 0;
+
+  ready = false;
+  stopped = false;
+  isStopping = false;
+
+  constructor(options: WorkerOpts) {
     super();
-
     this.options = options;
-    this.id = WORKER_ID++;
-
-    this.sendQueue = [];
-    this.processQueue = true;
-
-    this.calls = new Map();
-    this.exitCode = null;
-    this.callId = 0;
-
-    this.ready = false;
-    this.stopped = false;
-    this.isStopping = false;
   }
 
-  async fork(forkModule, bundlerOptions) {
+  async fork(forkModule: FilePath, bundlerOptions: BundlerOptions) {
     let filteredArgs = process.execArgv.filter(
       v => !/^--(debug|inspect)/.test(v)
     );
@@ -66,7 +84,7 @@ class Worker extends EventEmitter {
     await this.init(bundlerOptions);
   }
 
-  async init(bundlerOptions) {
+  async init(bundlerOptions: BundlerOptions) {
     this.ready = false;
 
     return new Promise((resolve, reject) => {
@@ -84,13 +102,13 @@ class Worker extends EventEmitter {
     });
   }
 
-  send(data) {
+  send(data: WorkerMessage): void {
     if (!this.processQueue) {
-      return this.sendQueue.push(data);
+      this.sendQueue.push(data);
+      return;
     }
 
-    data = serialize(data);
-    let result = this.child.send(data, error => {
+    let result = this.child.send(serialize(data), error => {
       if (error && error instanceof Error) {
         // Ignore this, the workerfarm handles child errors
         return;
@@ -111,7 +129,7 @@ class Worker extends EventEmitter {
     }
   }
 
-  call(call) {
+  call(call: WorkerCall): void {
     if (this.stopped || this.isStopping) {
       return;
     }
@@ -128,7 +146,7 @@ class Worker extends EventEmitter {
     });
   }
 
-  receive(data) {
+  receive(data: string): void {
     if (this.stopped || this.isStopping) {
       return;
     }
@@ -150,7 +168,7 @@ class Worker extends EventEmitter {
       }
 
       if (contentType === 'error') {
-        call.reject(errorUtils.jsonToError(content));
+        call.reject(jsonToError(content));
       } else {
         call.resolve(content);
       }
@@ -180,5 +198,3 @@ class Worker extends EventEmitter {
     }
   }
 }
-
-module.exports = Worker;

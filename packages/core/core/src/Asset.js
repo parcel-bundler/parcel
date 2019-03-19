@@ -1,25 +1,26 @@
 // @flow
+
 import type {
   Asset as IAsset,
-  TransformerResult,
-  DependencyOptions,
-  Dependency as IDependency,
-  FilePath,
-  File,
-  Environment,
-  JSONObject,
-  AST,
   AssetOutput,
+  AST,
   Config,
+  Dependency as IDependency,
+  DependencyOptions,
+  Environment,
+  File,
+  FilePath,
+  Meta,
   PackageJSON,
-  Stats
+  Stats,
+  TransformerResult
 } from '@parcel/types';
-import md5 from '@parcel/utils/lib/md5';
-import {loadConfig} from '@parcel/utils/lib/config';
+import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
+import {loadConfig} from '@parcel/utils/src/config';
 import Cache from '@parcel/cache';
 import Dependency from './Dependency';
 
-type AssetOptions = {
+type AssetOptions = {|
   id?: string,
   hash?: string,
   filePath: FilePath,
@@ -31,9 +32,9 @@ type AssetOptions = {
   output?: AssetOutput,
   outputHash?: string,
   env: Environment,
-  meta?: JSONObject,
+  meta?: Meta,
   stats?: Stats
-};
+|};
 
 export default class Asset implements IAsset {
   id: string;
@@ -47,13 +48,15 @@ export default class Asset implements IAsset {
   output: AssetOutput;
   outputHash: string;
   env: Environment;
-  meta: JSONObject;
+  meta: Meta;
   stats: Stats;
 
   constructor(options: AssetOptions) {
     this.id =
       options.id ||
-      md5(options.filePath + options.type + JSON.stringify(options.env));
+      md5FromString(
+        options.filePath + options.type + JSON.stringify(options.env)
+      );
     this.hash = options.hash || '';
     this.filePath = options.filePath;
     this.type = options.type;
@@ -105,7 +108,7 @@ export default class Asset implements IAsset {
 
   async addConnectedFile(file: File) {
     if (!file.hash) {
-      file.hash = await md5.file(file.filePath);
+      file.hash = await md5FromFilePath(file.filePath);
     }
 
     this.connectedFiles.push(file);
@@ -114,7 +117,7 @@ export default class Asset implements IAsset {
   createChildAsset(result: TransformerResult) {
     let code = (result.output && result.output.code) || result.code || '';
     let opts: AssetOptions = {
-      hash: this.hash || md5(code),
+      hash: this.hash || md5FromString(code),
       filePath: this.filePath,
       type: result.type,
       code,
@@ -152,14 +155,21 @@ export default class Asset implements IAsset {
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
   ): Promise<Config | null> {
-    if (options && options.packageKey) {
+    let packageKey = options && options.packageKey;
+    let parse = options && options.parse;
+
+    if (packageKey) {
       let pkg = await this.getPackage();
-      if (pkg && options.packageKey && pkg[options.packageKey]) {
-        return pkg[options.packageKey];
+      if (pkg && pkg[packageKey]) {
+        return pkg[packageKey];
       }
     }
 
-    let conf = await loadConfig(this.filePath, filePaths, options);
+    let conf = await loadConfig(
+      this.filePath,
+      filePaths,
+      parse == null ? null : {parse}
+    );
     if (!conf) {
       return null;
     }
@@ -172,6 +182,6 @@ export default class Asset implements IAsset {
   }
 
   async getPackage(): Promise<PackageJSON | null> {
-    return await this.getConfig(['package.json']);
+    return this.getConfig(['package.json']);
   }
 }

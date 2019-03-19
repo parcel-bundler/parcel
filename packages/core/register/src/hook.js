@@ -3,7 +3,7 @@ import process from 'process';
 import path from 'path';
 import {addHook} from 'pirates';
 import Parcel, {Dependency, Environment} from '@parcel/core';
-import syncPromise from '@parcel/utils/lib/syncPromise';
+import syncPromise from '@parcel/utils/src/syncPromise';
 
 const originalRequire = Module.prototype.require;
 const DEFAULT_CLI_OPTS = {
@@ -58,8 +58,10 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
         return output;
       }
     } catch (e) {
+      /* eslint-disable no-console */
       console.error('@parcel/register failed to process: ', filename);
       console.error(e);
+      /* eslint-enable */
     } finally {
       isProcessing = false;
     }

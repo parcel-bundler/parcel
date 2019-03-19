@@ -1,70 +1,46 @@
-const Watcher = require('../index');
-const fs = require('@parcel/fs');
-const path = require('path');
-const assert = require('assert');
-const {sleep} = require('@parcel/test-utils');
+// @flow
+
+import Watcher from '../';
+import * as fs from '@parcel/fs';
+import path from 'path';
+import assert from 'assert';
+import {sleep} from '@parcel/test-utils';
 
 describe('change event', function() {
   let tmpFolder = path.join(__dirname, './tmp/');
 
-  before(() => {
-    fs.mkdirp(tmpFolder);
+  before(async () => {
+    await fs.mkdirp(tmpFolder);
   });
 
-  it('Should emit event on filechange', async () => {
-    let watcher = new Watcher({});
-
+  it('emits change events when an existing file is changed', async () => {
     let filepath = path.join(tmpFolder, 'file1.txt');
-
     await fs.writeFile(filepath, 'this is a text document');
 
+    let watcher = new Watcher({});
     watcher.add(filepath);
 
-    let changed = false;
-    watcher.once('change', () => {
-      changed = true;
-    });
+    await new Promise(resolve => watcher.once('_chokidarReady', resolve));
 
-    if (!watcher.ready) {
-      await new Promise(resolve => watcher.once('ready', resolve));
-    }
-
-    await sleep(250);
-
+    let changePromise = new Promise(resolve => watcher.once('change', resolve));
     await fs.writeFile(filepath, 'this is not a text document');
-
-    await sleep(500);
-
-    assert(changed, 'File should be flagged as changed.');
+    await changePromise;
 
     await watcher.stop();
   });
 
-  it('Should emit event on filechange using arrays', async () => {
-    let watcher = new Watcher({});
-
+  it('emits change events when any of a list of files is changed', async () => {
     let filepath = path.join(tmpFolder, 'file1.txt');
-
     await fs.writeFile(filepath, 'this is a text document');
 
+    let watcher = new Watcher({});
     watcher.add([filepath]);
 
-    let changed = false;
-    watcher.once('change', () => {
-      changed = true;
-    });
+    await new Promise(resolve => watcher.once('_chokidarReady', resolve));
 
-    if (!watcher.ready) {
-      await new Promise(resolve => watcher.once('ready', resolve));
-    }
-
-    await sleep(250);
-
+    let changePromise = new Promise(resolve => watcher.once('change', resolve));
     await fs.writeFile(filepath, 'this is not a text document');
-
-    await sleep(500);
-
-    assert(changed, 'File should be flagged as changed.');
+    await changePromise;
 
     await watcher.stop();
   });

@@ -9,9 +9,19 @@
 [include]
 
 [libs]
+flow-libs/
 
 [lints]
+untyped-type-import=error
 
 [options]
 
 [strict]
+nonstrict-import
+sketchy-null-number
+sketchy-null-string
+sketchy-null-mixed
+unclear-type
+unsafe-getters-setters
+untyped-import
+untyped-type-import

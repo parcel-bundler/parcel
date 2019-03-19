@@ -1,19 +1,18 @@
 // @flow
-'use strict';
+
+import type {Bundle, BundleGraph, ParcelOptions, Stats} from '@parcel/types';
+
 import AssetGraph from './AssetGraph';
-import type {Bundle, BundleGraph, ParcelOptions} from '@parcel/types';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
-import getRootDir from '@parcel/utils/getRootDir';
+import getRootDir from '@parcel/utils/src/getRootDir';
 import loadEnv from './loadEnv';
 import path from 'path';
 import Cache from '@parcel/cache';
-import AssetGraphBuilder from './AssetGraphBuilder';
+import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
 import ReporterRunner from './ReporterRunner';
-
-const abortError = new Error('Build aborted');
 
 export default class Parcel {
   options: ParcelOptions;
@@ -23,7 +22,7 @@ export default class Parcel {
   bundlerRunner: BundlerRunner;
   reporterRunner: ReporterRunner;
   farm: WorkerFarm;
-  runPackage: (bundle: Bundle) => Promise<any>;
+  runPackage: (bundle: Bundle) => Promise<Stats>;
 
   constructor(options: ParcelOptions) {
     this.options = options;
@@ -35,7 +34,7 @@ export default class Parcel {
     this.rootDir = getRootDir(this.entries);
   }
 
-  async init() {
+  async init(): Promise<void> {
     await Cache.createCacheDir(this.options.cacheDir);
 
     if (!this.options.env) {
@@ -98,17 +97,17 @@ export default class Parcel {
     this.runPackage = this.farm.mkhandle('runPackage');
   }
 
-  async run() {
+  async run(): Promise<BundleGraph> {
     await this.init();
 
     this.assetGraphBuilder.on('invalidate', () => {
       this.build();
     });
 
-    return await this.build();
+    return this.build();
   }
 
-  async build() {
+  async build(): Promise<BundleGraph> {
     try {
       this.reporterRunner.report({
         type: 'buildStart'
@@ -116,6 +115,13 @@ export default class Parcel {
 
       let startTime = Date.now();
       let assetGraph = await this.assetGraphBuilder.build();
+
+      if (process.env.PARCEL_DUMP_GRAPH != null) {
+        const dumpGraphToGraphViz = require('@parcel/utils/src/dumpGraphToGraphViz')
+          .default;
+        await dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
+      }
+
       let bundleGraph = await this.bundle(assetGraph);
       await this.package(bundleGraph);
 
@@ -132,21 +138,21 @@ export default class Parcel {
 
       return bundleGraph;
     } catch (e) {
-      if (e !== abortError) {
-        // console.error(e); // eslint-disable-line no-console
+      if (!(e instanceof BuildAbortError)) {
         this.reporterRunner.report({
           type: 'buildFailure',
           error: e
         });
       }
+      throw e;
     }
   }
 
-  bundle(assetGraph: AssetGraph) {
+  bundle(assetGraph: AssetGraph): Promise<BundleGraph> {
     return this.bundlerRunner.bundle(assetGraph);
   }
 
-  package(bundleGraph: BundleGraph) {
+  package(bundleGraph: BundleGraph): Promise<mixed> {
     let promises = [];
     bundleGraph.traverseBundles(bundle => {
       promises.push(

@@ -15,7 +15,19 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0"
+    "@babel/core": "^7.0.0",
+    "@babel/generator": "^7.0.0",
+    "@babel/parser": "^7.0.0",
+    "@babel/plugin-transform-modules-commonjs": "^7.0.0",
+    "@babel/template": "^7.0.0",
+    "@babel/traverse": "^7.0.0",
+    "@babel/types": "^7.0.0",
+    "@parcel/logger": "^1.10.3",
+    "@parcel/plugin": "^2.0.0",
+    "@parcel/utils": "^1.10.3",
+    "babylon-walk": "^1.0.2",
+    "node-libs-browser": "^2.0.0",
+    "semver": "^5.4.1"
   },
   "devDependencies": {
     "@parcel/eslint-config": "1.10.3"

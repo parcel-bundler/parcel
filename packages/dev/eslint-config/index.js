@@ -1,7 +1,7 @@
 module.exports = {
-  extends: 'eslint:recommended',
+  extends: ['eslint:recommended', 'plugin:flowtype/recommended'],
   parser: 'babel-eslint',
-  plugins: ['flowtype'],
+  plugins: ['flowtype', 'import'],
   parserOptions: {
     ecmaVersion: 8,
     ecmaFeatures: {
@@ -15,5 +15,18 @@ module.exports = {
   globals: {
     parcelRequire: true,
     define: true
+  },
+  rules: {
+    'flowtype/space-after-type-colon': 'off', // conflicts with prettier
+    'import/first': 'error',
+    'import/newline-after-import': 'error',
+    'import/no-extraneous-dependencies': 'error',
+    'import/no-self-import': 'error',
+    'no-return-await': 'error'
+  },
+  settings: {
+    flowtype: {
+      onlyFilesWithFlowAnnotation: true
+    }
   }
 };

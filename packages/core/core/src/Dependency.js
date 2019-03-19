@@ -9,15 +9,15 @@ import type {
   ModuleSpecifier,
   FilePath
 } from '@parcel/types';
-import md5 from '@parcel/utils/lib/md5';
+import {md5FromString} from '@parcel/utils/src/md5';
 
-type DependencyOpts = {
+type DependencyOpts = {|
   ...DependencyOptions,
   moduleSpecifier: ModuleSpecifier,
   env: IEnvironment,
   id?: string,
   sourcePath?: FilePath
-};
+|};
 
 export default class Dependency implements IDependency {
   id: string;
@@ -45,7 +45,7 @@ export default class Dependency implements IDependency {
     this.sourcePath = opts.sourcePath || ''; // TODO: get from graph?
     this.id =
       opts.id ||
-      md5(
+      md5FromString(
         `${this.sourcePath}:${this.moduleSpecifier}:${JSON.stringify(this.env)}`
       );
   }

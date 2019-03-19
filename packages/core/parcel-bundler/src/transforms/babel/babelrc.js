@@ -1,5 +1,5 @@
 const semver = require('semver');
-const logger = require('@parcel/logger');
+const logger = require('@parcel/logger').default;
 const path = require('path');
 const localRequire = require('../../utils/localRequire');
 const installPackage = require('../../utils/installPackage');
@@ -53,12 +53,12 @@ async function getBabelRc(asset, isSource) {
     }
 
     // Otherwise, return the .babelrc if babelify was found
-    return babelify ? await findBabelRc(asset) : null;
+    return babelify ? findBabelRc(asset) : null;
   }
 
   // If this asset is not in node_modules, always use the .babelrc
   if (isSource) {
-    return await findBabelRc(asset);
+    return findBabelRc(asset);
   }
 
   // Otherwise, don't load .babelrc for node_modules.
@@ -266,7 +266,7 @@ async function installPlugins(asset, babelrc) {
   let plugins = (babelrc.plugins || []).map(p =>
     resolveModule('plugin', getPluginName(p), asset.name)
   );
-  return await Promise.all([...presets, ...plugins]);
+  return Promise.all([...presets, ...plugins]);
 }
 
 async function resolveModule(type, name, path) {

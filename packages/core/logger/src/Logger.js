@@ -1,8 +1,11 @@
-const WorkerFarm = require('@parcel/workers');
-const EventEmitter = require('events');
+// @flow strict-local
+
+import WorkerFarm from '@parcel/workers';
+import EventEmitter from 'events';
+import {inspect} from 'util';
 
 class Logger extends EventEmitter {
-  verbose(message) {
+  verbose(message: string): void {
     this.emit('log', {
       type: 'log',
       level: 'verbose',
@@ -10,7 +13,11 @@ class Logger extends EventEmitter {
     });
   }
 
-  log(message) {
+  info(message: string): void {
+    this.log(message);
+  }
+
+  log(message: string): void {
     this.emit('log', {
       type: 'log',
       level: 'info',
@@ -18,7 +25,7 @@ class Logger extends EventEmitter {
     });
   }
 
-  warn(err) {
+  warn(err: string): void {
     this.emit('log', {
       type: 'log',
       level: 'warn',
@@ -26,7 +33,7 @@ class Logger extends EventEmitter {
     });
   }
 
-  error(err) {
+  error(err: Error | string): void {
     this.emit('log', {
       type: 'log',
       level: 'error',
@@ -34,7 +41,7 @@ class Logger extends EventEmitter {
     });
   }
 
-  progress(message) {
+  progress(message: string): void {
     this.emit('log', {
       type: 'log',
       level: 'progress',
@@ -46,9 +53,11 @@ class Logger extends EventEmitter {
 // If we are in a worker, make a proxy class which will
 // send the logger calls to the main process via IPC.
 // These are handled in WorkerFarm and directed to handleMessage above.
+let logger;
 if (WorkerFarm.isWorker()) {
   class LoggerProxy {}
   for (let method of Object.getOwnPropertyNames(Logger.prototype)) {
+    // $FlowFixMe
     LoggerProxy.prototype[method] = (...args) => {
       WorkerFarm.callMaster(
         {
@@ -61,24 +70,27 @@ if (WorkerFarm.isWorker()) {
     };
   }
 
-  module.exports = new LoggerProxy();
+  // $FlowFixMe Pretend as if this were a logger. We should probably export an interface instead.
+  logger = new LoggerProxy();
 } else {
-  module.exports = new Logger();
+  logger = new Logger();
 }
 
-let logger = module.exports;
-
-// eslint-disable-next-line no-console
-console.log = message => {
-  logger.info(message);
+/* eslint-disable no-console */
+// $FlowFixMe
+console.log = (...messages: Array<mixed>) => {
+  logger.info(messages.map(m => inspect(m)).join(' '));
 };
 
-// eslint-disable-next-line no-console
+// $FlowFixMe
 console.warn = message => {
   logger.warn(message);
 };
 
-// eslint-disable-next-line no-console
+// $FlowFixMe
 console.error = message => {
   logger.error(message);
 };
+/* eslint-enable no-console */
+
+export default logger;

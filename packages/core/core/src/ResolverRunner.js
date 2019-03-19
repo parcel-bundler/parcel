@@ -5,11 +5,11 @@ import path from 'path';
 import Config from './Config';
 import {report} from './ReporterRunner';
 
-type Opts = {
+type Opts = {|
   config: Config,
   options: ParcelOptions,
   rootDir: string
-};
+|};
 
 const getCacheKey = (filename, parent) =>
   (parent ? path.dirname(parent) : '') + ':' + filename;

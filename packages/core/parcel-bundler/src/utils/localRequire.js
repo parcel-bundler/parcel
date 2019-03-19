@@ -1,7 +1,7 @@
 const {dirname} = require('path');
-const {promisify} = require('@parcel/utils');
-const resolve = promisify(require('resolve'));
+const resolve = require('@parcel/utils/src/resolve').default;
 const installPackage = require('./installPackage');
+const getModuleParts = require('./getModuleParts');
 
 const cache = new Map();
 
@@ -19,8 +19,9 @@ async function localResolve(name, path, triedInstall = false) {
       resolved = await resolve(name, {basedir});
     } catch (e) {
       if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
-        await installPackage(name, path);
-        return await localResolve(name, path, true);
+        const packageName = getModuleParts(name)[0];
+        await installPackage(packageName, path);
+        return localResolve(name, path, true);
       }
       throw e;
     }

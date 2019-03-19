@@ -1,6 +1,6 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
-const {promisify} = require('@parcel/utils');
+const promisify = require('@parcel/utils/src/promisify');
 const Resolver = require('../Resolver');
 const fs = require('@parcel/fs');
 const path = require('path');
@@ -23,7 +23,7 @@ class LESSAsset extends Asset {
     opts.filename = this.name;
     opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
 
-    return await render(code, opts);
+    return render(code, opts);
   }
 
   collectDependencies() {

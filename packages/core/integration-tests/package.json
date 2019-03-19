@@ -13,8 +13,12 @@
   },
   "devDependencies": {
     "@babel/core": "^7.2.0",
+    "@parcel/config-default": "^2.0.0",
+    "@parcel/core": "^2.0.0",
     "@parcel/fs": "^1.10.3",
     "@parcel/test-utils": "^1.10.3",
+    "@parcel/utils": "^1.10.3",
+    "chalk": "^2.1.0",
     "codecov": "^3.0.0",
     "command-exists": "^1.2.6",
     "graphql-tag": "^2.6.0",

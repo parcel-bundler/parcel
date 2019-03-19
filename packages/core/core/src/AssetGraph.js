@@ -1,19 +1,26 @@
 // @flow
-'use strict';
-import Graph, {Node, type NodeId} from './Graph';
+
 import type {
+  Asset,
+  AssetGraph as IAssetGraph,
+  AssetGraphNode,
+  Bundle,
   CacheEntry,
   Dependency as IDependency,
-  Asset,
+  DependencyNode,
   File,
   FilePath,
-  TransformerRequest,
+  FileNode,
+  Graph as IGraph,
+  GraphTraversalCallback,
+  NodeId,
   Target,
-  Environment,
-  Bundle,
-  GraphTraversalCallback
+  TransformerRequest
 } from '@parcel/types';
-import md5 from '@parcel/utils/lib/md5';
+
+import invariant from 'assert';
+import Graph from './Graph';
+import {md5FromString} from '@parcel/utils/src/md5';
 import Dependency from './Dependency';
 
 export const nodeFromRootDir = (rootDir: string) => ({
@@ -35,7 +42,7 @@ export const nodeFromFile = (file: File) => ({
 });
 
 export const nodeFromTransformerRequest = (req: TransformerRequest) => ({
-  id: md5(`${req.filePath}:${JSON.stringify(req.env)}`),
+  id: md5FromString(`${req.filePath}:${JSON.stringify(req.env)}`),
   type: 'transformer_request',
   value: req
 });
@@ -46,39 +53,43 @@ export const nodeFromAsset = (asset: Asset) => ({
   value: asset
 });
 
-const getFileNodesFromGraph = (graph: Graph): Array<Node> => {
-  return Array.from(graph.nodes.values()).filter(
-    (node: any) => node.type === 'file'
-  );
+const getFileNodesFromGraph = (
+  graph: IGraph<AssetGraphNode>
+): Array<FileNode> => {
+  // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414
+  return Array.from(graph.nodes.values()).filter(node => node.type === 'file');
 };
 
-const getFilesFromGraph = (graph: Graph): Array<File> => {
+const getFilesFromGraph = (graph: IGraph<AssetGraphNode>): Array<File> => {
   return getFileNodesFromGraph(graph).map(node => node.value);
 };
 
-const getDepNodesFromGraph = (graph: Graph): Array<Node> => {
+const getDepNodesFromGraph = (
+  graph: IGraph<AssetGraphNode>
+): Array<DependencyNode> => {
+  // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414
   return Array.from(graph.nodes.values()).filter(
-    (node: any) => node.type === 'dependency'
+    node => node.type === 'dependency'
   );
 };
 
-type DepUpdates = {
+type DepUpdates = {|
   newRequest?: TransformerRequest,
   prunedFiles: Array<File>
-};
+|};
 
-type FileUpdates = {
-  newDeps: Array<Dependency>,
+type FileUpdates = {|
+  newDeps: Array<IDependency>,
   addedFiles: Array<File>,
   removedFiles: Array<File>
-};
+|};
 
-type AssetGraphOpts = {
+type AssetGraphOpts = {|
   entries?: Array<string>,
   targets?: Array<Target>,
   transformerRequest?: TransformerRequest,
   rootDir: string
-};
+|};
 
 /**
  * AssetGraph is a Graph with some extra rules.
@@ -88,15 +99,10 @@ type AssetGraphOpts = {
  *  * A dependency node should have an edge to exactly one file node
  *  * A file node can have one to many edges to asset nodes which can have zero to many edges dependency nodes
  */
-export default class AssetGraph extends Graph {
-  incompleteNodes: Map<NodeId, Node>;
-  invalidNodes: Map<NodeId, Node>;
-
-  constructor(opts: any) {
-    super(opts);
-    this.incompleteNodes = new Map();
-    this.invalidNodes = new Map();
-  }
+export default class AssetGraph extends Graph<AssetGraphNode>
+  implements IAssetGraph {
+  incompleteNodes: Map<NodeId, AssetGraphNode> = new Map();
+  invalidNodes: Map<NodeId, AssetGraphNode> = new Map();
 
   initializeGraph({
     entries,
@@ -138,7 +144,7 @@ export default class AssetGraph extends Graph {
     }
   }
 
-  removeNode(node: Node): this {
+  removeNode(node: AssetGraphNode): this {
     this.incompleteNodes.delete(node.id);
     return super.removeNode(node);
   }
@@ -174,7 +180,7 @@ export default class AssetGraph extends Graph {
     req: TransformerRequest,
     cacheEntry: CacheEntry
   ): FileUpdates {
-    let newDepNodes: Array<Node> = [];
+    let newDepNodes: Array<DependencyNode> = [];
 
     let requestNode = nodeFromTransformerRequest(req);
     this.incompleteNodes.delete(requestNode.id);
@@ -217,7 +223,7 @@ export default class AssetGraph extends Graph {
     return {newDeps, addedFiles, removedFiles};
   }
 
-  invalidateNode(node: Node) {
+  invalidateNode(node: AssetGraphNode) {
     this.invalidNodes.set(node.id, node);
   }
 
@@ -241,7 +247,10 @@ export default class AssetGraph extends Graph {
       return [];
     }
 
-    return this.getNodesConnectedFrom(node).map(node => node.value);
+    return this.getNodesConnectedFrom(node).map(node => {
+      invariant(node.type === 'dependency');
+      return node.value;
+    });
   }
 
   getDependencyResolution(dep: IDependency): ?Asset {
@@ -250,10 +259,10 @@ export default class AssetGraph extends Graph {
       return null;
     }
 
-    let res = null;
+    let res: ?Asset = null;
     this.traverse((node, ctx, traversal) => {
       if (node.type === 'asset' || node.type === 'asset_reference') {
-        res = (node.value: Asset);
+        res = node.value;
         traversal.stop();
       }
     }, depNode);
@@ -261,7 +270,10 @@ export default class AssetGraph extends Graph {
     return res;
   }
 
-  traverseAssets(visit: GraphTraversalCallback<Asset>, startNode: ?Node) {
+  traverseAssets(
+    visit: GraphTraversalCallback<Asset, AssetGraphNode>,
+    startNode: ?AssetGraphNode
+  ): ?AssetGraphNode {
     return this.traverse((node, ...args) => {
       if (node.type === 'asset') {
         return visit(node.value, ...args);
@@ -327,91 +339,4 @@ export default class AssetGraph extends Graph {
       value: asset
     });
   }
-
-  async dumpGraphViz() {
-    let graphviz = require('graphviz');
-    let tempy = require('tempy');
-    let path = require('path');
-
-    let g = graphviz.digraph('G');
-
-    let colors = {
-      root: 'gray',
-      asset: 'green',
-      dependency: 'orange',
-      transformer_request: 'cyan',
-      file: 'gray',
-      default: 'white'
-    };
-
-    let nodes = Array.from(this.nodes.values());
-
-    for (let node of nodes) {
-      let n = g.addNode(node.id);
-
-      n.set('color', colors[node.type || 'default']);
-      n.set('shape', 'box');
-      n.set('style', 'filled');
-
-      let label = `${node.type || 'No Type'}: `;
-
-      if (node.type === 'dependency') {
-        label += node.value.moduleSpecifier;
-        let parts = [];
-        if (node.value.isEntry) parts.push('entry');
-        if (node.value.isAsync) parts.push('async');
-        if (node.value.isOptional) parts.push('optional');
-        if (parts.length) label += ' (' + parts.join(', ') + ')';
-        if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
-      } else if (node.type === 'asset' || node.type === 'asset_reference') {
-        label += path.basename(node.value.filePath) + '#' + node.value.type;
-      } else if (node.type === 'file') {
-        label += path.basename(node.value.filePath);
-      } else if (node.type === 'transformer_request') {
-        label +=
-          path.basename(node.value.filePath) +
-          ` (${getEnvDescription(node.value.env)})`;
-      } else if (node.type === 'bundle') {
-        let rootAssets = node.value.assetGraph.getNodesConnectedFrom(
-          node.value.assetGraph.getRootNode()
-        );
-        label += rootAssets
-          .map(asset => {
-            let parts = asset.value.filePath.split(path.sep);
-            let index = parts.lastIndexOf('node_modules');
-            if (index >= 0) {
-              return parts[index + 1];
-            }
-
-            return path.basename(asset.value.filePath);
-          })
-          .join(', ');
-      } else {
-        // label += node.id;
-        label = node.type;
-      }
-
-      n.set('label', label);
-    }
-
-    for (let edge of this.edges) {
-      g.addEdge(edge.from, edge.to);
-    }
-
-    let tmp = tempy.file({name: 'graph.png'});
-
-    await g.output('png', tmp);
-    console.log(`open ${tmp}`); // eslint-disable-line no-console
-  }
-}
-
-function getEnvDescription(env: Environment) {
-  let description = '';
-  if (env.engines.browsers) {
-    description = `${env.context}: ${env.engines.browsers.join(', ')}`;
-  } else if (env.engines.node) {
-    description = `node: ${env.engines.node}`;
-  }
-
-  return description;
 }

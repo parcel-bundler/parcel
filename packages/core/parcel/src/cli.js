@@ -1,6 +1,8 @@
 // @flow
-require('v8-compile-cache');
 import type {ParcelConfig, ParcelOptions} from '@parcel/types';
+
+require('v8-compile-cache');
+
 const chalk = require('chalk');
 const program = require('commander');
 const version = require('../package.json').version;
@@ -172,7 +174,7 @@ function normalizeOptions(command): ParcelOptions {
     minify: command.minify != null ? command.minify : mode === 'production',
     sourceMaps: command.sourceMaps != false,
     publicUrl: command.publicUrl,
-    hmr,
+    hot: hmr,
     serve,
     autoinstall: command.autoinstall !== false,
     logLevel: command.logLevel

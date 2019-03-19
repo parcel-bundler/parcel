@@ -1,5 +1,5 @@
 // @flow
-'use strict';
+
 import assert from 'assert';
 import AssetGraph, {nodeFromTransformerRequest} from '../src/AssetGraph';
 import Dependency from '../src/Dependency';

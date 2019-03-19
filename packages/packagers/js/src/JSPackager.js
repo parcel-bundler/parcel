@@ -1,5 +1,4 @@
 // @flow
-'use strict';
 
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';

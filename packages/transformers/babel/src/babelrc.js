@@ -3,8 +3,8 @@ import type {Asset, PackageJSON} from '@parcel/types';
 import semver from 'semver';
 import logger from '@parcel/logger';
 import path from 'path';
-import localRequire from '@parcel/utils/lib/localRequire';
-import installPackage from '@parcel/utils/lib/installPackage';
+import {localResolve} from '@parcel/utils/src/localRequire';
+import installPackage from '@parcel/utils/src/installPackage';
 import micromatch from 'micromatch';
 
 export default async function getBabelConfig(
@@ -56,12 +56,12 @@ async function getBabelRc(asset, pkg, isSource) {
     }
 
     // Otherwise, return the .babelrc if babelify was found
-    return babelify ? await findBabelRc(asset) : null;
+    return babelify ? findBabelRc(asset) : null;
   }
 
   // If this asset is not in node_modules, always use the .babelrc
   if (isSource) {
-    return await findBabelRc(asset);
+    return findBabelRc(asset);
   }
 
   // Otherwise, don't load .babelrc for node_modules.
@@ -271,13 +271,13 @@ async function installPlugins(asset, babelrc) {
   let plugins = (babelrc.plugins || []).map(p =>
     resolveModule('plugin', getPluginName(p), asset.filePath)
   );
-  return await Promise.all([...presets, ...plugins]);
+  return Promise.all([...presets, ...plugins]);
 }
 
 async function resolveModule(type, name, path) {
   try {
     name = standardizeName(type, name);
-    let [, pkg] = await localRequire.resolve(name, path);
+    let [, pkg] = await localResolve(name, path);
     return pkg;
   } catch (err) {
     return null;

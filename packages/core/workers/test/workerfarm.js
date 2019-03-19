@@ -1,5 +1,5 @@
-const assert = require('assert');
-const WorkerFarm = require('../index');
+import assert from 'assert';
+import WorkerFarm from '../';
 
 describe('WorkerFarm', () => {
   it('Should start up workers', async () => {

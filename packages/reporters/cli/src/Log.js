@@ -4,7 +4,7 @@ import {Box, Text, Color} from 'ink';
 import Spinner from './Spinner';
 import React from 'react';
 import prettyError from './prettyError';
-import emoji from './emoji';
+import * as Emoji from './emoji';
 
 type LogProps = {
   event: LogEvent
@@ -24,11 +24,20 @@ export function Log({event}: LogProps) {
   return <LogType event={event} />;
 }
 
-function InfoLog({event}) {
+function InfoLog({event}: LogProps) {
   return <Text>{event.message}</Text>;
 }
 
-function Stack({err, emoji, color, ...otherProps}) {
+function Stack({
+  err,
+  emoji,
+  color,
+  ...otherProps
+}: {
+  err: string | Error,
+  emoji: string,
+  color: string
+}) {
   let {message, stack} = prettyError(err, {color: true});
   return (
     <React.Fragment>
@@ -46,18 +55,18 @@ function Stack({err, emoji, color, ...otherProps}) {
   );
 }
 
-function WarnLog({event}) {
-  return <Stack err={event.message} emoji={emoji.warning} color="yellow" />;
+function WarnLog({event}: LogProps) {
+  return <Stack err={event.message} emoji={Emoji.warning} color="yellow" />;
 }
 
-function ErrorLog({event}) {
-  return <Stack err={event.message} emoji={emoji.error} color="red" bold />;
+function ErrorLog({event}: LogProps) {
+  return <Stack err={event.message} emoji={Emoji.error} color="red" bold />;
 }
 
-function SuccessLog({event}) {
+function SuccessLog({event}: LogProps) {
   return (
     <Color green bold>
-      {emoji.success} {event.message}
+      {Emoji.success} {event.message}
     </Color>
   );
 }

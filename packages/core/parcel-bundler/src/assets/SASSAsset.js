@@ -1,6 +1,6 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
-const {promisify} = require('@parcel/utils');
+const promisify = require('@parcel/utils/src/promisify');
 const path = require('path');
 const os = require('os');
 const Resolver = require('../Resolver');
@@ -89,7 +89,7 @@ async function getSassRuntime(searchPath) {
     return await localRequire('node-sass', searchPath, true);
   } catch (e) {
     // If node-sass is not used locally, install dart-sass, as this causes no freezing issues
-    return await localRequire('sass', searchPath);
+    return localRequire('sass', searchPath);
   }
 }
 
