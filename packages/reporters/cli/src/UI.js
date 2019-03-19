@@ -39,7 +39,9 @@ export default class UI extends React.PureComponent<{}, UIState> {
     return (
       <Color reset>
         <div>
-          {this.state.logs.map((log, i) => <Log key={i} event={log} />)}
+          {this.state.logs.map((log, i) => (
+            <Log key={i} event={log} />
+          ))}
           {this.state.progress ? (
             <Progress event={this.state.progress} />
           ) : null}
