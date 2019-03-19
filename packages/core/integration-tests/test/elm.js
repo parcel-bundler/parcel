@@ -21,6 +21,15 @@ describe('elm', function() {
     let js = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(js.includes('elm$browser$Debugger'));
   });
+  it('should produce an elm bundle without debugger if debugger disabled', async function() {
+    process.env.PARCEL_ELM_DISABLE_DEBUG = 'true';
+    let b = await bundle(__dirname + '/integration/elm/index.js');
+
+    await run(b);
+    let js = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
+    assert(!js.includes('elm$browser$Debugger'));
+    process.env.PARCEL_ELM_DISABLE_DEBUG = '';
+  });
 
   it('should apply elm-hot if HMR is enabled', async function() {
     let b = await bundle(__dirname + '/integration/elm/index.js', {

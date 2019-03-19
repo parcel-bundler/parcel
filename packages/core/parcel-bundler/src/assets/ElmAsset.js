@@ -5,6 +5,8 @@ const {minify} = require('terser');
 const path = require('path');
 const spawn = require('cross-spawn');
 
+const ELM_DISABLE_DEBUG = process.env.PARCEL_ELM_DISABLE_DEBUG;
+
 class ElmAsset extends Asset {
   constructor(name, options) {
     super(name, options);
@@ -39,7 +41,10 @@ class ElmAsset extends Asset {
       await this.getConfig(['elm.json'], {load: false});
     }
 
-    options.debug = !this.options.production;
+    options.debug = useElmDebugger(
+      !this.options.production,
+      process.env.PARCEL_ELM_DISABLE_DEBUG
+    );
     if (this.options.minify) {
       options.optimize = true;
     }
@@ -138,6 +143,24 @@ class ElmAsset extends Asset {
     err.stack = '';
     return err;
   }
+}
+
+// Use to override the Elm debugger due to a bug in the Elm compiler.
+// Reference: https://github.com/parcel-bundler/parcel/issues/2104#issuecomment-461707960
+function useElmDebugger(debugValue, environmentOverride) {
+  if (environmentOverride) {
+    // The value of the environment variable specifies
+    // whether to disable the debugger or not.
+    // Return true to enable the debugger if the value
+    // is something other than '1' or 'true' (case insensitive).
+    return !(
+      environmentOverride.toLowerCase() === 'true' ||
+      environmentOverride === '1'
+    );
+  }
+
+  // If no override is specified, use the original debug value.
+  return debugValue;
 }
 
 module.exports = ElmAsset;
