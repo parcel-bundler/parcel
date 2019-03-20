@@ -13,11 +13,18 @@ import type {
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
-import {errorToJson} from '@parcel/utils/src/errorUtils';
+import {errorToJson, jsonToError} from '@parcel/utils/src/errorUtils';
+import {serialize, deserialize} from '@parcel/utils/src/serializer';
 import Logger from '@parcel/logger';
 import bus from './bus';
 import Worker, {type WorkerCall} from './Worker';
+import LocalWorker from './LocalWorker';
 import cpuCount from './cpuCount';
+import Handle from './Handle';
+
+// TODO: temporary, remove
+import prettyFormat from 'pretty-format';
+import {inspect} from 'util';
 
 let shared = null;
 
@@ -64,13 +71,14 @@ export default class WorkerFarm extends EventEmitter {
       ...farmOptions
     };
 
+    this.handles = new Map();
+
     if (!this.options.workerPath) {
       throw new Error('Please provide a worker path!');
     }
 
     // $FlowFixMe this must be dynamic
     this.localWorker = require(this.options.workerPath);
-    this.run = this.mkhandle('run');
 
     this.init(bundlerOptions);
   }
@@ -115,7 +123,8 @@ export default class WorkerFarm extends EventEmitter {
           this.warmupWorker(method, args);
         }
 
-        return this.localWorker[method](...args, false);
+        let processedArgs = deserialize(serialize([...args, false]));
+        return this.localWorker[method](...processedArgs);
       }
     };
   }
@@ -194,7 +203,16 @@ export default class WorkerFarm extends EventEmitter {
     worker?: Worker
   ): Promise<?WorkerResponse> {
     let {method, args, location, awaitResponse, idx} = data;
-    if (!location) {
+    let mod;
+    if (data.handle) {
+      mod = this.handles.get(data.handle);
+      if (!mod) {
+        throw new Error('Unknown handle');
+      }
+    } else if (data.location) {
+      mod = require(data.location);
+    } else {
+      console.log('REQUEST DATA', prettyFormat(data));
       throw new Error('Unknown request');
     }
 
@@ -213,7 +231,6 @@ export default class WorkerFarm extends EventEmitter {
     });
 
     // $FlowFixMe this must be dynamic
-    const mod = require(location);
     let result;
     if (method == null) {
       try {
@@ -233,7 +250,10 @@ export default class WorkerFarm extends EventEmitter {
       if (worker) {
         worker.send(result);
       } else {
-        return result;
+        if (result.contentType === 'error') {
+          throw jsonToError(result.content);
+        }
+        return result.content;
       }
     }
   }
@@ -271,7 +291,7 @@ export default class WorkerFarm extends EventEmitter {
       this.persistBundlerOptions();
     }
 
-    this.localWorker.init(bundlerOptions);
+    this.localWorker.init(deserialize(serialize(bundlerOptions)));
     this.startMaxWorkers();
   }
 
@@ -300,6 +320,12 @@ export default class WorkerFarm extends EventEmitter {
       ((this.warmWorkers >= this.workers.size || !this.options.warmWorkers) &&
         this.options.maxConcurrentWorkers > 0)
     );
+  }
+
+  createHandle(fn) {
+    let handle = new Handle();
+    this.handles.set(handle.id, fn);
+    return handle;
   }
 
   static async getShared(
@@ -346,7 +372,10 @@ export default class WorkerFarm extends EventEmitter {
       return child.addCall(request, awaitResponse);
     } else {
       // $FlowFixMe
-      return (await WorkerFarm.getShared()).processRequest(request);
+      return (await WorkerFarm.getShared()).processRequest({
+        ...request,
+        awaitResponse
+      });
     }
   }
 
@@ -356,6 +385,13 @@ export default class WorkerFarm extends EventEmitter {
 
   static getConcurrentCallsPerWorker() {
     return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
+  }
+
+  static createHandle(fn) {
+    if (WorkerFarm.isWorker()) {
+    } else {
+      return shared.createHandle(fn);
+    }
   }
 }
 

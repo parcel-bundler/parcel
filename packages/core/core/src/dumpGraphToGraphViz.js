@@ -88,7 +88,10 @@ export default async function dumpGraphToGraphViz(
   }
 
   for (let edge of graph.edges) {
-    g.addEdge(edge.from, edge.to);
+    let e = g.addEdge(edge.from, edge.to);
+    if (edge.type && edge.type.startsWith('invalidated')) {
+      e.set('color', 'red');
+    }
   }
 
   let tmp = tempy.file({name: `${name}.png`});

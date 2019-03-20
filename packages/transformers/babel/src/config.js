@@ -12,7 +12,7 @@ const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 export default async function getBabelConfig(asset: Asset) {
   // Consider the module source code rather than precompiled if the resolver
   // used the `source` field, or it is not in node_modules.
-  let pkg = await asset.getPackage();
+  let pkg = await asset.getPackage(); // TODO: This adds package.json as a connected file for every file... FIX
   let isSource =
     !!(
       pkg &&

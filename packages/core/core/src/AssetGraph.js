@@ -22,6 +22,8 @@ import type {
 import invariant from 'assert';
 import Graph from './Graph';
 import {md5FromString} from '@parcel/utils/src/md5';
+import {isGlob} from '@parcel/utils/src/glob';
+import {isMatch} from 'micromatch';
 import Dependency from './Dependency';
 
 export const nodeFromRootDir = (rootDir: string): RootNode => ({
@@ -42,6 +44,12 @@ export const nodeFromFile = (file: File): FileNode => ({
   value: file
 });
 
+export const nodeFromGlob = (glob: string) => ({
+  id: glob,
+  type: 'glob',
+  value: glob
+});
+
 export const nodeFromTransformerRequest = (req: TransformerRequest) => ({
   id: md5FromString(`${req.filePath}:${JSON.stringify(req.env)}`),
   type: 'transformer_request',
@@ -52,6 +60,32 @@ export const nodeFromAsset = (asset: Asset) => ({
   id: asset.id,
   type: 'asset',
   value: asset
+});
+
+export const nodeFromConfigRequest = req => ({
+  id: md5FromString(`${req.filePath}:${req.plugin}`),
+  type: 'config_request',
+  value: req
+});
+
+export const nodeFromConfig = config => ({
+  id: md5FromString(
+    `${config.resolveFrom}:${config.contentHash || config.content}`
+  ),
+  type: 'config',
+  value: config
+});
+
+export const nodeFromDevDepRequest = devDepRequest => ({
+  id: md5FromString(JSON.stringify(devDepRequest)),
+  type: 'dev_dep_request',
+  value: devDepRequest
+});
+
+export const nodeFromDevDep = devDep => ({
+  id: md5FromString(`${devDep.name}:${devDep.version}`),
+  type: 'dev_dep',
+  value: devDep
 });
 
 const getFileNodesFromGraph = (
@@ -154,7 +188,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
    * request node for the file it was resolved to.
    */
   resolveDependency(dep: IDependency, req: TransformerRequest): DepUpdates {
-    let newRequest;
+    let newRequestNode;
 
     let depNode = nodeFromDep(dep);
     this.incompleteNodes.delete(depNode.id);
@@ -164,12 +198,12 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     let {added, removed} = this.replaceNodesConnectedTo(depNode, [requestNode]);
 
     if (added.nodes.size) {
-      newRequest = req;
+      newRequestNode = requestNode;
       this.incompleteNodes.set(requestNode.id, requestNode);
     }
 
     let prunedFiles = getFilesFromGraph(removed);
-    return {newRequest, prunedFiles};
+    return {newRequestNode, prunedFiles};
   }
 
   /**
@@ -178,7 +212,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
    */
   resolveTransformerRequest(
     req: TransformerRequest,
-    cacheEntry: CacheEntry
+    assets: Array<Asset>
   ): FileUpdates {
     let newDepNodes: Array<DependencyNode> = [];
 
@@ -188,10 +222,11 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
     // Get connected files from each asset and connect them to the file node
     let fileNodes = [];
-    for (let asset of cacheEntry.assets) {
-      let files = asset.getConnectedFiles().map(file => nodeFromFile(file));
-      fileNodes = fileNodes.concat(files);
-    }
+    // TODO: Reimplement connected files, they should now only be used for source files (not config)
+    // for (let asset of cacheEntry.assets) {
+    //   let files = asset.getConnectedFiles().map(file => nodeFromFile(file));
+    //   fileNodes = fileNodes.concat(files);
+    // }
 
     // Add a file node for the file that the transformer request resolved to
     fileNodes.push(
@@ -200,21 +235,19 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       })
     );
 
-    let assetNodes = cacheEntry.assets.map(asset => nodeFromAsset(asset));
-    let {added, removed} = this.replaceNodesConnectedTo(requestNode, [
-      ...assetNodes,
-      ...fileNodes
-    ]);
-
-    let addedFiles = getFilesFromGraph(added);
-    let removedFiles = getFilesFromGraph(removed);
+    let assetNodes = assets.map(asset => nodeFromAsset(asset));
+    this.replaceNodesConnectedTo(requestNode, assetNodes, 'produces');
+    this.replaceNodesConnectedTo(
+      requestNode,
+      fileNodes,
+      'invalidated_by_change_to'
+    );
 
     for (let assetNode of assetNodes) {
       let depNodes = assetNode.value
         .getDependencies()
         .map(dep => nodeFromDep(dep));
       let {removed, added} = this.replaceNodesConnectedTo(assetNode, depNodes);
-      removedFiles = removedFiles.concat(getFilesFromGraph(removed));
       newDepNodes = newDepNodes.concat(getDepNodesFromGraph(added));
     }
 
@@ -222,26 +255,69 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       this.incompleteNodes.set(depNode.id, depNode);
     }
 
-    let newDeps = newDepNodes.map(node => node.value);
-
-    return {newDeps, addedFiles, removedFiles};
+    return {newDepNodes};
   }
 
-  invalidateNode(node: AssetGraphNode) {
-    this.invalidNodes.set(node.id, node);
-  }
-
-  invalidateFile(filePath: FilePath) {
-    let node = this.getNode(filePath);
-    if (!node || node.type !== 'file') {
-      return;
+  addConfigRequest(configRequestNode, node: AssetGraphNode) {
+    if (!this.nodes.has(configRequestNode.id)) {
+      this.addNode(configRequestNode);
+      this.addEdge({from: node.id, to: configRequestNode.id});
     }
 
-    // Invalidate all file nodes connected to this node.
-    for (let connectedNode of this.getNodesConnectedTo(node)) {
-      if (connectedNode.type === 'transformer_request') {
-        this.invalidateNode(connectedNode);
-      }
+    return configRequestNode;
+  }
+
+  resolveConfigRequest(config, configRequestNode) {
+    this.incompleteNodes.delete(configRequestNode.id);
+    this.invalidNodes.delete(configRequestNode.id);
+    let configNode = nodeFromConfig(config);
+    this.replaceNodesConnectedTo(configRequestNode, [configNode], 'produces');
+
+    let invalidationConnections = {
+      invalidated_by_change_to: [],
+      invalidated_by_addition_matching: [],
+      invalidated_by_removal_of: []
+    };
+    for (let {action, pattern} of config.getInvalidations()) {
+      let invalidateNode = isGlob(pattern)
+        ? nodeFromGlob(pattern)
+        : nodeFromFile({filePath: pattern});
+
+      let edgeType = getInvalidationEdgeType(action);
+      invalidationConnections[edgeType].push(invalidateNode);
+    }
+
+    for (let [edgeType, nodes] of Object.entries(invalidationConnections)) {
+      this.replaceNodesConnectedTo(configRequestNode, nodes, edgeType);
+    }
+
+    let devDepRequestNodes = [];
+    for (let devDepRequest of config.getDevDepRequests()) {
+      let devDepRequestNode = nodeFromDevDepRequest(devDepRequest);
+      devDepRequestNodes.push(devDepRequestNode);
+    }
+
+    this.replaceNodesConnectedTo(
+      configRequestNode,
+      devDepRequestNodes,
+      'spawns'
+    );
+
+    return {devDepRequestNodes};
+  }
+
+  resolveDevDepRequest(devDepRequestNode, devDep, actionNode) {
+    this.incompleteNodes.delete(devDepRequestNode.id);
+    this.invalidNodes.delete(devDepRequestNode.id);
+    let devDepNode = nodeFromDevDep(devDep);
+    this.addNode(devDepNode);
+    let edge = {
+      from: devDepRequestNode.id,
+      to: devDepNode.id,
+      type: 'resolves_to'
+    };
+    if (!this.hasEdge(edge)) {
+      this.addEdge(edge);
     }
   }
 
@@ -325,5 +401,81 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     });
 
     return referenceId;
+  }
+
+  getGlobNodesFromGraph() {
+    return Array.from(this.nodes.values()).filter(node => node.type === 'glob');
+  }
+
+  getFileNodesFromGraph() {
+    return Array.from(this.nodes.values()).filter(node => node.type === 'file');
+  }
+
+  respondToFSChange({action, path}) {
+    console.log('RESPONDING TO FS CHANGE', action, path);
+    let edgeType = getInvalidationEdgeType(action);
+
+    let fileNode = this.nodes.get(path);
+    if (fileNode) {
+      this.invalidateConnectedNodes(fileNode, edgeType);
+    }
+
+    if (action === 'add') {
+      for (let globNode of this.getGlobNodesFromGraph()) {
+        if (isMatch(path, globNode.value)) {
+          this.invalidateConnectedNodes(globNode, edgeType);
+        }
+      }
+    }
+  }
+
+  invalidateConnectedNodes(node, edgeType) {
+    let nodesToInvalidate = this.getNodesConnectedTo(node, edgeType);
+    for (let nodeToInvalidate of nodesToInvalidate) {
+      this.invalidateNode(nodeToInvalidate);
+    }
+  }
+
+  invalidateNode(node: AssetGraphNode) {
+    switch (node.type) {
+      case 'transformer_request':
+      case 'dependency':
+        this.invalidNodes.set(node.id, node);
+        break;
+      case 'config_request':
+      case 'dev_dep_request':
+        this.invalidNodes.set(node.id, node);
+        let actionNode = this.getActionNode(node);
+        this.invalidNodes.set(actionNode.id, actionNode);
+        break;
+      default:
+        throw new Error(
+          `Cannot invalidate node with unrecognized type ${node.type}`
+        );
+    }
+  }
+
+  getActionNode(node: AssetGraphNode) {
+    if (node.type === 'dev_dep_request') {
+      let [configRequestNode] = this.getNodesConnectedTo(node);
+      let [actionNode] = this.getNodesConnectedTo(configRequestNode);
+      return actionNode;
+    } else if (node.type === 'config_request') {
+      let [actionNode] = this.getNodesConnectedTo(node);
+      return actionNode;
+    }
+  }
+}
+
+function getInvalidationEdgeType(eventType) {
+  switch (eventType) {
+    case 'change':
+      return 'invalidated_by_change_to';
+    case 'add':
+      return 'invalidated_by_addition_matching';
+    case 'unlink':
+      return 'invalidated_by_removal_of';
+    default:
+      throw new Error(`Unrecognized invalidation event type "${eventType}"`);
   }
 }

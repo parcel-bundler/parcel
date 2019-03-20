@@ -67,7 +67,7 @@ export default class Graph<TNode: Node> {
 
   hasEdge(edge: Edge): boolean {
     for (let e of this.edges) {
-      if (edge.from == e.from && edge.to === e.to) {
+      if (edge.from == e.from && edge.to === e.to && edge.type === e.type) {
         return true;
       }
     }
@@ -75,13 +75,17 @@ export default class Graph<TNode: Node> {
     return false;
   }
 
-  getNodesConnectedTo(node: TNode): Array<TNode> {
-    let edges = Array.from(this.edges).filter(edge => edge.to === node.id);
+  getNodesConnectedTo(node: TNode, edgeType?: string): Array<TNode> {
+    let edges = Array.from(this.edges).filter(
+      edge => edge.to === node.id && edge.type === edgeType
+    );
     return edges.map(edge => nullthrows(this.nodes.get(edge.from)));
   }
 
-  getNodesConnectedFrom(node: TNode): Array<TNode> {
-    let edges = Array.from(this.edges).filter(edge => edge.from === node.id);
+  getNodesConnectedFrom(node: TNode, edgeType?: string): Array<TNode> {
+    let edges = Array.from(this.edges).filter(
+      edge => edge.from === node.id && edge.type === edgeType
+    );
     return edges.map(edge => nullthrows(this.nodes.get(edge.to)));
   }
 
@@ -167,13 +171,14 @@ export default class Graph<TNode: Node> {
   // Also keeps track of all added and removed edges and nodes
   replaceNodesConnectedTo(
     fromNode: TNode,
-    toNodes: Array<TNode>
+    toNodes: Array<TNode>,
+    edgeType: string
   ): GraphUpdates<TNode> {
     let removed = new this.constructor();
     let added = new this.constructor();
 
     let edgesBefore = Array.from(this.edges).filter(
-      edge => edge.from === fromNode.id
+      edge => edge.from === fromNode.id && edge.type === edgeType
     );
     let edgesToRemove = edgesBefore;
 
@@ -188,7 +193,7 @@ export default class Graph<TNode: Node> {
 
       edgesToRemove = edgesToRemove.filter(edge => edge.to !== toNode.id);
 
-      let edge = {from: fromNode.id, to: toNode.id};
+      let edge = {from: fromNode.id, to: toNode.id, type: edgeType};
       if (!this.hasEdge(edge)) {
         this.addEdge(edge);
         added.addEdge(edge);
@@ -196,7 +201,9 @@ export default class Graph<TNode: Node> {
     }
 
     for (let edge of edgesToRemove) {
-      removed.merge(this.removeEdge(edge));
+      if (edgeType && edge.type === edgeType) {
+        removed.merge(this.removeEdge(edge));
+      }
     }
 
     return {removed, added};

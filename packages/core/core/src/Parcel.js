@@ -11,12 +11,29 @@ import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
 import Cache from '@parcel/cache';
+import Watcher from '@parcel/watcher';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
-import ConfigResolver from './ConfigResolver';
 import ReporterRunner from './ReporterRunner';
 import MainAssetGraph from './public/MainAssetGraph';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
-import resolveOptions from './resolveOptions';
+import {
+  AbortController,
+  type AbortSignal
+} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+
+
+constructor(options: ParcelOptions) {
+  this.options = options;
+  // TODO: Get projectRoot and lockFile programmatically
+  this.options.projectRoot = process.cwd();
+  this.options.cwd = process.cwd();
+  this.options.lockFilePath = `${this.options.projectRoot}/yarn.lock`;
+  this.entries = Array.isArray(options.entries)
+    ? options.entries
+    : options.entries
+      ? [options.entries]
+      : [];
+  this.rootDir = getRootDir(this.entries);
 
 export default class Parcel {
   initialOptions: InitialParcelOptions;
@@ -99,9 +116,23 @@ export default class Parcel {
       await this.init();
     }
 
-    this.assetGraphBuilder.on('invalidate', () => {
-      this.build();
-    });
+    if (this.options.watch) {
+      this.watcher = new Watcher();
+      this.watcher.watch(this.options.projectRoot);
+      this.watcher.on('all', (event, path) => {
+        if (path.includes('.parcel-cache')) return; // TODO: unwatch from watcher, couldn't get it working
+        console.log('DETECTED CHANGE', event, path);
+        this.assetGraphBuilder.respondToFSChange({
+          action: event,
+          path
+        });
+        if (this.assetGraphBuilder.isInvalid()) {
+          console.log('ASSET GRAPH IS INVALID');
+          this.controller.abort();
+          this.build();
+        }
+      });
+    }
 
     return this.build();
   }
@@ -113,28 +144,33 @@ export default class Parcel {
       });
 
       let startTime = Date.now();
-      let assetGraph = await this.assetGraphBuilder.build();
+      // console.log('Starting build'); // eslint-disable-line no-console
+      this.controller = new AbortController();
+      let signal = this.controller.signal;
+
+      let assetGraph = await this.assetGraphBuilder.build({signal});
+      console.log('DONE BUILDING ASSET GRAPH');
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
-      let bundleGraph = await this.bundle(assetGraph);
-      dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
+      // let bundleGraph = await this.bundle(assetGraph);
+      // dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
 
-      await this.package(bundleGraph);
+      // await this.package(bundleGraph);
 
-      this.reporterRunner.report({
-        type: 'buildSuccess',
-        changedAssets: new Map(this.assetGraphBuilder.changedAssets),
-        assetGraph: new MainAssetGraph(assetGraph),
-        bundleGraph: new BundleGraph(bundleGraph),
-        buildTime: Date.now() - startTime
-      });
+      // this.reporterRunner.report({
+      //   type: 'buildSuccess',
+      //   changedAssets: new Map(this.assetGraphBuilder.changedAssets),
+      //   assetGraph: new MainAssetGraph(assetGraph),
+      //   bundleGraph: new BundleGraph(bundleGraph),
+      //   buildTime: Date.now() - startTime
+      // });
 
-      let resolvedOptions = nullthrows(this.resolvedOptions);
-      if (!resolvedOptions.watch && resolvedOptions.killWorkers !== false) {
-        await this.farm.end();
-      }
+      // let resolvedOptions = nullthrows(this.resolvedOptions);
+      // if (!resolvedOptions.watch && resolvedOptions.killWorkers !== false) {
+      //   await this.farm.end();
+      // }
 
-      return new BundleGraph(bundleGraph);
+      // return new BundleGraph(bundleGraph);
     } catch (e) {
       if (!(e instanceof BuildAbortError)) {
         this.reporterRunner.report({

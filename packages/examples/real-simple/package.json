@@ -1,0 +1,30 @@
+{
+  "name": "@parcel/real-simple-example",
+  "version": "2.0.0",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "demo": "PARCEL_WORKERS=0 parcel2 src/index.js",
+    "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
+  },
+  "devDependencies": {
+    "@parcel/babel-register": "^2.0.0",
+    "@parcel/core": "^2.0.0"
+  },
+  "browser": "dist/legacy/index.js",
+  "browserModern": "dist/modern/index.js",
+  "targets": {
+    "browser": {
+      "engines": {
+        "browsers": [
+          "last 1 Chrome version"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "lodash": "^4.17.11",
+    "react": "^16.6.3",
+    "react-dom": "^16.6.3"
+  }
+}

@@ -80,7 +80,7 @@ export default class Watcher extends EventEmitter {
       options: this.options
     });
 
-    child.on('message', msg => this.handleEmit(msg.event, msg.path));
+    child.on('message', msg => this.handleEmit(msg.event, msg.data));
     child.on('error', () => {});
     child.on('exit', () => this.handleClosed());
     // child.on('close', () => this.handleClosed());
@@ -104,7 +104,11 @@ export default class Watcher extends EventEmitter {
       return;
     }
 
-    this.emit(event, data);
+    if (event === 'all') {
+      this.emit(event, data.action, data.path);
+    } else {
+      this.emit(event, data);
+    }
   }
 
   sendCommand(func: string, args: Array<mixed>): void {

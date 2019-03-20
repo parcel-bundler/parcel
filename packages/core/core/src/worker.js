@@ -9,8 +9,10 @@ import type {Bundle} from './types';
 
 import TransformerRunner from './TransformerRunner';
 import PackagerRunner from './PackagerRunner';
-import Config from './Config';
+import Config from './ParcelConfig';
 import Cache from '@parcel/cache';
+
+import Transformation from './Transformation';
 
 type Options = {|
   config: Config,
@@ -21,27 +23,28 @@ type Options = {|
 let transformerRunner: TransformerRunner | null = null;
 let packagerRunner: PackagerRunner | null = null;
 
-export function init({config, options, env}: Options) {
+export function init({options, env}: Options) {
   Object.assign(process.env, env || {});
 
   Cache.init(options);
 
   transformerRunner = new TransformerRunner({
-    config,
     options
   });
   packagerRunner = new PackagerRunner({
-    config,
     options
   });
 }
 
-export function runTransform(req: TransformerRequest) {
-  if (!transformerRunner) {
-    throw new Error('.runTransform() called before .init()');
-  }
+export async function runTransform(...args) {
+  // if (!transformerRunner) {
+  //   throw new Error('.runTransform() called before .init()');
+  // }
 
-  return transformerRunner.transform(req);
+  // return transformerRunner.transform(opts);
+  let transformation = new Transformation(...args);
+
+  return transformation.run();
 }
 
 export function runPackage(bundle: Bundle) {

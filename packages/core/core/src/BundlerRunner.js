@@ -3,7 +3,7 @@
 import type AssetGraph from './AssetGraph';
 import type {Namer, ParcelOptions, RuntimeAsset} from '@parcel/types';
 import type {Bundle as InternalBundle} from './types';
-import type Config from './Config';
+import type Config from './ParcelConfig';
 
 import assert from 'assert';
 import path from 'path';

@@ -2,8 +2,10 @@
 
 import type {ParcelOptions, Dependency, FilePath} from '@parcel/types';
 import path from 'path';
-import Config from './Config';
+import Config from './ParcelConfig';
 import {report} from './ReporterRunner';
+
+import {CONFIG} from '@parcel/plugin';
 
 type Opts = {|
   config: Config,
@@ -14,7 +16,6 @@ const getCacheKey = (filename, parent) =>
   (parent ? path.dirname(parent) : '') + ':' + filename;
 
 export default class ResolverRunner {
-  config: Config;
   options: ParcelOptions;
   cache: Map<string, FilePath>;
 
@@ -24,13 +25,15 @@ export default class ResolverRunner {
     this.cache = new Map();
   }
 
-  async resolve(dependency: Dependency): Promise<FilePath> {
+  async resolve(
+    dependency: Dependency,
+    config: ParcelConfig
+  ): Promise<FilePath> {
     report({
       type: 'buildProgress',
       phase: 'resolving',
       dependency
     });
-
     // Check the cache first
     let key = getCacheKey(dependency.moduleSpecifier, dependency.sourcePath);
     let cached = this.cache.get(key);
@@ -39,7 +42,7 @@ export default class ResolverRunner {
       return cached;
     }
 
-    let resolvers = await this.config.getResolvers();
+    let resolvers = await this.getResolvers(config);
 
     for (let resolver of resolvers) {
       let result = await resolver.resolve(dependency, this.options);
@@ -58,5 +61,12 @@ export default class ResolverRunner {
 
     (err: any).code = 'MODULE_NOT_FOUND';
     throw err;
+  }
+
+  async getResolvers(config) {
+    let plugin = require('@parcel/resolver-default');
+    plugin = plugin.default ? plugin.default : plugin;
+    plugin = plugin[CONFIG];
+    return [plugin]; // TODO: get programmitically
   }
 }

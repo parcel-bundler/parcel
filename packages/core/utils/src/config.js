@@ -11,7 +11,8 @@ type ConfigOutput = {|
 |};
 
 type ConfigOptions = {|
-  parse?: boolean
+  parse?: boolean,
+  noCache: boolean
 |};
 
 const PARSERS = {
@@ -36,9 +37,10 @@ export async function resolveConfig(
 
   for (const filename of filenames) {
     let file = path.join(filepath, filename);
-    let exists = existsCache.has(file)
-      ? existsCache.get(file)
-      : await fs.exists(file);
+    let exists =
+      existsCache.has(file) && (!opts || !opts.noCache)
+        ? existsCache.get(file)
+        : await fs.exists(file);
     if (exists) {
       existsCache.set(file, true);
       return file;

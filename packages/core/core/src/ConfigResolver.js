@@ -7,7 +7,7 @@ import type {
   PackageName
 } from '@parcel/types';
 import {resolveConfig} from '@parcel/utils/src/config';
-import Config from './Config';
+import Config from './ParcelConfig';
 import * as fs from '@parcel/fs';
 import {parse} from 'json5';
 import path from 'path';
@@ -18,22 +18,21 @@ type Pipeline = Array<PackageName>;
 type ConfigMap<K, V> = {[K]: V};
 
 export default class ConfigResolver {
-  async resolve(rootDir: FilePath): Promise<?Config> {
-    let configPath = await resolveConfig(path.join(rootDir, 'index'), [
-      '.parcelrc'
-    ]);
+  async resolve(filePath: FilePath): Promise<?Config> {
+    let configPath = await resolveConfig(filePath, ['.parcelrc'], {
+      noCache: true
+    });
     if (!configPath) {
       return null;
     }
 
-    let config = await this.loadConfig(configPath);
+    let [config, extendedFiles] = await this.loadConfig(configPath);
     return new Config({...config, filePath: configPath});
   }
 
   async create(config: ParcelConfig) {
-    // Resolve plugins from the root when a config is passed programmatically
-    let result = await this.processConfig(config);
-    return new Config(result);
+    let [result, extendedFiles] = await this.processConfig(config);
+    return new Config({extendedFiles, ...result});
   }
 
   async loadConfig(configPath: FilePath) {
@@ -45,18 +44,22 @@ export default class ConfigResolver {
     let relativePath = path.relative(process.cwd(), config.filePath);
     this.validateConfig(config, relativePath);
 
+    let extendedFiles = [];
+
     if (config.extends) {
       let exts = Array.isArray(config.extends)
         ? config.extends
         : [config.extends];
       for (let ext of exts) {
         let resolved = await this.resolveExtends(ext, config.filePath);
-        let baseConfig = await this.loadConfig(resolved);
+        extendedFiles.push(resolved);
+        let [baseConfig, moreExtendedFiles] = await this.loadConfig(resolved);
+        extendedFiles = extendedFiles.concat(moreExtendedFiles);
         config = this.mergeConfigs(baseConfig, config);
       }
     }
 
-    return config;
+    return [config, extendedFiles];
   }
 
   async resolveExtends(ext: string, configPath: FilePath) {
