@@ -4,7 +4,7 @@ import React from 'react';
 import spinners from 'cli-spinners';
 
 type Props = {|
-  type?: string
+  type: string
 |};
 
 type State = {|
@@ -12,6 +12,10 @@ type State = {|
 |};
 
 export default class Spinner extends React.Component<Props, State> {
+  static defaultProps = {
+    type: 'dots'
+  };
+
   timer: IntervalID;
 
   state = {
