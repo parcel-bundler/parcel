@@ -2,6 +2,9 @@
   "name": "@parcel/reporter-cli",
   "version": "2.0.0",
   "main": "src/CLIReporter.js",
+  "engines": {
+    "parcel": "^2.0.0"
+  },
   "dependencies": {
     "@parcel/plugin": "^2.0.0",
     "@parcel/types": "^2.0.0",
