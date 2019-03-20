@@ -1,4 +1,5 @@
-// @flow
+// @flow strict-local
+
 import type {
   BundleGraph,
   LogEvent,

@@ -1,6 +1,8 @@
-// @flow
+// @flow strict-local
 
-import React from 'react';
+import type {FilePath} from '@parcel/types';
+
+import * as React from 'react';
 import {BundleGraph} from '@parcel/types';
 import filesize from 'filesize';
 import {Box, Color} from 'ink';
@@ -11,16 +13,18 @@ import {Table, Row, Cell} from './Table';
 
 const LARGE_BUNDLE_SIZE = 1024 * 1024;
 
-type ReportProps = {
+type ReportProps = {|
   bundleGraph: BundleGraph
-};
+|};
 
-export default function BundleReport(props: ReportProps) {
+export default function BundleReport(
+  props: ReportProps
+): React.Element<typeof Table> {
   let bundles = [];
   props.bundleGraph.traverseBundles(bundle => bundles.push(bundle));
   bundles.sort((a, b) => b.stats.size - a.stats.size);
 
-  let rows = [<Row />];
+  let rows: Array<React.Element<typeof Row>> = [<Row />];
   for (let bundle of bundles) {
     rows.push(
       <Row>
@@ -94,7 +98,7 @@ export default function BundleReport(props: ReportProps) {
   return <Table>{rows.map((r, i) => React.cloneElement(r, {key: i}))}</Table>;
 }
 
-function formatFilename(filename, color = {}) {
+function formatFilename(filename: FilePath, color = {}) {
   let dir = path.relative(process.cwd(), path.dirname(filename));
 
   return (
@@ -105,7 +109,7 @@ function formatFilename(filename, color = {}) {
   );
 }
 
-function prettifySize(size, isLarge) {
+function prettifySize(size: number, isLarge?: boolean) {
   let res = filesize(size);
   if (isLarge) {
     return <Color yellow>{emoji.warning + '  ' + res}</Color>;

@@ -1,4 +1,5 @@
-// @flow
+// @flow strict-local
+
 import type {LogEvent} from '@parcel/types';
 import {Box, Text, Color} from 'ink';
 import Spinner from './Spinner';
@@ -6,15 +7,15 @@ import React from 'react';
 import prettyError from './prettyError';
 import * as Emoji from './emoji';
 
-type StringOrErrorLogProps = {
+type StringOrErrorLogProps = {|
   event: LogEvent
-};
+|};
 
-type StringLogProps = {
+type StringLogProps = {|
   event: {
     +message: string
   }
-};
+|};
 
 export function Log({event}: StringOrErrorLogProps) {
   switch (event.level) {
@@ -56,11 +57,11 @@ function Stack({
           {emoji} {message}
         </Color>
       </div>
-      {stack && (
+      {stack != null && stack !== '' ? (
         <div>
           <Color gray>{stack}</Color>
         </div>
-      )}
+      ) : null}
     </React.Fragment>
   );
 }
