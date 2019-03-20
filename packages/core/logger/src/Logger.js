@@ -2,7 +2,6 @@
 
 import type {IDisposable, LogEvent} from '@parcel/types';
 
-import WorkerFarm from '@parcel/workers';
 import EventEmitter from 'events';
 import {inspect} from 'util';
 
@@ -42,7 +41,7 @@ class Logger {
     });
   }
 
-  warn(err: string): void {
+  warn(err: Error | string): void {
     this.#emitter.emit('log', {
       type: 'log',
       level: 'warn',
@@ -67,33 +66,7 @@ class Logger {
   }
 }
 
-// If we are in a worker, make a proxy class which will
-// send the logger calls to the main process via IPC.
-// These are handled in WorkerFarm and directed to handleMessage above.
-let _logger;
-if (WorkerFarm.isWorker()) {
-  class LoggerProxy {}
-  for (let method of Object.getOwnPropertyNames(Logger.prototype)) {
-    // $FlowFixMe
-    LoggerProxy.prototype[method] = (...args) => {
-      WorkerFarm.callMaster(
-        {
-          location: __filename,
-          method,
-          args
-        },
-        false
-      );
-    };
-  }
-
-  _logger = new LoggerProxy();
-} else {
-  _logger = new Logger();
-}
-
-// $FlowFixMe
-const logger: Logger = _logger;
+const logger = new Logger();
 export default logger;
 
 let consolePatched;

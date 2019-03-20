@@ -20,7 +20,6 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "@parcel/workers": "^1.10.3",
     "chalk": "^2.1.0",
     "grapheme-breaker": "^0.3.2",
     "ora": "^2.1.0",
