@@ -9,6 +9,7 @@
   "main": "src/ValueEmitter.js",
   "scripts": {
     "build": "babel src -d lib",
-    "prepublish": "yarn build"
+    "prepublish": "yarn build",
+    "test": "mocha"
   }
 }
