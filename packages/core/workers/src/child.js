@@ -59,7 +59,7 @@ class Child {
     });
   }
 
-  childInit(module: any, childId: number): void {
+  childInit(module: string, childId: number): void {
     // $FlowFixMe this must be dynamic
     this.module = require(module);
     this.childId = childId;
@@ -88,7 +88,8 @@ class Child {
     let result;
     if (method === 'childInit') {
       try {
-        result = responseFromContent(this.childInit(...args, child));
+        let [moduleName] = args;
+        result = responseFromContent(this.childInit(moduleName, child));
       } catch (e) {
         result = errorResponseFromError(e);
       }
@@ -132,7 +133,7 @@ class Child {
     let call: ChildCall = {
       ...request,
       type: 'request',
-      child: nullthrows(this.childId),
+      child: this.childId,
       awaitResponse,
       resolve: () => {},
       reject: () => {}
@@ -188,4 +189,4 @@ class Child {
 let child = new Child();
 process.on('message', child.messageListener.bind(child));
 
-module.exports = child;
+export default child;

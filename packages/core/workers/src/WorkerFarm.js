@@ -29,6 +29,10 @@ type FarmOptions = {|
 
 type HandleFunction = (...args: Array<any>) => Promise<any>;
 
+type WorkerModule = {
+  init(BundlerOptions): void
+};
+
 /**
  * workerPath should always be defined inside farmOptions
  */
@@ -37,7 +41,7 @@ export default class WorkerFarm extends EventEmitter {
   bundlerOptions: BundlerOptions;
   callQueue: Array<WorkerCall> = [];
   ending: boolean = false;
-  localWorker: Worker;
+  localWorker: WorkerModule;
   options: FarmOptions;
   run: HandleFunction;
   warmWorkers: number = 0;
@@ -108,7 +112,6 @@ export default class WorkerFarm extends EventEmitter {
           this.warmupWorker(method, args);
         }
 
-        // $FlowFixMe
         return this.localWorker[method](...args, false);
       }
     };
@@ -336,7 +339,7 @@ export default class WorkerFarm extends EventEmitter {
     awaitResponse: boolean = true
   ): Promise<mixed> {
     if (WorkerFarm.isWorker()) {
-      const child = require('./child');
+      const child = require('./child').default;
       return child.addCall(request, awaitResponse);
     } else {
       // $FlowFixMe

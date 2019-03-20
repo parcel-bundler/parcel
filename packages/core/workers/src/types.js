@@ -18,7 +18,7 @@ export type CallRequest = {|
 export type WorkerRequest = {|
   args: Array<any>,
   awaitResponse?: boolean,
-  child?: number,
+  child?: ?number,
   idx?: number,
   location?: FilePath,
   method?: ?string,
