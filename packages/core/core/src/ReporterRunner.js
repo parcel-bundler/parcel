@@ -2,7 +2,7 @@
 import Config from './Config';
 import type {ParcelOptions, ReporterEvent} from '@parcel/types';
 import logger from '@parcel/logger';
-import bus from './bus';
+import bus from '@parcel/workers/src/bus';
 
 type Opts = {|
   config: Config,

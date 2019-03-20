@@ -1,6 +1,6 @@
 // @flow
 import EventEmitter from 'events';
-import WorkerFarm from '@parcel/workers';
+import WorkerFarm from './WorkerFarm';
 
 class Bus extends EventEmitter {
   emit(event: string, ...args: Array<any>): boolean {
