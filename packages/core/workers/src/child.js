@@ -9,10 +9,15 @@ import type {
   WorkerResponse
 } from './types';
 
+import type {IDisposable} from '@parcel/types';
+
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
+import Logger from '@parcel/logger';
 import {errorToJson, jsonToError} from '@parcel/utils/src/errorUtils';
 import {serialize, deserialize} from '@parcel/utils/src/serializer';
+
+import bus from './bus';
 
 type ChildCall = WorkerRequest & {|
   resolve: (result: Promise<any> | any) => void,
@@ -26,11 +31,18 @@ class Child {
   module: ?any;
   responseId = 0;
   responseQueue: Map<number, ChildCall> = new Map();
+  loggerDisposable: IDisposable;
 
   constructor() {
     if (!process.send) {
       throw new Error('Only create Child instances in a worker!');
     }
+
+    // Monitior all logging events inside this child process and forward to
+    // the main process via the bus.
+    this.loggerDisposable = Logger.onLog(event => {
+      bus.emit('logEvent', event);
+    });
   }
 
   messageListener(data: string): void | Promise<void> {
@@ -182,6 +194,7 @@ class Child {
   }
 
   end(): void {
+    this.loggerDisposable.dispose();
     process.exit();
   }
 }

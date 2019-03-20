@@ -13,7 +13,6 @@ class Bus extends EventEmitter {
         },
         false
       );
-
       return true;
     } else {
       return super.emit(event, ...args);

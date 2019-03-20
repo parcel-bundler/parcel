@@ -1,6 +1,6 @@
 // @flow
 
-import type {ErrorWithCode, FilePath} from '@parcel/types';
+import type {ErrorWithCode, FilePath, LogEvent} from '@parcel/types';
 import type {
   BundlerOptions,
   CallRequest,
@@ -10,9 +10,12 @@ import type {
   WorkerErrorResponse
 } from './types';
 
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
 import {errorToJson} from '@parcel/utils/src/errorUtils';
+import Logger from '@parcel/logger';
+import bus from './bus';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 
@@ -354,4 +357,28 @@ export default class WorkerFarm extends EventEmitter {
   static getConcurrentCallsPerWorker() {
     return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
   }
+}
+
+if (!WorkerFarm.isWorker()) {
+  // Forward all logger events originating from workers into the main process
+  bus.on('logEvent', (e: LogEvent) => {
+    switch (e.level) {
+      case 'info':
+        invariant(typeof e.message === 'string');
+        Logger.info(e.message);
+        break;
+      case 'progress':
+        invariant(typeof e.message === 'string');
+        Logger.progress(e.message);
+        break;
+      case 'warn':
+        Logger.warn(e.message);
+        break;
+      case 'error':
+        Logger.error(e.message);
+        break;
+      default:
+        throw new Error('Unknown log level');
+    }
+  });
 }
