@@ -4,10 +4,10 @@ import type {ParcelOptions, ReporterEvent} from '@parcel/types';
 import logger from '@parcel/logger';
 import bus from './bus';
 
-type Opts = {
+type Opts = {|
   config: Config,
   options: ParcelOptions
-};
+|};
 
 export default class ReporterRunner {
   config: Config;
