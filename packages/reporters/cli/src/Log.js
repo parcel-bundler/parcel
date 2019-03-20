@@ -6,25 +6,35 @@ import React from 'react';
 import prettyError from './prettyError';
 import * as Emoji from './emoji';
 
-type LogProps = {
+type StringOrErrorLogProps = {
   event: LogEvent
 };
 
-let logTypes = {
-  info: InfoLog,
-  progress: Progress,
-  verbose: InfoLog,
-  warn: WarnLog,
-  error: ErrorLog,
-  success: SuccessLog
+type StringLogProps = {
+  event: {
+    +message: string
+  }
 };
 
-export function Log({event}: LogProps) {
-  let LogType = logTypes[event.level];
-  return <LogType event={event} />;
+export function Log({event}: StringOrErrorLogProps) {
+  switch (event.level) {
+    case 'verbose':
+    case 'info':
+      return <InfoLog event={event} />;
+    case 'progress':
+      return <Progress event={event} />;
+    case 'success':
+      return <SuccessLog event={event} />;
+    case 'error':
+      return <ErrorLog event={event} />;
+    case 'warn':
+      return <WarnLog event={event} />;
+  }
+
+  throw new Error('Unknown log event type');
 }
 
-function InfoLog({event}: LogProps) {
+function InfoLog({event}: StringLogProps) {
   return <Text>{event.message}</Text>;
 }
 
@@ -55,15 +65,15 @@ function Stack({
   );
 }
 
-function WarnLog({event}: LogProps) {
+function WarnLog({event}: StringOrErrorLogProps) {
   return <Stack err={event.message} emoji={Emoji.warning} color="yellow" />;
 }
 
-function ErrorLog({event}: LogProps) {
+function ErrorLog({event}: StringOrErrorLogProps) {
   return <Stack err={event.message} emoji={Emoji.error} color="red" bold />;
 }
 
-function SuccessLog({event}: LogProps) {
+function SuccessLog({event}: StringLogProps) {
   return (
     <Color green bold>
       {Emoji.success} {event.message}
@@ -71,7 +81,7 @@ function SuccessLog({event}: LogProps) {
   );
 }
 
-export function Progress({event}: LogProps) {
+export function Progress({event}: StringLogProps) {
   return (
     <Box>
       <Color gray bold>

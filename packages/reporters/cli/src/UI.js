@@ -1,9 +1,10 @@
 // @flow
 import type {
-  ReporterEvent,
-  LogEvent,
   BundleGraph,
-  ParcelOptions
+  LogEvent,
+  ParcelOptions,
+  ProgressLogEvent,
+  ReporterEvent
 } from '@parcel/types';
 import {Color} from 'ink';
 import React from 'react';
@@ -13,7 +14,7 @@ import BundleReport from './BundleReport';
 import path from 'path';
 
 type UIState = {
-  progress: ?LogEvent,
+  progress: ?ProgressLogEvent,
   logs: Array<LogEvent>,
   bundleGraph: ?BundleGraph
 };

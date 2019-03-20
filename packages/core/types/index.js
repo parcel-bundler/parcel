@@ -446,11 +446,24 @@ export type Resolver = {|
   ): Async<FilePath | null>
 |};
 
-export type LogEvent = {|
-  type: 'log',
-  level: 'error' | 'warn' | 'info' | 'progress' | 'success' | 'verbose',
-  message: string | Error
+export type ProgressLogEvent = {|
+  +type: 'log',
+  +level: 'progress',
+  +message: string
 |};
+
+export type LogEvent =
+  | ProgressLogEvent
+  | {|
+      +type: 'log',
+      +level: 'error' | 'warn',
+      +message: string | Error
+    |}
+  | {|
+      +type: 'log',
+      +level: 'info' | 'success' | 'verbose',
+      +message: string
+    |};
 
 export type BuildStartEvent = {|
   type: 'buildStart'
