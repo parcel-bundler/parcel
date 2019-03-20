@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import WorkerFarm from '@parcel/workers';
+import invariant from 'assert';
 import EventEmitter from 'events';
 import {inspect} from 'util';
 
@@ -70,11 +71,13 @@ if (WorkerFarm.isWorker()) {
     };
   }
 
-  // $FlowFixMe Pretend as if this were a logger. We should probably export an interface instead.
-  logger = new LoggerProxy();
+  // eslint-disable-next-line
+  logger: Logger = new LoggerProxy();
 } else {
   logger = new Logger();
 }
+
+invariant(logger != null);
 
 /* eslint-disable no-console */
 // $FlowFixMe
