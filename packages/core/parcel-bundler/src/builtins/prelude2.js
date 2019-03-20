@@ -1,4 +1,4 @@
-var parcelRequire = (function (init) {
+(typeof window !== 'undefined' ? window : global).parcelRequire = (function (init) {
   // Save the require from previous bundle to this closure if any
   var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
   var nodeRequire = typeof require === 'function' && require;
