@@ -1,6 +1,11 @@
 // @flow
 
-import type {FilePath, ParcelConfig, PackageName} from '@parcel/types';
+import type {
+  FilePath,
+  ParcelConfig,
+  ParcelConfigFile,
+  PackageName
+} from '@parcel/types';
 import {resolveConfig} from '@parcel/utils/src/config';
 import Config from './Config';
 import * as fs from '@parcel/fs';
@@ -32,7 +37,7 @@ export default class ConfigResolver {
   }
 
   async loadConfig(configPath: FilePath) {
-    let config: ParcelConfig = parse(await fs.readFile(configPath));
+    let config: ParcelConfigFile = parse(await fs.readFile(configPath));
     return this.processConfig({...config, filePath: configPath});
   }
 

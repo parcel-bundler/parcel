@@ -27,8 +27,7 @@ export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T};
 
-export type ParcelConfig = {|
-  filePath: FilePath,
+export type ParcelConfigFile = {
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: Array<PackageName>,
   transforms?: {
@@ -46,7 +45,11 @@ export type ParcelConfig = {|
     [Glob]: Array<PackageName>
   },
   reporters?: Array<PackageName>
-|};
+};
+
+export type ParcelConfig = ParcelConfigFile & {
+  filePath: FilePath
+};
 
 export type Engines = {
   browsers?: Array<string>,
@@ -148,14 +151,6 @@ export type HTTPSOptions = {|
   cert?: FilePath,
   key?: FilePath
 |};
-
-export type CLIOptions = {
-  cacheDir?: FilePath,
-  watch?: boolean,
-  distDir?: FilePath,
-  production?: boolean,
-  cache?: boolean
-};
 
 export type SourceLocation = {|
   filePath: string,

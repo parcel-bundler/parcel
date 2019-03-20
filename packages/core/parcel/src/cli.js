@@ -1,5 +1,6 @@
 // @flow
-import type {ParcelConfig, ParcelOptions} from '@parcel/types';
+
+import type {ParcelConfigFile, ParcelOptions} from '@parcel/types';
 
 require('v8-compile-cache');
 
@@ -119,7 +120,7 @@ function run(entries: Array<string>, command: any) {
     return;
   }
   let Parcel = require('@parcel/core').default;
-  let defaultConfig: ParcelConfig = require('@parcel/config-default');
+  let defaultConfig: ParcelConfigFile = require('@parcel/config-default');
   let parcel = new Parcel({
     entries,
     defaultConfig: {
