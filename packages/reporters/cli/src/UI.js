@@ -14,11 +14,11 @@ import prettifyTime from '@parcel/utils/src/prettifyTime';
 import BundleReport from './BundleReport';
 import path from 'path';
 
-type UIState = {
+type UIState = {|
   progress: ?ProgressLogEvent,
   logs: Array<LogEvent>,
   bundleGraph: ?BundleGraph
-};
+|};
 
 const LOG_LEVELS = {
   none: 0,
