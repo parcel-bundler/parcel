@@ -1,46 +1,47 @@
 // @flow
-
-import type {
-  FilePath,
-  ParcelConfig,
-  ParcelConfigFile,
-  PackageName
-} from '@parcel/types';
+import type {FilePath, ParcelConfig, PackageName} from '@parcel/types';
 import {resolveConfig} from '@parcel/utils/src/config';
 import Config from './Config';
 import * as fs from '@parcel/fs';
 import {parse} from 'json5';
 import path from 'path';
-import {localResolve} from '@parcel/utils/src/localRequire';
+import localRequire from '@parcel/utils/src/localRequire';
 import assert from 'assert';
 
 type Pipeline = Array<PackageName>;
 type ConfigMap<K, V> = {[K]: V};
 
 export default class ConfigResolver {
-  async resolve(filePath: FilePath): Promise<?Config> {
-    let configPath = await resolveConfig(filePath, ['.parcelrc']);
+  async resolve(rootDir: FilePath): Promise<?Config> {
+    let configPath = await resolveConfig(path.join(rootDir, 'index'), [
+      '.parcelrc'
+    ]);
     if (!configPath) {
       return null;
     }
 
-    let config = await this.loadConfig(configPath);
-    return new Config({...config, filePath: configPath});
+    let config = await this.loadConfig(configPath, rootDir);
+    return new Config(config, configPath);
   }
 
-  async create(config: ParcelConfig) {
+  async create(config: ParcelConfig, rootDir: FilePath) {
     // Resolve plugins from the root when a config is passed programmatically
-    let result = await this.processConfig(config);
-    return new Config(result);
+    let configPath = path.join(rootDir, '.parcelrc');
+    let result = await this.processConfig(config, configPath, rootDir);
+    return new Config(result, configPath);
   }
 
-  async loadConfig(configPath: FilePath) {
-    let config: ParcelConfigFile = parse(await fs.readFile(configPath));
-    return this.processConfig({...config, filePath: configPath});
+  async loadConfig(configPath: FilePath, rootDir: FilePath) {
+    let config: ParcelConfig = parse(await fs.readFile(configPath));
+    return await this.processConfig(config, configPath, rootDir);
   }
 
-  async processConfig(config: ParcelConfig) {
-    let relativePath = path.relative(process.cwd(), config.filePath);
+  async processConfig(
+    config: ParcelConfig,
+    configPath: FilePath,
+    rootDir: FilePath
+  ) {
+    let relativePath = path.relative(process.cwd(), configPath);
     this.validateConfig(config, relativePath);
 
     if (config.extends) {
@@ -48,8 +49,8 @@ export default class ConfigResolver {
         ? config.extends
         : [config.extends];
       for (let ext of exts) {
-        let resolved = await this.resolveExtends(ext, config.filePath);
-        let baseConfig = await this.loadConfig(resolved);
+        let resolved = await this.resolveExtends(ext, configPath);
+        let baseConfig = await this.loadConfig(resolved, rootDir);
         config = this.mergeConfigs(baseConfig, config);
       }
     }
@@ -61,8 +62,8 @@ export default class ConfigResolver {
     if (ext.startsWith('.')) {
       return path.resolve(path.dirname(configPath), ext);
     } else {
-      let [resolved] = await localResolve(ext, configPath);
-      return fs.realpath(resolved);
+      let [resolved] = await localRequire.resolve(ext, configPath);
+      return await fs.realpath(resolved);
     }
   }
 
@@ -224,7 +225,6 @@ export default class ConfigResolver {
 
   mergeConfigs(base: ParcelConfig, ext: ParcelConfig): ParcelConfig {
     return {
-      filePath: base.filePath, // TODO: revisit this - it should resolve plugins based on the actual config they are defined in
       resolvers: this.mergePipelines(base.resolvers, ext.resolvers),
       transforms: this.mergeMaps(
         base.transforms,

@@ -61,10 +61,10 @@ export default {
       } else {
         replacementNode = t.stringLiteral(res);
       }
-
-      asset.connectedFiles.push({
-        filePath: filename
-      });
+      console.log('ADDING CONNECTED FILE', file);
+      // asset.connectedFiles.push({
+      //   filePath: filename
+      // });
 
       path.replaceWith(replacementNode);
       asset.ast.isDirty = true;

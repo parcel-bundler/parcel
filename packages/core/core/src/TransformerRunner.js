@@ -18,6 +18,8 @@ import * as fs from '@parcel/fs';
 import Config from './Config';
 import {report} from './ReporterRunner';
 
+import {CONFIG} from '@parcel/plugin';
+
 type Opts = {|
   config: Config,
   options: ParcelOptions
@@ -27,14 +29,15 @@ type GenerateFunc = ?(input: Asset) => Promise<AssetOutput>;
 
 export default class TransformerRunner {
   options: ParcelOptions;
-  config: Config;
 
   constructor(opts: Opts) {
     this.options = opts.options;
-    this.config = opts.config;
   }
 
-  async transform(req: TransformerRequest): Promise<CacheEntry> {
+  async transform(
+    req: TransformerRequest,
+    config: ParcelConfig
+  ): Promise<CacheEntry> {
     report({
       type: 'buildProgress',
       phase: 'transforming',
@@ -66,7 +69,7 @@ export default class TransformerRunner {
       env: req.env
     });
 
-    let pipeline = await this.config.getTransformers(req.filePath);
+    let pipeline = await this.getTransformers(config);
     let {assets, initialAssets} = await this.runPipeline(
       input,
       pipeline,
@@ -91,6 +94,24 @@ export default class TransformerRunner {
 
     await Cache.write(cacheEntry);
     return cacheEntry;
+  }
+
+  async getTransformers(config) {
+    // TODO: get programmitically
+    let plugins = [];
+    let pluginNames = [
+      '@parcel/transformer-babel',
+      '@parcel/transformer-js',
+      '@parcel/transformer-terser'
+    ];
+    for (let pluginName of pluginNames) {
+      let plugin = require(pluginName);
+      plugin = plugin.default ? plugin.default : plugin;
+      plugin = plugin[CONFIG];
+      plugins.push(plugin);
+    }
+
+    return plugins;
   }
 
   async runPipeline(

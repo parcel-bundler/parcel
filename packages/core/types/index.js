@@ -223,6 +223,7 @@ export interface Asset {
   ): Promise<Config | null>;
   getPackage(): Promise<PackageJSON | null>;
   addDependency(dep: DependencyOptions): string;
+  addConnectedFile(file: File): null;
   createChildAsset(result: TransformerResult): Asset;
   getOutput(): Promise<AssetOutput>;
 }

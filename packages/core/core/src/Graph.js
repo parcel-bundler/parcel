@@ -68,7 +68,7 @@ export default class Graph<TNode: Node> implements IGraph<TNode> {
 
   hasEdge(edge: Edge): boolean {
     for (let e of this.edges) {
-      if (edge.from == e.from && edge.to === e.to) {
+      if (edge.from == e.from && edge.to === e.to && edge.type === e.type) {
         return true;
       }
     }
@@ -168,7 +168,8 @@ export default class Graph<TNode: Node> implements IGraph<TNode> {
   // Also keeps track of all added and removed edges and nodes
   replaceNodesConnectedTo(
     fromNode: TNode,
-    toNodes: Array<TNode>
+    toNodes: Array<TNode>,
+    edgeType: string
   ): GraphUpdates<TNode> {
     let removed = new this.constructor();
     let added = new this.constructor();
@@ -189,7 +190,7 @@ export default class Graph<TNode: Node> implements IGraph<TNode> {
 
       edgesToRemove = edgesToRemove.filter(edge => edge.to !== toNode.id);
 
-      let edge = {from: fromNode.id, to: toNode.id};
+      let edge = {from: fromNode.id, to: toNode.id, type: edgeType};
       if (!this.hasEdge(edge)) {
         this.addEdge(edge);
         added.addEdge(edge);
@@ -197,7 +198,9 @@ export default class Graph<TNode: Node> implements IGraph<TNode> {
     }
 
     for (let edge of edgesToRemove) {
-      removed.merge(this.removeEdge(edge));
+      if (edgeType && edge.type === edgeType) {
+        removed.merge(this.removeEdge(edge));
+      }
     }
 
     return {removed, added};

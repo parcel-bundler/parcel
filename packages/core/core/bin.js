@@ -14,8 +14,14 @@ let cliOpts = {
 };
 let Parcel = require('.').default;
 
+let defaultConfig = require('@parcel/config-default');
+
 let parcel = new Parcel({
   entries,
+  defaultConfig: {
+    ...defaultConfig,
+    filePath: require.resolve('@parcel/config-default')
+  },
   cliOpts
 });
 

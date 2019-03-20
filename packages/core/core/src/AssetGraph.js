@@ -21,6 +21,7 @@ import type {
 import invariant from 'assert';
 import Graph from './Graph';
 import {md5FromString} from '@parcel/utils/src/md5';
+import {isGlob} from '@parcel/utils/src/glob';
 import Dependency from './Dependency';
 
 export const nodeFromRootDir = (rootDir: string) => ({
@@ -51,6 +52,24 @@ export const nodeFromAsset = (asset: Asset) => ({
   id: asset.id,
   type: 'asset',
   value: asset
+});
+
+export const nodeFromConfigRequest = req => ({
+  id: md5FromString(`${req.filePath}:${req.configType}`),
+  type: 'config_request',
+  value: req
+});
+
+export const nodeFromConfig = config => ({
+  id: 'TODO_MAKE_UNIQUE',
+  type: 'config',
+  value: config
+});
+
+export const nodeFromDevDepRequest = devDepRequest => ({
+  id: md5FromString(JSON.stringify(devDepRequest)),
+  type: 'dev_dep_request',
+  value: devDepRequest
 });
 
 const getFileNodesFromGraph = (
@@ -154,7 +173,7 @@ export default class AssetGraph extends Graph<AssetGraphNode>
    * request node for the file it was resolved to.
    */
   resolveDependency(dep: IDependency, req: TransformerRequest): DepUpdates {
-    let newRequest;
+    let newRequestNode;
 
     let depNode = nodeFromDep(dep);
     this.incompleteNodes.delete(depNode.id);
@@ -164,12 +183,12 @@ export default class AssetGraph extends Graph<AssetGraphNode>
     let {added, removed} = this.replaceNodesConnectedTo(depNode, [requestNode]);
 
     if (added.nodes.size) {
-      newRequest = req;
+      newRequestNode = requestNode;
       this.incompleteNodes.set(requestNode.id, requestNode);
     }
 
     let prunedFiles = getFilesFromGraph(removed);
-    return {newRequest, prunedFiles};
+    return {newRequestNode, prunedFiles};
   }
 
   /**
@@ -197,20 +216,18 @@ export default class AssetGraph extends Graph<AssetGraphNode>
     fileNodes.push(nodeFromFile({filePath: req.filePath}));
 
     let assetNodes = cacheEntry.assets.map(asset => nodeFromAsset(asset));
-    let {added, removed} = this.replaceNodesConnectedTo(requestNode, [
-      ...assetNodes,
-      ...fileNodes
-    ]);
-
-    let addedFiles = getFilesFromGraph(added);
-    let removedFiles = getFilesFromGraph(removed);
+    this.replaceNodesConnectedTo(requestNode, assetNodes, 'produces');
+    this.replaceNodesConnectedTo(
+      requestNode,
+      fileNodes,
+      'invalidated_by_change_to'
+    );
 
     for (let assetNode of assetNodes) {
       let depNodes = assetNode.value.dependencies.map(dep => {
         return nodeFromDep(dep);
       });
       let {removed, added} = this.replaceNodesConnectedTo(assetNode, depNodes);
-      removedFiles = removedFiles.concat(getFilesFromGraph(removed));
       newDepNodes = newDepNodes.concat(getDepNodesFromGraph(added));
     }
 
@@ -218,9 +235,52 @@ export default class AssetGraph extends Graph<AssetGraphNode>
       this.incompleteNodes.set(depNode.id, depNode);
     }
 
-    let newDeps = newDepNodes.map(node => node.value);
+    return {newDepNodes};
+  }
 
-    return {newDeps, addedFiles, removedFiles};
+  addConfigRequest(configRequest, node: AssetGraphNode) {
+    let configRequestNode = nodeFromConfigRequest(configRequest);
+    this.addNode(configRequestNode);
+    this.addEdge({from: node.id, to: configRequestNode.id});
+
+    return configRequestNode;
+    //this.incompleteNodes.set(configRequestNode.id, configRequestNode);
+  }
+
+  resolveConfigRequest(result, configRequestNode) {
+    let {config, devDepRequests} = result;
+    this.incompleteNodes.delete(configRequestNode.id);
+    let configNode = nodeFromConfig(config);
+    this.addNode(configNode);
+    this.addEdge({from: configRequestNode.id, to: configNode.id});
+    console.log('DEV DEP REQUESTS', devDepRequests);
+    let devDepRequestNodes = [];
+    for (let devDepRequest of devDepRequests) {
+      let devDepRequestNode = nodeFromDevDepRequest(devDepRequest);
+      devDepRequestNodes.push(devDepRequestNode);
+      this.addNode(devDepRequestNode);
+      this.addEdge({from: configNode.id, to: devDepRequestNode.id});
+      console.log('dev dep request node', {
+        from: configNode.id,
+        to: devDepRequestNode.id
+      });
+      this.incompleteNodes.set(devDepRequestNode.id, devDepRequestNode);
+    }
+
+    return {devDepRequestNodes};
+  }
+
+  resolveDevDepRequest(devDepRequest, devDep, actionNode) {
+    let devDepRequestNode = this.nodes.get(
+      nodeFromDevDepRequest(devDepRequest)
+    );
+    let devDepNode = nodeFromDevDep(devDep);
+    this.addNode(devDepNode);
+    this.addEdge({
+      from: devDepRequestNode.id,
+      to: devDepNode.id,
+      type: 'resolves_to'
+    });
   }
 
   invalidateNode(node: AssetGraphNode) {

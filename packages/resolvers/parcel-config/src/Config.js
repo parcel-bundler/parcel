@@ -1,5 +1,4 @@
 // @flow
-
 import type {
   ParcelConfig,
   FilePath,
@@ -12,10 +11,9 @@ import type {
   EnvironmentContext,
   PackageName,
   Packager,
-  Optimizer,
-  Reporter
+  Optimizer
 } from '@parcel/types';
-import {localResolve} from '@parcel/utils/src/localRequire';
+import localRequire from '@parcel/utils/src/localRequire';
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
 import {CONFIG} from '@parcel/plugin';
@@ -28,7 +26,7 @@ type GlobMap<T> = {[Glob]: T};
 const PARCEL_VERSION = require('../package.json').version;
 
 export default class Config {
-  filePath: FilePath;
+  configPath: FilePath;
   resolvers: Pipeline;
   transforms: GlobMap<Pipeline>;
   bundler: PackageName;
@@ -39,8 +37,8 @@ export default class Config {
   reporters: Pipeline;
   pluginCache: Map<PackageName, any>;
 
-  constructor(config: ParcelConfig) {
-    this.filePath = config.filePath;
+  constructor(config: ParcelConfig, filePath: FilePath) {
+    this.configPath = filePath;
     this.resolvers = config.resolvers || [];
     this.transforms = config.transforms || {};
     this.runtimes = config.runtimes || {};
@@ -52,30 +50,19 @@ export default class Config {
     this.pluginCache = new Map();
   }
 
-  serialize(): ParcelConfig {
-    return {
-      filePath: this.filePath,
-      resolvers: this.resolvers,
-      transforms: this.transforms,
-      runtimes: this.runtimes,
-      bundler: this.bundler,
-      namers: this.namers,
-      packagers: this.packagers,
-      optimizers: this.optimizers,
-      reporters: this.reporters
-    };
-  }
-
   async loadPlugin(pluginName: PackageName) {
     let cached = this.pluginCache.get(pluginName);
     if (cached) {
       return cached;
     }
 
-    let [resolved, pkg] = await localResolve(pluginName, this.filePath);
+    let [resolved, pkg] = await localRequire.resolve(
+      pluginName,
+      this.configPath
+    );
 
     // Validate the engines.parcel field in the plugin's package.json
-    let parcelVersionRange = pkg && pkg.engines && pkg.engines.parcel;
+    let parcelVersionRange = pkg.engines && pkg.engines.parcel;
     if (!parcelVersionRange) {
       logger.warn(
         `The plugin "${pluginName}" needs to specify a \`package.json#engines.parcel\` field with the supported Parcel version range.`
@@ -103,10 +90,6 @@ export default class Config {
     return Promise.all(plugins.map(pluginName => this.loadPlugin(pluginName)));
   }
 
-  getResolverNames() {
-    return this.resolvers;
-  }
-
   async getResolvers(): Promise<Array<Resolver>> {
     if (this.resolvers.length === 0) {
       throw new Error('No resolver plugins specified in .parcelrc config');
@@ -115,7 +98,7 @@ export default class Config {
     return this.loadPlugins(this.resolvers);
   }
 
-  getTransformerNames(filePath: FilePath): Array<string> {
+  async getTransformers(filePath: FilePath): Promise<Array<Transformer>> {
     let transformers: Pipeline | null = this.matchGlobMapPipelines(
       filePath,
       this.transforms
@@ -123,12 +106,6 @@ export default class Config {
     if (!transformers || transformers.length === 0) {
       throw new Error(`No transformers found for "${filePath}".`);
     }
-
-    return transformers;
-  }
-
-  async getTransformers(filePath: FilePath): Promise<Array<Transformer>> {
-    let transformers = this.getTransformerNames();
 
     return this.loadPlugins(transformers);
   }
@@ -155,7 +132,7 @@ export default class Config {
       return [];
     }
 
-    return this.loadPlugins(runtimes);
+    return await this.loadPlugins(runtimes);
   }
 
   async getPackager(filePath: FilePath): Promise<Packager> {
@@ -167,7 +144,7 @@ export default class Config {
       throw new Error(`No packager found for "${filePath}".`);
     }
 
-    return this.loadPlugin(packagerName);
+    return await this.loadPlugin(packagerName);
   }
 
   async getOptimizers(filePath: FilePath): Promise<Array<Optimizer>> {
@@ -179,16 +156,10 @@ export default class Config {
       return [];
     }
 
-    return this.loadPlugins(optimizers);
-  }
-
-  async getReporters(): Promise<Array<Reporter>> {
-    return this.loadPlugins(this.reporters);
+    return await this.loadPlugins(optimizers);
   }
 
   isGlobMatch(filePath: FilePath, pattern: Glob) {
-    console.log('FILEPATH', filePath);
-    console.log('PATTERN', pattern);
     return isMatch(filePath, pattern) || isMatch(basename(filePath), pattern);
   }
 
@@ -232,5 +203,12 @@ export default class Config {
 
     let res = flatten();
     return res;
+  }
+
+  static deserialize({
+    configPath,
+    ...config
+  }: ParcelConfig & {|configPath: string|}) {
+    return new Config(config, configPath);
   }
 }

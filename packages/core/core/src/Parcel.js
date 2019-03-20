@@ -11,7 +11,6 @@ import loadEnv from './loadEnv';
 import path from 'path';
 import Cache from '@parcel/cache';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
-import ConfigResolver from './ConfigResolver';
 import ReporterRunner from './ReporterRunner';
 
 export default class Parcel {
@@ -26,6 +25,7 @@ export default class Parcel {
 
   constructor(options: ParcelOptions) {
     this.options = options;
+    this.options.projectRoot = process.cwd();
     this.entries = Array.isArray(options.entries)
       ? options.entries
       : options.entries
@@ -42,28 +42,8 @@ export default class Parcel {
       this.options.env = process.env;
     }
 
-    let configResolver = new ConfigResolver();
-    let config;
-
-    // If an explicit `config` option is passed use that, otherwise resolve a .parcelrc from the filesystem.
-    if (this.options.config) {
-      config = await configResolver.create(this.options.config);
-    } else {
-      config = await configResolver.resolve(this.rootDir);
-    }
-
-    // If no config was found, default to the `defaultConfig` option if one is provided.
-    if (!config && this.options.defaultConfig) {
-      config = await configResolver.create(this.options.defaultConfig);
-    }
-
-    if (!config) {
-      throw new Error('Could not find a .parcelrc');
-    }
-
     this.bundlerRunner = new BundlerRunner({
-      config,
-      options: this.options,
+      options: this.options
       rootDir: this.rootDir
     });
 
@@ -77,7 +57,6 @@ export default class Parcel {
 
     this.assetGraphBuilder = new AssetGraphBuilder({
       options: this.options,
-      config,
       entries: this.entries,
       targets,
       rootDir: this.rootDir
@@ -85,7 +64,6 @@ export default class Parcel {
 
     this.farm = await WorkerFarm.getShared(
       {
-        config,
         options: this.options,
         env: this.options.env
       },
@@ -116,27 +94,28 @@ export default class Parcel {
       let startTime = Date.now();
       let assetGraph = await this.assetGraphBuilder.build();
 
-      if (process.env.PARCEL_DUMP_GRAPH != null) {
-        const dumpGraphToGraphViz = require('@parcel/utils/src/dumpGraphToGraphViz')
-          .default;
-        await dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
-      }
+      //if (process.env.PARCEL_DUMP_GRAPH != null) {
+      const dumpGraphToGraphViz = require('@parcel/utils/src/dumpGraphToGraphViz')
+        .default;
+      await dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
+      //}
 
-      let bundleGraph = await this.bundle(assetGraph);
-      await this.package(bundleGraph);
+      console.log('DONE BUILDING ASSET GRAPH');
 
-      this.reporterRunner.report({
-        type: 'buildSuccess',
-        assetGraph,
-        bundleGraph,
-        buildTime: Date.now() - startTime
-      });
+      // let bundleGraph = await this.bundle(assetGraph);
+      // await this.package(bundleGraph);
+      // this.reporterRunner.report({
+      //   type: 'buildSuccess',
+      //   assetGraph,
+      //   bundleGraph,
+      //   buildTime: Date.now() - startTime
+      // });
 
-      if (!this.options.watch && this.options.killWorkers !== false) {
-        await this.farm.end();
-      }
+      // if (!this.options.watch && this.options.killWorkers !== false) {
+      //   await this.farm.end();
+      // }
 
-      return bundleGraph;
+      // return bundleGraph;
     } catch (e) {
       if (!(e instanceof BuildAbortError)) {
         this.reporterRunner.report({

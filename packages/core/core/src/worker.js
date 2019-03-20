@@ -20,18 +20,29 @@ type Options = {|
 let transformerRunner: TransformerRunner | null = null;
 let packagerRunner: PackagerRunner | null = null;
 
+<<<<<<< HEAD
 export function init({config, options, env}: Options) {
+=======
+export function init({cliOpts, env}: Options) {
+>>>>>>> Added new node types
   Object.assign(process.env, env || {});
 
   Cache.init(options);
 
   transformerRunner = new TransformerRunner({
+<<<<<<< HEAD
     config,
     options
   });
   packagerRunner = new PackagerRunner({
     config,
     options
+=======
+    cliOpts
+  });
+  packagerRunner = new PackagerRunner({
+    cliOpts
+>>>>>>> Added new node types
   });
 }
 
