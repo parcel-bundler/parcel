@@ -6,13 +6,14 @@ import Logger from '../src/Logger';
 
 describe('Logger', () => {
   let onLog;
+  let logDisposable;
   beforeEach(() => {
     onLog = sinon.spy();
-    Logger.on('log', onLog);
+    logDisposable = Logger.onLog(onLog);
   });
 
   afterEach(() => {
-    Logger.off('log', onLog);
+    logDisposable.dispose();
   });
 
   it('emits log messages with info level', () => {

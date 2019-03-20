@@ -17,7 +17,7 @@ export default class ReporterRunner {
     this.config = opts.config;
     this.options = opts.options;
 
-    logger.on('log', event => this.report(event));
+    logger.onLog(event => this.report(event));
     bus.on('reporterEvent', event => this.report(event));
   }
 

@@ -6,6 +6,7 @@
     "parcel": "^2.0.0"
   },
   "dependencies": {
+    "@parcel/logger": "^2.0.0",
     "@parcel/plugin": "^2.0.0",
     "@parcel/types": "^2.0.0",
     "@parcel/utils": "^1.10.3",

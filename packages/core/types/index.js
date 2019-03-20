@@ -518,3 +518,7 @@ export type Reporter = {|
 export interface ErrorWithCode extends Error {
   code?: string;
 }
+
+export interface IDisposable {
+  dispose(): void;
+}
