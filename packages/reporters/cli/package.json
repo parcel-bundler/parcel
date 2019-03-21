@@ -16,5 +16,8 @@
     "ink": "^2.0.0-11",
     "ink-spinner": "^2.0.0",
     "react": "^16.7.0"
+  },
+  "devDependencies": {
+    "eslint-plugin-react": "^7.12.0"
   }
 }
