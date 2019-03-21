@@ -1,0 +1,3 @@
+{
+  "ignore": ["test/integration", "test/input", "test/dist"]
+}
