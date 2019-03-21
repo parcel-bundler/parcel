@@ -20,4 +20,5 @@ class Bus extends EventEmitter {
   }
 }
 
+// TODO: Move to an ESM default export
 module.exports = new Bus();
