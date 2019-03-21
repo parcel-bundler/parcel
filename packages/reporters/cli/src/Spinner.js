@@ -1,7 +1,7 @@
-// @flow
+// @flow strict-local
 
 import React from 'react';
-import spinners from 'cli-spinners';
+import spinners, {type CLISpinner} from 'cli-spinners';
 
 type Props = {|
   type: string
@@ -22,7 +22,7 @@ export default class Spinner extends React.Component<Props, State> {
     frame: 0
   };
 
-  getSpinner() {
+  getSpinner(): CLISpinner {
     return spinners[this.props.type] || spinners.dots;
   }
 
