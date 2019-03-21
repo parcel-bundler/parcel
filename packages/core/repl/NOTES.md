@@ -56,6 +56,7 @@ parcel-bundler: (worker)
 - (scope hoisting: don't replace node builtins) -> #2796
 - codecov
 - `<link rel=preload>` for dynamic imports
+- scope hoisting adds wrapper even without any import (with unreferenced css)
 
 ### REPL Issues
 
