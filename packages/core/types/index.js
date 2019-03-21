@@ -26,7 +26,8 @@ type SemverRange = string;
 export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T};
-export type ParcelConfig = {|
+
+export type ParcelConfigFile = {
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: Array<PackageName>,
   transforms?: {
@@ -44,7 +45,11 @@ export type ParcelConfig = {|
     [Glob]: Array<PackageName>
   },
   reporters?: Array<PackageName>
-|};
+};
+
+export type ParcelConfig = ParcelConfigFile & {
+  filePath: FilePath
+};
 
 export type Engines = {
   browsers?: Array<string>,
@@ -109,25 +114,25 @@ export type PackageJSON = {
 };
 
 export type ParcelOptions = {|
-  entries?: Array<FilePath>,
+  entries?: FilePath | Array<FilePath>,
   rootDir?: FilePath,
   config?: ParcelConfig,
   defaultConfig?: ParcelConfig,
-  env?: {[string]: string},
+  env?: {[string]: ?string},
   targets?: Array<Target>,
 
   watch?: boolean,
   cache?: boolean,
   cacheDir?: FilePath,
   killWorkers?: boolean,
-  production?: boolean,
+  mode?: 'development' | 'production' | string,
   minify?: boolean,
   sourceMaps?: boolean,
   publicUrl?: string,
   hot?: ServerOptions | boolean,
   serve?: ServerOptions | boolean,
   autoinstall?: boolean,
-  logLevel?: number
+  logLevel?: 'none' | 'error' | 'warn' | 'info' | 'verbose'
 
   // contentHash
   // scopeHoist
@@ -147,14 +152,6 @@ export type HTTPSOptions = {|
   key?: FilePath
 |};
 
-export type CLIOptions = {
-  cacheDir?: FilePath,
-  watch?: boolean,
-  distDir?: FilePath,
-  production?: boolean,
-  cache?: boolean
-};
-
 export type SourceLocation = {|
   filePath: string,
   start: {line: number, column: number},
@@ -165,6 +162,7 @@ export type Meta = {
   globals?: Map<string, Asset>,
   [string]: JSONValue
 };
+
 export type DependencyOptions = {|
   moduleSpecifier: ModuleSpecifier,
   isAsync?: boolean,
@@ -214,10 +212,10 @@ export interface Asset {
   dependencies: Array<Dependency>;
   connectedFiles: Array<File>;
   output: AssetOutput;
-  outputSize: number;
   outputHash: string;
   env: Environment;
   meta: Meta;
+  stats: Stats;
 
   getConfig(
     filePaths: Array<FilePath>,
@@ -228,6 +226,11 @@ export interface Asset {
   createChildAsset(result: TransformerResult): Asset;
   getOutput(): Promise<AssetOutput>;
 }
+
+export type Stats = {|
+  time: number,
+  size: number
+|};
 
 export type AssetOutput = {|
   code: string,
@@ -252,23 +255,23 @@ export type TransformerResult = {
 type Async<T> = T | Promise<T>;
 
 export type Transformer = {
-  getConfig?: (asset: Asset, opts: CLIOptions) => Async<Config | void>,
-  canReuseAST?: (ast: AST, opts: CLIOptions) => boolean,
-  parse?: (asset: Asset, config: ?Config, opts: CLIOptions) => Async<?AST>,
+  getConfig?: (asset: Asset, opts: ParcelOptions) => Async<Config | void>,
+  canReuseAST?: (ast: AST, opts: ParcelOptions) => boolean,
+  parse?: (asset: Asset, config: ?Config, opts: ParcelOptions) => Async<?AST>,
   transform(
     asset: Asset,
     config: ?Config,
-    opts: CLIOptions
+    opts: ParcelOptions
   ): Async<Array<TransformerResult | Asset>>,
   generate?: (
     asset: Asset,
     config: ?Config,
-    opts: CLIOptions
+    opts: ParcelOptions
   ) => Async<AssetOutput>,
   postProcess?: (
     assets: Array<Asset>,
     config: ?Config,
-    opts: CLIOptions
+    opts: ParcelOptions
   ) => Async<Array<TransformerResult>>
 };
 
@@ -340,7 +343,8 @@ export type Bundle = {|
   env: Environment,
   isEntry?: boolean,
   target?: Target,
-  filePath?: FilePath
+  filePath?: FilePath,
+  stats: Stats
 |};
 
 export type AssetGraphNode =
@@ -414,36 +418,107 @@ export type Bundler = {|
   bundle(
     graph: AssetGraph,
     bundleGraph: BundleGraph,
-    opts: CLIOptions
+    opts: ParcelOptions
   ): Async<void>
 |};
 
 export type Namer = {|
-  name(bundle: Bundle, opts: CLIOptions): Async<?FilePath>
+  name(bundle: Bundle, opts: ParcelOptions): Async<?FilePath>
 |};
 
 export type Runtime = {|
-  apply(bundle: Bundle, opts: CLIOptions): Async<void>
+  apply(bundle: Bundle, opts: ParcelOptions): Async<void>
 |};
 
 export type Packager = {|
-  package(bundle: Bundle, opts: CLIOptions): Async<Blob>
+  package(bundle: Bundle, opts: ParcelOptions): Async<Blob>
 |};
 
 export type Optimizer = {|
-  optimize(bundle: Bundle, contents: Blob, opts: CLIOptions): Async<Blob>
+  optimize(bundle: Bundle, contents: Blob, opts: ParcelOptions): Async<Blob>
 |};
 
 export type Resolver = {|
   resolve(
     dependency: Dependency,
-    opts: CLIOptions,
+    opts: ParcelOptions,
     rootDir: string
   ): Async<FilePath | null>
 |};
 
-export type Reporter = {|
-  report(bundles: Array<Bundle>, opts: CLIOptions): void
+export type LogEvent = {|
+  type: 'log',
+  level: 'error' | 'warn' | 'info' | 'progress' | 'success' | 'verbose',
+  message: string | Error
 |};
 
-export type ErrorWithCode = Error & {code?: string};
+export type BuildStartEvent = {|
+  type: 'buildStart'
+|};
+
+type ResolvingProgressEvent = {|
+  type: 'buildProgress',
+  phase: 'resolving',
+  dependency: Dependency
+|};
+
+type TransformingProgressEvent = {|
+  type: 'buildProgress',
+  phase: 'transforming',
+  request: TransformerRequest
+|};
+
+type BundlingProgressEvent = {|
+  type: 'buildProgress',
+  phase: 'bundling'
+|};
+
+type PackagingProgressEvent = {|
+  type: 'buildProgress',
+  phase: 'packaging',
+  bundle: Bundle
+|};
+
+type OptimizingProgressEvent = {|
+  type: 'buildProgress',
+  phase: 'optimizing',
+  bundle: Bundle
+|};
+
+export type BuildProgressEvent =
+  | ResolvingProgressEvent
+  | TransformingProgressEvent
+  | BundlingProgressEvent
+  | PackagingProgressEvent
+  | OptimizingProgressEvent;
+
+export type BuildSuccessEvent = {|
+  type: 'buildSuccess',
+  assetGraph: AssetGraph,
+  bundleGraph: BundleGraph,
+  buildTime: number
+|};
+
+export type BuildFailureEvent = {|
+  type: 'buildFailure',
+  error: Error
+|};
+
+export type ReporterEvent =
+  | LogEvent
+  | BuildStartEvent
+  | BuildProgressEvent
+  | BuildSuccessEvent
+  | BuildFailureEvent;
+
+export type Reporter = {|
+  report(event: ReporterEvent, opts: ParcelOptions): Async<void>
+|};
+
+export interface ErrorWithCode extends Error {
+  code?: string;
+}
+
+export interface IDisposable {
+  dispose(): void;
+}

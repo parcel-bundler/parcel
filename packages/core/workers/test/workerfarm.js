@@ -1,3 +1,4 @@
+import Logger from '@parcel/logger';
 import assert from 'assert';
 import WorkerFarm from '../';
 
@@ -173,6 +174,39 @@ describe('WorkerFarm', () => {
     }
     await Promise.all(promises);
 
+    await workerfarm.end();
+  });
+
+  it('Forwards logger events to the main process', async () => {
+    let events = [];
+    let logDisposable = Logger.onLog(event => events.push(event));
+
+    let workerfarm = new WorkerFarm(
+      {},
+      {
+        warmWorkers: true,
+        useLocalWorker: false,
+        workerPath: require.resolve('./integration/workerfarm/logging.js')
+      }
+    );
+
+    await workerfarm.run();
+
+    // assert.equal(events.length, 2);
+    assert.deepEqual(events, [
+      {
+        level: 'info',
+        message: 'omg it works',
+        type: 'log'
+      },
+      {
+        level: 'error',
+        message: 'errors objects dont work yet',
+        type: 'log'
+      }
+    ]);
+
+    logDisposable.dispose();
     await workerfarm.end();
   });
 });

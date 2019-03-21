@@ -11,7 +11,12 @@ const promisify = require('@parcel/utils/src/promisify');
 const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
 const {sleep} = require('@parcel/test-utils');
-const defaultConfig = require('@parcel/config-default');
+const defaultConfigContents = require('@parcel/config-default');
+
+const defaultConfig = {
+  ...defaultConfigContents,
+  filePath: require.resolve('@parcel/config-default')
+};
 
 const chalk = new (require('chalk')).constructor({enabled: true});
 
@@ -44,19 +49,15 @@ beforeEach(async function() {
 });
 
 function bundler(entries, opts) {
-  return new Parcel(
-    Object.assign(
-      {
-        entries,
-        cliOpts: {
-          cache: false
-        },
-        killWorkers: false,
-        defaultConfig
-      },
-      opts
-    )
-  );
+  return new Parcel({
+    entries,
+    options: {
+      cache: false
+    },
+    killWorkers: false,
+    defaultConfig,
+    ...opts
+  });
   // return new Parcel(
   //   file,
   //   Object.assign(

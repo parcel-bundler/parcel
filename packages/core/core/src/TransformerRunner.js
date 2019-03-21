@@ -7,7 +7,7 @@ import type {
   File,
   Transformer,
   TransformerRequest,
-  CLIOptions
+  ParcelOptions
 } from '@parcel/types';
 import Asset from './Asset';
 import path from 'path';
@@ -16,30 +16,37 @@ import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
 import Cache from '@parcel/cache';
 import * as fs from '@parcel/fs';
 import Config from './Config';
+import {report} from './ReporterRunner';
 
 type Opts = {|
   config: Config,
-  cliOpts: CLIOptions
+  options: ParcelOptions
 |};
 
 type GenerateFunc = ?(input: Asset) => Promise<AssetOutput>;
 
-class TransformerRunner {
-  cliOpts: CLIOptions;
+export default class TransformerRunner {
+  options: ParcelOptions;
   config: Config;
 
   constructor(opts: Opts) {
-    this.cliOpts = opts.cliOpts;
+    this.options = opts.options;
     this.config = opts.config;
   }
 
   async transform(req: TransformerRequest): Promise<CacheEntry> {
+    report({
+      type: 'buildProgress',
+      phase: 'transforming',
+      request: req
+    });
+
     let code = req.code || (await fs.readFile(req.filePath, 'utf8'));
     let hash = md5FromString(code);
 
     // If a cache entry matches, no need to transform.
     let cacheEntry;
-    if (this.cliOpts.cache !== false && req.code == null) {
+    if (this.options.cache !== false && req.code == null) {
       cacheEntry = await Cache.read(req.filePath, req.env);
     }
 
@@ -169,7 +176,7 @@ class TransformerRunner {
     // Load config for the transformer.
     let config = null;
     if (transformer.getConfig) {
-      config = await transformer.getConfig(input, this.cliOpts);
+      config = await transformer.getConfig(input, this.options);
     }
 
     // If an ast exists on the input, but we cannot reuse it,
@@ -177,7 +184,7 @@ class TransformerRunner {
     if (
       input.ast &&
       (!transformer.canReuseAST ||
-        !transformer.canReuseAST(input.ast, this.cliOpts)) &&
+        !transformer.canReuseAST(input.ast, this.options)) &&
       previousGenerate
     ) {
       let output = await previousGenerate(input);
@@ -188,16 +195,16 @@ class TransformerRunner {
 
     // Parse if there is no AST available from a previous transform.
     if (!input.ast && transformer.parse) {
-      input.ast = await transformer.parse(input, config, this.cliOpts);
+      input.ast = await transformer.parse(input, config, this.options);
     }
 
     // Transform.
-    let results = await transformer.transform(input, config, this.cliOpts);
+    let results = await transformer.transform(input, config, this.options);
 
     // Create a generate function that can be called later to lazily generate
     let generate = async (input: Asset): Promise<AssetOutput> => {
       if (transformer.generate) {
-        return transformer.generate(input, config, this.cliOpts);
+        return transformer.generate(input, config, this.options);
       }
 
       throw new Error(
@@ -213,7 +220,7 @@ class TransformerRunner {
         let results = await transformer.postProcess(
           assets,
           config,
-          this.cliOpts
+          this.options
         );
 
         return Promise.all(
@@ -256,5 +263,3 @@ async function checkConnectedFiles(files: Array<File>): Promise<boolean> {
 
   return files.every((file, index) => file.hash === hashes[index]);
 }
-
-module.exports = TransformerRunner;

@@ -35,7 +35,7 @@ describe('AssetGraphBuilder', () => {
     config = nullthrows(await new ConfigResolver().resolve(CONFIG_DIR));
 
     builder = new AssetGraphBuilder({
-      cliOpts: {cache: false},
+      options: {cache: false},
       config,
       rootDir: FIXTURES_DIR,
       entries: ['./module-b'],

@@ -1,6 +1,6 @@
 // @flow
 
-import type {ErrorWithCode, FilePath} from '@parcel/types';
+import type {ErrorWithCode, FilePath, LogEvent} from '@parcel/types';
 import type {
   BundlerOptions,
   CallRequest,
@@ -10,9 +10,12 @@ import type {
   WorkerErrorResponse
 } from './types';
 
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
 import {errorToJson} from '@parcel/utils/src/errorUtils';
+import Logger from '@parcel/logger';
+import bus from './bus';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 
@@ -29,6 +32,10 @@ type FarmOptions = {|
 
 type HandleFunction = (...args: Array<any>) => Promise<any>;
 
+type WorkerModule = {
+  init(BundlerOptions): void
+};
+
 /**
  * workerPath should always be defined inside farmOptions
  */
@@ -37,7 +44,7 @@ export default class WorkerFarm extends EventEmitter {
   bundlerOptions: BundlerOptions;
   callQueue: Array<WorkerCall> = [];
   ending: boolean = false;
-  localWorker: Worker;
+  localWorker: WorkerModule;
   options: FarmOptions;
   run: HandleFunction;
   warmWorkers: number = 0;
@@ -108,7 +115,6 @@ export default class WorkerFarm extends EventEmitter {
           this.warmupWorker(method, args);
         }
 
-        // $FlowFixMe
         return this.localWorker[method](...args, false);
       }
     };
@@ -336,7 +342,7 @@ export default class WorkerFarm extends EventEmitter {
     awaitResponse: boolean = true
   ): Promise<mixed> {
     if (WorkerFarm.isWorker()) {
-      const child = require('./child');
+      const child = require('./child').default;
       return child.addCall(request, awaitResponse);
     } else {
       // $FlowFixMe
@@ -351,4 +357,28 @@ export default class WorkerFarm extends EventEmitter {
   static getConcurrentCallsPerWorker() {
     return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
   }
+}
+
+if (!WorkerFarm.isWorker()) {
+  // Forward all logger events originating from workers into the main process
+  bus.on('logEvent', (e: LogEvent) => {
+    switch (e.level) {
+      case 'info':
+        invariant(typeof e.message === 'string');
+        Logger.info(e.message);
+        break;
+      case 'progress':
+        invariant(typeof e.message === 'string');
+        Logger.progress(e.message);
+        break;
+      case 'warn':
+        Logger.warn(e.message);
+        break;
+      case 'error':
+        Logger.error(e.message);
+        break;
+      default:
+        throw new Error('Unknown log level');
+    }
+  });
 }

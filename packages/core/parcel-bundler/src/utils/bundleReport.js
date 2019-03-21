@@ -1,6 +1,6 @@
 const path = require('path');
 const prettifyTime = require('./prettifyTime');
-const logger = require('@parcel/logger').default;
+const logger = require('@parcel/logger');
 const filesize = require('filesize');
 
 const LARGE_BUNDLE_SIZE = 1024 * 1024;

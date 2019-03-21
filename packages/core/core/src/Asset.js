@@ -12,6 +12,7 @@ import type {
   FilePath,
   Meta,
   PackageJSON,
+  Stats,
   TransformerResult
 } from '@parcel/types';
 import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
@@ -29,10 +30,10 @@ type AssetOptions = {|
   dependencies?: Array<IDependency>,
   connectedFiles?: Array<File>,
   output?: AssetOutput,
-  outputSize?: number,
   outputHash?: string,
   env: Environment,
-  meta?: Meta
+  meta?: Meta,
+  stats?: Stats
 |};
 
 export default class Asset implements IAsset {
@@ -45,10 +46,10 @@ export default class Asset implements IAsset {
   dependencies: Array<IDependency>;
   connectedFiles: Array<File>;
   output: AssetOutput;
-  outputSize: number;
   outputHash: string;
   env: Environment;
   meta: Meta;
+  stats: Stats;
 
   constructor(options: AssetOptions) {
     this.id =
@@ -68,10 +69,13 @@ export default class Asset implements IAsset {
       ? options.connectedFiles.slice()
       : [];
     this.output = options.output || {code: this.code};
-    this.outputSize = options.outputSize || this.output.code.length;
     this.outputHash = options.outputHash || '';
     this.env = options.env;
     this.meta = options.meta || {};
+    this.stats = options.stats || {
+      time: 0,
+      size: this.output.code.length
+    };
   }
 
   serialize(): AssetOptions {
@@ -84,10 +88,10 @@ export default class Asset implements IAsset {
       dependencies: this.dependencies,
       connectedFiles: this.connectedFiles,
       output: this.output,
-      outputSize: this.outputSize,
       outputHash: this.outputHash,
       env: this.env,
-      meta: this.meta
+      meta: this.meta,
+      stats: this.stats
     };
   }
 

@@ -20,7 +20,7 @@ export default new Transformer({
   },
 
   async transform(asset, config, options) {
-    if (!options.production) {
+    if (options.mode !== 'production') {
       return [asset];
     }
 

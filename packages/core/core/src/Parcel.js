@@ -1,12 +1,8 @@
 // @flow
 
+import type {Bundle, BundleGraph, ParcelOptions, Stats} from '@parcel/types';
+
 import AssetGraph from './AssetGraph';
-import type {
-  Bundle,
-  BundleGraph,
-  CLIOptions,
-  ParcelConfig
-} from '@parcel/types';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
@@ -16,35 +12,30 @@ import path from 'path';
 import Cache from '@parcel/cache';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
-
-type ParcelOpts = {|
-  entries: string | Array<string>,
-  cwd?: string,
-  cliOpts: CLIOptions,
-  killWorkers?: boolean,
-  env?: {[string]: ?string},
-  config?: ParcelConfig,
-  defaultConfig?: ParcelConfig
-|};
+import ReporterRunner from './ReporterRunner';
 
 export default class Parcel {
-  options: ParcelOpts;
+  options: ParcelOptions;
   entries: Array<string>;
   rootDir: string;
   assetGraphBuilder: AssetGraphBuilder;
   bundlerRunner: BundlerRunner;
+  reporterRunner: ReporterRunner;
   farm: WorkerFarm;
-  runPackage: (bundle: Bundle) => Promise<mixed>;
+  runPackage: (bundle: Bundle) => Promise<Stats>;
 
-  constructor(options: ParcelOpts) {
-    let {entries} = options;
+  constructor(options: ParcelOptions) {
     this.options = options;
-    this.entries = Array.isArray(entries) ? entries : [entries];
+    this.entries = Array.isArray(options.entries)
+      ? options.entries
+      : options.entries
+        ? [options.entries]
+        : [];
     this.rootDir = getRootDir(this.entries);
   }
 
   async init(): Promise<void> {
-    await Cache.createCacheDir(this.options.cliOpts.cacheDir);
+    await Cache.createCacheDir(this.options.cacheDir);
 
     if (!this.options.env) {
       await loadEnv(path.join(this.rootDir, 'index'));
@@ -56,17 +47,14 @@ export default class Parcel {
 
     // If an explicit `config` option is passed use that, otherwise resolve a .parcelrc from the filesystem.
     if (this.options.config) {
-      config = await configResolver.create(this.options.config, this.rootDir);
+      config = await configResolver.create(this.options.config);
     } else {
       config = await configResolver.resolve(this.rootDir);
     }
 
     // If no config was found, default to the `defaultConfig` option if one is provided.
     if (!config && this.options.defaultConfig) {
-      config = await configResolver.create(
-        this.options.defaultConfig,
-        this.rootDir
-      );
+      config = await configResolver.create(this.options.defaultConfig);
     }
 
     if (!config) {
@@ -75,15 +63,20 @@ export default class Parcel {
 
     this.bundlerRunner = new BundlerRunner({
       config,
-      cliOpts: this.options.cliOpts,
+      options: this.options,
       rootDir: this.rootDir
+    });
+
+    this.reporterRunner = new ReporterRunner({
+      config,
+      options: this.options
     });
 
     let targetResolver = new TargetResolver();
     let targets = await targetResolver.resolve(this.rootDir);
 
     this.assetGraphBuilder = new AssetGraphBuilder({
-      cliOpts: this.options.cliOpts,
+      options: this.options,
       config,
       entries: this.entries,
       targets,
@@ -93,7 +86,7 @@ export default class Parcel {
     this.farm = await WorkerFarm.getShared(
       {
         config,
-        cliOpts: this.options.cliOpts,
+        options: this.options,
         env: this.options.env
       },
       {
@@ -116,7 +109,11 @@ export default class Parcel {
 
   async build(): Promise<BundleGraph> {
     try {
-      // console.log('Starting build'); // eslint-disable-line no-console
+      this.reporterRunner.report({
+        type: 'buildStart'
+      });
+
+      let startTime = Date.now();
       let assetGraph = await this.assetGraphBuilder.build();
 
       if (process.env.PARCEL_DUMP_GRAPH != null) {
@@ -128,15 +125,24 @@ export default class Parcel {
       let bundleGraph = await this.bundle(assetGraph);
       await this.package(bundleGraph);
 
-      if (!this.options.cliOpts.watch && this.options.killWorkers !== false) {
+      this.reporterRunner.report({
+        type: 'buildSuccess',
+        assetGraph,
+        bundleGraph,
+        buildTime: Date.now() - startTime
+      });
+
+      if (!this.options.watch && this.options.killWorkers !== false) {
         await this.farm.end();
       }
 
-      // console.log('Finished build'); // eslint-disable-line no-console
       return bundleGraph;
     } catch (e) {
       if (!(e instanceof BuildAbortError)) {
-        console.error(e); // eslint-disable-line no-console
+        this.reporterRunner.report({
+          type: 'buildFailure',
+          error: e
+        });
       }
       throw e;
     }
@@ -149,7 +155,11 @@ export default class Parcel {
   package(bundleGraph: BundleGraph): Promise<mixed> {
     let promises = [];
     bundleGraph.traverseBundles(bundle => {
-      promises.push(this.runPackage(bundle));
+      promises.push(
+        this.runPackage(bundle).then(stats => {
+          bundle.stats = stats;
+        })
+      );
     });
 
     return Promise.all(promises);
