@@ -1,6 +1,0 @@
-{
-  "extends": "@parcel/eslint-config",
-  "parserOptions": {
-    "sourceType": "module"
-  }
-}
