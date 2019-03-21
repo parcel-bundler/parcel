@@ -1,7 +1,8 @@
-// @flow strict
+// @flow strict-local
 
 import assert from 'assert';
-import ValueEmitter, {AlreadyDisposedError} from '../';
+import ValueEmitter from '../src/ValueEmitter';
+import {AlreadyDisposedError} from '../src/errors';
 
 describe('ValueEmitter', () => {
   let emitter: ValueEmitter<number>;

@@ -1,8 +1,8 @@
-// @flow strict
+// @flow strict-local
 
-export interface IDisposable {
-  dispose(): void;
-}
+import type {IDisposable} from './types';
+
+import {AlreadyDisposedError} from './errors';
 
 // Like an EventEmitter, but for only a single "event". This provides type-safety
 // for the values emitted. Rather than passing predetermined strings (which can
@@ -78,8 +78,3 @@ export default class ValueEmitter<TValue> implements IDisposable {
     this._disposed = true;
   }
 }
-
-export class AlreadyDisposedError extends Error {}
-Object.defineProperty(AlreadyDisposedError.prototype, 'name', {
-  value: 'AlreadyDisposedError'
-});

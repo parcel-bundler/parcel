@@ -21,6 +21,6 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "@parcel/value-emitter": "^2.0.0"
+    "@parcel/events": "^2.0.0"
   }
 }
