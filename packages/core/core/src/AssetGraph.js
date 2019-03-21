@@ -42,6 +42,12 @@ export const nodeFromFile = (file: File) => ({
   value: file
 });
 
+export const nodeFromGlob = (glob: string) => ({
+  id: glob,
+  type: 'glob',
+  value: glob
+});
+
 export const nodeFromTransformerRequest = (req: TransformerRequest) => ({
   id: md5FromString(`${req.filePath}:${JSON.stringify(req.env)}`),
   type: 'transformer_request',
@@ -248,22 +254,27 @@ export default class AssetGraph extends Graph<AssetGraphNode>
   }
 
   resolveConfigRequest(result, configRequestNode) {
-    let {config, devDepRequests} = result;
+    let {config, devDepRequests, invalidatePatterns = []} = result;
     this.incompleteNodes.delete(configRequestNode.id);
     let configNode = nodeFromConfig(config);
     this.addNode(configNode);
     this.addEdge({from: configRequestNode.id, to: configNode.id});
-    console.log('DEV DEP REQUESTS', devDepRequests);
+
+    for (let pattern of invalidatePatterns) {
+      let invalidateNode = isGlob(pattern)
+        ? nodeFromGlob(pattern)
+        : nodeFromFile({filePath: pattern});
+
+      this.addNode(invalidateNode);
+      this.addEdge({from: configRequestNode.id, to: invalidateNode.id});
+    }
+
     let devDepRequestNodes = [];
     for (let devDepRequest of devDepRequests) {
       let devDepRequestNode = nodeFromDevDepRequest(devDepRequest);
       devDepRequestNodes.push(devDepRequestNode);
       this.addNode(devDepRequestNode);
       this.addEdge({from: configNode.id, to: devDepRequestNode.id});
-      console.log('dev dep request node', {
-        from: configNode.id,
-        to: devDepRequestNode.id
-      });
       this.incompleteNodes.set(devDepRequestNode.id, devDepRequestNode);
     }
 

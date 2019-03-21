@@ -2,7 +2,7 @@
 
 import type {ParcelOptions, Dependency, FilePath} from '@parcel/types';
 import path from 'path';
-import Config from './Config';
+import Config from './ParcelConfig';
 import {report} from './ReporterRunner';
 
 import {CONFIG} from '@parcel/plugin';

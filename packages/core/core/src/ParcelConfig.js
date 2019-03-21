@@ -41,6 +41,7 @@ export default class Config {
 
   constructor(config: ParcelConfig) {
     this.filePath = config.filePath;
+    this.extendedFiles = config.extendedFiles;
     this.resolvers = config.resolvers || [];
     this.transforms = config.transforms || {};
     this.runtimes = config.runtimes || {};
@@ -187,8 +188,6 @@ export default class Config {
   }
 
   isGlobMatch(filePath: FilePath, pattern: Glob) {
-    console.log('FILEPATH', filePath);
-    console.log('PATTERN', pattern);
     return isMatch(filePath, pattern) || isMatch(basename(filePath), pattern);
   }
 

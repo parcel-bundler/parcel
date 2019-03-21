@@ -9,7 +9,7 @@ import type {
   ParcelOptions,
   TransformerRequest
 } from '@parcel/types';
-import type Config from './Config';
+import type Config from './ParcelConfig';
 
 import nullthrows from 'nullthrows';
 import BundleGraph from './BundleGraph';

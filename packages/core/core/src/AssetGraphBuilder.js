@@ -8,7 +8,7 @@ import type {
   Target,
   TransformerRequest
 } from '@parcel/types';
-import type Config from './Config';
+import type Config from './ParcelConfig';
 import EventEmitter from 'events';
 import {
   AbortController,
@@ -217,6 +217,7 @@ export default class AssetGraphBuilder extends EventEmitter {
             filePath: node.value.sourcePath
           }
         };
+        break;
     }
 
     let configLoader = new ConfigLoader(this.options);

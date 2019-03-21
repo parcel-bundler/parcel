@@ -15,7 +15,7 @@ import clone from 'clone';
 import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
 import Cache from '@parcel/cache';
 import * as fs from '@parcel/fs';
-import Config from './Config';
+import Config from './ParcelConfig';
 import {report} from './ReporterRunner';
 
 import {CONFIG} from '@parcel/plugin';

@@ -8,7 +8,7 @@ import type {
 } from '@parcel/types';
 import TransformerRunner from './TransformerRunner';
 import PackagerRunner from './PackagerRunner';
-import Config from './Config';
+import Config from './ParcelConfig';
 import Cache from '@parcel/cache';
 
 type Options = {|
@@ -20,29 +20,16 @@ type Options = {|
 let transformerRunner: TransformerRunner | null = null;
 let packagerRunner: PackagerRunner | null = null;
 
-<<<<<<< HEAD
-export function init({config, options, env}: Options) {
-=======
-export function init({cliOpts, env}: Options) {
->>>>>>> Added new node types
+export function init({options, env}: Options) {
   Object.assign(process.env, env || {});
 
   Cache.init(options);
 
   transformerRunner = new TransformerRunner({
-<<<<<<< HEAD
-    config,
     options
   });
   packagerRunner = new PackagerRunner({
-    config,
     options
-=======
-    cliOpts
-  });
-  packagerRunner = new PackagerRunner({
-    cliOpts
->>>>>>> Added new node types
   });
 }
 

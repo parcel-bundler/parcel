@@ -18,12 +18,9 @@ export default class ConfigLoader {
   async loadParcelConfig(configRequest) {
     let {filePath} = configRequest;
     let configResolver = new ConfigResolver();
-    let config;
-    if (this.options.config) {
-      config = await configResolver.create(this.options.config, filePath);
-    } else {
-      config = await configResolver.resolve(filePath);
-    }
+    let config = this.options.config
+      ? await configResolver.create(this.options.config, filePath)
+      : await configResolver.resolve(filePath);
 
     if (!config && this.options.defaultConfig) {
       config = await configResolver.create(
@@ -54,7 +51,13 @@ export default class ConfigLoader {
       sourcePath: config.filePath
     }));
 
-    return {config, devDepRequests};
+    let invalidatePatterns = [
+      '**/.parcelrc',
+      config.configPath,
+      ...config.extendedFiles
+    ];
+
+    return {config, devDepRequests, invalidatePatterns};
   }
 
   loadThirdPartyConfig(configRequest) {

@@ -1,7 +1,7 @@
 // @flow
 
 import type {Bundle, ParcelOptions, Blob, FilePath} from '@parcel/types';
-import type Config from './Config';
+import type Config from './ParcelConfig';
 
 import {mkdirp, writeFile} from '@parcel/fs';
 import nullthrows from 'nullthrows';
