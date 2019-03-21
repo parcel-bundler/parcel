@@ -1,7 +1,12 @@
-const {minify} = require('terser');
-const {serialize} = require('serialize-to-js');
+// @flow
 
-function serializeObject(obj, shouldMinify = false) {
+import {minify} from 'terser';
+import {serialize} from 'serialize-to-js';
+
+export default function serializeObject(
+  obj: mixed,
+  shouldMinify: boolean = false
+) {
   let code = `module.exports = ${serialize(obj)};`;
 
   if (shouldMinify) {
@@ -15,5 +20,3 @@ function serializeObject(obj, shouldMinify = false) {
 
   return code;
 }
-
-module.exports = serializeObject;

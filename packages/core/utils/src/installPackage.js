@@ -19,7 +19,11 @@ type InstallOptions = {
   packageManager?: 'npm' | 'yarn'
 };
 
-async function install(modules, filepath, options: InstallOptions = {}) {
+async function install(
+  modules: Array<string>,
+  filepath: FilePath,
+  options: InstallOptions = {}
+): Promise<void> {
   let {installPeers = true, saveDev = true, packageManager} = options;
 
   logger.progress(`Installing ${modules.join(', ')}...`);
@@ -115,11 +119,12 @@ async function checkForYarnCommand(): Promise<boolean> {
   return hasYarn;
 }
 
-let queue = new PromiseQueue(install, {maxConcurrent: 1, retry: false});
+let queue = new PromiseQueue<Array<string>, *, *>(install, {
+  maxConcurrent: 1,
+  retry: false
+});
 export default function installPackage(
-  ...args:
-    | [string | Array<string>, FilePath]
-    | [string | Array<string>, FilePath, InstallOptions]
+  ...args: [Array<string>, FilePath] | [Array<string>, FilePath, InstallOptions]
 ) {
   queue.add(...args);
   return queue.run();

@@ -40,6 +40,7 @@
     "terser": "^3.7.3"
   },
   "devDependencies": {
-    "@babel/plugin-transform-flow-strip-types": "^7.2.0"
+    "@babel/plugin-transform-flow-strip-types": "^7.2.0",
+    "@parcel/types": "^2.0.0"
   }
 }
