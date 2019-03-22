@@ -1,9 +1,6 @@
 {
   "extends": "@parcel/eslint-config",
   "plugins": ["react"],
-  "env": {
-    "browser": true
-  },
   "rules": {
     "react/jsx-uses-vars": "error",
     "react/jsx-uses-react": "error"
