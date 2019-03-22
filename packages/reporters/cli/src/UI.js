@@ -1,9 +1,11 @@
-// @flow
+// @flow strict-local
+
 import type {
-  ReporterEvent,
-  LogEvent,
   BundleGraph,
-  ParcelOptions
+  LogEvent,
+  ParcelOptions,
+  ProgressLogEvent,
+  ReporterEvent
 } from '@parcel/types';
 import {Color} from 'ink';
 import React from 'react';
@@ -12,11 +14,11 @@ import prettifyTime from '@parcel/utils/src/prettifyTime';
 import BundleReport from './BundleReport';
 import path from 'path';
 
-type UIState = {
-  progress: ?LogEvent,
+type UIState = {|
+  progress: ?ProgressLogEvent,
   logs: Array<LogEvent>,
   bundleGraph: ?BundleGraph
-};
+|};
 
 const LOG_LEVELS = {
   none: 0,

@@ -5,6 +5,14 @@
   "engines": {
     "parcel": "^2.0.0"
   },
+  "scripts": {
+    "test": "cross-env NODE_ENV=test mocha",
+    "test-ci": "yarn build && yarn test",
+    "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
+    "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
+    "build": "babel src -d lib",
+    "prepublish": "yarn build"
+  },
   "dependencies": {
     "@parcel/logger": "^2.0.0",
     "@parcel/plugin": "^2.0.0",
@@ -15,6 +23,7 @@
     "grapheme-breaker": "^0.3.2",
     "ink": "^2.0.0-11",
     "ink-spinner": "^2.0.0",
+    "nullthrows": "^1.1.1",
     "react": "^16.7.0"
   },
   "devDependencies": {
