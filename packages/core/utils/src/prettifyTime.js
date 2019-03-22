@@ -1,3 +1,5 @@
-module.exports = function(time) {
-  return time < 1000 ? `${time}ms` : `${(time / 1000).toFixed(2)}s`;
-};
+// @flow strict-local
+
+export default function prettifyTime(timeInMs: number) {
+  return timeInMs < 1000 ? `${timeInMs}ms` : `${(timeInMs / 1000).toFixed(2)}s`;
+}
