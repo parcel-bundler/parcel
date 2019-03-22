@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {FilePath} from '@parcel/types';
+import type {Asset, Bundle, FilePath} from '@parcel/types';
 
 import * as React from 'react';
 import {BundleGraph} from '@parcel/types';
@@ -20,14 +20,14 @@ type ReportProps = {|
 export default function BundleReport(
   props: ReportProps
 ): React.Element<typeof Table> {
-  let bundles = [];
+  let bundles: Array<Bundle> = [];
   props.bundleGraph.traverseBundles(bundle => bundles.push(bundle));
   bundles.sort((a, b) => b.stats.size - a.stats.size);
 
-  let rows: Array<React.Element<typeof Row>> = [<Row />];
+  let rows: Array<React.Element<typeof Row>> = [<Row key="first" />];
   for (let bundle of bundles) {
     rows.push(
-      <Row>
+      <Row key={`bundle:${bundle.id}`}>
         <Cell>
           {formatFilename(bundle.filePath || '', {cyan: true, bold: true})}
         </Cell>
@@ -47,7 +47,7 @@ export default function BundleReport(
       </Row>
     );
 
-    let assets = [];
+    let assets: Array<Asset> = [];
     bundle.assetGraph.traverseAssets(asset => {
       assets.push(asset);
     });
@@ -58,7 +58,7 @@ export default function BundleReport(
     for (let asset of largestAssets) {
       // Add a row for the asset.
       rows.push(
-        <Row>
+        <Row key={`asset:${asset.id}`}>
           <Cell>
             {asset == assets[assets.length - 1] ? '└── ' : '├── '}
             {formatFilename(asset.filePath, {})}
@@ -78,7 +78,7 @@ export default function BundleReport(
     // Show how many more assets there are
     if (assets.length > largestAssets.length) {
       rows.push(
-        <Row>
+        <Row key={`bundleAssetCount:${bundle.id}`}>
           <Cell>
             └──{' '}
             <Color dim>
@@ -91,11 +91,11 @@ export default function BundleReport(
 
     // If this isn't the last bundle, add an empty row before the next one
     if (bundle !== bundles[bundles.length - 1]) {
-      rows.push(<Row />);
+      rows.push(<Row key={`spacer:${bundle.id}`} />);
     }
   }
 
-  return <Table>{rows.map((r, i) => React.cloneElement(r, {key: i}))}</Table>;
+  return <Table>{rows.map(r => React.cloneElement(r, {key: r.key}))}</Table>;
 }
 
 function formatFilename(filename: FilePath, color = {}) {
