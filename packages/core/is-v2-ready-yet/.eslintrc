@@ -2,5 +2,8 @@
   "extends": "@parcel/eslint-config",
   "env": {
     "browser": true
+  },
+  "rules": {
+    "react/prop-types": "off" // TODO: Enable this when this package is flow-typed
   }
 }
