@@ -3,7 +3,7 @@ import type {Asset, PackageJSON} from '@parcel/types';
 import semver from 'semver';
 import logger from '@parcel/logger';
 import path from 'path';
-import localRequire from '@parcel/utils/src/localRequire';
+import {localResolve} from '@parcel/utils/src/localRequire';
 import installPackage from '@parcel/utils/src/installPackage';
 import micromatch from 'micromatch';
 
@@ -277,7 +277,7 @@ async function installPlugins(asset, babelrc) {
 async function resolveModule(type, name, path) {
   try {
     name = standardizeName(type, name);
-    let [, pkg] = await localRequire.resolve(name, path);
+    let [, pkg] = await localResolve(name, path);
     return pkg;
   } catch (err) {
     return null;

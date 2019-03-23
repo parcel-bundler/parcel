@@ -17,13 +17,13 @@ export default class PromiseQueue {
     this._maxConcurrent = opts.maxConcurrent;
   }
 
-  _resetState() {
+  _resetState(): void {
     this._queue = [];
     this._running = false;
     this._numRunning = 0;
   }
 
-  add(fn: Function) {
+  add(fn: Function): void {
     this._queue.push(fn);
   }
 
@@ -55,7 +55,7 @@ export default class PromiseQueue {
     });
   }
 
-  async _next() {
+  async _next(): Promise<void> {
     let fn = this._queue.shift();
     await this._runFn(fn);
     if (this._queue.length) {
@@ -65,7 +65,7 @@ export default class PromiseQueue {
     }
   }
 
-  async _runFn(fn: Function) {
+  async _runFn(fn: Function): Promise<void> {
     try {
       this._numRunning++;
       await fn();

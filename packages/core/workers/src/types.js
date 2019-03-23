@@ -1,9 +1,10 @@
 // @flow
 
-import type {CLIOptions, Config, FilePath} from '@parcel/types';
+import type {Config, FilePath, ParcelOptions} from '@parcel/types';
+import type {JSONError} from '@parcel/utils/src/errorUtils';
 
 export type BundlerOptions = {|
-  cliOpts: CLIOptions,
+  options: ParcelOptions,
   config: Config,
   env: ?{[string]: ?string}
 |};
@@ -17,7 +18,7 @@ export type CallRequest = {|
 export type WorkerRequest = {|
   args: Array<any>,
   awaitResponse?: boolean,
-  child?: number,
+  child?: ?number,
   idx?: number,
   location?: FilePath,
   method?: ?string,
@@ -29,7 +30,7 @@ export type WorkerDataResponse = {|
   child?: number,
   type: 'response',
   contentType: 'data',
-  content: ?string
+  content: string
 |};
 
 export type WorkerErrorResponse = {|
@@ -37,7 +38,7 @@ export type WorkerErrorResponse = {|
   child?: number,
   type: 'response',
   contentType: 'error',
-  content: ?string
+  content: JSONError
 |};
 
 export type WorkerResponse = WorkerDataResponse | WorkerErrorResponse;

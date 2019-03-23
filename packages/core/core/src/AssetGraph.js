@@ -299,7 +299,11 @@ export default class AssetGraph extends Graph<AssetGraphNode>
       id: 'bundle:' + asset.id,
       type: asset.type,
       assetGraph: graph,
-      env: asset.env
+      env: asset.env,
+      stats: {
+        size: 0,
+        time: 0
+      }
     };
   }
 
@@ -307,7 +311,7 @@ export default class AssetGraph extends Graph<AssetGraphNode>
     let size = 0;
     let assetNode = asset ? this.getNode(asset.id) : null;
     this.traverseAssets(asset => {
-      size += asset.outputSize;
+      size += asset.stats.size;
     }, assetNode);
 
     return size;

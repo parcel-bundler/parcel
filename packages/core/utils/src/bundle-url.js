@@ -1,18 +1,21 @@
-var bundleURL = null;
+// @flow strict-local
+
+let bundleURL: ?string = null;
 function getBundleURLCached() {
-  if (!bundleURL) {
-    bundleURL = getBundleURL();
+  if (bundleURL == null) {
+    bundleURL = _getBundleURL();
   }
 
   return bundleURL;
 }
 
-function getBundleURL() {
+function _getBundleURL(): string {
   // Attempt to find the URL of the current script and use that as the base URL
   try {
     throw new Error();
   } catch (err) {
-    var matches = ('' + err.stack).match(/(https?|file|ftp):\/\/[^)\n]+/g);
+    let stack: string = typeof err.stack === 'string' ? err.stack : '';
+    let matches = stack.match(/(https?|file|ftp):\/\/[^)\n]+/g);
     if (matches) {
       return getBaseURL(matches[0]);
     }
@@ -21,11 +24,12 @@ function getBundleURL() {
   return '/';
 }
 
-function getBaseURL(url) {
-  return (
-    ('' + url).replace(/^((?:https?|file|ftp):\/\/.+)\/[^/]+$/, '$1') + '/'
-  );
+export function getBaseURL(url: ?string): string {
+  if (url == null) {
+    return '/';
+  }
+
+  return url.replace(/^((?:https?|file|ftp):\/\/.+)\/[^/]+$/, '$1') + '/';
 }
 
-exports.getBundleURL = getBundleURLCached;
-exports.getBaseURL = getBaseURL;
+export const getBundleURL = getBundleURLCached;

@@ -1,19 +1,34 @@
-const config = require('./config');
-const {promisify} = require('util');
-const resolve = promisify(require('resolve'));
-const commandExists = require('command-exists');
-const logger = require('@parcel/logger').default;
-const pipeSpawn = require('./pipeSpawn');
-const PromiseQueue = require('./PromiseQueue');
-const path = require('path');
-const fs = require('@parcel/fs');
+// @flow
 
-async function install(modules, filepath, options = {}) {
+import type {FilePath} from '@parcel/types';
+
+import commandExists from 'command-exists';
+import * as fs from '@parcel/fs';
+import logger from '@parcel/logger';
+import path from 'path';
+import nullthrows from 'nullthrows';
+
+import {loadConfig, resolveConfig} from './config';
+import pipeSpawn from './pipeSpawn';
+import resolve from './resolve';
+import PromiseQueue from './PromiseQueue';
+
+type InstallOptions = {
+  installPeers?: boolean,
+  saveDev?: boolean,
+  packageManager?: 'npm' | 'yarn'
+};
+
+async function install(
+  modules: Array<string>,
+  filepath: FilePath,
+  options: InstallOptions = {}
+): Promise<void> {
   let {installPeers = true, saveDev = true, packageManager} = options;
 
   logger.progress(`Installing ${modules.join(', ')}...`);
 
-  let packageLocation = await config.resolveConfig(filepath, ['package.json']);
+  let packageLocation = await resolveConfig(filepath, ['package.json']);
   let cwd = packageLocation ? path.dirname(packageLocation) : process.cwd();
 
   if (!packageManager) {
@@ -47,10 +62,14 @@ async function install(modules, filepath, options = {}) {
   }
 }
 
-async function installPeerDependencies(filepath, name, options) {
+async function installPeerDependencies(
+  filepath: FilePath,
+  name: string,
+  options
+) {
   let basedir = path.dirname(filepath);
-  const resolved = await resolve(name, {basedir});
-  const pkg = await config.loadConfig(resolved, ['package.json']).config;
+  const [resolved] = await resolve(name, {basedir});
+  const pkg = nullthrows(await loadConfig(resolved, ['package.json'])).config;
   const peers = pkg.peerDependencies || {};
 
   const modules = [];
@@ -67,8 +86,10 @@ async function installPeerDependencies(filepath, name, options) {
   }
 }
 
-async function determinePackageManager(filepath) {
-  let configFile = await config.resolveConfig(filepath, [
+async function determinePackageManager(
+  filepath: FilePath
+): Promise<'npm' | 'yarn'> {
+  let configFile = await resolveConfig(filepath, [
     'yarn.lock',
     'package-lock.json'
   ]);
@@ -84,7 +105,7 @@ async function determinePackageManager(filepath) {
 }
 
 let hasYarn = null;
-async function checkForYarnCommand() {
+async function checkForYarnCommand(): Promise<boolean> {
   if (hasYarn != null) {
     return hasYarn;
   }
@@ -98,8 +119,13 @@ async function checkForYarnCommand() {
   return hasYarn;
 }
 
-let queue = new PromiseQueue(install, {maxConcurrent: 1, retry: false});
-module.exports = function(...args) {
+let queue = new PromiseQueue<Array<string>, *, *>(install, {
+  maxConcurrent: 1,
+  retry: false
+});
+export default function installPackage(
+  ...args: [Array<string>, FilePath] | [Array<string>, FilePath, InstallOptions]
+) {
   queue.add(...args);
   return queue.run();
-};
+}

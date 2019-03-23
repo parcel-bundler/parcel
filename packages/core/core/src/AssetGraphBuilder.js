@@ -1,7 +1,7 @@
 // @flow
 
 import type {
-  CLIOptions,
+  ParcelOptions,
   Dependency,
   FilePath,
   Node,
@@ -20,15 +20,13 @@ import AssetGraph from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import WorkerFarm from '@parcel/workers';
 
-const abortError = new Error('Build aborted');
-
 type BuildOpts = {|
   signal: AbortSignal,
   shallow?: boolean
 |};
 
 type Opts = {|
-  cliOpts: CLIOptions,
+  options: ParcelOptions,
   config: Config,
   entries?: Array<string>,
   targets?: Array<Target>,
@@ -45,14 +43,20 @@ export default class AssetGraphBuilder extends EventEmitter {
   farm: WorkerFarm;
   runTransform: (file: TransformerRequest) => Promise<any>;
 
-  constructor(opts: Opts) {
+  constructor({
+    config,
+    options,
+    rootDir,
+    entries,
+    targets,
+    transformerRequest
+  }: Opts) {
     super();
-    let {config, cliOpts, rootDir, entries, targets, transformerRequest} = opts;
 
     this.queue = new PromiseQueue();
     this.resolverRunner = new ResolverRunner({
       config,
-      cliOpts,
+      options,
       rootDir
     });
 
@@ -60,7 +64,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.graph.initializeGraph({entries, targets, transformerRequest, rootDir});
 
     this.controller = new AbortController();
-    if (opts.cliOpts.watch) {
+    if (options.watch) {
       this.watcher = new Watcher();
       this.watcher.on('change', async filePath => {
         if (this.graph.hasNode(filePath)) {
@@ -134,7 +138,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
 
     if (signal.aborted) {
-      throw abortError;
+      throw new BuildAbortError();
     }
 
     let req = {filePath: resolvedPath, env: dep.env};
@@ -147,11 +151,15 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async transform(req: TransformerRequest, {signal, shallow}: BuildOpts) {
+    let start = Date.now();
     let cacheEntry = await this.runTransform(req);
+    let time = Date.now() - start;
 
-    this.emit('transformed', cacheEntry);
+    for (let asset of cacheEntry.assets) {
+      asset.stats.time = time;
+    }
 
-    if (signal.aborted) throw abortError;
+    if (signal.aborted) throw new BuildAbortError();
     let {
       addedFiles,
       removedFiles,
@@ -175,4 +183,8 @@ export default class AssetGraphBuilder extends EventEmitter {
       }
     }
   }
+}
+
+export class BuildAbortError extends Error {
+  name = 'BuildAbortError';
 }

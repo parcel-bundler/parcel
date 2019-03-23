@@ -9,9 +9,15 @@ import type {
   WorkerResponse
 } from './types';
 
+import type {IDisposable} from '@parcel/types';
+
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {errorUtils} from '@parcel/utils';
-import {serialize, deserialize} from '@parcel/utils/serializer';
+import Logger from '@parcel/logger';
+import {errorToJson, jsonToError} from '@parcel/utils/src/errorUtils';
+import {serialize, deserialize} from '@parcel/utils/src/serializer';
+
+import bus from './bus';
 
 type ChildCall = WorkerRequest & {|
   resolve: (result: Promise<any> | any) => void,
@@ -25,11 +31,18 @@ class Child {
   module: ?any;
   responseId = 0;
   responseQueue: Map<number, ChildCall> = new Map();
+  loggerDisposable: IDisposable;
 
   constructor() {
     if (!process.send) {
       throw new Error('Only create Child instances in a worker!');
     }
+
+    // Monitior all logging events inside this child process and forward to
+    // the main process via the bus.
+    this.loggerDisposable = Logger.onLog(event => {
+      bus.emit('logEvent', event);
+    });
   }
 
   messageListener(data: string): void | Promise<void> {
@@ -58,7 +71,7 @@ class Child {
     });
   }
 
-  childInit(module: any, childId: number): void {
+  childInit(module: string, childId: number): void {
     // $FlowFixMe this must be dynamic
     this.module = require(module);
     this.childId = childId;
@@ -81,13 +94,14 @@ class Child {
       child,
       type: 'response',
       contentType: 'error',
-      content: errorUtils.errorToJson(e)
+      content: errorToJson(e)
     });
 
     let result;
     if (method === 'childInit') {
       try {
-        result = responseFromContent(this.childInit(...args, child));
+        let [moduleName] = args;
+        result = responseFromContent(this.childInit(moduleName, child));
       } catch (e) {
         result = errorResponseFromError(e);
       }
@@ -110,7 +124,8 @@ class Child {
     let call = nullthrows(this.responseQueue.get(idx));
 
     if (contentType === 'error') {
-      call.reject(errorUtils.jsonToError(content));
+      invariant(typeof content !== 'string');
+      call.reject(jsonToError(content));
     } else {
       call.resolve(content);
     }
@@ -130,7 +145,7 @@ class Child {
     let call: ChildCall = {
       ...request,
       type: 'request',
-      child: nullthrows(this.childId),
+      child: this.childId,
       awaitResponse,
       resolve: () => {},
       reject: () => {}
@@ -179,6 +194,7 @@ class Child {
   }
 
   end(): void {
+    this.loggerDisposable.dispose();
     process.exit();
   }
 }
@@ -186,4 +202,4 @@ class Child {
 let child = new Child();
 process.on('message', child.messageListener.bind(child));
 
-module.exports = child;
+export default child;

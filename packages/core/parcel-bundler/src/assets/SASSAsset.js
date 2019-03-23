@@ -1,6 +1,6 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
-const {promisify} = require('@parcel/utils');
+const promisify = require('@parcel/utils/src/promisify');
 const path = require('path');
 const os = require('os');
 const Resolver = require('../Resolver');

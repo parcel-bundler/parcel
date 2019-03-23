@@ -4,9 +4,9 @@ import type AssetGraph from './AssetGraph';
 import type {
   Asset,
   Bundle,
-  CLIOptions,
   FilePath,
   Namer,
+  ParcelOptions,
   TransformerRequest
 } from '@parcel/types';
 import type Config from './Config';
@@ -14,29 +14,35 @@ import type Config from './Config';
 import nullthrows from 'nullthrows';
 import BundleGraph from './BundleGraph';
 import AssetGraphBuilder from './AssetGraphBuilder';
+import {report} from './ReporterRunner';
 
 type Opts = {|
-  cliOpts: CLIOptions,
+  options: ParcelOptions,
   config: Config,
   rootDir: FilePath
 |};
 
 export default class BundlerRunner {
-  cliOpts: CLIOptions;
+  options: ParcelOptions;
   config: Config;
   rootDir: FilePath;
 
   constructor(opts: Opts) {
-    this.cliOpts = opts.cliOpts;
+    this.options = opts.options;
     this.config = opts.config;
     this.rootDir = opts.rootDir;
   }
 
   async bundle(graph: AssetGraph): Promise<BundleGraph> {
+    report({
+      type: 'buildProgress',
+      phase: 'bundling'
+    });
+
     let bundler = await this.config.getBundler();
 
     let bundleGraph = new BundleGraph();
-    await bundler.bundle(graph, bundleGraph, this.cliOpts);
+    await bundler.bundle(graph, bundleGraph, this.options);
     await this.nameBundles(bundleGraph);
     await this.applyRuntimes(bundleGraph);
 
@@ -93,7 +99,7 @@ export default class BundlerRunner {
 
     let runtimes = await this.config.getRuntimes(bundle.env.context);
     for (let runtime of runtimes) {
-      await runtime.apply(bundle, this.cliOpts);
+      await runtime.apply(bundle, this.options);
     }
   }
 
@@ -104,7 +110,7 @@ export default class BundlerRunner {
     transformerRequest: TransformerRequest
   ): Promise<Asset> {
     let builder = new AssetGraphBuilder({
-      cliOpts: this.cliOpts,
+      options: this.options,
       config: this.config,
       rootDir: this.rootDir,
       transformerRequest

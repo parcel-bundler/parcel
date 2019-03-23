@@ -1,7 +1,7 @@
 const path = require('path');
 const commandExists = require('command-exists');
 const childProcess = require('child_process');
-const {promisify} = require('@parcel/utils');
+const promisify = require('@parcel/utils/src/promisify');
 
 const exec = promisify(childProcess.execFile);
 const toml = require('@iarna/toml');

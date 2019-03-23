@@ -19,7 +19,7 @@
 
 //     let packagerRunner = new PackagerRunner({
 //       parcelConfig: config,
-//       cliOpts: {}
+//       options: {}
 //     });
 
 //     await packagerRunner.runPackager({ bundle });

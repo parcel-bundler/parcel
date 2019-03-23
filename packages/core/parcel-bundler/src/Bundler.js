@@ -9,7 +9,7 @@ const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
 const {EventEmitter} = require('events');
-const logger = require('@parcel/logger').default;
+const logger = require('@parcel/logger');
 const PackagerRegistry = require('./packagers');
 const localRequire = require('./utils/localRequire');
 const config = require('./utils/config');
@@ -18,7 +18,7 @@ const PromiseQueue = require('./utils/PromiseQueue');
 const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
-const getRootDir = require('@parcel/utils/getRootDir');
+const getRootDir = require('@parcel/utils/src/getRootDir').default;
 const {glob} = require('./utils/glob');
 
 /**

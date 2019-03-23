@@ -5,8 +5,8 @@ import type {BundlerOptions, WorkerMessage} from './types';
 
 import childProcess, {type ChildProcess} from 'child_process';
 import EventEmitter from 'events';
-import {errorUtils} from '@parcel/utils';
-import {serialize, deserialize} from '@parcel/utils/serializer';
+import {jsonToError} from '@parcel/utils/src/errorUtils';
+import {serialize, deserialize} from '@parcel/utils/src/serializer';
 
 const childModule = require.resolve('./child');
 
@@ -168,7 +168,7 @@ export default class Worker extends EventEmitter {
       }
 
       if (contentType === 'error') {
-        call.reject(errorUtils.jsonToError(content));
+        call.reject(jsonToError(content));
       } else {
         call.resolve(content);
       }

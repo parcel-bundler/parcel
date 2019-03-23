@@ -2,7 +2,7 @@
   "name": "@parcel/utils",
   "version": "1.10.3",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "index.js",
+  "main": "src/index.js",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -22,7 +22,7 @@
   "dependencies": {
     "@iarna/toml": "^2.2.0",
     "@parcel/fs": "^1.10.3",
-    "@parcel/logger": "^1.10.3",
+    "@parcel/logger": "^2.0.0",
     "@parcel/workers": "^1.10.3",
     "clone": "^2.1.1",
     "command-exists": "^1.2.6",
@@ -40,6 +40,7 @@
     "terser": "^3.7.3"
   },
   "devDependencies": {
-    "@babel/plugin-transform-flow-strip-types": "^7.2.0"
+    "@babel/plugin-transform-flow-strip-types": "^7.2.0",
+    "@parcel/types": "^2.0.0"
   }
 }

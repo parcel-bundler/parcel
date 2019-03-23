@@ -1,4 +1,6 @@
-function lineCounter(string) {
+// @flow strict-local
+
+export default function lineCounter(string: string): number {
   let lines = 1;
   for (let i = 0; i < string.length; i++) {
     if (string.charAt(i) === '\n') {
@@ -8,5 +10,3 @@ function lineCounter(string) {
 
   return lines;
 }
-
-module.exports = lineCounter;

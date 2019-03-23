@@ -1,67 +1,41 @@
 // @flow
 
+import type {Bundle, BundleGraph, ParcelOptions, Stats} from '@parcel/types';
+
 import AssetGraph from './AssetGraph';
-import type {
-  Bundle,
-  BundleGraph,
-  CLIOptions,
-  ParcelConfig,
-  ServerOptions
-} from '@parcel/types';
-import type {PrintableError} from '@parcel/logger/src/prettyError';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
-import getRootDir from '@parcel/utils/getRootDir';
+import getRootDir from '@parcel/utils/src/getRootDir';
 import loadEnv from './loadEnv';
 import path from 'path';
 import Cache from '@parcel/cache';
-import AssetGraphBuilder from './AssetGraphBuilder';
+import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
-import {HMRServer, serve} from '@parcel/server';
-import type {Server} from '@parcel/server';
-import EventEmitter from 'events';
+import ReporterRunner from './ReporterRunner';
 
-const abortError = new Error('Build aborted');
-
-type ParcelOpts = {|
-  entries: string | Array<string>,
-  cwd?: string,
-  cliOpts: CLIOptions,
-  killWorkers?: boolean,
-  env?: {[string]: ?string},
-  config?: ParcelConfig,
-  defaultConfig?: ParcelConfig,
-  hot?: ServerOptions | boolean,
-  serve?: ServerOptions | boolean
-|};
-
-export default class Parcel extends EventEmitter {
-  options: ParcelOpts;
+export default class Parcel {
+  options: ParcelOptions;
   entries: Array<string>;
   rootDir: string;
   assetGraphBuilder: AssetGraphBuilder;
   bundlerRunner: BundlerRunner;
+  reporterRunner: ReporterRunner;
   farm: WorkerFarm;
-  runPackage: (bundle: Bundle) => Promise<mixed>;
-  server: Server;
-  pending: boolean;
-  error: PrintableError;
-  bundleGraph: BundleGraph;
-  hmrServer: HMRServer;
+  runPackage: (bundle: Bundle) => Promise<Stats>;
 
-  constructor(options: ParcelOpts) {
-    super();
-
-    let {entries} = options;
-
+  constructor(options: ParcelOptions) {
     this.options = options;
-    this.entries = Array.isArray(entries) ? entries : [entries];
+    this.entries = Array.isArray(options.entries)
+      ? options.entries
+      : options.entries
+        ? [options.entries]
+        : [];
     this.rootDir = getRootDir(this.entries);
   }
 
   async init(): Promise<void> {
-    await Cache.createCacheDir(this.options.cliOpts.cacheDir);
+    await Cache.createCacheDir(this.options.cacheDir);
 
     if (!this.options.env) {
       await loadEnv(path.join(this.rootDir, 'index'));
@@ -73,17 +47,14 @@ export default class Parcel extends EventEmitter {
 
     // If an explicit `config` option is passed use that, otherwise resolve a .parcelrc from the filesystem.
     if (this.options.config) {
-      config = await configResolver.create(this.options.config, this.rootDir);
+      config = await configResolver.create(this.options.config);
     } else {
       config = await configResolver.resolve(this.rootDir);
     }
 
     // If no config was found, default to the `defaultConfig` option if one is provided.
     if (!config && this.options.defaultConfig) {
-      config = await configResolver.create(
-        this.options.defaultConfig,
-        this.rootDir
-      );
+      config = await configResolver.create(this.options.defaultConfig);
     }
 
     if (!config) {
@@ -92,15 +63,20 @@ export default class Parcel extends EventEmitter {
 
     this.bundlerRunner = new BundlerRunner({
       config,
-      cliOpts: this.options.cliOpts,
+      options: this.options,
       rootDir: this.rootDir
+    });
+
+    this.reporterRunner = new ReporterRunner({
+      config,
+      options: this.options
     });
 
     let targetResolver = new TargetResolver();
     let targets = await targetResolver.resolve(this.rootDir);
 
     this.assetGraphBuilder = new AssetGraphBuilder({
-      cliOpts: this.options.cliOpts,
+      options: this.options,
       config,
       entries: this.entries,
       targets,
@@ -110,7 +86,7 @@ export default class Parcel extends EventEmitter {
     this.farm = await WorkerFarm.getShared(
       {
         config,
-        cliOpts: this.options.cliOpts,
+        options: this.options,
         env: this.options.env
       },
       {
@@ -119,20 +95,6 @@ export default class Parcel extends EventEmitter {
     );
 
     this.runPackage = this.farm.mkhandle('runPackage');
-
-    if (this.options.serve) {
-      // Not sure if the server should even be mentioned in the core?
-      // Perhaps it should be part of the cli?
-      this.server = await serve(this, this.options.serve);
-    }
-
-    if (this.options.hot) {
-      this.hmrServer = await serve(this, this.options.hot);
-
-      this.assetGraphBuilder.on('transformed', cacheEntry => {
-        this.hmrServer.addChangedAsset(cacheEntry);
-      });
-    }
   }
 
   async run(): Promise<BundleGraph> {
@@ -147,9 +109,11 @@ export default class Parcel extends EventEmitter {
 
   async build(): Promise<BundleGraph> {
     try {
-      // console.log('Starting build'); // eslint-disable-line no-console
-      this.pending = true;
+      this.reporterRunner.report({
+        type: 'buildStart'
+      });
 
+      let startTime = Date.now();
       let assetGraph = await this.assetGraphBuilder.build();
 
       if (process.env.PARCEL_DUMP_GRAPH != null) {
@@ -161,19 +125,25 @@ export default class Parcel extends EventEmitter {
       let bundleGraph = await this.bundle(assetGraph);
       await this.package(bundleGraph);
 
-      if (!this.options.cliOpts.watch && this.options.killWorkers !== false) {
+      this.reporterRunner.report({
+        type: 'buildSuccess',
+        assetGraph,
+        bundleGraph,
+        buildTime: Date.now() - startTime
+      });
+
+      if (!this.options.watch && this.options.killWorkers !== false) {
         await this.farm.end();
       }
 
-      this.bundleGraph = bundleGraph;
-      this.emit('bundled');
-      // console.log('Finished build'); // eslint-disable-line no-console
       return bundleGraph;
     } catch (e) {
-      if (e !== abortError) {
-        console.error(e); // eslint-disable-line no-console
+      if (!(e instanceof BuildAbortError)) {
+        this.reporterRunner.report({
+          type: 'buildFailure',
+          error: e
+        });
       }
-      this.error = e;
       throw e;
     }
   }
@@ -185,7 +155,11 @@ export default class Parcel extends EventEmitter {
   package(bundleGraph: BundleGraph): Promise<mixed> {
     let promises = [];
     bundleGraph.traverseBundles(bundle => {
-      promises.push(this.runPackage(bundle));
+      promises.push(
+        this.runPackage(bundle).then(stats => {
+          bundle.stats = stats;
+        })
+      );
     });
 
     return Promise.all(promises);

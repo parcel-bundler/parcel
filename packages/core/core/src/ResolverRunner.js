@@ -1,12 +1,13 @@
 // @flow
 
-import type {CLIOptions, Dependency, FilePath} from '@parcel/types';
+import type {ParcelOptions, Dependency, FilePath} from '@parcel/types';
 import path from 'path';
 import Config from './Config';
+import {report} from './ReporterRunner';
 
 type Opts = {|
   config: Config,
-  cliOpts: CLIOptions,
+  options: ParcelOptions,
   rootDir: string
 |};
 
@@ -15,18 +16,24 @@ const getCacheKey = (filename, parent) =>
 
 export default class ResolverRunner {
   config: Config;
-  cliOpts: CLIOptions;
+  options: ParcelOptions;
   cache: Map<string, FilePath>;
   rootDir: string;
 
-  constructor({config, cliOpts, rootDir}: Opts) {
+  constructor({config, options, rootDir}: Opts) {
     this.config = config;
-    this.cliOpts = cliOpts;
+    this.options = options;
     this.cache = new Map();
     this.rootDir = rootDir;
   }
 
   async resolve(dependency: Dependency): Promise<FilePath> {
+    report({
+      type: 'buildProgress',
+      phase: 'resolving',
+      dependency
+    });
+
     // Check the cache first
     let key = getCacheKey(dependency.moduleSpecifier, dependency.sourcePath);
     let cached = this.cache.get(key);
@@ -40,7 +47,7 @@ export default class ResolverRunner {
     for (let resolver of resolvers) {
       let result = await resolver.resolve(
         dependency,
-        this.cliOpts,
+        this.options,
         this.rootDir
       );
 

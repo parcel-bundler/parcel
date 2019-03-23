@@ -23,6 +23,7 @@
     "mocha": "^5.2.0"
   },
   "dependencies": {
+    "@parcel/logger": "^2.0.0",
     "@parcel/utils": "^1.10.3",
     "physical-cpu-count": "^2.0.0",
     "nullthrows": "^1.1.1"

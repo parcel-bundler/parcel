@@ -1,19 +1,19 @@
 // @flow
 
 import {Resolver} from '@parcel/plugin';
-import type {CLIOptions, Dependency, PackageJSON} from '@parcel/types';
+import type {ParcelOptions, Dependency, PackageJSON} from '@parcel/types';
 import path from 'path';
 import * as fs from '@parcel/fs';
-import {glob} from '@parcel/utils';
+import {isGlob} from '@parcel/utils/src/glob';
 import micromatch from 'micromatch';
 import builtins from './builtins';
 // import nodeBuiltins from 'node-libs-browser';
 
 export default new Resolver({
-  async resolve(dep: Dependency, cli: CLIOptions, rootDir: string) {
+  async resolve(dep: Dependency, options: ParcelOptions, rootDir: string) {
     const resolved = await new NodeResolver({
       extensions: ['js', 'json', 'css'],
-      cli,
+      options,
       rootDir
     }).resolve(dep);
 
@@ -28,7 +28,7 @@ type InternalPackageJSON = PackageJSON & {
 const EMPTY_SHIM = require.resolve('./_empty');
 
 type Options = {|
-  cli: CLIOptions,
+  options: ParcelOptions,
   rootDir: string,
   extensions: Array<string>
 |};
@@ -52,20 +52,24 @@ class NodeResolver {
   rootPackage: InternalPackageJSON | null;
 
   constructor(options: Options) {
-    this.options = options;
+    // $FlowFixMe
+    this.options = Object.assign({}, options, {
+      // normalize extensions that don't lead with '.'
+      extensions: options.extensions.map(
+        ext => (ext.startsWith('.') ? ext : '.' + ext)
+      )
+    });
     this.packageCache = new Map();
     this.rootPackage = null;
   }
 
   async resolve({
-    moduleSpecifier: input,
+    moduleSpecifier: filename,
     sourcePath: parent,
     isURL
   }: Dependency) {
-    let filename = input;
-
     // Check if this is a glob
-    if (glob.isGlob(filename)) {
+    if (isGlob(filename)) {
       return {path: path.resolve(path.dirname(parent), filename)};
     }
 
@@ -440,7 +444,7 @@ class NodeResolver {
       // Otherwise, try replacing glob keys
       for (let key in aliases) {
         let val = aliases[key];
-        if (typeof val === 'string' && glob.isGlob(key)) {
+        if (typeof val === 'string' && isGlob(key)) {
           let re = micromatch.makeRe(key, {capture: true});
           if (re.test(filename)) {
             alias = filename.replace(re, val);

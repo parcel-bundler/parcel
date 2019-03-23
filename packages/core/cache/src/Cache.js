@@ -8,13 +8,13 @@ import objectHash from '@parcel/utils/src/objectHash';
 import logger from '@parcel/logger';
 import type {
   FilePath,
-  CLIOptions,
+  ParcelOptions,
   JSONObject,
   CacheEntry,
   Asset,
   Environment
 } from '@parcel/types';
-import {serialize, deserialize} from '@parcel/utils/serializer';
+import {serialize, deserialize} from '@parcel/utils/src/serializer';
 import pkg from '../package.json';
 
 // These keys can affect the output, so if they differ, the cache should not match
@@ -32,7 +32,7 @@ export class Cache {
   invalidated: Set<FilePath>;
   optionsHash: string;
 
-  init(options: CLIOptions): void {
+  init(options: ParcelOptions) {
     this.dir = path.resolve(options.cacheDir || DEFAULT_CACHE_DIR);
     this.invalidated = new Set();
     this.optionsHash = objectHash(

@@ -1,5 +1,10 @@
-const Watcher = require('../index');
-const assert = require('assert');
+// @flow
+
+import Watcher from '../';
+import assert from 'assert';
+
+// For flow
+const invariant = assert;
 
 describe('Watcher', function() {
   it('Should be able to create a new watcher', async () => {
@@ -20,10 +25,11 @@ describe('Watcher', function() {
     let watcher = new Watcher();
     await new Promise(resolve => watcher.once('ready', resolve));
 
-    assert(watcher.child);
+    assert(watcher.child != null);
     assert(watcher.ready);
 
     await watcher.stop();
+    invariant(watcher.child != null);
     assert(watcher.child.killed);
   });
 });

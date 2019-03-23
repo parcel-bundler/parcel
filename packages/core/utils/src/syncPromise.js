@@ -1,10 +1,12 @@
-const deasync = require('deasync');
+// @flow strict-local
+
+import deasync from 'deasync';
 
 /**
  * Synchronously waits for a promise to return by
  * yielding to the node event loop as needed.
  */
-function syncPromise(promise) {
+export default function syncPromise<T>(promise: Promise<T>): T {
   let isDone = false;
   let res, err;
 
@@ -25,7 +27,6 @@ function syncPromise(promise) {
     throw err;
   }
 
+  // $FlowFixMe this is valid since we wait using deasync above
   return res;
 }
-
-module.exports = syncPromise;
