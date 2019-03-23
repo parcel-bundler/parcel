@@ -1,6 +1,6 @@
 // @flow
 import type {ServerOptions, CacheEntry, Asset} from '@parcel/types';
-import type {PrintableError} from '@parcel/logger/src/prettyError';
+import type {PrintableError} from '@parcel/reporter-cli/src/prettyError';
 import type {Server, ServerError} from './types.js.flow';
 import http from 'http';
 import https from 'https';
@@ -8,6 +8,7 @@ import WebSocket from 'ws';
 import generateCertificate from './generateCertificate';
 import getCertificate from './getCertificate';
 import logger from '@parcel/logger';
+import prettyError from '@parcel/reporter-cli/src/prettyError';
 
 type HMRMessage = {|
   type: string,
@@ -70,7 +71,7 @@ export default class HMRServer {
   }
 
   emitError(err: PrintableError) {
-    let {message, stack} = logger.formatError(err);
+    let {message, stack} = prettyError(err);
 
     // store the most recent error so we can notify new connections
     // and so we can broadcast when the error is resolved

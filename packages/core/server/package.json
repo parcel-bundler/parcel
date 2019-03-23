@@ -20,6 +20,7 @@
   "dependencies": {
     "@parcel/fs": "^1.10.0",
     "@parcel/logger": "^2.0.0",
+    "@parcel/reporter-cli": "^2.0.0",
     "ansi-to-html": "^0.6.10",
     "get-port": "^4.2.0",
     "mkdirp": "^0.5.1",

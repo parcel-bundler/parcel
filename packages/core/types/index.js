@@ -144,12 +144,13 @@ export type ParcelOptions = {|
 export type ServerOptions = {|
   host?: string,
   port?: number,
-  https?: HTTPSOptions | boolean
+  https?: HTTPSOptions | boolean,
+  certificateDir?: string
 |};
 
 export type HTTPSOptions = {|
-  cert?: FilePath,
-  key?: FilePath
+  cert: FilePath,
+  key: FilePath
 |};
 
 export type SourceLocation = {|
