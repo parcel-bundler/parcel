@@ -9,7 +9,8 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "engines": {
-    "node": ">= 6.0.0"
+    "node": ">= 6.0.0",
+    "parcel": "^2.0.0"
   },
   "scripts": {
     "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
