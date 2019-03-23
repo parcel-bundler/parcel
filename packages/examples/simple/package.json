@@ -4,7 +4,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "node -r @parcel/babel-register ./node_modules/.bin/parcel src/index.js"
+    "demo": "node -r @parcel/babel-register ./node_modules/.bin/parcel src/index.js -w"
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0",
