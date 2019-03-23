@@ -19,6 +19,7 @@ import PromiseQueue from './PromiseQueue';
 import AssetGraph from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import WorkerFarm from '@parcel/workers';
+import {report} from './ReporterRunner';
 
 type BuildOpts = {|
   signal: AbortSignal,
@@ -154,6 +155,12 @@ export default class AssetGraphBuilder extends EventEmitter {
     let start = Date.now();
     let cacheEntry = await this.runTransform(req);
     let time = Date.now() - start;
+
+    report({
+      type: 'buildProgress',
+      phase: 'transformFinished',
+      cacheEntry
+    });
 
     for (let asset of cacheEntry.assets) {
       asset.stats.time = time;

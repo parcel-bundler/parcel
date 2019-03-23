@@ -482,6 +482,12 @@ type TransformingProgressEvent = {|
   request: TransformerRequest
 |};
 
+type TransformFinishedEvent = {|
+  type: 'buildProgress',
+  phase: 'transformFinished',
+  cacheEntry: CacheEntry
+|};
+
 type BundlingProgressEvent = {|
   type: 'buildProgress',
   phase: 'bundling'
@@ -502,6 +508,7 @@ type OptimizingProgressEvent = {|
 export type BuildProgressEvent =
   | ResolvingProgressEvent
   | TransformingProgressEvent
+  | TransformFinishedEvent
   | BundlingProgressEvent
   | PackagingProgressEvent
   | OptimizingProgressEvent;
