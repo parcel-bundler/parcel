@@ -5,8 +5,8 @@ import type {Server, ServerError} from './types.js.flow';
 import http from 'http';
 import https from 'https';
 import WebSocket from 'ws';
-import generateCertificate from './generateCertificate';
-import getCertificate from './getCertificate';
+import generateCertificate from '@parcel/server-utils/src/generateCertificate';
+import getCertificate from '@parcel/server-utils/src/getCertificate';
 import logger from '@parcel/logger';
 import prettyError from '@parcel/reporter-cli/src/prettyError';
 
