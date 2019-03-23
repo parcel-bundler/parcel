@@ -7,7 +7,7 @@ export default function Notes() {
       Yes, this is Parcel as a (nearly) self-hosting bundler (self-
       <i>hoisting</i> doesn't work ...)
       <br />
-      The Parcel portion of this page, including all compilers, is a 2.8MB
+      The Parcel portion of this page, including all compilers, is a 4.8MB
       gzipped bundle running in a Web Worker
       <br />
       <br />

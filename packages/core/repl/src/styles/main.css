@@ -7,13 +7,30 @@ body,
 }
 
 body {
-  padding: 1em;
 }
 
-header > h1 {
-  margin: 0;
+header {
+  height: 50px;
+
+  display: flex;
+  align-items: center;
+
+  background: #21374b;
+  color: #e7dacb;
+  font-family: 'Gill Sans', 'Avenir Next', Avenir, 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
-header > h1 a {
+
+header a {
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+
+  padding: 0 15px;
   text-decoration: none;
-  color: initial;
+  color: inherit;
+}
+
+header a > * {
+  margin-right: 5px;
 }

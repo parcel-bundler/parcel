@@ -64,6 +64,7 @@ parcel-bundler: (worker)
 - "Production" ? NODE_ENV ? As cli flag?
 - sass illegal invocation: https://github.com/mbullington/node_preamble.dart/issues/14
 - builtins/bundle loaders: fs.readFileSync(require.resolve)
+- preview doesn't work with typescript asset
 
 #### Cache
 
