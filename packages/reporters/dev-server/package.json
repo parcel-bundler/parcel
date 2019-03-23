@@ -1,8 +1,8 @@
 {
-  "name": "@parcel/server",
+  "name": "@parcel/reporter-dev-server",
   "version": "2.0.0",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "src/index.js",
+  "main": "src/ServerReporter.js",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -18,17 +18,16 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "@parcel/fs": "^1.10.0",
+    "@parcel/plugin": "^2.0.0",
     "@parcel/logger": "^2.0.0",
     "@parcel/reporter-cli": "^2.0.0",
-    "ansi-to-html": "^0.6.10",
-    "get-port": "^4.2.0",
-    "mkdirp": "^0.5.1",
-    "node-forge": "^0.8.1",
+    "@parcel/server-utils": "^2.0.0",
     "serve-static": "^1.13.2",
-    "ws": "^6.2.0"
+    "ansi-to-html": "^0.6.10",
+    "get-port": "^4.2.0"
   },
   "devDependencies": {
-    "@parcel/babel-preset": "^2.0.0"
+    "@parcel/babel-preset": "^2.0.0",
+    "@parcel/types": "^2.0.0"
   }
 }

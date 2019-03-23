@@ -16,8 +16,12 @@ type HMRMessage = {|
     message: string,
     stack?: string
   },
-  // TODO: Update assets type once it actually works
-  assets?: Array<any>
+  assets?: Array<{
+    id: string,
+    type: string,
+    code: string,
+    deps: Object
+  }>
 |};
 
 export default class HMRServer {
