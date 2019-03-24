@@ -44,7 +44,14 @@ parcelRequire = (function (modules, cache, entry, globalName) {
 
       var module = cache[name] = new newRequire.Module(name);
 
-      modules[name][0].call(module.exports, localRequire, module, module.exports, this);
+      var getGlobal = function () {
+        if (typeof self !== 'undefined') { return self; }
+        if (typeof window !== 'undefined') { return window; }
+        if (typeof global !== 'undefined') { return global; }
+        throw new Error('unable to locate global object');
+      };
+
+      modules[name][0].call(module.exports, localRequire, module, module.exports, getGlobal);
     }
 
     return cache[name].exports;
