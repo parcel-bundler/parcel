@@ -10,7 +10,7 @@
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": {
-    "browser": ["@parcel/runtime-js"],
+    "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
     "node": ["@parcel/runtime-js"]
   },
   "packagers": {
