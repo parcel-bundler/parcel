@@ -15,7 +15,8 @@ async function getBabelConfig(asset, isSource) {
   // Ignore if the config is empty.
   if (
     (!config.plugins || config.plugins.length === 0) &&
-    (!config.presets || config.presets.length === 0)
+    (!config.presets || config.presets.length === 0) &&
+    !config.env
   ) {
     return null;
   }

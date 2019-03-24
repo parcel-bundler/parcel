@@ -93,7 +93,8 @@ function mergeConfigs(result, config) {
   if (
     !config ||
     ((!config.config.presets || config.config.presets.length === 0) &&
-      (!config.config.plugins || config.config.plugins.length === 0))
+      (!config.config.plugins || config.config.plugins.length === 0) &&
+      !config.config.env)
   ) {
     return;
   }
