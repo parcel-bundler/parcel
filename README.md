@@ -21,6 +21,7 @@
 - ✂️ Zero configuration **code splitting** using dynamic `import()` statements.
 - 🔥 Built in support for **hot module replacement**
 - 🚨 Friendly error logging experience - syntax highlighted code frames help pinpoint the problem.
+- Automatically installs missing packages **from npm** by default (use `--no-autoinstall` to disable)
 
 ## Getting started
 
