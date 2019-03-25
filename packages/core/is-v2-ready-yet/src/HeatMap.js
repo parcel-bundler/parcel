@@ -17,6 +17,7 @@ export default class HeatMap extends React.Component {
           data-status={status}
           className={`Test ${status}`}
           href={link}
+          rel="noopener noreferrer"
         />
       );
     });

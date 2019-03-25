@@ -37,7 +37,7 @@ class Footer extends React.Component {
         </div>
         <div className="FooterRow">
           <FooterLink href="tomocchino/isfiberreadyyet">
-            Forked from "Is Fiber Ready Yet?"
+            Forked from {'"Is Fiber Ready Yet?"'}
           </FooterLink>
         </div>
       </div>
