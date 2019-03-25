@@ -5,6 +5,14 @@
 //
 // anything defined in a previous bundle is accessed via the
 // orig method which is the require for previous bundles
+
+var getGlobal = function () {
+  if (typeof self !== 'undefined') { return self; }
+  if (typeof window !== 'undefined') { return window; }
+  if (typeof global !== 'undefined') { return global; }
+  throw new Error('unable to locate global object');
+};
+
 parcelRequire = (function (modules, cache, entry, globalName) {
   // Save the require from previous bundle to this closure if any
   var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
@@ -43,13 +51,6 @@ parcelRequire = (function (modules, cache, entry, globalName) {
       localRequire.cache = {};
 
       var module = cache[name] = new newRequire.Module(name);
-
-      var getGlobal = function () {
-        if (typeof self !== 'undefined') { return self; }
-        if (typeof window !== 'undefined') { return window; }
-        if (typeof global !== 'undefined') { return global; }
-        throw new Error('unable to locate global object');
-      };
 
       modules[name][0].call(module.exports, localRequire, module, module.exports, getGlobal);
     }
