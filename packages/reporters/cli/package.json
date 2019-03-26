@@ -21,7 +21,7 @@
     "cli-spinners": "^2.0.0",
     "filesize": "^3.6.0",
     "grapheme-breaker": "^0.3.2",
-    "ink": "^2.0.0-11",
+    "ink": "^2.0.0",
     "ink-spinner": "^2.0.0",
     "nullthrows": "^1.1.1",
     "react": "^16.7.0"
