@@ -1,6 +1,9 @@
-(typeof window !== 'undefined' ? window : global).parcelRequire = (function (init) {
+function getGlobalObject(){
+  return typeof window !== 'undefined' ? window : global;
+}
+getGlobalObject().parcelRequire = (function (init) {
   // Save the require from previous bundle to this closure if any
-  var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
+  var previousRequire = typeof getGlobalObject().parcelRequire === 'function' && getGlobalObject().parcelRequire;
   var nodeRequire = typeof require === 'function' && require;
   var modules = {};
 
@@ -12,7 +15,7 @@
     // if we cannot find the module within our internal map or
     // cache jump to the current global require ie. the last bundle
     // that was added to the page.
-    var currentRequire = typeof parcelRequire === 'function' && parcelRequire;
+    var currentRequire = typeof getGlobalObject().parcelRequire === 'function' && getGlobalObject().parcelRequire;
     if (!jumped && currentRequire) {
       return currentRequire(name, true);
     }

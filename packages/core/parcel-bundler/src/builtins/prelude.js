@@ -5,9 +5,12 @@
 //
 // anything defined in a previous bundle is accessed via the
 // orig method which is the require for previous bundles
-(typeof window !== 'undefined' ? window : global).parcelRequire = (function (modules, cache, entry, globalName) {
+function getGlobalObject(){
+  return typeof window !== 'undefined' ? window : global;
+}
+getGlobalObject().parcelRequire = (function (modules, cache, entry, globalName) {
   // Save the require from previous bundle to this closure if any
-  var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
+  var previousRequire = typeof getGlobalObject().parcelRequire === 'function' && getGlobalObject().parcelRequire;
   var nodeRequire = typeof require === 'function' && require;
 
   function newRequire(name, jumped) {
@@ -16,7 +19,7 @@
         // if we cannot find the module within our internal map or
         // cache jump to the current global require ie. the last bundle
         // that was added to the page.
-        var currentRequire = typeof parcelRequire === 'function' && parcelRequire;
+        var currentRequire = typeof getGlobalObject().parcelRequire === 'function' && getGlobalObject().parcelRequire;
         if (!jumped && currentRequire) {
           return currentRequire(name, true);
         }
@@ -109,7 +112,7 @@
   }
 
   // Override the current require with this new one
-  parcelRequire = newRequire;
+  getGlobalObject().parcelRequire = newRequire;
 
   if (error) {
     // throw error from earlier, _after updating parcelRequire_
