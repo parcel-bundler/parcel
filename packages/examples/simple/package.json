@@ -4,12 +4,12 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "node -r @parcel/babel-register ./node_modules/.bin/parcel src/index.js"
+    "demo": "node -r @parcel/babel-register ./node_modules/.bin/parcel2 build src/index.js"
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0",
-    "@parcel/core": "^2.0.0",
-    "@parcel/config-default": "^2.0.0"
+    "@parcel/config-default": "^2.0.0",
+    "parcel": "^2.0.0"
   },
   "browser": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",
