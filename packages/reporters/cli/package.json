@@ -1,7 +1,7 @@
 {
   "name": "@parcel/reporter-cli",
   "version": "2.0.0",
-  "main": "src/CLIReporter.js",
+  "main": "src/index.js",
   "engines": {
     "parcel": "^2.0.0"
   },
