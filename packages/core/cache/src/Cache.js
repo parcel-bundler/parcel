@@ -182,6 +182,38 @@ export class Cache {
       // Fail silently
     }
   }
+
+  async get(key) {
+    try {
+      // let extension = path.extname(key);
+      let data = await fs.readFile(this.getCachePath(key), {
+        // TODO: support more extensions
+        encoding: extension === '.bin' ? undefined : 'utf8'
+      });
+
+      // if (extension === '.json') {
+      invariant(typeof data === 'string');
+      return deserialize(data);
+      //}
+
+      //return data;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async set(key, value) {
+    try {
+      // TODO: support more than just JSON
+      let blobPath = this.getCachePath(key);
+      let data = serialize(value);
+
+      await fs.writeFile(blobPath, data);
+      return new CacheReference(path.relative(this.dir, blobPath));
+    } catch (err) {
+      logger.error(`Error writing to cache: ${err.message}`);
+    }
+  }
 }
 
 export class CacheReference {

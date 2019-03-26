@@ -15,7 +15,9 @@ import PromiseQueue from './PromiseQueue';
 import AssetGraph, {nodeFromDep, nodeFromConfigRequest} from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import WorkerFarm from '@parcel/workers';
+import Cache from '@parcel/cache';
 import {resolve as localResolve} from '@parcel/utils/src/localRequire';
+import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
 import * as fs from '@parcel/fs';
 import ConfigLoader from './ConfigLoader';
 
@@ -147,12 +149,36 @@ export default class AssetGraphBuilder extends EventEmitter {
     await this.loadBuildDependencies(node, {signal, shallow});
     console.log('TRANSFORMING', node.value);
     let req = node.value;
+    let {configs, devDeps} = await this.loadBuildDependencies(node, {
+      signal,
+      shallow
+    });
+    let fileHashes = await Promise.all(
+      this.graph
+        .getNodesConnectedFrom(node, 'is_invalidated_by_change_to')
+        .map(fileNode => md5FromFilePath(fileNode.value.filePath))
+    );
 
-    let cacheEntry = await this.runTransform(req);
-    let time = Date.now() - start;
+    let cacheKey = md5FromString(
+      `${JSON.stringify({configs, devDeps, fileHashes})}`
+    );
+    console.log('CACHE READ KEY', cacheKey);
 
-    for (let asset of cacheEntry.assets) {
-      asset.stats.time = time;
+    let cacheEntry = await Cache.get(cacheKey);
+
+    if (!cacheEntry) {
+      console.log('TRANSFORMING', req);
+
+      cacheEntry = await this.runTransform({
+        req,
+        configs,
+        devDeps
+      });
+
+      let time = Date.now() - start;
+      for (let asset of cacheEntry.assets) {
+        asset.stats.time = time;
+      }
     }
 
     if (signal.aborted) throw new BuildAbortError();
@@ -178,13 +204,17 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     let configLoader = new ConfigLoader(this.options);
 
-    let {devDeps} = await this.loadConfigAndResolveDependencies(
+    let {config, devDeps} = await this.loadConfigAndResolveDependencies(
       configRequest,
       configLoader,
       node
     );
 
+    let configs = {parcel: config};
+
     console.log('DEV DEPS', devDeps);
+
+    return {configs, devDeps};
 
     // await Promise.all(
     //   devDeps.map(async devDep => {

@@ -34,10 +34,11 @@ export default class TransformerRunner {
     this.options = opts.options;
   }
 
-  async transform(
-    req: TransformerRequest,
-    config: ParcelConfig
-  ): Promise<CacheEntry> {
+  async transform({
+    req,
+    configs,
+    devDeps // TODO: type
+  }): Promise<CacheEntry> {
     report({
       type: 'buildProgress',
       phase: 'transforming',
@@ -47,19 +48,19 @@ export default class TransformerRunner {
     let code = req.code || (await fs.readFile(req.filePath, 'utf8'));
     let hash = md5FromString(code);
 
-    // If a cache entry matches, no need to transform.
-    let cacheEntry;
-    if (this.options.cache !== false && req.code == null) {
-      cacheEntry = await Cache.read(req.filePath, req.env);
-    }
+    // // If a cache entry matches, no need to transform.
+    // let cacheEntry;
+    // if (this.options.cache !== false && req.code == null) {
+    //   cacheEntry = await Cache.read(req.filePath, req.env);
+    // }
 
-    if (
-      cacheEntry &&
-      cacheEntry.hash === hash &&
-      (await checkCachedAssets(cacheEntry.assets))
-    ) {
-      return cacheEntry;
-    }
+    // if (
+    //   cacheEntry &&
+    //   cacheEntry.hash === hash &&
+    //   (await checkCachedAssets(cacheEntry.assets))
+    // ) {
+    //   return cacheEntry;
+    // }
 
     let input = new Asset({
       filePath: req.filePath,
@@ -69,12 +70,26 @@ export default class TransformerRunner {
       env: req.env
     });
 
-    let pipeline = await this.getTransformers(config);
+    let pipeline = await this.getTransformers(configs.parcel);
     let {assets, initialAssets} = await this.runPipeline(
       input,
-      pipeline,
-      cacheEntry
+      pipeline
+      // cacheEntry
     );
+
+    let files = [{filePath: req.filePath}];
+    for (let asset of assets) {
+      files = files.concat(asset.connectedFiles);
+    }
+
+    let fileHashes = await Promise.all(
+      files.map(file => md5FromFilePath(file.filePath))
+    );
+
+    let cacheKey = md5FromString(
+      `${JSON.stringify({configs, devDeps, fileHashes})}`
+    );
+    console.log('CACHE WRITE KEY', cacheKey, req.filePath);
 
     // If the transformer request passed code rather than a filename,
     // use a hash as the id to ensure it is unique.
@@ -84,7 +99,7 @@ export default class TransformerRunner {
       }
     }
 
-    cacheEntry = {
+    let cacheEntry = {
       filePath: req.filePath,
       env: req.env,
       hash,
@@ -92,7 +107,7 @@ export default class TransformerRunner {
       initialAssets
     };
 
-    await Cache.write(cacheEntry);
+    await Cache.set(cacheKey, cacheEntry);
     return cacheEntry;
   }
 

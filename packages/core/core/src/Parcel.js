@@ -80,6 +80,8 @@ export default class Parcel {
       }
     );
 
+    console.log('CACHE DIR', Cache.dir);
+
     this.runPackage = this.farm.mkhandle('runPackage');
   }
 
@@ -91,6 +93,7 @@ export default class Parcel {
       this.watcher = new Watcher();
       this.watcher.watch(this.options.projectRoot);
       this.watcher.on('all', (event, path) => {
+        if (path.includes('.parcel-cache')) return; // TODO: unwatch from watcher, couldn't get it working
         console.log('DETECTED CHANGE', event, path);
         this.assetGraphBuilder.respondToFSChange({
           action: event,

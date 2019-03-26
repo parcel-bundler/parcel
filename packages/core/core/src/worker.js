@@ -33,12 +33,13 @@ export function init({options, env}: Options) {
   });
 }
 
-export function runTransform(req: TransformerRequest) {
+export function runTransform(opts) {
+  console.log('RUN TRANSFORM OPTS', opts);
   if (!transformerRunner) {
     throw new Error('.runTransform() called before .init()');
   }
 
-  return transformerRunner.transform(req);
+  return transformerRunner.transform(opts);
 }
 
 export function runPackage(bundle: Bundle) {
