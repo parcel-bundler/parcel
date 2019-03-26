@@ -10,7 +10,7 @@ export type BundlerOptions = {|
 |};
 
 export type CallRequest = {|
-  args: Array<any>,
+  args: $ReadOnlyArray<mixed>,
   location: string,
   method?: string
 |};
