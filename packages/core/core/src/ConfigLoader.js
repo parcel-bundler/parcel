@@ -36,9 +36,7 @@ export default class ConfigLoader {
     this.parcelConfig = config;
 
     let devDeps = [];
-    switch (
-      configRequest.meta.actionType // ? Don't know if I really like switch here
-    ) {
+    switch (configRequest.meta.actionType) {
       case 'transformer_request':
         devDeps = config.getTransformerNames(filePath);
         break;
@@ -48,16 +46,45 @@ export default class ConfigLoader {
     }
     let devDepRequests = devDeps.map(devDep => ({
       moduleSpecifier: devDep,
-      sourcePath: config.filePath
+      sourcePath: config.configPath
     }));
 
-    let invalidatePatterns = [
-      '**/.parcelrc',
-      config.configPath,
-      ...config.extendedFiles
+    let invalidations = [
+      {
+        action: 'add',
+        pattern: '**/.parcelrc'
+      },
+      {
+        action: 'change',
+        pattern: config.configPath
+      },
+      {
+        action: 'unlink',
+        pattern: config.configPath
+      }
     ];
 
-    return {config, devDepRequests, invalidatePatterns};
+    let reliesOnLockFile = false;
+    for (let extendedFile of config.extendedFiles) {
+      console.log('EXTENDED FILE', extendedFile);
+      if (extendedFile.includes('/node_modules/')) {
+        reliesOnLockFile = true;
+      }
+      invalidations.push({
+        action: 'change',
+        pattern: extendedFile
+      });
+    }
+
+    if (reliesOnLockFile) {
+      invalidations.push({
+        action: 'change',
+        pattern: this.options.lockFilePath
+      });
+    }
+
+    console.log('CONFIG LOADR RESULT', {config, devDepRequests, invalidations});
+    return {config, devDepRequests, invalidations};
   }
 
   loadThirdPartyConfig(configRequest) {

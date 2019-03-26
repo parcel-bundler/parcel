@@ -76,12 +76,12 @@ export default class Graph<TNode: Node> implements IGraph<TNode> {
     return false;
   }
 
-  getNodesConnectedTo(node: TNode): Array<TNode> {
+  getNodesConnectedTo(node: TNode, type?: string): Array<TNode> {
     let edges = Array.from(this.edges).filter(edge => edge.to === node.id);
     return edges.map(edge => nullthrows(this.nodes.get(edge.from)));
   }
 
-  getNodesConnectedFrom(node: TNode): Array<TNode> {
+  getNodesConnectedFrom(node: TNode, type?: string): Array<TNode> {
     let edges = Array.from(this.edges).filter(edge => edge.from === node.id);
     return edges.map(edge => nullthrows(this.nodes.get(edge.to)));
   }

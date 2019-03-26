@@ -22,6 +22,7 @@ import invariant from 'assert';
 import Graph from './Graph';
 import {md5FromString} from '@parcel/utils/src/md5';
 import {isGlob} from '@parcel/utils/src/glob';
+import {isMatch} from 'micromatch';
 import Dependency from './Dependency';
 
 export const nodeFromRootDir = (rootDir: string) => ({
@@ -76,6 +77,12 @@ export const nodeFromDevDepRequest = devDepRequest => ({
   id: md5FromString(JSON.stringify(devDepRequest)),
   type: 'dev_dep_request',
   value: devDepRequest
+});
+
+export const nodeFromDevDep = devDep => ({
+  id: md5FromString(`${devDep.name}:${devDep.version}`),
+  type: 'dev_dep',
+  value: devDep
 });
 
 const getFileNodesFromGraph = (
@@ -244,29 +251,41 @@ export default class AssetGraph extends Graph<AssetGraphNode>
     return {newDepNodes};
   }
 
-  addConfigRequest(configRequest, node: AssetGraphNode) {
-    let configRequestNode = nodeFromConfigRequest(configRequest);
-    this.addNode(configRequestNode);
-    this.addEdge({from: node.id, to: configRequestNode.id});
+  addConfigRequest(configRequestNode, node: AssetGraphNode) {
+    if (!this.nodes.has(configRequestNode.id)) {
+      this.addNode(configRequestNode);
+      this.addEdge({from: node.id, to: configRequestNode.id});
+    }
 
     return configRequestNode;
-    //this.incompleteNodes.set(configRequestNode.id, configRequestNode);
   }
 
   resolveConfigRequest(result, configRequestNode) {
-    let {config, devDepRequests, invalidatePatterns = []} = result;
+    let {config, devDepRequests, invalidations = []} = result;
     this.incompleteNodes.delete(configRequestNode.id);
+    this.invalidNodes.delete(configRequestNode.id);
     let configNode = nodeFromConfig(config);
-    this.addNode(configNode);
-    this.addEdge({from: configRequestNode.id, to: configNode.id});
+    if (!this.hasNode(configNode)) {
+      this.addNode(configNode);
+      this.addEdge({from: configRequestNode.id, to: configNode.id});
+    }
 
-    for (let pattern of invalidatePatterns) {
+    for (let {action, pattern} of invalidations) {
       let invalidateNode = isGlob(pattern)
         ? nodeFromGlob(pattern)
         : nodeFromFile({filePath: pattern});
 
-      this.addNode(invalidateNode);
-      this.addEdge({from: configRequestNode.id, to: invalidateNode.id});
+      let edgeType = getInvalidationEdgeType(action);
+
+      let edge = {
+        from: configRequestNode.id,
+        to: invalidateNode.id,
+        type: edgeType
+      };
+      if (!this.hasEdge(edge)) {
+        this.addNode(invalidateNode);
+        this.addEdge(edge);
+      }
     }
 
     let devDepRequestNodes = [];
@@ -274,41 +293,31 @@ export default class AssetGraph extends Graph<AssetGraphNode>
       let devDepRequestNode = nodeFromDevDepRequest(devDepRequest);
       devDepRequestNodes.push(devDepRequestNode);
       this.addNode(devDepRequestNode);
-      this.addEdge({from: configNode.id, to: devDepRequestNode.id});
-      this.incompleteNodes.set(devDepRequestNode.id, devDepRequestNode);
+      let edge = {
+        from: configRequestNode.id,
+        to: devDepRequestNode.id,
+        type: 'configures'
+      };
+      if (!this.hasEdge(edge)) {
+        this.addEdge(edge);
+        this.incompleteNodes.set(devDepRequestNode.id, devDepRequestNode);
+      }
     }
 
     return {devDepRequestNodes};
   }
 
-  resolveDevDepRequest(devDepRequest, devDep, actionNode) {
-    let devDepRequestNode = this.nodes.get(
-      nodeFromDevDepRequest(devDepRequest)
-    );
+  resolveDevDepRequest(devDepRequestNode, devDep, actionNode) {
+    this.incompleteNodes.delete(devDepRequestNode.id);
     let devDepNode = nodeFromDevDep(devDep);
     this.addNode(devDepNode);
-    this.addEdge({
+    let edge = {
       from: devDepRequestNode.id,
       to: devDepNode.id,
       type: 'resolves_to'
-    });
-  }
-
-  invalidateNode(node: AssetGraphNode) {
-    this.invalidNodes.set(node.id, node);
-  }
-
-  invalidateFile(filePath: FilePath) {
-    let node = this.getNode(filePath);
-    if (!node || node.type !== 'file') {
-      return;
-    }
-
-    // Invalidate all file nodes connected to this node.
-    for (let connectedNode of this.getNodesConnectedTo(node)) {
-      if (connectedNode.type === 'transformer_request') {
-        this.invalidateNode(connectedNode);
-      }
+    };
+    if (!this.hasEdge(edge)) {
+      this.addEdge(edge);
     }
   }
 
@@ -409,5 +418,82 @@ export default class AssetGraph extends Graph<AssetGraphNode>
       id: 'asset_reference:' + assetNode.id,
       value: asset
     });
+  }
+
+  getGlobNodesFromGraph() {
+    return Object.values(this.nodes).map(node => node.type === 'glob');
+  }
+
+  getFileNodesFromGraph() {
+    return this.nodes.values().map(node => node.type === 'file');
+  }
+
+  respondToFSChange({action, path}) {
+    console.log('RESPONDING TO FS CHANGE', action, path);
+    let edgeType = getInvalidationEdgeType(action);
+
+    let fileNode = this.nodes.get(path);
+    if (fileNode) {
+      this.invalidateConnectedNodes(fileNode, edgeType);
+    }
+
+    if (action === 'add') {
+      for (let globNode of this.getGlobNodesFromGraph()) {
+        if (isMatch(path, globNode.value)) {
+          this.invalidateConnectedNodes(globNode, edgeType);
+        }
+      }
+    }
+  }
+
+  invalidateConnectedNodes(node, edgeType) {
+    let nodesToInvalidate = this.getNodesConnectedTo(node, edgeType);
+    for (let nodeToInvalidate of nodesToInvalidate) {
+      this.invalidateNode(nodeToInvalidate);
+    }
+  }
+
+  invalidateNode(node: AssetGraphNode) {
+    switch (node.type) {
+      case 'transformer_request':
+      case 'dependency':
+        this.invalidNodes.set(node.id, node);
+        break;
+      case 'config_request':
+      case 'dev_dep_request':
+        this.invalidNodes.set(node.id, node);
+        let actionNode = this.getActionNode(node);
+        this.invalidNodes.set(node.id, node);
+        break;
+      default:
+        throw new Error();
+    }
+
+    this.invalidNodes.set(node.id, node);
+  }
+
+  getActionNode(node: AssetGraphNode) {
+    console.log('GETTING ACTION NODE FOR ', node);
+    if (node.type === 'dev_dep_request') {
+      let [configRequestNode] = this.getNodesConnectedTo(node);
+      let [actionNode] = this.getNodesConnectedTo(configRequestNode);
+      return actionNode;
+    } else if (node.type === 'config_request') {
+      let [actionNode] = this.getNodesConnectedTo(node);
+      return actionNode;
+    }
+  }
+}
+
+function getInvalidationEdgeType(action) {
+  switch (action) {
+    case 'change':
+      return 'invalidated_by_change_to';
+    case 'add':
+      return 'invalidated_by_addition_matching';
+    case 'unlink':
+      return 'invalidated_by_removal_of';
+    default:
+      throw new Error(`Unrecognized invalidation action "${action}"`);
   }
 }

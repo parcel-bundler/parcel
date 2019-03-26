@@ -10,7 +10,7 @@ program
 
 let entries = program.args.map(entry => path.resolve(entry));
 let cliOpts = {
-  watch: program.watch
+  watch: true //program.watch
 };
 let Parcel = require('.').default;
 

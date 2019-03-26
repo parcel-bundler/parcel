@@ -10,8 +10,14 @@ import getRootDir from '@parcel/utils/src/getRootDir';
 import loadEnv from './loadEnv';
 import path from 'path';
 import Cache from '@parcel/cache';
+import Watcher from '@parcel/watcher';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
 import ReporterRunner from './ReporterRunner';
+import {
+  AbortController,
+  type AbortSignal
+} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+
 
 export default class Parcel {
   options: ParcelOptions;
@@ -25,7 +31,9 @@ export default class Parcel {
 
   constructor(options: ParcelOptions) {
     this.options = options;
+    // TODO: Get projectRoot and lockFile programmatically
     this.options.projectRoot = process.cwd();
+    this.options.lockFilePath = `${this.options.projectRoot}/yarn.lock`;
     this.entries = Array.isArray(options.entries)
       ? options.entries
       : options.entries
@@ -78,9 +86,23 @@ export default class Parcel {
   async run(): Promise<BundleGraph> {
     await this.init();
 
-    this.assetGraphBuilder.on('invalidate', () => {
-      this.build();
-    });
+    if (this.options.cliOpts.watch) {
+      console.log('WATCHING', this.options.projectRoot);
+      this.watcher = new Watcher();
+      this.watcher.watch(this.options.projectRoot);
+      this.watcher.on('all', (event, path) => {
+        console.log('DETECTED CHANGE', event, path);
+        this.assetGraphBuilder.respondToFSChange({
+          action: event,
+          path
+        });
+        if (this.assetGraphBuilder.isInvalid()) {
+          console.log('ASSET GRAPH IS INVALID');
+          this.controller.abort();
+          this.build();
+        }
+      });
+    }
 
     return this.build();
   }
@@ -92,7 +114,11 @@ export default class Parcel {
       });
 
       let startTime = Date.now();
-      let assetGraph = await this.assetGraphBuilder.build();
+      // console.log('Starting build'); // eslint-disable-line no-console
+      this.controller = new AbortController();
+      let signal = this.controller.signal;
+
+      let assetGraph = await this.assetGraphBuilder.build({signal});
 
       //if (process.env.PARCEL_DUMP_GRAPH != null) {
       const dumpGraphToGraphViz = require('@parcel/utils/src/dumpGraphToGraphViz')

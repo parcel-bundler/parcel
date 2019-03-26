@@ -46,3 +46,7 @@ export async function localResolve(
 
   return resolved;
 }
+
+export function resetCache() {
+  cache = new Cache();
+}

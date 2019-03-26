@@ -10,10 +10,23 @@ import {decodeOptions, type EncodedFSWatcherOptions} from './options';
 
 let watcher;
 function sendEvent(event: string, path?: FilePath | JSONError) {
-  invariant(process.send != null);
+  if (
+    event !== 'ready' &&
+    event !== 'raw' &&
+    event !== 'error' &&
+    event !== '_chokidarReady'
+  ) {
+    invariant(
+      process.send({
+        event: 'all',
+        data: {action: event, path}
+      }) != null
+    );
+  }
+
   process.send({
     event: event,
-    path: path
+    data: path
   });
 }
 

@@ -10,20 +10,17 @@ import type {
 } from '@parcel/types';
 import type Config from './ParcelConfig';
 import EventEmitter from 'events';
-import {
-  AbortController,
-  type AbortSignal
-} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import Watcher from '@parcel/watcher';
+import {type AbortSignal} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import PromiseQueue from './PromiseQueue';
-import AssetGraph, {nodeFromDep} from './AssetGraph';
+import AssetGraph, {nodeFromDep, nodeFromConfigRequest} from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import WorkerFarm from '@parcel/workers';
-import {localResolve} from '@parcel/utils/src/localRequire';
-import fs from '@parcel/fs';
+import {resolve as localResolve} from '@parcel/utils/src/localRequire';
+import * as fs from '@parcel/fs';
 import ConfigLoader from './ConfigLoader';
 
 import prettyFormat from 'pretty-format';
+import {isMatch} from 'micromatch';
 
 type BuildOpts = {|
   signal: AbortSignal,
@@ -41,7 +38,6 @@ type Opts = {|
 
 export default class AssetGraphBuilder extends EventEmitter {
   graph: AssetGraph;
-  watcher: Watcher;
   queue: PromiseQueue;
   resolverRunner: ResolverRunner;
   controller: AbortController;
@@ -68,19 +64,6 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     this.graph = new AssetGraph();
     this.graph.initializeGraph({entries, targets, transformerRequest, rootDir});
-
-    this.controller = new AbortController();
-    if (options.watch) {
-      this.watcher = new Watcher();
-      this.watcher.on('change', async filePath => {
-        if (this.graph.hasNode(filePath)) {
-          this.controller.abort();
-          this.graph.invalidateFile(filePath);
-
-          this.emit('invalidate', filePath);
-        }
-      });
-    }
   }
 
   async initFarm() {
@@ -90,13 +73,10 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.runTransform = this.farm.mkhandle('runTransform');
   }
 
-  async build() {
+  async build({signal}) {
     if (!this.farm) {
       await this.initFarm();
     }
-
-    this.controller = new AbortController();
-    let signal = this.controller.signal;
 
     await this.updateGraph({signal});
     await this.completeGraph({signal});
@@ -105,6 +85,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async updateGraph({signal}: BuildOpts) {
     for (let [, node] of this.graph.invalidNodes) {
+      console.log('FOUND INVALID NODE', node);
       this.queue.add(() => this.processNode(node, {signal, shallow: true}));
     }
     await this.queue.run();
@@ -124,6 +105,10 @@ export default class AssetGraphBuilder extends EventEmitter {
         return this.resolve(node, {signal});
       case 'transformer_request':
         return this.transform(node, {signal});
+      case 'config_request':
+      case 'dev_dep_request':
+        // Do nothing, corresponding transformer requst or dependency node should be processed
+        break;
       default:
         throw new Error(
           `Cannot process graph node with type ${node.type || 'undefined'}`
@@ -154,7 +139,6 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     if (newRequestNode) {
       this.queue.add(() => this.transform(newRequestNode, {signal}));
-      if (this.watcher) this.watcher.watch(newRequestNode.value.filePath);
     }
   }
 
@@ -172,21 +156,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
 
     if (signal.aborted) throw new BuildAbortError();
-    let {
-      addedFiles,
-      removedFiles,
-      newDepNodes
-    } = this.graph.resolveTransformerRequest(req, cacheEntry);
-
-    if (this.watcher) {
-      for (let file of addedFiles) {
-        this.watcher.watch(file.filePath);
-      }
-
-      for (let file of removedFiles) {
-        this.watcher.unwatch(file.filePath);
-      }
-    }
+    let {newDepNodes} = this.graph.resolveTransformerRequest(req, cacheEntry);
 
     // The shallow option is used during the update phase
     if (!shallow) {
@@ -197,28 +167,14 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async loadBuildDependencies(node, buildOpts) {
-    let configRequest;
-    switch (node.type) {
-      case 'transformer_request':
-        configRequest = {
-          filePath: node.value.filePath,
-          configType: 'parcel',
-          meta: {
-            actionType: 'transformer_request',
-            filePath: node.value.filePath
-          }
-        };
-        break;
-      case 'dependency':
-        configRequest = {
-          tool: 'parcel',
-          meta: {
-            actionType: 'dependency_resolution',
-            filePath: node.value.sourcePath
-          }
-        };
-        break;
-    }
+    let configRequest = {
+      filePath: node.value.filePath,
+      configType: 'parcel',
+      meta: {
+        actionType: node.type,
+        filePath: node.value.filePath
+      }
+    };
 
     let configLoader = new ConfigLoader(this.options);
 
@@ -227,6 +183,8 @@ export default class AssetGraphBuilder extends EventEmitter {
       configLoader,
       node
     );
+
+    console.log('DEV DEPS', devDeps);
 
     // await Promise.all(
     //   devDeps.map(async devDep => {
@@ -242,30 +200,66 @@ export default class AssetGraphBuilder extends EventEmitter {
     configLoader,
     actionNode
   ) {
-    let configRequestNode = this.graph.addConfigRequest(
-      configRequest,
-      actionNode
+    let configRequestNode = nodeFromConfigRequest(configRequest);
+    console.log('CONFIG REQUEST ID', configRequestNode.id);
+    let result;
+    let devDepRequestNodes;
+    if (
+      !this.graph.hasNode(configRequestNode) ||
+      this.graph.invalidNodes.has(configRequestNode.id)
+    ) {
+      this.graph.addConfigRequest(configRequestNode, actionNode);
+      result = await configLoader.load(configRequest);
+      let {devDepRequestNodes: ddrNodes} = this.graph.resolveConfigRequest(
+        result,
+        configRequestNode
+      );
+      devDepRequestNodes = ddrNodes;
+    } else {
+      devDepRequestNodes = this.graph.getConfigDevDepNodes(configRequestNode);
+    }
+    console.log('RESULT', result);
+    let devDeps = await Promise.all(
+      devDepRequestNodes.map(devDepRequestNode =>
+        this.resolveDevDep(devDepRequestNode, actionNode)
+      )
     );
 
-    let result = await configLoader.load(configRequest);
-    let {devDepRequestNodes} = this.graph.resolveConfigRequest(
-      result,
-      configRequestNode
-    );
-
-    await Promise.all(devDepRequestNodes.map(devDepRequestNode => {}));
-
-    return result;
+    return {result, devDeps};
   }
 
   async resolveDevDep(devDepRequestNode, actionNode) {
-    let resolved = await localResolve(`${devDepRequest}/package.json`);
-    let {name, version} = JSON.parse(await fs.readFile(resolved));
-    this.graph.resolveDevDep(devDepRequestNode, {name, version}, actionNode);
-    return {name, version, filePath};
+    let [devDepNode] = this.graph.getNodesConnectedFrom(devDepRequestNode);
+    let devDep;
+    if (!devDepNode || this.graph.incompleteNodes.has(devDepRequestNode.id)) {
+      let {moduleSpecifier, sourcePath} = devDepRequestNode.value;
+      console.log('RESOLVING DEV DEP', moduleSpecifier, sourcePath);
+      let [resolvedPath, resolvedPkg] = await localResolve(
+        // TODO: localResolve has a cache that should either not be used or cleared appropriately
+        `${moduleSpecifier}/package.json`,
+        sourcePath
+      );
+      let {name, version} = resolvedPkg;
+      devDep = {name, version};
+      this.graph.resolveDevDepRequest(
+        devDepRequestNode,
+        {name, version},
+        actionNode
+      );
+    } else {
+      devDep = devDepNode.value;
+    }
+
+    return devDep;
   }
 
-  async loadParcelPlugin(pluginName) {}
+  isInvalid() {
+    return !!this.graph.invalidNodes.size;
+  }
+
+  respondToFSChange(event) {
+    this.graph.respondToFSChange(event);
+  }
 }
 
 export class BuildAbortError extends Error {

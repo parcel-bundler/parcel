@@ -104,7 +104,11 @@ export default class Watcher extends EventEmitter {
       return;
     }
 
-    this.emit(event, data);
+    if (event === 'all') {
+      this.emit(event, data.action, data.path);
+    } else {
+      this.emit(event, data);
+    }
   }
 
   sendCommand(func: string, args: Array<mixed>): void {
