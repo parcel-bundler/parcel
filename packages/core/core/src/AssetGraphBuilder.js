@@ -15,7 +15,7 @@ import {
   type AbortSignal
 } from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import Watcher from '@parcel/watcher';
-import PromiseQueue from './PromiseQueue';
+import PromiseQueue from '@parcel/utils/src/PromiseQueue';
 import AssetGraph from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import WorkerFarm from '@parcel/workers';

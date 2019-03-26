@@ -12,7 +12,7 @@
     "node": ">= 6.0.0"
   },
   "scripts": {
-    "test": "echo this package has no tests yet",
+    "test": "mocha",
     "test-ci": "yarn build && yarn test",
     "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
     "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
@@ -36,11 +36,14 @@
     "nullthrows": "^1.1.1",
     "resolve": "^1.4.0",
     "serialize-to-js": "^1.1.1",
+    "split2": "^3.1.1",
     "tempy": "^0.2.1",
     "terser": "^3.7.3"
   },
   "devDependencies": {
     "@babel/plugin-transform-flow-strip-types": "^7.2.0",
-    "@parcel/types": "^2.0.0"
+    "@parcel/types": "^2.0.0",
+    "@parcel/test-utils": "^1.10.3",
+    "random-int": "^1.0.0"
   }
 }
