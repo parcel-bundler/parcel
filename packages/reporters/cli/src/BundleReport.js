@@ -58,7 +58,7 @@ export default function BundleReport(
     for (let asset of largestAssets) {
       // Add a row for the asset.
       rows.push(
-        <Row key={`asset:${asset.id}`}>
+        <Row key={`bundle:${bundle.id}:asset:${asset.id}`}>
           <Cell>
             {asset == assets[assets.length - 1] ? '└── ' : '├── '}
             {formatFilename(asset.filePath, {})}
