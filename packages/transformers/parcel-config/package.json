@@ -1,8 +1,0 @@
-{
-  "name": "@parcel/transformer-parcel-config",
-  "version": "2.0.0",
-  "main": "src/ParcelConfigTransformer.js",
-  "dependencies": {
-    "@parcel/plugin": "^2.0.0"
-  }
-}

@@ -34,7 +34,6 @@ export function init({options, env}: Options) {
 }
 
 export function runTransform(opts) {
-  console.log('RUN TRANSFORM OPTS', opts);
   if (!transformerRunner) {
     throw new Error('.runTransform() called before .init()');
   }

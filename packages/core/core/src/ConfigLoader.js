@@ -1,6 +1,7 @@
 // @flow
 import ConfigResolver from './ConfigResolver';
 import {breakStatement} from 'babel-types';
+import {conditionalExpression} from '@babel/types';
 
 export default class ConfigLoader {
   constructor(options) {
@@ -66,7 +67,6 @@ export default class ConfigLoader {
 
     let reliesOnLockFile = false;
     for (let extendedFile of config.extendedFiles) {
-      console.log('EXTENDED FILE', extendedFile);
       if (extendedFile.includes('/node_modules/')) {
         reliesOnLockFile = true;
       }
@@ -75,6 +75,7 @@ export default class ConfigLoader {
         pattern: extendedFile
       });
     }
+    delete config.extendedFiles;
 
     if (reliesOnLockFile) {
       invalidations.push({
@@ -83,7 +84,6 @@ export default class ConfigLoader {
       });
     }
 
-    console.log('CONFIG LOADR RESULT', {config, devDepRequests, invalidations});
     return {config, devDepRequests, invalidations};
   }
 

@@ -76,13 +76,17 @@ export default class Graph<TNode: Node> implements IGraph<TNode> {
     return false;
   }
 
-  getNodesConnectedTo(node: TNode, type?: string): Array<TNode> {
-    let edges = Array.from(this.edges).filter(edge => edge.to === node.id);
+  getNodesConnectedTo(node: TNode, edgeType?: string): Array<TNode> {
+    let edges = Array.from(this.edges).filter(
+      edge => edge.to === node.id && edge.type === edgeType
+    );
     return edges.map(edge => nullthrows(this.nodes.get(edge.from)));
   }
 
-  getNodesConnectedFrom(node: TNode, type?: string): Array<TNode> {
-    let edges = Array.from(this.edges).filter(edge => edge.from === node.id);
+  getNodesConnectedFrom(node: TNode, edgeType?: string): Array<TNode> {
+    let edges = Array.from(this.edges).filter(
+      edge => edge.from === node.id && edge.type === edgeType
+    );
     return edges.map(edge => nullthrows(this.nodes.get(edge.to)));
   }
 
@@ -175,7 +179,7 @@ export default class Graph<TNode: Node> implements IGraph<TNode> {
     let added = new this.constructor();
 
     let edgesBefore = Array.from(this.edges).filter(
-      edge => edge.from === fromNode.id
+      edge => edge.from === fromNode.id && edge.type === edgeType
     );
     let edgesToRemove = edgesBefore;
 

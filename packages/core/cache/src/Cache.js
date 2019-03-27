@@ -186,10 +186,8 @@ export class Cache {
   async get(key) {
     try {
       // let extension = path.extname(key);
-      let data = await fs.readFile(this.getCachePath(key), {
-        // TODO: support more extensions
-        encoding: extension === '.bin' ? undefined : 'utf8'
-      });
+      // TODO: support more extensions
+      let data = await fs.readFile(this.getCachePath(key), {encoding: 'utf8'});
 
       // if (extension === '.json') {
       invariant(typeof data === 'string');
@@ -198,7 +196,11 @@ export class Cache {
 
       //return data;
     } catch (err) {
-      return null;
+      if (err.code === 'ENOENT') {
+        return null;
+      } else {
+        throw err;
+      }
     }
   }
 

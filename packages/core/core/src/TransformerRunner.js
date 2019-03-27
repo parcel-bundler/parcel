@@ -70,7 +70,7 @@ export default class TransformerRunner {
       env: req.env
     });
 
-    let pipeline = await this.getTransformers(configs.parcel);
+    let pipeline = await configs.parcel.getTransformers(req.filePath);
     let {assets, initialAssets} = await this.runPipeline(
       input,
       pipeline
@@ -78,14 +78,20 @@ export default class TransformerRunner {
     );
 
     let files = [{filePath: req.filePath}];
-    for (let asset of assets) {
-      files = files.concat(asset.connectedFiles);
-    }
+    // for (let asset of assets) {
+    //   files = files.concat(asset.connectedFiles);
+    // }
 
     let fileHashes = await Promise.all(
       files.map(file => md5FromFilePath(file.filePath))
     );
 
+    // console.log('CACHE WRITE CONTENT', req.filePath, {
+    //   configs,
+    //   devDeps,
+    //   fileHashes
+    // });
+    // console.log('PARCEL CONFIG STRINGIFIED', JSON.stringify(configs.parcel));
     let cacheKey = md5FromString(
       `${JSON.stringify({configs, devDeps, fileHashes})}`
     );
@@ -109,24 +115,6 @@ export default class TransformerRunner {
 
     await Cache.set(cacheKey, cacheEntry);
     return cacheEntry;
-  }
-
-  async getTransformers(config) {
-    // TODO: get programmitically
-    let plugins = [];
-    let pluginNames = [
-      '@parcel/transformer-babel',
-      '@parcel/transformer-js',
-      '@parcel/transformer-terser'
-    ];
-    for (let pluginName of pluginNames) {
-      let plugin = require(pluginName);
-      plugin = plugin.default ? plugin.default : plugin;
-      plugin = plugin[CONFIG];
-      plugins.push(plugin);
-    }
-
-    return plugins;
   }
 
   async runPipeline(

@@ -129,7 +129,7 @@ export default class Config {
   }
 
   async getTransformers(filePath: FilePath): Promise<Array<Transformer>> {
-    let transformers = this.getTransformerNames();
+    let transformers = this.getTransformerNames(filePath);
 
     return this.loadPlugins(transformers);
   }

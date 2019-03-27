@@ -80,8 +80,6 @@ export default class Parcel {
       }
     );
 
-    console.log('CACHE DIR', Cache.dir);
-
     this.runPackage = this.farm.mkhandle('runPackage');
   }
 
@@ -89,7 +87,6 @@ export default class Parcel {
     await this.init();
 
     if (this.options.cliOpts.watch) {
-      console.log('WATCHING', this.options.projectRoot);
       this.watcher = new Watcher();
       this.watcher.watch(this.options.projectRoot);
       this.watcher.on('all', (event, path) => {

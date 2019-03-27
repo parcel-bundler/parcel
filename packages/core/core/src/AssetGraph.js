@@ -220,10 +220,11 @@ export default class AssetGraph extends Graph<AssetGraphNode>
 
     // Get connected files from each asset and connect them to the file node
     let fileNodes = [];
-    for (let asset of cacheEntry.assets) {
-      let files = asset.connectedFiles.map(file => nodeFromFile(file));
-      fileNodes = fileNodes.concat(files);
-    }
+    // TODO: Reimplement connected files, they should now only be used for source files (not config)
+    // for (let asset of cacheEntry.assets) {
+    //   let files = asset.connectedFiles.map(file => nodeFromFile(file));
+    //   fileNodes = fileNodes.concat(files);
+    // }
 
     // Add a file node for the file that the transformer request resolved to
     fileNodes.push(nodeFromFile({filePath: req.filePath}));
@@ -282,6 +283,7 @@ export default class AssetGraph extends Graph<AssetGraphNode>
         to: invalidateNode.id,
         type: edgeType
       };
+
       if (!this.hasEdge(edge)) {
         this.addNode(invalidateNode);
         this.addEdge(edge);
@@ -421,11 +423,11 @@ export default class AssetGraph extends Graph<AssetGraphNode>
   }
 
   getGlobNodesFromGraph() {
-    return Object.values(this.nodes).map(node => node.type === 'glob');
+    return Array.from(this.nodes.values()).filter(node => node.type === 'glob');
   }
 
   getFileNodesFromGraph() {
-    return this.nodes.values().map(node => node.type === 'file');
+    return Array.from(this.nodes.values()).filter(node => node.type === 'file');
   }
 
   respondToFSChange({action, path}) {
@@ -463,17 +465,16 @@ export default class AssetGraph extends Graph<AssetGraphNode>
       case 'dev_dep_request':
         this.invalidNodes.set(node.id, node);
         let actionNode = this.getActionNode(node);
-        this.invalidNodes.set(node.id, node);
+        this.invalidNodes.set(actionNode.id, actionNode);
         break;
       default:
-        throw new Error();
+        throw new Error(
+          `Cannot invalidate node with unrecognized type ${node.type}`
+        );
     }
-
-    this.invalidNodes.set(node.id, node);
   }
 
   getActionNode(node: AssetGraphNode) {
-    console.log('GETTING ACTION NODE FOR ', node);
     if (node.type === 'dev_dep_request') {
       let [configRequestNode] = this.getNodesConnectedTo(node);
       let [actionNode] = this.getNodesConnectedTo(configRequestNode);

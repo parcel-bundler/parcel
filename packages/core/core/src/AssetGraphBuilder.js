@@ -87,7 +87,6 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async updateGraph({signal}: BuildOpts) {
     for (let [, node] of this.graph.invalidNodes) {
-      console.log('FOUND INVALID NODE', node);
       this.queue.add(() => this.processNode(node, {signal, shallow: true}));
     }
     await this.queue.run();
@@ -155,10 +154,15 @@ export default class AssetGraphBuilder extends EventEmitter {
     });
     let fileHashes = await Promise.all(
       this.graph
-        .getNodesConnectedFrom(node, 'is_invalidated_by_change_to')
+        .getNodesConnectedFrom(node, 'invalidated_by_change_to')
         .map(fileNode => md5FromFilePath(fileNode.value.filePath))
     );
-
+    // console.log('CACHE READ CONTENT', req.filePath, {
+    //   configs,
+    //   devDeps,
+    //   fileHashes
+    // });
+    // console.log('PARCEL CONFIG STRINGIFIED', JSON.stringify(configs.parcel));
     let cacheKey = md5FromString(
       `${JSON.stringify({configs, devDeps, fileHashes})}`
     );
@@ -197,8 +201,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       filePath: node.value.filePath,
       configType: 'parcel',
       meta: {
-        actionType: node.type,
-        filePath: node.value.filePath
+        actionType: node.type
       }
     };
 
@@ -211,8 +214,6 @@ export default class AssetGraphBuilder extends EventEmitter {
     );
 
     let configs = {parcel: config};
-
-    console.log('DEV DEPS', devDeps);
 
     return {configs, devDeps};
 
@@ -231,7 +232,6 @@ export default class AssetGraphBuilder extends EventEmitter {
     actionNode
   ) {
     let configRequestNode = nodeFromConfigRequest(configRequest);
-    console.log('CONFIG REQUEST ID', configRequestNode.id);
     let result;
     let devDepRequestNodes;
     if (
@@ -239,6 +239,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       this.graph.invalidNodes.has(configRequestNode.id)
     ) {
       this.graph.addConfigRequest(configRequestNode, actionNode);
+      console.log('LOADING CONFIG', configRequest);
       result = await configLoader.load(configRequest);
       let {devDepRequestNodes: ddrNodes} = this.graph.resolveConfigRequest(
         result,
@@ -248,22 +249,26 @@ export default class AssetGraphBuilder extends EventEmitter {
     } else {
       devDepRequestNodes = this.graph.getConfigDevDepNodes(configRequestNode);
     }
-    console.log('RESULT', result);
+
     let devDeps = await Promise.all(
       devDepRequestNodes.map(devDepRequestNode =>
         this.resolveDevDep(devDepRequestNode, actionNode)
       )
     );
 
-    return {result, devDeps};
+    return {config: result.config, devDeps};
   }
 
   async resolveDevDep(devDepRequestNode, actionNode) {
-    let [devDepNode] = this.graph.getNodesConnectedFrom(devDepRequestNode);
+    let [devDepNode] = this.graph.getNodesConnectedFrom(
+      devDepRequestNode,
+      'resolves_to'
+    );
+
     let devDep;
-    if (!devDepNode || this.graph.incompleteNodes.has(devDepRequestNode.id)) {
+    if (!devDepNode || this.graph.invalidNodes.has(devDepRequestNode.id)) {
+      console.log('RESOLVING DEV DEP', devDepRequestNode.value);
       let {moduleSpecifier, sourcePath} = devDepRequestNode.value;
-      console.log('RESOLVING DEV DEP', moduleSpecifier, sourcePath);
       let [resolvedPath, resolvedPkg] = await localResolve(
         // TODO: localResolve has a cache that should either not be used or cleared appropriately
         `${moduleSpecifier}/package.json`,
