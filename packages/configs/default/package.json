@@ -6,6 +6,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "scripts": {
+    "test": "mocha"
+  },
   "dependencies": {
     "@parcel/bundler-default": "^2.0.0",
     "@parcel/namer-default": "^2.0.0",
