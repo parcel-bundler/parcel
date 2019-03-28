@@ -16,7 +16,7 @@ import AssetGraph, {nodeFromDep, nodeFromConfigRequest} from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import WorkerFarm from '@parcel/workers';
 import Cache from '@parcel/cache';
-import {resolve as localResolve} from '@parcel/utils/src/localRequire';
+import {localResolve} from '@parcel/utils/src/localRequire';
 import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
 import * as fs from '@parcel/fs';
 import ConfigLoader from './ConfigLoader';
@@ -145,8 +145,6 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   async transform(node, {signal, shallow}: BuildOpts) {
     let start = Date.now();
-    await this.loadBuildDependencies(node, {signal, shallow});
-    console.log('TRANSFORMING', node.value);
     let req = node.value;
     let {configs, devDeps} = await this.loadBuildDependencies(node, {
       signal,
@@ -167,10 +165,9 @@ export default class AssetGraphBuilder extends EventEmitter {
     //   fileHashes
     // });
     // console.log('PARCEL CONFIG STRINGIFIED', JSON.stringify(configs.parcel));
-    // console.log('CACHE READ KEY', cacheKey);
+    // console.log('CACHE READ KEY', req.filePath, cacheKey);
 
     let cacheEntry = await Cache.get(cacheKey);
-
     if (!cacheEntry) {
       console.log('TRANSFORMING', req);
 
@@ -269,11 +266,11 @@ export default class AssetGraphBuilder extends EventEmitter {
     let devDep;
     if (!devDepNode || this.graph.invalidNodes.has(devDepRequestNode.id)) {
       console.log('RESOLVING DEV DEP', devDepRequestNode.value);
-      let {moduleSpecifier, sourcePath} = devDepRequestNode.value;
+      let {moduleSpecifier, resolveFrom} = devDepRequestNode.value;
       let [resolvedPath, resolvedPkg] = await localResolve(
         // TODO: localResolve has a cache that should either not be used or cleared appropriately
         `${moduleSpecifier}/package.json`,
-        sourcePath
+        `${resolveFrom}/index`
       );
       let {name, version} = resolvedPkg;
       devDep = {name, version};

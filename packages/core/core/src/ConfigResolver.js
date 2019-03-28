@@ -31,9 +31,7 @@ export default class ConfigResolver {
   }
 
   async create(config: ParcelConfig) {
-    // Resolve plugins from the root when a config is passed programmatically
     let [result, extendedFiles] = await this.processConfig(config);
-    console.log('Creating Config');
     return new Config({extendedFiles, ...result});
   }
 

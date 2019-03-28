@@ -17,7 +17,7 @@ import type {
 } from '@parcel/types';
 import {localResolve} from '@parcel/utils/src/localRequire';
 import {isMatch} from 'micromatch';
-import {basename} from 'path';
+import {basename, dirname} from 'path';
 import {CONFIG} from '@parcel/plugin';
 import logger from '@parcel/logger';
 import semver from 'semver';
@@ -41,7 +41,8 @@ export default class Config {
 
   constructor(config: ParcelConfig) {
     this.filePath = config.filePath;
-    this.extendedFiles = config.extendedFiles;
+    this.resolveFrom = config.resolveFrom || dirname(config.filePath);
+    this.extendedFiles = config.extendedFiles || [];
     this.resolvers = config.resolvers || [];
     this.transforms = config.transforms || {};
     this.runtimes = config.runtimes || {};
@@ -55,7 +56,7 @@ export default class Config {
 
   serialize(): ParcelConfig {
     return {
-      filePath: this.filePath,
+      resolveFrom: this.resolveFrom,
       resolvers: this.resolvers,
       transforms: this.transforms,
       runtimes: this.runtimes,
@@ -73,7 +74,10 @@ export default class Config {
       return cached;
     }
 
-    let [resolved, pkg] = await localResolve(pluginName, this.filePath);
+    let [resolved, pkg] = await localResolve(
+      pluginName,
+      `${this.resolveFrom}/index`
+    );
 
     // Validate the engines.parcel field in the plugin's package.json
     let parcelVersionRange = pkg && pkg.engines && pkg.engines.parcel;

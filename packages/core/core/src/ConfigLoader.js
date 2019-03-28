@@ -20,14 +20,18 @@ export default class ConfigLoader {
     let {filePath} = configRequest;
     let configResolver = new ConfigResolver();
 
+    // Resolve plugins from cwd when a config is passed programmatically
     let config = this.options.config
-      ? await configResolver.create(this.options.config, filePath)
+      ? await configResolver.create({
+          ...this.options.config,
+          resolveFrom: this.options.cwd
+        })
       : await configResolver.resolve(filePath);
     if (!config && this.options.defaultConfig) {
-      config = await configResolver.create(
-        this.options.defaultConfig,
-        this.options.projectRoot
-      );
+      config = await configResolver.create({
+        ...this.options.defaultConfig,
+        resolveFrom: this.options.cwd
+      });
     }
 
     if (!config) {
@@ -47,7 +51,7 @@ export default class ConfigLoader {
     }
     let devDepRequests = devDeps.map(devDep => ({
       moduleSpecifier: devDep,
-      sourcePath: config.configPath
+      resolveFrom: config.resolveFrom // TODO: resolveFrom should be nearest package boundary
     }));
 
     let invalidations = [
@@ -57,16 +61,17 @@ export default class ConfigLoader {
       },
       {
         action: 'change',
-        pattern: config.configPath
+        pattern: config.filePath
       },
       {
         action: 'unlink',
-        pattern: config.configPath
+        pattern: config.filePath
       }
     ];
 
     let reliesOnLockFile = false;
     for (let extendedFile of config.extendedFiles) {
+      // ? Does this work for Windows
       if (extendedFile.includes('/node_modules/')) {
         reliesOnLockFile = true;
       }
@@ -75,7 +80,11 @@ export default class ConfigLoader {
         pattern: extendedFile
       });
     }
+
+    // These are only needed for invalidations and do not need to be included in the hash
+    // TODO: probably shouldn't get rid of them this way though
     delete config.extendedFiles;
+    delete config.filePath;
 
     if (reliesOnLockFile) {
       invalidations.push({
@@ -89,5 +98,6 @@ export default class ConfigLoader {
 
   loadThirdPartyConfig(configRequest) {
     throw new Error('Third party configuration loading not implemented yet');
+    // TODO: Add config loader plugins to config and grab them programmatically based on config request
   }
 }

@@ -95,7 +95,7 @@ export default class TransformerRunner {
     //   fileHashes
     // });
     // console.log('PARCEL CONFIG STRINGIFIED', JSON.stringify(configs.parcel));
-    // console.log('CACHE WRITE KEY', cacheKey, req.filePath);
+    // console.log('CACHE WRITE KEY', req.filePath, cacheKey);
 
     // If the transformer request passed code rather than a filename,
     // use a hash as the id to ensure it is unique.

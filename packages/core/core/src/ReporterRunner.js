@@ -1,8 +1,10 @@
 // @flow
-import Config from './Config';
+import Config from './ParcelConfig';
 import type {ParcelOptions, ReporterEvent} from '@parcel/types';
 import logger from '@parcel/logger';
 import bus from '@parcel/workers/src/bus';
+
+import {CONFIG} from '@parcel/plugin';
 
 type Opts = {|
   config: Config,
@@ -22,7 +24,11 @@ export default class ReporterRunner {
   }
 
   async report(event: ReporterEvent) {
-    let reporters = await this.config.getReporters();
+    //let reporters = await this.config.getReporters();
+    let plugin = require('@parcel/reporter-cli/src/SimpleCLIReporter');
+    plugin = plugin.default ? plugin.default : plugin;
+    plugin = plugin[CONFIG];
+    let reporters = [plugin]; // TODO: get programmitically
 
     for (let reporter of reporters) {
       await reporter.report(event, this.options);

@@ -18,7 +18,6 @@ import {
   type AbortSignal
 } from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
-
 export default class Parcel {
   options: ParcelOptions;
   entries: Array<string>;
@@ -33,6 +32,7 @@ export default class Parcel {
     this.options = options;
     // TODO: Get projectRoot and lockFile programmatically
     this.options.projectRoot = process.cwd();
+    this.options.cwd = process.cwd();
     this.options.lockFilePath = `${this.options.projectRoot}/yarn.lock`;
     this.entries = Array.isArray(options.entries)
       ? options.entries
@@ -51,12 +51,11 @@ export default class Parcel {
     }
 
     this.bundlerRunner = new BundlerRunner({
-      options: this.options
+      options: this.options,
       rootDir: this.rootDir
     });
 
     this.reporterRunner = new ReporterRunner({
-      config,
       options: this.options
     });
 
