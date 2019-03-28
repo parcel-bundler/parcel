@@ -19,7 +19,9 @@ type ConfigMap<K, V> = {[K]: V};
 
 export default class ConfigResolver {
   async resolve(filePath: FilePath): Promise<?Config> {
-    let configPath = await resolveConfig(filePath, ['.parcelrc']);
+    let configPath = await resolveConfig(filePath, ['.parcelrc'], {
+      noCache: true
+    });
     if (!configPath) {
       return null;
     }

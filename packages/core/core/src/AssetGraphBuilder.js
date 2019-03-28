@@ -157,16 +157,17 @@ export default class AssetGraphBuilder extends EventEmitter {
         .getNodesConnectedFrom(node, 'invalidated_by_change_to')
         .map(fileNode => md5FromFilePath(fileNode.value.filePath))
     );
+
+    let cacheKey = md5FromString(
+      `${JSON.stringify({configs, devDeps, fileHashes})}`
+    );
     // console.log('CACHE READ CONTENT', req.filePath, {
     //   configs,
     //   devDeps,
     //   fileHashes
     // });
     // console.log('PARCEL CONFIG STRINGIFIED', JSON.stringify(configs.parcel));
-    let cacheKey = md5FromString(
-      `${JSON.stringify({configs, devDeps, fileHashes})}`
-    );
-    console.log('CACHE READ KEY', cacheKey);
+    // console.log('CACHE READ KEY', cacheKey);
 
     let cacheEntry = await Cache.get(cacheKey);
 

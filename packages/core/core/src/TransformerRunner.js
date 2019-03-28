@@ -86,16 +86,16 @@ export default class TransformerRunner {
       files.map(file => md5FromFilePath(file.filePath))
     );
 
+    let cacheKey = md5FromString(
+      `${JSON.stringify({configs, devDeps, fileHashes})}`
+    );
     // console.log('CACHE WRITE CONTENT', req.filePath, {
     //   configs,
     //   devDeps,
     //   fileHashes
     // });
     // console.log('PARCEL CONFIG STRINGIFIED', JSON.stringify(configs.parcel));
-    let cacheKey = md5FromString(
-      `${JSON.stringify({configs, devDeps, fileHashes})}`
-    );
-    console.log('CACHE WRITE KEY', cacheKey, req.filePath);
+    // console.log('CACHE WRITE KEY', cacheKey, req.filePath);
 
     // If the transformer request passed code rather than a filename,
     // use a hash as the id to ensure it is unique.

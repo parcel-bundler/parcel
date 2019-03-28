@@ -266,9 +266,10 @@ export default class AssetGraph extends Graph<AssetGraphNode>
     this.incompleteNodes.delete(configRequestNode.id);
     this.invalidNodes.delete(configRequestNode.id);
     let configNode = nodeFromConfig(config);
-    if (!this.hasNode(configNode)) {
+    let edge = {from: configRequestNode.id, to: configNode.id};
+    if (!this.hasEdge(edge)) {
       this.addNode(configNode);
-      this.addEdge({from: configRequestNode.id, to: configNode.id});
+      this.addEdge(edge);
     }
 
     for (let {action, pattern} of invalidations) {

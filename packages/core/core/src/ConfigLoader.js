@@ -19,10 +19,10 @@ export default class ConfigLoader {
   async loadParcelConfig(configRequest) {
     let {filePath} = configRequest;
     let configResolver = new ConfigResolver();
+
     let config = this.options.config
       ? await configResolver.create(this.options.config, filePath)
       : await configResolver.resolve(filePath);
-
     if (!config && this.options.defaultConfig) {
       config = await configResolver.create(
         this.options.defaultConfig,
