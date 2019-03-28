@@ -44,19 +44,22 @@ async function getConfig(asset) {
   }
 
   let postcssModulesConfig = {
-    getJSON: (filename, json) => (asset.cssModules = json),
-    Loader: createLoader(asset),
     generateScopedName: (name, filename) =>
       `_${name}_${md5(filename).substr(0, 5)}`
   };
 
   if (config.plugins && config.plugins['postcss-modules']) {
-    postcssModulesConfig = Object.assign(
-      config.plugins['postcss-modules'],
-      postcssModulesConfig
+    Object.assign(
+      postcssModulesConfig,
+      config.plugins['postcss-modules']
     );
     delete config.plugins['postcss-modules'];
   }
+
+  Object.assign(postcssModulesConfig, {
+    getJSON: (filename, json) => (asset.cssModules = json),
+    Loader: createLoader(asset)
+  })
 
   config.plugins = await loadPlugins(config.plugins, asset.name);
 
