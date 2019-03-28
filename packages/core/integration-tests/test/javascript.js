@@ -1687,6 +1687,22 @@ describe('javascript', function() {
     assert.equal(test, 2);
   });
 
+  it('should correctly reference a relative raw import', async function() {
+    let b = await bundle(
+      path.join(__dirname, `/integration/js-import-relative-raw/index.js`)
+    );
+
+    let module = await run(b);
+    assert(
+      module.default.startsWith('/logo'),
+      module.default + ' starts with `/logo`'
+    );
+    assert(
+      await fs.exists(path.join(__dirname, 'dist', module.default), 'utf8'),
+      module.default + ' exists in dist'
+    );
+  });
+
   it('should not dedupe imports with different contents', async function() {
     let b = await bundle(
       path.join(__dirname, `/integration/js-different-contents/index.js`),
