@@ -299,7 +299,7 @@ describe('scope hoisting', function() {
         );
       } catch (err) {
         threw = true;
-        assert.equal(err.message, "export 'Test' is not defined");
+        assert.equal(err.message, "Export 'Test' is not defined (1:8)");
       }
 
       assert(threw);
