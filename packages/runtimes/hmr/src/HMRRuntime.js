@@ -1,5 +1,4 @@
 // @flow
-
 import type {BundleGroupNode} from '@parcel/types';
 
 import {Runtime} from '@parcel/plugin';
@@ -18,7 +17,9 @@ export default new Runtime({
     // TODO: Figure out how to get the port & hostname to the global config of Parcel
     // Perhaps parcel core should be responsible of assigning ports to the server and HMR?
     if (typeof options.hot !== 'object') {
-      return;
+      throw new Error(
+        'options.hot should be an object, otherwise the HMR Runtime has no clue what port to use'
+      );
     }
 
     if (!hmrRuntimeCode) {
