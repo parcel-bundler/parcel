@@ -62,6 +62,7 @@ export default class Server extends EventEmitter {
 
   buildSuccess(bundleGraph: BundleGraph) {
     this.bundleGraph = bundleGraph;
+    this.pending = false;
 
     this.emit('bundled');
   }
