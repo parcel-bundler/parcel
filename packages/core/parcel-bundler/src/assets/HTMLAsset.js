@@ -65,7 +65,7 @@ const META = {
 const SCRIPT_TYPES = {
   'application/javascript': 'js',
   'text/javascript': 'js',
-  module: 'jsmodule',
+  module: 'js',
   'application/json': false,
   'application/ld+json': 'jsonld',
   'text/html': false
@@ -287,9 +287,7 @@ class HTMLAsset extends Asset {
         if (
           node.attrs &&
           (node.tag === 'style' ||
-            (node.attrs.type &&
-              (SCRIPT_TYPES[node.attrs.type] === 'js' ||
-                SCRIPT_TYPES[node.attrs.type] === 'jsmodule')))
+            (node.attrs.type && SCRIPT_TYPES[node.attrs.type] === 'js'))
         ) {
           delete node.attrs.type;
         }
