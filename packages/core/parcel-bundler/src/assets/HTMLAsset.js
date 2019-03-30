@@ -65,6 +65,7 @@ const META = {
 const SCRIPT_TYPES = {
   'application/javascript': 'js',
   'text/javascript': 'js',
+  module: 'jsmodule',
   'application/json': false,
   'application/ld+json': 'jsonld',
   'text/html': false
@@ -281,12 +282,14 @@ class HTMLAsset extends Asset {
           node.content = rendition.value;
         }
 
-        // Delete "type" attribute, since CSS and JS are the defaults.
+        // Delete "type" attribute, since CSS and JS (as ES5 "script" type, not "module") are the defaults.
         // Unless it's application/ld+json
         if (
           node.attrs &&
           (node.tag === 'style' ||
-            (node.attrs.type && SCRIPT_TYPES[node.attrs.type] === 'js'))
+            (node.attrs.type &&
+              (SCRIPT_TYPES[node.attrs.type] === 'js' ||
+                SCRIPT_TYPES[node.attrs.type] === 'jsmodule')))
         ) {
           delete node.attrs.type;
         }
