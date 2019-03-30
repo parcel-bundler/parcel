@@ -476,6 +476,36 @@ describe('sourcemaps', function() {
     await test(true);
   });
 
+  it('should create correct sourceMappingURL', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/sourcemap-css/style.css')
+    );
+
+    const jsOutput = await fs.readFile(b.name, 'utf8');
+    assert(jsOutput.includes('//# sourceMappingURL=/style.css.map'));
+  });
+
+  it('should create correct sourceMappingURL with multiple entrypoints', async function() {
+    const b = await bundle([
+      path.join(
+        __dirname,
+        '/integration/sourcemap-css-multiple-entrypoints/a/style.css'
+      ),
+      path.join(
+        __dirname,
+        '/integration/sourcemap-css-multiple-entrypoints/b/style.css'
+      )
+    ]);
+
+    const bundle1 = [...b.childBundles][0];
+    const bundle2 = [...b.childBundles][1];
+    const jsOutput1 = await fs.readFile(bundle1.name, 'utf8');
+    const jsOutput2 = await fs.readFile(bundle2.name, 'utf8');
+
+    assert(jsOutput1.includes('//# sourceMappingURL=/a/style.css.map'));
+    assert(jsOutput2.includes('//# sourceMappingURL=/b/style.css.map'));
+  });
+
   it('should create a valid sourcemap for a CSS bundle with imports', async function() {
     async function test(minify) {
       let b = await bundle(
