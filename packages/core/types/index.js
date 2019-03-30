@@ -129,8 +129,8 @@ export type ParcelOptions = {|
   minify?: boolean,
   sourceMaps?: boolean,
   publicUrl?: string,
-  hot?: ServerOptions | boolean,
-  serve?: ServerOptions | boolean,
+  hot?: ServerOptions | false,
+  serve?: ServerOptions | false,
   autoinstall?: boolean,
   logLevel?: 'none' | 'error' | 'warn' | 'info' | 'verbose'
 

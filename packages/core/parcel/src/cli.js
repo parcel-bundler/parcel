@@ -152,8 +152,9 @@ function normalizeOptions(command): ParcelOptions {
   if (command.name() === 'serve') {
     serve = {
       https,
-      port: command.port,
-      host: command.host
+      port: command.port || 1234,
+      host: command.host,
+      certificateDir: '.parcel-cert'
     };
   }
 
@@ -161,8 +162,9 @@ function normalizeOptions(command): ParcelOptions {
   if (command.name() !== 'build' && command.hmr !== false) {
     hmr = {
       https,
-      port: command.hmrPort || command.port,
-      host: command.hmrHost || command.host
+      port: command.hmrPort || command.port || 12345,
+      host: command.hmrHost || command.host,
+      certificateDir: '.parcel-cert'
     };
   }
 

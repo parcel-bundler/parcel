@@ -23,7 +23,9 @@ export default new Runtime({
     }
 
     if (!hmrRuntimeCode) {
-      hmrRuntimeCode = await readFile(path.join(__dirname, HMR_RUNTIME));
+      hmrRuntimeCode = (await readFile(
+        path.join(__dirname, HMR_RUNTIME)
+      )).toString('utf8');
     }
 
     // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414

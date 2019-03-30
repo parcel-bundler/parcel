@@ -153,30 +153,30 @@ export default class Server extends EventEmitter {
     logger.verbose(`Request: ${req.headers.host}${req.url}`);
   }
 
-  handler(req: Request, res: Response) {
-    this.logAccessIfVerbose(req);
-
-    // Wait for the parcelInstance to finish bundling if needed
-    if (this.pending) {
-      this.once('bundled', this.respond);
-    } else {
-      this.respond(req, res);
-    }
-  }
-
   async start() {
     let server;
+
+    const handler = (req: Request, res: Response) => {
+      this.logAccessIfVerbose(req);
+
+      const response = () => this.respond(req, res);
+
+      // Wait for the parcelInstance to finish bundling if needed
+      if (this.pending) {
+        this.once('bundled', response);
+      } else {
+        response();
+      }
+    };
+
     if (!this.options.https) {
-      server = http.createServer(this.handler);
+      server = http.createServer(handler);
     } else if (typeof this.options.https === 'boolean') {
-      server = https.createServer(
-        generateCertificate(this.options),
-        this.handler
-      );
+      server = https.createServer(generateCertificate(this.options), handler);
     } else {
       server = https.createServer(
         await getCertificate(this.options.https),
-        this.handler
+        handler
       );
     }
 

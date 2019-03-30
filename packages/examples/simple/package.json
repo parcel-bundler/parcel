@@ -4,7 +4,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel2 watch src/index.js"
+    "demo": "parcel2 serve src/index.js"
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0",

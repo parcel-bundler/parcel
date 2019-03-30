@@ -14,7 +14,8 @@ import {
 export type Request = HTTPIncomingMessage | HTTPSIncomingMessage;
 export type Response = HTTPServerResponse | HTTPSServerResponse;
 export type Server = HTTPServer | HTTPSServer;
-export type DevServerOptions = ServerOptions & {|
+export type DevServerOptions = {|
+  ...ServerOptions,
   distDir: string,
   publicUrl: string
 |};

@@ -8,15 +8,6 @@ export default new Reporter({
     if (!options.serve) return;
 
     if (!server) {
-      if (options.serve === true) {
-        options.serve = {
-          host: '',
-          port: 1234,
-          https: false,
-          certificateDir: '.parcel-cert'
-        };
-      }
-
       let serverOptions = {
         host: options.serve.host,
         port: options.serve.port,
@@ -26,7 +17,6 @@ export default new Reporter({
         publicUrl: options.publicUrl || '/'
       };
 
-      // $FlowFixMe
       server = new Server(serverOptions);
       await server.start();
     }
