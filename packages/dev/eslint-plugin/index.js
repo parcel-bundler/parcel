@@ -1,3 +1,7 @@
+'use strict';
+
 module.exports = {
-  rules: {}
+  rules: {
+    'no-self-package-import': require('./lib/rules/no-self-package-import')
+  }
 };
