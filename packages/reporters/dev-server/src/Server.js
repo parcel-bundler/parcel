@@ -87,7 +87,7 @@ export default class Server extends EventEmitter {
     } else {
       // Otherwise, serve the file from the dist folder
       req.url = pathname.slice(this.options.publicUrl.length);
-      return this.serve(req, res, this.sendIndex);
+      return this.serve(req, res, () => this.sendIndex(req, res));
     }
   }
 
@@ -104,7 +104,7 @@ export default class Server extends EventEmitter {
       if (htmlBundle) {
         req.url = `/${path.basename(htmlBundle.filePath)}`;
 
-        this.serve(req, res, this.send404);
+        this.serve(req, res, () => this.send404(req, res));
       } else {
         this.send404(req, res);
       }
