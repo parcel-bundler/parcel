@@ -795,6 +795,49 @@ describe('html', function() {
     assert(html.includes('alert("Hello, World!")'));
   });
 
+  it('should strip `type` attribute from ES-module and "text/javascript" script tags', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-module-type-scripts/index.html'),
+      {production: true}
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.html'],
+      childBundles: [
+        {
+          type: 'js',
+          assets: ['module.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        },
+        {
+          type: 'js',
+          assets: ['text-javascript.js'],
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
+        }
+      ]
+    });
+
+    let html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
+
+    console.debug(html);
+
+    assert(
+      !/type\s*=/.test(html) // No type="" attribute anywhere
+    );
+  });
+
   it('should handle inline css with @imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-css-import/index.html'),
