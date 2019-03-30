@@ -1,7 +1,11 @@
 module.exports = {
-  extends: ['eslint:recommended', 'plugin:flowtype/recommended'],
+  extends: [
+    'eslint:recommended',
+    'plugin:flowtype/recommended',
+    'plugin:react/recommended'
+  ],
   parser: 'babel-eslint',
-  plugins: ['flowtype', 'import'],
+  plugins: ['flowtype', 'import', 'react'],
   parserOptions: {
     ecmaVersion: 8,
     ecmaFeatures: {
@@ -37,6 +41,9 @@ module.exports = {
   settings: {
     flowtype: {
       onlyFilesWithFlowAnnotation: true
+    },
+    react: {
+      version: 'detect'
     }
   }
 };
