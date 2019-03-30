@@ -4,8 +4,9 @@ import type {BundleGroupNode} from '@parcel/types';
 
 import {Runtime} from '@parcel/plugin';
 import {readFile} from '@parcel/fs';
+import path from 'path';
 
-const HMR_RUNTIME = './loaders/hmr-runtime';
+const HMR_RUNTIME = './loaders/hmr-runtime.js';
 
 let hmrRuntimeCode = null;
 export default new Runtime({
@@ -21,7 +22,7 @@ export default new Runtime({
     }
 
     if (!hmrRuntimeCode) {
-      hmrRuntimeCode = await readFile(HMR_RUNTIME);
+      hmrRuntimeCode = await readFile(path.join(__dirname, HMR_RUNTIME));
     }
 
     // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414
