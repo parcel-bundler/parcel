@@ -34,7 +34,7 @@ export default class HMRServer {
     await new Promise(async resolve => {
       if (!options.https) {
         this.server = http.createServer();
-      } else if (typeof options.https === 'boolean') {
+      } else if (options.https === true) {
         this.server = https.createServer(generateCertificate(options));
       } else {
         this.server = https.createServer(await getCertificate(options.https));

@@ -24,6 +24,7 @@
     "node-forge": "^0.8.1"
   },
   "devDependencies": {
-    "@parcel/babel-preset": "^2.0.0"
+    "@parcel/babel-preset": "^2.0.0",
+    "@parcel/types": "^2.0.0"
   }
 }
