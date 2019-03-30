@@ -10,18 +10,15 @@ import https from 'https';
 import url from 'url';
 import serveStatic from 'serve-static';
 import getPort from 'get-port';
-import ansiToHtml from 'ansi-to-html';
+import ansiHtml from 'ansi-html';
 import logger from '@parcel/logger';
 import prettyError from '@parcel/reporter-cli/src/prettyError';
 import generateCertificate from '@parcel/server-utils/src/generateCertificate';
 import getCertificate from '@parcel/server-utils/src/getCertificate';
 import serverErrors from './serverErrors';
+import {readFile} from '@parcel/fs';
 
 function setHeaders(res: Response) {
-  enableCors(res);
-}
-
-function enableCors(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader(
     'Access-Control-Allow-Methods',
@@ -108,45 +105,38 @@ export default class Server extends EventEmitter {
       } else {
         this.send404(req, res);
       }
+    } else {
+      this.send404(req, res);
     }
-
-    this.send404(req, res);
   }
 
-  send404(req: Request, res: Response, next?: any => any) {
-    if (next) return next();
+  async send404(req: Request, res: Response) {
+    res.statusCode = 404;
+
+    let template404 = (await readFile(
+      path.join(__dirname, 'templates/404.html')
+    )).toString('utf8');
 
     setHeaders(res);
-    res.writeHead(404);
-    res.end();
+    res.end(template404);
   }
 
-  send500(req: Request, res: Response) {
+  async send500(req: Request, res: Response) {
     setHeaders(res);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.writeHead(500);
 
-    let errorMesssge = '<h1>🚨 Build Error</h1>';
-    if (process.env.NODE_ENV === 'production') {
-      errorMesssge += '<p><b>Check the console for details.</b></p>';
-    } else if (this.error) {
-      const {message, stack} = prettyError(this.error, {color: true});
-
-      errorMesssge += `<p><b>${message}</b></p>`;
-      if (stack) {
-        errorMesssge += `<div style="background: black; padding: 1rem;">${ansiToHtml.toHtml(
-          stack
-        )}</div>`;
-      }
-    }
+    const {message, stack} = prettyError(this.error, {color: true});
+    let stackHTML = ansiHtml(stack);
+    let template500 = (await readFile(
+      path.join(__dirname, 'templates/500.html')
+    )).toString('utf8');
 
     res.end(
-      [
-        `<!doctype html>`,
-        `<head><title>🚨 Build Error</title></head>`,
-        `<body style="font-family: monospace; white-space: pre;">${errorMesssge}</body>`
-      ].join('')
+      template500
+        .replace(/<!-- PARCEL_ERROR_MESSAGE -->/g, message)
+        .replace(/<!-- PARCEL_ERROR_STACK -->/g, stackHTML)
     );
   }
 
