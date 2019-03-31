@@ -19,7 +19,7 @@ type HMRMessage = {|
   assets?: Array<{
     id: string,
     type: string,
-    code: string,
+    output: string,
     deps: Object
   }>
 |};
@@ -85,11 +85,11 @@ export default class HMRServer {
     this.broadcast(this.unresolvedError);
   }
 
-  addChangedAsset(asset: CacheEntry) {
-    this.changedAssets.push(asset);
+  addChangedAsset(cacheEntry: CacheEntry) {
+    this.changedAssets.push(cacheEntry);
   }
 
-  emitUpdate(reload: boolean = false) {
+  async emitUpdate(reload: boolean = false) {
     if (this.unresolvedError) {
       this.unresolvedError = null;
       this.broadcast({
@@ -104,32 +104,39 @@ export default class HMRServer {
         type: 'reload'
       });
     } else {
-      this.broadcast({
-        type: 'update',
-        assets: this.changedAssets.reduce((acc, cacheEntry) => {
-          return [
-            ...acc,
-            ...cacheEntry.assets.map((asset: Asset) => {
+      let mappedCacheEntries = await Promise.all(
+        this.changedAssets.map(cacheEntry =>
+          Promise.all(
+            cacheEntry.assets.map(async asset => {
               let deps = {};
               for (let dependency of asset.dependencies) {
                 // ? SourcePath should come from graph?
                 deps[dependency.sourcePath] = dependency.id;
               }
 
+              let output = await asset.getOutput();
+
               return {
                 id: asset.id,
                 type: asset.type,
-                code: asset.code, // ? This should probably be resolved from cache?
+                output: output.code, // ? This should probably be resolved from cache?
                 deps: deps
               };
             })
-          ];
-        }, [])
+          )
+        )
+      );
+
+      let reducedAssets = mappedCacheEntries.reduce(
+        (acc, mappedCacheEntry) => [...acc, ...mappedCacheEntry],
+        []
+      );
+
+      this.broadcast({
+        type: 'update',
+        assets: reducedAssets
       });
     }
-
-    // TODO: Figure out how we'll let assets refresh browsers
-    /*const shouldReload = this.changedAssets.some(asset => asset.hmrPageReload);*/
 
     this.changedAssets = [];
   }

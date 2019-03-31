@@ -46,15 +46,16 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         }
       });
 
+      // TODO: Figure out hmr for css
       // Enable HMR for CSS by default.
-      handled =
+      /*handled =
         handled ||
         data.assets.every(function(asset) {
           return asset.type === 'css' && asset.generated.js;
-        });
+        });*/
 
       if (handled) {
-        console.clear();
+        // console.clear();
 
         data.assets.forEach(function(asset) {
           hmrApply(global.parcelRequire, asset);
@@ -64,14 +65,14 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
           hmrAcceptRun(v[0], v[1]);
         });
       } else {
-        window.location.reload();
+        // window.location.reload();
       }
     }
 
     if (data.type === 'reload') {
       ws.close();
       ws.onclose = function() {
-        location.reload();
+        window.location.reload();
       };
     }
 
@@ -138,6 +139,7 @@ function getParents(bundle, id) {
   for (k in modules) {
     for (d in modules[k][1]) {
       dep = modules[k][1][d];
+
       if (dep === id || (Array.isArray(dep) && dep[dep.length - 1] === id)) {
         parents.push(k);
       }
@@ -168,6 +170,7 @@ function hmrApply(bundle, asset) {
 
 function hmrAcceptCheck(bundle, id) {
   var modules = bundle.modules;
+
   if (!modules) {
     return;
   }
@@ -179,6 +182,7 @@ function hmrAcceptCheck(bundle, id) {
   if (checkedAssets[id]) {
     return;
   }
+
   checkedAssets[id] = true;
 
   var cached = bundle.cache[id];
