@@ -216,40 +216,38 @@ class HTMLAsset extends Asset {
       this.ast.walk(node => {
         if (node.tag === 'script' || node.tag === 'style') {
           let value = node.content && node.content.join('').trim();
-          if (value) {
-            let type;
+          let type;
 
-            if (node.tag === 'style') {
-              if (node.attrs && node.attrs.type) {
-                type = node.attrs.type.split('/')[1];
-              } else {
-                type = 'css';
-              }
-            } else if (node.attrs && node.attrs.type) {
-              // Skip JSON
-              if (SCRIPT_TYPES[node.attrs.type] === false) {
-                return node;
-              }
-
-              if (SCRIPT_TYPES[node.attrs.type]) {
-                type = SCRIPT_TYPES[node.attrs.type];
-              } else {
-                type = node.attrs.type.split('/')[1];
-              }
+          if (node.tag === 'style') {
+            if (node.attrs && node.attrs.type) {
+              type = node.attrs.type.split('/')[1];
             } else {
-              type = 'js';
+              type = 'css';
+            }
+          } else if (node.attrs && node.attrs.type) {
+            // Skip JSON
+            if (SCRIPT_TYPES[node.attrs.type] === false) {
+              return node;
             }
 
-            parts.push({
-              type,
-              value,
-              inlineHTML: true,
-              meta: {
-                type: 'tag',
-                node
-              }
-            });
+            if (SCRIPT_TYPES[node.attrs.type]) {
+              type = SCRIPT_TYPES[node.attrs.type];
+            } else {
+              type = node.attrs.type.split('/')[1];
+            }
+          } else {
+            type = 'js';
           }
+
+          parts.push({
+            type,
+            value,
+            inlineHTML: true,
+            meta: {
+              type: 'tag',
+              node
+            }
+          });
         }
 
         // Process inline style attributes.

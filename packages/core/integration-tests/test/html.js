@@ -795,7 +795,7 @@ describe('html', function() {
     assert(html.includes('alert("Hello, World!")'));
   });
 
-  it('should strip `type` attribute from ES-module and "text/javascript" script tags', async function() {
+  it('should strip `type` attribute from ES-module and plain script tags', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-module-type-scripts/index.html'),
       {production: true}
@@ -830,8 +830,6 @@ describe('html', function() {
       path.join(__dirname, '/dist/index.html'),
       'utf8'
     );
-
-    console.debug(html);
 
     assert(
       !/type\s*=/.test(html) // No type="" attribute anywhere
