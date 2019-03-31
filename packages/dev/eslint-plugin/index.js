@@ -2,6 +2,6 @@
 
 module.exports = {
   rules: {
-    'no-self-package-import': require('./lib/rules/no-self-package-import')
+    'no-self-package-imports': require('./lib/rules/no-self-package-imports')
   }
 };
