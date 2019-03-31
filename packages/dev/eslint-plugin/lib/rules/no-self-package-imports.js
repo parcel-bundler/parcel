@@ -6,7 +6,7 @@
  * This can easily happen accidentally while refactoring across the monorepo.
  * Since yarn links all modules in its root `node_modules`, these requires
  * resolve fine in the monorepo, but they'll break in published modules.
- * 
+ *
  * Supports `require` and `require.resolve` calls as well as `import` declarations.
  *
  * See no-restricted-modules for a similar rule:
@@ -15,6 +15,7 @@
 
 'use strict';
 
+const path = require('path');
 const readPkgUp = require('read-pkg-up');
 const {
   getRequiredPath,
@@ -32,7 +33,15 @@ module.exports = {
     fixable: 'code'
   },
   create(context) {
-    let pkgInfo = readPkgUp.sync({cwd: context.getFilename()});
+    let filename = context.getFilename();
+    if (!path.isAbsolute(filename)) {
+      // eslint gives the strings '<input>' and '<text>' in tests without
+      // explicit filenames and stdin, respectively. Otherwise, it gives an
+      // absolute path.
+      return;
+    }
+
+    let pkgInfo = readPkgUp.sync({cwd: filename});
     let pkgPath = pkgInfo.path;
     let pkgName = pkgInfo.pkg.name;
     if (!pkgName) {
@@ -53,7 +62,7 @@ module.exports = {
                 node.arguments[0],
                 quote(
                   relativePathForRequire({
-                    origin: context.getFilename(),
+                    origin: filename,
                     request: getRequiredPath(node),
                     pkgName,
                     pkgPath
@@ -75,7 +84,7 @@ module.exports = {
                 node.source,
                 quote(
                   relativePathForRequire({
-                    origin: context.getFilename(),
+                    origin: filename,
                     request,
                     pkgName,
                     pkgPath
