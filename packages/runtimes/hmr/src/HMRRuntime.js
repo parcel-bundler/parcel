@@ -35,8 +35,8 @@ export default new Runtime({
 
     if (!root || !options.hot) return;
 
-    let HMR_HOSTNAME = options.hot.host || 'localhost';
-    let HMR_PORT = (options.hot.port || 12345).toString();
+    let HMR_HOSTNAME = `"${options.hot.host || 'localhost'}"`;
+    let HMR_PORT = `"${(options.hot.port || 12345).toString()}"`;
 
     // TODO: Get rid of this hacky stuff
     // $FlowFixMe
