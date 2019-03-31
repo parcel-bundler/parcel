@@ -28,29 +28,26 @@ export default new Runtime({
       )).toString('utf8');
     }
 
-    // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414
-    let bundleGroups: Array<BundleGroupNode> = Array.from(
-      bundle.assetGraph.nodes.values()
-    ).filter(n => n.type === 'bundle_group');
+    // TODO: Get rid of this hacky stuff
+    let root = Array.from(bundle.assetGraph.nodes.values()).find(
+      asset => asset.type === 'root'
+    );
 
-    for (let bundleGroup of bundleGroups) {
-      // Ignore deps with native loaders, e.g. workers.
-      if (bundleGroup.value.dependency.isURL) {
-        continue;
-      }
+    if (!root || !options.hot) return;
 
-      if (typeof options.hot !== 'object') return;
+    let HMR_HOSTNAME = options.hot.host || 'localhost';
+    let HMR_PORT = (options.hot.port || 12345).toString();
 
-      // TODO: Inject these as environment variables
-      // let HMR_HOSTNAME = options.hot.host;
-      // let HMR_PORT = options.hot.port;
-
-      // $FlowFixMe
-      await bundle.assetGraph.addRuntimeAsset(bundleGroup, {
-        filePath: __filename,
-        env: bundle.env,
-        code: hmrRuntimeCode
-      });
-    }
+    // TODO: Get rid of this hacky stuff
+    // $FlowFixMe
+    await bundle.assetGraph.addRuntimeAsset(root, {
+      filePath: __filename,
+      env: bundle.env,
+      code: hmrRuntimeCode
+        // TODO: Inject host & port as environment variables
+        // TODO: So it can be invalidated
+        .replace(/process.env.HMR_HOSTNAME/g, HMR_HOSTNAME)
+        .replace(/process.env.HMR_PORT/g, HMR_PORT)
+    });
   }
 });
