@@ -1,49 +1,15 @@
 module.exports = {
-  extends: [
-    'eslint:recommended',
-    'plugin:flowtype/recommended',
-    'plugin:react/recommended'
-  ],
-  parser: 'babel-eslint',
-  plugins: ['flowtype', 'import', 'react'],
+  extends: '@parcel/eslint-config',
+  parser: 'espree',
   parserOptions: {
-    ecmaVersion: 8,
-    ecmaFeatures: {
-      jsx: true
-    },
-    sourceType: 'module'
+    ecmaVersion: 5
   },
   env: {
-    node: true,
-    es6: true
+    browser: true
   },
-  globals: {
-    parcelRequire: true,
-    define: true
-  },
-  // https://eslint.org/docs/user-guide/configuring#configuration-based-on-glob-patterns
-  overrides: [
-    {
-      files: ['**/test/**/*.js', '*.test.js'],
-      env: {
-        mocha: true
-      }
-    }
-  ],
   rules: {
-    'flowtype/space-after-type-colon': 'off', // conflicts with prettier
-    'import/first': 'error',
-    'import/newline-after-import': 'error',
-    'import/no-extraneous-dependencies': 'error',
-    'import/no-self-import': 'error',
-    'no-return-await': 'error'
-  },
-  settings: {
-    flowtype: {
-      onlyFilesWithFlowAnnotation: true
-    },
-    react: {
-      version: 'detect'
-    }
+    'no-global-assign': 1,
+    'no-unused-vars': 0,
+    'no-console': 0
   }
 };
