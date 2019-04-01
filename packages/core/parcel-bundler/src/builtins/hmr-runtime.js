@@ -20,7 +20,7 @@ function Module(moduleName) {
 }
 
 module.bundle.Module = Module;
-var checkedAssets, assetsToAccept;
+var assetsToCheck, checkedAssets, assetsToAccept;
 
 var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
@@ -28,21 +28,24 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
   var ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
   ws.onmessage = function(event) {
+    assetsToCheck = [];
     checkedAssets = {};
     assetsToAccept = [];
 
     var data = JSON.parse(event.data);
 
     if (data.type === 'update') {
-      var handled = false;
       data.assets.forEach(function(asset) {
-        if (!asset.isNew) {
-          var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
-          if (didAccept) {
-            handled = true;
-          }
-        }
+        if (!asset.isNew) assetsToCheck.push(asset.id);
       });
+      var handled = false;
+      var id;
+      while (id = assetsToCheck.shift()) {
+        var didAccept = hmrAcceptCheck(global.parcelRequire, id);
+        if (didAccept) {
+          handled = true;
+        }
+      }
 
       // Enable HMR for CSS by default.
       handled = handled || data.assets.every(function(asset) {
@@ -174,16 +177,17 @@ function hmrAcceptCheck(bundle, id) {
   checkedAssets[id] = true;
 
   var cached = bundle.cache[id];
+  var accepted = cached && cached.hot && cached.hot._acceptCallbacks.length;
 
-  assetsToAccept.push([bundle, id]);
-
-  if (cached && cached.hot && cached.hot._acceptCallbacks.length) {
-    return true;
+  if (!accepted) {
+    getParents(global.parcelRequire, id).forEach(function (parent) {
+      if (!checkedAssets[parent]) accepted |= hmrAcceptCheck(bundle, parent);
+    });
   }
-
-  return getParents(global.parcelRequire, id).some(function (id) {
-    return hmrAcceptCheck(global.parcelRequire, id)
-  });
+  // visiting parents first and then prepending this module
+  // to the output ensures a topological sort
+  assetsToAccept.unshift([bundle, id]);
+  return accepted;
 }
 
 function hmrAcceptRun(bundle, id) {
