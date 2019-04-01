@@ -6,6 +6,8 @@ const CssSyntaxError = require('postcss/lib/css-syntax-error');
 const SourceMap = require('../SourceMap');
 const loadSourceMap = require('../utils/loadSourceMap');
 const path = require('path');
+const urlJoin = require('../utils/urlJoin');
+const isURL = require('../utils/is-url');
 
 const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
@@ -91,6 +93,9 @@ class CSSAsset extends Asset {
             let url = this.addURLDependency(node.nodes[0].value, {
               loc: decl.source.start
             });
+            if (!isURL(url)) {
+              url = urlJoin(this.options.publicURL, url);
+            }
             dirty = node.nodes[0].value !== url;
             node.nodes[0].value = url;
           }

@@ -257,8 +257,7 @@ class Asset {
         // Replace temporary bundle names in the output with the final content-hashed names.
         let newValue = value;
         for (let [name, map] of bundleNameMap) {
-          let mapRelative = path.relative(path.dirname(this.relativeName), map);
-          newValue = newValue.split(name).join(mapRelative);
+          newValue = newValue.split(name).join(map);
         }
 
         // Copy `this.generated` on write so we don't end up writing the final names to the cache.

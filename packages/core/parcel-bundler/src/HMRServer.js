@@ -63,7 +63,7 @@ class HMRServer {
     this.broadcast(this.unresolvedError);
   }
 
-  emitUpdate(assets) {
+  emitUpdate(assets, reload = false) {
     if (this.unresolvedError) {
       this.unresolvedError = null;
       this.broadcast({
@@ -71,7 +71,7 @@ class HMRServer {
       });
     }
 
-    const shouldReload = assets.some(asset => asset.hmrPageReload);
+    const shouldReload = reload || assets.some(asset => asset.hmrPageReload);
     if (shouldReload) {
       this.broadcast({
         type: 'reload'

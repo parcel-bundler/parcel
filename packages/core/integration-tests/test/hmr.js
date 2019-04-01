@@ -484,6 +484,40 @@ describe('hmr', function() {
     assert(spy.calledOnce);
   });
 
+  it('should trigger a page reload when a new bundle is created', async function() {
+    await ncp(
+      path.join(__dirname, '/integration/hmr-new-bundle'),
+      path.join(__dirname, '/input')
+    );
+
+    b = bundler(path.join(__dirname, '/input/index.html'), {
+      watch: true,
+      hmr: true
+    });
+    let bundle = await b.bundle();
+
+    let ctx = await run([...bundle.childBundles][0], {}, {require: false});
+    let spy = sinon.spy(ctx.location, 'reload');
+
+    await sleep(50);
+    assert(spy.notCalled);
+
+    await sleep(100);
+    fs.writeFile(
+      path.join(__dirname, '/input/index.js'),
+      'import "./index.css"'
+    );
+
+    await nextEvent(b, 'bundled');
+    assert(spy.calledOnce);
+
+    let contents = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf8'
+    );
+    assert(contents.includes('.css'));
+  });
+
   it('should log emitted errors and show an error overlay', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),

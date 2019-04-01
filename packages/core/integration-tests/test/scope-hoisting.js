@@ -485,6 +485,25 @@ describe('scope hoisting', function() {
       assert(!/.-./.test(contents));
     });
 
+    it('handle export multi-assignment', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/tree-shaking-multiassignment/a.js'
+        ),
+        {minify: true}
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output.default, [undefined, 'y']);
+
+      // let contents = await fs.readFile(
+      //   path.join(__dirname, '/dist/a.js'),
+      //   'utf8'
+      // );
+      // assert(!/["']z["']/.test(contents));
+    });
+
     it('support exporting a ES6 module exported as CommonJS', async function() {
       let b = await bundle(
         path.join(
