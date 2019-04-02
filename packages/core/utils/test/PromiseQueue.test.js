@@ -1,6 +1,6 @@
 // @flow
 import assert from 'assert';
-import delay from 'delay';
+import {sleep} from '@parcel/test-utils';
 import randomInt from 'random-int';
 
 import PromiseQueue from '../src/PromiseQueue';
@@ -46,7 +46,7 @@ describe('PromiseQueue', () => {
         running++;
         assert(queue._numRunning === running);
         assert(running <= maxConcurrent);
-        await delay(randomInt(30, 200));
+        await sleep(randomInt(30, 200));
         running--;
       })
     );

@@ -2,7 +2,7 @@
 
 import type {FilePath, PackageJSON} from '@parcel/types';
 
-import WorkerFarm from '@parcel/workers';
+import installPackage from './installPackage';
 import {dirname} from 'path';
 
 import resolve from './resolve';
@@ -33,10 +33,7 @@ export async function localResolve(
       resolved = await resolve(name, {basedir, extensions: ['.js', '.json']});
     } catch (e) {
       if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
-        await WorkerFarm.callMaster({
-          location: require.resolve('./installPackage.js'),
-          args: [[name], path]
-        });
+        await installPackage([name], path);
         return localResolve(name, path, true);
       }
       throw e;
