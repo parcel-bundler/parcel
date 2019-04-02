@@ -1,0 +1,15 @@
+{
+  "name": "@parcel/eslint-plugin",
+  "version": "2.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha test test/rules"
+  },
+  "dependencies": {
+    "read-pkg-up": "^5.0.0"
+  },
+  "devDependencies": {
+    "babel-eslint": "^10.0.1",
+    "eslint": "^5.16.0"
+  }
+}
