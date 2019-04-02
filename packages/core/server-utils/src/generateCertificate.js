@@ -1,5 +1,4 @@
 // @flow
-import type {ServerOptions} from '@parcel/types';
 import forge from 'node-forge';
 import fs from 'fs';
 import mkdirp from 'mkdirp';
@@ -8,8 +7,8 @@ import logger from '@parcel/logger';
 
 const DEFAULT_CERTIFICATE_DIR = '.parcel-cert';
 
-export default function generateCertificate(options: ServerOptions) {
-  let certDirectory = options.certificateDir || DEFAULT_CERTIFICATE_DIR;
+export default function generateCertificate(certificateDir: string) {
+  let certDirectory = certificateDir || DEFAULT_CERTIFICATE_DIR;
 
   const privateKeyPath = path.join(certDirectory, 'private.pem');
   const certPath = path.join(certDirectory, 'primary.crt');

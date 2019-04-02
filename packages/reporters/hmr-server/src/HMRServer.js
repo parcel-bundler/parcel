@@ -1,5 +1,5 @@
 // @flow
-import type {ServerOptions, CacheEntry, Asset} from '@parcel/types';
+import type {ServerOptions, CacheEntry} from '@parcel/types';
 import type {PrintableError} from '@parcel/reporter-cli/src/prettyError';
 import type {Server, ServerError} from './types.js.flow';
 import http from 'http';
@@ -10,32 +10,38 @@ import getCertificate from '@parcel/server-utils/src/getCertificate';
 import logger from '@parcel/logger';
 import prettyError from '@parcel/reporter-cli/src/prettyError';
 
+type HMRAsset = {|
+  id: string,
+  type: string,
+  output: string,
+  deps: Object
+|};
+
+type HMRError = {|
+  message: string,
+  stack?: string
+|};
+
 type HMRMessage = {|
   type: string,
-  error?: {
-    message: string,
-    stack?: string
-  },
-  assets?: Array<{
-    id: string,
-    type: string,
-    output: string,
-    deps: Object
-  }>
+  error?: HMRError,
+  assets?: Array<HMRAsset>
 |};
 
 export default class HMRServer {
   server: Server;
   wss: WebSocket.Server;
   unresolvedError: HMRMessage | null = null;
-  changedAssets: Array<CacheEntry> = [];
+  changedAssets: Map<string, HMRAsset> = new Map();
 
   async start(options: ServerOptions) {
     await new Promise(async resolve => {
       if (!options.https) {
         this.server = http.createServer();
       } else if (options.https === true) {
-        this.server = https.createServer(generateCertificate(options));
+        this.server = https.createServer(
+          generateCertificate(options.certificateDir)
+        );
       } else {
         this.server = https.createServer(await getCertificate(options.https));
       }
@@ -85,8 +91,21 @@ export default class HMRServer {
     this.broadcast(this.unresolvedError);
   }
 
-  addChangedAsset(cacheEntry: CacheEntry) {
-    this.changedAssets.push(cacheEntry);
+  async addChangedAsset(cacheEntry: CacheEntry) {
+    for (let asset of cacheEntry.assets) {
+      let deps = {};
+      for (let dependency of asset.dependencies) {
+        // ? SourcePath should come from graph?
+        deps[dependency.sourcePath] = dependency.id;
+      }
+
+      this.changedAssets.set(asset.id, {
+        id: asset.id,
+        type: asset.type,
+        output: (await asset.getOutput()).code,
+        deps: deps
+      });
+    }
   }
 
   async emitUpdate(reload: boolean = false) {
@@ -104,41 +123,13 @@ export default class HMRServer {
         type: 'reload'
       });
     } else {
-      let mappedCacheEntries = await Promise.all(
-        this.changedAssets.map(cacheEntry =>
-          Promise.all(
-            cacheEntry.assets.map(async asset => {
-              let deps = {};
-              for (let dependency of asset.dependencies) {
-                // ? SourcePath should come from graph?
-                deps[dependency.sourcePath] = dependency.id;
-              }
-
-              let output = await asset.getOutput();
-
-              return {
-                id: asset.id,
-                type: asset.type,
-                output: output.code, // ? This should probably be resolved from cache?
-                deps: deps
-              };
-            })
-          )
-        )
-      );
-
-      let reducedAssets = mappedCacheEntries.reduce(
-        (acc, mappedCacheEntry) => [...acc, ...mappedCacheEntry],
-        []
-      );
-
       this.broadcast({
         type: 'update',
-        assets: reducedAssets
+        assets: Array.from(this.changedAssets.values())
       });
     }
 
-    this.changedAssets = [];
+    this.changedAssets = new Map();
   }
 
   handleSocketError(err: ServerError) {

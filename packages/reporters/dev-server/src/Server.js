@@ -127,17 +127,21 @@ export default class Server extends EventEmitter {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.writeHead(500);
 
-    const {message, stack} = prettyError(this.error, {color: true});
-    let stackHTML = ansiHtml(stack);
-    let template500 = (await readFile(
-      path.join(__dirname, 'templates/500.html')
-    )).toString('utf8');
+    if (this.error) {
+      const {message, stack} = prettyError(this.error, {color: true});
+      let stackHTML = ansiHtml(stack);
+      let template500 = (await readFile(
+        path.join(__dirname, 'templates/500.html')
+      )).toString('utf8');
 
-    res.end(
-      template500
-        .replace(/<!-- PARCEL_ERROR_MESSAGE -->/g, message)
-        .replace(/<!-- PARCEL_ERROR_STACK -->/g, stackHTML)
-    );
+      res.end(
+        template500
+          .replace(/<!-- PARCEL_ERROR_MESSAGE -->/g, message)
+          .replace(/<!-- PARCEL_ERROR_STACK -->/g, stackHTML)
+      );
+    } else {
+      res.end();
+    }
   }
 
   logAccessIfVerbose(req: Request) {
@@ -146,7 +150,6 @@ export default class Server extends EventEmitter {
 
   async start() {
     let server;
-
     const handler = (req: Request, res: Response) => {
       this.logAccessIfVerbose(req);
 
@@ -163,7 +166,10 @@ export default class Server extends EventEmitter {
     if (!this.options.https) {
       server = http.createServer(handler);
     } else if (typeof this.options.https === 'boolean') {
-      server = https.createServer(generateCertificate(this.options), handler);
+      server = https.createServer(
+        generateCertificate(this.options.certificateDir),
+        handler
+      );
     } else {
       server = https.createServer(
         await getCertificate(this.options.https),

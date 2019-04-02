@@ -34,6 +34,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     assetsToAccept = [];
 
     var data = JSON.parse(event.data);
+    console.log(data);
 
     if (data.type === 'update') {
       var handled = false;
