@@ -93,9 +93,20 @@ export default class Server extends EventEmitter {
     if (this.bundleGraph) {
       // If the main asset is an HTML file, serve it
       let htmlBundle = null;
-      this.bundleGraph.traverseBundles(bundle => {
-        if (bundle.type === 'html' && bundle.isEntry) {
+      this.bundleGraph.traverseBundles((bundle, context, {stop}) => {
+        if (bundle.type !== 'html' || !bundle.isEntry) return;
+
+        if (!htmlBundle) {
           htmlBundle = bundle;
+        }
+
+        if (
+          htmlBundle &&
+          bundle.filePath &&
+          bundle.filePath.endsWith('index.html')
+        ) {
+          htmlBundle = bundle;
+          stop();
         }
       });
 
