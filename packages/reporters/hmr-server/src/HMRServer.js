@@ -48,9 +48,12 @@ export default class HMRServer {
 
       let websocketOptions = {
         server: this.server,
-        origin: options.host
-          ? `${options.https ? 'https' : 'http'}://${options.host}`
-          : undefined
+        verifyClient: info => {
+          if (!options.host) return true;
+
+          let originator = new URL(info.origin);
+          return options.host === originator.hostname;
+        }
       };
 
       this.wss = new WebSocket.Server(websocketOptions);

@@ -1,5 +1,5 @@
 // @flow
-import type {BundleGroupNode} from '@parcel/types';
+// import type {BundleGroupNode} from '@parcel/types';
 
 import {Runtime} from '@parcel/plugin';
 import {readFile} from '@parcel/fs';
@@ -35,8 +35,8 @@ export default new Runtime({
 
     if (!root || !options.hot) return;
 
-    let HMR_HOSTNAME = `"${options.hot.host || 'localhost'}"`;
-    let HMR_PORT = `"${(options.hot.port || 12345).toString()}"`;
+    /*let HMR_HOSTNAME = `"${options.hot.host || 'localhost'}"`;
+    let HMR_PORT = `"${(options.hot.port || 12345).toString()}"`;*/
 
     // TODO: Get rid of this hacky stuff
     // $FlowFixMe
@@ -44,10 +44,8 @@ export default new Runtime({
       filePath: __filename,
       env: bundle.env,
       code: hmrRuntimeCode
-        // TODO: Inject host & port as environment variables
-        // TODO: So it can be invalidated
-        .replace(/process.env.HMR_HOSTNAME/g, HMR_HOSTNAME)
-        .replace(/process.env.HMR_PORT/g, HMR_PORT)
+      /*.replace(/process.env.HMR_HOSTNAME/g, HMR_HOSTNAME)
+        .replace(/process.env.HMR_PORT/g, HMR_PORT)*/
     });
   }
 });

@@ -9,7 +9,6 @@ import http from 'http';
 import https from 'https';
 import url from 'url';
 import serveStatic from 'serve-static';
-import getPort from 'get-port';
 import ansiHtml from 'ansi-html';
 import logger from '@parcel/logger';
 import prettyError from '@parcel/reporter-cli/src/prettyError';
@@ -190,8 +189,7 @@ export default class Server extends EventEmitter {
       );
     }
 
-    let freePort = await getPort({port: this.options.port});
-    server.listen(freePort, this.options.host);
+    server.listen(this.options.port, this.options.host);
 
     return new Promise((resolve, reject) => {
       server.on('error', err => {
