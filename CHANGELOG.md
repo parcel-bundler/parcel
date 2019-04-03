@@ -5,6 +5,14 @@ All notable changes to Parcel will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.12.3] - 2019-03-20
+
+- Downgrade all internal Babel packages to `<7.4.0` because of bugs in that release.
+
+## [1.12.2] - 2019-03-13
+
+- Fix depth option for detailed report
+
 ## [1.12.1] - 2019-03-12
 
 ### Fixed
