@@ -13,6 +13,7 @@ import type {IDisposable} from '@parcel/types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
+import {inspect} from 'util';
 import Logger from '@parcel/logger';
 import {errorToJson, jsonToError} from '@parcel/utils/src/errorUtils';
 import {serialize, deserialize} from '@parcel/utils/src/serializer';
@@ -23,6 +24,8 @@ type ChildCall = WorkerRequest & {|
   resolve: (result: Promise<any> | any) => void,
   reject: (error: any) => void
 |};
+
+let consolePatched;
 
 class Child {
   callQueue: Array<ChildCall> = [];
@@ -38,6 +41,7 @@ class Child {
       throw new Error('Only create Child instances in a worker!');
     }
 
+    patchConsoleToLogger();
     // Monitior all logging events inside this child process and forward to
     // the main process via the bus.
     this.loggerDisposable = Logger.onLog(event => {
@@ -203,3 +207,40 @@ let child = new Child();
 process.on('message', child.messageListener.bind(child));
 
 export default child;
+
+// Patch `console` APIs within workers to forward their messages to the Logger
+// at the appropriate levels.
+// TODO: Implement the rest of the console api as needed.
+// TODO: Does this need to be disposable/reversible?
+function patchConsoleToLogger() {
+  if (consolePatched) {
+    return;
+  }
+  /* eslint-disable no-console */
+  // $FlowFixMe
+  console.log = console.info = (...messages: Array<mixed>) => {
+    Logger.info(joinLogMessages(messages));
+  };
+
+  // $FlowFixMe
+  console.debug = (...messages: Array<mixed>) => {
+    // TODO: dedicated debug level?
+    Logger.verbose(joinLogMessages(messages));
+  };
+
+  // $FlowFixMe
+  console.warn = (...messages: Array<mixed>) => {
+    Logger.warn(joinLogMessages(messages));
+  };
+
+  // $FlowFixMe
+  console.error = (...messages: Array<mixed>) => {
+    Logger.error(joinLogMessages(messages));
+  };
+  /* eslint-enable no-console */
+  consolePatched = true;
+}
+
+function joinLogMessages(messages: Array<mixed>): string {
+  return messages.map(m => (typeof m === 'string' ? m : inspect(m))).join(' ');
+}
