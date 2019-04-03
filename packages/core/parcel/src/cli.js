@@ -8,6 +8,7 @@ const chalk = require('chalk');
 const program = require('commander');
 const version = require('../package.json').version;
 const path = require('path');
+const getPort = require('get-port');
 
 program.version(version);
 
@@ -112,7 +113,7 @@ if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
 
 program.parse(args);
 
-function run(entries: Array<string>, command: any) {
+async function run(entries: Array<string>, command: any) {
   entries = entries.map(entry => path.resolve(entry));
 
   if (entries.length === 0) {
@@ -127,13 +128,13 @@ function run(entries: Array<string>, command: any) {
       ...defaultConfig,
       filePath: require.resolve('@parcel/config-default')
     },
-    ...normalizeOptions(command)
+    ...(await normalizeOptions(command))
   });
 
   parcel.run().catch(console.error);
 }
 
-function normalizeOptions(command): ParcelOptions {
+async function normalizeOptions(command): Promise<ParcelOptions> {
   if (command.name() === 'build') {
     process.env.NODE_ENV = process.env.NODE_ENV || 'production';
   } else {
@@ -150,20 +151,35 @@ function normalizeOptions(command): ParcelOptions {
 
   let serve = false;
   if (command.name() === 'serve') {
+    let port = command.port || 1234;
+    let host = command.host;
+    if (!port) {
+      port = await getPort({port, host});
+    }
+
     serve = {
       https,
-      port: command.port || 1234,
-      host: command.host,
+      port,
+      host,
       certificateDir: '.parcel-cert'
     };
   }
 
   let hmr = false;
   if (command.name() !== 'build' && command.hmr !== false) {
+    let port = command.hmrPort;
+    let host = command.hmrHost || command.host;
+    if (!port) {
+      port = await getPort({port, host});
+    }
+
+    process.env.HMR_HOSTNAME = host || '';
+    process.env.HMR_PORT = port;
+
     hmr = {
       https,
-      port: command.hmrPort || command.port || 12345,
-      host: command.hmrHost || command.host,
+      port,
+      host,
       certificateDir: '.parcel-cert'
     };
   }
