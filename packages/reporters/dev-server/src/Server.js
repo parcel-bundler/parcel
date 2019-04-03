@@ -17,6 +17,7 @@ import generateCertificate from '@parcel/server-utils/src/generateCertificate';
 import getCertificate from '@parcel/server-utils/src/getCertificate';
 import serverErrors from './serverErrors';
 import {readFile} from '@parcel/fs';
+import ejs from 'ejs';
 
 function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -128,16 +129,17 @@ export default class Server extends EventEmitter {
     res.writeHead(500);
 
     if (this.error) {
-      const {message, stack} = prettyError(this.error, {color: true});
-      let stackHTML = ansiHtml(stack);
+      let error = prettyError(this.error, {color: true});
+      error.stack = ansiHtml(error.stack);
+
       let template500 = (await readFile(
         path.join(__dirname, 'templates/500.html')
       )).toString('utf8');
 
       res.end(
-        template500
-          .replace(/<!-- PARCEL_ERROR_MESSAGE -->/g, message)
-          .replace(/<!-- PARCEL_ERROR_STACK -->/g, stackHTML)
+        ejs.render(template500, {
+          error
+        })
       );
     } else {
       res.end();

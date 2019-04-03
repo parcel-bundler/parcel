@@ -19,14 +19,15 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0",
+    "@parcel/fs": "1.10.3",
     "@parcel/logger": "^2.0.0",
+    "@parcel/plugin": "^2.0.0",
     "@parcel/reporter-cli": "^2.0.0",
     "@parcel/server-utils": "^2.0.0",
-    "@parcel/fs": "1.10.3",
-    "serve-static": "^1.13.2",
     "ansi-html": "^0.0.7",
-    "get-port": "^4.2.0"
+    "ejs": "^2.6.1",
+    "get-port": "^4.2.0",
+    "serve-static": "^1.13.2"
   },
   "devDependencies": {
     "@parcel/babel-preset": "^2.0.0",
