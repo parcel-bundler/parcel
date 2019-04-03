@@ -108,7 +108,7 @@ export default class HMRServer {
     }
   }
 
-  async emitUpdate(reload: boolean = false) {
+  async emitUpdate() {
     if (this.unresolvedError) {
       this.unresolvedError = null;
       this.broadcast({
@@ -118,16 +118,10 @@ export default class HMRServer {
       return;
     }
 
-    if (reload) {
-      this.broadcast({
-        type: 'reload'
-      });
-    } else {
-      this.broadcast({
-        type: 'update',
-        assets: Array.from(this.changedAssets.values())
-      });
-    }
+    this.broadcast({
+      type: 'update',
+      assets: Array.from(this.changedAssets.values())
+    });
 
     this.changedAssets = new Map();
   }
