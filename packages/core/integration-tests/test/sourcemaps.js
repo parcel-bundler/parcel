@@ -499,11 +499,11 @@ describe('sourcemaps', function() {
 
     const bundle1 = [...b.childBundles][0];
     const bundle2 = [...b.childBundles][1];
-    const jsOutput1 = await fs.readFile(bundle1.name, 'utf8');
-    const jsOutput2 = await fs.readFile(bundle2.name, 'utf8');
+    const cssOutput1 = await fs.readFile(bundle1.name, 'utf8');
+    const cssOutput2 = await fs.readFile(bundle2.name, 'utf8');
 
-    assert(jsOutput1.includes('/*# sourceMappingURL=/a/style.css.map */'));
-    assert(jsOutput2.includes('/*# sourceMappingURL=/b/style.css.map */'));
+    assert(cssOutput1.includes('/*# sourceMappingURL=/a/style.css.map */'));
+    assert(cssOutput2.includes('/*# sourceMappingURL=/b/style.css.map */'));
   });
 
   it('should create a valid sourcemap for a CSS bundle with imports', async function() {
