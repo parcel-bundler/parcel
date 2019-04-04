@@ -502,8 +502,8 @@ describe('sourcemaps', function() {
     const jsOutput1 = await fs.readFile(bundle1.name, 'utf8');
     const jsOutput2 = await fs.readFile(bundle2.name, 'utf8');
 
-    assert(jsOutput1.includes('//# sourceMappingURL=/a/style.css.map'));
-    assert(jsOutput2.includes('//# sourceMappingURL=/b/style.css.map'));
+    assert(jsOutput1.includes('/*# sourceMappingURL=/a/style.css.map */'));
+    assert(jsOutput2.includes('/*# sourceMappingURL=/b/style.css.map */'));
   });
 
   it('should create a valid sourcemap for a CSS bundle with imports', async function() {
