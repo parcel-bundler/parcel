@@ -1,19 +1,20 @@
-// @flow
+// @flow strict-local
+
+import type {
+  AssetGraphNode,
+  DependencyNode,
+  FileNode,
+  NodeId,
+  RootNode
+} from './types';
 
 import type {
   Asset,
-  AssetGraph as IAssetGraph,
-  AssetGraphNode,
-  Bundle,
   CacheEntry,
   Dependency as IDependency,
-  DependencyNode,
   File,
   FilePath,
-  FileNode,
-  Graph as IGraph,
   GraphTraversalCallback,
-  NodeId,
   Target,
   TransformerRequest
 } from '@parcel/types';
@@ -23,19 +24,19 @@ import Graph from './Graph';
 import {md5FromString} from '@parcel/utils/src/md5';
 import Dependency from './Dependency';
 
-export const nodeFromRootDir = (rootDir: string) => ({
+export const nodeFromRootDir = (rootDir: string): RootNode => ({
   id: rootDir,
   type: 'root',
   value: rootDir
 });
 
-export const nodeFromDep = (dep: IDependency) => ({
+export const nodeFromDep = (dep: IDependency): DependencyNode => ({
   id: dep.id,
   type: 'dependency',
   value: dep
 });
 
-export const nodeFromFile = (file: File) => ({
+export const nodeFromFile = (file: File): FileNode => ({
   id: file.filePath,
   type: 'file',
   value: file
@@ -54,18 +55,18 @@ export const nodeFromAsset = (asset: Asset) => ({
 });
 
 const getFileNodesFromGraph = (
-  graph: IGraph<AssetGraphNode>
+  graph: Graph<AssetGraphNode>
 ): Array<FileNode> => {
   // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414
   return Array.from(graph.nodes.values()).filter(node => node.type === 'file');
 };
 
-const getFilesFromGraph = (graph: IGraph<AssetGraphNode>): Array<File> => {
+const getFilesFromGraph = (graph: Graph<AssetGraphNode>): Array<File> => {
   return getFileNodesFromGraph(graph).map(node => node.value);
 };
 
 const getDepNodesFromGraph = (
-  graph: IGraph<AssetGraphNode>
+  graph: Graph<AssetGraphNode>
 ): Array<DependencyNode> => {
   // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414
   return Array.from(graph.nodes.values()).filter(
@@ -99,8 +100,7 @@ type AssetGraphOpts = {|
  *  * A dependency node should have an edge to exactly one file node
  *  * A file node can have one to many edges to asset nodes which can have zero to many edges dependency nodes
  */
-export default class AssetGraph extends Graph<AssetGraphNode>
-  implements IAssetGraph {
+export default class AssetGraph extends Graph<AssetGraphNode> {
   incompleteNodes: Map<NodeId, AssetGraphNode> = new Map();
   invalidNodes: Map<NodeId, AssetGraphNode> = new Map();
 
@@ -194,7 +194,11 @@ export default class AssetGraph extends Graph<AssetGraphNode>
     }
 
     // Add a file node for the file that the transformer request resolved to
-    fileNodes.push(nodeFromFile({filePath: req.filePath}));
+    fileNodes.push(
+      nodeFromFile({
+        filePath: req.filePath
+      })
+    );
 
     let assetNodes = cacheEntry.assets.map(asset => nodeFromAsset(asset));
     let {added, removed} = this.replaceNodesConnectedTo(requestNode, [
@@ -281,33 +285,7 @@ export default class AssetGraph extends Graph<AssetGraphNode>
     }, startNode);
   }
 
-  createBundle(asset: Asset): Bundle {
-    let assetNode = this.getNode(asset.id);
-    if (!assetNode) {
-      throw new Error('Cannot get bundle for non-existant asset');
-    }
-
-    let graph = this.getSubGraph(assetNode);
-    graph.setRootNode({
-      type: 'root',
-      id: 'root',
-      value: null
-    });
-
-    graph.addEdge({from: 'root', to: assetNode.id});
-    return {
-      id: 'bundle:' + asset.id,
-      type: asset.type,
-      assetGraph: graph,
-      env: asset.env,
-      stats: {
-        size: 0,
-        time: 0
-      }
-    };
-  }
-
-  getTotalSize(asset?: Asset): number {
+  getTotalSize(asset?: ?Asset): number {
     let size = 0;
     let assetNode = asset ? this.getNode(asset.id) : null;
     this.traverseAssets(asset => {
@@ -327,7 +305,7 @@ export default class AssetGraph extends Graph<AssetGraphNode>
     return entries;
   }
 
-  removeAsset(asset: Asset) {
+  removeAsset(asset: Asset): void {
     let assetNode = this.getNode(asset.id);
     if (!assetNode) {
       return;

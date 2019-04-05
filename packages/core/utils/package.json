@@ -27,7 +27,6 @@
     "cross-spawn": "^6.0.4",
     "deasync": "^0.1.14",
     "fast-glob": "^2.2.2",
-    "graphviz": "^0.0.8",
     "is-glob": "^4.0.0",
     "is-url": "^1.2.2",
     "json5": "^1.0.1",
@@ -35,7 +34,6 @@
     "resolve": "^1.4.0",
     "serialize-to-js": "^1.1.1",
     "split2": "^3.1.1",
-    "tempy": "^0.2.1",
     "terser": "^3.7.3"
   },
   "devDependencies": {

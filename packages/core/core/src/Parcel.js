@@ -1,8 +1,11 @@
 // @flow
 
-import type {Bundle, BundleGraph, ParcelOptions, Stats} from '@parcel/types';
+import type {ParcelOptions, Stats} from '@parcel/types';
+import type {Bundle} from './types';
+import type InternalBundleGraph from './BundleGraph';
 
 import AssetGraph from './AssetGraph';
+import BundleGraph from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
@@ -13,6 +16,7 @@ import Cache from '@parcel/cache';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
 import ReporterRunner from './ReporterRunner';
+import MainAssetGraph from './public/MainAssetGraph';
 
 export default class Parcel {
   options: ParcelOptions;
@@ -97,7 +101,7 @@ export default class Parcel {
     this.runPackage = this.farm.mkhandle('runPackage');
   }
 
-  async run(): Promise<BundleGraph> {
+  async run(): Promise<InternalBundleGraph> {
     await this.init();
 
     this.assetGraphBuilder.on('invalidate', () => {
@@ -107,7 +111,7 @@ export default class Parcel {
     return this.build();
   }
 
-  async build(): Promise<BundleGraph> {
+  async build(): Promise<InternalBundleGraph> {
     try {
       this.reporterRunner.report({
         type: 'buildStart'
@@ -116,19 +120,13 @@ export default class Parcel {
       let startTime = Date.now();
       let assetGraph = await this.assetGraphBuilder.build();
 
-      if (process.env.PARCEL_DUMP_GRAPH != null) {
-        const dumpGraphToGraphViz = require('@parcel/utils/src/dumpGraphToGraphViz')
-          .default;
-        await dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
-      }
-
       let bundleGraph = await this.bundle(assetGraph);
       await this.package(bundleGraph);
 
       this.reporterRunner.report({
         type: 'buildSuccess',
-        assetGraph,
-        bundleGraph,
+        assetGraph: new MainAssetGraph(assetGraph),
+        bundleGraph: new BundleGraph(bundleGraph),
         buildTime: Date.now() - startTime
       });
 
@@ -148,11 +146,11 @@ export default class Parcel {
     }
   }
 
-  bundle(assetGraph: AssetGraph): Promise<BundleGraph> {
+  bundle(assetGraph: AssetGraph): Promise<InternalBundleGraph> {
     return this.bundlerRunner.bundle(assetGraph);
   }
 
-  package(bundleGraph: BundleGraph): Promise<mixed> {
+  package(bundleGraph: InternalBundleGraph): Promise<mixed> {
     let promises = [];
     bundleGraph.traverseBundles(bundle => {
       promises.push(
