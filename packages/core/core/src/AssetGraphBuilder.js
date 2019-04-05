@@ -1,10 +1,11 @@
 // @flow
 
+import type {Node} from './types';
+
 import type {
   ParcelOptions,
   Dependency,
   FilePath,
-  Node,
   Target,
   TransformerRequest
 } from '@parcel/types';

@@ -17,7 +17,7 @@ export default new Namer({
     }
 
     // TODO: if split bundle, base name on original bundle names?
-    let entryAsset = bundle.assetGraph.getEntryAssets()[0];
+    let entryAsset = bundle.getEntryAssets()[0];
     let entryFilePath = entryAsset.filePath;
     let name = path.basename(entryFilePath, path.extname(entryFilePath));
 
@@ -56,7 +56,7 @@ export default new Namer({
 
 function getHash(bundle) {
   let hash = crypto.createHash('md5');
-  bundle.assetGraph.traverseAssets(asset => {
+  bundle.traverseAssets(asset => {
     hash.update(asset.outputHash);
   });
 
