@@ -32,31 +32,38 @@ export default class HMRServer {
   server: Server;
   wss: WebSocket.Server;
   unresolvedError: HMRMessage | null = null;
+  options: HMRServerOptions;
 
-  async start(options: HMRServerOptions) {
+  constructor(options: HMRServerOptions) {
+    this.options = options;
+  }
+
+  async start() {
     await new Promise(async resolve => {
-      if (!options.https) {
+      if (!this.options.https) {
         this.server = http.createServer();
-      } else if (options.https === true) {
+      } else if (this.options.https === true) {
         this.server = https.createServer(
-          await generateCertificate(options.cacheDir)
+          await generateCertificate(this.options.cacheDir)
         );
       } else {
-        this.server = https.createServer(await getCertificate(options.https));
+        this.server = https.createServer(
+          await getCertificate(this.options.https)
+        );
       }
 
       let websocketOptions = {
         server: this.server,
         verifyClient: info => {
-          if (!options.host) return true;
+          if (!this.options.host) return true;
 
           let originator = new URL(info.origin);
-          return options.host === originator.hostname;
+          return this.options.host === originator.hostname;
         }
       };
 
       this.wss = new WebSocket.Server(websocketOptions);
-      this.server.listen(options.port, resolve);
+      this.server.listen(this.options.port, resolve);
     });
 
     this.wss.on('connection', ws => {

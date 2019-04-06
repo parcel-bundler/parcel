@@ -1851,7 +1851,7 @@
     ora "^2.1.0"
     strip-ansi "^4.0.0"
 
-"@parcel/utils@^1.11.0":
+"@parcel/utils@^1.10.3", "@parcel/utils@^1.11.0":
   version "1.11.0"
   resolved "https://registry.yarnpkg.com/@parcel/utils/-/utils-1.11.0.tgz#539e08fff8af3b26eca11302be80b522674b51ea"
   integrity sha512-cA3p4jTlaMeOtAKR/6AadanOPvKeg8VwgnHhOyfi0yClD0TZS/hi9xu12w4EzA/8NtHu0g6o4RDfcNjqN8l1AQ==

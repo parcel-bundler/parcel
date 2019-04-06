@@ -4,23 +4,21 @@ import type {HMRServerOptions} from './types.js.flow';
 import {Reporter} from '@parcel/plugin';
 import HMRServer from './HMRServer';
 
+const DEFAULT_CACHE_DIR = '.parcel-cache';
+
 let hmrServer: HMRServer | null = null;
 export default new Reporter({
   async report(event, options) {
     if (!options.hot) return;
-    if (!options.cacheDir) {
-      throw new Error('HMR Server cannot start without a defined cacheDir!');
-    }
 
     if (!hmrServer) {
-      hmrServer = new HMRServer();
-
       let hmrOptions: HMRServerOptions = {
         port: 0,
-        cacheDir: options.cacheDir
+        cacheDir: options.cacheDir || DEFAULT_CACHE_DIR
       };
 
-      await hmrServer.start(hmrOptions);
+      hmrServer = new HMRServer(hmrOptions);
+      await hmrServer.start();
     }
 
     if (event.type === 'buildSuccess') {

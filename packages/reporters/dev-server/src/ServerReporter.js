@@ -2,20 +2,19 @@
 import {Reporter} from '@parcel/plugin';
 import Server from './Server';
 
+const DEFAULT_CACHE_DIR = '.parcel-cache';
+
 let server: Server | null = null;
 export default new Reporter({
   async report(event, options) {
     if (!options.serve) return;
-    if (!options.cacheDir) {
-      throw new Error('Dev Server cannot start without a defined cacheDir!');
-    }
 
     if (!server) {
       let serverOptions = {
         host: options.serve.host,
         port: options.serve.port,
         https: options.serve.https,
-        cacheDir: options.cacheDir,
+        cacheDir: options.cacheDir || DEFAULT_CACHE_DIR,
         distDir: 'dist', //options.distDir, // ! Not sure how this works now
         publicUrl: options.publicUrl || '/'
       };
