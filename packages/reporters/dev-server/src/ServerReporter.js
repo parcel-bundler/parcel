@@ -5,14 +5,14 @@ import Server from './Server';
 let server: Server | null = null;
 export default new Reporter({
   async report(event, options) {
-    if (!options.serve) return;
+    if (!options.serve || !options.cacheDir) return;
 
     if (!server) {
       let serverOptions = {
         host: options.serve.host,
         port: options.serve.port,
         https: options.serve.https,
-        certificateDir: options.serve.certificateDir,
+        cacheDir: options.cacheDir,
         distDir: 'dist', //options.distDir, // ! Not sure how this works now
         publicUrl: options.publicUrl || '/'
       };

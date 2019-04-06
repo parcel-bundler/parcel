@@ -1,4 +1,6 @@
 // @flow
+import type {HMRServerOptions} from './types.js.flow';
+
 import {Reporter} from '@parcel/plugin';
 import HMRServer from './HMRServer';
 
@@ -10,14 +12,12 @@ export default new Reporter({
     if (!hmrServer) {
       hmrServer = new HMRServer();
 
-      if (options.hot === true) {
-        options.hot = {
-          port: 0,
-          certificateDir: '.parcel-cert'
-        };
-      }
+      let hmrOptions: HMRServerOptions = {
+        port: 0,
+        cacheDir: '.parcel-cert'
+      };
 
-      await hmrServer.start(options.hot);
+      await hmrServer.start(hmrOptions);
     }
 
     if (event.type === 'buildProgress' && event.phase === 'transformFinished') {

@@ -17,5 +17,6 @@ export type Server = HTTPServer | HTTPSServer;
 export type DevServerOptions = {|
   ...ServerOptions,
   distDir: string,
-  publicUrl: string
+  publicUrl: string,
+  cacheDir: string
 |};

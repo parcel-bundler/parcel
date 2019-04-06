@@ -23,7 +23,7 @@
     "@parcel/logger": "^2.0.0",
     "@parcel/plugin": "^2.0.0",
     "@parcel/reporter-cli": "^2.0.0",
-    "@parcel/server-utils": "^2.0.0",
+    "@parcel/utils": "^2.0.0",
     "ansi-html": "^0.0.7",
     "ejs": "^2.6.1",
     "serve-static": "^1.13.2"

@@ -1,12 +1,12 @@
 // @flow
-import type {ServerOptions, CacheEntry} from '@parcel/types';
+import type {CacheEntry} from '@parcel/types';
 import type {PrintableError} from '@parcel/reporter-cli/src/prettyError';
-import type {Server, ServerError} from './types.js.flow';
+import type {Server, ServerError, HMRServerOptions} from './types.js.flow';
 import http from 'http';
 import https from 'https';
 import WebSocket from 'ws';
-import generateCertificate from '@parcel/server-utils/src/generateCertificate';
-import getCertificate from '@parcel/server-utils/src/getCertificate';
+import generateCertificate from '@parcel/utils/src/generateCertificate';
+import getCertificate from '@parcel/utils/src/getCertificate';
 import logger from '@parcel/logger';
 import prettyError from '@parcel/reporter-cli/src/prettyError';
 
@@ -34,14 +34,12 @@ export default class HMRServer {
   unresolvedError: HMRMessage | null = null;
   changedAssets: Map<string, HMRAsset> = new Map();
 
-  async start(options: ServerOptions) {
+  async start(options: HMRServerOptions) {
     await new Promise(async resolve => {
       if (!options.https) {
         this.server = http.createServer();
       } else if (options.https === true) {
-        this.server = https.createServer(
-          generateCertificate(options.certificateDir)
-        );
+        this.server = https.createServer(generateCertificate(options.cacheDir));
       } else {
         this.server = https.createServer(await getCertificate(options.https));
       }

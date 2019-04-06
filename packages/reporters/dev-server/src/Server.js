@@ -12,8 +12,8 @@ import serveStatic from 'serve-static';
 import ansiHtml from 'ansi-html';
 import logger from '@parcel/logger';
 import prettyError from '@parcel/reporter-cli/src/prettyError';
-import generateCertificate from '@parcel/server-utils/src/generateCertificate';
-import getCertificate from '@parcel/server-utils/src/getCertificate';
+import generateCertificate from '@parcel/utils/src/generateCertificate';
+import getCertificate from '@parcel/utils/src/getCertificate';
 import serverErrors from './serverErrors';
 import {readFile} from '@parcel/fs';
 import ejs from 'ejs';
@@ -179,7 +179,7 @@ export default class Server extends EventEmitter {
       server = http.createServer(handler);
     } else if (typeof this.options.https === 'boolean') {
       server = https.createServer(
-        generateCertificate(this.options.certificateDir),
+        generateCertificate(this.options.cacheDir),
         handler
       );
     } else {

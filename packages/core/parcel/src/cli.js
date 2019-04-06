@@ -160,8 +160,7 @@ async function normalizeOptions(command): Promise<ParcelOptions> {
     serve = {
       https,
       port,
-      host,
-      certificateDir: '.parcel-cert'
+      host
     };
   }
 
@@ -179,8 +178,7 @@ async function normalizeOptions(command): Promise<ParcelOptions> {
     hmr = {
       https,
       port,
-      host,
-      certificateDir: '.parcel-cert'
+      host
     };
   }
 

@@ -5,10 +5,8 @@ import mkdirp from 'mkdirp';
 import path from 'path';
 import logger from '@parcel/logger';
 
-const DEFAULT_CERTIFICATE_DIR = '.parcel-cert';
-
-export default function generateCertificate(certificateDir: string) {
-  let certDirectory = certificateDir || DEFAULT_CERTIFICATE_DIR;
+export default function generateCertificate(cacheDir: string) {
+  let certDirectory = cacheDir;
 
   const privateKeyPath = path.join(certDirectory, 'private.pem');
   const certPath = path.join(certDirectory, 'primary.crt');

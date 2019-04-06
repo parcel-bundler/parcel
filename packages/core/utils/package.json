@@ -37,7 +37,8 @@
     "resolve": "^1.4.0",
     "serialize-to-js": "^1.1.1",
     "tempy": "^0.2.1",
-    "terser": "^3.7.3"
+    "terser": "^3.7.3",
+    "node-forge": "^0.8.1"
   },
   "devDependencies": {
     "@babel/plugin-transform-flow-strip-types": "^7.2.0",
