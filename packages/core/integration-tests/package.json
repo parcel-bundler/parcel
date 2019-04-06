@@ -17,7 +17,7 @@
     "@parcel/core": "^2.0.0",
     "@parcel/fs": "^1.10.3",
     "@parcel/test-utils": "^1.10.3",
-    "@parcel/utils": "^1.10.3",
+    "@parcel/utils": "^2.0.0",
     "chalk": "^2.1.0",
     "codecov": "^3.0.0",
     "command-exists": "^1.2.6",

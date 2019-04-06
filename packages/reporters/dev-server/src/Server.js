@@ -179,7 +179,7 @@ export default class Server extends EventEmitter {
       server = http.createServer(handler);
     } else if (typeof this.options.https === 'boolean') {
       server = https.createServer(
-        generateCertificate(this.options.cacheDir),
+        await generateCertificate(this.options.cacheDir),
         handler
       );
     } else {
