@@ -6,7 +6,8 @@ import type {
   FilePath,
   Node,
   Target,
-  TransformerRequest
+  TransformerRequest,
+  Asset
 } from '@parcel/types';
 import type Config from './Config';
 import EventEmitter from 'events';
@@ -19,7 +20,6 @@ import PromiseQueue from './PromiseQueue';
 import AssetGraph from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import WorkerFarm from '@parcel/workers';
-import {report} from './ReporterRunner';
 
 type BuildOpts = {|
   signal: AbortSignal,
@@ -43,6 +43,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   controller: AbortController;
   farm: WorkerFarm;
   runTransform: (file: TransformerRequest) => Promise<any>;
+  changedAssets: Map<string, Asset>;
 
   constructor({
     config,
@@ -60,6 +61,8 @@ export default class AssetGraphBuilder extends EventEmitter {
       options,
       rootDir
     });
+
+    this.changedAssets = new Map();
 
     this.graph = new AssetGraph();
     this.graph.initializeGraph({entries, targets, transformerRequest, rootDir});
@@ -156,14 +159,9 @@ export default class AssetGraphBuilder extends EventEmitter {
     let cacheEntry = await this.runTransform(req);
     let time = Date.now() - start;
 
-    report({
-      type: 'buildProgress',
-      phase: 'transformFinished',
-      cacheEntry
-    });
-
     for (let asset of cacheEntry.assets) {
       asset.stats.time = time;
+      this.changedAssets.set(asset.id, asset);
     }
 
     if (signal.aborted) throw new BuildAbortError();

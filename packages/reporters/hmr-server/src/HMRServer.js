@@ -1,5 +1,5 @@
 // @flow
-import type {CacheEntry} from '@parcel/types';
+import type {BuildSuccessEvent} from '@parcel/types';
 import type {PrintableError} from '@parcel/reporter-cli/src/prettyError';
 import type {Server, ServerError, HMRServerOptions} from './types.js.flow';
 import http from 'http';
@@ -32,7 +32,6 @@ export default class HMRServer {
   server: Server;
   wss: WebSocket.Server;
   unresolvedError: HMRMessage | null = null;
-  changedAssets: Map<string, HMRAsset> = new Map();
 
   async start(options: HMRServerOptions) {
     await new Promise(async resolve => {
@@ -94,24 +93,7 @@ export default class HMRServer {
     this.broadcast(this.unresolvedError);
   }
 
-  async addChangedAsset(cacheEntry: CacheEntry) {
-    for (let asset of cacheEntry.assets) {
-      let deps = {};
-      for (let dependency of asset.dependencies) {
-        // ? SourcePath should come from graph?
-        deps[dependency.sourcePath] = dependency.id;
-      }
-
-      this.changedAssets.set(asset.id, {
-        id: asset.id,
-        type: asset.type,
-        output: (await asset.getOutput()).code,
-        deps: deps
-      });
-    }
-  }
-
-  async emitUpdate() {
+  async emitUpdate(event: BuildSuccessEvent) {
     if (this.unresolvedError) {
       this.unresolvedError = null;
       this.broadcast({
@@ -121,12 +103,29 @@ export default class HMRServer {
       return;
     }
 
+    let assets = await Promise.all(
+      Array.from(event.changedAssets.values()).map(async asset => {
+        let deps = {};
+        for (let dependency of asset.dependencies) {
+          // ? SourcePath should come from graph?
+          deps[dependency.sourcePath] = dependency.id;
+        }
+
+        let output = await asset.getOutput();
+
+        return {
+          id: asset.id,
+          type: asset.type,
+          output: output.code,
+          deps: deps
+        };
+      })
+    );
+
     this.broadcast({
       type: 'update',
-      assets: Array.from(this.changedAssets.values())
+      assets: assets
     });
-
-    this.changedAssets = new Map();
   }
 
   handleSocketError(err: ServerError) {

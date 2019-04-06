@@ -128,9 +128,13 @@ export default class Parcel {
       this.reporterRunner.report({
         type: 'buildSuccess',
         assetGraph,
+        changedAssets: new Map(this.assetGraphBuilder.changedAssets),
         bundleGraph,
         buildTime: Date.now() - startTime
       });
+
+      // TODO: Probably get a cleaner way to reset the map?
+      this.assetGraphBuilder.changedAssets = new Map();
 
       if (!this.options.watch && this.options.killWorkers !== false) {
         await this.farm.end();

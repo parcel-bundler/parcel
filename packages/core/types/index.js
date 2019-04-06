@@ -516,7 +516,8 @@ export type BuildSuccessEvent = {|
   type: 'buildSuccess',
   assetGraph: AssetGraph,
   bundleGraph: BundleGraph,
-  buildTime: number
+  buildTime: number,
+  changedAssets: Map<string, Asset>
 |};
 
 export type BuildFailureEvent = {|

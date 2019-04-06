@@ -5,7 +5,10 @@ import Server from './Server';
 let server: Server | null = null;
 export default new Reporter({
   async report(event, options) {
-    if (!options.serve || !options.cacheDir) return;
+    if (!options.serve) return;
+    if (!options.cacheDir) {
+      throw new Error('Dev Server cannot start without a defined cacheDir!');
+    }
 
     if (!server) {
       let serverOptions = {

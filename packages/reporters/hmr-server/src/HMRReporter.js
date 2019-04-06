@@ -8,24 +8,23 @@ let hmrServer: HMRServer | null = null;
 export default new Reporter({
   async report(event, options) {
     if (!options.hot) return;
+    if (!options.cacheDir) {
+      throw new Error('HMR Server cannot start without a defined cacheDir!');
+    }
 
     if (!hmrServer) {
       hmrServer = new HMRServer();
 
       let hmrOptions: HMRServerOptions = {
         port: 0,
-        cacheDir: '.parcel-cert'
+        cacheDir: options.cacheDir
       };
 
       await hmrServer.start(hmrOptions);
     }
 
-    if (event.type === 'buildProgress' && event.phase === 'transformFinished') {
-      hmrServer.addChangedAsset(event.cacheEntry);
-    }
-
     if (event.type === 'buildSuccess') {
-      hmrServer.emitUpdate();
+      hmrServer.emitUpdate(event);
     }
 
     if (event.type === 'buildFailure') {
