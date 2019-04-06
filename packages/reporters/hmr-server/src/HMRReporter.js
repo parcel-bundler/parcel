@@ -13,7 +13,7 @@ export default new Reporter({
 
     if (!hmrServer) {
       let hmrOptions: HMRServerOptions = {
-        port: 0,
+        ...options.hot,
         cacheDir: options.cacheDir || DEFAULT_CACHE_DIR
       };
 

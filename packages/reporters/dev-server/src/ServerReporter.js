@@ -11,9 +11,7 @@ export default new Reporter({
 
     if (!server) {
       let serverOptions = {
-        host: options.serve.host,
-        port: options.serve.port,
-        https: options.serve.https,
+        ...options.serve,
         cacheDir: options.cacheDir || DEFAULT_CACHE_DIR,
         distDir: 'dist', //options.distDir, // ! Not sure how this works now
         publicUrl: options.publicUrl || '/'
