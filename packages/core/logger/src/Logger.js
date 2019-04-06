@@ -3,7 +3,6 @@
 import type {IDisposable, LogEvent} from '@parcel/types';
 
 import EventEmitter from 'events';
-import {inspect} from 'util';
 
 class Logger {
   // TODO: This can't be explicitly annotated as an EventEmitter since
@@ -68,29 +67,3 @@ class Logger {
 
 const logger = new Logger();
 export default logger;
-
-let consolePatched;
-export function patchConsole() {
-  if (consolePatched) {
-    return;
-  }
-
-  /* eslint-disable no-console */
-  // $FlowFixMe
-  console.log = (...messages: Array<mixed>) => {
-    logger.info(messages.map(m => inspect(m)).join(' '));
-  };
-
-  // $FlowFixMe
-  console.warn = message => {
-    logger.warn(message);
-  };
-
-  // $FlowFixMe
-  console.error = message => {
-    logger.error(message);
-  };
-  /* eslint-enable no-console */
-
-  consolePatched = true;
-}

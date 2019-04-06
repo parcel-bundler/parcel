@@ -48,13 +48,11 @@ export default class Worker extends EventEmitter {
       v => !/^--(debug|inspect)/.test(v)
     );
 
-    let options = {
+    this.child = childProcess.fork(childModule, process.argv, {
       execArgv: filteredArgs,
       env: process.env,
       cwd: process.cwd()
-    };
-
-    this.child = childProcess.fork(childModule, process.argv, options);
+    });
 
     // Unref the child and IPC channel so that the workers don't prevent the main process from exiting
     this.child.unref();
@@ -151,30 +149,30 @@ export default class Worker extends EventEmitter {
       return;
     }
 
-    data = deserialize(data);
+    let message: WorkerMessage = deserialize(data);
 
-    let idx = data.idx;
-    let type = data.type;
-    let content = data.content;
-    let contentType = data.contentType;
+    if (message.type === 'request') {
+      this.emit('request', message);
+    } else if (message.type === 'response') {
+      let idx = message.idx;
+      if (idx == null) {
+        return;
+      }
 
-    if (type === 'request') {
-      this.emit('request', data);
-    } else if (type === 'response') {
       let call = this.calls.get(idx);
       if (!call) {
         // Return for unknown calls, these might accur if a third party process uses workers
         return;
       }
 
-      if (contentType === 'error') {
-        call.reject(jsonToError(content));
+      if (message.contentType === 'error') {
+        call.reject(jsonToError(message.content));
       } else {
-        call.resolve(content);
+        call.resolve(message.content);
       }
 
       this.calls.delete(idx);
-      this.emit('response', data);
+      this.emit('response', message);
     }
   }
 
