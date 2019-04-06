@@ -3,7 +3,8 @@
 // $FlowFixMe This is fine.
 const isTTY = process.stdout.isTTY;
 
-export default require('./SimpleCLIReporter')
-  .default; /*(isTTY
+module.exports = require('./SimpleCLIReporter');
+
+/*export default (isTTY
   ? require('./CLIReporter').default
-  : );*/
+  : require('./SimpleCLIReporter'));*/

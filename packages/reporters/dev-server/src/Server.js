@@ -193,7 +193,11 @@ export default class Server extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       server.on('error', err => {
-        logger.error(new Error(serverErrors(err, server.address().port)));
+        logger.error(
+          new Error(
+            serverErrors(err, server.address() && server.address().port)
+          )
+        );
         reject(err);
       });
 
