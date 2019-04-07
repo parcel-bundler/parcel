@@ -45,7 +45,7 @@
     "cssnano": "^4.0.0",
     "deasync": "^0.1.14",
     "dotenv": "^7.0.0",
-    "dotenv-expand": "^4.2.0",
+    "dotenv-expand": "^5.1.0",
     "fast-glob": "^2.2.2",
     "filesize": "^3.6.0",
     "get-port": "^3.2.0",
