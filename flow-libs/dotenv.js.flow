@@ -1,9 +1,40 @@
 // @flow strict-local
 
-// Derived from and sections taken from
-// https://github.com/motdotla/dotenv/blob/03a891554c49915fe919c649f51b3adcae662a84/lib/main.js
-// and https://github.com/flow-typed/flow-typed/blob/9b8ade1b0dd93ae110a5612cce80d81d0c34a00e/definitions/npm/dotenv_v4.x.x/flow_v0.34.x-/dotenv_v4.x.x.js
-// both of which are MIT licensed (see roots of their respective repos)
+/*
+ * This is derivative of the types and source declared in `dotenv`:
+ * https://github.com/motdotla/dotenv/blob/03a891554c49915fe919c649f51b3adcae662a84/lib/main.js
+ * Below is the copyright as well as the contents of the BSD LICENSE in the root of that repo.
+ */
+
+/* 
+ * Copyright (c) 2015, Scott Motte
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ * 
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+// The flow-typed definitions (licensed MIT) for v4 were also used as a reference:
+// https://github.com/flow-typed/flow-typed/blob/9b8ade1b0dd93ae110a5612cce80d81d0c34a00e/definitions/npm/dotenv_v4.x.x/flow_v0.34.x-/dotenv_v4.x.x.js
+
 declare module 'dotenv' {
   declare type DotenvParseOptions = {|
     debug?: boolean
