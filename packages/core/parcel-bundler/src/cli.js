@@ -215,6 +215,7 @@ async function bundle(main, command) {
 
   command.throwErrors = false;
   command.scopeHoist = command.experimentalScopeHoisting || false;
+  command.autoInstall = command.autoinstall;
 
   const bundler = new Bundler(main, command);
 
