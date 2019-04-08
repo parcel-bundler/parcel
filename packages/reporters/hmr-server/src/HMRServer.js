@@ -105,10 +105,13 @@ export default class HMRServer {
 
     let assets = await Promise.all(
       Array.from(event.changedAssets.values()).map(async asset => {
+        let dependencies = event.assetGraph.getDependencies(asset);
         let deps = {};
-        for (let dependency of asset.dependencies) {
-          // ? SourcePath should come from graph?
-          deps[dependency.sourcePath] = dependency.id;
+        for (let dep of dependencies) {
+          let resolved = event.assetGraph.getDependencyResolution(dep);
+          if (resolved) {
+            deps[dep.moduleSpecifier] = resolved.id;
+          }
         }
 
         let output = await asset.getOutput();
@@ -117,7 +120,7 @@ export default class HMRServer {
           id: asset.id,
           type: asset.type,
           output: output.code,
-          deps: deps
+          deps
         };
       })
     );
