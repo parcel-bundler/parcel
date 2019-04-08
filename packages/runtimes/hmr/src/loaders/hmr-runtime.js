@@ -37,6 +37,10 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     console.log(data);
 
     if (data.type === 'update') {
+      // Remove error overlay if there is one
+      removeErrorOverlay();
+
+      // Handle HMR Update
       var handled = false;
       data.assets.forEach(function(asset) {
         if (!asset.isNew) {
@@ -70,12 +74,6 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       }
     }
 
-    if (data.type === 'error-resolved') {
-      console.log('[parcel] ✨ Error resolved');
-
-      removeErrorOverlay();
-    }
-
     if (data.type === 'error') {
       console.error(
         '[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack
@@ -93,6 +91,7 @@ function removeErrorOverlay() {
   var overlay = document.getElementById(OVERLAY_ID);
   if (overlay) {
     overlay.remove();
+    console.log('[parcel] ✨ Error resolved');
   }
 }
 

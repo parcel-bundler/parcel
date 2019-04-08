@@ -101,14 +101,7 @@ export default class HMRServer {
   }
 
   async emitUpdate(event: BuildSuccessEvent) {
-    if (this.unresolvedError) {
-      this.unresolvedError = null;
-      this.broadcast({
-        type: 'error-resolved'
-      });
-
-      return;
-    }
+    this.unresolvedError = null;
 
     let assets = await Promise.all(
       Array.from(event.changedAssets.values()).map(async asset => {
