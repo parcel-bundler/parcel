@@ -206,9 +206,9 @@ export default class AssetGraph extends Graph<AssetGraphNode>
     let removedFiles = getFilesFromGraph(removed);
 
     for (let assetNode of assetNodes) {
-      let depNodes = assetNode.value.dependencies.map(dep => {
-        return nodeFromDep(dep);
-      });
+      let depNodes = assetNode.value
+        .getDependencies()
+        .map(dep => nodeFromDep(dep));
       let {removed, added} = this.replaceNodesConnectedTo(assetNode, depNodes);
       removedFiles = removedFiles.concat(getFilesFromGraph(removed));
       newDepNodes = newDepNodes.concat(getDepNodesFromGraph(added));

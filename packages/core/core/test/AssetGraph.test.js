@@ -146,11 +146,14 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#1',
         dependencies: [
-          new Dependency({
-            moduleSpecifier: './utils',
-            env: DEFAULT_ENV,
-            sourcePath
-          })
+          [
+            'utils',
+            new Dependency({
+              moduleSpecifier: './utils',
+              env: DEFAULT_ENV,
+              sourcePath
+            })
+          ]
         ],
         env: DEFAULT_ENV,
         output: {code: ''},
@@ -162,11 +165,14 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#2',
         dependencies: [
-          new Dependency({
-            moduleSpecifier: './styles',
-            env: DEFAULT_ENV,
-            sourcePath
-          })
+          [
+            'styles',
+            new Dependency({
+              moduleSpecifier: './styles',
+              env: DEFAULT_ENV,
+              sourcePath
+            })
+          ]
         ],
         env: DEFAULT_ENV,
         output: {code: ''},
@@ -196,8 +202,8 @@ describe('AssetGraph', () => {
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(graph.nodes.has('3'));
-    assert(graph.nodes.has(assets[0].dependencies[0].id));
-    assert(graph.nodes.has(assets[1].dependencies[0].id));
+    assert(graph.nodes.has(assets[0].getDependencies()[0].id));
+    assert(graph.nodes.has(assets[1].getDependencies()[0].id));
     assert(graph.nodes.has('/index.js'));
     assert(
       graph.hasEdge({
@@ -226,13 +232,13 @@ describe('AssetGraph', () => {
     assert(
       graph.hasEdge({
         from: '1',
-        to: assets[0].dependencies[0].id
+        to: assets[0].getDependencies()[0].id
       })
     );
     assert(
       graph.hasEdge({
         from: '2',
-        to: assets[1].dependencies[0].id
+        to: assets[1].getDependencies()[0].id
       })
     );
     assert(!graph.incompleteNodes.has(nodeFromTransformerRequest(req).id));
@@ -262,11 +268,14 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#1',
         dependencies: [
-          new Dependency({
-            moduleSpecifier: './utils',
-            env: DEFAULT_ENV,
-            sourcePath
-          })
+          [
+            'utils',
+            new Dependency({
+              moduleSpecifier: './utils',
+              env: DEFAULT_ENV,
+              sourcePath
+            })
+          ]
         ],
         env: DEFAULT_ENV,
         output: {code: ''},
@@ -296,8 +305,8 @@ describe('AssetGraph', () => {
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(!graph.nodes.has('3'));
-    assert(graph.nodes.has(assets[0].dependencies[0].id));
-    assert(!graph.nodes.has(assets[1].dependencies[0].id));
+    assert(graph.nodes.has(assets[0].getDependencies()[0].id));
+    assert(!graph.nodes.has(assets[1].getDependencies()[0].id));
     assert(
       graph.hasEdge({
         from: nodeFromTransformerRequest(req).id,
@@ -325,13 +334,13 @@ describe('AssetGraph', () => {
     assert(
       graph.hasEdge({
         from: '1',
-        to: assets[0].dependencies[0].id
+        to: assets[0].getDependencies()[0].id
       })
     );
     assert(
       !graph.hasEdge({
         from: '2',
-        to: assets[1].dependencies[0].id
+        to: assets[1].getDependencies()[0].id
       })
     );
     assert(!graph.incompleteNodes.has(nodeFromTransformerRequest(req).id));
@@ -375,11 +384,14 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#1',
         dependencies: [
-          new Dependency({
-            moduleSpecifier: './utils',
-            env: DEFAULT_ENV,
-            sourcePath
-          })
+          [
+            'utils',
+            new Dependency({
+              moduleSpecifier: './utils',
+              env: DEFAULT_ENV,
+              sourcePath
+            })
+          ]
         ],
         env: DEFAULT_ENV,
         output: {code: ''},

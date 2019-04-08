@@ -27,7 +27,7 @@ type AssetOptions = {|
   type: string,
   code?: string,
   ast?: ?AST,
-  dependencies?: Array<IDependency>,
+  dependencies?: Iterable<[string, IDependency]>,
   connectedFiles?: Iterable<[FilePath, File]>,
   output?: AssetOutput,
   outputHash?: string,
@@ -36,12 +36,13 @@ type AssetOptions = {|
   stats?: Stats
 |};
 
-type SerializedOptions = {
+type SerializedOptions = {|
   ...AssetOptions,
   ...{|
-    connectedFiles: Array<[FilePath, File]>
+    connectedFiles: Array<[FilePath, File]>,
+    dependencies: Array<[string, IDependency]>
   |}
-};
+|};
 
 export default class Asset implements IAsset {
   id: string;
@@ -50,7 +51,7 @@ export default class Asset implements IAsset {
   type: string;
   code: string;
   ast: ?AST;
-  dependencies: Array<IDependency>;
+  dependencies: Map<string, IDependency>;
   connectedFiles: Map<FilePath, File>;
   output: AssetOutput;
   outputHash: string;
@@ -70,8 +71,8 @@ export default class Asset implements IAsset {
     this.code = options.code || (options.output ? options.output.code : '');
     this.ast = options.ast || null;
     this.dependencies = options.dependencies
-      ? options.dependencies.slice()
-      : [];
+      ? new Map(options.dependencies)
+      : new Map();
     this.connectedFiles = options.connectedFiles
       ? new Map(options.connectedFiles)
       : new Map();
@@ -92,7 +93,7 @@ export default class Asset implements IAsset {
       hash: this.hash,
       filePath: this.filePath,
       type: this.type,
-      dependencies: this.dependencies,
+      dependencies: Array.from(this.dependencies),
       connectedFiles: Array.from(this.connectedFiles),
       output: this.output,
       outputHash: this.outputHash,
@@ -110,7 +111,7 @@ export default class Asset implements IAsset {
       sourcePath: this.filePath
     });
 
-    this.dependencies.push(dep);
+    this.dependencies.set(dep.id, dep);
     return dep.id;
   }
 
@@ -124,6 +125,10 @@ export default class Asset implements IAsset {
 
   getConnectedFiles(): Array<File> {
     return Array.from(this.connectedFiles.values());
+  }
+
+  getDependencies(): Array<IDependency> {
+    return Array.from(this.dependencies.values());
   }
 
   createChildAsset(result: TransformerResult) {
@@ -143,8 +148,9 @@ export default class Asset implements IAsset {
 
     let asset = new Asset(opts);
 
-    if (result.dependencies) {
-      for (let dep of result.dependencies) {
+    let dependencies = result.dependencies;
+    if (dependencies) {
+      for (let dep of dependencies.values()) {
         asset.addDependency(dep);
       }
     }
