@@ -51,14 +51,6 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         }
       });
 
-      // TODO: Figure out hmr for css
-      // Enable HMR for CSS by default.
-      /*handled =
-        handled ||
-        data.assets.every(function(asset) {
-          return asset.type === 'css' && asset.generated.js;
-        });*/
-
       if (handled) {
         // console.clear();
 
