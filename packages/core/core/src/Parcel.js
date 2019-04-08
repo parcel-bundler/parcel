@@ -5,7 +5,7 @@ import type {Bundle} from './types';
 import type InternalBundleGraph from './BundleGraph';
 
 import AssetGraph from './AssetGraph';
-import BundleGraph from './public/BundleGraph';
+import {BundleGraph} from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';

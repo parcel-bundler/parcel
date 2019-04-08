@@ -6,7 +6,7 @@ import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
 
 import nullthrows from 'nullthrows';
-import BundleGraph from './public/BundleGraph';
+import {MutableBundleGraph} from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import MainAssetGraph from './public/MainAssetGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
@@ -42,7 +42,7 @@ export default class BundlerRunner {
     let bundleGraph = new InternalBundleGraph();
     await bundler.bundle(
       new MainAssetGraph(graph),
-      new BundleGraph(bundleGraph),
+      new MutableBundleGraph(bundleGraph),
       this.options
     );
     await this.nameBundles(bundleGraph);
