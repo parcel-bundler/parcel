@@ -28,13 +28,20 @@ type AssetOptions = {|
   code?: string,
   ast?: ?AST,
   dependencies?: Array<IDependency>,
-  connectedFiles?: Array<File>,
+  connectedFiles?: Iterable<[FilePath, File]>,
   output?: AssetOutput,
   outputHash?: string,
   env: Environment,
   meta?: Meta,
   stats?: Stats
 |};
+
+type SerializedOptions = {
+  ...AssetOptions,
+  ...{|
+    connectedFiles: Array<[FilePath, File]>
+  |}
+};
 
 export default class Asset implements IAsset {
   id: string;
@@ -44,7 +51,7 @@ export default class Asset implements IAsset {
   code: string;
   ast: ?AST;
   dependencies: Array<IDependency>;
-  connectedFiles: Array<File>;
+  connectedFiles: Map<FilePath, File>;
   output: AssetOutput;
   outputHash: string;
   env: Environment;
@@ -66,8 +73,8 @@ export default class Asset implements IAsset {
       ? options.dependencies.slice()
       : [];
     this.connectedFiles = options.connectedFiles
-      ? options.connectedFiles.slice()
-      : [];
+      ? new Map(options.connectedFiles)
+      : new Map();
     this.output = options.output || {code: this.code};
     this.outputHash = options.outputHash || '';
     this.env = options.env;
@@ -78,7 +85,7 @@ export default class Asset implements IAsset {
     };
   }
 
-  serialize(): AssetOptions {
+  serialize(): SerializedOptions {
     // Exclude `code` and `ast` from cache
     return {
       id: this.id,
@@ -86,7 +93,7 @@ export default class Asset implements IAsset {
       filePath: this.filePath,
       type: this.type,
       dependencies: this.dependencies,
-      connectedFiles: this.connectedFiles,
+      connectedFiles: Array.from(this.connectedFiles),
       output: this.output,
       outputHash: this.outputHash,
       env: this.env,
@@ -96,12 +103,13 @@ export default class Asset implements IAsset {
   }
 
   addDependency(opts: DependencyOptions) {
-    // $FlowFixMe
+    let {env, ...rest} = opts;
     let dep = new Dependency({
-      ...opts,
-      env: this.env.merge(opts.env),
+      ...rest,
+      env: this.env.merge(env),
       sourcePath: this.filePath
     });
+
     this.dependencies.push(dep);
     return dep.id;
   }
@@ -111,7 +119,11 @@ export default class Asset implements IAsset {
       file.hash = await md5FromFilePath(file.filePath);
     }
 
-    this.connectedFiles.push(file);
+    this.connectedFiles.set(file.filePath, file);
+  }
+
+  getConnectedFiles(): Array<File> {
+    return Array.from(this.connectedFiles.values());
   }
 
   createChildAsset(result: TransformerResult) {
@@ -137,8 +149,9 @@ export default class Asset implements IAsset {
       }
     }
 
-    if (result.connectedFiles) {
-      for (let file of result.connectedFiles) {
+    let connectedFiles = result.connectedFiles;
+    if (connectedFiles) {
+      for (let file of connectedFiles.values()) {
         asset.addConnectedFile(file);
       }
     }

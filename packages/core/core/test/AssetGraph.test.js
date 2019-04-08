@@ -383,11 +383,14 @@ describe('AssetGraph', () => {
         ],
         env: DEFAULT_ENV,
         output: {code: ''},
-        connectedFiles: [
-          {
-            filePath: '/foo/bar'
-          }
-        ]
+        connectedFiles: new Map([
+          [
+            '/foo/bar',
+            {
+              filePath: '/foo/bar'
+            }
+          ]
+        ])
       })
     ];
     let cacheEntry = {

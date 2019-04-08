@@ -250,7 +250,7 @@ async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
 
 async function checkCachedAssets(assets: Array<IAsset>): Promise<boolean> {
   let results = await Promise.all(
-    assets.map(asset => checkConnectedFiles(asset.connectedFiles))
+    assets.map(asset => checkConnectedFiles(asset.getConnectedFiles()))
   );
 
   return results.every(Boolean);

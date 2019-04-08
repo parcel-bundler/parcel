@@ -13,7 +13,6 @@ import {md5FromString} from '@parcel/utils/src/md5';
 
 type DependencyOpts = {|
   ...DependencyOptions,
-  moduleSpecifier: ModuleSpecifier,
   env: IEnvironment,
   id?: string,
   sourcePath?: FilePath

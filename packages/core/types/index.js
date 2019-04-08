@@ -210,7 +210,7 @@ export interface Asset {
   code: string;
   ast: ?AST;
   dependencies: Array<Dependency>;
-  connectedFiles: Array<File>;
+  connectedFiles: Map<FilePath, File>;
   output: AssetOutput;
   outputHash: string;
   env: Environment;
@@ -221,6 +221,7 @@ export interface Asset {
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
   ): Promise<Config | null>;
+  getConnectedFiles(): Array<File>;
   getPackage(): Promise<PackageJSON | null>;
   addDependency(dep: DependencyOptions): string;
   createChildAsset(result: TransformerResult): Asset;
@@ -246,7 +247,7 @@ export type TransformerResult = {
   code?: string,
   ast?: ?AST,
   dependencies?: Array<DependencyOptions>,
-  connectedFiles?: Array<File>,
+  connectedFiles?: Map<FilePath, File>,
   output?: AssetOutput,
   env?: EnvironmentOpts,
   meta?: Meta
