@@ -349,6 +349,16 @@ export type BundleGroup = {
 };
 
 export interface BundleGraph {
+  findBundlesWithAsset(asset: Asset): Array<Bundle>;
+  getBundleGroups(bundle: Bundle): Array<BundleGroup>;
+  getBundles(bundleGroup: BundleGroup): Array<Bundle>;
+  isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
+  traverseBundles<TContext>(
+    visit: GraphTraversalCallback<Bundle, TContext>
+  ): ?TContext;
+}
+
+export interface MutableBundleGraph {
   addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
   addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
   findBundlesWithAsset(asset: Asset): Array<MutableBundle>;
@@ -363,7 +373,7 @@ export interface BundleGraph {
 export type Bundler = {|
   bundle(
     graph: MainAssetGraph,
-    bundleGraph: BundleGraph,
+    bundleGraph: MutableBundleGraph,
     opts: ParcelOptions
   ): Async<void>
 |};
@@ -377,6 +387,7 @@ export type RuntimeAsset = {|
   code: string,
   bundleGroup?: BundleGroup
 |};
+
 export type Runtime = {|
   apply(
     bundle: NamedBundle,
