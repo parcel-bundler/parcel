@@ -99,8 +99,7 @@ function reducer(
       return {
         ...state,
         progress: null,
-        // bundleGraph: options.mode === 'production' ? event.bundleGraph : null,
-        bundleGraph: event.bundleGraph,
+        bundleGraph: !options.watch ? event.bundleGraph : null,
         logs: [
           ...state.logs,
           {

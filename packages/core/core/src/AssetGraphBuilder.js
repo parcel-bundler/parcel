@@ -14,11 +14,12 @@ import {
   AbortController,
   type AbortSignal
 } from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import Watcher from '@parcel/watcher';
+import watcher from '@parcel/watcher';
 import PromiseQueue from '@parcel/utils/src/PromiseQueue';
 import AssetGraph from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import WorkerFarm from '@parcel/workers';
+import path from 'path';
 
 type BuildOpts = {|
   signal: AbortSignal,
@@ -34,9 +35,15 @@ type Opts = {|
   rootDir: FilePath
 |};
 
+type WatcherSubscription = {|
+  unsubscribe(): void
+|};
+
 export default class AssetGraphBuilder extends EventEmitter {
   graph: AssetGraph;
-  watcher: Watcher;
+  watcher: WatcherSubscription;
+  options: ParcelOptions;
+  rootDir: FilePath;
   queue: PromiseQueue;
   resolverRunner: ResolverRunner;
   controller: AbortController;
@@ -53,6 +60,9 @@ export default class AssetGraphBuilder extends EventEmitter {
   }: Opts) {
     super();
 
+    this.options = options;
+    this.rootDir = rootDir;
+
     this.queue = new PromiseQueue();
     this.resolverRunner = new ResolverRunner({
       config,
@@ -64,29 +74,37 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.graph.initializeGraph({entries, targets, transformerRequest, rootDir});
 
     this.controller = new AbortController();
-    if (options.watch) {
-      this.watcher = new Watcher();
-      this.watcher.on('change', async filePath => {
-        if (this.graph.hasNode(filePath)) {
-          this.controller.abort();
-          this.graph.invalidateFile(filePath);
-
-          this.emit('invalidate', filePath);
-        }
-      });
-    }
   }
 
-  async initFarm() {
+  async init() {
     // This expects the worker farm to already be initialized by Parcel prior to calling
     // AssetGraphBuilder, which avoids needing to pass the options through here.
     this.farm = await WorkerFarm.getShared();
     this.runTransform = this.farm.mkhandle('runTransform');
+
+    if (this.options.watch) {
+      let ignore = ['.git', '.hg', '.parcel-cache'].map(dir =>
+        path.join(this.rootDir, dir)
+      );
+      this.watcher = await watcher.subscribe(
+        this.rootDir,
+        (err, events) => {
+          if (err) {
+            // TODO
+            this.emit('error', err);
+            return;
+          }
+
+          this.handleChangeEvents(events);
+        },
+        {ignore}
+      );
+    }
   }
 
   async build() {
     if (!this.farm) {
-      await this.initFarm();
+      await this.init();
     }
 
     this.controller = new AbortController();
@@ -146,7 +164,6 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     if (newRequest) {
       this.queue.add(() => this.transform(newRequest, {signal}));
-      if (this.watcher) this.watcher.watch(newRequest.filePath);
     }
   }
 
@@ -166,22 +183,32 @@ export default class AssetGraphBuilder extends EventEmitter {
       newDeps
     } = this.graph.resolveTransformerRequest(req, cacheEntry);
 
-    if (this.watcher) {
-      for (let file of addedFiles) {
-        this.watcher.watch(file.filePath);
-      }
-
-      for (let file of removedFiles) {
-        this.watcher.unwatch(file.filePath);
-      }
-    }
-
     // The shallow option is used during the update phase
     if (!shallow) {
       for (let dep of newDeps) {
         this.queue.add(() => this.resolve(dep, {signal}));
       }
     }
+  }
+
+  handleChangeEvents(events) {
+    let invalidated = false;
+
+    for (let event of events) {
+      if (this.graph.hasNode(event.path)) {
+        invalidated = true;
+        this.graph.invalidateFile(event.path);
+      }
+    }
+
+    if (invalidated) {
+      this.controller.abort();
+      this.emit('invalidate');
+    }
+  }
+
+  stop() {
+    this.watcher.unsubscribe();
   }
 }
 
