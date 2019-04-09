@@ -7,7 +7,7 @@ const http = require('http');
 const https = require('https');
 const getPort = require('get-port');
 
-describe.only('server', function() {
+describe('server', function() {
   function get(file, port, client = http) {
     return new Promise((resolve, reject) => {
       client.get(
