@@ -5,9 +5,9 @@ module.exports = {
     'plugin:react/recommended'
   ],
   parser: 'babel-eslint',
-  plugins: ['flowtype', 'import', 'react'],
+  plugins: ['@parcel', 'flowtype', 'import', 'react'],
   parserOptions: {
-    ecmaVersion: 8,
+    ecmaVersion: 2018,
     ecmaFeatures: {
       jsx: true
     },
@@ -31,6 +31,7 @@ module.exports = {
     }
   ],
   rules: {
+    '@parcel/no-self-package-imports': 'error',
     'flowtype/space-after-type-colon': 'off', // conflicts with prettier
     'import/first': 'error',
     'import/newline-after-import': 'error',

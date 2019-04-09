@@ -1,112 +1,89 @@
 // @flow strict-local
 
-import invariant from 'assert';
+import {makeDeferredWithPromise, type Deferred} from './Deferred';
 
 type PromiseQueueOpts = {
-  maxConcurrent?: number,
-  retry?: boolean
+  maxConcurrent: number
 };
 
-export default class PromiseQueue<TFirstArg, TRestArgs: Array<mixed>, TRet> {
-  process: (first: TFirstArg, ...rest: TRestArgs) => Promise<TRet>;
-  retry: boolean;
-  queue: Array<[TFirstArg, TRestArgs]> = [];
-  processing: Set<TFirstArg> = new Set();
-  processed: Set<TFirstArg> = new Set();
-  maxConcurrent: number;
-  numRunning: number = 0;
-  runPromise: ?Promise<Set<TFirstArg>> = null;
-  resolve: ?(Set<TFirstArg>) => void = null;
-  reject: ?(Error) => void = null;
+export default class PromiseQueue {
+  _deferred: ?Deferred<void>;
+  _maxConcurrent: number;
+  _numRunning: number = 0;
+  _queue: Array<() => Promise<mixed>> = [];
+  _runPromise: ?Promise<void> = null;
 
-  constructor(
-    callback: (TFirstArg, ...TRestArgs) => Promise<TRet>,
-    options: PromiseQueueOpts = {}
-  ) {
-    if (options.maxConcurrent != null && options.maxConcurrent <= 0) {
+  constructor(opts: PromiseQueueOpts = {maxConcurrent: Infinity}) {
+    if (opts.maxConcurrent <= 0) {
       throw new TypeError('maxConcurrent must be a positive, non-zero value');
     }
 
-    this.process = callback;
-    this.maxConcurrent =
-      options.maxConcurrent == null ? Infinity : options.maxConcurrent;
-    this.retry = options.retry !== false;
+    this._maxConcurrent = opts.maxConcurrent;
   }
 
-  add(job: TFirstArg, ...args: TRestArgs): void {
-    if (this.processing.has(job)) {
-      return;
-    }
-
-    if (this.runPromise && this.numRunning < this.maxConcurrent) {
-      this._runJob(job, args);
-    } else {
-      this.queue.push([job, args]);
-    }
-
-    this.processing.add(job);
+  add(fn: () => Promise<mixed>): void {
+    this._queue.push(fn);
   }
 
-  run(): Promise<Set<TFirstArg>> {
-    if (this.runPromise) {
-      return this.runPromise;
+  run(): Promise<void> {
+    if (this._runPromise != null) {
+      return this._runPromise;
     }
 
-    const runPromise = new Promise<Set<TFirstArg>>((resolve, reject) => {
-      this.resolve = resolve;
-      this.reject = reject;
-    });
+    if (this._queue.length === 0) {
+      return Promise.resolve();
+    }
 
-    this.runPromise = runPromise;
-    this._next();
+    let {deferred, promise} = makeDeferredWithPromise();
+    this._deferred = deferred;
+    this._runPromise = promise;
 
-    return runPromise;
-  }
-
-  async _runJob(job: TFirstArg, args: TRestArgs) {
-    try {
-      this.numRunning++;
-      await this.process(job, ...args);
-      this.processing.delete(job);
-      this.processed.add(job);
-      this.numRunning--;
+    while (this._queue.length && this._numRunning < this._maxConcurrent) {
       this._next();
-    } catch (err) {
-      this.numRunning--;
-      if (this.retry) {
-        this.queue.push([job, args]);
-      } else {
-        this.processing.delete(job);
-      }
+    }
 
-      if (this.reject) {
-        this.reject(err);
-      }
+    return promise;
+  }
 
-      this._reset();
+  async _next(): Promise<void> {
+    let fn = this._queue.shift();
+    await this._runFn(fn);
+    if (this._queue.length) {
+      this._next();
+    } else if (this._numRunning === 0) {
+      this._resolve();
     }
   }
 
-  _next() {
-    if (!this.runPromise) {
-      return;
-    }
-
-    if (this.queue.length > 0) {
-      while (this.queue.length > 0 && this.numRunning < this.maxConcurrent) {
-        this._runJob(...this.queue.shift());
-      }
-    } else if (this.processing.size === 0) {
-      invariant(this.resolve != null);
-      this.resolve(this.processed);
-      this._reset();
+  async _runFn(fn: () => mixed): Promise<void> {
+    this._numRunning++;
+    try {
+      await fn();
+      this._numRunning--;
+    } catch (e) {
+      this._reject(e);
+      // rejecting resets state so numRunning is reset to 0 here
     }
   }
 
-  _reset() {
-    this.processed = new Set();
-    this.runPromise = null;
-    this.resolve = null;
-    this.reject = null;
+  _resetState(): void {
+    this._queue = [];
+    this._runPromise = null;
+    this._numRunning = 0;
+    this._deferred = null;
+  }
+
+  _reject(err: mixed): void {
+    if (this._deferred != null) {
+      this._deferred.reject(err);
+    }
+    this._resetState();
+  }
+
+  _resolve(): void {
+    if (this._deferred != null) {
+      this._deferred.resolve();
+    }
+    this._resetState();
   }
 }

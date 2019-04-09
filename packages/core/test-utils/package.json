@@ -2,7 +2,7 @@
   "name": "@parcel/test-utils",
   "version": "1.10.3",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "index.js",
+  "main": "src/utils.js",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -13,10 +13,6 @@
   },
   "scripts": {
     "test": "echo this package has no tests yet",
-    "test-ci": "yarn build && yarn test",
-    "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
-    "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
-    "build": "babel src -d lib",
-    "prepublish": "yarn build"
+    "test-ci": "yarn test"
   }
 }
