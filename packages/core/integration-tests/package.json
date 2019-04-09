@@ -21,6 +21,7 @@
     "chalk": "^2.1.0",
     "codecov": "^3.0.0",
     "command-exists": "^1.2.6",
+    "get-port": "^5.0.0",
     "graphql-tag": "^2.6.0",
     "json5": "^1.0.1",
     "mocha": "^5.1.1",
