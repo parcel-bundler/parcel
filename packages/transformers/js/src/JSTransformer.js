@@ -79,7 +79,9 @@ export default new Transformer({
 
     if (!asset.env.isNode()) {
       // Inline fs calls
-      let fsDep = asset.dependencies.find(dep => dep.moduleSpecifier === 'fs');
+      let fsDep = asset
+        .getDependencies()
+        .find(dep => dep.moduleSpecifier === 'fs');
       if (fsDep && FS_RE.test(asset.code)) {
         // Check if we should ignore fs calls
         // See https://github.com/defunctzombie/node-browser-resolve#skip

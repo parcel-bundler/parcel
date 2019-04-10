@@ -189,7 +189,7 @@ export default class AssetGraph extends Graph<AssetGraphNode>
     // Get connected files from each asset and connect them to the file node
     let fileNodes = [];
     for (let asset of cacheEntry.assets) {
-      let files = asset.connectedFiles.map(file => nodeFromFile(file));
+      let files = asset.getConnectedFiles().map(file => nodeFromFile(file));
       fileNodes = fileNodes.concat(files);
     }
 
@@ -206,9 +206,9 @@ export default class AssetGraph extends Graph<AssetGraphNode>
     let removedFiles = getFilesFromGraph(removed);
 
     for (let assetNode of assetNodes) {
-      let depNodes = assetNode.value.dependencies.map(dep => {
-        return nodeFromDep(dep);
-      });
+      let depNodes = assetNode.value
+        .getDependencies()
+        .map(dep => nodeFromDep(dep));
       let {removed, added} = this.replaceNodesConnectedTo(assetNode, depNodes);
       removedFiles = removedFiles.concat(getFilesFromGraph(removed));
       newDepNodes = newDepNodes.concat(getDepNodesFromGraph(added));
