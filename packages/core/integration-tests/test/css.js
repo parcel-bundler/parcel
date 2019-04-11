@@ -1,91 +1,65 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundle, run, assertBundleTree, rimraf, ncp} = require('./utils');
+const {
+  bundle,
+  run,
+  assertBundles,
+  assertBundleTree,
+  rimraf,
+  ncp
+} = require('./utils');
 
-describe.skip('css', function() {
-  it('should produce two bundles when importing a CSS file', async function() {
+describe('css in v2', () => {
+  it('should produce two bundles when importing a CSS file', async () => {
     let b = await bundle(path.join(__dirname, '/integration/css/index.js'));
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.css', 'local.js', 'local.css'],
-      childBundles: [
-        {
-          name: 'index.map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.css', 'local.css'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'local.js']
+      },
+      {
+        name: 'local.css',
+        assets: ['index.css', 'local.css']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
 
-  it('should support loading a CSS bundle along side dynamic imports', async function() {
+  // Currently failing as Windows produces different hashes
+  it.skip('should support loading a CSS bundle along side dynamic imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-css/index.js')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: [
-        'index.js',
-        'index.css',
-        'bundle-loader.js',
-        'bundle-url.js',
-        'js-loader.js',
-        'css-loader.js'
-      ],
-      childBundles: [
-        {
-          type: 'css',
-          name: 'index.css',
-          assets: ['index.css'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        },
-        {
-          name: 'index.js.map'
-        },
-        {
-          type: 'js',
-          assets: ['local.css', 'local.js'],
-          childBundles: [
-            {
-              type: 'css',
-              assets: ['local.css'],
-              childBundles: [
-                {
-                  type: 'map'
-                }
-              ]
-            },
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'bundle-loader.js',
+          'bundle-url.js',
+          'css-loader.js',
+          'index.js',
+          'js-loader.js',
+          'JSRuntime.js'
+        ]
+      },
+      {name: 'local.0feb842b.js', assets: ['local.js']},
+      {name: 'local.6f071801.css', assets: ['local.css']},
+      {name: 'index.css', assets: ['index.css']}
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 3);
   });
+});
 
+describe.skip('css', function() {
   it('should support importing CSS from a CSS file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/css-import/index.js')

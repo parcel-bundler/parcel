@@ -5,6 +5,7 @@ import type {Bundle as InternalBundle} from '../types';
 import type {
   Asset,
   Bundle as IBundle,
+  BundleTraversable,
   Dependency,
   Environment,
   FilePath,
@@ -71,6 +72,18 @@ export class Bundle implements IBundle {
 
   getTotalSize(asset?: Asset): number {
     return this.#bundle.assetGraph.getTotalSize(asset);
+  }
+
+  traverse<TContext>(
+    visit: GraphTraversalCallback<BundleTraversable, TContext>
+  ): ?TContext {
+    return this.#bundle.assetGraph.traverse((node, ...args) => {
+      if (node.type === 'asset') {
+        return visit({type: 'asset', value: node.value}, ...args);
+      } else if (node.type === 'asset_reference') {
+        return visit({type: 'asset_reference', value: node.value}, ...args);
+      }
+    });
   }
 
   traverseAssets<TContext>(

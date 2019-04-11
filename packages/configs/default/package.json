@@ -13,6 +13,7 @@
     "@parcel/bundler-default": "^2.0.0",
     "@parcel/namer-default": "^2.0.0",
     "@parcel/packager-js": "^2.0.0",
+    "@parcel/packager-css": "^2.0.0",
     "@parcel/reporter-cli": "^2.0.0",
     "@parcel/resolver-default": "^2.0.0",
     "@parcel/runtime-js": "^2.0.0",

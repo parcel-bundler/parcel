@@ -60,6 +60,7 @@ export type Engines = {
 export type Target = {|
   name: string,
   distPath?: FilePath,
+  distPathType?: string,
   env: Environment
 |};
 
@@ -303,6 +304,10 @@ interface AssetGraphLike {
   ): ?TContext;
 }
 
+export type BundleTraversable =
+  | {|+type: 'asset', value: Asset|}
+  | {|+type: 'asset_reference', value: Asset|};
+
 export type MainAssetGraphTraversable =
   | {|+type: 'asset', value: Asset|}
   | {|+type: 'dependency', value: Dependency|};
@@ -326,6 +331,9 @@ export interface Bundle extends AssetGraphLike {
   getDependencies(asset: Asset): Array<Dependency>;
   getEntryAssets(): Array<Asset>;
   getTotalSize(asset?: Asset): number;
+  traverse<TContext>(
+    visit: GraphTraversalCallback<BundleTraversable, TContext>
+  ): ?TContext;
 }
 
 export interface MutableBundle extends Bundle {
