@@ -9,7 +9,7 @@ const {
   isStaticRequire,
   isStaticResolve,
   relativePathForRequire
-} = require('../lib/utils');
+} = require('../src/utils');
 
 const pkgInfo = readPkgUp.sync({cwd: __dirname});
 const pkgPath = pkgInfo.path;
