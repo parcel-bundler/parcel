@@ -1,7 +1,7 @@
 'use strict';
 
 const {RuleTester} = require('eslint');
-const rule = require('../../lib/rules/no-self-package-imports');
+const rule = require('../../src/rules/no-self-package-imports');
 
 const message =
   'Do not require a module by package name within the same package.';
