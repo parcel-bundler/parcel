@@ -371,6 +371,10 @@ if (!WorkerFarm.isWorker()) {
         invariant(typeof e.message === 'string');
         Logger.progress(e.message);
         break;
+      case 'verbose':
+        invariant(typeof e.message === 'string');
+        Logger.verbose(e.message);
+        break;
       case 'warn':
         Logger.warn(e.message);
         break;

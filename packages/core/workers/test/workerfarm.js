@@ -177,6 +177,53 @@ describe('WorkerFarm', () => {
     await workerfarm.end();
   });
 
+  it('Forwards stdio from the child process and levels event source', async () => {
+    let events = [];
+    let logDisposable = Logger.onLog(event => events.push(event));
+
+    let workerfarm = new WorkerFarm(
+      {},
+      {
+        warmWorkers: true,
+        useLocalWorker: false,
+        workerPath: require.resolve('./integration/workerfarm/console.js')
+      }
+    );
+
+    await workerfarm.run();
+
+    assert.deepEqual(events, [
+      {
+        level: 'info',
+        message: 'one',
+        type: 'log'
+      },
+      {
+        level: 'info',
+        message: 'two',
+        type: 'log'
+      },
+      {
+        level: 'warn',
+        message: 'three',
+        type: 'log'
+      },
+      {
+        level: 'error',
+        message: 'four',
+        type: 'log'
+      },
+      {
+        level: 'verbose',
+        message: 'five',
+        type: 'log'
+      }
+    ]);
+
+    logDisposable.dispose();
+    await workerfarm.end();
+  });
+
   it('Forwards logger events to the main process', async () => {
     let events = [];
     let logDisposable = Logger.onLog(event => events.push(event));

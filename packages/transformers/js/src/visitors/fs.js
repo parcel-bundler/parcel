@@ -62,7 +62,7 @@ export default {
         replacementNode = t.stringLiteral(res);
       }
 
-      asset.connectedFiles.push({
+      asset.connectedFiles.set(filename, {
         filePath: filename
       });
 
