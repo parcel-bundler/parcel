@@ -2,7 +2,6 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
 const {bundler} = require('./utils');
-const {sleep} = require('@parcel/test-utils');
 const http = require('http');
 const https = require('https');
 const getPort = require('get-port');

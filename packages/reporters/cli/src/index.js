@@ -1,7 +1,7 @@
 // @flow strict-local
 
 // $FlowFixMe This is fine.
-const isTTY = process.stdout.isTTY;
+// const isTTY = process.stdout.isTTY;
 
 module.exports = require('./SimpleCLIReporter');
 
