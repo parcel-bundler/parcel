@@ -1,5 +1,5 @@
 // @flow
-import type {BundleGroup, Bundle, MutableBundle} from '@parcel/types';
+import type {BundleGroup, MutableBundle} from '@parcel/types';
 import {Bundler} from '@parcel/plugin';
 
 const OPTIONS = {
@@ -10,7 +10,7 @@ const OPTIONS = {
 
 type BundleContext = {|
   bundleGroup: BundleGroup,
-  bundle?: Bundle
+  bundle?: MutableBundle
 |};
 
 export default new Bundler({
@@ -61,13 +61,22 @@ export default new Bundler({
 
             // Mark bundle as an entry, and set explicit file path from target if the dependency has one
             bundle.isEntry = !!dep.isEntry;
-            if (dep.target && dep.target.distPath) {
-              bundle.filePath = dep.target.distPath;
+            let target = dep.target;
+            if (
+              target &&
+              target.distPath &&
+              target.distPathType === bundle.type
+            ) {
+              bundle.filePath = target.distPath;
             }
 
             // If there is a current bundle, but this asset is of a different type,
             // separate it out into a parallel bundle in the same bundle group.
             if (context.bundle) {
+              // Remove this asset from the current bundle since it's of a different type.
+              // `removeAsset` leaves behind an asset reference in its place.
+              context.bundle.removeAsset(node.value);
+
               let bundles = bundleGraph.getBundlesInBundleGroup(
                 context.bundleGroup
               );
