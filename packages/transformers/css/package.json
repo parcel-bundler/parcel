@@ -15,8 +15,5 @@
     "postcss": "^7.0.5",
     "postcss-value-parser": "^3.3.1",
     "semver": "^5.4.1"
-  },
-  "devDependencies": {
-    "@parcel/eslint-config": "1.10.3"
   }
 }

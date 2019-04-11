@@ -19,7 +19,6 @@
     "prepublish": "yarn build"
   },
   "devDependencies": {
-    "@parcel/eslint-config": "1.10.3",
     "mocha": "^5.2.0"
   },
   "dependencies": {

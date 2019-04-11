@@ -13,8 +13,5 @@
   "main": "./src/PluginAPI.js",
   "dependencies": {
     "@parcel/types": "^2.0.0"
-  },
-  "devDependencies": {
-    "@parcel/eslint-config": "1.10.3"
   }
 }

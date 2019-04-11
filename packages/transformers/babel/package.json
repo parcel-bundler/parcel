@@ -28,8 +28,5 @@
     "browserslist": "^4.1.0",
     "micromatch": "^3.0.4",
     "semver": "^5.4.1"
-  },
-  "devDependencies": {
-    "@parcel/eslint-config": "1.10.3"
   }
 }

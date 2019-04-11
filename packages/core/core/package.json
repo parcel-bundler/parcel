@@ -42,7 +42,6 @@
   "devDependencies": {
     "@parcel/babel-register": "2.0.0",
     "@parcel/config-default": "^2.0.0",
-    "@parcel/eslint-config": "1.10.3",
     "sinon": "^5.0.1"
   }
 }
