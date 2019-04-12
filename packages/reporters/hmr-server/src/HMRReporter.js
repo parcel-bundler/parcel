@@ -6,27 +6,30 @@ import HMRServer from './HMRServer';
 
 const DEFAULT_CACHE_DIR = '.parcel-cache';
 
-let hmrServer: HMRServer | null = null;
+let servers: Map<number, HMRServer> = new Map();
 export default new Reporter({
   async report(event, options) {
     if (!options.hot) return;
 
-    if (!hmrServer) {
-      let hmrOptions: HMRServerOptions = {
-        ...options.hot,
-        cacheDir: options.cacheDir || DEFAULT_CACHE_DIR
-      };
+    let hmrOptions: HMRServerOptions = {
+      ...options.hot,
+      cacheDir: options.cacheDir || DEFAULT_CACHE_DIR
+    };
 
-      hmrServer = new HMRServer(hmrOptions);
-      await hmrServer.start();
+    let server = servers.get(hmrOptions.port);
+    if (!server) {
+      console.log('Start new server:', hmrOptions.port);
+      server = new HMRServer(hmrOptions);
+      servers.set(hmrOptions.port, server);
+      await server.start();
     }
 
     if (event.type === 'buildSuccess') {
-      hmrServer.emitUpdate(event);
+      server.emitUpdate(event);
     }
 
     if (event.type === 'buildFailure') {
-      hmrServer.emitError(event.error);
+      server.emitError(event.error);
     }
   }
 });

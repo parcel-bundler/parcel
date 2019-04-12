@@ -53,17 +53,17 @@ export default class HMRServer {
       }
 
       let websocketOptions = {
-        server: this.server,
-        verifyClient: info => {
+        server: this.server
+        /*verifyClient: info => {
           if (!this.options.host) return true;
 
           let originator = new URL(info.origin);
           return this.options.host === originator.hostname;
-        }
+        }*/
       };
 
       this.wss = new WebSocket.Server(websocketOptions);
-      this.server.listen(this.options.port, resolve);
+      this.server.listen(this.options.port, this.options.host, resolve);
     });
 
     this.wss.on('connection', ws => {
