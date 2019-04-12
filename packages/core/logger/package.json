@@ -24,7 +24,6 @@
     "strip-ansi": "^4.0.0"
   },
   "devDependencies": {
-    "@parcel/eslint-config": "1.10.3",
     "mocha": "^5.2.0",
     "sinon": "^5.0.1"
   }

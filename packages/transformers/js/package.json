@@ -28,8 +28,5 @@
     "babylon-walk": "^1.0.2",
     "node-libs-browser": "^2.0.0",
     "semver": "^5.4.1"
-  },
-  "devDependencies": {
-    "@parcel/eslint-config": "1.10.3"
   }
 }
