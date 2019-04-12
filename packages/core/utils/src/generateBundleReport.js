@@ -4,13 +4,13 @@ import type {Asset, BundleGraph} from '@parcel/types';
 import nullthrows from 'nullthrows';
 
 export type BundleReport = {|
-  bundles: Array<{
+  bundles: Array<{|
     filePath: string,
     size: number,
     time: number,
     largestAssets: Array<{filePath: string, size: number, time: number}>,
     totalAssets: number
-  }>
+  |}>
 |};
 
 export default function generateBundleReport(
