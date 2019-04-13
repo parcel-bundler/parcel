@@ -561,6 +561,7 @@ class Bundler extends EventEmitter {
     asset.buildTime = asset.endTime - asset.startTime;
     asset.id = processed.id;
     asset.generated = processed.generated;
+    asset.sourceMaps = processed.sourceMaps;
     asset.hash = processed.hash;
     asset.cacheData = processed.cacheData;
 
@@ -592,6 +593,13 @@ class Bundler extends EventEmitter {
         }
       })
     );
+
+    // If there was a processing error, re-throw now that we've set up
+    // depdenency watchers. This keeps reloading working if there is an
+    // error in a dependency not directly handled by Parcel.
+    if (processed.error !== null) {
+      throw processed.error;
+    }
 
     // Store resolved assets in their original order
     dependencies.forEach((dep, i) => {

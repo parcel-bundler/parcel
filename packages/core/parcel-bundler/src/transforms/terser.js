@@ -5,7 +5,7 @@ module.exports = async function(asset) {
   await asset.parseIfNeeded();
 
   // Convert AST into JS
-  let source = (await asset.generate()).js;
+  let source = (await asset.generate())[0].value;
 
   let customConfig = await asset.getConfig(['.uglifyrc', '.terserrc']);
   let options = {

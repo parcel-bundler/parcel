@@ -1,0 +1,8 @@
+
+@import "./other-style.css";
+
+body {
+	background-color: red;
+}
+
+@import "./another-style.css";

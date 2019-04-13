@@ -15,8 +15,5 @@
     "@parcel/fs": "^1.10.3",
     "@parcel/logger": "^2.0.0",
     "@parcel/utils": "^2.0.0"
-  },
-  "devDependencies": {
-    "@parcel/eslint-config": "1.10.3"
   }
 }

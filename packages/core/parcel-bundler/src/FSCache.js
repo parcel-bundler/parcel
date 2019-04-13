@@ -7,7 +7,14 @@ const logger = require('@parcel/logger');
 const {isGlob, glob} = require('./utils/glob');
 
 // These keys can affect the output, so if they differ, the cache should not match
-const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
+const OPTION_KEYS = [
+  'publicURL',
+  'minify',
+  'hmr',
+  'target',
+  'scopeHoist',
+  'sourceMaps'
+];
 
 class FSCache {
   constructor(options) {

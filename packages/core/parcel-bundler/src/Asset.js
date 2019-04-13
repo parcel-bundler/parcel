@@ -34,6 +34,7 @@ class Asset {
     this.ast = null;
     this.generated = null;
     this.hash = null;
+    this.sourceMaps = null;
     this.parentDeps = new Set();
     this.dependencies = new Map();
     this.depAssets = new Map();
