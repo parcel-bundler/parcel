@@ -49,7 +49,10 @@ export default new Packager({
       assets +
       '},{},' +
       JSON.stringify(
-        bundle.assetGraph.getEntryAssets().map(asset => asset.id)
+        bundle.assetGraph
+          .getEntryAssets()
+          .reverse()
+          .map(asset => asset.id)
       ) +
       ', ' +
       'null' +
