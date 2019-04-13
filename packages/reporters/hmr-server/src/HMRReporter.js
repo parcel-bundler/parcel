@@ -18,7 +18,6 @@ export default new Reporter({
 
     let server = servers.get(hmrOptions.port);
     if (!server) {
-      console.log('Start new server:', hmrOptions.port);
       server = new HMRServer(hmrOptions);
       servers.set(hmrOptions.port, server);
       await server.start();
