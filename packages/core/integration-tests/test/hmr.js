@@ -68,7 +68,6 @@ describe.only('hmr', function() {
     // assert.equal(message.assets.length, 2);
 
     await closeSocket(ws);
-    await sleep(1000);
   });
 
   it('should emit an HMR update for all new dependencies along with the changed file', async function() {
@@ -104,7 +103,6 @@ describe.only('hmr', function() {
     // assert.equal(message.assets.length, 2);
 
     await closeSocket(ws);
-    await sleep(1000);
   });
 
   it('should emit an HMR error on bundle failure', async function() {
@@ -152,7 +150,6 @@ describe.only('hmr', function() {
     );*/
 
     await closeSocket(ws);
-    await sleep(1000);
   });
 
   it('should emit an HMR error to new connections after a bundle failure', async function() {
@@ -184,7 +181,6 @@ describe.only('hmr', function() {
     assert.equal(message.type, 'error');
 
     await closeSocket(ws);
-    await sleep(1000);
   });
 
   it('should emit an HMR update after error has been resolved', async function() {
@@ -228,7 +224,6 @@ describe.only('hmr', function() {
     assert.equal(message.type, 'update');
 
     await closeSocket(ws);
-    await sleep(1000);
   });
 
   it.skip('should accept HMR updates in the runtime', async function() {
@@ -510,7 +505,6 @@ describe.only('hmr', function() {
     assert.deepEqual(message.assets[0].deps, {});*/
 
     await closeSocket(ws);
-    await sleep(1000);
   });
 
   it('should make a secure connection with custom certificate', async function() {
@@ -554,24 +548,30 @@ describe.only('hmr', function() {
     assert.deepEqual(message.assets[0].deps, {});*/
 
     await closeSocket(ws);
-    await sleep(1000);
   });
 
-  it('should watch new dependencies that cause errors', async function() {
+  // Elm is not part of Parcel 2 yet
+  it.skip('should watch new dependencies that cause errors', async function() {
     await ncp(
       path.join(__dirname, '/integration/elm-dep-error'),
       path.join(__dirname, '/input')
     );
 
-    b = bundler(path.join(__dirname, '/input/index.js'), {
-      watch: true,
-      hmr: true
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/input/index.js'), {
+      hot: {
+        https: false,
+        port,
+        host: 'localhost'
+      },
+      watch: true
     });
-    await b.bundle();
 
-    ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
+    await b.run();
 
-    const buildEnd = nextEvent(b, 'buildEnd');
+    let ws = new WebSocket('ws://localhost:' + b.options.hmrPort);
+
+    await nextWSMessage(ws);
 
     await sleep(100);
     fs.writeFile(
@@ -587,8 +587,8 @@ main =
     `
     );
 
-    let msg = JSON.parse(await nextEvent(ws, 'message'));
-    assert.equal(msg.type, 'error');
+    let message = await nextWSMessage(ws);
+    assert.equal(message.type, 'error');
 
     await sleep(100);
     fs.writeFile(
@@ -603,9 +603,9 @@ anError =
       `
     );
 
-    msg = JSON.parse(await nextEvent(ws, 'message'));
-    assert.equal(msg.type, 'error-resolved');
+    message = await nextWSMessage(ws);
+    assert.equal(message.type, 'error-resolved');
 
-    await buildEnd;
+    await closeSocket(ws);
   });
 });
