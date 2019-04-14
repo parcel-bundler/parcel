@@ -8,7 +8,7 @@ const json5 = require('json5');
 const sinon = require('sinon');
 const getPort = require('get-port');
 
-describe.only('hmr', function() {
+describe('hmr', function() {
   let stub;
   beforeEach(async function() {
     stub = sinon.stub(console, 'clear');
