@@ -34,7 +34,6 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     assetsToAccept = [];
 
     var data = JSON.parse(event.data);
-    console.log(data);
 
     if (data.type === 'update') {
       // Remove error overlay if there is one
@@ -52,7 +51,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       });
 
       if (handled) {
-        // console.clear();
+        console.clear();
 
         data.assets.forEach(function(asset) {
           hmrApply(global.parcelRequire, asset);
@@ -62,7 +61,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
           hmrAcceptRun(v[0], v[1]);
         });
       } else {
-        // window.location.reload();
+        window.location.reload();
       }
     }
 

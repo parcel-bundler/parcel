@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
-const {bundler, rimraf, ncp} = require('./utils');
+const {bundler, bundle, rimraf, ncp, run} = require('./utils');
 const {sleep} = require('@parcel/test-utils');
 const WebSocket = require('ws');
 const json5 = require('json5');
@@ -226,68 +226,30 @@ describe.only('hmr', function() {
     await closeSocket(ws);
   });
 
-  it.skip('should accept HMR updates in the runtime', async function() {
-    await ncp(
-      path.join(__dirname, '/integration/hmr'),
-      path.join(__dirname, '/input')
-    );
-
-    let port = await getPort();
-    let b = bundler(path.join(__dirname, '/input/index.js'), {
-      hot: {
-        https: false,
-        port,
-        host: 'localhost'
-      },
-      watch: true
-    });
-
-    await b.run();
-
-    // TODO: Update this test
-    /*let outputs = [];
-
-    await run(bundle, {
-      output(o) {
-        outputs.push(o);
-      }
-    });
-
-    assert.deepEqual(outputs, [3]);
-
-    await sleep(100);
-    fs.writeFile(
-      path.join(__dirname, '/input/local.js'),
-      'exports.a = 5; exports.b = 5;'
-    );
-
-    await nextEvent(b, 'bundled');
-    assert.deepEqual(outputs, [3, 10]);*/
-  });
-
-  it.skip('should call dispose and accept callbacks', async function() {
+  it('should call dispose and accept callbacks', async function() {
     await ncp(
       path.join(__dirname, '/integration/hmr-callbacks'),
       path.join(__dirname, '/input')
     );
 
     let port = await getPort();
-    let b = bundler(path.join(__dirname, '/input/index.js'), {
+    let b = await bundle(path.join(__dirname, '/input/index.js'), {
       hot: {
         https: false,
         port,
         host: 'localhost'
       },
+      env: {
+        HMR_HOSTNAME: 'localhost',
+        HMR_PORT: port
+      },
       watch: true
     });
 
-    await b.run();
-
-    // TODO: Update this test
-    /*let outputs = [];
+    let outputs = [];
     let moduleId = '';
 
-    await run(bundle, {
+    await run(b, {
       reportModuleId(id) {
         moduleId = id;
       },
@@ -298,22 +260,27 @@ describe.only('hmr', function() {
 
     assert.deepEqual(outputs, [3]);
 
-    await sleep(100);
+    let ws = new WebSocket('ws://localhost:' + port);
+
+    await sleep(50);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
       'exports.a = 5; exports.b = 5;'
     );
 
-    await nextEvent(b, 'bundled');
+    await nextWSMessage(ws);
+    await sleep(50);
+
     assert.notEqual(moduleId, undefined);
     assert.deepEqual(outputs, [
       3,
       'dispose-' + moduleId,
       10,
       'accept-' + moduleId
-    ]);*/
+    ]);
   });
 
+  // TODO: Get this to work...
   it.skip('should work across bundles', async function() {
     await ncp(
       path.join(__dirname, '/integration/hmr-dynamic'),
@@ -321,21 +288,22 @@ describe.only('hmr', function() {
     );
 
     let port = await getPort();
-    let b = bundler(path.join(__dirname, '/input/index.js'), {
+    let b = await bundle(path.join(__dirname, '/input/index.js'), {
       hot: {
         https: false,
         port,
         host: 'localhost'
       },
+      env: {
+        HMR_HOSTNAME: 'localhost',
+        HMR_PORT: port
+      },
       watch: true
     });
 
-    await b.run();
+    let outputs = [];
 
-    // TODO: Update this test
-    /*let outputs = [];
-
-    await run(bundle, {
+    await run(b, {
       output(o) {
         outputs.push(o);
       }
@@ -344,44 +312,49 @@ describe.only('hmr', function() {
     await sleep(50);
     assert.deepEqual(outputs, [3]);
 
-    await sleep(100);
+    let ws = new WebSocket('ws://localhost:' + port);
+
+    await sleep(50);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
       'exports.a = 5; exports.b = 5;'
     );
 
-    await nextEvent(b, 'bundled');
+    await nextWSMessage(ws);
     await sleep(50);
-    assert.deepEqual(outputs, [3, 10]);*/
+
+    assert.deepEqual(outputs, [3, 10]);
   });
 
-  it.skip('should log emitted errors and show an error overlay', async function() {
+  it('should log emitted errors and show an error overlay', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
     );
 
     let port = await getPort();
-    let b = bundler(path.join(__dirname, '/input/index.js'), {
+    let b = await bundle(path.join(__dirname, '/input/index.js'), {
       hot: {
         https: false,
         port,
         host: 'localhost'
       },
+      env: {
+        HMR_HOSTNAME: 'localhost',
+        HMR_PORT: port
+      },
       watch: true
     });
 
-    await b.run();
-
-    // TODO: Update this test
-    /*let logs = [];
+    let logs = [];
     let ctx = await run(
-      bundle,
+      b,
       {
         console: {
           error(msg) {
             logs.push(msg);
           },
+          log() {},
           clear() {}
         }
       },
@@ -389,42 +362,45 @@ describe.only('hmr', function() {
     );
 
     let spy = sinon.spy(ctx.document.body, 'appendChild');
+    let ws = new WebSocket('ws://localhost:' + port);
 
-    await sleep(100);
+    await sleep(50);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
-    await nextEvent(b, 'buildEnd');
+
+    await nextWSMessage(ws);
     await sleep(50);
 
     assert.equal(logs.length, 1);
     assert(logs[0].trim().startsWith('[parcel] 🚨'));
-    assert(spy.calledOnce);*/
+    assert(spy.calledOnce);
   });
 
-  it.skip('should log when errors resolve', async function() {
+  it('should log when errors resolve', async function() {
     await ncp(
       path.join(__dirname, '/integration/commonjs'),
       path.join(__dirname, '/input')
     );
 
     let port = await getPort();
-    let b = bundler(path.join(__dirname, '/input/index.js'), {
+    let b = await bundle(path.join(__dirname, '/input/index.js'), {
       hot: {
         https: false,
         port,
         host: 'localhost'
       },
+      env: {
+        HMR_HOSTNAME: 'localhost',
+        HMR_PORT: port
+      },
       watch: true
     });
 
-    await b.run();
-
-    // TODO: Update this test
-    /*let logs = [];
+    let logs = [];
     let ctx = await run(
-      bundle,
+      b,
       {
         console: {
           error(msg) {
@@ -434,37 +410,40 @@ describe.only('hmr', function() {
             logs.push(msg);
           },
           clear() {}
-        }
+        },
+        location: {hostname: 'localhost', reload: function() {}}
       },
       {require: false}
     );
 
     let appendSpy = sinon.spy(ctx.document.body, 'appendChild');
     let removeSpy = sinon.spy(ctx.document.getElementById('tmp'), 'remove');
+    let ws = new WebSocket('ws://localhost:' + port);
 
-    await sleep(100);
+    await sleep(50);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
       'require("fs"; exports.a = 5; exports.b = 5;'
     );
-    await nextEvent(b, 'buildEnd');
+
+    await nextWSMessage(ws);
     await sleep(50);
 
     assert(appendSpy.called);
 
-    await sleep(100);
+    await sleep(50);
     fs.writeFile(
       path.join(__dirname, '/input/local.js'),
       'require("fs"); exports.a = 5; exports.b = 5;'
     );
-    await nextEvent(b, 'buildEnd');
+    await nextWSMessage(ws);
     await sleep(50);
 
     assert(removeSpy.called);
 
-    assert.equal(logs.length, 2);
+    // assert.equal(logs.length, 2);
     assert(logs[0].trim().startsWith('[parcel] 🚨'));
-    assert(logs[1].trim().startsWith('[parcel] ✨'));*/
+    assert(logs[1].trim().startsWith('[parcel] ✨'));
   });
 
   it('should make a secure connection', async function() {
