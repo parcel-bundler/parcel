@@ -27,9 +27,28 @@ export function md5FromFilePath(filePath: string): Promise<string> {
   });
 }
 
+function isObject(a) {
+  return Object.prototype.toString.call(a) === '[object Object]';
+}
+
+function sortObject(object) {
+  if (isObject(object)) {
+    let newObj = {};
+    let keysSorted = Object.keys(object).sort();
+    for (let key of keysSorted) {
+      newObj[key] = sortObject(object[key]);
+    }
+    return newObj;
+  } else if (Array.isArray(object)) {
+    return object.map(sortObject);
+  } else {
+    return object;
+  }
+}
+
 export function md5FromObject(
   obj: Object,
   encoding: StringHashEncoding = 'hex'
 ): string {
-  return md5FromString(JSON.stringify(obj), encoding);
+  return md5FromString(JSON.stringify(sortObject(obj)), encoding);
 }
