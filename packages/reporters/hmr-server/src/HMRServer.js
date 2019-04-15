@@ -103,8 +103,14 @@ export default class HMRServer {
   async emitUpdate(event: BuildSuccessEvent) {
     this.unresolvedError = null;
 
+    let changedAssets = Array.from(event.changedAssets.values()).filter(
+      asset => asset.env.context === 'browser'
+    );
+
+    if (changedAssets.length === 0) return;
+
     let assets = await Promise.all(
-      Array.from(event.changedAssets.values()).map(async asset => {
+      changedAssets.map(async asset => {
         let dependencies = event.assetGraph.getDependencies(asset);
         let deps = {};
         for (let dep of dependencies) {
