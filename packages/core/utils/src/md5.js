@@ -1,4 +1,4 @@
-// @flow strict-local
+// @flow
 
 import crypto from 'crypto';
 import fs from 'fs';
@@ -25,4 +25,11 @@ export function md5FromFilePath(filePath: string): Promise<string> {
       })
       .on('error', reject);
   });
+}
+
+export function md5FromObject(
+  obj: Object,
+  encoding: StringHashEncoding = 'hex'
+): string {
+  return md5FromString(JSON.stringify(obj), encoding);
 }

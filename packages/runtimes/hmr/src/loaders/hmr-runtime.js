@@ -39,9 +39,14 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       // Remove error overlay if there is one
       removeErrorOverlay();
 
+      let assets = data.assets.filter(
+        // eslint-disable-next-line no-undef
+        asset => asset.envHash === __PARCEL_HMR_ENV_HASH
+      );
+
       // Handle HMR Update
       var handled = false;
-      data.assets.forEach(function(asset) {
+      assets.forEach(asset => {
         if (!asset.isNew) {
           var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
           if (didAccept) {
@@ -53,7 +58,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       if (handled) {
         console.clear();
 
-        data.assets.forEach(function(asset) {
+        assets.forEach(function(asset) {
           hmrApply(global.parcelRequire, asset);
         });
 

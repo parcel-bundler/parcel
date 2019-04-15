@@ -9,11 +9,13 @@ import generateCertificate from '@parcel/utils/src/generateCertificate';
 import getCertificate from '@parcel/utils/src/getCertificate';
 import logger from '@parcel/logger';
 import prettyError from '@parcel/reporter-cli/src/prettyError';
+import {md5FromObject} from '@parcel/utils/src/md5';
 
 type HMRAsset = {|
   id: string,
   type: string,
   output: string,
+  envHash: string,
   deps: Object
 |};
 
@@ -126,6 +128,7 @@ export default class HMRServer {
           id: asset.id,
           type: asset.type,
           output: output.code,
+          envHash: md5FromObject(asset.env),
           deps
         };
       })

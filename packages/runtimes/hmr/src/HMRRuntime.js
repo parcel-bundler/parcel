@@ -3,6 +3,7 @@
 
 import {Runtime} from '@parcel/plugin';
 import {readFile} from '@parcel/fs';
+import {md5FromObject} from '@parcel/utils/src/md5';
 import path from 'path';
 
 const HMR_RUNTIME = './loaders/hmr-runtime.js';
@@ -29,7 +30,9 @@ export default new Runtime({
     await bundle.assetGraph.addRuntimeAsset(root, {
       filePath: __filename,
       env: bundle.env,
-      code: (await readFile(path.join(__dirname, HMR_RUNTIME))).toString('utf8')
+      code:
+        `var __PARCEL_HMR_ENV_HASH = "${md5FromObject(bundle.env)}";` +
+        (await readFile(path.join(__dirname, HMR_RUNTIME))).toString('utf8')
     });
   }
 });
