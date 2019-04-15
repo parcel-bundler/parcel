@@ -39,8 +39,8 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         if (!asset.isNew) assetsToCheck.push(asset.id);
       });
       var handled = false;
-      var id;
-      while (id = assetsToCheck.shift()) {
+      while (assetsToCheck.length > 0) {
+        var id = assetsToCheck.shift();
         var didAccept = hmrAcceptCheck(global.parcelRequire, id);
         if (didAccept) {
           handled = true;
