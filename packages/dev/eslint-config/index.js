@@ -2,7 +2,10 @@ module.exports = {
   extends: [
     'eslint:recommended',
     'plugin:flowtype/recommended',
-    'plugin:react/recommended'
+    'plugin:react/recommended',
+    'prettier',
+    'prettier/flowtype',
+    'prettier/react'
   ],
   parser: 'babel-eslint',
   plugins: ['@parcel', 'flowtype', 'import', 'react'],
@@ -35,7 +38,6 @@ module.exports = {
   ],
   rules: {
     '@parcel/no-self-package-imports': 'error',
-    'flowtype/space-after-type-colon': 'off', // conflicts with prettier
     'import/first': 'error',
     'import/newline-after-import': 'error',
     'import/no-extraneous-dependencies': 'error',
