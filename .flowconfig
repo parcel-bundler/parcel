@@ -25,3 +25,6 @@ unclear-type
 unsafe-getters-setters
 untyped-import
 untyped-type-import
+
+[version]
+0.97.0
