@@ -37,6 +37,7 @@ export default new Runtime({
       return;
     }
 
+    let assets = [];
     for (let bundleGroup of bundle.getBundleGroups()) {
       // Ignore deps with native loaders, e.g. workers.
       if (bundleGroup.dependency.isURL) {
@@ -47,7 +48,7 @@ export default new Runtime({
       let loaderModules = bundles.map(b => {
         let loader = loaders[b.type];
         if (!loader) {
-          throw new Error('Could not find a loader for ');
+          throw new Error('Could not find a loader for bundle type ' + b.type);
         }
 
         return `[require(${JSON.stringify(loader)}), ${JSON.stringify(
@@ -56,7 +57,7 @@ export default new Runtime({
         )}]`;
       });
 
-      await bundle.addRuntimeAsset({
+      assets.push({
         filePath: __filename,
         code: `module.exports = require('./bundle-loader')([${loaderModules.join(
           ', '
@@ -64,5 +65,7 @@ export default new Runtime({
         bundleGroup
       });
     }
+
+    return assets;
   }
 });

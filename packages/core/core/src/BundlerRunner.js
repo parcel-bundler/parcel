@@ -1,21 +1,18 @@
 // @flow strict-local
 
 import type AssetGraph from './AssetGraph';
-import type {
-  FilePath,
-  Namer,
-  ParcelOptions,
-  TransformerRequest
-} from '@parcel/types';
+import type {FilePath, Namer, ParcelOptions, RuntimeAsset} from '@parcel/types';
 import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
 
+import nullthrows from 'nullthrows';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import MainAssetGraph from './public/MainAssetGraph';
-import {Bundle, RuntimeBundle} from './public/Bundle';
+import {Bundle, FulfilledBundle} from './public/Bundle';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
+import {getBundleGroupId} from './public/utils';
 
 type Opts = {|
   options: ParcelOptions,
@@ -83,32 +80,76 @@ export default class BundlerRunner {
     throw new Error('Unable to name bundle');
   }
 
-  async applyRuntimes(internalBundleGraph: InternalBundleGraph): Promise<void> {
-    const build = async (
-      transformerRequest: TransformerRequest
-    ): Promise<AssetGraph> => {
-      let builder = new AssetGraphBuilder({
-        options: this.options,
-        config: this.config,
-        rootDir: this.rootDir,
-        transformerRequest
-      });
-
-      // build a graph of just the transformed asset
-      return builder.build();
-    };
-
+  async applyRuntimes(bundleGraph: InternalBundleGraph): Promise<void> {
     let bundles = [];
-    let bundleGraph = new BundleGraph(internalBundleGraph);
-    internalBundleGraph.traverseBundles(bundle => {
-      bundles.push(new RuntimeBundle({bundle, bundleGraph, build}));
+    bundleGraph.traverseBundles(bundle => {
+      bundles.push(new FulfilledBundle(bundle));
     });
 
     for (let bundle of bundles) {
       let runtimes = await this.config.getRuntimes(bundle.env.context);
       for (let runtime of runtimes) {
-        await runtime.apply(bundle, this.options);
+        let applied = await runtime.apply(bundle, this.options);
+        if (applied) {
+          await this.addRuntimesToBundle(
+            bundle.id,
+            bundleGraph,
+            Array.isArray(applied) ? applied : [applied]
+          );
+        }
       }
+    }
+  }
+
+  async addRuntimesToBundle(
+    bundleId: string,
+    bundleGraph: InternalBundleGraph,
+    runtimeAssets: Array<RuntimeAsset>
+  ) {
+    let node = bundleGraph.nodes.get(bundleId);
+    if (node == null) {
+      throw new Error('Bundle not found');
+    }
+    if (node.type !== 'bundle') {
+      throw new Error('Not a bundle id');
+    }
+    let bundle = node.value;
+
+    for (let {code, filePath, bundleGroup} of runtimeAssets) {
+      let builder = new AssetGraphBuilder({
+        options: this.options,
+        config: this.config,
+        rootDir: this.rootDir,
+        transformerRequest: {
+          code,
+          filePath,
+          env: bundle.env
+        }
+      });
+
+      // build a graph of just the transformed asset
+      let graph = await builder.build();
+
+      let entry = graph.getEntryAssets()[0];
+      let subGraph = graph.getSubGraph(nullthrows(graph.getNode(entry.id)));
+
+      // Exclude modules that are already included in an ancestor bundle
+      subGraph.traverseAssets(asset => {
+        if (bundleGraph.isAssetInAncestorBundle(bundle, asset)) {
+          subGraph.removeAsset(asset);
+        }
+      });
+
+      // merge the transformed asset into the bundle's graph, and connect
+      // the node to it.
+      bundle.assetGraph.merge(subGraph);
+
+      bundle.assetGraph.addEdge({
+        from: bundleGroup
+          ? getBundleGroupId(bundleGroup)
+          : nullthrows(bundle.assetGraph.getRootNode()).id,
+        to: entry.id
+      });
     }
   }
 }
