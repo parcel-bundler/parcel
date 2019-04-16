@@ -22,9 +22,5 @@
     "grapheme-breaker": "^0.3.2",
     "ora": "^2.1.0",
     "strip-ansi": "^4.0.0"
-  },
-  "devDependencies": {
-    "mocha": "^5.2.0",
-    "sinon": "^5.0.1"
   }
 }
