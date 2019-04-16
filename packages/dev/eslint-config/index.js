@@ -24,9 +24,12 @@ module.exports = {
   // https://eslint.org/docs/user-guide/configuring#configuration-based-on-glob-patterns
   overrides: [
     {
-      files: ['**/test/**/*.js', '*.test.js'],
+      files: ['**/test/**', '*.test.js', 'packages/core/integration-tests/**'],
       env: {
         mocha: true
+      },
+      rules: {
+        'import/no-extraneous-dependencies': 'off'
       }
     }
   ],
