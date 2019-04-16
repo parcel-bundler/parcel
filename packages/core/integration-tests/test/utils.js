@@ -51,9 +51,8 @@ beforeEach(async function() {
 function bundler(entries, opts) {
   return new Parcel({
     entries,
-    options: {
-      cache: false
-    },
+    cache: false,
+    logLevel: 'none',
     killWorkers: false,
     defaultConfig,
     ...opts
