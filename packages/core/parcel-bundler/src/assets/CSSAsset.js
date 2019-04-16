@@ -6,9 +6,13 @@ const CssSyntaxError = require('postcss/lib/css-syntax-error');
 const SourceMap = require('../SourceMap');
 const loadSourceMap = require('../utils/loadSourceMap');
 const path = require('path');
+const urlJoin = require('../utils/urlJoin');
+const isURL = require('../utils/is-url');
 
 const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
+const COMPOSES_RE = /composes:.+from\s*("|').*("|')\s*;?/;
+const FROM_IMPORT_RE = /.+from\s*(?:"|')(.*)(?:"|')\s*;?/;
 const PROTOCOL_RE = /^[a-z]+:/;
 
 class CSSAsset extends Asset {
@@ -24,6 +28,7 @@ class CSSAsset extends Asset {
     return (
       !/\.css$/.test(this.name) ||
       IMPORT_RE.test(this.contents) ||
+      COMPOSES_RE.test(this.contents) ||
       URL_RE.test(this.contents)
     );
   }
@@ -88,6 +93,9 @@ class CSSAsset extends Asset {
             let url = this.addURLDependency(node.nodes[0].value, {
               loc: decl.source.start
             });
+            if (!isURL(url)) {
+              url = urlJoin(this.options.publicURL, url);
+            }
             dirty = node.nodes[0].value !== url;
             node.nodes[0].value = url;
           }
@@ -97,6 +105,20 @@ class CSSAsset extends Asset {
           decl.value = parsed.toString();
           this.ast.dirty = true;
         }
+      }
+
+      if (decl.prop === 'composes' && FROM_IMPORT_RE.test(decl.value)) {
+        let parsed = valueParser(decl.value);
+
+        parsed.walk(node => {
+          if (node.type === 'string') {
+            const [, importPath] = FROM_IMPORT_RE.exec(decl.value);
+            this.addURLDependency(importPath, {
+              dynamic: false,
+              loc: decl.source.start
+            });
+          }
+        });
       }
     });
   }

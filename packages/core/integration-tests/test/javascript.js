@@ -1,10 +1,21 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
-const {bundle, bundler, run, assertBundles, deferred} = require('./utils');
+const {
+  bundle,
+  bundler,
+  run,
+  assertBundles,
+  removeDistDirectory
+} = require('@parcel/test-utils');
 const {mkdirp} = require('@parcel/fs');
+const {makeDeferredWithPromise} = require('@parcel/utils/src/Deferred');
 
 describe('javascript', function() {
+  afterEach(async () => {
+    await removeDistDirectory();
+  });
+
   it('should produce a basic JS bundle with CommonJS requires', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/commonjs/index.js')
@@ -1312,8 +1323,8 @@ describe('javascript', function() {
       ]
     });
 
-    let promise = deferred();
-    await run(b, {output: promise.resolve}, {require: false});
+    let {deferred, promise} = makeDeferredWithPromise();
+    await run(b, {output: deferred.resolve}, {require: false});
     let output = await promise;
     assert.equal(typeof output, 'string');
     assert(output.includes('<html>'));

@@ -1,15 +1,26 @@
 {
   "name": "@parcel/test-utils",
-  "version": "1.10.3",
+  "version": "2.0.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/utils.js",
   "license": "MIT",
+  "private": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "engines": {
     "node": ">= 6.0.0"
+  },
+  "dependencies": {
+    "@parcel/config-default": "^2.0.0",
+    "@parcel/core": "^2.0.0",
+    "@parcel/fs": "^1.11.0",
+    "@parcel/utils": "^1.11.0",
+    "chalk": "^2.1.0",
+    "ncp": "^2.0.0",
+    "nullthrows": "^1.1.1",
+    "ws": "^5.1.1"
   },
   "scripts": {
     "test": "echo this package has no tests yet",

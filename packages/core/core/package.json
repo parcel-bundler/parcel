@@ -38,10 +38,5 @@
     "resolve-from": "^4.0.0",
     "semver": "^5.4.1",
     "v8-compile-cache": "^2.0.0"
-  },
-  "devDependencies": {
-    "@parcel/babel-register": "2.0.0",
-    "@parcel/config-default": "^2.0.0",
-    "sinon": "^5.0.1"
   }
 }

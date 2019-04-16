@@ -1,10 +1,12 @@
 // @flow strict-local
 
+import type {FilePath} from '@parcel/types';
 import type {FSPromise, Stats} from 'fs';
 
 import {promisify} from 'util';
 import fs from 'fs';
 import _mkdirp from 'mkdirp';
+import _rimraf, {type Options as RimrafOptions} from 'rimraf';
 
 // Most of this can go away once we only support Node 10+, which includes
 // require('fs').promises
@@ -40,10 +42,15 @@ export const realpath: $PropertyType<FSPromise, 'realpath'> = function(
 
 export const lstat: (path: string) => Promise<Stats> = promisify(fs.lstat);
 
-export const exists = function(filename: string): Promise<boolean> {
+export const exists = function(filename: FilePath): Promise<boolean> {
   return new Promise(resolve => {
     fs.exists(filename, resolve);
   });
 };
 
-export const mkdirp: (path: string) => Promise<void> = promisify(_mkdirp);
+export const mkdirp: (path: FilePath) => Promise<void> = promisify(_mkdirp);
+
+export const rimraf: (
+  path: FilePath,
+  options?: RimrafOptions
+) => Promise<void> = promisify(_rimraf);

@@ -1,6 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle: _bundle, run} = require('./utils');
+const {bundle: _bundle, run} = require('@parcel/test-utils');
 const fs = require('@parcel/fs');
 
 const bundle = (name, opts = {}) =>
