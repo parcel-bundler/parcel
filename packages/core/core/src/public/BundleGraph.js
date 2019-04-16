@@ -128,30 +128,14 @@ export default class BundleGraph implements IBundleGraph {
   }
 
   isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean {
-    let bundleNode = this.#graph.getNode(bundle.id);
-    if (!bundleNode) {
-      return false;
+    let node = this.#graph.getNode(bundle.id);
+    if (node == null) {
+      throw new Error('Bundle not found');
     }
-
-    let ret = null;
-    this.#graph.traverseAncestors(bundleNode, (node, context, traversal) => {
-      // Skip starting node
-      if (node === bundleNode) {
-        return;
-      }
-
-      // If this is the first bundle we've seen, initialize result to true
-      if (node.type === 'bundle' && ret === null) {
-        ret = true;
-      }
-
-      if (node.type === 'bundle' && !node.value.assetGraph.hasNode(asset.id)) {
-        ret = false;
-        traversal.stop();
-      }
-    });
-
-    return !!ret;
+    if (node.type !== 'bundle') {
+      throw new Error('Not a bundle id');
+    }
+    return this.#graph.isAssetInAncestorBundle(node.value, asset);
   }
 
   findBundlesWithAsset(asset: Asset): Array<IMutableBundle> {

@@ -338,12 +338,8 @@ export interface MutableBundle extends Bundle {
   removeAsset(Asset): void;
 }
 
-export interface RuntimeBundle extends Bundle {
-  addRuntimeAsset({
-    filePath: FilePath,
-    code: string,
-    bundleGroup?: BundleGroup
-  }): Promise<void>;
+export interface FulfilledBundle extends Bundle {
+  +filePath: FilePath;
 }
 
 export type BundleGroup = {
@@ -376,8 +372,16 @@ export type Namer = {|
   name(bundle: Bundle, opts: ParcelOptions): Async<?FilePath>
 |};
 
+export type RuntimeAsset = {|
+  filePath: FilePath,
+  code: string,
+  bundleGroup?: BundleGroup
+|};
 export type Runtime = {|
-  apply(bundle: RuntimeBundle, opts: ParcelOptions): Async<void>
+  apply(
+    bundle: FulfilledBundle,
+    opts: ParcelOptions
+  ): Async<void | RuntimeAsset | Array<RuntimeAsset>>
 |};
 
 export type Packager = {|

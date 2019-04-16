@@ -2,21 +2,18 @@
 // flowlint unsafe-getters-setters:off
 
 import type {Bundle as InternalBundle} from '../types';
-import type AssetGraph from '../AssetGraph';
 import type {
   Asset,
   Bundle as IBundle,
-  BundleGraph,
   BundleGroup,
   Dependency,
   Environment,
   FilePath,
   GraphTraversalCallback,
   MutableBundle as IMutableBundle,
-  RuntimeBundle as IRuntimeBundle,
+  FulfilledBundle as IFulfilledBundle,
   Stats,
-  Target,
-  TransformerRequest
+  Target
 } from '@parcel/types';
 
 import invariant from 'assert';
@@ -163,63 +160,15 @@ export class MutableBundle extends Bundle implements IMutableBundle {
   }
 }
 
-export class RuntimeBundle extends Bundle implements IRuntimeBundle {
+export class FulfilledBundle extends Bundle implements IFulfilledBundle {
   #bundle; // InternalBundle
-  #bundleGraph; // BundleGraph
-  #build; // TransformerRequest => Promise<AssetGraph>
 
-  constructor({
-    bundle,
-    bundleGraph,
-    build
-  }: {
-    bundle: InternalBundle,
-    bundleGraph: BundleGraph,
-    build: TransformerRequest => Promise<AssetGraph>
-  }) {
+  constructor(bundle: InternalBundle) {
     super(bundle);
-    this.#bundle = bundle;
-    this.#bundleGraph = bundleGraph;
-    this.#build = build;
+    this.#bundle = bundle; // Repeating for flow
   }
 
-  async addRuntimeAsset({
-    filePath,
-    code,
-    bundleGroup
-  }: {
-    filePath: FilePath,
-    code: string,
-    bundleGroup?: BundleGroup
-  }): Promise<void> {
-    // Make this local to satisfy flow
-    let build = this.#build;
-
-    let graph: AssetGraph = await build({
-      code,
-      env: this.env,
-      filePath
-    });
-
-    let entry = graph.getEntryAssets()[0];
-    let subGraph = graph.getSubGraph(nullthrows(graph.getNode(entry.id)));
-
-    // Exclude modules that are already included in an ancestor bundle
-    subGraph.traverseAssets(asset => {
-      if (this.#bundleGraph.isAssetInAncestorBundle(this, asset)) {
-        subGraph.removeAsset(asset);
-      }
-    });
-
-    // merge the transformed asset into the bundle's graph, and connect
-    // the node to it. (Node is likely a BundleGroup or the bundle's root node)
-    this.#bundle.assetGraph.merge(subGraph);
-
-    this.#bundle.assetGraph.addEdge({
-      from: bundleGroup
-        ? getBundleGroupId(bundleGroup)
-        : nullthrows(this.#bundle.assetGraph.getRootNode()).id,
-      to: entry.id
-    });
+  get filePath(): FilePath {
+    return nullthrows(this.#bundle.filePath);
   }
 }
