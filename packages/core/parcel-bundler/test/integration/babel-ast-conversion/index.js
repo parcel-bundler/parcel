@@ -26,4 +26,4 @@ var a: { [a: number]: string; };
 
 class C<+T,-U> {}
 function f<+T,-U>() {}
-type T<+T,-U> = {}
+type V<+T,-U> = {}

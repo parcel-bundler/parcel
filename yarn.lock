@@ -1986,6 +1986,15 @@
     universal-user-agent "^2.0.0"
     url-template "^2.0.8"
 
+"@parcel/fs@^1.11.0":
+  version "1.11.0"
+  resolved "https://registry.yarnpkg.com/@parcel/fs/-/fs-1.11.0.tgz#fb8a2be038c454ad46a50dc0554c1805f13535cd"
+  integrity sha512-86RyEqULbbVoeo8OLcv+LQ1Vq2PKBAvWTU9fCgALxuCTbbs5Ppcvll4Vr+Ko1AnmMzja/k++SzNAwJfeQXVlpA==
+  dependencies:
+    "@parcel/utils" "^1.11.0"
+    mkdirp "^0.5.1"
+    rimraf "^2.6.2"
+
 "@parcel/logger@^1.11.0":
   version "1.11.0"
   resolved "https://registry.yarnpkg.com/@parcel/logger/-/logger-1.11.0.tgz#91f39da14ba08dd85db247145698c62102960abb"
@@ -1996,6 +2005,27 @@
     grapheme-breaker "^0.3.2"
     ora "^2.1.0"
     strip-ansi "^4.0.0"
+
+"@parcel/utils@^1.11.0":
+  version "1.11.0"
+  resolved "https://registry.yarnpkg.com/@parcel/utils/-/utils-1.11.0.tgz#539e08fff8af3b26eca11302be80b522674b51ea"
+  integrity sha512-cA3p4jTlaMeOtAKR/6AadanOPvKeg8VwgnHhOyfi0yClD0TZS/hi9xu12w4EzA/8NtHu0g6o4RDfcNjqN8l1AQ==
+
+"@parcel/watcher@^1.12.0":
+  version "1.12.0"
+  resolved "https://registry.yarnpkg.com/@parcel/watcher/-/watcher-1.12.0.tgz#769024b2a810b0c3b38c310f297d104c77df3660"
+  integrity sha512-yijGiAqG7Tjf5WnFwOkiNWwerfZQDNABldiiqRDtr7vDWLO+F/DIncyB7tTcaD5Loevrr5mzzGo8Ntf3d2GIPg==
+  dependencies:
+    "@parcel/utils" "^1.11.0"
+    chokidar "^2.0.3"
+
+"@parcel/workers@^1.11.0":
+  version "1.11.0"
+  resolved "https://registry.yarnpkg.com/@parcel/workers/-/workers-1.11.0.tgz#7b8dcf992806f4ad2b6cecf629839c41c2336c59"
+  integrity sha512-USSjRAAQYsZFlv43FUPdD+jEGML5/8oLF0rUzPQTtK4q9kvaXr49F5ZplyLz5lox78cLZ0TxN2bIDQ1xhOkulQ==
+  dependencies:
+    "@parcel/utils" "^1.11.0"
+    physical-cpu-count "^2.0.0"
 
 "@samverschueren/stream-to-observable@^0.3.0":
   version "0.3.0"
