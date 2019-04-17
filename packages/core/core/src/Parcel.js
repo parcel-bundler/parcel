@@ -29,8 +29,8 @@ export default class Parcel {
     this.entries = Array.isArray(options.entries)
       ? options.entries
       : options.entries
-        ? [options.entries]
-        : [];
+      ? [options.entries]
+      : [];
     this.rootDir = getRootDir(this.entries);
   }
 

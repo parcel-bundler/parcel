@@ -57,9 +57,8 @@ export default new Runtime({
           invariant(node.type === 'bundle');
           return node.value;
         })
-        .sort(
-          bundle =>
-            bundle.assetGraph.hasNode(bundleGroup.value.entryAssetId) ? 1 : -1
+        .sort(bundle =>
+          bundle.assetGraph.hasNode(bundleGroup.value.entryAssetId) ? 1 : -1
         );
 
       let loaderModules = bundles.map(b => {
