@@ -24,7 +24,7 @@
     "@babel/types": "^7.0.0",
     "@parcel/logger": "^2.0.0",
     "@parcel/plugin": "^2.0.0",
-    "@parcel/utils": "^1.10.3",
+    "@parcel/utils": "^2.0.0",
     "babylon-walk": "^1.0.2",
     "node-libs-browser": "^2.0.0",
     "semver": "^5.4.1"

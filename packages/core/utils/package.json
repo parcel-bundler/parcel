@@ -1,6 +1,6 @@
 {
   "name": "@parcel/utils",
-  "version": "1.11.0",
+  "version": "2.0.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/index.js",
   "license": "MIT",
@@ -9,7 +9,7 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "engines": {
-    "node": ">= 6.0.0"
+    "node": ">= 8.0.0"
   },
   "publishConfig": {
     "access": "public"
@@ -22,9 +22,9 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.0",
-    "@parcel/fs": "^1.10.3",
+    "@parcel/fs": "^2.0.0",
     "@parcel/logger": "^2.0.0",
-    "@parcel/workers": "^1.10.3",
+    "@parcel/workers": "^2.0.0",
     "clone": "^2.1.1",
     "command-exists": "^1.2.6",
     "cross-spawn": "^6.0.4",
