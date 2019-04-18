@@ -67,13 +67,14 @@ export default class Parcel {
       rootDir: this.rootDir
     });
 
-    this.reporterRunner = new ReporterRunner({
-      config,
-      options: this.options
-    });
-
     let targetResolver = new TargetResolver();
     let targets = await targetResolver.resolve(this.rootDir);
+
+    this.reporterRunner = new ReporterRunner({
+      config,
+      targets,
+      options: this.options
+    });
 
     this.assetGraphBuilder = new AssetGraphBuilder({
       options: this.options,

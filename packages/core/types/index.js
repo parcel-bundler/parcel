@@ -535,7 +535,11 @@ export type ReporterEvent =
   | BuildFailureEvent;
 
 export type Reporter = {|
-  report(event: ReporterEvent, opts: ParcelOptions): Async<void>
+  report(
+    event: ReporterEvent,
+    opts: ParcelOptions,
+    targets: Array<Target>
+  ): Async<void>
 |};
 
 export interface ErrorWithCode extends Error {
