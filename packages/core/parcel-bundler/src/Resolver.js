@@ -107,10 +107,12 @@ class Resolver {
 
     // Resolve the module in node_modules
     let resolved;
-    try {
-      resolved = await this.findNodeModulePath(filename, dir);
-    } catch (err) {
-      // ignore
+    if (!process.versions.pnp) {
+      try {
+        resolved = await this.findNodeModulePath(filename, dir);
+      } catch (err) {
+        // ignore
+      }
     }
 
     // If we couldn't resolve the node_modules path, just return the module name info
