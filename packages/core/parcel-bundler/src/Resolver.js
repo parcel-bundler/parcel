@@ -60,8 +60,13 @@ class Resolver {
     let module = await this.resolveModule(filename, parent);
     let resolved;
 
-     if (module.moduleName && process.versions.pnp) {
-      resolved = await this.loadRelative(require('pnpapi').resolveToUnqualified(module.moduleName, parent, {considerBuiltins: false}), extensions);
+    if (module.moduleName && process.versions.pnp) {
+      resolved = await this.loadRelative(
+        require('pnpapi').resolveToUnqualified(module.moduleName, parent, {
+          considerBuiltins: false
+        }),
+        extensions
+      );
     } else if (module.moduleDir) {
       resolved = await this.loadNodeModules(module, extensions);
     } else if (module.filePath) {
