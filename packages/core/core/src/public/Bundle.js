@@ -154,9 +154,9 @@ export class MutableBundle extends Bundle implements IMutableBundle {
   }
 
   merge(bundle: IBundle): void {
-    this.#bundle.assetGraph.merge(
-      nullthrows(bundleToInternal.get(bundle)).assetGraph
-    );
+    // $FlowFixMe accessing another bundle's property is fine
+    let otherBundle: InternalBundle = bundle.#bundle;
+    this.#bundle.assetGraph.merge(otherBundle.assetGraph);
   }
 }
 
