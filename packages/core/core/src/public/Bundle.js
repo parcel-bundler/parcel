@@ -11,7 +11,7 @@ import type {
   FilePath,
   GraphTraversalCallback,
   MutableBundle as IMutableBundle,
-  FulfilledBundle as IFulfilledBundle,
+  NamedBundle as INamedBundle,
   Stats,
   Target
 } from '@parcel/types';
@@ -160,7 +160,7 @@ export class MutableBundle extends Bundle implements IMutableBundle {
   }
 }
 
-export class FulfilledBundle extends Bundle implements IFulfilledBundle {
+export class NamedBundle extends Bundle implements INamedBundle {
   #bundle; // InternalBundle
 
   constructor(bundle: InternalBundle) {

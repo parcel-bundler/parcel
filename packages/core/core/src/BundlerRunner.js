@@ -9,7 +9,7 @@ import nullthrows from 'nullthrows';
 import BundleGraph from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import MainAssetGraph from './public/MainAssetGraph';
-import {Bundle, FulfilledBundle} from './public/Bundle';
+import {Bundle, NamedBundle} from './public/Bundle';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
 import {getBundleGroupId} from './public/utils';
@@ -83,7 +83,7 @@ export default class BundlerRunner {
   async applyRuntimes(bundleGraph: InternalBundleGraph): Promise<void> {
     let bundles = [];
     bundleGraph.traverseBundles(bundle => {
-      bundles.push(new FulfilledBundle(bundle));
+      bundles.push(new NamedBundle(bundle));
     });
 
     for (let bundle of bundles) {

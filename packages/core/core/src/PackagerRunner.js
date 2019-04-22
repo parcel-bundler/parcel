@@ -5,7 +5,7 @@ import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
 
 import {mkdirp, writeFile} from '@parcel/fs';
-import {FulfilledBundle} from './public/Bundle';
+import {NamedBundle} from './public/Bundle';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {report} from './ReporterRunner';
@@ -47,7 +47,7 @@ export default class PackagerRunner {
   }
 
   async package(internalBundle: InternalBundle): Promise<Blob> {
-    let bundle = new FulfilledBundle(internalBundle);
+    let bundle = new NamedBundle(internalBundle);
     report({
       type: 'buildProgress',
       phase: 'packaging',
@@ -62,7 +62,7 @@ export default class PackagerRunner {
     internalBundle: InternalBundle,
     contents: Blob
   ): Promise<Blob> {
-    let bundle = new FulfilledBundle(internalBundle);
+    let bundle = new NamedBundle(internalBundle);
     let optimizers = await this.config.getOptimizers(
       nullthrows(bundle.filePath)
     );
