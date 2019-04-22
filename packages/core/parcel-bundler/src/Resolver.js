@@ -62,9 +62,12 @@ class Resolver {
 
     if (module.moduleName && process.versions.pnp) {
       resolved = await this.loadRelative(
-        require('pnpapi').resolveToUnqualified(module.moduleName, parent, {
-          considerBuiltins: false
-        }),
+        path.join(
+          require('pnpapi').resolveToUnqualified(module.moduleName, parent, {
+            considerBuiltins: false
+          }),
+          module.subPath || ''
+        ),
         extensions
       );
     } else if (module.moduleDir) {
