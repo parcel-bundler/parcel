@@ -338,7 +338,7 @@ export interface MutableBundle extends Bundle {
   removeAsset(Asset): void;
 }
 
-export interface FulfilledBundle extends Bundle {
+export interface NamedBundle extends Bundle {
   +filePath: FilePath;
 }
 
@@ -379,7 +379,7 @@ export type RuntimeAsset = {|
 |};
 export type Runtime = {|
   apply(
-    bundle: FulfilledBundle,
+    bundle: NamedBundle,
     opts: ParcelOptions
   ): Async<void | RuntimeAsset | Array<RuntimeAsset>>
 |};
@@ -443,13 +443,13 @@ type BundlingProgressEvent = {|
 type PackagingProgressEvent = {|
   type: 'buildProgress',
   phase: 'packaging',
-  bundle: FulfilledBundle
+  bundle: NamedBundle
 |};
 
 type OptimizingProgressEvent = {|
   type: 'buildProgress',
   phase: 'optimizing',
-  bundle: FulfilledBundle
+  bundle: NamedBundle
 |};
 
 export type BuildProgressEvent =
