@@ -54,7 +54,7 @@ export default class PackagerRunner {
       bundle
     });
 
-    let packager = await this.config.getPackager(nullthrows(bundle.filePath));
+    let packager = await this.config.getPackager(bundle.filePath);
     return packager.package(bundle, this.options);
   }
 
@@ -63,9 +63,7 @@ export default class PackagerRunner {
     contents: Blob
   ): Promise<Blob> {
     let bundle = new NamedBundle(internalBundle);
-    let optimizers = await this.config.getOptimizers(
-      nullthrows(bundle.filePath)
-    );
+    let optimizers = await this.config.getOptimizers(bundle.filePath);
     if (!optimizers.length) {
       return contents;
     }
