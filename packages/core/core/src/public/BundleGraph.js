@@ -6,6 +6,7 @@ import type {
   Bundle as InternalBundle,
   BundleNode,
   BundleGraphNode,
+  BundleGroupNode,
   BundleReference as IBundleReference,
   BundleReferenceNode
 } from '../types';
@@ -133,11 +134,24 @@ export class MutableBundleGraph extends BaseBundleGraph
   }
 
   addBundleGroup(parentBundle: ?IBundle, bundleGroup: BundleGroup) {
-    let node = {
-      id: getBundleGroupId(bundleGroup),
-      type: 'bundle_group',
-      value: bundleGroup
-    };
+    let bundleGroupId = getBundleGroupId(bundleGroup);
+    let existingNode = this.#graph.getNode(bundleGroupId);
+
+    // If a bundle group for this entry asset already exists, use that instead
+    // of creating a new bundle group.
+    // TODO: What about the bundle group's dependency?
+    let node: BundleGroupNode;
+    if (existingNode == null) {
+      node = {
+        id: bundleGroupId,
+        type: 'bundle_group',
+        value: bundleGroup
+      };
+    } else if (existingNode.type === 'bundle_group') {
+      node = existingNode;
+    } else {
+      throw new Error('Existing node was not a bundle group');
+    }
 
     // Add a connection from the dependency to the new bundle group in all bundles
     this.#graph.traverse(bundle => {
@@ -146,6 +160,13 @@ export class MutableBundleGraph extends BaseBundleGraph
           bundleGroup.dependency.id
         );
         if (depNode) {
+          // Merge the bundle graph's representation of this bundle group into
+          // the bundle's asset graph. Connections may have been made if this
+          // bundle group already existed.
+          mergeBundleGraphIntoBundleAssetGraph(
+            bundle.value.assetGraph,
+            this.#graph.getSubGraph(node)
+          );
           bundle.value.assetGraph.replaceNodesConnectedTo(depNode, [node]);
         }
       }
@@ -299,6 +320,10 @@ class BundleReference implements IBundleReference {
 
   get filePath() {
     return this.#bundle.filePath;
+  }
+
+  get name() {
+    return this.#bundle.name;
   }
 
   get stats() {
