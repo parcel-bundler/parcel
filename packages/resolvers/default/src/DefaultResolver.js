@@ -55,8 +55,8 @@ class NodeResolver {
     // $FlowFixMe
     this.options = Object.assign({}, options, {
       // normalize extensions that don't lead with '.'
-      extensions: options.extensions.map(ext =>
-        ext.startsWith('.') ? ext : '.' + ext
+      extensions: options.extensions.map(
+        ext => (ext.startsWith('.') ? ext : '.' + ext)
       )
     });
     this.packageCache = new Map();
