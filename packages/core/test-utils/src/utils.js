@@ -18,8 +18,6 @@ import promisify from '@parcel/utils/src/promisify';
 import _ncp from 'ncp';
 import _chalk from 'chalk';
 
-const invariant = assert;
-
 export const ncp = promisify(_ncp);
 
 const defaultConfig = {
@@ -96,12 +94,13 @@ export async function run(
   globals: mixed,
   opts: {require?: boolean} = {}
 ): Promise<mixed> {
-  let node = Array.from(bundleGraph.nodes.values()).find(
-    node => node.type === 'bundle' && node.value.isEntry
-  );
-  invariant(node && node.type === 'bundle');
-  let bundle = node.value;
-  let entryAsset = bundle.assetGraph.getEntryAssets()[0];
+  let bundles = [];
+  bundleGraph.traverseBundles(bundle => {
+    bundles.push(bundle);
+  });
+
+  let bundle = nullthrows(bundles.find(b => b.isEntry));
+  let entryAsset = bundle.getEntryAssets()[0];
   let target = entryAsset.env.context;
 
   var ctx;
@@ -148,7 +147,7 @@ export async function assertBundles(
   let actualBundles = [];
   bundleGraph.traverseBundles(bundle => {
     let assets = [];
-    bundle.assetGraph.traverseAssets(asset => {
+    bundle.traverseAssets(asset => {
       assets.push(path.basename(asset.filePath));
     });
 

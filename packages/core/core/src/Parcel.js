@@ -101,7 +101,7 @@ export default class Parcel {
     this.runPackage = this.farm.mkhandle('runPackage');
   }
 
-  async run(): Promise<InternalBundleGraph> {
+  async run(): Promise<BundleGraph> {
     await this.init();
 
     this.assetGraphBuilder.on('invalidate', () => {
@@ -111,7 +111,7 @@ export default class Parcel {
     return this.build();
   }
 
-  async build(): Promise<InternalBundleGraph> {
+  async build(): Promise<BundleGraph> {
     try {
       this.reporterRunner.report({
         type: 'buildStart'
@@ -134,7 +134,7 @@ export default class Parcel {
         await this.farm.end();
       }
 
-      return bundleGraph;
+      return new BundleGraph(bundleGraph);
     } catch (e) {
       if (!(e instanceof BuildAbortError)) {
         this.reporterRunner.report({
