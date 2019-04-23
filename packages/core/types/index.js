@@ -386,8 +386,17 @@ export type Bundler = {|
   ): Async<void>
 |};
 
+export type NamerOptions = {|
+  ...ParcelOptions,
+  rootDir: FilePath
+|};
+
 export type Namer = {|
-  name(bundle: Bundle, opts: ParcelOptions): Async<?FilePath>
+  name(
+    bundle: Bundle,
+    bundleGraph: BundleGraph,
+    opts: NamerOptions
+  ): Async<?FilePath>
 |};
 
 export type RuntimeAsset = {|

@@ -1,4 +1,7 @@
-// @flow
+// @flow strict-local
+
+import type {Bundle, BundleGraph, FilePath, NamerOptions} from '@parcel/types';
+
 import {Namer} from '@parcel/plugin';
 import crypto from 'crypto';
 import path from 'path';
@@ -7,9 +10,9 @@ const COMMON_NAMES = new Set(['index', 'src', 'lib']);
 const DEFAULT_DIST_DIR = 'dist';
 
 export default new Namer({
-  name(bundle, opts) {
+  name(bundle, bundleGraph, opts) {
     // If the bundle has an explicit file path given (e.g. by a target), use that.
-    if (bundle.filePath) {
+    if (bundle.filePath != null) {
       // TODO: what about multiple assets in the same dep?
       // e.g. input is a Vue file, output is JS + CSS
       // which is defined as a target in package.json?
@@ -25,11 +28,7 @@ export default new Namer({
     if (bundle.isEntry) {
       name = path
         .join(
-          path.relative(
-            // $FlowFixMe
-            opts.rootDir,
-            path.dirname(entryFilePath)
-          ),
+          path.relative(opts.rootDir, path.dirname(entryFilePath)),
           `${name}.${bundle.type}`
         )
         .replace(/\.\.(\/|\\)/g, '__$1');
@@ -47,7 +46,7 @@ export default new Namer({
     }
 
     let distDir =
-      bundle.target && bundle.target.distPath
+      bundle.target && bundle.target.distPath != null
         ? path.dirname(bundle.target.distPath)
         : DEFAULT_DIST_DIR;
     return path.join(distDir, name);

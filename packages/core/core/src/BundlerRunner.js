@@ -55,7 +55,7 @@ export default class BundlerRunner {
     let namers = await this.config.getNamers();
     let promises = [];
     bundleGraph.traverseBundles(bundle => {
-      promises.push(this.nameBundle(namers, bundle));
+      promises.push(this.nameBundle(namers, bundle, bundleGraph));
     });
 
     await Promise.all(promises);
@@ -63,11 +63,15 @@ export default class BundlerRunner {
 
   async nameBundle(
     namers: Array<Namer>,
-    internalBundle: InternalBundle
+    internalBundle: InternalBundle,
+    internalBundleGraph: InternalBundleGraph
   ): Promise<void> {
     let bundle = new Bundle(internalBundle);
+    let bundleGraph = new BundleGraph(internalBundleGraph);
+
     for (let namer of namers) {
-      let filePath = await namer.name(bundle, {
+      let filePath = await namer.name(bundle, bundleGraph, {
+        ...this.options,
         rootDir: this.rootDir
       });
 
