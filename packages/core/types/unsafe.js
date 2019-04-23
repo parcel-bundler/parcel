@@ -8,9 +8,3 @@ export type AST = {|
   program: any,
   isDirty?: boolean
 |};
-
-export interface Node {
-  id: string;
-  +type?: string;
-  value: any;
-}

@@ -1,0 +1,19 @@
+{
+  "name": "@parcel/reporter-json",
+  "version": "2.0.0",
+  "main": "src/JSONReporter.js",
+  "engines": {
+    "parcel": "^2.0.0"
+  },
+  "scripts": {
+    "test": "echo this package has no tests yet",
+    "test-ci": "yarn test"
+  },
+  "dependencies": {
+    "@parcel/logger": "^2.0.0",
+    "@parcel/plugin": "^2.0.0",
+    "@parcel/types": "^2.0.0",
+    "@parcel/utils": "^1.10.3",
+    "nullthrows": "^1.1.1"
+  }
+}

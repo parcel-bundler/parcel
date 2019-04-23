@@ -1,5 +1,5 @@
 // @flow
-import type {Dependency, BundleGroup, Bundle} from '@parcel/types';
+import type {BundleGroup, Bundle, MutableBundle} from '@parcel/types';
 import {Bundler} from '@parcel/plugin';
 
 const OPTIONS = {
@@ -27,7 +27,7 @@ export default new Bundler({
     assetGraph.traverse(
       (node, context: ?BundleContext): ?BundleContext => {
         if (node.type === 'dependency') {
-          let dep: Dependency = node.value;
+          let dep = node.value;
 
           // Start a new bundle if this is an async dependency, or entry point.
           if (dep.isAsync || dep.isEntry) {
@@ -76,7 +76,7 @@ export default new Bundler({
               // If there is an existing bundle of the asset's type, combine with that.
               // Otherwise, a new bundle will be created.
               if (existingBundle) {
-                existingBundle.assetGraph.merge(bundle.assetGraph);
+                existingBundle.merge(bundle);
                 return {
                   bundleGroup: context.bundleGroup,
                   bundle: existingBundle
@@ -93,10 +93,9 @@ export default new Bundler({
 
     // Step 2: remove assets that are duplicated in a parent bundle
     bundleGraph.traverseBundles(bundle => {
-      let assetGraph = bundle.assetGraph;
-      assetGraph.traverseAssets(asset => {
+      bundle.traverseAssets(asset => {
         if (bundleGraph.isAssetInAncestorBundle(bundle, asset)) {
-          assetGraph.removeAsset(asset);
+          bundle.removeAsset(asset);
         }
       });
     });
@@ -104,14 +103,17 @@ export default new Bundler({
     // Step 3: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
     // If multiple assets are always seen together in the same bundles, combine them together.
 
-    let candidateBundles = new Map();
+    let candidateBundles: Map<
+      string,
+      {|bundle: MutableBundle, bundles: Array<MutableBundle>, size: number|}
+    > = new Map();
 
     assetGraph.traverseAssets((asset, context, traversal) => {
       // If this asset is duplicated in the minimum number of bundles, it is a candidate to be separated into its own bundle.
       let bundles = bundleGraph.findBundlesWithAsset(asset);
       if (bundles.length > OPTIONS.minBundles) {
         let bundle = assetGraph.createBundle(asset);
-        let size = bundle.assetGraph.getTotalSize();
+        let size = bundle.getTotalSize();
 
         let id = bundles.map(b => b.id).join(':');
         let candidate = candidateBundles.get(id);
@@ -119,7 +121,7 @@ export default new Bundler({
           candidateBundles.set(id, {bundles, bundle, size});
         } else {
           candidate.size += size;
-          candidate.bundle.assetGraph.merge(bundle.assetGraph);
+          candidate.bundle.merge(bundle);
         }
 
         // Skip children from consideration since we added a parent already.
@@ -150,9 +152,9 @@ export default new Bundler({
       }
 
       // Remove all of the root assets from each of the original bundles
-      for (let asset of bundle.assetGraph.getEntryAssets()) {
+      for (let asset of bundle.getEntryAssets()) {
         for (let bundle of bundles) {
-          bundle.assetGraph.removeAsset(asset);
+          bundle.removeAsset(asset);
         }
       }
 
@@ -160,17 +162,6 @@ export default new Bundler({
       for (let bundleGroup of bundleGroups) {
         bundleGraph.addBundle(bundleGroup, bundle);
       }
-    }
-
-    if (process.env.PARCEL_DUMP_GRAPH != null) {
-      const dumpGraphToGraphViz = require('@parcel/utils/src/dumpGraphToGraphViz')
-        .default;
-      dumpGraphToGraphViz(assetGraph, 'BundlerInputAssetGraph');
-      // $FlowFixMe
-      dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
-      bundleGraph.traverseBundles(bundle => {
-        dumpGraphToGraphViz(bundle.assetGraph, `${bundle.id}`);
-      });
     }
   }
 });

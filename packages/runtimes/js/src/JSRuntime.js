@@ -1,8 +1,5 @@
-// @flow
+// @flow strict-local
 
-import type {BundleGroupNode} from '@parcel/types';
-
-import invariant from 'assert';
 import path from 'path';
 import {Runtime} from '@parcel/plugin';
 
@@ -40,31 +37,18 @@ export default new Runtime({
       return;
     }
 
-    // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414
-    let bundleGroups: Array<BundleGroupNode> = Array.from(
-      bundle.assetGraph.nodes.values()
-    ).filter(n => n.type === 'bundle_group');
-
-    for (let bundleGroup of bundleGroups) {
+    let assets = [];
+    for (let bundleGroup of bundle.getBundleGroups()) {
       // Ignore deps with native loaders, e.g. workers.
-      if (bundleGroup.value.dependency.isURL) {
+      if (bundleGroup.dependency.isURL) {
         continue;
       }
 
-      let bundles = bundle.assetGraph
-        .getNodesConnectedFrom(bundleGroup)
-        .map(node => {
-          invariant(node.type === 'bundle');
-          return node.value;
-        })
-        .sort(bundle =>
-          bundle.assetGraph.hasNode(bundleGroup.value.entryAssetId) ? 1 : -1
-        );
-
+      let bundles = bundle.getBundlesInGroup(bundleGroup);
       let loaderModules = bundles.map(b => {
         let loader = loaders[b.type];
         if (!loader) {
-          throw new Error('Could not find a loader for ');
+          throw new Error('Could not find a loader for bundle type ' + b.type);
         }
 
         return `[require(${JSON.stringify(loader)}), ${JSON.stringify(
@@ -73,14 +57,15 @@ export default new Runtime({
         )}]`;
       });
 
-      // $FlowFixMe
-      await bundle.assetGraph.addRuntimeAsset(bundleGroup, {
+      assets.push({
         filePath: __filename,
-        env: bundle.env,
         code: `module.exports = require('./bundle-loader')([${loaderModules.join(
           ', '
-        )}, ${JSON.stringify(bundleGroup.value.entryAssetId)}]);`
+        )}, ${JSON.stringify(bundleGroup.entryAssetId)}]);`,
+        bundleGroup
       });
     }
+
+    return assets;
   }
 });

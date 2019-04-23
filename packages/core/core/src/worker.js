@@ -1,11 +1,12 @@
-// @flow
+// @flow strict-local
 
 import type {
-  Bundle,
   ParcelOptions,
   TransformerRequest,
   JSONObject
 } from '@parcel/types';
+import type {Bundle} from './types';
+
 import TransformerRunner from './TransformerRunner';
 import PackagerRunner from './PackagerRunner';
 import Config from './Config';
