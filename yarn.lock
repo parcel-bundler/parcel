@@ -9633,7 +9633,7 @@ posthtml-parser@^0.3.0, posthtml-parser@^0.3.3:
     isobject "^2.1.0"
     object-assign "^4.1.1"
 
-posthtml-parser@^0.4.0:
+posthtml-parser@^0.4.0, posthtml-parser@^0.4.1:
   version "0.4.1"
   resolved "https://registry.yarnpkg.com/posthtml-parser/-/posthtml-parser-0.4.1.tgz#95b78fef766fbbe0a6f861b6e95582bc3d1ff933"
   integrity sha512-h7vXIQ21Ikz2w5wPClPakNP6mJeJCK6BT0GpqnQrNNABdR7/TchNlFyryL1Bz6Ww53YWCKkr6tdZuHlxY1AVdQ==
