@@ -20,7 +20,7 @@ describe('css in v2', () => {
         assets: ['index.js', 'local.js']
       },
       {
-        name: 'local.css',
+        name: 'index.css',
         assets: ['index.css', 'local.css']
       }
     ]);

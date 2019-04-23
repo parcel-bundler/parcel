@@ -5,6 +5,7 @@ import type {FilePath, Namer, ParcelOptions, RuntimeAsset} from '@parcel/types';
 import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
 
+import assert from 'assert';
 import nullthrows from 'nullthrows';
 import {BundleGraph, MutableBundleGraph} from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
@@ -53,12 +54,21 @@ export default class BundlerRunner {
 
   async nameBundles(bundleGraph: InternalBundleGraph): Promise<void> {
     let namers = await this.config.getNamers();
-    let promises = [];
+    let bundles = [];
     bundleGraph.traverseBundles(bundle => {
-      promises.push(this.nameBundle(namers, bundle, bundleGraph));
+      bundles.push(bundle);
     });
 
-    await Promise.all(promises);
+    await Promise.all(
+      bundles.map(bundle => this.nameBundle(namers, bundle, bundleGraph))
+    );
+
+    let bundlePaths = bundles.map(b => b.filePath);
+    assert.deepEqual(
+      bundlePaths,
+      Array.from(new Set(bundlePaths)),
+      'Bundles must have unique filePaths'
+    );
   }
 
   async nameBundle(
