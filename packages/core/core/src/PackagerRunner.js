@@ -5,8 +5,9 @@ import type {ParcelOptions, Blob, FilePath} from '@parcel/types';
 import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
 
+import invariant from 'assert';
 import {mkdirp, writeFile, writeFileStream} from '@parcel/fs';
-import {TapStream} from '@parcel/utils';
+import {TapStream, urlRelative} from '@parcel/utils';
 import {NamedBundle} from './public/Bundle';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -67,8 +68,14 @@ export default class PackagerRunner {
       bundle
     });
 
+    let depToBundlePath = generateDepToBundlePath(internalBundle);
+
     let packager = await this.config.getPackager(bundle.filePath);
-    return packager.package(bundle, this.options);
+    let packageContent = await packager.package(bundle, this.options);
+
+    return typeof packageContent === 'string'
+      ? replaceReferences(packageContent, depToBundlePath)
+      : packageContent;
   }
 
   async optimize(
@@ -93,4 +100,64 @@ export default class PackagerRunner {
 
     return contents;
   }
+}
+
+/*
+ * Build a mapping from async, url dependency ids to web-friendly relative paths
+ * to their bundles. These will be relative to the current bundle if `publicUrl`
+ * is not provided. If `publicUrl` is provided, the paths will be joined to it.
+ * 
+ * These are used to translate any placeholder dependency ids written during
+ * transformation back to a path that can be loaded in a browser (such as
+ * in a "raw" loader or any transformed dependencies referred to by url).
+ */
+function generateDepToBundlePath(
+  bundle: InternalBundle
+): Map<string, FilePath> {
+  let depToBundlePath: Map<string, FilePath> = new Map();
+  bundle.assetGraph.traverse(node => {
+    if (node.type !== 'dependency') {
+      return;
+    }
+
+    let dep = node.value;
+    if (!dep.isURL || !dep.isAsync) {
+      return;
+    }
+
+    let [bundleGroupNode] = bundle.assetGraph.getNodesConnectedFrom(node);
+    invariant(bundleGroupNode && bundleGroupNode.type === 'bundle_group');
+
+    let [entryBundleNode] = bundle.assetGraph.getNodesConnectedFrom(
+      bundleGroupNode
+    );
+    invariant(entryBundleNode && entryBundleNode.type === 'bundle_reference');
+
+    let entryBundle = entryBundleNode.value;
+    depToBundlePath.set(
+      dep.id,
+      urlRelative(nullthrows(bundle.name), nullthrows(entryBundle.name))
+    );
+  });
+  return depToBundlePath;
+}
+
+// replace references to url dependencies with relative paths to their
+// corresponding bundles.
+// TODO: This likely alters the length of the column in the source text.
+//       Update any sourcemaps accordingly.
+function replaceReferences(
+  code: string,
+  depToBundlePath: Map<string, FilePath>
+): string {
+  let output = code;
+  for (let [depId, replacement] of depToBundlePath) {
+    let split = output.split(depId);
+    if (split.length > 1) {
+      // the dependency id was found in the text. replace it.
+      output = split.join(replacement);
+    }
+  }
+
+  return output;
 }

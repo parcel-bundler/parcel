@@ -11,6 +11,6 @@ export default new Packager({
     });
 
     assert.equal(assets.length, 1, 'HTML bundles must only contain one asset');
-    return (await assets[0].getOutput()).code;
+    return assets[0].getCode();
   }
 });

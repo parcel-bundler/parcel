@@ -1,55 +1,46 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
-const {bundle, assertBundleTree} = require('@parcel/test-utils');
+const {
+  bundle,
+  assertBundles,
+  assertBundleTree,
+  distDir
+} = require('@parcel/test-utils');
 const path = require('path');
 
-describe.skip('html', function() {
-  it('should support bundling HTML', async function() {
+describe('html', function() {
+  it('should support bundling HTML', async () => {
     let b = await bundle(path.join(__dirname, '/integration/html/index.html'));
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'png',
-          assets: ['100x100.png'],
-          childBundles: []
-        },
-        {
-          type: 'svg',
-          assets: ['icons.svg'],
-          childBundles: []
-        },
-        {
-          type: 'css',
-          assets: ['index.css'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        },
-        {
-          type: 'html',
-          assets: ['other.html'],
-          childBundles: [
-            {
-              type: 'js',
-              assets: ['index.js'],
-              childBundles: [
-                {
-                  type: 'map'
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'png',
+        assets: ['100x100.png']
+      },
+      {
+        type: 'svg',
+        assets: ['icons.svg']
+      },
+      {
+        type: 'css',
+        assets: ['index.css']
+      },
+      {
+        type: 'html',
+        assets: ['other.html']
+      },
+      {
+        type: 'js',
+        assets: ['index.js']
+      }
+    ]);
 
-    let files = await fs.readdir(path.join(__dirname, '/dist'));
-    let html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
+    let files = await fs.readdir(distDir);
+    let html = await fs.readFile(path.join(distDir, 'index.html'));
     for (let file of files) {
       let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {
@@ -63,113 +54,39 @@ describe.skip('html', function() {
       path.join(__dirname, '/integration/html-attr-order/index.html')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'html',
-          assets: ['other.html'],
-          childBundles: []
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'html',
+        assets: ['other.html']
+      }
+    ]);
   });
 
-  it('should support transforming HTML with posthtml', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/posthtml/index.html')
-    );
-
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: []
-    });
-
-    let html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
-    assert(html.includes('<h1>Other page</h1>'));
-  });
-
-  it('should find assets inside posthtml', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/posthtml-assets/index.html')
-    );
-
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'js',
-          assets: ['index.js'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
-  });
-
-  it('should add dependencies referenced by posthtml-include', async () => {
-    const b = await bundle(
-      path.join(__dirname, '/integration/posthtml-assets/index.html')
-    );
-    const asset = b.assets.values().next().value;
-    const other = path.join(
-      __dirname,
-      '/integration/posthtml-assets/other.html'
-    );
-    assert(asset.dependencies.has(other));
-    assert(asset.dependencies.get(other).includedInParent);
-  });
-
-  it('should add dependencies referenced by plugins', async () => {
-    const b = await bundle(
-      path.join(__dirname, '/integration/posthtml-plugin-deps/index.html')
-    );
-    const asset = b.assets.values().next().value;
-    const other = path.join(
-      __dirname,
-      '/integration/posthtml-plugin-deps/base.html'
-    );
-    assert(asset.dependencies.has(other));
-    assert(asset.dependencies.get(other).includedInParent);
-  });
-
-  it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
+  it.skip('should insert sibling CSS bundles for JS files in the HEAD', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css/index.html')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'js',
-          assets: ['index.js', 'index.css'],
-          childBundles: [
-            {
-              type: 'css',
-              assets: ['index.css'],
-              childBundles: [
-                {
-                  type: 'map'
-                }
-              ]
-            },
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: ['index.js', 'index.css']
+      },
+      {
+        type: 'css',
+        assets: ['index.css']
+      }
+    ]);
 
-    let html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
+    let html = await fs.readFile(path.join(distDir, 'index.html'));
     assert(
       /<link rel="stylesheet" href="[/\\]{1}html-css\.[a-f0-9]+\.css">/.test(
         html
@@ -177,7 +94,7 @@ describe.skip('html', function() {
     );
   });
 
-  it('should insert sibling bundles before body element if no HEAD', async function() {
+  it.skip('should insert sibling bundles before body element if no HEAD', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css-head/index.html')
     );
@@ -215,7 +132,7 @@ describe.skip('html', function() {
     );
   });
 
-  it('should insert sibling JS bundles for CSS files in the HEAD', async function() {
+  it.skip('should insert sibling JS bundles for CSS files in the HEAD', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css-js/index.html'),
       {
@@ -257,7 +174,7 @@ describe.skip('html', function() {
     assert(/<script src="[/\\]{1}html-css-js\.[a-f0-9]+\.js">/.test(html));
   });
 
-  it('should insert sibling bundles at correct location in tree when optional elements are absent', async function() {
+  it.skip('should insert sibling bundles at correct location in tree when optional elements are absent', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css-optional-elements/index.html')
     );
@@ -299,7 +216,7 @@ describe.skip('html', function() {
     );
   });
 
-  it('should minify HTML in production mode', async function() {
+  it.skip('should minify HTML in production mode', async function() {
     let inputFile = path.join(__dirname, '/integration/htmlnano/index.html');
     await bundle(inputFile, {
       production: true
@@ -328,7 +245,7 @@ describe.skip('html', function() {
     assert.equal(html.length, 0);
   });
 
-  it('should read .htmlnanorc and minify HTML in production mode', async function() {
+  it.skip('should read .htmlnanorc and minify HTML in production mode', async function() {
     await bundle(
       path.join(__dirname, '/integration/htmlnano-config/index.html'),
       {
@@ -361,7 +278,7 @@ describe.skip('html', function() {
     );
   });
 
-  it('should not minify default values inside HTML in production mode', async function() {
+  it.skip('should not minify default values inside HTML in production mode', async function() {
     let inputFile = path.join(
       __dirname,
       '/integration/htmlnano-defaults-form/index.html'
@@ -384,10 +301,7 @@ describe.skip('html', function() {
   it('should not prepend the public path to assets with remote URLs', async function() {
     await bundle(path.join(__dirname, '/integration/html/index.html'));
 
-    let html = await fs.readFile(
-      path.join(__dirname, '/dist/index.html'),
-      'utf8'
-    );
+    let html = await fs.readFile(path.join(distDir, 'index.html'), 'utf8');
     assert(
       html.includes('<script src="https://unpkg.com/parcel-bundler"></script>')
     );
@@ -396,10 +310,7 @@ describe.skip('html', function() {
   it('should not prepend the public path to hash links', async function() {
     await bundle(path.join(__dirname, '/integration/html/index.html'));
 
-    let html = await fs.readFile(
-      path.join(__dirname, '/dist/index.html'),
-      'utf8'
-    );
+    let html = await fs.readFile(path.join(distDir, 'index.html'), 'utf8');
     assert(html.includes('<a href="#hash_link">'));
   });
 
@@ -408,27 +319,26 @@ describe.skip('html', function() {
       path.join(__dirname, '/integration/html-virtualpath/index.html')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'html',
-          assets: ['other.html'],
-          childBundles: []
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'html',
+        assets: ['other.html']
+      }
+    ]);
   });
 
-  it('should not update root/main file in the bundles', async function() {
+  it.only('should not update root/main file in the bundles', async function() {
     await bundle(path.join(__dirname, '/integration/html-root/index.html'));
 
-    let files = await fs.readdir(path.join(__dirname, '/dist'));
+    let files = await fs.readdir(distDir);
 
     for (let file of files) {
       if (file !== 'index.html' && file.endsWith('.html')) {
-        let html = await fs.readFile(path.join(__dirname, '/dist/', file));
+        let html = await fs.readFile(path.join(distDir, file), 'utf8');
         assert(html.includes('index.html'));
       }
     }
