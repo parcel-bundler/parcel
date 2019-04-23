@@ -1,8 +1,9 @@
 // @flow strict-local
 
-import type {Bundle, BundleGraph, FilePath, NamerOptions} from '@parcel/types';
+import type {Bundle, FilePath} from '@parcel/types';
 
 import {Namer} from '@parcel/plugin';
+import assert from 'assert';
 import crypto from 'crypto';
 import path from 'path';
 
@@ -19,31 +20,31 @@ export default new Namer({
       return bundle.filePath;
     }
 
-    // TODO: if split bundle, base name on original bundle names?
-    let entryAsset = bundle.getEntryAssets()[0];
-    let entryFilePath = entryAsset.filePath;
-    let name = path.basename(entryFilePath, path.extname(entryFilePath));
+    let bundleGroupBundles = bundleGraph.getBundlesInBundleGroup(
+      bundleGraph.getBundleGroupsContainingBundle(bundle)[0]
+    );
 
-    // If this is an entry bundle, exclude the hash and use the original relative path.
     if (bundle.isEntry) {
-      name = path
-        .join(
-          path.relative(opts.rootDir, path.dirname(entryFilePath)),
-          `${name}.${bundle.type}`
-        )
-        .replace(/\.\.(\/|\\)/g, '__$1');
-    } else {
-      // If this is an index file or common directory name, use the parent
-      // directory name instead, which is probably more descriptive.
-      while (COMMON_NAMES.has(name)) {
-        entryFilePath = path.dirname(entryFilePath);
-        name = path.basename(entryFilePath);
-      }
-
-      // Get a content hash for this bundle, for long term caching.
-      let hash = getHash(bundle);
-      name = `${name}.${hash.slice(-8)}.${bundle.type}`;
+      let entryBundlesOfType = bundleGroupBundles.filter(
+        b => b.isEntry && b.type === bundle.type
+      );
+      assert(
+        entryBundlesOfType.length === 1,
+        // Otherwise, we'd end up naming two bundles the same thing.
+        'Bundle group cannot have more than one entry bundle of the same type'
+      );
     }
+
+    let firstBundleInGroup = bundleGroupBundles[0];
+
+    // Base split bundle names on the first bundle in their group.
+    // e.g. if `index.js` imports `foo.css`, the css bundle should be called
+    //      `index.css`.
+    let name = nameFromContent(firstBundleInGroup, opts.rootDir);
+    if (!bundle.isEntry) {
+      name += '.' + getHash(bundle).slice(-8);
+    }
+    name += '.' + bundle.type;
 
     let distDir =
       bundle.target && bundle.target.distPath != null
@@ -53,7 +54,29 @@ export default new Namer({
   }
 });
 
-function getHash(bundle) {
+function nameFromContent(bundle: Bundle, rootDir: FilePath): string {
+  let entryAsset = bundle.getEntryAssets()[0];
+  let entryFilePath = entryAsset.filePath;
+  let name = path.basename(entryFilePath, path.extname(entryFilePath));
+
+  // If this is an entry bundle, use the original relative path.
+  if (bundle.isEntry) {
+    return path
+      .join(path.relative(rootDir, path.dirname(entryFilePath)), name)
+      .replace(/\.\.(\/|\\)/g, '__$1');
+  } else {
+    // If this is an index file or common directory name, use the parent
+    // directory name instead, which is probably more descriptive.
+    while (COMMON_NAMES.has(name)) {
+      entryFilePath = path.dirname(entryFilePath);
+      name = path.basename(entryFilePath);
+    }
+
+    return name;
+  }
+}
+
+function getHash(bundle: Bundle): string {
   let hash = crypto.createHash('md5');
   bundle.traverseAssets(asset => {
     hash.update(asset.outputHash);
