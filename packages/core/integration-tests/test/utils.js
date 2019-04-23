@@ -256,7 +256,16 @@ async function assertBundles(bundleGraph, bundles) {
   for (let bundle of bundles) {
     let actualBundle = actualBundles[i++];
     if (bundle.name) {
-      assert.equal(actualBundle.name, bundle.name);
+      if (typeof bundle.name === 'string') {
+        assert.equal(actualBundle.name, bundle.name);
+      } else if (bundle.name instanceof RegExp) {
+        assert(
+          actualBundle.name.match(bundle.name),
+          `${actualBundle.name} does not match regexp ${bundle.name.toString()}`
+        );
+      } else {
+        assert.fail();
+      }
     }
 
     if (bundle.type) {

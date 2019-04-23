@@ -30,8 +30,7 @@ describe('css in v2', () => {
     assert.equal(output(), 3);
   });
 
-  // Currently failing as Windows produces different hashes
-  it.skip('should support loading a CSS bundle along side dynamic imports', async () => {
+  it('should support loading a CSS bundle along side dynamic imports', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-css/index.js')
     );
@@ -48,8 +47,8 @@ describe('css in v2', () => {
           'JSRuntime.js'
         ]
       },
-      {name: 'local.0feb842b.js', assets: ['local.js']},
-      {name: 'local.6f071801.css', assets: ['local.css']},
+      {name: /local\.[0-9a-f]{8}\.js/, assets: ['local.js']},
+      {name: /local\.[0-9a-f]{8}\.css/, assets: ['local.css']},
       {name: 'index.css', assets: ['index.css']}
     ]);
 
