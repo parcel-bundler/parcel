@@ -175,6 +175,29 @@ class Resolver {
     let parts = getModuleParts(filename);
     let root = path.parse(dir).root;
 
+    // If the node_modules location has been overridden
+    if (this.options != null && this.options.nodeModulesDir != null) {
+      try {
+        // First, check if the module directory exists. This prevents a lot of unnecessary checks later.
+        let moduleDir = path.join(this.options.nodeModulesDir, parts[0]);
+        let stats = await fs.stat(moduleDir);
+        if (stats.isDirectory()) {
+          return {
+            moduleName: parts[0],
+            subPath: parts[1],
+            moduleDir: moduleDir,
+            filePath: path.join(this.options.nodeModulesDir, filename)
+          };
+        }
+      } catch (err) {
+        throw new Error(
+          `Overridden node_modules path '${
+            this.options.nodeModulesDir
+          }' could not be found'`
+        );
+      }
+    }
+
     while (dir !== root) {
       // Skip node_modules directories
       if (path.basename(dir) === 'node_modules') {

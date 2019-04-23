@@ -304,6 +304,250 @@ describe('resolver', function() {
     });
   });
 
+  describe('node_module override', function() {
+    it('should resolve a node_modules index.js', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        nodeModulesDir: path.join(rootDir, 'node_modules_override')
+      });
+
+      let resolved = await resolver.resolve(
+        'foo',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(rootDir, 'node_modules_override', 'foo', 'index.js')
+      );
+      assert.equal(resolved.pkg.name, 'foo');
+    });
+
+    it('should resolve a node_modules package.main', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        nodeModulesDir: path.join(rootDir, 'node_modules_override')
+      });
+
+      let resolved = await resolver.resolve(
+        'package-main',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(rootDir, 'node_modules_override', 'package-main', 'main.js')
+      );
+      assert.equal(resolved.pkg.name, 'package-main');
+    });
+
+    it('should resolve a node_modules package.module', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        nodeModulesDir: path.join(rootDir, 'node_modules_override')
+      });
+
+      let resolved = await resolver.resolve(
+        'package-module',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules_override',
+          'package-module',
+          'module.js'
+        )
+      );
+      assert.equal(resolved.pkg.name, 'package-module');
+    });
+
+    it('should resolve a node_modules package.browser main field', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        nodeModulesDir: path.join(rootDir, 'node_modules_override')
+      });
+
+      let resolved = await resolver.resolve(
+        'package-browser',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules_override',
+          'package-browser',
+          'browser.js'
+        )
+      );
+      assert.equal(resolved.pkg.name, 'package-browser');
+    });
+
+    it('should fall back to package.main when package.module does not exist', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        nodeModulesDir: path.join(rootDir, 'node_modules_override')
+      });
+
+      let resolved = await resolver.resolve(
+        'package-module-fallback',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules_override',
+          'package-module-fallback',
+          'main.js'
+        )
+      );
+      assert.equal(resolved.pkg.name, 'package-module-fallback');
+    });
+
+    it('should not resolve a node_modules package.browser main field with --target=node', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        nodeModulesDir: path.join(rootDir, 'node_modules_override'),
+        target: 'node'
+      });
+
+      let resolved = await resolver.resolve(
+        'package-browser',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules_override',
+          'package-browser',
+          'main.js'
+        )
+      );
+      assert.equal(resolved.pkg.name, 'package-browser');
+    });
+
+    it('should fall back to index.js when it cannot find package.main', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        nodeModulesDir: path.join(rootDir, 'node_modules_override')
+      });
+
+      let resolved = await resolver.resolve(
+        'package-fallback',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules_override',
+          'package-fallback',
+          'index.js'
+        )
+      );
+      assert.equal(resolved.pkg.name, 'package-fallback');
+    });
+
+    it('should resolve a node_module package.main pointing to a directory', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        nodeModulesDir: path.join(rootDir, 'node_modules_override')
+      });
+
+      let resolved = await resolver.resolve(
+        'package-main-directory',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(
+          rootDir,
+          'node_modules_override',
+          'package-main-directory',
+          'nested',
+          'index.js'
+        )
+      );
+      assert.equal(resolved.pkg.name, 'package-main-directory');
+    });
+
+    it('should resolve a file inside a node_modules folder', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        nodeModulesDir: path.join(rootDir, 'node_modules_override')
+      });
+
+      let resolved = await resolver.resolve(
+        'foo/nested/baz',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.join(rootDir, 'node_modules_override', 'foo', 'nested', 'baz.js')
+      );
+      assert.equal(resolved.pkg.name, 'foo');
+    });
+
+    it('should resolve a scoped module', async function() {
+      let resolver = new Resolver({
+        rootDir,
+        extensions: {
+          '.js': true,
+          '.json': true
+        },
+        nodeModulesDir: path.join(rootDir, 'node_modules_override')
+      });
+
+      let resolved = await resolver.resolve(
+        '@scope/pkg',
+        path.join(rootDir, 'foo.js')
+      );
+      assert.equal(
+        resolved.path,
+        path.resolve(rootDir, 'node_modules_override/@scope/pkg/index.js')
+      );
+      assert.equal(resolved.pkg.name, 'scope-pkg');
+    });
+  });
+
   describe('aliases', function() {
     it('should alias the main file using the package.browser field', async function() {
       let resolved = await resolver.resolve(

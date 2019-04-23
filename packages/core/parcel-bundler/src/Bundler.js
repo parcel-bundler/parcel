@@ -105,8 +105,8 @@ class Bundler extends EventEmitter {
       target === 'node'
         ? false
         : typeof options.hmr === 'boolean'
-          ? options.hmr
-          : watch;
+        ? options.hmr
+        : watch;
     const scopeHoist =
       options.scopeHoist !== undefined ? options.scopeHoist : false;
     return {
@@ -117,6 +117,10 @@ class Bundler extends EventEmitter {
       watch: watch,
       cache: typeof options.cache === 'boolean' ? options.cache : true,
       cacheDir: Path.resolve(options.cacheDir || '.cache'),
+      nodeModulesDir:
+        options.nodeModulesDir != null
+          ? Path.resolve(options.nodeModulesDir)
+          : null,
       killWorkers:
         typeof options.killWorkers === 'boolean' ? options.killWorkers : true,
       minify:
@@ -145,8 +149,8 @@ class Bundler extends EventEmitter {
         typeof options.autoInstall === 'boolean'
           ? options.autoInstall
           : process.env.PARCEL_AUTOINSTALL === 'false'
-            ? false
-            : !isProduction,
+          ? false
+          : !isProduction,
       scopeHoist: scopeHoist,
       contentHash:
         typeof options.contentHash === 'boolean'

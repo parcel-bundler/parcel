@@ -66,6 +66,7 @@ program
     /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
+  .option('--node-modules-dir <path>', 'overrides the node_modules path."')
   .action(bundle);
 
 program
@@ -115,6 +116,7 @@ program
     /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
+  .option('--node-modules-dir <path>', 'overrides the node_modules path."')
   .action(bundle);
 
 program
@@ -162,6 +164,7 @@ program
     /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
+  .option('--node-modules-dir <path>', 'overrides the node_modules path."')
   .action(bundle);
 
 program
