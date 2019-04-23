@@ -7,7 +7,8 @@
       "@parcel/transformer-terser"
     ],
     "*.css": ["@parcel/transformer-css"],
-    "*.{svg,txt,png,webp}": ["@parcel/transformer-raw"]
+    "*.html": ["@parcel/transformer-html"],
+    "*.{jpg,jpeg,png,gif,svg,webm,pdf,txt}": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": {
@@ -15,9 +16,10 @@
     "node": ["@parcel/runtime-js"]
   },
   "packagers": {
+    "*.html": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
     "*.js": "@parcel/packager-js",
-    "*.{svg,txt,png,webp}": "@parcel/packager-raw"
+    "*.{jpg,jpeg,png,gif,svg,webm,pdf,txt}": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],
   "reporters": [

@@ -1,0 +1,20 @@
+{
+  "name": "@parcel/transformer-html",
+  "version": "2.0.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "src/HTMLTransformer.js",
+  "engines": {
+    "parcel": "2.x"
+  },
+  "dependencies": {
+    "@parcel/plugin": "2.0.0",
+    "posthtml": "^0.11.3",
+    "posthtml-parser": "^0.4.1",
+    "posthtml-render": "^1.1.4",
+    "semver": "^5.4.1"
+  }
+}
