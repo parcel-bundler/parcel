@@ -17,6 +17,7 @@ import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
 import ReporterRunner from './ReporterRunner';
 import MainAssetGraph from './public/MainAssetGraph';
+import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 
 export default class Parcel {
   options: ParcelOptions;
@@ -119,8 +120,11 @@ export default class Parcel {
 
       let startTime = Date.now();
       let assetGraph = await this.assetGraphBuilder.build();
+      dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
       let bundleGraph = await this.bundle(assetGraph);
+      dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
+
       await this.package(bundleGraph);
 
       this.reporterRunner.report({
