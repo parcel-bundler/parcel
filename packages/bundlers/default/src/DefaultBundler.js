@@ -68,7 +68,9 @@ export default new Bundler({
             // If there is a current bundle, but this asset is of a different type,
             // separate it out into a parallel bundle in the same bundle group.
             if (context.bundle) {
-              let bundles = bundleGraph.getBundles(context.bundleGroup);
+              let bundles = bundleGraph.getBundlesInBundleGroup(
+                context.bundleGroup
+              );
               let existingBundle = bundles.find(
                 b => b.type === node.value.type
               );
@@ -137,7 +139,8 @@ export default new Bundler({
     for (let {bundle, bundles} of sortedCandidates) {
       // Find all bundle groups connected to the original bundles
       let bundleGroups = bundles.reduce(
-        (arr, bundle) => arr.concat(bundleGraph.getBundleGroups(bundle)),
+        (arr, bundle) =>
+          arr.concat(bundleGraph.getBundleGroupsContainingBundle(bundle)),
         []
       );
 
@@ -145,7 +148,8 @@ export default new Bundler({
       if (
         !bundleGroups.every(
           group =>
-            bundleGraph.getBundles(group).length < OPTIONS.maxParallelRequests
+            bundleGraph.getBundlesInBundleGroup(group).length <
+            OPTIONS.maxParallelRequests
         )
       ) {
         continue;

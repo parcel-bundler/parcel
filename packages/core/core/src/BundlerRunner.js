@@ -6,7 +6,7 @@ import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
 
 import nullthrows from 'nullthrows';
-import {MutableBundleGraph} from './public/BundleGraph';
+import {BundleGraph, MutableBundleGraph} from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import MainAssetGraph from './public/MainAssetGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
@@ -89,7 +89,11 @@ export default class BundlerRunner {
     for (let bundle of bundles) {
       let runtimes = await this.config.getRuntimes(bundle.env.context);
       for (let runtime of runtimes) {
-        let applied = await runtime.apply(bundle, this.options);
+        let applied = await runtime.apply(
+          bundle,
+          new BundleGraph(bundleGraph),
+          this.options
+        );
         if (applied) {
           await this.addRuntimesToBundle(
             bundle.id,

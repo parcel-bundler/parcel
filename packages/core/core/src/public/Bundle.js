@@ -5,7 +5,6 @@ import type {Bundle as InternalBundle} from '../types';
 import type {
   Asset,
   Bundle as IBundle,
-  BundleGroup,
   Dependency,
   Environment,
   FilePath,
@@ -16,9 +15,7 @@ import type {
   Target
 } from '@parcel/types';
 
-import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {getBundleGroupId} from './utils';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -58,36 +55,6 @@ export class Bundle implements IBundle {
 
   get stats(): Stats {
     return this.#bundle.stats;
-  }
-
-  getBundleGroups(): Array<BundleGroup> {
-    return this.#bundle.assetGraph
-      .findNodes(node => node.type === 'bundle_group')
-      .map(node => {
-        invariant(node.type === 'bundle_group');
-        return node.value;
-      });
-  }
-
-  getBundlesInGroup(bundleGroup: BundleGroup): Array<IBundle> {
-    let bundleGroupNode = this.#bundle.assetGraph.getNode(
-      getBundleGroupId(bundleGroup)
-    );
-
-    if (bundleGroupNode == null) {
-      throw new Error(`Bundle group not found in bundle ${this.id}`);
-    }
-
-    return this.#bundle.assetGraph
-      .getNodesConnectedFrom(bundleGroupNode)
-      .map(node => {
-        invariant(node.type === 'bundle');
-        return node.value;
-      })
-      .sort(
-        bundle => (bundle.assetGraph.hasNode(bundleGroup.entryAssetId) ? 1 : -1)
-      )
-      .map(bundle => new Bundle(bundle));
   }
 
   getDependencies(asset: Asset): Array<Dependency> {

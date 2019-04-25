@@ -323,8 +323,6 @@ export interface Bundle extends AssetGraphLike {
   +target: ?Target;
   +filePath: ?FilePath;
   +stats: Stats;
-  getBundleGroups(): Array<BundleGroup>;
-  getBundlesInGroup(BundleGroup): Array<Bundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getEntryAssets(): Array<Asset>;
   getTotalSize(asset?: Asset): number;
@@ -350,8 +348,9 @@ export type BundleGroup = {
 
 export interface BundleGraph {
   findBundlesWithAsset(asset: Asset): Array<Bundle>;
-  getBundleGroups(bundle: Bundle): Array<BundleGroup>;
-  getBundles(bundleGroup: BundleGroup): Array<Bundle>;
+  getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
+  getBundleGroupsReferencedByBundle(bundle: Bundle): Array<BundleGroup>;
+  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
   isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>
@@ -362,8 +361,9 @@ export interface MutableBundleGraph {
   addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
   addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
   findBundlesWithAsset(asset: Asset): Array<MutableBundle>;
-  getBundleGroups(bundle: Bundle): Array<BundleGroup>;
-  getBundles(bundleGroup: BundleGroup): Array<MutableBundle>;
+  getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
+  getBundleGroupsReferencedByBundle(bundle: Bundle): Array<BundleGroup>;
+  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<MutableBundle>;
   isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<MutableBundle, TContext>
@@ -391,6 +391,7 @@ export type RuntimeAsset = {|
 export type Runtime = {|
   apply(
     bundle: NamedBundle,
+    bundleGraph: BundleGraph,
     opts: ParcelOptions
   ): Async<void | RuntimeAsset | Array<RuntimeAsset>>
 |};

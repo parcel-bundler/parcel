@@ -19,7 +19,7 @@ const LOADERS = {
 };
 
 export default new Runtime({
-  async apply(bundle) {
+  async apply(bundle, bundleGraph) {
     // Dependency ids in code replaced with referenced bundle names
     // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
     // and which are not loaded by a parent bundle.
@@ -38,13 +38,15 @@ export default new Runtime({
     }
 
     let assets = [];
-    for (let bundleGroup of bundle.getBundleGroups()) {
+    for (let bundleGroup of bundleGraph.getBundleGroupsReferencedByBundle(
+      bundle
+    )) {
       // Ignore deps with native loaders, e.g. workers.
       if (bundleGroup.dependency.isURL) {
         continue;
       }
 
-      let bundles = bundle.getBundlesInGroup(bundleGroup);
+      let bundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
       let loaderModules = bundles.map(b => {
         let loader = loaders[b.type];
         if (!loader) {
