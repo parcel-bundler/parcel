@@ -35,16 +35,32 @@ class BaseBundleGraph {
     this.#graph = graph;
   }
 
-  getBundleGroups(bundle: IBundle): Array<BundleGroup> {
-    let node = this.#graph.getNode(bundle.id);
-    if (!node) {
-      return [];
-    }
+  getBundleGroupsContainingBundle(bundle: IBundle): Array<BundleGroup> {
+    let node = nullthrows(
+      this.#graph.getNode(bundle.id),
+      'Bundle graph must contain bundle'
+    );
 
     return this.#graph.getNodesConnectedTo(node).map(node => {
       invariant(node.type === 'bundle_group');
       return node.value;
     });
+  }
+
+  getBundleGroupsReferencedByBundle(bundle: IBundle): Array<BundleGroup> {
+    let node = nullthrows(
+      this.#graph.getNode(bundle.id),
+      'Bundle graph must contain bundle'
+    );
+
+    let groups = [];
+    this.#graph.traverse((node, context, actions) => {
+      if (node.type === 'bundle_group') {
+        groups.push(node.value);
+        actions.skipChildren();
+      }
+    }, node);
+    return groups;
   }
 
   isAssetInAncestorBundle(bundle: IBundle, asset: Asset): boolean {
@@ -62,7 +78,7 @@ export class BundleGraph extends BaseBundleGraph implements IBundleGraph {
     this.#graph = graph; // Repeating for flow
   }
 
-  getBundles(bundleGroup: BundleGroup): Array<IBundle> {
+  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
     return getBundles(this.#graph, bundleGroup).map(
       bundle => new Bundle(bundle)
     );
@@ -92,7 +108,7 @@ export class MutableBundleGraph extends BaseBundleGraph
     this.#graph = graph; // Repeating for flow
   }
 
-  getBundles(bundleGroup: BundleGroup): Array<IMutableBundle> {
+  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IMutableBundle> {
     return getBundles(this.#graph, bundleGroup).map(
       bundle => new MutableBundle(bundle)
     );
@@ -203,10 +219,15 @@ function getBundles(
     return [];
   }
 
-  return graph.getNodesConnectedFrom(node).map(node => {
-    invariant(node.type === 'bundle');
-    return node.value;
-  });
+  return graph
+    .getNodesConnectedFrom(node)
+    .map(node => {
+      invariant(node.type === 'bundle');
+      return node.value;
+    })
+    .sort(
+      bundle => (bundle.assetGraph.hasNode(bundleGroup.entryAssetId) ? 1 : -1)
+    );
 }
 
 function findBundlesWithAsset(
