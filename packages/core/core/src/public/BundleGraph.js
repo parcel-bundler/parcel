@@ -1,6 +1,14 @@
 // @flow strict-local
+// flowlint unsafe-getters-setters:off
 
-import type {Bundle as InternalBundle, BundleNode} from '../types';
+import type {
+  AssetGraphNode,
+  Bundle as InternalBundle,
+  BundleNode,
+  BundleGraphNode,
+  BundleReference as IBundleReference,
+  BundleReferenceNode
+} from '../types';
 
 import type {
   Asset,
@@ -12,6 +20,7 @@ import type {
   MutableBundleGraph as IMutableBundleGraph
 } from '@parcel/types';
 
+import type Graph from '../Graph';
 import type InternalBundleGraph from '../BundleGraph';
 
 import invariant from 'assert';
@@ -156,8 +165,10 @@ export class MutableBundleGraph extends BaseBundleGraph
         let bundleGroup: BundleGroup = node.value;
         let depNode = assetGraph.getNode(bundleGroup.dependency.id);
         if (depNode && !assetGraph.hasNode(node.id)) {
-          // $FlowFixMe Merging a graph of a subtype into a graph of the supertype
-          assetGraph.merge(this.#graph.getSubGraph(node));
+          mergeBundleGraphIntoBundleAssetGraph(
+            assetGraph,
+            this.#graph.getSubGraph(node)
+          );
           assetGraph.replaceNodesConnectedTo(depNode, [node]);
           this.#graph.addEdge({
             from: internalBundle.id,
@@ -166,15 +177,16 @@ export class MutableBundleGraph extends BaseBundleGraph
         }
       }
 
+      let referenceNode = bundleNodeToBundleReferenceNode(bundleNode);
       // Add a connection from the bundle group to the bundle in all bundles
       if (
         node.type === 'bundle' &&
         node.value.assetGraph.hasNode(bundleGroupId)
       ) {
-        node.value.assetGraph.addNode(bundleNode);
+        node.value.assetGraph.addNode(referenceNode);
         node.value.assetGraph.addEdge({
           from: bundleGroupId,
-          to: bundleNode.id
+          to: referenceNode.id
         });
       }
     });
@@ -209,4 +221,67 @@ function findBundlesWithAsset(
       invariant(node.type === 'bundle');
       return node.value;
     });
+}
+
+function bundleNodeToBundleReferenceNode(
+  bundleNode: BundleNode
+): BundleReferenceNode {
+  return {
+    id: bundleNode.id,
+    type: 'bundle_reference',
+    value: new BundleReference(bundleNode.value)
+  };
+}
+
+function mergeBundleGraphIntoBundleAssetGraph(
+  bundleAssetGraph: Graph<AssetGraphNode>,
+  bundleGraph: Graph<BundleGraphNode>
+): void {
+  for (let [, node] of bundleGraph.nodes) {
+    if (node.type === 'bundle') {
+      bundleAssetGraph.addNode(bundleNodeToBundleReferenceNode(node));
+    } else {
+      bundleAssetGraph.addNode(node);
+    }
+  }
+
+  for (let edge of bundleGraph.edges) {
+    bundleAssetGraph.addEdge(edge);
+  }
+}
+
+class BundleReference implements IBundleReference {
+  #bundle;
+
+  constructor(bundle: InternalBundle) {
+    this.#bundle = bundle;
+  }
+
+  get id() {
+    return this.#bundle.id;
+  }
+
+  get type() {
+    return this.#bundle.type;
+  }
+
+  get env() {
+    return this.#bundle.env;
+  }
+
+  get isEntry() {
+    return this.#bundle.isEntry;
+  }
+
+  get target() {
+    return this.#bundle.target;
+  }
+
+  get filePath() {
+    return this.#bundle.filePath;
+  }
+
+  get stats() {
+    return this.#bundle.stats;
+  }
 }
