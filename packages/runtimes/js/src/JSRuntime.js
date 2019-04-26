@@ -46,7 +46,16 @@ export default new Runtime({
         continue;
       }
 
-      let bundles = bundleGraph.getBundlesInBundleGroup(bundleGroup);
+      // Sort so the bundles containing the entry asset appear last
+      let bundles = bundleGraph.getBundlesInBundleGroup(bundleGroup).sort(
+        bundle =>
+          bundle
+            .getEntryAssets()
+            .map(asset => asset.id)
+            .includes(bundleGroup.entryAssetId)
+            ? 1
+            : -1
+      );
       let loaderModules = bundles.map(b => {
         let loader = loaders[b.type];
         if (!loader) {
