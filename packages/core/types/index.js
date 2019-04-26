@@ -211,6 +211,7 @@ export interface Asset {
   ast: ?AST;
   dependencies: Map<string, Dependency>;
   connectedFiles: Map<FilePath, File>;
+  isIsolated: boolean;
   output: AssetOutput;
   outputHash: string;
   env: Environment;
@@ -247,8 +248,9 @@ export type TransformerResult = {
   type: string,
   code?: string,
   ast?: ?AST,
-  dependencies?: Map<string, DependencyOptions>,
-  connectedFiles?: Map<FilePath, File>,
+  dependencies?: Array<DependencyOptions> | Map<string, DependencyOptions>,
+  connectedFiles?: Array<File> | Map<FilePath, File>,
+  isIsolated?: boolean,
   output?: AssetOutput,
   env?: EnvironmentOpts,
   meta?: Meta
@@ -402,7 +404,7 @@ export type Namer = {|
 export type RuntimeAsset = {|
   filePath: FilePath,
   code: string,
-  bundleGroup?: BundleGroup
+  dependency?: Dependency
 |};
 
 export type Runtime = {|

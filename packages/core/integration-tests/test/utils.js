@@ -312,3 +312,4 @@ exports.deferred = deferred;
 exports.rimraf = rimraf;
 exports.ncp = ncp;
 exports.normaliseNewlines = normaliseNewlines;
+exports.outDir = path.resolve(__dirname, '..', 'dist');

@@ -2,6 +2,8 @@
 
 import path from 'path';
 import {Runtime} from '@parcel/plugin';
+import nullthrows from 'nullthrows';
+import urlJoin from '@parcel/utils/src/urlJoin';
 
 const LOADERS = {
   browser: {
@@ -19,7 +21,7 @@ const LOADERS = {
 };
 
 export default new Runtime({
-  async apply(bundle, bundleGraph) {
+  async apply(bundle, bundleGraph, options) {
     // Dependency ids in code replaced with referenced bundle names
     // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
     // and which are not loaded by a parent bundle.
@@ -33,11 +35,38 @@ export default new Runtime({
 
     // $FlowFixMe - ignore unknown properties?
     let loaders = LOADERS[bundle.env.context];
-    if (!loaders) {
-      return;
-    }
 
     let assets = [];
+    bundle.traverseAssets(asset => {
+      let dependencies = bundle.getDependencies(asset);
+      for (let dependency of dependencies) {
+        let resolvedAsset = bundle.getDependencyResolution(dependency);
+        if (resolvedAsset && resolvedAsset.type !== 'js') {
+          // "raw asset"-style fallback
+          // if this dependency doesn't resolve to a js asset, it's an asset reference
+          // of a different type. If there isn't a loader for it, replace it with
+          // a js asset that exports a relative url (using publicURL) to the bundle
+          // it's located in.
+          let assetBundle = bundleGraph.findBundlesWithAsset(resolvedAsset)[0];
+          let hasLoader = loaders && loaders[assetBundle.type];
+          if (!hasLoader) {
+            assets.push({
+              filePath: resolvedAsset.filePath + '.js',
+              code: `module.exports = '${urlJoin(
+                options.publicUrl == null ? '/' : options.publicUrl,
+                nullthrows(assetBundle.filePath)
+              )}'`,
+              dependency
+            });
+          }
+        }
+      }
+    });
+
+    if (!loaders) {
+      return assets;
+    }
+
     for (let bundleGroup of bundleGraph.getBundleGroupsReferencedByBundle(
       bundle
     )) {
@@ -56,25 +85,29 @@ export default new Runtime({
             ? 1
             : -1
       );
-      let loaderModules = bundles.map(b => {
-        let loader = loaders[b.type];
-        if (!loader) {
-          throw new Error('Could not find a loader for bundle type ' + b.type);
-        }
+      let loaderModules = bundles
+        .map(b => {
+          let loader = loaders[b.type];
+          if (!loader) {
+            return;
+          }
 
-        return `[require(${JSON.stringify(loader)}), ${JSON.stringify(
-          // $FlowFixMe - bundle.filePath already exists here
-          path.relative(path.dirname(bundle.filePath), b.filePath)
-        )}]`;
-      });
+          return `[require(${JSON.stringify(loader)}), ${JSON.stringify(
+            // $FlowFixMe - bundle.filePath already exists here
+            path.relative(path.dirname(bundle.filePath), b.filePath)
+          )}]`;
+        })
+        .filter(Boolean);
 
-      assets.push({
-        filePath: __filename,
-        code: `module.exports = require('./bundle-loader')([${loaderModules.join(
-          ', '
-        )}, ${JSON.stringify(bundleGroup.entryAssetId)}]);`,
-        bundleGroup
-      });
+      if (loaderModules.length > 0) {
+        assets.push({
+          filePath: __filename,
+          code: `module.exports = require('./bundle-loader')([${loaderModules.join(
+            ', '
+          )}, ${JSON.stringify(bundleGroup.entryAssetId)}]);`,
+          dependency: bundleGroup.dependency
+        });
+      }
     }
 
     return assets;

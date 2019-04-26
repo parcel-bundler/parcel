@@ -265,7 +265,13 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
     let res: ?Asset = null;
     this.traverse((node, ctx, traversal) => {
-      if (node.type === 'asset' || node.type === 'asset_reference') {
+      // Prefer real assets when resolving dependencies, but use the first
+      // asset reference in absence of a real one.
+      if (node.type === 'asset_reference' && !res) {
+        res = node.value;
+      }
+
+      if (node.type === 'asset') {
         res = node.value;
         traversal.stop();
       }
