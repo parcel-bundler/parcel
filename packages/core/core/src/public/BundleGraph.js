@@ -219,15 +219,10 @@ function getBundles(
     return [];
   }
 
-  return graph
-    .getNodesConnectedFrom(node)
-    .map(node => {
-      invariant(node.type === 'bundle');
-      return node.value;
-    })
-    .sort(
-      bundle => (bundle.assetGraph.hasNode(bundleGroup.entryAssetId) ? 1 : -1)
-    );
+  return graph.getNodesConnectedFrom(node).map(node => {
+    invariant(node.type === 'bundle');
+    return node.value;
+  });
 }
 
 function findBundlesWithAsset(
