@@ -178,7 +178,7 @@ export class MutableBundleGraph extends BaseBundleGraph
       // bundles point to the same dependency, which has an async import.
       if (node.type === 'bundle_group') {
         let {assetGraph} = internalBundle;
-        let bundleGroup: BundleGroup = node.value;
+        let bundleGroup = node.value;
         let depNode = assetGraph.getNode(bundleGroup.dependency.id);
         if (depNode && !assetGraph.hasNode(node.id)) {
           mergeBundleGraphIntoBundleAssetGraph(

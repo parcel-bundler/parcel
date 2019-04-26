@@ -13,7 +13,6 @@ import MainAssetGraph from './public/MainAssetGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
-import {getBundleGroupId} from './public/utils';
 
 type Opts = {|
   options: ParcelOptions,
@@ -133,7 +132,7 @@ export default class BundlerRunner {
     }
     let bundle = node.value;
 
-    for (let {code, filePath, bundleGroup} of runtimeAssets) {
+    for (let {code, filePath, dependency} of runtimeAssets) {
       let builder = new AssetGraphBuilder({
         options: this.options,
         config: this.config,
@@ -167,8 +166,8 @@ export default class BundlerRunner {
       bundle.assetGraph.merge(subGraph);
 
       bundle.assetGraph.addEdge({
-        from: bundleGroup
-          ? getBundleGroupId(bundleGroup)
+        from: dependency
+          ? dependency.id
           : nullthrows(bundle.assetGraph.getRootNode()).id,
         to: entryId
       });

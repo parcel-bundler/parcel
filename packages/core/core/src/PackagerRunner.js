@@ -39,7 +39,7 @@ export default class PackagerRunner {
       this.distExists.add(dir);
     }
 
-    await writeFile(nullthrows(bundle.filePath), contents);
+    await writeFile(filePath, contents);
     return {
       time: Date.now() - start,
       size: contents.length

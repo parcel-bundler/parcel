@@ -15,6 +15,7 @@ import type {
   Stats,
   TransformerResult
 } from '@parcel/types';
+
 import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
 import {loadConfig} from '@parcel/utils/src/config';
 import Cache from '@parcel/cache';
@@ -29,6 +30,7 @@ type AssetOptions = {|
   ast?: ?AST,
   dependencies?: Iterable<[string, IDependency]>,
   connectedFiles?: Iterable<[FilePath, File]>,
+  isIsolated?: boolean,
   output?: AssetOutput,
   outputHash?: string,
   env: Environment,
@@ -53,6 +55,7 @@ export default class Asset implements IAsset {
   ast: ?AST;
   dependencies: Map<string, IDependency>;
   connectedFiles: Map<FilePath, File>;
+  isIsolated: boolean;
   output: AssetOutput;
   outputHash: string;
   env: Environment;
@@ -67,6 +70,7 @@ export default class Asset implements IAsset {
       );
     this.hash = options.hash || '';
     this.filePath = options.filePath;
+    this.isIsolated = options.isIsolated == null ? false : options.isIsolated;
     this.type = options.type;
     this.code = options.code || (options.output ? options.output.code : '');
     this.ast = options.ast || null;
@@ -95,6 +99,7 @@ export default class Asset implements IAsset {
       type: this.type,
       dependencies: Array.from(this.dependencies),
       connectedFiles: Array.from(this.connectedFiles),
+      isIsolated: this.isIsolated,
       output: this.output,
       outputHash: this.outputHash,
       env: this.env,
@@ -139,6 +144,7 @@ export default class Asset implements IAsset {
       type: result.type,
       code,
       ast: result.ast,
+      isIsolated: result.isIsolated,
       env: this.env.merge(result.env),
       dependencies: this.dependencies,
       connectedFiles: this.connectedFiles,

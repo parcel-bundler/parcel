@@ -6,7 +6,8 @@
       "@parcel/transformer-js",
       "@parcel/transformer-terser"
     ],
-    "*.css": ["@parcel/transformer-css"]
+    "*.css": ["@parcel/transformer-css"],
+    "*.{svg,txt}": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": {
@@ -15,7 +16,8 @@
   },
   "packagers": {
     "*.css": "@parcel/packager-css",
-    "*.js": "@parcel/packager-js"
+    "*.js": "@parcel/packager-js",
+    "*.{svg,txt}": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],
   "reporters": [
