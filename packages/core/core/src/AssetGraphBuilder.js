@@ -96,6 +96,8 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.controller = new AbortController();
     let signal = this.controller.signal;
 
+    this.changedAssets = new Map();
+
     await this.updateGraph({signal});
     await this.completeGraph({signal});
     return this.graph;
