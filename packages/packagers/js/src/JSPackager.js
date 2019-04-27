@@ -49,7 +49,7 @@ export default new Packager({
       assets +
       '},{},' +
       JSON.stringify(
-        bundle.assetGraph
+        bundle
           .getEntryAssets()
           .reverse()
           .map(asset => asset.id)
