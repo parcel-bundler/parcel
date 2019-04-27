@@ -1,8 +1,12 @@
-// @flow
-import Config from './Config';
-import type {ParcelOptions, ReporterEvent, Target} from '@parcel/types';
-import logger from '@parcel/logger';
+// @flow strict-local
+
+import type {ParcelOptions, ReporterEvent} from '@parcel/types';
+
+import {bundleToInternal, NamedBundle} from './public/Bundle';
 import bus from '@parcel/workers/src/bus';
+import Config from './Config';
+import logger from '@parcel/logger';
+import nullthrows from 'nullthrows';
 
 type Opts = {|
   config: Config,
@@ -21,7 +25,19 @@ export default class ReporterRunner {
     this.targets = opts.targets;
 
     logger.onLog(event => this.report(event));
-    bus.on('reporterEvent', event => this.report(event));
+
+    // Convert any internal bundles back to their public equivalents as reporting
+    // is public api
+    bus.on('reporterEvent', event => {
+      if (event.bundle == null) {
+        this.report(event);
+      } else {
+        this.report({
+          ...event,
+          bundle: new NamedBundle(event.bundle)
+        });
+      }
+    });
   }
 
   async report(event: ReporterEvent) {
@@ -34,5 +50,14 @@ export default class ReporterRunner {
 }
 
 export function report(event: ReporterEvent) {
-  bus.emit('reporterEvent', event);
+  if (event.bundle == null) {
+    bus.emit('reporterEvent', event);
+  } else {
+    // Convert any public api bundles to their internal equivalents for
+    // easy serialization
+    bus.emit('reporterEvent', {
+      ...event,
+      bundle: nullthrows(bundleToInternal.get(event.bundle))
+    });
+  }
 }

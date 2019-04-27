@@ -2,7 +2,10 @@ module.exports = {
   extends: [
     'eslint:recommended',
     'plugin:flowtype/recommended',
-    'plugin:react/recommended'
+    'plugin:react/recommended',
+    'prettier',
+    'prettier/flowtype',
+    'prettier/react'
   ],
   parser: 'babel-eslint',
   plugins: ['@parcel', 'flowtype', 'import', 'react'],
@@ -24,15 +27,17 @@ module.exports = {
   // https://eslint.org/docs/user-guide/configuring#configuration-based-on-glob-patterns
   overrides: [
     {
-      files: ['**/test/**/*.js', '*.test.js'],
+      files: ['**/test/**', '*.test.js', 'packages/core/integration-tests/**'],
       env: {
         mocha: true
+      },
+      rules: {
+        'import/no-extraneous-dependencies': 'off'
       }
     }
   ],
   rules: {
     '@parcel/no-self-package-imports': 'error',
-    'flowtype/space-after-type-colon': 'off', // conflicts with prettier
     'import/first': 'error',
     'import/newline-after-import': 'error',
     'import/no-extraneous-dependencies': 'error',

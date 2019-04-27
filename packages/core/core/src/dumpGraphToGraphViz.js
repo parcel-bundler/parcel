@@ -1,17 +1,14 @@
 // @flow
 
-import type {
-  Environment,
-  Graph,
-  BundleGraphNode,
-  AssetGraphNode
-} from '@parcel/types';
+import type {Environment} from '@parcel/types';
+
+import type Graph from './Graph';
+import type {AssetGraphNode, BundleGraphNode} from './types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import graphviz from 'graphviz';
-import tempy from 'tempy';
 import path from 'path';
+import BundleGraph from './BundleGraph';
 
 const COLORS = {
   root: 'gray',
@@ -23,9 +20,20 @@ const COLORS = {
 };
 
 export default async function dumpGraphToGraphViz(
-  graph: Graph<AssetGraphNode | BundleGraphNode>,
+  // $FlowFixMe
+  graph: Graph<AssetGraphNode> | Graph<BundleGraphNode>,
   name: string
 ): Promise<void> {
+  if (
+    process.env.PARCEL_BUILD_ENV === 'production' ||
+    process.env.PARCEL_DUMP_GRAPHVIZ == null
+  ) {
+    return;
+  }
+
+  const graphviz = require('graphviz');
+  const tempy = require('tempy');
+
   let g = graphviz.digraph('G');
 
   let nodes = Array.from(graph.nodes.values());
@@ -86,7 +94,14 @@ export default async function dumpGraphToGraphViz(
   let tmp = tempy.file({name: `${name}.png`});
 
   await g.output('png', tmp);
-  console.log(`open ${tmp}`); // eslint-disable-line no-console
+  // eslint-disable-next-line no-console
+  console.log('Dumped', tmp);
+
+  if (graph instanceof BundleGraph) {
+    graph.traverseBundles(bundle => {
+      dumpGraphToGraphViz(bundle.assetGraph, bundle.id);
+    });
+  }
 }
 
 function getEnvDescription(env: Environment) {

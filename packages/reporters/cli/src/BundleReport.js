@@ -1,12 +1,13 @@
 // @flow strict-local
 
-import type {Asset, Bundle, FilePath} from '@parcel/types';
+import type {FilePath} from '@parcel/types';
 
 import * as React from 'react';
 import {BundleGraph} from '@parcel/types';
 import filesize from 'filesize';
 import {Box, Color} from 'ink';
 import prettifyTime from '@parcel/utils/src/prettifyTime';
+import generateBundleReport from '@parcel/utils/src/generateBundleReport';
 import path from 'path';
 import * as emoji from './emoji';
 import {Table, Row, Cell} from './Table';
@@ -20,55 +21,44 @@ type ReportProps = {|
 export default function BundleReport(
   props: ReportProps
 ): React.Element<typeof Table> {
-  let bundles: Array<Bundle> = [];
-  props.bundleGraph.traverseBundles(bundle => bundles.push(bundle));
-  bundles.sort((a, b) => b.stats.size - a.stats.size);
+  let {bundles} = generateBundleReport(props.bundleGraph);
 
   let rows: Array<React.Element<typeof Row>> = [<Row key="first" />];
   for (let bundle of bundles) {
     rows.push(
-      <Row key={`bundle:${bundle.id}`}>
+      <Row key={`bundle:${bundle.filePath}`}>
         <Cell>
           {formatFilename(bundle.filePath || '', {cyan: true, bold: true})}
         </Cell>
         <Cell align="right">
           <Color bold>
-            {prettifySize(
-              bundle.stats.size,
-              bundle.stats.size > LARGE_BUNDLE_SIZE
-            )}
+            {prettifySize(bundle.size, bundle.size > LARGE_BUNDLE_SIZE)}
           </Color>
         </Cell>
         <Cell align="right">
           <Color green bold>
-            {prettifyTime(bundle.stats.time)}
+            {prettifyTime(bundle.time)}
           </Color>
         </Cell>
       </Row>
     );
 
-    let assets: Array<Asset> = [];
-    bundle.assetGraph.traverseAssets(asset => {
-      assets.push(asset);
-    });
-    assets.sort((a, b) => b.stats.size - a.stats.size);
-
-    let largestAssets = assets.slice(0, 10);
-
-    for (let asset of largestAssets) {
+    for (let asset of bundle.largestAssets) {
       // Add a row for the asset.
       rows.push(
-        <Row key={`bundle:${bundle.id}:asset:${asset.id}`}>
+        <Row key={`bundle:${bundle.filePath}:asset:${asset.filePath}`}>
           <Cell>
-            {asset == assets[assets.length - 1] ? '└── ' : '├── '}
+            {asset == bundle.largestAssets[bundle.largestAssets.length - 1]
+              ? '└── '
+              : '├── '}
             {formatFilename(asset.filePath, {})}
           </Cell>
           <Cell align="right">
-            <Color dim>{prettifySize(asset.stats.size)}</Color>
+            <Color dim>{prettifySize(asset.size)}</Color>
           </Cell>
           <Cell align="right">
             <Color green dim>
-              {prettifyTime(asset.stats.time)}
+              {prettifyTime(asset.time)}
             </Color>
           </Cell>
         </Row>
@@ -76,13 +66,13 @@ export default function BundleReport(
     }
 
     // Show how many more assets there are
-    if (assets.length > largestAssets.length) {
+    if (bundle.totalAssets > bundle.largestAssets.length) {
       rows.push(
-        <Row key={`bundleAssetCount:${bundle.id}`}>
+        <Row key={`bundleAssetCount:${bundle.filePath}`}>
           <Cell>
             └──{' '}
             <Color dim>
-              + {assets.length - largestAssets.length} more assets
+              + {bundle.totalAssets - bundle.largestAssets.length} more assets
             </Color>
           </Cell>
         </Row>
@@ -91,7 +81,7 @@ export default function BundleReport(
 
     // If this isn't the last bundle, add an empty row before the next one
     if (bundle !== bundles[bundles.length - 1]) {
-      rows.push(<Row key={`spacer:${bundle.id}`} />);
+      rows.push(<Row key={`spacer:${bundle.filePath}`} />);
     }
   }
 

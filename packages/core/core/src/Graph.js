@@ -1,14 +1,8 @@
 // @flow
 
-import type {
-  Edge,
-  Node,
-  NodeId,
-  GraphTraversalCallback,
-  GraphUpdates,
-  TraversalActions,
-  Graph as IGraph
-} from '@parcel/types';
+import type {Edge, Node, NodeId} from './types';
+
+import type {GraphTraversalCallback, TraversalActions} from '@parcel/types';
 
 import nullthrows from 'nullthrows';
 
@@ -18,7 +12,12 @@ type GraphOpts<TNode> = {|
   rootNodeId?: ?NodeId
 |};
 
-export default class Graph<TNode: Node> implements IGraph<TNode> {
+type GraphUpdates<TNode> = {|
+  added: Graph<TNode>,
+  removed: Graph<TNode>
+|};
+
+export default class Graph<TNode: Node> {
   nodes: Map<NodeId, TNode>;
   edges: Set<Edge>;
   rootNodeId: ?NodeId;
@@ -86,7 +85,7 @@ export default class Graph<TNode: Node> implements IGraph<TNode> {
     return edges.map(edge => nullthrows(this.nodes.get(edge.to)));
   }
 
-  merge(graph: IGraph<TNode>): void {
+  merge(graph: Graph<TNode>): void {
     for (let [, node] of graph.nodes) {
       this.addNode(node);
     }
@@ -325,5 +324,9 @@ export default class Graph<TNode: Node> implements IGraph<TNode> {
     }, node);
 
     return graph;
+  }
+
+  findNodes(predicate: TNode => boolean): Array<TNode> {
+    return Array.from(this.nodes.values()).filter(predicate);
   }
 }
