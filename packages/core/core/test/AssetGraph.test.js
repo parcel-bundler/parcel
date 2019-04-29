@@ -156,7 +156,6 @@ describe('AssetGraph', () => {
           ]
         ],
         env: DEFAULT_ENV,
-        output: {code: ''},
         connectedFiles: []
       }),
       new Asset({
@@ -175,7 +174,6 @@ describe('AssetGraph', () => {
           ]
         ],
         env: DEFAULT_ENV,
-        output: {code: ''},
         connectedFiles: []
       }),
       new Asset({
@@ -185,7 +183,6 @@ describe('AssetGraph', () => {
         hash: '#3',
         dependencies: [],
         env: DEFAULT_ENV,
-        output: {code: ''},
         connectedFiles: []
       })
     ];
@@ -278,7 +275,6 @@ describe('AssetGraph', () => {
           ]
         ],
         env: DEFAULT_ENV,
-        output: {code: ''},
         connectedFiles: []
       }),
       new Asset({
@@ -288,7 +284,6 @@ describe('AssetGraph', () => {
         hash: '#2',
         dependencies: [],
         env: DEFAULT_ENV,
-        output: {code: ''},
         connectedFiles: []
       })
     ];
@@ -394,7 +389,6 @@ describe('AssetGraph', () => {
           ]
         ],
         env: DEFAULT_ENV,
-        output: {code: ''},
         connectedFiles: new Map([
           [
             '/foo/bar',

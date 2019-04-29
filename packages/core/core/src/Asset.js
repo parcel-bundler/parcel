@@ -2,7 +2,6 @@
 
 import type {
   Asset as IAsset,
-  AssetOutput,
   AST,
   Config,
   Dependency as IDependency,
@@ -26,12 +25,12 @@ type AssetOptions = {|
   hash?: string,
   filePath: FilePath,
   type: string,
-  code?: string,
+  content?: string,
+  contentKey?: ?string,
   ast?: ?AST,
   dependencies?: Iterable<[string, IDependency]>,
   connectedFiles?: Iterable<[FilePath, File]>,
   isIsolated?: boolean,
-  output?: AssetOutput,
   outputHash?: string,
   env: Environment,
   meta?: Meta,
@@ -51,16 +50,16 @@ export default class Asset implements IAsset {
   hash: string;
   filePath: FilePath;
   type: string;
-  code: string;
   ast: ?AST;
   dependencies: Map<string, IDependency>;
   connectedFiles: Map<FilePath, File>;
   isIsolated: boolean;
-  output: AssetOutput;
   outputHash: string;
   env: Environment;
   meta: Meta;
   stats: Stats;
+  content: string;
+  contentKey: ?string;
 
   constructor(options: AssetOptions) {
     this.id =
@@ -72,7 +71,8 @@ export default class Asset implements IAsset {
     this.filePath = options.filePath;
     this.isIsolated = options.isIsolated == null ? false : options.isIsolated;
     this.type = options.type;
-    this.code = options.code || (options.output ? options.output.code : '');
+    this.content = options.content || '';
+    this.contentKey = options.contentKey;
     this.ast = options.ast || null;
     this.dependencies = options.dependencies
       ? new Map(options.dependencies)
@@ -80,13 +80,12 @@ export default class Asset implements IAsset {
     this.connectedFiles = options.connectedFiles
       ? new Map(options.connectedFiles)
       : new Map();
-    this.output = options.output || {code: this.code};
     this.outputHash = options.outputHash || '';
     this.env = options.env;
     this.meta = options.meta || {};
     this.stats = options.stats || {
       time: 0,
-      size: this.output.code.length
+      size: this.content.length
     };
   }
 
@@ -100,12 +99,34 @@ export default class Asset implements IAsset {
       dependencies: Array.from(this.dependencies),
       connectedFiles: Array.from(this.connectedFiles),
       isIsolated: this.isIsolated,
-      output: this.output,
       outputHash: this.outputHash,
       env: this.env,
       meta: this.meta,
-      stats: this.stats
+      stats: this.stats,
+      contentKey: this.contentKey
     };
+  }
+
+  async getCode(): Promise<string> {
+    if (this.contentKey) {
+      let content = await Cache.get(this.contentKey);
+      if (content == null) {
+        throw new Error('Missing cache entry');
+      }
+      this.content = content;
+    }
+    return this.content;
+  }
+
+  async writeBlobs(): Promise<void> {
+    this.contentKey = await Cache.set(
+      this.generateCacheKey('content'),
+      this.content
+    );
+  }
+
+  generateCacheKey(key: string): string {
+    return md5FromString(key + this.id + JSON.stringify(this.env));
   }
 
   addDependency(opts: DependencyOptions) {
@@ -137,18 +158,17 @@ export default class Asset implements IAsset {
   }
 
   createChildAsset(result: TransformerResult) {
-    let code = (result.output && result.output.code) || result.code || '';
+    let code = result.content || result.code || '';
     let opts: AssetOptions = {
       hash: this.hash || md5FromString(code),
       filePath: this.filePath,
       type: result.type,
-      code,
+      content: code,
       ast: result.ast,
       isIsolated: result.isIsolated,
       env: this.env.merge(result.env),
       dependencies: this.dependencies,
       connectedFiles: this.connectedFiles,
-      output: result.output,
       meta: Object.assign({}, this.meta, result.meta)
     };
 
@@ -169,11 +189,6 @@ export default class Asset implements IAsset {
     }
 
     return asset;
-  }
-
-  async getOutput() {
-    await Cache.readBlobs(this);
-    return this.output;
   }
 
   async getConfig(

@@ -1,4 +1,7 @@
 // @flow
+
+import type {FilePath} from '@parcel/types';
+
 import {Transformer} from '@parcel/plugin';
 import postcss from 'postcss';
 import valueParser from 'postcss-value-parser';
@@ -8,8 +11,7 @@ const URL_RE = /url\s*\("?(?![a-z]+:)/;
 const IMPORT_RE = /@import/;
 const PROTOCOL_RE = /^[a-z]+:/;
 
-function canHaveDependencies(asset) {
-  let {filePath, code} = asset;
+function canHaveDependencies(filePath: FilePath, code: string) {
   return !/\.css$/.test(filePath) || IMPORT_RE.test(code) || URL_RE.test(code);
 }
 
@@ -26,8 +28,9 @@ export default new Transformer({
     return ast.type === 'postcss' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  parse(asset) {
-    if (!canHaveDependencies(asset)) {
+  async parse(asset) {
+    let code = await asset.getCode();
+    if (!canHaveDependencies(asset.filePath, code)) {
       return null;
     }
 
@@ -35,7 +38,7 @@ export default new Transformer({
       type: 'postcss',
       version: '7.0.0',
       isDirty: false,
-      program: postcss.parse(asset.code, {
+      program: postcss.parse(code, {
         from: asset.filePath,
         to: asset.filePath
       })
@@ -122,10 +125,10 @@ export default new Transformer({
     return [asset];
   },
 
-  generate(asset) {
+  async generate(asset) {
     let code;
     if (!asset.ast || !asset.ast.isDirty) {
-      code = asset.code;
+      code = await asset.getCode();
     } else {
       code = '';
       postcss.stringify(asset.ast.program, c => (code += c));

@@ -122,12 +122,10 @@ export default class HMRServer {
           }
         }
 
-        let output = await asset.getOutput();
-
         return {
           id: asset.id,
           type: asset.type,
-          output: output.code,
+          output: await asset.getCode(),
           envHash: md5FromObject(asset.env),
           deps
         };

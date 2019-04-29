@@ -11,7 +11,6 @@ import type {
   ParcelOptions,
   JSONObject,
   CacheEntry,
-  Asset,
   Environment
 } from '@parcel/types';
 import {serialize, deserialize} from '@parcel/utils/src/serializer';
@@ -90,38 +89,13 @@ export class Cache {
     return new CacheReference(path.relative(this.dir, blobPath));
   }
 
-  async _writeBlobs(assets: Array<Asset>): Promise<Array<Asset>> {
-    return Promise.all(
-      assets.map(async asset => {
-        let assetCacheId = this.getCacheId(asset.id, asset.env);
-        for (let blobKey in asset.output) {
-          asset.output[blobKey] = await this.writeBlob(
-            blobKey,
-            assetCacheId,
-            asset.output[blobKey]
-          );
-        }
-
-        return asset;
-      })
-    );
-  }
-
-  async writeBlobs(cacheEntry: CacheEntry): Promise<CacheEntry> {
-    cacheEntry.assets = await this._writeBlobs(cacheEntry.assets);
-    if (cacheEntry.initialAssets) {
-      cacheEntry.initialAssets = await this._writeBlobs(
-        cacheEntry.initialAssets
-      );
-    }
-
-    return cacheEntry;
-  }
-
   async write(cacheEntry: CacheEntry): Promise<void> {
     try {
       let cacheId = this.getCacheId(cacheEntry.filePath, cacheEntry.env);
-      await this.writeBlobs(cacheEntry);
+      await Promise.all([
+        ...cacheEntry.assets.map(asset => asset.writeBlobs()),
+        ...(cacheEntry.initialAssets || []).map(asset => asset.writeBlobs())
+      ]);
       await this.writeBlob('json', cacheId, cacheEntry);
       this.invalidated.delete(cacheEntry.filePath);
     } catch (err) {
@@ -141,18 +115,6 @@ export class Cache {
     }
 
     return data;
-  }
-
-  async readBlobs(asset: Asset): Promise<void> {
-    await Promise.all(
-      Object.keys(asset.output).map(async blobKey => {
-        if (asset.output[blobKey] instanceof CacheReference) {
-          asset.output[blobKey] = await this.readBlob(
-            asset.output[blobKey].filePath
-          );
-        }
-      })
-    );
   }
 
   async read(filePath: FilePath, env: Environment): Promise<CacheEntry | null> {
@@ -180,6 +142,40 @@ export class Cache {
       this.invalidated.delete(filePath);
     } catch (err) {
       // Fail silently
+    }
+  }
+
+  async get(key: string) {
+    try {
+      // let extension = path.extname(key);
+      // TODO: support more extensions
+      let data = await fs.readFile(this.getCachePath(key), {encoding: 'utf8'});
+
+      // if (extension === '.json') {
+      invariant(typeof data === 'string');
+      return deserialize(data);
+      //}
+
+      //return data;
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return null;
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  async set(key: string, value: any) {
+    try {
+      // TODO: support more than just JSON
+      let blobPath = this.getCachePath(key);
+      let data = serialize(value);
+
+      await fs.writeFile(blobPath, data);
+      return key;
+    } catch (err) {
+      logger.error(`Error writing to cache: ${err.message}`);
     }
   }
 }

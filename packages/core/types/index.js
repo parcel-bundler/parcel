@@ -159,7 +159,7 @@ export type SourceLocation = {|
 |};
 
 export type Meta = {
-  globals?: Map<string, Asset>,
+  globals?: Map<string, {code: string}>,
   [string]: JSONValue
 };
 
@@ -207,17 +207,16 @@ export interface Asset {
   hash: string;
   filePath: FilePath;
   type: string;
-  code: string;
   ast: ?AST;
   dependencies: Map<string, Dependency>;
   connectedFiles: Map<FilePath, File>;
   isIsolated: boolean;
-  output: AssetOutput;
   outputHash: string;
   env: Environment;
   meta: Meta;
   stats: Stats;
 
+  getCode(): Promise<string>;
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
@@ -227,7 +226,7 @@ export interface Asset {
   getPackage(): Promise<PackageJSON | null>;
   addDependency(dep: DependencyOptions): string;
   createChildAsset(result: TransformerResult): Asset;
-  getOutput(): Promise<AssetOutput>;
+  writeBlobs(): Promise<mixed>;
 }
 
 export type Stats = {|
@@ -235,10 +234,9 @@ export type Stats = {|
   size: number
 |};
 
-export type AssetOutput = {|
+export type GenerateOutput = {|
   code: string,
-  map?: SourceMap,
-  [string]: Blob | JSONValue
+  map?: SourceMap
 |};
 
 export type SourceMap = JSONObject;
@@ -247,11 +245,11 @@ export type Blob = string | Buffer;
 export type TransformerResult = {
   type: string,
   code?: string,
+  content?: string,
   ast?: ?AST,
   dependencies?: Array<DependencyOptions> | Map<string, DependencyOptions>,
   connectedFiles?: Array<File> | Map<FilePath, File>,
   isIsolated?: boolean,
-  output?: AssetOutput,
   env?: EnvironmentOpts,
   meta?: Meta
 };
@@ -271,7 +269,7 @@ export type Transformer = {
     asset: Asset,
     config: ?Config,
     opts: ParcelOptions
-  ) => Async<AssetOutput>,
+  ) => Async<GenerateOutput>,
   postProcess?: (
     assets: Array<Asset>,
     config: ?Config,

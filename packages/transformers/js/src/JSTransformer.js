@@ -37,11 +37,8 @@ export default new Transformer({
   },
 
   async parse(asset /*, config , options */) {
-    if (
-      !canHaveDependencies(asset.code) &&
-      !ENV_RE.test(asset.code) &&
-      !FS_RE.test(asset.code)
-    ) {
+    let code = await asset.getCode();
+    if (!canHaveDependencies(code) && !ENV_RE.test(code) && !FS_RE.test(code)) {
       return null;
     }
 
@@ -49,7 +46,7 @@ export default new Transformer({
       type: 'babel',
       version: '7.0.0',
       isDirty: false,
-      program: parse(asset.code, {
+      program: parse(code, {
         filename: this.name,
         allowReturnOutsideFunction: true,
         strictMode: false,
@@ -66,14 +63,15 @@ export default new Transformer({
     }
 
     let ast = asset.ast;
+    let code = await asset.getCode();
 
     // Inline environment variables
-    if (!asset.env.isNode() && ENV_RE.test(asset.code)) {
+    if (!asset.env.isNode() && ENV_RE.test(code)) {
       walk.simple(ast.program, envVisitor, asset);
     }
 
     // Collect dependencies
-    if (canHaveDependencies(asset.code) || ast.isDirty) {
+    if (canHaveDependencies(code) || ast.isDirty) {
       walk.ancestor(ast.program, collectDependencies, asset);
     }
 
@@ -82,7 +80,7 @@ export default new Transformer({
       let fsDep = asset
         .getDependencies()
         .find(dep => dep.moduleSpecifier === 'fs');
-      if (fsDep && FS_RE.test(asset.code)) {
+      if (fsDep && FS_RE.test(code)) {
         // Check if we should ignore fs calls
         // See https://github.com/defunctzombie/node-browser-resolve#skip
         let pkg = await asset.getPackage();
@@ -98,7 +96,7 @@ export default new Transformer({
       }
 
       // Insert node globals
-      if (GLOBAL_RE.test(asset.code)) {
+      if (GLOBAL_RE.test(code)) {
         asset.meta.globals = new Map();
         walk.ancestor(ast.program, insertGlobals, asset);
       }
@@ -106,7 +104,7 @@ export default new Transformer({
 
     // Convert ES6 modules to CommonJS
     if (asset.meta.isES6Module) {
-      let res = babelCore.transformFromAst(ast.program, asset.code, {
+      let res = babelCore.transformFromAst(ast.program, code, {
         code: false,
         ast: true,
         filename: asset.filePath,
@@ -123,8 +121,9 @@ export default new Transformer({
   },
 
   async generate(asset /*, config, options*/) {
+    let code = await asset.getCode();
     let res = {
-      code: asset.code
+      code
     };
 
     if (asset.ast && asset.ast.isDirty !== false) {
@@ -134,7 +133,7 @@ export default new Transformer({
           // sourceMaps: options.sourceMaps,
           // sourceFileName: asset.relativeName
         },
-        asset.code
+        code
       );
 
       res.code = generated.code;
@@ -149,7 +148,6 @@ export default new Transformer({
         '\n' +
         res.code;
     }
-
     delete asset.meta.globals;
     return res;
   }

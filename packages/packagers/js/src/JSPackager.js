@@ -13,7 +13,7 @@ export default new Packager({
     let promises = [];
     bundle.traverse(node => {
       if (node.type === 'asset') {
-        promises.push(node.value.getOutput());
+        promises.push(node.value.getCode());
       }
     });
     let outputs = await Promise.all(promises);
@@ -52,7 +52,7 @@ export default new Packager({
         wrapped +=
           JSON.stringify(asset.id) +
           ':[function(require,module,exports) {\n' +
-          (output.code || '') +
+          (output || '') +
           '\n},';
         wrapped += JSON.stringify(deps);
         wrapped += ']';

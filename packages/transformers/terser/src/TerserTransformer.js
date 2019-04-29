@@ -60,7 +60,7 @@ export default new Transformer({
       terserOptions = Object.assign({}, terserOptions, config);
     }
 
-    let result = minify(asset.code, terserOptions);
+    let result = minify(await asset.getCode(), terserOptions);
 
     // if (sourceMap && asset.output.map) {
     //   sourceMap = await new SourceMap().extendSourceMap(
@@ -77,10 +77,8 @@ export default new Transformer({
     return [
       {
         type: 'js',
-        output: {
-          code
-          // map: sourceMap
-        }
+        code
+        // map: sourceMap
       }
     ];
   }

@@ -70,7 +70,7 @@ export default async function getBabelConfig(asset: Asset) {
     ]);
 
   if (!hasFlow) {
-    let flowConfig = getFlowConfig(asset);
+    let flowConfig = await getFlowConfig(asset);
     mergeConfigs(result, flowConfig);
   }
 
