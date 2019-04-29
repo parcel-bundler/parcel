@@ -2,9 +2,9 @@
 
 import type {
   Asset as IAsset,
-  AssetOutput,
   CacheEntry,
   File,
+  GenerateOutput,
   Transformer,
   TransformerRequest,
   ParcelOptions
@@ -23,7 +23,7 @@ type Opts = {|
   options: ParcelOptions
 |};
 
-type GenerateFunc = ?(input: Asset) => Promise<AssetOutput>;
+type GenerateFunc = ?(input: Asset) => Promise<GenerateOutput>;
 
 export default class TransformerRunner {
   options: ParcelOptions;
@@ -62,7 +62,7 @@ export default class TransformerRunner {
       filePath: req.filePath,
       type: path.extname(req.filePath).slice(1),
       ast: null,
-      code,
+      content: code,
       env: req.env
     });
 
@@ -188,8 +188,7 @@ export default class TransformerRunner {
       previousGenerate
     ) {
       let output = await previousGenerate(input);
-      input.output = output;
-      input.code = output.code;
+      input.content = output.code;
       input.ast = null;
     }
 
@@ -202,7 +201,7 @@ export default class TransformerRunner {
     let results = await transformer.transform(input, config, this.options);
 
     // Create a generate function that can be called later to lazily generate
-    let generate = async (input: Asset): Promise<AssetOutput> => {
+    let generate = async (input: Asset): Promise<GenerateOutput> => {
       if (transformer.generate) {
         return transformer.generate(input, config, this.options);
       }
@@ -238,12 +237,11 @@ export default class TransformerRunner {
 
 async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
   if (asset.ast && generate) {
-    asset.output = await generate(asset);
+    asset.content = (await generate(asset)).code;
   }
 
   asset.ast = null;
-  asset.code = '';
-  asset.outputHash = md5FromString(asset.output.code);
+  asset.outputHash = md5FromString(asset.content);
 
   return asset;
 }
