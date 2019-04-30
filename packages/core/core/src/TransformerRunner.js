@@ -13,14 +13,13 @@ import Asset from './Asset';
 import path from 'path';
 import clone from 'clone';
 import {
-  md5FromBlob,
   md5FromFilePath,
   md5FromReadableStream,
   md5FromString
 } from '@parcel/utils/src/md5';
 import Cache from '@parcel/cache';
-// import * as fs from '@parcel/fs';
 import {createReadStream} from 'fs';
+import TapStream from '@parcel/utils/src/TapStream';
 import Config from './Config';
 import {report} from './ReporterRunner';
 
@@ -250,7 +249,15 @@ async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
   }
 
   asset.ast = null;
-  asset.outputHash = await md5FromBlob(asset.content);
+  let size = 0;
+  asset.outputHash = await md5FromReadableStream(
+    asset.getStream().pipe(
+      new TapStream(buf => {
+        size += buf.length;
+      })
+    )
+  );
+  asset.stats.size = size;
 
   return asset;
 }

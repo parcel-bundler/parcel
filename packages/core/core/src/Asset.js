@@ -110,14 +110,7 @@ export default class Asset implements IAsset {
   }
 
   async getCode(): Promise<string> {
-    let contentKey = this.contentKey;
-    if (contentKey) {
-      let content = Cache.getStream(contentKey);
-      if (content == null) {
-        throw new Error('Missing cache entry');
-      }
-      this.content = content;
-    }
+    this.readFromCacheIfKey();
 
     let content = this.content;
     if (typeof content === 'string') {
@@ -136,11 +129,20 @@ export default class Asset implements IAsset {
   }
 
   getStream(): Readable {
+    this.readFromCacheIfKey();
+
     if (this.content instanceof Readable) {
       return this.content;
     }
 
     return readableFromStringOrBuffer(this.content);
+  }
+
+  readFromCacheIfKey() {
+    let contentKey = this.contentKey;
+    if (contentKey) {
+      this.content = Cache.getStream(contentKey);
+    }
   }
 
   generateCacheKey(key: string): string {
@@ -187,7 +189,7 @@ export default class Asset implements IAsset {
       env: this.env.merge(result.env),
       dependencies: this.dependencies,
       connectedFiles: this.connectedFiles,
-      meta: Object.assign({}, this.meta, result.meta)
+      meta: {...this.meta, ...result.meta}
     });
 
     let dependencies = result.dependencies;
