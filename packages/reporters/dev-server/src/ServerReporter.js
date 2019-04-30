@@ -7,13 +7,14 @@ const DEFAULT_CACHE_DIR = '.parcel-cache';
 let servers: Map<number, Server> = new Map();
 export default new Reporter({
   async report(event, options, targets) {
-    if (!options.serve) return;
+    let serve = options.serve;
+    if (!serve) return;
 
     let isBrowser = targets.some(target => target.env.context === 'browser');
     if (!isBrowser) return;
 
     let serverOptions = {
-      ...options.serve,
+      ...serve,
       cacheDir: options.cacheDir || DEFAULT_CACHE_DIR,
       distDir: 'dist', //options.distDir, // ! Not sure how this works now
       publicUrl: options.publicUrl || '/'

@@ -69,7 +69,7 @@ export default async function dumpGraphToGraphViz(
       );
       label += rootAssets
         .map(asset => {
-          invariant(asset.type === 'asset');
+          invariant(asset.type === 'asset' || asset.type === 'asset_reference');
           let parts = asset.value.filePath.split(path.sep);
           let index = parts.lastIndexOf('node_modules');
           if (index >= 0) {

@@ -305,16 +305,19 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return entries;
   }
 
-  removeAsset(asset: Asset): void {
+  removeAsset(asset: Asset): ?NodeId {
     let assetNode = this.getNode(asset.id);
     if (!assetNode) {
       return;
     }
 
+    let referenceId = 'asset_reference:' + assetNode.id;
     this.replaceNode(assetNode, {
       type: 'asset_reference',
-      id: 'asset_reference:' + assetNode.id,
+      id: referenceId,
       value: asset
     });
+
+    return referenceId;
   }
 }

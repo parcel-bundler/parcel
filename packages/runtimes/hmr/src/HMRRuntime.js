@@ -1,5 +1,4 @@
-// @flow
-// import type {BundleGroupNode} from '@parcel/types';
+// @flow strict-local
 
 import {Runtime} from '@parcel/plugin';
 import {readFile} from '@parcel/fs';
@@ -9,7 +8,7 @@ import path from 'path';
 const HMR_RUNTIME = './loaders/hmr-runtime.js';
 
 export default new Runtime({
-  async apply(bundle, options) {
+  async apply(bundle, bundleGraph, options) {
     if (bundle.type !== 'js' || !options.hot) {
       return;
     }
@@ -20,19 +19,11 @@ export default new Runtime({
       );
     }
 
-    let root = Array.from(bundle.assetGraph.nodes.values()).find(
-      asset => asset.type === 'root'
-    );
-
-    if (!root || !options.hot) return;
-
-    // $FlowFixMe
-    await bundle.assetGraph.addRuntimeAsset(root, {
+    return {
       filePath: __filename,
-      env: bundle.env,
       code:
         `var __PARCEL_HMR_ENV_HASH = "${md5FromObject(bundle.env)}";` +
         (await readFile(path.join(__dirname, HMR_RUNTIME))).toString('utf8')
-    });
+    };
   }
 });

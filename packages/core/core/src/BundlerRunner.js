@@ -138,9 +138,13 @@ export default class BundlerRunner {
       let subGraph = graph.getSubGraph(nullthrows(graph.getNode(entry.id)));
 
       // Exclude modules that are already included in an ancestor bundle
+      let entryId = entry.id;
       subGraph.traverseAssets(asset => {
         if (bundleGraph.isAssetInAncestorBundle(bundle, asset)) {
-          subGraph.removeAsset(asset);
+          let removedId = subGraph.removeAsset(asset);
+          if (entry.id === asset.id && removedId != null) {
+            entryId = removedId;
+          }
         }
       });
 
@@ -152,7 +156,7 @@ export default class BundlerRunner {
         from: bundleGroup
           ? getBundleGroupId(bundleGroup)
           : nullthrows(bundle.assetGraph.getRootNode()).id,
-        to: entry.id
+        to: entryId
       });
     }
   }
