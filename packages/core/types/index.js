@@ -297,6 +297,7 @@ export type GraphTraversalCallback<TNode, TContext> = (
 
 // Not a directly exported interface.
 interface AssetGraphLike {
+  getDependencies(asset: Asset): Array<Dependency>;
   getDependencyResolution(dependency: Dependency): ?Asset;
   traverseAssets<TContext>(
     visit: GraphTraversalCallback<Asset, TContext>
@@ -323,7 +324,6 @@ export interface Bundle extends AssetGraphLike {
   +target: ?Target;
   +filePath: ?FilePath;
   +stats: Stats;
-  getDependencies(asset: Asset): Array<Dependency>;
   getEntryAssets(): Array<Asset>;
   getTotalSize(asset?: Asset): number;
 }
