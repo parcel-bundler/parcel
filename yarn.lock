@@ -7083,7 +7083,7 @@ longest@^1.0.1:
   resolved "https://registry.yarnpkg.com/longest/-/longest-1.0.1.tgz#30a0b2da38f73770e8294a0d22e6625ed77d0097"
   integrity sha1-MKCy2jj3N3DoKUoNIuZiXtd9AJc=
 
-loose-envify@^1.0.0, loose-envify@^1.4.0:
+loose-envify@^1.0.0:
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/loose-envify/-/loose-envify-1.4.0.tgz#71ee51fa7be4caec1a63839f7e682d8132d30caf"
   integrity sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==
@@ -8863,12 +8863,10 @@ posthtml@^0.11.2, posthtml@^0.11.3:
     posthtml-parser "^0.3.3"
     posthtml-render "^1.1.0"
 
-preact@^10.0.0-alpha.2:
-  version "10.0.0-alpha.2"
-  resolved "https://registry.yarnpkg.com/preact/-/preact-10.0.0-alpha.2.tgz#61ba4f2ca20b75352ad5ed8aa239302df83dae74"
-  integrity sha512-8G0UFC0Sa/giqI/jR3LIHzj0ohsIC4wnB+8+XdpHFEZ5GmtFLmQgkrrkdR0EcEAdd38geClUSj30H8AEIO4OqA==
-  dependencies:
-    prop-types "^15.6.2"
+preact@^10.0.0-beta.0:
+  version "10.0.0-beta.0"
+  resolved "https://registry.yarnpkg.com/preact/-/preact-10.0.0-beta.0.tgz#8d53947b167449c09a678fefc2085c0f56ed34bd"
+  integrity sha512-BKd77y7ZpPLybjtM35DJtzXj+sxlAt29MCMGOJnSrsv1jt30aE/wS9qoU9nL8ih+yhal3B22mGAvuh2mGLAFMg==
 
 prelude-ls@~1.1.2:
   version "1.1.2"
@@ -8944,15 +8942,6 @@ promzard@^0.3.0:
   integrity sha1-JqXW7ox97kyxIggwWs+5O6OCqe4=
   dependencies:
     read "1"
-
-prop-types@^15.6.2:
-  version "15.7.2"
-  resolved "https://registry.yarnpkg.com/prop-types/-/prop-types-15.7.2.tgz#52c41e75b8c87e72b9d9360e0206b99dcbffa6c5"
-  integrity sha512-8QQikdH7//R2vurIJSutZ1smHYTcLpRWEOlHnzcWHmBYrOGUysKwSsrC89BCiFj3CbrfJ/nXFdJepOVrY1GCHQ==
-  dependencies:
-    loose-envify "^1.4.0"
-    object-assign "^4.1.1"
-    react-is "^16.8.1"
 
 proto-list@~1.2.1:
   version "1.2.4"
@@ -9230,11 +9219,6 @@ react-codemirror2@^5.1.0:
   version "5.1.0"
   resolved "https://registry.yarnpkg.com/react-codemirror2/-/react-codemirror2-5.1.0.tgz#62de4460178adea40eb52eabf7491669bf3794b8"
   integrity sha512-Cksbgbviuf2mJfMyrKmcu7ycK6zX/ukuQO8dvRZdFWqATf5joalhjFc6etnBdGCcPA2LbhIwz+OPnQxLN/j1Fw==
-
-react-is@^16.8.1:
-  version "16.8.4"
-  resolved "https://registry.yarnpkg.com/react-is/-/react-is-16.8.4.tgz#90f336a68c3a29a096a3d648ab80e87ec61482a2"
-  integrity sha512-PVadd+WaUDOAciICm/J1waJaSvgq+4rHE/K70j0PFqKhkTBsPv/82UGQJNXAngz1fOQLLxI6z1sEDmJDQhCTAA==
 
 read-cmd-shim@^1.0.1:
   version "1.0.1"

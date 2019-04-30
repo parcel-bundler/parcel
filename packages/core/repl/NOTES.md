@@ -60,7 +60,7 @@ parcel-bundler: (worker)
 
 ### REPL Issues
 
-- use onInput (debounce hash updating)
+- onInput for options & header (debounce cache update)
 - "Production" ? NODE_ENV ? As cli flag?
 - sass illegal invocation: https://github.com/mbullington/node_preamble.dart/issues/14
 - builtins/bundle loaders: fs.readFileSync(require.resolve)
@@ -76,12 +76,14 @@ parcel-bundler: (worker)
 
 ##### Performance
 
-- PWA for caching
-- Lazy load large asset types
+- SW for caching
 
 ##### Maybe/Longterm
 
-- Preview using blob url in iframe?
+- Preview using blob url in iframe
 - Add a "expand" pull tab to options box
 - Feedback that bundling was started/finished
 - with Parcel 2: display graph
+- Lazy load large asset types
+-
+- Parcel 2: test coverage
