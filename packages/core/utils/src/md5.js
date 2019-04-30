@@ -1,5 +1,8 @@
 // @flow strict-local
 
+// import type {Blob} from '@parcel/types';
+import type {Readable} from 'stream';
+
 import invariant from 'assert';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -7,7 +10,7 @@ import fs from 'fs';
 type StringHashEncoding = 'hex' | 'latin1' | 'binary' | 'base64';
 
 export function md5FromString(
-  string: string,
+  string: string | Buffer,
   encoding: StringHashEncoding = 'hex'
 ): string {
   return crypto
@@ -16,9 +19,9 @@ export function md5FromString(
     .digest(encoding);
 }
 
-export function md5FromFilePath(filePath: string): Promise<string> {
+export function md5FromReadableStream(stream: Readable): Promise<string> {
   return new Promise((resolve, reject) => {
-    fs.createReadStream(filePath)
+    stream
       .pipe(crypto.createHash('md5').setEncoding('hex'))
       .on('finish', function() {
         resolve(this.read());
@@ -53,4 +56,16 @@ export function md5FromObject(
   encoding: StringHashEncoding = 'hex'
 ): string {
   return md5FromString(JSON.stringify(sortObject(obj)), encoding);
+}
+
+export function md5FromFilePath(filePath: string): Promise<string> {
+  return md5FromReadableStream(fs.createReadStream(filePath));
+}
+
+export function md5FromBlob(blob: string | Buffer | Readable) {
+  if (typeof blob === 'string' || blob instanceof Buffer) {
+    return md5FromString(blob);
+  }
+
+  return md5FromReadableStream(blob);
 }

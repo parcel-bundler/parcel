@@ -204,7 +204,7 @@ export type TransformerRequest = {
 
 export interface Asset {
   id: string;
-  hash: string;
+  hash: ?string;
   filePath: FilePath;
   type: string;
   ast: ?AST;

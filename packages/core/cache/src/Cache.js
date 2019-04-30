@@ -1,11 +1,7 @@
 // @flow
 
-import * as fs from '@parcel/fs';
-import invariant from 'assert';
-import path from 'path';
-import {md5FromString} from '@parcel/utils/src/md5';
-import objectHash from '@parcel/utils/src/objectHash';
-import logger from '@parcel/logger';
+import type {Readable} from 'stream';
+
 import type {
   FilePath,
   ParcelOptions,
@@ -13,6 +9,14 @@ import type {
   CacheEntry,
   Environment
 } from '@parcel/types';
+
+import * as fs from '@parcel/fs';
+import {createReadStream, createWriteStream} from 'fs';
+import invariant from 'assert';
+import path from 'path';
+import {md5FromString} from '@parcel/utils/src/md5';
+import objectHash from '@parcel/utils/src/objectHash';
+import logger from '@parcel/logger';
 import {serialize, deserialize} from '@parcel/utils/src/serializer';
 import pkg from '../package.json';
 
@@ -143,6 +147,19 @@ export class Cache {
     } catch (err) {
       // Fail silently
     }
+  }
+
+  getStream(key: string): Readable {
+    return createReadStream(this.getCachePath(key, '.blob'));
+  }
+
+  async setStream(key: string, stream: Readable): Promise<string> {
+    return new Promise((resolve, reject) => {
+      stream
+        .pipe(createWriteStream(this.getCachePath(key, '.blob')))
+        .on('error', reject)
+        .on('finish', () => resolve(key));
+    });
   }
 
   async get(key: string) {
