@@ -1,5 +1,7 @@
 // @flow strict-local
 
+import type {Readable} from 'stream';
+
 import type {AST as _AST, Config as _Config} from './unsafe';
 
 export type AST = _AST;
@@ -217,6 +219,7 @@ export interface Asset {
   stats: Stats;
 
   getCode(): Promise<string>;
+  getStream(): Readable;
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
@@ -240,7 +243,7 @@ export type GenerateOutput = {|
 |};
 
 export type SourceMap = JSONObject;
-export type Blob = string | Buffer;
+export type Blob = string | Buffer | Readable;
 
 export type TransformerResult = {
   type: string,

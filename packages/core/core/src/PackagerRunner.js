@@ -1,10 +1,12 @@
 // @flow
 
+import {Readable} from 'stream';
 import type {ParcelOptions, Blob, FilePath} from '@parcel/types';
 import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
 
-import {mkdirp, writeFile} from '@parcel/fs';
+import {mkdirp, writeFile, writeFileStream} from '@parcel/fs';
+import TapStream from '@parcel/utils/src/TapStream';
 import {NamedBundle} from './public/Bundle';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -39,10 +41,21 @@ export default class PackagerRunner {
       this.distExists.add(dir);
     }
 
-    await writeFile(filePath, contents);
+    let size;
+    if (contents instanceof Readable) {
+      size = 0;
+      await writeFileStream(
+        filePath,
+        contents.pipe(new TapStream(chunk => (size += chunk.length)))
+      );
+    } else {
+      await writeFile(filePath, contents);
+      size = contents.length;
+    }
+
     return {
       time: Date.now() - start,
-      size: contents.length
+      size
     };
   }
 

@@ -1,6 +1,5 @@
 // @flow strict-local
 
-// import type {Blob} from '@parcel/types';
 import type {Readable} from 'stream';
 
 import invariant from 'assert';
