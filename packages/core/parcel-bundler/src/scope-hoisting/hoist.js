@@ -303,7 +303,7 @@ module.exports = {
     if (t.isIdentifier(callee, {name: 'require'})) {
       let source = args[0].value;
       // Ignore require calls that were ignored earlier.
-      if (!asset.dependencies.has(source)) {
+      if (!asset.getDependencies().has(source)) {
         return;
       }
 
@@ -318,7 +318,7 @@ module.exports = {
           p.isSequenceExpression()
       );
       if (!parent.isProgram() || bail) {
-        asset.dependencies.get(source).shouldWrap = true;
+        asset.getDependencies().get(source).shouldWrap = true;
       }
 
       asset.cacheData.imports['$require$' + source] = [source, '*'];

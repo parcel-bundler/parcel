@@ -1,11 +1,17 @@
 // @flow
-import type {FilePath, ParcelConfig, PackageName} from '@parcel/types';
+
+import type {
+  FilePath,
+  ParcelConfig,
+  ParcelConfigFile,
+  PackageName
+} from '@parcel/types';
 import {resolveConfig} from '@parcel/utils/src/config';
 import Config from './Config';
-import fs from '@parcel/fs';
+import * as fs from '@parcel/fs';
 import {parse} from 'json5';
 import path from 'path';
-import localRequire from '@parcel/utils/src/localRequire';
+import {localResolve} from '@parcel/utils/src/localRequire';
 import assert from 'assert';
 
 type Pipeline = Array<PackageName>;
@@ -31,8 +37,8 @@ export default class ConfigResolver {
   }
 
   async loadConfig(configPath: FilePath) {
-    let config: ParcelConfig = parse(await fs.readFile(configPath));
-    return await this.processConfig({...config, filePath: configPath});
+    let config: ParcelConfigFile = parse(await fs.readFile(configPath));
+    return this.processConfig({...config, filePath: configPath});
   }
 
   async processConfig(config: ParcelConfig) {
@@ -57,8 +63,8 @@ export default class ConfigResolver {
     if (ext.startsWith('.')) {
       return path.resolve(path.dirname(configPath), ext);
     } else {
-      let [resolved] = await localRequire.resolve(ext, configPath);
-      return await fs.realpath(resolved);
+      let [resolved] = await localResolve(ext, configPath);
+      return fs.realpath(resolved);
     }
   }
 

@@ -1,50 +1,63 @@
-const WorkerFarm = require('@parcel/workers');
-const EventEmitter = require('events');
-const inspect = require('util').inspect;
+// @flow strict-local
 
-class Logger extends EventEmitter {
-  verbose(message) {
-    this.emit('log', {
+import type {IDisposable, LogEvent} from '@parcel/types';
+
+import EventEmitter from 'events';
+
+class Logger {
+  // TODO: This can't be explicitly annotated as an EventEmitter since
+  // declared private properties with type annotations break eslint's
+  // no-unused-var rule (even with babel-eslint). Annotate this when
+  // things aren't broken: https://github.com/babel/babel-eslint/issues/688
+  #emitter = new EventEmitter();
+
+  onLog(cb: (event: LogEvent) => mixed): IDisposable {
+    this.#emitter.addListener('log', cb);
+    return {
+      dispose: () => {
+        this.#emitter.removeListener('log', cb);
+      }
+    };
+  }
+
+  verbose(message: string): void {
+    this.#emitter.emit('log', {
       type: 'log',
       level: 'verbose',
       message
     });
   }
 
-  info(...args) {
-    let messages = args.map(arg => {
-      if (typeof arg !== 'string') {
-        arg = inspect(arg, {colors: true, depth: 50});
-      }
+  info(message: string): void {
+    this.log(message);
+  }
 
-      return arg;
-    });
-
-    this.emit('log', {
+  log(message: string): void {
+    this.#emitter.emit('log', {
       type: 'log',
       level: 'info',
-      message: messages.join(' ')
+      message
     });
   }
 
-  warn(err) {
-    this.emit('log', {
+  warn(err: Error | string): void {
+    this.#emitter.emit('log', {
       type: 'log',
       level: 'warn',
       message: err
     });
   }
 
-  error(err) {
-    this.emit('log', {
+  error(err: Error | string): void {
+    this.#emitter.emit('log', {
       type: 'log',
       level: 'error',
       message: err
     });
   }
 
-  progress(message) {
-    this.emit('log', {
+  progress(message: string): void {
+    this.#emitter.emit('log', {
       type: 'log',
       level: 'progress',
       message
@@ -52,42 +65,5 @@ class Logger extends EventEmitter {
   }
 }
 
-// If we are in a worker, make a proxy class which will
-// send the logger calls to the main process via IPC.
-// These are handled in WorkerFarm and directed to handleMessage above.
-if (WorkerFarm.isWorker()) {
-  class LoggerProxy {}
-  for (let method of Object.getOwnPropertyNames(Logger.prototype)) {
-    LoggerProxy.prototype[method] = (...args) => {
-      WorkerFarm.callMaster(
-        {
-          location: __filename,
-          method,
-          args
-        },
-        false
-      );
-    };
-  }
-
-  module.exports = new LoggerProxy();
-} else {
-  module.exports = new Logger();
-}
-
-let logger = module.exports;
-
-// eslint-disable-next-line no-console
-// console.log = (...args) => {
-//   logger.info(...args);
-// };
-
-// // eslint-disable-next-line no-console
-// console.warn = (...args) => {
-//   logger.warn(...args);
-// };
-
-// // eslint-disable-next-line no-console
-// console.error = (...args) => {
-//   logger.error(...args);
-// };
+const logger = new Logger();
+export default logger;

@@ -1,4 +1,5 @@
 // @flow
+
 import type {
   ParcelConfig,
   FilePath,
@@ -14,7 +15,7 @@ import type {
   Optimizer,
   Reporter
 } from '@parcel/types';
-import localRequire from '@parcel/utils/src/localRequire';
+import {localResolve} from '@parcel/utils/src/localRequire';
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
 import {CONFIG} from '@parcel/plugin';
@@ -71,10 +72,10 @@ export default class Config {
       return cached;
     }
 
-    let [resolved, pkg] = await localRequire.resolve(pluginName, this.filePath);
+    let [resolved, pkg] = await localResolve(pluginName, this.filePath);
 
     // Validate the engines.parcel field in the plugin's package.json
-    let parcelVersionRange = pkg.engines && pkg.engines.parcel;
+    let parcelVersionRange = pkg && pkg.engines && pkg.engines.parcel;
     if (!parcelVersionRange) {
       logger.warn(
         `The plugin "${pluginName}" needs to specify a \`package.json#engines.parcel\` field with the supported Parcel version range.`
@@ -144,7 +145,7 @@ export default class Config {
       return [];
     }
 
-    return await this.loadPlugins(runtimes);
+    return this.loadPlugins(runtimes);
   }
 
   async getPackager(filePath: FilePath): Promise<Packager> {
@@ -156,7 +157,7 @@ export default class Config {
       throw new Error(`No packager found for "${filePath}".`);
     }
 
-    return await this.loadPlugin(packagerName);
+    return this.loadPlugin(packagerName);
   }
 
   async getOptimizers(filePath: FilePath): Promise<Array<Optimizer>> {
@@ -168,11 +169,11 @@ export default class Config {
       return [];
     }
 
-    return await this.loadPlugins(optimizers);
+    return this.loadPlugins(optimizers);
   }
 
   async getReporters(): Promise<Array<Reporter>> {
-    return await this.loadPlugins(this.reporters);
+    return this.loadPlugins(this.reporters);
   }
 
   isGlobMatch(filePath: FilePath, pattern: Glob) {

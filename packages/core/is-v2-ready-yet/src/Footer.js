@@ -31,13 +31,13 @@ class Footer extends React.Component {
             Project Board
           </FooterLink>
           &middot;
-          <FooterLink href="parcel-bundler/parcel/tree/v2-work-so-far/packages/core/is-v2-ready-yet">
+          <FooterLink href="parcel-bundler/parcel/tree/v2/packages/core/is-v2-ready-yet">
             Page Source
           </FooterLink>
         </div>
         <div className="FooterRow">
           <FooterLink href="tomocchino/isfiberreadyyet">
-            Forked from "Is Fiber Ready Yet?"
+            Forked from {'"Is Fiber Ready Yet?"'}
           </FooterLink>
         </div>
       </div>

@@ -1,32 +1,25 @@
-// @flow
+// @flow strict-local
+
 import type {
-  ReporterEvent,
-  LogEvent,
   BundleGraph,
-  ParcelOptions
+  LogEvent,
+  ParcelOptions,
+  ProgressLogEvent,
+  ReporterEvent
 } from '@parcel/types';
 import {Color} from 'ink';
 import React from 'react';
 import {Log, Progress} from './Log';
 import prettifyTime from '@parcel/utils/src/prettifyTime';
+import logLevels from './logLevels';
+import {getProgressMessage} from './utils';
 import BundleReport from './BundleReport';
-import path from 'path';
 
-type UIState = {
-  progress: ?LogEvent,
+type UIState = {|
+  progress: ?ProgressLogEvent,
   logs: Array<LogEvent>,
   bundleGraph: ?BundleGraph
-};
-
-const LOG_LEVELS = {
-  none: 0,
-  error: 1,
-  warn: 2,
-  info: 3,
-  progress: 3,
-  success: 3,
-  verbose: 4
-};
+|};
 
 export default class UI extends React.PureComponent<{}, UIState> {
   state = {
@@ -39,7 +32,9 @@ export default class UI extends React.PureComponent<{}, UIState> {
     return (
       <Color reset>
         <div>
-          {this.state.logs.map((log, i) => <Log key={i} event={log} />)}
+          {this.state.logs.map((log, i) => (
+            <Log key={i} event={log} />
+          ))}
           {this.state.progress ? (
             <Progress event={this.state.progress} />
           ) : null}
@@ -61,11 +56,11 @@ function reducer(
   event: ReporterEvent,
   options: ParcelOptions
 ): UIState {
-  let logLevel = LOG_LEVELS[options.logLevel || 'info'];
+  let logLevel = logLevels[options.logLevel || 'info'];
 
   switch (event.type) {
     case 'buildStart':
-      if (logLevel < LOG_LEVELS.info) {
+      if (logLevel < logLevels.info) {
         break;
       }
 
@@ -76,13 +71,13 @@ function reducer(
       };
 
     case 'buildProgress':
-      if (logLevel < LOG_LEVELS.progress) {
+      if (logLevel < logLevels.progress) {
         break;
       }
 
       var message = getProgressMessage(event);
       var progress = state.progress;
-      if (message) {
+      if (message != null) {
         progress = {
           type: 'log',
           level: 'progress',
@@ -96,7 +91,7 @@ function reducer(
       };
 
     case 'buildSuccess':
-      if (logLevel < LOG_LEVELS.info) {
+      if (logLevel < logLevels.info) {
         break;
       }
 
@@ -104,7 +99,8 @@ function reducer(
       return {
         ...state,
         progress: null,
-        bundleGraph: options.mode === 'production' ? event.bundleGraph : null,
+        // bundleGraph: options.mode === 'production' ? event.bundleGraph : null,
+        bundleGraph: event.bundleGraph,
         logs: [
           ...state.logs,
           {
@@ -116,7 +112,7 @@ function reducer(
       };
 
     case 'buildFailure':
-      if (logLevel < LOG_LEVELS.error) {
+      if (logLevel < logLevels.error) {
         break;
       }
 
@@ -134,7 +130,7 @@ function reducer(
       };
 
     case 'log':
-      if (logLevel < LOG_LEVELS[event.level]) {
+      if (logLevel < logLevels[event.level]) {
         break;
       }
 
@@ -158,22 +154,4 @@ function reducer(
   }
 
   return state;
-}
-
-function getProgressMessage(event) {
-  switch (event.phase) {
-    case 'transforming':
-      return `Building ${path.basename(event.request.filePath)}...`;
-
-    case 'bundling':
-      return 'Bundling...';
-
-    case 'packaging':
-      return `Packaging ${path.basename(event.bundle.filePath || '')}...`;
-
-    case 'optimizing':
-      return `Optimizing ${path.basename(event.bundle.filePath || '')}...`;
-  }
-
-  return '';
 }

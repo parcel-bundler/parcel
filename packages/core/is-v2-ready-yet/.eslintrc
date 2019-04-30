@@ -1,11 +1,9 @@
 {
   "extends": "@parcel/eslint-config",
-  "plugins": ["react"],
   "env": {
     "browser": true
   },
   "rules": {
-    "react/jsx-uses-vars": "error",
-    "react/jsx-uses-react": "error"
+    "react/prop-types": "off" // TODO: Enable this when this package is flow-typed
   }
 }

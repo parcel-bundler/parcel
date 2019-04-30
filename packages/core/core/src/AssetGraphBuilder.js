@@ -1,4 +1,7 @@
 // @flow
+
+import type {Node} from './types';
+
 import type {
   ParcelOptions,
   Dependency,
@@ -6,27 +9,22 @@ import type {
   Target,
   TransformerRequest
 } from '@parcel/types';
-import type {Node} from './Graph';
 import type Config from './Config';
 import EventEmitter from 'events';
-import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import {
+  AbortController,
+  type AbortSignal
+} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import Watcher from '@parcel/watcher';
-import PromiseQueue from './PromiseQueue';
+import PromiseQueue from '@parcel/utils/src/PromiseQueue';
 import AssetGraph from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import WorkerFarm from '@parcel/workers';
 
-const abortError = new Error('Build aborted');
-
-type Signal = {
-  aborted: boolean,
-  addEventListener?: Function
-};
-
-type BuildOpts = {
-  signal: Signal,
+type BuildOpts = {|
+  signal: AbortSignal,
   shallow?: boolean
-};
+|};
 
 type Opts = {|
   options: ParcelOptions,
@@ -46,21 +44,28 @@ export default class AssetGraphBuilder extends EventEmitter {
   farm: WorkerFarm;
   runTransform: (file: TransformerRequest) => Promise<any>;
 
-  constructor(opts: Opts) {
+  constructor({
+    config,
+    options,
+    rootDir,
+    entries,
+    targets,
+    transformerRequest
+  }: Opts) {
     super();
 
     this.queue = new PromiseQueue();
     this.resolverRunner = new ResolverRunner({
-      config: opts.config,
-      options: opts.options,
-      rootDir: opts.rootDir
+      config,
+      options,
+      rootDir
     });
 
     this.graph = new AssetGraph();
-    this.graph.initializeGraph(opts);
+    this.graph.initializeGraph({entries, targets, transformerRequest, rootDir});
 
     this.controller = new AbortController();
-    if (opts.options.watch) {
+    if (options.watch) {
       this.watcher = new Watcher();
       this.watcher.on('change', async filePath => {
         if (this.graph.hasNode(filePath)) {
@@ -134,7 +139,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
 
     if (signal.aborted) {
-      throw abortError;
+      throw new BuildAbortError();
     }
 
     let {newRequest} = this.graph.resolveDependency(dep, req);
@@ -153,7 +158,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       asset.stats.time = time;
     }
 
-    if (signal.aborted) throw abortError;
+    if (signal.aborted) throw new BuildAbortError();
     let {
       addedFiles,
       removedFiles,
@@ -177,4 +182,8 @@ export default class AssetGraphBuilder extends EventEmitter {
       }
     }
   }
+}
+
+export class BuildAbortError extends Error {
+  name = 'BuildAbortError';
 }

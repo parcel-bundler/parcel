@@ -1,42 +1,51 @@
 // @flow
+
 import type {
   Asset as IAsset,
-  TransformerResult,
-  DependencyOptions,
-  Dependency as IDependency,
-  FilePath,
-  File,
-  Environment,
-  JSONObject,
-  AST,
   AssetOutput,
+  AST,
   Config,
+  Dependency as IDependency,
+  DependencyOptions,
+  Environment,
+  File,
+  FilePath,
+  Meta,
   PackageJSON,
   Stats,
-  Symbol
+  Symbol,
+  TransformerResult
 } from '@parcel/types';
-import md5 from '@parcel/utils/lib/md5';
-import {loadConfig} from '@parcel/utils/lib/config';
+import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
+import {loadConfig} from '@parcel/utils/src/config';
 import Cache from '@parcel/cache';
 import Dependency from './Dependency';
 
-type AssetOptions = {
+type AssetOptions = {|
   id?: string,
   hash?: string,
   filePath: FilePath,
   type: string,
   code?: string,
   ast?: ?AST,
-  dependencies?: Array<IDependency>,
-  connectedFiles?: Array<File>,
+  dependencies?: Iterable<[string, IDependency]>,
+  connectedFiles?: Iterable<[FilePath, File]>,
   output?: AssetOutput,
   outputHash?: string,
   env: Environment,
-  meta?: JSONObject,
+  meta?: Meta,
   stats?: Stats,
   symbols?: Map<Symbol, Symbol> | Array<[Symbol, Symbol]>,
   sideEffects?: boolean
-};
+|};
+
+type SerializedOptions = {|
+  ...AssetOptions,
+  ...{|
+    connectedFiles: Array<[FilePath, File]>,
+    dependencies: Array<[string, IDependency]>
+  |}
+|};
 
 export default class Asset implements IAsset {
   id: string;
@@ -45,12 +54,12 @@ export default class Asset implements IAsset {
   type: string;
   code: string;
   ast: ?AST;
-  dependencies: Array<IDependency>;
-  connectedFiles: Array<File>;
+  dependencies: Map<string, IDependency>;
+  connectedFiles: Map<FilePath, File>;
   output: AssetOutput;
   outputHash: string;
   env: Environment;
-  meta: JSONObject;
+  meta: Meta;
   stats: Stats;
   symbols: Map<Symbol, Symbol>;
   sideEffects: boolean;
@@ -58,18 +67,20 @@ export default class Asset implements IAsset {
   constructor(options: AssetOptions) {
     this.id =
       options.id ||
-      md5(options.filePath + options.type + JSON.stringify(options.env));
+      md5FromString(
+        options.filePath + options.type + JSON.stringify(options.env)
+      );
     this.hash = options.hash || '';
     this.filePath = options.filePath;
     this.type = options.type;
     this.code = options.code || (options.output ? options.output.code : '');
     this.ast = options.ast || null;
     this.dependencies = options.dependencies
-      ? options.dependencies.slice()
-      : [];
+      ? new Map(options.dependencies)
+      : new Map();
     this.connectedFiles = options.connectedFiles
-      ? options.connectedFiles.slice()
-      : [];
+      ? new Map(options.connectedFiles)
+      : new Map();
     this.output = options.output || {code: this.code};
     this.outputHash = options.outputHash || '';
     this.env = options.env;
@@ -82,15 +93,15 @@ export default class Asset implements IAsset {
     this.sideEffects = options.sideEffects != null ? options.sideEffects : true;
   }
 
-  serialize(): AssetOptions {
+  serialize(): SerializedOptions {
     // Exclude `code` and `ast` from cache
     return {
       id: this.id,
       hash: this.hash,
       filePath: this.filePath,
       type: this.type,
-      dependencies: this.dependencies,
-      connectedFiles: this.connectedFiles,
+      dependencies: Array.from(this.dependencies),
+      connectedFiles: Array.from(this.connectedFiles),
       output: this.output,
       outputHash: this.outputHash,
       env: this.env,
@@ -102,33 +113,41 @@ export default class Asset implements IAsset {
   }
 
   addDependency(opts: DependencyOptions) {
-    // $FlowFixMe
+    let {env, ...rest} = opts;
     let dep = new Dependency({
-      ...opts,
-      env: this.env.merge(opts.env),
+      ...rest,
+      env: this.env.merge(env),
       sourcePath: this.filePath
     });
-    let existing = this.dependencies.find(d => d.id === dep.id);
+    let existing = this.dependencies.get(dep.id);
     if (existing) {
       existing.merge(dep);
     } else {
-      this.dependencies.push(dep);
+      this.dependencies.set(dep.id, dep);
     }
     return dep.id;
   }
 
   async addConnectedFile(file: File) {
     if (!file.hash) {
-      file.hash = await md5.file(file.filePath);
+      file.hash = await md5FromFilePath(file.filePath);
     }
 
-    this.connectedFiles.push(file);
+    this.connectedFiles.set(file.filePath, file);
+  }
+
+  getConnectedFiles(): Array<File> {
+    return Array.from(this.connectedFiles.values());
+  }
+
+  getDependencies(): Array<IDependency> {
+    return Array.from(this.dependencies.values());
   }
 
   createChildAsset(result: TransformerResult) {
     let code = (result.output && result.output.code) || result.code || '';
     let opts: AssetOptions = {
-      hash: this.hash || md5(code),
+      hash: this.hash || md5FromString(code),
       filePath: this.filePath,
       type: result.type,
       code,
@@ -145,14 +164,16 @@ export default class Asset implements IAsset {
 
     let asset = new Asset(opts);
 
-    if (result.dependencies) {
-      for (let dep of result.dependencies) {
+    let dependencies = result.dependencies;
+    if (dependencies) {
+      for (let dep of dependencies.values()) {
         asset.addDependency(dep);
       }
     }
 
-    if (result.connectedFiles) {
-      for (let file of result.connectedFiles) {
+    let connectedFiles = result.connectedFiles;
+    if (connectedFiles) {
+      for (let file of connectedFiles.values()) {
         asset.addConnectedFile(file);
       }
     }
@@ -169,14 +190,21 @@ export default class Asset implements IAsset {
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
   ): Promise<Config | null> {
-    if (options && options.packageKey) {
+    let packageKey = options && options.packageKey;
+    let parse = options && options.parse;
+
+    if (packageKey) {
       let pkg = await this.getPackage();
-      if (pkg && options.packageKey && pkg[options.packageKey]) {
-        return pkg[options.packageKey];
+      if (pkg && pkg[packageKey]) {
+        return pkg[packageKey];
       }
     }
 
-    let conf = await loadConfig(this.filePath, filePaths, options);
+    let conf = await loadConfig(
+      this.filePath,
+      filePaths,
+      parse == null ? null : {parse}
+    );
     if (!conf) {
       return null;
     }
@@ -189,6 +217,6 @@ export default class Asset implements IAsset {
   }
 
   async getPackage(): Promise<PackageJSON | null> {
-    return await this.getConfig(['package.json']);
+    return this.getConfig(['package.json']);
   }
 }

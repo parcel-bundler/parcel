@@ -1,41 +1,51 @@
-const config = require('./config');
-const {promisify} = require('util');
-const resolve = promisify(require('resolve'));
-const commandExists = require('command-exists');
-const logger = require('@parcel/logger');
-const pipeSpawn = require('./pipeSpawn');
-const PromiseQueue = require('./PromiseQueue');
-const path = require('path');
-const fs = require('@parcel/fs');
+// @flow
 
-async function install(modules, filepath, options = {}) {
-  let {installPeers = true, saveDev = true, packageManager} = options;
+import type {FilePath} from '@parcel/types';
+
+import WorkerFarm from '@parcel/workers';
+import logger from '@parcel/logger';
+import path from 'path';
+import nullthrows from 'nullthrows';
+
+import {loadConfig, resolveConfig} from './config';
+import Npm from './Npm';
+import PromiseQueue from './PromiseQueue';
+import resolve from './resolve';
+import Yarn from './Yarn';
+
+type InstallOptions = {
+  installPeers?: boolean,
+  saveDev?: boolean,
+  packageManager?: 'npm' | 'yarn'
+};
+
+async function install(
+  modules: Array<string>,
+  filepath: FilePath,
+  options: InstallOptions = {}
+): Promise<void> {
+  let {
+    installPeers = true,
+    saveDev = true,
+    packageManager: packageManagerName
+  } = options;
 
   logger.progress(`Installing ${modules.join(', ')}...`);
 
-  let packageLocation = await config.resolveConfig(filepath, ['package.json']);
+  let packageLocation = await resolveConfig(filepath, ['package.json']);
   let cwd = packageLocation ? path.dirname(packageLocation) : process.cwd();
 
-  if (!packageManager) {
-    packageManager = await determinePackageManager(filepath);
+  if (!packageManagerName) {
+    packageManagerName = await determinePackageManager(filepath);
   }
 
-  let commandToUse = packageManager === 'npm' ? 'install' : 'add';
-  let args = [commandToUse, ...modules];
-  if (saveDev) {
-    args.push('-D');
-  } else if (packageManager === 'npm') {
-    args.push('--save');
-  }
-
-  // npm doesn't auto-create a package.json when installing,
-  // so create an empty one if needed.
-  if (packageManager === 'npm' && !packageLocation) {
-    await fs.writeFile(path.join(cwd, 'package.json'), '{}');
-  }
+  let packageManager =
+    packageManagerName === 'npm'
+      ? new Npm({cwd, packageLocation})
+      : new Yarn({cwd});
 
   try {
-    await pipeSpawn(packageManager, args, {cwd});
+    await packageManager.install(modules, saveDev);
   } catch (err) {
     throw new Error(`Failed to install ${modules.join(', ')}.`);
   }
@@ -47,10 +57,14 @@ async function install(modules, filepath, options = {}) {
   }
 }
 
-async function installPeerDependencies(filepath, name, options) {
+async function installPeerDependencies(
+  filepath: FilePath,
+  name: string,
+  options
+) {
   let basedir = path.dirname(filepath);
-  const resolved = await resolve(name, {basedir});
-  const pkg = await config.loadConfig(resolved, ['package.json']).config;
+  const [resolved] = await resolve(name, {basedir});
+  const pkg = nullthrows(await loadConfig(resolved, ['package.json'])).config;
   const peers = pkg.peerDependencies || {};
 
   const modules = [];
@@ -67,12 +81,14 @@ async function installPeerDependencies(filepath, name, options) {
   }
 }
 
-async function determinePackageManager(filepath) {
-  let configFile = await config.resolveConfig(filepath, [
+async function determinePackageManager(
+  filepath: FilePath
+): Promise<'npm' | 'yarn'> {
+  let configFile = await resolveConfig(filepath, [
     'yarn.lock',
     'package-lock.json'
   ]);
-  let hasYarn = await checkForYarnCommand();
+  let hasYarn = await Yarn.exists();
 
   // If Yarn isn't available, or there is a package-lock.json file, use npm.
   let configName = configFile && path.basename(configFile);
@@ -83,23 +99,46 @@ async function determinePackageManager(filepath) {
   return 'yarn';
 }
 
-let hasYarn = null;
-async function checkForYarnCommand() {
-  if (hasYarn != null) {
-    return hasYarn;
+let queue = new PromiseQueue({maxConcurrent: 1});
+let modulesInstalling: Set<string> = new Set();
+// Exported so that it may be invoked from the worker api below.
+// Do not call this directly! This can result in concurrent package installations
+// across multiple instances of the package manager.
+export function _addToInstallQueue(
+  modules: Array<string>,
+  filePath: FilePath,
+  options?: InstallOptions
+): Promise<mixed> {
+  // Wrap PromiseQueue and track modules that are currently installing.
+  // If a request comes in for a module that is currently installing, don't bother
+  // enqueuing it.
+  //
+  // "module" means anything acceptable to yarn/npm. This can include a semver range,
+  // e.g. "lodash@^3.2.0" -- we don't dedupe unless this entire string is an exact match.
+  let modulesToInstall = modules.filter(m => !modulesInstalling.has(m));
+  if (modulesToInstall.length) {
+    for (let m of modulesToInstall) {
+      modulesInstalling.add(m);
+    }
+
+    queue.add(() =>
+      install(modulesToInstall, filePath, options).then(() => {
+        for (let m of modulesToInstall) {
+          modulesInstalling.delete(m);
+        }
+      })
+    );
   }
 
-  try {
-    hasYarn = await commandExists('yarn');
-  } catch (err) {
-    hasYarn = false;
-  }
-
-  return hasYarn;
+  return queue.run();
 }
 
-let queue = new PromiseQueue(install, {maxConcurrent: 1, retry: false});
-module.exports = function(...args) {
-  queue.add(...args);
-  return queue.run();
-};
+export default function installPackage(
+  ...args: [Array<string>, FilePath] | [Array<string>, FilePath, InstallOptions]
+): Promise<mixed> {
+  return WorkerFarm.callMaster({
+    location: __filename,
+    args,
+    method: '_addToInstallQueue'
+  });
+}

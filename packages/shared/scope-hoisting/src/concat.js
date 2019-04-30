@@ -15,7 +15,7 @@ const PRELUDE = fs.readFileSync(PRELUDE_PATH, 'utf8');
 
 export async function concat(bundle: Bundle, options: ParcelOptions) {
   let promises = [];
-  bundle.assetGraph.traverseAssets(asset => {
+  bundle.traverseAssets(asset => {
     promises.push(processAsset(bundle, asset));
   });
   let outputs = new Map(await Promise.all(promises));
@@ -23,9 +23,7 @@ export async function concat(bundle: Bundle, options: ParcelOptions) {
 
   // If this is an entry bundle and it has child bundles, we need to add the prelude code, which allows
   // registering modules dynamically at runtime.
-  let hasChildBundles = !!Array.from(bundle.assetGraph.nodes.values()).find(
-    node => node.type === 'bundle'
-  );
+  let hasChildBundles = bundle.hasChildBundles();
   let needsPrelude = bundle.isEntry && hasChildBundles;
   let registerEntry = !bundle.isEntry || hasChildBundles;
   if (needsPrelude) {
@@ -34,7 +32,7 @@ export async function concat(bundle: Bundle, options: ParcelOptions) {
 
   let usedExports = getUsedExports(bundle);
 
-  bundle.assetGraph.traverseAssets({
+  bundle.traverseAssets({
     enter(asset, context) {
       if (shouldExcludeAsset(asset, usedExports)) {
         return context;
@@ -90,7 +88,7 @@ export async function concat(bundle: Bundle, options: ParcelOptions) {
     }
   });
 
-  let entry = bundle.assetGraph.getEntryAssets()[0];
+  let entry = bundle.getEntryAssets()[0];
   if (entry && bundle.isEntry) {
     let exportsIdentifier = getName(entry, 'exports');
     if (entry.output.code.includes(exportsIdentifier)) {
@@ -149,9 +147,9 @@ function addComment(statement, comment) {
 
 function getUsedExports(bundle: Bundle): Map<Asset, Set<Symbol>> {
   let usedExports = new Map();
-  bundle.assetGraph.traverseAssets(asset => {
-    for (let dep of bundle.assetGraph.getDependencies(asset)) {
-      let resolvedAsset = bundle.assetGraph.getDependencyResolution(dep);
+  bundle.traverseAssets(asset => {
+    for (let dep of bundle.getDependencies(asset)) {
+      let resolvedAsset = bundle.getDependencyResolution(dep);
       if (!resolvedAsset) {
         continue;
       }
@@ -173,7 +171,7 @@ function getUsedExports(bundle: Bundle): Map<Asset, Set<Symbol>> {
   });
 
   function markUsed(asset, symbol) {
-    let resolved = bundle.assetGraph.resolveSymbol(asset, symbol);
+    let resolved = bundle.resolveSymbol(asset, symbol);
 
     let used = usedExports.get(resolved.asset);
     if (!used) {
@@ -207,13 +205,13 @@ function findRequires(bundle: Bundle, asset: Asset, ast) {
       }
 
       if (callee.name === '$parcel$require') {
-        let dep = bundle.assetGraph
+        let dep = bundle
           .getDependencies(asset)
           .find(dep => dep.moduleSpecifier === args[1].value);
         if (!dep) {
           throw new Error(`Could not find dep for "${args[1].value}`);
         }
-        result.push(bundle.assetGraph.getDependencyResolution(dep));
+        result.push(bundle.getDependencyResolution(dep));
       }
     }
   });
@@ -231,7 +229,7 @@ function shouldWrap(bundle: Bundle, asset: Asset) {
   // We also need to wrap if any of the parents are wrapped - transitive requires
   // shouldn't be evaluated until their parents are.
   let shouldWrap = false;
-  bundle.assetGraph.traverseAncestors(asset, (node, context, traversal) => {
+  bundle.traverseAncestors(asset, (node, context, traversal) => {
     switch (node.type) {
       case 'dependency':
       case 'asset':

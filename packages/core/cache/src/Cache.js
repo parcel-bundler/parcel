@@ -1,9 +1,10 @@
 // @flow
-import fs from '@parcel/fs';
-import pkg from '../package.json';
-import Path from 'path';
-import md5 from '@parcel/utils/lib/md5';
-import objectHash from '@parcel/utils/lib/objectHash';
+
+import * as fs from '@parcel/fs';
+import invariant from 'assert';
+import path from 'path';
+import {md5FromString} from '@parcel/utils/src/md5';
+import objectHash from '@parcel/utils/src/objectHash';
 import logger from '@parcel/logger';
 import type {
   FilePath,
@@ -13,7 +14,8 @@ import type {
   Asset,
   Environment
 } from '@parcel/types';
-import {serialize, deserialize} from '@parcel/utils/serializer';
+import {serialize, deserialize} from '@parcel/utils/src/serializer';
+import pkg from '../package.json';
 
 // These keys can affect the output, so if they differ, the cache should not match
 // const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
@@ -31,7 +33,7 @@ export class Cache {
   optionsHash: string;
 
   init(options: ParcelOptions) {
-    this.dir = Path.resolve(options.cacheDir || DEFAULT_CACHE_DIR);
+    this.dir = path.resolve(options.cacheDir || DEFAULT_CACHE_DIR);
     this.invalidated = new Set();
     this.optionsHash = objectHash(
       OPTION_KEYS.reduce((p: JSONObject, k) => ((p[k] = options[k]), p), {
@@ -40,8 +42,8 @@ export class Cache {
     );
   }
 
-  async createCacheDir(dir: FilePath = DEFAULT_CACHE_DIR) {
-    dir = Path.resolve(dir);
+  async createCacheDir(dir: FilePath = DEFAULT_CACHE_DIR): Promise<void> {
+    dir = path.resolve(dir);
     if (existsCache.has(dir)) {
       return;
     }
@@ -49,25 +51,29 @@ export class Cache {
     // Create sub-directories for every possible hex value
     // This speeds up large caches on many file systems since there are fewer files in a single directory.
     for (let i = 0; i < 256; i++) {
-      await fs.mkdirp(Path.join(dir, ('00' + i.toString(16)).slice(-2)));
+      await fs.mkdirp(path.join(dir, ('00' + i.toString(16)).slice(-2)));
     }
 
     existsCache.add(dir);
   }
 
-  getCacheId(appendedData: string, env: Environment) {
-    return md5(this.optionsHash + appendedData + JSON.stringify(env));
+  getCacheId(appendedData: string, env: Environment): string {
+    return md5FromString(this.optionsHash + appendedData + JSON.stringify(env));
   }
 
   getCachePath(cacheId: string, extension: string = '.json'): FilePath {
-    return Path.join(
+    return path.join(
       this.dir,
       cacheId.slice(0, 2),
       cacheId.slice(2) + extension
     );
   }
 
-  async writeBlob(type: string, cacheId: string, data: any) {
+  async writeBlob(
+    type: string,
+    cacheId: string,
+    data: any
+  ): Promise<CacheReference> {
     let blobPath = this.getCachePath(cacheId, '.' + type);
     if (typeof data === 'object') {
       if (Buffer.isBuffer(data)) {
@@ -81,11 +87,11 @@ export class Cache {
     }
 
     await fs.writeFile(blobPath, data);
-    return new CacheReference(Path.relative(this.dir, blobPath));
+    return new CacheReference(path.relative(this.dir, blobPath));
   }
 
-  async _writeBlobs(assets: Array<Asset>) {
-    return await Promise.all(
+  async _writeBlobs(assets: Array<Asset>): Promise<Array<Asset>> {
+    return Promise.all(
       assets.map(async asset => {
         let assetCacheId = this.getCacheId(asset.id, asset.env);
         for (let blobKey in asset.output) {
@@ -101,7 +107,7 @@ export class Cache {
     );
   }
 
-  async writeBlobs(cacheEntry: CacheEntry) {
+  async writeBlobs(cacheEntry: CacheEntry): Promise<CacheEntry> {
     cacheEntry.assets = await this._writeBlobs(cacheEntry.assets);
     if (cacheEntry.initialAssets) {
       cacheEntry.initialAssets = await this._writeBlobs(
@@ -112,7 +118,7 @@ export class Cache {
     return cacheEntry;
   }
 
-  async write(cacheEntry: CacheEntry) {
+  async write(cacheEntry: CacheEntry): Promise<void> {
     try {
       let cacheId = this.getCacheId(cacheEntry.filePath, cacheEntry.env);
       await this.writeBlobs(cacheEntry);
@@ -123,20 +129,21 @@ export class Cache {
     }
   }
 
-  async readBlob(blobKey: FilePath) {
-    let extension = Path.extname(blobKey);
-    let data = await fs.readFile(Path.resolve(this.dir, blobKey), {
-      encoding: extension === '.bin' ? null : 'utf8'
+  async readBlob(blobKey: FilePath): Promise<any> {
+    let extension = path.extname(blobKey);
+    let data = await fs.readFile(path.resolve(this.dir, blobKey), {
+      encoding: extension === '.bin' ? undefined : 'utf8'
     });
 
     if (extension === '.json') {
-      data = deserialize(data);
+      invariant(typeof data === 'string');
+      return deserialize(data);
     }
 
     return data;
   }
 
-  async readBlobs(asset: Asset) {
+  async readBlobs(asset: Asset): Promise<void> {
     await Promise.all(
       Object.keys(asset.output).map(async blobKey => {
         if (asset.output[blobKey] instanceof CacheReference) {
@@ -165,7 +172,7 @@ export class Cache {
     this.invalidated.add(filePath);
   }
 
-  async delete(filePath: FilePath, env: Environment) {
+  async delete(filePath: FilePath, env: Environment): Promise<void> {
     try {
       let cacheId = this.getCacheId(filePath, env);
       // TODO: delete blobs
@@ -183,7 +190,7 @@ export class CacheReference {
     this.filePath = filePath;
   }
 
-  static deserialize(value: {filePath: FilePath}) {
+  static deserialize(value: {filePath: FilePath}): Promise<CacheReference> {
     return new CacheReference(value.filePath);
   }
 }

@@ -8,8 +8,9 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "scripts": {
-    "start": "parcel index.html",
-    "build-app": "parcel build index.html"
+    "parcel": "node -r @parcel/babel-register ./node_modules/.bin/parcel",
+    "start": "yarn parcel index.html",
+    "build-app": "yarn parcel build index.html"
   },
   "dependencies": {
     "@parcel/integration-tests": "^2.0.0",

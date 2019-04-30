@@ -1,4 +1,6 @@
 // @flow
+
+import nullthrows from 'nullthrows';
 import {minify} from 'terser';
 import {Transformer} from '@parcel/plugin';
 
@@ -71,11 +73,12 @@ export default new Transformer({
       throw result.error;
     }
 
+    let code = nullthrows(result.code);
     return [
       {
         type: 'js',
         output: {
-          code: result.code
+          code
           // map: sourceMap
         }
       }

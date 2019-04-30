@@ -1,6 +1,9 @@
 // @flow
+
+import type {ParcelConfigFile, ParcelOptions} from '@parcel/types';
+
 require('v8-compile-cache');
-import type {ParcelConfig, ParcelOptions} from '@parcel/types';
+
 const chalk = require('chalk');
 const program = require('commander');
 const version = require('../package.json').version;
@@ -117,7 +120,7 @@ function run(entries: Array<string>, command: any) {
     return;
   }
   let Parcel = require('@parcel/core').default;
-  let defaultConfig: ParcelConfig = require('@parcel/config-default');
+  let defaultConfig: ParcelConfigFile = require('@parcel/config-default');
   let parcel = new Parcel({
     entries,
     defaultConfig: {
@@ -172,7 +175,7 @@ function normalizeOptions(command): ParcelOptions {
     minify: command.minify != null ? command.minify : mode === 'production',
     sourceMaps: command.sourceMaps != false,
     publicUrl: command.publicUrl,
-    hmr,
+    hot: hmr,
     serve,
     autoinstall: command.autoinstall !== false,
     logLevel: command.logLevel

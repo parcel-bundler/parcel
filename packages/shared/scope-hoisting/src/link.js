@@ -21,11 +21,11 @@ export function link(bundle: Bundle, ast, options: ParcelOptions) {
   let exportsMap = new Map();
 
   // Build a mapping of all imported identifiers to replace.
-  bundle.assetGraph.traverseAssets(asset => {
+  bundle.traverseAssets(asset => {
     assets.set(asset.id, asset);
     exportsMap.set(getName(asset, 'exports'), asset);
-    for (let dep of bundle.assetGraph.getDependencies(asset)) {
-      let resolved = bundle.assetGraph.getDependencyResolution(dep);
+    for (let dep of bundle.getDependencies(asset)) {
+      let resolved = bundle.getDependencyResolution(dep);
       if (resolved) {
         for (let [imported, local] of dep.symbols) {
           imports.set(local, [resolved, imported]);
@@ -35,7 +35,7 @@ export function link(bundle: Bundle, ast, options: ParcelOptions) {
   });
 
   function resolveSymbol(inputAsset, inputSymbol) {
-    let {asset, exportSymbol, symbol} = bundle.assetGraph.resolveSymbol(
+    let {asset, exportSymbol, symbol} = bundle.resolveSymbol(
       inputAsset,
       inputSymbol
     );
@@ -160,10 +160,10 @@ export function link(bundle: Bundle, ast, options: ParcelOptions) {
         }
 
         let asset = assets.get(id.value);
-        let dep = bundle.assetGraph
+        let dep = bundle
           .getDependencies(asset)
           .find(dep => dep.moduleSpecifier === source.value);
-        let mod = bundle.assetGraph.getDependencyResolution(dep);
+        let mod = bundle.getDependencyResolution(dep);
 
         if (!mod) {
           if (dep.isOptional) {
@@ -216,10 +216,10 @@ export function link(bundle: Bundle, ast, options: ParcelOptions) {
         }
 
         let mapped = assets.get(id.value);
-        let dep = mapped.dependencies.find(
-          dep => dep.moduleSpecifier === source.value
-        );
-        let mod = bundle.assetGraph.getDependencyResolution(dep);
+        let dep = bundle
+          .getDependencies(mapped)
+          .find(dep => dep.moduleSpecifier === source.value);
+        let mod = bundle.getDependencyResolution(dep);
         path.replaceWith(t.valueToNode(mod.id));
       }
     },

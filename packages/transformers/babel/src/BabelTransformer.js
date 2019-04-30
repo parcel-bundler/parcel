@@ -8,7 +8,7 @@ import getBabelConfig from './config';
 
 export default new Transformer({
   async getConfig(asset) {
-    return await getBabelConfig(asset);
+    return getBabelConfig(asset);
   },
 
   canReuseAST(ast) {

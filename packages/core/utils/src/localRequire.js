@@ -1,16 +1,30 @@
-const {dirname} = require('path');
-const promisify = require('./promisify');
-const resolve = promisify(require('resolve'));
-const WorkerFarm = require('@parcel/workers');
+// @flow strict-local
 
-const cache = new Map();
+import type {FilePath, PackageJSON} from '@parcel/types';
 
-async function localRequire(name, path, triedInstall = false) {
+import installPackage from './installPackage';
+import {dirname} from 'path';
+
+import resolve from './resolve';
+
+const cache: Map<string, [string, ?PackageJSON]> = new Map();
+
+export default async function localRequire(
+  name: string,
+  path: FilePath,
+  triedInstall: boolean = false
+  // $FlowFixMe this must be dynamic
+): Promise<any> {
   let [resolved] = await localResolve(name, path, triedInstall);
+  // $FlowFixMe this must be dynamic
   return require(resolved);
 }
 
-async function localResolve(name, path, triedInstall = false) {
+export async function localResolve(
+  name: string,
+  path: FilePath,
+  triedInstall: boolean = false
+): Promise<[string, ?PackageJSON]> {
   let basedir = dirname(path);
   let key = basedir + ':' + name;
   let resolved = cache.get(key);
@@ -18,13 +32,10 @@ async function localResolve(name, path, triedInstall = false) {
     try {
       resolved = await resolve(name, {basedir, extensions: ['.js', '.json']});
     } catch (e) {
-      // if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
-      //   await WorkerFarm.callMaster({
-      //     location: require.resolve('./installPackage.js'),
-      //     args: [[name], path]
-      //   });
-      //   return await localResolve(name, path, true);
-      // }
+      if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
+        await installPackage([name], path);
+        return localResolve(name, path, true);
+      }
       throw e;
     }
     cache.set(key, resolved);
@@ -32,6 +43,3 @@ async function localResolve(name, path, triedInstall = false) {
 
   return resolved;
 }
-
-localRequire.resolve = localResolve;
-module.exports = localRequire;

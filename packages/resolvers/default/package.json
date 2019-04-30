@@ -15,10 +15,13 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
+    "@parcel/fs": "^1.10.3",
+    "@parcel/plugin": "^2.0.0",
+    "@parcel/utils": "^1.10.3",
+    "micromatch": "^3.0.4",
     "node-libs-browser": "^2.1.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.2.2",
-    "@parcel/eslint-config": "1.10.3"
+    "@babel/core": "^7.2.2"
   }
 }

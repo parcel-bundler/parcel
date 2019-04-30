@@ -21,11 +21,16 @@
     "postinstall": "yarn build"
   },
   "devDependencies": {
-    "eslint": "4",
-    "flow-bin": "^0.83.0",
+    "eslint": "^5.16.0",
+    "eslint-config-prettier": "^4.1.0",
+    "flow-bin": "0.97.0",
     "lerna": "^3.3.2",
     "lint-staged": "^7.2.2",
-    "prettier": "^1.14.2"
+    "mocha": "^6.1.3",
+    "mocha-junit-reporter": "^1.21.0",
+    "mocha-multi-reporters": "^1.1.7",
+    "prettier": "1.14.2",
+    "sinon": "^7.3.1"
   },
   "engines": {
     "node": ">= 6.0.0"

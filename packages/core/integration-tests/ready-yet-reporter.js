@@ -8,7 +8,7 @@ function importantData(test, status) {
   let fileName = path.basename(test.file, '.js');
   return {
     fileName,
-    link: `https://github.com/parcel-bundler/parcel/tree/v2-work-so-far/packages/core/integration-tests/test/${fileName}.js`,
+    link: `https://github.com/parcel-bundler/parcel/tree/v2/packages/core/integration-tests/test/${fileName}.js`,
     title: test.title,
     status
   };

@@ -24,7 +24,11 @@ describe.skip('pug', function() {
         {
           type: 'css',
           assets: ['index.css'],
-          childBundles: []
+          childBundles: [
+            {
+              type: 'map'
+            }
+          ]
         },
         {
           type: 'js',

@@ -7,15 +7,19 @@ const path = require('path');
 const WebSocket = require('ws');
 const Module = require('module');
 
-const {promisify} = require('@parcel/utils');
+const promisify = require('@parcel/utils/src/promisify');
 const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
 const {sleep} = require('@parcel/test-utils');
-const defaultConfig = require('@parcel/config-default');
-defaultConfig.reporters = [];
-defaultConfig.filePath = require.resolve('@parcel/config-default');
+const defaultConfigContents = require('@parcel/config-default');
+
+const defaultConfig = {
+  ...defaultConfigContents,
+  filePath: require.resolve('@parcel/config-default')
+};
 
 const chalk = new (require('chalk')).constructor({enabled: true});
+
 const warning = chalk.keyword('orange');
 // eslint-disable-next-line no-console
 console.warn = (...args) => {
@@ -45,17 +49,14 @@ beforeEach(async function() {
 });
 
 function bundler(entries, opts) {
-  return new Parcel(
-    Object.assign(
-      {
-        entries,
-        cache: false,
-        killWorkers: false,
-        defaultConfig
-      },
-      opts
-    )
-  );
+  return new Parcel({
+    entries,
+    cache: false,
+    logLevel: 'none',
+    killWorkers: false,
+    defaultConfig,
+    ...opts
+  });
   // return new Parcel(
   //   file,
   //   Object.assign(

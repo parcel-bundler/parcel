@@ -10,15 +10,14 @@ import type {
   FilePath,
   Symbol
 } from '@parcel/types';
-import md5 from '@parcel/utils/lib/md5';
+import {md5FromString} from '@parcel/utils/src/md5';
 
-type DependencyOpts = {
+type DependencyOpts = {|
   ...DependencyOptions,
-  moduleSpecifier: ModuleSpecifier,
   env: IEnvironment,
   id?: string,
   sourcePath?: FilePath
-};
+|};
 
 export default class Dependency implements IDependency {
   id: string;
@@ -50,12 +49,12 @@ export default class Dependency implements IDependency {
     this.symbols = new Map(opts.symbols || []);
     this.id =
       opts.id ||
-      md5(
+      md5FromString(
         `${this.sourcePath}:${this.moduleSpecifier}:${JSON.stringify(this.env)}`
       );
   }
 
-  merge(other: Dependency) {
+  merge(other: IDependency) {
     Object.assign(this.meta, other.meta);
     this.symbols = new Map([...this.symbols, ...other.symbols]);
   }

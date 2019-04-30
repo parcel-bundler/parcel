@@ -1,42 +1,58 @@
-const childProcess = require('child_process');
-const {EventEmitter} = require('events');
-const {errorUtils} = require('@parcel/utils');
-const {serialize, deserialize} = require('@parcel/utils/serializer');
+// @flow
+
+import type {FilePath} from '@parcel/types';
+import type {BundlerOptions, WorkerMessage} from './types';
+
+import childProcess, {type ChildProcess} from 'child_process';
+import EventEmitter from 'events';
+import {jsonToError} from '@parcel/utils/src/errorUtils';
+import {serialize, deserialize} from '@parcel/utils/src/serializer';
 
 const childModule = require.resolve('./child');
 
+export type WorkerCall = {|
+  method: string,
+  args: Array<any>,
+  retries: number,
+  resolve: (result: Promise<any> | any) => void,
+  reject: (error: any) => void
+|};
+
+type WorkerOpts = {|
+  forcedKillTime: number
+|};
+
 let WORKER_ID = 0;
-class Worker extends EventEmitter {
-  constructor(options) {
+export default class Worker extends EventEmitter {
+  +options: WorkerOpts;
+  child: ChildProcess;
+  id: number = WORKER_ID++;
+  processQueue: boolean = true;
+  sendQueue: Array<any> = [];
+
+  calls: Map<number, WorkerCall> = new Map();
+  exitCode = null;
+  callId = 0;
+
+  ready = false;
+  stopped = false;
+  isStopping = false;
+
+  constructor(options: WorkerOpts) {
     super();
-
     this.options = options;
-    this.id = WORKER_ID++;
-
-    this.sendQueue = [];
-    this.processQueue = true;
-
-    this.calls = new Map();
-    this.exitCode = null;
-    this.callId = 0;
-
-    this.ready = false;
-    this.stopped = false;
-    this.isStopping = false;
   }
 
-  async fork(forkModule, bundlerOptions) {
+  async fork(forkModule: FilePath, bundlerOptions: BundlerOptions) {
     let filteredArgs = process.execArgv.filter(
       v => !/^--(debug|inspect)/.test(v)
     );
 
-    let options = {
+    this.child = childProcess.fork(childModule, process.argv, {
       execArgv: filteredArgs,
       env: process.env,
       cwd: process.cwd()
-    };
-
-    this.child = childProcess.fork(childModule, process.argv, options);
+    });
 
     // Unref the child and IPC channel so that the workers don't prevent the main process from exiting
     this.child.unref();
@@ -66,7 +82,7 @@ class Worker extends EventEmitter {
     await this.init(bundlerOptions);
   }
 
-  async init(bundlerOptions) {
+  async init(bundlerOptions: BundlerOptions) {
     this.ready = false;
 
     return new Promise((resolve, reject) => {
@@ -84,13 +100,13 @@ class Worker extends EventEmitter {
     });
   }
 
-  send(data) {
+  send(data: WorkerMessage): void {
     if (!this.processQueue) {
-      return this.sendQueue.push(data);
+      this.sendQueue.push(data);
+      return;
     }
 
-    data = serialize(data);
-    let result = this.child.send(data, error => {
+    let result = this.child.send(serialize(data), error => {
       if (error && error instanceof Error) {
         // Ignore this, the workerfarm handles child errors
         return;
@@ -111,7 +127,7 @@ class Worker extends EventEmitter {
     }
   }
 
-  call(call) {
+  call(call: WorkerCall): void {
     if (this.stopped || this.isStopping) {
       return;
     }
@@ -128,35 +144,35 @@ class Worker extends EventEmitter {
     });
   }
 
-  receive(data) {
+  receive(data: string): void {
     if (this.stopped || this.isStopping) {
       return;
     }
 
-    data = deserialize(data);
+    let message: WorkerMessage = deserialize(data);
 
-    let idx = data.idx;
-    let type = data.type;
-    let content = data.content;
-    let contentType = data.contentType;
+    if (message.type === 'request') {
+      this.emit('request', message);
+    } else if (message.type === 'response') {
+      let idx = message.idx;
+      if (idx == null) {
+        return;
+      }
 
-    if (type === 'request') {
-      this.emit('request', data);
-    } else if (type === 'response') {
       let call = this.calls.get(idx);
       if (!call) {
         // Return for unknown calls, these might accur if a third party process uses workers
         return;
       }
 
-      if (contentType === 'error') {
-        call.reject(errorUtils.jsonToError(content));
+      if (message.contentType === 'error') {
+        call.reject(jsonToError(message.content));
       } else {
-        call.resolve(content);
+        call.resolve(message.content);
       }
 
       this.calls.delete(idx);
-      this.emit('response', data);
+      this.emit('response', message);
     }
   }
 
@@ -180,5 +196,3 @@ class Worker extends EventEmitter {
     }
   }
 }
-
-module.exports = Worker;

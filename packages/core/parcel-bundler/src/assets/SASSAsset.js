@@ -1,6 +1,6 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
-const {promisify} = require('@parcel/utils');
+const promisify = require('@parcel/utils/src/promisify');
 const path = require('path');
 const os = require('os');
 const Resolver = require('../Resolver');
@@ -54,6 +54,14 @@ class SASSAsset extends Asset {
         .catch(err => done(normalizeError(err)));
     });
 
+    if (this.options.sourceMaps) {
+      opts.sourceMap = true;
+      opts.file = this.name;
+      opts.outFile = this.name;
+      opts.omitSourceMapUrl = true;
+      opts.sourceMapContents = true;
+    }
+
     try {
       return await render(opts);
     } catch (err) {
@@ -76,7 +84,11 @@ class SASSAsset extends Asset {
     return [
       {
         type: 'css',
-        value: this.ast ? this.ast.css.toString() : ''
+        value: this.ast ? this.ast.css.toString() : '',
+        map:
+          this.ast && this.ast.map
+            ? JSON.parse(this.ast.map.toString())
+            : undefined
       }
     ];
   }
@@ -89,7 +101,7 @@ async function getSassRuntime(searchPath) {
     return await localRequire('node-sass', searchPath, true);
   } catch (e) {
     // If node-sass is not used locally, install dart-sass, as this causes no freezing issues
-    return await localRequire('sass', searchPath);
+    return localRequire('sass', searchPath);
   }
 }
 

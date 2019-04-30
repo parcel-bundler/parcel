@@ -1,6 +1,4 @@
-const WorkerFarm = require(`../../../${
-  parseInt(process.versions.node, 10) < 8 ? 'lib' : 'src'
-}/WorkerFarm`);
+const WorkerFarm = require('../../../src/WorkerFarm').default;
 
 function run() {
   let result = [process.pid];

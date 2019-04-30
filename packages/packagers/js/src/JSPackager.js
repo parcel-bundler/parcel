@@ -1,5 +1,4 @@
-// @flow
-'use strict';
+// @flow strict-local
 
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
@@ -17,19 +16,19 @@ export default new Packager({
     return generate(bundle, ast, options);
 
     // let promises = [];
-    // bundle.assetGraph.traverseAssets(asset => {
+    // bundle.traverseAssets(asset => {
     //   promises.push(asset.getOutput());
     // });
     // let outputs = await Promise.all(promises);
 
     // let assets = '';
     // let i = 0;
-    // bundle.assetGraph.traverseAssets(asset => {
+    // bundle.traverseAssets(asset => {
     //   let deps = {};
 
-    //   let dependencies = bundle.assetGraph.getDependencies(asset);
+    //   let dependencies = bundle.getDependencies(asset);
     //   for (let dep of dependencies) {
-    //     let resolved = bundle.assetGraph.getDependencyResolution(dep);
+    //     let resolved = bundle.getDependencyResolution(dep);
     //     if (resolved) {
     //       deps[dep.moduleSpecifier] = resolved.id;
     //     }
@@ -54,9 +53,7 @@ export default new Packager({
     //   '({' +
     //   assets +
     //   '},{},' +
-    //   JSON.stringify(
-    //     bundle.assetGraph.getEntryAssets().map(asset => asset.id)
-    //   ) +
+    //   JSON.stringify(bundle.getEntryAssets().map(asset => asset.id)) +
     //   ', ' +
     //   'null' +
     //   ')'

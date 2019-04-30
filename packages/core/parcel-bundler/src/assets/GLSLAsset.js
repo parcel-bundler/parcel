@@ -1,7 +1,7 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const path = require('path');
-const {promisify} = require('@parcel/utils');
+const promisify = require('@parcel/utils/src/promisify');
 const Resolver = require('../Resolver');
 
 class GLSLAsset extends Asset {
@@ -37,7 +37,7 @@ class GLSLAsset extends Asset {
       }
     });
 
-    return await promisify(depper.inline.bind(depper))(this.contents, cwd);
+    return promisify(depper.inline.bind(depper))(this.contents, cwd);
   }
 
   collectDependencies() {

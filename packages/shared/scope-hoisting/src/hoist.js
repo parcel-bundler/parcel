@@ -323,7 +323,9 @@ const VISITOR = {
     if (isRequire) {
       let source = args[0].value;
       // Ignore require calls that were ignored earlier.
-      let dep = asset.dependencies.find(dep => dep.moduleSpecifier === source);
+      let dep = asset
+        .getDependencies()
+        .find(dep => dep.moduleSpecifier === source);
       if (!dep) {
         // path.get('callee').replaceWith(t.identifier('parcelRequire'));
         return;
@@ -366,9 +368,9 @@ const VISITOR = {
   },
 
   ImportDeclaration(path, asset: Asset) {
-    let dep = asset.dependencies.find(
-      dep => dep.moduleSpecifier === path.node.source.value
-    );
+    let dep = asset
+      .getDependencies()
+      .find(dep => dep.moduleSpecifier === path.node.source.value);
     if (!dep) {
       path.remove();
       return;
@@ -457,9 +459,9 @@ const VISITOR = {
         let id = getIdentifier(asset, 'import', exported.name);
         asset.symbols.set(exported.name, id.name);
 
-        let dep = asset.dependencies.find(
-          dep => dep.moduleSpecifier === source.value
-        );
+        let dep = asset
+          .getDependencies()
+          .find(dep => dep.moduleSpecifier === source.value);
         if (dep && imported) {
           dep.symbols.set(imported, id.name);
           dep.isWeak = true;
@@ -499,9 +501,9 @@ const VISITOR = {
   },
 
   ExportAllDeclaration(path, asset: Asset) {
-    let dep = asset.dependencies.find(
-      dep => dep.moduleSpecifier === path.node.source.value
-    );
+    let dep = asset
+      .getDependencies()
+      .find(dep => dep.moduleSpecifier === path.node.source.value);
     if (dep) {
       dep.symbols.set('*', '*');
     }
@@ -569,7 +571,7 @@ function addExport(asset: Asset, path, local, exported) {
 }
 
 function hasImport(asset: Asset, id) {
-  for (let dep of asset.dependencies) {
+  for (let dep of asset.getDependencies()) {
     if (new Set(dep.symbols.values()).has(id)) {
       return true;
     }

@@ -1,6 +1,6 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
-const {promisify} = require('@parcel/utils');
+const promisify = require('@parcel/utils/src/promisify');
 const Resolver = require('../Resolver');
 const fs = require('@parcel/fs');
 const path = require('path');
@@ -22,8 +22,11 @@ class LESSAsset extends Asset {
       {};
     opts.filename = this.name;
     opts.plugins = (opts.plugins || []).concat(urlPlugin(this));
+    if (this.options.sourceMaps) {
+      opts.sourceMap = {outputSourceFiles: true};
+    }
 
-    return await render(code, opts);
+    return render(code, opts);
   }
 
   collectDependencies() {
@@ -33,11 +36,19 @@ class LESSAsset extends Asset {
   }
 
   generate() {
+    let map;
+    if (this.ast && this.ast.map) {
+      map = JSON.parse(this.ast.map.toString());
+      map.sources = map.sources.map(v =>
+        path.relative(this.options.rootDir, v)
+      );
+    }
     return [
       {
         type: 'css',
         value: this.ast ? this.ast.css : '',
-        hasDependencies: false
+        hasDependencies: false,
+        map
       }
     ];
   }

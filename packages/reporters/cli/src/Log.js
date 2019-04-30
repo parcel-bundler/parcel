@@ -1,34 +1,54 @@
-// @flow
+// @flow strict-local
+
 import type {LogEvent} from '@parcel/types';
 import {Box, Text, Color} from 'ink';
 import Spinner from './Spinner';
 import React from 'react';
 import prettyError from './prettyError';
-import emoji from './emoji';
+import * as Emoji from './emoji';
 
-type LogProps = {
+type StringOrErrorLogProps = {|
   event: LogEvent
-};
+|};
 
-let logTypes = {
-  info: InfoLog,
-  progress: Progress,
-  verbose: InfoLog,
-  warn: WarnLog,
-  error: ErrorLog,
-  success: SuccessLog
-};
+type StringLogProps = {|
+  event: {
+    +message: string
+  }
+|};
 
-export function Log({event}: LogProps) {
-  let LogType = logTypes[event.level];
-  return <LogType event={event} />;
+export function Log({event}: StringOrErrorLogProps) {
+  switch (event.level) {
+    case 'verbose':
+    case 'info':
+      return <InfoLog event={event} />;
+    case 'progress':
+      return <Progress event={event} />;
+    case 'success':
+      return <SuccessLog event={event} />;
+    case 'error':
+      return <ErrorLog event={event} />;
+    case 'warn':
+      return <WarnLog event={event} />;
+  }
+
+  throw new Error('Unknown log event type');
 }
 
-function InfoLog({event}) {
+function InfoLog({event}: StringLogProps) {
   return <Text>{event.message}</Text>;
 }
 
-function Stack({err, emoji, color, ...otherProps}) {
+function Stack({
+  err,
+  emoji,
+  color,
+  ...otherProps
+}: {
+  err: string | Error,
+  emoji: string,
+  color: string
+}) {
   let {message, stack} = prettyError(err, {color: true});
   return (
     <React.Fragment>
@@ -37,32 +57,32 @@ function Stack({err, emoji, color, ...otherProps}) {
           {emoji} {message}
         </Color>
       </div>
-      {stack && (
+      {stack != null && stack !== '' ? (
         <div>
           <Color gray>{stack}</Color>
         </div>
-      )}
+      ) : null}
     </React.Fragment>
   );
 }
 
-function WarnLog({event}) {
-  return <Stack err={event.message} emoji={emoji.warning} color="yellow" />;
+function WarnLog({event}: StringOrErrorLogProps) {
+  return <Stack err={event.message} emoji={Emoji.warning} color="yellow" />;
 }
 
-function ErrorLog({event}) {
-  return <Stack err={event.message} emoji={emoji.error} color="red" bold />;
+function ErrorLog({event}: StringOrErrorLogProps) {
+  return <Stack err={event.message} emoji={Emoji.error} color="red" bold />;
 }
 
-function SuccessLog({event}) {
+function SuccessLog({event}: StringLogProps) {
   return (
     <Color green bold>
-      {emoji.success} {event.message}
+      {Emoji.success} {event.message}
     </Color>
   );
 }
 
-export function Progress({event}: LogProps) {
+export function Progress({event}: StringLogProps) {
   return (
     <Box>
       <Color gray bold>

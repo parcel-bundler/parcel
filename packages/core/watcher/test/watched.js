@@ -1,13 +1,15 @@
-const Watcher = require('../index');
-const fs = require('@parcel/fs');
-const path = require('path');
-const assert = require('assert');
+// @flow
+
+import Watcher from '../';
+import * as fs from '@parcel/fs';
+import path from 'path';
+import assert from 'assert';
 
 describe('watched paths', function() {
   let tmpFolder = path.join(__dirname, './tmp/');
 
-  before(() => {
-    fs.mkdirp(tmpFolder);
+  before(async () => {
+    await fs.mkdirp(tmpFolder);
   });
 
   it('Should return watched paths', async () => {

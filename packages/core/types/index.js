@@ -1,4 +1,9 @@
-// @flow
+// @flow strict-local
+
+import type {AST as _AST, Config as _Config} from './unsafe';
+
+export type AST = _AST;
+export type Config = _Config;
 
 export type JSONValue =
   | null
@@ -20,8 +25,8 @@ type SemverRange = string;
 export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T};
-export type ParcelConfig = {
-  filePath: FilePath,
+
+export type ParcelConfigFile = {
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: Array<PackageName>,
   transforms?: {
@@ -41,17 +46,22 @@ export type ParcelConfig = {
   reporters?: Array<PackageName>
 };
 
-export type Engines = {
-  node?: SemverRange,
-  electron?: SemverRange,
-  browsers?: Array<string>
+export type ParcelConfig = ParcelConfigFile & {
+  filePath: FilePath
 };
 
-export type Target = {
+export type Engines = {
+  browsers?: Array<string>,
+  electron?: SemverRange,
+  node?: SemverRange,
+  parcel?: SemverRange
+};
+
+export type Target = {|
   name: string,
   distPath?: FilePath,
   env: Environment
-};
+|};
 
 export type EnvironmentContext =
   | 'browser'
@@ -78,9 +88,9 @@ export interface Environment {
   isIsolated(): boolean;
 }
 
-type PackageDependencies = {
+type PackageDependencies = {|
   [PackageName]: Semver
-};
+|};
 
 export type PackageJSON = {
   name: PackageName,
@@ -103,7 +113,7 @@ export type PackageJSON = {
   sideEffects?: boolean | FilePath | Array<FilePath>
 };
 
-export type ParcelOptions = {
+export type ParcelOptions = {|
   entries?: FilePath | Array<FilePath>,
   rootDir?: FilePath,
   config?: ParcelConfig,
@@ -129,34 +139,39 @@ export type ParcelOptions = {
   // throwErrors
   // global?
   // detailedReport
-};
+|};
 
-export type ServerOptions = {
+export type ServerOptions = {|
   host?: string,
   port?: number,
   https?: HTTPSOptions | boolean
-};
+|};
 
-export type HTTPSOptions = {
+export type HTTPSOptions = {|
   cert?: FilePath,
   key?: FilePath
-};
+|};
 
-export type SourceLocation = {
+export type SourceLocation = {|
   filePath: string,
   start: {line: number, column: number},
   end: {line: number, column: number}
+|};
+
+export type Meta = {
+  globals?: Map<string, Asset>,
+  [string]: JSONValue
 };
 
 export type Symbol = string;
 
-export type Meta = {[string]: any};
 export type DependencyOptions = {|
   moduleSpecifier: ModuleSpecifier,
   isAsync?: boolean,
   isEntry?: boolean,
   isOptional?: boolean,
   isURL?: boolean,
+  isWeak?: boolean,
   loc?: SourceLocation,
   env?: EnvironmentOpts,
   meta?: Meta,
@@ -180,6 +195,8 @@ export interface Dependency {
 
   // TODO: get this from graph instead of storing them on dependencies
   sourcePath: FilePath;
+
+  merge(other: Dependency): void;
 }
 
 export type File = {
@@ -201,8 +218,8 @@ export interface Asset {
   type: string;
   code: string;
   ast: ?AST;
-  dependencies: Array<Dependency>;
-  connectedFiles: Array<File>;
+  dependencies: Map<string, Dependency>;
+  connectedFiles: Map<FilePath, File>;
   output: AssetOutput;
   outputHash: string;
   env: Environment;
@@ -215,31 +232,25 @@ export interface Asset {
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
   ): Promise<Config | null>;
+  getConnectedFiles(): Array<File>;
+  getDependencies(): Array<Dependency>;
   getPackage(): Promise<PackageJSON | null>;
   addDependency(dep: DependencyOptions): string;
   createChildAsset(result: TransformerResult): Asset;
   getOutput(): Promise<AssetOutput>;
 }
 
-export type Stats = {
+export type Stats = {|
   time: number,
   size: number
-};
+|};
 
-export type AssetOutput = {
+export type AssetOutput = {|
   code: string,
   map?: SourceMap,
   [string]: Blob | JSONValue
-};
+|};
 
-export type AST = {
-  type: string,
-  version: string,
-  program: any,
-  isDirty?: boolean
-};
-
-export type Config = any;
 export type SourceMap = JSONObject;
 export type Blob = string | Buffer;
 
@@ -247,8 +258,8 @@ export type TransformerResult = {
   type: string,
   code?: string,
   ast?: ?AST,
-  dependencies?: Array<DependencyOptions>,
-  connectedFiles?: Array<File>,
+  dependencies?: Map<string, DependencyOptions>,
+  connectedFiles?: Map<FilePath, File>,
   output?: AssetOutput,
   env?: EnvironmentOpts,
   meta?: Meta,
@@ -287,38 +298,64 @@ export type CacheEntry = {
   initialAssets: ?Array<Asset> // Initial assets, pre-post processing
 };
 
-export interface TraversalContext {
+export interface TraversalActions {
   skipChildren(): void;
   stop(): void;
 }
 
-export type GraphVisitor<T> =
-  | GraphTraversalCallback<T>
+export type GraphVisitor<TNode, TContext> =
+  | GraphTraversalCallback<TNode, TContext>
   | {|
-      enter?: GraphTraversalCallback<T>,
-      exit?: GraphTraversalCallback<T>
+      enter?: GraphTraversalCallback<TNode, TContext>,
+      exit?: GraphTraversalCallback<TNode, TContext>
     |};
+export type GraphTraversalCallback<TNode, TContext> = (
+  node: TNode,
+  context: ?TContext,
+  traversal: TraversalActions
+) => ?TContext;
 
-export type GraphTraversalCallback<T> = (
-  asset: T,
-  context?: any,
-  traversal: TraversalContext
-) => any;
-
-export interface Graph {
-  merge(graph: Graph): void;
+// Not a directly exported interface.
+interface AssetGraphLike {
+  getDependencyResolution(dependency: Dependency): ?Asset;
+  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
 }
 
-// TODO: what do we want to expose here?
-export interface AssetGraph extends Graph {
-  traverseAssets(visit: GraphVisitor<Asset>): any;
-  createBundle(asset: Asset): Bundle;
-  getTotalSize(asset?: Asset): number;
-  getEntryAssets(): Array<Asset>;
-  removeAsset(asset: Asset): void;
+export type MainAssetGraphTraversable =
+  | {|+type: 'asset', value: Asset|}
+  | {|+type: 'dependency', value: Dependency|};
+
+// Always read-only.
+export interface MainAssetGraph extends AssetGraphLike {
+  createBundle(asset: Asset): MutableBundle;
+  traverse<TContext>(
+    visit: GraphVisitor<MainAssetGraphTraversable, TContext>
+  ): ?TContext;
+}
+
+export interface Bundle extends AssetGraphLike {
+  +id: string;
+  +type: string;
+  +env: Environment;
+  +isEntry: ?boolean;
+  +target: ?Target;
+  +filePath: ?FilePath;
+  +stats: Stats;
   getDependencies(asset: Asset): Array<Dependency>;
-  getDependencyResolution(dependency: Dependency): ?Asset;
-  resolveSymbol(asset: Asset, symbol: Symbol): {asset: Asset, symbol: Symbol};
+  getEntryAssets(): Array<Asset>;
+  getTotalSize(asset?: Asset): number;
+}
+
+export interface MutableBundle extends Bundle {
+  filePath: ?FilePath;
+  isEntry: ?boolean;
+  stats: Stats;
+  merge(Bundle): void;
+  removeAsset(Asset): void;
+}
+
+export interface NamedBundle extends Bundle {
+  +filePath: FilePath;
 }
 
 export type BundleGroup = {
@@ -327,97 +364,121 @@ export type BundleGroup = {
   entryAssetId: string
 };
 
-export type Bundle = {
-  id: string,
-  type: string,
-  assetGraph: AssetGraph,
-  env: Environment,
-  isEntry?: boolean,
-  target?: Target,
-  filePath?: FilePath,
-  stats: Stats
-};
-
 export interface BundleGraph {
-  addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
-  addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
-  isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
   findBundlesWithAsset(asset: Asset): Array<Bundle>;
-  getBundles(bundleGroup: BundleGroup): Array<Bundle>;
-  getBundleGroups(bundle: Bundle): Array<BundleGroup>;
-  traverseBundles(visit: GraphTraversalCallback<Bundle>): any;
+  getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
+  getBundleGroupsReferencedByBundle(bundle: Bundle): Array<BundleGroup>;
+  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
+  isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
+  traverseBundles<TContext>(visit: GraphVisitor<Bundle, TContext>): ?TContext;
 }
 
-export type Bundler = {
+export interface MutableBundleGraph {
+  addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
+  addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
+  findBundlesWithAsset(asset: Asset): Array<MutableBundle>;
+  getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
+  getBundleGroupsReferencedByBundle(bundle: Bundle): Array<BundleGroup>;
+  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<MutableBundle>;
+  isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
+  traverseBundles<TContext>(
+    visit: GraphVisitor<MutableBundle, TContext>
+  ): ?TContext;
+}
+
+export type Bundler = {|
   bundle(
-    graph: AssetGraph,
-    bundleGraph: BundleGraph,
+    graph: MainAssetGraph,
+    bundleGraph: MutableBundleGraph,
     opts: ParcelOptions
   ): Async<void>
-};
+|};
 
-export type Namer = {
+export type Namer = {|
   name(bundle: Bundle, opts: ParcelOptions): Async<?FilePath>
-};
+|};
 
-export type Runtime = {
-  apply(bundle: Bundle, opts: ParcelOptions): Async<void>
-};
+export type RuntimeAsset = {|
+  filePath: FilePath,
+  code: string,
+  bundleGroup?: BundleGroup
+|};
 
-export type Packager = {
+export type Runtime = {|
+  apply(
+    bundle: NamedBundle,
+    bundleGraph: BundleGraph,
+    opts: ParcelOptions
+  ): Async<void | RuntimeAsset | Array<RuntimeAsset>>
+|};
+
+export type Packager = {|
   package(bundle: Bundle, opts: ParcelOptions): Async<Blob>
-};
+|};
 
-export type Optimizer = {
+export type Optimizer = {|
   optimize(bundle: Bundle, contents: Blob, opts: ParcelOptions): Async<Blob>
-};
+|};
 
-export type Resolver = {
+export type Resolver = {|
   resolve(
     dependency: Dependency,
     opts: ParcelOptions,
     rootDir: string
   ): Async<?TransformerRequest>
-};
+|};
 
-export type LogEvent = {
-  type: 'log',
-  level: 'error' | 'warn' | 'info' | 'progress' | 'success' | 'verbose',
-  message: string | Error
-};
+export type ProgressLogEvent = {|
+  +type: 'log',
+  +level: 'progress',
+  +message: string
+|};
 
-export type BuildStartEvent = {
+export type LogEvent =
+  | ProgressLogEvent
+  | {|
+      +type: 'log',
+      +level: 'error' | 'warn',
+      +message: string | Error
+    |}
+  | {|
+      +type: 'log',
+      +level: 'info' | 'success' | 'verbose',
+      +message: string
+    |};
+
+export type BuildStartEvent = {|
   type: 'buildStart'
-};
+|};
 
-type ResolvingProgressEvent = {
+type ResolvingProgressEvent = {|
   type: 'buildProgress',
   phase: 'resolving',
   dependency: Dependency
-};
+|};
 
-type TransformingProgressEvent = {
+type TransformingProgressEvent = {|
   type: 'buildProgress',
   phase: 'transforming',
   request: TransformerRequest
-};
+|};
 
-type BundlingProgressEvent = {
+type BundlingProgressEvent = {|
   type: 'buildProgress',
   phase: 'bundling'
-};
+|};
 
-type PackagingProgressEvent = {
+type PackagingProgressEvent = {|
   type: 'buildProgress',
   phase: 'packaging',
-  bundle: Bundle
-};
+  bundle: NamedBundle
+|};
 
-type OptimizingProgressEvent = {
+type OptimizingProgressEvent = {|
   type: 'buildProgress',
   phase: 'optimizing',
-  bundle: Bundle
-};
+  bundle: NamedBundle
+|};
 
 export type BuildProgressEvent =
   | ResolvingProgressEvent
@@ -426,17 +487,17 @@ export type BuildProgressEvent =
   | PackagingProgressEvent
   | OptimizingProgressEvent;
 
-export type BuildSuccessEvent = {
+export type BuildSuccessEvent = {|
   type: 'buildSuccess',
-  assetGraph: AssetGraph,
+  assetGraph: MainAssetGraph,
   bundleGraph: BundleGraph,
   buildTime: number
-};
+|};
 
-export type BuildFailureEvent = {
+export type BuildFailureEvent = {|
   type: 'buildFailure',
   error: Error
-};
+|};
 
 export type ReporterEvent =
   | LogEvent
@@ -445,6 +506,14 @@ export type ReporterEvent =
   | BuildSuccessEvent
   | BuildFailureEvent;
 
-export type Reporter = {
+export type Reporter = {|
   report(event: ReporterEvent, opts: ParcelOptions): Async<void>
-};
+|};
+
+export interface ErrorWithCode extends Error {
+  code?: string;
+}
+
+export interface IDisposable {
+  dispose(): void;
+}

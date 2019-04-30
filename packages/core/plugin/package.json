@@ -10,11 +10,8 @@
     "build": "babel src --out-dir lib",
     "prepublish": "yarn build"
   },
-  "main": "src/PluginAPI.js",
+  "main": "./src/PluginAPI.js",
   "dependencies": {
     "@parcel/types": "^2.0.0"
-  },
-  "devDependencies": {
-    "@parcel/eslint-config": "1.10.3"
   }
 }
