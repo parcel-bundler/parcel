@@ -12,9 +12,15 @@ import type {
 import Asset from './Asset';
 import path from 'path';
 import clone from 'clone';
-import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
+import {
+  md5FromBlob,
+  md5FromFilePath,
+  md5FromReadableStream,
+  md5FromString
+} from '@parcel/utils/src/md5';
 import Cache from '@parcel/cache';
-import * as fs from '@parcel/fs';
+// import * as fs from '@parcel/fs';
+import {createReadStream} from 'fs';
 import Config from './Config';
 import {report} from './ReporterRunner';
 
@@ -41,14 +47,16 @@ export default class TransformerRunner {
       request: req
     });
 
-    let code = req.code || (await fs.readFile(req.filePath, 'utf8'));
-    let hash = md5FromString(code);
-
     // If a cache entry matches, no need to transform.
     let cacheEntry;
     if (this.options.cache !== false && req.code == null) {
       cacheEntry = await Cache.read(req.filePath, req.env);
     }
+
+    let content = req.code == null ? createReadStream(req.filePath) : req.code;
+    let hash = req.code
+      ? md5FromString(req.code)
+      : await md5FromReadableStream(createReadStream(req.filePath));
 
     if (
       cacheEntry &&
@@ -62,7 +70,8 @@ export default class TransformerRunner {
       filePath: req.filePath,
       type: path.extname(req.filePath).slice(1),
       ast: null,
-      content: code,
+      content,
+      hash,
       env: req.env
     });
 
@@ -241,7 +250,7 @@ async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
   }
 
   asset.ast = null;
-  asset.outputHash = md5FromString(asset.content);
+  asset.outputHash = await md5FromBlob(asset.content);
 
   return asset;
 }

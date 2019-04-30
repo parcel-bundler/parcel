@@ -1,5 +1,7 @@
 // @flow
 
+import {Readable} from 'stream';
+
 import type {
   Asset as IAsset,
   AST,
@@ -22,10 +24,10 @@ import Dependency from './Dependency';
 
 type AssetOptions = {|
   id?: string,
-  hash?: string,
+  hash?: ?string,
   filePath: FilePath,
   type: string,
-  content?: string,
+  content?: string | Readable,
   contentKey?: ?string,
   ast?: ?AST,
   dependencies?: Iterable<[string, IDependency]>,
@@ -47,7 +49,7 @@ type SerializedOptions = {|
 
 export default class Asset implements IAsset {
   id: string;
-  hash: string;
+  hash: ?string;
   filePath: FilePath;
   type: string;
   ast: ?AST;
@@ -58,7 +60,7 @@ export default class Asset implements IAsset {
   env: Environment;
   meta: Meta;
   stats: Stats;
-  content: string;
+  content: string | Readable;
   contentKey: ?string;
 
   constructor(options: AssetOptions) {
@@ -67,7 +69,7 @@ export default class Asset implements IAsset {
       md5FromString(
         options.filePath + options.type + JSON.stringify(options.env)
       );
-    this.hash = options.hash || '';
+    this.hash = options.hash;
     this.filePath = options.filePath;
     this.isIsolated = options.isIsolated == null ? false : options.isIsolated;
     this.type = options.type;
@@ -85,7 +87,7 @@ export default class Asset implements IAsset {
     this.meta = options.meta || {};
     this.stats = options.stats || {
       time: 0,
-      size: this.content.length
+      size: this.content instanceof Readable ? 0 : this.content.length
     };
   }
 
@@ -108,21 +110,37 @@ export default class Asset implements IAsset {
   }
 
   async getCode(): Promise<string> {
-    if (this.contentKey) {
-      let content = await Cache.get(this.contentKey);
+    let contentKey = this.contentKey;
+    if (contentKey) {
+      let content = Cache.getStream(contentKey);
       if (content == null) {
         throw new Error('Missing cache entry');
       }
       this.content = content;
     }
+
+    let content = this.content;
+    if (typeof content === 'string') {
+      return content;
+    }
+
+    this.content = (await bufferStream(content)).toString();
     return this.content;
   }
 
   async writeBlobs(): Promise<void> {
-    this.contentKey = await Cache.set(
+    this.contentKey = await Cache.setStream(
       this.generateCacheKey('content'),
-      this.content
+      this.getStream()
     );
+  }
+
+  getStream(): Readable {
+    if (this.content instanceof Readable) {
+      return this.content;
+    }
+
+    return readableFromStringOrBuffer(this.content);
   }
 
   generateCacheKey(key: string): string {
@@ -157,22 +175,20 @@ export default class Asset implements IAsset {
     return Array.from(this.dependencies.values());
   }
 
-  createChildAsset(result: TransformerResult) {
-    let code = result.content || result.code || '';
-    let opts: AssetOptions = {
-      hash: this.hash || md5FromString(code),
+  createChildAsset(result: TransformerResult): Asset {
+    let content = result.content || result.code || '';
+    let asset = new Asset({
+      hash: content === this.content ? this.hash : md5FromString(content),
       filePath: this.filePath,
       type: result.type,
-      content: code,
+      content,
       ast: result.ast,
       isIsolated: result.isIsolated,
       env: this.env.merge(result.env),
       dependencies: this.dependencies,
       connectedFiles: this.connectedFiles,
       meta: Object.assign({}, this.meta, result.meta)
-    };
-
-    let asset = new Asset(opts);
+    });
 
     let dependencies = result.dependencies;
     if (dependencies) {
@@ -224,4 +240,25 @@ export default class Asset implements IAsset {
   async getPackage(): Promise<PackageJSON | null> {
     return this.getConfig(['package.json']);
   }
+}
+
+function readableFromStringOrBuffer(str: string | Buffer): Readable {
+  // https://stackoverflow.com/questions/12755997/how-to-create-streams-from-string-in-node-js
+  const stream = new Readable();
+  stream.push(str);
+  stream.push(null);
+  return stream;
+}
+
+async function bufferStream(stream: Readable): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    let buf = Buffer.from([]);
+    stream.on('data', data => {
+      buf = Buffer.concat([buf, data]);
+    });
+    stream.on('end', () => {
+      resolve(buf);
+    });
+    stream.on('error', reject);
+  });
 }
