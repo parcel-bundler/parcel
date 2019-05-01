@@ -333,7 +333,7 @@ export interface MutableBundle extends Bundle {
   isEntry: ?boolean;
   stats: Stats;
   merge(Bundle): void;
-  removeAsset(Asset): void;
+  removeAsset(Asset): ?string;
 }
 
 export interface NamedBundle extends Bundle {

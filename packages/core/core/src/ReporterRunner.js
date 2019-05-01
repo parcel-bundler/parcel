@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {ParcelOptions, ReporterEvent} from '@parcel/types';
+import type {ParcelOptions, ReporterEvent, Target} from '@parcel/types';
 
 import {bundleToInternal, NamedBundle} from './public/Bundle';
 import bus from '@parcel/workers/src/bus';
