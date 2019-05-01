@@ -1,6 +1,3 @@
-// eslint-disable-next-line no-unused-vars
-import {h} from 'preact';
-
 export function hasBrowserslist(assets) {
   const configExists = assets.some(
     v => v.name === 'browserslist' || v.name === '.browserslistrc'
@@ -48,25 +45,6 @@ export function loadState() {
   }
 }
 
-const PATH_REGEX = /\/src\//g;
-
-export function ParcelError(props) {
-  return (
-    <Box class="error" header={<span>A build error occured:</span>}>
-      {props.error.message.trim().replace(PATH_REGEX, '')}
-    </Box>
-  );
-}
-
-export function Box(props) {
-  return (
-    <div class={`file ${props.class || ''}`}>
-      <div class="header">{props.header}</div>
-      <div class="content">{props.children}</div>
-    </div>
-  );
-}
-
 export const PRESETS = {
   Javascript: [
     {
@@ -102,7 +80,7 @@ export const PRESETS = {
     },
     {
       name: 'index.js',
-      content: `function a(){\n return "asd";\n}\ndocument.body.innerText += a();`
+      content: `function a(){\n return "Hello World!";\n}\ndocument.body.innerText += a();`
     },
     {
       name: 'style.css',
@@ -120,7 +98,7 @@ export const PRESETS = {
   JSON: [
     {
       name: 'index.js',
-      content: "import x from './test.json';\nconsole.log(x);",
+      content: "import x from './test.json';\nconsole.log(JSON.stringify(x));",
       isEntry: true
     },
     {name: 'test.json', content: '{a: 2, b: 3}'}

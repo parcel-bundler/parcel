@@ -7,15 +7,9 @@ import filesize from 'filesize';
 
 import Asset from './components/Asset';
 import Options from './components/Options';
-import Notes from './components/Notes';
 import Preview from './components/Preview';
-import {
-  ParcelError,
-  PRESETS,
-  hasBrowserslist,
-  saveState,
-  loadState
-} from './utils';
+import {ParcelError, Notes} from './components/helper';
+import {PRESETS, hasBrowserslist, saveState, loadState} from './utils';
 import bundle, {workerLoaded, getFS} from './parcel/';
 
 const DEFAULT_PRESET = 'Javascript';
@@ -134,7 +128,7 @@ class App extends Component {
       <div id="app">
         <div class="row">
           <label class="presets">
-            <span>Preset</span>
+            <span>Preset:</span>
             <select
               onChange={e =>
                 this.setState({
@@ -275,6 +269,8 @@ class App extends Component {
 
 render(<App />, document.getElementById('root'));
 
-navigator.serviceWorker.register('./sw.js').catch(error => {
-  console.log('Service worker registration failed:', error);
-});
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(error => {
+    console.log('Service worker registration failed:', error);
+  });
+}

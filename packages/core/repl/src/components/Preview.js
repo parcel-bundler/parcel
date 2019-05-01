@@ -1,7 +1,7 @@
 // eslint-disable-next-line no-unused-vars
 import {h, Component, Fragment, createRef} from 'preact';
 import path from 'path';
-import {Box} from '../utils';
+import {Box} from './helper';
 
 function wrapperFor(scriptURL) {
   return `<script type="application/javascript">
@@ -34,45 +34,44 @@ Console output:<br>
 export default class Preview extends Component {
   constructor(props) {
     super(props);
-    this.iframe = createRef();
+    // this.iframe = createRef();
   }
 
   shouldComponentUpdate(nextProps, nextState) {
     return nextProps.output !== this.props.output;
   }
 
-  componentDidUpdate() {
-    this.iframe.current.contentWindow.location.reload();
-  }
+  // componentDidUpdate() {
+  //   this.iframe.current.contentWindow.location.reload();
+  // }
 
   render() {
-    const entry = this.props.output.find(v => v.isEntry);
-    const entryExtension = path.extname(entry.name).slice(1);
+    return this.props.output.filter(v => v.isEntry).map((entry, i) => {
+      const entryExtension = path.extname(entry.name).slice(1);
 
-    let url;
+      let url;
 
-    if (entryExtension === 'js') {
-      console.log('js');
-      const data = entry.content;
+      if (entryExtension === 'js') {
+        console.log('js');
+        const data = entry.content;
 
-      const blobURL = URL.createObjectURL(
-        new Blob([data], {type: 'application/javascript'})
-      );
-      const wrapperPage = wrapperFor(blobURL);
+        const blobURL = URL.createObjectURL(
+          new Blob([data], {type: 'application/javascript'})
+        );
+        const wrapperPage = wrapperFor(blobURL);
 
-      url = URL.createObjectURL(new Blob([wrapperPage], {type: 'text/html'}));
-    } else if (entryExtension === 'html') {
-      url = `${entry.name}#parcel_preview`;
-    }
+        url = URL.createObjectURL(new Blob([wrapperPage], {type: 'text/html'}));
+      } else if (entryExtension === 'html' && 'serviceWorker' in navigator) {
+        url = `${entry.name}#parcel_preview`;
+      }
 
-    if (url) {
-      return (
-        <Box header={'Preview of the first entry point'}>
-          <iframe class="preview" src={url} ref={this.iframe} />
-        </Box>
-      );
-    }
-
-    return false;
+      if (url) {
+        return (
+          <Box header={'Preview: ' + entry.name}>
+            <iframe class="preview" src={url} />
+          </Box>
+        );
+      }
+    });
   }
 }

@@ -1,13 +1,31 @@
-// eslint-disable-next-line no-unused-vars
 import {h} from 'preact';
 
-export default function Notes() {
+const PATH_REGEX = /\/src\//g;
+
+export function ParcelError(props) {
+  return (
+    <Box class="error" header={<span>A build error occured:</span>}>
+      {props.error.message.trim().replace(PATH_REGEX, '')}
+    </Box>
+  );
+}
+
+export function Box(props) {
+  return (
+    <div class={`file ${props.class || ''}`}>
+      <div class="header">{props.header}</div>
+      <div class="content">{props.children}</div>
+    </div>
+  );
+}
+
+export function Notes() {
   return (
     <div class="file notes">
       Yes, this is Parcel as a (nearly) self-hosting bundler (self-
       <i>scope-hoisting</i> doesn't work ...)
       <br />
-      The Parcel portion of this page, including all asset types, is a 4.8MB
+      The Parcel portion of this page, including all asset types, is a 2.8MB
       gzipped bundle running in a Web Worker
       <br />
       <br />
