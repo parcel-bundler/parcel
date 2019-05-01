@@ -19,7 +19,7 @@ import {
 } from '@parcel/utils/src/md5';
 import Cache from '@parcel/cache';
 import {createReadStream} from 'fs';
-import TapStream from '@parcel/utils/src/TapStream';
+import {unique} from '@parcel/utils/src/collection';
 import Config from './Config';
 import {report} from './ReporterRunner';
 
@@ -49,7 +49,7 @@ export default class TransformerRunner {
     // If a cache entry matches, no need to transform.
     let cacheEntry;
     if (this.options.cache !== false && req.code == null) {
-      cacheEntry = await Cache.read(req.filePath, req.env);
+      cacheEntry = await Cache.get(reqCacheKey(req));
     }
 
     let content = req.code == null ? createReadStream(req.filePath) : req.code;
@@ -81,6 +81,8 @@ export default class TransformerRunner {
       cacheEntry
     );
 
+    await Promise.all(assets.map(asset => asset.updateStats()));
+
     // If the transformer request passed code rather than a filename,
     // use a hash as the id to ensure it is unique.
     if (req.code) {
@@ -97,7 +99,10 @@ export default class TransformerRunner {
       initialAssets
     };
 
-    await Cache.write(cacheEntry);
+    await Promise.all(
+      unique(assets, initialAssets || []).map(asset => asset.commit())
+    );
+    await Cache.set(reqCacheKey(req), cacheEntry);
     return cacheEntry;
   }
 
@@ -247,18 +252,6 @@ async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
   if (asset.ast && generate) {
     asset.content = (await generate(asset)).code;
   }
-
-  asset.ast = null;
-  let size = 0;
-  asset.outputHash = await md5FromReadableStream(
-    asset.getStream().pipe(
-      new TapStream(buf => {
-        size += buf.length;
-      })
-    )
-  );
-  asset.stats.size = size;
-
   return asset;
 }
 
@@ -276,4 +269,8 @@ async function checkConnectedFiles(files: Array<File>): Promise<boolean> {
   );
 
   return files.every((file, index) => file.hash === hashes[index]);
+}
+
+function reqCacheKey(req: TransformerRequest): string {
+  return md5FromString(req.filePath + JSON.stringify(req.env));
 }

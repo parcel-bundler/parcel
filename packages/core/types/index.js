@@ -229,7 +229,7 @@ export interface Asset {
   getPackage(): Promise<PackageJSON | null>;
   addDependency(dep: DependencyOptions): string;
   createChildAsset(result: TransformerResult): Asset;
-  writeBlobs(): Promise<mixed>;
+  commit(): Promise<void>;
 }
 
 export type Stats = {|
