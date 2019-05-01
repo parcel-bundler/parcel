@@ -60,11 +60,3 @@ export function md5FromObject(
 export function md5FromFilePath(filePath: string): Promise<string> {
   return md5FromReadableStream(fs.createReadStream(filePath));
 }
-
-export function md5FromBlob(blob: string | Buffer | Readable) {
-  if (typeof blob === 'string' || blob instanceof Buffer) {
-    return md5FromString(blob);
-  }
-
-  return md5FromReadableStream(blob);
-}

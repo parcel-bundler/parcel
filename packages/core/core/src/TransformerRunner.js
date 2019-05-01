@@ -2,6 +2,7 @@
 
 import type {
   Asset as IAsset,
+  Blob,
   CacheEntry,
   File,
   GenerateOutput,
@@ -23,13 +24,14 @@ import {unique} from '@parcel/utils/src/collection';
 import Config from './Config';
 import {report} from './ReporterRunner';
 import TapStream from '@parcel/utils/src/TapStream';
+import nullthrows from 'nullthrows';
 
 type Opts = {|
   config: Config,
   options: ParcelOptions
 |};
 
-type GenerateFunc = ?(input: Asset) => Promise<GenerateOutput>;
+type GenerateFunc = (input: Asset) => Promise<GenerateOutput>;
 
 const BUFFER_LIMIT = 5000000; // 5mb
 
@@ -55,40 +57,7 @@ export default class TransformerRunner {
       cacheEntry = await Cache.get(reqCacheKey(req));
     }
 
-    let code = req.code;
-    let content;
-    let hash;
-    let size;
-    if (code == null) {
-      // As an optimization for the common case of source code, while we read in
-      // data to compute its md5 and size, buffer its contents in memory.
-      // This avoids reading the data now, and then again during transformation.
-      // If it exceeds BUFFER_LIMIT, throw it out and replace it with a stream to
-      // lazily read it at a later point.
-      content = Buffer.from([]);
-      size = 0;
-      hash = await md5FromReadableStream(
-        createReadStream(req.filePath).pipe(
-          new TapStream(buf => {
-            if (content instanceof Buffer) {
-              size += buf.length;
-              if (size > BUFFER_LIMIT) {
-                // if buffering this content would put this over BUFFER_LIMIT, replace
-                // it with a stream
-                content = createReadStream(req.filePath);
-              } else {
-                content = Buffer.concat([content, buf]);
-              }
-            }
-          })
-        )
-      );
-    } else {
-      content = code;
-      hash = md5FromString(code);
-      size = Buffer.from(code).length;
-    }
-
+    let {content, size, hash} = await summarizeRequest(req);
     if (
       cacheEntry &&
       cacheEntry.hash === hash &&
@@ -102,6 +71,7 @@ export default class TransformerRunner {
       type: path.extname(req.filePath).slice(1),
       ast: null,
       content,
+      hash,
       env: req.env,
       stats: {
         time: 0,
@@ -116,13 +86,13 @@ export default class TransformerRunner {
       cacheEntry
     );
 
-    await Promise.all(assets.map(asset => asset.updateStats()));
-
     // If the transformer request passed code rather than a filename,
     // use a hash as the id to ensure it is unique.
     if (req.code) {
       for (let asset of assets) {
-        asset.id = asset.outputHash;
+        asset.id = md5FromString(
+          nullthrows(asset.hash) + JSON.stringify(asset.env)
+        );
       }
     }
 
@@ -162,7 +132,7 @@ export default class TransformerRunner {
       if (cacheEntry) {
         let cachedAssets = (
           cacheEntry.initialAssets || cacheEntry.assets
-        ).filter(child => child.hash === asset.hash);
+        ).filter(child => child.hash && child.hash === asset.hash);
 
         if (
           cachedAssets.length > 0 &&
@@ -219,7 +189,7 @@ export default class TransformerRunner {
   async runTransform(
     input: Asset,
     transformer: Transformer,
-    previousGenerate: GenerateFunc
+    previousGenerate: ?GenerateFunc
   ) {
     // Load config for the transformer.
     let config = null;
@@ -308,4 +278,44 @@ async function checkConnectedFiles(files: Array<File>): Promise<boolean> {
 
 function reqCacheKey(req: TransformerRequest): string {
   return md5FromString(req.filePath + JSON.stringify(req.env));
+}
+
+async function summarizeRequest(
+  req: TransformerRequest
+): Promise<{|content: Blob, hash: string, size: number|}> {
+  let code = req.code;
+  let content: Blob;
+  let hash: string;
+  let size: number;
+  if (code == null) {
+    // As an optimization for the common case of source code, while we read in
+    // data to compute its md5 and size, buffer its contents in memory.
+    // This avoids reading the data now, and then again during transformation.
+    // If it exceeds BUFFER_LIMIT, throw it out and replace it with a stream to
+    // lazily read it at a later point.
+    content = Buffer.from([]);
+    size = 0;
+    hash = await md5FromReadableStream(
+      createReadStream(req.filePath).pipe(
+        new TapStream(buf => {
+          if (content instanceof Buffer) {
+            size += buf.length;
+            if (size > BUFFER_LIMIT) {
+              // if buffering this content would put this over BUFFER_LIMIT, replace
+              // it with a stream
+              content = createReadStream(req.filePath);
+            } else {
+              content = Buffer.concat([content, buf]);
+            }
+          }
+        })
+      )
+    );
+  } else {
+    content = code;
+    hash = md5FromString(code);
+    size = Buffer.from(code).length;
+  }
+
+  return {content, hash, size};
 }

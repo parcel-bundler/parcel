@@ -18,6 +18,7 @@ import type {
   TransformerResult
 } from '@parcel/types';
 
+import crypto from 'crypto';
 import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
 import {loadConfig} from '@parcel/utils/src/config';
 import {
@@ -124,28 +125,40 @@ export default class Asset implements IAsset {
     return this.content;
   }
 
-  async updateStats(): Promise<void> {
-    let size = 0;
-    this.outputHash = await md5FromReadableStream(
-      this.getStream().pipe(
-        new TapStream(buf => {
-          size += buf.length;
-        })
-      )
-    );
-    this.stats.size = size;
-  }
-
   /*
    * Prepares the asset for being serialized to the cache by commiting its
    * content and map of the asset to the cache.
    */
   async commit(): Promise<void> {
     this.ast = null;
+
+    let contentStream = this.getStream();
+    if (
+      // $FlowFixMe
+      typeof contentStream.bytesRead === 'number' &&
+      contentStream.bytesRead > 0
+    ) {
+      throw new Error(
+        'Stream has already been read. This may happen if a plugin reads from a stream and does not replace it.'
+      );
+    }
+
+    let size = 0;
+    let hash = crypto.createHash('md5');
+
+    // Since we can only read from the stream once, compute the content length
+    // and hash while it's being written to the cache.
     this.contentKey = await Cache.setStream(
       this.generateCacheKey('content'),
-      this.getStream()
+      contentStream.pipe(
+        new TapStream(buf => {
+          size += buf.length;
+          hash.update(buf);
+        })
+      )
     );
+    this.stats.size = size;
+    this.outputHash = hash.digest('hex');
   }
 
   getStream(): Readable {
@@ -159,9 +172,8 @@ export default class Asset implements IAsset {
   }
 
   readFromCacheIfKey() {
-    let contentKey = this.contentKey;
-    if (contentKey) {
-      this.content = Cache.getStream(contentKey);
+    if (this.contentKey) {
+      this.content = Cache.getStream(this.contentKey);
     }
   }
 
@@ -199,8 +211,22 @@ export default class Asset implements IAsset {
 
   createChildAsset(result: TransformerResult): Asset {
     let content = result.content || result.code || '';
+
+    let hash;
+    let size;
+    if (content === this.content) {
+      hash = this.hash;
+      size = this.stats.size;
+    } else if (typeof content === 'string' || content instanceof Buffer) {
+      hash = md5FromString(content);
+      size = content.length;
+    } else {
+      hash = null;
+      size = NaN;
+    }
+
     let asset = new Asset({
-      hash: content === this.content ? this.hash : md5FromString(content),
+      hash,
       filePath: this.filePath,
       type: result.type,
       content,
@@ -209,7 +235,11 @@ export default class Asset implements IAsset {
       env: this.env.merge(result.env),
       dependencies: this.dependencies,
       connectedFiles: this.connectedFiles,
-      meta: {...this.meta, ...result.meta}
+      meta: {...this.meta, ...result.meta},
+      stats: {
+        time: 0,
+        size
+      }
     });
 
     let dependencies = result.dependencies;
