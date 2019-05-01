@@ -1,7 +1,7 @@
 // @flow strict-local
 // flowlint unsafe-getters-setters:off
 
-import type {Bundle as InternalBundle, NodeId} from '../types';
+import type {Bundle as InternalBundle} from '../types';
 import type {
   Asset,
   Bundle as IBundle,
@@ -116,8 +116,8 @@ export class MutableBundle extends Bundle implements IMutableBundle {
     this.#bundle.stats = stats;
   }
 
-  removeAsset(asset: Asset): ?NodeId {
-    return this.#bundle.assetGraph.removeAsset(asset);
+  removeAsset(asset: Asset): void {
+    this.#bundle.assetGraph.removeAsset(asset);
   }
 
   merge(bundle: IBundle): void {
