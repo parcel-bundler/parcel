@@ -39,6 +39,7 @@ export async function bundle(assets, options) {
 
   if (!entryPoints.length) throw new Error('No asset marked as entrypoint');
 
+  let entryPointsOutput;
   try {
     const bundler = new Bundler(entryPoints, {
       outDir: '/dist',
@@ -55,7 +56,12 @@ export async function bundle(assets, options) {
       contentHash: options.contentHash,
       target: options.target
     });
-    await bundler.bundle();
+    const bundle = await bundler.bundle();
+
+    const entryPointsOutputBundles = bundle.name
+      ? [bundle]
+      : [...bundle.childBundles];
+    entryPointsOutput = new Set(entryPointsOutputBundles.map(v => v.name));
   } catch (e) {
     let result = '';
 
@@ -72,7 +78,8 @@ export async function bundle(assets, options) {
   for (let f of await fastGlob('/dist/**/*')) {
     output.push({
       name: f.replace(/^\/dist\//, ''),
-      content: await fs.readFile(f, 'utf8')
+      content: await fs.readFile(f, 'utf8'),
+      isEntry: entryPointsOutput.has(f)
     });
   }
   return output;

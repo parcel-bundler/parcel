@@ -46,25 +46,23 @@ export default class Preview extends Component {
   }
 
   render() {
-    const {assets, output} = this.props;
-    const entryName = assets.find(v => v.isEntry).name;
-    const entryExtension = path.extname(entryName).slice(1);
+    const entry = this.props.output.find(v => v.isEntry);
+    const entryExtension = path.extname(entry.name).slice(1);
 
     let url;
 
     if (entryExtension === 'js') {
       console.log('js');
-      const data = output.find(v => v.name === entryName).content;
+      const data = entry.content;
 
       const blobURL = URL.createObjectURL(
         new Blob([data], {type: 'application/javascript'})
       );
       const wrapperPage = wrapperFor(blobURL);
-      // const wrapperPage = wrapperFor(entryName);
 
       url = URL.createObjectURL(new Blob([wrapperPage], {type: 'text/html'}));
     } else if (entryExtension === 'html') {
-      url = `${entryName}#parcel_preview`;
+      url = `${entry.name}#parcel_preview`;
     }
 
     if (url) {

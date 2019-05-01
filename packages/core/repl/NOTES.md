@@ -65,6 +65,7 @@ parcel-bundler: (worker)
 - sass illegal invocation: https://github.com/mbullington/node_preamble.dart/issues/14
 - builtins/bundle loaders: fs.readFileSync(require.resolve)
 - preview doesn't work with typescript asset
+- Cmd+S -> export zip
 
 #### Cache
 
