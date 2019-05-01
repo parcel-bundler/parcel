@@ -5,6 +5,7 @@ import {Readable} from 'stream';
 import type {
   Asset as IAsset,
   AST,
+  Blob,
   Config,
   Dependency as IDependency,
   DependencyOptions,
@@ -19,6 +20,10 @@ import type {
 
 import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
 import {loadConfig} from '@parcel/utils/src/config';
+import {
+  readableFromStringOrBuffer,
+  bufferStream
+} from '@parcel/utils/src/stream';
 import Cache from '@parcel/cache';
 import Dependency from './Dependency';
 import TapStream from '@parcel/utils/src/TapStream';
@@ -28,7 +33,7 @@ type AssetOptions = {|
   hash?: ?string,
   filePath: FilePath,
   type: string,
-  content?: string | Readable,
+  content?: Blob,
   contentKey?: ?string,
   ast?: ?AST,
   dependencies?: Iterable<[string, IDependency]>,
@@ -37,7 +42,7 @@ type AssetOptions = {|
   outputHash?: string,
   env: Environment,
   meta?: Meta,
-  stats?: Stats
+  stats: Stats
 |};
 
 type SerializedOptions = {|
@@ -61,7 +66,7 @@ export default class Asset implements IAsset {
   env: Environment;
   meta: Meta;
   stats: Stats;
-  content: string | Readable;
+  content: Blob;
   contentKey: ?string;
 
   constructor(options: AssetOptions) {
@@ -86,10 +91,7 @@ export default class Asset implements IAsset {
     this.outputHash = options.outputHash || '';
     this.env = options.env;
     this.meta = options.meta || {};
-    this.stats = options.stats || {
-      time: 0,
-      size: this.content instanceof Readable ? 0 : this.content.length
-    };
+    this.stats = options.stats;
   }
 
   serialize(): SerializedOptions {
@@ -114,8 +116,8 @@ export default class Asset implements IAsset {
     this.readFromCacheIfKey();
 
     let content = this.content;
-    if (typeof content === 'string') {
-      return content;
+    if (typeof content === 'string' || content instanceof Buffer) {
+      return content.toString();
     }
 
     this.content = (await bufferStream(content)).toString();
@@ -134,6 +136,10 @@ export default class Asset implements IAsset {
     this.stats.size = size;
   }
 
+  /*
+   * Prepares the asset for being serialized to the cache by commiting its
+   * content and map of the asset to the cache.
+   */
   async commit(): Promise<void> {
     this.ast = null;
     this.contentKey = await Cache.setStream(
@@ -256,25 +262,4 @@ export default class Asset implements IAsset {
   async getPackage(): Promise<PackageJSON | null> {
     return this.getConfig(['package.json']);
   }
-}
-
-function readableFromStringOrBuffer(str: string | Buffer): Readable {
-  // https://stackoverflow.com/questions/12755997/how-to-create-streams-from-string-in-node-js
-  const stream = new Readable();
-  stream.push(str);
-  stream.push(null);
-  return stream;
-}
-
-async function bufferStream(stream: Readable): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    let buf = Buffer.from([]);
-    stream.on('data', data => {
-      buf = Buffer.concat([buf, data]);
-    });
-    stream.on('end', () => {
-      resolve(buf);
-    });
-    stream.on('error', reject);
-  });
 }

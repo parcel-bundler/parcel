@@ -4,11 +4,14 @@ import assert from 'assert';
 import Asset from '../src/Asset';
 import Environment from '../src/Environment';
 
+const stats = {time: 0, size: 0};
+
 describe('Asset', () => {
   it('only includes connected files once per filePath', () => {
     let asset = new Asset({
       filePath: '/foo/asset.js',
       env: new Environment(),
+      stats,
       type: 'js'
     });
     asset.addConnectedFile({filePath: '/foo/file', hash: 'abc'});
@@ -25,6 +28,7 @@ describe('Asset', () => {
     let asset = new Asset({
       filePath: '/foo/asset.js',
       env: new Environment(),
+      stats,
       type: 'js'
     });
 
@@ -39,6 +43,7 @@ describe('Asset', () => {
     let asset = new Asset({
       filePath: '/foo/asset.js',
       env: new Environment(),
+      stats,
       type: 'js'
     });
 
