@@ -9,41 +9,16 @@ import Asset from './components/Asset';
 import Options from './components/Options';
 import Notes from './components/Notes';
 import Preview from './components/Preview';
-import {ParcelError, PRESETS, hasBrowserslist} from './utils';
+import {
+  ParcelError,
+  PRESETS,
+  hasBrowserslist,
+  saveState,
+  loadState
+} from './utils';
 import bundle, {workerLoaded, getFS} from './parcel/';
 
 const DEFAULT_PRESET = 'Javascript';
-
-function saveState(curPreset, options, assets) {
-  let data = {
-    currentPreset: curPreset,
-    options,
-    assets: assets.map(
-      ({name, content, isEntry = false}) =>
-        isEntry ? [name, content, 1] : [name, content]
-    )
-  };
-
-  window.location.hash = btoa(encodeURIComponent(JSON.stringify(data)));
-}
-
-function loadState() {
-  const hash = window.location.hash.replace(/^#/, '');
-
-  try {
-    const data = JSON.parse(decodeURIComponent(atob(hash)));
-    data.assets = data.assets.map(([name, content, isEntry = false]) => ({
-      name,
-      content,
-      isEntry: Boolean(isEntry)
-    }));
-    return data;
-  } catch (e) {
-    console.error('Hash decoding failed:', e);
-    window.location.hash = '';
-    return null;
-  }
-}
 
 class App extends Component {
   constructor(props) {
@@ -165,7 +140,8 @@ class App extends Component {
                 this.setState({
                   currentPreset: e.target.value,
                   assets: PRESETS[e.target.value],
-                  output: null
+                  output: null,
+                  bundlingError: null
                 })
               }
               value={this.state.currentPreset}

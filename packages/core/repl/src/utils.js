@@ -17,12 +17,52 @@ export function hasBrowserslist(assets) {
   }
 }
 
+export function saveState(curPreset, options, assets) {
+  let data = {
+    currentPreset: curPreset,
+    options,
+    assets: assets.map(
+      ({name, content, isEntry = false}) =>
+        isEntry ? [name, content, 1] : [name, content]
+    )
+  };
+
+  window.location.hash = btoa(encodeURIComponent(JSON.stringify(data)));
+}
+
+export function loadState() {
+  const hash = window.location.hash.replace(/^#/, '');
+
+  try {
+    const data = JSON.parse(decodeURIComponent(atob(hash)));
+    data.assets = data.assets.map(([name, content, isEntry = false]) => ({
+      name,
+      content,
+      isEntry: Boolean(isEntry)
+    }));
+    return data;
+  } catch (e) {
+    console.error('Hash decoding failed:', e);
+    window.location.hash = '';
+    return null;
+  }
+}
+
 const PATH_REGEX = /\/src\//g;
 
 export function ParcelError(props) {
   return (
-    <div class="file error">
+    <Box class="error" header={<span>A build error occured:</span>}>
       {props.error.message.trim().replace(PATH_REGEX, '')}
+    </Box>
+  );
+}
+
+export function Box(props) {
+  return (
+    <div class={`file ${props.class || ''}`}>
+      <div class="header">{props.header}</div>
+      <div class="content">{props.children}</div>
     </div>
   );
 }

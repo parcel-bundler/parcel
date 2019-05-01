@@ -1,6 +1,7 @@
 // eslint-disable-next-line no-unused-vars
 import {h, Component, Fragment, createRef} from 'preact';
 import path from 'path';
+import {Box} from '../utils';
 
 function wrapperFor(scriptURL) {
   return `<script type="application/javascript">
@@ -68,10 +69,9 @@ export default class Preview extends Component {
 
     if (url) {
       return (
-        <Fragment>
-          Preview (of the first entry point): <br />
-          <iframe class="file preview" src={url} ref={this.iframe} />
-        </Fragment>
+        <Box header={'Preview of the first entry point'}>
+          <iframe class="preview" src={url} ref={this.iframe} />
+        </Box>
       );
     }
 

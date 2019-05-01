@@ -23,7 +23,7 @@ async function handleFetch(event) {
   );
   const url = new URL(event.request.url);
 
-  console.log(event);
+  // console.log(event);
   if (
     (client && client.frameType === 'nested') ||
     (event.resultingClientId && url.hash === '#parcel_preview')

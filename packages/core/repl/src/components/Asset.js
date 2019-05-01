@@ -2,6 +2,7 @@
 import {h} from 'preact';
 // eslint-disable-next-line no-unused-vars
 import Editor from './Editor';
+import {Box} from '../utils';
 
 const Asset = props => {
   const {
@@ -18,8 +19,8 @@ const Asset = props => {
 
   if (editable) {
     return (
-      <div class="file">
-        <div class="header">
+      <Box
+        header={[
           <input
             type="text"
             class="filename"
@@ -27,40 +28,38 @@ const Asset = props => {
             onChange={e => onChangeName(e.target.value)}
             value={name}
             aria-label="Asset filename"
-          />
-          {additionalHeader}
+          />,
+          additionalHeader,
           <input
             type="checkbox"
             class="setEntry"
             title="Entrypoint"
             checked={isEntry}
             onChange={e => onChangeEntry(e.target.checked)}
-          />
+          />,
           <button class="remove" onClick={() => onClickRemove(name)}>
             -
           </button>
-        </div>
-        <div class="source">
-          <Editor
-            filename={name}
-            content={content}
-            onChange={onChangeContent}
-            editable
-          />
-        </div>
-      </div>
+        ]}
+      >
+        <Editor
+          filename={name}
+          content={content}
+          onChange={onChangeContent}
+          editable
+        />
+      </Box>
     );
   } else {
     return (
-      <div class="file">
-        <div class="header">
-          <input type="text" class="filename" readonly value={name} />
-          {additionalHeader}
-        </div>
-        <div class="source">
-          <Editor filename={name} content={content} />
-        </div>
-      </div>
+      <Box
+        header={[
+          <input type="text" class="filename" readonly value={name} />,
+          additionalHeader
+        ]}
+      >
+        <Editor filename={name} content={content} />
+      </Box>
     );
   }
 };

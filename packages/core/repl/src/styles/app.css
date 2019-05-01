@@ -91,7 +91,7 @@ button:enabled:active {
   margin-left: auto;
 }
 
-.file > .source .CodeMirror {
+.file > .content .CodeMirror {
   height: auto;
 }
 .row > button {
@@ -105,8 +105,6 @@ button:enabled:active {
 
 input[type='text'],
 select {
-  border-radius: 0.2em;
-  border: 1px solid grey;
   padding: 0.1em 0.2em;
 }
 
@@ -155,7 +153,8 @@ select {
 .row > .output {
   width: 50%;
 }
-.row > .error {
+
+.error .content {
   white-space: pre;
   font-family: monospace;
   overflow-y: scroll;
@@ -163,4 +162,10 @@ select {
   color: red;
 
   padding: 0.3em;
+}
+
+iframe.preview {
+  width: 100%;
+  height: 100%;
+  border: none;
 }
