@@ -57,7 +57,7 @@ export const PRESETS = {
   'Basic Page': [
     {
       name: 'index.html',
-      content: `<link rel="stylesheet" type="text/css" href="./style.css">\n<script src="./index.js"></script>`,
+      content: `<head>\n  <link rel="stylesheet" type="text/css" href="./style.css">\n</head>\n<body>\n  <script src="./index.js"></script>\n</body>`,
       isEntry: true
     },
     {

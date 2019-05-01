@@ -82,6 +82,10 @@ class ParcelWorker {
   async bundle(assets, options) {
     return bundle(assets, options);
   }
+
+  getFS() {
+    return fsNative.data;
+  }
 }
 
 Comlink.expose(ParcelWorker, self);

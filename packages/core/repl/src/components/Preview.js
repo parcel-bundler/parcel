@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-unused-vars
-import {h, Component, Fragment} from 'preact';
+import {h, Component, Fragment, createRef} from 'preact';
 import path from 'path';
 
 function wrapperFor(scriptURL) {
@@ -31,46 +31,48 @@ Console output:<br>
 }
 
 export default class Preview extends Component {
+  constructor(props) {
+    super(props);
+    this.iframe = createRef();
+  }
+
   shouldComponentUpdate(nextProps, nextState) {
     return nextProps.output !== this.props.output;
+  }
+
+  componentDidUpdate() {
+    this.iframe.current.contentWindow.location.reload();
   }
 
   render() {
     const {assets, output} = this.props;
     const entryName = assets.find(v => v.isEntry).name;
     const entryExtension = path.extname(entryName).slice(1);
-    const entryOutput = output.find(v => v.name === entryName);
+
+    let url;
 
     if (entryExtension === 'js') {
-      let data = entryOutput.content;
+      console.log('js');
+      const data = output.find(v => v.name === entryName).content;
 
       const blobURL = URL.createObjectURL(
         new Blob([data], {type: 'application/javascript'})
       );
-
       const wrapperPage = wrapperFor(blobURL);
+      // const wrapperPage = wrapperFor(entryName);
+
+      url = URL.createObjectURL(new Blob([wrapperPage], {type: 'text/html'}));
+    } else if (entryExtension === 'html') {
+      url = `${entryName}#parcel_preview`;
+    }
+
+    if (url) {
       return (
         <Fragment>
           Preview (of the first entry point): <br />
-          <iframe
-            class="file preview"
-            src={URL.createObjectURL(
-              new Blob([wrapperPage], {type: 'text/html'})
-            )}
-          />
+          <iframe class="file preview" src={url} ref={this.iframe} />
         </Fragment>
       );
-    } else if (entryExtension === 'html') {
-      // TODO free blob
-      // let data = entryOutput.content;
-      // console.log(output);
-      // for(const f of output.map(v => v.name !== entryName)) {
-      //   const blobURL = URL.createObjectURL(new Blob([f.content], {type : 'application/octet-stream'}));
-      //   console.log(f);
-      //   data = data.split("/"+f.name).join(blobURL);
-      // }
-      // const blobURL = URL.createObjectURL(new Blob([entryOutput.content], {type : 'text/html'}))
-      // return <iframe src={blobURL}/>
     }
 
     return false;

@@ -10,7 +10,7 @@ import Options from './components/Options';
 import Notes from './components/Notes';
 import Preview from './components/Preview';
 import {ParcelError, PRESETS, hasBrowserslist} from './utils';
-import bundle, {workerLoaded} from './parcel/';
+import bundle, {workerLoaded, getFS} from './parcel/';
 
 const DEFAULT_PRESET = 'Javascript';
 
@@ -93,7 +93,23 @@ class App extends Component {
 
     try {
       const output = await bundle(this.state.assets, this.state.options);
-      this.setState({
+
+      // await new Promise(async res => {
+      //   window.addEventListener(
+      //     'message',
+      //     e => {
+      //       console.log(e);
+      //       res();
+      //     },
+      //     {once: true}
+      //   );
+      const sw = await navigator.serviceWorker.ready;
+      if (sw.active) {
+        sw.active.postMessage(await getFS());
+      }
+      // });
+
+      await this.setState({
         bundling: false,
         bundlingError: null,
         output
@@ -148,7 +164,8 @@ class App extends Component {
               onChange={e =>
                 this.setState({
                   currentPreset: e.target.value,
-                  assets: PRESETS[e.target.value]
+                  assets: PRESETS[e.target.value],
+                  output: null
                 })
               }
               value={this.state.currentPreset}
@@ -232,7 +249,7 @@ class App extends Component {
         </div>
         <div class="row">
           {this.state.workerReady ? (
-            <div class="loadState ready">Parcel is ready!</div>
+            <div class="loadState ready">Parcel is ready</div>
           ) : (
             <div class="loadState loading">Parcel is being loaded...</div>
           )}
@@ -281,3 +298,7 @@ class App extends Component {
 }
 
 render(<App />, document.getElementById('root'));
+
+navigator.serviceWorker.register('./sw.js').catch(error => {
+  console.log('Service worker registration failed:', error);
+});
