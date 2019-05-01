@@ -129,8 +129,8 @@ export type ParcelOptions = {|
   minify?: boolean,
   sourceMaps?: boolean,
   publicUrl?: string,
-  hot?: ServerOptions | boolean,
-  serve?: ServerOptions | boolean,
+  hot?: ServerOptions | false,
+  serve?: ServerOptions | false,
   autoinstall?: boolean,
   logLevel?: 'none' | 'error' | 'warn' | 'info' | 'verbose'
 
@@ -143,13 +143,13 @@ export type ParcelOptions = {|
 
 export type ServerOptions = {|
   host?: string,
-  port?: number,
+  port: number,
   https?: HTTPSOptions | boolean
 |};
 
 export type HTTPSOptions = {|
-  cert?: FilePath,
-  key?: FilePath
+  cert: FilePath,
+  key: FilePath
 |};
 
 export type SourceLocation = {|
@@ -298,6 +298,7 @@ export type GraphTraversalCallback<TNode, TContext> = (
 
 // Not a directly exported interface.
 interface AssetGraphLike {
+  getDependencies(asset: Asset): Array<Dependency>;
   getDependencyResolution(dependency: Dependency): ?Asset;
   traverseAssets<TContext>(
     visit: GraphTraversalCallback<Asset, TContext>
@@ -328,7 +329,6 @@ export interface Bundle extends AssetGraphLike {
   +target: ?Target;
   +filePath: ?FilePath;
   +stats: Stats;
-  getDependencies(asset: Asset): Array<Dependency>;
   getEntryAssets(): Array<Asset>;
   getTotalSize(asset?: Asset): number;
   traverse<TContext>(
@@ -464,6 +464,12 @@ type TransformingProgressEvent = {|
   request: TransformerRequest
 |};
 
+type TransformFinishedEvent = {|
+  type: 'buildProgress',
+  phase: 'transformFinished',
+  cacheEntry: CacheEntry
+|};
+
 type BundlingProgressEvent = {|
   type: 'buildProgress',
   phase: 'bundling'
@@ -484,6 +490,7 @@ type OptimizingProgressEvent = {|
 export type BuildProgressEvent =
   | ResolvingProgressEvent
   | TransformingProgressEvent
+  | TransformFinishedEvent
   | BundlingProgressEvent
   | PackagingProgressEvent
   | OptimizingProgressEvent;
@@ -492,7 +499,8 @@ export type BuildSuccessEvent = {|
   type: 'buildSuccess',
   assetGraph: MainAssetGraph,
   bundleGraph: BundleGraph,
-  buildTime: number
+  buildTime: number,
+  changedAssets: Map<string, Asset>
 |};
 
 export type BuildFailureEvent = {|
@@ -508,7 +516,11 @@ export type ReporterEvent =
   | BuildFailureEvent;
 
 export type Reporter = {|
-  report(event: ReporterEvent, opts: ParcelOptions): Async<void>
+  report(
+    event: ReporterEvent,
+    opts: ParcelOptions,
+    targets: Array<Target>
+  ): Async<void>
 |};
 
 export interface ErrorWithCode extends Error {

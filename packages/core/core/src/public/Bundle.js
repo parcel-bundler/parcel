@@ -130,7 +130,7 @@ export class MutableBundle extends Bundle implements IMutableBundle {
   }
 
   removeAsset(asset: Asset): void {
-    return this.#bundle.assetGraph.removeAsset(asset);
+    this.#bundle.assetGraph.removeAsset(asset);
   }
 
   merge(bundle: IBundle): void {

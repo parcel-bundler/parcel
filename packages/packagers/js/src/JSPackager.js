@@ -69,7 +69,12 @@ export default new Packager({
       '({' +
       assets +
       '},{},' +
-      JSON.stringify(bundle.getEntryAssets().map(asset => asset.id)) +
+      JSON.stringify(
+        bundle
+          .getEntryAssets()
+          .reverse()
+          .map(asset => asset.id)
+      ) +
       ', ' +
       'null' +
       ')'

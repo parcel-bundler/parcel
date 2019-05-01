@@ -72,13 +72,14 @@ export default class Parcel {
       rootDir: this.rootDir
     });
 
-    this.reporterRunner = new ReporterRunner({
-      config,
-      options: this.options
-    });
-
     let targetResolver = new TargetResolver();
     let targets = await targetResolver.resolve(this.rootDir);
+
+    this.reporterRunner = new ReporterRunner({
+      config,
+      targets,
+      options: this.options
+    });
 
     this.assetGraphBuilder = new AssetGraphBuilder({
       options: this.options,
@@ -129,6 +130,7 @@ export default class Parcel {
 
       this.reporterRunner.report({
         type: 'buildSuccess',
+        changedAssets: new Map(this.assetGraphBuilder.changedAssets),
         assetGraph: new MainAssetGraph(assetGraph),
         bundleGraph: new BundleGraph(bundleGraph),
         buildTime: Date.now() - startTime
