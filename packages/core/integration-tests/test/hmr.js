@@ -49,7 +49,7 @@ describe('hmr', function() {
 
     await b.run();
 
-    let ws = new WebSocket('ws://localhost:' + port);
+    // let ws = new WebSocket('ws://localhost:' + port);
 
     await sleep(100);
     fs.writeFile(
