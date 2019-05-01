@@ -21,6 +21,8 @@ const TARGETS = [
   }
 ];
 
+const stats = {size: 0, time: 0};
+
 describe('AssetGraph', () => {
   it('initialization should create one root node with edges to dependency nodes for each entry', () => {
     let graph = new AssetGraph();
@@ -145,6 +147,7 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         hash: '#1',
+        stats,
         dependencies: [
           [
             'utils',
@@ -163,6 +166,7 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         hash: '#2',
+        stats,
         dependencies: [
           [
             'styles',
@@ -183,6 +187,7 @@ describe('AssetGraph', () => {
         hash: '#3',
         dependencies: [],
         env: DEFAULT_ENV,
+        stats,
         connectedFiles: []
       })
     ];
@@ -264,6 +269,7 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         hash: '#1',
+        stats,
         dependencies: [
           [
             'utils',
@@ -282,6 +288,7 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         hash: '#2',
+        stats,
         dependencies: [],
         env: DEFAULT_ENV,
         connectedFiles: []
@@ -378,6 +385,7 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         hash: '#1',
+        stats,
         dependencies: [
           [
             'utils',

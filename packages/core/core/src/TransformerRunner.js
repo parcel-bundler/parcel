@@ -22,6 +22,7 @@ import {createReadStream} from 'fs';
 import {unique} from '@parcel/utils/src/collection';
 import Config from './Config';
 import {report} from './ReporterRunner';
+import TapStream from '@parcel/utils/src/TapStream';
 
 type Opts = {|
   config: Config,
@@ -29,6 +30,8 @@ type Opts = {|
 |};
 
 type GenerateFunc = ?(input: Asset) => Promise<GenerateOutput>;
+
+const BUFFER_LIMIT = 5000000; // 5mb
 
 export default class TransformerRunner {
   options: ParcelOptions;
@@ -52,10 +55,39 @@ export default class TransformerRunner {
       cacheEntry = await Cache.get(reqCacheKey(req));
     }
 
-    let content = req.code == null ? createReadStream(req.filePath) : req.code;
-    let hash = req.code
-      ? md5FromString(req.code)
-      : await md5FromReadableStream(createReadStream(req.filePath));
+    let code = req.code;
+    let content;
+    let hash;
+    let size;
+    if (code == null) {
+      // As an optimization for the common case of source code, while we read in
+      // data to compute its md5 and size, buffer its contents in memory.
+      // This avoids reading the data now, and then again during transformation.
+      // If it exceeds BUFFER_LIMIT, throw it out and replace it with a stream to
+      // lazily read it at a later point.
+      content = Buffer.from([]);
+      size = 0;
+      hash = await md5FromReadableStream(
+        createReadStream(req.filePath).pipe(
+          new TapStream(buf => {
+            if (content instanceof Buffer) {
+              size += buf.length;
+              if (size > BUFFER_LIMIT) {
+                // if buffering this content would put this over BUFFER_LIMIT, replace
+                // it with a stream
+                content = createReadStream(req.filePath);
+              } else {
+                content = Buffer.concat([content, buf]);
+              }
+            }
+          })
+        )
+      );
+    } else {
+      content = code;
+      hash = md5FromString(code);
+      size = Buffer.from(code).length;
+    }
 
     if (
       cacheEntry &&
@@ -70,8 +102,11 @@ export default class TransformerRunner {
       type: path.extname(req.filePath).slice(1),
       ast: null,
       content,
-      hash,
-      env: req.env
+      env: req.env,
+      stats: {
+        time: 0,
+        size
+      }
     });
 
     let pipeline = await this.config.getTransformers(req.filePath);
