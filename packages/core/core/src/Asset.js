@@ -21,6 +21,7 @@ import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
 import {loadConfig} from '@parcel/utils/src/config';
 import Cache from '@parcel/cache';
 import Dependency from './Dependency';
+import TapStream from '@parcel/utils/src/TapStream';
 
 type AssetOptions = {|
   id?: string,
@@ -121,7 +122,20 @@ export default class Asset implements IAsset {
     return this.content;
   }
 
-  async writeBlobs(): Promise<void> {
+  async updateStats(): Promise<void> {
+    let size = 0;
+    this.outputHash = await md5FromReadableStream(
+      this.getStream().pipe(
+        new TapStream(buf => {
+          size += buf.length;
+        })
+      )
+    );
+    this.stats.size = size;
+  }
+
+  async commit(): Promise<void> {
+    this.ast = null;
     this.contentKey = await Cache.setStream(
       this.generateCacheKey('content'),
       this.getStream()
