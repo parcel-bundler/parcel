@@ -312,7 +312,7 @@ export type GraphVisitor<TNode, TContext> =
 export type GraphTraversalCallback<TNode, TContext> = (
   node: TNode,
   context: ?TContext,
-  traversal: TraversalActions
+  actions: TraversalActions
 ) => ?TContext;
 
 // Not a directly exported interface.
@@ -329,9 +329,15 @@ export type MainAssetGraphTraversable =
 export interface MainAssetGraph extends AssetGraphLike {
   createBundle(asset: Asset): MutableBundle;
   traverse<TContext>(
-    visit: GraphVisitor<MainAssetGraphTraversable, TContext>
+    visit: GraphTraversalCallback<MainAssetGraphTraversable, TContext>
   ): ?TContext;
 }
+
+export type SymbolResolution = {|
+  asset: Asset,
+  exportSymbol: Symbol | string,
+  symbol: void | Symbol
+|};
 
 export interface Bundle extends AssetGraphLike {
   +id: string;
@@ -344,6 +350,12 @@ export interface Bundle extends AssetGraphLike {
   getDependencies(asset: Asset): Array<Dependency>;
   getEntryAssets(): Array<Asset>;
   getTotalSize(asset?: Asset): number;
+  hasChildBundles(): boolean;
+  traverseAncestors<TContext>(
+    asset: Asset,
+    visit: GraphVisitor<*, TContext>
+  ): ?TContext;
+  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
 }
 
 export interface MutableBundle extends Bundle {
@@ -370,7 +382,9 @@ export interface BundleGraph {
   getBundleGroupsReferencedByBundle(bundle: Bundle): Array<BundleGroup>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
   isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
-  traverseBundles<TContext>(visit: GraphVisitor<Bundle, TContext>): ?TContext;
+  traverseBundles<TContext>(
+    visit: GraphTraversalCallback<Bundle, TContext>
+  ): ?TContext;
 }
 
 export interface MutableBundleGraph {
@@ -382,7 +396,7 @@ export interface MutableBundleGraph {
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<MutableBundle>;
   isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
   traverseBundles<TContext>(
-    visit: GraphVisitor<MutableBundle, TContext>
+    visit: GraphTraversalCallback<MutableBundle, TContext>
   ): ?TContext;
 }
 

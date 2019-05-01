@@ -1,14 +1,13 @@
 // @flow strict-local
 // flowlint unsafe-getters-setters:off
 
-import type {Bundle as InternalBundle} from '../types';
+import type {Bundle as InternalBundle, AssetGraphNode} from '../types';
 import type {
   Asset,
   Bundle as IBundle,
   Dependency,
   Environment,
   FilePath,
-  GraphTraversalCallback,
   MutableBundle as IMutableBundle,
   NamedBundle as INamedBundle,
   Stats,
@@ -79,12 +78,19 @@ export class Bundle implements IBundle {
     return this.#bundle.assetGraph.resolveSymbol(asset, symbol);
   }
 
-  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext {
+  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>) {
     return this.#bundle.assetGraph.traverseAssets(visit);
   }
 
-  traverseAncestors(startNode: TNode, visit: GraphVisitor<TNode, TContext>) {
-    return this.#bundle.assetGraph.traverseAncestors(startNode, visit);
+  traverseAncestors<TContext>(
+    asset: Asset,
+    visit: GraphVisitor<AssetGraphNode, TContext>
+  ) {
+    let node = nullthrows(
+      this.#bundle.assetGraph.getNode(asset.id),
+      'Bundle does not contain asset'
+    );
+    return this.#bundle.assetGraph.traverseAncestors(node, visit);
   }
 
   hasChildBundles() {

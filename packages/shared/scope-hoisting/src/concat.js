@@ -1,11 +1,14 @@
 // @flow
-import type {Bundle, Asset, ParcelOptions, Symbol} from '@parcel/types';
+
+import invariant from 'assert';
+import type {Bundle, ParcelOptions, Asset, Symbol} from '@parcel/types';
 import * as babylon from '@babel/parser';
 import path from 'path';
 import * as t from '@babel/types';
 import * as walk from 'babylon-walk';
 import {getName, getIdentifier} from './utils';
 import fs from 'fs';
+import nullthrows from 'nullthrows';
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
 const HELPERS = fs.readFileSync(HELPERS_PATH, 'utf8');
@@ -13,6 +16,9 @@ const HELPERS = fs.readFileSync(HELPERS_PATH, 'utf8');
 const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
 const PRELUDE = fs.readFileSync(PRELUDE_PATH, 'utf8');
 
+type AssetASTMap = Map<Asset, Object>;
+
+// eslint-disable-next-line no-unused-vars
 export async function concat(bundle: Bundle, options: ParcelOptions) {
   let promises = [];
   bundle.traverseAssets(asset => {
@@ -32,7 +38,7 @@ export async function concat(bundle: Bundle, options: ParcelOptions) {
 
   let usedExports = getUsedExports(bundle);
 
-  bundle.traverseAssets({
+  bundle.traverseAssets<{|parent: ?AssetASTMap, children: AssetASTMap|}>({
     enter(asset, context) {
       if (shouldExcludeAsset(asset, usedExports)) {
         return context;
@@ -44,11 +50,13 @@ export async function concat(bundle: Bundle, options: ParcelOptions) {
       };
     },
     exit(asset, context) {
+      invariant(context != null);
+
       if (shouldExcludeAsset(asset, usedExports)) {
         return;
       }
 
-      let statements = outputs.get(asset);
+      let statements = nullthrows(outputs.get(asset));
       let statementIndices = new Map();
       for (let i = 0; i < statements.length; i++) {
         let statement = statements[i];
@@ -63,7 +71,7 @@ export async function concat(bundle: Bundle, options: ParcelOptions) {
 
       for (let [asset, ast] of [...context.children].reverse()) {
         let index = statementIndices.has(asset)
-          ? statementIndices.get(asset)
+          ? nullthrows(statementIndices.get(asset))
           : 0;
         statements.splice(index, 0, ...ast);
       }
@@ -191,7 +199,7 @@ function shouldExcludeAsset(
 ) {
   return (
     asset.sideEffects === false &&
-    (!usedExports.has(asset) || usedExports.get(asset).size === 0)
+    (!usedExports.has(asset) || nullthrows(usedExports.get(asset)).size === 0)
   );
 }
 

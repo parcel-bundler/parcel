@@ -1,7 +1,5 @@
 // @flow
 import type {Asset} from '@parcel/types';
-import path from 'path';
-import mm from 'micromatch';
 import * as t from '@babel/types';
 import traverse from '@babel/traverse';
 import template from '@babel/template';
@@ -202,14 +200,18 @@ const VISITOR = {
       }
     }
 
-    let globalCode =
-      asset.meta.globals && asset.meta.globals.get(path.node.name);
+    let globals = asset.meta.globals;
+    if (!globals) {
+      return;
+    }
+
+    let globalCode = globals.get(path.node.name);
     if (globalCode) {
       path.scope
         .getProgramParent()
         .path.unshiftContainer('body', [template(globalCode.code)()]);
 
-      asset.meta.globals.delete(path.node.name);
+      globals.delete(path.node.name);
     }
   },
 
@@ -481,12 +483,13 @@ const VISITOR = {
     } else if (declaration) {
       path.replaceWith(declaration);
 
-      let identifiers = t.isIdentifier(declaration.id)
-        ? [declaration.id]
-        : t.getBindingIdentifiers(declaration);
-
-      for (let id in identifiers) {
-        addExport(asset, path, identifiers[id], identifiers[id]);
+      if (t.isIdentifier(declaration.id)) {
+        addExport(asset, path, declaration.id, declaration.id);
+      } else {
+        let identifiers = t.getBindingIdentifiers(declaration);
+        for (let id of Object.keys(identifiers)) {
+          addExport(asset, path, identifiers[id], identifiers[id]);
+        }
       }
     } else if (specifiers.length > 0) {
       for (let specifier of specifiers) {

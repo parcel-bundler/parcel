@@ -5,6 +5,7 @@ import type {
   Asset,
   Dependency as IDependency,
   GraphTraversalCallback,
+  GraphVisitor,
   MainAssetGraph as IMainAssetGraph,
   MainAssetGraphTraversable
 } from '@parcel/types';
@@ -54,6 +55,7 @@ export default class MainAssetGraph implements IMainAssetGraph {
   traverse<TContext>(
     visit: GraphTraversalCallback<MainAssetGraphTraversable, TContext>
   ): ?TContext {
+    // $FlowFixMe
     return this.#graph.traverse((node, ...args) => {
       if (node.type === 'asset') {
         return visit({type: 'asset', value: node.value}, ...args);
@@ -63,13 +65,7 @@ export default class MainAssetGraph implements IMainAssetGraph {
     });
   }
 
-  traverseAssets<TContext>(
-    visit: GraphTraversalCallback<Asset, TContext>
-  ): ?TContext {
-    return this.#graph.traverse((node, ...args) => {
-      if (node.type === 'asset') {
-        return visit(node.value, ...args);
-      }
-    });
+  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext {
+    return this.#graph.traverseAssets(visit);
   }
 }

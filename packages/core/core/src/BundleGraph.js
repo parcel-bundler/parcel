@@ -45,9 +45,10 @@ export default class BundleGraph extends Graph<BundleGraphNode> {
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>
   ): ?TContext {
-    return this.traverse((node, ...args) => {
+    // $FlowFixMe
+    return this.traverse((node, context, actions) => {
       if (node.type === 'bundle') {
-        return visit(node.value, ...args);
+        return visit(node.value, context, actions);
       }
     });
   }

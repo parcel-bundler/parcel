@@ -1,5 +1,8 @@
 // @flow
-import type {Asset, Bundle, ParcelOptions} from '@parcel/types';
+
+import type {AST, Bundle, ParcelOptions} from '@parcel/types';
+
+const nullthrows = require('nullthrows');
 const {relative} = require('path');
 const template = require('@babel/template').default;
 const t = require('@babel/types');
@@ -14,7 +17,7 @@ const DEFAULT_INTEROP_TEMPLATE = template(
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 const REQUIRE_TEMPLATE = template('parcelRequire(ID)');
 
-export function link(bundle: Bundle, ast, options: ParcelOptions) {
+export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
   let replacements = new Map();
   let imports = new Map();
   let assets = new Map();
@@ -69,6 +72,7 @@ export function link(bundle: Bundle, ast, options: ParcelOptions) {
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
     if (!node && !mod.meta.isCommonJS && mod.meta.isES6Module) {
+      // $FlowFixMe
       let relativePath = relative(options.rootDir, mod.filePath);
       throw new Error(`${relativePath} does not export '${symbol}'`);
     }
@@ -159,10 +163,12 @@ export function link(bundle: Bundle, ast, options: ParcelOptions) {
           );
         }
 
-        let asset = assets.get(id.value);
-        let dep = bundle
-          .getDependencies(asset)
-          .find(dep => dep.moduleSpecifier === source.value);
+        let asset = nullthrows(assets.get(id.value));
+        let dep = nullthrows(
+          bundle
+            .getDependencies(asset)
+            .find(dep => dep.moduleSpecifier === source.value)
+        );
         let mod = bundle.getDependencyResolution(dep);
 
         if (!mod) {
@@ -215,11 +221,13 @@ export function link(bundle: Bundle, ast, options: ParcelOptions) {
           );
         }
 
-        let mapped = assets.get(id.value);
-        let dep = bundle
-          .getDependencies(mapped)
-          .find(dep => dep.moduleSpecifier === source.value);
-        let mod = bundle.getDependencyResolution(dep);
+        let mapped = nullthrows(assets.get(id.value));
+        let dep = nullthrows(
+          bundle
+            .getDependencies(mapped)
+            .find(dep => dep.moduleSpecifier === source.value)
+        );
+        let mod = nullthrows(bundle.getDependencyResolution(dep));
         path.replaceWith(t.valueToNode(mod.id));
       }
     },
@@ -314,7 +322,7 @@ export function link(bundle: Bundle, ast, options: ParcelOptions) {
       }
 
       if (imports.has(name)) {
-        let [asset, symbol] = imports.get(name);
+        let [asset, symbol] = nullthrows(imports.get(name));
         let node = replaceExportNode(asset, symbol, path);
 
         // If the export does not exist, replace with an empty object.

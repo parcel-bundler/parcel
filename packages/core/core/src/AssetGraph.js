@@ -14,12 +14,10 @@ import type {
   Dependency as IDependency,
   File,
   FilePath,
-  GraphTraversalCallback,
   Target,
-  Environment,
-  Bundle,
   GraphVisitor,
   Symbol,
+  SymbolResolution,
   TransformerRequest
 } from '@parcel/types';
 
@@ -180,13 +178,18 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     if (dep.isWeak && req.sideEffects === false) {
       let assets = this.getNodesConnectedTo(depNode);
       let symbols = invertMap(dep.symbols);
-      let deps = this.getAncestorDependencies(assets[0]);
+      invariant(
+        assets[0].type === 'asset' || assets[0].type === 'asset_reference'
+      );
+      let resolvedAsset = assets[0].value;
+      let deps = this.getAncestorDependencies(resolvedAsset);
       defer = deps.every(
         d =>
           !d.symbols.has('*') &&
-          ![...d.symbols.keys()].some(symbol =>
-            symbols.has(assets[0].value.symbols.get(symbol))
-          )
+          ![...d.symbols.keys()].some(symbol => {
+            let assetSymbol = resolvedAsset.symbols.get(symbol);
+            return assetSymbol != null && symbols.has(assetSymbol);
+          })
       );
     }
 
@@ -326,10 +329,10 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     );
   }
 
-  traverseAssets(
-    visit: GraphVisitor<Asset, AssetGraphNode>,
+  traverseAssets<TContext>(
+    visit: GraphVisitor<Asset, TContext>,
     startNode: ?AssetGraphNode
-  ) {
+  ): ?TContext {
     return this.traverse(
       {
         enter: (node, ...args) => {
@@ -382,7 +385,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     });
   }
 
-  resolveSymbol(asset: Asset, symbol: Symbol) {
+  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution {
     if (symbol === '*') {
       return {asset, exportSymbol: '*', symbol: '*'};
     }

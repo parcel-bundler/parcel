@@ -1,11 +1,7 @@
 // @flow
 
 import type {Edge, Node, NodeId} from './types';
-import type {
-  GraphTraversalCallback,
-  TraversalActions,
-  GraphVisitor
-} from '@parcel/types';
+import type {TraversalActions, GraphVisitor} from '@parcel/types';
 import nullthrows from 'nullthrows';
 
 type GraphOpts<TNode> = {|
@@ -206,6 +202,7 @@ export default class Graph<TNode: Node> {
 
   traverse<TContext>(visit: GraphVisitor<TNode, TContext>, startNode: ?TNode) {
     return this.dfs({
+      // $FlowFixMe
       visit,
       startNode,
       getChildren: this.getNodesConnectedFrom.bind(this)
