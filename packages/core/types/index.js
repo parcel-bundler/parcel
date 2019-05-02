@@ -219,7 +219,11 @@ export interface Asset {
   stats: Stats;
 
   getCode(): Promise<string>;
+  getBuffer(): Promise<Buffer>;
   getStream(): Readable;
+  setCode(string): void;
+  setBuffer(Buffer): void;
+  setStream(Readable): void;
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}

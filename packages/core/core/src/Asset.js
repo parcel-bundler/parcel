@@ -113,18 +113,6 @@ export default class Asset implements IAsset {
     };
   }
 
-  async getCode(): Promise<string> {
-    this.readFromCacheIfKey();
-
-    let content = this.content;
-    if (typeof content === 'string' || content instanceof Buffer) {
-      return content.toString();
-    }
-
-    this.content = (await bufferStream(content)).toString();
-    return this.content;
-  }
-
   /*
    * Prepares the asset for being serialized to the cache by commiting its
    * content and map of the asset to the cache.
@@ -161,6 +149,28 @@ export default class Asset implements IAsset {
     this.outputHash = hash.digest('hex');
   }
 
+  async getCode(): Promise<string> {
+    this.readFromCacheIfKey();
+
+    if (typeof this.content === 'string' || this.content instanceof Buffer) {
+      return this.content.toString();
+    }
+
+    this.content = (await bufferStream(this.content)).toString();
+    return this.content;
+  }
+
+  async getBuffer(): Promise<Buffer> {
+    this.readFromCacheIfKey();
+
+    if (typeof this.content === 'string' || this.content instanceof Buffer) {
+      return Buffer.from(this.content);
+    }
+
+    this.content = await bufferStream(this.content);
+    return this.content;
+  }
+
   getStream(): Readable {
     this.readFromCacheIfKey();
 
@@ -169,6 +179,18 @@ export default class Asset implements IAsset {
     }
 
     return readableFromStringOrBuffer(this.content);
+  }
+
+  setCode(code: string) {
+    this.content = code;
+  }
+
+  setBuffer(buffer: Buffer) {
+    this.content = buffer;
+  }
+
+  setStream(stream: Readable) {
+    this.content = stream;
   }
 
   readFromCacheIfKey() {
