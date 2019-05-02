@@ -26,8 +26,6 @@ import {report} from './ReporterRunner';
 import TapStream from '@parcel/utils/src/TapStream';
 import nullthrows from 'nullthrows';
 
-import {CONFIG} from '@parcel/plugin';
-
 type Opts = {|
   config: Config,
   options: ParcelOptions
@@ -39,16 +37,14 @@ const BUFFER_LIMIT = 5000000; // 5mb
 
 export default class TransformerRunner {
   options: ParcelOptions;
+  config: Config;
 
   constructor(opts: Opts) {
     this.options = opts.options;
+    this.config = opts.config;
   }
 
-  async transform({
-    req,
-    configs,
-    devDeps // TODO: type
-  }): Promise<CacheEntry> {
+  async transform(req: TransformerRequest): Promise<CacheEntry> {
     report({
       type: 'buildProgress',
       phase: 'transforming',
@@ -83,32 +79,12 @@ export default class TransformerRunner {
       }
     });
 
-    let pipeline = await configs.parcel.getTransformers(req.filePath);
+    let pipeline = await this.config.getTransformers(req.filePath);
     let {assets, initialAssets} = await this.runPipeline(
       input,
-      pipeline
-      // cacheEntry
+      pipeline,
+      cacheEntry
     );
-
-    let files = [{filePath: req.filePath}];
-    // for (let asset of assets) {
-    //   files = files.concat(asset.connectedFiles);
-    // }
-
-    let fileHashes = await Promise.all(
-      files.map(file => md5FromFilePath(file.filePath))
-    );
-
-    let cacheKey = md5FromString(
-      `${JSON.stringify({configs, devDeps, fileHashes})}`
-    );
-    // console.log('CACHE WRITE CONTENT', req.filePath, {
-    //   configs,
-    //   devDeps,
-    //   fileHashes
-    // });
-    // console.log('PARCEL CONFIG STRINGIFIED', JSON.stringify(configs.parcel));
-    // console.log('CACHE WRITE KEY', req.filePath, cacheKey);
 
     // If the transformer request passed code rather than a filename,
     // use a hash as the id to ensure it is unique.
@@ -120,7 +96,7 @@ export default class TransformerRunner {
       }
     }
 
-    let cacheEntry = {
+    cacheEntry = {
       filePath: req.filePath,
       env: req.env,
       hash,

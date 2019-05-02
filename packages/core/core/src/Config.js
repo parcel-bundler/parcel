@@ -3,7 +3,7 @@ import path from 'path';
 export default class Config {
   constructor(searchPath) {
     this.searchPath = searchPath;
-    this.content = null;
+    this.result = null;
     this.includedFiles = new Set();
     this.invalidatingFiles = new Set();
     this.globPatterns = new Set();
@@ -14,12 +14,12 @@ export default class Config {
     this.resolvedPath = filePath;
   }
 
-  setContent(content: string) {
-    this.content = content;
+  setResult(result: string) {
+    this.result = result;
   }
 
   getContent() {
-    return this.content;
+    return this.result;
   }
 
   addIncludedFile(filePath) {

@@ -413,6 +413,8 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
   respondToFSChange({action, path}) {
     console.log('RESPONDING TO FS CHANGE', action, path);
+    // TODO: probably filter elsewhere
+    if (action === 'addDir') return;
     let edgeType = getInvalidationEdgeType(action);
 
     let fileNode = this.nodes.get(path);

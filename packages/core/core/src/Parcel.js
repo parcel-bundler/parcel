@@ -10,30 +10,18 @@ import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
+import loadParcelConfig from './loadParcelConfig';
+import path from 'path';
 import Cache from '@parcel/cache';
 import Watcher from '@parcel/watcher';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
 import ReporterRunner from './ReporterRunner';
 import MainAssetGraph from './public/MainAssetGraph';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
-import {
-  AbortController,
-  type AbortSignal
-} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
+import resolveOptions from './resolveOptions';
 
-
-constructor(options: ParcelOptions) {
-  this.options = options;
-  // TODO: Get projectRoot and lockFile programmatically
-  this.options.projectRoot = process.cwd();
-  this.options.cwd = process.cwd();
-  this.options.lockFilePath = `${this.options.projectRoot}/yarn.lock`;
-  this.entries = Array.isArray(options.entries)
-    ? options.entries
-    : options.entries
-      ? [options.entries]
-      : [];
-  this.rootDir = getRootDir(this.entries);
+// TODO: tmp, remove
+import prettyFormat from 'pretty-format';
 
 export default class Parcel {
   initialOptions: InitialParcelOptions;
@@ -57,26 +45,22 @@ export default class Parcel {
     let resolvedOptions = (this.resolvedOptions = await resolveOptions(
       this.initialOptions
     ));
+    this.resolvedOptions = resolvedOptions;
     await Cache.createCacheDir(resolvedOptions.cacheDir);
 
-    let configResolver = new ConfigResolver();
-    let config;
+    // ? What to use for filePath
+    let config = await loadParcelConfig(resolvedOptions.cwd, resolvedOptions);
 
-    // If an explicit `config` option is passed use that, otherwise resolve a .parcelrc from the filesystem.
-    if (resolvedOptions.config) {
-      config = await configResolver.create(resolvedOptions.config);
-    } else {
-      config = await configResolver.resolve(resolvedOptions.rootDir);
-    }
-
-    // If no config was found, default to the `defaultConfig` option if one is provided.
-    if (!config && resolvedOptions.defaultConfig) {
-      config = await configResolver.create(resolvedOptions.defaultConfig);
-    }
-
-    if (!config) {
-      throw new Error('Could not find a .parcelrc');
-    }
+    this.farm = await WorkerFarm.getShared(
+      {
+        config,
+        options: resolvedOptions,
+        env: resolvedOptions.env
+      },
+      {
+        workerPath: require.resolve('./worker')
+      }
+    );
 
     this.bundlerRunner = new BundlerRunner({
       options: resolvedOptions,
@@ -95,17 +79,6 @@ export default class Parcel {
       targets: resolvedOptions.targets
     });
 
-    this.farm = await WorkerFarm.getShared(
-      {
-        config,
-        options: resolvedOptions,
-        env: resolvedOptions.env
-      },
-      {
-        workerPath: require.resolve('./worker')
-      }
-    );
-
     this.runPackage = this.farm.mkhandle('runPackage');
 
     this._initialized = true;
@@ -116,11 +89,13 @@ export default class Parcel {
       await this.init();
     }
 
-    if (this.options.watch) {
+    if (this.initialOptions.watch) {
+      console.log('SETTING UP WATCHER', this.resolvedOptions.projectRoot);
       this.watcher = new Watcher();
-      this.watcher.watch(this.options.projectRoot);
+      this.watcher.watch(this.resolvedOptions.projectRoot);
       this.watcher.on('all', (event, path) => {
         if (path.includes('.parcel-cache')) return; // TODO: unwatch from watcher, couldn't get it working
+        // TODO: filter out dist changes
         console.log('DETECTED CHANGE', event, path);
         this.assetGraphBuilder.respondToFSChange({
           action: event,
@@ -128,7 +103,6 @@ export default class Parcel {
         });
         if (this.assetGraphBuilder.isInvalid()) {
           console.log('ASSET GRAPH IS INVALID');
-          this.controller.abort();
           this.build();
         }
       });
@@ -145,32 +119,30 @@ export default class Parcel {
 
       let startTime = Date.now();
       // console.log('Starting build'); // eslint-disable-line no-console
-      this.controller = new AbortController();
-      let signal = this.controller.signal;
 
-      let assetGraph = await this.assetGraphBuilder.build({signal});
+      let assetGraph = await this.assetGraphBuilder.build();
       console.log('DONE BUILDING ASSET GRAPH');
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
-      // let bundleGraph = await this.bundle(assetGraph);
-      // dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
+      let bundleGraph = await this.bundle(assetGraph);
+      dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
 
-      // await this.package(bundleGraph);
+      await this.package(bundleGraph);
 
-      // this.reporterRunner.report({
-      //   type: 'buildSuccess',
-      //   changedAssets: new Map(this.assetGraphBuilder.changedAssets),
-      //   assetGraph: new MainAssetGraph(assetGraph),
-      //   bundleGraph: new BundleGraph(bundleGraph),
-      //   buildTime: Date.now() - startTime
-      // });
+      this.reporterRunner.report({
+        type: 'buildSuccess',
+        changedAssets: new Map(this.assetGraphBuilder.changedAssets),
+        assetGraph: new MainAssetGraph(assetGraph),
+        bundleGraph: new BundleGraph(bundleGraph),
+        buildTime: Date.now() - startTime
+      });
 
-      // let resolvedOptions = nullthrows(this.resolvedOptions);
-      // if (!resolvedOptions.watch && resolvedOptions.killWorkers !== false) {
-      //   await this.farm.end();
-      // }
+      let resolvedOptions = nullthrows(this.resolvedOptions);
+      if (!resolvedOptions.watch && resolvedOptions.killWorkers !== false) {
+        await this.farm.end();
+      }
 
-      // return new BundleGraph(bundleGraph);
+      return new BundleGraph(bundleGraph);
     } catch (e) {
       if (!(e instanceof BuildAbortError)) {
         this.reporterRunner.report({

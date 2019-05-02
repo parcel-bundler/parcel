@@ -24,12 +24,12 @@ export default async function dumpGraphToGraphViz(
   graph: Graph<AssetGraphNode> | Graph<BundleGraphNode>,
   name: string
 ): Promise<void> {
-  if (
-    process.env.PARCEL_BUILD_ENV === 'production' ||
-    process.env.PARCEL_DUMP_GRAPHVIZ == null
-  ) {
-    return;
-  }
+  // if (
+  //   process.env.PARCEL_BUILD_ENV === 'production' ||
+  //   process.env.PARCEL_DUMP_GRAPHVIZ == null
+  // ) {
+  //   return;
+  // }
 
   const graphviz = require('graphviz');
   const tempy = require('tempy');

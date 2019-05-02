@@ -23,7 +23,7 @@ type Options = {|
 let transformerRunner: TransformerRunner | null = null;
 let packagerRunner: PackagerRunner | null = null;
 
-export function init({options, env}: Options) {
+export function init({config, options, env}: Options) {
   Object.assign(process.env, env || {});
 
   Cache.init(options);
@@ -32,6 +32,7 @@ export function init({options, env}: Options) {
     options
   });
   packagerRunner = new PackagerRunner({
+    config,
     options
   });
 }

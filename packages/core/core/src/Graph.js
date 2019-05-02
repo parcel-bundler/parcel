@@ -77,14 +77,15 @@ export default class Graph<TNode: Node> {
 
   getNodesConnectedTo(node: TNode, edgeType?: string): Array<TNode> {
     let edges = Array.from(this.edges).filter(
-      edge => edge.to === node.id && edge.type === edgeType
+      edge => edge.to === node.id && (edgeType ? edge.type === edgeType : true)
     );
     return edges.map(edge => nullthrows(this.nodes.get(edge.from)));
   }
 
   getNodesConnectedFrom(node: TNode, edgeType?: string): Array<TNode> {
     let edges = Array.from(this.edges).filter(
-      edge => edge.from === node.id && edge.type === edgeType
+      edge =>
+        edge.from === node.id && (edgeType ? edge.type === edgeType : true)
     );
     return edges.map(edge => nullthrows(this.nodes.get(edge.to)));
   }

@@ -81,10 +81,16 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.runTransform = this.farm.mkhandle('runTransform');
   }
 
-  async build({signal}) {
+  async build() {
     if (!this.farm) {
       await this.initFarm();
     }
+
+    if (this.controller) {
+      this.controller.abort();
+    }
+    this.controller = new AbortController();
+    let signal = this.controller.signal;
 
     this.changedAssets = new Map();
 
@@ -164,6 +170,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     let time = Date.now() - start;
     for (let asset of assets) {
+      console.log('ASSET', asset);
       asset.stats.time = time;
       this.changedAssets.set(asset.id, asset);
     }

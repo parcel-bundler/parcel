@@ -43,6 +43,11 @@ export default async function resolveOptions(
       ? initialOptions.cacheDir
       : DEFAULT_CACHE_DIR;
 
+  // TODO: Get projectRoot and lockFile programmatically
+  let projectRoot = process.cwd();
+  let cwd = process.cwd();
+  let lockFilePath = `${projectRoot}/yarn.lock`;
+
   // $FlowFixMe
   return {
     env: process.env,
@@ -50,6 +55,9 @@ export default async function resolveOptions(
     cacheDir,
     entries,
     rootDir,
-    targets
+    targets,
+    cwd,
+    projectRoot,
+    lockFilePath
   };
 }

@@ -1,11 +1,18 @@
 // @flow
 import path from 'path';
-import {md5FromString} from '@parcel/utils/src/md5';
+import {
+  md5FromFilePath,
+  md5FromReadableStream,
+  md5FromString
+} from '@parcel/utils/src/md5';
+import {createReadStream} from 'fs';
 import Cache from '@parcel/cache';
 import * as fs from '@parcel/fs';
 import clone from 'clone';
+import TapStream from '@parcel/utils/src/TapStream';
 import Asset from './Asset';
 
+const BUFFER_LIMIT = 5000000; // 5mb
 export default class Transformation {
   constructor({request, loadConfig, node, options}) {
     this.request = request;
@@ -57,13 +64,19 @@ export default class Transformation {
 
   async loadAsset() {
     let {filePath, env, code} = this.request;
+    let {content, size, hash} = await summarizeRequest(this.request);
 
     return new Asset({
       filePath: filePath,
       type: path.extname(filePath).slice(1),
       ast: null,
-      code: code || (await fs.readFile(filePath, 'utf8')),
-      env: env
+      content,
+      hash,
+      env,
+      stats: {
+        time: 0,
+        size
+      }
     });
   }
 
@@ -76,22 +89,22 @@ export default class Transformation {
     };
 
     let parcelConfig = await this.loadConfig(configRequest);
-    let configs = {parcel: parcelConfig.content.getTransformerNames(filePath)};
+    let configs = {parcel: parcelConfig.result.getTransformerNames(filePath)};
 
     for (let [moduleName] of parcelConfig.devDeps) {
-      let plugin = await parcelConfig.content.loadPlugin(moduleName);
+      let plugin = await parcelConfig.result.loadPlugin(moduleName);
       // TODO: implement loadPlugin in existing plugins that require config
       if (plugin.loadConfig) {
         configs[moduleName] = await this.loadTransformerConfig(
           filePath,
           moduleName,
           parcelConfig.resolvedPath
-        ).content;
+        ).result;
       }
     }
 
     let pipeline = new Pipeline(
-      await parcelConfig.content.getTransformers(filePath),
+      await parcelConfig.result.getTransformers(filePath),
       configs,
       this.options
     );
@@ -202,4 +215,44 @@ class Pipeline {
 
     return results;
   }
+}
+
+async function summarizeRequest(
+  req: TransformerRequest
+): Promise<{|content: Blob, hash: string, size: number|}> {
+  let code = req.code;
+  let content: Blob;
+  let hash: string;
+  let size: number;
+  if (code == null) {
+    // As an optimization for the common case of source code, while we read in
+    // data to compute its md5 and size, buffer its contents in memory.
+    // This avoids reading the data now, and then again during transformation.
+    // If it exceeds BUFFER_LIMIT, throw it out and replace it with a stream to
+    // lazily read it at a later point.
+    content = Buffer.from([]);
+    size = 0;
+    hash = await md5FromReadableStream(
+      createReadStream(req.filePath).pipe(
+        new TapStream(buf => {
+          if (content instanceof Buffer) {
+            size += buf.length;
+            if (size > BUFFER_LIMIT) {
+              // if buffering this content would put this over BUFFER_LIMIT, replace
+              // it with a stream
+              content = createReadStream(req.filePath);
+            } else {
+              content = Buffer.concat([content, buf]);
+            }
+          }
+        })
+      )
+    );
+  } else {
+    content = code;
+    hash = md5FromString(code);
+    size = Buffer.from(code).length;
+  }
+
+  return {content, hash, size};
 }

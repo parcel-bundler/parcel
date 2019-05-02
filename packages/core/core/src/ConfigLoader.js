@@ -1,14 +1,11 @@
 // @flow
-import ConfigResolver from './ConfigResolver';
-import PluginLoader from './PluginLoader';
 import Config from './Config';
-import {breakStatement} from 'babel-types';
-import {conditionalExpression} from '@babel/types';
+import loadParcelConfig from './loadParcelConfig';
+import loadPlugin from './loadParcelPlugin';
 
 export default class ConfigLoader {
   constructor(options) {
     this.options = options;
-    this.pluginLoader = new PluginLoader();
   }
 
   load(configRequest) {
@@ -22,28 +19,11 @@ export default class ConfigLoader {
   async loadParcelConfig(configRequest) {
     let {filePath} = configRequest;
     let config = new Config(filePath);
-    let configResolver = new ConfigResolver();
 
-    // Resolve plugins from cwd when a config is passed programmatically
-    let parcelConfig = this.options.parcelConfig
-      ? await configResolver.create({
-          ...this.options.parcelConfig,
-          resolveFrom: this.options.cwd
-        })
-      : await configResolver.resolve(filePath);
-    if (!parcelConfig && this.options.defaultConfig) {
-      parcelConfig = await configResolver.create({
-        ...this.options.defaultConfig,
-        resolveFrom: this.options.cwd
-      });
-    }
-
-    if (!parcelConfig) {
-      throw new Error('Could not find a .parcelrc');
-    }
+    let parcelConfig = await loadParcelConfig(filePath, this.options);
 
     config.setResolvedPath(parcelConfig.filePath);
-    config.setContent(parcelConfig);
+    config.setResult(parcelConfig);
     this.parcelConfig = parcelConfig;
 
     let devDeps = [];
@@ -82,7 +62,7 @@ export default class ConfigLoader {
     meta: {parcelConfigPath}
   }: ConfigRequest) {
     let config = new Config(filePath);
-    plugin = await this.pluginLoader.load(plugin, parcelConfigPath);
+    plugin = await loadPlugin(plugin, parcelConfigPath);
 
     plugin.loadConfig && plugin.loadConfig(config);
 
