@@ -20,7 +20,6 @@ export default class TargetResolver {
   async resolve(rootDir: FilePath): Promise<Array<Target>> {
     let conf = await loadConfig(path.join(rootDir, 'index'), ['package.json']);
 
-    // $FlowFixMe
     let pkg: PackageJSON = conf ? conf.config : {};
     let pkgTargets = pkg.targets || {};
     let pkgEngines = Object.assign({}, pkg.engines);

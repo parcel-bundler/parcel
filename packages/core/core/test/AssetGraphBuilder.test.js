@@ -28,6 +28,14 @@ const TARGETS = [
   }
 ];
 
+const DEFAULT_OPTIONS = {
+  cache: false,
+  cacheDir: '.parcel-cache',
+  entries: [],
+  rootDir: FIXTURES_DIR,
+  targets: []
+};
+
 describe('AssetGraphBuilder', () => {
   let config;
   let builder;
@@ -35,9 +43,8 @@ describe('AssetGraphBuilder', () => {
     config = nullthrows(await new ConfigResolver().resolve(CONFIG_DIR));
 
     builder = new AssetGraphBuilder({
-      options: {cache: false},
+      options: DEFAULT_OPTIONS,
       config,
-      rootDir: FIXTURES_DIR,
       entries: ['./module-b'],
       targets: TARGETS
     });

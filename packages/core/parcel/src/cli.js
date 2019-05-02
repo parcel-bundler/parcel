@@ -1,6 +1,6 @@
 // @flow
 
-import type {ParcelConfigFile, ParcelOptions} from '@parcel/types';
+import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
 
 require('v8-compile-cache');
 
@@ -134,7 +134,7 @@ async function run(entries: Array<string>, command: any) {
   parcel.run().catch(console.error);
 }
 
-async function normalizeOptions(command): Promise<ParcelOptions> {
+async function normalizeOptions(command): Promise<InitialParcelOptions> {
   if (command.name() === 'build') {
     process.env.NODE_ENV = process.env.NODE_ENV || 'production';
   } else {

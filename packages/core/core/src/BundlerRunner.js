@@ -1,7 +1,7 @@
 // @flow strict-local
 
 import type AssetGraph from './AssetGraph';
-import type {FilePath, Namer, ParcelOptions, RuntimeAsset} from '@parcel/types';
+import type {Namer, ParcelOptions, RuntimeAsset} from '@parcel/types';
 import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
 
@@ -16,19 +16,16 @@ import {report} from './ReporterRunner';
 
 type Opts = {|
   options: ParcelOptions,
-  config: Config,
-  rootDir: FilePath
+  config: Config
 |};
 
 export default class BundlerRunner {
   options: ParcelOptions;
   config: Config;
-  rootDir: FilePath;
 
   constructor(opts: Opts) {
     this.options = opts.options;
     this.config = opts.config;
-    this.rootDir = opts.rootDir;
   }
 
   async bundle(graph: AssetGraph): Promise<InternalBundleGraph> {
@@ -79,10 +76,7 @@ export default class BundlerRunner {
     let bundleGraph = new BundleGraph(internalBundleGraph);
 
     for (let namer of namers) {
-      let filePath = await namer.name(bundle, bundleGraph, {
-        ...this.options,
-        rootDir: this.rootDir
-      });
+      let filePath = await namer.name(bundle, bundleGraph, this.options);
 
       if (filePath != null) {
         internalBundle.filePath = filePath;
@@ -136,7 +130,6 @@ export default class BundlerRunner {
       let builder = new AssetGraphBuilder({
         options: this.options,
         config: this.config,
-        rootDir: this.rootDir,
         transformerRequest: {
           code,
           filePath,

@@ -1,6 +1,11 @@
 // @flow
 
-import type {ParcelOptions, Stats} from '@parcel/types';
+import type {
+  FilePath,
+  InitialParcelOptions,
+  ParcelOptions,
+  Stats
+} from '@parcel/types';
 import type {Bundle} from './types';
 import type InternalBundleGraph from './BundleGraph';
 
@@ -10,7 +15,9 @@ import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import TargetResolver from './TargetResolver';
 import getRootDir from '@parcel/utils/src/getRootDir';
+import nullthrows from 'nullthrows';
 import loadEnv from './loadEnv';
+import clone from 'clone';
 import path from 'path';
 import Cache from '@parcel/cache';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
@@ -19,47 +26,44 @@ import ReporterRunner from './ReporterRunner';
 import MainAssetGraph from './public/MainAssetGraph';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 
+// Default cache directory name
+const DEFAULT_CACHE_DIR = '.parcel-cache';
+
 export default class Parcel {
-  options: ParcelOptions;
-  entries: Array<string>;
-  rootDir: string;
+  initialOptions: InitialParcelOptions;
+  resolvedOptions: ?ParcelOptions;
   assetGraphBuilder: AssetGraphBuilder;
   bundlerRunner: BundlerRunner;
   reporterRunner: ReporterRunner;
   farm: WorkerFarm;
   runPackage: (bundle: Bundle) => Promise<Stats>;
+  _initialized: boolean = false;
 
-  constructor(options: ParcelOptions) {
-    this.options = options;
-    this.entries = Array.isArray(options.entries)
-      ? options.entries
-      : options.entries
-        ? [options.entries]
-        : [];
-    this.rootDir = getRootDir(this.entries);
+  constructor(options: InitialParcelOptions) {
+    this.initialOptions = clone(options);
   }
 
   async init(): Promise<void> {
-    await Cache.createCacheDir(this.options.cacheDir);
-
-    if (!this.options.env) {
-      await loadEnv(path.join(this.rootDir, 'index'));
-      this.options.env = process.env;
+    if (this._initialized) {
+      return;
     }
+
+    let resolvedOptions = (this.resolvedOptions = await this.resolveOptions());
+    await Cache.createCacheDir(resolvedOptions.cacheDir);
 
     let configResolver = new ConfigResolver();
     let config;
 
     // If an explicit `config` option is passed use that, otherwise resolve a .parcelrc from the filesystem.
-    if (this.options.config) {
-      config = await configResolver.create(this.options.config);
+    if (resolvedOptions.config) {
+      config = await configResolver.create(resolvedOptions.config);
     } else {
-      config = await configResolver.resolve(this.rootDir);
+      config = await configResolver.resolve(resolvedOptions.rootDir);
     }
 
     // If no config was found, default to the `defaultConfig` option if one is provided.
-    if (!config && this.options.defaultConfig) {
-      config = await configResolver.create(this.options.defaultConfig);
+    if (!config && resolvedOptions.defaultConfig) {
+      config = await configResolver.create(resolvedOptions.defaultConfig);
     }
 
     if (!config) {
@@ -67,33 +71,27 @@ export default class Parcel {
     }
 
     this.bundlerRunner = new BundlerRunner({
-      config,
-      options: this.options,
-      rootDir: this.rootDir
+      options: resolvedOptions,
+      config
     });
-
-    let targetResolver = new TargetResolver();
-    let targets = await targetResolver.resolve(this.rootDir);
 
     this.reporterRunner = new ReporterRunner({
       config,
-      targets,
-      options: this.options
+      options: resolvedOptions
     });
 
     this.assetGraphBuilder = new AssetGraphBuilder({
-      options: this.options,
+      options: resolvedOptions,
       config,
-      entries: this.entries,
-      targets,
-      rootDir: this.rootDir
+      entries: resolvedOptions.entries,
+      targets: resolvedOptions.targets
     });
 
     this.farm = await WorkerFarm.getShared(
       {
         config,
-        options: this.options,
-        env: this.options.env
+        options: resolvedOptions,
+        env: resolvedOptions.env
       },
       {
         workerPath: require.resolve('./worker')
@@ -101,10 +99,60 @@ export default class Parcel {
     );
 
     this.runPackage = this.farm.mkhandle('runPackage');
+
+    this._initialized = true;
+  }
+
+  async resolveOptions(): Promise<ParcelOptions> {
+    let entries: Array<FilePath>;
+    if (
+      this.initialOptions.entries == null ||
+      this.initialOptions.entries === ''
+    ) {
+      entries = [];
+    } else if (Array.isArray(this.initialOptions.entries)) {
+      entries = this.initialOptions.entries;
+    } else {
+      entries = [this.initialOptions.entries];
+    }
+
+    let rootDir =
+      this.initialOptions.rootDir != null
+        ? this.initialOptions.rootDir
+        : getRootDir(entries);
+
+    let targets;
+    if (this.initialOptions.targets) {
+      targets = this.initialOptions.targets;
+    } else {
+      let targetResolver = new TargetResolver();
+      targets = await targetResolver.resolve(rootDir);
+    }
+
+    if (!this.initialOptions.env) {
+      await loadEnv(path.join(rootDir, 'index'));
+    }
+
+    let cacheDir =
+      this.initialOptions.cacheDir != null
+        ? this.initialOptions.cacheDir
+        : DEFAULT_CACHE_DIR;
+
+    // $FlowFixMe
+    return {
+      env: process.env,
+      ...this.initialOptions,
+      cacheDir,
+      entries,
+      rootDir,
+      targets
+    };
   }
 
   async run(): Promise<InternalBundleGraph> {
-    await this.init();
+    if (!this._initialized) {
+      await this.init();
+    }
 
     this.assetGraphBuilder.on('invalidate', () => {
       this.build();
@@ -136,7 +184,8 @@ export default class Parcel {
         buildTime: Date.now() - startTime
       });
 
-      if (!this.options.watch && this.options.killWorkers !== false) {
+      let resolvedOptions = nullthrows(this.resolvedOptions);
+      if (!resolvedOptions.watch && resolvedOptions.killWorkers !== false) {
         await this.farm.end();
       }
 

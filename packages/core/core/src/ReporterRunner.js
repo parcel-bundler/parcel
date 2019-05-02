@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {ParcelOptions, ReporterEvent, Target} from '@parcel/types';
+import type {ParcelOptions, ReporterEvent} from '@parcel/types';
 
 import {bundleToInternal, NamedBundle} from './public/Bundle';
 import bus from '@parcel/workers/src/bus';
@@ -10,19 +10,16 @@ import nullthrows from 'nullthrows';
 
 type Opts = {|
   config: Config,
-  options: ParcelOptions,
-  targets: Array<Target>
+  options: ParcelOptions
 |};
 
 export default class ReporterRunner {
   config: Config;
   options: ParcelOptions;
-  targets: Array<Target>;
 
   constructor(opts: Opts) {
     this.config = opts.config;
     this.options = opts.options;
-    this.targets = opts.targets;
 
     logger.onLog(event => this.report(event));
 
@@ -44,7 +41,7 @@ export default class ReporterRunner {
     let reporters = await this.config.getReporters();
 
     for (let reporter of reporters) {
-      await reporter.report(event, this.options, this.targets);
+      await reporter.report(event, this.options);
     }
   }
 }

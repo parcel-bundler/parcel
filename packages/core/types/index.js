@@ -114,7 +114,7 @@ export type PackageJSON = {
   peerDependencies?: PackageDependencies
 };
 
-export type ParcelOptions = {|
+export type InitialParcelOptions = {|
   entries?: FilePath | Array<FilePath>,
   rootDir?: FilePath,
   config?: ParcelConfig,
@@ -140,6 +140,14 @@ export type ParcelOptions = {|
   // throwErrors
   // global?
   // detailedReport
+|};
+
+export type ParcelOptions = {|
+  ...InitialParcelOptions,
+  cacheDir: FilePath,
+  entries: Array<FilePath>,
+  rootDir: FilePath,
+  targets: Array<Target>
 |};
 
 export type ServerOptions = {|
@@ -394,16 +402,11 @@ export type Bundler = {|
   ): Async<void>
 |};
 
-export type NamerOptions = {|
-  ...ParcelOptions,
-  rootDir: FilePath
-|};
-
 export type Namer = {|
   name(
     bundle: Bundle,
     bundleGraph: BundleGraph,
-    opts: NamerOptions
+    opts: ParcelOptions
   ): Async<?FilePath>
 |};
 
@@ -430,11 +433,7 @@ export type Optimizer = {|
 |};
 
 export type Resolver = {|
-  resolve(
-    dependency: Dependency,
-    opts: ParcelOptions,
-    rootDir: string
-  ): Async<FilePath | null>
+  resolve(dependency: Dependency, opts: ParcelOptions): Async<FilePath | null>
 |};
 
 export type ProgressLogEvent = {|
@@ -524,11 +523,7 @@ export type ReporterEvent =
   | BuildFailureEvent;
 
 export type Reporter = {|
-  report(
-    event: ReporterEvent,
-    opts: ParcelOptions,
-    targets: Array<Target>
-  ): Async<void>
+  report(event: ReporterEvent, opts: ParcelOptions): Async<void>
 |};
 
 export interface ErrorWithCode extends Error {

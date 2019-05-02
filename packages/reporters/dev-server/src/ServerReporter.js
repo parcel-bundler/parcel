@@ -2,20 +2,20 @@
 import {Reporter} from '@parcel/plugin';
 import Server from './Server';
 
-const DEFAULT_CACHE_DIR = '.parcel-cache';
-
 let servers: Map<number, Server> = new Map();
 export default new Reporter({
-  async report(event, options, targets) {
+  async report(event, options) {
     let serve = options.serve;
     if (!serve) return;
 
-    let isBrowser = targets.some(target => target.env.context === 'browser');
+    let isBrowser = options.targets.some(
+      target => target.env.context === 'browser'
+    );
     if (!isBrowser) return;
 
     let serverOptions = {
       ...serve,
-      cacheDir: options.cacheDir || DEFAULT_CACHE_DIR,
+      cacheDir: options.cacheDir,
       distDir: 'dist', //options.distDir, // ! Not sure how this works now
       publicUrl: options.publicUrl || '/'
     };
