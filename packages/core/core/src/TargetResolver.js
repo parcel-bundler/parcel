@@ -43,7 +43,6 @@ export default class TargetResolver {
       targets.push({
         name: 'main',
         distPath: pkg.main,
-        distPathType: 'js',
         env: this.getEnvironment(pkgEngines, mainContext).merge(pkgTargets.main)
       });
     }
@@ -52,7 +51,6 @@ export default class TargetResolver {
       targets.push({
         name: 'module',
         distPath: pkg.module,
-        distPathType: 'js',
         env: this.getEnvironment(pkgEngines, mainContext).merge(
           pkgTargets.module
         )
@@ -69,7 +67,6 @@ export default class TargetResolver {
       targets.push({
         name: 'browser',
         distPath: typeof browser === 'string' ? browser : undefined,
-        distPathType: 'js',
         env: this.getEnvironment(pkgEngines, 'browser').merge(
           pkgTargets.browser
         )
