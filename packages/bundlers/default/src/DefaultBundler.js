@@ -81,14 +81,6 @@ export default new Bundler({
 
             // Mark bundle as an entry, and set explicit file path from target if the dependency has one
             bundle.isEntry = asset.isIsolated ? false : !!dep.isEntry;
-            let target = dep.target;
-            if (
-              target &&
-              target.distPath != null &&
-              target.distPathType === bundle.type
-            ) {
-              bundle.filePath = target.distPath;
-            }
 
             // If there is a current bundle, but this asset is of a different type,
             // separate it out into a parallel bundle in the same bundle group.

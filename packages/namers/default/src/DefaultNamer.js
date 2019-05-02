@@ -37,6 +37,15 @@ export default new Namer({
 
     let firstBundleInGroup = bundleGroupBundles[0];
 
+    if (
+      bundle.id === firstBundleInGroup.id &&
+      bundle.isEntry &&
+      bundle.target &&
+      bundle.target.distPath != null
+    ) {
+      return bundle.target.distPath;
+    }
+
     // Base split bundle names on the first bundle in their group.
     // e.g. if `index.js` imports `foo.css`, the css bundle should be called
     //      `index.css`.
