@@ -255,7 +255,9 @@ export default class TransformerRunner {
 
 async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
   if (asset.ast && generate) {
-    asset.content = (await generate(asset)).code;
+    let result = await generate(asset);
+    asset.content = result.code;
+    asset.map = result.map;
   }
   return asset;
 }

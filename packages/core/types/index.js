@@ -224,6 +224,8 @@ export interface Asset {
   setCode(string): void;
   setBuffer(Buffer): void;
   setStream(Readable): void;
+  getMap(): ?SourceMap;
+  setMap(?SourceMap): void;
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}

@@ -14,6 +14,7 @@ import type {
   FilePath,
   Meta,
   PackageJSON,
+  SourceMap,
   Stats,
   TransformerResult
 } from '@parcel/types';
@@ -37,6 +38,8 @@ type AssetOptions = {|
   content?: Blob,
   contentKey?: ?string,
   ast?: ?AST,
+  map?: ?SourceMap,
+  mapKey?: ?string,
   dependencies?: Iterable<[string, IDependency]>,
   connectedFiles?: Iterable<[FilePath, File]>,
   isIsolated?: boolean,
@@ -60,6 +63,8 @@ export default class Asset implements IAsset {
   filePath: FilePath;
   type: string;
   ast: ?AST;
+  map: ?SourceMap;
+  mapKey: ?string;
   dependencies: Map<string, IDependency>;
   connectedFiles: Map<FilePath, File>;
   isIsolated: boolean;
@@ -83,6 +88,7 @@ export default class Asset implements IAsset {
     this.content = options.content || '';
     this.contentKey = options.contentKey;
     this.ast = options.ast || null;
+    this.map = options.map;
     this.dependencies = options.dependencies
       ? new Map(options.dependencies)
       : new Map();
@@ -96,7 +102,7 @@ export default class Asset implements IAsset {
   }
 
   serialize(): SerializedOptions {
-    // Exclude `code` and `ast` from cache
+    // Exclude `code`, `map`, and `ast` from cache
     return {
       id: this.id,
       hash: this.hash,
@@ -136,21 +142,30 @@ export default class Asset implements IAsset {
 
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
-    this.contentKey = await Cache.setStream(
-      this.generateCacheKey('content'),
-      contentStream.pipe(
-        new TapStream(buf => {
-          size += buf.length;
-          hash.update(buf);
-        })
-      )
-    );
+    let [contentKey, mapKey] = await Promise.all([
+      Cache.setStream(
+        this.generateCacheKey('content'),
+        contentStream.pipe(
+          new TapStream(buf => {
+            size += buf.length;
+            hash.update(buf);
+          })
+        )
+      ),
+      this.map == null
+        ? Promise.resolve()
+        : Cache.set(this.generateCacheKey('map'), this.map)
+    ]);
+    this.contentKey = contentKey;
+    this.mapKey = mapKey;
     this.stats.size = size;
     this.outputHash = hash.digest('hex');
   }
 
   async getCode(): Promise<string> {
-    this.readFromCacheIfKey();
+    if (this.contentKey) {
+      this.content = Cache.getStream(this.contentKey);
+    }
 
     if (typeof this.content === 'string' || this.content instanceof Buffer) {
       return this.content.toString();
@@ -161,7 +176,9 @@ export default class Asset implements IAsset {
   }
 
   async getBuffer(): Promise<Buffer> {
-    this.readFromCacheIfKey();
+    if (this.contentKey) {
+      this.content = Cache.getStream(this.contentKey);
+    }
 
     if (typeof this.content === 'string' || this.content instanceof Buffer) {
       return Buffer.from(this.content);
@@ -172,7 +189,9 @@ export default class Asset implements IAsset {
   }
 
   getStream(): Readable {
-    this.readFromCacheIfKey();
+    if (this.contentKey) {
+      this.content = Cache.getStream(this.contentKey);
+    }
 
     if (this.content instanceof Readable) {
       return this.content;
@@ -193,10 +212,16 @@ export default class Asset implements IAsset {
     this.content = stream;
   }
 
-  readFromCacheIfKey() {
-    if (this.contentKey) {
-      this.content = Cache.getStream(this.contentKey);
+  async getMap(): Promise<?SourceMap> {
+    if (this.mapKey) {
+      this.map = await Cache.get(this.mapKey);
     }
+
+    return this.map;
+  }
+
+  setMap(map: ?SourceMap): void {
+    this.map = map;
   }
 
   generateCacheKey(key: string): string {
