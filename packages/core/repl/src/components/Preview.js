@@ -52,7 +52,6 @@ export default class Preview extends Component {
       let url;
 
       if (entryExtension === 'js') {
-        console.log('js');
         const data = entry.content;
 
         const blobURL = URL.createObjectURL(
@@ -62,7 +61,7 @@ export default class Preview extends Component {
 
         url = URL.createObjectURL(new Blob([wrapperPage], {type: 'text/html'}));
       } else if (entryExtension === 'html' && 'serviceWorker' in navigator) {
-        url = `${entry.name}#parcel_preview`;
+        url = `${entry.name}?x=${new Date().getTime()}#parcel_preview`;
       }
 
       if (url) {

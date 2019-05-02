@@ -8863,10 +8863,10 @@ posthtml@^0.11.2, posthtml@^0.11.3:
     posthtml-parser "^0.3.3"
     posthtml-render "^1.1.0"
 
-preact@^10.0.0-beta.0:
-  version "10.0.0-beta.0"
-  resolved "https://registry.yarnpkg.com/preact/-/preact-10.0.0-beta.0.tgz#8d53947b167449c09a678fefc2085c0f56ed34bd"
-  integrity sha512-BKd77y7ZpPLybjtM35DJtzXj+sxlAt29MCMGOJnSrsv1jt30aE/wS9qoU9nL8ih+yhal3B22mGAvuh2mGLAFMg==
+preact@^10.0.0-beta.1:
+  version "10.0.0-beta.1"
+  resolved "https://registry.yarnpkg.com/preact/-/preact-10.0.0-beta.1.tgz#f7d524668db72ed74e99d447f09600fa4db0b186"
+  integrity sha512-1uhj3JXOEzEPUof5t/iQW5heEvTOpexwS0FLAjJQfgfT8OCXICyzI2TwkYyFJ+W9q9GsDmhZgFagH2G0akFveQ==
 
 prelude-ls@~1.1.2:
   version "1.1.2"

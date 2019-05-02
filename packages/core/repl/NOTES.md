@@ -66,6 +66,7 @@ parcel-bundler: (worker)
 - builtins/bundle loaders: fs.readFileSync(require.resolve)
 - preview doesn't work with typescript asset
 - Cmd+S -> export zip
+- Safari: sw clients doesn't exist?
 
 #### Cache
 
