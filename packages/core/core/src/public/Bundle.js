@@ -151,4 +151,8 @@ export class NamedBundle extends Bundle implements INamedBundle {
   get filePath(): FilePath {
     return nullthrows(this.#bundle.filePath);
   }
+
+  get target(): Target {
+    return nullthrows(this.#bundle.target);
+  }
 }

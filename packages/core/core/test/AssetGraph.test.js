@@ -16,7 +16,8 @@ const DEFAULT_ENV = new Environment({
 const TARGETS = [
   {
     name: 'test',
-    distPath: 'dist/out.js',
+    distDir: 'dist',
+    distEntry: 'out.js',
     env: DEFAULT_ENV
   }
 ];

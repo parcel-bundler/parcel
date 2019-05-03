@@ -6,9 +6,9 @@ import {Namer} from '@parcel/plugin';
 import assert from 'assert';
 import crypto from 'crypto';
 import path from 'path';
+import nullthrows from 'nullthrows';
 
 const COMMON_NAMES = new Set(['index', 'src', 'lib']);
-const DEFAULT_DIST_DIR = 'dist';
 
 export default new Namer({
   name(bundle, bundleGraph, opts) {
@@ -41,9 +41,9 @@ export default new Namer({
       bundle.id === firstBundleInGroup.id &&
       bundle.isEntry &&
       bundle.target &&
-      bundle.target.distPath != null
+      bundle.target.distEntry != null
     ) {
-      return bundle.target.distPath;
+      return path.join(bundle.target.distDir, bundle.target.distEntry);
     }
 
     // Base split bundle names on the first bundle in their group.
@@ -55,11 +55,7 @@ export default new Namer({
     }
     name += '.' + bundle.type;
 
-    let distDir =
-      bundle.target && bundle.target.distPath != null
-        ? path.dirname(bundle.target.distPath)
-        : DEFAULT_DIST_DIR;
-    return path.join(distDir, name);
+    return path.join(nullthrows(bundle.target).distDir, name);
   }
 });
 

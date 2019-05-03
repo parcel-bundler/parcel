@@ -60,9 +60,10 @@ export type Engines = {
 };
 
 export type Target = {|
-  name: string,
-  distPath?: FilePath,
-  env: Environment
+  distEntry?: ?FilePath,
+  distDir: FilePath,
+  env: Environment,
+  name: string
 |};
 
 export type EnvironmentContext =
@@ -362,6 +363,7 @@ export interface MutableBundle extends Bundle {
 
 export interface NamedBundle extends Bundle {
   +filePath: FilePath;
+  +target: Target;
 }
 
 export type BundleGroup = {
