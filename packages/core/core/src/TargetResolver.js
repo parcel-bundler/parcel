@@ -1,11 +1,14 @@
 // @flow
+
 import type {
-  FilePath,
-  PackageJSON,
-  Target,
+  Engines,
   EnvironmentContext,
-  Engines
+  FilePath,
+  InitialParcelOptions,
+  PackageJSON,
+  Target
 } from '@parcel/types';
+
 import {loadConfig} from '@parcel/utils/src/config';
 import Environment from './Environment';
 import path from 'path';
@@ -16,10 +19,83 @@ const DEFAULT_ENGINES = {
   node: '8'
 };
 
+const DEVELOPMENT_BROWSERS = [
+  'last 1 Chrome version',
+  'last 1 Safari version',
+  'last 1 Firefox version',
+  'last 1 Edge version'
+];
+
 const DEFAULT_DIST_DIR = 'dist';
 
 export default class TargetResolver {
-  async resolve(rootDir: FilePath): Promise<Map<string, Target>> {
+  async resolve(
+    rootDir: FilePath,
+    initialOptions: InitialParcelOptions
+  ): Promise<Array<Target>> {
+    let packageTargets = await this.resolvePackageTargets(rootDir);
+
+    let serveOptions = initialOptions.serve || initialOptions.hot;
+    let targets;
+    if (initialOptions.targets) {
+      if (initialOptions.targets.length === 0) {
+        throw new Error('Targets was an empty array');
+      }
+
+      targets = initialOptions.targets.map(target => {
+        if (typeof target === 'string') {
+          let matchingTarget = packageTargets.get(target);
+          if (!matchingTarget) {
+            throw new Error(`Could not find target with name ${target}`);
+          }
+          return matchingTarget;
+        }
+
+        return target;
+      });
+
+      if (serveOptions) {
+        // In serve mode, we only support a single browser target. If the user
+        // provided more than one, or the matching target is not a browser, throw.
+        if (targets.length > 1) {
+          throw new Error(
+            'More than one target is not supported in serve mode'
+          );
+        }
+        if (targets[0].env.context !== 'browser') {
+          throw new Error('Only browser targets are supported in serve mode');
+        }
+      }
+    } else {
+      // Explicit targets were not provided
+      if (serveOptions) {
+        // In serve mode, we only support a single browser target. Since the user
+        // hasn't specified a target, use one targeting modern browsers for development
+        targets = [
+          {
+            name: 'default',
+            distDir: 'dist',
+            publicUrl:
+              serveOptions && serveOptions.publicUrl != null
+                ? serveOptions.publicUrl
+                : '/',
+            env: new Environment({
+              context: 'browser',
+              engines: {
+                browsers: DEVELOPMENT_BROWSERS
+              }
+            })
+          }
+        ];
+      } else {
+        targets = Array.from(packageTargets.values());
+      }
+    }
+
+    return targets;
+  }
+
+  async resolvePackageTargets(rootDir: FilePath): Promise<Map<string, Target>> {
     let conf = await loadConfig(path.join(rootDir, 'index'), ['package.json']);
 
     let pkg: PackageJSON = conf ? conf.config : {};
