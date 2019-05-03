@@ -48,7 +48,9 @@ export default class Parcel {
       return;
     }
 
-    let resolvedOptions = (this.resolvedOptions = await this.resolveOptions());
+    let resolvedOptions = (this.resolvedOptions = await resolveOptions(
+      this.initialOptions
+    ));
     await Cache.createCacheDir(resolvedOptions.cacheDir);
 
     let configResolver = new ConfigResolver();
@@ -101,52 +103,6 @@ export default class Parcel {
     this.runPackage = this.farm.mkhandle('runPackage');
 
     this._initialized = true;
-  }
-
-  async resolveOptions(): Promise<ParcelOptions> {
-    let entries: Array<FilePath>;
-    if (
-      this.initialOptions.entries == null ||
-      this.initialOptions.entries === ''
-    ) {
-      entries = [];
-    } else if (Array.isArray(this.initialOptions.entries)) {
-      entries = this.initialOptions.entries;
-    } else {
-      entries = [this.initialOptions.entries];
-    }
-
-    let rootDir =
-      this.initialOptions.rootDir != null
-        ? this.initialOptions.rootDir
-        : getRootDir(entries);
-
-    let targets;
-    if (this.initialOptions.targets) {
-      targets = this.initialOptions.targets;
-    } else {
-      let targetResolver = new TargetResolver();
-      targets = await targetResolver.resolve(rootDir);
-    }
-
-    if (!this.initialOptions.env) {
-      await loadEnv(path.join(rootDir, 'index'));
-    }
-
-    let cacheDir =
-      this.initialOptions.cacheDir != null
-        ? this.initialOptions.cacheDir
-        : DEFAULT_CACHE_DIR;
-
-    // $FlowFixMe
-    return {
-      env: process.env,
-      ...this.initialOptions,
-      cacheDir,
-      entries,
-      rootDir,
-      targets
-    };
   }
 
   async run(): Promise<InternalBundleGraph> {
@@ -217,6 +173,51 @@ export default class Parcel {
 
     return Promise.all(promises);
   }
+}
+
+async function resolveOptions(
+  initialOptions: InitialParcelOptions
+): Promise<ParcelOptions> {
+  let entries: Array<FilePath>;
+  if (initialOptions.entries == null || initialOptions.entries === '') {
+    entries = [];
+  } else if (Array.isArray(initialOptions.entries)) {
+    entries = initialOptions.entries;
+  } else {
+    entries = [initialOptions.entries];
+  }
+
+  let rootDir =
+    initialOptions.rootDir != null
+      ? initialOptions.rootDir
+      : getRootDir(entries);
+
+  let targets;
+  if (initialOptions.targets) {
+    targets = initialOptions.targets;
+  } else {
+    let targetResolver = new TargetResolver();
+    targets = await targetResolver.resolve(rootDir);
+  }
+
+  if (!initialOptions.env) {
+    await loadEnv(path.join(rootDir, 'index'));
+  }
+
+  let cacheDir =
+    initialOptions.cacheDir != null
+      ? initialOptions.cacheDir
+      : DEFAULT_CACHE_DIR;
+
+  // $FlowFixMe
+  return {
+    env: process.env,
+    ...initialOptions,
+    cacheDir,
+    entries,
+    rootDir,
+    targets
+  };
 }
 
 export {default as Asset} from './Asset';
