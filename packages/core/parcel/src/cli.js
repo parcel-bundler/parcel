@@ -190,7 +190,6 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     mode,
     minify: command.minify != null ? command.minify : mode === 'production',
     sourceMaps: command.sourceMaps != false,
-    publicUrl: command.publicUrl,
     hot: hmr,
     serve,
     autoinstall: command.autoinstall !== false,

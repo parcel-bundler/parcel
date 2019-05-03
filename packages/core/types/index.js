@@ -63,7 +63,8 @@ export type Target = {|
   distEntry?: ?FilePath,
   distDir: FilePath,
   env: Environment,
-  name: string
+  name: string,
+  publicUrl?: string
 |};
 
 export type EnvironmentContext =
@@ -76,7 +77,8 @@ export type EnvironmentContext =
 export type EnvironmentOpts = {
   context: EnvironmentContext,
   engines: Engines,
-  includeNodeModules?: boolean
+  includeNodeModules?: boolean,
+  publicUrl?: string
 };
 
 export interface Environment {
@@ -130,7 +132,6 @@ export type InitialParcelOptions = {|
   mode?: 'development' | 'production' | string,
   minify?: boolean,
   sourceMaps?: boolean,
-  publicUrl?: string,
   hot?: ServerOptions | false,
   serve?: ServerOptions | false,
   autoinstall?: boolean,
@@ -345,6 +346,7 @@ export interface Bundle extends AssetGraphLike {
   +isEntry: ?boolean;
   +target: ?Target;
   +filePath: ?FilePath;
+  +publicUrl: ?string;
   +stats: Stats;
   getEntryAssets(): Array<Asset>;
   getTotalSize(asset?: Asset): number;
@@ -354,9 +356,7 @@ export interface Bundle extends AssetGraphLike {
 }
 
 export interface MutableBundle extends Bundle {
-  filePath: ?FilePath;
   isEntry: ?boolean;
-  stats: Stats;
   merge(Bundle): void;
   removeAsset(Asset): void;
 }

@@ -56,6 +56,8 @@ export default class TargetResolver {
         name: 'main',
         distDir,
         distEntry,
+        publicUrl:
+          pkgTargets.main.publicUrl != null ? pkgTargets.main.publicUrl : '/',
         env: this.getEnvironment(pkgEngines, mainContext).merge(pkgTargets.main)
       });
     }
@@ -76,6 +78,10 @@ export default class TargetResolver {
         name: 'module',
         distDir,
         distEntry,
+        publicUrl:
+          pkgTargets.module.publicUrl != null
+            ? pkgTargets.module.publicUrl
+            : '/',
         env: this.getEnvironment(pkgEngines, mainContext).merge(
           pkgTargets.module
         )
@@ -102,6 +108,10 @@ export default class TargetResolver {
         name: 'browser',
         distEntry,
         distDir,
+        publicUrl:
+          pkgTargets.browser.publicUrl != null
+            ? pkgTargets.browser.publicUrl
+            : '/',
         env: this.getEnvironment(pkgEngines, 'browser').merge(
           pkgTargets.browser
         )
@@ -132,6 +142,7 @@ export default class TargetResolver {
           name,
           distDir,
           distEntry,
+          publicUrl: env.publicUrl != null ? env.publicUrl : '/',
           env: this.getEnvironment(pkgEngines, context).merge(env)
         });
       }
@@ -143,6 +154,7 @@ export default class TargetResolver {
       targets.push({
         name: 'default',
         distDir: 'dist',
+        publicUrl: '/',
         env: this.getEnvironment(pkgEngines, context)
       });
     }

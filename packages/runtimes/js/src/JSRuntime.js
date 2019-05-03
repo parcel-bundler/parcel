@@ -2,8 +2,6 @@
 
 import path from 'path';
 import {Runtime} from '@parcel/plugin';
-import nullthrows from 'nullthrows';
-import urlJoin from '@parcel/utils/src/urlJoin';
 
 const LOADERS = {
   browser: {
@@ -21,7 +19,7 @@ const LOADERS = {
 };
 
 export default new Runtime({
-  async apply(bundle, bundleGraph, options) {
+  async apply(bundle, bundleGraph) {
     // Dependency ids in code replaced with referenced bundle names
     // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
     // and which are not loaded by a parent bundle.
@@ -50,12 +48,15 @@ export default new Runtime({
           let assetBundle = bundleGraph.findBundlesWithAsset(resolvedAsset)[0];
           let hasLoader = loaders && loaders[assetBundle.type];
           if (!hasLoader) {
+            if (assetBundle.publicUrl == null) {
+              throw new Error(
+                'JS raw loader: requested bundle did not have a publicUrl'
+              );
+            }
+
             assets.push({
               filePath: resolvedAsset.filePath + '.js',
-              code: `module.exports = '${urlJoin(
-                options.publicUrl == null ? '/' : options.publicUrl,
-                nullthrows(assetBundle.filePath)
-              )}'`,
+              code: `module.exports = '${assetBundle.publicUrl}'`,
               dependency
             });
           }

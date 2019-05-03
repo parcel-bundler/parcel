@@ -17,6 +17,7 @@ export default new Reporter({
       ...serve,
       cacheDir: options.cacheDir,
       distDir: 'dist', //options.distDir, // ! Not sure how this works now
+      // $FlowFixMe
       publicUrl: options.publicUrl || '/'
     };
 
