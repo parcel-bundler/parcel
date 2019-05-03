@@ -15,12 +15,16 @@ program.version(version);
 // --no-cache, --cache-dir, --no-source-maps, --no-autoinstall, --global?, --public-url, --log-level
 // --no-content-hash, --experimental-scope-hoisting, --detailed-report
 
-var commonOptions = {
+const commonOptions = {
   '--no-cache': 'disable the filesystem cache',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
   '--no-autoinstall': 'disable autoinstall',
-  '--public-url <url>': 'set the public URL to serve on. defaults to "/"',
+  '--target [name]': [
+    'only build given target(s)',
+    (val, list) => list.concat([val]),
+    []
+  ],
   '--log-level <level>': [
     'set the log level, either "none", "error", "warn", "info", or "verbose".',
     /^(none|error|warn|info|verbose)$/
@@ -192,6 +196,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     sourceMaps: command.sourceMaps != false,
     hot: hmr,
     serve,
+    targets: command.target.length > 0 ? command.target : null,
     autoinstall: command.autoinstall !== false,
     logLevel: command.logLevel
   };

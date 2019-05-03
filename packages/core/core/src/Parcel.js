@@ -192,12 +192,27 @@ async function resolveOptions(
       ? initialOptions.rootDir
       : getRootDir(entries);
 
+  let targetResolver = new TargetResolver();
+  let resolvedTargets = await targetResolver.resolve(rootDir);
+
   let targets;
   if (initialOptions.targets) {
-    targets = initialOptions.targets;
+    if (initialOptions.targets.length === 0) {
+      throw new Error('Targets was an empty array.');
+    }
+    targets = initialOptions.targets.map(target => {
+      if (typeof target === 'string') {
+        let matchingTarget = resolvedTargets.get(target);
+        if (!matchingTarget) {
+          throw new Error(`Could not find target with name ${target}`);
+        }
+        return matchingTarget;
+      }
+
+      return target;
+    });
   } else {
-    let targetResolver = new TargetResolver();
-    targets = await targetResolver.resolve(rootDir);
+    targets = Array.from(resolvedTargets.values());
   }
 
   if (!initialOptions.env) {

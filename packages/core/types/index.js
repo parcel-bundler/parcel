@@ -123,7 +123,7 @@ export type InitialParcelOptions = {|
   config?: ParcelConfig,
   defaultConfig?: ParcelConfig,
   env?: {[string]: ?string},
-  targets?: Array<Target>,
+  targets?: ?Array<string | Target>,
 
   watch?: boolean,
   cache?: boolean,

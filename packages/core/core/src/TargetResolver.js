@@ -19,7 +19,7 @@ const DEFAULT_ENGINES = {
 const DEFAULT_DIST_DIR = 'dist';
 
 export default class TargetResolver {
-  async resolve(rootDir: FilePath): Promise<Array<Target>> {
+  async resolve(rootDir: FilePath): Promise<Map<string, Target>> {
     let conf = await loadConfig(path.join(rootDir, 'index'), ['package.json']);
 
     let pkg: PackageJSON = conf ? conf.config : {};
@@ -29,7 +29,7 @@ export default class TargetResolver {
       pkgEngines.browsers = browserslist.loadConfig({path: rootDir});
     }
 
-    let targets = [];
+    let targets: Map<string, Target> = new Map();
     let node = pkgEngines.node;
     let browsers = pkgEngines.browsers;
 
@@ -52,7 +52,7 @@ export default class TargetResolver {
         distDir = path.join(DEFAULT_DIST_DIR, 'main');
       }
 
-      targets.push({
+      targets.set('main', {
         name: 'main',
         distDir,
         distEntry,
@@ -74,7 +74,7 @@ export default class TargetResolver {
         distDir = path.join(DEFAULT_DIST_DIR, 'module');
       }
 
-      targets.push({
+      targets.set('module', {
         name: 'module',
         distDir,
         distEntry,
@@ -104,7 +104,7 @@ export default class TargetResolver {
         distDir = path.join(DEFAULT_DIST_DIR, 'browser');
       }
 
-      targets.push({
+      targets.set('browser', {
         name: 'browser',
         distEntry,
         distDir,
@@ -138,7 +138,7 @@ export default class TargetResolver {
       if (env) {
         let context =
           env.context || (env.engines && env.engines.node ? 'node' : 'browser');
-        targets.push({
+        targets.set(name, {
           name,
           distDir,
           distEntry,
@@ -149,9 +149,9 @@ export default class TargetResolver {
     }
 
     // If no explicit targets were defined, add a default.
-    if (targets.length === 0) {
+    if (targets.size === 0) {
       let context = browsers || !node ? 'browser' : 'node';
-      targets.push({
+      targets.set('default', {
         name: 'default',
         distDir: 'dist',
         publicUrl: '/',
