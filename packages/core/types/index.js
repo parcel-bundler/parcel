@@ -347,7 +347,7 @@ export interface Bundle extends AssetGraphLike {
   +isEntry: ?boolean;
   +target: ?Target;
   +filePath: ?FilePath;
-  +publicUrl: ?string;
+  +name: ?string;
   +stats: Stats;
   getEntryAssets(): Array<Asset>;
   getTotalSize(asset?: Asset): number;
@@ -364,7 +364,7 @@ export interface MutableBundle extends Bundle {
 
 export interface NamedBundle extends Bundle {
   +filePath: FilePath;
-  +target: Target;
+  +name: string;
 }
 
 export type BundleGroup = {

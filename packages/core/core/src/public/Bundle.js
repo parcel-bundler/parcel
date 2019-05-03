@@ -54,8 +54,8 @@ export class Bundle implements IBundle {
     return this.#bundle.filePath;
   }
 
-  get publicUrl(): ?string {
-    return this.#bundle.publicUrl;
+  get name(): ?string {
+    return this.#bundle.name;
   }
 
   get stats(): Stats {
@@ -140,7 +140,7 @@ export class NamedBundle extends Bundle implements INamedBundle {
     return nullthrows(this.#bundle.filePath);
   }
 
-  get target(): Target {
-    return nullthrows(this.#bundle.target);
+  get name(): string {
+    return nullthrows(this.#bundle.name);
   }
 }

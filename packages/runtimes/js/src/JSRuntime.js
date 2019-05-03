@@ -2,6 +2,8 @@
 
 import path from 'path';
 import {Runtime} from '@parcel/plugin';
+import nullthrows from 'nullthrows';
+import urlJoin from '@parcel/utils/src/urlJoin';
 
 const LOADERS = {
   browser: {
@@ -48,15 +50,21 @@ export default new Runtime({
           let assetBundle = bundleGraph.findBundlesWithAsset(resolvedAsset)[0];
           let hasLoader = loaders && loaders[assetBundle.type];
           if (!hasLoader) {
-            if (assetBundle.publicUrl == null) {
+            if (assetBundle.target == null) {
+              throw new Error('JSRuntime: Bundle did not have a target');
+            }
+            if (assetBundle.target.publicUrl == null) {
               throw new Error(
-                'JS raw loader: requested bundle did not have a publicUrl'
+                'JSRuntime: Bundle target did not have a publicUrl'
               );
             }
 
             assets.push({
               filePath: resolvedAsset.filePath + '.js',
-              code: `module.exports = '${assetBundle.publicUrl}'`,
+              code: `module.exports = '${urlJoin(
+                assetBundle.target.publicUrl,
+                nullthrows(assetBundle.name)
+              )}'`,
               dependency
             });
           }

@@ -41,7 +41,7 @@ export default class MainAssetGraph implements IMainAssetGraph {
       filePath: null,
       isEntry: null,
       target: null,
-      publicUrl: null,
+      name: null,
       type: asset.type,
       assetGraph: graph,
       env: asset.env,

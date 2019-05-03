@@ -15,7 +15,6 @@ import {Bundle, NamedBundle} from './public/Bundle';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
 import {normalizeSeparators} from '@parcel/utils/src/path';
-import urlJoin from '@parcel/utils/src/urlJoin';
 
 type Opts = {|
   options: ParcelOptions,
@@ -87,10 +86,7 @@ export default class BundlerRunner {
           target.distDir,
           normalizeSeparators(name)
         );
-
-        if (target.publicUrl != null) {
-          internalBundle.publicUrl = urlJoin(target.publicUrl, name);
-        }
+        internalBundle.name = name;
         return;
       }
     }

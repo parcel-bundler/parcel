@@ -78,7 +78,7 @@ export type Bundle = {|
   isEntry: ?boolean,
   target: ?Target,
   filePath: ?FilePath,
-  publicUrl: ?string,
+  name: ?string,
   stats: Stats
 |};
 
