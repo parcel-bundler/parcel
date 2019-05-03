@@ -6,6 +6,7 @@ import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
 
 import assert from 'assert';
+import path from 'path';
 import nullthrows from 'nullthrows';
 import {BundleGraph, MutableBundleGraph} from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
@@ -13,6 +14,7 @@ import MainAssetGraph from './public/MainAssetGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
+import {normalizeSeparators} from '@parcel/utils/src/path';
 
 type Opts = {|
   options: ParcelOptions,
@@ -76,10 +78,13 @@ export default class BundlerRunner {
     let bundleGraph = new BundleGraph(internalBundleGraph);
 
     for (let namer of namers) {
-      let filePath = await namer.name(bundle, bundleGraph, this.options);
+      let name = await namer.name(bundle, bundleGraph, this.options);
 
-      if (filePath != null) {
-        internalBundle.filePath = filePath;
+      if (name != null) {
+        internalBundle.filePath = path.join(
+          nullthrows(internalBundle.target).distDir,
+          normalizeSeparators(name)
+        );
         return;
       }
     }
