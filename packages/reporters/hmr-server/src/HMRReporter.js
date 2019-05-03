@@ -10,11 +10,6 @@ export default new Reporter({
     let hot = options.hot;
     if (!hot) return;
 
-    let isBrowser = options.targets.some(
-      target => target.env.context === 'browser'
-    );
-    if (!isBrowser) return;
-
     let hmrOptions: HMRServerOptions = {
       ...hot,
       cacheDir: options.cacheDir

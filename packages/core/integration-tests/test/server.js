@@ -181,9 +181,9 @@ describe('server', function() {
       serve: {
         https: false,
         port: port,
-        host: 'localhost'
+        host: 'localhost',
+        publicUrl: '/dist'
       },
-      publicUrl: '/dist',
       watch: true
     });
 
@@ -203,9 +203,9 @@ describe('server', function() {
       serve: {
         https: false,
         port: port,
-        host: 'localhost'
+        host: 'localhost',
+        publicUrl: '/dist'
       },
-      publicUrl: '/dist',
       watch: true
     });
 
