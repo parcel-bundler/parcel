@@ -59,11 +59,15 @@ parcel-bundler: (worker)
 - onInput for options & header (debounce hash update)
 - "Production" ? NODE_ENV ? As cli flag?
 - builtins/bundle loaders: fs.readFileSync(require.resolve)
-- Cmd+S -> export zip
 - Safari SW: `clients` doesn't exist?
-- add test (that every preset runs without an error)
 - `{ presets: [["@babel/env", {loose: false}]] }` makes no difference?
   - [link](https://parcel-repl.now.sh/#JTdCJTIyY3VycmVudFByZXNldCUyMiUzQSUyMkJhYmVsJTIyJTJDJTIyb3B0aW9ucyUyMiUzQSU3QiUyMm1pbmlmeSUyMiUzQWZhbHNlJTJDJTIyc2NvcGVIb2lzdCUyMiUzQXRydWUlMkMlMjJzb3VyY2VNYXBzJTIyJTNBZmFsc2UlMkMlMjJjb250ZW50SGFzaCUyMiUzQXRydWUlMkMlMjJicm93c2Vyc2xpc3QlMjIlM0ElMjIlMjIlMkMlMjJwdWJsaWNVcmwlMjIlM0ElMjIlMjIlMkMlMjJ0YXJnZXQlMjIlM0ElMjJicm93c2VyJTIyJTJDJTIyZ2xvYmFsJTIyJTNBJTIyJTIyJTdEJTJDJTIyYXNzZXRzJTIyJTNBJTVCJTVCJTIyaW5kZXguanMlMjIlMkMlMjJjbGFzcyUyMFBvaW50JTIwJTdCJTVDbiUyMCUyMCUyMCUyMGNvbnN0cnVjdG9yKHglMkMlMjB5KSUyMCU3QiU1Q24lMjAlMjAlMjAlMjAlMjAlMjAlMjAlMjB0aGlzLnglMjAlM0QlMjB4JTNCJTVDbiUyMCUyMCUyMCUyMCUyMCUyMCUyMCUyMHRoaXMueSUyMCUzRCUyMHklM0IlNUNuJTIwJTIwJTIwJTIwJTdEJTVDbiUyMCUyMCUyMCUyMHRvU3RyaW5nKCklMjAlN0IlNUNuJTIwJTIwJTIwJTIwJTIwJTIwJTIwJTIwcmV0dXJuJTIwJTYwKCUyNCU3QnRoaXMueCU3RCUyQyUyMCUyNCU3QnRoaXMueSU3RCklNjAlM0IlNUNuJTIwJTIwJTIwJTIwJTdEJTVDbiU3RCUyMiUyQzElNUQlMkMlNUIlMjIuYmFiZWxyYyUyMiUyQyUyMiU3QiUyMHByZXNldHMlM0ElMjAlNUIlNUIlNUMlMjIlNDBiYWJlbCUyRmVudiU1QyUyMiUyQyUyMCU3Qmxvb3NlJTNBJTIwZmFsc2UlN0QlNUQlNUQlMjAlN0QlMjIlNUQlMkMlNUIlMjJwYWNrYWdlLmpzb24lMjIlMkMlMjIlN0IlNUNuJTIwJTVDJTIyZGV2RGVwZW5kZW5jaWVzJTVDJTIyJTNBJTIwJTdCJTVDbiUyMCUyMCU1QyUyMiU0MGJhYmVsJTJGY29yZSU1QyUyMiUzQSUyMCU1QyUyMiU1RTcuMy40JTVDJTIyJTJDJTVDbiUyMCUyMCU1QyUyMiU0MGJhYmVsJTJGcHJlc2V0LWVudiU1QyUyMiUzQSUyMCU1QyUyMiU1RTcuMy40JTVDJTIyJTVDbiUyMCUyMCU3RCU1Q24lN0QlMjIlNUQlNUQlN0Q=)
+
+#### Features
+
+- Cmd+S -> export zip
+- add test (that every preset runs without an error)
+- better caching strategy: leverage hashing but still clear sw cache
 
 #### Using Parcel's Cache
 
@@ -80,3 +84,4 @@ parcel-bundler: (worker)
 - with Parcel 2: display graph
 - Lazy load large `Asset` types
 - install pkg from NPM (via custom autoinstall)
+- use Parcel's devserver in SW

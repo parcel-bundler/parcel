@@ -75,16 +75,29 @@ export const PRESETS = {
   'Basic Page': [
     {
       name: 'index.html',
-      content: `<head>\n  <link rel="stylesheet" type="text/css" href="./style.css">\n</head>\n<body>\n  <script src="./index.js"></script>\n</body>`,
+      content: `<head>
+  <link rel="stylesheet" type="text/css" href="./style.css">
+</head>
+<body>
+  <a href="./other.html">Link</a>
+  <script src="./index.js"></script>
+</body>`,
       isEntry: true
     },
     {
       name: 'index.js',
-      content: `function a(){\n return "Hello World!";\n}\ndocument.body.innerText += a();`
+      content: `function func(){
+ return "Hello World!";
+}
+document.body.append(document.createTextNode(func()))`
     },
     {
       name: 'style.css',
       content: `body {\n  color: red;\n}`
+    },
+    {
+      name: 'other.html',
+      content: 'This is a different page'
     },
     {
       name: '.htmlnanorc',

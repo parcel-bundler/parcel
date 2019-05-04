@@ -39,6 +39,9 @@ self.addEventListener('fetch', event => {
           (client && client.frameType === 'nested') ||
           (event.resultingClientId && url.hash === '#parcel_preview')
         ) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`Serving from Parcel bundle: ${url.pathname}`);
+          }
           // serve Parcel output
           const path = url.pathname.split('/').filter(Boolean);
 

@@ -46,31 +46,36 @@ export default class Preview extends Component {
   // }
 
   render() {
-    return this.props.output.filter(v => v.isEntry).map((entry, i) => {
-      const entryExtension = path.extname(entry.name).slice(1);
+    return (
+      !this.props.options.publicUrl &&
+      this.props.output.filter(v => v.isEntry).map((entry, i) => {
+        const entryExtension = path.extname(entry.name).slice(1);
 
-      let url;
+        let url;
 
-      if (entryExtension === 'js') {
-        const data = entry.content;
+        if (entryExtension === 'js') {
+          const data = entry.content;
 
-        const blobURL = URL.createObjectURL(
-          new Blob([data], {type: 'application/javascript'})
-        );
-        const wrapperPage = wrapperFor(blobURL);
+          const blobURL = URL.createObjectURL(
+            new Blob([data], {type: 'application/javascript'})
+          );
+          const wrapperPage = wrapperFor(blobURL);
 
-        url = URL.createObjectURL(new Blob([wrapperPage], {type: 'text/html'}));
-      } else if (entryExtension === 'html' && 'serviceWorker' in navigator) {
-        url = `${entry.name}?x=${new Date().getTime()}#parcel_preview`;
-      }
+          url = URL.createObjectURL(
+            new Blob([wrapperPage], {type: 'text/html'})
+          );
+        } else if (entryExtension === 'html' && 'serviceWorker' in navigator) {
+          url = `${entry.name}?x=${new Date().getTime()}#parcel_preview`;
+        }
 
-      if (url) {
-        return (
-          <Box header={'Preview: ' + entry.name}>
-            <iframe class="preview" src={url} />
-          </Box>
-        );
-      }
-    });
+        if (url) {
+          return (
+            <Box header={'Preview: ' + entry.name}>
+              <iframe class="preview" src={url} />
+            </Box>
+          );
+        }
+      })
+    );
   }
 }

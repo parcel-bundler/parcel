@@ -47,7 +47,7 @@ export function Notes() {
         </li>
         <li>
           Currently patching <code>htmlnano</code> because its{' '}
-          <code>requires</code> aren't statically analyzeable
+          <code>require</code>s aren't statically analyzeable
         </li>
       </ul>
     </div>

@@ -264,6 +264,7 @@ class App extends Component {
                   <Preview
                     assets={this.state.assets}
                     output={this.state.output}
+                    options={this.state.options}
                   />
                 </Fragment>
               ) : (

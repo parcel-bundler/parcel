@@ -13,7 +13,7 @@ export default function Options({values, onChange, enableBrowserslist}) {
         />
       </label>
       <label title="Sets `--experimental-scope-hoisting`">
-        Experimental Scope Hoisting
+        Scope Hoisting (Experimental)
         <input
           type="checkbox"
           checked={values.scopeHoist}
@@ -43,8 +43,8 @@ export default function Options({values, onChange, enableBrowserslist}) {
           onChange={e => onChange('contentHash', e.target.checked)}
         />
       </label>
-      <label title="Not an actual CLI option, put this into a .browserslistrc 😁">
-        Browserslist target, example: <code>Chrome 70</code>
+      <label title="Not an actual CLI option, put this into .browserslistrc 😁">
+        Browserslist target, i.e.: <code>Chrome 70</code>
         <input
           type="text"
           value={enableBrowserslist ? values.browserslist : undefined}
