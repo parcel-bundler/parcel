@@ -1,0 +1,15 @@
+{
+  "name": "Parcel REPL",
+  "short_name": "Parcel REPL",
+  "description": "A playground for Parcel in the browser",
+  "start_url": "/",
+  "display": "standalone",
+  "lang": "en-US",
+  "background_color": "white",
+  "theme_color": "#21374b",
+  "icons": [{
+    "src": "avatar.png",
+    "sizes": "512x512",
+    "type": "image/png"
+  }]
+}

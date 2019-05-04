@@ -8,11 +8,13 @@ import filesize from 'filesize';
 import Asset from './components/Asset';
 import Options from './components/Options';
 import Preview from './components/Preview';
-import {ParcelError, Notes} from './components/helper';
+import {ParcelError, Notes, Box} from './components/helper';
 import {PRESETS, hasBrowserslist, saveState, loadState} from './utils';
 import bundle, {workerLoaded, getFS} from './parcel/';
 
 const DEFAULT_PRESET = 'Javascript';
+
+let installPrompt;
 
 class App extends Component {
   constructor(props) {
@@ -24,7 +26,9 @@ class App extends Component {
       bundling: false,
       bundlingError: null,
 
-      workerReady: false
+      workerReady: false,
+
+      installPrompt: null
     };
 
     let hashData;
@@ -97,6 +101,28 @@ class App extends Component {
     document.addEventListener('keydown', e => {
       if (e.metaKey && (e.code === 'Enter' || e.code === 'KeyB'))
         this.startBundling();
+    });
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      this.setState({
+        installPrompt: e
+      });
+    });
+  }
+
+  async showInstallPrompt() {
+    this.state.installPrompt.prompt();
+
+    const result = await this.state.installPrompt.userChoice;
+    if (result.outcome === 'accepted') {
+      console.log('User accepted the A2HS prompt');
+    } else {
+      console.log('User dismissed the A2HS prompt');
+    }
+
+    this.setState({
+      installPrompt: null
     });
   }
 
@@ -261,6 +287,14 @@ class App extends Component {
               );
             }
           })()}
+          {this.state.installPrompt && (
+            <button
+              class="installPrompt"
+              onClick={() => this.showInstallPrompt()}
+            >
+              Want to install this to your homescreen?
+            </button>
+          )}
         </div>
       </div>
     );

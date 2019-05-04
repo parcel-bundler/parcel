@@ -131,12 +131,8 @@ select {
 }
 
 .row > .gettingStarted {
-  padding: 2em 0.3em;
+  padding: 3em 0.3em;
   text-align: center;
-}
-
-.row > .gettingStarted > * {
-  margin: 1em 0;
 }
 
 .row > .loadState {

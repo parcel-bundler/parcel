@@ -13,7 +13,7 @@ export function ParcelError(props) {
 export function Box(props) {
   return (
     <div class={`file ${props.class || ''}`}>
-      <div class="header">{props.header}</div>
+      {props.header && <div class="header">{props.header}</div>}
       <div class="content">{props.children}</div>
     </div>
   );
