@@ -39,6 +39,7 @@ export function loadState() {
     }));
     return data;
   } catch (e) {
+    // eslint-disable-next-line no-console
     console.error('Hash decoding failed:', e);
     window.location.hash = '';
     return null;

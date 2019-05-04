@@ -2,6 +2,7 @@
 import {h} from 'preact';
 // eslint-disable-next-line no-unused-vars
 import Editor from './Editor';
+// eslint-disable-next-line no-unused-vars
 import {Box} from './helper';
 
 const Asset = props => {

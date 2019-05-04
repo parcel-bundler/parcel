@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 import {h} from 'preact';
 
 const PATH_REGEX = /\/src\//g;

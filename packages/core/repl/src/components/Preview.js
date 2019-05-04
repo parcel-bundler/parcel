@@ -1,6 +1,7 @@
 // eslint-disable-next-line no-unused-vars
 import {h, Component, Fragment, createRef} from 'preact';
 import path from 'path';
+// eslint-disable-next-line no-unused-vars
 import {Box} from './helper';
 
 function wrapperFor(scriptURL) {
@@ -37,7 +38,7 @@ export default class Preview extends Component {
     // this.iframe = createRef();
   }
 
-  shouldComponentUpdate(nextProps, nextState) {
+  shouldComponentUpdate(nextProps) {
     return nextProps.output !== this.props.output;
   }
 
@@ -48,7 +49,7 @@ export default class Preview extends Component {
   render() {
     return (
       !this.props.options.publicUrl &&
-      this.props.output.filter(v => v.isEntry).map((entry, i) => {
+      this.props.output.filter(v => v.isEntry).map(entry => {
         const entryExtension = path.extname(entry.name).slice(1);
 
         let url;

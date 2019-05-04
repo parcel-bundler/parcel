@@ -31,7 +31,7 @@ self.addEventListener('fetch', event => {
       (async () => {
         const clientId = event.clientId || event.resultingClientId;
 
-        const client = (await clients.matchAll({
+        const client = (await self.clients.matchAll({
           includeUncontrolled: true
         })).find(v => v.id === clientId);
 
@@ -40,7 +40,8 @@ self.addEventListener('fetch', event => {
           (event.resultingClientId && url.hash === '#parcel_preview')
         ) {
           if (process.env.NODE_ENV === 'development') {
-            console.log(`Serving from Parcel bundle: ${url.pathname}`);
+            // eslint-disable-next-line no-console
+            console.log(`📦 Serving from Parcel bundle: ${url.pathname}`);
           }
           // serve Parcel output
           const path = url.pathname.split('/').filter(Boolean);
@@ -74,12 +75,16 @@ self.addEventListener('fetch', event => {
 
           if (cache) {
             if (process.env.NODE_ENV === 'development') {
-              console.info(`Serving ${event.request.url} from cache`);
+              // eslint-disable-next-line no-console
+              console.info(`🗄️ Serving ${event.request.url} from cache`);
             }
             return cache;
           } else {
             if (process.env.NODE_ENV === 'development') {
-              console.info(`Falling back to network for ${event.request.url}`);
+              // eslint-disable-next-line no-console
+              console.info(
+                `🚀 Falling back to network for ${event.request.url}`
+              );
             }
             return (await fetchRequest).clone();
           }
