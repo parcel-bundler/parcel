@@ -26,6 +26,21 @@ class JSPackager extends Packager {
           this.options.hmrHostname
         )};` + preludeCode;
     }
+
+    // If target is node, check if the main asset is an entry asset and if it has a shebang.
+    // In that case, strip it from the asset and put it at the top of the output
+    if (this.bundler.options.target === 'node') {
+      const entryAsset = this.bundle.entryAsset;
+      if (
+        this.bundler.entryAssets.has(entryAsset) &&
+        entryAsset.generated.js.trimStart().startsWith('#!')
+      ) {
+        const firstNewline = entryAsset.generated.js.indexOf('\n') + 1;
+        preludeCode = trimmed.slice(0, firstNewline) + preludeCode;
+        entryContent.js = trimmed.slice(firstNewline);
+      }
+    }
+
     await this.write(preludeCode + '({');
     this.lineOffset = lineCounter(preludeCode);
   }
