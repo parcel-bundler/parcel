@@ -40,10 +40,14 @@ export function Notes() {
           bundler, caused by Parcel's <code>require.resolve</code> handling
         </li>
         <li>
-          Currently patching SASS because of{' '}
+          Currently patching <code>sass</code> because of{' '}
           <a href="https://github.com/mbullington/node_preamble.dart/issues/14">
             this issue
           </a>
+        </li>
+        <li>
+          Currently patching <code>htmlnano</code> because its{' '}
+          <code>requires</code> aren't statically analyzeable
         </li>
       </ul>
     </div>
