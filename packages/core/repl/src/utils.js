@@ -61,12 +61,20 @@ export const PRESETS = {
   Babel: [
     {
       name: 'index.js',
-      content: `const {a, b} = {a: 2, b: 3};\nconsole.log(a);`,
+      content: `class Point {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+    toString() {
+        return \`(\${this.x}, \${this.y})\`;
+    }
+}`,
       isEntry: true
     },
     {
       name: '.babelrc',
-      content: `{ presets: ["@babel/env"] }`
+      content: `{ "presets": [["@babel/env", {"loose": false}]] }`
     },
     {
       name: 'package.json',

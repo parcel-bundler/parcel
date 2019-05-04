@@ -56,14 +56,16 @@ parcel-bundler: (worker)
 
 ### REPL Issues
 
+- https://github.com/codesandbox/codesandbox-client/tree/master/standalone-packages/codesandbox-browserfs
 - builtins/bundle loaders: fs.readFileSync(require.resolve)
 - onInput for options & header (debounce hash update)
 - "Production" ? NODE_ENV ? As cli flag?
 - Safari SW: `clients` doesn't exist? disable html preview
+- .babelrc isn't used:
 
-- links in preview: aren't recognized correctly by SW router
-- `{ presets: [["@babel/env", {loose: false}]] }` makes no difference?
-  - [link](https://parcel-repl.now.sh/#JTdCJTIyY3VycmVudFByZXNldCUyMiUzQSUyMkJhYmVsJTIyJTJDJTIyb3B0aW9ucyUyMiUzQSU3QiUyMm1pbmlmeSUyMiUzQWZhbHNlJTJDJTIyc2NvcGVIb2lzdCUyMiUzQXRydWUlMkMlMjJzb3VyY2VNYXBzJTIyJTNBZmFsc2UlMkMlMjJjb250ZW50SGFzaCUyMiUzQXRydWUlMkMlMjJicm93c2Vyc2xpc3QlMjIlM0ElMjIlMjIlMkMlMjJwdWJsaWNVcmwlMjIlM0ElMjIlMjIlMkMlMjJ0YXJnZXQlMjIlM0ElMjJicm93c2VyJTIyJTJDJTIyZ2xvYmFsJTIyJTNBJTIyJTIyJTdEJTJDJTIyYXNzZXRzJTIyJTNBJTVCJTVCJTIyaW5kZXguanMlMjIlMkMlMjJjbGFzcyUyMFBvaW50JTIwJTdCJTVDbiUyMCUyMCUyMCUyMGNvbnN0cnVjdG9yKHglMkMlMjB5KSUyMCU3QiU1Q24lMjAlMjAlMjAlMjAlMjAlMjAlMjAlMjB0aGlzLnglMjAlM0QlMjB4JTNCJTVDbiUyMCUyMCUyMCUyMCUyMCUyMCUyMCUyMHRoaXMueSUyMCUzRCUyMHklM0IlNUNuJTIwJTIwJTIwJTIwJTdEJTVDbiUyMCUyMCUyMCUyMHRvU3RyaW5nKCklMjAlN0IlNUNuJTIwJTIwJTIwJTIwJTIwJTIwJTIwJTIwcmV0dXJuJTIwJTYwKCUyNCU3QnRoaXMueCU3RCUyQyUyMCUyNCU3QnRoaXMueSU3RCklNjAlM0IlNUNuJTIwJTIwJTIwJTIwJTdEJTVDbiU3RCUyMiUyQzElNUQlMkMlNUIlMjIuYmFiZWxyYyUyMiUyQyUyMiU3QiUyMHByZXNldHMlM0ElMjAlNUIlNUIlNUMlMjIlNDBiYWJlbCUyRmVudiU1QyUyMiUyQyUyMCU3Qmxvb3NlJTNBJTIwZmFsc2UlN0QlNUQlNUQlMjAlN0QlMjIlNUQlMkMlNUIlMjJwYWNrYWdlLmpzb24lMjIlMkMlMjIlN0IlNUNuJTIwJTVDJTIyZGV2RGVwZW5kZW5jaWVzJTVDJTIyJTNBJTIwJTdCJTVDbiUyMCUyMCU1QyUyMiU0MGJhYmVsJTJGY29yZSU1QyUyMiUzQSUyMCU1QyUyMiU1RTcuMy40JTVDJTIyJTJDJTVDbiUyMCUyMCU1QyUyMiU0MGJhYmVsJTJGcHJlc2V0LWVudiU1QyUyMiUzQSUyMCU1QyUyMiU1RTcuMy40JTVDJTIyJTVDbiUyMCUyMCU3RCU1Q24lN0QlMjIlNUQlNUQlN0Q=)
+  - `localRequire.resolve`: https://github.com/parcel-bundler/parcel/blob/599381399aaa00f02d6bd93c55ad22ca7d3fa0e6/packages/core/parcel-bundler/src/transforms/babel/babelrc.js#L272-L280
+
+- links to other html bundles in preview aren't recognized correctly by SW router
 
 #### Features
 
