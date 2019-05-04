@@ -116,14 +116,10 @@ class App extends Component {
 
     const result = await this.state.installPrompt.userChoice;
     if (result.outcome === 'accepted') {
-      console.log('User accepted the A2HS prompt');
-    } else {
-      console.log('User dismissed the A2HS prompt');
+      this.setState({
+        installPrompt: null
+      });
     }
-
-    this.setState({
-      installPrompt: null
-    });
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -292,7 +288,7 @@ class App extends Component {
               class="installPrompt"
               onClick={() => this.showInstallPrompt()}
             >
-              Want to install this to your homescreen?
+              Want to add this to your homescreen?
             </button>
           )}
         </div>

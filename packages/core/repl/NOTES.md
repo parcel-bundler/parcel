@@ -73,10 +73,6 @@ parcel-bundler: (worker)
 - (when enabled atm, Markdown isn't updating)
 - with cache, watcher-like functionality (on state change with debouncin)
 
-##### Performance
-
-- SW for caching JS (Chrome does bytecode caching)
-
 ##### Future/Longterm
 
 - Add a "expand" pull tab to options box

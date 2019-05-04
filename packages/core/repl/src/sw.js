@@ -54,6 +54,8 @@ self.addEventListener('fetch', event => {
             }
           });
         } else {
+          // return fetch(event.request);
+
           // stale-while-revalidate REPL bundle
           const fetchRequest = fetch(event.request);
           const cache = await caches.match(event.request);
