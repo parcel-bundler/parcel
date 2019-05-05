@@ -14,6 +14,8 @@ export function hasBrowserslist(assets) {
   }
 }
 
+export const ctrlKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl';
+
 export function saveState(curPreset, options, assets) {
   let data = {
     currentPreset: curPreset,

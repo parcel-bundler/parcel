@@ -1,5 +1,6 @@
 // eslint-disable-next-line no-unused-vars
 import {h} from 'preact';
+import {ctrlKey} from '../utils.js';
 
 const PATH_REGEX = /\/src\//g;
 
@@ -32,7 +33,7 @@ export function Notes() {
       <br />
       Hotkeys:
       <ul>
-        <li> Ctrl/⌘ + (B or Enter): Bundle</li>
+        <li> {ctrlKey} + (B or Enter): Bundle</li>
       </ul>
       Known issues:
       <ul>

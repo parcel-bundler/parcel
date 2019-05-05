@@ -59,13 +59,13 @@ parcel-bundler: (worker)
 - https://github.com/codesandbox/codesandbox-client/tree/master/standalone-packages/codesandbox-browserfs
 - builtins/bundle loaders: fs.readFileSync(require.resolve)
 - onInput for options & header (debounce hash update)
-- "Production" ? NODE_ENV ? As cli flag?
 - Safari SW: `clients` doesn't exist? disable html preview
 - .babelrc isn't used:
 
   - `localRequire.resolve`: https://github.com/parcel-bundler/parcel/blob/599381399aaa00f02d6bd93c55ad22ca7d3fa0e6/packages/core/parcel-bundler/src/transforms/babel/babelrc.js#L272-L280
 
-- links to other html bundles in preview aren't recognized correctly by SW router
+- need a better way to distinguish iframe/app requests in SW:
+  - links to other html bundles in preview aren't recognized correctly
 
 #### Features
 
@@ -87,5 +87,6 @@ parcel-bundler: (worker)
 - Feedback that bundling was started/finished
 - with Parcel 2: display graph
 - Lazy load large `Asset` types
-- install pkg from NPM (via custom autoinstall)
+- {install pkg from NPM (via custom autoinstall)}
 - use Parcel's devserver in SW
+- "Production" ? NODE_ENV ? As cli flag?
