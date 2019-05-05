@@ -9,7 +9,13 @@ import Asset from './components/Asset';
 import Options from './components/Options';
 import Preview from './components/Preview';
 import {ParcelError, Notes, Box} from './components/helper';
-import {PRESETS, hasBrowserslist, saveState, loadState} from './utils';
+import {
+  PRESETS,
+  hasBrowserslist,
+  saveState,
+  loadState,
+  createDebouncer
+} from './utils';
 import bundle, {workerLoaded, getFS} from './parcel/';
 
 const DEFAULT_PRESET = 'Javascript';
@@ -55,7 +61,16 @@ class App extends Component {
       };
     }
 
-    const options = this.state.options;
+    this.hashDebouncer = createDebouncer(
+      that =>
+        saveState(
+          that.state.currentPreset,
+          that.state.options,
+          that.state.assets
+        ),
+      400,
+      this
+    );
 
     workerLoaded.then(() => this.setState({workerReady: true}));
   }
@@ -128,11 +143,7 @@ class App extends Component {
       this.state.options !== prevState.options ||
       this.state.currentPreset !== prevState.currentPreset
     ) {
-      saveState(
-        this.state.currentPreset,
-        this.state.options,
-        this.state.assets
-      );
+      this.hashDebouncer();
     }
   }
 

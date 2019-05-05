@@ -42,10 +42,18 @@ export function loadState() {
     return data;
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.error('Hash decoding failed:', e);
+    console.error('Hash decoding failed:', e.message);
     window.location.hash = '';
     return null;
   }
+}
+
+export function createDebouncer(f, time, params) {
+  let id;
+  return () => {
+    clearTimeout(id);
+    id = setTimeout(f, time, params);
+  };
 }
 
 export const PRESETS = {
