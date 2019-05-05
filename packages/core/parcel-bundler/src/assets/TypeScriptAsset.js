@@ -1,6 +1,7 @@
 const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const isAccessedVarChanged = require('../utils/isAccessedVarChanged');
+const path = require('path');
 
 class TypeScriptAsset extends Asset {
   constructor(name, options) {
@@ -11,6 +12,22 @@ class TypeScriptAsset extends Asset {
 
   shouldInvalidate(cacheData) {
     return isAccessedVarChanged(cacheData);
+  }
+
+  async resolveModuleDependency(dep) {
+    let tsconfig = await this.getConfig(['tsconfig.json']);
+    let searchPath = undefined;
+    if (tsconfig.compilerOptions && tsconfig.compilerOptions.baseUrl) {
+      // baseUrl is relative to the location of tsconfig.json
+      let tsconfigPath = await this.getConfig(['tsconfig.json'], {load: false});
+      searchPath = [
+        path.resolve(
+          path.dirname(tsconfigPath),
+          tsconfig.compilerOptions.baseUrl
+        )
+      ];
+    }
+    return await this.resolver.resolve(dep.name, this.name, {searchPath});
   }
 
   async generate() {

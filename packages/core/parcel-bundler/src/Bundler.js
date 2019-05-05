@@ -105,8 +105,8 @@ class Bundler extends EventEmitter {
       target === 'node'
         ? false
         : typeof options.hmr === 'boolean'
-          ? options.hmr
-          : watch;
+        ? options.hmr
+        : watch;
     const scopeHoist =
       options.scopeHoist !== undefined ? options.scopeHoist : false;
     return {
@@ -145,8 +145,8 @@ class Bundler extends EventEmitter {
         typeof options.autoInstall === 'boolean'
           ? options.autoInstall
           : process.env.PARCEL_AUTOINSTALL === 'false'
-            ? false
-            : !isProduction,
+          ? false
+          : !isProduction,
       scopeHoist: scopeHoist,
       contentHash:
         typeof options.contentHash === 'boolean'
@@ -481,7 +481,8 @@ class Bundler extends EventEmitter {
         return this.getLoadedAsset(dep.resolved);
       }
 
-      return await this.resolveAsset(dep.name, asset.name);
+      const {path} = await asset.resolveModuleDependency(dep);
+      return this.getLoadedAsset(path);
     } catch (err) {
       // If the dep is optional, return before we throw
       if (dep.optional) {

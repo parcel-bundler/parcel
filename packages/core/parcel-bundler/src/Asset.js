@@ -85,6 +85,10 @@ class Asset {
     this.dependencies.set(name, Object.assign({name}, opts));
   }
 
+  async resolveModuleDependency(dep) {
+    return await this.resolver.resolve(dep.name, this.name);
+  }
+
   resolveDependency(url, from = this.name) {
     const parsed = URL.parse(url);
     let depName;

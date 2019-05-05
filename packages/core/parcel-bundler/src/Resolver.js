@@ -29,7 +29,7 @@ class Resolver {
     this.rootPackage = null;
   }
 
-  async resolve(input, parent) {
+  async resolve(input, parent, extraOptions) {
     let filename = input;
 
     // Check the cache first
@@ -57,7 +57,12 @@ class Resolver {
     extensions.unshift('');
 
     // Resolve the module directory or local file path
-    let module = await this.resolveModule(filename, parent);
+    let module = await this.resolveModule(
+      filename,
+      parent,
+      extensions,
+      extraOptions
+    );
     let resolved;
 
     if (module.moduleDir) {
@@ -77,12 +82,17 @@ class Resolver {
     return resolved;
   }
 
-  async resolveModule(filename, parent) {
+  async resolveModule(filename, parent, extensions, extraOptions) {
     let dir = parent ? path.dirname(parent) : process.cwd();
 
     // If this isn't the entrypoint, resolve the input file to an absolute path
     if (parent) {
-      filename = this.resolveFilename(filename, dir);
+      filename = await this.resolveFilenameSearchPath(
+        filename,
+        dir,
+        extensions,
+        extraOptions
+      );
     }
 
     // Resolve aliases in the parent module for this file.
@@ -119,7 +129,7 @@ class Resolver {
     return (parent ? path.dirname(parent) : '') + ':' + filename;
   }
 
-  resolveFilename(filename, dir) {
+  _resolveFilename(filename, dir) {
     switch (filename[0]) {
       case '/':
         // Absolute path. Resolve relative to project root.
@@ -147,9 +157,38 @@ class Resolver {
         return path.resolve(dir, filename);
 
       default:
-        // Module
-        return filename;
+        // Search path / module.
+        return null;
     }
+  }
+
+  async resolveFilenameSearchPath(filename, dir, extensions, extraOptions) {
+    let resolvedFilename = this._resolveFilename(filename, dir);
+
+    if (resolvedFilename) {
+      return resolvedFilename;
+    } else {
+      // Search path / module.
+
+      // Look through the search path for a valid module.
+      if (extraOptions && extraOptions.searchPath) {
+        for (let search of extraOptions.searchPath) {
+          let resolvedPath = path.resolve(path.join(search, filename));
+          if (await this.loadRelative(resolvedPath, extensions))
+            return resolvedPath;
+        }
+      }
+
+      // Module.
+      return filename;
+    }
+  }
+
+  resolveFilename(filename, dir) {
+    let resolvedFilename = this._resolveFilename(filename, dir);
+
+    if (resolvedFilename) return resolvedFilename;
+    else return filename;
   }
 
   async loadRelative(filename, extensions) {
