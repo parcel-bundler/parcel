@@ -21,6 +21,7 @@ export async function bundle(assets, options) {
   // if (fsNative.data.src) delete fsNative.data.src;
   // if (fsNative.data.dist) delete fsNative.data.dist;
   fsNative.data = {};
+  const startTime = performance.now();
   process.env = {};
 
   await fs.mkdirp('/src/');
@@ -82,6 +83,10 @@ export async function bundle(assets, options) {
       isEntry: entryPointsOutput.has(f)
     });
   }
+
+  const endTime = performance.now();
+  console.log(`Bundling took ${Math.round(endTime - startTime)} milliseconds`);
+
   return output;
 }
 
