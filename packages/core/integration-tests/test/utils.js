@@ -43,10 +43,10 @@ console.warn = (...args) => {
 //   }
 // }
 
-beforeEach(async function() {
-  await sleep(250);
-  //   await removeDistDirectory();
-});
+// beforeEach(async function() {
+//   await sleep(250);
+//   //   await removeDistDirectory();
+// });
 
 function bundler(entries, opts) {
   return new Parcel({
