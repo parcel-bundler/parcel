@@ -919,6 +919,9 @@ describe('javascript', function() {
 
   [
     'if-else-statement-browser',
+    'if-else-statement-or-or-browser.1',
+    'if-else-statement-or-or-browser.2',
+    'if-else-statement-or-or-browser.3',
     'if-else-statement-alternate-browser',
     'if-statement-early-return-browser',
     'if-statement-early-return-alternate-browser',
@@ -978,6 +981,29 @@ describe('javascript', function() {
     });
   });
 
+  [
+    'if-else-statement-or-and-browser',
+    'if-else-statement-and-and-browser'
+  ].forEach(name => {
+    const filename = `${name}.js`;
+    it(`should not eliminate dead dependencies on --target=browser for ${name}`, async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/dead-modules-elimination', filename),
+        {
+          target: 'browser'
+        }
+      );
+
+      await assertBundleTree(b, {
+        name: filename,
+        assets: [filename, 'dep1.js', 'dep1-sub.js', 'dep2.js', 'dep2-sub.js']
+      });
+
+      let output = await run(b);
+      assert.equal(output, 'dep1');
+    });
+  });
+
   it(`should eliminate dead dependencies on --target=browser for combination`, async function() {
     let b = await bundle(
       path.join(
@@ -995,7 +1021,7 @@ describe('javascript', function() {
     });
 
     let output = await run(b);
-    assert.equal(output, 'browser:dep1,dep1,dep1,dep1');
+    assert.equal(output, 'browser:dep1,dep1,dep1,dep1,dep1,dep1');
   });
 
   it(`should not eliminate dead dependencies on --target=node for combination`, async function() {
@@ -1021,7 +1047,7 @@ describe('javascript', function() {
     });
 
     let output = await run(b);
-    assert.equal(output, 'nobrowser:dep1,dep1,dep1,dep1');
+    assert.equal(output, 'nobrowser:dep1,dep1,dep1,dep1,dep1,dep1');
   });
 
   it(`should not eliminate dead dependencies on --target=electron for combination`, async function() {
@@ -1047,7 +1073,7 @@ describe('javascript', function() {
     });
 
     let output = await run(b);
-    assert.equal(output, 'nobrowser:dep1,dep1,dep1,dep1');
+    assert.equal(output, 'nobrowser:dep1,dep1,dep1,dep1,dep1,dep1');
   });
 
   it('should support adding implicit dependencies', async function() {

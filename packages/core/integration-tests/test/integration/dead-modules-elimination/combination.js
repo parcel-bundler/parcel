@@ -18,6 +18,18 @@ module.exports = (() => {
     ret.push(require('./dep1'));
   }
 
+  if (process.env.NODE_ENV !== 'NOPE1' || process.env.NODE_ENV !== 'NOPE2') {
+    ret.push(require('./dep1'));
+  }
+
+  if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'NOPE') {
+    ret.push(require('./dep1'));
+  }
+
+  if (process.env.NODE_ENV === 'test' && process.env.NODE_ENV === 'NOPE') {
+    ret.push(require('./dep2'));
+  }
+
   if (process.env.NODE_ENV !== 'test') {
     ret.push(require('./dep2'));
   }
