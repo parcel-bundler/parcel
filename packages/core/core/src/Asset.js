@@ -64,6 +64,7 @@ type SerializedOptions = {|
 export default class Asset implements IAsset {
   id: string;
   hash: ?string;
+  idBase: string;
   filePath: FilePath;
   type: string;
   ast: ?AST;
@@ -82,13 +83,10 @@ export default class Asset implements IAsset {
   sideEffects: boolean;
 
   constructor(options: AssetOptions) {
+    this.idBase = options.idBase || options.filePath;
     this.id =
       options.id ||
-      md5FromString(
-        (options.idBase || options.filePath) +
-          options.type +
-          JSON.stringify(options.env)
-      );
+      md5FromString(this.idBase + options.type + JSON.stringify(options.env));
     this.hash = options.hash;
     this.filePath = options.filePath;
     this.isIsolated = options.isIsolated == null ? false : options.isIsolated;
@@ -289,6 +287,7 @@ export default class Asset implements IAsset {
     }
 
     let asset = new Asset({
+      idBase: this.idBase,
       hash,
       filePath: this.filePath,
       type: result.type,
