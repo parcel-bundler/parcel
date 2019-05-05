@@ -16,36 +16,57 @@ export default new Packager({
     return generate(bundle, ast, options);
 
     // let promises = [];
-    // bundle.traverseAssets(asset => {
-    //   promises.push(asset.getOutput());
+    // bundle.traverse(node => {
+    //   if (node.type === 'asset') {
+    //     promises.push(node.value.getCode());
+    //   }
     // });
     // let outputs = await Promise.all(promises);
 
     // let assets = '';
     // let i = 0;
-    // bundle.traverseAssets(asset => {
-    //   let deps = {};
-
-    //   let dependencies = bundle.getDependencies(asset);
-    //   for (let dep of dependencies) {
-    //     let resolved = bundle.getDependencyResolution(dep);
-    //     if (resolved) {
-    //       deps[dep.moduleSpecifier] = resolved.id;
-    //     }
+    // let first = true;
+    // bundle.traverse(node => {
+    //   if (node.type !== 'asset' && node.type !== 'asset_reference') {
+    //     return;
     //   }
 
-    //   let output = outputs[i];
-    //   let wrapped = i === 0 ? '' : ',';
-    //   wrapped +=
-    //     JSON.stringify(asset.id) +
-    //     ':[function(require,module,exports) {\n' +
-    //     (output.code || '') +
-    //     '\n},';
-    //   wrapped += JSON.stringify(deps);
-    //   wrapped += ']';
+    //   let asset = node.value;
+    //   if (node.type === 'asset_reference' && asset.type === 'js') {
+    //     // if this is a reference to another javascript asset, we should not include
+    //     // its output, as its contents should already be loaded.
+    //     return;
+    //   }
 
-    //   i++;
+    //   let wrapped = first ? '' : ',';
+    //   if (node.type === 'asset_reference') {
+    //     wrapped +=
+    //       JSON.stringify(asset.id) +
+    //       ':[function(require,module,exports) {},{}]';
+    //   } else {
+    //     let deps = {};
+    //     let dependencies = bundle.getDependencies(asset);
+    //     for (let dep of dependencies) {
+    //       let resolved = bundle.getDependencyResolution(dep);
+    //       if (resolved) {
+    //         deps[dep.moduleSpecifier] = resolved.id;
+    //       }
+    //     }
+
+    //     let output = outputs[i];
+    //     wrapped +=
+    //       JSON.stringify(asset.id) +
+    //       ':[function(require,module,exports) {\n' +
+    //       (output || '') +
+    //       '\n},';
+    //     wrapped += JSON.stringify(deps);
+    //     wrapped += ']';
+
+    //     i++;
+    //   }
+
     //   assets += wrapped;
+    //   first = false;
     // });
 
     // return (
@@ -53,7 +74,12 @@ export default new Packager({
     //   '({' +
     //   assets +
     //   '},{},' +
-    //   JSON.stringify(bundle.getEntryAssets().map(asset => asset.id)) +
+    //   JSON.stringify(
+    //     bundle
+    //       .getEntryAssets()
+    //       .reverse()
+    //       .map(asset => asset.id)
+    //   ) +
     //   ', ' +
     //   'null' +
     //   ')'

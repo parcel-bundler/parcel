@@ -4,22 +4,15 @@ const fs = require('@parcel/fs');
 const {bundler} = require('./utils');
 const http = require('http');
 const https = require('https');
+const getPort = require('get-port');
 
-describe.skip('server', function() {
-  let server;
-  afterEach(function() {
-    if (server) {
-      server.close();
-      server = null;
-    }
-  });
-
-  function get(file, client = http) {
+describe('server', function() {
+  function get(file, port, client = http) {
     return new Promise((resolve, reject) => {
       client.get(
         {
           hostname: 'localhost',
-          port: server.address().port,
+          port: port,
           path: file,
           rejectUnauthorized: false
         },
@@ -29,8 +22,9 @@ describe.skip('server', function() {
           res.on('data', c => (data += c));
           res.on('end', () => {
             if (res.statusCode !== 200) {
-              return reject(data);
+              return reject({statusCode: res.statusCode, data});
             }
+
             resolve(data);
           });
         }
@@ -39,179 +33,214 @@ describe.skip('server', function() {
   }
 
   it('should serve files', async function() {
-    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'));
-    server = await b.serve(0);
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      serve: {
+        https: false,
+        port: port,
+        host: 'localhost'
+      },
+      watch: true
+    });
 
-    let data = await get('/index.js');
-    assert.equal(
-      data,
-      await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8')
+    await b.run();
+
+    let data = await get('/index.js', port);
+    let distFile = await fs.readFile(
+      path.join(__dirname, '../dist/index.js'),
+      'utf8'
     );
+    assert.equal(data, distFile);
   });
 
-  it('should serve a default page if the main bundle is an HTML asset', async function() {
-    let b = bundler(path.join(__dirname, '/integration/html/index.html'));
-    server = await b.serve(0);
+  // TODO: Implement this once HTMLTransformer is in
+  it.skip('should serve a default page if the main bundle is an HTML asset', async function() {
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
+      serve: {
+        https: false,
+        port: port,
+        host: 'localhost'
+      },
+      watch: true
+    });
 
-    let data = await get('/');
+    await b.run();
+
+    let data = await get('/', port);
     assert.equal(
       data,
-      await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8')
+      await fs.readFile(path.join(__dirname, '../dist/index.html'), 'utf8')
     );
 
-    data = await get('/foo/bar');
+    data = await get('/foo/bar', port);
     assert.equal(
       data,
-      await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8')
+      await fs.readFile(path.join(__dirname, '../dist/index.html'), 'utf8')
     );
   });
 
   it('should serve a 404 if the file does not exist', async function() {
-    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'));
-    server = await b.serve(0);
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      serve: {
+        https: false,
+        port: port,
+        host: 'localhost'
+      },
+      watch: true
+    });
 
-    let threw = false;
+    await b.run();
+
+    let statusCode = 200;
     try {
-      await get('/fake.js');
+      await get('/fake.js', port);
     } catch (err) {
-      threw = true;
+      statusCode = err.statusCode;
     }
 
-    assert(threw);
+    assert.equal(statusCode, 404);
   });
 
   it('should serve a 500 if the bundler errored', async function() {
-    let b = bundler(path.join(__dirname, '/integration/html/index.html'));
-    server = await b.serve(0);
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      serve: {
+        https: false,
+        port: port,
+        host: 'localhost'
+      },
+      watch: true
+    });
 
-    b.errored = true;
+    await b.run();
 
+    b.reporterRunner.report({
+      type: 'buildFailure',
+      error: new Error('This is a server test error')
+    });
+
+    let statusCode = 200;
     try {
-      await get('/');
+      await get('/index.js', port);
     } catch (err) {
-      assert.equal(err.message, 'Request failed: 500');
+      statusCode = err.statusCode;
+      assert(err.data.includes('This is a server test error'));
     }
 
-    b.errored = false;
-    await get('/');
-  });
-
-  it('should serve a 500 response with error stack trace when bundler has errors', async function() {
-    let b = bundler(
-      path.join(__dirname, '/integration/bundler-error-syntax-error/index.html')
-    );
-
-    server = await b.serve(0);
-    let resp;
-    try {
-      await get('/');
-    } catch (e) {
-      resp = e;
-    }
-
-    assert(resp.includes('<title>🚨 Build Error</title>'), 'has title');
-    assert(resp.includes('<h1>🚨 Build Error</h1>'), 'has h1');
-    assert(
-      resp.includes('<div style="background: black; padding: 1rem;">'),
-      'has code frame'
-    );
-    assert(resp.includes('invalid_js'), 'code frame has invalid code');
-  });
-
-  it('should serve a 500 response without stack trace when bundler has errors in production', async function() {
-    let NODE_ENV = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
-    let b = bundler(
-      path.join(__dirname, '/integration/bundler-error-syntax-error/index.html')
-    );
-
-    server = await b.serve(0);
-    let resp;
-    try {
-      await get('/');
-    } catch (e) {
-      resp = e;
-    }
-
-    assert(resp.includes('<title>🚨 Build Error</title>'), 'has title');
-    assert(resp.includes('<h1>🚨 Build Error</h1>'), 'has h1');
-    assert(
-      resp.includes('<p><b>Check the console for details.</b></p>'),
-      'has description'
-    );
-    assert(
-      !resp.includes('<div style="background: black; padding: 1rem;">'),
-      'do not have code frame'
-    );
-    assert(!resp.includes('invalid_js'), 'source code is not shown');
-    process.env.NODE_ENV = NODE_ENV;
+    assert.equal(statusCode, 500);
   });
 
   it('should support HTTPS', async function() {
-    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'));
-    server = await b.serve(0, true);
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      serve: {
+        https: true,
+        port: port,
+        host: 'localhost'
+      },
+      watch: true
+    });
 
-    let data = await get('/index.js', https);
+    await b.run();
+
+    let data = await get('/index.js', port, https);
     assert.equal(
       data,
-      await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8')
+      await fs.readFile(path.join(__dirname, '../dist/index.js'), 'utf8')
     );
   });
 
   it('should support HTTPS via custom certificate', async function() {
-    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'));
-    server = await b.serve(0, {
-      key: path.join(__dirname, '/integration/https/private.pem'),
-      cert: path.join(__dirname, '/integration/https/primary.crt')
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      serve: {
+        https: {
+          key: path.join(__dirname, '/integration/https/private.pem'),
+          cert: path.join(__dirname, '/integration/https/primary.crt')
+        },
+        port: port,
+        host: 'localhost'
+      },
+      watch: true
     });
 
-    let data = await get('/index.js', https);
+    await b.run();
+
+    let data = await get('/index.js', port, https);
     assert.equal(
       data,
-      await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8')
+      await fs.readFile(path.join(__dirname, '../dist/index.js'), 'utf8')
     );
   });
 
   it('should support setting a public url', async function() {
+    let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
-      publicUrl: '/dist'
+      serve: {
+        https: false,
+        port: port,
+        host: 'localhost'
+      },
+      publicUrl: '/dist',
+      watch: true
     });
-    server = await b.serve(0);
 
-    let data = await get('/dist/index.js');
+    await b.run();
+
+    let data = await get('/dist/index.js', port);
     assert.equal(
       data,
-      await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8')
+      await fs.readFile(path.join(__dirname, '../dist/index.js'), 'utf8')
     );
   });
 
-  it('should serve static assets as well as html', async function() {
+  // TODO: Update this when static assets are a thing in JS
+  it.skip('should serve static assets as well as html', async function() {
+    let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
-      publicUrl: '/'
+      serve: {
+        https: false,
+        port: port,
+        host: 'localhost'
+      },
+      publicUrl: '/dist',
+      watch: true
     });
-    server = await b.serve(0);
+
+    await b.run();
+
     // When accessing / we should get the index page.
-    let data = await get('/');
+    let data = await get('/', port);
     assert.equal(
       data,
       await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8')
     );
+
     // When accessing /hello.txt we should get txt document.
     await fs.writeFile(path.join(__dirname, '/dist/hello.txt'), 'hello');
-    data = await get('/hello.txt');
+    data = await get('/hello.txt', port);
     assert.equal(data, 'hello');
   });
 
   it('should work with query parameters that contain a dot', async function() {
-    let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
-      publicUrl: '/'
+    let port = await getPort();
+    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+      serve: {
+        https: false,
+        port: port,
+        host: 'localhost'
+      },
+      watch: true
     });
-    server = await b.serve(0);
 
-    let data = await get('/?foo=bar.baz');
+    await b.run();
+
+    let data = await get('/index.js?foo=bar.baz', port);
     assert.equal(
       data,
-      await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8')
+      await fs.readFile(path.join(__dirname, '../dist/index.js'), 'utf8')
     );
   });
 });

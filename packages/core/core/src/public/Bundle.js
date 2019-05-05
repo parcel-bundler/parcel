@@ -5,6 +5,7 @@ import type {Bundle as InternalBundle, AssetGraphNode} from '../types';
 import type {
   Asset,
   Bundle as IBundle,
+  BundleTraversable,
   Dependency,
   Environment,
   FilePath,
@@ -74,8 +75,16 @@ export class Bundle implements IBundle {
     return this.#bundle.assetGraph.getTotalSize(asset);
   }
 
-  resolveSymbol(asset: Asset, symbol: Symbol) {
-    return this.#bundle.assetGraph.resolveSymbol(asset, symbol);
+  traverse<TContext>(
+    visit: GraphVisitor<BundleTraversable, TContext>
+  ): ?TContext {
+    return this.#bundle.assetGraph.traverse((node, ...args) => {
+      if (node.type === 'asset') {
+        return visit({type: 'asset', value: node.value}, ...args);
+      } else if (node.type === 'asset_reference') {
+        return visit({type: 'asset_reference', value: node.value}, ...args);
+      }
+    });
   }
 
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>) {
@@ -91,6 +100,10 @@ export class Bundle implements IBundle {
       'Bundle does not contain asset'
     );
     return this.#bundle.assetGraph.traverseAncestors(node, visit);
+  }
+
+  resolveSymbol(asset: Asset, symbol: Symbol) {
+    return this.#bundle.assetGraph.resolveSymbol(asset, symbol);
   }
 
   hasChildBundles() {
@@ -139,7 +152,7 @@ export class MutableBundle extends Bundle implements IMutableBundle {
   }
 
   removeAsset(asset: Asset): void {
-    return this.#bundle.assetGraph.removeAsset(asset);
+    this.#bundle.assetGraph.removeAsset(asset);
   }
 
   merge(bundle: IBundle): void {

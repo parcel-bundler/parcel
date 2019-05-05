@@ -29,11 +29,13 @@ export default async function babel7(
     plugins: ['dynamicImport']
   });
 
+  let code = await asset.getCode();
+
   let res;
   if (asset.ast) {
-    res = babel.transformFromAst(asset.ast.program, asset.code, config);
+    res = babel.transformFromAst(asset.ast.program, code, config);
   } else {
-    res = babel.transformSync(asset.code, config);
+    res = babel.transformSync(code, config);
   }
 
   if (res.ast) {

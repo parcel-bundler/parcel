@@ -65,7 +65,7 @@ export async function loadConfig(
         };
       }
 
-      let configContent = await fs.readFile(configFile, 'utf8');
+      let configContent = await fs.readFile(configFile, {encoding: 'utf8'});
       if (!configContent) {
         return null;
       }

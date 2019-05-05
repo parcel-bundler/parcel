@@ -28,7 +28,7 @@ export default async function babel6(
   // using a plugin instead.
   config.plugins = (config.plugins || []).concat(dynamicImport);
 
-  let res = babel.transform(asset.code, config);
+  let res = babel.transform(await asset.getCode(), config);
   if (res.ast) {
     return {
       type: 'babel',

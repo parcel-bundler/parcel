@@ -1,6 +1,6 @@
 {
   "name": "@parcel/utils",
-  "version": "1.10.3",
+  "version": "2.0.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/index.js",
   "license": "MIT",
@@ -34,6 +34,8 @@
     "resolve": "^1.4.0",
     "serialize-to-js": "^1.1.1",
     "split2": "^3.1.1",
+    "tempy": "^0.2.1",
+    "node-forge": "^0.8.1",
     "terser": "^3.7.3"
   },
   "devDependencies": {

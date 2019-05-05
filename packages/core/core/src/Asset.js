@@ -1,9 +1,11 @@
 // @flow
 
+import {Readable} from 'stream';
+
 import type {
   Asset as IAsset,
-  AssetOutput,
   AST,
+  Blob,
   Config,
   Dependency as IDependency,
   DependencyOptions,
@@ -12,29 +14,41 @@ import type {
   FilePath,
   Meta,
   PackageJSON,
+  SourceMap,
   Stats,
   Symbol,
   TransformerResult
 } from '@parcel/types';
+
+import crypto from 'crypto';
 import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
 import {loadConfig} from '@parcel/utils/src/config';
+import {
+  readableFromStringOrBuffer,
+  bufferStream
+} from '@parcel/utils/src/stream';
 import Cache from '@parcel/cache';
 import Dependency from './Dependency';
+import TapStream from '@parcel/utils/src/TapStream';
 
 type AssetOptions = {|
   id?: string,
-  hash?: string,
+  hash?: ?string,
+  idBase?: string,
   filePath: FilePath,
   type: string,
-  code?: string,
+  content?: Blob,
+  contentKey?: ?string,
   ast?: ?AST,
+  map?: ?SourceMap,
+  mapKey?: ?string,
   dependencies?: Iterable<[string, IDependency]>,
   connectedFiles?: Iterable<[FilePath, File]>,
-  output?: AssetOutput,
+  isIsolated?: boolean,
   outputHash?: string,
   env: Environment,
   meta?: Meta,
-  stats?: Stats,
+  stats: Stats,
   symbols?: Map<Symbol, Symbol> | Array<[Symbol, Symbol]>,
   sideEffects?: boolean
 |};
@@ -49,18 +63,21 @@ type SerializedOptions = {|
 
 export default class Asset implements IAsset {
   id: string;
-  hash: string;
+  hash: ?string;
   filePath: FilePath;
   type: string;
-  code: string;
   ast: ?AST;
+  map: ?SourceMap;
+  mapKey: ?string;
   dependencies: Map<string, IDependency>;
   connectedFiles: Map<FilePath, File>;
-  output: AssetOutput;
+  isIsolated: boolean;
   outputHash: string;
   env: Environment;
   meta: Meta;
   stats: Stats;
+  content: Blob;
+  contentKey: ?string;
   symbols: Map<Symbol, Symbol>;
   sideEffects: boolean;
 
@@ -68,33 +85,34 @@ export default class Asset implements IAsset {
     this.id =
       options.id ||
       md5FromString(
-        options.filePath + options.type + JSON.stringify(options.env)
+        (options.idBase || options.filePath) +
+          options.type +
+          JSON.stringify(options.env)
       );
-    this.hash = options.hash || '';
+    this.hash = options.hash;
     this.filePath = options.filePath;
+    this.isIsolated = options.isIsolated == null ? false : options.isIsolated;
     this.type = options.type;
-    this.code = options.code || (options.output ? options.output.code : '');
+    this.content = options.content || '';
+    this.contentKey = options.contentKey;
     this.ast = options.ast || null;
+    this.map = options.map;
     this.dependencies = options.dependencies
       ? new Map(options.dependencies)
       : new Map();
     this.connectedFiles = options.connectedFiles
       ? new Map(options.connectedFiles)
       : new Map();
-    this.output = options.output || {code: this.code};
     this.outputHash = options.outputHash || '';
     this.env = options.env;
     this.meta = options.meta || {};
-    this.stats = options.stats || {
-      time: 0,
-      size: this.output.code.length
-    };
+    this.stats = options.stats;
     this.symbols = new Map(options.symbols || []);
     this.sideEffects = options.sideEffects != null ? options.sideEffects : true;
   }
 
   serialize(): SerializedOptions {
-    // Exclude `code` and `ast` from cache
+    // Exclude `code`, `map`, and `ast` from cache
     return {
       id: this.id,
       hash: this.hash,
@@ -102,14 +120,124 @@ export default class Asset implements IAsset {
       type: this.type,
       dependencies: Array.from(this.dependencies),
       connectedFiles: Array.from(this.connectedFiles),
-      output: this.output,
+      isIsolated: this.isIsolated,
       outputHash: this.outputHash,
       env: this.env,
       meta: this.meta,
       stats: this.stats,
+      contentKey: this.contentKey,
       symbols: [...this.symbols],
       sideEffects: this.sideEffects
     };
+  }
+
+  /*
+   * Prepares the asset for being serialized to the cache by commiting its
+   * content and map of the asset to the cache.
+   */
+  async commit(): Promise<void> {
+    this.ast = null;
+
+    let contentStream = this.getStream();
+    if (
+      // $FlowFixMe
+      typeof contentStream.bytesRead === 'number' &&
+      contentStream.bytesRead > 0
+    ) {
+      throw new Error(
+        'Stream has already been read. This may happen if a plugin reads from a stream and does not replace it.'
+      );
+    }
+
+    let size = 0;
+    let hash = crypto.createHash('md5');
+
+    // Since we can only read from the stream once, compute the content length
+    // and hash while it's being written to the cache.
+    let [contentKey, mapKey] = await Promise.all([
+      Cache.setStream(
+        this.generateCacheKey('content'),
+        contentStream.pipe(
+          new TapStream(buf => {
+            size += buf.length;
+            hash.update(buf);
+          })
+        )
+      ),
+      this.map == null
+        ? Promise.resolve()
+        : Cache.set(this.generateCacheKey('map'), this.map)
+    ]);
+    this.contentKey = contentKey;
+    this.mapKey = mapKey;
+    this.stats.size = size;
+    this.outputHash = hash.digest('hex');
+  }
+
+  async getCode(): Promise<string> {
+    if (this.contentKey) {
+      this.content = Cache.getStream(this.contentKey);
+    }
+
+    if (typeof this.content === 'string' || this.content instanceof Buffer) {
+      return this.content.toString();
+    }
+
+    this.content = (await bufferStream(this.content)).toString();
+    return this.content;
+  }
+
+  async getBuffer(): Promise<Buffer> {
+    if (this.contentKey) {
+      this.content = Cache.getStream(this.contentKey);
+    }
+
+    if (typeof this.content === 'string' || this.content instanceof Buffer) {
+      return Buffer.from(this.content);
+    }
+
+    this.content = await bufferStream(this.content);
+    return this.content;
+  }
+
+  getStream(): Readable {
+    if (this.contentKey) {
+      this.content = Cache.getStream(this.contentKey);
+    }
+
+    if (this.content instanceof Readable) {
+      return this.content;
+    }
+
+    return readableFromStringOrBuffer(this.content);
+  }
+
+  setCode(code: string) {
+    this.content = code;
+  }
+
+  setBuffer(buffer: Buffer) {
+    this.content = buffer;
+  }
+
+  setStream(stream: Readable) {
+    this.content = stream;
+  }
+
+  async getMap(): Promise<?SourceMap> {
+    if (this.mapKey) {
+      this.map = await Cache.get(this.mapKey);
+    }
+
+    return this.map;
+  }
+
+  setMap(map: ?SourceMap): void {
+    this.map = map;
+  }
+
+  generateCacheKey(key: string): string {
+    return md5FromString(key + this.id + JSON.stringify(this.env));
   }
 
   addDependency(opts: DependencyOptions) {
@@ -144,25 +272,41 @@ export default class Asset implements IAsset {
     return Array.from(this.dependencies.values());
   }
 
-  createChildAsset(result: TransformerResult) {
-    let code = (result.output && result.output.code) || result.code || '';
-    let opts: AssetOptions = {
-      hash: this.hash || md5FromString(code),
+  createChildAsset(result: TransformerResult): Asset {
+    let content = result.content || result.code || '';
+
+    let hash;
+    let size;
+    if (content === this.content) {
+      hash = this.hash;
+      size = this.stats.size;
+    } else if (typeof content === 'string' || content instanceof Buffer) {
+      hash = md5FromString(content);
+      size = content.length;
+    } else {
+      hash = null;
+      size = NaN;
+    }
+
+    let asset = new Asset({
+      hash,
       filePath: this.filePath,
       type: result.type,
-      code,
+      content,
       ast: result.ast,
+      isIsolated: result.isIsolated,
       env: this.env.merge(result.env),
       dependencies: this.dependencies,
       connectedFiles: this.connectedFiles,
-      output: result.output,
-      meta: Object.assign({}, this.meta, result.meta),
+      meta: {...this.meta, ...result.meta},
+      stats: {
+        time: 0,
+        size
+      },
       symbols: new Map([...this.symbols, ...(result.symbols || [])]),
       sideEffects:
         result.sideEffects != null ? result.sideEffects : this.sideEffects
-    };
-
-    let asset = new Asset(opts);
+    });
 
     let dependencies = result.dependencies;
     if (dependencies) {
@@ -179,11 +323,6 @@ export default class Asset implements IAsset {
     }
 
     return asset;
-  }
-
-  async getOutput() {
-    await Cache.readBlobs(this);
-    return this.output;
   }
 
   async getConfig(

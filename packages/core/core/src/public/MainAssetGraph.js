@@ -3,7 +3,7 @@
 import type AssetGraph from '../AssetGraph';
 import type {
   Asset,
-  Dependency as IDependency,
+  Dependency,
   GraphTraversalCallback,
   GraphVisitor,
   MainAssetGraph as IMainAssetGraph,
@@ -48,7 +48,11 @@ export default class MainAssetGraph implements IMainAssetGraph {
     });
   }
 
-  getDependencyResolution(dep: IDependency): ?Asset {
+  getDependencies(asset: Asset): Array<Dependency> {
+    return this.#graph.getDependencies(asset);
+  }
+
+  getDependencyResolution(dep: Dependency): ?Asset {
     return this.#graph.getDependencyResolution(dep);
   }
 

@@ -1,5 +1,6 @@
-// @flow
-import type {BundleGroup, Bundle, MutableBundle} from '@parcel/types';
+// @flow strict-local
+
+import type {BundleGroup, MutableBundle} from '@parcel/types';
 import {Bundler} from '@parcel/plugin';
 
 const OPTIONS = {
@@ -10,7 +11,7 @@ const OPTIONS = {
 
 type BundleContext = {|
   bundleGroup: BundleGroup,
-  bundle?: Bundle
+  bundle?: MutableBundle
 |};
 
 export default new Bundler({
@@ -52,28 +53,46 @@ export default new Bundler({
             return {bundleGroup};
           }
         } else if (node.type === 'asset') {
-          if (
-            context &&
-            (!context.bundle || node.value.type !== context.bundle.type)
-          ) {
-            let bundle = assetGraph.createBundle(node.value);
+          if (!context) {
+            return;
+          }
+
+          let asset = node.value;
+
+          if (asset.isIsolated) {
+            let bundleGroup: BundleGroup = {
+              dependency: context.bundleGroup.dependency,
+              target: context.bundleGroup.target,
+              entryAssetId: asset.id
+            };
+
+            bundleGraph.addBundleGroup(context.bundle, bundleGroup);
+            context.bundleGroup = bundleGroup;
+          }
+
+          // If the type of this asset differs from the current bundle type,
+          // start by creating a new bundle
+          let typeDiffers =
+            !context.bundle || asset.type !== context.bundle.type;
+
+          if (asset.isIsolated || typeDiffers) {
+            let bundle = assetGraph.createBundle(asset);
             let dep = context.bundleGroup.dependency;
 
             // Mark bundle as an entry, and set explicit file path from target if the dependency has one
-            bundle.isEntry = !!dep.isEntry;
-            if (dep.target && dep.target.distPath) {
-              bundle.filePath = dep.target.distPath;
-            }
+            bundle.isEntry = asset.isIsolated ? false : !!dep.isEntry;
 
             // If there is a current bundle, but this asset is of a different type,
             // separate it out into a parallel bundle in the same bundle group.
             if (context.bundle) {
+              // Remove this asset from the current bundle since it's of a different type.
+              // `removeAsset` leaves behind an asset reference in its place.
+              context.bundle.removeAsset(asset);
+
               let bundles = bundleGraph.getBundlesInBundleGroup(
                 context.bundleGroup
               );
-              let existingBundle = bundles.find(
-                b => b.type === node.value.type
-              );
+              let existingBundle = bundles.find(b => b.type === asset.type);
 
               // If there is an existing bundle of the asset's type, combine with that.
               // Otherwise, a new bundle will be created.
@@ -87,7 +106,10 @@ export default new Bundler({
             }
 
             bundleGraph.addBundle(context.bundleGroup, bundle);
-            return {bundleGroup: context.bundleGroup, bundle};
+            return {
+              bundleGroup: context.bundleGroup,
+              bundle
+            };
           }
         }
       }

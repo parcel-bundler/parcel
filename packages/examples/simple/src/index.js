@@ -1,4 +1,5 @@
-// import styles from './styles.css';
+import styles from './styles.css';
+import parcel from './parcel.webp';
 
 // import('./async');
 // import('./async2');

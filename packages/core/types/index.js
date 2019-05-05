@@ -1,5 +1,7 @@
 // @flow strict-local
 
+import type {Readable} from 'stream';
+
 import type {AST as _AST, Config as _Config} from './unsafe';
 
 export type AST = _AST;
@@ -129,8 +131,8 @@ export type ParcelOptions = {|
   minify?: boolean,
   sourceMaps?: boolean,
   publicUrl?: string,
-  hot?: ServerOptions | boolean,
-  serve?: ServerOptions | boolean,
+  hot?: ServerOptions | false,
+  serve?: ServerOptions | false,
   autoinstall?: boolean,
   logLevel?: 'none' | 'error' | 'warn' | 'info' | 'verbose'
 
@@ -143,13 +145,13 @@ export type ParcelOptions = {|
 
 export type ServerOptions = {|
   host?: string,
-  port?: number,
+  port: number,
   https?: HTTPSOptions | boolean
 |};
 
 export type HTTPSOptions = {|
-  cert?: FilePath,
-  key?: FilePath
+  cert: FilePath,
+  key: FilePath
 |};
 
 export type SourceLocation = {|
@@ -159,7 +161,7 @@ export type SourceLocation = {|
 |};
 
 export type Meta = {
-  globals?: Map<string, Asset>,
+  globals?: Map<string, {code: string}>,
   [string]: JSONValue
 };
 
@@ -213,14 +215,13 @@ export type TransformerRequest = {
 
 export interface Asset {
   id: string;
-  hash: string;
+  hash: ?string;
   filePath: FilePath;
   type: string;
-  code: string;
   ast: ?AST;
   dependencies: Map<string, Dependency>;
   connectedFiles: Map<FilePath, File>;
-  output: AssetOutput;
+  isIsolated: boolean;
   outputHash: string;
   env: Environment;
   meta: Meta;
@@ -228,6 +229,14 @@ export interface Asset {
   symbols: Map<Symbol, Symbol>;
   sideEffects: boolean;
 
+  getCode(): Promise<string>;
+  getBuffer(): Promise<Buffer>;
+  getStream(): Readable;
+  setCode(string): void;
+  setBuffer(Buffer): void;
+  setStream(Readable): void;
+  getMap(): ?SourceMap;
+  setMap(?SourceMap): void;
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
@@ -237,7 +246,7 @@ export interface Asset {
   getPackage(): Promise<PackageJSON | null>;
   addDependency(dep: DependencyOptions): string;
   createChildAsset(result: TransformerResult): Asset;
-  getOutput(): Promise<AssetOutput>;
+  commit(): Promise<void>;
 }
 
 export type Stats = {|
@@ -245,22 +254,22 @@ export type Stats = {|
   size: number
 |};
 
-export type AssetOutput = {|
+export type GenerateOutput = {|
   code: string,
-  map?: SourceMap,
-  [string]: Blob | JSONValue
+  map?: SourceMap
 |};
 
 export type SourceMap = JSONObject;
-export type Blob = string | Buffer;
+export type Blob = string | Buffer | Readable;
 
 export type TransformerResult = {
   type: string,
   code?: string,
+  content?: string,
   ast?: ?AST,
-  dependencies?: Map<string, DependencyOptions>,
-  connectedFiles?: Map<FilePath, File>,
-  output?: AssetOutput,
+  dependencies?: Array<DependencyOptions> | Map<string, DependencyOptions>,
+  connectedFiles?: Array<File> | Map<FilePath, File>,
+  isIsolated?: boolean,
   env?: EnvironmentOpts,
   meta?: Meta,
   symbols?: Map<Symbol, Symbol>,
@@ -282,7 +291,7 @@ export type Transformer = {
     asset: Asset,
     config: ?Config,
     opts: ParcelOptions
-  ) => Async<AssetOutput>,
+  ) => Async<GenerateOutput>,
   postProcess?: (
     assets: Array<Asset>,
     config: ?Config,
@@ -317,9 +326,14 @@ export type GraphTraversalCallback<TNode, TContext> = (
 
 // Not a directly exported interface.
 interface AssetGraphLike {
+  getDependencies(asset: Asset): Array<Dependency>;
   getDependencyResolution(dependency: Dependency): ?Asset;
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
 }
+
+export type BundleTraversable =
+  | {|+type: 'asset', value: Asset|}
+  | {|+type: 'asset_reference', value: Asset|};
 
 export type MainAssetGraphTraversable =
   | {|+type: 'asset', value: Asset|}
@@ -347,10 +361,12 @@ export interface Bundle extends AssetGraphLike {
   +target: ?Target;
   +filePath: ?FilePath;
   +stats: Stats;
-  getDependencies(asset: Asset): Array<Dependency>;
   getEntryAssets(): Array<Asset>;
   getTotalSize(asset?: Asset): number;
   hasChildBundles(): boolean;
+  traverse<TContext>(
+    visit: GraphVisitor<BundleTraversable, TContext>
+  ): ?TContext;
   traverseAncestors<TContext>(
     asset: Asset,
     visit: GraphVisitor<*, TContext>
@@ -408,14 +424,23 @@ export type Bundler = {|
   ): Async<void>
 |};
 
+export type NamerOptions = {|
+  ...ParcelOptions,
+  rootDir: FilePath
+|};
+
 export type Namer = {|
-  name(bundle: Bundle, opts: ParcelOptions): Async<?FilePath>
+  name(
+    bundle: Bundle,
+    bundleGraph: BundleGraph,
+    opts: NamerOptions
+  ): Async<?FilePath>
 |};
 
 export type RuntimeAsset = {|
   filePath: FilePath,
   code: string,
-  bundleGroup?: BundleGroup
+  dependency?: Dependency
 |};
 
 export type Runtime = {|
@@ -477,6 +502,12 @@ type TransformingProgressEvent = {|
   request: TransformerRequest
 |};
 
+type TransformFinishedEvent = {|
+  type: 'buildProgress',
+  phase: 'transformFinished',
+  cacheEntry: CacheEntry
+|};
+
 type BundlingProgressEvent = {|
   type: 'buildProgress',
   phase: 'bundling'
@@ -497,6 +528,7 @@ type OptimizingProgressEvent = {|
 export type BuildProgressEvent =
   | ResolvingProgressEvent
   | TransformingProgressEvent
+  | TransformFinishedEvent
   | BundlingProgressEvent
   | PackagingProgressEvent
   | OptimizingProgressEvent;
@@ -505,7 +537,8 @@ export type BuildSuccessEvent = {|
   type: 'buildSuccess',
   assetGraph: MainAssetGraph,
   bundleGraph: BundleGraph,
-  buildTime: number
+  buildTime: number,
+  changedAssets: Map<string, Asset>
 |};
 
 export type BuildFailureEvent = {|
@@ -521,7 +554,11 @@ export type ReporterEvent =
   | BuildFailureEvent;
 
 export type Reporter = {|
-  report(event: ReporterEvent, opts: ParcelOptions): Async<void>
+  report(
+    event: ReporterEvent,
+    opts: ParcelOptions,
+    targets: Array<Target>
+  ): Async<void>
 |};
 
 export interface ErrorWithCode extends Error {

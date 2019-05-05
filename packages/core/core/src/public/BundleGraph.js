@@ -178,7 +178,7 @@ export class MutableBundleGraph extends BaseBundleGraph
       // bundles point to the same dependency, which has an async import.
       if (node.type === 'bundle_group') {
         let {assetGraph} = internalBundle;
-        let bundleGroup: BundleGroup = node.value;
+        let bundleGroup = node.value;
         let depNode = assetGraph.getNode(bundleGroup.dependency.id);
         if (depNode && !assetGraph.hasNode(node.id)) {
           mergeBundleGraphIntoBundleAssetGraph(
@@ -219,15 +219,10 @@ function getBundles(
     return [];
   }
 
-  return graph
-    .getNodesConnectedFrom(node)
-    .map(node => {
-      invariant(node.type === 'bundle');
-      return node.value;
-    })
-    .sort(
-      bundle => (bundle.assetGraph.hasNode(bundleGroup.entryAssetId) ? 1 : -1)
-    );
+  return graph.getNodesConnectedFrom(node).map(node => {
+    invariant(node.type === 'bundle');
+    return node.value;
+  });
 }
 
 function findBundlesWithAsset(

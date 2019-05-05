@@ -371,31 +371,29 @@ describe('javascript', function() {
     });
   });
 
-  it.skip('should dynamic import files which import raw files', async function() {
+  it('should dynamic import files which import raw files', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-references-raw/index.js')
     );
 
-    await assertBundles(b, {
-      name: 'index.js',
-      assets: ['index.js', 'bundle-loader.js', 'bundle-url.js', 'js-loader.js'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          assets: ['local.js', 'test.txt'],
-          childBundles: [
-            {
-              type: 'map'
-            },
-            {
-              assets: ['test.txt']
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'bundle-loader.js',
+          'bundle-url.js',
+          'js-loader.js',
+          'JSRuntime.js'
+        ]
+      },
+      {
+        assets: ['local.js', 'test.txt.js']
+      },
+      {
+        assets: ['test.txt']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
@@ -586,30 +584,26 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
-  it.skip('should support importing a URL to a raw asset', async function() {
+  it('should support importing a URL to a raw asset', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/import-raw/index.js')
     );
 
-    await assertBundles(b, {
-      name: 'index.js',
-      assets: ['index.js', 'test.txt'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          type: 'txt',
-          assets: ['test.txt'],
-          childBundles: []
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'test.txt.js']
+      },
+      {
+        type: 'txt',
+        assets: ['test.txt']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
-    assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
-    assert(await fs.exists(path.join(__dirname, 'dist/', output())));
+    assert(/^\/dist\/test\.[0-9a-f]+\.txt$/.test(output()));
+    assert(await fs.exists(path.join('.', output())));
   });
 
   it.skip('should minify JS in production mode', async function() {

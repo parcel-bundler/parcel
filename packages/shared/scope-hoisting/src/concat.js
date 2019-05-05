@@ -17,6 +17,10 @@ const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
 const PRELUDE = fs.readFileSync(PRELUDE_PATH, 'utf8');
 
 type AssetASTMap = Map<Asset, Object>;
+type TraversalContext = {|
+  parent: ?AssetASTMap,
+  children: AssetASTMap
+|};
 
 // eslint-disable-next-line no-unused-vars
 export async function concat(bundle: Bundle, options: ParcelOptions) {
@@ -38,7 +42,7 @@ export async function concat(bundle: Bundle, options: ParcelOptions) {
 
   let usedExports = getUsedExports(bundle);
 
-  bundle.traverseAssets<{|parent: ?AssetASTMap, children: AssetASTMap|}>({
+  bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
       if (shouldExcludeAsset(asset, usedExports)) {
         return context;
@@ -99,7 +103,8 @@ export async function concat(bundle: Bundle, options: ParcelOptions) {
   let entry = bundle.getEntryAssets()[0];
   if (entry && bundle.isEntry) {
     let exportsIdentifier = getName(entry, 'exports');
-    if (entry.output.code.includes(exportsIdentifier)) {
+    let code = await entry.getCode();
+    if (code.includes(exportsIdentifier)) {
       result.push(
         ...parse(`
         if (typeof exports === "object" && typeof module !== "undefined") {
@@ -120,8 +125,8 @@ export async function concat(bundle: Bundle, options: ParcelOptions) {
 }
 
 async function processAsset(bundle: Bundle, asset: Asset) {
-  let output = await asset.getOutput();
-  let statements = parse(output.code, asset.filePath);
+  let code = await asset.getCode();
+  let statements = parse(code, asset.filePath);
 
   if (statements[0]) {
     addComment(statements[0], ` ASSET: ${asset.filePath}`);
