@@ -78,13 +78,13 @@ export class Bundle implements IBundle {
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>
   ): ?TContext {
-    return this.#bundle.assetGraph.traverse((node, ...args) => {
+    return this.#bundle.assetGraph.filteredTraverse(node => {
       if (node.type === 'asset') {
-        return visit({type: 'asset', value: node.value}, ...args);
+        return {type: 'asset', value: node.value};
       } else if (node.type === 'asset_reference') {
-        return visit({type: 'asset_reference', value: node.value}, ...args);
+        return {type: 'asset_reference', value: node.value};
       }
-    });
+    }, visit);
   }
 
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>) {

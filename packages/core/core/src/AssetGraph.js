@@ -335,24 +335,38 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     );
   }
 
-  traverseAssets<TContext>(
-    visit: GraphVisitor<Asset, TContext>,
+  filteredTraverse<TValue, TContext>(
+    filter: AssetGraphNode => ?TValue,
+    visit: GraphVisitor<TValue, TContext>,
     startNode: ?AssetGraphNode
   ): ?TContext {
     return this.traverse(
       {
         enter: (node, ...args) => {
           let fn = visit.enter || visit;
-          if (node.type === 'asset' && typeof fn === 'function') {
-            return fn(node.value, ...args);
+          let value = filter(node);
+          if (value != null && typeof fn === 'function') {
+            return fn(value, ...args);
           }
         },
         exit: (node, ...args) => {
-          if (node.type === 'asset' && typeof visit.exit === 'function') {
-            return visit.exit(node.value, ...args);
+          let value = filter(node);
+          if (value != null && typeof visit.exit === 'function') {
+            return visit.exit(value, ...args);
           }
         }
       },
+      startNode
+    );
+  }
+
+  traverseAssets<TContext>(
+    visit: GraphVisitor<Asset, TContext>,
+    startNode: ?AssetGraphNode
+  ): ?TContext {
+    return this.filteredTraverse(
+      node => (node.type === 'asset' ? node.value : null),
+      visit,
       startNode
     );
   }

@@ -343,7 +343,7 @@ export type MainAssetGraphTraversable =
 export interface MainAssetGraph extends AssetGraphLike {
   createBundle(asset: Asset): MutableBundle;
   traverse<TContext>(
-    visit: GraphTraversalCallback<MainAssetGraphTraversable, TContext>
+    visit: GraphVisitor<MainAssetGraphTraversable, TContext>
   ): ?TContext;
 }
 

@@ -57,16 +57,15 @@ export default class MainAssetGraph implements IMainAssetGraph {
   }
 
   traverse<TContext>(
-    visit: GraphTraversalCallback<MainAssetGraphTraversable, TContext>
+    visit: GraphVisitor<MainAssetGraphTraversable, TContext>
   ): ?TContext {
-    // $FlowFixMe
-    return this.#graph.traverse((node, ...args) => {
+    return this.#graph.filteredTraverse(node => {
       if (node.type === 'asset') {
-        return visit({type: 'asset', value: node.value}, ...args);
+        return {type: 'asset', value: node.value};
       } else if (node.type === 'dependency') {
-        return visit({type: 'dependency', value: node.value}, ...args);
+        return {type: 'dependency', value: node.value};
       }
-    });
+    }, visit);
   }
 
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext {
