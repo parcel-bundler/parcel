@@ -139,8 +139,8 @@ describe('watcher', function() {
         0
     );
 
-    await sleep(1100); // mtime only has second level precision
-    fs.writeFile(
+    await sleep(1100); // mtime only has second level precision on some filesystems
+    await fs.writeFile(
       path.join(inputDir, '/b.js'),
       'module.exports = require("./common")'
     );
@@ -152,6 +152,7 @@ describe('watcher', function() {
           1000) |
         0
     );
+
     assert.deepEqual(mtimes.sort().slice(0, 2), newMtimes.sort().slice(0, 2));
     assert.notEqual(mtimes[mtimes.length - 1], newMtimes[newMtimes.length - 1]);
   });
