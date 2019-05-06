@@ -56,9 +56,7 @@ parcel-bundler: (worker)
 
 ### REPL Issues
 
-- https://github.com/codesandbox/codesandbox-client/tree/master/standalone-packages/codesandbox-browserfs
 - builtins/bundle loaders: fs.readFileSync(require.resolve)
-- onInput for options & header (debounce hash update)
 - Safari SW: `clients` doesn't exist? disable html preview
 - .babelrc isn't used:
 

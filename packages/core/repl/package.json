@@ -18,12 +18,12 @@
   "dependencies": {
     "@parcel/fs": "^1.11.0",
     "@parcel/logger": "^1.11.0",
-    "codemirror": "^5.44.0",
+    "codemirror": "^5.46.0",
     "comlink": "^3.2.0",
     "memory-fs": "^0.4.1",
     "parcel-bundler": "^1.12.1",
     "preact": "^10.0.0-beta.1",
-    "react-codemirror2": "^5.1.0",
+    "react-codemirror2": "^6.0.0",
     "toml": "^3.0.0"
   },
   "devDependencies": {
@@ -40,6 +40,8 @@
     "v8-compile-cache": "./noop.js"
   },
   "browserslist": [
-    "Chrome 70"
+    "Chrome 52",
+    "Firefox 53",
+    "Safari 10"
   ]
 }

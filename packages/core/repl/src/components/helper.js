@@ -24,7 +24,7 @@ export function Box(props) {
 export function Notes() {
   return (
     <div class="file notes">
-      Yes, this is Parcel as a (nearly) self-hosting bundler (self-
+      This is Parcel running as a self-hosting bundler (self-
       <i>scope-hoisting</i> doesn't work ...)
       <br />
       The Parcel portion of this page, including all asset types, is a 2.8MB
