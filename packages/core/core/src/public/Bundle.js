@@ -54,6 +54,10 @@ export class Bundle implements IBundle {
     return this.#bundle.filePath;
   }
 
+  get name(): ?string {
+    return this.#bundle.name;
+  }
+
   get stats(): Stats {
     return this.#bundle.stats;
   }
@@ -105,28 +109,12 @@ export class MutableBundle extends Bundle implements IMutableBundle {
     this.#bundle = bundle; // Repeating for flow
   }
 
-  get filePath(): ?FilePath {
-    return this.#bundle.filePath;
-  }
-
-  set filePath(filePath: ?FilePath): void {
-    this.#bundle.filePath = filePath;
-  }
-
   get isEntry(): ?boolean {
     return this.#bundle.isEntry;
   }
 
   set isEntry(isEntry?: ?boolean): void {
     this.#bundle.isEntry = isEntry;
-  }
-
-  get stats(): Stats {
-    return this.#bundle.stats;
-  }
-
-  set stats(stats: Stats): void {
-    this.#bundle.stats = stats;
   }
 
   removeAsset(asset: Asset): void {
@@ -150,5 +138,9 @@ export class NamedBundle extends Bundle implements INamedBundle {
 
   get filePath(): FilePath {
     return nullthrows(this.#bundle.filePath);
+  }
+
+  get name(): string {
+    return nullthrows(this.#bundle.name);
   }
 }

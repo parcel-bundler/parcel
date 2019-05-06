@@ -4,6 +4,13 @@ import assert from 'assert';
 import {PassThrough} from 'stream';
 import {_report, _setStdio} from '../src/SimpleCLIReporter';
 
+const EMPTY_OPTIONS = {
+  cacheDir: '.parcel-cache',
+  entries: [],
+  rootDir: __dirname,
+  targets: []
+};
+
 describe('SimpleCLIReporter', () => {
   let originalStdout;
   let originalStderr;
@@ -31,15 +38,16 @@ describe('SimpleCLIReporter', () => {
   });
 
   it('defaults to an info logLevel filter', () => {
-    _report({type: 'log', level: 'info', message: 'info'}, {});
-    _report({type: 'log', level: 'success', message: 'success'}, {});
-    _report({type: 'log', level: 'verbose', message: 'verbose'}, {});
+    _report({type: 'log', level: 'info', message: 'info'}, EMPTY_OPTIONS);
+    _report({type: 'log', level: 'success', message: 'success'}, EMPTY_OPTIONS);
+    _report({type: 'log', level: 'verbose', message: 'verbose'}, EMPTY_OPTIONS);
 
     assert(!stdoutOutput.includes('verbose'));
   });
 
   it('writes log, info, success, and verbose log messages to stdout', () => {
     let options = {
+      ...EMPTY_OPTIONS,
       logLevel: 'verbose'
     };
 
@@ -51,16 +59,22 @@ describe('SimpleCLIReporter', () => {
   });
 
   it('writes errors and warnings to stderr', () => {
-    _report({type: 'log', level: 'error', message: 'error'}, {});
-    _report({type: 'log', level: 'warn', message: 'warn'}, {});
+    _report({type: 'log', level: 'error', message: 'error'}, EMPTY_OPTIONS);
+    _report({type: 'log', level: 'warn', message: 'warn'}, EMPTY_OPTIONS);
 
     assert.equal(stdoutOutput, '');
     assert.equal(stderrOutput, 'parcel: error\nparcel: warn\n');
   });
 
   it('prints errors nicely', () => {
-    _report({type: 'log', level: 'error', message: new Error('error')}, {});
-    _report({type: 'log', level: 'warn', message: new Error('warn')}, {});
+    _report(
+      {type: 'log', level: 'error', message: new Error('error')},
+      EMPTY_OPTIONS
+    );
+    _report(
+      {type: 'log', level: 'warn', message: new Error('warn')},
+      EMPTY_OPTIONS
+    );
 
     assert.equal(stdoutOutput, '');
     assert(stderrOutput.includes('parcel: error\n'));
@@ -68,12 +82,12 @@ describe('SimpleCLIReporter', () => {
   });
 
   it('writes buildProgress messages to stdout on the default loglevel', () => {
-    _report({type: 'buildProgress', phase: 'bundling'}, {});
+    _report({type: 'buildProgress', phase: 'bundling'}, EMPTY_OPTIONS);
     assert.equal(stdoutOutput, 'Bundling...\n');
   });
 
   it('writes buildSuccess messages to stdout on the default loglevel', () => {
-    _report({type: 'buildProgress', phase: 'bundling'}, {});
+    _report({type: 'buildProgress', phase: 'bundling'}, EMPTY_OPTIONS);
     assert.equal(stdoutOutput, 'Bundling...\n');
   });
 });

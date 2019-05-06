@@ -23,10 +23,19 @@ const DEFAULT_ENV = new Environment({
 const TARGETS = [
   {
     name: 'test',
-    distPath: 'dist/out.js',
+    distDir: 'dist',
+    distEntry: 'out.js',
     env: DEFAULT_ENV
   }
 ];
+
+const DEFAULT_OPTIONS = {
+  cache: false,
+  cacheDir: '.parcel-cache',
+  entries: [],
+  rootDir: FIXTURES_DIR,
+  targets: []
+};
 
 describe('AssetGraphBuilder', () => {
   let config;
@@ -35,9 +44,8 @@ describe('AssetGraphBuilder', () => {
     config = nullthrows(await new ConfigResolver().resolve(CONFIG_DIR));
 
     builder = new AssetGraphBuilder({
-      options: {cache: false},
+      options: DEFAULT_OPTIONS,
       config,
-      rootDir: FIXTURES_DIR,
       entries: ['./module-b'],
       targets: TARGETS
     });
