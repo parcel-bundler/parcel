@@ -2,13 +2,15 @@ if (process.env.NODE_ENV === 'development') {
   require('preact/debug');
 }
 
+/* eslint-disable no-unused-vars */
 import {h, render, Component, Fragment} from 'preact';
-import filesize from 'filesize';
-
 import Asset from './components/Asset';
 import Options from './components/Options';
 import Preview from './components/Preview';
 import {ParcelError, Notes, Box} from './components/helper';
+/* eslint-enable no-unused-vars */
+
+import filesize from 'filesize';
 import {
   PRESETS,
   hasBrowserslist,
@@ -25,8 +27,7 @@ async function downloadZip() {
 
 const DEFAULT_PRESET = 'Javascript';
 
-let installPrompt;
-
+// eslint-disable-next-line no-unused-vars
 class App extends Component {
   constructor(props) {
     super(props);
@@ -113,6 +114,7 @@ class App extends Component {
         bundlingError: error,
         output: null
       });
+      // eslint-disable-next-line no-console
       console.error(error);
     }
   }
@@ -327,6 +329,7 @@ render(<App />, document.getElementById('root'));
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(error => {
-    console.log('Service worker registration failed:', error);
+    // eslint-disable-next-line no-console
+    console.error('Service worker registration failed:', error);
   });
 }

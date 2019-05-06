@@ -31,6 +31,9 @@
   .row:first-child {
     border-bottom: 4px solid #ddd;
   }
+  .notes {
+    display: none;
+  }
 }
 
 button {

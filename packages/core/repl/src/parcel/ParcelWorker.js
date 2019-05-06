@@ -86,7 +86,8 @@ export async function bundle(assets, options) {
   }
 
   const endTime = performance.now();
-  console.log(`Bundling took ${Math.round(endTime - startTime)} milliseconds`);
+  // eslint-disable-next-line no-console
+  console.info(`Bundling took ${Math.round(endTime - startTime)} milliseconds`);
 
   return output;
 }

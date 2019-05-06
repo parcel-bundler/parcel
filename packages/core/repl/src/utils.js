@@ -177,52 +177,6 @@ document.body.innerHTML = greeter(user);
       content: `{\n  minifySvg: false\n}`
     }
   ],
-  //   "Vue (don't minify!)": [
-  //     {
-  //       name: 'index.html',
-  //       content: `<!DOCTYPE html>
-  // <html lang="en">
-  //   <head>
-  //     <title>Parcel - Vue</title>
-  //   </head>
-  //   <body>
-  //     <div id="app"></div>
-  //     <script src="./index.js"></script>
-  //   </body>
-  // </html>`,
-  //       isEntry: true
-  //     },
-  //     {
-  //       name: 'index.js',
-  //       content: `import Vue from 'vue';
-  // import App from './app.vue';
-
-  // new Vue(App).$mount('#app')`
-  //     },
-  //     {
-  //       name: `app.vue`,
-  //       content: `<template>
-  //   .container Hello {{bundler}}
-  // </template>
-
-  // <script>
-  // import Vue from "vue";
-  // export default Vue.extend({
-  //   data() {
-  //     return {
-  //       bundler: "Parcel"
-  //     };
-  //   }
-  // });
-  // </script>
-
-  // <style scoped>
-  // .container {
-  //   color: green;
-  // }
-  // </style>`
-  //     }
-  //   ]
   SCSS: [
     {
       name: 'style.scss',
