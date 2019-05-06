@@ -233,25 +233,6 @@ const VISITOR = {
       asset.meta.isCommonJS = true;
     }
 
-    // If this assignment is the first reference to module.exports, replace it with a variable declaration.
-    // This way we avoid the extra assignment to an empty exports object.
-    // if (t.matchesPattern(left, 'module.exports')) {
-    //   let scope = path.scope.getProgramParent();
-    //   let identifier = getIdentifier(asset, 'exports');
-    //   if (path.scope === scope && !scope.hasBinding(identifier.name) && !scope.hasGlobal(identifier.name)) {
-    //     let [decl] = path.insertBefore(
-    //       t.variableDeclaration('var', [
-    //         t.variableDeclarator(identifier, right)
-    //       ])
-    //     );
-
-    //     scope.registerDeclaration(decl);
-    //     path.remove();
-    //   }
-
-    //   asset.meta.isCommonJS = true;
-    // }
-
     // If we can statically evaluate the name of a CommonJS export, create an ES6-style export for it.
     // This allows us to remove the CommonJS export object completely in many cases.
     if (
@@ -318,7 +299,6 @@ const VISITOR = {
       if (isRequire) {
         callee.name = 'parcelRequire';
       }
-      // path.get('callee').replaceWith(t.identifier('parcelRequire'));
       return;
     }
 
@@ -329,7 +309,6 @@ const VISITOR = {
         .getDependencies()
         .find(dep => dep.moduleSpecifier === source);
       if (!dep) {
-        // path.get('callee').replaceWith(t.identifier('parcelRequire'));
         return;
       }
 

@@ -1,6 +1,6 @@
-const t = require('@babel/types');
+import * as t from '@babel/types';
 
-function getName(asset, type, ...rest) {
+export function getName(asset, type, ...rest) {
   return (
     '$' +
     t.toIdentifier(asset.id) +
@@ -15,14 +15,10 @@ function getName(asset, type, ...rest) {
   );
 }
 
-function getIdentifier(asset, type, ...rest) {
+export function getIdentifier(asset, type, ...rest) {
   return t.identifier(getName(asset, type, ...rest));
 }
 
-function getExportIdentifier(asset, name) {
+export function getExportIdentifier(asset, name) {
   return getIdentifier(asset, 'export', name);
 }
-
-exports.getName = getName;
-exports.getIdentifier = getIdentifier;
-exports.getExportIdentifier = getExportIdentifier;

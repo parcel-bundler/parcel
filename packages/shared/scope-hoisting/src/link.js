@@ -1,15 +1,14 @@
 // @flow
 
 import type {AST, Bundle, ParcelOptions} from '@parcel/types';
-
-const nullthrows = require('nullthrows');
-const {relative} = require('path');
-const template = require('@babel/template').default;
-const t = require('@babel/types');
-const traverse = require('@babel/traverse').default;
-const treeShake = require('./shake');
-const mangleScope = require('./mangler');
-const {getName, getIdentifier} = require('./utils');
+import nullthrows from 'nullthrows';
+import {relative} from 'path';
+import template from '@babel/template';
+import * as t from '@babel/types';
+import traverse from '@babel/traverse';
+import treeShake from './shake';
+import mangleScope from './mangler';
+import {getName, getIdentifier} from './utils';
 
 const DEFAULT_INTEROP_TEMPLATE = template(
   'var NAME = $parcel$interopDefault(MODULE)'

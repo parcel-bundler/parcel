@@ -1,5 +1,5 @@
-const rename = require('./renamer');
-const t = require('@babel/types');
+import rename from './renamer';
+import * as t from '@babel/types';
 
 const CHARSET = (
   'abcdefghijklmnopqrstuvwxyz' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ$_'
@@ -13,7 +13,7 @@ const CHARSET = (
  * Based on code from babel-minify!
  * https://github.com/babel/minify/blob/master/packages/babel-plugin-minify-mangle-names/src/charset.js
  */
-function mangleScope(scope) {
+export default function mangleScope(scope) {
   let newNames = new Set();
 
   // Sort bindings so that more frequently referenced bindings get shorter names.
@@ -68,5 +68,3 @@ function canRename(scope, binding, newName) {
 
   return true;
 }
-
-module.exports = mangleScope;

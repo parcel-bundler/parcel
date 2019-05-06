@@ -1,6 +1,6 @@
-const t = require('@babel/types');
+import * as t from '@babel/types';
 
-function rename(scope, oldName, newName) {
+export default function rename(scope, oldName, newName) {
   if (oldName === newName) {
     return;
   }
@@ -34,5 +34,3 @@ function rename(scope, oldName, newName) {
   scope.bindings[newName] = binding;
   binding.identifier.name = newName;
 }
-
-module.exports = rename;
