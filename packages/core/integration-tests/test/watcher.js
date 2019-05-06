@@ -23,7 +23,7 @@ function mtimeMapper(filePath) {
   return mtime | 0;
 }
 
-describe.only('watcher', function() {
+describe('watcher', function() {
   let b;
   beforeEach(async function() {
     await sleep(100);
