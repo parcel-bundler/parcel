@@ -1,7 +1,14 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
-const {bundle, bundler, run, assertBundles, deferred} = require('./utils');
+const {
+  bundle,
+  bundler,
+  run,
+  assertBundles,
+  deferred,
+  outDir
+} = require('./utils');
 const {mkdirp} = require('@parcel/fs');
 
 describe('javascript', function() {
@@ -602,8 +609,8 @@ describe('javascript', function() {
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
-    assert(/^\/dist\/test\.[0-9a-f]+\.txt$/.test(output()));
-    assert(await fs.exists(path.join('.', output())));
+    assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
+    assert(await fs.exists(path.join(outDir, output())));
   });
 
   it.skip('should minify JS in production mode', async function() {

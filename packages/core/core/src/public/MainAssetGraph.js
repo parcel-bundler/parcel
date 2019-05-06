@@ -36,11 +36,13 @@ export default class MainAssetGraph implements IMainAssetGraph {
       from: 'root',
       to: assetNode.id
     });
+
     return new MutableBundle({
       id: 'bundle:' + asset.id,
       filePath: null,
       isEntry: null,
       target: null,
+      name: null,
       type: asset.type,
       assetGraph: graph,
       env: asset.env,

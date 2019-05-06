@@ -5,7 +5,6 @@ import type {Node} from './types';
 import type {
   ParcelOptions,
   Dependency,
-  FilePath,
   Target,
   TransformerRequest,
   Asset
@@ -32,8 +31,7 @@ type Opts = {|
   config: Config,
   entries?: Array<string>,
   targets?: Array<Target>,
-  transformerRequest?: TransformerRequest,
-  rootDir: FilePath
+  transformerRequest?: TransformerRequest
 |};
 
 export default class AssetGraphBuilder extends EventEmitter {
@@ -46,27 +44,24 @@ export default class AssetGraphBuilder extends EventEmitter {
   runTransform: (file: TransformerRequest) => Promise<any>;
   changedAssets: Map<string, Asset>;
 
-  constructor({
-    config,
-    options,
-    rootDir,
-    entries,
-    targets,
-    transformerRequest
-  }: Opts) {
+  constructor({config, options, entries, targets, transformerRequest}: Opts) {
     super();
 
     this.queue = new PromiseQueue();
     this.resolverRunner = new ResolverRunner({
       config,
-      options,
-      rootDir
+      options
     });
 
     this.changedAssets = new Map();
 
     this.graph = new AssetGraph();
-    this.graph.initializeGraph({entries, targets, transformerRequest, rootDir});
+    this.graph.initializeGraph({
+      entries,
+      targets,
+      transformerRequest,
+      rootDir: options.rootDir
+    });
 
     this.controller = new AbortController();
     if (options.watch) {

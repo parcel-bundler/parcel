@@ -4,20 +4,15 @@ import type {HMRServerOptions} from './types.js.flow';
 import {Reporter} from '@parcel/plugin';
 import HMRServer from './HMRServer';
 
-const DEFAULT_CACHE_DIR = '.parcel-cache';
-
 let servers: Map<number, HMRServer> = new Map();
 export default new Reporter({
-  async report(event, options, targets) {
+  async report(event, options) {
     let hot = options.hot;
     if (!hot) return;
 
-    let isBrowser = targets.some(target => target.env.context === 'browser');
-    if (!isBrowser) return;
-
     let hmrOptions: HMRServerOptions = {
       ...hot,
-      cacheDir: options.cacheDir || DEFAULT_CACHE_DIR
+      cacheDir: options.cacheDir
     };
 
     let server = servers.get(hmrOptions.port);

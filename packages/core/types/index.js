@@ -60,9 +60,11 @@ export type Engines = {
 };
 
 export type Target = {|
+  distEntry?: ?FilePath,
+  distDir: FilePath,
+  env: Environment,
   name: string,
-  distPath?: FilePath,
-  env: Environment
+  publicUrl?: string
 |};
 
 export type EnvironmentContext =
@@ -75,7 +77,8 @@ export type EnvironmentContext =
 export type EnvironmentOpts = {
   context: EnvironmentContext,
   engines: Engines,
-  includeNodeModules?: boolean
+  includeNodeModules?: boolean,
+  publicUrl?: string
 };
 
 export interface Environment {
@@ -115,13 +118,13 @@ export type PackageJSON = {
   sideEffects?: boolean | FilePath | Array<FilePath>
 };
 
-export type ParcelOptions = {|
+export type InitialParcelOptions = {|
   entries?: FilePath | Array<FilePath>,
   rootDir?: FilePath,
   config?: ParcelConfig,
   defaultConfig?: ParcelConfig,
   env?: {[string]: ?string},
-  targets?: Array<Target>,
+  targets?: ?Array<string | Target>,
 
   watch?: boolean,
   cache?: boolean,
@@ -130,7 +133,6 @@ export type ParcelOptions = {|
   mode?: 'development' | 'production' | string,
   minify?: boolean,
   sourceMaps?: boolean,
-  publicUrl?: string,
   hot?: ServerOptions | false,
   serve?: ServerOptions | false,
   autoinstall?: boolean,
@@ -143,10 +145,19 @@ export type ParcelOptions = {|
   // detailedReport
 |};
 
+export type ParcelOptions = {|
+  ...InitialParcelOptions,
+  cacheDir: FilePath,
+  entries: Array<FilePath>,
+  rootDir: FilePath,
+  targets: Array<Target>
+|};
+
 export type ServerOptions = {|
   host?: string,
   port: number,
-  https?: HTTPSOptions | boolean
+  https?: HTTPSOptions | boolean,
+  publicUrl?: string
 |};
 
 export type HTTPSOptions = {|
@@ -360,6 +371,7 @@ export interface Bundle extends AssetGraphLike {
   +isEntry: ?boolean;
   +target: ?Target;
   +filePath: ?FilePath;
+  +name: ?string;
   +stats: Stats;
   getEntryAssets(): Array<Asset>;
   getTotalSize(asset?: Asset): number;
@@ -375,15 +387,14 @@ export interface Bundle extends AssetGraphLike {
 }
 
 export interface MutableBundle extends Bundle {
-  filePath: ?FilePath;
   isEntry: ?boolean;
-  stats: Stats;
   merge(Bundle): void;
   removeAsset(Asset): void;
 }
 
 export interface NamedBundle extends Bundle {
   +filePath: FilePath;
+  +name: string;
 }
 
 export type BundleGroup = {
@@ -424,16 +435,11 @@ export type Bundler = {|
   ): Async<void>
 |};
 
-export type NamerOptions = {|
-  ...ParcelOptions,
-  rootDir: FilePath
-|};
-
 export type Namer = {|
   name(
     bundle: Bundle,
     bundleGraph: BundleGraph,
-    opts: NamerOptions
+    opts: ParcelOptions
   ): Async<?FilePath>
 |};
 
@@ -460,11 +466,7 @@ export type Optimizer = {|
 |};
 
 export type Resolver = {|
-  resolve(
-    dependency: Dependency,
-    opts: ParcelOptions,
-    rootDir: string
-  ): Async<?TransformerRequest>
+  resolve(dependency: Dependency, opts: ParcelOptions): Async<FilePath | null>
 |};
 
 export type ProgressLogEvent = {|
@@ -554,11 +556,7 @@ export type ReporterEvent =
   | BuildFailureEvent;
 
 export type Reporter = {|
-  report(
-    event: ReporterEvent,
-    opts: ParcelOptions,
-    targets: Array<Target>
-  ): Async<void>
+  report(event: ReporterEvent, opts: ParcelOptions): Async<void>
 |};
 
 export interface ErrorWithCode extends Error {

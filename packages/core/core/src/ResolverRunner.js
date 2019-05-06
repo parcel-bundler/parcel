@@ -11,8 +11,7 @@ import {report} from './ReporterRunner';
 
 type Opts = {|
   config: Config,
-  options: ParcelOptions,
-  rootDir: string
+  options: ParcelOptions
 |};
 
 const getCacheKey = (filename, parent) =>
@@ -21,14 +20,12 @@ const getCacheKey = (filename, parent) =>
 export default class ResolverRunner {
   config: Config;
   options: ParcelOptions;
-  cache: Map<string, TransformerRequest>;
-  rootDir: string;
+  cache: Map<string, FilePath>;
 
-  constructor({config, options, rootDir}: Opts) {
+  constructor({config, options}: Opts) {
     this.config = config;
     this.options = options;
     this.cache = new Map();
-    this.rootDir = rootDir;
   }
 
   async resolve(dependency: Dependency): Promise<TransformerRequest> {
@@ -49,11 +46,7 @@ export default class ResolverRunner {
     let resolvers = await this.config.getResolvers();
 
     for (let resolver of resolvers) {
-      let result = await resolver.resolve(
-        dependency,
-        this.options,
-        this.rootDir
-      );
+      let result = await resolver.resolve(dependency, this.options);
 
       if (result) {
         this.cache.set(key, result);

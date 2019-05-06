@@ -16,11 +16,10 @@ import builtins from './builtins';
 // import nodeBuiltins from 'node-libs-browser';
 
 export default new Resolver({
-  async resolve(dep: Dependency, options: ParcelOptions, rootDir: string) {
+  async resolve(dep: Dependency, options: ParcelOptions) {
     const resolved = await new NodeResolver({
       extensions: ['js', 'json', 'css'],
-      options,
-      rootDir
+      options
     }).resolve(dep);
 
     if (!resolved) {
@@ -67,7 +66,6 @@ const EMPTY_SHIM = require.resolve('./_empty');
 
 type Options = {|
   options: ParcelOptions,
-  rootDir: string,
   extensions: Array<string>
 |};
 
@@ -85,18 +83,16 @@ type Options = {|
  *   - The package.json alias field in the root package for global aliases across all modules.
  */
 class NodeResolver {
-  options: Options;
+  options: ParcelOptions;
+  extensions: Array<string>;
   packageCache: Map<string, InternalPackageJSON>;
   rootPackage: InternalPackageJSON | null;
 
-  constructor(options: Options) {
-    // $FlowFixMe
-    this.options = Object.assign({}, options, {
-      // normalize extensions that don't lead with '.'
-      extensions: options.extensions.map(
-        ext => (ext.startsWith('.') ? ext : '.' + ext)
-      )
-    });
+  constructor(opts: Options) {
+    this.extensions = opts.extensions.map(
+      ext => (ext.startsWith('.') ? ext : '.' + ext)
+    );
+    this.options = opts.options;
     this.packageCache = new Map();
     this.rootPackage = null;
   }
@@ -112,9 +108,7 @@ class NodeResolver {
     }
 
     // Get file extensions to search
-    let extensions: Array<string> = Array.isArray(this.options.extensions)
-      ? this.options.extensions.slice()
-      : Object.keys((this.options: any).extensions);
+    let extensions = this.extensions.slice();
 
     if (parent) {
       // parent's extension given high priority
