@@ -135,7 +135,9 @@ export default class TargetResolver {
         distDir,
         distEntry,
         publicUrl:
-          pkgTargets.main.publicUrl != null ? pkgTargets.main.publicUrl : '/',
+          pkgTargets.main && pkgTargets.main.publicUrl != null
+            ? pkgTargets.main.publicUrl
+            : '/',
         env: this.getEnvironment(pkgEngines, mainContext).merge(pkgTargets.main)
       });
     }

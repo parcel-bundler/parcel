@@ -4,6 +4,7 @@ import {Readable} from 'stream';
 import type {ParcelOptions, Blob, FilePath} from '@parcel/types';
 import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
+import type InternalBundleGraph from './BundleGraph';
 
 import {mkdirp, writeFile, writeFileStream} from '@parcel/fs';
 import TapStream from '@parcel/utils/src/TapStream';
@@ -11,6 +12,7 @@ import {NamedBundle} from './public/Bundle';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {report} from './ReporterRunner';
+import {BundleGraph} from './public/BundleGraph';
 
 type Opts = {|
   config: Config,
@@ -29,9 +31,9 @@ export default class PackagerRunner {
     this.distExists = new Set();
   }
 
-  async writeBundle(bundle: InternalBundle) {
+  async writeBundle(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
     let start = Date.now();
-    let contents = await this.package(bundle);
+    let contents = await this.package(bundle, bundleGraph);
     contents = await this.optimize(bundle, contents);
 
     let filePath = nullthrows(bundle.filePath);
@@ -59,7 +61,10 @@ export default class PackagerRunner {
     };
   }
 
-  async package(internalBundle: InternalBundle): Promise<Blob> {
+  async package(
+    internalBundle: InternalBundle,
+    bundleGraph: InternalBundleGraph
+  ): Promise<Blob> {
     let bundle = new NamedBundle(internalBundle);
     report({
       type: 'buildProgress',
@@ -68,7 +73,7 @@ export default class PackagerRunner {
     });
 
     let packager = await this.config.getPackager(bundle.filePath);
-    return packager.package(bundle, this.options);
+    return packager.package(bundle, new BundleGraph(bundleGraph), this.options);
   }
 
   async optimize(

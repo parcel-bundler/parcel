@@ -1,7 +1,13 @@
 // @flow
 
 import invariant from 'assert';
-import type {Bundle, ParcelOptions, Asset, Symbol} from '@parcel/types';
+import type {
+  Bundle,
+  ParcelOptions,
+  Asset,
+  Symbol,
+  BundleGraph
+} from '@parcel/types';
 import * as babylon from '@babel/parser';
 import path from 'path';
 import * as t from '@babel/types';
@@ -23,7 +29,11 @@ type TraversalContext = {|
 |};
 
 // eslint-disable-next-line no-unused-vars
-export async function concat(bundle: Bundle, options: ParcelOptions) {
+export async function concat(
+  bundle: Bundle,
+  bundleGraph: BundleGraph,
+  options: ParcelOptions
+) {
   let promises = [];
   bundle.traverseAssets(asset => {
     promises.push(processAsset(bundle, asset));
@@ -82,7 +92,10 @@ export async function concat(bundle: Bundle, options: ParcelOptions) {
 
       // If this module is referenced by another bundle, or is an entry module in a child bundle,
       // add code to register the module with the module system.
-      if (asset.meta.isReferenced || (!context.parent && registerEntry)) {
+      if (
+        bundleGraph.isAssetReferenced(asset) ||
+        (!context.parent && registerEntry)
+      ) {
         let exportsId = getName(asset, 'exports');
         statements.push(
           ...parse(`

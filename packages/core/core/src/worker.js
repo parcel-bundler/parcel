@@ -6,6 +6,7 @@ import type {
   JSONObject
 } from '@parcel/types';
 import type {Bundle} from './types';
+import type BundleGraph from './BundleGraph';
 
 import TransformerRunner from './TransformerRunner';
 import PackagerRunner from './PackagerRunner';
@@ -44,10 +45,10 @@ export function runTransform(req: TransformerRequest) {
   return transformerRunner.transform(req);
 }
 
-export function runPackage(bundle: Bundle) {
+export function runPackage(bundle: Bundle, bundleGraph: BundleGraph) {
   if (!packagerRunner) {
     throw new Error('.runPackage() called before .init()');
   }
 
-  return packagerRunner.writeBundle(bundle);
+  return packagerRunner.writeBundle(bundle, bundleGraph);
 }

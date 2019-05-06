@@ -10,10 +10,10 @@ const PRELUDE = fs
   .replace(/;$/, '');
 
 export default new Packager({
-  async package(bundle, options) {
+  async package(bundle, bundleGraph, options) {
     // If scope hoisting is enabled, we use a different code path.
     if (options.scopeHoist) {
-      let ast = await concat(bundle, options);
+      let ast = await concat(bundle, bundleGraph, options);
       ast = link(bundle, ast, options);
       return generate(bundle, ast, options);
     }

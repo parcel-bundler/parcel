@@ -86,6 +86,7 @@ applyOptions(watch, commonOptions);
 let build = program
   .command('build [input...]')
   .description('bundles for production')
+  .option('--no-minify', 'disable minification')
   .action(run);
 
 applyOptions(build, commonOptions);

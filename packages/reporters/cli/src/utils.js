@@ -7,16 +7,16 @@ import path from 'path';
 export function getProgressMessage(event: BuildProgressEvent): ?string {
   switch (event.phase) {
     case 'transforming':
-      return `Building ${path.basename(event.request.filePath)}...`;
+      return `Building ${event.request.filePath}...`;
 
     case 'bundling':
       return 'Bundling...';
 
     case 'packaging':
-      return `Packaging ${path.basename(event.bundle.filePath || '')}...`;
+      return `Packaging ${event.bundle.filePath || ''}...`;
 
     case 'optimizing':
-      return `Optimizing ${path.basename(event.bundle.filePath || '')}...`;
+      return `Optimizing ${event.bundle.filePath || ''}...`;
   }
 
   return null;

@@ -335,31 +335,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     );
   }
 
-  filteredTraverse<TValue, TContext>(
-    filter: AssetGraphNode => ?TValue,
-    visit: GraphVisitor<TValue, TContext>,
-    startNode: ?AssetGraphNode
-  ): ?TContext {
-    return this.traverse(
-      {
-        enter: (node, ...args) => {
-          let fn = visit.enter || visit;
-          let value = filter(node);
-          if (value != null && typeof fn === 'function') {
-            return fn(value, ...args);
-          }
-        },
-        exit: (node, ...args) => {
-          let value = filter(node);
-          if (value != null && typeof visit.exit === 'function') {
-            return visit.exit(value, ...args);
-          }
-        }
-      },
-      startNode
-    );
-  }
-
   traverseAssets<TContext>(
     visit: GraphVisitor<Asset, TContext>,
     startNode: ?AssetGraphNode
@@ -397,7 +372,6 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       return;
     }
 
-    asset.meta.isReferenced = true; // FIXME
     let referenceId = 'asset_reference:' + assetNode.id;
     this.replaceNode(assetNode, {
       type: 'asset_reference',

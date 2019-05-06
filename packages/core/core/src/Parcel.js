@@ -25,7 +25,10 @@ export default class Parcel {
   bundlerRunner: BundlerRunner;
   reporterRunner: ReporterRunner;
   farm: WorkerFarm;
-  runPackage: (bundle: Bundle) => Promise<Stats>;
+  runPackage: (
+    bundle: Bundle,
+    bundleGraph: InternalBundleGraph
+  ) => Promise<Stats>;
   _initialized: boolean = false;
 
   constructor(options: InitialParcelOptions) {
@@ -154,7 +157,7 @@ export default class Parcel {
     let promises = [];
     bundleGraph.traverseBundles(bundle => {
       promises.push(
-        this.runPackage(bundle).then(stats => {
+        this.runPackage(bundle, bundleGraph).then(stats => {
           bundle.stats = stats;
         })
       );

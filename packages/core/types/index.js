@@ -412,6 +412,7 @@ export interface BundleGraph {
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>
   ): ?TContext;
+  isAssetReferenced(asset: Asset): boolean;
 }
 
 export interface MutableBundleGraph {
@@ -458,7 +459,11 @@ export type Runtime = {|
 |};
 
 export type Packager = {|
-  package(bundle: Bundle, opts: ParcelOptions): Async<Blob>
+  package(
+    bundle: Bundle,
+    bundleGraph: BundleGraph,
+    opts: ParcelOptions
+  ): Async<Blob>
 |};
 
 export type Optimizer = {|

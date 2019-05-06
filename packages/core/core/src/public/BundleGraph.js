@@ -68,6 +68,10 @@ class BaseBundleGraph {
     invariant(internalNode != null && internalNode.type === 'bundle');
     return this.#graph.isAssetInAncestorBundle(internalNode.value, asset);
   }
+
+  isAssetReferenced(asset: Asset): boolean {
+    return this.#graph.isAssetReferenced(asset);
+  }
 }
 
 export class BundleGraph extends BaseBundleGraph implements IBundleGraph {

@@ -3,11 +3,11 @@
 import type {Asset, GraphTraversalCallback} from '@parcel/types';
 import type {Bundle, BundleGraphNode} from './types';
 
-import Graph from './Graph';
+import Graph, {type GraphOpts} from './Graph';
 
 export default class BundleGraph extends Graph<BundleGraphNode> {
-  constructor() {
-    super();
+  constructor(opts?: GraphOpts<BundleGraphNode>) {
+    super(opts);
     this.setRootNode({
       type: 'root',
       id: 'root',
@@ -45,22 +45,20 @@ export default class BundleGraph extends Graph<BundleGraphNode> {
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>
   ): ?TContext {
-    // $FlowFixMe
-    return this.traverse((node, context, actions) => {
-      if (node.type === 'bundle') {
-        return visit(node.value, context, actions);
-      }
-    });
+    return this.filteredTraverse(
+      node => (node.type === 'bundle' ? node.value : null),
+      visit
+    );
   }
 
   isAssetReferenced(asset: Asset) {
     let result = false;
 
     this.traverseBundles((bundle, context, traversal) => {
-      let isReferenced = Array.from(bundle.assetGraph.nodes.values()).find(
+      let referenceNode = bundle.assetGraph.findNode(
         node => node.type === 'asset_reference' && node.value.id === asset.id
       );
-      if (isReferenced) {
+      if (referenceNode) {
         result = true;
         traversal.stop();
       }

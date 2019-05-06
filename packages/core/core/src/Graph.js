@@ -4,7 +4,7 @@ import type {Edge, Node, NodeId} from './types';
 import type {TraversalActions, GraphVisitor} from '@parcel/types';
 import nullthrows from 'nullthrows';
 
-type GraphOpts<TNode> = {|
+export type GraphOpts<TNode> = {|
   nodes?: Array<[NodeId, TNode]>,
   edges?: Array<Edge>,
   rootNodeId?: ?NodeId
@@ -209,6 +209,31 @@ export default class Graph<TNode: Node> {
     });
   }
 
+  filteredTraverse<TValue, TContext>(
+    filter: TNode => ?TValue,
+    visit: GraphVisitor<TValue, TContext>,
+    startNode: ?TNode
+  ): ?TContext {
+    return this.traverse<TContext>(
+      {
+        enter: (node, ...args) => {
+          let fn = visit.enter || visit;
+          let value = filter(node);
+          if (value != null && typeof fn === 'function') {
+            return fn(value, ...args);
+          }
+        },
+        exit: (node, ...args) => {
+          let value = filter(node);
+          if (value != null && typeof visit.exit === 'function') {
+            return visit.exit(value, ...args);
+          }
+        }
+      },
+      startNode
+    );
+  }
+
   traverseAncestors<TContext>(
     startNode: TNode,
     visit: GraphVisitor<TNode, TContext>
@@ -382,6 +407,10 @@ export default class Graph<TNode: Node> {
       }
     }, node);
     return res;
+  }
+
+  findNode(predicate: TNode => boolean): ?TNode {
+    return Array.from(this.nodes.values()).find(predicate);
   }
 
   findNodes(predicate: TNode => boolean): Array<TNode> {
