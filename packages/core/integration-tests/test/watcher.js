@@ -16,7 +16,14 @@ const {symlinkSync} = require('fs');
 
 const inputDir = path.join(__dirname, '/input');
 
-describe('watcher', function() {
+function mtimeMapper(filePath) {
+  let mtime =
+    nodeFS.statSync(path.join(__dirname, '/dist/', filePath)).mtime.getTime() /
+    1000;
+  return mtime | 0;
+}
+
+describe.only('watcher', function() {
   let b;
   beforeEach(async function() {
     await sleep(100);
@@ -133,10 +140,7 @@ describe('watcher', function() {
 
     await b.bundle();
     let mtimes = (await fs.readdir(path.join(__dirname, '/dist'))).map(
-      f =>
-        (nodeFS.statSync(path.join(__dirname, '/dist/', f)).mtime.getTime() /
-          1000) |
-        0
+      mtimeMapper
     );
 
     await sleep(1100); // mtime only has second level precision on some filesystems
@@ -147,10 +151,7 @@ describe('watcher', function() {
 
     await nextBundle(b);
     let newMtimes = (await fs.readdir(path.join(__dirname, '/dist'))).map(
-      f =>
-        (nodeFS.statSync(path.join(__dirname, '/dist/', f)).mtime.getTime() /
-          1000) |
-        0
+      mtimeMapper
     );
 
     assert.deepEqual(mtimes.sort().slice(0, 2), newMtimes.sort().slice(0, 2));
