@@ -26,7 +26,7 @@ const Asset = props => {
             type="text"
             class="filename"
             spellcheck="false"
-            onChange={e => onChangeName(e.target.value)}
+            onInput={e => onChangeName(e.target.value)}
             value={name}
             aria-label="Asset filename"
           />,

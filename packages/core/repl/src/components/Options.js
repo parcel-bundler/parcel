@@ -52,7 +52,7 @@ export default function Options({values, onChange, enableBrowserslist}) {
           placeholder={
             enableBrowserslist ? '> 0.25%' : "You've already specified a config"
           }
-          onChange={e => onChange('browserslist', e.target.value)}
+          onInput={e => onChange('browserslist', e.target.value)}
         />
       </label>
       <label title="Sets `--global <value>`">
@@ -60,7 +60,7 @@ export default function Options({values, onChange, enableBrowserslist}) {
         <input
           type="text"
           placeholder="[disabled]"
-          onChange={e => onChange('global', e.target.value)}
+          onInput={e => onChange('global', e.target.value)}
         />
       </label>
       <label title="Gets set as `--public-url <value>`">
@@ -69,7 +69,7 @@ export default function Options({values, onChange, enableBrowserslist}) {
           type="text"
           value={values.publicUrl}
           placeholder="/"
-          onChange={e => onChange('publicUrl', e.target.value)}
+          onInput={e => onChange('publicUrl', e.target.value)}
         />
       </label>
       <label title="Gets set as `--target <value>`">

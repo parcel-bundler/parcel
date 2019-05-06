@@ -180,9 +180,9 @@ class App extends Component {
               ))}
             </select>
           </label>
-          {this.state.assets.map(({name, content, isEntry}) => (
+          {this.state.assets.map(({name, content, isEntry}, i) => (
             <Asset
-              key={name}
+              key={i}
               name={name}
               onChangeName={v => {
                 if (this.state.assets.find(a => a.name === v)) {
