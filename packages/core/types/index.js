@@ -132,6 +132,7 @@ export type InitialParcelOptions = {|
   killWorkers?: boolean,
   mode?: 'development' | 'production' | string,
   minify?: boolean,
+  scopeHoist?: boolean,
   sourceMaps?: boolean,
   hot?: ServerOptions | false,
   serve?: ServerOptions | false,
@@ -139,7 +140,6 @@ export type InitialParcelOptions = {|
   logLevel?: 'none' | 'error' | 'warn' | 'info' | 'verbose'
 
   // contentHash
-  // scopeHoist
   // throwErrors
   // global?
   // detailedReport

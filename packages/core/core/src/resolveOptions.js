@@ -43,6 +43,11 @@ export default async function resolveOptions(
       ? initialOptions.cacheDir
       : DEFAULT_CACHE_DIR;
 
+  let scopeHoist =
+    typeof initialOptions.scopeHoist === 'boolean'
+      ? initialOptions.scopeHoist
+      : initialOptions.mode === 'production';
+
   // $FlowFixMe
   return {
     env: process.env,
@@ -50,6 +55,7 @@ export default async function resolveOptions(
     cacheDir,
     entries,
     rootDir,
-    targets
+    targets,
+    scopeHoist
   };
 }

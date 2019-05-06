@@ -37,11 +37,16 @@ export default new Transformer({
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  async parse(asset /*, config , options */) {
+  async parse(asset, config, options) {
     let code = await asset.getCode();
-    // if (!canHaveDependencies(code) && !ENV_RE.test(code) && !FS_RE.test(code)) {
-    //   return null;
-    // }
+    if (
+      !options.scopeHoist &&
+      !canHaveDependencies(code) &&
+      !ENV_RE.test(code) &&
+      !FS_RE.test(code)
+    ) {
+      return null;
+    }
 
     return {
       type: 'babel',
@@ -57,7 +62,7 @@ export default new Transformer({
     };
   },
 
-  async transform(asset) {
+  async transform(asset, config, options) {
     asset.type = 'js';
     if (!asset.ast) {
       return [asset];
@@ -103,22 +108,22 @@ export default new Transformer({
       }
     }
 
-    hoist(asset);
+    if (options.scopeHoist) {
+      hoist(asset);
+    } else if (asset.meta.isES6Module) {
+      // Convert ES6 modules to CommonJS
+      let res = babelCore.transformFromAst(ast.program, code, {
+        code: false,
+        ast: true,
+        filename: asset.filePath,
+        babelrc: false,
+        configFile: false,
+        plugins: [require('@babel/plugin-transform-modules-commonjs')]
+      });
 
-    // Convert ES6 modules to CommonJS
-    // if (asset.meta.isES6Module) {
-    //   let res = babelCore.transformFromAst(ast.program, code, {
-    //     code: false,
-    //     ast: true,
-    //     filename: asset.filePath,
-    //     babelrc: false,
-    //     configFile: false,
-    //     plugins: [require('@babel/plugin-transform-modules-commonjs')]
-    //   });
-
-    //   ast.program = res.ast;
-    //   ast.isDirty = true;
-    // }
+      ast.program = res.ast;
+      ast.isDirty = true;
+    }
 
     return [asset];
   },
