@@ -79,6 +79,7 @@ export default class WorkerFarm extends EventEmitter {
 
     // $FlowFixMe this must be dynamic
     this.localWorker = require(this.options.workerPath);
+    this.run = this.mkhandle('run');
 
     this.init(bundlerOptions);
   }

@@ -172,7 +172,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       nodes.push(node);
     }
 
-    this.replaceNodesConnectedTo(rootNode, nodes);
+    this.replaceNodesConnectedTo(rootNode, nodes, 'has_entry');
     for (let depNode of nodes) {
       this.incompleteNodes.set(depNode.id, depNode);
     }
@@ -195,7 +195,11 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.invalidNodes.delete(depNode.id);
 
     let requestNode = nodeFromTransformerRequest(req);
-    let {added, removed} = this.replaceNodesConnectedTo(depNode, [requestNode]);
+    let {added, removed} = this.replaceNodesConnectedTo(
+      depNode,
+      [requestNode],
+      'spawns'
+    );
 
     if (added.nodes.size) {
       newRequestNode = requestNode;
@@ -237,17 +241,27 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
     let assetNodes = assets.map(asset => nodeFromAsset(asset));
     this.replaceNodesConnectedTo(requestNode, assetNodes, 'produces');
+    // TODO: maybe add TransformationRequest with getInvalidations method
     this.replaceNodesConnectedTo(
       requestNode,
       fileNodes,
       'invalidated_by_change_to'
+    );
+    this.replaceNodesConnectedTo(
+      requestNode,
+      fileNodes,
+      'invalidated_by_removal_of'
     );
 
     for (let assetNode of assetNodes) {
       let depNodes = assetNode.value
         .getDependencies()
         .map(dep => nodeFromDep(dep));
-      let {removed, added} = this.replaceNodesConnectedTo(assetNode, depNodes);
+      let {removed, added} = this.replaceNodesConnectedTo(
+        assetNode,
+        depNodes,
+        'spawns'
+      );
       newDepNodes = newDepNodes.concat(getDepNodesFromGraph(added));
     }
 
@@ -304,6 +318,17 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     );
 
     return {devDepRequestNodes};
+  }
+
+  getResultingConfig(configRequestNode) {
+    let [configNode] = this.getNodesConnectedTo(configRequestNode, 'produces');
+
+    // ? Should we just throw?
+    return configNode ? configNode.value : null;
+  }
+
+  getConfigDevDepNodes(configRequestNode) {
+    return this.getNodesConnectedTo(configRequestNode, 'spawns');
   }
 
   resolveDevDepRequest(devDepRequestNode, devDep, actionNode) {

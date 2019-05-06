@@ -38,7 +38,7 @@ export default async function loadParcelConfig(filePath, options) {
   return parcelConfig;
 }
 
-async function resolve(filePath: FilePath): Promise<?Config> {
+export async function resolve(filePath: FilePath): Promise<?Config> {
   let configPath = await resolveConfig(filePath, ['.parcelrc'], {
     noCache: true
   });
@@ -50,17 +50,17 @@ async function resolve(filePath: FilePath): Promise<?Config> {
   return new Config({...config, filePath: configPath});
 }
 
-async function create(config: ParcelConfig) {
+export async function create(config: ParcelConfig) {
   let [result, extendedFiles] = await processConfig(config);
   return new Config({extendedFiles, ...result});
 }
 
-async function readAndProcess(configPath: FilePath) {
+export async function readAndProcess(configPath: FilePath) {
   let config: ParcelConfigFile = parse(await fs.readFile(configPath));
   return processConfig({...config, filePath: configPath});
 }
 
-async function processConfig(config: ParcelConfig) {
+export async function processConfig(config: ParcelConfig) {
   let relativePath = path.relative(process.cwd(), config.filePath);
   validateConfig(config, relativePath);
 
@@ -82,7 +82,7 @@ async function processConfig(config: ParcelConfig) {
   return [config, extendedFiles];
 }
 
-async function resolveExtends(ext: string, configPath: FilePath) {
+export async function resolveExtends(ext: string, configPath: FilePath) {
   if (ext.startsWith('.')) {
     return path.resolve(path.dirname(configPath), ext);
   } else {
@@ -91,7 +91,7 @@ async function resolveExtends(ext: string, configPath: FilePath) {
   }
 }
 
-function validateConfig(config: ParcelConfig, relativePath: FilePath) {
+export function validateConfig(config: ParcelConfig, relativePath: FilePath) {
   validateExtends(config.extends, relativePath);
   validatePipeline(config.resolvers, 'resolver', 'resolvers', relativePath);
   validateMap(
@@ -127,7 +127,7 @@ function validateConfig(config: ParcelConfig, relativePath: FilePath) {
   validatePipeline(config.reporters, 'reporter', 'reporters', relativePath);
 }
 
-function validateExtends(
+export function validateExtends(
   exts: string | Array<string> | void,
   relativePath: FilePath
 ) {
@@ -148,13 +148,13 @@ function validateExtends(
   }
 }
 
-function validateExtendsConfig(ext: string, relativePath: FilePath) {
+export function validateExtendsConfig(ext: string, relativePath: FilePath) {
   if (!ext.startsWith('.')) {
     validatePackageName(ext, 'config', 'extends', relativePath);
   }
 }
 
-function validatePipeline(
+export function validatePipeline(
   pipeline: ?Pipeline,
   pluginType: string,
   key: string,
@@ -179,7 +179,7 @@ function validatePipeline(
   }
 }
 
-function validateMap<K, V>(
+export function validateMap<K, V>(
   globMap: ?ConfigMap<K, V>,
   validator: (v: V, p: string, k: string, p: FilePath) => void,
   pluginType: string,
@@ -201,7 +201,7 @@ function validateMap<K, V>(
   }
 }
 
-function validatePackageName(
+export function validatePackageName(
   pkg: ?PackageName,
   pluginType: string,
   key: string,
@@ -235,7 +235,10 @@ function validatePackageName(
   }
 }
 
-function mergeConfigs(base: ParcelConfig, ext: ParcelConfig): ParcelConfig {
+export function mergeConfigs(
+  base: ParcelConfig,
+  ext: ParcelConfig
+): ParcelConfig {
   return {
     filePath: base.filePath, // TODO: revisit this - it should resolve plugins based on the actual config they are defined in
     resolvers: mergePipelines(base.resolvers, ext.resolvers),
@@ -249,7 +252,7 @@ function mergeConfigs(base: ParcelConfig, ext: ParcelConfig): ParcelConfig {
   };
 }
 
-function mergePipelines(base: ?Pipeline, ext: ?Pipeline): Pipeline {
+export function mergePipelines(base: ?Pipeline, ext: ?Pipeline): Pipeline {
   if (!ext) {
     return base || [];
   }
@@ -275,7 +278,7 @@ function mergePipelines(base: ?Pipeline, ext: ?Pipeline): Pipeline {
   return ext;
 }
 
-function mergeMaps<K, V>(
+export function mergeMaps<K, V>(
   base: ?ConfigMap<K, V>,
   ext: ?ConfigMap<K, V>,
   merger?: (a: V, b: V) => V

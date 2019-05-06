@@ -105,6 +105,7 @@ describe('babel', function() {
     await bundle(path.join(__dirname, '/integration/babel-default/index.js'));
 
     let file = await fs.readFile('dist/index.js', 'utf8');
+    console.log('FILE', file);
     assert(file.includes('function Foo'));
     assert(file.includes('function Bar'));
   });
@@ -119,7 +120,7 @@ describe('babel', function() {
     assert(file.includes('function Bar'));
   });
 
-  it('should support splitting babel-polyfill using browserlist', async function() {
+  it.only('should support splitting babel-polyfill using browserlist', async function() {
     await bundle(path.join(__dirname, '/integration/babel-polyfill/index.js'));
 
     let file = await fs.readFile('dist/index.js', 'utf8');

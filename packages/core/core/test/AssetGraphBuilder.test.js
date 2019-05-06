@@ -6,7 +6,7 @@ import nullthrows from 'nullthrows';
 import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
 import AssetGraphBuilder, {BuildAbortError} from '../src/AssetGraphBuilder';
-import ConfigResolver from '../src/ConfigResolver';
+import {nodeFromDep} from '../src/AssetGraph';
 import Dependency from '../src/Dependency';
 import Environment from '../src/Environment';
 
@@ -41,11 +41,9 @@ describe('AssetGraphBuilder', () => {
   let config;
   let builder;
   beforeEach(async () => {
-    config = nullthrows(await new ConfigResolver().resolve(CONFIG_DIR));
-
     builder = new AssetGraphBuilder({
       options: DEFAULT_OPTIONS,
-      config,
+      rootDir: FIXTURES_DIR,
       entries: ['./module-b'],
       targets: TARGETS
     });
@@ -68,16 +66,19 @@ describe('AssetGraphBuilder', () => {
 
     try {
       await builder.resolve(
-        new Dependency({
-          moduleSpecifier: './module-b',
-          env: DEFAULT_ENV,
-          sourcePath: FIXTURES_DIR + '/index'
-        }),
+        nodeFromDep(
+          new Dependency({
+            moduleSpecifier: './module-b',
+            env: DEFAULT_ENV,
+            sourcePath: FIXTURES_DIR + '/index'
+          })
+        ),
         {
           signal: controller.signal
         }
       );
     } catch (e) {
+      console.log('ERROR', e);
       invariant(e instanceof BuildAbortError);
       return;
     }

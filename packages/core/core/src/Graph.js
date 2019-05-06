@@ -202,7 +202,7 @@ export default class Graph<TNode: Node> {
     }
 
     for (let edge of edgesToRemove) {
-      if (edgeType && edge.type === edgeType) {
+      if (edge.type === edgeType) {
         removed.merge(this.removeEdge(edge));
       }
     }

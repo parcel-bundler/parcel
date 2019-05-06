@@ -12,7 +12,11 @@ import clone from 'clone';
 import TapStream from '@parcel/utils/src/TapStream';
 import Asset from './Asset';
 
+// TODO: tmp, remove
+import prettyFormat from 'pretty-format';
+
 const BUFFER_LIMIT = 5000000; // 5mb
+
 export default class Transformation {
   constructor({request, loadConfig, node, options}) {
     this.request = request;
@@ -89,6 +93,14 @@ export default class Transformation {
     };
 
     let parcelConfig = await this.loadConfig(configRequest);
+    if (!parcelConfig.result) {
+      throw new Error(`WTF: ${prettyFormat(parcelConfig)}`);
+    }
+    console.log(
+      'PARCEL CONFIG RESULT',
+      parcelConfig.result,
+      parcelConfig.result.getTransformerNames
+    );
     let configs = {parcel: parcelConfig.result.getTransformerNames(filePath)};
 
     for (let [moduleName] of parcelConfig.devDeps) {

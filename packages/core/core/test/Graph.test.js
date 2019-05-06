@@ -66,18 +66,22 @@ describe('Graph', () => {
     assert.deepEqual(removed.edges, new Set([edgeAB, edgeBC, edgeBD]));
   });
 
-  it("updateNodeDownStream should update a node's downstream nodes", () => {
+  it("replaceNodesConnectedTo should update a node's downstream nodes", () => {
     let graph = new Graph();
     let nodeA = graph.addNode({id: 'a', value: 'a'});
     let nodeB = graph.addNode({id: 'b', value: 'b'});
     graph.addNode({id: 'c', value: 'c'});
-    let edgeAB = graph.addEdge({from: 'a', to: 'b'});
-    let edgeAC = graph.addEdge({from: 'a', to: 'c'});
+    let edgeAB = graph.addEdge({from: 'a', to: 'b', type: 'connected_to'});
+    let edgeAC = graph.addEdge({from: 'a', to: 'c', type: 'connected_to'});
 
     let nodeD = {id: 'd', value: 'd'};
-    let edgeAD = {from: 'a', to: 'd'};
+    let edgeAD = {from: 'a', to: 'd', type: 'connected_to'};
 
-    let {removed} = graph.replaceNodesConnectedTo(nodeA, [nodeB, nodeD]);
+    let {removed} = graph.replaceNodesConnectedTo(
+      nodeA,
+      [nodeB, nodeD],
+      'connected_to'
+    );
 
     assert(graph.nodes.has('a'));
     assert(graph.nodes.has('b'));

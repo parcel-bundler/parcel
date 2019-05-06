@@ -1,6 +1,7 @@
 import {CONFIG} from '@parcel/plugin';
 import {localResolve} from '@parcel/utils/src/localRequire';
 import semver from 'semver';
+import logger from '@parcel/logger';
 
 const PARCEL_VERSION = require('../package.json').version;
 

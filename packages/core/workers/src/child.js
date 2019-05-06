@@ -41,7 +41,7 @@ class Child {
       throw new Error('Only create Child instances in a worker!');
     }
 
-    // patchConsoleToLogger();
+    patchConsoleToLogger();
     // Monitior all logging events inside this child process and forward to
     // the main process via the bus.
     this.loggerDisposable = Logger.onLog(event => {

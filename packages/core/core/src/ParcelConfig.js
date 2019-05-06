@@ -19,7 +19,6 @@ import {localResolve} from '@parcel/utils/src/localRequire';
 import {isMatch} from 'micromatch';
 import {basename, dirname} from 'path';
 import {CONFIG} from '@parcel/plugin';
-import logger from '@parcel/logger';
 import semver from 'semver';
 import loadPlugin from './loadParcelPlugin';
 

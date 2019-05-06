@@ -12,7 +12,6 @@ describe('WorkerFarm', () => {
         workerPath: require.resolve('./integration/workerfarm/ping.js')
       }
     );
-
     assert.equal(await workerfarm.run(), 'pong');
 
     await workerfarm.end();

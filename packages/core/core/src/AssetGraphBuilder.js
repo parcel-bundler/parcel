@@ -59,7 +59,6 @@ export default class AssetGraphBuilder extends EventEmitter {
       config,
       options
     });
-    this.loadConfigHandle = WorkerFarm.createHandle(this.loadConfig.bind(this));
 
     this.changedAssets = new Map();
 
@@ -79,6 +78,7 @@ export default class AssetGraphBuilder extends EventEmitter {
     // AssetGraphBuilder, which avoids needing to pass the options through here.
     this.farm = await WorkerFarm.getShared();
     this.runTransform = this.farm.mkhandle('runTransform');
+    this.loadConfigHandle = WorkerFarm.createHandle(this.loadConfig.bind(this));
   }
 
   async build() {
@@ -207,6 +207,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       console.log('CONFIG ALREADY LOADED');
       // TODO: implement these functions
       config = this.graph.getResultingConfig(configRequestNode);
+      console.log('CONFIG', config);
       devDepRequestNodes = this.graph.getConfigDevDepNodes(configRequestNode);
     }
 

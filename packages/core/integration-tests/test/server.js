@@ -8,7 +8,7 @@ const https = require('https');
 const getPort = require('get-port');
 const sinon = require('sinon');
 
-describe('server', function() {
+describe.skip('server', function() {
   function get(file, port, client = http) {
     return new Promise((resolve, reject) => {
       client.get(

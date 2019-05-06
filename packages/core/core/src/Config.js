@@ -1,13 +1,34 @@
 import path from 'path';
 
 export default class Config {
-  constructor(searchPath) {
+  constructor({
+    searchPath,
+    resolvedPath,
+    result,
+    includedFiles,
+    invalidatingFiles,
+    globPatterns,
+    devDeps
+  }) {
     this.searchPath = searchPath;
-    this.result = null;
-    this.includedFiles = new Set();
-    this.invalidatingFiles = new Set();
-    this.globPatterns = new Set();
-    this.devDeps = new Map();
+    this.resolvedPath = resolvedPath;
+    this.result = result || null;
+    this.includedFiles = new Set(includedFiles);
+    this.invalidatingFiles = new Set(invalidatingFiles);
+    this.globPatterns = new Set(globPatterns);
+    this.devDeps = new Map(devDeps);
+  }
+
+  serialize() {
+    return {
+      searchPath: this.searchPath,
+      resolvedPath: this.resolvedPath,
+      result: this.result,
+      includedFiles: [...this.includedFiles],
+      invalidatingFiles: [...this.invalidatingFiles],
+      globPatterns: [...this.globPatterns],
+      devDeps: [...this.devDeps]
+    };
   }
 
   setResolvedPath(filePath) {
@@ -32,6 +53,10 @@ export default class Config {
 
   setDevDep(moduleName, moduleVersion) {
     this.devDeps.set(moduleName, moduleVersion);
+  }
+
+  getDevDepVersion(moduleName) {
+    return this.devDeps.get(moduleName);
   }
 
   addGlobWatchPattern(glob) {
