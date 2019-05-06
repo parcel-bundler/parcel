@@ -32,7 +32,7 @@ export async function bundle(assets, options) {
 
   for (let f of assets) {
     const p = `/src/${f.name}`;
-    fsNative.mkdirpSync(path.dirname(p));
+    await fs.mkdirp(path.dirname(p));
     await fs.writeFile(p, f.content || ' ');
   }
 
@@ -46,7 +46,7 @@ export async function bundle(assets, options) {
       outDir: '/dist',
       autoinstall: false,
       watch: false,
-      cache: true,
+      cache: false,
       hmr: false,
       logLevel: 0,
       minify: options.minify,

@@ -20,6 +20,7 @@
     "@parcel/logger": "^1.11.0",
     "codemirror": "^5.44.0",
     "comlink": "^3.2.0",
+    "memory-fs": "^0.4.1",
     "parcel-bundler": "^1.12.1",
     "preact": "^10.0.0-beta.1",
     "react-codemirror2": "^5.1.0",
@@ -35,7 +36,7 @@
     "@iarna/toml": "toml",
     "deasync": "./noop.js",
     "node-sass": "sass",
-    "fs": "@parcel/fs/src/fs-native.js",
+    "fs": "./memory-fs.js",
     "v8-compile-cache": "./noop.js"
   },
   "browserslist": [
