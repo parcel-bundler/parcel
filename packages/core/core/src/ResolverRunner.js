@@ -20,7 +20,7 @@ const getCacheKey = (filename, parent) =>
 export default class ResolverRunner {
   config: Config;
   options: ParcelOptions;
-  cache: Map<string, FilePath>;
+  cache: Map<string, TransformerRequest>;
 
   constructor({config, options}: Opts) {
     this.config = config;

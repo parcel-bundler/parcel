@@ -72,7 +72,6 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
 
     // If this is an ES6 module, throw an error if we cannot resolve the module
     if (!node && !mod.meta.isCommonJS && mod.meta.isES6Module) {
-      // $FlowFixMe
       let relativePath = relative(options.rootDir, mod.filePath);
       throw new Error(`${relativePath} does not export '${symbol}'`);
     }

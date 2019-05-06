@@ -466,7 +466,10 @@ export type Optimizer = {|
 |};
 
 export type Resolver = {|
-  resolve(dependency: Dependency, opts: ParcelOptions): Async<FilePath | null>
+  resolve(
+    dependency: Dependency,
+    opts: ParcelOptions
+  ): Async<?TransformerRequest>
 |};
 
 export type ProgressLogEvent = {|
