@@ -4,7 +4,7 @@ import semver from 'semver';
 import logger from '@parcel/logger';
 import path from 'path';
 import {localResolve} from '@parcel/utils/src/localRequire';
-import installPackage from '@parcel/utils/src/installPackage';
+// import installPackage from '@parcel/utils/src/installPackage';
 import micromatch from 'micromatch';
 
 export default async function getBabelConfig(
@@ -175,7 +175,7 @@ async function getBabelVersion(asset, pkg, plugins) {
   // We will attempt to infer a verison of babel and install it based on the dependencies of the plugins
   // in the config. This should only happen once since we save babel core into package.json for subsequent runs.
   let inferred = await inferBabelVersion(asset, plugins);
-  let name = inferred === 6 ? 'babel-core' : `@babel/core`;
+  // let name = inferred === 6 ? 'babel-core' : `@babel/core`;
   // await installPackage([name], asset.filePath);
   return inferred;
 }

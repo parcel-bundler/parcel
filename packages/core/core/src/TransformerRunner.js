@@ -24,7 +24,6 @@ import {unique} from '@parcel/utils/src/collection';
 import Config from './Config';
 import {report} from './ReporterRunner';
 import TapStream from '@parcel/utils/src/TapStream';
-import nullthrows from 'nullthrows';
 
 type Opts = {|
   config: Config,

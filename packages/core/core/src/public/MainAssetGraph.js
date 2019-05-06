@@ -4,7 +4,6 @@ import type AssetGraph from '../AssetGraph';
 import type {
   Asset,
   Dependency,
-  GraphTraversalCallback,
   GraphVisitor,
   MainAssetGraph as IMainAssetGraph,
   MainAssetGraphTraversable

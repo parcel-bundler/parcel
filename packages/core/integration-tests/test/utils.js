@@ -10,7 +10,6 @@ const Module = require('module');
 const promisify = require('@parcel/utils/src/promisify');
 const rimraf = promisify(require('rimraf'));
 const ncp = promisify(require('ncp'));
-const {sleep} = require('@parcel/test-utils');
 const defaultConfigContents = require('@parcel/config-default');
 
 const defaultConfig = {
