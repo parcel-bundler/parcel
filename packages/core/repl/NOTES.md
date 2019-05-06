@@ -67,7 +67,6 @@ parcel-bundler: (worker)
 
 #### Features
 
-- Cmd+S -> export zip
 - add test (that every preset runs without an error)
 - better caching strategy: leverage hashing but still clear sw cache
 

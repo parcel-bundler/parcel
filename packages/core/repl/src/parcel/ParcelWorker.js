@@ -2,17 +2,18 @@ if (!self.Buffer) {
   self.Buffer = require('buffer').Buffer;
 }
 
-const Comlink = require('comlink');
-import {hasBrowserslist} from '../utils';
 import path from 'path';
 import fastGlob from 'fast-glob';
-
 import process from 'process';
-
 import fs from '@parcel/fs';
-import prettyError from '@parcel/logger/src/prettyError';
 import fsNative from 'fs';
+
+const Comlink = require('comlink');
+import {hasBrowserslist} from '../utils';
+
+import prettyError from '@parcel/logger/src/prettyError';
 import Bundler from 'parcel-bundler';
+import JSZip from 'jszip';
 
 self.process = process;
 self.fs = fsNative;
@@ -97,6 +98,21 @@ class ParcelWorker {
 
   getFS() {
     return fsNative.data;
+  }
+
+  async getZip() {
+    const zip = new JSZip();
+    for (let f of await fastGlob('/src/*')) {
+      zip.file(f, await fs.readFile(f, 'utf8'));
+    }
+
+    if (await fs.exists('/dist')) {
+      for (let f of await fastGlob('/dist/**/*')) {
+        zip.file(f, await fs.readFile(f, 'utf8'));
+      }
+    }
+
+    return zip.generateAsync({type: 'uint8array'});
   }
 }
 

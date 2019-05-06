@@ -34,6 +34,7 @@ export function Notes() {
       Hotkeys:
       <ul>
         <li> {ctrlKey} + (B or Enter): Bundle</li>
+        <li> {ctrlKey} + S: Download ZIP of input & output (after bundling)</li>
       </ul>
       Known issues:
       <ul>

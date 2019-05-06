@@ -14,6 +14,15 @@ export function hasBrowserslist(assets) {
   }
 }
 
+export function downloadBuffer(name, buf, mime = 'application/zip') {
+  const blob = new Blob([buf], {type: mime});
+  const el = document.createElement('a');
+  el.href = URL.createObjectURL(blob);
+  el.download = name;
+  el.click();
+  setTimeout(() => URL.revokeObjectURL(el.href), 1000);
+}
+
 export const ctrlKey = navigator.platform.includes('Mac') ? '⌘' : 'Ctrl';
 
 export function saveState(curPreset, options, assets) {

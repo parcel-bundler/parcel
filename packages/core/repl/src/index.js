@@ -14,9 +14,14 @@ import {
   hasBrowserslist,
   saveState,
   loadState,
-  createDebouncer
+  createDebouncer,
+  downloadBuffer
 } from './utils';
-import bundle, {workerLoaded, getFS} from './parcel/';
+import bundle, {workerLoaded, getFS, getZip} from './parcel/';
+
+async function downloadZip() {
+  downloadBuffer('Parcel-REPL.zip', await getZip());
+}
 
 const DEFAULT_PRESET = 'Javascript';
 
@@ -114,8 +119,14 @@ class App extends Component {
 
   componentDidMount() {
     document.addEventListener('keydown', e => {
-      if (e.metaKey && (e.code === 'Enter' || e.code === 'KeyB'))
-        this.startBundling();
+      if (e.metaKey) {
+        if (e.code === 'Enter' || e.code === 'KeyB') {
+          this.startBundling();
+        } else if (e.code === 'KeyS') {
+          e.preventDefault();
+          if (this.state.output) downloadZip();
+        }
+      }
     });
 
     window.addEventListener('beforeinstallprompt', e => {
@@ -302,6 +313,9 @@ class App extends Component {
             >
               Want to add this to your homescreen?
             </button>
+          )}
+          {this.state.output && (
+            <button onClick={downloadZip}>Download ZIP</button>
           )}
         </div>
       </div>
