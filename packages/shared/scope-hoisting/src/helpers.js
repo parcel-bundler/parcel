@@ -4,6 +4,11 @@ function $parcel$interopDefault(a) {
 }
 
 // eslint-disable-next-line no-unused-vars
+function $parcel$defineInteropFlag(a) {
+  Object.defineProperty(a, '__esModule', {value: true});
+}
+
+// eslint-disable-next-line no-unused-vars
 function $parcel$exportWildcard(dest, source) {
   Object.keys(source).forEach(function(key) {
     if (key === 'default' || key === '__esModule') {

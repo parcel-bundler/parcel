@@ -85,6 +85,10 @@ function getText(node: string | {props: CellProps}): string {
     return node;
   }
 
+  if (!node.props) {
+    return '';
+  }
+
   let t = '';
   React.Children.forEach(node.props.children, n => {
     t += getText(n);
