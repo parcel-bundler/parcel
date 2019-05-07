@@ -17,7 +17,7 @@ import {
   md5FromFilePath,
   md5FromReadableStream,
   md5FromString
-} from '@parcel/utils/src/md5';
+} from '@parcel/utils';
 import Cache from '@parcel/cache';
 import {createReadStream} from 'fs';
 import {unique} from '@parcel/utils/src/collection';

@@ -9,7 +9,7 @@ import generateCertificate from '@parcel/utils/src/generateCertificate';
 import getCertificate from '@parcel/utils/src/getCertificate';
 import logger from '@parcel/logger';
 import prettyError from '@parcel/reporter-cli/src/prettyError';
-import {md5FromObject} from '@parcel/utils/src/md5';
+import {md5FromObject} from '@parcel/utils';
 
 type HMRAsset = {|
   id: string,

@@ -20,7 +20,7 @@ import type {
 } from '@parcel/types';
 
 import crypto from 'crypto';
-import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
+import {md5FromString, md5FromFilePath} from '@parcel/utils';
 import {loadConfig} from '@parcel/utils/src/config';
 import {
   readableFromStringOrBuffer,
