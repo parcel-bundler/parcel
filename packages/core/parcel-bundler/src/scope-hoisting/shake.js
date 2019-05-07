@@ -1,7 +1,5 @@
 const t = require('@babel/types');
 
-const EXPORTS_RE = /^\$([^$]+)\$exports$/;
-
 /**
  * This is a small small implementation of dead code removal specialized to handle
  * removing unused exports. All other dead code removal happens in workers on each
@@ -44,12 +42,9 @@ function getUnusedBinding(path, name) {
     return null;
   }
 
-  if (isPure(binding)) {
+  let pure = isPure(binding);
+  if (!binding.referenced && pure) {
     return binding;
-  }
-
-  if (!EXPORTS_RE.test(name)) {
-    return null;
   }
 
   // Is there any references which aren't simple assignments?
@@ -57,18 +52,14 @@ function getUnusedBinding(path, name) {
     path => !isExportAssignment(path) && !isUnusedWildcard(path)
   );
 
-  if (bailout) {
-    return null;
-  } else {
+  if (!bailout && pure) {
     return binding;
   }
+
+  return null;
 }
 
 function isPure(binding) {
-  if (binding.referenced) {
-    return false;
-  }
-
   if (
     binding.path.isVariableDeclarator() &&
     binding.path.get('id').isIdentifier()
@@ -104,7 +95,15 @@ function isUnusedWildcard(path) {
 
 function remove(path) {
   if (path.isAssignmentExpression()) {
-    if (!path.parentPath.isExpressionStatement()) {
+    if (path.parentPath.isSequenceExpression()) {
+      if (path.parent.expressions.length == 1) {
+        // replace sequence expression with it's sole child
+        path.parentPath.replaceWith(path);
+        remove(path.parentPath);
+      } else {
+        path.remove();
+      }
+    } else if (!path.parentPath.isExpressionStatement()) {
       path.replaceWith(path.node.right);
     } else {
       path.remove();
@@ -113,12 +112,16 @@ function remove(path) {
     remove(path.parentPath.parentPath);
   } else if (isUnusedWildcard(path)) {
     remove(path.parentPath);
-  } else if (
-    path.parentPath.isSequenceExpression() &&
-    path.parent.expressions.length === 1
-  ) {
-    remove(path.parentPath);
   } else if (!path.removed) {
-    path.remove();
+    if (
+      path.parentPath.isSequenceExpression() &&
+      path.parent.expressions.length === 1
+    ) {
+      // replace sequence expression with it's sole child
+      path.parentPath.replaceWith(path);
+      remove(path.parentPath);
+    } else {
+      path.remove();
+    }
   }
 }

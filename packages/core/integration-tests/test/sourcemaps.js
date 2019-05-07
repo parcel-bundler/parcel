@@ -3,9 +3,8 @@ const fs = require('@parcel/fs');
 const path = require('path');
 const os = require('os');
 const mapValidator = require('sourcemap-validator');
-const {bundler, bundle, run, assertBundleTree} = require('./utils');
-
 const SourceMap = require('parcel-bundler/src/SourceMap');
+const {bundler, bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 function indexToLineCol(str, index) {
   let beforeIndex = str.slice(0, index);
@@ -79,18 +78,17 @@ describe.skip('sourcemaps', function() {
       assets: ['index.js'],
       childBundles: [
         {
-          name: 'index.map',
+          name: 'index.js.map',
           type: 'map'
         }
       ]
     });
 
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.map')
-    )).toString();
+    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    let map = await fs.readFile(
+      path.join(__dirname, '/dist/index.js.map'),
+      'utf8'
+    );
     mapValidator(raw, map);
     let mapObject = JSON.parse(map);
     assert(
@@ -125,20 +123,18 @@ describe.skip('sourcemaps', function() {
       assets: ['index.ts'],
       childBundles: [
         {
-          name: 'index.map',
+          name: 'index.js.map',
           type: 'map'
         }
       ]
     });
 
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.map')
-    )).toString();
+    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    let map = await fs.readFile(
+      path.join(__dirname, '/dist/index.js.map'),
+      'utf8'
+    );
     assert.equal(JSON.parse(map).sources.length, 1);
-
     mapValidator(raw, map);
 
     let output = await run(b);
@@ -156,18 +152,18 @@ describe.skip('sourcemaps', function() {
       assets: ['index.ts', 'local.ts'],
       childBundles: [
         {
-          name: 'index.map',
+          name: 'index.js.map',
           type: 'map'
         }
       ]
     });
 
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.map')
-    )).toString();
+    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    let map = await fs.readFile(
+      path.join(__dirname, '/dist/index.js.map'),
+      'utf8'
+    );
+    assert.equal(JSON.parse(map).sources.length, 2);
     mapValidator(raw, map);
 
     let output = await run(b);
@@ -185,18 +181,17 @@ describe.skip('sourcemaps', function() {
       assets: ['index.js', 'local.js', 'util.js'],
       childBundles: [
         {
-          name: 'index.map',
+          name: 'index.js.map',
           type: 'map'
         }
       ]
     });
 
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.map')
-    )).toString();
+    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    let map = await fs.readFile(
+      path.join(__dirname, '/dist/index.js.map'),
+      'utf8'
+    );
     mapValidator(raw, map);
 
     let output = await run(b);
@@ -217,18 +212,17 @@ describe.skip('sourcemaps', function() {
       assets: ['index.js', 'local.js', 'util.js'],
       childBundles: [
         {
-          name: 'index.map',
+          name: 'index.js.map',
           type: 'map'
         }
       ]
     });
 
-    let raw = (await fs.readFile(
-      path.join(__dirname, '/dist/index.js')
-    )).toString();
-    let map = (await fs.readFile(
-      path.join(__dirname, '/dist/index.map')
-    )).toString();
+    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    let map = await fs.readFile(
+      path.join(__dirname, '/dist/index.js.map'),
+      'utf8'
+    );
     assert.equal(JSON.parse(map).sources.length, 3);
     mapValidator(raw, map);
 

@@ -1,7 +1,7 @@
 const assert = require('assert');
 const install = require('../src/utils/installPackage');
 const fs = require('@parcel/fs');
-const {ncp, rimraf} = require('./utils');
+const {ncp} = require('@parcel/test-utils');
 const path = require('path');
 
 const inputDirPath = path.join(__dirname, '/input');
@@ -9,7 +9,7 @@ const inputDirPath = path.join(__dirname, '/input');
 describe('autoinstall', function() {
   beforeEach(async function() {
     // Setup (clear the input dir and move integration test in)
-    await rimraf(inputDirPath, {});
+    await fs.rimraf(inputDirPath, {});
     await ncp(path.join(__dirname, '/integration/babel-default'), inputDirPath);
   });
 
@@ -46,6 +46,6 @@ describe('autoinstall', function() {
   });
 
   afterEach(async function() {
-    await rimraf(inputDirPath);
+    await fs.rimraf(inputDirPath);
   });
 });

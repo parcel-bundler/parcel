@@ -2,7 +2,7 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
 const generateCertificate = require('../src/utils/generateCertificate');
-const {rimraf, ncp} = require('./utils');
+const {ncp} = require('@parcel/test-utils');
 
 const cachePath = path.join(__dirname, '.cache');
 const inputPath = path.join(__dirname, '/input');
@@ -14,8 +14,8 @@ const cacheOptions = {
 
 describe('generateCertificate', () => {
   beforeEach(async () => {
-    await rimraf(cachePath);
-    await rimraf(inputPath);
+    await fs.rimraf(cachePath);
+    await fs.rimraf(inputPath);
   });
 
   it('should support loading cached certificate', async () => {

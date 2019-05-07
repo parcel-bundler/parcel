@@ -19,7 +19,7 @@ const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('@parcel/utils/src/getRootDir').default;
-const {glob} = require('./utils/glob');
+const {glob, isGlob} = require('./utils/glob');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -29,7 +29,9 @@ class Bundler extends EventEmitter {
   constructor(entryFiles, options = {}) {
     super();
 
-    this.entryFiles = this.normalizeEntries(entryFiles);
+    entryFiles = this.normalizeEntries(entryFiles);
+    this.watchedGlobs = entryFiles.filter(entry => isGlob(entry));
+    this.entryFiles = this.findEntryFiles(entryFiles);
     this.options = this.normalizeOptions(options);
 
     this.resolver = new Resolver(this.options);
@@ -82,6 +84,10 @@ class Bundler extends EventEmitter {
       entryFiles = [process.cwd()];
     }
 
+    return entryFiles;
+  }
+
+  findEntryFiles(entryFiles) {
     // Match files as globs
     return entryFiles
       .reduce((p, m) => p.concat(glob.sync(m)), [])
@@ -136,9 +142,11 @@ class Bundler extends EventEmitter {
       detailedReport: options.detailedReport || false,
       global: options.global,
       autoinstall:
-        typeof options.autoinstall === 'boolean'
-          ? options.autoinstall
-          : !isProduction,
+        typeof options.autoInstall === 'boolean'
+          ? options.autoInstall
+          : process.env.PARCEL_AUTOINSTALL === 'false'
+            ? false
+            : !isProduction,
       scopeHoist: scopeHoist,
       contentHash:
         typeof options.contentHash === 'boolean'
@@ -200,9 +208,11 @@ class Bundler extends EventEmitter {
       return;
     }
 
+    let lastDep;
     try {
       let deps = Object.assign({}, pkg.dependencies, pkg.devDependencies);
       for (let dep in deps) {
+        lastDep = dep;
         const pattern = /^(@.*\/)?parcel-plugin-.+/;
         if (pattern.test(dep)) {
           let plugin = await localRequire(dep, relative);
@@ -210,7 +220,11 @@ class Bundler extends EventEmitter {
         }
       }
     } catch (err) {
-      logger.warn(err);
+      logger.warn(
+        `Plugin ${lastDep} failed to initialize: ${err.stack ||
+          err.message ||
+          err}`
+      );
     }
   }
 
@@ -290,6 +304,7 @@ class Bundler extends EventEmitter {
       }
 
       // Generate the final bundle names, and replace references in the built assets.
+      let numBundles = this.bundleNameMap ? this.bundleNameMap.size : 0;
       this.bundleNameMap = this.mainBundle.getBundleNameMap(
         this.options.contentHash
       );
@@ -299,8 +314,9 @@ class Bundler extends EventEmitter {
       }
 
       // Emit an HMR update if this is not the initial bundle.
+      let bundlesChanged = numBundles !== this.bundleNameMap.size;
       if (this.hmr && !isInitialBundle) {
-        this.hmr.emitUpdate(changedAssets);
+        this.hmr.emitUpdate(changedAssets, bundlesChanged);
       }
 
       logger.progress(`Packaging...`);
@@ -308,7 +324,7 @@ class Bundler extends EventEmitter {
       // Package everything up
       this.bundleHashes = await this.mainBundle.package(
         this,
-        this.bundleHashes
+        bundlesChanged ? null : this.bundleHashes
       );
 
       // Unload any orphaned assets
@@ -372,7 +388,12 @@ class Bundler extends EventEmitter {
       if (process.env.NODE_ENV === 'test' && !this.watcher.ready) {
         await new Promise(resolve => this.watcher.once('ready', resolve));
       }
+      this.watchedGlobs.forEach(glob => {
+        this.watcher.add(glob);
+      });
+      this.watcher.on('add', this.onAdd.bind(this));
       this.watcher.on('change', this.onChange.bind(this));
+      this.watcher.on('unlink', this.onUnlink.bind(this));
     }
 
     if (this.options.hmr) {
@@ -759,7 +780,24 @@ class Bundler extends EventEmitter {
     }
   }
 
+  async onAdd(path) {
+    path = Path.join(process.cwd(), path);
+
+    let asset = this.parser.getAsset(path, this.options);
+    this.loadedAssets.set(path, asset);
+
+    this.entryAssets.add(asset);
+
+    await this.watch(path, asset);
+    this.onChange(path);
+  }
+
   async onChange(path) {
+    // The path to the newly-added items are not absolute.
+    if (!Path.isAbsolute(path)) {
+      path = Path.resolve(process.cwd(), path);
+    }
+
     let assets = this.watchedAssets.get(path);
     if (!assets || !assets.size) {
       return;
@@ -778,6 +816,19 @@ class Bundler extends EventEmitter {
     this.rebuildTimeout = setTimeout(async () => {
       await this.bundle();
     }, 100);
+  }
+
+  async onUnlink(path) {
+    // The path to the newly-added items are not absolute.
+    if (!Path.isAbsolute(path)) {
+      path = Path.resolve(process.cwd(), path);
+    }
+
+    let asset = this.getLoadedAsset(path);
+    this.entryAssets.delete(asset);
+    this.unloadAsset(asset);
+
+    this.bundle();
   }
 
   middleware() {

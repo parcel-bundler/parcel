@@ -15,13 +15,13 @@
   "dependencies": {
     "@parcel/cache": "^2.0.0",
     "@parcel/config-default": "^2.0.0",
-    "@parcel/fs": "^1.10.3",
+    "@parcel/fs": "^2.0.0",
     "@parcel/logger": "^2.0.0",
     "@parcel/plugin": "^2.0.0",
     "@parcel/types": "^2.0.0",
     "@parcel/utils": "^2.0.0",
-    "@parcel/watcher": "^1.10.3",
-    "@parcel/workers": "^1.10.3",
+    "@parcel/watcher": "^2.0.0",
+    "@parcel/workers": "^2.0.0",
     "abortcontroller-polyfill": "^1.1.9",
     "browserslist": "^4.1.0",
     "chalk": "^2.1.0",
@@ -40,10 +40,7 @@
     "v8-compile-cache": "^2.0.0"
   },
   "devDependencies": {
-    "@parcel/babel-register": "2.0.0",
-    "@parcel/config-default": "^2.0.0",
     "graphviz": "^0.0.9",
-    "sinon": "^5.0.1",
     "tempy": "^0.2.1"
   }
 }

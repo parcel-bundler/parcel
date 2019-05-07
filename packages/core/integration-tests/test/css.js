@@ -8,7 +8,7 @@ const {
   assertBundleTree,
   rimraf,
   ncp
-} = require('./utils');
+} = require('@parcel/test-utils');
 
 describe('css in v2', () => {
   it('should produce two bundles when importing a CSS file', async () => {
@@ -78,7 +78,7 @@ describe.skip('css', function() {
           ]
         },
         {
-          name: 'index.map',
+          name: 'index.js.map',
           type: 'map'
         }
       ]
@@ -133,7 +133,7 @@ describe.skip('css', function() {
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
-    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
+    assert(/url\("\/test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
     assert(css.includes('url("data:image/gif;base64,quotes")'));
@@ -146,7 +146,7 @@ describe.skip('css', function() {
         path.join(
           __dirname,
           '/dist/',
-          css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
+          css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1]
         )
       )
     );
@@ -192,7 +192,10 @@ describe.skip('css', function() {
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
-    assert(/url\(test\.[0-9a-f]+\.woff2\)/.test(css), 'woff ext found in css');
+    assert(
+      /url\(\/test\.[0-9a-f]+\.woff2\)/.test(css),
+      'woff ext found in css'
+    );
     assert(css.includes('url(http://google.com)'), 'url() found');
     assert(css.includes('.index'), '.index found');
     assert(css.includes('url("data:image/gif;base64,quotes")'));
@@ -205,9 +208,53 @@ describe.skip('css', function() {
         path.join(
           __dirname,
           '/dist/',
-          css.match(/url\((test\.[0-9a-f]+\.woff2)\)/)[1]
+          css.match(/url\((\/test\.[0-9a-f]+\.woff2)\)/)[1]
         )
       )
+    );
+  });
+
+  it('should support linking to assets in parent folders with url() from CSS', async function() {
+    let b = await bundle(
+      [
+        path.join(__dirname, '/integration/css-url-relative/src/a/style1.css'),
+        path.join(__dirname, '/integration/css-url-relative/src/b/style2.css')
+      ],
+      {
+        production: true,
+        sourceMaps: false
+      }
+    );
+
+    await assertBundleTree(b, [
+      {
+        type: 'css',
+        assets: ['style1.css'],
+        childBundles: [
+          {
+            type: 'png'
+          }
+        ]
+      },
+      {
+        type: 'css',
+        assets: ['style2.css']
+      }
+    ]);
+
+    let css = await fs.readFile(
+      path.join(__dirname, '/dist/a/style1.css'),
+      'utf8'
+    );
+
+    assert(css.includes('background-image'), 'includes `background-image`');
+    assert(/url\([^)]*\)/.test(css), 'includes url()');
+
+    assert(
+      await fs.exists(
+        path.join(__dirname, 'dist', css.match(/url\(([^)]*)\)/)[1])
+      ),
+      'path specified in url() exists'
     );
   });
 
@@ -237,9 +284,9 @@ describe.skip('css', function() {
     assert.equal(typeof output, 'function');
 
     let value = output();
-    assert(/_index_[0-9a-z]+_1/.test(value));
+    assert(/_index_[0-9a-z]/.test(value));
 
-    let cssClass = value.match(/(_index_[0-9a-z]+_1)/)[1];
+    let cssClass = value.match(/(_index_[0-9a-z]+)/)[1];
 
     let css = await fs.readFile(
       path.join(__dirname, '/dist/index.css'),

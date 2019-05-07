@@ -1,12 +1,13 @@
 // @flow strict-local
 
+import type {FilePath} from '@parcel/types';
 import type {Readable} from 'stream';
 import type {FSPromise, Stats} from 'fs';
-import type {FilePath} from '@parcel/types';
 
 import {promisify} from 'util';
 import fs from 'fs';
 import _mkdirp from 'mkdirp';
+import _rimraf, {type Options as RimrafOptions} from 'rimraf';
 
 // Most of this can go away once we only support Node 10+, which includes
 // require('fs').promises
@@ -49,6 +50,11 @@ export const exists = function(filePath: FilePath): Promise<boolean> {
 };
 
 export const mkdirp: (path: string) => Promise<void> = promisify(_mkdirp);
+
+export const rimraf: (
+  path: FilePath,
+  options?: RimrafOptions
+) => Promise<void> = promisify(_rimraf);
 
 export function writeFileStream(
   filePath: FilePath,

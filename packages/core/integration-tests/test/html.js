@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
-const {bundle, assertBundleTree} = require('./utils');
+const {bundle, assertBundleTree} = require('@parcel/test-utils');
 const path = require('path');
 
 describe.skip('html', function() {
@@ -300,16 +300,32 @@ describe.skip('html', function() {
   });
 
   it('should minify HTML in production mode', async function() {
-    await bundle(path.join(__dirname, '/integration/htmlnano/index.html'), {
+    let inputFile = path.join(__dirname, '/integration/htmlnano/index.html');
+    await bundle(inputFile, {
       production: true
     });
 
-    let html = await fs.readFile(
-      path.join(__dirname, '/dist/index.html'),
-      'utf8'
-    );
+    let inputSize = (await fs.stat(inputFile)).size;
+
+    let outputFile = path.join(__dirname, '/dist/index.html');
+    let outputSize = (await fs.stat(outputFile)).size;
+
+    assert(inputSize > outputSize);
+
+    let html = await fs.readFile(outputFile, 'utf8');
     assert(html.includes('Other page'));
-    assert(!html.includes('\n'));
+  });
+
+  it('should work with an empty html file', async function() {
+    let inputFile = path.join(__dirname, '/integration/html-empty/index.html');
+    await bundle(inputFile, {
+      minify: false
+    });
+
+    let outputFile = path.join(__dirname, '/dist/index.html');
+
+    let html = await fs.readFile(outputFile, 'utf8');
+    assert.equal(html.length, 0);
   });
 
   it('should read .htmlnanorc and minify HTML in production mode', async function() {
@@ -346,19 +362,23 @@ describe.skip('html', function() {
   });
 
   it('should not minify default values inside HTML in production mode', async function() {
-    await bundle(
-      path.join(__dirname, '/integration/htmlnano-defaults-form/index.html'),
-      {
-        production: true
-      }
+    let inputFile = path.join(
+      __dirname,
+      '/integration/htmlnano-defaults-form/index.html'
     );
+    await bundle(inputFile, {
+      production: true
+    });
 
-    let html = await fs.readFile(
-      path.join(__dirname, '/dist/index.html'),
-      'utf8'
-    );
+    let inputSize = (await fs.stat(inputFile)).size;
+
+    let outputFile = path.join(__dirname, '/dist/index.html');
+    let outputSize = (await fs.stat(outputFile)).size;
+
+    assert(inputSize > outputSize);
+
+    let html = await fs.readFile(outputFile, 'utf8');
     assert(html.includes('<input type="text">'));
-    assert(!html.includes('\n'));
   });
 
   it('should not prepend the public path to assets with remote URLs', async function() {

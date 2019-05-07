@@ -11,6 +11,9 @@
   "engines": {
     "node": ">= 8.0.0"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
     "test-ci": "yarn build && yarn test",
@@ -18,6 +21,7 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
+    "@parcel/workers": "^2.0.0",
     "chalk": "^2.1.0",
     "grapheme-breaker": "^0.3.2",
     "ora": "^2.1.0",

@@ -36,10 +36,13 @@ function middleware(bundler) {
   const serve = serveStatic(bundler.options.outDir, {
     index: false,
     redirect: false,
-    setHeaders: setHeaders
+    setHeaders: setHeaders,
+    dotfiles: 'allow'
   });
 
   return function(req, res, next) {
+    logAccessIfVerbose();
+
     // Wait for the bundler to finish bundling if needed
     if (bundler.pending) {
       bundler.once('bundled', respond);
@@ -61,7 +64,7 @@ function middleware(bundler) {
       } else {
         // Otherwise, serve the file from the dist folder
         req.url = pathname.slice(bundler.options.publicURL.length);
-        return serve(req, res, send404);
+        return serve(req, res, sendIndex);
       }
     }
 
@@ -76,6 +79,7 @@ function middleware(bundler) {
     }
 
     function send500(error) {
+      setHeaders(res);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.writeHead(500);
       let errorMesssge = '<h1>🚨 Build Error</h1>';
@@ -103,9 +107,16 @@ function middleware(bundler) {
       if (next) {
         return next();
       }
-
+      setHeaders(res);
       res.writeHead(404);
       res.end();
+    }
+
+    function logAccessIfVerbose() {
+      const protocol = req.connection.encrypted ? 'https' : 'http';
+      const fullUrl = `${protocol}://${req.headers.host}${req.url}`;
+
+      logger.verbose(`Request: ${fullUrl}`);
     }
   };
 }

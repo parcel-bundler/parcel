@@ -1,6 +1,6 @@
 {
   "name": "@parcel/workers",
-  "version": "1.10.3",
+  "version": "2.0.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/WorkerFarm.js",
   "license": "MIT",
@@ -9,7 +9,10 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "engines": {
-    "node": ">= 6.0.0"
+    "node": ">= 8.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "pretest": "yarn build",

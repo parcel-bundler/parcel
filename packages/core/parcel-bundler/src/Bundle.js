@@ -72,7 +72,11 @@ class Bundle {
         type,
         Path.join(
           Path.dirname(this.name),
-          Path.basename(this.name, Path.extname(this.name)) + '.' + type
+          // keep the original extension for source map files, so we have
+          // .js.map instead of just .map
+          type === 'map'
+            ? Path.basename(this.name) + '.' + type
+            : Path.basename(this.name, Path.extname(this.name)) + '.' + type
         ),
         this
       );

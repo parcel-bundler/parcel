@@ -1,6 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle, bundler, run, assertBundleTree} = require('./utils');
+const {bundle, bundler, run, assertBundleTree} = require('@parcel/test-utils');
 const fs = require('@parcel/fs');
 const commandExists = require('command-exists');
 

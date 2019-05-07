@@ -11,11 +11,8 @@
     "parcel": "2.x"
   },
   "dependencies": {
+    "@parcel/fs": "^2.0.0",
     "@parcel/plugin": "^2.0.0",
-    "@parcel/fs": "1.10.3",
     "@parcel/utils": "^2.0.0"
-  },
-  "devDependencies": {
-    "@parcel/eslint-config": "1.10.3"
   }
 }

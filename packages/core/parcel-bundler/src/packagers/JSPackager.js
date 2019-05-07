@@ -239,7 +239,7 @@ class JSPackager extends Packager {
       if (mapBundle) {
         let mapUrl = urlJoin(
           this.options.publicURL,
-          path.basename(mapBundle.name)
+          path.relative(this.options.outDir, mapBundle.name)
         );
         await this.write(`\n//# sourceMappingURL=${mapUrl}`);
       }
