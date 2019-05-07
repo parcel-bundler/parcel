@@ -46,6 +46,7 @@ export function hoist(asset: Asset) {
 const VISITOR = {
   Program: {
     enter(path, asset: Asset) {
+      traverse.cache.clearScope();
       path.scope.crawl();
 
       let shouldWrap = false;
