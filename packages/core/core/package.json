@@ -16,6 +16,7 @@
     "@parcel/cache": "^2.0.0",
     "@parcel/config-default": "^2.0.0",
     "@parcel/fs": "^2.0.0",
+    "@parcel/local-require": "^2.0.0",
     "@parcel/logger": "^2.0.0",
     "@parcel/plugin": "^2.0.0",
     "@parcel/types": "^2.0.0",

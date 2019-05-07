@@ -15,7 +15,7 @@ import type {
   Optimizer,
   Reporter
 } from '@parcel/types';
-import {localResolve} from '@parcel/utils/src/localRequire';
+import {localResolve} from '@parcel/local-require';
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
 import {CONFIG} from '@parcel/plugin';
