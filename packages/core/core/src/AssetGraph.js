@@ -265,7 +265,13 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
 
     let res: ?Asset = null;
     this.traverse((node, ctx, traversal) => {
-      if (node.type === 'asset' || node.type === 'asset_reference') {
+      // Prefer real assets when resolving dependencies, but use the first
+      // asset reference in absence of a real one.
+      if (node.type === 'asset_reference' && !res) {
+        res = node.value;
+      }
+
+      if (node.type === 'asset') {
         res = node.value;
         traversal.stop();
       }
@@ -305,16 +311,19 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return entries;
   }
 
-  removeAsset(asset: Asset): void {
+  removeAsset(asset: Asset): ?NodeId {
     let assetNode = this.getNode(asset.id);
     if (!assetNode) {
       return;
     }
 
+    let referenceId = 'asset_reference:' + assetNode.id;
     this.replaceNode(assetNode, {
       type: 'asset_reference',
-      id: 'asset_reference:' + assetNode.id,
+      id: referenceId,
       value: asset
     });
+
+    return referenceId;
   }
 }

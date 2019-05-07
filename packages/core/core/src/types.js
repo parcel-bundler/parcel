@@ -57,17 +57,28 @@ export type AssetGraphNode =
   | FileNode
   | RootNode
   | TransformerRequestNode
-  // Bundle graphs are merged into asset graphs during the bundling phase
-  | BundleGraphNode;
+  | BundleGroupNode
+  | BundleReferenceNode;
+
+export interface BundleReference {
+  +id: string;
+  +type: string;
+  +env: Environment;
+  +isEntry: ?boolean;
+  +target: ?Target;
+  +filePath: ?FilePath;
+  +stats: Stats;
+}
 
 export type Bundle = {|
+  assetGraph: AssetGraph,
   id: string,
   type: string,
-  assetGraph: AssetGraph,
   env: Environment,
   isEntry: ?boolean,
   target: ?Target,
   filePath: ?FilePath,
+  name: ?string,
   stats: Stats
 |};
 
@@ -75,6 +86,12 @@ export type BundleNode = {|
   id: string,
   +type: 'bundle',
   value: Bundle
+|};
+
+export type BundleReferenceNode = {|
+  id: string,
+  +type: 'bundle_reference',
+  value: BundleReference
 |};
 
 export type BundleGroupNode = {|

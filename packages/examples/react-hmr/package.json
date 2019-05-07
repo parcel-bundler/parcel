@@ -1,0 +1,35 @@
+{
+  "name": "@parcel/react-hmr-example",
+  "version": "2.0.0",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "html-hack": "mkdir -p dist && cp src/index.html dist/index.html",
+    "demo": "yarn html-hack && parcel2 serve src/index.js"
+  },
+  "devDependencies": {
+    "parcel": "^2.0.0"
+  },
+  "browser": "dist/legacy/index.js",
+  "browserModern": "dist/modern/index.js",
+  "targets": {
+    "browserModern": {
+      "engines": {
+        "browsers": [
+          "last 1 Chrome version"
+        ]
+      }
+    },
+    "browser": {
+      "engines": {
+        "browsers": [
+          "> 0.25%"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "react": "^16.6.3",
+    "react-dom": "^16.6.3"
+  }
+}

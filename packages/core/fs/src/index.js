@@ -1,7 +1,9 @@
 // @flow strict-local
 
 import type {FilePath} from '@parcel/types';
+import type {Readable} from 'stream';
 import type {FSPromise, Stats} from 'fs';
+import type {FilePath} from '@parcel/types';
 
 import {promisify} from 'util';
 import fs from 'fs';
@@ -42,15 +44,27 @@ export const realpath: $PropertyType<FSPromise, 'realpath'> = function(
 
 export const lstat: (path: string) => Promise<Stats> = promisify(fs.lstat);
 
-export const exists = function(filename: FilePath): Promise<boolean> {
+export const exists = function(filePath: FilePath): Promise<boolean> {
   return new Promise(resolve => {
-    fs.exists(filename, resolve);
+    fs.exists(filePath, resolve);
   });
 };
 
-export const mkdirp: (path: FilePath) => Promise<void> = promisify(_mkdirp);
+export const mkdirp: (path: string) => Promise<void> = promisify(_mkdirp);
 
 export const rimraf: (
   path: FilePath,
   options?: RimrafOptions
 ) => Promise<void> = promisify(_rimraf);
+
+export function writeFileStream(
+  filePath: FilePath,
+  stream: Readable
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    stream
+      .pipe(fs.createWriteStream(filePath))
+      .on('finish', resolve)
+      .on('error', reject);
+  });
+}

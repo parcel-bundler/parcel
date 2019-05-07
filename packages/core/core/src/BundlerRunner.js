@@ -1,34 +1,33 @@
 // @flow strict-local
 
 import type AssetGraph from './AssetGraph';
-import type {FilePath, Namer, ParcelOptions, RuntimeAsset} from '@parcel/types';
+import type {Namer, ParcelOptions, RuntimeAsset} from '@parcel/types';
 import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
 
+import assert from 'assert';
+import path from 'path';
 import nullthrows from 'nullthrows';
-import BundleGraph from './public/BundleGraph';
+import {BundleGraph, MutableBundleGraph} from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import MainAssetGraph from './public/MainAssetGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
-import {getBundleGroupId} from './public/utils';
+import {normalizeSeparators} from '@parcel/utils/src/path';
 
 type Opts = {|
   options: ParcelOptions,
-  config: Config,
-  rootDir: FilePath
+  config: Config
 |};
 
 export default class BundlerRunner {
   options: ParcelOptions;
   config: Config;
-  rootDir: FilePath;
 
   constructor(opts: Opts) {
     this.options = opts.options;
     this.config = opts.config;
-    this.rootDir = opts.rootDir;
   }
 
   async bundle(graph: AssetGraph): Promise<InternalBundleGraph> {
@@ -42,7 +41,7 @@ export default class BundlerRunner {
     let bundleGraph = new InternalBundleGraph();
     await bundler.bundle(
       new MainAssetGraph(graph),
-      new BundleGraph(bundleGraph),
+      new MutableBundleGraph(bundleGraph),
       this.options
     );
     await this.nameBundles(bundleGraph);
@@ -53,26 +52,41 @@ export default class BundlerRunner {
 
   async nameBundles(bundleGraph: InternalBundleGraph): Promise<void> {
     let namers = await this.config.getNamers();
-    let promises = [];
+    let bundles = [];
     bundleGraph.traverseBundles(bundle => {
-      promises.push(this.nameBundle(namers, bundle));
+      bundles.push(bundle);
     });
 
-    await Promise.all(promises);
+    await Promise.all(
+      bundles.map(bundle => this.nameBundle(namers, bundle, bundleGraph))
+    );
+
+    let bundlePaths = bundles.map(b => b.filePath);
+    assert.deepEqual(
+      bundlePaths,
+      Array.from(new Set(bundlePaths)),
+      'Bundles must have unique filePaths'
+    );
   }
 
   async nameBundle(
     namers: Array<Namer>,
-    internalBundle: InternalBundle
+    internalBundle: InternalBundle,
+    internalBundleGraph: InternalBundleGraph
   ): Promise<void> {
     let bundle = new Bundle(internalBundle);
-    for (let namer of namers) {
-      let filePath = await namer.name(bundle, {
-        rootDir: this.rootDir
-      });
+    let bundleGraph = new BundleGraph(internalBundleGraph);
 
-      if (filePath != null) {
-        internalBundle.filePath = filePath;
+    for (let namer of namers) {
+      let name = await namer.name(bundle, bundleGraph, this.options);
+
+      if (name != null) {
+        let target = nullthrows(internalBundle.target);
+        internalBundle.filePath = path.join(
+          target.distDir,
+          normalizeSeparators(name)
+        );
+        internalBundle.name = name;
         return;
       }
     }
@@ -89,7 +103,11 @@ export default class BundlerRunner {
     for (let bundle of bundles) {
       let runtimes = await this.config.getRuntimes(bundle.env.context);
       for (let runtime of runtimes) {
-        let applied = await runtime.apply(bundle, this.options);
+        let applied = await runtime.apply(
+          bundle,
+          new BundleGraph(bundleGraph),
+          this.options
+        );
         if (applied) {
           await this.addRuntimesToBundle(
             bundle.id,
@@ -115,11 +133,10 @@ export default class BundlerRunner {
     }
     let bundle = node.value;
 
-    for (let {code, filePath, bundleGroup} of runtimeAssets) {
+    for (let {code, filePath, dependency} of runtimeAssets) {
       let builder = new AssetGraphBuilder({
         options: this.options,
         config: this.config,
-        rootDir: this.rootDir,
         transformerRequest: {
           code,
           filePath,
@@ -134,9 +151,13 @@ export default class BundlerRunner {
       let subGraph = graph.getSubGraph(nullthrows(graph.getNode(entry.id)));
 
       // Exclude modules that are already included in an ancestor bundle
+      let entryId = entry.id;
       subGraph.traverseAssets(asset => {
         if (bundleGraph.isAssetInAncestorBundle(bundle, asset)) {
-          subGraph.removeAsset(asset);
+          let removedId = subGraph.removeAsset(asset);
+          if (entry.id === asset.id && removedId != null) {
+            entryId = removedId;
+          }
         }
       });
 
@@ -145,10 +166,10 @@ export default class BundlerRunner {
       bundle.assetGraph.merge(subGraph);
 
       bundle.assetGraph.addEdge({
-        from: bundleGroup
-          ? getBundleGroupId(bundleGroup)
+        from: dependency
+          ? dependency.id
           : nullthrows(bundle.assetGraph.getRootNode()).id,
-        to: entry.id
+        to: entryId
       });
     }
   }

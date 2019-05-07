@@ -37,6 +37,8 @@
     "resolve": "^1.4.0",
     "serialize-to-js": "^1.1.1",
     "split2": "^3.1.1",
+    "tempy": "^0.2.1",
+    "node-forge": "^0.8.1",
     "terser": "^3.7.3"
   },
   "devDependencies": {

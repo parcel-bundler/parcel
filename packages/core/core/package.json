@@ -38,5 +38,9 @@
     "resolve-from": "^4.0.0",
     "semver": "^5.4.1",
     "v8-compile-cache": "^2.0.0"
+  },
+  "devDependencies": {
+    "graphviz": "^0.0.9",
+    "tempy": "^0.2.1"
   }
 }

@@ -17,7 +17,8 @@
     "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different",
     "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\"",
     "precommit": "lint-staged",
-    "clean": "lerna clean --yes && lerna exec -- rm -rf ./lib && yarn",
+    "clean-test": "rimraf packages/core/integration-tests/.parcel-cache && rimraf packages/core/integration-tests/dist",
+    "clean": "yarn clean-test && lerna clean --yes && lerna exec -- rm -rf ./lib && yarn",
     "postinstall": "yarn build"
   },
   "devDependencies": {

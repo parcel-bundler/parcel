@@ -2,6 +2,8 @@
 
 import path from 'path';
 import {Runtime} from '@parcel/plugin';
+import nullthrows from 'nullthrows';
+import urlJoin from '@parcel/utils/src/urlJoin';
 
 const LOADERS = {
   browser: {
@@ -19,7 +21,7 @@ const LOADERS = {
 };
 
 export default new Runtime({
-  async apply(bundle) {
+  async apply(bundle, bundleGraph) {
     // Dependency ids in code replaced with referenced bundle names
     // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
     // and which are not loaded by a parent bundle.
@@ -33,37 +35,88 @@ export default new Runtime({
 
     // $FlowFixMe - ignore unknown properties?
     let loaders = LOADERS[bundle.env.context];
-    if (!loaders) {
-      return;
-    }
 
     let assets = [];
-    for (let bundleGroup of bundle.getBundleGroups()) {
+    bundle.traverseAssets(asset => {
+      let dependencies = bundle.getDependencies(asset);
+      for (let dependency of dependencies) {
+        let resolvedAsset = bundle.getDependencyResolution(dependency);
+        if (resolvedAsset && resolvedAsset.type !== 'js') {
+          // "raw asset"-style fallback
+          // if this dependency doesn't resolve to a js asset, it's an asset reference
+          // of a different type. If there isn't a loader for it, replace it with
+          // a js asset that exports a relative url (using publicURL) to the bundle
+          // it's located in.
+          let assetBundle = bundleGraph.findBundlesWithAsset(resolvedAsset)[0];
+          let hasLoader = loaders && loaders[assetBundle.type];
+          if (!hasLoader) {
+            if (assetBundle.target == null) {
+              throw new Error('JSRuntime: Bundle did not have a target');
+            }
+            if (assetBundle.target.publicUrl == null) {
+              throw new Error(
+                'JSRuntime: Bundle target did not have a publicUrl'
+              );
+            }
+
+            assets.push({
+              filePath: resolvedAsset.filePath + '.js',
+              code: `module.exports = '${urlJoin(
+                assetBundle.target.publicUrl,
+                nullthrows(assetBundle.name)
+              )}'`,
+              dependency
+            });
+          }
+        }
+      }
+    });
+
+    if (!loaders) {
+      return assets;
+    }
+
+    for (let bundleGroup of bundleGraph.getBundleGroupsReferencedByBundle(
+      bundle
+    )) {
       // Ignore deps with native loaders, e.g. workers.
       if (bundleGroup.dependency.isURL) {
         continue;
       }
 
-      let bundles = bundle.getBundlesInGroup(bundleGroup);
-      let loaderModules = bundles.map(b => {
-        let loader = loaders[b.type];
-        if (!loader) {
-          throw new Error('Could not find a loader for bundle type ' + b.type);
-        }
+      // Sort so the bundles containing the entry asset appear last
+      let bundles = bundleGraph.getBundlesInBundleGroup(bundleGroup).sort(
+        bundle =>
+          bundle
+            .getEntryAssets()
+            .map(asset => asset.id)
+            .includes(bundleGroup.entryAssetId)
+            ? 1
+            : -1
+      );
+      let loaderModules = bundles
+        .map(b => {
+          let loader = loaders[b.type];
+          if (!loader) {
+            return;
+          }
 
-        return `[require(${JSON.stringify(loader)}), ${JSON.stringify(
-          // $FlowFixMe - bundle.filePath already exists here
-          path.relative(path.dirname(bundle.filePath), b.filePath)
-        )}]`;
-      });
+          return `[require(${JSON.stringify(loader)}), ${JSON.stringify(
+            // $FlowFixMe - bundle.filePath already exists here
+            path.relative(path.dirname(bundle.filePath), b.filePath)
+          )}]`;
+        })
+        .filter(Boolean);
 
-      assets.push({
-        filePath: __filename,
-        code: `module.exports = require('./bundle-loader')([${loaderModules.join(
-          ', '
-        )}, ${JSON.stringify(bundleGroup.entryAssetId)}]);`,
-        bundleGroup
-      });
+      if (loaderModules.length > 0) {
+        assets.push({
+          filePath: __filename,
+          code: `module.exports = require('./bundle-loader')([${loaderModules.join(
+            ', '
+          )}, ${JSON.stringify(bundleGroup.entryAssetId)}]);`,
+          dependency: bundleGroup.dependency
+        });
+      }
     }
 
     return assets;

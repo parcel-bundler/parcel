@@ -16,10 +16,13 @@ const DEFAULT_ENV = new Environment({
 const TARGETS = [
   {
     name: 'test',
-    distPath: 'dist/out.js',
+    distDir: 'dist',
+    distEntry: 'out.js',
     env: DEFAULT_ENV
   }
 ];
+
+const stats = {size: 0, time: 0};
 
 describe('AssetGraph', () => {
   it('initialization should create one root node with edges to dependency nodes for each entry', () => {
@@ -145,6 +148,7 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         hash: '#1',
+        stats,
         dependencies: [
           [
             'utils',
@@ -156,7 +160,6 @@ describe('AssetGraph', () => {
           ]
         ],
         env: DEFAULT_ENV,
-        output: {code: ''},
         connectedFiles: []
       }),
       new Asset({
@@ -164,6 +167,7 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         hash: '#2',
+        stats,
         dependencies: [
           [
             'styles',
@@ -175,7 +179,6 @@ describe('AssetGraph', () => {
           ]
         ],
         env: DEFAULT_ENV,
-        output: {code: ''},
         connectedFiles: []
       }),
       new Asset({
@@ -185,7 +188,7 @@ describe('AssetGraph', () => {
         hash: '#3',
         dependencies: [],
         env: DEFAULT_ENV,
-        output: {code: ''},
+        stats,
         connectedFiles: []
       })
     ];
@@ -267,6 +270,7 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         hash: '#1',
+        stats,
         dependencies: [
           [
             'utils',
@@ -278,7 +282,6 @@ describe('AssetGraph', () => {
           ]
         ],
         env: DEFAULT_ENV,
-        output: {code: ''},
         connectedFiles: []
       }),
       new Asset({
@@ -286,9 +289,9 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         hash: '#2',
+        stats,
         dependencies: [],
         env: DEFAULT_ENV,
-        output: {code: ''},
         connectedFiles: []
       })
     ];
@@ -383,6 +386,7 @@ describe('AssetGraph', () => {
         filePath,
         type: 'js',
         hash: '#1',
+        stats,
         dependencies: [
           [
             'utils',
@@ -394,7 +398,6 @@ describe('AssetGraph', () => {
           ]
         ],
         env: DEFAULT_ENV,
-        output: {code: ''},
         connectedFiles: new Map([
           [
             '/foo/bar',

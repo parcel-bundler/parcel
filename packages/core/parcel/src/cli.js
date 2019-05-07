@@ -1,6 +1,6 @@
 // @flow
 
-import type {ParcelConfigFile, ParcelOptions} from '@parcel/types';
+import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
 
 require('v8-compile-cache');
 
@@ -8,18 +8,23 @@ const chalk = require('chalk');
 const program = require('commander');
 const version = require('../package.json').version;
 const path = require('path');
+const getPort = require('get-port');
 
 program.version(version);
 
 // --no-cache, --cache-dir, --no-source-maps, --no-autoinstall, --global?, --public-url, --log-level
 // --no-content-hash, --experimental-scope-hoisting, --detailed-report
 
-var commonOptions = {
+const commonOptions = {
   '--no-cache': 'disable the filesystem cache',
   '--cache-dir <path>': 'set the cache directory. defaults to ".parcel-cache"',
   '--no-source-maps': 'disable sourcemaps',
   '--no-autoinstall': 'disable autoinstall',
-  '--public-url <url>': 'set the public URL to serve on. defaults to "/"',
+  '--target [name]': [
+    'only build given target(s)',
+    (val, list) => list.concat([val]),
+    []
+  ],
   '--log-level <level>': [
     'set the log level, either "none", "error", "warn", "info", or "verbose".',
     /^(none|error|warn|info|verbose)$/
@@ -112,7 +117,7 @@ if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
 
 program.parse(args);
 
-function run(entries: Array<string>, command: any) {
+async function run(entries: Array<string>, command: any) {
   entries = entries.map(entry => path.resolve(entry));
 
   if (entries.length === 0) {
@@ -127,13 +132,13 @@ function run(entries: Array<string>, command: any) {
       ...defaultConfig,
       filePath: require.resolve('@parcel/config-default')
     },
-    ...normalizeOptions(command)
+    ...(await normalizeOptions(command))
   });
 
   parcel.run().catch(console.error);
 }
 
-function normalizeOptions(command): ParcelOptions {
+async function normalizeOptions(command): Promise<InitialParcelOptions> {
   if (command.name() === 'build') {
     process.env.NODE_ENV = process.env.NODE_ENV || 'production';
   } else {
@@ -150,19 +155,34 @@ function normalizeOptions(command): ParcelOptions {
 
   let serve = false;
   if (command.name() === 'serve') {
+    let port = command.port || 1234;
+    let host = command.host;
+    if (!port) {
+      port = await getPort({port, host});
+    }
+
     serve = {
       https,
-      port: command.port,
-      host: command.host
+      port,
+      host
     };
   }
 
   let hmr = false;
   if (command.name() !== 'build' && command.hmr !== false) {
+    let port = command.hmrPort;
+    let host = command.hmrHost || command.host;
+    if (!port) {
+      port = await getPort({port, host});
+    }
+
+    process.env.HMR_HOSTNAME = host || '';
+    process.env.HMR_PORT = port;
+
     hmr = {
       https,
-      port: command.hmrPort || command.port,
-      host: command.hmrHost || command.host
+      port,
+      host
     };
   }
 
@@ -174,9 +194,9 @@ function normalizeOptions(command): ParcelOptions {
     mode,
     minify: command.minify != null ? command.minify : mode === 'production',
     sourceMaps: command.sourceMaps != false,
-    publicUrl: command.publicUrl,
     hot: hmr,
     serve,
+    targets: command.target.length > 0 ? command.target : null,
     autoinstall: command.autoinstall !== false,
     logLevel: command.logLevel
   };

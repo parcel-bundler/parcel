@@ -3,7 +3,7 @@
 import type AssetGraph from '../AssetGraph';
 import type {
   Asset,
-  Dependency as IDependency,
+  Dependency,
   GraphTraversalCallback,
   MainAssetGraph as IMainAssetGraph,
   MainAssetGraphTraversable
@@ -35,11 +35,13 @@ export default class MainAssetGraph implements IMainAssetGraph {
       from: 'root',
       to: assetNode.id
     });
+
     return new MutableBundle({
       id: 'bundle:' + asset.id,
       filePath: null,
       isEntry: null,
       target: null,
+      name: null,
       type: asset.type,
       assetGraph: graph,
       env: asset.env,
@@ -47,7 +49,11 @@ export default class MainAssetGraph implements IMainAssetGraph {
     });
   }
 
-  getDependencyResolution(dep: IDependency): ?Asset {
+  getDependencies(asset: Asset): Array<Dependency> {
+    return this.#graph.getDependencies(asset);
+  }
+
+  getDependencyResolution(dep: Dependency): ?Asset {
     return this.#graph.getDependencyResolution(dep);
   }
 

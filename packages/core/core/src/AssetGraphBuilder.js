@@ -5,9 +5,9 @@ import type {Node} from './types';
 import type {
   ParcelOptions,
   Dependency,
-  FilePath,
   Target,
-  TransformerRequest
+  TransformerRequest,
+  Asset
 } from '@parcel/types';
 import type Config from './Config';
 import EventEmitter from 'events';
@@ -31,8 +31,7 @@ type Opts = {|
   config: Config,
   entries?: Array<string>,
   targets?: Array<Target>,
-  transformerRequest?: TransformerRequest,
-  rootDir: FilePath
+  transformerRequest?: TransformerRequest
 |};
 
 export default class AssetGraphBuilder extends EventEmitter {
@@ -43,26 +42,26 @@ export default class AssetGraphBuilder extends EventEmitter {
   controller: AbortController;
   farm: WorkerFarm;
   runTransform: (file: TransformerRequest) => Promise<any>;
+  changedAssets: Map<string, Asset>;
 
-  constructor({
-    config,
-    options,
-    rootDir,
-    entries,
-    targets,
-    transformerRequest
-  }: Opts) {
+  constructor({config, options, entries, targets, transformerRequest}: Opts) {
     super();
 
     this.queue = new PromiseQueue();
     this.resolverRunner = new ResolverRunner({
       config,
-      options,
-      rootDir
+      options
     });
 
+    this.changedAssets = new Map();
+
     this.graph = new AssetGraph();
-    this.graph.initializeGraph({entries, targets, transformerRequest, rootDir});
+    this.graph.initializeGraph({
+      entries,
+      targets,
+      transformerRequest,
+      rootDir: options.rootDir
+    });
 
     this.controller = new AbortController();
     if (options.watch) {
@@ -92,6 +91,8 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     this.controller = new AbortController();
     let signal = this.controller.signal;
+
+    this.changedAssets = new Map();
 
     await this.updateGraph({signal});
     await this.completeGraph({signal});
@@ -158,6 +159,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     for (let asset of cacheEntry.assets) {
       asset.stats.time = time;
+      this.changedAssets.set(asset.id, asset);
     }
 
     if (signal.aborted) throw new BuildAbortError();

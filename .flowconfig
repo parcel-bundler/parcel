@@ -5,6 +5,7 @@
 <PROJECT_ROOT>/packages/core/parcel-bundler/test/integration/.*
 <PROJECT_ROOT>/.nyc_output/.*
 .*/tmp/**/.*
+.*/.parcel-cache/.*
 
 [include]
 

@@ -5,12 +5,19 @@ import Environment from '../src/Environment';
 
 const config = require('@parcel/config-default');
 
+const EMPTY_OPTIONS = {
+  cacheDir: '.parcel-cache',
+  entries: [],
+  rootDir: __dirname,
+  targets: []
+};
+
 const runner = new TransformerRunner({
   config: new Config({
     ...config,
     filePath: require.resolve('@parcel/config-default')
   }),
-  options: {}
+  options: EMPTY_OPTIONS
 });
 
 const DEFAULT_ENV = new Environment({
