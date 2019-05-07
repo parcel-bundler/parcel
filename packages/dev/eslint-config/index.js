@@ -1,3 +1,10 @@
+const RESTRICTED_CONFIG = [
+  'error',
+  {
+    patterns: ['@parcel/*/*']
+  }
+];
+
 module.exports = {
   extends: [
     'eslint:recommended',
@@ -42,7 +49,9 @@ module.exports = {
     'import/newline-after-import': 'error',
     'import/no-extraneous-dependencies': 'error',
     'import/no-self-import': 'error',
-    'no-return-await': 'error'
+    'no-return-await': 'error',
+    'no-restricted-imports': RESTRICTED_CONFIG,
+    'no-restricted-modules': RESTRICTED_CONFIG
   },
   settings: {
     flowtype: {
