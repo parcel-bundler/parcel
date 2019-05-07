@@ -7,7 +7,7 @@ const {
   run,
   assertBundles,
   removeDistDirectory,
-  outDir
+  distDir
 } = require('@parcel/test-utils');
 const {mkdirp} = require('@parcel/fs');
 const {makeDeferredWithPromise} = require('@parcel/utils/src/Deferred');
@@ -615,7 +615,7 @@ describe('javascript', function() {
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
-    assert(await fs.exists(path.join(outDir, output())));
+    assert(await fs.exists(path.join(distDir, output())));
   });
 
   it.skip('should minify JS in production mode', async function() {

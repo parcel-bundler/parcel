@@ -1,6 +1,11 @@
 // @flow
 
-import type {BundleGraph, Bundle, FilePath, ParcelOptions} from '@parcel/types';
+import type {
+  BundleGraph,
+  Bundle,
+  FilePath,
+  InitialParcelOptions
+} from '@parcel/types';
 
 import Parcel from '@parcel/core';
 import defaultConfigContents from '@parcel/config-default';
@@ -40,11 +45,17 @@ export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+export const distDir = path.resolve(
+  __dirname,
+  '..',
+  '..',
+  'integration-tests',
+  'dist'
+);
+
 export async function removeDistDirectory(count: number = 0) {
   try {
-    await fs.rimraf(
-      path.resolve(__dirname, '..', '..', 'integration-tests', 'dist')
-    );
+    await fs.rimraf(distDir);
   } catch (e) {
     if (count > 8) {
       // eslint-disable-next-line no-console
@@ -70,7 +81,7 @@ If you don't know how, check here: https://bit.ly/2UmWsbD
 
 export function bundler(
   entries: FilePath | Array<FilePath>,
-  opts: ParcelOptions
+  opts: InitialParcelOptions
 ) {
   return new Parcel({
     entries,
@@ -84,7 +95,7 @@ export function bundler(
 
 export function bundle(
   entries: FilePath | Array<FilePath>,
-  opts: ParcelOptions
+  opts: InitialParcelOptions
 ): Promise<BundleGraph> {
   return bundler(entries, opts).run();
 }
@@ -142,7 +153,11 @@ export async function run(
 
 export async function assertBundles(
   bundleGraph: BundleGraph,
-  bundles: Array<Bundle>
+  bundles: Array<{|
+    name?: string | RegExp,
+    type?: string,
+    assets?: Array<string>
+  |}>
 ) {
   let actualBundles = [];
   bundleGraph.traverseBundles(bundle => {
@@ -176,16 +191,25 @@ export async function assertBundles(
   let i = 0;
   for (let bundle of bundles) {
     let actualBundle = actualBundles[i++];
-    // $FlowFixMe
-    if (bundle.name) {
-      assert.equal(actualBundle.name, bundle.name);
+    let name = bundle.name;
+    if (name) {
+      if (typeof name === 'string') {
+        assert.equal(actualBundle.name, name);
+      } else if (name instanceof RegExp) {
+        assert(
+          actualBundle.name.match(name),
+          `${actualBundle.name} does not match regexp ${name.toString()}`
+        );
+      } else {
+        // $FlowFixMe
+        assert.fail();
+      }
     }
 
     if (bundle.type) {
       assert.equal(actualBundle.type, bundle.type);
     }
 
-    // $FlowFixMe
     if (bundle.assets) {
       assert.deepEqual(actualBundle.assets, bundle.assets);
     }

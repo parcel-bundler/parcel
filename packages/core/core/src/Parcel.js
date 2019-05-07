@@ -2,6 +2,7 @@
 
 import type {InitialParcelOptions, ParcelOptions, Stats} from '@parcel/types';
 import type {Bundle} from './types';
+import type InternalBundleGraph from './BundleGraph';
 
 import AssetGraph from './AssetGraph';
 import {BundleGraph} from './public/BundleGraph';

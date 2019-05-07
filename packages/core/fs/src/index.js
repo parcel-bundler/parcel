@@ -3,7 +3,6 @@
 import type {FilePath} from '@parcel/types';
 import type {Readable} from 'stream';
 import type {FSPromise, Stats} from 'fs';
-import type {FilePath} from '@parcel/types';
 
 import {promisify} from 'util';
 import fs from 'fs';
