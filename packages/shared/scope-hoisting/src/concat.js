@@ -1,13 +1,7 @@
 // @flow
 
 import invariant from 'assert';
-import type {
-  Bundle,
-  ParcelOptions,
-  Asset,
-  Symbol,
-  BundleGraph
-} from '@parcel/types';
+import type {Bundle, Asset, Symbol, BundleGraph} from '@parcel/types';
 import * as babylon from '@babel/parser';
 import path from 'path';
 import * as t from '@babel/types';
@@ -29,11 +23,7 @@ type TraversalContext = {|
 |};
 
 // eslint-disable-next-line no-unused-vars
-export async function concat(
-  bundle: Bundle,
-  bundleGraph: BundleGraph,
-  options: ParcelOptions
-) {
+export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   let promises = [];
   bundle.traverseAssets(asset => {
     promises.push(processAsset(bundle, asset));

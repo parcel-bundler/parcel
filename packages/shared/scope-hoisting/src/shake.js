@@ -74,8 +74,7 @@ function isExportAssignment(path) {
     // match "path.any = any;"
     path.parentPath.isMemberExpression() &&
     path.parentPath.parentPath.isAssignmentExpression() &&
-    path.parentPath.parentPath.node.left === path.parentPath.node &&
-    path.parentPath.parentPath.get('right').isPure()
+    path.parentPath.parentPath.node.left === path.parentPath.node
   );
 }
 
