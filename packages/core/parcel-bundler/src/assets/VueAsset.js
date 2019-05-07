@@ -214,28 +214,30 @@ class VueAsset extends Asset {
   }
 
   compileStyle(generated, scopeId) {
-    return generated.filter(r => r.type === 'css').reduce((p, r, i) => {
-      let css = r.value;
-      let scoped = this.ast.styles[i].scoped;
+    return generated
+      .filter(r => r.type === 'css')
+      .reduce((p, r, i) => {
+        let css = r.value;
+        let scoped = this.ast.styles[i].scoped;
 
-      // Process scoped styles if needed.
-      if (scoped) {
-        let {code, errors} = this.vue.compileStyle({
-          source: css,
-          filename: this.relativeName,
-          id: scopeId,
-          scoped
-        });
+        // Process scoped styles if needed.
+        if (scoped) {
+          let {code, errors} = this.vue.compileStyle({
+            source: css,
+            filename: this.relativeName,
+            id: scopeId,
+            scoped
+          });
 
-        if (errors.length) {
-          throw errors[0];
+          if (errors.length) {
+            throw errors[0];
+          }
+
+          css = code;
         }
 
-        css = code;
-      }
-
-      return p + css;
-    }, '');
+        return p + css;
+      }, '');
   }
 
   compileHMR(generated, optsVar) {

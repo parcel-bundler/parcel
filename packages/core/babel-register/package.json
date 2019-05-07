@@ -13,6 +13,6 @@
     "@babel/core": "^7.0.0"
   },
   "dependencies": {
-    "@babel/register": "^7.0.0"
+    "@babel/register": "^7.4.4"
   }
 }
