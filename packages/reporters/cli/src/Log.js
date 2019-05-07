@@ -1,10 +1,11 @@
 // @flow strict-local
 
 import type {LogEvent} from '@parcel/types';
+
+import {prettyError} from '@parcel/utils';
 import {Box, Text, Color} from 'ink';
 import Spinner from './Spinner';
 import React from 'react';
-import prettyError from './prettyError';
 import * as Emoji from './emoji';
 
 type StringOrErrorLogProps = {|
