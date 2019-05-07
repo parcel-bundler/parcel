@@ -10,7 +10,7 @@ import * as React from 'react';
 import prettifyTime from '@parcel/utils/src/prettifyTime';
 
 import BundleReport from './BundleReport';
-import prettyError from './prettyError';
+import {prettyError} from '@parcel/utils';
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
 
