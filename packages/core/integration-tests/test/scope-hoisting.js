@@ -568,6 +568,18 @@ describe('scope hoisting', function() {
       assert(!/bar/.test(contents));
       assert(!/displayName/.test(contents));
     });
+
+    it('should correctly rename references to default exported classes', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/default-export-class-rename/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output.foo, 'bar');
+    });
   });
 
   describe('commonjs', function() {
