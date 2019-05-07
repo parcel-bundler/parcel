@@ -16,6 +16,7 @@ flow-libs/
 untyped-type-import=error
 
 [options]
+esproposal.export_star_as=enable
 
 [strict]
 nonstrict-import
