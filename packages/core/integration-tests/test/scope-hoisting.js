@@ -549,6 +549,25 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, 'bar');
     });
+
+    it('should shake pure property assignments', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/pure-assignment/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 2);
+
+      let contents = await fs.readFile(
+        path.join(__dirname, 'dist/a.js'),
+        'utf8'
+      );
+      assert(!/bar/.test(contents));
+      assert(!/displayName/.test(contents));
+    });
   });
 
   describe('commonjs', function() {
