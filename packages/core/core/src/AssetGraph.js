@@ -21,7 +21,7 @@ import type {
 
 import invariant from 'assert';
 import Graph from './Graph';
-import {md5FromString} from '@parcel/utils/src/md5';
+import {md5FromString} from '@parcel/utils';
 import Dependency from './Dependency';
 
 export const nodeFromRootDir = (rootDir: string): RootNode => ({
