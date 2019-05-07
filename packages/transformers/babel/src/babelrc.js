@@ -3,8 +3,8 @@ import type {Asset, PackageJSON} from '@parcel/types';
 import semver from 'semver';
 import logger from '@parcel/logger';
 import path from 'path';
-import {localResolve} from '@parcel/utils/src/localRequire';
-import installPackage from '@parcel/utils/src/installPackage';
+import {localResolve} from '@parcel/local-require';
+import installPackage from '@parcel/install-package';
 import micromatch from 'micromatch';
 
 export default async function getBabelConfig(
