@@ -1,12 +1,12 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle: _bundle, run} = require('./utils');
+const {bundle: _bundle, run} = require('@parcel/test-utils');
 const fs = require('@parcel/fs');
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
 
-describe('scope hoisting', function() {
+describe.only('scope hoisting', function() {
   describe('es6', function() {
     it('supports default imports and exports of expressions', async function() {
       let b = await bundle(
@@ -892,10 +892,14 @@ describe('scope hoisting', function() {
         )
       );
 
-      let entryBundle = Array.from(b.nodes.values()).find(
-        node => node.type === 'bundle' && node.value.isEntry
-      ).value;
-      let entryAsset = entryBundle.assetGraph.getEntryAssets()[0];
+      let entryBundle;
+      b.traverseBundles((bundle, ctx, traversal) => {
+        if (bundle.isEntry) {
+          entryBundle = bundle;
+          traversal.stop();
+        }
+      });
+      let entryAsset = entryBundle.getEntryAssets()[0];
 
       // TODO: this test doesn't currently work in older browsers since babel
       // replaces the typeof calls before we can get to them.
@@ -916,12 +920,21 @@ describe('scope hoisting', function() {
         )
       );
 
-      let entryBundle = Array.from(b.nodes.values()).find(
-        node => node.type === 'bundle' && node.value.isEntry
-      ).value;
-      let asset = Array.from(entryBundle.assetGraph.nodes.values()).find(
-        node => node.type === 'asset' && node.value.filePath.endsWith('b.js')
-      );
+      let entryBundle;
+      b.traverseBundles((bundle, ctx, traversal) => {
+        if (bundle.isEntry) {
+          entryBundle = bundle;
+          traversal.stop();
+        }
+      });
+
+      let asset;
+      entryBundle.traverseAssets((a, ctx, traversal) => {
+        if (a.filePath.endsWith('b.js')) {
+          asset = a;
+          traversal.stop();
+        }
+      });
 
       let output = await run(b);
       assert.equal(output, asset.id);

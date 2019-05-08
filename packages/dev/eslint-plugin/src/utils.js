@@ -10,11 +10,11 @@ function isStaticRequireOrResolve(node) {
  * Detects whether a node is a call expression matching `require('foo')`,
  * `require.resolve('foo')`, etc.
  *
- * `isStaticRequire` and `isStaticResolve` each combine checks from the following 
+ * `isStaticRequire` and `isStaticResolve` each combine checks from the following
  *   examples, aiming for strictness without redundant checks:
  * https://github.com/parcel-bundler/parcel/blob/7a540fc4cc2511f749f3a687ce342000953cfcec/packages/core/parcel-bundler/src/visitors/dependencies.js#L37
  * https://github.com/benmosher/eslint-plugin-import/blob/3b04d5fab6c095e7f0f99488665d90e285872271/src/core/staticRequire.js#L2
- * https://github.com/facebookarchive/nuclide/blob/2a2a0a642d136768b7d2a6d35a652dc5fb77d70a/modules/eslint-plugin-nuclide-internal/utils.js#L46 
+ * https://github.com/facebookarchive/nuclide/blob/2a2a0a642d136768b7d2a6d35a652dc5fb77d70a/modules/eslint-plugin-nuclide-internal/utils.js#L46
  * https://github.com/eslint/eslint/blob/ded2f94758545c7f895f5f848a805b420f41f415/lib/rules/no-restricted-modules.js#L118
  */
 function isStaticRequire(node) {

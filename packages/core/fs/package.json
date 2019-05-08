@@ -1,6 +1,6 @@
 {
   "name": "@parcel/fs",
-  "version": "1.10.3",
+  "version": "2.0.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/index.js",
   "license": "MIT",
@@ -9,7 +9,10 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "engines": {
-    "node": ">= 6.0.0"
+    "node": ">= 8.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "test": "echo this package has no tests yet",
@@ -18,6 +21,7 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "mkdirp": "^0.5.1"
+    "mkdirp": "^0.5.1",
+    "rimraf": "^2.6.2"
   }
 }

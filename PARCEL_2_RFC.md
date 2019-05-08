@@ -50,10 +50,10 @@ From there you just need to point Parcel at some of your entry files. Like if
 you're building a website, an `index.html` file:
 
 ```html
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-8"/>
+    <meta charset="utf-8" />
     <title>My First Parcel App</title>
   </head>
   <body>
@@ -83,12 +83,12 @@ h1 {
 ```
 
 ```html
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-8"/>
+    <meta charset="utf-8" />
     <title>My First Parcel App</title>
-    <link rel="stylesheet" href="./styles.css"/>
+    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <h1>Hello, World!</h1>
@@ -442,7 +442,7 @@ all), but here's an example of a `.parcelrc` file that contains every field:
     "*.scss": ["@parcel/transform-sass"],
     "*.js": ["@parcel/transform-babel"],
     "*.css": ["@parcel/transform-postcss"],
-    "*.html": ["@parcel/transform-posthtml"],
+    "*.html": ["@parcel/transform-posthtml"]
   },
   "packagers": {
     "*.js": "@parcel/packager-js",
@@ -570,7 +570,7 @@ See [Optimizers](#optimizers)
 
 #### `.parcelrc#loaders`
 
-`loaders`  is an object map of globs to Parcel loader packages. See
+`loaders` is an object map of globs to Parcel loader packages. See
 [Loaders](#).
 
 ```json
@@ -684,7 +684,7 @@ Parcel.
 When Parcel runs, it can build your asset graph in multiple different ways
 simultaneously. These are called "targets".
 
-For example, you could have a "modern" target that *targets* newer browsers
+For example, you could have a "modern" target that _targets_ newer browsers
 and a "legacy" target for older browsers.
 
 Sources get mapped to targets,
@@ -755,7 +755,6 @@ You can configure environments through your targets.
 }
 ```
 
-
 When one asset depends on another, the environment is inherited from its
 parent. But how you depend on the asset can change some properties of that
 environment.
@@ -767,12 +766,12 @@ navigator.serviceWorker.register('./service-worker.js');
 ```
 
 ```js
-let childEnvironment = { ...parentEnvironment, browserContext: 'service-worker' }
+let childEnvironment = {...parentEnvironment, browserContext: 'service-worker'};
 ```
 
 ### Caching
 
-Parcel will create a  `/node_modules/.cache/parcel` directory
+Parcel will create a `/node_modules/.cache/parcel` directory
 
 The top-level directory will be filled with directories with two letters, which
 are the start of a hash which is finished by the names of the JSON files inside.
@@ -932,7 +931,6 @@ asset graph. They mostly call out to different compilers and preprocessors.
 
 Bundlers accept the entire asset graph and turn it into sets of bundles.
 
-
 ```json
 {
   "bundler": "@parcel/bundler-v1"
@@ -1032,14 +1030,14 @@ All plugins must follow a naming system:
 
 |            | Official package           | Community packages        | Private company/scoped team packages |
 | ---------- | -------------------------- | ------------------------- | ------------------------------------ |
-| Configs    | `@parcel/config-{name}`    | `parcel-config-{name}`    | `@scope/parcel-config-{name}`        |
-| Resolvers  | `@parcel/resolver-{name}`  | `parcel-resolver-{name}`  | `@scope/parcel-resolver-{name}`      |
-| Transforms | `@parcel/transform-{name}` | `parcel-transform-{name}` | `@scope/parcel-transform-{name}`     |
-| Loaders    | `@parcel/loader-{name}`    | `parcel-loader-{name}`    | `@scope/parcel-loader-{name}`        |
-| Bundlers   | `@parcel/bundler-{name}`   | `parcel-bundler-{name}`   | `@scope/parcel-bundler-{name}`       |
-| Packagers  | `@parcel/packager-{name}`  | `parcel-packager-{name}`  | `@scope/parcel-packager-{name}`      |
-| Namers     | `@parcel/namer-{name}`     | `parcel-namer-{name}`     | `@scope/parcel-namer-{name}`         |
-| Reporters  | `@parcel/reporter-{name}`  | `parcel-reporter-{name}`  | `@scope/parcel-reporter-{name}`      |
+| Configs    | `@parcel/config-{name}`    | `parcel-config-{name}`    | `@scope/parcel-config[-{name}]`      |
+| Resolvers  | `@parcel/resolver-{name}`  | `parcel-resolver-{name}`  | `@scope/parcel-resolver[-{name}]`    |
+| Transforms | `@parcel/transform-{name}` | `parcel-transform-{name}` | `@scope/parcel-transform[-{name}]`   |
+| Loaders    | `@parcel/loader-{name}`    | `parcel-loader-{name}`    | `@scope/parcel-loader[-{name}]`      |
+| Bundlers   | `@parcel/bundler-{name}`   | `parcel-bundler-{name}`   | `@scope/parcel-bundler[-{name}]`     |
+| Packagers  | `@parcel/packager-{name}`  | `parcel-packager-{name}`  | `@scope/parcel-packager[-{name}]`    |
+| Namers     | `@parcel/namer-{name}`     | `parcel-namer-{name}`     | `@scope/parcel-namer[-{name}]`       |
+| Reporters  | `@parcel/reporter-{name}`  | `parcel-reporter-{name}`  | `@scope/parcel-reporter[-{name}]`    |
 
 The `{name}` must be descriptive and directly related to the purpose of the
 package. Someone should be able to have an idea of what the package does simply
@@ -1136,12 +1134,12 @@ There are some rules that should be followed across every type of plugin:
 The plugin APIs all follow a common shape:
 
 ```js
-import { NameOfPluginType } from '@parcel/plugin';
+import {NameOfPluginType} from '@parcel/plugin';
 
 export default new NameOfPluginType({
   async methodName(opts: JSONObject): Promise<JSONObject> {
     return result;
-  },
+  }
 });
 ```
 
@@ -1163,13 +1161,13 @@ resolve. If the resolver isn't sure how to handle a request, it can also return
 `null` and pass it to the next resolver in the chain.
 
 ```js
-import { Resolver } from '@parcel/plugin';
+import {Resolver} from '@parcel/plugin';
 
 export default new Resolver({
-  async resolve({ assetRequest }) {
+  async resolve({assetRequest}) {
     // ...
-    return { filePath } || null;
-  },
+    return {filePath} || null;
+  }
 });
 ```
 
@@ -1179,27 +1177,27 @@ Transforms _transform_ single assets as they are discovered and added to the
 asset graph. They mostly call out to different compilers and preprocessors.
 
 ```js
-import { Transform } from '@parcel/plugin';
+import {Transform} from '@parcel/plugin';
 
 export default new Transform({
-  async config({ asset }) {
+  async config({asset}) {
     // ...
-    return { config };
+    return {config};
   },
 
-  async parse({ asset }) {
-    return { asset, dependencies };
+  async parse({asset}) {
+    return {asset, dependencies};
   },
 
-  async transform({ asset }) {
+  async transform({asset}) {
     // ...
-    return { assets, dependencies };
+    return {assets, dependencies};
   },
 
-  async generate({ asset }) {
+  async generate({asset}) {
     // ...
-    return { asset };
-  },
+    return {asset};
+  }
 });
 ```
 
@@ -1208,13 +1206,13 @@ export default new Transform({
 Bundlers accept the entire asset graph and turn it into sets of bundles.
 
 ```js
-import { Bundler } from '@parcel/plugin';
+import {Bundler} from '@parcel/plugin';
 
 export default new Bundler({
-  async resolve({ graph }) {
+  async resolve({graph}) {
     // ...
-    return { bundles };
-  },
+    return {bundles};
+  }
 });
 ```
 
@@ -1239,13 +1237,13 @@ Optimizers are similar to transformers, but they accept a bundle instead
 of a single asset.
 
 ```js
-import { Optimizer } from '@parcel/plugin';
+import {Optimizer} from '@parcel/plugin';
 
 export default new Optimizer({
-  async optimize({ bundle }) {
+  async optimize({bundle}) {
     // ...
-    return { bundle };
-  },
+    return {bundle};
+  }
 });
 ```
 
@@ -1257,13 +1255,13 @@ Loaders get called after the bundler phase and generate an asset which gets
 included in the final bundle.
 
 ```js
-import { Loader } from '@parcel/plugin';
+import {Loader} from '@parcel/plugin';
 
 export default new Loader({
   async generate(opts) {
     // ...
-    return { asset };
-  },
+    return {asset};
+  }
 });
 ```
 

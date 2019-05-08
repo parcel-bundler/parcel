@@ -1,11 +1,15 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
 const path = require('path');
-const {bundle, run, ncp, rimraf} = require('./utils');
-const {mkdirp} = require('@parcel/fs');
+const {bundle, removeDistDirectory, run, ncp} = require('@parcel/test-utils');
+const {mkdirp, rimraf} = require('@parcel/fs');
 const {symlinkSync} = require('fs');
 
 describe('babel', function() {
+  afterEach(async () => {
+    await removeDistDirectory();
+  });
+
   it('should produce a basic JS bundle using Babel 6', async function() {
     let b = await bundle(
       __dirname + '/integration/babel-6-compatibility/index.js'

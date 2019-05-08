@@ -12,6 +12,34 @@ const JSX_PRAGMA = {
   hyperapp: 'h'
 };
 
+function createJSXRegexFor(dependency) {
+  // result looks like /from\s+[`"']react[`"']|require\([`"']react[`"']\)/
+  return new RegExp(
+    `from\\s+[\`"']${dependency}[\`"']|require\\([\`"']${dependency}[\`"']\\)`
+  );
+}
+
+/**
+ * Solves a use case when JSX is used in .js files, but
+ * package.json is empty or missing yet and therefore pragma cannot
+ * be determined based on pkg.dependencies / pkg.devDependencies
+ */
+const cacheJsxRegexFor = {};
+function maybeCreateFallbackPragma(asset) {
+  for (const dep in JSX_PRAGMA) {
+    let regex = cacheJsxRegexFor[dep];
+
+    if (!regex) {
+      regex = createJSXRegexFor(dep);
+      cacheJsxRegexFor[dep] = regex;
+    }
+
+    if (asset.contents.match(regex)) {
+      return JSX_PRAGMA[dep];
+    }
+  }
+}
+
 /**
  * Generates a babel config for JSX. Attempts to detect react or react-like libraries
  * and changes the pragma accordingly.
@@ -37,12 +65,24 @@ async function getJSXConfig(asset, isSourceModule) {
     }
   }
 
+  if (!pragma) {
+    pragma = maybeCreateFallbackPragma(asset);
+  }
+
   if (pragma || JSX_EXTENSIONS[path.extname(asset.name)]) {
     return {
       internal: true,
       babelVersion: 7,
       config: {
-        plugins: [[require('@babel/plugin-transform-react-jsx'), {pragma}]]
+        plugins: [
+          [
+            require('@babel/plugin-transform-react-jsx'),
+            {
+              pragma,
+              pragmaFrag: 'React.Fragment'
+            }
+          ]
+        ]
       }
     };
   }

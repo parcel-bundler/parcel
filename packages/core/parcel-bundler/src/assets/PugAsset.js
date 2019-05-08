@@ -18,7 +18,7 @@ class PugAsset extends Asset {
       compileDebug: false,
       filename: this.name,
       basedir: path.dirname(this.name),
-      pretty: !this.options.minify,
+      pretty: config.pretty || false,
       templateName: path.basename(this.basename, path.extname(this.basename)),
       filters: config.filters,
       filterOptions: config.filterOptions,

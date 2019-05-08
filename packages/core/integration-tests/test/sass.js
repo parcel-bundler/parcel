@@ -1,7 +1,7 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundle, run, assertBundleTree} = require('./utils');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 describe.skip('sass', function() {
   it('should support requiring sass files', async function() {
@@ -188,7 +188,7 @@ describe.skip('sass', function() {
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
-    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
+    assert(/url\("\/test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
 
@@ -197,7 +197,7 @@ describe.skip('sass', function() {
         path.join(
           __dirname,
           '/dist/',
-          css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
+          css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1]
         )
       )
     );
@@ -260,5 +260,23 @@ describe.skip('sass', function() {
     )).replace(/\s+/g, ' ');
     assert(css.includes('.foo { color: blue;'));
     assert(css.includes('.bar { color: green;'));
+  });
+
+  it('should support absolute imports', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/scss-absolute-imports/style.scss')
+    );
+
+    await assertBundleTree(b, {
+      name: 'style.css',
+      assets: ['style.scss']
+    });
+
+    let css = await fs.readFile(
+      path.join(__dirname, '/dist/style.css'),
+      'utf8'
+    );
+    assert(css.includes('.a'));
+    assert(css.includes('.b'));
   });
 });

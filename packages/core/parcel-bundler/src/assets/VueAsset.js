@@ -2,6 +2,7 @@ const Asset = require('../Asset');
 const localRequire = require('../utils/localRequire');
 const md5 = require('../utils/md5');
 const {minify} = require('terser');
+const t = require('@babel/types');
 
 class VueAsset extends Asset {
   constructor(name, options) {
@@ -72,10 +73,10 @@ class VueAsset extends Asset {
 
     // TODO: make it possible to process this code with the normal scope hoister
     if (this.options.scopeHoist) {
-      optsVar = `$${this.id}$export$default`;
+      optsVar = `$${t.toIdentifier(this.id)}$export$default`;
 
       if (!js.includes(optsVar)) {
-        optsVar = `$${this.id}$exports`;
+        optsVar = `$${t.toIdentifier(this.id)}$exports`;
         if (!js.includes(optsVar)) {
           supplemental += `
             var ${optsVar} = {};
@@ -213,28 +214,30 @@ class VueAsset extends Asset {
   }
 
   compileStyle(generated, scopeId) {
-    return generated.filter(r => r.type === 'css').reduce((p, r, i) => {
-      let css = r.value;
-      let scoped = this.ast.styles[i].scoped;
+    return generated
+      .filter(r => r.type === 'css')
+      .reduce((p, r, i) => {
+        let css = r.value;
+        let scoped = this.ast.styles[i].scoped;
 
-      // Process scoped styles if needed.
-      if (scoped) {
-        let {code, errors} = this.vue.compileStyle({
-          source: css,
-          filename: this.relativeName,
-          id: scopeId,
-          scoped
-        });
+        // Process scoped styles if needed.
+        if (scoped) {
+          let {code, errors} = this.vue.compileStyle({
+            source: css,
+            filename: this.relativeName,
+            id: scopeId,
+            scoped
+          });
 
-        if (errors.length) {
-          throw errors[0];
+          if (errors.length) {
+            throw errors[0];
+          }
+
+          css = code;
         }
 
-        css = code;
-      }
-
-      return p + css;
-    }, '');
+        return p + css;
+      }, '');
   }
 
   compileHMR(generated, optsVar) {
