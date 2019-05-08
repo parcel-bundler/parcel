@@ -18,7 +18,7 @@ import type {
 
 import nullthrows from 'nullthrows';
 
-import Asset from './Asset';
+import {Asset} from './Asset';
 import {getInternalAsset} from './utils';
 
 // Friendly access for other modules within this package that need access

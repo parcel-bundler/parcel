@@ -214,34 +214,44 @@ export type TransformerRequest = {
   code?: string
 };
 
-export interface Asset {
-  ast: ?AST;
+interface BaseAsset {
+  +ast: ?AST;
   +env: Environment;
   +filePath: FilePath;
   +id: string;
   +meta: Meta;
-  +outputHash: string;
-  +stats: Stats;
-  isIsolated: boolean;
-  type: string;
+  +isIsolated: boolean;
+  +type: string;
 
-  addConnectedFile(file: File): Promise<void>;
-  addDependency(opts: DependencyOptions): string;
   getCode(): Promise<string>;
   getBuffer(): Promise<Buffer>;
   getStream(): Readable;
-  setCode(string): void;
-  setBuffer(Buffer): void;
-  setStream(Readable): void;
   getMap(): ?SourceMap;
-  setMap(?SourceMap): void;
   getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
   ): Promise<Config | null>;
   getPackage(): Promise<PackageJSON | null>;
+}
+
+export interface MutableAsset extends BaseAsset {
+  ast: ?AST;
+  isIsolated: boolean;
+  type: string;
+
   addDependency(dep: DependencyOptions): string;
+  setMap(?SourceMap): void;
+  setCode(string): void;
+  setBuffer(Buffer): void;
+  setStream(Readable): void;
+  addConnectedFile(file: File): Promise<void>;
+  addDependency(opts: DependencyOptions): string;
+}
+
+export interface Asset extends BaseAsset {
+  +outputHash: string;
+  +stats: Stats;
 }
 
 export type Stats = {|
@@ -276,17 +286,17 @@ export type Transformer = {
   canReuseAST?: (ast: AST, opts: ParcelOptions) => boolean,
   parse?: (asset: Asset, config: ?Config, opts: ParcelOptions) => Async<?AST>,
   transform(
-    asset: Asset,
+    asset: MutableAsset,
     config: ?Config,
     opts: ParcelOptions
-  ): Async<Array<TransformerResult | Asset>>,
+  ): Async<Array<TransformerResult | MutableAsset>>,
   generate?: (
-    asset: Asset,
+    asset: MutableAsset,
     config: ?Config,
     opts: ParcelOptions
   ) => Async<GenerateOutput>,
   postProcess?: (
-    assets: Array<Asset>,
+    assets: Array<MutableAsset>,
     config: ?Config,
     opts: ParcelOptions
   ) => Async<Array<TransformerResult>>

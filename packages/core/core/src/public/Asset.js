@@ -13,6 +13,7 @@ import type {
   File,
   FilePath,
   Meta,
+  MutableAsset as IMutableAsset,
   PackageJSON,
   SourceMap,
   Stats
@@ -22,14 +23,19 @@ import type InternalAsset from '../Asset';
 
 import nullthrows from 'nullthrows';
 
-const _assetToInternalAsset: WeakMap<IAsset, InternalAsset> = new WeakMap();
+const _assetToInternalAsset: WeakMap<
+  IAsset | IMutableAsset | BaseAsset,
+  InternalAsset
+> = new WeakMap();
 
-export function assetToInternalAsset(asset: IAsset): InternalAsset {
+export function assetToInternalAsset(
+  asset: IAsset | IMutableAsset
+): InternalAsset {
   return nullthrows(_assetToInternalAsset.get(asset));
 }
 
-export default class Asset implements IAsset {
-  #asset;
+class BaseAsset {
+  #asset; // InternalAsset
 
   constructor(asset: InternalAsset) {
     this.#asset = asset;
@@ -44,16 +50,8 @@ export default class Asset implements IAsset {
     return this.#asset.ast;
   }
 
-  set ast(ast: ?AST): void {
-    this.#asset.ast = ast;
-  }
-
   get type(): string {
     return this.#asset.type;
-  }
-
-  set type(type: string): void {
-    this.#asset.type = type;
   }
 
   get env(): Environment {
@@ -68,28 +66,8 @@ export default class Asset implements IAsset {
     return this.#asset.meta;
   }
 
-  get outputHash(): string {
-    return this.#asset.outputHash;
-  }
-
-  get stats(): Stats {
-    return this.#asset.stats;
-  }
-
   get isIsolated(): boolean {
     return this.#asset.isIsolated;
-  }
-
-  set isIsolated(isIsolated: boolean): void {
-    this.#asset.isIsolated = isIsolated;
-  }
-
-  addDependency(dep: DependencyOptions): string {
-    return this.#asset.addDependency(dep);
-  }
-
-  addConnectedFile(file: File): Promise<void> {
-    return this.#asset.addConnectedFile(file);
   }
 
   getConfig(
@@ -125,6 +103,64 @@ export default class Asset implements IAsset {
 
   getMap(): Promise<?SourceMap> {
     return this.#asset.getMap();
+  }
+}
+
+export class Asset extends BaseAsset implements IAsset {
+  #asset; // InternalAsset
+
+  constructor(asset: InternalAsset) {
+    super(asset);
+    this.#asset = asset;
+  }
+
+  get outputHash(): string {
+    return this.#asset.outputHash;
+  }
+
+  get stats(): Stats {
+    return this.#asset.stats;
+  }
+}
+
+export class MutableAsset extends BaseAsset implements IMutableAsset {
+  #asset; // InternalAsset
+
+  constructor(asset: InternalAsset) {
+    super(asset);
+    this.#asset = asset;
+  }
+
+  get ast(): ?AST {
+    return this.#asset.ast;
+  }
+
+  set ast(ast: ?AST): void {
+    this.#asset.ast = ast;
+  }
+
+  get type(): string {
+    return this.#asset.type;
+  }
+
+  set type(type: string): void {
+    this.#asset.type = type;
+  }
+
+  get isIsolated(): boolean {
+    return this.#asset.isIsolated;
+  }
+
+  set isIsolated(isIsolated: boolean): void {
+    this.#asset.isIsolated = isIsolated;
+  }
+
+  addDependency(dep: DependencyOptions): string {
+    return this.#asset.addDependency(dep);
+  }
+
+  addConnectedFile(file: File): Promise<void> {
+    return this.#asset.addConnectedFile(file);
   }
 
   setBuffer(buffer: Buffer): void {

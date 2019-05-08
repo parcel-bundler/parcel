@@ -9,7 +9,7 @@ import type {
   MainAssetGraphTraversable
 } from '@parcel/types';
 
-import Asset, {assetToInternalAsset} from './Asset';
+import {Asset, assetToInternalAsset} from './Asset';
 import {MutableBundle} from './Bundle';
 
 export default class MainAssetGraph implements IMainAssetGraph {
