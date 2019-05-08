@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import {resolveConfig} from '@parcel/utils/src/config';
+import {resolveConfig} from '@parcel/utils';
 import dotenv from 'dotenv';
 import variableExpansion from 'dotenv-expand';
 

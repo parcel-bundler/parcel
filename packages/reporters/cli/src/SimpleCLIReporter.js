@@ -7,10 +7,9 @@ import type {Writable} from 'stream';
 import {render} from 'ink';
 import {Reporter} from '@parcel/plugin';
 import * as React from 'react';
-import prettifyTime from '@parcel/utils/src/prettifyTime';
 
 import BundleReport from './BundleReport';
-import {prettyError} from '@parcel/utils';
+import {prettyError, prettifyTime} from '@parcel/utils';
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
 

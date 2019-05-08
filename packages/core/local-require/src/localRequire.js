@@ -5,7 +5,7 @@ import type {FilePath, PackageJSON} from '@parcel/types';
 import installPackage from '@parcel/install-package';
 import {dirname} from 'path';
 
-import resolve from '@parcel/utils/src/resolve';
+import {resolve} from '@parcel/utils';
 
 const cache: Map<string, [string, ?PackageJSON]> = new Map();
 

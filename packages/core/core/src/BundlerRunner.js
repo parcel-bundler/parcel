@@ -14,7 +14,7 @@ import MainAssetGraph from './public/MainAssetGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
-import {normalizeSeparators} from '@parcel/utils/src/path';
+import {normalizeSeparators} from '@parcel/utils';
 
 type Opts = {|
   options: ParcelOptions,

@@ -1,9 +1,9 @@
 // @flow strict-local
 
-import path from 'path';
 import {Runtime} from '@parcel/plugin';
+import {urlJoin} from '@parcel/utils';
 import nullthrows from 'nullthrows';
-import urlJoin from '@parcel/utils/src/urlJoin';
+import path from 'path';
 
 const LOADERS = {
   browser: {

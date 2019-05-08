@@ -6,11 +6,10 @@ import type {
   ParcelOptions,
   ReporterEvent
 } from '@parcel/types';
+import type {BundleReport} from '@parcel/utils';
 
 import {Reporter} from '@parcel/plugin';
-import generateBundleReport, {
-  type BundleReport
-} from '@parcel/utils/src/generateBundleReport';
+import {generateBundleReport} from '@parcel/utils';
 
 /* eslint-disable no-console */
 const writeToStdout = makeWriter(console.log);

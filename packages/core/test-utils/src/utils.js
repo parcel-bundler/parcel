@@ -19,7 +19,7 @@ import WebSocket from 'ws';
 import Module from 'module';
 import nullthrows from 'nullthrows';
 
-import promisify from '@parcel/utils/src/promisify';
+import {promisify} from '@parcel/utils';
 import _ncp from 'ncp';
 import _chalk from 'chalk';
 

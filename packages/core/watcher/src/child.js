@@ -1,8 +1,9 @@
 // @flow strict-local
 
 import type {FilePath} from '@parcel/types';
+import type {JSONError} from '@parcel/utils';
 
-import {errorToJson, type JSONError} from '@parcel/utils/src/errorUtils';
+import {errorToJson} from '@parcel/utils';
 import {FSWatcher} from 'chokidar';
 import invariant from 'assert';
 

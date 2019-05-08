@@ -20,10 +20,9 @@ import {
 } from '@parcel/utils';
 import Cache from '@parcel/cache';
 import {createReadStream} from 'fs';
-import {unique} from '@parcel/utils/src/collection';
+import {TapStream, unique} from '@parcel/utils';
 import Config from './Config';
 import {report} from './ReporterRunner';
-import TapStream from '@parcel/utils/src/TapStream';
 import nullthrows from 'nullthrows';
 
 type Opts = {|
