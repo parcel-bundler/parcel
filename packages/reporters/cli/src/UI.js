@@ -10,7 +10,7 @@ import type {
 import {Color} from 'ink';
 import React from 'react';
 import {Log, Progress} from './Log';
-import prettifyTime from '@parcel/utils/src/prettifyTime';
+import {prettifyTime} from '@parcel/utils';
 import logLevels from './logLevels';
 import {getProgressMessage} from './utils';
 import BundleReport from './BundleReport';

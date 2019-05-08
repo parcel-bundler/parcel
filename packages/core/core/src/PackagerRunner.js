@@ -6,7 +6,7 @@ import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
 
 import {mkdirp, writeFile, writeFileStream} from '@parcel/fs';
-import TapStream from '@parcel/utils/src/TapStream';
+import {TapStream} from '@parcel/utils';
 import {NamedBundle} from './public/Bundle';
 import nullthrows from 'nullthrows';
 import path from 'path';

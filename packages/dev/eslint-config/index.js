@@ -1,7 +1,7 @@
 const RESTRICTED_CONFIG = [
   'error',
   {
-    patterns: ['@parcel/*/*']
+    patterns: ['@parcel/*/*', '!@parcel/integration-tests/*']
   }
 ];
 

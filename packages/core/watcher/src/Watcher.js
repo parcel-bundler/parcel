@@ -3,7 +3,7 @@
 import type {FilePath} from '@parcel/types';
 import type {FSWatcherOptions} from 'chokidar';
 
-import {jsonToError} from '@parcel/utils/src/errorUtils';
+import {jsonToError} from '@parcel/utils';
 import {fork, type ChildProcess} from 'child_process';
 import EventEmitter from 'events';
 import nullthrows from 'nullthrows';

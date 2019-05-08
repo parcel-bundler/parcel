@@ -5,8 +5,8 @@ import type {BundlerOptions, WorkerMessage} from './types';
 
 import childProcess, {type ChildProcess} from 'child_process';
 import EventEmitter from 'events';
-import {jsonToError} from '@parcel/utils/src/errorUtils';
-import {serialize, deserialize} from '@parcel/utils/src/serializer';
+import {jsonToError} from '@parcel/utils';
+import {serialize, deserialize} from '@parcel/utils';
 
 const childModule = require.resolve('./child');
 

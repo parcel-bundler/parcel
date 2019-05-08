@@ -6,7 +6,7 @@ import type {
   ParcelConfigFile,
   PackageName
 } from '@parcel/types';
-import {resolveConfig} from '@parcel/utils/src/config';
+import {resolveConfig} from '@parcel/utils';
 import Config from './Config';
 import * as fs from '@parcel/fs';
 import {parse} from 'json5';

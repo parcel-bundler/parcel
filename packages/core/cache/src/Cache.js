@@ -8,9 +8,8 @@ import * as fs from '@parcel/fs';
 import {createReadStream, createWriteStream} from 'fs';
 import invariant from 'assert';
 import path from 'path';
-import objectHash from '@parcel/utils/src/objectHash';
 import logger from '@parcel/logger';
-import {serialize, deserialize} from '@parcel/utils/src/serializer';
+import {objectHash, serialize, deserialize} from '@parcel/utils';
 import pkg from '../package.json';
 
 // These keys can affect the output, so if they differ, the cache should not match

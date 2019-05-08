@@ -6,7 +6,7 @@ import type {
   ParcelOptions
 } from '@parcel/types';
 
-import getRootDir from '@parcel/utils/src/getRootDir';
+import {getRootDir} from '@parcel/utils';
 import loadEnv from './loadEnv';
 import path from 'path';
 import TargetResolver from './TargetResolver';

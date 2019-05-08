@@ -10,7 +10,7 @@ const {
   distDir
 } = require('@parcel/test-utils');
 const {mkdirp} = require('@parcel/fs');
-const {makeDeferredWithPromise} = require('@parcel/utils/src/Deferred');
+const {makeDeferredWithPromise} = require('@parcel/utils');
 
 describe('javascript', function() {
   afterEach(async () => {
