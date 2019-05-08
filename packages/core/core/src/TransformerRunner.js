@@ -1,7 +1,7 @@
 // @flow
 
 import type {
-  Asset as IAsset,
+  MutableAsset as IMutableAsset,
   Blob,
   File,
   GenerateOutput,
@@ -25,7 +25,7 @@ import {TapStream, unique} from '@parcel/utils';
 import Config from './Config';
 import {report} from './ReporterRunner';
 import nullthrows from 'nullthrows';
-import Asset, {assetToInternalAsset} from './public/Asset';
+import {Asset, MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset from './Asset';
 
 type Opts = {|
@@ -33,7 +33,7 @@ type Opts = {|
   options: ParcelOptions
 |};
 
-type GenerateFunc = (input: IAsset) => Promise<GenerateOutput>;
+type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutput>;
 
 const BUFFER_LIMIT = 5000000; // 5mb
 
@@ -226,11 +226,11 @@ export default class TransformerRunner {
     // Transform.
     let results = normalizeAssets(
       // $FlowFixMe
-      await transformer.transform(new Asset(input), config, this.options)
+      await transformer.transform(new MutableAsset(input), config, this.options)
     );
 
     // Create a generate function that can be called later to lazily generate
-    let generate = async (input: IAsset): Promise<GenerateOutput> => {
+    let generate = async (input: IMutableAsset): Promise<GenerateOutput> => {
       if (transformer.generate) {
         return transformer.generate(input, config, this.options);
       }
@@ -247,7 +247,7 @@ export default class TransformerRunner {
       let {postProcess} = transformer;
       if (postProcess) {
         let results = await postProcess(
-          assets.map(asset => new Asset(asset)),
+          assets.map(asset => new MutableAsset(asset)),
           config,
           this.options
         );
@@ -339,10 +339,10 @@ async function summarizeRequest(
 }
 
 function normalizeAssets(
-  results: Array<TransformerResult | Asset>
+  results: Array<TransformerResult | MutableAsset>
 ): Array<TransformerResult> {
   return results.map(result => {
-    return result instanceof Asset
+    return result instanceof MutableAsset
       ? {
           type: result.type,
           content: assetToInternalAsset(result).content,
