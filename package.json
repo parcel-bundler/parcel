@@ -14,6 +14,7 @@
     "build": "lerna run build --stream",
     "test": "lerna run test --stream",
     "test-ci": "lerna run test-ci --stream",
+    "ci-coverage": "lerna run ci-coverage --stream",
     "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different",
     "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\"",
     "precommit": "lint-staged",
