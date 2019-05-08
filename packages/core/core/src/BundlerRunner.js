@@ -11,6 +11,7 @@ import nullthrows from 'nullthrows';
 import {BundleGraph, MutableBundleGraph} from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import MainAssetGraph from './public/MainAssetGraph';
+import {assetToInternalAsset} from './public/Asset';
 import {Bundle, NamedBundle} from './public/Bundle';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';

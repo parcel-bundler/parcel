@@ -215,19 +215,18 @@ export type TransformerRequest = {
 };
 
 export interface Asset {
-  id: string;
-  hash: ?string;
-  filePath: FilePath;
-  type: string;
   ast: ?AST;
-  dependencies: Map<string, Dependency>;
-  connectedFiles: Map<FilePath, File>;
+  +env: Environment;
+  +filePath: FilePath;
+  +id: string;
+  +meta: Meta;
+  +outputHash: string;
+  +stats: Stats;
   isIsolated: boolean;
-  outputHash: string;
-  env: Environment;
-  meta: Meta;
-  stats: Stats;
+  type: string;
 
+  addConnectedFile(file: File): Promise<void>;
+  addDependency(opts: DependencyOptions): string;
   getCode(): Promise<string>;
   getBuffer(): Promise<Buffer>;
   getStream(): Readable;
@@ -236,16 +235,13 @@ export interface Asset {
   setStream(Readable): void;
   getMap(): ?SourceMap;
   setMap(?SourceMap): void;
+  getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
   ): Promise<Config | null>;
-  getConnectedFiles(): Array<File>;
-  getDependencies(): Array<Dependency>;
   getPackage(): Promise<PackageJSON | null>;
   addDependency(dep: DependencyOptions): string;
-  createChildAsset(result: TransformerResult): Asset;
-  commit(): Promise<void>;
 }
 
 export type Stats = {|
@@ -261,17 +257,17 @@ export type GenerateOutput = {|
 export type SourceMap = JSONObject;
 export type Blob = string | Buffer | Readable;
 
-export type TransformerResult = {
-  type: string,
-  code?: string,
-  content?: string,
-  ast?: ?AST,
-  dependencies?: Array<DependencyOptions> | Map<string, DependencyOptions>,
-  connectedFiles?: Array<File> | Map<FilePath, File>,
-  isIsolated?: boolean,
-  env?: EnvironmentOpts,
-  meta?: Meta
-};
+export interface TransformerResult {
+  type: string;
+  code?: string;
+  content?: Blob;
+  ast?: ?AST;
+  dependencies?: $ReadOnlyArray<DependencyOptions>;
+  connectedFiles?: $ReadOnlyArray<File>;
+  isIsolated?: boolean;
+  env?: EnvironmentOpts;
+  meta?: Meta;
+}
 
 type Async<T> = T | Promise<T>;
 
@@ -294,14 +290,6 @@ export type Transformer = {
     config: ?Config,
     opts: ParcelOptions
   ) => Async<Array<TransformerResult>>
-};
-
-export type CacheEntry = {
-  filePath: FilePath,
-  env: Environment,
-  hash: string,
-  assets: Array<Asset>,
-  initialAssets: ?Array<Asset> // Initial assets, pre-post processing
 };
 
 export interface TraversalActions {
@@ -474,12 +462,6 @@ type TransformingProgressEvent = {|
   request: TransformerRequest
 |};
 
-type TransformFinishedEvent = {|
-  type: 'buildProgress',
-  phase: 'transformFinished',
-  cacheEntry: CacheEntry
-|};
-
 type BundlingProgressEvent = {|
   type: 'buildProgress',
   phase: 'bundling'
@@ -500,7 +482,6 @@ type OptimizingProgressEvent = {|
 export type BuildProgressEvent =
   | ResolvingProgressEvent
   | TransformingProgressEvent
-  | TransformFinishedEvent
   | BundlingProgressEvent
   | PackagingProgressEvent
   | OptimizingProgressEvent;

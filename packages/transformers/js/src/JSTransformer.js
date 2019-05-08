@@ -1,4 +1,5 @@
 // @flow
+
 import semver from 'semver';
 import generate from '@babel/generator';
 import {Transformer} from '@parcel/plugin';

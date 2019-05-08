@@ -1,6 +1,7 @@
 // @flow strict-local
 
-import type {Asset, GraphTraversalCallback} from '@parcel/types';
+import type {GraphTraversalCallback} from '@parcel/types';
+import type Asset from './Asset';
 import type {Bundle, BundleGraphNode} from './types';
 
 import Graph from './Graph';

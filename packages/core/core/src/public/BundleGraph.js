@@ -25,6 +25,7 @@ import type InternalBundleGraph from '../BundleGraph';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
+import {assetToInternalAsset} from './Asset';
 import {Bundle, MutableBundle, bundleToInternal} from './Bundle';
 import {getBundleGroupId} from './utils';
 
@@ -66,7 +67,10 @@ class BaseBundleGraph {
   isAssetInAncestorBundle(bundle: IBundle, asset: Asset): boolean {
     let internalNode = this.#graph.getNode(bundle.id);
     invariant(internalNode != null && internalNode.type === 'bundle');
-    return this.#graph.isAssetInAncestorBundle(internalNode.value, asset);
+    return this.#graph.isAssetInAncestorBundle(
+      internalNode.value,
+      assetToInternalAsset(asset)
+    );
   }
 }
 
