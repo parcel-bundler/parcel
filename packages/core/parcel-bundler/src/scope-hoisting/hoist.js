@@ -2,6 +2,7 @@ const path = require('path');
 const mm = require('micromatch');
 const t = require('@babel/types');
 const template = require('@babel/template').default;
+const traverse = require('@babel/traverse').default;
 const rename = require('./renamer');
 const {getName, getIdentifier, getExportIdentifier} = require('./utils');
 
@@ -51,6 +52,7 @@ function hasSideEffects(asset, {sideEffects} = asset._package) {
 module.exports = {
   Program: {
     enter(path, asset) {
+      traverse.cache.clearScope();
       path.scope.crawl();
 
       asset.cacheData.imports = asset.cacheData.imports || Object.create(null);
