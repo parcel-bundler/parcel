@@ -106,4 +106,28 @@ describe('bundler', function() {
       }
     ]);
   });
+
+  it('Should pick a new asset id if there is a duplicate', async function() {
+    let b = await bundle(
+      __dirname + '/integration/asset-id-resizing/index.js',
+      {
+        production: true
+      }
+    );
+
+    let idArray = Array.from(b.assets.values()).map(asset => asset.id);
+    ss;
+    assert(idArray[0] !== idArray[1]);
+    assert(idArray[1].length === 4);
+
+    await assertBundleTree(b, {
+      type: 'js',
+      assets: ['index.js', 'fsrfyf.js'],
+      childBundles: [
+        {
+          type: 'map'
+        }
+      ]
+    });
+  });
 });
