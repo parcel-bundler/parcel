@@ -1,8 +1,8 @@
 {
-  "name": "@parcel/logger",
+  "name": "@parcel/install-package",
   "version": "2.0.0",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "src/Logger.js",
+  "main": "src/installPackage.js",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,10 +14,13 @@
   "publishConfig": {
     "access": "public"
   },
-  "scripts": {
-    "test": "cross-env NODE_ENV=test mocha",
-    "test-ci": "yarn build && yarn test",
-    "build": "babel src -d lib",
-    "prepublish": "yarn build"
+  "dependencies": {
+    "@parcel/logger": "^2.0.0",
+    "@parcel/utils": "^2.0.0",
+    "@parcel/workers": "^2.0.0",
+    "command-exists": "^1.2.6",
+    "cross-spawn": "^6.0.4",
+    "nullthrows": "^1.1.1",
+    "split2": "^3.1.1"
   }
 }

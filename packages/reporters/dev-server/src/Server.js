@@ -1,7 +1,7 @@
 // @flow
 import type {Request, Response, DevServerOptions} from './types.js.flow';
 import type {BundleGraph} from '@parcel/types';
-import type {PrintableError} from '@parcel/reporter-cli/src/prettyError';
+import type {PrintableError} from '@parcel/utils';
 
 import EventEmitter from 'events';
 import path from 'path';
@@ -11,9 +11,8 @@ import url from 'url';
 import serveStatic from 'serve-static';
 import ansiHtml from 'ansi-html';
 import logger from '@parcel/logger';
-import prettyError from '@parcel/reporter-cli/src/prettyError';
-import generateCertificate from '@parcel/utils/src/generateCertificate';
-import getCertificate from '@parcel/utils/src/getCertificate';
+import {prettyError} from '@parcel/utils';
+import {generateCertificate, getCertificate} from '@parcel/utils';
 import serverErrors from './serverErrors';
 import {readFile} from '@parcel/fs';
 import ejs from 'ejs';

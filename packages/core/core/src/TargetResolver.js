@@ -9,7 +9,7 @@ import type {
   Target
 } from '@parcel/types';
 
-import {loadConfig} from '@parcel/utils/src/config';
+import {loadConfig} from '@parcel/utils';
 import Environment from './Environment';
 import path from 'path';
 import browserslist from 'browserslist';

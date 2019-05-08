@@ -1,8 +1,8 @@
 {
-  "name": "@parcel/logger",
+  "name": "@parcel/local-require",
   "version": "2.0.0",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "src/Logger.js",
+  "main": "src/localRequire.js",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,10 +14,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "scripts": {
-    "test": "cross-env NODE_ENV=test mocha",
-    "test-ci": "yarn build && yarn test",
-    "build": "babel src -d lib",
-    "prepublish": "yarn build"
+  "dependencies": {
+    "@parcel/install-package": "^2.0.0",
+    "@parcel/utils": "^2.0.0"
   }
 }

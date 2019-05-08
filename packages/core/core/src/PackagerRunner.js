@@ -7,7 +7,7 @@ import type Config from './Config';
 import type InternalBundleGraph from './BundleGraph';
 
 import {mkdirp, writeFile, writeFileStream} from '@parcel/fs';
-import TapStream from '@parcel/utils/src/TapStream';
+import {TapStream} from '@parcel/utils';
 import {NamedBundle} from './public/Bundle';
 import nullthrows from 'nullthrows';
 import path from 'path';

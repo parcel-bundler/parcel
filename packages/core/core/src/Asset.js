@@ -21,15 +21,16 @@ import type {
 } from '@parcel/types';
 
 import crypto from 'crypto';
-import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
-import {loadConfig} from '@parcel/utils/src/config';
 import {
+  bufferStream,
+  loadConfig,
+  md5FromFilePath,
+  md5FromString,
   readableFromStringOrBuffer,
-  bufferStream
-} from '@parcel/utils/src/stream';
+  TapStream
+} from '@parcel/utils';
 import Cache from '@parcel/cache';
 import Dependency from './Dependency';
-import TapStream from '@parcel/utils/src/TapStream';
 
 type AssetOptions = {|
   id?: string,

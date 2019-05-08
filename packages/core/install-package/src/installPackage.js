@@ -7,10 +7,8 @@ import logger from '@parcel/logger';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
-import {loadConfig, resolveConfig} from './config';
+import {loadConfig, PromiseQueue, resolve, resolveConfig} from '@parcel/utils';
 import Npm from './Npm';
-import PromiseQueue from './PromiseQueue';
-import resolve from './resolve';
 import Yarn from './Yarn';
 
 type InstallOptions = {

@@ -1,7 +1,7 @@
 // @flow
 
 import type {Config, FilePath, ParcelOptions} from '@parcel/types';
-import type {JSONError} from '@parcel/utils/src/errorUtils';
+import type {JSONError} from '@parcel/utils';
 
 export type BundlerOptions = {|
   options: ParcelOptions,

@@ -2,7 +2,7 @@
 
 import {Runtime} from '@parcel/plugin';
 import {readFile} from '@parcel/fs';
-import {md5FromObject} from '@parcel/utils/src/md5';
+import {md5FromObject} from '@parcel/utils';
 import path from 'path';
 
 const HMR_RUNTIME = './loaders/hmr-runtime.js';

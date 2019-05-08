@@ -1,15 +1,16 @@
 // @flow
+
 import type {BuildSuccessEvent} from '@parcel/types';
-import type {PrintableError} from '@parcel/reporter-cli/src/prettyError';
+import type {PrintableError} from '@parcel/utils';
 import type {Server, ServerError, HMRServerOptions} from './types.js.flow';
+
 import http from 'http';
 import https from 'https';
 import WebSocket from 'ws';
-import generateCertificate from '@parcel/utils/src/generateCertificate';
-import getCertificate from '@parcel/utils/src/getCertificate';
+import {getCertificate, generateCertificate} from '@parcel/utils';
 import logger from '@parcel/logger';
-import prettyError from '@parcel/reporter-cli/src/prettyError';
-import {md5FromObject} from '@parcel/utils/src/md5';
+import {prettyError} from '@parcel/utils';
+import {md5FromObject} from '@parcel/utils';
 
 type HMRAsset = {|
   id: string,

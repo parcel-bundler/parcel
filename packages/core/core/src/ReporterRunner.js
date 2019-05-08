@@ -3,7 +3,7 @@
 import type {ParcelOptions, ReporterEvent} from '@parcel/types';
 
 import {bundleToInternal, NamedBundle} from './public/Bundle';
-import bus from '@parcel/workers/src/bus';
+import {bus} from '@parcel/workers';
 import Config from './Config';
 import logger from '@parcel/logger';
 import nullthrows from 'nullthrows';

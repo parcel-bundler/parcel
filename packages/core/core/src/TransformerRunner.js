@@ -10,20 +10,21 @@ import type {
   TransformerRequest,
   ParcelOptions
 } from '@parcel/types';
-import Asset from './Asset';
-import path from 'path';
-import clone from 'clone';
+
 import {
   md5FromFilePath,
   md5FromReadableStream,
   md5FromString
-} from '@parcel/utils/src/md5';
+} from '@parcel/utils';
 import Cache from '@parcel/cache';
+import {TapStream, unique} from '@parcel/utils';
+import clone from 'clone';
 import {createReadStream} from 'fs';
-import {unique} from '@parcel/utils/src/collection';
+import path from 'path';
+
+import Asset from './Asset';
 import Config from './Config';
 import {report} from './ReporterRunner';
-import TapStream from '@parcel/utils/src/TapStream';
 
 type Opts = {|
   config: Config,

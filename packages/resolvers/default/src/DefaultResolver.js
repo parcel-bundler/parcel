@@ -10,7 +10,7 @@ import type {
 } from '@parcel/types';
 import path from 'path';
 import * as fs from '@parcel/fs';
-import {isGlob} from '@parcel/utils/src/glob';
+import {isGlob} from '@parcel/utils';
 import micromatch from 'micromatch';
 import builtins from './builtins';
 // import nodeBuiltins from 'node-libs-browser';

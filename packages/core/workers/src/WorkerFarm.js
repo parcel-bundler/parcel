@@ -13,7 +13,7 @@ import type {
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
-import {errorToJson} from '@parcel/utils/src/errorUtils';
+import {errorToJson} from '@parcel/utils';
 import Logger from '@parcel/logger';
 import bus from './bus';
 import Worker, {type WorkerCall} from './Worker';
@@ -386,3 +386,5 @@ if (!WorkerFarm.isWorker()) {
     }
   });
 }
+
+export {bus};

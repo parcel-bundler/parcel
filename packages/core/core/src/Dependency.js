@@ -10,7 +10,7 @@ import type {
   FilePath,
   Symbol
 } from '@parcel/types';
-import {md5FromString} from '@parcel/utils/src/md5';
+import {md5FromString} from '@parcel/utils';
 
 type DependencyOpts = {|
   ...DependencyOptions,
