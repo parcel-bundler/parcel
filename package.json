@@ -24,7 +24,7 @@
   "devDependencies": {
     "eslint": "^5.16.0",
     "eslint-config-prettier": "^4.1.0",
-    "flow-bin": "0.97.0",
+    "flow-bin": "0.98.1",
     "lerna": "^3.3.2",
     "lint-staged": "^7.2.2",
     "mocha": "^6.1.3",
