@@ -1204,5 +1204,18 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, 42);
     });
+
+    it('should insert __esModule interop flag when importing from an ES module', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/interop-require-es-module/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.equal(output.__esModule, true);
+      assert.equal(output.default, 2);
+    });
   });
 });
