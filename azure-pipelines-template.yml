@@ -1,6 +1,6 @@
 jobs:
 - job: ${{ parameters.name }}
-  pool: 
+  pool:
     vmImage: ${{ parameters.vmImage }}
   strategy:
     matrix:
@@ -42,6 +42,8 @@ jobs:
     displayName: 'Install dependencies'
   - script: yarn test-ci
     displayName: 'Run tests'
+  - script: yarn ci-coverage
+    displayName: 'Test code coverage'
   - script: yarn lint
     displayName: 'Lint'
   - task: PublishTestResults@2
@@ -53,7 +55,7 @@ jobs:
   - task: PublishCodeCoverageResults@1
     displayName: 'Publish code coverage results'
     condition: succeededOrFailed()
-    inputs: 
+    inputs:
       codeCoverageTool: 'cobertura'
       summaryFileLocation: '**/coverage/cobertura-coverage.xml'
       reportDirectory: '**/parcel-bundler/coverage'

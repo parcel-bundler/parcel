@@ -126,7 +126,7 @@
     "test": "cross-env NODE_ENV=test mocha",
     "test-coverage": "rm -rf coverage/* && nyc yarn test --reporter mocha-multi-reporters --reporter-options configFile=./test/mochareporters.json",
     "report-coverage": "nyc report --reporter=lcov --reporter=cobertura --reporter=html && codecov",
-    "test-ci": "yarn test-coverage && yarn report-coverage",
+    "ci-coverage": "yarn test-coverage && yarn report-coverage",
     "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
     "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
     "prepublish": "yarn build",
