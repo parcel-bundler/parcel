@@ -38,7 +38,8 @@ export const realpath: $PropertyType<FSPromise, 'realpath'> = function(
     // do nothing
   }
 
-  return originalPath;
+  // $FlowFixMe
+  return Promise.resolve(originalPath);
 };
 
 export const lstat: (path: string) => Promise<Stats> = promisify(fs.lstat);
