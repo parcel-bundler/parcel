@@ -3,7 +3,7 @@
 
 import type {Bundle as InternalBundle} from '../types';
 import type {
-  Asset,
+  Asset as IAsset,
   Bundle as IBundle,
   BundleTraversable,
   Dependency,
@@ -17,6 +17,9 @@ import type {
 } from '@parcel/types';
 
 import nullthrows from 'nullthrows';
+
+import Asset from './Asset';
+import {getInternalAsset} from './utils';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -62,20 +65,36 @@ export class Bundle implements IBundle {
     return this.#bundle.stats;
   }
 
-  getDependencies(asset: Asset): Array<Dependency> {
-    return this.#bundle.assetGraph.getDependencies(asset);
+  getDependencies(asset: IAsset): Array<Dependency> {
+    return this.#bundle.assetGraph.getDependencies(
+      getInternalAsset(this.#bundle.assetGraph, asset)
+    );
   }
 
   getDependencyResolution(dependency: Dependency): ?Asset {
-    return this.#bundle.assetGraph.getDependencyResolution(dependency);
+    let resolution = this.#bundle.assetGraph.getDependencyResolution(
+      dependency
+    );
+
+    if (resolution) {
+      return new Asset(resolution);
+    }
   }
 
-  getEntryAssets(): Array<Asset> {
-    return this.#bundle.assetGraph.getEntryAssets();
+  getEntryAssets(): Array<IAsset> {
+    return this.#bundle.assetGraph
+      .getEntryAssets()
+      .map(asset => new Asset(asset));
   }
 
-  getTotalSize(asset?: Asset): number {
-    return this.#bundle.assetGraph.getTotalSize(asset);
+  getTotalSize(asset?: IAsset): number {
+    if (asset) {
+      return this.#bundle.assetGraph.getTotalSize(
+        getInternalAsset(this.#bundle.assetGraph, asset)
+      );
+    }
+
+    return this.#bundle.assetGraph.getTotalSize();
   }
 
   traverse<TContext>(
@@ -91,11 +110,11 @@ export class Bundle implements IBundle {
   }
 
   traverseAssets<TContext>(
-    visit: GraphTraversalCallback<Asset, TContext>
+    visit: GraphTraversalCallback<IAsset, TContext>
   ): ?TContext {
     return this.#bundle.assetGraph.traverse((node, ...args) => {
       if (node.type === 'asset') {
-        return visit(node.value, ...args);
+        return visit(new Asset(node.value), ...args);
       }
     });
   }
@@ -117,8 +136,10 @@ export class MutableBundle extends Bundle implements IMutableBundle {
     this.#bundle.isEntry = isEntry;
   }
 
-  removeAsset(asset: Asset): void {
-    this.#bundle.assetGraph.removeAsset(asset);
+  removeAsset(asset: IAsset): void {
+    this.#bundle.assetGraph.removeAsset(
+      getInternalAsset(this.#bundle.assetGraph, asset)
+    );
   }
 
   merge(bundle: IBundle): void {

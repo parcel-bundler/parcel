@@ -1,17 +1,17 @@
 // @flow strict-local
 
 import type {
-  Asset,
   BundleGroup,
   Dependency,
   Environment,
   File,
   FilePath,
+  Stats,
   Target,
-  TransformerRequest,
-  Stats
+  TransformerRequest
 } from '@parcel/types';
 
+import type Asset from './Asset';
 import type AssetGraph from './AssetGraph';
 
 export type NodeId = string;
@@ -69,6 +69,14 @@ export interface BundleReference {
   +filePath: ?FilePath;
   +stats: Stats;
 }
+
+export type CacheEntry = {
+  filePath: FilePath,
+  env: Environment,
+  hash: string,
+  assets: Array<Asset>,
+  initialAssets: ?Array<Asset> // Initial assets, pre-post processing
+};
 
 export type Bundle = {|
   assetGraph: AssetGraph,

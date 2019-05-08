@@ -3,14 +3,15 @@
 import type {
   Asset as IAsset,
   Blob,
-  CacheEntry,
   File,
   GenerateOutput,
   Transformer,
   TransformerRequest,
+  TransformerResult,
   ParcelOptions
 } from '@parcel/types';
-import Asset from './Asset';
+import type {CacheEntry} from './types';
+
 import path from 'path';
 import clone from 'clone';
 import {
@@ -24,13 +25,15 @@ import {TapStream, unique} from '@parcel/utils';
 import Config from './Config';
 import {report} from './ReporterRunner';
 import nullthrows from 'nullthrows';
+import Asset, {assetToInternalAsset} from './public/Asset';
+import InternalAsset from './Asset';
 
 type Opts = {|
   config: Config,
   options: ParcelOptions
 |};
 
-type GenerateFunc = (input: Asset) => Promise<GenerateOutput>;
+type GenerateFunc = (input: IAsset) => Promise<GenerateOutput>;
 
 const BUFFER_LIMIT = 5000000; // 5mb
 
@@ -65,7 +68,7 @@ export default class TransformerRunner {
       return cacheEntry;
     }
 
-    let input = new Asset({
+    let input = new InternalAsset({
       filePath: req.filePath,
       type: path.extname(req.filePath).slice(1),
       ast: null,
@@ -111,11 +114,14 @@ export default class TransformerRunner {
   }
 
   async runPipeline(
-    input: Asset,
+    input: InternalAsset,
     pipeline: Array<Transformer>,
     cacheEntry: ?CacheEntry,
     previousGenerate: ?GenerateFunc
-  ) {
+  ): Promise<{|
+    assets: Array<InternalAsset>,
+    initialAssets: ?Array<InternalAsset>
+  |}> {
     // Run the first transformer in the pipeline.
     let {results, generate, postProcess} = await this.runTransform(
       input,
@@ -123,13 +129,13 @@ export default class TransformerRunner {
       previousGenerate
     );
 
-    let assets: Array<IAsset> = [];
+    let assets: Array<InternalAsset> = [];
     for (let result of results) {
       let asset = input.createChildAsset(result);
 
       // Check if any of the cached assets match the result.
       if (cacheEntry) {
-        let cachedAssets = (
+        let cachedAssets: Array<InternalAsset> = (
           cacheEntry.initialAssets || cacheEntry.assets
         ).filter(child => child.hash && child.hash === asset.hash);
 
@@ -178,7 +184,6 @@ export default class TransformerRunner {
 
     // If the transformer has a postProcess function, execute that with the result of the pipeline.
     let finalAssets = await postProcess(clone(assets));
-
     return {
       assets: finalAssets || assets,
       initialAssets: finalAssets ? assets : null
@@ -186,14 +191,14 @@ export default class TransformerRunner {
   }
 
   async runTransform(
-    input: Asset,
+    input: InternalAsset,
     transformer: Transformer,
     previousGenerate: ?GenerateFunc
   ) {
     // Load config for the transformer.
     let config = null;
     if (transformer.getConfig) {
-      config = await transformer.getConfig(input, this.options);
+      config = await transformer.getConfig(new Asset(input), this.options);
     }
 
     // If an ast exists on the input, but we cannot reuse it,
@@ -211,14 +216,21 @@ export default class TransformerRunner {
 
     // Parse if there is no AST available from a previous transform.
     if (!input.ast && transformer.parse) {
-      input.ast = await transformer.parse(input, config, this.options);
+      input.ast = await transformer.parse(
+        new Asset(input),
+        config,
+        this.options
+      );
     }
 
     // Transform.
-    let results = await transformer.transform(input, config, this.options);
+    let results = normalizeAssets(
+      // $FlowFixMe
+      await transformer.transform(new Asset(input), config, this.options)
+    );
 
     // Create a generate function that can be called later to lazily generate
-    let generate = async (input: Asset): Promise<GenerateOutput> => {
+    let generate = async (input: IAsset): Promise<GenerateOutput> => {
       if (transformer.generate) {
         return transformer.generate(input, config, this.options);
       }
@@ -230,11 +242,12 @@ export default class TransformerRunner {
 
     // Create a postProcess function that can be called later
     let postProcess = async (
-      assets: Array<IAsset>
-    ): Promise<Array<Asset> | null> => {
-      if (transformer.postProcess) {
-        let results = await transformer.postProcess(
-          assets,
+      assets: Array<InternalAsset>
+    ): Promise<Array<InternalAsset> | null> => {
+      let {postProcess} = transformer;
+      if (postProcess) {
+        let results = await postProcess(
+          assets.map(asset => new Asset(asset)),
           config,
           this.options
         );
@@ -247,12 +260,14 @@ export default class TransformerRunner {
       return null;
     };
 
-    // $FlowFixMe
     return {results, generate, postProcess};
   }
 }
 
-async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
+async function finalize(
+  asset: InternalAsset,
+  generate: GenerateFunc
+): Promise<InternalAsset> {
   if (asset.ast && generate) {
     let result = await generate(asset);
     asset.content = result.code;
@@ -261,7 +276,9 @@ async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
   return asset;
 }
 
-async function checkCachedAssets(assets: Array<IAsset>): Promise<boolean> {
+async function checkCachedAssets(
+  assets: Array<InternalAsset>
+): Promise<boolean> {
   let results = await Promise.all(
     assets.map(asset => checkConnectedFiles(asset.getConnectedFiles()))
   );
@@ -319,4 +336,25 @@ async function summarizeRequest(
   }
 
   return {content, hash, size};
+}
+
+function normalizeAssets(
+  results: Array<TransformerResult | Asset>
+): Array<TransformerResult> {
+  return results.map(result => {
+    return result instanceof Asset
+      ? {
+          type: result.type,
+          content: assetToInternalAsset(result).content,
+          ast: result.ast,
+          // $FlowFixMe
+          dependencies: result.getDependencies(),
+          connectedFiles: result.getConnectedFiles(),
+          // $FlowFixMe
+          env: result.env,
+          isIsolated: result.isIsolated,
+          meta: result.meta
+        }
+      : result;
+  });
 }

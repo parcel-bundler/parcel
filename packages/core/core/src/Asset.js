@@ -3,7 +3,6 @@
 import {Readable} from 'stream';
 
 import type {
-  Asset as IAsset,
   AST,
   Blob,
   Config,
@@ -58,7 +57,7 @@ type SerializedOptions = {|
   |}
 |};
 
-export default class Asset implements IAsset {
+export default class Asset {
   id: string;
   hash: ?string;
   filePath: FilePath;
@@ -292,14 +291,14 @@ export default class Asset implements IAsset {
 
     let dependencies = result.dependencies;
     if (dependencies) {
-      for (let dep of dependencies.values()) {
+      for (let dep of dependencies) {
         asset.addDependency(dep);
       }
     }
 
     let connectedFiles = result.connectedFiles;
     if (connectedFiles) {
-      for (let file of connectedFiles.values()) {
+      for (let file of connectedFiles) {
         asset.addConnectedFile(file);
       }
     }

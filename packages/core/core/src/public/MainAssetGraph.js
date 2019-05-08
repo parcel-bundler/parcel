@@ -2,13 +2,14 @@
 
 import type AssetGraph from '../AssetGraph';
 import type {
-  Asset,
+  Asset as IAsset,
   Dependency,
   GraphTraversalCallback,
   MainAssetGraph as IMainAssetGraph,
   MainAssetGraphTraversable
 } from '@parcel/types';
 
+import Asset, {assetToInternalAsset} from './Asset';
 import {MutableBundle} from './Bundle';
 
 export default class MainAssetGraph implements IMainAssetGraph {
@@ -18,10 +19,10 @@ export default class MainAssetGraph implements IMainAssetGraph {
     this.#graph = graph;
   }
 
-  createBundle(asset: Asset): MutableBundle {
+  createBundle(asset: IAsset): MutableBundle {
     let assetNode = this.#graph.getNode(asset.id);
     if (!assetNode) {
-      throw new Error('Cannot get bundle for non-existant asset');
+      throw new Error('Cannot get bundle for non-existent asset');
     }
 
     let graph = this.#graph.getSubGraph(assetNode);
@@ -49,12 +50,15 @@ export default class MainAssetGraph implements IMainAssetGraph {
     });
   }
 
-  getDependencies(asset: Asset): Array<Dependency> {
-    return this.#graph.getDependencies(asset);
+  getDependencies(asset: IAsset): Array<Dependency> {
+    return this.#graph.getDependencies(assetToInternalAsset(asset));
   }
 
-  getDependencyResolution(dep: Dependency): ?Asset {
-    return this.#graph.getDependencyResolution(dep);
+  getDependencyResolution(dep: Dependency): ?IAsset {
+    let resolution = this.#graph.getDependencyResolution(dep);
+    if (resolution) {
+      return new Asset(resolution);
+    }
   }
 
   traverse<TContext>(
@@ -62,7 +66,7 @@ export default class MainAssetGraph implements IMainAssetGraph {
   ): ?TContext {
     return this.#graph.traverse((node, ...args) => {
       if (node.type === 'asset') {
-        return visit({type: 'asset', value: node.value}, ...args);
+        return visit({type: 'asset', value: new Asset(node.value)}, ...args);
       } else if (node.type === 'dependency') {
         return visit({type: 'dependency', value: node.value}, ...args);
       }
@@ -70,11 +74,11 @@ export default class MainAssetGraph implements IMainAssetGraph {
   }
 
   traverseAssets<TContext>(
-    visit: GraphTraversalCallback<Asset, TContext>
+    visit: GraphTraversalCallback<IAsset, TContext>
   ): ?TContext {
     return this.#graph.traverse((node, ...args) => {
       if (node.type === 'asset') {
-        return visit(node.value, ...args);
+        return visit(new Asset(node.value), ...args);
       }
     });
   }
