@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 
 import {Readable} from 'stream';
 
@@ -77,10 +77,11 @@ export default class Asset {
 
   constructor(options: AssetOptions) {
     this.id =
-      options.id ||
-      md5FromString(
-        options.filePath + options.type + JSON.stringify(options.env)
-      );
+      options.id != null
+        ? options.id
+        : md5FromString(
+            options.filePath + options.type + JSON.stringify(options.env)
+          );
     this.hash = options.hash;
     this.filePath = options.filePath;
     this.isIsolated = options.isIsolated == null ? false : options.isIsolated;
@@ -163,7 +164,7 @@ export default class Asset {
   }
 
   async getCode(): Promise<string> {
-    if (this.contentKey) {
+    if (this.contentKey != null) {
       this.content = Cache.getStream(this.contentKey);
     }
 
@@ -176,7 +177,7 @@ export default class Asset {
   }
 
   async getBuffer(): Promise<Buffer> {
-    if (this.contentKey) {
+    if (this.contentKey != null) {
       this.content = Cache.getStream(this.contentKey);
     }
 
@@ -189,7 +190,7 @@ export default class Asset {
   }
 
   getStream(): Readable {
-    if (this.contentKey) {
+    if (this.contentKey != null) {
       this.content = Cache.getStream(this.contentKey);
     }
 
@@ -213,7 +214,7 @@ export default class Asset {
   }
 
   async getMap(): Promise<?SourceMap> {
-    if (this.mapKey) {
+    if (this.mapKey != null) {
       this.map = await Cache.get(this.mapKey);
     }
 
@@ -241,7 +242,7 @@ export default class Asset {
   }
 
   async addConnectedFile(file: File) {
-    if (!file.hash) {
+    if (file.hash == null) {
       file.hash = await md5FromFilePath(file.filePath);
     }
 
@@ -257,7 +258,14 @@ export default class Asset {
   }
 
   createChildAsset(result: TransformerResult): Asset {
-    let content = result.content || result.code || '';
+    let content;
+    if (result.content != null) {
+      content = result.content;
+    } else if (result.code != null) {
+      content = result.code;
+    } else {
+      content = '';
+    }
 
     let hash;
     let size;
@@ -313,7 +321,7 @@ export default class Asset {
     let packageKey = options && options.packageKey;
     let parse = options && options.parse;
 
-    if (packageKey) {
+    if (packageKey != null) {
       let pkg = await this.getPackage();
       if (pkg && pkg[packageKey]) {
         return pkg[packageKey];
