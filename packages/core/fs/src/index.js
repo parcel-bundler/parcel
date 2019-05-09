@@ -29,18 +29,16 @@ export const readdir: $PropertyType<FSPromise, 'readdir'> = promisify(
 export const unlink: $PropertyType<FSPromise, 'unlink'> = promisify(fs.unlink);
 
 const _realpath = promisify(fs.realpath);
-export const realpath: $PropertyType<FSPromise, 'realpath'> = function(
-  originalPath
-) {
+
+export async function realpath(originalPath: string): Promise<string> {
   try {
-    return _realpath(originalPath);
+    return _realpath(originalPath, 'utf8');
   } catch (e) {
     // do nothing
   }
 
-  // $FlowFixMe
-  return Promise.resolve(originalPath);
-};
+  return originalPath;
+}
 
 export const lstat: (path: string) => Promise<Stats> = promisify(fs.lstat);
 
