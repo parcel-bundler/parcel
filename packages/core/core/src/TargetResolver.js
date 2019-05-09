@@ -68,16 +68,14 @@ export default class TargetResolver {
       }
     } else {
       // Explicit targets were not provided
-      if (initialOptions.mode === 'development' || serveOptions) {
-        // Since the user hasn't specified a target explicitly in development,
-        // use one targeting modern browsers for development rather than the
-        // targets in package json
+      if (serveOptions) {
+        // In serve mode, we only support a single browser target. Since the user
+        // hasn't specified a target, use one targeting modern browsers for development
         targets = [
           {
             name: 'default',
             distDir: 'dist',
             publicUrl:
-              // TODO: How to configure publicUrl for non-server development?
               serveOptions && serveOptions.publicUrl != null
                 ? serveOptions.publicUrl
                 : '/',
