@@ -299,7 +299,7 @@ describe('scope hoisting', function() {
         );
       } catch (err) {
         threw = true;
-        assert.equal(err.message, "export 'Test' is not defined");
+        assert.equal(err.message, "Export 'Test' is not defined (1:8)");
       }
 
       assert(threw);
@@ -548,6 +548,37 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, 'bar');
+    });
+
+    it('should shake pure property assignments', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/pure-assignment/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 2);
+
+      let contents = await fs.readFile(
+        path.join(__dirname, 'dist/a.js'),
+        'utf8'
+      );
+      assert(!/bar/.test(contents));
+      assert(!/displayName/.test(contents));
+    });
+
+    it('should correctly rename references to default exported classes', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/default-export-class-rename/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output.foo, 'bar');
     });
   });
 
@@ -877,6 +908,7 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.equal(output.id, b.entryAsset.id);
       assert.equal(output.hot, null);
+      assert.equal(output.moduleRequire, null);
       assert.equal(output.type, 'object');
       assert.deepEqual(output.exports, {});
       assert.equal(output.exportsType, 'object');
@@ -1171,6 +1203,31 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, 42);
+    });
+
+    it('should insert __esModule interop flag when importing from an ES module', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/interop-require-es-module/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.equal(output.__esModule, true);
+      assert.equal(output.default, 2);
+    });
+
+    it('should support assigning to exports from inside a function', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/export-assign-scope/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 2);
     });
 
     it('should support wrapping array destructuring declarations', async function() {

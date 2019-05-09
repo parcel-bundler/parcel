@@ -39,7 +39,9 @@ function bundleReport(mainBundle, detailed = false) {
         }
         return assets.slice(
           0,
-          isNaN(detailed) ? DEFAULT_NUM_LARGE_ASSETS : parseInt(detailed, 10)
+          isNaN(detailed) || typeof detailed === 'boolean'
+            ? DEFAULT_NUM_LARGE_ASSETS
+            : parseInt(detailed, 10)
         );
       })();
       for (let asset of largestAssets) {

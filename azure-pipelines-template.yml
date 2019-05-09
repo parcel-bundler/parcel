@@ -36,7 +36,9 @@ jobs:
         cargo -V
       displayName: Install Rust
 
-  - script: yarn
+  # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
+  # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
+  - script: yarn --frozen-lockfile
     displayName: 'Install dependencies'
   - script: yarn test-ci
     displayName: 'Run tests'
