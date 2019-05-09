@@ -52,8 +52,8 @@ async function getConfig(asset) {
 
   if (config.plugins && config.plugins['postcss-modules']) {
     postcssModulesConfig = Object.assign(
-      config.plugins['postcss-modules'],
-      postcssModulesConfig
+      postcssModulesConfig,
+      config.plugins['postcss-modules']
     );
     delete config.plugins['postcss-modules'];
   }
