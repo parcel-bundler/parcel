@@ -299,8 +299,8 @@ async function summarizeRequest(
     hash = await md5FromReadableStream(
       createReadStream(req.filePath).pipe(
         new TapStream(buf => {
+          size += buf.length;
           if (content instanceof Buffer) {
-            size += buf.length;
             if (size > BUFFER_LIMIT) {
               // if buffering this content would put this over BUFFER_LIMIT, replace
               // it with a stream
