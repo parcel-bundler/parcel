@@ -25,6 +25,8 @@ export default new Transformer({
   },
 
   async transform(asset) {
+    // Handle .htm
+    asset.type = 'html';
     collectDependencies(asset);
     return [asset, ...extractInlineAssets(asset)];
   },

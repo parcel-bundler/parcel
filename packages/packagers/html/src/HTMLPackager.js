@@ -4,7 +4,7 @@ import assert from 'assert';
 import {Packager} from '@parcel/plugin';
 
 export default new Packager({
-  async package(bundle) {
+  package(bundle) {
     let assets = [];
     bundle.traverseAssets(asset => {
       assets.push(asset);
