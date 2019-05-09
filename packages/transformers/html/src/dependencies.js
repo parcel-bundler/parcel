@@ -3,6 +3,8 @@
 import type {MutableAsset} from '@parcel/types';
 import PostHTML from 'posthtml';
 
+import nullthrows from 'nullthrows';
+
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
 const ATTRS = {
@@ -69,19 +71,6 @@ const OPTIONS = {
   }
 };
 
-function processSingleDependency(asset, path, opts) {
-  // let assetPath = this.addURLDependency(path, opts);
-  let assetPath = asset.addURLDependency({
-    moduleSpecifier: path,
-    ...opts
-  });
-
-  if (!isURL(assetPath)) {
-    assetPath = urlJoin(this.options.publicURL, assetPath);
-  }
-  return assetPath;
-}
-
 function collectSrcSetDependencies(asset, srcset, opts) {
   let newSources = [];
   for (const source of srcset.split(',')) {
@@ -90,7 +79,7 @@ function collectSrcSetDependencies(asset, srcset, opts) {
       continue;
     }
 
-    pair[0] = processSingleDependency(asset, pair[0], opts);
+    pair[0] = asset.addURLDependency(pair[0], opts);
     newSources.push(pair.join(' '));
   }
 
@@ -102,7 +91,7 @@ function getAttrDepHandler(attr) {
     return collectSrcSetDependencies;
   }
 
-  return processSingleDependency;
+  return (asset, src, opts) => asset.addURLDependency(src, opts);
 }
 
 export default function collectDependencies(asset: MutableAsset) {
@@ -114,15 +103,12 @@ export default function collectDependencies(asset: MutableAsset) {
       return node;
     }
 
-    let {tag, attrs} = node;
     if (tag === 'meta') {
       if (
-        !Object.keys(node.attrs).some(attr => {
+        !Object.keys(attrs).some(attr => {
           let values = META[attr];
 
-          return (
-            values && values.includes(node.attrs[attr]) && attrs.content !== ''
-          );
+          return values && values.includes(attrs[attr]) && attrs.content !== '';
         })
       ) {
         return node;
@@ -130,26 +116,25 @@ export default function collectDependencies(asset: MutableAsset) {
     }
 
     if (tag === 'link' && attrs.rel === 'manifest' && attrs.href) {
-      attrs.href = getAttrDepHandler('href')(asset, node.attrs.href, {
+      attrs.href = asset.addURLDependency(attrs.href, {
         isEntry: true
       });
-      asset.ast.isDirty = true;
+      ast.isDirty = true;
       return node;
     }
 
     for (let attr in attrs) {
-      let elements = ATTRS[attr];
-
       // Check for virtual paths
       if (tag === 'a' && attrs[attr].lastIndexOf('.') < 1) {
         continue;
       }
 
+      let elements = ATTRS[attr];
       if (elements && elements.includes(node.tag)) {
         let depHandler = getAttrDepHandler(attr);
         let options = OPTIONS[node.tag];
         attrs[attr] = depHandler(asset, attrs[attr], options && options[attr]);
-        asset.ast.isDirty = true;
+        ast.isDirty = true;
       }
     }
 

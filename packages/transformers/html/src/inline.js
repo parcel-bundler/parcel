@@ -15,7 +15,7 @@ const SCRIPT_TYPES = {
 };
 
 export default function extractInlineAssets(
-  asset: TransformerInput
+  asset: MutableAsset
 ): Array<TransformerResult> {
   let ast = nullthrows(asset.ast);
   let program: PostHTMLNode = ast.program;
@@ -25,7 +25,7 @@ export default function extractInlineAssets(
   new PostHTML().walk.call(program, (node: PostHTMLNode) => {
     if (node.tag === 'script' || node.tag === 'style') {
       let value = node.content && node.content.join('').trim();
-      if (value) {
+      if (value != null) {
         let type;
 
         if (node.tag === 'style') {
@@ -76,5 +76,6 @@ export default function extractInlineAssets(
     return node;
   });
 
+  // $FlowFixMe
   return parts;
 }
