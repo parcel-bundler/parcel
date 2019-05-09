@@ -1,6 +1,10 @@
-// @flow
-import type {TransformerInput, TransformerResult} from '@parcel/types';
-import type {PostHTMLAST} from './types';
+// @flow strict-local
+
+import type {MutableAsset, TransformerResult} from '@parcel/types';
+import type {PostHTMLNode} from 'posthtml';
+
+import PostHTML from 'posthtml';
+import nullthrows from 'nullthrows';
 
 const SCRIPT_TYPES = {
   'application/javascript': 'js',
@@ -13,11 +17,12 @@ const SCRIPT_TYPES = {
 export default function extractInlineAssets(
   asset: TransformerInput
 ): Array<TransformerResult> {
-  let ast: PostHTMLAST = asset.ast.program;
+  let ast = nullthrows(asset.ast);
+  let program: PostHTMLNode = ast.program;
 
   // Extract inline <script> and <style> tags for processing.
   let parts = [];
-  ast.walk(node => {
+  new PostHTML().walk.call(program, (node: PostHTMLNode) => {
     if (node.tag === 'script' || node.tag === 'style') {
       let value = node.content && node.content.join('').trim();
       if (value) {

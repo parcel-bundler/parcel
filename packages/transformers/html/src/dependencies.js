@@ -1,6 +1,7 @@
 // @flow
-import type {TransformerInput} from '@parcel/types';
-import type {PostHTMLAST} from './types';
+
+import type {MutableAsset} from '@parcel/types';
+import PostHTML from 'posthtml';
 
 // A list of all attributes that may produce a dependency
 // Based on https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes
@@ -104,11 +105,12 @@ function getAttrDepHandler(attr) {
   return processSingleDependency;
 }
 
-export default function collectDependencies(asset: TransformerInput) {
-  let ast: PostHTMLAST = asset.ast.program;
+export default function collectDependencies(asset: MutableAsset) {
+  let ast = nullthrows(asset.ast);
 
-  ast.walk(node => {
-    if (!node.attrs) {
+  PostHTML().walk.call(ast.program, node => {
+    let {tag, attrs} = node;
+    if (!attrs) {
       return node;
     }
 

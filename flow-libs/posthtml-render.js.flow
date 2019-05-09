@@ -1,0 +1,20 @@
+// @flow
+
+// Derived from the PostHTML sources available at
+// https://github.com/posthtml/posthtml-render/blob/53d746430e78a865c6177fff557bbbf324af40e3/lib/index.js
+// which is licensed MIT.
+
+declare module 'posthtml-render' {
+  declare type PostHTMLNode = {
+    tag: string,
+    attrs?: {[string]: string},
+    content?: Array<string>
+  };
+
+  declare var parser: (
+    tree: PostHTMLNode,
+    options?: {singleTags?: Array<string | RegExp>, closingSingleTag?: string}
+  ) => string;
+
+  declare module.exports: typeof parser;
+}

@@ -13,10 +13,10 @@
   "dependencies": {
     "@parcel/plugin": "^2.0.0",
     "@parcel/utils": "^2.0.0",
+    "nullthrows": "^1.1.1",
     "posthtml": "^0.11.3",
     "posthtml-parser": "^0.4.1",
-    "posthtml-render": "^1.1.4",
-    "nullthrows": "^1.1.1",
+    "posthtml-render": "^1.1.5",
     "semver": "^5.4.1"
   }
 }

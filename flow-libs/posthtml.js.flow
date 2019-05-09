@@ -1,0 +1,30 @@
+// @flow
+
+// Derived from the PostHTML sources available at
+// https://github.com/posthtml/posthtml-parser/blob/41df54c0ae3061cc6f417826676fda5a3d4806c0/index.js
+// https://github.com/posthtml/posthtml/blob/881d4a5b170109789a5245a379229afb4793e21a/lib/index.js
+// https://github.com/posthtml/posthtml/blob/881d4a5b170109789a5245a379229afb4793e21a/lib/api.js
+// which is licensed MIT.
+
+declare module 'posthtml' {
+  declare type PostHTMLNode = {
+    tag: string,
+    // $FlowFixMe
+    attrs?: {[string]: string},
+    content?: Array<string>
+  };
+
+  declare var walk: (fn: (node: PostHTMLNode) => PostHTMLNode) => void;
+
+  declare class Api {
+    static walk: typeof walk;
+    walk: typeof walk;
+  }
+
+  declare class PostHTML extends Api {
+    name: string;
+    version: number;
+  }
+
+  declare module.exports: () => PostHTML;
+}
