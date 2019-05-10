@@ -84,7 +84,7 @@ async function determinePackageManager(filepath) {
     return 'npm';
   }
 
-  const hasYarn = await checkForYarnCommand();
+  const hasYarn = await checkForCommand('yarn');
   if (hasYarn) {
     return 'yarn';
   }
@@ -92,19 +92,19 @@ async function determinePackageManager(filepath) {
   return 'npm';
 }
 
-let hasYarn = null;
-async function checkForYarnCommand() {
-  if (hasYarn != null) {
-    return hasYarn;
+const commandCache = new Map();
+async function checkForCommand(command) {
+  if (commandCache.has(command)) {
+    return commandCache.get(command);
   }
 
+  let hasCommand = false;
   try {
-    hasYarn = await commandExists('yarn');
-  } catch (err) {
-    hasYarn = false;
-  }
+    hasCommand = await commandExists(command);
+    commandCache.set(command, hasCommand);
+  } catch (err) {}
 
-  return hasYarn;
+  return hasCommand;
 }
 
 let queue = new PromiseQueue(install, {maxConcurrent: 1, retry: false});
