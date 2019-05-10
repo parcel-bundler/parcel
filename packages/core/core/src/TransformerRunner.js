@@ -107,7 +107,7 @@ export default class TransformerRunner {
     };
 
     await Promise.all(
-      unique(assets, initialAssets || []).map(asset => asset.commit())
+      unique([...assets, ...(initialAssets || [])]).map(asset => asset.commit())
     );
     await Cache.set(reqCacheKey(req), cacheEntry);
     return cacheEntry;
