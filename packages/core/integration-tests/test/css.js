@@ -632,4 +632,27 @@ describe('css', function() {
     );
     assert(css.includes('rgba'));
   });
+
+  it('should automatically install postcss plugins with pnpm if needed', async function() {
+    await rimraf(path.join(__dirname, '/input'));
+    await ncp(
+      path.join(__dirname, '/integration/autoinstall/pnpm'),
+      path.join(__dirname, '/input')
+    );
+    await bundle(path.join(__dirname, '/input/index.css'));
+
+    // cssnext was installed
+    let pkg = require('./input/package.json');
+    assert(pkg.devDependencies['postcss-cssnext']);
+
+    // peer dependency caniuse-lite was installed
+    assert(pkg.devDependencies['caniuse-lite']);
+
+    // cssnext is applied
+    let css = await fs.readFile(
+      path.join(__dirname, '/dist/index.css'),
+      'utf8'
+    );
+    assert(css.includes('rgba'));
+  });
 });
