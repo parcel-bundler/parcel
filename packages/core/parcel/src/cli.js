@@ -4,11 +4,16 @@ import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
 
 require('v8-compile-cache');
 
+process.on('unhandledRejection', (reason: mixed) => {
+  console.error(reason);
+  process.exit(1);
+});
+
 const chalk = require('chalk');
 const program = require('commander');
-const version = require('../package.json').version;
 const path = require('path');
 const getPort = require('get-port');
+const version = require('../package.json').version;
 
 program.version(version);
 
@@ -135,7 +140,14 @@ async function run(entries: Array<string>, command: any) {
     ...(await normalizeOptions(command))
   });
 
-  parcel.run().catch(console.error);
+  try {
+    await parcel.run();
+  } catch (e) {
+    // Simply exit if the run fails. If an exception is thrown during the run,
+    // it is given to reporters in a buildFailure event. In watch mode,
+    // exceptions won't be thrown beyond Parcel.
+    process.exit(1);
+  }
 }
 
 async function normalizeOptions(command): Promise<InitialParcelOptions> {

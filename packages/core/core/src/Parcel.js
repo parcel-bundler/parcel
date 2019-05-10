@@ -94,16 +94,32 @@ export default class Parcel {
     this._initialized = true;
   }
 
-  async run(): Promise<BundleGraph> {
+  // `run()` returns `Promise<?BundleGraph>` because in watch mode it does not
+  // return a bundle graph, but outside of watch mode it always will.
+  async run(): Promise<?BundleGraph> {
     if (!this._initialized) {
       await this.init();
     }
 
-    this.assetGraphBuilder.on('invalidate', () => {
-      this.build();
-    });
+    let resolvedOptions = nullthrows(this.resolvedOptions);
+    try {
+      this.assetGraphBuilder.on('invalidate', () => {
+        this.build().catch(e => {
+          if (!resolvedOptions.watch) {
+            throw e;
+          }
+        });
+      });
 
-    return this.build();
+      let graph = await this.build();
+      if (!resolvedOptions.watch) {
+        return graph;
+      }
+    } catch (e) {
+      if (!resolvedOptions.watch) {
+        throw e;
+      }
+    }
   }
 
   async build(): Promise<BundleGraph> {
@@ -137,11 +153,12 @@ export default class Parcel {
       return new BundleGraph(bundleGraph);
     } catch (e) {
       if (!(e instanceof BuildAbortError)) {
-        this.reporterRunner.report({
+        await this.reporterRunner.report({
           type: 'buildFailure',
           error: e
         });
       }
+
       throw e;
     }
   }
