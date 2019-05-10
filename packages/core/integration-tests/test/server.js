@@ -2,7 +2,7 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
 const logger = require('@parcel/logger');
-const {bundler} = require('@parcel/test-utils');
+const {bundler, sleep} = require('@parcel/test-utils');
 const http = require('http');
 const https = require('https');
 const getPort = require('get-port');
@@ -107,7 +107,11 @@ describe('server', function() {
 
   it('should serve a 500 if the bundler errored', async function() {
     let port = await getPort();
-    let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
+    let inputDir = path.join(__dirname, '/input/server-500');
+    await fs.ncp(path.join(__dirname, '/integration/commonjs'), inputDir);
+    let entry = path.join(inputDir, 'index.js');
+
+    let b = bundler(entry, {
       serve: {
         https: false,
         port: port,
@@ -118,17 +122,20 @@ describe('server', function() {
 
     await b.run();
 
-    b.reporterRunner.report({
-      type: 'buildFailure',
-      error: new Error('This is a server test error')
-    });
+    await sleep(4000);
+    await fs.writeFile(path.join(inputDir, 'local.js'), 'syntax\\error');
+
+    // TODO: Programatically wait for an error to occur, or time out. Right now,
+    //       Parcel does not expose this without creating a reporter that must
+    //       be loaded from disk.
+    await sleep(4000);
 
     let statusCode = 200;
     try {
       await get('/index.js', port);
     } catch (err) {
       statusCode = err.statusCode;
-      assert(err.data.includes('This is a server test error'));
+      assert(err.data.includes('Expecting Unicode escape sequence'));
     }
 
     assert.equal(statusCode, 500);
