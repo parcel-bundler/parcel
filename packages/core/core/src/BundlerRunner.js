@@ -81,6 +81,14 @@ export default class BundlerRunner {
       let name = await namer.name(bundle, bundleGraph, this.options);
 
       if (name != null) {
+        if (path.extname(name).slice(1) !== bundle.type) {
+          throw new Error(
+            `Destination name ${name} extension does not match bundle type "${
+              bundle.type
+            }"`
+          );
+        }
+
         let target = nullthrows(internalBundle.target);
         internalBundle.filePath = path.join(
           target.distDir,
