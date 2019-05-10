@@ -14,7 +14,7 @@ import MainAssetGraph from './public/MainAssetGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
-import {normalizeSeparators} from '@parcel/utils';
+import {normalizeSeparators, unique} from '@parcel/utils';
 
 type Opts = {|
   options: ParcelOptions,
@@ -64,7 +64,7 @@ export default class BundlerRunner {
     let bundlePaths = bundles.map(b => b.filePath);
     assert.deepEqual(
       bundlePaths,
-      Array.from(new Set(bundlePaths)),
+      unique(bundlePaths),
       'Bundles must have unique filePaths'
     );
   }
