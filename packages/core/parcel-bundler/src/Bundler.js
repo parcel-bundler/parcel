@@ -110,8 +110,8 @@ class Bundler extends EventEmitter {
       target === 'node'
         ? false
         : typeof options.hmr === 'boolean'
-          ? options.hmr
-          : watch;
+        ? options.hmr
+        : watch;
     const scopeHoist =
       options.scopeHoist !== undefined ? options.scopeHoist : false;
     return {
@@ -150,8 +150,8 @@ class Bundler extends EventEmitter {
         typeof options.autoInstall === 'boolean'
           ? options.autoInstall
           : process.env.PARCEL_AUTOINSTALL === 'false'
-            ? false
-            : !isProduction,
+          ? false
+          : !isProduction,
       scopeHoist: scopeHoist,
       contentHash:
         typeof options.contentHash === 'boolean'
