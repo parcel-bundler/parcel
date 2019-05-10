@@ -10,6 +10,7 @@ const fs = require('@parcel/fs');
 const WorkerFarm = require('@parcel/workers');
 
 const YARN_LOCK = 'yarn.lock';
+const PNPM_LOCK = 'pnpm-lock.yaml';
 
 async function install(modules, filepath, options = {}) {
   let {installPeers = true, saveDev = true, packageManager} = options;
@@ -26,11 +27,11 @@ async function install(modules, filepath, options = {}) {
     packageManager = await determinePackageManager(filepath);
   }
 
-  let commandToUse = packageManager === 'npm' ? 'install' : 'add';
+  let commandToUse = packageManager.endsWith('npm') ? 'install' : 'add';
   let args = [commandToUse, ...modules];
   if (saveDev) {
     args.push('-D');
-  } else if (packageManager === 'npm') {
+  } else if (packageManager.endsWith('npm')) {
     args.push('--save');
   }
 
@@ -77,16 +78,24 @@ async function determinePackageManager(filepath) {
   const yarnLockFile = await config.resolve(filepath, [YARN_LOCK]);
 
   /**
-   * no yarn.lock => use npm
-   * yarn.lock => Use yarn, fallback to npm
+   * yarn.lock => Use yarn
+   * pnpm-lock.yaml => Use pnpm
+   * fallback to npm
    */
-  if (!yarnLockFile) {
-    return 'npm';
+  if (yarnLockFile) {
+    const hasYarn = await checkForCommand('yarn');
+    if (hasYarn) {
+      return 'yarn';
+    }
   }
 
-  const hasYarn = await checkForCommand('yarn');
-  if (hasYarn) {
-    return 'yarn';
+  const pnpmLockFile = await config.resolve(filepath, [PNPM_LOCK]);
+
+  if (pnpmLockFile) {
+    const hasPnpm = await checkForCommand('pnpm');
+    if (hasPnpm) {
+      return 'pnpm';
+    }
   }
 
   return 'npm';
