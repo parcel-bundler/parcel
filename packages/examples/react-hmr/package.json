@@ -4,14 +4,13 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "html-hack": "mkdir -p dist && cp src/index.html dist/index.html",
-    "demo": "yarn html-hack && parcel2 serve src/index.js"
+    "demo": "parcel2 serve src/index.html"
   },
   "devDependencies": {
     "parcel": "^2.0.0"
   },
-  "browser": "dist/legacy/index.js",
-  "browserModern": "dist/modern/index.js",
+  "browser": "dist/legacy/index.html",
+  "browserModern": "dist/modern/index.html",
   "targets": {
     "browserModern": {
       "engines": {
