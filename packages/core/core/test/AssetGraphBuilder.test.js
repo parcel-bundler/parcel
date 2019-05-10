@@ -33,6 +33,7 @@ const DEFAULT_OPTIONS = {
   cache: false,
   cacheDir: '.parcel-cache',
   entries: [],
+  logLevel: 'none',
   rootDir: FIXTURES_DIR,
   targets: []
 };
