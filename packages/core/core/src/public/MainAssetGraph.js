@@ -63,8 +63,8 @@ export default class MainAssetGraph implements IMainAssetGraph {
     return this.#graph.traverse((node, ...args) => {
       if (node.type === 'asset') {
         return visit({type: 'asset', value: node.value}, ...args);
-      } else if (node.type === 'dependency') {
-        return visit({type: 'dependency', value: node.value}, ...args);
+      } else if (node.type === 'DEPENDENCY_REQUEST') {
+        return visit({type: 'DEPENDENCY_REQUEST', value: node.value}, ...args);
       }
     });
   }

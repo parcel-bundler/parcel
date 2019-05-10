@@ -25,7 +25,9 @@ export default class Transformation {
   }
 
   async run() {
+    console.log('IN TRANSFORMATION.RUN', this.request);
     let asset = await this.loadAsset();
+    console.log('INITIAL ASSET', asset);
 
     return this.runPipeline(asset);
   }
@@ -34,10 +36,11 @@ export default class Transformation {
     let {pipeline, configs} = await this.loadPipeline(initialAsset.filePath);
 
     let cacheKey = this.getCacheKey(initialAsset, configs);
+    console.log('CACHE KEY', cacheKey);
     let cacheEntry = await Cache.get(cacheKey);
 
-    if (cacheEntry) console.log('CACHE ENTRY FOUND');
-    else console.log('TRANSFORMING', this.request);
+    if (cacheEntry) console.log('CACHE ENTRY FOUND', cacheEntry);
+    else console.log('TRANSFORMING');
 
     let assets = cacheEntry || (await pipeline.transform(initialAsset));
 
@@ -51,19 +54,20 @@ export default class Transformation {
       }
     }
 
-    let processedFinalAssets = await Promise.all(
-      finalAssets.map(
-        asset => (pipeline.postProcess ? pipeline.postProcess(asset) : asset)
-      )
-    );
+    let processedFinalAssets = pipeline.postProcess
+      ? await pipeline.postProcess(assets)
+      : finalAssets;
 
     Cache.set(cacheKey, processedFinalAssets);
+
+    console.log('TRANSFORMATION RESULT', processedFinalAssets);
 
     return processedFinalAssets;
   }
 
   getCacheKey(asset, configs) {
-    return md5FromString(JSON.stringify({content: asset.code, configs}));
+    let {filePath, content} = asset;
+    return md5FromString(JSON.stringify({filePath, content, configs}));
   }
 
   async loadAsset() {
@@ -96,11 +100,6 @@ export default class Transformation {
     if (!parcelConfig.result) {
       throw new Error(`WTF: ${prettyFormat(parcelConfig)}`);
     }
-    console.log(
-      'PARCEL CONFIG RESULT',
-      parcelConfig.result,
-      parcelConfig.result.getTransformerNames
-    );
     let configs = {parcel: parcelConfig.result.getTransformerNames(filePath)};
 
     for (let [moduleName] of parcelConfig.devDeps) {

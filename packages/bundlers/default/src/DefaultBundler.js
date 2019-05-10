@@ -25,9 +25,13 @@ export default new Bundler({
     // 6. If two assets are always seen together, put them in the same extracted bundle.
 
     // Step 1: create bundles for each of the explicit code split points.
+    console.log('IN DEFAULT BUNDLER BUNDLE');
+    console.log(assetGraph);
     assetGraph.traverse(
       (node, context: ?BundleContext): ?BundleContext => {
-        if (node.type === 'dependency') {
+        console.log('NODE', node);
+        if (node.type === 'DEPENDENCY_REQUEST') {
+          console.log('GOT HERE');
           let dep = node.value;
 
           // Start a new bundle if this is an async dependency, or entry point.

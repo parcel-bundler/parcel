@@ -4,7 +4,7 @@ import type {InitialParcelOptions, ParcelOptions, Stats} from '@parcel/types';
 import type {Bundle} from './types';
 import type InternalBundleGraph from './BundleGraph';
 
-import AssetGraph from './AssetGraph';
+import AssetGraph, {BuildAbortError} from './NewAssetGraph';
 import {BundleGraph} from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
@@ -14,7 +14,6 @@ import loadParcelConfig from './loadParcelConfig';
 import path from 'path';
 import Cache from '@parcel/cache';
 import Watcher from '@parcel/watcher';
-import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
 import ReporterRunner from './ReporterRunner';
 import MainAssetGraph from './public/MainAssetGraph';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
@@ -72,7 +71,7 @@ export default class Parcel {
       options: resolvedOptions
     });
 
-    this.assetGraphBuilder = new AssetGraphBuilder({
+    this.assetGraph = new AssetGraph({
       options: resolvedOptions,
       config,
       entries: resolvedOptions.entries,
@@ -90,18 +89,17 @@ export default class Parcel {
     }
 
     if (this.initialOptions.watch) {
-      console.log('SETTING UP WATCHER', this.resolvedOptions.projectRoot);
       this.watcher = new Watcher();
       this.watcher.watch(this.resolvedOptions.projectRoot);
       this.watcher.on('all', (event, path) => {
         if (path.includes('.parcel-cache')) return; // TODO: unwatch from watcher, couldn't get it working
         // TODO: filter out dist changes
         console.log('DETECTED CHANGE', event, path);
-        this.assetGraphBuilder.respondToFSChange({
+        this.assetGraph.respondToFSChange({
           action: event,
           path
         });
-        if (this.assetGraphBuilder.isInvalid()) {
+        if (this.assetGraph.isInvalid()) {
           console.log('ASSET GRAPH IS INVALID');
           this.build();
         }
@@ -120,19 +118,20 @@ export default class Parcel {
       let startTime = Date.now();
       // console.log('Starting build'); // eslint-disable-line no-console
 
-      let assetGraph = await this.assetGraphBuilder.build();
+      await this.assetGraph.build();
       console.log('DONE BUILDING ASSET GRAPH');
-      dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
+      await dumpGraphToGraphViz(this.assetGraph, 'MainAssetGraph');
 
-      let bundleGraph = await this.bundle(assetGraph);
+      let bundleGraph = await this.bundle(this.assetGraph);
+      console.log('DONE BUNDLING');
       dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
 
       await this.package(bundleGraph);
 
       this.reporterRunner.report({
         type: 'buildSuccess',
-        changedAssets: new Map(this.assetGraphBuilder.changedAssets),
-        assetGraph: new MainAssetGraph(assetGraph),
+        changedAssets: new Map(this.assetGraph.changedAssets),
+        assetGraph: new MainAssetGraph(this.assetGraph),
         bundleGraph: new BundleGraph(bundleGraph),
         buildTime: Date.now() - startTime
       });

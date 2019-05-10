@@ -4,6 +4,12 @@ import type {Environment} from '@parcel/types';
 
 import type Graph from './Graph';
 import type {AssetGraphNode, BundleGraphNode} from './types';
+import {
+  TRANSFORMATION_REQUEST,
+  DEPENDENCY_REQUEST,
+  CONFIG_REQUEST,
+  DEV_DEP_REQUEST
+} from './NewAssetGraph';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
@@ -45,9 +51,9 @@ export default async function dumpGraphToGraphViz(
     n.set('shape', 'box');
     n.set('style', 'filled');
 
-    let label = `${node.type || 'No Type'}: `;
+    let label = getTypeAbbreviation(node.type) + ': ';
 
-    if (node.type === 'dependency') {
+    if (node.type === DEPENDENCY_REQUEST) {
       label += node.value.moduleSpecifier;
       let parts = [];
       if (node.value.isEntry) parts.push('entry');
@@ -59,7 +65,7 @@ export default async function dumpGraphToGraphViz(
       label += path.basename(node.value.filePath) + '#' + node.value.type;
     } else if (node.type === 'file') {
       label += path.basename(node.value.filePath);
-    } else if (node.type === 'transformer_request') {
+    } else if (node.type === TRANSFORMATION_REQUEST) {
       label +=
         path.basename(node.value.filePath) +
         ` (${getEnvDescription(node.value.env)})`;
@@ -116,4 +122,15 @@ function getEnvDescription(env: Environment) {
   }
 
   return description;
+}
+
+function getTypeAbbreviation(type) {
+  if (!type) {
+    return 'No Type';
+  }
+
+  return type
+    .split('_')
+    .map(word => word.charAt(0))
+    .join('');
 }

@@ -22,7 +22,18 @@ export default class PromiseQueue {
   }
 
   add(fn: () => Promise<mixed>): void {
-    this._queue.push(fn);
+    return new Promise((resolve, reject) => {
+      let wrapped = () =>
+        fn().then(
+          result => resolve(result),
+          err => {
+            reject(err);
+            throw err;
+          }
+        );
+
+      this._queue.push(wrapped);
+    });
   }
 
   run(): Promise<void> {

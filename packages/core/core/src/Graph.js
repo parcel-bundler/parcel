@@ -175,9 +175,6 @@ export default class Graph<TNode: Node> {
     toNodes: Array<TNode>,
     edgeType: string
   ): GraphUpdates<TNode> {
-    let removed = new this.constructor();
-    let added = new this.constructor();
-
     let edgesBefore = Array.from(this.edges).filter(
       edge => edge.from === fromNode.id && edge.type === edgeType
     );
@@ -187,7 +184,6 @@ export default class Graph<TNode: Node> {
       let existingNode = this.getNode(toNode.id);
       if (!existingNode) {
         this.addNode(toNode);
-        added.addNode(toNode);
       } else {
         existingNode.value = toNode.value;
       }
@@ -197,17 +193,12 @@ export default class Graph<TNode: Node> {
       let edge = {from: fromNode.id, to: toNode.id, type: edgeType};
       if (!this.hasEdge(edge)) {
         this.addEdge(edge);
-        added.addEdge(edge);
       }
     }
 
     for (let edge of edgesToRemove) {
-      if (edge.type === edgeType) {
-        removed.merge(this.removeEdge(edge));
-      }
+      this.removeEdge(edge);
     }
-
-    return {removed, added};
   }
 
   traverse<TContext>(
