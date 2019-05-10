@@ -15,14 +15,6 @@ function canHaveDependencies(filePath: FilePath, code: string) {
   return !/\.css$/.test(filePath) || IMPORT_RE.test(code) || URL_RE.test(code);
 }
 
-function addURLDependency(asset, url: string, opts) {
-  asset.addDependency({
-    moduleSpecifier: url,
-    isAsync: true,
-    ...opts
-  });
-}
-
 export default new Transformer({
   canReuseAST(ast) {
     return ast.type === 'postcss' && semver.satisfies(ast.version, '^7.0.0');
@@ -78,7 +70,7 @@ export default new Transformer({
       // let inlineHTML =
       //   this.options.rendition && this.options.rendition.inlineHTML;
       // if (inlineHTML) {
-      //   name.value = addURLDependency(asset, dep, {loc: rule.source.start});
+      //   name.value = asset.addURLDependency(dep, {loc: rule.source.start});
       //   rule.params = params.toString();
       // } else {
       media = valueParser.stringify(media).trim();
@@ -107,7 +99,7 @@ export default new Transformer({
             node.value === 'url' &&
             node.nodes.length
           ) {
-            let url = addURLDependency(asset, node.nodes[0].value, {
+            let url = asset.addURLDependency(node.nodes[0].value, {
               loc: decl.source.start
             });
             isDirty = node.nodes[0].value !== url;
