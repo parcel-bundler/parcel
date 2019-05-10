@@ -35,10 +35,10 @@
   "alias": {
     "react": "preact",
     "@iarna/toml": "toml",
-    "deasync": "./noop.js",
+    "deasync": false,
     "node-sass": "sass",
     "fs": "./memory-fs.js",
-    "v8-compile-cache": "./noop.js"
+    "v8-compile-cache": false
   },
   "browserslist": [
     "Chrome 52",

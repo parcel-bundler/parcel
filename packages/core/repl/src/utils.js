@@ -29,9 +29,8 @@ export function saveState(curPreset, options, assets) {
   let data = {
     currentPreset: curPreset,
     options,
-    assets: assets.map(
-      ({name, content, isEntry = false}) =>
-        isEntry ? [name, content, 1] : [name, content]
+    assets: assets.map(({name, content, isEntry = false}) =>
+      isEntry ? [name, content, 1] : [name, content]
     )
   };
 

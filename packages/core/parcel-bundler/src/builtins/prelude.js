@@ -34,8 +34,9 @@ parcelRequire = (function (modules, cache, entry, globalName) {
           return nodeRequire(name);
         }
 
+        // needed for cosmiconfig: Module._nodeModulePaths is not a function
         try {
-          let x = {exports: {}};
+          var x = {exports: {}};
           (new Function('require', 'module', 'exports', self.fs.readFileSync(name, "utf8")))(localRequire, x, x.exports);
           return x.exports;
         } catch(_){

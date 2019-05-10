@@ -162,8 +162,8 @@ class App extends Component {
 
   updateAsset(name, prop, value) {
     this.setState(state => ({
-      assets: state.assets.map(
-        a => (a.name === name ? {...a, [prop]: value} : a)
+      assets: state.assets.map(a =>
+        a.name === name ? {...a, [prop]: value} : a
       )
     }));
   }
