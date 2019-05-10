@@ -111,7 +111,9 @@ async function checkForCommand(command) {
   try {
     hasCommand = await commandExists(command);
     commandCache.set(command, hasCommand);
-  } catch (err) {}
+  } catch (err) {
+    return false;
+  }
 
   return hasCommand;
 }
