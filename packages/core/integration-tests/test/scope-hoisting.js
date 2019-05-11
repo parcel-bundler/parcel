@@ -1217,5 +1217,17 @@ describe('scope hoisting', function() {
       assert.equal(output.__esModule, true);
       assert.equal(output.default, 2);
     });
+
+    it('should support assigning to exports from inside a function', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/export-assign-scope/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 2);
+    });
   });
 });
