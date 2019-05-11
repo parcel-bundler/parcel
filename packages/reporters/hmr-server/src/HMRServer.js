@@ -7,6 +7,7 @@ import type {Server, ServerError, HMRServerOptions} from './types.js.flow';
 import http from 'http';
 import https from 'https';
 import WebSocket from 'ws';
+import ansiHtml from 'ansi-html';
 import {getCertificate, generateCertificate} from '@parcel/utils';
 import logger from '@parcel/logger';
 import {prettyError} from '@parcel/utils';
@@ -27,7 +28,8 @@ type HMRError = {|
 
 type HMRMessage = {|
   type: string,
-  error?: HMRError,
+  ansiError?: HMRError,
+  htmlError?: HMRError,
   assets?: Array<HMRAsset>
 |};
 
@@ -94,9 +96,13 @@ export default class HMRServer {
     // and so we can broadcast when the error is resolved
     this.unresolvedError = {
       type: 'error',
-      error: {
+      ansiError: {
         message,
         stack
+      },
+      htmlError: {
+        message: ansiHtml(message),
+        stack: ansiHtml(stack)
       }
     };
 
