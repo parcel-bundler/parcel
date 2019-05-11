@@ -28,7 +28,8 @@ type HMRError = {|
 
 type HMRMessage = {|
   type: string,
-  error?: HMRError,
+  ansiError?: HMRError,
+  htmlError?: HMRError,
   assets?: Array<HMRAsset>
 |};
 
@@ -95,7 +96,11 @@ export default class HMRServer {
     // and so we can broadcast when the error is resolved
     this.unresolvedError = {
       type: 'error',
-      error: {
+      ansiError: {
+        message,
+        stack
+      },
+      htmlError: {
         message: ansiHtml(message),
         stack: ansiHtml(stack)
       }
