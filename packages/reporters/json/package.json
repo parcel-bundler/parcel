@@ -1,7 +1,7 @@
 {
   "name": "@parcel/reporter-json",
   "version": "2.0.0-alpha.0",
-  "main": "src/JSONReporter.js",
+  "main": "lib/JSONReporter.js",
   "engines": {
     "parcel": "^2.0.0-alpha.0"
   },

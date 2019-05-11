@@ -2,7 +2,7 @@
   "name": "@parcel/test-utils",
   "version": "2.0.0-alpha.0",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "src/utils.js",
+  "main": "lib/utils.js",
   "license": "MIT",
   "private": true,
   "repository": {

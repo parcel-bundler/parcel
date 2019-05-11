@@ -2,7 +2,11 @@
   "name": "@parcel/types",
   "version": "2.0.0-alpha.0",
   "license": "MIT",
-  "main": "src/index.js",
+<<<<<<< HEAD
+  "main": "lib/index.js",
+=======
+  "main": "index.js",
+>>>>>>> c33942ad... src => lib
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"

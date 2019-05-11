@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/index.js",
+  "main": "lib/index.js",
   "scripts": {
     "build": "babel src -d lib",
     "prepublish": "yarn build",

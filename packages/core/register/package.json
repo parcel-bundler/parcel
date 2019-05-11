@@ -1,7 +1,7 @@
 {
   "name": "@parcel/register",
   "version": "2.0.0-alpha.0",
-  "main": "./src/register.js",
+  "main": "lib/register.js",
   "license": "MIT",
   "scripts": {
     "build": "babel src -d lib",

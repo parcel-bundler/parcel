@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/JSTransformer",
+  "main": "lib/JSTransformer",
   "engines": {
     "parcel": "^2.0.0-alpha.0"
   },

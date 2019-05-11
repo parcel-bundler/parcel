@@ -2,7 +2,7 @@
   "name": "@parcel/local-require",
   "version": "2.0.0-alpha.0",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "src/localRequire.js",
+  "main": "lib/localRequire.js",
   "license": "MIT",
   "repository": {
     "type": "git",
