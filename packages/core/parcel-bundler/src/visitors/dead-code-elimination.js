@@ -4,7 +4,10 @@ module.exports = {
   MemberExpression(path, asset) {
     const {node} = path;
     // Inline environment variables accessed on process.env
-    if (t.matchesPattern(node.object, 'process.env')) {
+    if (
+      t.matchesPattern(node.object, 'process.env') &&
+      !t.isAssignmentExpression(path.parent, {left: node})
+    ) {
       let key = t.toComputedKey(node);
       if (t.isStringLiteral(key)) {
         let prop = process.env[key.value];

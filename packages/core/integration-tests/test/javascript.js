@@ -1076,6 +1076,51 @@ describe('javascript', function() {
     assert.equal(output, 'nobrowser:dep1,dep1,dep1,dep1,dep1,dep1');
   });
 
+  it(`should not replace left side of an environment assignment on --target=browser`, async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/dead-modules-elimination/assignment.js'
+      ),
+      {
+        target: 'browser'
+      }
+    );
+
+    let output = await run(b);
+    assert.equal(output, 'bar:test:undefined');
+  });
+
+  it(`should not replace left side of an environment assignment on --target=node`, async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/dead-modules-elimination/assignment.js'
+      ),
+      {
+        target: 'node'
+      }
+    );
+
+    let output = await run(b);
+    assert.equal(output, '3:4:5');
+  });
+
+  it(`should not replace left side of an environment assignment on --target=electron`, async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/dead-modules-elimination/assignment.js'
+      ),
+      {
+        target: 'electron'
+      }
+    );
+
+    let output = await run(b);
+    assert.equal(output, '3:4:5');
+  });
+
   it('should support adding implicit dependencies', async function() {
     let b = await bundle(path.join(__dirname, '/integration/json/index.js'), {
       delegate: {
