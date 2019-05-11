@@ -27,7 +27,7 @@ export function Notes() {
       This is Parcel running as a self-hosting bundler (self-
       <i>scope-hoisting</i> doesn't work ...)
       <br />
-      The Parcel portion of this page, including all asset types, is a 2.8MB
+      The Parcel portion of this page, including all asset types, is a 2.3MB
       gzipped bundle running in a Web Worker
       <br />
       <br />
@@ -35,6 +35,13 @@ export function Notes() {
       <ul>
         <li> {ctrlKey} + (B or Enter): Bundle</li>
         <li> {ctrlKey} + S: Download ZIP of input & output (after bundling)</li>
+      </ul>
+      Note:
+      <ul>
+        <li>
+          PostHTML's <code>removeUnusedCss</code> is disabled for a smaller
+          bundle size
+        </li>
       </ul>
       Known issues:
       <ul>

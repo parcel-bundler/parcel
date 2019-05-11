@@ -12,7 +12,10 @@ sed -i '.bak' "s/$SASS_GLOBAL_A/$SASS_GLOBAL_B/; s/$SASS_REQUIRE_A/$SASS_REQUIRE
 ####### htmlnano
 
 HTMLNANO_REQUIRE_A='function htmlnano() {'
-HTMLNANO_REQUIRE_B="require('./presets/ampSafe'), require('./presets/hard'), require('./presets/max'), require('./presets/safe'), require('./modules/collapseAttributeWhitespace'), require('./modules/collapseBooleanAttributes'), require('./modules/collapseWhitespace'), require('./modules/custom'), require('./modules/deduplicateAttributeValues'), require('./modules/mergeScripts'), require('./modules/mergeStyles'), require('./modules/minifyJson'), require('./modules/minifySvg'), require('./modules/removeComments'), require('./modules/removeEmptyAttributes'), require('./modules/removeRedundantAttributes'), require('./modules/removeUnusedCss');"
+HTMLNANO_REQUIRE_B="require('./presets/ampSafe'), require('./presets/hard'), require('./presets/max'), require('./presets/safe'), require('./modules/collapseAttributeWhitespace'), require('./modules/collapseBooleanAttributes'), require('./modules/collapseWhitespace'), require('./modules/custom'), require('./modules/deduplicateAttributeValues'), require('./modules/mergeScripts'), require('./modules/mergeStyles'), require('./modules/minifyJson'), require('./modules/minifySvg'), require('./modules/removeComments'), require('./modules/removeEmptyAttributes'), require('./modules/removeRedundantAttributes');"
+
+# removed to not bundle htmlnano>cssnano>jsdom:
+# , require('./modules/removeUnusedCss')
 
 sed -i '.bak' "s#$HTMLNANO_REQUIRE_A#$HTMLNANO_REQUIRE_B$HTMLNANO_REQUIRE_A#" $(node -p 'require.resolve("htmlnano/lib/htmlnano.js")')
 
