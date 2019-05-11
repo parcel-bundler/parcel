@@ -107,8 +107,7 @@ describe('bundler', function() {
     ]);
   });
 
-  // TODO: Fix this, it fails in CI
-  it.skip('Should pick a new asset id if there is a duplicate', async function() {
+  it('Should pick a new asset id if there is a duplicate', async function() {
     let b = await bundle(
       __dirname + '/integration/asset-id-resizing/index.js',
       {
@@ -117,7 +116,7 @@ describe('bundler', function() {
     );
 
     let idArray = Array.from(b.assets.values()).map(asset => asset.id);
-    ss;
+
     assert(idArray[0] !== idArray[1]);
     assert(idArray[1].length === 4);
 
