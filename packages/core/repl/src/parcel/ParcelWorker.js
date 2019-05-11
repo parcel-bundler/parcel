@@ -2,17 +2,17 @@ if (!self.Buffer) {
   self.Buffer = require('buffer').Buffer;
 }
 
+import {expose as ComlinkExpose} from 'comlink';
 import path from 'path';
 import fastGlob from 'fast-glob';
 import process from 'process';
 import fs from '@parcel/fs';
 import fsNative from 'fs';
 
-const Comlink = require('comlink');
-import {hasBrowserslist} from '../utils';
-
-import prettyError from '@parcel/logger/src/prettyError';
 import Bundler from 'parcel-bundler';
+
+import {hasBrowserslist} from '../utils';
+import prettyError from '@parcel/logger/src/prettyError';
 import JSZip from 'jszip';
 
 self.process = process;
@@ -117,4 +117,4 @@ class ParcelWorker {
   }
 }
 
-Comlink.expose(ParcelWorker, self);
+ComlinkExpose(ParcelWorker);

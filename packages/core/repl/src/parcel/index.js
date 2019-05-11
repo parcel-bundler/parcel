@@ -1,6 +1,6 @@
-const Comlink = require('comlink');
+import {wrap as ComlinkWrap} from 'comlink';
 
-const ParcelWorker = Comlink.proxy(new Worker('./ParcelWorker.js'));
+const ParcelWorker = ComlinkWrap(new Worker('./ParcelWorker.js'));
 export const workerLoaded = new ParcelWorker();
 
 export async function getFS() {

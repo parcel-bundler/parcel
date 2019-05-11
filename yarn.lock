@@ -3082,10 +3082,10 @@ combined-stream@^1.0.6, combined-stream@~1.0.6:
   dependencies:
     delayed-stream "~1.0.0"
 
-comlink@^3.2.0:
-  version "3.2.0"
-  resolved "https://registry.yarnpkg.com/comlink/-/comlink-3.2.0.tgz#21d2b6266611c706d03af8e8b4806a2e8efad3a5"
-  integrity sha512-sxkeOmy35tVBsEThqQcUs6KRlLuFSx//oAAm5QGuoRVmqUZtstfntOy/Ao6Lrzz52+an00JRI/FXWofG3ZeH1g==
+comlink@^4.0.1:
+  version "4.0.1"
+  resolved "https://registry.yarnpkg.com/comlink/-/comlink-4.0.1.tgz#b20d0fca012ef80cf7eae89b76e4b43b2a1a0e6d"
+  integrity sha512-xEI50m6xEff5aZ29Epd+eNP+Plq2xTcUXGDJeWNqptudNB0hr59NV2KIi1xz6igb/Y2azKKSAj4ehI3wgGbREw==
 
 command-exists@^1.2.6:
   version "1.2.8"

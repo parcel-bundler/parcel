@@ -19,7 +19,7 @@
     "@parcel/fs": "^1.11.0",
     "@parcel/logger": "^1.11.0",
     "codemirror": "^5.46.0",
-    "comlink": "^3.2.0",
+    "comlink": "^4.0.1",
     "jszip": "^3.2.1",
     "memory-fs": "^0.4.1",
     "parcel-bundler": "^1.12.1",
