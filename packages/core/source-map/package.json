@@ -1,0 +1,13 @@
+{
+  "name": "@parcel/source-map",
+  "version": "2.0.0",
+  "main": "./src/SourceMap.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "babel src --out-dir lib",
+    "prepublish": "yarn build"
+  },
+  "dependencies": {
+    "source-map": "^0.7.3"
+  }
+}
