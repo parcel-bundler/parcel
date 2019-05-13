@@ -1,5 +1,6 @@
+// @flow
 const {SourceMapConsumer, SourceMapGenerator} = require('source-map');
-const lineCounter = require('./utils/lineCounter');
+const lineCounter = require('../../utils/src/lineCounter');
 
 class SourceMap {
   constructor(mappings, sources) {
