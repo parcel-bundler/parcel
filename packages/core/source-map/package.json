@@ -7,6 +7,9 @@
     "build": "babel src --out-dir lib",
     "prepublish": "yarn build"
   },
+  "engines": {
+    "node": ">= 8.0.0"
+  },
   "dependencies": {
     "source-map": "^0.7.3"
   }
