@@ -1,5 +1,5 @@
 // @flow
-import type {Asset, PackageJSON} from '@parcel/types';
+import type {MutableAsset, PackageJSON} from '@parcel/types';
 import semver from 'semver';
 import logger from '@parcel/logger';
 import path from 'path';
@@ -8,7 +8,7 @@ import {localResolve} from '@parcel/local-require';
 import micromatch from 'micromatch';
 
 export default async function getBabelConfig(
-  asset: Asset,
+  asset: MutableAsset,
   pkg: ?PackageJSON,
   isSource: boolean
 ) {

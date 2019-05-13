@@ -9,7 +9,7 @@
       body {
         margin: 0;
       }
-      
+
       .error-title-style {
         display: flex;
       }
@@ -43,10 +43,10 @@
   <body>
     <div class="error-title-style">
       <div class="error-title-emoji">🚨</div>
-      <h1 class="error-title-heading"><%= error.message %></h1>
+      <h1 class="error-title-heading"><%- error.message %></h1>
     </div>
     <div class="error-stack-trace">
-      <%= error.stack %>
+      <%- error.stack %>
     </div>
   </body>
 </html>

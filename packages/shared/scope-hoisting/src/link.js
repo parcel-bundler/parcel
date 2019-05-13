@@ -1,6 +1,7 @@
 // @flow
 
-import type {AST, Bundle, ParcelOptions} from '@parcel/types';
+import type {Asset, AST, Bundle, ParcelOptions, Symbol} from '@parcel/types';
+
 import nullthrows from 'nullthrows';
 import {relative} from 'path';
 import template from '@babel/template';
@@ -18,10 +19,10 @@ const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 const REQUIRE_TEMPLATE = template('parcelRequire(ID)');
 
 export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
-  let replacements = new Map();
-  let imports = new Map();
-  let assets = new Map();
-  let exportsMap = new Map();
+  let replacements: Map<Symbol, Symbol> = new Map();
+  let imports: Map<Symbol, [Asset, Symbol]> = new Map();
+  let assets: Map<string, Asset> = new Map();
+  let exportsMap: Map<Symbol, Asset> = new Map();
 
   // Build a mapping of all imported identifiers to replace.
   bundle.traverseAssets(asset => {
@@ -49,7 +50,7 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
       identifier = getName(asset, 'exports');
     }
 
-    if (replacements && replacements.has(identifier)) {
+    if (replacements && identifier && replacements.has(identifier)) {
       identifier = replacements.get(identifier);
     }
 
@@ -90,7 +91,7 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
   }
 
   function findSymbol(path, symbol) {
-    if (replacements.has(symbol)) {
+    if (symbol && replacements.has(symbol)) {
       symbol = replacements.get(symbol);
     }
 

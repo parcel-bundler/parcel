@@ -1,5 +1,5 @@
 // @flow
-import type {Asset} from '@parcel/types';
+import type {MutableAsset} from '@parcel/types';
 import presetEnv from '@babel/preset-env';
 import getTargetEngines from './getTargetEngines';
 
@@ -9,7 +9,7 @@ import getTargetEngines from './getTargetEngines';
  * target engines, and doing a diff to include only the necessary plugins.
  */
 export default async function getEnvConfig(
-  asset: Asset,
+  asset: MutableAsset,
   isSourceModule: boolean
 ) {
   // Load the target engines for the app and generate a @babel/preset-env config

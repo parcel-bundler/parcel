@@ -1,5 +1,7 @@
 // @flow
-import type {Asset} from '@parcel/types';
+
+import type {Asset, MutableAsset} from '@parcel/types';
+
 import * as t from '@babel/types';
 import traverse from '@babel/traverse';
 import template from '@babel/template';
@@ -30,7 +32,7 @@ const TYPEOF = {
   require: 'function'
 };
 
-export function hoist(asset: Asset) {
+export function hoist(asset: MutableAsset) {
   if (
     !asset.ast ||
     asset.ast.type !== 'babel' ||

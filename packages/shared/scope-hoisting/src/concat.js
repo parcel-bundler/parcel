@@ -16,7 +16,7 @@ const HELPERS = fs.readFileSync(HELPERS_PATH, 'utf8');
 const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
 const PRELUDE = fs.readFileSync(PRELUDE_PATH, 'utf8');
 
-type AssetASTMap = Map<Asset, Object>;
+type AssetASTMap = Map<string, Object>;
 type TraversalContext = {|
   parent: ?AssetASTMap,
   children: AssetASTMap
@@ -60,22 +60,22 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
         return;
       }
 
-      let statements = nullthrows(outputs.get(asset));
-      let statementIndices = new Map();
+      let statements = nullthrows(outputs.get(asset.id));
+      let statementIndices: Map<string, number> = new Map();
       for (let i = 0; i < statements.length; i++) {
         let statement = statements[i];
         if (t.isExpressionStatement(statement)) {
           for (let depAsset of findRequires(bundle, asset, statement)) {
-            if (!statementIndices.has(depAsset)) {
-              statementIndices.set(depAsset, i);
+            if (depAsset && !statementIndices.has(depAsset.id)) {
+              statementIndices.set(depAsset.id, i);
             }
           }
         }
       }
 
-      for (let [asset, ast] of [...context.children].reverse()) {
-        let index = statementIndices.has(asset)
-          ? nullthrows(statementIndices.get(asset))
+      for (let [assetId, ast] of [...context.children].reverse()) {
+        let index = statementIndices.has(assetId)
+          ? nullthrows(statementIndices.get(assetId))
           : 0;
         statements.splice(index, 0, ...ast);
       }
@@ -96,7 +96,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       }
 
       if (context.parent) {
-        context.parent.set(asset, statements);
+        context.parent.set(asset.id, statements);
       } else {
         result.push(...statements);
       }
@@ -139,7 +139,7 @@ async function processAsset(bundle: Bundle, asset: Asset) {
     statements = wrapModule(asset, statements);
   }
 
-  return [asset, statements];
+  return [asset.id, statements];
 }
 
 function parse(code, filename) {
@@ -161,8 +161,8 @@ function addComment(statement, comment) {
   });
 }
 
-function getUsedExports(bundle: Bundle): Map<Asset, Set<Symbol>> {
-  let usedExports = new Map();
+function getUsedExports(bundle: Bundle): Map<string, Set<Symbol>> {
+  let usedExports: Map<string, Set<Symbol>> = new Map();
   bundle.traverseAssets(asset => {
     for (let dep of bundle.getDependencies(asset)) {
       let resolvedAsset = bundle.getDependencyResolution(dep);
@@ -189,10 +189,10 @@ function getUsedExports(bundle: Bundle): Map<Asset, Set<Symbol>> {
   function markUsed(asset, symbol) {
     let resolved = bundle.resolveSymbol(asset, symbol);
 
-    let used = usedExports.get(resolved.asset);
+    let used = usedExports.get(resolved.asset.id);
     if (!used) {
       used = new Set();
-      usedExports.set(resolved.asset, used);
+      usedExports.set(resolved.asset.id, used);
     }
 
     used.add(resolved.exportSymbol);
@@ -203,11 +203,12 @@ function getUsedExports(bundle: Bundle): Map<Asset, Set<Symbol>> {
 
 function shouldExcludeAsset(
   asset: Asset,
-  usedExports: Map<Asset, Set<Symbol>>
+  usedExports: Map<string, Set<Symbol>>
 ) {
   return (
     asset.sideEffects === false &&
-    (!usedExports.has(asset) || nullthrows(usedExports.get(asset)).size === 0)
+    (!usedExports.has(asset.id) ||
+      nullthrows(usedExports.get(asset.id)).size === 0)
   );
 }
 

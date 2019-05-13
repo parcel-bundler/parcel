@@ -2,6 +2,7 @@
 
 import type {
   AssetGraphNode,
+  CacheEntry,
   DependencyNode,
   FileNode,
   NodeId,
@@ -9,8 +10,6 @@ import type {
 } from './types';
 
 import type {
-  Asset,
-  CacheEntry,
   Dependency as IDependency,
   File,
   FilePath,
@@ -20,6 +19,8 @@ import type {
   SymbolResolution,
   TransformerRequest
 } from '@parcel/types';
+
+import type Asset from './Asset';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';

@@ -1,5 +1,5 @@
 // @flow
-import type {Asset} from '@parcel/types';
+import type {MutableAsset} from '@parcel/types';
 import browserslist from 'browserslist';
 import semver from 'semver';
 
@@ -11,7 +11,7 @@ const BROWSER_CONTEXT = new Set(['browser', 'web-worker', 'service-worker']);
  *   - package.json browserslist field
  *   - browserslist or .browserslistrc files
  */
-export default async function getTargetEngines(asset: Asset) {
+export default async function getTargetEngines(asset: MutableAsset) {
   let targets = {};
   let compileTarget = BROWSER_CONTEXT.has(asset.env.context)
     ? 'browsers'

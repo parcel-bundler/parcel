@@ -72,7 +72,7 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
 
     if (data.type === 'error') {
       console.error(
-        '[parcel] 🚨  ' + data.error.message + '\n' + data.error.stack
+        '[parcel] 🚨  ' + data.ansiError.message + '\n' + data.ansiError.stack
       );
 
       removeErrorOverlay();
@@ -98,8 +98,8 @@ function createErrorOverlay(data) {
   // html encode message and stack trace
   var message = document.createElement('div');
   var stackTrace = document.createElement('pre');
-  message.innerText = data.error.message;
-  stackTrace.innerText = data.error.stack;
+  message.innerHTML = data.htmlError.message;
+  stackTrace.innerHTML = data.htmlError.stack;
 
   overlay.innerHTML =
     '<div style="background: black; font-size: 16px; color: white; position: fixed; height: 100%; width: 100%; top: 0px; left: 0px; padding: 30px; opacity: 0.85; font-family: Menlo, Consolas, monospace; z-index: 9999;">' +

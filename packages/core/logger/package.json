@@ -19,5 +19,8 @@
     "test-ci": "yarn build && yarn test",
     "build": "babel src -d lib",
     "prepublish": "yarn build"
+  },
+  "dependencies": {
+    "@parcel/events": "^2.0.0"
   }
 }

@@ -3,7 +3,7 @@
 
 import type {Bundle as InternalBundle, AssetGraphNode} from '../types';
 import type {
-  Asset,
+  Asset as IAsset,
   Bundle as IBundle,
   BundleTraversable,
   Dependency,
@@ -18,6 +18,9 @@ import type {
 } from '@parcel/types';
 
 import nullthrows from 'nullthrows';
+
+import {Asset, assetToInternalAsset} from './Asset';
+import {getInternalAsset, assetGraphVisitorToInternal} from './utils';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -63,20 +66,36 @@ export class Bundle implements IBundle {
     return this.#bundle.stats;
   }
 
-  getDependencies(asset: Asset): Array<Dependency> {
-    return this.#bundle.assetGraph.getDependencies(asset);
+  getDependencies(asset: IAsset): Array<Dependency> {
+    return this.#bundle.assetGraph.getDependencies(
+      getInternalAsset(this.#bundle.assetGraph, asset)
+    );
   }
 
   getDependencyResolution(dependency: Dependency): ?Asset {
-    return this.#bundle.assetGraph.getDependencyResolution(dependency);
+    let resolution = this.#bundle.assetGraph.getDependencyResolution(
+      dependency
+    );
+
+    if (resolution) {
+      return new Asset(resolution);
+    }
   }
 
-  getEntryAssets(): Array<Asset> {
-    return this.#bundle.assetGraph.getEntryAssets();
+  getEntryAssets(): Array<IAsset> {
+    return this.#bundle.assetGraph
+      .getEntryAssets()
+      .map(asset => new Asset(asset));
   }
 
-  getTotalSize(asset?: Asset): number {
-    return this.#bundle.assetGraph.getTotalSize(asset);
+  getTotalSize(asset?: IAsset): number {
+    if (asset) {
+      return this.#bundle.assetGraph.getTotalSize(
+        getInternalAsset(this.#bundle.assetGraph, asset)
+      );
+    }
+
+    return this.#bundle.assetGraph.getTotalSize();
   }
 
   traverse<TContext>(
@@ -91,12 +110,14 @@ export class Bundle implements IBundle {
     }, visit);
   }
 
-  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>) {
-    return this.#bundle.assetGraph.traverseAssets(visit);
+  traverseAssets<TContext>(visit: GraphVisitor<IAsset, TContext>) {
+    return this.#bundle.assetGraph.traverseAssets(
+      assetGraphVisitorToInternal(visit)
+    );
   }
 
   traverseAncestors<TContext>(
-    asset: Asset,
+    asset: IAsset,
     visit: GraphVisitor<AssetGraphNode, TContext>
   ) {
     let node = nullthrows(
@@ -106,8 +127,11 @@ export class Bundle implements IBundle {
     return this.#bundle.assetGraph.traverseAncestors(node, visit);
   }
 
-  resolveSymbol(asset: Asset, symbol: Symbol) {
-    return this.#bundle.assetGraph.resolveSymbol(asset, symbol);
+  resolveSymbol(asset: IAsset, symbol: Symbol) {
+    return this.#bundle.assetGraph.resolveSymbol(
+      assetToInternalAsset(asset),
+      symbol
+    );
   }
 
   hasChildBundles() {
@@ -139,8 +163,10 @@ export class MutableBundle extends Bundle implements IMutableBundle {
     this.#bundle.isEntry = isEntry;
   }
 
-  removeAsset(asset: Asset): void {
-    this.#bundle.assetGraph.removeAsset(asset);
+  removeAsset(asset: IAsset): void {
+    this.#bundle.assetGraph.removeAsset(
+      getInternalAsset(this.#bundle.assetGraph, asset)
+    );
   }
 
   merge(bundle: IBundle): void {

@@ -1,9 +1,8 @@
-// @flow
+// @flow strict-local
 
 import {Readable} from 'stream';
 
 import type {
-  Asset as IAsset,
   AST,
   Blob,
   Config,
@@ -62,7 +61,7 @@ type SerializedOptions = {|
   |}
 |};
 
-export default class Asset implements IAsset {
+export default class Asset {
   id: string;
   hash: ?string;
   idBase: string;
@@ -84,10 +83,13 @@ export default class Asset implements IAsset {
   sideEffects: boolean;
 
   constructor(options: AssetOptions) {
-    this.idBase = options.idBase || options.filePath;
+    this.idBase = options.idBase != null ? options.idBase : options.filePath;
     this.id =
-      options.id ||
-      md5FromString(this.idBase + options.type + JSON.stringify(options.env));
+      options.id != null
+        ? options.id
+        : md5FromString(
+            this.idBase + options.type + JSON.stringify(options.env)
+          );
     this.hash = options.hash;
     this.filePath = options.filePath;
     this.isIsolated = options.isIsolated == null ? false : options.isIsolated;
@@ -174,7 +176,7 @@ export default class Asset implements IAsset {
   }
 
   async getCode(): Promise<string> {
-    if (this.contentKey) {
+    if (this.contentKey != null) {
       this.content = Cache.getStream(this.contentKey);
     }
 
@@ -187,7 +189,7 @@ export default class Asset implements IAsset {
   }
 
   async getBuffer(): Promise<Buffer> {
-    if (this.contentKey) {
+    if (this.contentKey != null) {
       this.content = Cache.getStream(this.contentKey);
     }
 
@@ -200,7 +202,7 @@ export default class Asset implements IAsset {
   }
 
   getStream(): Readable {
-    if (this.contentKey) {
+    if (this.contentKey != null) {
       this.content = Cache.getStream(this.contentKey);
     }
 
@@ -224,7 +226,7 @@ export default class Asset implements IAsset {
   }
 
   async getMap(): Promise<?SourceMap> {
-    if (this.mapKey) {
+    if (this.mapKey != null) {
       this.map = await Cache.get(this.mapKey);
     }
 
@@ -256,7 +258,7 @@ export default class Asset implements IAsset {
   }
 
   async addConnectedFile(file: File) {
-    if (!file.hash) {
+    if (file.hash == null) {
       file.hash = await md5FromFilePath(file.filePath);
     }
 
@@ -272,7 +274,14 @@ export default class Asset implements IAsset {
   }
 
   createChildAsset(result: TransformerResult): Asset {
-    let content = result.content || result.code || '';
+    let content;
+    if (result.content != null) {
+      content = result.content;
+    } else if (result.code != null) {
+      content = result.code;
+    } else {
+      content = '';
+    }
 
     let hash;
     let size;
@@ -310,14 +319,14 @@ export default class Asset implements IAsset {
 
     let dependencies = result.dependencies;
     if (dependencies) {
-      for (let dep of dependencies.values()) {
+      for (let dep of dependencies) {
         asset.addDependency(dep);
       }
     }
 
     let connectedFiles = result.connectedFiles;
     if (connectedFiles) {
-      for (let file of connectedFiles.values()) {
+      for (let file of connectedFiles) {
         asset.addConnectedFile(file);
       }
     }
@@ -332,7 +341,7 @@ export default class Asset implements IAsset {
     let packageKey = options && options.packageKey;
     let parse = options && options.parse;
 
-    if (packageKey) {
+    if (packageKey != null) {
       let pkg = await this.getPackage();
       if (pkg && pkg[packageKey]) {
         return pkg[packageKey];

@@ -139,6 +139,7 @@ export default class Server extends EventEmitter {
 
     if (this.error) {
       let error = prettyError(this.error, {color: true});
+      error.message = ansiHtml(error.message);
       error.stack = ansiHtml(error.stack);
 
       let template500 = (await readFile(
