@@ -2,45 +2,83 @@
 const {SourceMapConsumer, SourceMapGenerator} = require('source-map');
 const lineCounter = require('../../utils/src/lineCounter');
 
+type mappingType = {
+  generated: {
+    line: number,
+    column: number
+  },
+  original: null | {
+    line: number,
+    column: number
+  },
+  source: string | null,
+  name: string | null
+};
+
+type RawSourceMapType = {
+  version: number,
+  sources: Array<string>,
+  names: Array<string>,
+  sourceRoot?: string,
+  sourcesContent?: Array<string>,
+  mappings: string,
+  file: string
+};
+
+type RawMapInputType = SourceMapConsumer | string | RawSourceMapType;
+
+type SourcesType = Object;
+
 class SourceMap {
-  constructor(mappings, sources) {
+  // TODO: Write types for this
+  mappings: Array<mappingType>;
+  sources: SourcesType;
+  lineCount: number;
+
+  constructor(mappings?: Array<mappingType> = [], sources: SourcesType = {}) {
     this.mappings = this.purifyMappings(mappings);
-    this.sources = sources || {};
-    this.lineCount = null;
+    this.sources = sources;
+    this.lineCount = 0;
   }
 
-  purifyMappings(mappings) {
-    if (Array.isArray(mappings)) {
-      return mappings.filter(
-        mapping =>
-          mapping &&
-          (typeof mapping.original === 'object' &&
-            (mapping.original === null ||
-              (typeof mapping.original.line === 'number' &&
-                mapping.original.line > 0 &&
-                typeof mapping.original.column === 'number' &&
-                mapping.source))) &&
-          mapping.generated &&
-          typeof mapping.generated.line === 'number' &&
-          mapping.generated.line > 0 &&
-          typeof mapping.generated.column === 'number'
-      );
-    }
+  // TODO: Would be nice to get rid of this
+  purifyMappings(mappings: Array<mappingType>): Array<mappingType> {
+    return mappings.filter((mapping: mappingType) => {
+      if (!mapping || !mapping.generated) return false;
 
-    return [];
+      let isValidOriginal =
+        mapping.original === null ||
+        (typeof mapping.original.line === 'number' &&
+          mapping.original.line > 0 &&
+          typeof mapping.original.column === 'number' &&
+          mapping.source);
+
+      let isValidGenerated =
+        typeof mapping.generated.line === 'number' &&
+        mapping.generated.line > 0 &&
+        typeof mapping.generated.column === 'number';
+
+      return isValidOriginal && isValidGenerated;
+    });
   }
 
-  async getConsumer(map) {
+  async getConsumer(map: RawMapInputType) {
     if (map instanceof SourceMapConsumer) {
       return map;
     }
-    map = typeof map === 'string' ? JSON.parse(map) : map;
-    if (map.sourceRoot) delete map.sourceRoot;
-    return new SourceMapConsumer(map);
+
+    let sourcemap: RawSourceMapType =
+      typeof map === 'string' ? JSON.parse(map) : map;
+    if (sourcemap.sourceRoot) delete sourcemap.sourceRoot;
+    return new SourceMapConsumer(sourcemap);
   }
 
-  async addMap(map, lineOffset = 0, columnOffset = 0) {
-    if (typeof map === 'string' || (typeof map === 'object' && map.version)) {
+  async addMap(
+    map: RawMapInputType | SourceMap,
+    lineOffset: number = 0,
+    columnOffset: number = 0
+  ) {
+    if (typeof map === 'string' || typeof map.mappings === 'string') {
       let consumer = await this.getConsumer(map);
       if (!consumer) return this;
 
@@ -60,6 +98,11 @@ class SourceMap {
         map = new SourceMap(map.mappings, map.sources);
       }
 
+      // TODO: Get rid of this line... Flow Bug?
+      if (!(map instanceof SourceMap)) {
+        throw new Error('This should be impossible');
+      }
+
       if (lineOffset === 0 && columnOffset === 0) {
         this.mappings = this.mappings.concat(map.mappings);
       } else {
@@ -68,11 +111,18 @@ class SourceMap {
         });
       }
 
-      Object.keys(map.sources).forEach(sourceName => {
+      // TODO: Get rid of this line... Flow Bug?
+      if (Array.isArray(map.sources)) {
+        throw new Error('This should be impossible');
+      }
+
+      for (let sourceName of Object.keys(map.sources)) {
         if (!this.sources[sourceName]) {
           this.sources[sourceName] = map.sources[sourceName];
         }
-      });
+      }
+    } else {
+      throw new Error('Could not merge sourcemaps, input is of unknown kind');
     }
 
     return this;
@@ -323,24 +373,23 @@ class SourceMap {
     };
   }
 
-  sourceContentFor(fileName) {
+  sourceContentFor(fileName: string) {
     return this.sources[fileName];
   }
 
-  offset(lineOffset = 0, columnOffset = 0) {
+  offset(lineOffset: number = 0, columnOffset: number = 0) {
     this.mappings.map(mapping => {
       mapping.generated.line = mapping.generated.line + lineOffset;
       mapping.generated.column = mapping.generated.column + columnOffset;
       return mapping;
     });
 
-    if (this.lineCount != null) {
-      this.lineCount += lineOffset;
-    }
+    this.lineCount += lineOffset;
   }
 
-  stringify(file, sourceRoot) {
+  stringify(file: string, sourceRoot: string) {
     let generator = new SourceMapGenerator({file, sourceRoot});
+
     this.eachMapping(mapping => generator.addMapping(mapping));
     Object.keys(this.sources).forEach(sourceName =>
       generator.setSourceContent(sourceName, this.sources[sourceName])
