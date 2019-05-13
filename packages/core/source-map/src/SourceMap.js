@@ -1,18 +1,17 @@
 // @flow
-const {SourceMapConsumer, SourceMapGenerator} = require('source-map');
-const lineCounter = require('../../utils/src/lineCounter');
+import {SourceMapConsumer, SourceMapGenerator} from 'source-map';
+import lineCounter from '../../utils/src/lineCounter';
 
-type mappingType = {
-  generated: {
-    line: number,
-    column: number
-  },
-  original: null | {
-    line: number,
-    column: number
-  },
+type PositionType = {
+  line: number,
+  column: number
+};
+
+type MappingType = {
+  generated: PositionType,
+  original: PositionType | null,
   source: string | null,
-  name: string | null
+  name?: string | null
 };
 
 type RawSourceMapType = {
@@ -29,21 +28,30 @@ type RawMapInputType = SourceMapConsumer | string | RawSourceMapType;
 
 type SourcesType = Object;
 
-class SourceMap {
+type ConsumerMappingItemType = {
+  source: string,
+  generatedLine: number,
+  generatedColumn: number,
+  originalLine: number,
+  originalColumn: number,
+  name: string
+};
+
+export default class SourceMap {
   // TODO: Write types for this
-  mappings: Array<mappingType>;
+  mappings: Array<MappingType>;
   sources: SourcesType;
   lineCount: number;
 
-  constructor(mappings?: Array<mappingType> = [], sources: SourcesType = {}) {
+  constructor(mappings?: Array<MappingType> = [], sources: SourcesType = {}) {
     this.mappings = this.purifyMappings(mappings);
     this.sources = sources;
     this.lineCount = 0;
   }
 
   // TODO: Would be nice to get rid of this
-  purifyMappings(mappings: Array<mappingType>): Array<mappingType> {
-    return mappings.filter((mapping: mappingType) => {
+  purifyMappings(mappings: Array<MappingType>): Array<MappingType> {
+    return mappings.filter((mapping: MappingType) => {
       if (!mapping || !mapping.generated) return false;
 
       let isValidOriginal =
@@ -73,6 +81,49 @@ class SourceMap {
     return new SourceMapConsumer(sourcemap);
   }
 
+  async _addSourceMap(
+    map: SourceMap,
+    lineOffset: number = 0,
+    columnOffset: number = 0
+  ) {
+    if (lineOffset === 0 && columnOffset === 0) {
+      this.mappings = this.mappings.concat(map.mappings);
+    } else {
+      map.eachMapping(mapping => {
+        this.addMapping(mapping, lineOffset, columnOffset);
+      });
+    }
+
+    for (let sourceName of Object.keys(map.sources)) {
+      if (!this.sources[sourceName]) {
+        this.sources[sourceName] = map.sources[sourceName];
+      }
+    }
+
+    return this;
+  }
+
+  async _addConsumerMap(
+    consumer: SourceMapConsumer,
+    lineOffset: number = 0,
+    columnOffset: number = 0
+  ) {
+    consumer.eachMapping(mapping => {
+      this.addConsumerMapping(mapping, lineOffset, columnOffset);
+
+      if (!this.sources[mapping.source]) {
+        this.sources[mapping.source] = consumer.sourceContentFor(
+          mapping.source,
+          true
+        );
+      }
+    });
+
+    consumer.destroy();
+
+    return this;
+  }
+
   async addMap(
     map: RawMapInputType | SourceMap,
     lineOffset: number = 0,
@@ -80,55 +131,31 @@ class SourceMap {
   ) {
     if (typeof map === 'string' || typeof map.mappings === 'string') {
       let consumer = await this.getConsumer(map);
-      if (!consumer) return this;
 
-      consumer.eachMapping(mapping => {
-        this.addConsumerMapping(mapping, lineOffset, columnOffset);
-        if (!this.sources[mapping.source]) {
-          this.sources[mapping.source] = consumer.sourceContentFor(
-            mapping.source,
-            true
-          );
-        }
-      });
-
-      consumer.destroy();
+      return this._addConsumerMap(consumer, lineOffset, columnOffset);
     } else if (map.mappings && map.sources) {
       if (!map.eachMapping) {
         map = new SourceMap(map.mappings, map.sources);
       }
 
-      // TODO: Get rid of this line... Flow Bug?
+      // TODO: Not sure if this is even necessary?
       if (!(map instanceof SourceMap)) {
-        throw new Error('This should be impossible');
+        throw new Error(
+          'Let me know if this threw, Flow.js said it might happen ~Jasper'
+        );
       }
 
-      if (lineOffset === 0 && columnOffset === 0) {
-        this.mappings = this.mappings.concat(map.mappings);
-      } else {
-        map.eachMapping(mapping => {
-          this.addMapping(mapping, lineOffset, columnOffset);
-        });
-      }
-
-      // TODO: Get rid of this line... Flow Bug?
-      if (Array.isArray(map.sources)) {
-        throw new Error('This should be impossible');
-      }
-
-      for (let sourceName of Object.keys(map.sources)) {
-        if (!this.sources[sourceName]) {
-          this.sources[sourceName] = map.sources[sourceName];
-        }
-      }
+      return this._addSourceMap(map, lineOffset, columnOffset);
     } else {
       throw new Error('Could not merge sourcemaps, input is of unknown kind');
     }
-
-    return this;
   }
 
-  addMapping(mapping, lineOffset = 0, columnOffset = 0) {
+  addMapping(
+    mapping: MappingType,
+    lineOffset: number = 0,
+    columnOffset: number = 0
+  ) {
     this.mappings.push({
       source: mapping.source,
       name: mapping.name,
@@ -140,7 +167,11 @@ class SourceMap {
     });
   }
 
-  addConsumerMapping(mapping, lineOffset = 0, columnOffset = 0) {
+  addConsumerMapping(
+    mapping: ConsumerMappingItemType,
+    lineOffset: number = 0,
+    columnOffset: number = 0
+  ) {
     let original = null;
     if (
       typeof mapping.originalLine === 'number' &&
@@ -164,16 +195,16 @@ class SourceMap {
     });
   }
 
-  eachMapping(callback) {
+  eachMapping(callback: (mapping: MappingType) => any) {
     this.mappings.forEach(callback);
   }
 
-  generateEmptyMap(sourceName, sourceContent) {
+  generateEmptyMap(sourceName: string, sourceContent: string) {
     this.sources[sourceName] = sourceContent;
 
     this.lineCount = lineCounter(sourceContent);
     for (let line = 1; line < this.lineCount + 1; line++) {
-      this.addMapping({
+      let mapping: MappingType = {
         source: sourceName,
         original: {
           line: line,
@@ -183,25 +214,38 @@ class SourceMap {
           line: line,
           column: 0
         }
-      });
+      };
+
+      this.addMapping(mapping);
     }
 
     return this;
   }
 
-  async extendSourceMap(original, extension) {
+  async extendSourceMap(
+    original: SourceMap | RawMapInputType,
+    extension: RawMapInputType | SourceMap
+  ) {
     if (!(extension instanceof SourceMap)) {
       extension = await new SourceMap().addMap(extension);
     }
+
     if (!(original instanceof SourceMap)) {
-      original = await this.getConsumer(original);
+      original = await new SourceMap().addMap(original);
     }
 
+    return this._extendSourceMap(original, extension);
+  }
+
+  async _extendSourceMap(original: SourceMap, extension: SourceMap) {
     extension.eachMapping(mapping => {
-      let originalMapping = original.originalPositionFor({
-        line: mapping.original.line,
-        column: mapping.original.column
-      });
+      let originalMapping = null;
+      if (mapping.original) {
+        originalMapping = original.originalPositionFor({
+          line: mapping.original.line,
+          column: mapping.original.column
+        });
+      }
 
       if (!originalMapping || !originalMapping.line) {
         return;
@@ -222,18 +266,15 @@ class SourceMap {
 
       if (!this.sources[originalMapping.source]) {
         this.sources[originalMapping.source] = original.sourceContentFor(
-          originalMapping.source,
-          true
+          originalMapping.source
         );
       }
     });
 
-    original.destroy();
-
     return this;
   }
 
-  findClosestGenerated(line, column) {
+  findClosestGenerated(line: number, column: number): number | null {
     if (line < 1) {
       throw new Error('Line numbers must be >= 1');
     }
@@ -243,7 +284,7 @@ class SourceMap {
     }
 
     if (this.mappings.length < 1) {
-      return undefined;
+      return null;
     }
 
     let startIndex = 0;
@@ -286,7 +327,7 @@ class SourceMap {
     return middleIndex;
   }
 
-  findClosest(line, column, key) {
+  findClosest(line: number, column: number, key: string) {
     if (line < 1) {
       throw new Error('Line numbers must be >= 1');
     }
@@ -338,11 +379,14 @@ class SourceMap {
     return middleIndex;
   }
 
-  originalPositionFor(generatedPosition) {
+  originalPositionFor(generatedPosition: PositionType) {
     let index = this.findClosestGenerated(
       generatedPosition.line,
       generatedPosition.column
     );
+
+    // TODO: Not sure if this should throw an error?
+    if (!index) return null;
 
     let mapping = this.mappings[index];
     if (!mapping || !mapping.original) {
@@ -357,12 +401,15 @@ class SourceMap {
     };
   }
 
-  generatedPositionFor(originalPosition) {
+  generatedPositionFor(originalPosition: PositionType) {
     let index = this.findClosest(
       originalPosition.line,
       originalPosition.column,
       'original'
     );
+
+    // TODO: Not sure if this should throw an error?
+    if (!index) return null;
 
     let mapping = this.mappings[index];
     return {
@@ -373,8 +420,8 @@ class SourceMap {
     };
   }
 
-  sourceContentFor(fileName: string) {
-    return this.sources[fileName];
+  sourceContentFor(fileName: string): string | null {
+    return this.sources[fileName] || null;
   }
 
   offset(lineOffset: number = 0, columnOffset: number = 0) {
@@ -398,5 +445,3 @@ class SourceMap {
     return generator.toString();
   }
 }
-
-module.exports = SourceMap;
