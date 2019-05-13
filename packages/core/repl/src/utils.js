@@ -138,7 +138,7 @@ document.body.append(document.createTextNode(func()))`
   JSON: [
     {
       name: 'index.js',
-      content: "import x from './test.json';\nconsole.log(JSON.stringify(x));",
+      content: "import x from './test.json';\nconsole.log(x);",
       isEntry: true
     },
     {name: 'test.json', content: '{a: 2, b: 3}'}

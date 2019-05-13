@@ -48,10 +48,12 @@ if(process.browser) ...
 
 - Safari SW: `clients` doesn't exist? disable html preview
 - builtins/bundle loaders: fs.readFileSync(require.resolve)
+  - load asset from memory, not from fs?
 - console.log(process.env) hangs:
   - https://parcel-repl.now.sh/#JTdCJTIyY3VycmVudFByZXNldCUyMiUzQSUyMkphdmFzY3JpcHQlMjIlMkMlMjJvcHRpb25zJTIyJTNBJTdCJTIybWluaWZ5JTIyJTNBdHJ1ZSUyQyUyMnNjb3BlSG9pc3QlMjIlM0F0cnVlJTJDJTIyc291cmNlTWFwcyUyMiUzQWZhbHNlJTJDJTIyY29udGVudEhhc2glMjIlM0F0cnVlJTJDJTIyYnJvd3NlcnNsaXN0JTIyJTNBJTIyJTIyJTJDJTIycHVibGljVXJsJTIyJTNBJTIyJTIyJTJDJTIydGFyZ2V0JTIyJTNBJTIyYnJvd3NlciUyMiUyQyUyMmdsb2JhbCUyMiUzQSUyMiUyMiU3RCUyQyUyMmFzc2V0cyUyMiUzQSU1QiU1QiUyMmluZGV4LmpzJTIyJTJDJTIyY29uc29sZS5sb2cocHJvY2Vzcy5lbnYpJTIyJTJDMSU1RCUyQyU1QiUyMi5lbnYlMjIlMkMlMjJBUElfVVJMJTNEaHR0cCUzQSUyRiUyRmxvY2FsaG9zdCUzQTgwODAlMjIlNUQlNUQlN0Q=
 - .babelrc isn't used:
   - `localRequire.resolve`: https://github.com/parcel-bundler/parcel/blob/599381399aaa00f02d6bd93c55ad22ca7d3fa0e6/packages/core/parcel-bundler/src/transforms/babel/babelrc.js#L272-L280
+- JS Preview: show error (Uncaught ReferenceError: ... is not defined)
 
 **Improvements**:
 

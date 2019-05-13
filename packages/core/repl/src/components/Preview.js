@@ -6,24 +6,31 @@ import {Box} from './helper';
 
 function wrapperFor(scriptURL) {
   return `<script type="application/javascript">
-const console = {
-  log: function() {
-    document.getElementById("output").appendChild(document.createTextNode(Array.from(arguments).join(" ")+"\\n"));
-  },
-  warn: function() {
-    console.log.apply(console, arguments);
-  },
-  info: function() {
-    console.log.apply(console, arguments);
-  },
-  error: function() {
-    console.log.apply(console, arguments);
-  }
-}
-// window.onerror = function(e) {
-//   console.error(e.message);
-//   console.error(e.stack);
-// }
+(() => {
+  window.console = {
+    log: function() {
+      var content = Array.from(arguments)
+        .map(v => (typeof v === "object" ? JSON.stringify(v) : v))
+        .join(" ");
+      document
+        .getElementById("output")
+        .appendChild(document.createTextNode(content + "\\n"));
+    },
+    warn: function() {
+      console.log.apply(console, arguments);
+    },
+    info: function() {
+      console.log.apply(console, arguments);
+    },
+    error: function() {
+      console.log.apply(console, arguments);
+    }
+  };
+  // window.onerror = function(e) {
+  //   console.error(e.message);
+  //   console.error(e.stack);
+  // }
+})();
 </script>
 <body>
 Console output:<br>
