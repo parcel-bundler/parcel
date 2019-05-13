@@ -8,6 +8,7 @@ const config = require('@parcel/config-default');
 const EMPTY_OPTIONS = {
   cacheDir: '.parcel-cache',
   entries: [],
+  logLevel: 'none',
   rootDir: __dirname,
   targets: []
 };

@@ -117,6 +117,8 @@ export type PackageJSON = {
   peerDependencies?: PackageDependencies
 };
 
+export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
+
 export type InitialParcelOptions = {|
   entries?: FilePath | Array<FilePath>,
   rootDir?: FilePath,
@@ -135,7 +137,7 @@ export type InitialParcelOptions = {|
   hot?: ServerOptions | false,
   serve?: ServerOptions | false,
   autoinstall?: boolean,
-  logLevel?: 'none' | 'error' | 'warn' | 'info' | 'verbose'
+  logLevel?: LogLevel
 
   // contentHash
   // scopeHoist
@@ -148,6 +150,7 @@ export type ParcelOptions = {|
   ...InitialParcelOptions,
   cacheDir: FilePath,
   entries: Array<FilePath>,
+  logLevel: LogLevel,
   rootDir: FilePath,
   targets: Array<Target>
 |};
