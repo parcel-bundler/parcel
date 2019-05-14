@@ -328,26 +328,35 @@ export default class SourceMap {
       return null;
     }
 
-    var startIndex = 0;
-    var stopIndex = this.mappings.length - 1;
-    var middleIndex = Math.floor((stopIndex + startIndex) / 2);
-
-    while (
-      startIndex < stopIndex &&
-      this.mappings[middleIndex][key] &&
-      this.mappings[middleIndex][key].line !== line
-    ) {
-      if (line < this.mappings[middleIndex][key].line) {
-        stopIndex = middleIndex - 1;
-      } else if (line > this.mappings[middleIndex][key].line) {
-        startIndex = middleIndex + 1;
-      }
+    // if it's generated, do a binary search as this needs to be quick and generated cannot be null
+    // Luckily searching based on generated is most common...
+    // See: https://jsperf.com/binary-search-vs-js-find/1 (binary search ~11M/sec, find ~11k/sec)
+    var middleIndex = 0;
+    if (key === 'generated') {
+      var startIndex = 0;
+      var stopIndex = this.mappings.length - 1;
       middleIndex = Math.floor((stopIndex + startIndex) / 2);
+
+      while (
+        startIndex < stopIndex &&
+        this.mappings[middleIndex][key].line !== line
+      ) {
+        if (line < this.mappings[middleIndex][key].line) {
+          stopIndex = middleIndex - 1;
+        } else if (line > this.mappings[middleIndex][key].line) {
+          startIndex = middleIndex + 1;
+        }
+        middleIndex = Math.floor((stopIndex + startIndex) / 2);
+      }
+    } else {
+      middleIndex = this.mappings.findIndex(
+        val => val[key] && val[key].line === line
+      );
     }
 
     var mapping = this.mappings[middleIndex];
     if (!mapping || !mapping[key] || mapping[key].line !== line) {
-      return this.mappings.length - 1;
+      return middleIndex;
     }
 
     while (middleIndex > 0) {
