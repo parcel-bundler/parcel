@@ -328,12 +328,13 @@ export default class SourceMap {
       return null;
     }
 
-    let startIndex = 0;
-    let stopIndex = this.mappings.length - 1;
-    let middleIndex = Math.floor((stopIndex + startIndex) / 2);
+    var startIndex = 0;
+    var stopIndex = this.mappings.length - 1;
+    var middleIndex = Math.floor((stopIndex + startIndex) / 2);
 
     while (
       startIndex < stopIndex &&
+      this.mappings[middleIndex][key] &&
       this.mappings[middleIndex][key].line !== line
     ) {
       if (line < this.mappings[middleIndex][key].line) {
@@ -345,22 +346,31 @@ export default class SourceMap {
     }
 
     var mapping = this.mappings[middleIndex];
-    if (!mapping || mapping[key].line !== line) {
+    if (!mapping || !mapping[key] || mapping[key].line !== line) {
       return this.mappings.length - 1;
     }
 
-    while (
-      middleIndex >= 1 &&
-      this.mappings[middleIndex - 1][key].line === line
-    ) {
+    while (middleIndex > 0) {
+      var prevMapping = this.mappings[middleIndex - 1][key];
+      if (!prevMapping || prevMapping.line !== line) {
+        break;
+      }
+
       middleIndex--;
     }
 
-    while (
-      middleIndex < this.mappings.length - 1 &&
-      this.mappings[middleIndex + 1][key].line === line &&
-      column > this.mappings[middleIndex][key].column
-    ) {
+    while (middleIndex < this.mappings.length - 1) {
+      var nextMapping = this.mappings[middleIndex + 1][key];
+      var currMapping = this.mappings[middleIndex][key];
+      if (
+        nextMapping === null ||
+        nextMapping.line !== line ||
+        currMapping === null ||
+        column <= currMapping.column
+      ) {
+        break;
+      }
+
       middleIndex++;
     }
 

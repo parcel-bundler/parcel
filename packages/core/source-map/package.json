@@ -13,5 +13,8 @@
   },
   "dependencies": {
     "source-map": "^0.7.3"
+  },
+  "devDependencies": {
+    "clone": "^2.1.1"
   }
 }
