@@ -4,6 +4,7 @@
   "main": "./src/SourceMap.js",
   "license": "MIT",
   "scripts": {
+    "test": "mocha",
     "build": "babel src --out-dir lib",
     "prepublish": "yarn build"
   },
