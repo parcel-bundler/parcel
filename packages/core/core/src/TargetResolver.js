@@ -35,7 +35,7 @@ export default class TargetResolver {
   ): Promise<Array<Target>> {
     let packageTargets = await this.resolvePackageTargets(rootDir);
 
-    let serveOptions = initialOptions.serve || initialOptions.hot;
+    let serveOptions = initialOptions.serve ?? initialOptions.hot;
     let targets;
     if (initialOptions.targets) {
       if (initialOptions.targets.length === 0) {
@@ -75,10 +75,7 @@ export default class TargetResolver {
           {
             name: 'default',
             distDir: 'dist',
-            publicUrl:
-              serveOptions && serveOptions.publicUrl != null
-                ? serveOptions.publicUrl
-                : '/',
+            publicUrl: serveOptions?.publicUrl ?? '/',
             env: new Environment({
               context: 'browser',
               engines: {
@@ -132,8 +129,7 @@ export default class TargetResolver {
         name: 'main',
         distDir,
         distEntry,
-        publicUrl:
-          pkgTargets.main.publicUrl != null ? pkgTargets.main.publicUrl : '/',
+        publicUrl: pkgTargets.main?.publicUrl ?? '/',
         env: this.getEnvironment(pkgEngines, mainContext).merge(pkgTargets.main)
       });
     }
@@ -154,10 +150,7 @@ export default class TargetResolver {
         name: 'module',
         distDir,
         distEntry,
-        publicUrl:
-          pkgTargets.module.publicUrl != null
-            ? pkgTargets.module.publicUrl
-            : '/',
+        publicUrl: pkgTargets.module?.publicUrl ?? '/',
         env: this.getEnvironment(pkgEngines, mainContext).merge(
           pkgTargets.module
         )
@@ -184,10 +177,7 @@ export default class TargetResolver {
         name: 'browser',
         distEntry,
         distDir,
-        publicUrl:
-          pkgTargets.browser.publicUrl != null
-            ? pkgTargets.browser.publicUrl
-            : '/',
+        publicUrl: pkgTargets.browser?.publicUrl ?? '/',
         env: this.getEnvironment(pkgEngines, 'browser').merge(
           pkgTargets.browser
         )
@@ -218,7 +208,7 @@ export default class TargetResolver {
           name,
           distDir,
           distEntry,
-          publicUrl: env.publicUrl != null ? env.publicUrl : '/',
+          publicUrl: env.publicUrl ?? '/',
           env: this.getEnvironment(pkgEngines, context).merge(env)
         });
       }
