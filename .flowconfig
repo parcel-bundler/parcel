@@ -17,6 +17,8 @@ untyped-type-import=error
 
 [options]
 esproposal.export_star_as=enable
+esproposal.nullish_coalescing=enable
+esproposal.optional_chaining=enable
 
 [strict]
 nonstrict-import

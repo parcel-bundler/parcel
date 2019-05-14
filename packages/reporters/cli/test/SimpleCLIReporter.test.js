@@ -7,6 +7,7 @@ import {_report, _setStdio} from '../src/SimpleCLIReporter';
 const EMPTY_OPTIONS = {
   cacheDir: '.parcel-cache',
   entries: [],
+  logLevel: 'info',
   rootDir: __dirname,
   targets: []
 };
@@ -35,14 +36,6 @@ describe('SimpleCLIReporter', () => {
 
   afterEach(() => {
     _setStdio(originalStdout, originalStderr);
-  });
-
-  it('defaults to an info logLevel filter', () => {
-    _report({type: 'log', level: 'info', message: 'info'}, EMPTY_OPTIONS);
-    _report({type: 'log', level: 'success', message: 'success'}, EMPTY_OPTIONS);
-    _report({type: 'log', level: 'verbose', message: 'verbose'}, EMPTY_OPTIONS);
-
-    assert(!stdoutOutput.includes('verbose'));
   });
 
   it('writes log, info, success, and verbose log messages to stdout', () => {

@@ -338,7 +338,7 @@ export default class Asset {
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
   ): Promise<Config | null> {
-    let packageKey = options && options.packageKey;
+    let packageKey = options?.packageKey;
     let parse = options && options.parse;
 
     if (packageKey != null) {

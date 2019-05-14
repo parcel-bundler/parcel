@@ -4,7 +4,6 @@ import type {InitialParcelOptions, ParcelOptions, Stats} from '@parcel/types';
 import type {Bundle} from './types';
 import type InternalBundleGraph from './BundleGraph';
 
-import AssetGraph from './AssetGraph';
 import {BundleGraph} from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
@@ -19,30 +18,28 @@ import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 
 export default class Parcel {
-  initialOptions: InitialParcelOptions;
-  resolvedOptions: ?ParcelOptions;
-  assetGraphBuilder: AssetGraphBuilder;
-  bundlerRunner: BundlerRunner;
-  reporterRunner: ReporterRunner;
-  farm: WorkerFarm;
-  runPackage: (
-    bundle: Bundle,
-    bundleGraph: InternalBundleGraph
-  ) => Promise<Stats>;
-  _initialized: boolean = false;
+  #assetGraphBuilder; // AssetGraphBuilder
+  #bundlerRunner; // BundlerRunner
+  #farm; // WorkerFarm
+  #initialized = false; // boolean
+  #initialOptions; // InitialParcelOptions;
+  #reporterRunner; // ReporterRunner
+  #resolvedOptions; // ?ParcelOptions
+  #runPackage; // (bundle: Bundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
 
   constructor(options: InitialParcelOptions) {
-    this.initialOptions = clone(options);
+    this.#initialOptions = clone(options);
   }
 
   async init(): Promise<void> {
-    if (this._initialized) {
+    if (this.#initialized) {
       return;
     }
 
-    let resolvedOptions = (this.resolvedOptions = await resolveOptions(
-      this.initialOptions
-    ));
+    let resolvedOptions: ParcelOptions = await resolveOptions(
+      this.#initialOptions
+    );
+    this.#resolvedOptions = resolvedOptions;
     await Cache.createCacheDir(resolvedOptions.cacheDir);
 
     let configResolver = new ConfigResolver();
@@ -64,24 +61,24 @@ export default class Parcel {
       throw new Error('Could not find a .parcelrc');
     }
 
-    this.bundlerRunner = new BundlerRunner({
+    this.#bundlerRunner = new BundlerRunner({
       options: resolvedOptions,
       config
     });
 
-    this.reporterRunner = new ReporterRunner({
+    this.#reporterRunner = new ReporterRunner({
       config,
       options: resolvedOptions
     });
 
-    this.assetGraphBuilder = new AssetGraphBuilder({
+    this.#assetGraphBuilder = new AssetGraphBuilder({
       options: resolvedOptions,
       config,
       entries: resolvedOptions.entries,
       targets: resolvedOptions.targets
     });
 
-    this.farm = await WorkerFarm.getShared(
+    this.#farm = await WorkerFarm.getShared(
       {
         config,
         options: resolvedOptions,
@@ -92,80 +89,100 @@ export default class Parcel {
       }
     );
 
-    this.runPackage = this.farm.mkhandle('runPackage');
+    this.#runPackage = this.#farm.mkhandle('runPackage');
 
-    this._initialized = true;
+    this.#initialized = true;
   }
 
-  async run(): Promise<BundleGraph> {
-    if (!this._initialized) {
+  // `run()` returns `Promise<?BundleGraph>` because in watch mode it does not
+  // return a bundle graph, but outside of watch mode it always will.
+  async run(): Promise<?BundleGraph> {
+    if (!this.#initialized) {
       await this.init();
     }
 
-    this.assetGraphBuilder.on('invalidate', () => {
-      this.build();
-    });
+    let resolvedOptions = nullthrows(this.#resolvedOptions);
+    try {
+      this.#assetGraphBuilder.on('invalidate', () => {
+        this.build().catch(e => {
+          if (!resolvedOptions.watch) {
+            throw e;
+          }
+        });
+      });
 
-    return this.build();
+      let graph = await this.build();
+      if (!resolvedOptions.watch) {
+        return graph;
+      }
+    } catch (e) {
+      if (!resolvedOptions.watch) {
+        throw e;
+      }
+    }
   }
 
   async build(): Promise<BundleGraph> {
     try {
-      this.reporterRunner.report({
+      this.#reporterRunner.report({
         type: 'buildStart'
       });
 
       let startTime = Date.now();
-      let assetGraph = await this.assetGraphBuilder.build();
+      let assetGraph = await this.#assetGraphBuilder.build();
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
-      let bundleGraph = await this.bundle(assetGraph);
+      let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
       dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
 
-      await this.package(bundleGraph);
+      await packageBundles(bundleGraph, this.#runPackage);
 
-      this.reporterRunner.report({
+      this.#reporterRunner.report({
         type: 'buildSuccess',
-        changedAssets: new Map(this.assetGraphBuilder.changedAssets),
+        changedAssets: new Map(this.#assetGraphBuilder.changedAssets),
         assetGraph: new MainAssetGraph(assetGraph),
         bundleGraph: new BundleGraph(bundleGraph),
         buildTime: Date.now() - startTime
       });
 
-      let resolvedOptions = nullthrows(this.resolvedOptions);
+      let resolvedOptions = nullthrows(this.#resolvedOptions);
       if (!resolvedOptions.watch && resolvedOptions.killWorkers !== false) {
-        await this.farm.end();
+        await this.#farm.end();
       }
 
       return new BundleGraph(bundleGraph);
     } catch (e) {
       if (!(e instanceof BuildAbortError)) {
-        this.reporterRunner.report({
+        await this.#reporterRunner.report({
           type: 'buildFailure',
           error: e
         });
       }
+
       throw e;
     }
   }
-
-  bundle(assetGraph: AssetGraph): Promise<InternalBundleGraph> {
-    return this.bundlerRunner.bundle(assetGraph);
-  }
-
-  package(bundleGraph: InternalBundleGraph): Promise<mixed> {
-    let promises = [];
-    bundleGraph.traverseBundles(bundle => {
-      promises.push(
-        this.runPackage(bundle, bundleGraph).then(stats => {
-          bundle.stats = stats;
-        })
-      );
-    });
-
-    return Promise.all(promises);
-  }
 }
+
+function packageBundles(
+  bundleGraph: InternalBundleGraph,
+  runPackage: (
+    bundle: Bundle,
+    bundleGraph: InternalBundleGraph
+  ) => Promise<Stats>
+): Promise<mixed> {
+  let promises = [];
+  bundleGraph.traverseBundles(bundle => {
+    promises.push(
+      runPackage(bundle, bundleGraph).then(stats => {
+        bundle.stats = stats;
+      })
+    );
+  });
+
+  return Promise.all(promises);
+}
+
 export {default as Asset} from './Asset';
 export {default as Dependency} from './Dependency';
 export {default as Environment} from './Environment';

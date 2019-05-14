@@ -3,9 +3,11 @@
 import type {FilePath} from '@parcel/types';
 import type {Readable} from 'stream';
 import type {FSPromise, Stats} from 'fs';
+import type {NcpOptions} from 'ncp';
 
 import {promisify} from 'util';
 import fs from 'fs';
+import _ncp from 'ncp';
 import _mkdirp from 'mkdirp';
 import _rimraf, {type Options as RimrafOptions} from 'rimraf';
 
@@ -54,6 +56,12 @@ export const rimraf: (
   path: FilePath,
   options?: RimrafOptions
 ) => Promise<void> = promisify(_rimraf);
+
+export const ncp: (
+  source: FilePath,
+  destination: FilePath,
+  options?: NcpOptions
+) => void = promisify(_ncp);
 
 export function writeFileStream(
   filePath: FilePath,

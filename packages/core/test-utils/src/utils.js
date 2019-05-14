@@ -93,11 +93,11 @@ export function bundler(
   });
 }
 
-export function bundle(
+export async function bundle(
   entries: FilePath | Array<FilePath>,
   opts: InitialParcelOptions
 ): Promise<BundleGraph> {
-  return bundler(entries, opts).run();
+  return nullthrows(await bundler(entries, opts).run());
 }
 
 export async function run(
