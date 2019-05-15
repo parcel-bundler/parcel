@@ -58,27 +58,6 @@ export default class SourceMap {
     }
   }
 
-  // This should never be necessary as long as sourcemaps are valid
-  // It's still here in case some asset needs it but should be deprecated over time...
-  filterMappings(mappings: Array<MappingType>): Array<MappingType> {
-    return mappings.filter((mapping: MappingType) => {
-      if (!mapping || !mapping.generated || !mapping.source) return false;
-
-      let isValidOriginal =
-        mapping.original === null ||
-        (typeof mapping.original.line === 'number' &&
-          mapping.original.line > 0 &&
-          typeof mapping.original.column === 'number');
-
-      let isValidGenerated =
-        typeof mapping.generated.line === 'number' &&
-        mapping.generated.line > 0 &&
-        typeof mapping.generated.column === 'number';
-
-      return isValidOriginal && isValidGenerated;
-    });
-  }
-
   _validateMappings(mappings: Array<MappingType>) {
     for (let mapping of mappings) {
       if (!mapping) {
