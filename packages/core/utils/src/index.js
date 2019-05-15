@@ -4,6 +4,7 @@ export type * from './errorUtils';
 export type * from './generateBundleReport';
 export type * from './prettyError';
 
+export {default as DefaultMap} from './DefaultMap';
 export {default as generateBundleReport} from './generateBundleReport';
 export {default as generateCertificate} from './generateCertificate';
 export {default as getCertificate} from './getCertificate';
