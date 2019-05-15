@@ -63,7 +63,6 @@ async function loadSourceMap(asset) {
         sourceMap.sourcesContent = sourceMap.sourcesContent.concat(contents);
       }
     } catch (e) {
-      console.error(e);
       logger.warn(
         `Could not load existing sourcemap of "${asset.relativeName}".`
       );
