@@ -290,7 +290,7 @@ function mergeBundleGraphIntoBundleAssetGraph(
     }
   }
 
-  for (let edge of bundleGraph.edges) {
+  for (let edge of bundleGraph.getAllEdges()) {
     bundleAssetGraph.addEdge(edge);
   }
 }

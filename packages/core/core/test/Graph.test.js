@@ -8,7 +8,16 @@ describe('Graph', () => {
   it('constructor should initialize an empty graph', () => {
     let graph = new Graph();
     assert.deepEqual(graph.nodes, new Map());
-    assert.deepEqual(graph.edges, new Set());
+    assert.deepEqual(graph.getAllEdges(), []);
+  });
+
+  it('throws when constructed with duplicate edges', () => {
+    assert.throws(() => {
+      new Graph({
+        nodes: [['a', {id: 'a', value: 'b'}], ['b', {id: 'b', value: 'b'}]],
+        edges: [{from: 'a', to: 'b'}, {from: 'a', to: 'b'}]
+      });
+    }, /Graph already has edge from a to b/);
   });
 
   it('addNode should add a node to the graph', () => {
@@ -30,7 +39,7 @@ describe('Graph', () => {
     let graph = new Graph();
     let edge = {from: 'a', to: 'b'};
     graph.addEdge(edge);
-    assert(graph.edges.has(edge));
+    assert(graph.hasEdge(edge));
   });
 
   it('isOrphanedNode should return true or false if the node is orphaned or not', () => {
@@ -60,10 +69,10 @@ describe('Graph', () => {
     assert(graph.nodes.has('d'));
     assert(!graph.nodes.has('b'));
     assert(!graph.nodes.has('c'));
-    assert.deepEqual(graph.edges, new Set([edgeAD]));
+    assert.deepEqual(graph.getAllEdges(), [edgeAD]);
     assert(removed.nodes.has('b'));
     assert(removed.nodes.has('c'));
-    assert.deepEqual(removed.edges, new Set([edgeAB, edgeBC, edgeBD]));
+    assert.deepEqual(removed.getAllEdges(), [edgeAB, edgeBC, edgeBD]);
   });
 
   it("updateNodeDownStream should update a node's downstream nodes", () => {
@@ -83,8 +92,8 @@ describe('Graph', () => {
     assert(graph.nodes.has('b'));
     assert(!graph.nodes.has('c'));
     assert(graph.nodes.has('d'));
-    assert.deepEqual(graph.edges, new Set([edgeAB, edgeAD]));
+    assert.deepEqual(graph.getAllEdges(), [edgeAB, edgeAD]);
     assert(removed.nodes.has('c'));
-    assert.deepEqual(removed.edges, new Set([edgeAC]));
+    assert.deepEqual(removed.getAllEdges(), [edgeAC]);
   });
 });
