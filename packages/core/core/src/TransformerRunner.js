@@ -101,7 +101,7 @@ export default class TransformerRunner {
     };
 
     await Promise.all(
-      unique(assets, initialAssets || []).map(asset => asset.commit())
+      unique([...assets, ...(initialAssets || [])]).map(asset => asset.commit())
     );
     await Cache.set(reqCacheKey(req), cacheEntry);
     return cacheEntry;
@@ -206,7 +206,7 @@ export default class TransformerRunner {
         !transformer.canReuseAST(input.ast, this.options)) &&
       previousGenerate
     ) {
-      let output = await previousGenerate(input);
+      let output = await previousGenerate(new MutableAsset(input));
       input.content = output.code;
       input.ast = null;
     }
@@ -266,7 +266,7 @@ async function finalize(
   generate: GenerateFunc
 ): Promise<InternalAsset> {
   if (asset.ast && generate) {
-    let result = await generate(asset);
+    let result = await generate(new MutableAsset(asset));
     asset.content = result.code;
     asset.map = result.map;
   }

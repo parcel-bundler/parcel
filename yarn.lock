@@ -9738,7 +9738,7 @@ posthtml-parser@^0.3.0, posthtml-parser@^0.3.3:
     isobject "^2.1.0"
     object-assign "^4.1.1"
 
-posthtml-parser@^0.4.0:
+posthtml-parser@^0.4.0, posthtml-parser@^0.4.1:
   version "0.4.1"
   resolved "https://registry.yarnpkg.com/posthtml-parser/-/posthtml-parser-0.4.1.tgz#95b78fef766fbbe0a6f861b6e95582bc3d1ff933"
   integrity sha512-h7vXIQ21Ikz2w5wPClPakNP6mJeJCK6BT0GpqnQrNNABdR7/TchNlFyryL1Bz6Ww53YWCKkr6tdZuHlxY1AVdQ==
@@ -9750,6 +9750,11 @@ posthtml-render@^1.1.0, posthtml-render@^1.1.3, posthtml-render@^1.1.4:
   version "1.1.4"
   resolved "https://registry.yarnpkg.com/posthtml-render/-/posthtml-render-1.1.4.tgz#95dac09892f4f183fad5ac823f08f42c0256551e"
   integrity sha512-jL6eFIzoN3xUEvbo33OAkSDE2VIKU4JQ1wENOows1DpfnrdapR/K3Q1/fB43Mq7wQlcSgRm23nFrvoioufM7eA==
+
+posthtml-render@^1.1.5:
+  version "1.1.5"
+  resolved "https://registry.yarnpkg.com/posthtml-render/-/posthtml-render-1.1.5.tgz#387934e85438a3de77085fbc7d264efb00bd0e0f"
+  integrity sha512-yvt54j0zCBHQVEFAuR+yHld8CZrCa/E1Z/OcFNCV1IEWTLVxT8O7nYnM4IIw1CD4r8kaRd3lc42+0lgCKgm87w==
 
 posthtml@^0.11.2, posthtml@^0.11.3:
   version "0.11.3"

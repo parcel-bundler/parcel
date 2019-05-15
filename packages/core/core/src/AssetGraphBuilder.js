@@ -1,15 +1,15 @@
 // @flow
 
 import type {Node} from './types';
-
 import type {
   ParcelOptions,
   Dependency,
   Target,
-  TransformerRequest,
-  Asset
+  TransformerRequest
 } from '@parcel/types';
+import type Asset from './Asset';
 import type Config from './Config';
+
 import EventEmitter from 'events';
 import {
   AbortController,
@@ -84,7 +84,10 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.runTransform = this.farm.mkhandle('runTransform');
   }
 
-  async build() {
+  async build(): Promise<{|
+    assetGraph: AssetGraph,
+    changedAssets: Map<string, Asset>
+  |}> {
     if (!this.farm) {
       await this.initFarm();
     }
@@ -96,7 +99,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     await this.updateGraph({signal});
     await this.completeGraph({signal});
-    return this.graph;
+    return {assetGraph: this.graph, changedAssets: this.changedAssets};
   }
 
   async updateGraph({signal}: BuildOpts) {

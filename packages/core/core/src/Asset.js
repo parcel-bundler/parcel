@@ -181,10 +181,11 @@ export default class Asset {
     }
 
     if (typeof this.content === 'string' || this.content instanceof Buffer) {
-      return this.content.toString();
+      this.content = this.content.toString();
+    } else {
+      this.content = (await bufferStream(this.content)).toString();
     }
 
-    this.content = (await bufferStream(this.content)).toString();
     return this.content;
   }
 

@@ -14,7 +14,7 @@ import MainAssetGraph from './public/MainAssetGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
 import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
-import {normalizeSeparators} from '@parcel/utils';
+import {normalizeSeparators, unique} from '@parcel/utils';
 
 type Opts = {|
   options: ParcelOptions,
@@ -64,7 +64,7 @@ export default class BundlerRunner {
     let bundlePaths = bundles.map(b => b.filePath);
     assert.deepEqual(
       bundlePaths,
-      Array.from(new Set(bundlePaths)),
+      unique(bundlePaths),
       'Bundles must have unique filePaths'
     );
   }
@@ -81,6 +81,14 @@ export default class BundlerRunner {
       let name = await namer.name(bundle, bundleGraph, this.options);
 
       if (name != null) {
+        if (path.extname(name).slice(1) !== bundle.type) {
+          throw new Error(
+            `Destination name ${name} extension does not match bundle type "${
+              bundle.type
+            }"`
+          );
+        }
+
         let target = nullthrows(internalBundle.target);
         internalBundle.filePath = path.join(
           target.distDir,
@@ -145,7 +153,7 @@ export default class BundlerRunner {
       });
 
       // build a graph of just the transformed asset
-      let graph = await builder.build();
+      let {assetGraph: graph} = await builder.build();
 
       let entry = graph.getEntryAssets()[0];
       let subGraph = graph.getSubGraph(nullthrows(graph.getNode(entry.id)));
