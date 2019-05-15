@@ -1,6 +1,5 @@
 // @flow strict-local
 
-import type AssetGraph from './AssetGraph';
 import type {Namer, ParcelOptions, RuntimeAsset} from '@parcel/types';
 import type {Bundle as InternalBundle} from './types';
 import type Config from './ParcelConfig';
@@ -12,9 +11,11 @@ import {BundleGraph, MutableBundleGraph} from './public/BundleGraph';
 import InternalBundleGraph from './BundleGraph';
 import MainAssetGraph from './public/MainAssetGraph';
 import {Bundle, NamedBundle} from './public/Bundle';
-import AssetGraphBuilder from './AssetGraphBuilder';
+import AssetGraph from './NewAssetGraph';
 import {report} from './ReporterRunner';
 import {normalizeSeparators} from '@parcel/utils/src/path';
+
+import dumpToGraphViz from './dumpGraphToGraphViz';
 
 type Opts = {|
   options: ParcelOptions,
@@ -44,6 +45,7 @@ export default class BundlerRunner {
       new MutableBundleGraph(bundleGraph),
       this.options
     );
+
     await this.nameBundles(bundleGraph);
     await this.applyRuntimes(bundleGraph);
 
@@ -124,6 +126,7 @@ export default class BundlerRunner {
     bundleGraph: InternalBundleGraph,
     runtimeAssets: Array<RuntimeAsset>
   ) {
+    console.log('ADDING RUNTIME TO BUNDLE', bundleId);
     let node = bundleGraph.nodes.get(bundleId);
     if (node == null) {
       throw new Error('Bundle not found');
@@ -134,7 +137,8 @@ export default class BundlerRunner {
     let bundle = node.value;
 
     for (let {code, filePath, dependency} of runtimeAssets) {
-      let builder = new AssetGraphBuilder({
+      console.log('ADDING RUNTIME ASSET', filePath);
+      let graph = AssetGraph.setup({
         options: this.options,
         config: this.config,
         transformerRequest: {
@@ -145,7 +149,7 @@ export default class BundlerRunner {
       });
 
       // build a graph of just the transformed asset
-      let graph = await builder.build();
+      await graph.build();
 
       let entry = graph.getEntryAssets()[0];
       let subGraph = graph.getSubGraph(nullthrows(graph.getNode(entry.id)));
@@ -154,6 +158,7 @@ export default class BundlerRunner {
       let entryId = entry.id;
       subGraph.traverseAssets(asset => {
         if (bundleGraph.isAssetInAncestorBundle(bundle, asset)) {
+          console.log('IN ANCESTOR BUNDLE');
           let removedId = subGraph.removeAsset(asset);
           if (entry.id === asset.id && removedId != null) {
             entryId = removedId;
@@ -161,9 +166,14 @@ export default class BundlerRunner {
         }
       });
 
+      await dumpToGraphViz(subGraph, 'runtimeAssetGraph');
+
+      await dumpToGraphViz(bundle.assetGraph, 'bundleAssetGraphBefore');
       // merge the transformed asset into the bundle's graph, and connect
       // the node to it.
       bundle.assetGraph.merge(subGraph);
+
+      await dumpToGraphViz(bundle.assetGraph, 'bundleAssetGraphMiddle');
 
       bundle.assetGraph.addEdge({
         from: dependency
@@ -171,6 +181,7 @@ export default class BundlerRunner {
           : nullthrows(bundle.assetGraph.getRootNode()).id,
         to: entryId
       });
+      await dumpToGraphViz(bundle.assetGraph, 'bundleAssetGraphAfter');
     }
   }
 }

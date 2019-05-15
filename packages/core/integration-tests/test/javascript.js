@@ -528,7 +528,7 @@ describe('javascript', function() {
     assert.equal(await output(), 5);
   });
 
-  it('should support shared modules with async imports', async function() {
+  it.only('should support shared modules with async imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-hoist-deep/index.js')
     );

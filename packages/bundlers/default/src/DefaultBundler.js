@@ -25,13 +25,9 @@ export default new Bundler({
     // 6. If two assets are always seen together, put them in the same extracted bundle.
 
     // Step 1: create bundles for each of the explicit code split points.
-    console.log('IN DEFAULT BUNDLER BUNDLE');
-    console.log(assetGraph);
     assetGraph.traverse(
       (node, context: ?BundleContext): ?BundleContext => {
-        console.log('NODE', node);
         if (node.type === 'DEPENDENCY_REQUEST') {
-          console.log('GOT HERE');
           let dep = node.value;
 
           // Start a new bundle if this is an async dependency, or entry point.
@@ -119,6 +115,11 @@ export default new Bundler({
       }
     );
 
+    console.log('AFTER SETP 1');
+    bundleGraph.traverseBundles(bundle => {
+      console.log('BUNDLE ASSET GRAPH', bundle.getAssetGraph());
+    });
+
     // Step 2: remove assets that are duplicated in a parent bundle
     bundleGraph.traverseBundles(bundle => {
       bundle.traverseAssets(asset => {
@@ -126,6 +127,11 @@ export default new Bundler({
           bundle.removeAsset(asset);
         }
       });
+    });
+
+    console.log('AFTER SETP 2');
+    bundleGraph.traverseBundles(bundle => {
+      console.log('BUNDLE ASSET GRAPH', bundle.getAssetGraph());
     });
 
     // Step 3: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
@@ -193,5 +199,10 @@ export default new Bundler({
         bundleGraph.addBundle(bundleGroup, bundle);
       }
     }
+
+    console.log('AFTER STEP 3');
+    bundleGraph.traverseBundles(bundle => {
+      console.log('BUNDLE ASSET GRAPH', bundle.getAssetGraph());
+    });
   }
 });

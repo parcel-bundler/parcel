@@ -8,6 +8,7 @@ import PromiseQueue from '@parcel/utils/src/PromiseQueue';
 import {md5FromString} from '@parcel/utils/src/md5';
 import {isGlob} from '@parcel/utils/src/glob';
 import {isMatch} from 'micromatch';
+import invariant from 'assert';
 import Graph from './Graph';
 import ConfigLoader from './ConfigLoader';
 import ResolverRunner from './ResolverRunner';
@@ -45,25 +46,32 @@ export const DEPENDENCY_REQUEST = 'DEPENDENCY_REQUEST';
 export const CONFIG_REQUEST = 'CONFIG_REQUEST';
 export const DEV_DEP_REQUEST = 'DEV_DEP_REQUEST';
 
-export default class AssetGraph extends Graph {
+export default class NewAssetGraph extends Graph {
   inProgress: Map<NodeId, Promise<any>> = new Map();
   invalidNodes: Map<NodeId, AssetGraphNode> = new Map();
 
-  constructor(opts: Opts) {
-    let {options, rootDir, entries, targets, transformerRequest} = opts;
+  constructor(opts: Opts = {}) {
+    let {options} = opts;
     super(opts);
     this.options = options;
     this.queue = new PromiseQueue();
-    this.setUpInitialNodes({entries, targets, rootDir, transformerRequest});
     this.resolverRunner = new ResolverRunner({
       options
     });
     this.configLoader = new ConfigLoader(this.options);
   }
 
-  setUpInitialNodes({entries, targets, rootDir, transformerRequest}) {
-    let rootNode = new RootNode();
-    this.setRootNode(rootNode);
+  static setup({
+    entries,
+    targets,
+    rootNode = new RootNode(),
+    transformerRequest,
+    options
+  }) {
+    let graph = new NewAssetGraph({options});
+    graph.building = true;
+
+    graph.setRootNode(rootNode);
 
     let nodes = [];
     if (entries) {
@@ -90,7 +98,9 @@ export default class AssetGraph extends Graph {
       nodes.push(node);
     }
 
-    this.replaceNodesConnectedTo(rootNode, nodes, 'has_entry');
+    graph.replaceNodesConnectedTo(rootNode, nodes, 'has_entry');
+
+    return graph;
   }
 
   async initFarm() {
@@ -102,38 +112,45 @@ export default class AssetGraph extends Graph {
   }
 
   async build() {
-    if (!this.farm) {
-      await this.initFarm();
+    try {
+      this.building = true;
+      if (!this.farm) {
+        await this.initFarm();
+      }
+
+      // TODO: Move this to `Parcel.js` so we can cancel bundling and packaging too
+      if (this.controller) {
+        this.controller.abort();
+      }
+      this.controller = new AbortController();
+      let signal = this.controller.signal;
+
+      this.changedAssets = new Map();
+
+      if (this.invalidNodes.size) {
+        this.queueMainTasksFromNodes(this.invalidNodes.values());
+      }
+
+      if (this.inProgress.size) {
+        let incompleteNodes = Array.from(this.inProgress.keys()).map(id =>
+          this.getNode(id)
+        );
+        this.queueMainTasksFromNodes(incompleteNodes);
+      }
+
+      await this.queue.run();
+    } catch (e) {
+      throw e;
+    } finally {
+      this.building = false;
     }
-
-    // TODO: Move this to `Parcel.js` so we can cancel bundling and packaging too
-    if (this.controller) {
-      this.controller.abort();
-    }
-    this.controller = new AbortController();
-    let signal = this.controller.signal;
-
-    this.changedAssets = new Map();
-
-    if (this.invalidNodes.size) {
-      this.queueMainTasksFromNodes(this.invalidNodes);
-    }
-
-    if (this.inProgress.size) {
-      let incompleteNodes = Array.from(this.inProgress.keys()).map(id =>
-        this.getNode(id)
-      );
-      this.queueMainTasksFromNodes(incompleteNodes);
-    }
-
-    await this.queue.run();
   }
 
   queueMainTasksFromNodes(nodes) {
     for (let node of nodes) {
       if (
-        typeof node.value === TRANSFORMATION_REQUEST ||
-        typeof node.value === DEPENDENCY_REQUEST
+        node.type === TRANSFORMATION_REQUEST ||
+        node.type === DEPENDENCY_REQUEST
       ) {
         this.processNode(node);
       }
@@ -141,7 +158,9 @@ export default class AssetGraph extends Graph {
   }
 
   addNode(node) {
-    this.processNode(node);
+    // TODO: this is hacky, having a separate skinny graph would probably fix this
+    this.building && this.processNode(node);
+
     return super.addNode(node);
   }
 
@@ -168,6 +187,8 @@ export default class AssetGraph extends Graph {
     let result;
     if (this.inProgress.has(requestNode.id)) {
       result = await this.inProgress.get(requestNode.id);
+    } else if (this.invalidNodes.has(requestNode.id)) {
+      result = this.processNode(requestNode);
     } else {
       result = this.getResultFromGraph(requestNode);
     }
@@ -202,10 +223,12 @@ export default class AssetGraph extends Graph {
 
     try {
       this.inProgress.set(id, promise);
-      await promise;
+      let result = await promise;
       // ? Do either or both of these need to be deleted in the failure scenario?
       this.invalidNodes.delete(id);
       this.inProgress.delete(id);
+
+      return result;
     } catch (e) {
       // Do nothing
       // Main tasks will caught by the queue
@@ -215,7 +238,7 @@ export default class AssetGraph extends Graph {
 
   async runTransformationRequest(requestNode) {
     let {value: request} = requestNode;
-    console.log('TRANSFORMING', request);
+    // console.log('TRANSFORMING', request);
     let start = Date.now();
 
     let assets = await this.runTransform({
@@ -238,7 +261,7 @@ export default class AssetGraph extends Graph {
 
   async runDependencyRequest(requestNode) {
     let {value: request} = requestNode;
-    console.log('RESOLVING', request);
+    // console.log('RESOLVING', request);
     let resolvedPath;
     try {
       resolvedPath = await this.resolverRunner.resolve(request);
@@ -260,7 +283,7 @@ export default class AssetGraph extends Graph {
 
   async runConfigRequest(requestNode) {
     let {value: request} = requestNode;
-    console.log('LOADING CONFIG', request);
+    // console.log('LOADING CONFIG', request);
     let result = await this.configLoader.load(request);
     this.addConfigResultToGraph(requestNode, result);
     return result;
@@ -268,7 +291,7 @@ export default class AssetGraph extends Graph {
 
   async runDevDepRequest(requestNode) {
     let {value: request} = requestNode;
-    console.log('RESOLVING DEV DEP', request);
+    // console.log('RESOLVING DEV DEP', request);
     let {moduleSpecifier, resolveFrom} = request;
     let [resolvedPath, resolvedPkg] = await localResolve(
       // TODO: localResolve has a cache that should either not be used or cleared appropriately
@@ -431,7 +454,7 @@ export default class AssetGraph extends Graph {
   }
 
   respondToFSChange({action, path}) {
-    console.log('RESPONDING TO FS CHANGE', action, path);
+    // console.log('RESPONDING TO FS CHANGE', action, path);
     // TODO: probably filter elsewhere
     if (action === 'addDir') return;
     let edgeType = getInvalidationEdgeType(action);
@@ -502,7 +525,7 @@ export default class AssetGraph extends Graph {
     }
 
     return this.getNodesConnectedFrom(node).map(node => {
-      invariant(node.type === 'dependency');
+      invariant(node.type === DEPENDENCY_REQUEST);
       return node.value;
     });
   }

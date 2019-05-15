@@ -62,6 +62,10 @@ export class Bundle implements IBundle {
     return this.#bundle.stats;
   }
 
+  getAssetGraph() {
+    return this.#bundle.assetGraph;
+  }
+
   getDependencies(asset: Asset): Array<Dependency> {
     return this.#bundle.assetGraph.getDependencies(asset);
   }

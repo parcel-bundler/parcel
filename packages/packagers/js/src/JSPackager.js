@@ -17,6 +17,7 @@ export default new Packager({
       }
     });
     let outputs = await Promise.all(promises);
+    console.log('OUTPUTS', outputs);
 
     let assets = '';
     let i = 0;

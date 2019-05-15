@@ -21,6 +21,7 @@ import resolveOptions from './resolveOptions';
 
 // TODO: tmp, remove
 import prettyFormat from 'pretty-format';
+import fs from 'fs';
 
 export default class Parcel {
   initialOptions: InitialParcelOptions;
@@ -71,7 +72,7 @@ export default class Parcel {
       options: resolvedOptions
     });
 
-    this.assetGraph = new AssetGraph({
+    this.assetGraph = AssetGraph.setup({
       options: resolvedOptions,
       config,
       entries: resolvedOptions.entries,
@@ -119,7 +120,7 @@ export default class Parcel {
       // console.log('Starting build'); // eslint-disable-line no-console
 
       await this.assetGraph.build();
-      console.log('DONE BUILDING ASSET GRAPH');
+      console.log('DONE BUILDING ASSET GRAPH', this.assetGraph.building);
       await dumpGraphToGraphViz(this.assetGraph, 'MainAssetGraph');
 
       let bundleGraph = await this.bundle(this.assetGraph);

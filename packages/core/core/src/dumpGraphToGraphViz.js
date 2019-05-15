@@ -19,8 +19,8 @@ import BundleGraph from './BundleGraph';
 const COLORS = {
   root: 'gray',
   asset: 'green',
-  dependency: 'orange',
-  transformer_request: 'cyan',
+  DEPENDENCY_REQUEST: 'orange',
+  TRANSFORMATION_REQUEST: 'cyan',
   file: 'gray',
   default: 'white'
 };

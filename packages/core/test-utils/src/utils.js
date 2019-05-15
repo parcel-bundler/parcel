@@ -53,9 +53,18 @@ export const distDir = path.resolve(
   'dist'
 );
 
+export const parcelCacheDir = path.resolve(
+  __dirname,
+  '..',
+  '..',
+  'integration-tests',
+  '.parcel-cache'
+);
+
 export async function removeDistDirectory(count: number = 0) {
   try {
     await fs.rimraf(distDir);
+    //await fs.rimraf(parcelCacheDir);
   } catch (e) {
     if (count > 8) {
       // eslint-disable-next-line no-console

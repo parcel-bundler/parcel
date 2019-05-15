@@ -104,6 +104,7 @@ export default class Graph<TNode: Node> {
   removeNode(node: TNode): this {
     let removed = new this.constructor();
 
+    let boo = false;
     this.nodes.delete(node.id);
     removed.addNode(node);
 
@@ -310,8 +311,7 @@ export default class Graph<TNode: Node> {
   }
 
   getSubGraph(node: TNode): this {
-    let graph = new this.constructor();
-    graph.setRootNode(node);
+    let graph = new this.constructor({rootNodeId: node.id});
 
     this.traverse(node => {
       graph.addNode(node);

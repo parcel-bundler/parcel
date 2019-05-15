@@ -12,6 +12,8 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import {report} from './ReporterRunner';
 
+import dumpToGraphViz from './dumpGraphToGraphViz';
+
 type Opts = {|
   config: Config,
   options: ParcelOptions

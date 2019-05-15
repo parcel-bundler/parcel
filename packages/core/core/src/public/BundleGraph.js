@@ -142,7 +142,11 @@ export class MutableBundleGraph extends BaseBundleGraph
           bundleGroup.dependency.id
         );
         if (depNode) {
-          bundle.value.assetGraph.replaceNodesConnectedTo(depNode, [node]);
+          bundle.value.assetGraph.replaceNodesConnectedTo(
+            depNode,
+            [node],
+            'spawns'
+          );
         }
       }
     });
@@ -185,7 +189,7 @@ export class MutableBundleGraph extends BaseBundleGraph
             assetGraph,
             this.#graph.getSubGraph(node)
           );
-          assetGraph.replaceNodesConnectedTo(depNode, [node]);
+          assetGraph.replaceNodesConnectedTo(depNode, [node], 'spawns');
           this.#graph.addEdge({
             from: internalBundle.id,
             to: node.id

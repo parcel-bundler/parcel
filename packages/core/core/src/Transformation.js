@@ -10,6 +10,7 @@ import Cache from '@parcel/cache';
 import * as fs from '@parcel/fs';
 import clone from 'clone';
 import TapStream from '@parcel/utils/src/TapStream';
+import {unique} from '@parcel/utils/src/collection';
 import Asset from './Asset';
 
 // TODO: tmp, remove
@@ -25,9 +26,7 @@ export default class Transformation {
   }
 
   async run() {
-    console.log('IN TRANSFORMATION.RUN', this.request);
     let asset = await this.loadAsset();
-    console.log('INITIAL ASSET', asset);
 
     return this.runPipeline(asset);
   }
@@ -36,11 +35,11 @@ export default class Transformation {
     let {pipeline, configs} = await this.loadPipeline(initialAsset.filePath);
 
     let cacheKey = this.getCacheKey(initialAsset, configs);
-    console.log('CACHE KEY', cacheKey);
+    // console.log('CACHE KEY', cacheKey);
     let cacheEntry = await Cache.get(cacheKey);
 
-    if (cacheEntry) console.log('CACHE ENTRY FOUND', cacheEntry);
-    else console.log('TRANSFORMING');
+    // if (cacheEntry) console.log('CACHE ENTRY FOUND', cacheEntry);
+    // else console.log('TRANSFORMING');
 
     let assets = cacheEntry || (await pipeline.transform(initialAsset));
 
@@ -58,9 +57,12 @@ export default class Transformation {
       ? await pipeline.postProcess(assets)
       : finalAssets;
 
-    Cache.set(cacheKey, processedFinalAssets);
+    // console.log('PROCESSED ASSETS', processedFinalAssets);
 
-    console.log('TRANSFORMATION RESULT', processedFinalAssets);
+    await Promise.all(
+      unique(processedFinalAssets).map(asset => asset.commit())
+    );
+    Cache.set(cacheKey, processedFinalAssets);
 
     return processedFinalAssets;
   }
@@ -181,8 +183,7 @@ class Pipeline {
       this.generate
     ) {
       let output = await this.generate(asset);
-      asset.output = output;
-      asset.code = output.code;
+      asset.content = output.code;
       asset.ast = null;
     }
 
