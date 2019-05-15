@@ -2,7 +2,7 @@ const logger = require('@parcel/logger');
 const path = require('path');
 const fs = require('@parcel/fs');
 
-const SOURCEMAP_RE = /(?:\/\*|\/\/)\s*[@#]\s*sourceMappingURL\s*=\s*([^\s*]+)(?:\s*\*\/)?/;
+const SOURCEMAP_RE = /(?:\/\*|\/\/)\s*[@#]\s*sourceMappingURL\s*=\s*([^\r\n*]+)(?:\s*\*\/)?/;
 const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
 
 async function loadSourceMap(asset) {
@@ -12,7 +12,7 @@ async function loadSourceMap(asset) {
   if (match) {
     asset.contents = asset.contents.replace(SOURCEMAP_RE, '');
 
-    let url = match[1];
+    let url = match[1].trim();
     let dataURLMatch = url.match(DATA_URL_RE);
 
     try {
@@ -63,6 +63,7 @@ async function loadSourceMap(asset) {
         sourceMap.sourcesContent = sourceMap.sourcesContent.concat(contents);
       }
     } catch (e) {
+      console.error(e);
       logger.warn(
         `Could not load existing sourcemap of "${asset.relativeName}".`
       );
