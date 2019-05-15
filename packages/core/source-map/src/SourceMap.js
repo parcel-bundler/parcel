@@ -259,8 +259,7 @@ export default class SourceMap {
       if (mapping.original !== null) {
         originalMappingIndex = this.findClosest(
           mapping.original.line,
-          mapping.original.column,
-          'generated'
+          mapping.original.column
         );
       }
 
@@ -287,11 +286,7 @@ export default class SourceMap {
     return this;
   }
 
-  findClosest(
-    line: number,
-    column: number,
-    key: 'original' | 'generated'
-  ): number | null {
+  findClosest(line: number, column: number): number | null {
     if (line < 1) {
       throw new Error('Line numbers must be >= 1');
     }
@@ -304,40 +299,29 @@ export default class SourceMap {
       return null;
     }
 
-    // if it's generated, do a binary search as this needs to be quick and generated cannot be null
-    // Luckily searching based on generated is most common...
-    // See: https://jsperf.com/binary-search-vs-js-find/1 (binary search ~11M/sec, find ~11k/sec)
-    var middleIndex = 0;
-    if (key === 'generated') {
-      var startIndex = 0;
-      var stopIndex = this.mappings.length - 1;
-      middleIndex = Math.floor((stopIndex + startIndex) / 2);
+    var startIndex = 0;
+    var stopIndex = this.mappings.length - 1;
+    var middleIndex = Math.floor((stopIndex + startIndex) / 2);
 
-      while (
-        startIndex < stopIndex &&
-        this.mappings[middleIndex][key].line !== line
-      ) {
-        if (line < this.mappings[middleIndex][key].line) {
-          stopIndex = middleIndex - 1;
-        } else if (line > this.mappings[middleIndex][key].line) {
-          startIndex = middleIndex + 1;
-        }
-        middleIndex = Math.floor((stopIndex + startIndex) / 2);
+    while (
+      startIndex < stopIndex &&
+      this.mappings[middleIndex].generated.line !== line
+    ) {
+      if (line < this.mappings[middleIndex].generated.line) {
+        stopIndex = middleIndex - 1;
+      } else if (line > this.mappings[middleIndex].generated.line) {
+        startIndex = middleIndex + 1;
       }
-    } else {
-      middleIndex = this.mappings.findIndex(
-        val => val[key] && val[key].line === line
-      );
+      middleIndex = Math.floor((stopIndex + startIndex) / 2);
     }
 
     var mapping = this.mappings[middleIndex];
-    if (!mapping || !mapping[key] || mapping[key].line !== line) {
+    if (!mapping || mapping.generated.line !== line) {
       return middleIndex;
     }
 
     while (middleIndex > 0) {
-      var prevMapping = this.mappings[middleIndex - 1][key];
-      if (!prevMapping || prevMapping.line !== line) {
+      if (this.mappings[middleIndex - 1].generated.line !== line) {
         break;
       }
 
@@ -345,13 +329,9 @@ export default class SourceMap {
     }
 
     while (middleIndex < this.mappings.length - 1) {
-      var nextMapping = this.mappings[middleIndex + 1][key];
-      var currMapping = this.mappings[middleIndex][key];
       if (
-        nextMapping === null ||
-        nextMapping.line !== line ||
-        currMapping === null ||
-        column <= currMapping.column
+        this.mappings[middleIndex + 1].generated.line !== line ||
+        column <= this.mappings[middleIndex].generated.column
       ) {
         break;
       }
@@ -365,8 +345,7 @@ export default class SourceMap {
   originalPositionFor(generatedPosition: PositionType) {
     let index = this.findClosest(
       generatedPosition.line,
-      generatedPosition.column,
-      'generated'
+      generatedPosition.column
     );
 
     if (index === null) return null;
@@ -377,24 +356,6 @@ export default class SourceMap {
       name: mapping.name,
       line: mapping.original ? mapping.original.line : null,
       column: mapping.original ? mapping.original.column : null
-    };
-  }
-
-  generatedPositionFor(originalPosition: PositionType) {
-    let index = this.findClosest(
-      originalPosition.line,
-      originalPosition.column,
-      'original'
-    );
-
-    if (index === null) return null;
-
-    let mapping = this.mappings[index];
-    return {
-      source: mapping.source,
-      name: mapping.name,
-      line: mapping.generated.line,
-      column: mapping.generated.column
     };
   }
 
