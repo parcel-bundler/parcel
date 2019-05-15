@@ -50,25 +50,22 @@ describe('AssetGraph', () => {
         }).id
       )
     );
-    assert.deepEqual(
-      graph.edges,
-      new Set([
-        {
-          from: '/',
-          to: new Dependency({
-            moduleSpecifier: './index1',
-            env: DEFAULT_ENV
-          }).id
-        },
-        {
-          from: '/',
-          to: new Dependency({
-            moduleSpecifier: './index2',
-            env: DEFAULT_ENV
-          }).id
-        }
-      ])
-    );
+    assert.deepEqual(graph.getAllEdges(), [
+      {
+        from: '/',
+        to: new Dependency({
+          moduleSpecifier: './index1',
+          env: DEFAULT_ENV
+        }).id
+      },
+      {
+        from: '/',
+        to: new Dependency({
+          moduleSpecifier: './index2',
+          env: DEFAULT_ENV
+        }).id
+      }
+    ]);
   });
 
   it('resolveDependency should update the file a dependency is connected to', () => {
