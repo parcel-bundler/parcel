@@ -1,12 +1,10 @@
 // @flow
 
 import type {Edge, Node, NodeId} from './types';
-
-import type {GraphTraversalCallback, TraversalActions} from '@parcel/types';
-
+import type {TraversalActions, GraphVisitor} from '@parcel/types';
 import nullthrows from 'nullthrows';
 
-type GraphOpts<TNode> = {|
+export type GraphOpts<TNode> = {|
   nodes?: Array<[NodeId, TNode]>,
   edges?: Array<Edge>,
   rootNodeId?: ?NodeId
@@ -202,20 +200,43 @@ export default class Graph<TNode: Node> {
     return {removed, added};
   }
 
-  traverse<TContext>(
-    visit: GraphTraversalCallback<TNode, TContext>,
-    startNode: ?TNode
-  ): ?TContext {
+  traverse<TContext>(visit: GraphVisitor<TNode, TContext>, startNode: ?TNode) {
     return this.dfs({
+      // $FlowFixMe
       visit,
       startNode,
       getChildren: this.getNodesConnectedFrom.bind(this)
     });
   }
 
+  filteredTraverse<TValue, TContext>(
+    filter: TNode => ?TValue,
+    visit: GraphVisitor<TValue, TContext>,
+    startNode: ?TNode
+  ): ?TContext {
+    return this.traverse<TContext>(
+      {
+        enter: (node, ...args) => {
+          let fn = visit.enter || visit;
+          let value = filter(node);
+          if (value != null && typeof fn === 'function') {
+            return fn(value, ...args);
+          }
+        },
+        exit: (node, ...args) => {
+          let value = filter(node);
+          if (value != null && typeof visit.exit === 'function') {
+            return visit.exit(value, ...args);
+          }
+        }
+      },
+      startNode
+    );
+  }
+
   traverseAncestors<TContext>(
     startNode: TNode,
-    visit: GraphTraversalCallback<TNode, TContext>
+    visit: GraphVisitor<TNode, TContext>
   ) {
     return this.dfs({
       visit,
@@ -229,7 +250,7 @@ export default class Graph<TNode: Node> {
     startNode,
     getChildren
   }: {
-    visit: GraphTraversalCallback<TNode, TContext>,
+    visit: GraphVisitor<TNode, TContext>,
     getChildren(node: TNode): Array<TNode>,
     startNode?: ?TNode
   }): ?TContext {
@@ -254,9 +275,12 @@ export default class Graph<TNode: Node> {
       visited.add(node);
 
       skipped = false;
-      let newContext = visit(node, context, actions);
-      if (typeof newContext !== 'undefined') {
-        context = newContext;
+      let enter = typeof visit === 'function' ? visit : visit.enter;
+      if (enter) {
+        let newContext = enter(node, context, actions);
+        if (typeof newContext !== 'undefined') {
+          context = newContext;
+        }
       }
 
       if (skipped) {
@@ -277,6 +301,21 @@ export default class Graph<TNode: Node> {
         if (stopped) {
           return result;
         }
+      }
+
+      if (visit.exit) {
+        let newContext = visit.exit(node, context, actions);
+        if (typeof newContext !== 'undefined') {
+          context = newContext;
+        }
+      }
+
+      if (skipped) {
+        return;
+      }
+
+      if (stopped) {
+        return context;
       }
     };
 
@@ -324,6 +363,54 @@ export default class Graph<TNode: Node> {
     }, node);
 
     return graph;
+  }
+
+  findAncestor(node: TNode, fn: (node: TNode) => boolean): ?TNode {
+    let res = null;
+    this.traverseAncestors(node, (node, ctx, traversal) => {
+      if (fn(node)) {
+        res = node;
+        traversal.stop();
+      }
+    });
+    return res;
+  }
+
+  findAncestors(node: TNode, fn: (node: TNode) => boolean): Array<TNode> {
+    let res = [];
+    this.traverseAncestors(node, (node, ctx, traversal) => {
+      if (fn(node)) {
+        res.push(node);
+        traversal.skipChildren();
+      }
+    });
+    return res;
+  }
+
+  findDescendant(node: TNode, fn: (node: TNode) => boolean): ?TNode {
+    let res = null;
+    this.traverse((node, ctx, traversal) => {
+      if (fn(node)) {
+        res = node;
+        traversal.stop();
+      }
+    }, node);
+    return res;
+  }
+
+  findDescendants(node: TNode, fn: (node: TNode) => boolean): Array<TNode> {
+    let res = [];
+    this.traverse((node, ctx, traversal) => {
+      if (fn(node)) {
+        res.push(node);
+        traversal.skipChildren();
+      }
+    }, node);
+    return res;
+  }
+
+  findNode(predicate: TNode => boolean): ?TNode {
+    return Array.from(this.nodes.values()).find(predicate);
   }
 
   findNodes(predicate: TNode => boolean): Array<TNode> {

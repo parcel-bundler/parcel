@@ -4,11 +4,11 @@ import type {GraphTraversalCallback} from '@parcel/types';
 import type Asset from './Asset';
 import type {Bundle, BundleGraphNode} from './types';
 
-import Graph from './Graph';
+import Graph, {type GraphOpts} from './Graph';
 
 export default class BundleGraph extends Graph<BundleGraphNode> {
-  constructor() {
-    super();
+  constructor(opts?: GraphOpts<BundleGraphNode>) {
+    super(opts);
     this.setRootNode({
       type: 'root',
       id: 'root',
@@ -46,10 +46,25 @@ export default class BundleGraph extends Graph<BundleGraphNode> {
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>
   ): ?TContext {
-    return this.traverse((node, ...args) => {
-      if (node.type === 'bundle') {
-        return visit(node.value, ...args);
+    return this.filteredTraverse(
+      node => (node.type === 'bundle' ? node.value : null),
+      visit
+    );
+  }
+
+  isAssetReferenced(asset: Asset) {
+    let result = false;
+
+    this.traverseBundles((bundle, context, traversal) => {
+      let referenceNode = bundle.assetGraph.findNode(
+        node => node.type === 'asset_reference' && node.value.id === asset.id
+      );
+      if (referenceNode) {
+        result = true;
+        traversal.stop();
       }
     });
+
+    return result;
   }
 }

@@ -49,6 +49,8 @@ export default async function resolveOptions(
     entries,
     rootDir,
     targets,
-    logLevel: initialOptions.logLevel != null ? initialOptions.logLevel : 'info'
+    scopeHoist:
+      initialOptions.scopeHoist ?? initialOptions.mode === 'production',
+    logLevel: initialOptions.logLevel ?? 'info'
   };
 }

@@ -13,14 +13,17 @@ import type {
   Dependency as IDependency,
   File,
   FilePath,
-  GraphTraversalCallback,
   Target,
+  GraphVisitor,
+  Symbol,
+  SymbolResolution,
   TransformerRequest
 } from '@parcel/types';
 
 import type Asset from './Asset';
 
 import invariant from 'assert';
+import nullthrows from 'nullthrows';
 import Graph from './Graph';
 import {md5FromString} from '@parcel/utils';
 import Dependency from './Dependency';
@@ -75,6 +78,9 @@ const getDepNodesFromGraph = (
   );
 };
 
+const invertMap = <K, V>(map: Map<K, V>): Map<V, K> =>
+  new Map([...map].map(([key, val]) => [val, key]));
+
 type DepUpdates = {|
   newRequest?: TransformerRequest,
   prunedFiles: Array<File>
@@ -104,6 +110,7 @@ type AssetGraphOpts = {|
 export default class AssetGraph extends Graph<AssetGraphNode> {
   incompleteNodes: Map<NodeId, AssetGraphNode> = new Map();
   invalidNodes: Map<NodeId, AssetGraphNode> = new Map();
+  deferredNodes: Set<NodeId> = new Set();
 
   initializeGraph({
     entries,
@@ -164,9 +171,37 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     let requestNode = nodeFromTransformerRequest(req);
     let {added, removed} = this.replaceNodesConnectedTo(depNode, [requestNode]);
 
+    // Defer transforming this dependency if it is marked as weak, there are no side effects,
+    // and no re-exported symbols are used by ancestor dependencies.
+    // This helps with performance building large libraries like `lodash-es`, which re-exports
+    // a huge number of functions since we can avoid even transforming the files that aren't used.
+    let defer = false;
+    if (dep.isWeak && req.sideEffects === false) {
+      let assets = this.getNodesConnectedTo(depNode);
+      let symbols = invertMap(dep.symbols);
+      invariant(
+        assets[0].type === 'asset' || assets[0].type === 'asset_reference'
+      );
+      let resolvedAsset = assets[0].value;
+      let deps = this.getAncestorDependencies(resolvedAsset);
+      defer = deps.every(
+        d =>
+          !d.symbols.has('*') &&
+          ![...d.symbols.keys()].some(symbol => {
+            let assetSymbol = resolvedAsset.symbols.get(symbol);
+            return assetSymbol != null && symbols.has(assetSymbol);
+          })
+      );
+    }
+
     if (added.nodes.size) {
+      this.deferredNodes.add(requestNode.id);
+    }
+
+    if (!defer && this.deferredNodes.has(requestNode.id)) {
       newRequest = req;
       this.incompleteNodes.set(requestNode.id, requestNode);
+      this.deferredNodes.delete(requestNode.id);
     }
 
     let prunedFiles = getFilesFromGraph(removed);
@@ -211,9 +246,15 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     let removedFiles = getFilesFromGraph(removed);
 
     for (let assetNode of assetNodes) {
-      let depNodes = assetNode.value
-        .getDependencies()
-        .map(dep => nodeFromDep(dep));
+      let depNodes = assetNode.value.getDependencies().map(dep => {
+        let node = this.getNode(dep.id);
+        if (node && node.type === 'dependency') {
+          node.value.merge(dep);
+          return node;
+        }
+
+        return nodeFromDep(dep);
+      });
       let {removed, added} = this.replaceNodesConnectedTo(assetNode, depNodes);
       removedFiles = removedFiles.concat(getFilesFromGraph(removed));
       newDepNodes = newDepNodes.concat(getDepNodesFromGraph(added));
@@ -281,15 +322,29 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return res;
   }
 
-  traverseAssets(
-    visit: GraphTraversalCallback<Asset, AssetGraphNode>,
-    startNode: ?AssetGraphNode
-  ): ?AssetGraphNode {
-    return this.traverse((node, ...args) => {
-      if (node.type === 'asset') {
-        return visit(node.value, ...args);
+  getAncestorDependencies(asset: Asset): Array<IDependency> {
+    let node = this.getNode(asset.id);
+    if (!node) {
+      return [];
+    }
+
+    return this.findAncestors(node, node => node.type === 'dependency').map(
+      node => {
+        invariant(node.type === 'dependency');
+        return node.value;
       }
-    }, startNode);
+    );
+  }
+
+  traverseAssets<TContext>(
+    visit: GraphVisitor<Asset, TContext>,
+    startNode: ?AssetGraphNode
+  ): ?TContext {
+    return this.filteredTraverse(
+      node => (node.type === 'asset' ? node.value : null),
+      visit,
+      startNode
+    );
   }
 
   getTotalSize(asset?: ?Asset): number {
@@ -326,5 +381,38 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     });
 
     return referenceId;
+  }
+
+  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution {
+    if (symbol === '*') {
+      return {asset, exportSymbol: '*', symbol: '*'};
+    }
+
+    let identifier = asset.symbols.get(symbol);
+
+    let deps = this.getDependencies(asset).reverse();
+    for (let dep of deps) {
+      // If this is a re-export, find the original module.
+      let symbolLookup = new Map(
+        [...dep.symbols].map(([key, val]) => [val, key])
+      );
+      let depSymbol = symbolLookup.get(identifier);
+      if (depSymbol != null) {
+        let resolved = nullthrows(this.getDependencyResolution(dep));
+        return this.resolveSymbol(resolved, depSymbol);
+      }
+
+      // If this module exports wildcards, resolve the original module.
+      // Default exports are excluded from wildcard exports.
+      if (dep.symbols.get('*') === '*' && symbol !== 'default') {
+        let resolved = nullthrows(this.getDependencyResolution(dep));
+        let result = this.resolveSymbol(resolved, symbol);
+        if (result.symbol != null) {
+          return result;
+        }
+      }
+    }
+
+    return {asset, exportSymbol: symbol, symbol: identifier};
   }
 }

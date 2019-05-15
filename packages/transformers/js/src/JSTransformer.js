@@ -11,6 +11,7 @@ import {parse} from '@babel/parser';
 import traverse from '@babel/traverse';
 import * as walk from 'babylon-walk';
 import * as babelCore from '@babel/core';
+import {hoist} from '@parcel/scope-hoisting';
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -37,9 +38,14 @@ export default new Transformer({
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  async parse(asset /*, config , options */) {
+  async parse(asset, config, options) {
     let code = await asset.getCode();
-    if (!canHaveDependencies(code) && !ENV_RE.test(code) && !FS_RE.test(code)) {
+    if (
+      !options.scopeHoist &&
+      !canHaveDependencies(code) &&
+      !ENV_RE.test(code) &&
+      !FS_RE.test(code)
+    ) {
       return null;
     }
 
@@ -57,7 +63,7 @@ export default new Transformer({
     };
   },
 
-  async transform(asset) {
+  async transform(asset, config, options) {
     asset.type = 'js';
     if (!asset.ast) {
       return [asset];
@@ -103,8 +109,10 @@ export default new Transformer({
       }
     }
 
-    // Convert ES6 modules to CommonJS
-    if (asset.meta.isES6Module) {
+    if (options.scopeHoist) {
+      hoist(asset);
+    } else if (asset.meta.isES6Module) {
+      // Convert ES6 modules to CommonJS
       let res = babelCore.transformFromAst(ast.program, code, {
         code: false,
         ast: true,

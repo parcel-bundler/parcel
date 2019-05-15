@@ -16,7 +16,8 @@ import type {
   MutableAsset as IMutableAsset,
   PackageJSON,
   SourceMap,
-  Stats
+  Stats,
+  Symbol
 } from '@parcel/types';
 
 import type InternalAsset from '../Asset';
@@ -70,6 +71,14 @@ class BaseAsset {
 
   get isIsolated(): boolean {
     return this.#asset.isIsolated;
+  }
+
+  get sideEffects(): boolean {
+    return this.#asset.sideEffects;
+  }
+
+  get symbols(): Map<Symbol, Symbol> {
+    return this.#asset.symbols;
   }
 
   getConfig(

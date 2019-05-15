@@ -26,7 +26,7 @@ export default class Parcel {
   #initialOptions; // InitialParcelOptions;
   #reporterRunner; // ReporterRunner
   #resolvedOptions; // ?ParcelOptions
-  #runPackage; // (bundle: Bundle) => Promise<Stats>;
+  #runPackage; // (bundle: Bundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
 
   constructor(options: InitialParcelOptions) {
     this.#initialOptions = clone(options);
@@ -169,12 +169,15 @@ export default class Parcel {
 
 function packageBundles(
   bundleGraph: InternalBundleGraph,
-  runPackage: (bundle: Bundle) => Promise<Stats>
+  runPackage: (
+    bundle: Bundle,
+    bundleGraph: InternalBundleGraph
+  ) => Promise<Stats>
 ): Promise<mixed> {
   let promises = [];
   bundleGraph.traverseBundles(bundle => {
     promises.push(
-      runPackage(bundle).then(stats => {
+      runPackage(bundle, bundleGraph).then(stats => {
         bundle.stats = stats;
       })
     );

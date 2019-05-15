@@ -1,5 +1,5 @@
 // @flow
-import type {Asset, PackageJSON} from '@parcel/types';
+import type {MutableAsset, PackageJSON} from '@parcel/types';
 import path from 'path';
 
 const JSX_EXTENSIONS = {
@@ -19,7 +19,7 @@ const JSX_PRAGMA = {
  * and changes the pragma accordingly.
  */
 export default async function getJSXConfig(
-  asset: Asset,
+  asset: MutableAsset,
   pkg: ?PackageJSON,
   isSourceModule: boolean
 ) {

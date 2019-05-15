@@ -73,6 +73,10 @@ class BaseBundleGraph {
       assetToInternalAsset(asset)
     );
   }
+
+  isAssetReferenced(asset: Asset): boolean {
+    return this.#graph.isAssetReferenced(assetToInternalAsset(asset));
+  }
 }
 
 export class BundleGraph extends BaseBundleGraph implements IBundleGraph {
