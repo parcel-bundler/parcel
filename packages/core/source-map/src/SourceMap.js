@@ -38,7 +38,6 @@ type ConsumerMappingItemType = {
 export default class SourceMap {
   mappings: Array<MappingType>;
   sources: Map<string, string | null>;
-  lineCount: number;
 
   constructor(
     mappings?: Array<MappingType> = [],
@@ -57,8 +56,6 @@ export default class SourceMap {
     } else {
       this.sources = new Map();
     }
-
-    this.lineCount = 0;
   }
 
   // This should never be necessary as long as sourcemaps are valid
@@ -251,8 +248,8 @@ export default class SourceMap {
   generateEmptyMap(sourceName: string, sourceContent: string) {
     this.sources.set(sourceName, sourceContent);
 
-    this.lineCount = lineCounter(sourceContent);
-    for (let line = 1; line < this.lineCount + 1; line++) {
+    let lineCount = lineCounter(sourceContent);
+    for (let line = 1; line < lineCount + 1; line++) {
       this.addMapping({
         source: sourceName,
         original: {
@@ -269,15 +266,15 @@ export default class SourceMap {
     return this;
   }
 
-  async extendSourceMap(extension: SourceMap | RawMapInputType) {
+  async extend(extension: SourceMap | RawMapInputType) {
     if (!(extension instanceof SourceMap)) {
       extension = await new SourceMap().addMap(extension);
     }
 
-    return this._extendSourceMap(extension);
+    return this._extend(extension);
   }
 
-  async _extendSourceMap(extension: SourceMap) {
+  async _extend(extension: SourceMap) {
     extension.eachMapping(mapping => {
       let originalMappingIndex = null;
       if (mapping.original !== null) {
@@ -432,8 +429,6 @@ export default class SourceMap {
       mapping.generated.column = mapping.generated.column + columnOffset;
       return mapping;
     });
-
-    this.lineCount += lineOffset;
   }
 
   stringify(file: string, sourceRoot: string) {

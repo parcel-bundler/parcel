@@ -20,7 +20,7 @@ describe('SourceMap', () => {
       }
     ]);
 
-    await map.extendSourceMap(
+    await map.extend(
       new SourceMap([
         {
           source: 'index.js',
@@ -65,7 +65,7 @@ describe('SourceMap', () => {
       }
     ]);
 
-    await map.extendSourceMap(
+    await map.extend(
       new SourceMap([
         {
           source: 'index.js',
@@ -89,6 +89,67 @@ describe('SourceMap', () => {
       original: null,
       generated: {
         line: 5,
+        column: 12
+      }
+    });
+  });
+
+  it('Extending with added null mappings', async function() {
+    let map = new SourceMap([
+      {
+        source: 'index.js',
+        name: 'A',
+        original: null,
+        generated: {
+          line: 6,
+          column: 15
+        }
+      }
+    ]);
+
+    await map.extend(
+      new SourceMap([
+        {
+          source: 'index.js',
+          name: null,
+          original: {
+            line: 6,
+            column: 15
+          },
+          generated: {
+            line: 5,
+            column: 12
+          }
+        },
+        {
+          source: 'index.js',
+          name: 'B',
+          original: null,
+          generated: {
+            line: 7,
+            column: 12
+          }
+        }
+      ])
+    );
+
+    assert.equal(map.mappings.length, 2);
+    assert.deepEqual(map.mappings[0], {
+      source: 'index.js',
+      name: 'A',
+      original: null,
+      generated: {
+        line: 5,
+        column: 12
+      }
+    });
+
+    assert.deepEqual(map.mappings[1], {
+      source: 'index.js',
+      name: 'B',
+      original: null,
+      generated: {
+        line: 7,
         column: 12
       }
     });
