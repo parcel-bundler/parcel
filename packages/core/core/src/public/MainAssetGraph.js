@@ -48,6 +48,12 @@ export default class MainAssetGraph implements IMainAssetGraph {
       }
     });
 
+    graph.traverseAssets(currentAsset => {
+      if (currentAsset.type !== asset.type) {
+        graph.removeAsset(currentAsset);
+      }
+    });
+
     return new MutableBundle({
       id: 'bundle:' + asset.id,
       filePath: null,
