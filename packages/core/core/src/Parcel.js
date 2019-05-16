@@ -95,17 +95,28 @@ export default class Parcel {
 
     this.#runPackage = this.#farm.mkhandle('runPackage');
 
-    // TODO: get watch root programmatically
-    // it should be where the lock file is found or process.cwd if no lockfile is found
+    await this.initializeWatcher();
+  }
+
+  async initializeWatcher() {
+    // TODO: get project root programmatically
+    // it should probably be where the lock file is found or process.cwd if no lockfile is found
     // we may end up needing this location for other things, in which case it would be named projectRoot and held in ParcelOptions
-    let watchRoot = process.cwd();
+    // ? Do we need to distinguish between vsc root and project root? They may not always be the same.
+    let projectRoot = process.cwd();
     if (this.#resolvedOptions.watch) {
-      // TODO: cache and output folders may be configured to something else, check options
-      let ignore = ['.git', '.hg', '.parcel-cache', 'dist'].map(dir =>
-        path.join(watchRoot, dir)
+      // TODO: ideally these should all be absolute paths already set up on #resolvedOptions
+      let targetDirs = this.#resolvedOptions.targets.map(target =>
+        path.resolve(process.cwd(), target.distDir)
       );
+      let cacheDir = path.resolve(
+        process.cwd(),
+        this.#resolvedOptions.cacheDir
+      );
+      let vcsDirs = ['.git', '.hg'].map(dir => path.join(projectRoot, dir));
+      let ignore = [cacheDir, ...targetDirs, ...vcsDirs];
       this.#watcher = await watcher.subscribe(
-        watchRoot,
+        projectRoot,
         (err, events) => {
           if (err) {
             throw err;
