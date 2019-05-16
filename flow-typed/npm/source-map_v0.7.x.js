@@ -6,7 +6,7 @@ declare module 'source-map' {
   declare export type StartOfSourceMap = {|
     +file?: string,
     +sourceRoot?: string,
-    +skipValidation?: boolean,
+    +skipValidation?: boolean
   |};
   declare export type RawSourceMap = {|
     +version: number,
@@ -15,40 +15,40 @@ declare module 'source-map' {
     +sourceRoot?: string,
     +sourcesContent?: string[],
     +mappings: string,
-    +file: string,
+    +file: string
   |};
   declare export type RawIndexMap = {|
     +file?: string,
     +sourceRoot?: string,
     +skipValidation?: boolean,
     +version: number,
-    +sections: RawSection[],
+    +sections: RawSection[]
   |};
 
   declare export type RawSection = {|
     +offset: Position,
-    +map: RawSourceMap,
+    +map: RawSourceMap
   |};
   declare export type Position = {|
     +line: number,
-    +column: number,
+    +column: number
   |};
   declare export type NullablePosition = {|
     +line: number | null,
     +column: number | null,
-    +lastColumn: number | null,
+    +lastColumn: number | null
   |};
   declare export type MappedPosition = {|
     +source: string,
     +line: number,
     +column: number,
-    +name?: string,
+    +name?: string
   |};
   declare export type NullableMappedPosition = {|
     +source: string | null,
     +line: number | null,
     +column: number | null,
-    +name: string | null,
+    +name: string | null
   |};
   declare export type MappingItem = {|
     +source: string,
@@ -57,17 +57,21 @@ declare module 'source-map' {
     +lastGeneratedColumn?: number,
     +originalLine: number,
     +originalColumn: number,
-    +name: string,
+    +name: string
   |};
-  declare export type Mapping = {|
-    +generated: Position,
-    +original: Position,
-    +source: string,
-    +name?: string,
-  |};
+  declare export type Mapping =
+    | {|
+        +generated: Position,
+        +original: Position,
+        +source: string,
+        +name?: string
+      |}
+    | {|
+        +generated: Position
+      |};
   declare export type CodeWithSourceMap = {|
     +code: string,
-    +map: SourceMapGenerator,
+    +map: SourceMapGenerator
   |};
   declare export class SourceMapConsumer {
     static +GENERATED_ORDER: number;
@@ -162,7 +166,7 @@ declare module 'source-map' {
      */
     originalPositionFor(
       generatedPosition: Position & {
-        bias?: number,
+        bias?: number
       }
     ): NullableMappedPosition;
 
@@ -187,7 +191,7 @@ declare module 'source-map' {
      */
     generatedPositionFor(
       originalPosition: MappedPosition & {
-        bias?: number,
+        bias?: number
       }
     ): NullablePosition;
 

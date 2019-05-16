@@ -1,11 +1,24 @@
 // @flow strict-local
-import type {Position, MappingItem, RawSourceMap} from 'source-map';
-import type {Mapping} from './types';
+import type {Mapping, Position, MappingItem, RawSourceMap} from 'source-map';
 
 import {SourceMapConsumer, SourceMapGenerator} from 'source-map';
 import countLines from '../../utils/src/countLines';
 
 type RawMapInput = SourceMapConsumer | string | RawSourceMap;
+
+type OriginalPosition = {
+  source: string,
+  line: number,
+  column: number,
+  name: string | null
+};
+
+type NullOriginalPosition = {
+  source: null,
+  line: null,
+  column: null,
+  name: null
+};
 
 export default class SourceMap {
   mappings: Array<Mapping>;
@@ -94,15 +107,24 @@ export default class SourceMap {
     lineOffset: number = 0,
     columnOffset: number = 0
   ) {
-    this.mappings.push({
-      source: mapping.source,
-      name: mapping.name,
-      original: mapping.original,
-      generated: {
-        line: mapping.generated.line + lineOffset,
-        column: mapping.generated.column + columnOffset
-      }
-    });
+    if (mapping.original) {
+      this.mappings.push({
+        source: mapping.source,
+        name: mapping.name,
+        original: mapping.original,
+        generated: {
+          line: mapping.generated.line + lineOffset,
+          column: mapping.generated.column + columnOffset
+        }
+      });
+    } else {
+      this.mappings.push({
+        generated: {
+          line: mapping.generated.line + lineOffset,
+          column: mapping.generated.column + columnOffset
+        }
+      });
+    }
   }
 
   addConsumerMapping(
@@ -175,12 +197,19 @@ export default class SourceMap {
         this.addMapping(mapping);
       } else {
         let originalMapping = this.mappings[originalMappingIndex];
-        this.mappings[originalMappingIndex] = {
-          generated: mapping.generated,
-          original: originalMapping.original,
-          source: originalMapping.source,
-          name: originalMapping.name ?? mapping.name ?? null
-        };
+
+        if (originalMapping.original) {
+          this.mappings[originalMappingIndex] = {
+            generated: mapping.generated,
+            original: originalMapping.original,
+            source: originalMapping.source,
+            name: originalMapping.name
+          };
+        } else {
+          this.mappings[originalMappingIndex] = {
+            generated: mapping.generated
+          };
+        }
       }
 
       if (mapping.source != null && !this.sourceContentFor(mapping.source)) {
@@ -228,43 +257,64 @@ export default class SourceMap {
       return middleIndex;
     }
 
-    while (middleIndex > 0) {
-      if (this.mappings[middleIndex - 1].generated.line !== line) {
-        break;
-      }
-
+    while (
+      middleIndex > 0 &&
+      this.mappings[middleIndex - 1].generated.line !== line
+    ) {
       middleIndex--;
     }
 
-    while (middleIndex < this.mappings.length - 1) {
-      if (
-        this.mappings[middleIndex + 1].generated.line !== line ||
-        column <= this.mappings[middleIndex].generated.column
-      ) {
-        break;
-      }
-
+    while (
+      middleIndex < this.mappings.length - 1 &&
+      this.mappings[middleIndex + 1].generated.line === line &&
+      this.mappings[middleIndex + 1].generated.column <= column
+    ) {
       middleIndex++;
     }
 
     return middleIndex;
   }
 
-  originalPositionFor(generatedPosition: Position) {
+  originalPositionFor(
+    generatedPosition: Position
+  ): OriginalPosition | NullOriginalPosition {
     let index = this.findClosest(
       generatedPosition.line,
       generatedPosition.column
     );
 
-    if (index === null) return null;
+    if (index === null) {
+      return {
+        source: null,
+        name: null,
+        line: null,
+        column: null
+      };
+    }
 
     let mapping = this.mappings[index];
-    return {
-      source: mapping.source,
-      name: mapping.name,
-      line: mapping.original ? mapping.original.line : null,
-      column: mapping.original ? mapping.original.column : null
-    };
+    if (mapping.original) {
+      let result: {
+        source: string,
+        name: string | null,
+        line: number,
+        column: number
+      } = {
+        source: mapping.source,
+        name: typeof mapping.name === 'string' ? mapping.name : null,
+        line: mapping.original.line,
+        column: mapping.original.column
+      };
+
+      return result;
+    } else {
+      return {
+        source: null,
+        name: null,
+        line: null,
+        column: null
+      };
+    }
   }
 
   sourceContentFor(fileName: string): string | null {

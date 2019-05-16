@@ -87,4 +87,54 @@ describe('Get Sourcemap Position', () => {
       column: 27
     });
   });
+
+  it('get original position of null mappings (aka return null)', async function() {
+    let map = new SourceMap(
+      clone([
+        ...BASIC_TEST_MAPPINGS,
+        {
+          generated: {
+            line: 7,
+            column: 65
+          }
+        }
+      ])
+    );
+
+    let originalPositionOne = map.originalPositionFor({
+      line: 6,
+      column: 18
+    });
+
+    let originalPositionTwo = map.originalPositionFor({
+      line: 7,
+      column: 27
+    });
+
+    let originalPositionNull = map.originalPositionFor({
+      line: 7,
+      column: 66
+    });
+
+    assert.deepEqual(originalPositionOne, {
+      source: 'a.js',
+      name: 'A',
+      line: 1,
+      column: 156
+    });
+
+    assert.deepEqual(originalPositionTwo, {
+      source: 'b.js',
+      name: 'B',
+      line: 2,
+      column: 27
+    });
+
+    assert.deepEqual(originalPositionNull, {
+      source: null,
+      name: null,
+      line: null,
+      column: null
+    });
+  });
 });
