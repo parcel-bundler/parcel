@@ -32,6 +32,35 @@ export default class SourceMap {
     this.sources = sources;
   }
 
+  // Static Helper functions
+  static generateEmptyMap(sourceName: string, sourceContent: string) {
+    let map = new SourceMap();
+    map.setSourceContentFor(sourceName, sourceContent);
+
+    let lineCount = countLines(sourceContent);
+    for (let line = 1; line < lineCount + 1; line++) {
+      map.addMapping({
+        source: sourceName,
+        original: {
+          line: line,
+          column: 0
+        },
+        generated: {
+          line: line,
+          column: 0
+        }
+      });
+    }
+
+    return map;
+  }
+
+  static fromRawSourceMap(input: RawMapInput) {
+    let map = new SourceMap();
+    map.addMap(input);
+    return map;
+  }
+
   async getConsumer(map: RawMapInput): Promise<SourceMapConsumer> {
     if (map instanceof SourceMapConsumer) {
       return map;
@@ -136,14 +165,7 @@ export default class SourceMap {
     columnOffset: number = 0
   ) {
     // $FlowFixMe a line value of 0 is invalid so this should be fine...
-    if (!mapping.originalLine) {
-      this.mappings.push({
-        generated: {
-          line: mapping.generatedLine + lineOffset,
-          column: mapping.generatedColumn + columnOffset
-        }
-      });
-    } else {
+    if (mapping.originalLine) {
       this.mappings.push({
         source: mapping.source,
         name: mapping.name,
@@ -156,33 +178,18 @@ export default class SourceMap {
           column: mapping.generatedColumn + columnOffset
         }
       });
+    } else {
+      this.mappings.push({
+        generated: {
+          line: mapping.generatedLine + lineOffset,
+          column: mapping.generatedColumn + columnOffset
+        }
+      });
     }
   }
 
   eachMapping(callback: (mapping: Mapping) => mixed) {
     this.mappings.forEach(callback);
-  }
-
-  generateEmptyMap(sourceName: string, sourceContent: string) {
-    this.setSourceContentFor(sourceName, sourceContent);
-
-    let lineCount = countLines(sourceContent);
-    for (let line = 1; line < lineCount + 1; line++) {
-      this.addMapping({
-        source: sourceName,
-        name: '',
-        original: {
-          line: line,
-          column: 0
-        },
-        generated: {
-          line: line,
-          column: 0
-        }
-      });
-    }
-
-    return this;
   }
 
   async extend(extension: SourceMap | RawMapInput) {

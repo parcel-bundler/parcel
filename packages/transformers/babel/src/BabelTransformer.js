@@ -1,5 +1,6 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
+import SourceMap from '@parcel/source-map';
 import generate from '@babel/generator';
 import semver from 'semver';
 import babel6 from './babel6';
@@ -29,18 +30,16 @@ export default new Transformer({
     return [asset];
   },
 
-  generate(asset /*, config, options*/) {
-    // let opts = {
-    //   sourceMaps: options.sourceMaps,
-    //   sourceFileName: this.relativeName
-    // };
-
+  generate(asset, config, opts) {
     // $FlowFixMe: figure out how to make AST required in generate method
-    let {code, map} = generate(asset.ast.program);
+    let {code, map} = generate(asset.ast.program, {
+      sourceMaps: opts.sourceMaps,
+      sourceFileName: asset.filePath // Not sure how to get relative paths...
+    });
 
     return {
       code,
-      map
+      map: SourceMap.fromRawSourceMap(map)
     };
   }
 });
