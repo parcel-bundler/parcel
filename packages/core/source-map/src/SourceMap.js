@@ -1,46 +1,25 @@
-// @flow
+// @flow strict-local
+
+import type {Position, MappingItem, RawSourceMap} from 'source-map';
+
 import {SourceMapConsumer, SourceMapGenerator} from 'source-map';
 import lineCounter from '../../utils/src/lineCounter';
 
-type PositionType = {
-  line: number,
-  column: number
-};
+type Mapping = {|
+  +generated: Position,
+  +original: ?Position,
+  +source: ?string,
+  +name?: ?string
+|};
 
-type MappingType = {
-  generated: PositionType,
-  original: PositionType | null,
-  source: string | null,
-  name?: string | null
-};
-
-type RawSourceMapType = {
-  version: number,
-  sources: Array<string>,
-  names: Array<string>,
-  sourceRoot?: string,
-  sourcesContent?: Array<string>,
-  mappings: string,
-  file: string
-};
-
-type RawMapInputType = SourceMapConsumer | string | RawSourceMapType;
-
-type ConsumerMappingItemType = {
-  source: string,
-  generatedLine: number,
-  generatedColumn: number,
-  originalLine: number,
-  originalColumn: number,
-  name: string
-};
+type RawMapInput = SourceMapConsumer | string | RawSourceMap;
 
 export default class SourceMap {
-  mappings: Array<MappingType>;
+  mappings: Array<Mapping>;
   sources: Map<string, string | null>;
 
   constructor(
-    mappings?: Array<MappingType> = [],
+    mappings?: Array<Mapping> = [],
     sources?: Map<string, string> | {[key: string]: string}
   ) {
     // We probably only wanna run this in dev, as sourcemaps should be fast in prod...
@@ -58,7 +37,7 @@ export default class SourceMap {
     }
   }
 
-  _validateMappings(mappings: Array<MappingType>) {
+  _validateMappings(mappings: Array<Mapping>) {
     for (let mapping of mappings) {
       if (!mapping) {
         throw new Error('mapping is undefined');
@@ -68,12 +47,12 @@ export default class SourceMap {
         throw new Error('generated mapping is undefined');
       }
 
-      if (!mapping.source) {
+      if (mapping.source == null) {
         throw new Error('source should be defined');
       }
 
       let isValidOriginal =
-        mapping.original === null ||
+        mapping.original == null ||
         (typeof mapping.original.line === 'number' &&
           mapping.original.line > 0 &&
           typeof mapping.original.column === 'number' &&
@@ -94,14 +73,14 @@ export default class SourceMap {
     }
   }
 
-  async getConsumer(map: RawMapInputType) {
+  async getConsumer(map: RawMapInput): Promise<SourceMapConsumer> {
     if (map instanceof SourceMapConsumer) {
       return map;
     }
 
-    let sourcemap: RawSourceMapType =
+    let sourcemap: RawSourceMap =
       typeof map === 'string' ? JSON.parse(map) : map;
-    if (sourcemap.sourceRoot) delete sourcemap.sourceRoot;
+    if (sourcemap.sourceRoot != null) delete sourcemap.sourceRoot;
     return new SourceMapConsumer(sourcemap);
   }
 
@@ -149,35 +128,23 @@ export default class SourceMap {
   }
 
   async addMap(
-    map: RawMapInputType | SourceMap,
+    map: RawMapInput | SourceMap,
     lineOffset: number = 0,
     columnOffset: number = 0
   ) {
-    if (typeof map === 'string' || typeof map.mappings === 'string') {
+    if (map instanceof SourceMap) {
+      return this._addSourceMap(map, lineOffset, columnOffset);
+    } else if (typeof map === 'string' || typeof map.mappings === 'string') {
       let consumer = await this.getConsumer(map);
 
       return this._addConsumerMap(consumer, lineOffset, columnOffset);
-    } else if (map.mappings && map.sources) {
-      if (!map.eachMapping) {
-        // $FlowFixMe
-        map = new SourceMap(map.mappings, map.sources);
-      }
-
-      // TODO: Not sure if this is even necessary?
-      if (!(map instanceof SourceMap)) {
-        throw new Error(
-          'Let me know if this threw, Flow.js said it might happen ~Jasper'
-        );
-      }
-
-      return this._addSourceMap(map, lineOffset, columnOffset);
     } else {
       throw new Error('Could not merge sourcemaps, input is of unknown kind');
     }
   }
 
   addMapping(
-    mapping: MappingType,
+    mapping: Mapping,
     lineOffset: number = 0,
     columnOffset: number = 0
   ) {
@@ -193,7 +160,7 @@ export default class SourceMap {
   }
 
   addConsumerMapping(
-    mapping: ConsumerMappingItemType,
+    mapping: MappingItem,
     lineOffset: number = 0,
     columnOffset: number = 0
   ) {
@@ -220,7 +187,7 @@ export default class SourceMap {
     });
   }
 
-  eachMapping(callback: (mapping: MappingType) => any) {
+  eachMapping(callback: (mapping: Mapping) => mixed) {
     this.mappings.forEach(callback);
   }
 
@@ -245,25 +212,26 @@ export default class SourceMap {
     return this;
   }
 
-  async extend(extension: SourceMap | RawMapInputType) {
-    if (!(extension instanceof SourceMap)) {
-      extension = await new SourceMap().addMap(extension);
-    }
+  async extend(extension: SourceMap | RawMapInput) {
+    let sourceMap =
+      extension instanceof SourceMap
+        ? extension
+        : await new SourceMap().addMap(extension);
 
-    return this._extend(extension);
+    return this._extend(sourceMap);
   }
 
   async _extend(extension: SourceMap) {
     extension.eachMapping(mapping => {
       let originalMappingIndex = null;
-      if (mapping.original !== null) {
+      if (mapping.original != null) {
         originalMappingIndex = this.findClosest(
           mapping.original.line,
           mapping.original.column
         );
       }
 
-      if (originalMappingIndex === null) {
+      if (originalMappingIndex == null) {
         this.addMapping(mapping);
       } else {
         let originalMapping = this.mappings[originalMappingIndex];
@@ -271,11 +239,11 @@ export default class SourceMap {
           generated: mapping.generated,
           original: originalMapping.original,
           source: originalMapping.source,
-          name: originalMapping.name || mapping.name || null
+          name: originalMapping.name ?? mapping.name ?? null
         };
       }
 
-      if (mapping.source && !this.sources.has(mapping.source)) {
+      if (mapping.source != null && !this.sources.has(mapping.source)) {
         this.sources.set(
           mapping.source,
           extension.sourceContentFor(mapping.source)
@@ -342,13 +310,13 @@ export default class SourceMap {
     return middleIndex;
   }
 
-  originalPositionFor(generatedPosition: PositionType) {
+  originalPositionFor(generatedPosition: Position) {
     let index = this.findClosest(
       generatedPosition.line,
       generatedPosition.column
     );
 
-    if (index === null) return null;
+    if (index == null) return null;
 
     let mapping = this.mappings[index];
     return {
@@ -364,19 +332,23 @@ export default class SourceMap {
   }
 
   offset(lineOffset: number = 0, columnOffset: number = 0) {
-    this.mappings.map(mapping => {
-      mapping.generated.line = mapping.generated.line + lineOffset;
-      mapping.generated.column = mapping.generated.column + columnOffset;
-      return mapping;
-    });
+    this.mappings.map(mapping => ({
+      ...mapping,
+      generated: {
+        line: mapping.generated.line + lineOffset,
+        column: mapping.generated.column + columnOffset
+      }
+    }));
   }
 
   stringify(file: string, sourceRoot: string) {
     let generator = new SourceMapGenerator({file, sourceRoot});
 
+    // $FlowFixMe Are flow-typed typings incorrect?
     this.eachMapping(mapping => generator.addMapping(mapping));
 
     for (let [key, value] of this.sources) {
+      // $FlowFixMe Are flow-typed typings incorrect?
       generator.setSourceContent(key, value);
     }
 
