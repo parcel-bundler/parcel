@@ -32,8 +32,15 @@ export default async function resolveOptions(
       ? initialOptions.rootDir
       : getRootDir(entries);
 
+  let cacheDir =
+    // If a cacheDir is provided, resolve it relative to cwd. Otherwise,
+    // use a default directory resolved relative to the project root.
+    initialOptions.cacheDir != null
+      ? path.resolve(initialOptions.cacheDir)
+      : path.resolve(projectRoot, DEFAULT_CACHE_DIRNAME);
+
   let targetResolver = new TargetResolver();
-  let targets = await targetResolver.resolve(rootDir, initialOptions);
+  let targets = await targetResolver.resolve(rootDir, cacheDir, initialOptions);
 
   if (!initialOptions.env) {
     await loadEnv(path.join(rootDir, 'index'));
