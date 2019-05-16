@@ -20,14 +20,13 @@ type NullOriginalPosition = {
   name: null
 };
 
+type Sources = {[key: string]: string | null};
+
 export default class SourceMap {
   mappings: Array<Mapping>;
-  sources: {[key: string]: string | null};
+  sources: Sources;
 
-  constructor(
-    mappings?: Array<Mapping> = [],
-    sources?: {[key: string]: string | null} = {}
-  ) {
+  constructor(mappings?: Array<Mapping> = [], sources?: Sources = {}) {
     this.mappings = mappings;
     this.sources = sources;
   }
@@ -366,5 +365,22 @@ export default class SourceMap {
     }
 
     return generator.toString();
+  }
+
+  serialize() {
+    return {
+      mappings: this.mappings,
+      sources: this.sources
+    };
+  }
+
+  static deserialize({
+    mappings,
+    sources
+  }: {
+    mappings: Array<Mapping>,
+    sources: Sources
+  }) {
+    return new SourceMap(mappings, sources);
   }
 }
