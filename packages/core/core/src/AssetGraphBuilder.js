@@ -4,7 +4,6 @@ import type {Node} from './types';
 import type {
   ParcelOptions,
   Dependency,
-  FilePath,
   Target,
   TransformerRequest
 } from '@parcel/types';
@@ -20,6 +19,7 @@ import {PromiseQueue} from '@parcel/utils';
 import AssetGraph from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import WorkerFarm from '@parcel/workers';
+import type {Event} from '@parcel/watcher';
 
 type BuildOpts = {|
   signal: AbortSignal,
@@ -165,10 +165,13 @@ export default class AssetGraphBuilder extends EventEmitter {
     return !!this.graph.invalidNodes.size;
   }
 
-  respondToFSChange(filePath: FilePath) {
-    if (this.graph.hasNode(filePath)) {
-      this.controller.abort();
-      this.graph.invalidateFile(filePath);
+  respondToFSEvents(events: Array<Event>) {
+    for (let {type, path} of events) {
+      // TODO: eventually handle all types of events
+      if (type === 'update' && this.graph.hasNode(path)) {
+        this.controller.abort();
+        this.graph.invalidateFile(path);
+      }
     }
   }
 }

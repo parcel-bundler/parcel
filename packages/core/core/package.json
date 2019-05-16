@@ -21,7 +21,7 @@
     "@parcel/plugin": "^2.0.0",
     "@parcel/types": "^2.0.0",
     "@parcel/utils": "^2.0.0",
-    "@parcel/watcher": "^2.0.0",
+    "@parcel/watcher": "^2.0.0-alpha.3",
     "@parcel/workers": "^2.0.0",
     "abortcontroller-polyfill": "^1.1.9",
     "browserslist": "^4.1.0",

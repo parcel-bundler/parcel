@@ -11,7 +11,8 @@ import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
 import Cache from '@parcel/cache';
-import Watcher from '@parcel/watcher';
+import watcher from '@parcel/watcher';
+import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
 import ReporterRunner from './ReporterRunner';
@@ -99,20 +100,27 @@ export default class Parcel {
     // we may end up needing this location for other things, in which case it would be named projectRoot and held in ParcelOptions
     let watchRoot = process.cwd();
     if (this.#resolvedOptions.watch) {
-      this.#watcher = new Watcher();
-      // TODO: should probably unwatch .parcel-cache and dist folders
-      this.#watcher.watch(watchRoot);
-      // TODO: support more than just file changes
-      this.#watcher.on('change', async filePath => {
-        // TODO: eventually send type of fs event as well
-        this.#assetGraphBuilder.respondToFSChange(filePath);
-        if (this.#assetGraphBuilder.isInvalid()) {
-          this.build().catch(() => {
-            // Do nothing, in watch mode reporters should alert the user something is broken, which
-            // allows Parcel to gracefully continue once the user makes the correct changes
-          });
-        }
-      });
+      // TODO: cache and output folders may be configured to something else, check options
+      let ignore = ['.git', '.hg', '.parcel-cache', 'dist'].map(dir =>
+        path.join(watchRoot, dir)
+      );
+      this.#watcher = await watcher.subscribe(
+        watchRoot,
+        (err, events) => {
+          if (err) {
+            throw err;
+          }
+
+          this.#assetGraphBuilder.respondToFSEvents(events);
+          if (this.#assetGraphBuilder.isInvalid()) {
+            this.build().catch(() => {
+              // Do nothing, in watch mode reporters should alert the user something is broken, which
+              // allows Parcel to gracefully continue once the user makes the correct changes
+            });
+          }
+        },
+        {ignore}
+      );
     }
 
     this.#initialized = true;
@@ -177,7 +185,7 @@ export default class Parcel {
         });
       }
 
-      throw e;
+      throw new BuildError(e);
     }
   }
 }
@@ -199,6 +207,16 @@ function packageBundles(
   });
 
   return Promise.all(promises);
+}
+
+export class BuildError extends Error {
+  name = 'BuildError';
+  error: mixed;
+
+  constructor(error: mixed) {
+    super(error instanceof Error ? error.message : 'Unknown Build Error');
+    this.error = error;
+  }
 }
 
 export {default as Asset} from './Asset';
