@@ -11,6 +11,7 @@ import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
 import Cache from '@parcel/cache';
+import Watcher from '@parcel/watcher';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
 import ReporterRunner from './ReporterRunner';
@@ -27,6 +28,7 @@ export default class Parcel {
   #reporterRunner; // ReporterRunner
   #resolvedOptions; // ?ParcelOptions
   #runPackage; // (bundle: Bundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
+  #watcher;
 
   constructor(options: InitialParcelOptions) {
     this.#initialOptions = clone(options);
@@ -92,6 +94,27 @@ export default class Parcel {
 
     this.#runPackage = this.#farm.mkhandle('runPackage');
 
+    // TODO: get watch root programmatically
+    // it should be where the lock file is found or process.cwd if no lockfile is found
+    // we may end up needing this location for other things, in which case it would be named projectRoot and held in ParcelOptions
+    let watchRoot = process.cwd();
+    if (this.#resolvedOptions.watch) {
+      this.#watcher = new Watcher();
+      // TODO: should probably unwatch .parcel-cache and dist folders
+      this.#watcher.watch(watchRoot);
+      // TODO: support more than just file changes
+      this.#watcher.on('change', async filePath => {
+        // TODO: eventually send type of fs event as well
+        this.#assetGraphBuilder.respondToFSChange(filePath);
+        if (this.#assetGraphBuilder.isInvalid()) {
+          this.build().catch(() => {
+            // Do nothing, in watch mode reporters should alert the user something is broken, which
+            // allows Parcel to gracefully continue once the user makes the correct changes
+          });
+        }
+      });
+    }
+
     this.#initialized = true;
   }
 
@@ -104,14 +127,6 @@ export default class Parcel {
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
     try {
-      this.#assetGraphBuilder.on('invalidate', () => {
-        this.build().catch(e => {
-          if (!resolvedOptions.watch) {
-            throw e;
-          }
-        });
-      });
-
       let graph = await this.build();
       if (!resolvedOptions.watch) {
         return graph;
