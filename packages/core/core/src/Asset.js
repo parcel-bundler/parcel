@@ -275,14 +275,7 @@ export default class Asset {
   }
 
   createChildAsset(result: TransformerResult): Asset {
-    let content;
-    if (result.content != null) {
-      content = result.content;
-    } else if (result.code != null) {
-      content = result.code;
-    } else {
-      content = '';
-    }
+    let content = result.content ?? result.code ?? '';
 
     let hash;
     let size;
@@ -314,8 +307,7 @@ export default class Asset {
         size
       },
       symbols: new Map([...this.symbols, ...(result.symbols || [])]),
-      sideEffects:
-        result.sideEffects != null ? result.sideEffects : this.sideEffects
+      sideEffects: result.sideEffects ?? this.sideEffects
     });
 
     let dependencies = result.dependencies;
