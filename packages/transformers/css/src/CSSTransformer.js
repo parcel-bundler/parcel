@@ -31,8 +31,7 @@ export default new Transformer({
       version: '7.0.0',
       isDirty: false,
       program: postcss.parse(code, {
-        from: asset.filePath,
-        to: asset.filePath
+        from: asset.filePath
       })
     };
   },

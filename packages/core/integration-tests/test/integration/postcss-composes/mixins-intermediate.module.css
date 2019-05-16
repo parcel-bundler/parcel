@@ -1,0 +1,4 @@
+.intermediate {
+  composes: test from './mixins.module.css';
+  height: 300px;
+}

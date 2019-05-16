@@ -1,4 +1,0 @@
-.composes5 {
-  composes: intermediate from './mixins-intermediate.css';
-  border: 3px solid yellow;
-}

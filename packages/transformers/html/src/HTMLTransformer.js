@@ -1,10 +1,9 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-
 import parse from 'posthtml-parser';
-import render from 'posthtml-render';
 import nullthrows from 'nullthrows';
+import render from 'posthtml-render';
 import semver from 'semver';
 import collectDependencies from './dependencies';
 import extractInlineAssets from './inline';
