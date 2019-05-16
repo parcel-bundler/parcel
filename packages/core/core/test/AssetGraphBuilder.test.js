@@ -35,7 +35,8 @@ const DEFAULT_OPTIONS = {
   entries: [],
   logLevel: 'none',
   rootDir: FIXTURES_DIR,
-  targets: []
+  targets: [],
+  projectRoot: ''
 };
 
 describe('AssetGraphBuilder', () => {

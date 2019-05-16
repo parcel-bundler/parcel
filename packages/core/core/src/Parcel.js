@@ -99,11 +99,7 @@ export default class Parcel {
   }
 
   async initializeWatcher() {
-    // TODO: get project root programmatically
-    // it should probably be where the lock file is found or process.cwd if no lockfile is found
-    // we may end up needing this location for other things, in which case it would be named projectRoot and held in ParcelOptions
-    // ? Do we need to distinguish between vsc root and project root? They may not always be the same.
-    let projectRoot = process.cwd();
+    let projectRoot = this.#resolvedOptions.projectRoot;
     if (this.#resolvedOptions.watch) {
       // TODO: ideally these should all be absolute paths already set up on #resolvedOptions
       let targetDirs = this.#resolvedOptions.targets.map(target =>

@@ -10,7 +10,8 @@ const EMPTY_OPTIONS = {
   entries: [],
   logLevel: 'none',
   rootDir: __dirname,
-  targets: []
+  targets: [],
+  projectRoot: ''
 };
 
 const runner = new TransformerRunner({
