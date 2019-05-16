@@ -1,34 +1,22 @@
 // @flow strict-local
-
 import type {Position, MappingItem, RawSourceMap} from 'source-map';
 import type {Mapping} from './types';
-import validateMappings from './validateMappings';
+
 import {SourceMapConsumer, SourceMapGenerator} from 'source-map';
-import lineCounter from '../../utils/src/lineCounter';
+import countLines from '../../utils/src/countLines';
 
 type RawMapInput = SourceMapConsumer | string | RawSourceMap;
 
 export default class SourceMap {
   mappings: Array<Mapping>;
-  sources: Map<string, string | null>;
+  sources: {[key: string]: string | null};
 
   constructor(
     mappings?: Array<Mapping> = [],
-    sources?: Map<string, string> | {[key: string]: string}
+    sources?: {[key: string]: string | null} = {}
   ) {
-    // TODO: Only do this for tests or add some kind of verbose mode
-    validateMappings(mappings);
-
     this.mappings = mappings;
-
-    if (sources) {
-      let iteratable =
-        typeof sources === 'object' ? Object.entries(sources) : sources;
-      // $FlowFixMe
-      this.sources = new Map(iteratable);
-    } else {
-      this.sources = new Map();
-    }
+    this.sources = sources;
   }
 
   async getConsumer(map: RawMapInput): Promise<SourceMapConsumer> {
@@ -53,11 +41,11 @@ export default class SourceMap {
       map.eachMapping(mapping => {
         this.addMapping(mapping, lineOffset, columnOffset);
       });
+    }
 
-      for (let [key, value] of map.sources) {
-        if (!this.sources.has(key)) {
-          this.sources.set(key, value);
-        }
+    for (let key of Object.keys(map.sources)) {
+      if (!this.sourceContentFor(key)) {
+        this.setSourceContentFor(key, map.sourceContentFor(key));
       }
     }
 
@@ -72,8 +60,8 @@ export default class SourceMap {
     consumer.eachMapping(mapping => {
       this.addConsumerMapping(mapping, lineOffset, columnOffset);
 
-      if (!this.sources.has(mapping.source)) {
-        this.sources.set(
+      if (!this.sourceContentFor(mapping.source)) {
+        this.setSourceContentFor(
           mapping.source,
           consumer.sourceContentFor(mapping.source, true)
         );
@@ -122,22 +110,15 @@ export default class SourceMap {
     lineOffset: number = 0,
     columnOffset: number = 0
   ) {
-    let original = null;
-    if (
-      typeof mapping.originalLine === 'number' &&
-      mapping.originalLine > 0 &&
-      typeof mapping.originalColumn === 'number'
-    ) {
-      original = {
-        line: mapping.originalLine,
-        column: mapping.originalColumn
-      };
-    }
+    if (!mapping.originalLine || !mapping.source) return;
 
     this.mappings.push({
-      source: original ? mapping.source : null,
+      source: mapping.source,
       name: mapping.name,
-      original,
+      original: {
+        line: mapping.originalLine,
+        column: mapping.originalColumn
+      },
       generated: {
         line: mapping.generatedLine + lineOffset,
         column: mapping.generatedColumn + columnOffset
@@ -150,12 +131,13 @@ export default class SourceMap {
   }
 
   generateEmptyMap(sourceName: string, sourceContent: string) {
-    this.sources.set(sourceName, sourceContent);
+    this.setSourceContentFor(sourceName, sourceContent);
 
-    let lineCount = lineCounter(sourceContent);
+    let lineCount = countLines(sourceContent);
     for (let line = 1; line < lineCount + 1; line++) {
       this.addMapping({
         source: sourceName,
+        name: '',
         original: {
           line: line,
           column: 0
@@ -189,7 +171,7 @@ export default class SourceMap {
         );
       }
 
-      if (originalMappingIndex == null) {
+      if (originalMappingIndex === null) {
         this.addMapping(mapping);
       } else {
         let originalMapping = this.mappings[originalMappingIndex];
@@ -201,8 +183,8 @@ export default class SourceMap {
         };
       }
 
-      if (mapping.source != null && !this.sources.has(mapping.source)) {
-        this.sources.set(
+      if (mapping.source != null && !this.sourceContentFor(mapping.source)) {
+        this.setSourceContentFor(
           mapping.source,
           extension.sourceContentFor(mapping.source)
         );
@@ -274,7 +256,7 @@ export default class SourceMap {
       generatedPosition.column
     );
 
-    if (index == null) return null;
+    if (index === null) return null;
 
     let mapping = this.mappings[index];
     return {
@@ -286,7 +268,11 @@ export default class SourceMap {
   }
 
   sourceContentFor(fileName: string): string | null {
-    return this.sources.get(fileName) || null;
+    return this.sources[fileName];
+  }
+
+  setSourceContentFor(fileName: string, sourceContent: string | null): void {
+    this.sources[fileName] = sourceContent;
   }
 
   offset(lineOffset: number = 0, columnOffset: number = 0) {
@@ -302,12 +288,13 @@ export default class SourceMap {
   stringify(file: string, sourceRoot: string) {
     let generator = new SourceMapGenerator({file, sourceRoot});
 
-    // $FlowFixMe Are flow-typed typings incorrect?
     this.eachMapping(mapping => generator.addMapping(mapping));
 
-    for (let [key, value] of this.sources) {
-      // $FlowFixMe Are flow-typed typings incorrect?
-      generator.setSourceContent(key, value);
+    for (let sourceName of Object.keys(this.sources)) {
+      let sourceContent = this.sourceContentFor(sourceName);
+      if (typeof sourceContent === 'string') {
+        generator.setSourceContent(sourceName, sourceContent);
+      }
     }
 
     return generator.toString();
