@@ -8,7 +8,7 @@
     ],
     "*.css": ["@parcel/transformer-css"],
     "*.{htm,html}": ["@parcel/transformer-html"],
-    "*.{jpg,jpeg,png,gif,svg,webm,pdf,txt}": ["@parcel/transformer-raw"]
+    "*.{jpg,jpeg,png,gif,svg,webm,webp,pdf,txt}": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": {
@@ -19,7 +19,7 @@
     "*.html": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
     "*.js": "@parcel/packager-js",
-    "*.{jpg,jpeg,png,gif,svg,webm,pdf,txt}": "@parcel/packager-raw"
+    "*.{jpg,jpeg,png,gif,svg,webm,webp,pdf,txt}": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],
   "reporters": [
