@@ -48,7 +48,7 @@ export default class SourceMap {
     columnOffset: number = 0
   ) {
     if (lineOffset === 0 && columnOffset === 0) {
-      Array.prototype.push.apply(this.mappings, map.mappings);
+      this.mappings.push(...map.mappings);
     } else {
       map.eachMapping(mapping => {
         this.addMapping(mapping, lineOffset, columnOffset);
