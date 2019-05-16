@@ -1,16 +1,10 @@
 // @flow strict-local
 
 import type {Position, MappingItem, RawSourceMap} from 'source-map';
-
+import type {Mapping} from './types';
+import validateMappings from './validateMappings';
 import {SourceMapConsumer, SourceMapGenerator} from 'source-map';
 import lineCounter from '../../utils/src/lineCounter';
-
-type Mapping = {|
-  +generated: Position,
-  +original: ?Position,
-  +source: ?string,
-  +name?: ?string
-|};
 
 type RawMapInput = SourceMapConsumer | string | RawSourceMap;
 
@@ -22,8 +16,8 @@ export default class SourceMap {
     mappings?: Array<Mapping> = [],
     sources?: Map<string, string> | {[key: string]: string}
   ) {
-    // We probably only wanna run this in dev, as sourcemaps should be fast in prod...
-    this._validateMappings(mappings);
+    // TODO: Only do this for tests or add some kind of verbose mode
+    validateMappings(mappings);
 
     this.mappings = mappings;
 
@@ -34,42 +28,6 @@ export default class SourceMap {
       this.sources = new Map(iteratable);
     } else {
       this.sources = new Map();
-    }
-  }
-
-  _validateMappings(mappings: Array<Mapping>) {
-    for (let mapping of mappings) {
-      if (!mapping) {
-        throw new Error('mapping is undefined');
-      }
-
-      if (!mapping.generated) {
-        throw new Error('generated mapping is undefined');
-      }
-
-      if (mapping.source == null) {
-        throw new Error('source should be defined');
-      }
-
-      let isValidOriginal =
-        mapping.original == null ||
-        (typeof mapping.original.line === 'number' &&
-          mapping.original.line > 0 &&
-          typeof mapping.original.column === 'number' &&
-          mapping.source);
-
-      if (!isValidOriginal) {
-        throw new Error('Invalid original mapping');
-      }
-
-      let isValidGenerated =
-        typeof mapping.generated.line === 'number' &&
-        mapping.generated.line > 0 &&
-        typeof mapping.generated.column === 'number';
-
-      if (!isValidGenerated) {
-        throw new Error('Invalid generated mapping');
-      }
     }
   }
 

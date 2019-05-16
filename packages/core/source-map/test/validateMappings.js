@@ -1,12 +1,12 @@
 // @flow
 import assert from 'assert';
 
-import SourceMap from '../src/SourceMap';
+import validateMappings from '../src/validateMappings';
 
 describe('Validate mappings', () => {
   it('Should be able to detect invalid mappings', async function() {
     assert.throws(() => {
-      new SourceMap([
+      validateMappings([
         {
           source: 'index.js',
           name: 'A',
@@ -23,7 +23,7 @@ describe('Validate mappings', () => {
     });
 
     assert.throws(() => {
-      new SourceMap([
+      validateMappings([
         {
           source: 'index.js',
           name: 'A',
@@ -40,7 +40,7 @@ describe('Validate mappings', () => {
     });
 
     assert.throws(() => {
-      new SourceMap([
+      validateMappings([
         {
           source: null,
           name: 'A',
@@ -57,7 +57,7 @@ describe('Validate mappings', () => {
     });
 
     assert.doesNotThrow(() => {
-      new SourceMap([
+      validateMappings([
         {
           source: 'index.js',
           name: 'A',
@@ -74,7 +74,7 @@ describe('Validate mappings', () => {
     });
 
     assert.doesNotThrow(() => {
-      new SourceMap([
+      validateMappings([
         {
           source: 'index.js',
           name: 'A',
@@ -91,7 +91,7 @@ describe('Validate mappings', () => {
     });
 
     assert.doesNotThrow(() => {
-      new SourceMap([
+      validateMappings([
         {
           source: 'index.js',
           name: null,
@@ -108,7 +108,7 @@ describe('Validate mappings', () => {
     });
 
     assert.doesNotThrow(() => {
-      new SourceMap([
+      validateMappings([
         {
           source: 'index.js',
           name: null,
@@ -125,7 +125,7 @@ describe('Validate mappings', () => {
     });
 
     assert.doesNotThrow(() => {
-      new SourceMap([
+      validateMappings([
         {
           source: 'index.js',
           name: null,
