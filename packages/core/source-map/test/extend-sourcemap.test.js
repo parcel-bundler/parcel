@@ -50,6 +50,9 @@ describe('SourceMap', () => {
         column: 12
       }
     });
+
+    // Should be able to stringify the map without errors...
+    map.stringify('index.min.js', '/root');
   });
 
   it('Extending null mappings', async function() {
@@ -110,5 +113,8 @@ describe('SourceMap', () => {
         column: 12
       }
     });
+
+    // Should be able to stringify the map without errors...
+    map.stringify('index.min.js', '/root');
   });
 });

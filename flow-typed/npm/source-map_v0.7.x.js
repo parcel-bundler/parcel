@@ -50,15 +50,25 @@ declare module 'source-map' {
     +column: number | null,
     +name: string | null
   |};
-  declare export type MappingItem = {|
-    +source: string,
-    +generatedLine: number,
-    +generatedColumn: number,
-    +lastGeneratedColumn?: number,
-    +originalLine: number,
-    +originalColumn: number,
-    +name: string
-  |};
+  declare export type MappingItem =
+    | {|
+        +source: string,
+        +name: string,
+        +generatedLine: number,
+        +generatedColumn: number,
+        +lastGeneratedColumn?: number,
+        +originalLine: number,
+        +originalColumn: number
+      |}
+    | {|
+        +source: null,
+        +name: null,
+        +generatedLine: number,
+        +generatedColumn: number,
+        +lastGeneratedColumn?: number,
+        +originalLine: null,
+        +originalColumn: null
+      |};
   declare export type Mapping =
     | {|
         +generated: Position,

@@ -71,13 +71,16 @@ export default class SourceMap {
     columnOffset: number = 0
   ) {
     consumer.eachMapping(mapping => {
-      this.addConsumerMapping(mapping, lineOffset, columnOffset);
+      // $FlowFixMe line value < 1 is invalid so this should be fine...
+      if (mapping.originalLine) {
+        this.addConsumerMapping(mapping, lineOffset, columnOffset);
 
-      if (!this.sourceContentFor(mapping.source)) {
-        this.setSourceContentFor(
-          mapping.source,
-          consumer.sourceContentFor(mapping.source, true)
-        );
+        if (!this.sourceContentFor(mapping.source)) {
+          this.setSourceContentFor(
+            mapping.source,
+            consumer.sourceContentFor(mapping.source, true)
+          );
+        }
       }
     });
 
@@ -132,20 +135,28 @@ export default class SourceMap {
     lineOffset: number = 0,
     columnOffset: number = 0
   ) {
-    if (!mapping.originalLine || !mapping.source) return;
-
-    this.mappings.push({
-      source: mapping.source,
-      name: mapping.name,
-      original: {
-        line: mapping.originalLine,
-        column: mapping.originalColumn
-      },
-      generated: {
-        line: mapping.generatedLine + lineOffset,
-        column: mapping.generatedColumn + columnOffset
-      }
-    });
+    // $FlowFixMe a line value of 0 is invalid so this should be fine...
+    if (!mapping.originalLine) {
+      this.mappings.push({
+        generated: {
+          line: mapping.generatedLine + lineOffset,
+          column: mapping.generatedColumn + columnOffset
+        }
+      });
+    } else {
+      this.mappings.push({
+        source: mapping.source,
+        name: mapping.name,
+        original: {
+          line: mapping.originalLine,
+          column: mapping.originalColumn
+        },
+        generated: {
+          line: mapping.generatedLine + lineOffset,
+          column: mapping.generatedColumn + columnOffset
+        }
+      });
+    }
   }
 
   eachMapping(callback: (mapping: Mapping) => mixed) {

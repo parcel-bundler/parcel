@@ -17,11 +17,13 @@ describe.skip('experiment', () => {
       original: {line: 1, column: 0}
     });
 
-    // let mapJSON = JSON.parse(map.toString());
+    let mapJSON = JSON.parse(map.toString());
 
     // console.log(mapJSON);
 
-    // let consumer = await new sourceMap.SourceMapConsumer(mapJSON);
+    let consumer = await new sourceMap.SourceMapConsumer(mapJSON);
+
+    consumer.eachMapping(mapping => console.log(mapping));
 
     // console.log(consumer.originalPositionFor({line: 1, column: 0}))
     // console.log(consumer.originalPositionFor({line: 2, column: 0}));

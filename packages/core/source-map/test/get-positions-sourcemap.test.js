@@ -58,6 +58,9 @@ describe('Get Sourcemap Position', () => {
       line: 2,
       column: 27
     });
+
+    // Should be able to stringify the map without errors...
+    map.stringify('index.min.js', '/root');
   });
 
   it('get original position linked to non exact mappings', async function() {
@@ -86,6 +89,9 @@ describe('Get Sourcemap Position', () => {
       line: 2,
       column: 27
     });
+
+    // Should be able to stringify the map without errors...
+    map.stringify('index.min.js', '/root');
   });
 
   it('get original position of null mappings (aka return null)', async function() {
@@ -136,5 +142,8 @@ describe('Get Sourcemap Position', () => {
       line: null,
       column: null
     });
+
+    // Should be able to stringify the map without errors...
+    map.stringify('index.min.js', '/root');
   });
 });
