@@ -114,8 +114,11 @@ export type PackageJSON = {
   },
   dependencies?: PackageDependencies,
   devDependencies?: PackageDependencies,
-  peerDependencies?: PackageDependencies
+  peerDependencies?: PackageDependencies,
+  sideEffects?: boolean | FilePath | Array<FilePath>
 };
+
+export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
 
 export type InitialParcelOptions = {|
   entries?: FilePath | Array<FilePath>,
@@ -131,14 +134,14 @@ export type InitialParcelOptions = {|
   killWorkers?: boolean,
   mode?: 'development' | 'production' | string,
   minify?: boolean,
+  scopeHoist?: boolean,
   sourceMaps?: boolean,
   hot?: ServerOptions | false,
   serve?: ServerOptions | false,
   autoinstall?: boolean,
-  logLevel?: 'none' | 'error' | 'warn' | 'info' | 'verbose'
+  logLevel?: LogLevel
 
   // contentHash
-  // scopeHoist
   // throwErrors
   // global?
   // detailedReport
@@ -148,6 +151,7 @@ export type ParcelOptions = {|
   ...InitialParcelOptions,
   cacheDir: FilePath,
   entries: Array<FilePath>,
+  logLevel: LogLevel,
   rootDir: FilePath,
   targets: Array<Target>
 |};
@@ -175,16 +179,20 @@ export type Meta = {
   [string]: JSONValue
 };
 
+export type Symbol = string;
+
 export type DependencyOptions = {|
   moduleSpecifier: ModuleSpecifier,
   isAsync?: boolean,
   isEntry?: boolean,
   isOptional?: boolean,
   isURL?: boolean,
+  isWeak?: boolean,
   loc?: SourceLocation,
   env?: EnvironmentOpts,
   meta?: Meta,
-  target?: Target
+  target?: Target,
+  symbols?: Map<Symbol, Symbol> | Array<[Symbol, Symbol]>
 |};
 
 export interface Dependency {
@@ -194,13 +202,17 @@ export interface Dependency {
   isEntry: ?boolean;
   isOptional: ?boolean;
   isURL: ?boolean;
+  isWeak: ?boolean;
   loc: ?SourceLocation;
   env: Environment;
-  meta: ?Meta;
+  meta: Meta;
   target: ?Target;
+  symbols: Map<Symbol, Symbol>;
 
   // TODO: get this from graph instead of storing them on dependencies
   sourcePath: FilePath;
+
+  merge(other: Dependency): void;
 }
 
 export type File = {
@@ -211,6 +223,7 @@ export type File = {
 export type TransformerRequest = {
   filePath: FilePath,
   env: Environment,
+  sideEffects?: boolean,
   code?: string
 };
 
@@ -222,11 +235,14 @@ interface BaseAsset {
   +meta: Meta;
   +isIsolated: boolean;
   +type: string;
+  +symbols: Map<Symbol, Symbol>;
+  +sideEffects: boolean;
 
   getCode(): Promise<string>;
   getBuffer(): Promise<Buffer>;
   getStream(): Readable;
   getMap(): ?SourceMap;
+  getConnectedFiles(): $ReadOnlyArray<File>;
   getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(
     filePaths: Array<FilePath>,
@@ -247,6 +263,7 @@ export interface MutableAsset extends BaseAsset {
   setStream(Readable): void;
   addConnectedFile(file: File): Promise<void>;
   addDependency(opts: DependencyOptions): string;
+  addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
 }
 
 export interface Asset extends BaseAsset {
@@ -277,14 +294,23 @@ export interface TransformerResult {
   isIsolated?: boolean;
   env?: EnvironmentOpts;
   meta?: Meta;
+  symbols?: Map<Symbol, Symbol>;
+  sideEffects?: boolean;
 }
 
 type Async<T> = T | Promise<T>;
 
 export type Transformer = {
-  getConfig?: (asset: Asset, opts: ParcelOptions) => Async<Config | void>,
+  getConfig?: (
+    asset: MutableAsset,
+    opts: ParcelOptions
+  ) => Async<Config | void>,
   canReuseAST?: (ast: AST, opts: ParcelOptions) => boolean,
-  parse?: (asset: Asset, config: ?Config, opts: ParcelOptions) => Async<?AST>,
+  parse?: (
+    asset: MutableAsset,
+    config: ?Config,
+    opts: ParcelOptions
+  ) => Async<?AST>,
   transform(
     asset: MutableAsset,
     config: ?Config,
@@ -307,19 +333,23 @@ export interface TraversalActions {
   stop(): void;
 }
 
+export type GraphVisitor<TNode, TContext> =
+  | GraphTraversalCallback<TNode, TContext>
+  | {|
+      enter?: GraphTraversalCallback<TNode, TContext>,
+      exit?: GraphTraversalCallback<TNode, TContext>
+    |};
 export type GraphTraversalCallback<TNode, TContext> = (
   node: TNode,
   context: ?TContext,
-  traversal: TraversalActions
+  actions: TraversalActions
 ) => ?TContext;
 
 // Not a directly exported interface.
 interface AssetGraphLike {
   getDependencies(asset: Asset): Array<Dependency>;
   getDependencyResolution(dependency: Dependency): ?Asset;
-  traverseAssets<TContext>(
-    visit: GraphTraversalCallback<Asset, TContext>
-  ): ?TContext;
+  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
 }
 
 export type BundleTraversable =
@@ -334,9 +364,15 @@ export type MainAssetGraphTraversable =
 export interface MainAssetGraph extends AssetGraphLike {
   createBundle(asset: Asset): MutableBundle;
   traverse<TContext>(
-    visit: GraphTraversalCallback<MainAssetGraphTraversable, TContext>
+    visit: GraphVisitor<MainAssetGraphTraversable, TContext>
   ): ?TContext;
 }
+
+export type SymbolResolution = {|
+  asset: Asset,
+  exportSymbol: Symbol | string,
+  symbol: void | Symbol
+|};
 
 export interface Bundle extends AssetGraphLike {
   +id: string;
@@ -349,9 +385,15 @@ export interface Bundle extends AssetGraphLike {
   +stats: Stats;
   getEntryAssets(): Array<Asset>;
   getTotalSize(asset?: Asset): number;
+  hasChildBundles(): boolean;
   traverse<TContext>(
-    visit: GraphTraversalCallback<BundleTraversable, TContext>
+    visit: GraphVisitor<BundleTraversable, TContext>
   ): ?TContext;
+  traverseAncestors<TContext>(
+    asset: Asset,
+    visit: GraphVisitor<*, TContext>
+  ): ?TContext;
+  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
 }
 
 export interface MutableBundle extends Bundle {
@@ -380,6 +422,7 @@ export interface BundleGraph {
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>
   ): ?TContext;
+  isAssetReferenced(asset: Asset): boolean;
 }
 
 export interface MutableBundleGraph {
@@ -426,7 +469,11 @@ export type Runtime = {|
 |};
 
 export type Packager = {|
-  package(bundle: Bundle, opts: ParcelOptions): Async<Blob>
+  package(
+    bundle: Bundle,
+    bundleGraph: BundleGraph,
+    opts: ParcelOptions
+  ): Async<Blob>
 |};
 
 export type Optimizer = {|
@@ -434,7 +481,10 @@ export type Optimizer = {|
 |};
 
 export type Resolver = {|
-  resolve(dependency: Dependency, opts: ParcelOptions): Async<FilePath | null>
+  resolve(
+    dependency: Dependency,
+    opts: ParcelOptions
+  ): Async<?TransformerRequest>
 |};
 
 export type ProgressLogEvent = {|

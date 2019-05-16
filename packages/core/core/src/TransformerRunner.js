@@ -20,12 +20,12 @@ import {
   md5FromString
 } from '@parcel/utils';
 import Cache from '@parcel/cache';
-import {createReadStream} from 'fs';
 import {TapStream, unique} from '@parcel/utils';
+import {createReadStream} from 'fs';
+
 import Config from './Config';
 import {report} from './ReporterRunner';
-import nullthrows from 'nullthrows';
-import {Asset, MutableAsset, assetToInternalAsset} from './public/Asset';
+import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset from './Asset';
 
 type Opts = {|
@@ -69,6 +69,9 @@ export default class TransformerRunner {
     }
 
     let input = new InternalAsset({
+      // If the transformer request passed code rather than a filename,
+      // use a hash as the base for the id to ensure it is unique.
+      idBase: req.code ? hash : req.filePath,
       filePath: req.filePath,
       type: path.extname(req.filePath).slice(1),
       ast: null,
@@ -78,7 +81,8 @@ export default class TransformerRunner {
       stats: {
         time: 0,
         size
-      }
+      },
+      sideEffects: req.sideEffects
     });
 
     let pipeline = await this.config.getTransformers(req.filePath);
@@ -87,16 +91,6 @@ export default class TransformerRunner {
       pipeline,
       cacheEntry
     );
-
-    // If the transformer request passed code rather than a filename,
-    // use a hash as the id to ensure it is unique.
-    if (req.code) {
-      for (let asset of assets) {
-        asset.id = md5FromString(
-          nullthrows(asset.hash) + JSON.stringify(asset.env)
-        );
-      }
-    }
 
     cacheEntry = {
       filePath: req.filePath,
@@ -107,7 +101,7 @@ export default class TransformerRunner {
     };
 
     await Promise.all(
-      unique(assets, initialAssets || []).map(asset => asset.commit())
+      unique([...assets, ...(initialAssets || [])]).map(asset => asset.commit())
     );
     await Cache.set(reqCacheKey(req), cacheEntry);
     return cacheEntry;
@@ -198,7 +192,10 @@ export default class TransformerRunner {
     // Load config for the transformer.
     let config = null;
     if (transformer.getConfig) {
-      config = await transformer.getConfig(new Asset(input), this.options);
+      config = await transformer.getConfig(
+        new MutableAsset(input),
+        this.options
+      );
     }
 
     // If an ast exists on the input, but we cannot reuse it,
@@ -209,7 +206,7 @@ export default class TransformerRunner {
         !transformer.canReuseAST(input.ast, this.options)) &&
       previousGenerate
     ) {
-      let output = await previousGenerate(input);
+      let output = await previousGenerate(new MutableAsset(input));
       input.content = output.code;
       input.ast = null;
     }
@@ -217,7 +214,7 @@ export default class TransformerRunner {
     // Parse if there is no AST available from a previous transform.
     if (!input.ast && transformer.parse) {
       input.ast = await transformer.parse(
-        new Asset(input),
+        new MutableAsset(input),
         config,
         this.options
       );
@@ -269,7 +266,7 @@ async function finalize(
   generate: GenerateFunc
 ): Promise<InternalAsset> {
   if (asset.ast && generate) {
-    let result = await generate(asset);
+    let result = await generate(new MutableAsset(asset));
     asset.content = result.code;
     asset.map = result.map;
   }

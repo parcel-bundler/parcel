@@ -1,5 +1,5 @@
 // @flow
-import type {Asset} from '@parcel/types';
+import type {MutableAsset} from '@parcel/types';
 import getBabelRc from './babelrc';
 import getEnvConfig from './env';
 import getJSXConfig from './jsx';
@@ -9,7 +9,7 @@ import * as fs from '@parcel/fs';
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
-export default async function getBabelConfig(asset: Asset) {
+export default async function getBabelConfig(asset: MutableAsset) {
   // Consider the module source code rather than precompiled if the resolver
   // used the `source` field, or it is not in node_modules.
   let pkg = await asset.getPackage();

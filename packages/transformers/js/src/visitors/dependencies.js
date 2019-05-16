@@ -163,12 +163,8 @@ function addDependency(asset, node, opts = {}) {
 }
 
 function addURLDependency(asset, node, opts = {}) {
-  opts.loc = node.loc && node.loc.start;
-
-  node.value = asset.addDependency({
-    moduleSpecifier: node.value,
-    isAsync: true,
-    isURL: true,
+  node.value = asset.addURLDependency(node.value, {
+    loc: node.loc && node.loc.start,
     ...opts
   });
   asset.ast.isDirty = true;

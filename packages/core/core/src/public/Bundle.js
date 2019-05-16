@@ -1,7 +1,7 @@
 // @flow strict-local
 // flowlint unsafe-getters-setters:off
 
-import type {Bundle as InternalBundle} from '../types';
+import type {Bundle as InternalBundle, AssetGraphNode} from '../types';
 import type {
   Asset as IAsset,
   Bundle as IBundle,
@@ -9,17 +9,18 @@ import type {
   Dependency,
   Environment,
   FilePath,
-  GraphTraversalCallback,
   MutableBundle as IMutableBundle,
   NamedBundle as INamedBundle,
   Stats,
-  Target
+  Target,
+  Symbol,
+  GraphVisitor
 } from '@parcel/types';
 
 import nullthrows from 'nullthrows';
 
-import {Asset} from './Asset';
-import {getInternalAsset} from './utils';
+import {Asset, assetToInternalAsset} from './Asset';
+import {getInternalAsset, assetGraphVisitorToInternal} from './utils';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -98,25 +99,51 @@ export class Bundle implements IBundle {
   }
 
   traverse<TContext>(
-    visit: GraphTraversalCallback<BundleTraversable, TContext>
+    visit: GraphVisitor<BundleTraversable, TContext>
   ): ?TContext {
-    return this.#bundle.assetGraph.traverse((node, ...args) => {
+    return this.#bundle.assetGraph.filteredTraverse(node => {
       if (node.type === 'asset') {
-        return visit({type: 'asset', value: node.value}, ...args);
+        return {type: 'asset', value: node.value};
       } else if (node.type === 'asset_reference') {
-        return visit({type: 'asset_reference', value: node.value}, ...args);
+        return {type: 'asset_reference', value: node.value};
       }
-    });
+    }, visit);
   }
 
-  traverseAssets<TContext>(
-    visit: GraphTraversalCallback<IAsset, TContext>
-  ): ?TContext {
-    return this.#bundle.assetGraph.traverse((node, ...args) => {
-      if (node.type === 'asset') {
-        return visit(new Asset(node.value), ...args);
+  traverseAssets<TContext>(visit: GraphVisitor<IAsset, TContext>) {
+    return this.#bundle.assetGraph.traverseAssets(
+      assetGraphVisitorToInternal(visit)
+    );
+  }
+
+  traverseAncestors<TContext>(
+    asset: IAsset,
+    visit: GraphVisitor<AssetGraphNode, TContext>
+  ) {
+    let node = nullthrows(
+      this.#bundle.assetGraph.getNode(asset.id),
+      'Bundle does not contain asset'
+    );
+    return this.#bundle.assetGraph.traverseAncestors(node, visit);
+  }
+
+  resolveSymbol(asset: IAsset, symbol: Symbol) {
+    return this.#bundle.assetGraph.resolveSymbol(
+      assetToInternalAsset(asset),
+      symbol
+    );
+  }
+
+  hasChildBundles() {
+    let result = false;
+    this.#bundle.assetGraph.traverse((node, ctx, actions) => {
+      if (node.type === 'bundle_reference') {
+        result = true;
+        actions.stop();
       }
     });
+
+    return result;
   }
 }
 

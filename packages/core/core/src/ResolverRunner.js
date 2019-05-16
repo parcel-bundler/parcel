@@ -1,6 +1,10 @@
 // @flow
 
-import type {ParcelOptions, Dependency, FilePath} from '@parcel/types';
+import type {
+  ParcelOptions,
+  Dependency,
+  TransformerRequest
+} from '@parcel/types';
 import path from 'path';
 import Config from './Config';
 import {report} from './ReporterRunner';
@@ -16,7 +20,7 @@ const getCacheKey = (filename, parent) =>
 export default class ResolverRunner {
   config: Config;
   options: ParcelOptions;
-  cache: Map<string, FilePath>;
+  cache: Map<string, TransformerRequest>;
 
   constructor({config, options}: Opts) {
     this.config = config;
@@ -24,7 +28,7 @@ export default class ResolverRunner {
     this.cache = new Map();
   }
 
-  async resolve(dependency: Dependency): Promise<FilePath> {
+  async resolve(dependency: Dependency): Promise<TransformerRequest> {
     report({
       type: 'buildProgress',
       phase: 'resolving',

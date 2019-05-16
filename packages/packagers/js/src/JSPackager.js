@@ -2,6 +2,7 @@
 
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
+import {concat, link, generate} from '@parcel/scope-hoisting';
 
 const PRELUDE = fs
   .readFileSync(__dirname + '/prelude.js', 'utf8')
@@ -9,7 +10,16 @@ const PRELUDE = fs
   .replace(/;$/, '');
 
 export default new Packager({
-  async package(bundle) {
+  async package(bundle, bundleGraph, options) {
+    // If scope hoisting is enabled, we use a different code path.
+    if (options.scopeHoist) {
+      let ast = await concat(bundle, bundleGraph);
+      ast = link(bundle, ast, options);
+      return generate(bundle, ast, options);
+    }
+
+    // For development, we just concatenate all of the code together
+    // rather then enabling scope hoisting, which would be too slow.
     let promises = [];
     bundle.traverse(node => {
       if (node.type === 'asset') {

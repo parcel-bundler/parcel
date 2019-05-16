@@ -1,7 +1,13 @@
 // @flow
 
 import {Resolver} from '@parcel/plugin';
-import type {ParcelOptions, Dependency, PackageJSON} from '@parcel/types';
+import type {
+  ParcelOptions,
+  Dependency,
+  PackageJSON,
+  FilePath,
+  TransformerRequest
+} from '@parcel/types';
 import path from 'path';
 import * as fs from '@parcel/fs';
 import {isGlob} from '@parcel/utils';
@@ -16,9 +22,41 @@ export default new Resolver({
       options
     }).resolve(dep);
 
-    return resolved ? resolved.path : null;
+    if (!resolved) {
+      return null;
+    }
+
+    let result: TransformerRequest = {
+      filePath: resolved.path,
+      env: dep.env
+    };
+
+    if (resolved.pkg && !hasSideEffects(resolved.path, resolved.pkg)) {
+      result.sideEffects = false;
+    }
+
+    return result;
   }
 });
+
+function hasSideEffects(filePath: FilePath, pkg: InternalPackageJSON) {
+  switch (typeof pkg.sideEffects) {
+    case 'boolean':
+      return pkg.sideEffects;
+    case 'string':
+      return micromatch.isMatch(
+        path.relative(pkg.pkgdir, filePath),
+        pkg.sideEffects,
+        {matchBase: true}
+      );
+    case 'object':
+      return pkg.sideEffects.some(sideEffects =>
+        hasSideEffects(filePath, {...pkg, sideEffects})
+      );
+  }
+
+  return true;
+}
 
 type InternalPackageJSON = PackageJSON & {
   pkgdir: string

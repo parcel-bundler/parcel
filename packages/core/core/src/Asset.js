@@ -15,6 +15,7 @@ import type {
   PackageJSON,
   SourceMap,
   Stats,
+  Symbol,
   TransformerResult
 } from '@parcel/types';
 
@@ -33,6 +34,7 @@ import Dependency from './Dependency';
 type AssetOptions = {|
   id?: string,
   hash?: ?string,
+  idBase?: string,
   filePath: FilePath,
   type: string,
   content?: Blob,
@@ -46,7 +48,9 @@ type AssetOptions = {|
   outputHash?: string,
   env: Environment,
   meta?: Meta,
-  stats: Stats
+  stats: Stats,
+  symbols?: Map<Symbol, Symbol> | Array<[Symbol, Symbol]>,
+  sideEffects?: boolean
 |};
 
 type SerializedOptions = {|
@@ -60,6 +64,7 @@ type SerializedOptions = {|
 export default class Asset {
   id: string;
   hash: ?string;
+  idBase: string;
   filePath: FilePath;
   type: string;
   ast: ?AST;
@@ -74,13 +79,16 @@ export default class Asset {
   stats: Stats;
   content: Blob;
   contentKey: ?string;
+  symbols: Map<Symbol, Symbol>;
+  sideEffects: boolean;
 
   constructor(options: AssetOptions) {
+    this.idBase = options.idBase != null ? options.idBase : options.filePath;
     this.id =
       options.id != null
         ? options.id
         : md5FromString(
-            options.filePath + options.type + JSON.stringify(options.env)
+            this.idBase + options.type + JSON.stringify(options.env)
           );
     this.hash = options.hash;
     this.filePath = options.filePath;
@@ -100,6 +108,8 @@ export default class Asset {
     this.env = options.env;
     this.meta = options.meta || {};
     this.stats = options.stats;
+    this.symbols = new Map(options.symbols || []);
+    this.sideEffects = options.sideEffects != null ? options.sideEffects : true;
   }
 
   serialize(): SerializedOptions {
@@ -116,7 +126,9 @@ export default class Asset {
       env: this.env,
       meta: this.meta,
       stats: this.stats,
-      contentKey: this.contentKey
+      contentKey: this.contentKey,
+      symbols: [...this.symbols],
+      sideEffects: this.sideEffects
     };
   }
 
@@ -169,10 +181,11 @@ export default class Asset {
     }
 
     if (typeof this.content === 'string' || this.content instanceof Buffer) {
-      return this.content.toString();
+      this.content = this.content.toString();
+    } else {
+      this.content = (await bufferStream(this.content)).toString();
     }
 
-    this.content = (await bufferStream(this.content)).toString();
     return this.content;
   }
 
@@ -236,8 +249,12 @@ export default class Asset {
       env: this.env.merge(env),
       sourcePath: this.filePath
     });
-
-    this.dependencies.set(dep.id, dep);
+    let existing = this.dependencies.get(dep.id);
+    if (existing) {
+      existing.merge(dep);
+    } else {
+      this.dependencies.set(dep.id, dep);
+    }
     return dep.id;
   }
 
@@ -281,6 +298,7 @@ export default class Asset {
     }
 
     let asset = new Asset({
+      idBase: this.idBase,
       hash,
       filePath: this.filePath,
       type: result.type,
@@ -294,7 +312,10 @@ export default class Asset {
       stats: {
         time: 0,
         size
-      }
+      },
+      symbols: new Map([...this.symbols, ...(result.symbols || [])]),
+      sideEffects:
+        result.sideEffects != null ? result.sideEffects : this.sideEffects
     });
 
     let dependencies = result.dependencies;
@@ -318,7 +339,7 @@ export default class Asset {
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
   ): Promise<Config | null> {
-    let packageKey = options && options.packageKey;
+    let packageKey = options?.packageKey;
     let parse = options && options.parse;
 
     if (packageKey != null) {

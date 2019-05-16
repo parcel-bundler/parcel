@@ -1,0 +1,36 @@
+{
+  "name": "@parcel/html-example",
+  "version": "2.0.0",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "demo": "parcel2 serve src/index.html"
+  },
+  "devDependencies": {
+    "@parcel/babel-register": "^2.0.0",
+    "parcel": "^2.0.0"
+  },
+  "browser": "dist/legacy/index.html",
+  "browserModern": "dist/modern/index.html",
+  "targets": {
+    "browserModern": {
+      "engines": {
+        "browsers": [
+          "last 1 Chrome version"
+        ]
+      }
+    },
+    "browser": {
+      "engines": {
+        "browsers": [
+          "> 0.25%"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "lodash": "^4.17.11",
+    "react": "^16.6.3",
+    "react-dom": "^16.6.3"
+  }
+}

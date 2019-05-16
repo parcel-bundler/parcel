@@ -4,13 +4,14 @@ import type AssetGraph from '../AssetGraph';
 import type {
   Asset as IAsset,
   Dependency,
-  GraphTraversalCallback,
+  GraphVisitor,
   MainAssetGraph as IMainAssetGraph,
   MainAssetGraphTraversable
 } from '@parcel/types';
 
 import {Asset, assetToInternalAsset} from './Asset';
 import {MutableBundle} from './Bundle';
+import {assetGraphVisitorToInternal} from './utils';
 
 export default class MainAssetGraph implements IMainAssetGraph {
   #graph; // AssetGraph
@@ -62,24 +63,18 @@ export default class MainAssetGraph implements IMainAssetGraph {
   }
 
   traverse<TContext>(
-    visit: GraphTraversalCallback<MainAssetGraphTraversable, TContext>
+    visit: GraphVisitor<MainAssetGraphTraversable, TContext>
   ): ?TContext {
-    return this.#graph.traverse((node, ...args) => {
+    return this.#graph.filteredTraverse(node => {
       if (node.type === 'asset') {
-        return visit({type: 'asset', value: new Asset(node.value)}, ...args);
+        return {type: 'asset', value: new Asset(node.value)};
       } else if (node.type === 'dependency') {
-        return visit({type: 'dependency', value: node.value}, ...args);
+        return {type: 'dependency', value: node.value};
       }
-    });
+    }, visit);
   }
 
-  traverseAssets<TContext>(
-    visit: GraphTraversalCallback<IAsset, TContext>
-  ): ?TContext {
-    return this.#graph.traverse((node, ...args) => {
-      if (node.type === 'asset') {
-        return visit(new Asset(node.value), ...args);
-      }
-    });
+  traverseAssets<TContext>(visit: GraphVisitor<IAsset, TContext>): ?TContext {
+    return this.#graph.traverseAssets(assetGraphVisitorToInternal(visit));
   }
 }

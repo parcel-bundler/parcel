@@ -67,6 +67,7 @@ export interface BundleReference {
   +isEntry: ?boolean;
   +target: ?Target;
   +filePath: ?FilePath;
+  +name: ?string;
   +stats: Stats;
 }
 

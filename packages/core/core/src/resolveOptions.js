@@ -38,18 +38,19 @@ export default async function resolveOptions(
     await loadEnv(path.join(rootDir, 'index'));
   }
 
-  let cacheDir =
-    initialOptions.cacheDir != null
-      ? initialOptions.cacheDir
-      : DEFAULT_CACHE_DIR;
-
   // $FlowFixMe
   return {
     env: process.env,
     ...initialOptions,
-    cacheDir,
+    cacheDir:
+      initialOptions.cacheDir != null
+        ? initialOptions.cacheDir
+        : DEFAULT_CACHE_DIR,
     entries,
     rootDir,
-    targets
+    targets,
+    scopeHoist:
+      initialOptions.scopeHoist ?? initialOptions.mode === 'production',
+    logLevel: initialOptions.logLevel ?? 'info'
   };
 }

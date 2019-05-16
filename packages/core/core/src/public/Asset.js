@@ -16,12 +16,15 @@ import type {
   MutableAsset as IMutableAsset,
   PackageJSON,
   SourceMap,
-  Stats
+  Stats,
+  Symbol
 } from '@parcel/types';
 
 import type InternalAsset from '../Asset';
 
+import URL from 'url';
 import nullthrows from 'nullthrows';
+import {isURL} from '@parcel/utils';
 
 const _assetToInternalAsset: WeakMap<
   IAsset | IMutableAsset | BaseAsset,
@@ -68,6 +71,14 @@ class BaseAsset {
 
   get isIsolated(): boolean {
     return this.#asset.isIsolated;
+  }
+
+  get sideEffects(): boolean {
+    return this.#asset.sideEffects;
+  }
+
+  get symbols(): Map<Symbol, Symbol> {
+    return this.#asset.symbols;
   }
 
   getConfig(
@@ -177,5 +188,25 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   setMap(sourceMap: ?SourceMap): void {
     this.#asset.setMap(sourceMap);
+  }
+
+  addURLDependency(url: string, opts: $Shape<DependencyOptions>): string {
+    if (isURL(url)) {
+      return url;
+    }
+
+    let parsed = URL.parse(url);
+    let pathname = parsed.pathname;
+    if (pathname == null) {
+      return url;
+    }
+
+    parsed.pathname = this.addDependency({
+      moduleSpecifier: decodeURIComponent(pathname),
+      isURL: true,
+      isAsync: true, // The browser has native loaders for url dependencies
+      ...opts
+    });
+    return URL.format(parsed);
   }
 }
