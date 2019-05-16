@@ -1,21 +1,15 @@
-const RESTRICTED_CONFIG = [
-  'error',
-  {
-    patterns: ['@parcel/*/*', '!@parcel/integration-tests/*']
-  }
-];
-
 module.exports = {
   extends: [
     'eslint:recommended',
     'plugin:flowtype/recommended',
+    'plugin:monorepo/recommended',
     'plugin:react/recommended',
     'prettier',
     'prettier/flowtype',
     'prettier/react'
   ],
   parser: 'babel-eslint',
-  plugins: ['@parcel', 'flowtype', 'import', 'react'],
+  plugins: ['@parcel', 'flowtype', 'import', 'monorepo', 'react'],
   parserOptions: {
     ecmaVersion: 2018,
     ecmaFeatures: {
@@ -39,7 +33,9 @@ module.exports = {
         mocha: true
       },
       rules: {
-        'import/no-extraneous-dependencies': 'off'
+        'import/no-extraneous-dependencies': 'off',
+        'monorepo/no-internal-import': 'off',
+        'monorepo/no-relative-import': 'off'
       }
     }
   ],
@@ -49,9 +45,7 @@ module.exports = {
     'import/newline-after-import': 'error',
     'import/no-extraneous-dependencies': 'error',
     'import/no-self-import': 'error',
-    'no-return-await': 'error',
-    'no-restricted-imports': RESTRICTED_CONFIG,
-    'no-restricted-modules': RESTRICTED_CONFIG
+    'no-return-await': 'error'
   },
   settings: {
     flowtype: {
