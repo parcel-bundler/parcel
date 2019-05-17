@@ -788,6 +788,18 @@ describe('scope hoisting', function() {
       assert.equal(output, 5);
     });
 
+    it("doesn't insert parcelRequire for missing non-js assets", async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/missing-non-js/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.equal(output.default, 27);
+    });
+
     it('define exports in the outermost scope', async function() {
       let b = await bundle(
         path.join(
