@@ -1,6 +1,8 @@
 // @flow strict-local
 
 import type {BundleGroup, MutableBundle} from '@parcel/types';
+
+import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
 
 const OPTIONS = {
@@ -53,9 +55,7 @@ export default new Bundler({
             return {bundleGroup};
           }
         } else if (node.type === 'asset') {
-          if (!context) {
-            return;
-          }
+          invariant(context != null);
 
           let asset = node.value;
 
@@ -70,25 +70,24 @@ export default new Bundler({
             context.bundleGroup = bundleGroup;
           }
 
-          // If the type of this asset differs from the current bundle type,
-          // start by creating a new bundle
-          let typeDiffers =
-            !context.bundle || asset.type !== context.bundle.type;
-
-          if (asset.isIsolated || typeDiffers) {
+          if (
+            // this is the first bundle
+            !context.bundle ||
+            // this asset must be bundled on its own
+            asset.isIsolated ||
+            // the type of this asset differs from the current bundle type
+            asset.type !== context.bundle.type
+          ) {
+            // start by creating a new bundle
             let bundle = assetGraph.createBundle(asset);
             let dep = context.bundleGroup.dependency;
 
             // Mark bundle as an entry, and set explicit file path from target if the dependency has one
             bundle.isEntry = asset.isIsolated ? false : !!dep.isEntry;
 
-            // If there is a current bundle, but this asset is of a different type,
-            // separate it out into a parallel bundle in the same bundle group.
-            if (context.bundle) {
-              // Remove this asset from the current bundle since it's of a different type.
-              // `removeAsset` leaves behind an asset reference in its place.
-              context.bundle.removeAsset(asset);
-
+            if (!asset.isIsolated) {
+              // If the asset isn't isolated, try to combine with with an existing
+              // bundle.
               let bundles = bundleGraph.getBundlesInBundleGroup(
                 context.bundleGroup
               );
