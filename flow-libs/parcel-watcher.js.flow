@@ -1,8 +1,8 @@
 // @flow
 
 // Derived from the README and source of ncp located at
-// https://github.com/AvianFlu/ncp and
-// https://github.com/AvianFlu/ncp/blob/6820b0fbe3f7400fdb283c741ef88b6d8e2d4994/lib/ncp.js
+// https://github.com/parcel-bundler/watcher and
+// https://github.com/parcel-bundler/watcher/blob/411903f55462dd93350edb18088476f775381921/index.js
 // Which is licensed MIT
 
 declare module '@parcel/watcher' {
@@ -40,40 +40,3 @@ declare module '@parcel/watcher' {
     ): Promise<FilePath>
   };
 }
-
-// const binding = require('bindings')('watcher.node');
-// const path = require('path');
-
-// function normalizeOptions(dir, opts = {}) {
-//   if (Array.isArray(opts.ignore)) {
-//     opts = Object.assign({}, opts, {
-//       ignore: opts.ignore.map(ignore => path.resolve(dir, ignore))
-//     });
-//   }
-
-//   return opts;
-// }
-
-// exports.writeSnapshot = (dir, snapshot, opts) => {
-//   return binding.writeSnapshot(path.resolve(dir), path.resolve(snapshot), normalizeOptions(dir, opts));
-// };
-
-// exports.getEventsSince = (dir, snapshot, opts) => {
-//   return binding.getEventsSince(path.resolve(dir), path.resolve(snapshot), normalizeOptions(dir, opts));
-// };
-
-// exports.subscribe = async (dir, fn, opts) => {
-//   dir = path.resolve(dir);
-//   opts = normalizeOptions(dir, opts);
-//   await binding.subscribe(dir, fn, opts);
-
-//   return {
-//     unsubscribe() {
-//       return binding.unsubscribe(dir, fn, opts);
-//     }
-//   };
-// };
-
-// exports.unsubscribe = (dir, fn, opts) => {
-//   return binding.unsubscribe(path.resolve(dir), fn, normalizeOptions(dir, opts));
-// };
