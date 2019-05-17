@@ -46,6 +46,8 @@ if(process.browser) ...
 
 **Bugs**:
 
+- hash: use `history.replaceState`
+- js preview: use util.inspect
 - Safari SW: `clients` doesn't exist? disable html preview
 - builtins/bundle loaders: fs.readFileSync(require.resolve)
   - load asset from memory, not from fs?
