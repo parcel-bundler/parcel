@@ -6,8 +6,7 @@ const {
   run,
   assertBundles,
   assertBundleTree,
-  rimraf,
-  ncp
+  distDir
 } = require('@parcel/test-utils');
 
 describe('css in v2', () => {
@@ -28,6 +27,36 @@ describe('css in v2', () => {
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
+  });
+
+  it('should bundle css dependencies in the correct, postorder traversal order', async () => {
+    let b = await bundle(path.join(__dirname, '/integration/css-order/a.css'));
+
+    // Given a tree of css with imports:
+    //      A
+    //    /   \
+    //   B     E
+    //  / \
+    // C   D
+    //
+    // (A imports B (which imports C and D) and E)
+    //
+    // ...styles should be applied in the order C, D, B, E, A
+
+    await assertBundles(b, [
+      {
+        name: 'a.css',
+        assets: ['a.css', 'b.css', 'c.css', 'd.css', 'e.css']
+      }
+    ]);
+
+    let css = await fs.readFile(path.join(distDir, 'a.css'), 'utf8');
+    assert.ok(
+      css.indexOf('.c {') < css.indexOf('.d {') &&
+        css.indexOf('.d {') < css.indexOf('.b {') &&
+        css.indexOf('.b {') < css.indexOf('.e {') &&
+        css.indexOf('.e {') < css.indexOf('.a {')
+    );
   });
 
   it('should support loading a CSS bundle along side dynamic imports', async () => {
@@ -551,8 +580,8 @@ describe.skip('css', function() {
   });
 
   it('should automatically install postcss plugins with npm if needed', async function() {
-    await rimraf(path.join(__dirname, '/input'));
-    await ncp(
+    await fs.rimraf(path.join(__dirname, '/input'));
+    await fs.ncp(
       path.join(__dirname, '/integration/autoinstall/npm'),
       path.join(__dirname, '/input')
     );
@@ -574,8 +603,8 @@ describe.skip('css', function() {
   });
 
   it('should automatically install postcss plugins with yarn if needed', async function() {
-    await rimraf(path.join(__dirname, '/input'));
-    await ncp(
+    await fs.rimraf(path.join(__dirname, '/input'));
+    await fs.ncp(
       path.join(__dirname, '/integration/autoinstall/yarn'),
       path.join(__dirname, '/input')
     );
