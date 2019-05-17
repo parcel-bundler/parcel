@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@parcel/cache": "^2.0.0",
-    "@parcel/config-default": "^2.0.0",
     "@parcel/fs": "^2.0.0",
     "@parcel/local-require": "^2.0.0",
     "@parcel/logger": "^2.0.0",
@@ -25,20 +24,13 @@
     "@parcel/workers": "^2.0.0",
     "abortcontroller-polyfill": "^1.1.9",
     "browserslist": "^4.1.0",
-    "chalk": "^2.1.0",
     "clone": "^2.1.1",
-    "commander": "^2.11.0",
     "dotenv": "^7.0.0",
     "dotenv-expand": "^5.1.0",
     "json5": "^1.0.1",
     "micromatch": "^3.0.4",
-    "minimatch": "^3.0.4",
     "nullthrows": "^1.1.1",
-    "p-queue": "^2.4.2",
-    "pretty-format": "^23.5.0",
-    "resolve-from": "^4.0.0",
-    "semver": "^5.4.1",
-    "v8-compile-cache": "^2.0.0"
+    "semver": "^5.4.1"
   },
   "devDependencies": {
     "graphviz": "^0.0.9",
