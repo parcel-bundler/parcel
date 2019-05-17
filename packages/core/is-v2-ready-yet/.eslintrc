@@ -4,6 +4,8 @@
     "browser": true
   },
   "rules": {
+    "monorepo/no-internal-import": "off",
+    "monorepo/no-relative-import": "off",
     "react/prop-types": "off" // TODO: Enable this when this package is flow-typed
   }
 }
