@@ -161,7 +161,7 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   isInvalid() {
-    return !!this.graph.invalidNodes.size;
+    return this.graph.invalidNodes.size > 0;
   }
 
   respondToFSEvents(events: Array<Event>) {
