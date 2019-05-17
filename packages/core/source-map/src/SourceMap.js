@@ -2,7 +2,7 @@
 import type {Mapping, Position, MappingItem, RawSourceMap} from 'source-map';
 
 import {SourceMapConsumer, SourceMapGenerator} from 'source-map';
-import countLines from '../../utils/src/countLines';
+import {countLines} from '@parcel/utils';
 
 type RawMapInput = SourceMapConsumer | string | RawSourceMap;
 
