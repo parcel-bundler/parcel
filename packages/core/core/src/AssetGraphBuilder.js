@@ -61,8 +61,6 @@ export default class AssetGraphBuilder extends EventEmitter {
       transformerRequest,
       rootDir: options.rootDir
     });
-
-    this.controller = new AbortController();
   }
 
   async initFarm() {
@@ -80,6 +78,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       await this.initFarm();
     }
 
+    if (this.controller) this.controller.abort();
     this.controller = new AbortController();
     let signal = this.controller.signal;
 
@@ -169,7 +168,6 @@ export default class AssetGraphBuilder extends EventEmitter {
     for (let {type, path} of events) {
       // TODO: eventually handle all types of events
       if (type === 'update' && this.graph.hasNode(path)) {
-        this.controller.abort();
         this.graph.invalidateFile(path);
       }
     }
