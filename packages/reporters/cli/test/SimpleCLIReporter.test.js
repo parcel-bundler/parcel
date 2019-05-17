@@ -9,7 +9,8 @@ const EMPTY_OPTIONS = {
   entries: [],
   logLevel: 'info',
   rootDir: __dirname,
-  targets: []
+  targets: [],
+  projectRoot: ''
 };
 
 describe('SimpleCLIReporter', () => {

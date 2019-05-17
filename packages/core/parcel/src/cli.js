@@ -1,6 +1,7 @@
 // @flow
 
 import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
+import {BuildError} from '@parcel/core';
 
 require('v8-compile-cache');
 
@@ -144,9 +145,11 @@ async function run(entries: Array<string>, command: any) {
   try {
     await parcel.run();
   } catch (e) {
-    // Simply exit if the run fails. If an exception is thrown during the run,
-    // it is given to reporters in a buildFailure event. In watch mode,
-    // exceptions won't be thrown beyond Parcel.
+    // If an exception is thrown during Parcel.build, it is given to reporters in a
+    // buildFailure event. In watch mode, build exceptions won't be thrown beyond Parcel.
+    // If an exception is thrown outside of Parcel.build, it won't go through reporters
+    // and should be logged.
+    if (!(e instanceof BuildError)) console.error(e);
     process.exit(1);
   }
 }

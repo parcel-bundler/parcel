@@ -10,6 +10,7 @@ import {getRootDir} from '@parcel/utils';
 import loadEnv from './loadEnv';
 import path from 'path';
 import TargetResolver from './TargetResolver';
+import {resolveConfig} from '@parcel/utils';
 
 // Default cache directory name
 const DEFAULT_CACHE_DIR = '.parcel-cache';
@@ -38,6 +39,16 @@ export default async function resolveOptions(
     await loadEnv(path.join(rootDir, 'index'));
   }
 
+  let projectRoot = path.dirname(
+    (await resolveConfig(path.join(process.cwd(), 'index'), [
+      'yarn.lock',
+      'package-lock.json',
+      'pnpm-lock.yaml',
+      '.git',
+      '.hg'
+    ])) || path.join(process.cwd(), 'index')
+  );
+
   // $FlowFixMe
   return {
     env: process.env,
@@ -51,6 +62,7 @@ export default async function resolveOptions(
     targets,
     scopeHoist:
       initialOptions.scopeHoist ?? initialOptions.mode === 'production',
-    logLevel: initialOptions.logLevel ?? 'info'
+    logLevel: initialOptions.logLevel ?? 'info',
+    projectRoot
   };
 }

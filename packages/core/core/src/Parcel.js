@@ -11,6 +11,8 @@ import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
 import Cache from '@parcel/cache';
+import watcher from '@parcel/watcher';
+import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
 import ReporterRunner from './ReporterRunner';
@@ -27,6 +29,7 @@ export default class Parcel {
   #reporterRunner; // ReporterRunner
   #resolvedOptions; // ?ParcelOptions
   #runPackage; // (bundle: Bundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
+  #watcher;
 
   constructor(options: InitialParcelOptions) {
     this.#initialOptions = clone(options);
@@ -92,6 +95,41 @@ export default class Parcel {
 
     this.#runPackage = this.#farm.mkhandle('runPackage');
 
+    await this.initializeWatcher();
+  }
+
+  async initializeWatcher() {
+    let projectRoot = this.#resolvedOptions.projectRoot;
+    if (this.#resolvedOptions.watch) {
+      // TODO: ideally these should all be absolute paths already set up on #resolvedOptions
+      let targetDirs = this.#resolvedOptions.targets.map(target =>
+        path.resolve(process.cwd(), target.distDir)
+      );
+      let cacheDir = path.resolve(
+        process.cwd(),
+        this.#resolvedOptions.cacheDir
+      );
+      let vcsDirs = ['.git', '.hg'].map(dir => path.join(projectRoot, dir));
+      let ignore = [cacheDir, ...targetDirs, ...vcsDirs];
+      this.#watcher = await watcher.subscribe(
+        projectRoot,
+        (err, events) => {
+          if (err) {
+            throw err;
+          }
+
+          this.#assetGraphBuilder.respondToFSEvents(events);
+          if (this.#assetGraphBuilder.isInvalid()) {
+            this.build().catch(() => {
+              // Do nothing, in watch mode reporters should alert the user something is broken, which
+              // allows Parcel to gracefully continue once the user makes the correct changes
+            });
+          }
+        },
+        {ignore}
+      );
+    }
+
     this.#initialized = true;
   }
 
@@ -104,14 +142,6 @@ export default class Parcel {
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
     try {
-      this.#assetGraphBuilder.on('invalidate', () => {
-        this.build().catch(e => {
-          if (!resolvedOptions.watch) {
-            throw e;
-          }
-        });
-      });
-
       let graph = await this.build();
       if (!resolvedOptions.watch) {
         return graph;
@@ -162,7 +192,7 @@ export default class Parcel {
         });
       }
 
-      throw e;
+      throw new BuildError(e);
     }
   }
 }
@@ -184,6 +214,16 @@ function packageBundles(
   });
 
   return Promise.all(promises);
+}
+
+export class BuildError extends Error {
+  name = 'BuildError';
+  error: mixed;
+
+  constructor(error: mixed) {
+    super(error instanceof Error ? error.message : 'Unknown Build Error');
+    this.error = error;
+  }
 }
 
 export {default as Asset} from './Asset';

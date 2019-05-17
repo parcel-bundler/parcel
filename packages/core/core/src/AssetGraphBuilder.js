@@ -15,11 +15,11 @@ import {
   AbortController,
   type AbortSignal
 } from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import Watcher from '@parcel/watcher';
 import {PromiseQueue} from '@parcel/utils';
 import AssetGraph from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import WorkerFarm from '@parcel/workers';
+import type {Event} from '@parcel/watcher';
 
 type BuildOpts = {|
   signal: AbortSignal,
@@ -36,7 +36,6 @@ type Opts = {|
 
 export default class AssetGraphBuilder extends EventEmitter {
   graph: AssetGraph;
-  watcher: Watcher;
   queue: PromiseQueue;
   resolverRunner: ResolverRunner;
   controller: AbortController;
@@ -62,19 +61,6 @@ export default class AssetGraphBuilder extends EventEmitter {
       transformerRequest,
       rootDir: options.rootDir
     });
-
-    this.controller = new AbortController();
-    if (options.watch) {
-      this.watcher = new Watcher();
-      this.watcher.on('change', async filePath => {
-        if (this.graph.hasNode(filePath)) {
-          this.controller.abort();
-          this.graph.invalidateFile(filePath);
-
-          this.emit('invalidate', filePath);
-        }
-      });
-    }
   }
 
   async initFarm() {
@@ -92,6 +78,7 @@ export default class AssetGraphBuilder extends EventEmitter {
       await this.initFarm();
     }
 
+    if (this.controller) this.controller.abort();
     this.controller = new AbortController();
     let signal = this.controller.signal;
 
@@ -149,7 +136,6 @@ export default class AssetGraphBuilder extends EventEmitter {
     let {newRequest} = this.graph.resolveDependency(dep, req);
     if (newRequest) {
       this.queue.add(() => this.transform(newRequest, {signal}));
-      if (this.watcher) this.watcher.watch(newRequest.filePath);
     }
   }
 
@@ -164,26 +150,25 @@ export default class AssetGraphBuilder extends EventEmitter {
     }
 
     if (signal.aborted) throw new BuildAbortError();
-    let {
-      addedFiles,
-      removedFiles,
-      newDeps
-    } = this.graph.resolveTransformerRequest(req, cacheEntry);
-
-    if (this.watcher) {
-      for (let file of addedFiles) {
-        this.watcher.watch(file.filePath);
-      }
-
-      for (let file of removedFiles) {
-        this.watcher.unwatch(file.filePath);
-      }
-    }
+    let {newDeps} = this.graph.resolveTransformerRequest(req, cacheEntry);
 
     // The shallow option is used during the update phase
     if (!shallow) {
       for (let dep of newDeps) {
         this.queue.add(() => this.resolve(dep, {signal}));
+      }
+    }
+  }
+
+  isInvalid() {
+    return this.graph.invalidNodes.size > 0;
+  }
+
+  respondToFSEvents(events: Array<Event>) {
+    for (let {type, path} of events) {
+      // TODO: eventually handle all types of events
+      if (type === 'update' && this.graph.hasNode(path)) {
+        this.graph.invalidateFile(path);
       }
     }
   }

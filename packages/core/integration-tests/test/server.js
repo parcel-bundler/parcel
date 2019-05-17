@@ -122,13 +122,13 @@ describe('server', function() {
 
     await b.run();
 
-    await sleep(4000);
+    await sleep(10000);
     await fs.writeFile(path.join(inputDir, 'local.js'), 'syntax\\error');
 
     // TODO: Programatically wait for an error to occur, or time out. Right now,
     //       Parcel does not expose this without creating a reporter that must
     //       be loaded from disk.
-    await sleep(4000);
+    await sleep(10000);
 
     let statusCode = 200;
     try {
