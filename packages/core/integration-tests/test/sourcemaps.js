@@ -481,8 +481,8 @@ describe('sourcemaps', function() {
       path.join(__dirname, '/integration/sourcemap-css/style.css')
     );
 
-    const jsOutput = await fs.readFile(b.name, 'utf8');
-    assert(jsOutput.includes('//# sourceMappingURL=/style.css.map'));
+    const cssOutput = await fs.readFile(b.name, 'utf8');
+    assert(cssOutput.includes('/*# sourceMappingURL=/style.css.map */'));
   });
 
   it('should create correct sourceMappingURL with multiple entrypoints', async function() {
