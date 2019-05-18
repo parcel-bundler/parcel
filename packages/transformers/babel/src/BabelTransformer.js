@@ -30,16 +30,18 @@ export default new Transformer({
     return [asset];
   },
 
-  generate(asset, config, opts) {
+  async generate(asset, config, opts) {
     // $FlowFixMe: figure out how to make AST required in generate method
-    let {code, map} = generate(asset.ast.program, {
+    let generated = generate(asset.ast.program, {
       sourceMaps: opts.sourceMaps,
       sourceFileName: asset.filePath // Not sure how to get relative paths...
     });
 
     return {
-      code,
-      map: SourceMap.fromRawSourceMap(map)
+      code: generated.code,
+      map: new SourceMap(generated.rawMappings, {
+        [asset.filePath]: null
+      })
     };
   }
 });

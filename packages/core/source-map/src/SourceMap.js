@@ -54,9 +54,9 @@ export default class SourceMap {
     return map;
   }
 
-  static fromRawSourceMap(input: RawMapInput) {
+  static async fromRawSourceMap(input: RawMapInput) {
     let map = new SourceMap();
-    map.addMap(input);
+    await map.addMap(input);
     return map;
   }
 

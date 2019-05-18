@@ -12,6 +12,7 @@ import traverse from '@babel/traverse';
 import * as walk from 'babylon-walk';
 import * as babelCore from '@babel/core';
 import {hoist} from '@parcel/scope-hoisting';
+import SourceMap from '@parcel/source-map';
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -129,7 +130,7 @@ export default new Transformer({
     return [asset];
   },
 
-  async generate(asset /*, config, options*/) {
+  async generate(asset, config, options) {
     let code = await asset.getCode();
     let res = {
       code
@@ -139,14 +140,17 @@ export default new Transformer({
       let generated = generate(
         asset.ast.program,
         {
-          // sourceMaps: options.sourceMaps,
-          // sourceFileName: asset.relativeName
+          sourceMaps: options.sourceMaps,
+          sourceFileName: asset.filePath // Not sure how to get relative paths...
         },
         code
       );
 
       res.code = generated.code;
-      // res.map = generated.map;
+      // $FlowFixMe...
+      res.map = new SourceMap(generated.rawMappings, {
+        [asset.filePath]: null
+      });
     }
 
     if (asset.meta.globals && asset.meta.globals.size > 0) {
@@ -158,6 +162,7 @@ export default new Transformer({
         res.code;
     }
     delete asset.meta.globals;
+
     return res;
   }
 });
