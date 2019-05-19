@@ -1,6 +1,6 @@
 // @flow
 
-// Derived from the README and source of ncp located at
+// Derived from the README and source of @parcel/watcher located at
 // https://github.com/parcel-bundler/watcher and
 // https://github.com/parcel-bundler/watcher/blob/411903f55462dd93350edb18088476f775381921/index.js
 // Which is licensed MIT
@@ -27,7 +27,7 @@ declare module '@parcel/watcher' {
       dir: FilePath,
       fn: (err: Error, events: Array<Event>) => mixed,
       opts: Options
-    ): AsyncSubscription,
+    ): Promise<AsyncSubscription>,
     unsubscribe(
       dir: FilePath,
       fn: (err: Error, events: Array<Event>) => mixed,
