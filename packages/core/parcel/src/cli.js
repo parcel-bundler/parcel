@@ -142,15 +142,21 @@ async function run(entries: Array<string>, command: any) {
     ...(await normalizeOptions(command))
   });
 
-  try {
-    await parcel.run();
-  } catch (e) {
-    // If an exception is thrown during Parcel.build, it is given to reporters in a
-    // buildFailure event. In watch mode, build exceptions won't be thrown beyond Parcel.
-    // If an exception is thrown outside of Parcel.build, it won't go through reporters
-    // and should be logged.
-    if (!(e instanceof BuildError)) console.error(e);
-    process.exit(1);
+  if (command.name() === 'watch' || command.name() === 'serve') {
+    await parcel.watch(err => {
+      if (err) {
+        throw err;
+      }
+    });
+  } else {
+    try {
+      await parcel.run();
+    } catch (e) {
+      // If an exception is thrown during Parcel.build, it is given to reporters in a
+      // buildFailure event, and has been shown to the user.
+      if (!(e instanceof BuildError)) console.error(e);
+      process.exit(1);
+    }
   }
 }
 
@@ -204,7 +210,6 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let mode = command.name() === 'build' ? 'production' : 'development';
   return {
-    watch: command.name() === 'watch' || command.name() === 'serve',
     cache: command.cache !== false,
     cacheDir: command.cacheDir,
     mode,

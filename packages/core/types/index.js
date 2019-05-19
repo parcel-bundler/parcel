@@ -128,7 +128,6 @@ export type InitialParcelOptions = {|
   env?: {[string]: ?string},
   targets?: ?Array<string | Target>,
 
-  watch?: boolean,
   cache?: boolean,
   cacheDir?: FilePath,
   killWorkers?: boolean,
@@ -577,4 +576,8 @@ export interface ErrorWithCode extends Error {
 
 export interface IDisposable {
   dispose(): void;
+}
+
+export interface AsyncSubscription {
+  unsubscribe(): Promise<mixed>;
 }
