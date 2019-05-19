@@ -149,14 +149,18 @@ export default class Parcel {
       }
 
       this.#watcherSubscription = await this._getWatcherSubscription();
-      try {
-        this.#watchEvents.emit({
-          buildEvent: await this.build()
+      await this.#reporterRunner.report({type: 'watchStart'});
+
+      // Kick off a first build, but don't await its results. Its results will
+      // be provided to the callback.
+      this.build()
+        .then(buildEvent => {
+          this.#watchEvents.emit({buildEvent});
+        })
+        .catch(error => {
+          // Ignore BuildAbortErrors and only emit critical errors.
+          this.#watchEvents.emit({error});
         });
-      } catch (error) {
-        // Ignore BuildAbortErrors and only emit critical errors.
-        this.#watchEvents.emit({error});
-      }
     }
 
     this.#watcherCount++;
@@ -171,6 +175,7 @@ export default class Parcel {
         if (this.#watcherCount === 0) {
           await nullthrows(this.#watcherSubscription).unsubscribe();
           this.#watcherSubscription = null;
+          await this.#reporterRunner.report({type: 'watchEnd'});
         }
       }
     };
