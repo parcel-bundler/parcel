@@ -167,7 +167,11 @@ export default class AssetGraphBuilder extends EventEmitter {
   respondToFSEvents(events: Array<Event>) {
     for (let {type, path} of events) {
       // TODO: eventually handle all types of events
-      if (type === 'update' && this.graph.hasNode(path)) {
+      if (
+        // macOS often sends a 'create' event when a file is actually updated
+        (type === 'update' || type === 'create') &&
+        this.graph.hasNode(path)
+      ) {
         this.graph.invalidateFile(path);
       }
     }
