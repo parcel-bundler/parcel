@@ -510,6 +510,14 @@ export type BuildStartEvent = {|
   type: 'buildStart'
 |};
 
+type WatchStartEvent = {|
+  type: 'watchStart'
+|};
+
+type WatchEndEvent = {|
+  type: 'watchEnd'
+|};
+
 type ResolvingProgressEvent = {|
   type: 'buildProgress',
   phase: 'resolving',
@@ -564,7 +572,9 @@ export type ReporterEvent =
   | BuildStartEvent
   | BuildProgressEvent
   | BuildSuccessEvent
-  | BuildFailureEvent;
+  | BuildFailureEvent
+  | WatchStartEvent
+  | WatchEndEvent;
 
 export type Reporter = {|
   report(event: ReporterEvent, opts: ParcelOptions): Async<void>
@@ -575,7 +585,7 @@ export interface ErrorWithCode extends Error {
 }
 
 export interface IDisposable {
-  dispose(): void;
+  dispose(): mixed;
 }
 
 export interface AsyncSubscription {
