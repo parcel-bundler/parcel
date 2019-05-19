@@ -9,6 +9,7 @@ const syncPromise = require('./utils/syncPromise');
 const logger = require('@parcel/logger');
 const Resolver = require('./Resolver');
 const objectHash = require('./utils/objectHash');
+const t = require('babel-types');
 
 /**
  * An Asset represents a file in the dependency tree. Assets can have multiple
@@ -204,7 +205,7 @@ class Asset {
     if (!this.id) {
       this.id =
         this.options.production || this.options.scopeHoist
-          ? md5(this.relativeName, 'base64').slice(0, 4)
+          ? t.toIdentifier(md5(this.relativeName, 'base64')).slice(0, 4)
           : this.relativeName;
     }
 
@@ -257,8 +258,7 @@ class Asset {
         // Replace temporary bundle names in the output with the final content-hashed names.
         let newValue = value;
         for (let [name, map] of bundleNameMap) {
-          let mapRelative = path.relative(path.dirname(this.relativeName), map);
-          newValue = newValue.split(name).join(mapRelative);
+          newValue = newValue.split(name).join(map);
         }
 
         // Copy `this.generated` on write so we don't end up writing the final names to the cache.
