@@ -16,11 +16,11 @@ import builtins from './builtins';
 // import nodeBuiltins from 'node-libs-browser';
 
 export default new Resolver({
-  async resolve(dep: Dependency, options: ParcelOptions) {
+  async resolve({dependency, options}) {
     const resolved = await new NodeResolver({
       extensions: ['js', 'json', 'css'],
       options
-    }).resolve(dep);
+    }).resolve(dependency);
 
     if (!resolved) {
       return null;
@@ -28,7 +28,7 @@ export default new Resolver({
 
     let result: TransformerRequest = {
       filePath: resolved.path,
-      env: dep.env
+      env: dependency.env
     };
 
     if (resolved.pkg && !hasSideEffects(resolved.path, resolved.pkg)) {

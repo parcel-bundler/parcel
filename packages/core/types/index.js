@@ -483,10 +483,10 @@ export type Optimizer = {|
 |};
 
 export type Resolver = {|
-  resolve(
+  resolve({
     dependency: Dependency,
-    opts: ParcelOptions
-  ): Async<?TransformerRequest>
+    options: ParcelOptions
+  }): Async<?TransformerRequest>
 |};
 
 export type ProgressLogEvent = {|
