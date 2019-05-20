@@ -173,12 +173,12 @@ export default class BundlerRunner {
       // the node to it.
       bundle.assetGraph.merge(subGraph);
 
-      bundle.assetGraph.addEdge({
-        from: dependency
+      bundle.assetGraph.addEdge(
+        dependency
           ? dependency.id
           : nullthrows(bundle.assetGraph.getRootNode()).id,
-        to: entryId
-      });
+        entryId
+      );
     }
   }
 }

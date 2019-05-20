@@ -177,10 +177,7 @@ export class MutableBundleGraph extends BaseBundleGraph
     });
 
     this.#graph.addNode(node);
-    this.#graph.addEdge({
-      from: parentBundle ? parentBundle.id : 'root',
-      to: node.id
-    });
+    this.#graph.addEdge(parentBundle ? parentBundle.id : 'root', node.id);
   }
 
   addBundle(bundleGroup: BundleGroup, bundle: IBundle) {
@@ -199,7 +196,7 @@ export class MutableBundleGraph extends BaseBundleGraph
     };
 
     this.#graph.addNode(bundleNode);
-    this.#graph.addEdge({from: bundleGroupId, to: bundleNode.id});
+    this.#graph.addEdge(bundleGroupId, bundleNode.id);
 
     this.#graph.traverse(node => {
       // Replace dependencies in this bundle with bundle group references for
@@ -215,10 +212,7 @@ export class MutableBundleGraph extends BaseBundleGraph
             this.#graph.getSubGraph(node)
           );
           assetGraph.replaceNodesConnectedTo(depNode, [node]);
-          this.#graph.addEdge({
-            from: internalBundle.id,
-            to: node.id
-          });
+          this.#graph.addEdge(internalBundle.id, node.id);
         }
       }
 
@@ -229,10 +223,7 @@ export class MutableBundleGraph extends BaseBundleGraph
         node.value.assetGraph.hasNode(bundleGroupId)
       ) {
         node.value.assetGraph.addNode(referenceNode);
-        node.value.assetGraph.addEdge({
-          from: bundleGroupId,
-          to: referenceNode.id
-        });
+        node.value.assetGraph.addEdge(bundleGroupId, referenceNode.id);
       }
     });
   }
@@ -291,7 +282,7 @@ function mergeBundleGraphIntoBundleAssetGraph(
   }
 
   for (let edge of bundleGraph.getAllEdges()) {
-    bundleAssetGraph.addEdge(edge);
+    bundleAssetGraph.addEdge(edge.from, edge.to);
   }
 }
 

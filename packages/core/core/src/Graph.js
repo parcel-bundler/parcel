@@ -32,7 +32,7 @@ export default class Graph<TNode: Node> {
 
     if (opts.edges) {
       for (let edge of opts.edges) {
-        this.addEdge(edge);
+        this.addEdge(edge.from, edge.to);
       }
     }
   }
@@ -80,15 +80,13 @@ export default class Graph<TNode: Node> {
     return this.rootNodeId ? this.getNode(this.rootNodeId) : null;
   }
 
-  addEdge(edge: Edge): Edge {
-    this.outboundEdges.get(edge.from).add(edge.to);
-    this.inboundEdges.get(edge.to).add(edge.from);
-
-    return edge;
+  addEdge(from: NodeId, to: NodeId): void {
+    this.outboundEdges.get(from).add(to);
+    this.inboundEdges.get(to).add(from);
   }
 
-  hasEdge(edge: Edge): boolean {
-    return this.outboundEdges.get(edge.from).has(edge.to);
+  hasEdge(from: NodeId, to: NodeId): boolean {
+    return this.outboundEdges.get(from).has(to);
   }
 
   getNodesConnectedTo(node: TNode): Array<TNode> {
@@ -109,7 +107,7 @@ export default class Graph<TNode: Node> {
     }
 
     for (let edge of graph.getAllEdges()) {
-      this.addEdge(edge);
+      this.addEdge(edge.from, edge.to);
     }
   }
 
@@ -121,11 +119,11 @@ export default class Graph<TNode: Node> {
     removed.addNode(node);
 
     for (let to of this.outboundEdges.get(node.id)) {
-      removed.merge(this.removeEdge({from: node.id, to}));
+      removed.merge(this.removeEdge(node.id, to));
     }
 
     for (let from of this.inboundEdges.get(node.id)) {
-      removed.merge(this.removeEdge({from, to: node.id}));
+      removed.merge(this.removeEdge(from, node.id));
     }
 
     return removed;
@@ -135,21 +133,21 @@ export default class Graph<TNode: Node> {
     let removed = new this.constructor();
 
     for (let to of this.outboundEdges.get(node.id)) {
-      removed.merge(this.removeEdge({from: node.id, to}));
+      removed.merge(this.removeEdge(node.id, to));
     }
 
     return removed;
   }
 
   // Removes edge and node the edge is to if the node is orphaned
-  removeEdge(edge: Edge): this {
+  removeEdge(from: NodeId, to: NodeId): this {
     let removed = new this.constructor();
 
-    this.outboundEdges.get(edge.from).delete(edge.to);
-    this.inboundEdges.get(edge.to).delete(edge.from);
-    removed.addEdge(edge);
+    this.outboundEdges.get(from).delete(to);
+    this.inboundEdges.get(to).delete(from);
+    removed.addEdge(from, to);
 
-    let connectedNode = nullthrows(this.nodes.get(edge.to));
+    let connectedNode = nullthrows(this.nodes.get(to));
     if (this.isOrphanedNode(connectedNode)) {
       removed.merge(this.removeNode(connectedNode));
     }
@@ -165,8 +163,8 @@ export default class Graph<TNode: Node> {
     this.addNode(toNode);
 
     for (let parent of this.inboundEdges.get(fromNode.id)) {
-      this.addEdge({from: parent, to: toNode.id});
-      this.removeEdge({from: parent, to: fromNode.id});
+      this.addEdge(parent, toNode.id);
+      this.removeEdge(parent, fromNode.id);
     }
 
     this.removeNode(fromNode);
@@ -193,15 +191,14 @@ export default class Graph<TNode: Node> {
 
       childrenToRemove.delete(toNode.id);
 
-      let edge = {from: fromNode.id, to: toNode.id};
-      if (!this.hasEdge(edge)) {
-        this.addEdge(edge);
-        added.addEdge(edge);
+      if (!this.hasEdge(fromNode.id, toNode.id)) {
+        this.addEdge(fromNode.id, toNode.id);
+        added.addEdge(fromNode.id, toNode.id);
       }
     }
 
     for (let child of childrenToRemove) {
-      removed.merge(this.removeEdge({from: fromNode.id, to: child}));
+      removed.merge(this.removeEdge(fromNode.id, child));
     }
 
     return {removed, added};
@@ -364,7 +361,7 @@ export default class Graph<TNode: Node> {
       graph.addNode(node);
 
       for (let to of this.outboundEdges.get(node.id)) {
-        graph.addEdge({from: node.id, to});
+        graph.addEdge(node.id, to);
       }
     }, node);
 

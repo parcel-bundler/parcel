@@ -28,9 +28,8 @@ describe('Graph', () => {
 
   it('addEdge should add an edge to the graph', () => {
     let graph = new Graph();
-    let edge = {from: 'a', to: 'b'};
-    graph.addEdge(edge);
-    assert(graph.hasEdge(edge));
+    graph.addEdge('a', 'b');
+    assert(graph.hasEdge('a', 'b'));
   });
 
   it('isOrphanedNode should return true or false if the node is orphaned or not', () => {
@@ -39,7 +38,7 @@ describe('Graph', () => {
     let nodeB = {id: 'b', value: 'b'};
     graph.addNode(nodeA);
     graph.addNode(nodeB);
-    graph.addEdge({from: 'a', to: 'b'});
+    graph.addEdge('a', 'b');
     assert(graph.isOrphanedNode(nodeA));
     assert(!graph.isOrphanedNode(nodeB));
   });
@@ -50,20 +49,24 @@ describe('Graph', () => {
     graph.addNode({id: 'b', value: 'b'});
     graph.addNode({id: 'c', value: 'c'});
     graph.addNode({id: 'd', value: 'd'});
-    let edgeAB = graph.addEdge({from: 'a', to: 'b'});
-    let edgeAD = graph.addEdge({from: 'a', to: 'd'});
-    let edgeBC = graph.addEdge({from: 'b', to: 'c'});
-    let edgeBD = graph.addEdge({from: 'b', to: 'd'});
+    graph.addEdge('a', 'b');
+    graph.addEdge('a', 'd');
+    graph.addEdge('b', 'c');
+    graph.addEdge('b', 'd');
 
-    let removed = graph.removeEdge(edgeAB);
+    let removed = graph.removeEdge('a', 'b');
     assert(graph.nodes.has('a'));
     assert(graph.nodes.has('d'));
     assert(!graph.nodes.has('b'));
     assert(!graph.nodes.has('c'));
-    assert.deepEqual(graph.getAllEdges(), [edgeAD]);
+    assert.deepEqual(graph.getAllEdges(), [{from: 'a', to: 'd'}]);
     assert(removed.nodes.has('b'));
     assert(removed.nodes.has('c'));
-    assert.deepEqual(removed.getAllEdges(), [edgeAB, edgeBC, edgeBD]);
+    assert.deepEqual(removed.getAllEdges(), [
+      {from: 'a', to: 'b'},
+      {from: 'b', to: 'c'},
+      {from: 'b', to: 'd'}
+    ]);
   });
 
   it("updateNodeDownStream should update a node's downstream nodes", () => {
@@ -71,20 +74,21 @@ describe('Graph', () => {
     let nodeA = graph.addNode({id: 'a', value: 'a'});
     let nodeB = graph.addNode({id: 'b', value: 'b'});
     graph.addNode({id: 'c', value: 'c'});
-    let edgeAB = graph.addEdge({from: 'a', to: 'b'});
-    let edgeAC = graph.addEdge({from: 'a', to: 'c'});
+    graph.addEdge('a', 'b');
+    graph.addEdge('a', 'c');
 
     let nodeD = {id: 'd', value: 'd'};
-    let edgeAD = {from: 'a', to: 'd'};
-
     let {removed} = graph.replaceNodesConnectedTo(nodeA, [nodeB, nodeD]);
 
     assert(graph.nodes.has('a'));
     assert(graph.nodes.has('b'));
     assert(!graph.nodes.has('c'));
     assert(graph.nodes.has('d'));
-    assert.deepEqual(graph.getAllEdges(), [edgeAB, edgeAD]);
+    assert.deepEqual(graph.getAllEdges(), [
+      {from: 'a', to: 'b'},
+      {from: 'a', to: 'd'}
+    ]);
     assert(removed.nodes.has('c'));
-    assert.deepEqual(removed.getAllEdges(), [edgeAC]);
+    assert.deepEqual(removed.getAllEdges(), [{from: 'a', to: 'c'}]);
   });
 });
