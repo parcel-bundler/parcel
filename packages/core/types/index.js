@@ -301,31 +301,31 @@ export interface TransformerResult {
 type Async<T> = T | Promise<T>;
 
 export type Transformer = {
-  getConfig?: (
+  getConfig?: ({
     asset: MutableAsset,
-    opts: ParcelOptions
-  ) => Async<Config | void>,
-  canReuseAST?: (ast: AST, opts: ParcelOptions) => boolean,
-  parse?: (
-    asset: MutableAsset,
-    config: ?Config,
-    opts: ParcelOptions
-  ) => Async<?AST>,
-  transform(
+    options: ParcelOptions
+  }) => Async<Config | void>,
+  canReuseAST?: ({ast: AST, options: ParcelOptions}) => boolean,
+  parse?: ({
     asset: MutableAsset,
     config: ?Config,
-    opts: ParcelOptions
-  ): Async<Array<TransformerResult | MutableAsset>>,
-  generate?: (
+    options: ParcelOptions
+  }) => Async<?AST>,
+  transform({
     asset: MutableAsset,
     config: ?Config,
-    opts: ParcelOptions
-  ) => Async<GenerateOutput>,
-  postProcess?: (
+    options: ParcelOptions
+  }): Async<Array<TransformerResult | MutableAsset>>,
+  generate?: ({
+    asset: MutableAsset,
+    config: ?Config,
+    options: ParcelOptions
+  }) => Async<GenerateOutput>,
+  postProcess?: ({
     assets: Array<MutableAsset>,
     config: ?Config,
-    opts: ParcelOptions
-  ) => Async<Array<TransformerResult>>
+    options: ParcelOptions
+  }) => Async<Array<TransformerResult>>
 };
 
 export interface TraversalActions {
