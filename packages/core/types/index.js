@@ -461,11 +461,11 @@ export type RuntimeAsset = {|
 |};
 
 export type Runtime = {|
-  apply(
+  apply({
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
-    opts: ParcelOptions
-  ): Async<void | RuntimeAsset | Array<RuntimeAsset>>
+    options: ParcelOptions
+  }): Async<void | RuntimeAsset | Array<RuntimeAsset>>
 |};
 
 export type Packager = {|

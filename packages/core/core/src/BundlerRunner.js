@@ -111,11 +111,11 @@ export default class BundlerRunner {
     for (let bundle of bundles) {
       let runtimes = await this.config.getRuntimes(bundle.env.context);
       for (let runtime of runtimes) {
-        let applied = await runtime.apply(
+        let applied = await runtime.apply({
           bundle,
-          new BundleGraph(bundleGraph),
-          this.options
-        );
+          bundleGraph: new BundleGraph(bundleGraph),
+          options: this.options
+        });
         if (applied) {
           await this.addRuntimesToBundle(
             bundle.id,
