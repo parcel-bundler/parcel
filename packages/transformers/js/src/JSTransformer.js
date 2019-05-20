@@ -34,11 +34,11 @@ function canHaveDependencies(code) {
 }
 
 export default new Transformer({
-  canReuseAST(ast) {
+  canReuseAST({ast}) {
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  async parse(asset, config, options) {
+  async parse({asset, options}) {
     let code = await asset.getCode();
     if (
       !options.scopeHoist &&
@@ -63,7 +63,7 @@ export default new Transformer({
     };
   },
 
-  async transform(asset, config, options) {
+  async transform({asset, options}) {
     asset.type = 'js';
     if (!asset.ast) {
       return [asset];
@@ -129,7 +129,7 @@ export default new Transformer({
     return [asset];
   },
 
-  async generate(asset /*, config, options*/) {
+  async generate({asset}) {
     let code = await asset.getCode();
     let res = {
       code

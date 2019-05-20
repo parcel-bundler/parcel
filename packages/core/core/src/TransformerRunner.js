@@ -192,10 +192,10 @@ export default class TransformerRunner {
     // Load config for the transformer.
     let config = null;
     if (transformer.getConfig) {
-      config = await transformer.getConfig(
-        new MutableAsset(input),
-        this.options
-      );
+      config = await transformer.getConfig({
+        asset: new MutableAsset(input),
+        options: this.options
+      });
     }
 
     // If an ast exists on the input, but we cannot reuse it,
@@ -203,7 +203,7 @@ export default class TransformerRunner {
     if (
       input.ast &&
       (!transformer.canReuseAST ||
-        !transformer.canReuseAST(input.ast, this.options)) &&
+        !transformer.canReuseAST({ast: input.ast, options: this.options})) &&
       previousGenerate
     ) {
       let output = await previousGenerate(new MutableAsset(input));
@@ -213,23 +213,31 @@ export default class TransformerRunner {
 
     // Parse if there is no AST available from a previous transform.
     if (!input.ast && transformer.parse) {
-      input.ast = await transformer.parse(
-        new MutableAsset(input),
+      input.ast = await transformer.parse({
+        asset: new MutableAsset(input),
         config,
-        this.options
-      );
+        options: this.options
+      });
     }
 
     // Transform.
     let results = normalizeAssets(
       // $FlowFixMe
-      await transformer.transform(new MutableAsset(input), config, this.options)
+      await transformer.transform({
+        asset: new MutableAsset(input),
+        config,
+        options: this.options
+      })
     );
 
     // Create a generate function that can be called later to lazily generate
     let generate = async (input: IMutableAsset): Promise<GenerateOutput> => {
       if (transformer.generate) {
-        return transformer.generate(input, config, this.options);
+        return transformer.generate({
+          asset: input,
+          config,
+          options: this.options
+        });
       }
 
       throw new Error(
@@ -243,11 +251,11 @@ export default class TransformerRunner {
     ): Promise<Array<InternalAsset> | null> => {
       let {postProcess} = transformer;
       if (postProcess) {
-        let results = await postProcess(
-          assets.map(asset => new MutableAsset(asset)),
+        let results = await postProcess({
+          assets: assets.map(asset => new MutableAsset(asset)),
           config,
-          this.options
-        );
+          options: this.options
+        });
 
         return Promise.all(
           results.map(result => input.createChildAsset(result))

@@ -16,11 +16,11 @@ function canHaveDependencies(filePath: FilePath, code: string) {
 }
 
 export default new Transformer({
-  canReuseAST(ast) {
+  canReuseAST({ast}) {
     return ast.type === 'postcss' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  async parse(asset) {
+  async parse({asset}) {
     let code = await asset.getCode();
     if (!canHaveDependencies(asset.filePath, code)) {
       return null;
@@ -37,7 +37,7 @@ export default new Transformer({
     };
   },
 
-  transform(asset) {
+  transform({asset}) {
     let ast = asset.ast;
     if (!ast) {
       return [asset];
@@ -117,7 +117,7 @@ export default new Transformer({
     return [asset];
   },
 
-  async generate(asset) {
+  async generate({asset}) {
     let code;
     if (!asset.ast || !asset.ast.isDirty) {
       code = await asset.getCode();
