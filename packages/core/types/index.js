@@ -447,11 +447,11 @@ export type Bundler = {|
 |};
 
 export type Namer = {|
-  name(
+  name({
     bundle: Bundle,
     bundleGraph: BundleGraph,
-    opts: ParcelOptions
-  ): Async<?FilePath>
+    options: ParcelOptions
+  }): Async<?FilePath>
 |};
 
 export type RuntimeAsset = {|

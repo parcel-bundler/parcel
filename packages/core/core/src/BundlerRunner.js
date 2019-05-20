@@ -78,7 +78,7 @@ export default class BundlerRunner {
     let bundleGraph = new BundleGraph(internalBundleGraph);
 
     for (let namer of namers) {
-      let name = await namer.name(bundle, bundleGraph, this.options);
+      let name = await namer.name({bundle, bundleGraph, options: this.options});
 
       if (name != null) {
         if (path.extname(name).slice(1) !== bundle.type) {
