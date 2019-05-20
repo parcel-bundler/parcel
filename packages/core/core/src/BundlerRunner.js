@@ -39,11 +39,11 @@ export default class BundlerRunner {
     let bundler = await this.config.getBundler();
 
     let bundleGraph = new InternalBundleGraph();
-    await bundler.bundle(
-      new MainAssetGraph(graph),
-      new MutableBundleGraph(bundleGraph),
-      this.options
-    );
+    await bundler.bundle({
+      assetGraph: new MainAssetGraph(graph),
+      bundleGraph: new MutableBundleGraph(bundleGraph),
+      options: this.options
+    });
     await this.nameBundles(bundleGraph);
     await this.applyRuntimes(bundleGraph);
 
