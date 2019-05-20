@@ -46,7 +46,7 @@ export default class ResolverRunner {
     let resolvers = await this.config.getResolvers();
 
     for (let resolver of resolvers) {
-      let result = await resolver.resolve(dependency, this.options);
+      let result = await resolver.resolve({dependency, options: this.options});
 
       if (result) {
         this.cache.set(key, result);
