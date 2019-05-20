@@ -469,11 +469,11 @@ export type Runtime = {|
 |};
 
 export type Packager = {|
-  package(
+  package({
     bundle: Bundle,
     bundleGraph: BundleGraph,
-    opts: ParcelOptions
-  ): Async<Blob>
+    options: ParcelOptions
+  }): Async<Blob>
 |};
 
 export type Optimizer = {|
