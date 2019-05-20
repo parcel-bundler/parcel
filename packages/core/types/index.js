@@ -439,11 +439,11 @@ export interface MutableBundleGraph {
 }
 
 export type Bundler = {|
-  bundle(
-    graph: MainAssetGraph,
+  bundle({
+    assetGraph: MainAssetGraph,
     bundleGraph: MutableBundleGraph,
-    opts: ParcelOptions
-  ): Async<void>
+    options: ParcelOptions
+  }): Async<void>
 |};
 
 export type Namer = {|
