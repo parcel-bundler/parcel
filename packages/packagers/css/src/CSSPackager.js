@@ -3,7 +3,7 @@
 import {Packager} from '@parcel/plugin';
 
 export default new Packager({
-  async package(bundle) {
+  async package({bundle}) {
     let promises = [];
     bundle.traverseAssets({
       exit: asset => {

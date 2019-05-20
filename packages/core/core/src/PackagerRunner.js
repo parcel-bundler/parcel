@@ -74,11 +74,11 @@ export default class PackagerRunner {
     });
 
     let packager = await this.config.getPackager(bundle.filePath);
-    let packageContent = await packager.package(
+    let packageContent = await packager.package({
       bundle,
-      new BundleGraph(bundleGraph),
-      this.options
-    );
+      bundleGraph: new BundleGraph(bundleGraph),
+      options: this.options
+    });
 
     return typeof packageContent === 'string'
       ? replaceReferences(
