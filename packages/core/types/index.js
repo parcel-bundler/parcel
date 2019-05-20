@@ -477,7 +477,9 @@ export type Packager = {|
 |};
 
 export type Optimizer = {|
-  optimize(bundle: Bundle, contents: Blob, opts: ParcelOptions): Async<Blob>
+  optimize({bundle: Bundle, contents: Blob, options: ParcelOptions}): Async<
+    Blob
+  >
 |};
 
 export type Resolver = {|

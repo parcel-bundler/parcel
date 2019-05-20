@@ -105,7 +105,11 @@ export default class PackagerRunner {
     });
 
     for (let optimizer of optimizers) {
-      contents = await optimizer.optimize(bundle, contents, this.options);
+      contents = await optimizer.optimize({
+        bundle,
+        contents,
+        options: this.options
+      });
     }
 
     return contents;
@@ -116,7 +120,7 @@ export default class PackagerRunner {
  * Build a mapping from async, url dependency ids to web-friendly relative paths
  * to their bundles. These will be relative to the current bundle if `publicUrl`
  * is not provided. If `publicUrl` is provided, the paths will be joined to it.
- * 
+ *
  * These are used to translate any placeholder dependency ids written during
  * transformation back to a path that can be loaded in a browser (such as
  * in a "raw" loader or any transformed dependencies referred to by url).
