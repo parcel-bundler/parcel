@@ -11,15 +11,6 @@ describe('Graph', () => {
     assert.deepEqual(graph.getAllEdges(), []);
   });
 
-  it('throws when constructed with duplicate edges', () => {
-    assert.throws(() => {
-      new Graph({
-        nodes: [['a', {id: 'a', value: 'b'}], ['b', {id: 'b', value: 'b'}]],
-        edges: [{from: 'a', to: 'b'}, {from: 'a', to: 'b'}]
-      });
-    }, /Graph already has edge from a to b/);
-  });
-
   it('addNode should add a node to the graph', () => {
     let graph = new Graph();
     let node = {id: 'a', value: 'a'};
