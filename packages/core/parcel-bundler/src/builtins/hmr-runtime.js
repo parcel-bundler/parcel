@@ -85,6 +85,10 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
       var overlay = createErrorOverlay(data);
       document.body.appendChild(overlay);
     }
+
+    if (data.type === 'close') {
+      window.close();
+    }
   };
 }
 

@@ -33,6 +33,7 @@ program
     '--open [browser]',
     'automatically open in specified browser, defaults to default browser'
   )
+  .option('--autoclose', 'automatically close the browser tab opened by Parcel')
   .option(
     '-d, --out-dir <path>',
     'set the output directory. defaults to "dist"'

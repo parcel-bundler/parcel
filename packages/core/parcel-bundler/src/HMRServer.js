@@ -26,6 +26,7 @@ class HMRServer {
         }`;
       }
 
+      this.autoclose = options.autoclose;
       this.wss = new WebSocket.Server(websocketOptions);
       this.server.listen(options.hmrPort, resolve);
     });
@@ -43,6 +44,11 @@ class HMRServer {
   }
 
   stop() {
+    if (this.autoclose) {
+      this.broadcast({
+        type: 'close'
+      });
+    }
     this.wss.close();
     this.server.close();
   }
