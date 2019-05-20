@@ -227,6 +227,11 @@ export type TransformerRequest = {
   code?: string
 };
 
+export type AssetGroup = {|
+  filePath: FilePath,
+  env: Environment
+|};
+
 interface BaseAsset {
   +ast: ?AST;
   +env: Environment;

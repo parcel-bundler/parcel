@@ -30,23 +30,17 @@ export default async function dumpGraphToGraphViz(
   ) {
     return;
   }
-
   const graphviz = require('graphviz');
   const tempy = require('tempy');
-
   let g = graphviz.digraph('G');
-
   let nodes = Array.from(graph.nodes.values());
   for (let node of nodes) {
     let n = g.addNode(node.id);
-
     // $FlowFixMe default is fine. Not every type needs to be in the map.
     n.set('color', COLORS[node.type || 'default']);
     n.set('shape', 'box');
     n.set('style', 'filled');
-
     let label = `${node.type || 'No Type'}: `;
-
     if (node.type === 'dependency') {
       label += node.value.moduleSpecifier;
       let parts = [];
@@ -75,7 +69,6 @@ export default async function dumpGraphToGraphViz(
           if (index >= 0) {
             return parts[index + 1];
           }
-
           return path.basename(asset.value.filePath);
         })
         .join(', ');
@@ -83,20 +76,15 @@ export default async function dumpGraphToGraphViz(
       // label += node.id;
       label = node.type;
     }
-
     n.set('label', label);
   }
-
-  for (let edge of graph.edges) {
+  for (let edge of graph.getAllEdges()) {
     g.addEdge(edge.from, edge.to);
   }
-
   let tmp = tempy.file({name: `${name}.png`});
-
   await g.output('png', tmp);
   // eslint-disable-next-line no-console
   console.log('Dumped', tmp);
-
   if (graph instanceof BundleGraph) {
     graph.traverseBundles(bundle => {
       dumpGraphToGraphViz(bundle.assetGraph, bundle.id);

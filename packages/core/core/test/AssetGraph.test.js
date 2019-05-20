@@ -1,7 +1,7 @@
 // @flow
 
 import assert from 'assert';
-import AssetGraph, {nodeFromTransformerRequest} from '../src/AssetGraph';
+import AssetGraph, {nodeFromTransformerRequest} from '../src/OldAssetGraph';
 import Dependency from '../src/Dependency';
 import Asset from '../src/Asset';
 import Environment from '../src/Environment';

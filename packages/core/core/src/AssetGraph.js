@@ -1,291 +1,63 @@
 // @flow strict-local
 
-import type {
-  AssetGraphNode,
-  CacheEntry,
-  DependencyNode,
-  FileNode,
-  NodeId,
-  RootNode
-} from './types';
+import invariant from 'assert';
+import nullthrows from 'nullthrows';
 
 import type {
   Dependency as IDependency,
-  File,
-  FilePath,
-  Target,
+  //AssetGroup,
   GraphVisitor,
   Symbol,
-  SymbolResolution,
-  TransformerRequest
+  SymbolResolution
 } from '@parcel/types';
+//import {md5FromString} from '@parcel/utils';
 
+import type {/*DependencyNode,*/ AssetGraphNode, NodeId} from './types';
 import type Asset from './Asset';
-
-import invariant from 'assert';
-import nullthrows from 'nullthrows';
 import Graph from './Graph';
-import {md5FromString} from '@parcel/utils';
-import Dependency from './Dependency';
 
-export const nodeFromRootDir = (rootDir: string): RootNode => ({
-  id: rootDir,
-  type: 'root',
-  value: rootDir
-});
+// const hashObject = obj => {
+//   return md5FromString(JSON.stringify(obj));
+// };
 
-export const nodeFromDep = (dep: IDependency): DependencyNode => ({
-  id: dep.id,
-  type: 'dependency',
-  value: dep
-});
+// const nodeFromDep = (dep: IDependency): DependencyNode => ({
+//   id: 'dependency:' + dep.id,
+//   type: 'dependency',
+//   value: dep
+// });
 
-export const nodeFromFile = (file: File): FileNode => ({
-  id: file.filePath,
-  type: 'file',
-  value: file
-});
+// const nodeFromAssetGroup = (assetGroup: AssetGroup) => ({
+//   id: 'asset_group:' + hashObject(assetGroup),
+//   type: 'asset_group',
+//   value: assetGroup
+// });
 
-export const nodeFromTransformerRequest = (req: TransformerRequest) => ({
-  id: md5FromString(`${req.filePath}:${JSON.stringify(req.env)}`),
-  type: 'transformer_request',
-  value: req
-});
+// const nodeFromAsset = (asset: Asset) => ({
+//   id: 'asset:' + asset.id,
+//   type: 'asset',
+//   value: asset
+// });
 
-export const nodeFromAsset = (asset: Asset) => ({
-  id: asset.id,
-  type: 'asset',
-  value: asset
-});
-
-const getFileNodesFromGraph = (
-  graph: Graph<AssetGraphNode>
-): Array<FileNode> => {
-  // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414
-  return Array.from(graph.nodes.values()).filter(node => node.type === 'file');
-};
-
-const getFilesFromGraph = (graph: Graph<AssetGraphNode>): Array<File> => {
-  return getFileNodesFromGraph(graph).map(node => node.value);
-};
-
-const getDepNodesFromGraph = (
-  graph: Graph<AssetGraphNode>
-): Array<DependencyNode> => {
-  // $FlowFixMe Flow can't refine on filter https://github.com/facebook/flow/issues/1414
-  return Array.from(graph.nodes.values()).filter(
-    node => node.type === 'dependency'
-  );
-};
-
-const invertMap = <K, V>(map: Map<K, V>): Map<V, K> =>
-  new Map([...map].map(([key, val]) => [val, key]));
-
-type DepUpdates = {|
-  newRequest?: TransformerRequest,
-  prunedFiles: Array<File>
-|};
-
-type FileUpdates = {|
-  newDeps: Array<IDependency>,
-  addedFiles: Array<File>,
-  removedFiles: Array<File>
-|};
-
-type AssetGraphOpts = {|
-  entries?: Array<string>,
-  targets?: Array<Target>,
-  transformerRequest?: TransformerRequest,
-  rootDir: string
-|};
-
-/**
- * AssetGraph is a Graph with some extra rules.
- *  * Nodes can only have one of the following types "root", "dependency", "file", "asset"
- *  * There is one root node that represents the root directory
- *  * The root note has edges to dependency nodes for each entry file
- *  * A dependency node should have an edge to exactly one file node
- *  * A file node can have one to many edges to asset nodes which can have zero to many edges dependency nodes
- */
 export default class AssetGraph extends Graph<AssetGraphNode> {
-  incompleteNodes: Map<NodeId, AssetGraphNode> = new Map();
-  invalidNodes: Map<NodeId, AssetGraphNode> = new Map();
-  deferredNodes: Set<NodeId> = new Set();
+  // resolveDependency(dependency, assetGroup) {
+  //   let depNode = this.nodes.get('dependency:' + dependency.id);
+  //   let assetGroupNode = nodeFromAssetGroup(assetGroup);
+  //   this.replaceNodesConnectedTo(depNode, [assetGroupNode]);
+  // }
 
-  initializeGraph({
-    entries,
-    targets,
-    transformerRequest,
-    rootDir
-  }: AssetGraphOpts) {
-    let rootNode = nodeFromRootDir(rootDir);
-    this.setRootNode(rootNode);
-
-    let nodes = [];
-    if (entries) {
-      if (!targets) {
-        throw new Error('Targets are required when entries are specified');
-      }
-
-      for (let entry of entries) {
-        for (let target of targets) {
-          let node = nodeFromDep(
-            new Dependency({
-              moduleSpecifier: entry,
-              target: target,
-              env: target.env,
-              isEntry: true
-            })
-          );
-
-          nodes.push(node);
-        }
-      }
-    } else if (transformerRequest) {
-      let node = nodeFromTransformerRequest(transformerRequest);
-      nodes.push(node);
-    }
-
-    this.replaceNodesConnectedTo(rootNode, nodes);
-    for (let depNode of nodes) {
-      this.incompleteNodes.set(depNode.id, depNode);
-    }
-  }
-
-  removeNode(node: AssetGraphNode): this {
-    this.incompleteNodes.delete(node.id);
-    return super.removeNode(node);
-  }
-
-  /**
-   * Marks a dependency as resolved, and connects it to a transformer
-   * request node for the file it was resolved to.
-   */
-  resolveDependency(dep: IDependency, req: TransformerRequest): DepUpdates {
-    let newRequest;
-
-    let depNode = nodeFromDep(dep);
-    this.incompleteNodes.delete(depNode.id);
-    this.invalidNodes.delete(depNode.id);
-
-    let requestNode = nodeFromTransformerRequest(req);
-    let {added, removed} = this.replaceNodesConnectedTo(depNode, [requestNode]);
-
-    // Defer transforming this dependency if it is marked as weak, there are no side effects,
-    // and no re-exported symbols are used by ancestor dependencies.
-    // This helps with performance building large libraries like `lodash-es`, which re-exports
-    // a huge number of functions since we can avoid even transforming the files that aren't used.
-    let defer = false;
-    if (dep.isWeak && req.sideEffects === false) {
-      let assets = this.getNodesConnectedTo(depNode);
-      let symbols = invertMap(dep.symbols);
-      invariant(
-        assets[0].type === 'asset' || assets[0].type === 'asset_reference'
-      );
-      let resolvedAsset = assets[0].value;
-      let deps = this.getAncestorDependencies(resolvedAsset);
-      defer = deps.every(
-        d =>
-          !d.symbols.has('*') &&
-          ![...d.symbols.keys()].some(symbol => {
-            let assetSymbol = resolvedAsset.symbols.get(symbol);
-            return assetSymbol != null && symbols.has(assetSymbol);
-          })
-      );
-    }
-
-    if (added.nodes.size) {
-      this.deferredNodes.add(requestNode.id);
-    }
-
-    if (!defer && this.deferredNodes.has(requestNode.id)) {
-      newRequest = req;
-      this.incompleteNodes.set(requestNode.id, requestNode);
-      this.deferredNodes.delete(requestNode.id);
-    }
-
-    let prunedFiles = getFilesFromGraph(removed);
-    return {newRequest, prunedFiles};
-  }
-
-  /**
-   * Marks a transformer request as resolved, and connects it to asset and file
-   * nodes for the generated assets and connected files.
-   */
-  resolveTransformerRequest(
-    req: TransformerRequest,
-    cacheEntry: CacheEntry
-  ): FileUpdates {
-    let newDepNodes: Array<DependencyNode> = [];
-
-    let requestNode = nodeFromTransformerRequest(req);
-    this.incompleteNodes.delete(requestNode.id);
-    this.invalidNodes.delete(requestNode.id);
-
-    // Get connected files from each asset and connect them to the file node
-    let fileNodes = [];
-    for (let asset of cacheEntry.assets) {
-      let files = asset.getConnectedFiles().map(file => nodeFromFile(file));
-      fileNodes = fileNodes.concat(files);
-    }
-
-    // Add a file node for the file that the transformer request resolved to
-    fileNodes.push(
-      nodeFromFile({
-        filePath: req.filePath
-      })
-    );
-
-    let assetNodes = cacheEntry.assets.map(asset => nodeFromAsset(asset));
-    let {added, removed} = this.replaceNodesConnectedTo(requestNode, [
-      ...assetNodes,
-      ...fileNodes
-    ]);
-
-    let addedFiles = getFilesFromGraph(added);
-    let removedFiles = getFilesFromGraph(removed);
-
-    for (let assetNode of assetNodes) {
-      let depNodes = assetNode.value.getDependencies().map(dep => {
-        let node = this.getNode(dep.id);
-        if (node && node.type === 'dependency') {
-          node.value.merge(dep);
-          return node;
-        }
-
-        return nodeFromDep(dep);
-      });
-      let {removed, added} = this.replaceNodesConnectedTo(assetNode, depNodes);
-      removedFiles = removedFiles.concat(getFilesFromGraph(removed));
-      newDepNodes = newDepNodes.concat(getDepNodesFromGraph(added));
-    }
-
-    for (let depNode of newDepNodes) {
-      this.incompleteNodes.set(depNode.id, depNode);
-    }
-
-    let newDeps = newDepNodes.map(node => node.value);
-
-    return {newDeps, addedFiles, removedFiles};
-  }
-
-  invalidateNode(node: AssetGraphNode) {
-    this.invalidNodes.set(node.id, node);
-  }
-
-  invalidateFile(filePath: FilePath) {
-    let node = this.getNode(filePath);
-    if (!node || node.type !== 'file') {
-      return;
-    }
-
-    // Invalidate all file nodes connected to this node.
-    for (let connectedNode of this.getNodesConnectedTo(node)) {
-      if (connectedNode.type === 'transformer_request') {
-        this.invalidateNode(connectedNode);
-      }
-    }
-  }
+  // resolveAssetGroup(assetGroup, assets) {
+  //   let assetGroupNode = this.nodes.get(assetGroup.id);
+  //   let assetNodes = assets.map(asset => nodeFromAsset(asset));
+  //   this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
+  //   for (let assetNode of assetNodes) {
+  //     let depNodes = [];
+  //     for (let dep of assetNode.value.dependencies) {
+  //       let depNode = nodeFromDep(dep);
+  //       depNodes.push(this.nodes.get(depNode.id) || depNode);
+  //     }
+  //     this.replaceNodesConnectedTo(assetNode, depNodes);
+  //   }
+  // }
 
   getDependencies(asset: Asset): Array<IDependency> {
     let node = this.getNode(asset.id);
