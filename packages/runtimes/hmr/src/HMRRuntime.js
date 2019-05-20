@@ -8,7 +8,7 @@ import path from 'path';
 const HMR_RUNTIME = './loaders/hmr-runtime.js';
 
 export default new Runtime({
-  async apply(bundle, bundleGraph, options) {
+  async apply({bundle, options}) {
     if (bundle.type !== 'js' || !options.hot) {
       return;
     }
