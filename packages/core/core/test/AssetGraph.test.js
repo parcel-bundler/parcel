@@ -85,40 +85,20 @@ describe('AssetGraph', () => {
 
     graph.resolveDependency(dep, req);
     assert(graph.nodes.has(nodeFromTransformerRequest(req).id));
-    assert(
-      graph.hasEdge({
-        from: dep.id,
-        to: nodeFromTransformerRequest(req).id
-      })
-    );
+    assert(graph.hasEdge(dep.id, nodeFromTransformerRequest(req).id));
     assert(graph.incompleteNodes.has(nodeFromTransformerRequest(req).id));
 
     let req2 = {filePath: '/index.jsx', env: DEFAULT_ENV};
     graph.resolveDependency(dep, req2);
     assert(!graph.nodes.has(nodeFromTransformerRequest(req).id));
     assert(graph.nodes.has(nodeFromTransformerRequest(req2).id));
-    assert(
-      graph.hasEdge({
-        from: dep.id,
-        to: nodeFromTransformerRequest(req2).id
-      })
-    );
-    assert(
-      !graph.hasEdge({
-        from: dep.id,
-        to: nodeFromTransformerRequest(req).id
-      })
-    );
+    assert(graph.hasEdge(dep.id, nodeFromTransformerRequest(req2).id));
+    assert(!graph.hasEdge(dep.id, nodeFromTransformerRequest(req).id));
     assert(graph.incompleteNodes.has(nodeFromTransformerRequest(req2).id));
 
     graph.resolveDependency(dep, req2);
     assert(graph.nodes.has(nodeFromTransformerRequest(req2).id));
-    assert(
-      graph.hasEdge({
-        from: dep.id,
-        to: nodeFromTransformerRequest(req2).id
-      })
-    );
+    assert(graph.hasEdge(dep.id, nodeFromTransformerRequest(req2).id));
     assert(graph.incompleteNodes.has(nodeFromTransformerRequest(req2).id));
   });
 
@@ -205,42 +185,12 @@ describe('AssetGraph', () => {
     assert(graph.nodes.has(assets[0].getDependencies()[0].id));
     assert(graph.nodes.has(assets[1].getDependencies()[0].id));
     assert(graph.nodes.has('/index.js'));
-    assert(
-      graph.hasEdge({
-        from: nodeFromTransformerRequest(req).id,
-        to: '1'
-      })
-    );
-    assert(
-      graph.hasEdge({
-        from: nodeFromTransformerRequest(req).id,
-        to: '2'
-      })
-    );
-    assert(
-      graph.hasEdge({
-        from: nodeFromTransformerRequest(req).id,
-        to: '3'
-      })
-    );
-    assert(
-      graph.hasEdge({
-        from: nodeFromTransformerRequest(req).id,
-        to: filePath
-      })
-    );
-    assert(
-      graph.hasEdge({
-        from: '1',
-        to: assets[0].getDependencies()[0].id
-      })
-    );
-    assert(
-      graph.hasEdge({
-        from: '2',
-        to: assets[1].getDependencies()[0].id
-      })
-    );
+    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, '1'));
+    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, '2'));
+    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, '3'));
+    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, filePath));
+    assert(graph.hasEdge('1', assets[0].getDependencies()[0].id));
+    assert(graph.hasEdge('2', assets[1].getDependencies()[0].id));
     assert(!graph.incompleteNodes.has(nodeFromTransformerRequest(req).id));
     assert(
       graph.incompleteNodes.has(
@@ -307,42 +257,12 @@ describe('AssetGraph', () => {
     assert(!graph.nodes.has('3'));
     assert(graph.nodes.has(assets[0].getDependencies()[0].id));
     assert(!graph.nodes.has(assets[1].getDependencies()[0].id));
-    assert(
-      graph.hasEdge({
-        from: nodeFromTransformerRequest(req).id,
-        to: '1'
-      })
-    );
-    assert(
-      graph.hasEdge({
-        from: nodeFromTransformerRequest(req).id,
-        to: '2'
-      })
-    );
-    assert(
-      !graph.hasEdge({
-        from: nodeFromTransformerRequest(req).id,
-        to: '3'
-      })
-    );
-    assert(
-      graph.hasEdge({
-        from: nodeFromTransformerRequest(req).id,
-        to: filePath
-      })
-    );
-    assert(
-      graph.hasEdge({
-        from: '1',
-        to: assets[0].getDependencies()[0].id
-      })
-    );
-    assert(
-      !graph.hasEdge({
-        from: '2',
-        to: assets[1].getDependencies()[0].id
-      })
-    );
+    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, '1'));
+    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, '2'));
+    assert(!graph.hasEdge(nodeFromTransformerRequest(req).id, '3'));
+    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, filePath));
+    assert(graph.hasEdge('1', assets[0].getDependencies()[0].id));
+    assert(!graph.hasEdge('2', assets[1].getDependencies()[0].id));
     assert(!graph.incompleteNodes.has(nodeFromTransformerRequest(req).id));
     assert(
       graph.incompleteNodes.has(
@@ -416,9 +336,7 @@ describe('AssetGraph', () => {
     graph.resolveTransformerRequest(req, cacheEntry);
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('/foo/bar'));
-    assert(graph.hasEdge({from: nodeFromTransformerRequest(req).id, to: '1'}));
-    assert(
-      graph.hasEdge({from: nodeFromTransformerRequest(req).id, to: '/foo/bar'})
-    );
+    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, '1'));
+    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, '/foo/bar'));
   });
 });

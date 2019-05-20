@@ -33,10 +33,7 @@ export default class MainAssetGraph implements IMainAssetGraph {
       value: null
     });
 
-    graph.addEdge({
-      from: 'root',
-      to: assetNode.id
-    });
+    graph.addEdge('root', assetNode.id);
 
     // Prune assets that don't match the bundle type when including the asset's
     // subgraph. These are replaced with asset references, but the concrete assets
