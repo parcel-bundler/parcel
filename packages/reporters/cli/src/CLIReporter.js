@@ -7,10 +7,13 @@ import {render} from 'ink';
 import UI from './UI';
 
 let ui: ?UI;
-render(<UI ref={u => (ui = u)} />);
 
 export default new Reporter({
   report(event, options) {
+    if (!ui) {
+      render(<UI options={options} ref={u => (ui = u)} />);
+    }
+
     nullthrows(ui).report(event, options);
   }
 });
