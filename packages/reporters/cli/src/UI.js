@@ -75,13 +75,13 @@ function reducer(
         bundleGraph: null
       };
 
-    case 'buildProgress':
+    case 'buildProgress': {
       if (logLevel < logLevels.progress) {
         break;
       }
 
-      var message = getProgressMessage(event);
-      var progress = state.progress;
+      let message = getProgressMessage(event);
+      let progress = state.progress;
       if (message != null) {
         progress = {
           type: 'log',
@@ -94,13 +94,13 @@ function reducer(
         ...state,
         progress
       };
+    }
 
     case 'buildSuccess':
       if (logLevel < logLevels.info) {
         break;
       }
 
-      var time = prettifyTime(event.buildTime);
       return {
         ...state,
         progress: null,
@@ -110,7 +110,7 @@ function reducer(
           {
             type: 'log',
             level: 'success',
-            message: `Built in ${time}.`
+            message: `Built in ${prettifyTime(event.buildTime)}.`
           }
         ]
       };
@@ -133,7 +133,7 @@ function reducer(
         ]
       };
 
-    case 'log':
+    case 'log': {
       if (logLevel < logLevels[event.level]) {
         break;
       }
@@ -146,7 +146,7 @@ function reducer(
       }
 
       // Skip duplicate logs
-      var messages = new Set(state.logs.map(l => l.message));
+      let messages = new Set(state.logs.map(l => l.message));
       if (messages.has(event.message)) {
         break;
       }
@@ -155,6 +155,7 @@ function reducer(
         ...state,
         logs: [...state.logs, event]
       };
+    }
   }
 
   return state;
