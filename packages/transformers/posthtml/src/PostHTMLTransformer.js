@@ -15,23 +15,10 @@ const getPostHTMLConfig = async asset => {
       packageKey: 'posthtml'
     }
   );
-  if (!config && !asset.options.minify) {
-    return;
-  }
 
   config = config || {};
   const plugins = config.plugins;
-  if (typeof plugins === 'object') {
-    // This is deprecated in favor of result messages but kept for compatibility
-    // See https://github.com/posthtml/posthtml-include/blob/e4f2a57c2e52ff721eed747b65eddf7d7a1451e3/index.js#L18-L26
-    const depConfig = {
-      addDependencyTo: {
-        addDependency: name =>
-          asset.addDependency(name, {includedInParent: true})
-      }
-    };
-    Object.keys(plugins).forEach(p => Object.assign(plugins[p], depConfig));
-  }
+
   // TODO: find a way to load plugins
   // config.plugins = await loadPlugins(plugins, asset.name);
   config.skipParse = true;
@@ -39,15 +26,15 @@ const getPostHTMLConfig = async asset => {
 };
 
 export default new Transformer({
-  async getConfig(asset) {
+  async getConfig({asset}) {
     return getPostHTMLConfig(asset);
   },
 
-  canReuseAST(ast) {
+  canReuseAST({ast}) {
     return ast.type === 'posthtml' && semver.satisfies(ast.version, '^0.4.0');
   },
 
-  async parse(asset, config) {
+  async parse({asset, config}) {
     return {
       type: 'posthtml',
       version: '0.4.1',
@@ -55,8 +42,10 @@ export default new Transformer({
     };
   },
 
-  async transform(asset, config) {
-    await asset.parseIfNeeded();
+  async transform({asset, config}) {
+    if (!config) {
+      return [asset];
+    }
 
     let res = await posthtml(config.plugins).process(asset.ast, config);
 
@@ -66,7 +55,7 @@ export default new Transformer({
     return [asset];
   },
 
-  generate(asset) {
+  generate({asset}) {
     return {
       code: render(nullthrows(asset.ast).program)
     };
