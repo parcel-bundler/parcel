@@ -112,7 +112,7 @@ export default class Graph<TNode: Node> {
   }
 
   // Removes node and any edges coming from or to that node
-  removeNode(node: TNode): this {
+  removeNode(node: TNode): Graph<TNode> {
     let removed = new this.constructor();
 
     for (let from of this.inboundEdges.get(node.id)) {
@@ -127,6 +127,11 @@ export default class Graph<TNode: Node> {
     removed.addNode(node);
 
     return removed;
+  }
+
+  removeById(id: NodeId) {
+    let node = nullthrows(this.getNode(id));
+    this.removeNode(node);
   }
 
   removeEdges(node: TNode): this {

@@ -2,7 +2,7 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
 const logger = require('@parcel/logger');
-const {bundler, sleep} = require('@parcel/test-utils');
+const {bundler} = require('@parcel/test-utils');
 const http = require('http');
 const https = require('https');
 const getPort = require('get-port');
@@ -151,8 +151,6 @@ describe('server', function() {
 
     subscription = await b.watch();
     await getNextBuild(b);
-
-    await sleep(10000);
     await fs.writeFile(path.join(inputDir, 'local.js'), 'syntax\\error');
 
     // Await the second build failing (which means resolving with

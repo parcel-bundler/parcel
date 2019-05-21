@@ -6,7 +6,6 @@ import type {
   AST,
   Blob,
   Config,
-  Dependency as IDependency,
   DependencyOptions,
   Environment,
   File,
@@ -42,7 +41,7 @@ type AssetOptions = {|
   ast?: ?AST,
   map?: ?SourceMap,
   mapKey?: ?string,
-  dependencies?: Iterable<[string, IDependency]>,
+  dependencies?: Iterable<[string, Dependency]>,
   connectedFiles?: Iterable<[FilePath, File]>,
   isIsolated?: boolean,
   outputHash?: string,
@@ -57,7 +56,7 @@ type SerializedOptions = {|
   ...AssetOptions,
   ...{|
     connectedFiles: Array<[FilePath, File]>,
-    dependencies: Array<[string, IDependency]>
+    dependencies: Array<[string, Dependency]>
   |}
 |};
 
@@ -70,7 +69,7 @@ export default class Asset {
   ast: ?AST;
   map: ?SourceMap;
   mapKey: ?string;
-  dependencies: Map<string, IDependency>;
+  dependencies: Map<string, Dependency>;
   connectedFiles: Map<FilePath, File>;
   isIsolated: boolean;
   outputHash: string;
@@ -270,7 +269,7 @@ export default class Asset {
     return Array.from(this.connectedFiles.values());
   }
 
-  getDependencies(): Array<IDependency> {
+  getDependencies(): Array<Dependency> {
     return Array.from(this.dependencies.values());
   }
 
