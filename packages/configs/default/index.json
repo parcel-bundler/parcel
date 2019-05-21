@@ -7,7 +7,10 @@
       "@parcel/transformer-terser"
     ],
     "*.css": ["@parcel/transformer-css", "@parcel/transformer-postcss"],
-    "*.{htm,html}": ["@parcel/transformer-html"],
+    "*.{htm,html}": [
+      "@parcel/transformer-html",
+      "@parcel/transformer-posthtml"
+    ],
     "*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
