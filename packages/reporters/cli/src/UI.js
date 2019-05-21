@@ -15,13 +15,17 @@ import logLevels from './logLevels';
 import {getProgressMessage} from './utils';
 import BundleReport from './BundleReport';
 
-type UIState = {|
+type Props = {|
+  options: ParcelOptions
+|};
+
+type State = {|
   progress: ?ProgressLogEvent,
   logs: Array<LogEvent>,
   bundleGraph: ?BundleGraph
 |};
 
-export default class UI extends React.PureComponent<{}, UIState> {
+export default class UI extends React.PureComponent<Props, State> {
   state = {
     progress: null,
     logs: [],
@@ -38,7 +42,8 @@ export default class UI extends React.PureComponent<{}, UIState> {
           {this.state.progress ? (
             <Progress event={this.state.progress} />
           ) : null}
-          {this.state.bundleGraph ? (
+          {this.props.options.mode === 'production' &&
+          this.state.bundleGraph ? (
             <BundleReport bundleGraph={this.state.bundleGraph} />
           ) : null}
         </div>
@@ -52,11 +57,11 @@ export default class UI extends React.PureComponent<{}, UIState> {
 }
 
 function reducer(
-  state: UIState,
+  state: State,
   event: ReporterEvent,
   options: ParcelOptions
-): UIState {
-  let logLevel = logLevels[options.logLevel || 'info'];
+): State {
+  let logLevel = logLevels[options.logLevel];
 
   switch (event.type) {
     case 'buildStart':
@@ -99,7 +104,6 @@ function reducer(
       return {
         ...state,
         progress: null,
-        // bundleGraph: options.mode === 'production' ? event.bundleGraph : null,
         bundleGraph: event.bundleGraph,
         logs: [
           ...state.logs,
