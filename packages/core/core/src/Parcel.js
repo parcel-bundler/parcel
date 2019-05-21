@@ -279,14 +279,11 @@ export default class Parcel {
     invariant(this.#watcherSubscription == null);
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
-    let targetDirs = resolvedOptions.targets.map(target =>
-      path.resolve(target.distDir)
-    );
-    let cacheDir = path.resolve(resolvedOptions.cacheDir);
+    let targetDirs = resolvedOptions.targets.map(target => target.distDir);
     let vcsDirs = ['.git', '.hg'].map(dir =>
       path.join(resolvedOptions.projectRoot, dir)
     );
-    let ignore = [cacheDir, ...targetDirs, ...vcsDirs];
+    let ignore = [resolvedOptions.cacheDir, ...targetDirs, ...vcsDirs];
 
     return watcher.subscribe(
       resolvedOptions.projectRoot,

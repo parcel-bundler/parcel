@@ -207,7 +207,7 @@ export default class TargetResolver {
       let context = browsers || !node ? 'browser' : 'node';
       targets.set('default', {
         name: 'default',
-        distDir: path.resolve(pkgDir, DEFAULT_DIST_DIRNAME),
+        distDir: path.resolve(DEFAULT_DIST_DIRNAME),
         publicUrl: '/',
         env: this.getEnvironment(pkgEngines, context)
       });
