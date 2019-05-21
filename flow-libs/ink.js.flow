@@ -41,8 +41,14 @@ declare module 'ink' {
   |};
   declare export var Box: React$ComponentType<BoxProps>;
 
+  declare export type RerenderFunc = (node: React$Node) => void;
+
   declare export function render(
     node: React$Node,
     options?: RenderOptions
-  ): mixed;
+  ): {|
+    rerender: RerenderFunc,
+    unmount: () => void,
+    waitUntilExit: Promise<void>
+  |};
 }
