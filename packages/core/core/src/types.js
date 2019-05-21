@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {
+  AssetGroup,
   BundleGroup,
   Dependency,
   Environment,
@@ -49,14 +50,28 @@ export type TransformerRequestNode = {|
   +type: 'transformer_request',
   value: TransformerRequest
 |};
+export type AssetGroupNode = {|
+  id: string,
+  +type: 'asset_group',
+  value: AssetGroup
+|};
 
-export type AssetGraphNode =
+export type OldAssetGraphNode =
   | AssetNode
   | AssetReferenceNode
   | DependencyNode
   | FileNode
   | RootNode
   | TransformerRequestNode
+  | BundleGroupNode
+  | BundleReferenceNode;
+
+export type AssetGraphNode =
+  | AssetGroupNode
+  | AssetNode
+  | AssetReferenceNode
+  | DependencyNode
+  | RootNode
   | BundleGroupNode
   | BundleReferenceNode;
 

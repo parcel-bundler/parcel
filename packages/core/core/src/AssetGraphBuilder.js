@@ -16,10 +16,13 @@ import {
   type AbortSignal
 } from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 import {PromiseQueue} from '@parcel/utils';
+import OldAssetGraph from './OldAssetGraph';
 import AssetGraph from './AssetGraph';
 import ResolverRunner from './ResolverRunner';
 import WorkerFarm from '@parcel/workers';
 import type {Event} from '@parcel/watcher';
+
+import dumpToGraphViz from './dumpGraphToGraphViz';
 
 type BuildOpts = {|
   signal: AbortSignal,
@@ -35,7 +38,7 @@ type Opts = {|
 |};
 
 export default class AssetGraphBuilder extends EventEmitter {
-  graph: AssetGraph;
+  graph: OldAssetGraph;
   queue: PromiseQueue;
   resolverRunner: ResolverRunner;
   controller: AbortController;
@@ -54,7 +57,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     this.changedAssets = new Map();
 
-    this.graph = new AssetGraph();
+    this.graph = new OldAssetGraph();
     this.graph.initializeGraph({
       entries,
       targets,
@@ -86,7 +89,9 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     await this.updateGraph({signal});
     await this.completeGraph({signal});
-    return {assetGraph: this.graph, changedAssets: this.changedAssets};
+    let assetGraph = convertToNewAssetGraph(this.graph);
+    dumpToGraphViz(assetGraph, 'newAssetGraph');
+    return {assetGraph, changedAssets: this.changedAssets};
   }
 
   async updateGraph({signal}: BuildOpts) {
@@ -176,6 +181,22 @@ export default class AssetGraphBuilder extends EventEmitter {
       }
     }
   }
+}
+
+function convertToNewAssetGraph(oldAssetGraph): AssetGraph {
+  let clonedGraph: AssetGraph = (oldAssetGraph.clone(): any);
+  for (let [, node] of clonedGraph.nodes) {
+    if (node.type === 'file') {
+      clonedGraph.removeNode(node);
+    } else if (node.type === 'transformer_request') {
+      node.type = 'asset_group';
+      let tr = node.value;
+      let assetGroup = {filePath: tr.filePath, env: tr.env};
+      node.value = assetGroup;
+    }
+  }
+
+  return clonedGraph;
 }
 
 export class BuildAbortError extends Error {

@@ -115,16 +115,16 @@ export default class Graph<TNode: Node> {
   removeNode(node: TNode): this {
     let removed = new this.constructor();
 
-    this.nodes.delete(node.id);
-    removed.addNode(node);
+    for (let from of this.inboundEdges.get(node.id)) {
+      removed.merge(this.removeEdge(from, node.id));
+    }
 
     for (let to of this.outboundEdges.get(node.id)) {
       removed.merge(this.removeEdge(node.id, to));
     }
 
-    for (let from of this.inboundEdges.get(node.id)) {
-      removed.merge(this.removeEdge(from, node.id));
-    }
+    this.nodes.delete(node.id);
+    removed.addNode(node);
 
     return removed;
   }
