@@ -1,9 +1,19 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
-const {bundle, assertBundles, assertBundleTree} = require('@parcel/test-utils');
+const {
+  bundle,
+  assertBundles,
+  assertBundleTree,
+  removeDistDirectory,
+  distDir
+} = require('@parcel/test-utils');
 const path = require('path');
 
-describe.skip('posthtml', function() {
+describe('posthtml', function() {
+  afterEach(async () => {
+    await removeDistDirectory();
+  });
+
   it('should support transforming HTML with posthtml', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/posthtml/index.html')
@@ -16,7 +26,7 @@ describe.skip('posthtml', function() {
       }
     ]);
 
-    let html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
+    let html = await fs.readFile(path.join(distDir, 'index.html'));
     assert(html.includes('<h1>Other page</h1>'));
   });
 
