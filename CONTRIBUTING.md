@@ -69,7 +69,7 @@ While contributing to parcel, you may need to run a local version of parcel and 
 
 To do this, you have multiple options:
 
-* If you had **parcel** installed globally, you can run `yarn global remove parcel` and then `cd` to your own copy of parcel and run `yarn link`. This way, the global parcel in your PATH would reference to the local copy. To make sure you have it installed globally, just run `parcel --version`.
+* If you had **parcel** installed globally, you can run `yarn global remove parcel-bundler` and then `cd` to your own copy of parcel and run `yarn link`. This way, the global parcel in your PATH would reference to the local copy. To make sure you have it installed globally, just run `parcel --version`.
 
 * Another option would be to run `yarn link` in your own copy of parcel directory and then go to the directory, _which you want to test your copy of parcel in_, and run `yarn link parcel-bundler`, so that locally your copy of parcel is the one used in its npm scripts.
 
