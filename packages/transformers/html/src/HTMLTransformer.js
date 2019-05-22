@@ -10,13 +10,13 @@ import extractInlineAssets from './inline';
 
 export default new Transformer({
   canReuseAST({ast}) {
-    return ast.type === 'posthtml' && semver.satisfies(ast.version, '^0.4.0');
+    return ast.type === 'posthtml' && semver.satisfies(ast.version, '^0.11.3');
   },
 
   async parse({asset}) {
     return {
       type: 'posthtml',
-      version: '0.4.1',
+      version: '0.11.3',
       program: parse(await asset.getCode(), {
         lowerCaseAttributeNames: true
       })

@@ -17,10 +17,11 @@ const getPostHTMLConfig = async asset => {
   );
 
   config = config || {};
-  const plugins = config.plugins;
 
   // TODO: find a way to load plugins
-  // config.plugins = await loadPlugins(plugins, asset.name);
+  // config.plugins = await loadPlugins(config.plugins, asset.name);
+
+  // tells posthtml that we have already called parse
   config.skipParse = true;
   return config;
 };
@@ -31,14 +32,21 @@ export default new Transformer({
   },
 
   canReuseAST({ast}) {
-    return ast.type === 'posthtml' && semver.satisfies(ast.version, '^0.4.0');
+    return ast.type === 'posthtml' && semver.satisfies(ast.version, '^0.11.3');
   },
 
   async parse({asset, config}) {
+    // if we don't have a config it is posthtml is not configure, don't parse
+    if (!config) {
+      return;
+    }
+
     return {
       type: 'posthtml',
-      version: '0.4.1',
-      program: parse(await asset.getCode(), config)
+      version: '0.11.3',
+      program: parse(await asset.getCode(), {
+        lowerCaseAttributeNames: true
+      })
     };
   },
 
@@ -47,10 +55,9 @@ export default new Transformer({
       return [asset];
     }
 
-    let res = await posthtml(config.plugins).process(asset.ast, config);
+    let res = await posthtml(config.plugins).process(asset.ast.program, config);
 
-    asset.ast = res.tree;
-    asset.isAstDirty = true;
+    asset.ast.program = res.tree;
 
     return [asset];
   },
