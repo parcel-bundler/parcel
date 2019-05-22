@@ -5,7 +5,10 @@ import type {
   BundleGraph as IBundleGraph,
   BuildFailureEvent,
   BuildSuccessEvent,
+  EnvironmentOpts,
+  FilePath,
   InitialParcelOptions,
+  ModuleSpecifier,
   ParcelOptions,
   Stats
 } from '@parcel/types';
@@ -13,6 +16,8 @@ import type {Bundle} from './types';
 import type InternalBundleGraph from './BundleGraph';
 
 import invariant from 'assert';
+import Dependency from './Dependency';
+import Environment from './Environment';
 import {Asset} from './public/Asset';
 import {BundleGraph} from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
@@ -31,6 +36,9 @@ import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
 
 type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
+
+export const INTERNAL_TRANSFORM = Symbol('internal_transform');
+export const INTERNAL_RESOLVE = Symbol('internal_resolve');
 
 export default class Parcel {
   #assetGraphBuilder; // AssetGraphBuilder
@@ -109,6 +117,8 @@ export default class Parcel {
         workerPath: require.resolve('./worker')
       }
     );
+
+    await this.#assetGraphBuilder.initFarm();
 
     this.#runPackage = this.#farm.mkhandle('runPackage');
     this.#initialized = true;
@@ -222,6 +232,49 @@ export default class Parcel {
     }
   }
 
+  // $FlowFixMe
+  async [INTERNAL_TRANSFORM]({
+    filePath,
+    env,
+    code
+  }: {
+    filePath: FilePath,
+    env: EnvironmentOpts,
+    code?: string
+  }) {
+    let [result] = await Promise.all([
+      this.#assetGraphBuilder.runTransform({
+        filePath,
+        code,
+        env: new Environment(env)
+      }),
+      this.#reporterRunner.config.getReporters()
+    ]);
+
+    return result;
+  }
+
+  // $FlowFixMe
+  async [INTERNAL_RESOLVE]({
+    moduleSpecifier,
+    sourcePath,
+    env
+  }: {
+    moduleSpecifier: ModuleSpecifier,
+    sourcePath: FilePath,
+    env: EnvironmentOpts
+  }): Promise<FilePath> {
+    let resolved = await this.#assetGraphBuilder.resolverRunner.resolve(
+      new Dependency({
+        moduleSpecifier,
+        sourcePath,
+        env: new Environment(env)
+      })
+    );
+
+    return resolved.filePath;
+  }
+
   async _getWatcherSubscription(): Promise<AsyncSubscription> {
     invariant(this.#watcherSubscription == null);
 
@@ -292,5 +345,3 @@ export class BuildError extends Error {
 }
 
 export {default as Asset} from './Asset';
-export {default as Dependency} from './Dependency';
-export {default as Environment} from './Environment';
