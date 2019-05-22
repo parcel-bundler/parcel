@@ -1,52 +1,52 @@
+// @flow strict-local
+
+import type {IDisposable, InitialParcelOptions} from '@parcel/types';
+
+// $FlowFixMe this is untyped
 import Module from 'module';
-import process from 'process';
 import path from 'path';
+// $FlowFixMe this is untyped
 import {addHook} from 'pirates';
-import Parcel, {Dependency, Environment} from './Parcel';
+import Parcel, {INTERNAL_RESOLVE, INTERNAL_TRANSFORM} from './Parcel';
 import {syncPromise} from '@parcel/utils';
 
-const originalRequire = Module.prototype.require;
-const DEFAULT_CLI_OPTS = {
-  watch: false
-};
-
 let hooks = {};
+let lastDisposable;
 
-export default function register(opts = DEFAULT_CLI_OPTS) {
+export default function register(opts?: InitialParcelOptions): IDisposable {
   // Replace old hook, as this one likely contains options.
-  if (hooks) {
-    for (let extension in hooks) {
-      hooks[extension]();
-    }
+  if (lastDisposable) {
+    lastDisposable.dispose();
   }
 
   let parcel = new Parcel({
-    entries: [path.join(process.cwd(), 'index.js')],
-    cliOpts: opts
+    logLevel: 'error',
+    ...opts
   });
 
-  let environment = new Environment({
+  let env = {
     context: 'node',
     engines: {
       node: process.versions.node
     }
-  });
+  };
 
   syncPromise(parcel.init());
 
   let isProcessing = false;
 
   // As Parcel is pretty much fully asynchronous, create an async function and wrap it in a syncPromise later...
-  async function fileProcessor(code, filename) {
+  async function fileProcessor(code, filePath) {
     if (isProcessing) {
       return code;
     }
 
     try {
       isProcessing = true;
-      let result = await parcel.runTransform({
-        filePath: filename,
-        env: environment
+      // $FlowFixMe
+      let result = await parcel[INTERNAL_TRANSFORM]({
+        filePath,
+        env
       });
 
       if (result.assets && result.assets.length >= 1) {
@@ -59,7 +59,7 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
       }
     } catch (e) {
       /* eslint-disable no-console */
-      console.error('@parcel/register failed to process: ', filename);
+      console.error('@parcel/register failed to process: ', filePath);
       console.error(e);
       /* eslint-enable */
     } finally {
@@ -74,15 +74,17 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
   function resolveFile(currFile, targetFile) {
     try {
       isProcessing = true;
-      let dep = new Dependency({
-        moduleSpecifier: targetFile,
-        sourcePath: currFile,
-        env: environment
-      });
 
-      targetFile = syncPromise(parcel.resolverRunner.resolve(dep));
+      let resolved = syncPromise(
+        // $FlowFixMe
+        parcel[INTERNAL_RESOLVE]({
+          moduleSpecifier: targetFile,
+          sourcePath: currFile,
+          env
+        })
+      );
 
-      let targetFileExtension = path.extname(targetFile);
+      let targetFileExtension = path.extname(resolved);
       if (!hooks[targetFileExtension]) {
         hooks[targetFileExtension] = addHook(hookFunction, {
           exts: [targetFileExtension],
@@ -90,21 +92,42 @@ export default function register(opts = DEFAULT_CLI_OPTS) {
         });
       }
 
-      return targetFile;
+      return resolved;
     } finally {
       isProcessing = false;
     }
   }
 
-  Module.prototype.require = function(filePath, ...args) {
-    let resolved = filePath;
-    if (!isProcessing) {
-      resolved = resolveFile(this.filename, filePath);
-    }
+  hooks.js = addHook(hookFunction, {
+    exts: ['.js'],
+    ignoreNodeModules: false
+  });
 
-    return originalRequire.call(this, resolved, ...args);
+  let disposed;
+
+  // Patching Module._resolveFilename takes care of patching the underlying
+  // resolver in both `require` and `require.resolve`:
+  // https://github.com/nodejs/node-v0.x-archive/issues/1125#issuecomment-10748203
+  const originalResolveFilename = Module._resolveFilename;
+  Module._resolveFilename = function parcelResolveFilename(to, from, ...rest) {
+    return isProcessing || disposed
+      ? originalResolveFilename(to, from, ...rest)
+      : resolveFile(from?.filename, to);
   };
-}
 
-// Hook into require, this will be overwritten whenever it is called again or explicitly called with opts
-register();
+  let disposable = (lastDisposable = {
+    dispose() {
+      if (disposed) {
+        return;
+      }
+
+      for (let extension in hooks) {
+        hooks[extension]();
+      }
+
+      disposed = true;
+    }
+  });
+
+  return disposable;
+}
