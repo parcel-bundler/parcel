@@ -15,6 +15,9 @@
     "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
     "node": ["@parcel/runtime-js"]
   },
+  "optimizers": {
+    "*.css": ["@parcel/optimizer-cssnano"]
+  },
   "packagers": {
     "*.html": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
