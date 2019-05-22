@@ -3,6 +3,8 @@
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
+import SourceMap from '@parcel/source-map';
+import {countLines} from '@parcel/utils';
 
 const PRELUDE = fs
   .readFileSync(__dirname + '/prelude.js', 'utf8')
@@ -18,12 +20,6 @@ export default new Packager({
       return generate(bundle, ast, options);
     }
 
-    bundle.traverse(node => {
-      if (node.type === 'asset') {
-        console.log({map: node.value.map});
-      }
-    });
-
     // For development, we just concatenate all of the code together
     // rather then enabling scope hoisting, which would be too slow.
     let promises = [];
@@ -37,6 +33,9 @@ export default new Packager({
     let assets = '';
     let i = 0;
     let first = true;
+    let map = new SourceMap();
+    let lineOffset = countLines(PRELUDE);
+
     bundle.traverse(node => {
       if (node.type !== 'asset' && node.type !== 'asset_reference') {
         return;
@@ -48,9 +47,6 @@ export default new Packager({
         // its output, as its contents should already be loaded.
         return;
       }
-
-      // TODO: Merge maps
-      node.value.map;
 
       let wrapped = first ? '' : ',';
       if (node.type === 'asset_reference') {
@@ -81,6 +77,25 @@ export default new Packager({
 
       assets += wrapped;
       first = false;
+
+      if (options.sourceMaps) {
+        if (!node.value.map) {
+          node.value.map = SourceMap.generateEmptyMap(
+            node.value.filePath,
+            wrapped
+          );
+        }
+
+        if (node.value.map) {
+          map.addMap(node.value.map, lineOffset + 1);
+
+          lineOffset += countLines(wrapped);
+        } else {
+          map.addMap(node.value.map, lineOffset);
+
+          lineOffset += map.linecount;
+        }
+      }
     });
 
     return (

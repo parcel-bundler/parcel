@@ -25,6 +25,7 @@ type Sources = {[key: string]: string | null};
 export default class SourceMap {
   mappings: Array<Mapping>;
   sources: Sources;
+  linecount: ?number;
 
   constructor(mappings?: Array<Mapping> = [], sources?: Sources = {}) {
     this.mappings = mappings;
@@ -50,13 +51,14 @@ export default class SourceMap {
         }
       });
     }
+    map.linecount = lineCount;
 
     return map;
   }
 
   static async fromRawSourceMap(input: RawMapInput) {
     let map = new SourceMap();
-    await map.addMap(input);
+    await map.addRawMap(input);
     return map;
   }
 
@@ -71,33 +73,13 @@ export default class SourceMap {
     return new SourceMapConsumer(sourcemap);
   }
 
-  async _addSourceMap(
-    map: SourceMap,
+  async addRawMap(
+    map: RawMapInput,
     lineOffset: number = 0,
     columnOffset: number = 0
   ) {
-    if (lineOffset === 0 && columnOffset === 0) {
-      this.mappings.push(...map.mappings);
-    } else {
-      map.eachMapping(mapping => {
-        this.addMapping(mapping, lineOffset, columnOffset);
-      });
-    }
+    let consumer = await this.getConsumer(map);
 
-    for (let key of Object.keys(map.sources)) {
-      if (!this.sourceContentFor(key)) {
-        this.setSourceContentFor(key, map.sourceContentFor(key));
-      }
-    }
-
-    return this;
-  }
-
-  async _addConsumerMap(
-    consumer: SourceMapConsumer,
-    lineOffset: number = 0,
-    columnOffset: number = 0
-  ) {
     consumer.eachMapping(mapping => {
       // $FlowFixMe line value < 1 is invalid so this should be fine...
       if (mapping.originalLine) {
@@ -118,19 +100,25 @@ export default class SourceMap {
   }
 
   async addMap(
-    map: RawMapInput | SourceMap,
+    map: SourceMap,
     lineOffset: number = 0,
     columnOffset: number = 0
   ) {
-    if (map instanceof SourceMap) {
-      return this._addSourceMap(map, lineOffset, columnOffset);
-    } else if (typeof map === 'string' || typeof map.mappings === 'string') {
-      let consumer = await this.getConsumer(map);
-
-      return this._addConsumerMap(consumer, lineOffset, columnOffset);
+    if (lineOffset === 0 && columnOffset === 0) {
+      this.mappings.push(...map.mappings);
     } else {
-      throw new Error('Could not merge sourcemaps, input is of unknown kind');
+      map.eachMapping(mapping => {
+        this.addMapping(mapping, lineOffset, columnOffset);
+      });
     }
+
+    for (let key of Object.keys(map.sources)) {
+      if (!this.sourceContentFor(key)) {
+        this.setSourceContentFor(key, map.sourceContentFor(key));
+      }
+    }
+
+    return this;
   }
 
   addMapping(
@@ -195,7 +183,7 @@ export default class SourceMap {
     let sourceMap =
       extension instanceof SourceMap
         ? extension
-        : await new SourceMap().addMap(extension);
+        : await new SourceMap().addRawMap(extension);
 
     return this._extend(sourceMap);
   }
