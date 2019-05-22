@@ -208,6 +208,7 @@ export default class TransformerRunner {
     ) {
       let output = await previousGenerate(new MutableAsset(input));
       input.content = output.code;
+      input.map = output.map;
       input.ast = null;
     }
 
@@ -344,6 +345,7 @@ function normalizeAssets(
           type: result.type,
           content: assetToInternalAsset(result).content,
           ast: result.ast,
+          map: result.map,
           // $FlowFixMe
           dependencies: result.getDependencies(),
           connectedFiles: result.getConnectedFiles(),

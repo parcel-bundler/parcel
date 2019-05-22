@@ -18,6 +18,12 @@ export default new Packager({
       return generate(bundle, ast, options);
     }
 
+    bundle.traverse(node => {
+      if (node.type === 'asset') {
+        console.log({map: node.value.map});
+      }
+    });
+
     // For development, we just concatenate all of the code together
     // rather then enabling scope hoisting, which would be too slow.
     let promises = [];
@@ -42,6 +48,9 @@ export default new Packager({
         // its output, as its contents should already be loaded.
         return;
       }
+
+      // TODO: Merge maps
+      node.value.map;
 
       let wrapped = first ? '' : ',';
       if (node.type === 'asset_reference') {

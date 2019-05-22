@@ -367,13 +367,6 @@ export default class SourceMap {
     return generator.toString();
   }
 
-  serialize() {
-    return {
-      mappings: this.mappings,
-      sources: this.sources
-    };
-  }
-
   static deserialize({
     mappings,
     sources

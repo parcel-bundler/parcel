@@ -3,13 +3,7 @@
 import nullthrows from 'nullthrows';
 import {minify} from 'terser';
 import {Transformer} from '@parcel/plugin';
-
-// TODO: extract SourceMap from parcel-bundler ?
-// Just using an empty class skeleton for now so that linting doesn't fail
-// class SourceMap {
-//   addMapping() {}
-//   extendSourceMap() {}
-// }
+import SourceMap from '@parcel/source-map';
 
 export default new Transformer({
   async getConfig(asset) {
@@ -33,28 +27,30 @@ export default new Transformer({
       }
     };
 
-    // let sourceMap = null;
-    // if (options.sourceMaps) {
-    //   sourceMap = new SourceMap();
-    //   terserOptions.output = {
-    //     source_map: {
-    //       add(source, gen_line, gen_col, orig_line, orig_col, name) {
-    //         sourceMap.addMapping({
-    //           source,
-    //           name,
-    //           original: {
-    //             line: orig_line,
-    //             column: orig_col
-    //           },
-    //           generated: {
-    //             line: gen_line,
-    //             column: gen_col
-    //           }
-    //         });
-    //       }
-    //     }
-    //   };
-    // }
+    let sourceMap = null;
+    if (options.sourceMaps) {
+      sourceMap = new SourceMap();
+      // $FlowFixMe
+      terserOptions.output = {
+        source_map: {
+          add(source, gen_line, gen_col, orig_line, orig_col, name) {
+            // $FlowFixMe
+            sourceMap.addMapping({
+              source,
+              name,
+              original: {
+                line: orig_line,
+                column: orig_col
+              },
+              generated: {
+                line: gen_line,
+                column: gen_col
+              }
+            });
+          }
+        }
+      };
+    }
 
     if (config) {
       terserOptions = Object.assign({}, terserOptions, config);
@@ -62,23 +58,23 @@ export default new Transformer({
 
     let result = minify(await asset.getCode(), terserOptions);
 
-    // if (sourceMap && asset.output.map) {
-    //   sourceMap = await new SourceMap().extendSourceMap(
-    //     asset.output.map,
-    //     sourceMap
-    //   );
-    // }
+    // $FlowFixMe
+    if (sourceMap && asset.map) {
+      // $FlowFixMe
+      sourceMap = asset.map.extend(sourceMap);
+    }
 
     if (result.error) {
       throw result.error;
     }
 
     let code = nullthrows(result.code);
+
     return [
       {
         type: 'js',
-        code
-        // map: sourceMap
+        code,
+        map: sourceMap
       }
     ];
   }

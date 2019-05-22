@@ -53,6 +53,10 @@ class BaseAsset {
     return this.#asset.ast;
   }
 
+  get map(): ?SourceMap {
+    return this.#asset.map;
+  }
+
   get type(): string {
     return this.#asset.type;
   }
@@ -148,6 +152,14 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   set ast(ast: ?AST): void {
     this.#asset.ast = ast;
+  }
+
+  get map(): ?SourceMap {
+    return this.#asset.map;
+  }
+
+  set map(map: ?SourceMap): void {
+    this.#asset.map = map;
   }
 
   get type(): string {

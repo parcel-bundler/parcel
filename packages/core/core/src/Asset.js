@@ -304,6 +304,7 @@ export default class Asset {
       type: result.type,
       content,
       ast: result.ast,
+      map: result.map,
       isIsolated: result.isIsolated,
       env: this.env.merge(result.env),
       dependencies: this.dependencies,
