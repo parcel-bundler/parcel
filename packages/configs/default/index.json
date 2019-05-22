@@ -8,8 +8,8 @@
     ],
     "*.css": ["@parcel/transformer-css", "@parcel/transformer-postcss"],
     "*.{htm,html}": [
-      "@parcel/transformer-html",
-      "@parcel/transformer-posthtml"
+      "@parcel/transformer-posthtml",
+      "@parcel/transformer-html"
     ],
     "*": ["@parcel/transformer-raw"]
   },
