@@ -7,8 +7,6 @@
     "node": ">= 8.0.0"
   },
   "scripts": {
-    "build": "babel src -d lib",
-    "prepublish": "yarn build",
     "run-example": "node ./example/index.js",
     "clean": "rm -rf .parcel-cache"
   },
