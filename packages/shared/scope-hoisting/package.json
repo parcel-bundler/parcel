@@ -12,11 +12,8 @@
     "node": ">= 8.0.0"
   },
   "scripts": {
-    "pretest": "yarn build",
     "test": "true",
-    "test-ci": "yarn build && yarn test",
-    "build": "babel src -d lib",
-    "prepublish": "yarn build"
+    "test-ci": "yarn test"
   },
   "dependencies": {
     "@babel/generator": "^7.3.3",

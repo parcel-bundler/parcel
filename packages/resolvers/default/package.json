@@ -10,10 +10,6 @@
   "engines": {
     "parcel": "^2.0.0-alpha.0"
   },
-  "scripts": {
-    "build": "babel src -d lib",
-    "prepublish": "yarn build"
-  },
   "dependencies": {
     "@parcel/fs": "^2.0.0-alpha.0",
     "@parcel/plugin": "^2.0.0-alpha.0",

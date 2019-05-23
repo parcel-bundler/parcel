@@ -120,7 +120,6 @@
     "report-coverage": "nyc report --reporter=lcov --reporter=cobertura --reporter=html && codecov",
     "test-ci": "yarn test-coverage && yarn report-coverage",
     "build": "yarn minify && babel src -d lib && ncp src/builtins lib/builtins",
-    "prepublish": "yarn build",
     "minify": "terser -c -m -o src/builtins/prelude.min.js src/builtins/prelude.js && terser -c -m -o src/builtins/prelude2.min.js src/builtins/prelude2.js",
     "precommit": "lint-staged",
     "postinstall": "node -e \"console.log('\\u001b[35m\\u001b[1mLove Parcel? You can now donate to our open collective:\\u001b[22m\\u001b[39m\\n > \\u001b[34mhttps://opencollective.com/parcel/donate\\u001b[0m')\"",

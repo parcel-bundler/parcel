@@ -16,9 +16,7 @@
   },
   "scripts": {
     "test": "mocha",
-    "test-ci": "yarn build && yarn test",
-    "build": "babel src -d lib",
-    "prepublish": "yarn build"
+    "test-ci": "yarn test"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.0",

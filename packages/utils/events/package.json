@@ -8,8 +8,6 @@
   },
   "main": "lib/index.js",
   "scripts": {
-    "build": "babel src -d lib",
-    "prepublish": "yarn build",
     "test": "mocha"
   }
 }
