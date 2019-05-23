@@ -1,6 +1,6 @@
 {
   "name": "@parcel/utils",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/index.js",
   "license": "MIT",
@@ -22,8 +22,8 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.0",
-    "@parcel/fs": "^2.0.0",
-    "@parcel/logger": "^2.0.0",
+    "@parcel/fs": "^2.0.0-alpha.0",
+    "@parcel/logger": "^2.0.0-alpha.0",
     "clone": "^2.1.1",
     "deasync": "^0.1.14",
     "fast-glob": "^2.2.2",

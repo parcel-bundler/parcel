@@ -1,6 +1,6 @@
 {
   "name": "@parcel/cache",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,8 +12,8 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "@parcel/fs": "^2.0.0",
-    "@parcel/logger": "^2.0.0",
-    "@parcel/utils": "^2.0.0"
+    "@parcel/fs": "^2.0.0-alpha.0",
+    "@parcel/logger": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0"
   }
 }

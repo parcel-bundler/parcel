@@ -1,19 +1,19 @@
 {
   "name": "@parcel/reporter-json",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "main": "src/JSONReporter.js",
   "engines": {
-    "parcel": "^2.0.0"
+    "parcel": "^2.0.0-alpha.0"
   },
   "scripts": {
     "test": "echo this package has no tests yet",
     "test-ci": "yarn test"
   },
   "dependencies": {
-    "@parcel/logger": "^2.0.0",
-    "@parcel/plugin": "^2.0.0",
-    "@parcel/types": "^2.0.0",
-    "@parcel/utils": "^2.0.0",
+    "@parcel/logger": "^2.0.0-alpha.0",
+    "@parcel/plugin": "^2.0.0-alpha.0",
+    "@parcel/types": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0",
     "nullthrows": "^1.1.1"
   }
 }

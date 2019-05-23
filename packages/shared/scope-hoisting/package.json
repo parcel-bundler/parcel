@@ -1,6 +1,6 @@
 {
   "name": "@parcel/scope-hoisting",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/index.js",
   "license": "MIT",
@@ -24,7 +24,7 @@
     "@babel/traverse": "^7.2.3",
     "@babel/parser": "^7.0.0",
     "@babel/types": "^7.3.3",
-    "@parcel/types": "^2.0.0",
+    "@parcel/types": "^2.0.0-alpha.0",
     "babylon-walk": "^1.0.2",
     "micromatch": "^3.1.10",
     "nullthrows": "^1.1.1"

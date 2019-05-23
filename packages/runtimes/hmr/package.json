@@ -1,6 +1,6 @@
 {
   "name": "@parcel/runtime-browser-hmr",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,11 +8,11 @@
   },
   "main": "src/HMRRuntime",
   "engines": {
-    "parcel": "2.x"
+    "parcel": "^2.0.0-alpha.0"
   },
   "dependencies": {
-    "@parcel/fs": "^2.0.0",
-    "@parcel/plugin": "^2.0.0",
-    "@parcel/utils": "^2.0.0"
+    "@parcel/fs": "^2.0.0-alpha.0",
+    "@parcel/plugin": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0"
   }
 }

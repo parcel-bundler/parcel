@@ -32,7 +32,7 @@
     "@parcel/logger": "^1.11.0",
     "@parcel/utils": "^1.11.0",
     "@parcel/watcher": "^1.12.0",
-    "@parcel/workers": "^2.0.0",
+    "@parcel/workers": "^2.0.0-alpha.0",
     "ansi-to-html": "^0.6.4",
     "babylon-walk": "^1.0.2",
     "browserslist": "^4.1.0",
