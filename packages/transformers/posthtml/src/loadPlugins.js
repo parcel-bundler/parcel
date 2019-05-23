@@ -1,4 +1,4 @@
-// @flow strict-local
+// @flow
 
 import type {FilePath} from '@parcel/types';
 import localRequire from '@parcel/local-require';

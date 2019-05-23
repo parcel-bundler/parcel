@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0",
+    "@parcel/local-require": "^2.0.0",
     "nullthrows": "^1.1.1",
     "posthtml": "^0.11.3",
     "posthtml-parser": "^0.4.1",

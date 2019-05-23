@@ -37,5 +37,5 @@ declare module 'posthtml' {
     version: number;
   }
 
-  declare module.exports: (plugins: Array<Function>) => PostHTML;
+  declare module.exports: (plugins: ?Array<Function>) => PostHTML;
 }
