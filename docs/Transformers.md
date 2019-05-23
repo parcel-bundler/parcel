@@ -1,8 +1,38 @@
 # Transformers
 
-A transformer allows you to access and perform transformative operations on an asset.
+Transformers have three roles: to transform an assets content from one form to another, to create additional assets, and to register dependencies and connected files.
 
-Transformers are defined in: `./packages/configs/default/index.json`
+### Transform
+
+TODO: Put a blurb here
+
+**Common Examples**
+
+- Babel: Transforms latest JavaScript to browser compatible JavaScript
+- SASS: Compiles sass files into css files
+
+### Create Assets
+
+TODO: Put a blurb here
+
+**Common Examples**
+
+- Babel: Transforms latest JavaScript to browser compatible JavaScript
+- SASS: Compiles sass files into css files
+
+### Register Dependencies
+
+TODO: Put a blurb here
+
+**Common Examples**
+
+- HTML: Finds and adds linked files into the tree
+- JS: Reads imports and require statements to find dependencies
+
+## Configuration
+
+Transformers are defined in the "transformers" key of configuration. For the default configuration, see
+./packages/configs/default/index.json
 
 Transformers are ran in order by file type. It is recommended to have more specialized transformers first, and have them skip assets that don't match their case.
 
