@@ -5,6 +5,9 @@
   "engines": {
     "parcel": "^2.0.0-alpha.0"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "test": "echo this package has no tests yet",
     "test-ci": "yarn test"

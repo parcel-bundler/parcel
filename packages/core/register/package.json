@@ -7,6 +7,9 @@
     "run-example": "node ./example/index.js",
     "clean": "rm -rf .parcel-cache"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@parcel/config-default": "^2.0.0-alpha.0",
     "@parcel/core": "^2.0.0-alpha.0"

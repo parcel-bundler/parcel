@@ -6,6 +6,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "lib/Cache",
   "dependencies": {
     "@parcel/fs": "^2.0.0-alpha.0",

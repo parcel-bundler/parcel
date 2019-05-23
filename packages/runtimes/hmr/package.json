@@ -6,6 +6,9 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "lib/HMRRuntime",
   "engines": {
     "parcel": "^2.0.0-alpha.0"

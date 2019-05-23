@@ -12,6 +12,9 @@
     "node": ">= 6.0.0",
     "parcel": "^2.0.0-alpha.0"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-alpha.0",
     "@parcel/logger": "^2.0.0-alpha.0",

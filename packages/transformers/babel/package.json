@@ -10,6 +10,9 @@
   "engines": {
     "parcel": "^2.0.0-alpha.0"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@babel/core": "^7.0.0",
     "@babel/generator": "^7.0.0",

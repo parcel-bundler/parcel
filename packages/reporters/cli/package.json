@@ -9,6 +9,9 @@
     "test": "cross-env NODE_ENV=test mocha",
     "test-ci": "yarn test"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@parcel/logger": "^2.0.0-alpha.0",
     "@parcel/plugin": "^2.0.0-alpha.0",

@@ -7,6 +7,9 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "main": "lib/index.js",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "test": "mocha"
   }
