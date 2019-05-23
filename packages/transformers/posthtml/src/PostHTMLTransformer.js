@@ -7,6 +7,7 @@ import parse from 'posthtml-parser';
 import render from 'posthtml-render';
 import nullthrows from 'nullthrows';
 import semver from 'semver';
+import loadPlugins from './loadPlugins';
 
 const getPostHTMLConfig = async asset => {
   let config = await asset.getConfig(
@@ -18,8 +19,8 @@ const getPostHTMLConfig = async asset => {
 
   config = config || {};
 
-  // TODO: find a way to load plugins
-  // config.plugins = await loadPlugins(config.plugins, asset.name);
+  // load plugins
+  config.plugins = await loadPlugins(config.plugins, asset.filePath);
 
   // tells posthtml that we have already called parse
   config.skipParse = true;

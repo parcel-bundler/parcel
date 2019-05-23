@@ -3,7 +3,6 @@ const fs = require('@parcel/fs');
 const {
   bundle,
   assertBundles,
-  assertBundleTree,
   removeDistDirectory,
   distDir
 } = require('@parcel/test-utils');
@@ -35,24 +34,19 @@ describe('posthtml', function() {
       path.join(__dirname, '/integration/posthtml-assets/index.html')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'js',
-          assets: ['index.js'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        type: 'html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: ['index.js']
+      }
+    ]);
   });
 
-  it('should add dependencies referenced by posthtml-include', async () => {
+  it.skip('should add dependencies referenced by posthtml-include', async () => {
     const b = await bundle(
       path.join(__dirname, '/integration/posthtml-assets/index.html')
     );
@@ -65,7 +59,7 @@ describe('posthtml', function() {
     assert(asset.dependencies.get(other).includedInParent);
   });
 
-  it('should add dependencies referenced by plugins', async () => {
+  it.skip('should add dependencies referenced by plugins', async () => {
     const b = await bundle(
       path.join(__dirname, '/integration/posthtml-plugin-deps/index.html')
     );
