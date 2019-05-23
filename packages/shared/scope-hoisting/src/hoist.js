@@ -130,6 +130,7 @@ const VISITOR = {
         asset.meta.isES6Module = false;
       } else {
         // Re-crawl scope so we are sure to have all bindings.
+        traverse.cache.clearScope();
         scope.crawl();
 
         // Rename each binding in the top-level scope to something unique.
