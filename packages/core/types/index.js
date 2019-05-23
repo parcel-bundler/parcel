@@ -210,7 +210,7 @@ export interface Dependency {
   symbols: Map<Symbol, Symbol>;
 
   // TODO: get this from graph instead of storing them on dependencies
-  sourcePath: FilePath;
+  sourcePath: ?FilePath;
 
   merge(other: Dependency): void;
 }

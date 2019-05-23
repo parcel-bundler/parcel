@@ -55,7 +55,9 @@ export default class ResolverRunner {
       }
     }
 
-    let dir = path.dirname(dependency.sourcePath);
+    let dir = dependency.sourcePath
+      ? path.dirname(dependency.sourcePath)
+      : '<none>';
     let err = new Error(
       `Cannot find module '${dependency.moduleSpecifier}' from '${dir}'`
     );
