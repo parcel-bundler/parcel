@@ -8,6 +8,8 @@ Transformers are ran in order by file type. It is recommended to have more speci
 
 ## Transformer Life Cycle
 
+Below is the list of the life cycle methods in the order they are called.
+
 ### `getConfig`
 
 Loads configuration specifically for this transformer.
