@@ -2,7 +2,7 @@
   "name": "@parcel/core",
   "version": "2.0.0-alpha.0",
   "license": "MIT",
-  "main": "./src/Parcel.js",
+  "main": "./src/index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
@@ -31,6 +31,7 @@
     "json5": "^1.0.1",
     "micromatch": "^3.0.4",
     "nullthrows": "^1.1.1",
+    "pirates": "^4.0.0",
     "semver": "^5.4.1"
   },
   "devDependencies": {
