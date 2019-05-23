@@ -9,6 +9,6 @@
   "main": "src/TSCTransformer",
   "dependencies": {
     "@parcel/plugin": "^2.0.0-alpha.0",
-    "typescript": "^3.3.3"
+    "typescript": "^3.4.5"
   }
 }
