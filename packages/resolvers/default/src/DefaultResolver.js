@@ -104,6 +104,9 @@ class NodeResolver {
   }: Dependency) {
     // Check if this is a glob
     if (isGlob(filename)) {
+      if (parent == null) {
+        throw new Error('Globs can only be required from a parent file');
+      }
       return {path: path.resolve(path.dirname(parent), filename)};
     }
 
