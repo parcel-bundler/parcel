@@ -175,6 +175,7 @@ program
         System: ['OS', 'CPU'],
         Binaries: ['Node', 'Yarn', 'npm'],
         Browsers: ['Chrome', 'Edge', 'Firefox', 'Safari'],
+        npmPackages: ['parcel-bundler'],
         npmGlobalPackages: ['parcel-bundler']
       })
       .then(console.log);
