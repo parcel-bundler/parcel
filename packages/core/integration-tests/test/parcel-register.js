@@ -4,7 +4,7 @@ import {execSync} from 'child_process';
 import assert from 'assert';
 import path from 'path';
 
-describe('@parcel/register', () => {
+describe.skip('@parcel/register', () => {
   it('can be required at an entry script and transform following requires', () => {
     assert.equal(
       execSync(
