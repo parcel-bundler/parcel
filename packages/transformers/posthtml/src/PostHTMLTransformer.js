@@ -56,9 +56,12 @@ export default new Transformer({
       return [asset];
     }
 
-    let res = await posthtml(config.plugins).process(asset.ast.program, config);
+    const ast = nullthrows(asset.ast);
 
-    asset.ast.program = res.tree;
+    let res = await posthtml(config.plugins).process(ast.program, config);
+
+    ast.program = res.tree;
+    asset.ast = ast;
 
     return [asset];
   },
