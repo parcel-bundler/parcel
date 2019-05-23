@@ -26,7 +26,7 @@
     "marked": "^0.6.1",
     "ncp": "^2.0.0",
     "nyc": "^11.1.0",
-    "parcel-bundler": "^1.12.3",
+    "parcel-bundler": "^2.0.0-alpha.0",
     "rimraf": "^2.6.1",
     "sinon": "^5.0.1",
     "sourcemap-validator": "^1.0.6",

@@ -16,8 +16,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-alpha.0",
     "@parcel/logger": "^2.0.0-alpha.0",
+    "@parcel/plugin": "^2.0.0-alpha.0",
     "@parcel/reporter-cli": "^2.0.0-alpha.0",
     "@parcel/utils": "^2.0.0-alpha.0",
     "ansi-html": "^0.0.7",

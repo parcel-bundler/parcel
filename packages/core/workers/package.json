@@ -21,7 +21,7 @@
   "dependencies": {
     "@parcel/logger": "^2.0.0-alpha.0",
     "@parcel/utils": "^2.0.0-alpha.0",
-    "physical-cpu-count": "^2.0.0",
-    "nullthrows": "^1.1.1"
+    "nullthrows": "^1.1.1",
+    "physical-cpu-count": "^2.0.0"
   }
 }
