@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-postcss",
-  "version": "2.0.0-prealpha0",
+  "version": "2.0.0-alpha.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,13 +8,13 @@
   },
   "main": "src/PostCSSTransformer.js",
   "engines": {
-    "parcel": "^2.0.0-prealpha0"
+    "parcel": "^2.0.0-alpha.0"
   },
   "dependencies": {
-    "@parcel/fs": "^2.0.0-prealpha0",
-    "@parcel/local-require": "^2.0.0-prealpha0",
-    "@parcel/plugin": "^2.0.0-prealpha0",
-    "@parcel/utils": "^2.0.0-prealpha0",
+    "@parcel/fs": "^2.0.0-alpha.0",
+    "@parcel/local-require": "^2.0.0-alpha.0",
+    "@parcel/plugin": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0",
     "css-modules-loader-core": "^1.1.0",
     "nullthrows": "^1.1.1",
     "postcss": "^7.0.5",
