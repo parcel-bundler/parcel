@@ -33,7 +33,7 @@ export default new Transformer({
   },
 
   canReuseAST({ast}) {
-    return ast.type === 'posthtml' && semver.satisfies(ast.version, '^0.11.3');
+    return ast.type === 'posthtml' && semver.satisfies(ast.version, '^0.4.0');
   },
 
   async parse({asset, config}) {
@@ -44,7 +44,7 @@ export default new Transformer({
 
     return {
       type: 'posthtml',
-      version: '0.11.3',
+      version: '0.4.1',
       program: parse(await asset.getCode(), {
         lowerCaseAttributeNames: true
       })
