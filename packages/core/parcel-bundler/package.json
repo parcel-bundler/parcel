@@ -1,5 +1,6 @@
 {
   "name": "parcel-bundler",
+  "private": true,
   "version": "1.12.3",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
