@@ -2,7 +2,7 @@ import Module from 'module';
 import process from 'process';
 import path from 'path';
 import {addHook} from 'pirates';
-import Parcel, {Dependency, Environment} from '@parcel/core';
+import Parcel, {Dependency, Environment} from './Parcel';
 import {syncPromise} from '@parcel/utils';
 
 const originalRequire = Module.prototype.require;

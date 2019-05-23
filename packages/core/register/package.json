@@ -10,8 +10,6 @@
     "clean": "rm -rf .parcel-cache"
   },
   "dependencies": {
-    "@parcel/core": "^2.0.0-alpha.0",
-    "@parcel/utils": "^2.0.0-alpha.0",
-    "pirates": "^4.0.0"
+    "@parcel/core": "^2.0.0-alpha.0"
   }
 }
