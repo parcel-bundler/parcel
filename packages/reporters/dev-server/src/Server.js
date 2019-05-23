@@ -1,5 +1,5 @@
 // @flow
-import type {Request, Response, DevServerOptions} from './types.js.flow';
+import type {Request, Response, DevServerOptions} from './types.js';
 import type {BundleGraph} from '@parcel/types';
 import type {PrintableError} from '@parcel/utils';
 import type {Server as HTTPServer} from 'http';

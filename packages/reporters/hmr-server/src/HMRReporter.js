@@ -1,5 +1,5 @@
 // @flow
-import type {HMRServerOptions} from './types.js.flow';
+import type {HMRServerOptions} from './types';
 
 import {Reporter} from '@parcel/plugin';
 import HMRServer from './HMRServer';

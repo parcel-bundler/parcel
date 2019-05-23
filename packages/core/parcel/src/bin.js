@@ -1,2 +1,2 @@
-#!/usr/bin/env node -r @parcel/babel-register
+#!/usr/bin/env node
 require('./cli');

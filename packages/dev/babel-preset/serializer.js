@@ -13,10 +13,7 @@ function serializerPlugin({types: t}) {
         });
         filename =
           pkg.name + '/' + Path.relative(Path.dirname(pkgPath), filename);
-
-        if (state.file.opts.caller.name === '@babel/cli') {
-          filename = filename.replace('/src/', '/lib/');
-        }
+        filename = filename.replace('/src/', '/lib/');
 
         // If this is a named exports, the export specifier is an array of filename + export name,
         // otherwise it is just the filename for default exports.

@@ -2,7 +2,7 @@
 
 import type {BuildSuccessEvent} from '@parcel/types';
 import type {PrintableError} from '@parcel/utils';
-import type {Server, ServerError, HMRServerOptions} from './types.js.flow';
+import type {Server, ServerError, HMRServerOptions} from './types';
 
 import http from 'http';
 import https from 'https';

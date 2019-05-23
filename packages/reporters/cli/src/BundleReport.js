@@ -1,9 +1,8 @@
 // @flow strict-local
 
-import type {FilePath} from '@parcel/types';
+import type {BundleGraph, FilePath} from '@parcel/types';
 
 import * as React from 'react';
-import {BundleGraph} from '@parcel/types';
 import filesize from 'filesize';
 import {Box, Color} from 'ink';
 import {generateBundleReport, prettifyTime} from '@parcel/utils';

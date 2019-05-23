@@ -7,7 +7,7 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "bin": {
-    "parcel2": "src/bin.js"
+    "parcel2": "lib/bin.js"
   },
   "dependencies": {
     "@parcel/config-default": "^2.0.0-alpha.0",
