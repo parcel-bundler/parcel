@@ -1,8 +1,7 @@
 // @flow strict-local
 
 import {Transformer} from '@parcel/plugin';
-// $FlowFixMe
-import typescript from 'typescript';
+import localRequire from '@parcel/local-require';
 
 type TypescriptCompilerOptions = {
   module?: mixed,
@@ -24,22 +23,30 @@ export default new Transformer({
   async transform({asset, config}) {
     asset.type = 'js';
 
-    // Transpile Module using TypeScript
+    let typescript =
+      config == null
+        ? // $FlowFixMe
+          require('typescript')
+        : await localRequire('typescript', asset.filePath);
+
     let code = await asset.getCode();
-    let transpiled = typescript.transpileModule(code, {
-      compilerOptions: {
-        // React is the default. Users can override this by supplying their own tsconfig,
-        // which many TypeScript users will already have for typechecking, etc.
-        jsx: 'React',
-        ...config?.compilerOptions,
-        // Always emit output
-        noEmit: false,
-        // Don't compile ES `import`s -- scope hoisting prefers them and they will
-        // otherwise compiled to CJS via babel in the js transformer
-        module: typescript.ModuleKind.ESNext
-      },
-      fileName: asset.filePath // Should be relativePath?
-    });
+    let transpiled = typescript.transpileModule(
+      code,
+      ({
+        compilerOptions: {
+          // React is the default. Users can override this by supplying their own tsconfig,
+          // which many TypeScript users will already have for typechecking, etc.
+          jsx: 'React',
+          ...config?.compilerOptions,
+          // Always emit output
+          noEmit: false,
+          // Don't compile ES `import`s -- scope hoisting prefers them and they will
+          // otherwise compiled to CJS via babel in the js transformer
+          module: typescript.ModuleKind.ESNext
+        },
+        fileName: asset.filePath // Should be relativePath?
+      }: TypescriptTranspilerOptions)
+    );
 
     return [
       {
