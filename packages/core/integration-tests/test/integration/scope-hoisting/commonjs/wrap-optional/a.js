@@ -1,6 +1,6 @@
 try {
     output = require('noop')
 }
-catch(_) {
-    output = 42
+catch(e) {
+    output = [42, e.code]
 }

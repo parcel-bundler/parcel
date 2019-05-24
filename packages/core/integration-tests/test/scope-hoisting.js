@@ -593,6 +593,12 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.equal(output, 2);
+
+      let contents = await fs.readFile(
+        path.join(__dirname, '/../dist/a.js'),
+        'utf8'
+      );
+      assert(!contents.includes('foobar'));
     });
 
     it('supports default imports of commonjs modules', async function() {
@@ -986,6 +992,12 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, 5);
+
+      let contents = await fs.readFile(
+        path.join(__dirname, '/../dist/a.js'),
+        'utf8'
+      );
+      assert(!contents.includes('foobar'));
     });
 
     it('eliminates CommonJS export object where possible', async function() {
@@ -1236,7 +1248,7 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.deepEqual(output, 42);
+      assert.deepEqual(output, [42, 'MODULE_NOT_FOUND']);
     });
 
     it('should insert __esModule interop flag when importing from an ES module', async function() {
