@@ -1263,5 +1263,17 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, 2);
     });
+
+    it('should also hoist inserted polyfills of globals', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/globals-polyfills/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.equal(output, true);
+    });
   });
 });

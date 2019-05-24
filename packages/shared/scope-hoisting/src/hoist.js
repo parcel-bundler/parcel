@@ -215,9 +215,11 @@ const VISITOR = {
 
     let globalCode = globals.get(path.node.name);
     if (globalCode) {
-      path.scope
+      let decl = path.scope
         .getProgramParent()
-        .path.unshiftContainer('body', [template(globalCode.code)()]);
+        .path.unshiftContainer('body', [template(globalCode.code)()])[0];
+
+      path.requeue(decl);
 
       globals.delete(path.node.name);
     }
