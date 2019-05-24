@@ -1,10 +1,6 @@
 // @flow strict-local
 
-import type {
-  ParcelOptions,
-  TransformerRequest,
-  JSONObject
-} from '@parcel/types';
+import type {ParcelOptions, AssetRequest, JSONObject} from '@parcel/types';
 import type {Bundle} from './types';
 import type BundleGraph from './BundleGraph';
 
@@ -37,7 +33,7 @@ export function init({config, options, env}: Options) {
   });
 }
 
-export function runTransform(req: TransformerRequest) {
+export function runTransform(req: AssetRequest) {
   if (!transformerRunner) {
     throw new Error('.runTransform() called before .init()');
   }

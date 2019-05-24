@@ -220,16 +220,11 @@ export type File = {
   hash?: string
 };
 
-export type TransformerRequest = {
+export type AssetRequest = {|
   filePath: FilePath,
   env: Environment,
   sideEffects?: boolean,
   code?: string
-};
-
-export type AssetGroup = {|
-  filePath: FilePath,
-  env: Environment
 |};
 
 interface BaseAsset {
@@ -492,7 +487,7 @@ export type Resolver = {|
   resolve({
     dependency: Dependency,
     options: ParcelOptions
-  }): Async<?TransformerRequest>
+  }): Async<?AssetRequest>
 |};
 
 export type ProgressLogEvent = {|
@@ -535,7 +530,7 @@ type ResolvingProgressEvent = {|
 type TransformingProgressEvent = {|
   type: 'buildProgress',
   phase: 'transforming',
-  request: TransformerRequest
+  request: AssetRequest
 |};
 
 type BundlingProgressEvent = {|

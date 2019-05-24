@@ -3,9 +3,8 @@
 import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {AbortController} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
 
-import AssetGraphBuilder, {BuildAbortError} from '../src/AssetGraphBuilder';
+import AssetGraphBuilder from '../src/AssetGraphBuilder';
 import ConfigResolver from '../src/ConfigResolver';
 import Dependency from '../src/Dependency';
 import Environment from '../src/Environment';
@@ -55,35 +54,12 @@ describe('AssetGraphBuilder', () => {
 
   it('creates an AssetGraphBuilder', async () => {
     invariant(
-      builder.graph.nodes.has(
+      builder.assetGraph.nodes.has(
         new Dependency({
           moduleSpecifier: './module-b',
           env: DEFAULT_ENV
         }).id
       )
     );
-  });
-
-  it('throws a BuildAbortError when resolving if signal aborts', async () => {
-    const controller = new AbortController();
-    controller.abort();
-
-    try {
-      await builder.resolve(
-        new Dependency({
-          moduleSpecifier: './module-b',
-          env: DEFAULT_ENV,
-          sourcePath: FIXTURES_DIR + '/index'
-        }),
-        {
-          signal: controller.signal
-        }
-      );
-    } catch (e) {
-      invariant(e instanceof BuildAbortError);
-      return;
-    }
-
-    throw new Error('must throw BuildAbortError');
   });
 });

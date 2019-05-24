@@ -7,7 +7,7 @@ import type {
   FilePath,
   GenerateOutput,
   Transformer,
-  TransformerRequest,
+  AssetRequest,
   TransformerResult,
   ParcelOptions
 } from '@parcel/types';
@@ -54,7 +54,7 @@ export default class TransformerRunner {
     });
   }
 
-  async transform(req: TransformerRequest): Promise<CacheEntry> {
+  async transform(req: AssetRequest): Promise<CacheEntry> {
     report({
       type: 'buildProgress',
       phase: 'transforming',
@@ -318,12 +318,12 @@ async function checkConnectedFiles(files: Array<File>): Promise<boolean> {
   return files.every((file, index) => file.hash === hashes[index]);
 }
 
-function reqCacheKey(req: TransformerRequest): string {
+function reqCacheKey(req: AssetRequest): string {
   return md5FromString(req.filePath + JSON.stringify(req.env));
 }
 
 async function summarizeRequest(
-  req: TransformerRequest
+  req: AssetRequest
 ): Promise<{|content: Blob, hash: string, size: number|}> {
   let code = req.code;
   let content: Blob;
