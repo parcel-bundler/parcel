@@ -1,0 +1,16 @@
+{
+  "name": "@parcel/config-tsc",
+  "version": "2.0.0-alpha.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "scripts": {
+    "test": "true"
+  },
+  "dependencies": {
+    "@parcel/config-default": "^2.0.0-alpha.0",
+    "@parcel/transformer-typescript-tsc": "^2.0.0-alpha.0"
+  }
+}
