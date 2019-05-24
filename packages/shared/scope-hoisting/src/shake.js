@@ -1,20 +1,23 @@
 import * as t from '@babel/types';
+import {removePathBindingRecursive} from './utils';
 
 /**
  * This is a small small implementation of dead code removal specialized to handle
  * removing unused exports. All other dead code removal happens in workers on each
- * individual file by babel-minify.
+ * individual file by terser.
  */
 export default function treeShake(scope) {
   // Keep passing over all bindings in the scope until we don't remove any.
   // This handles cases where we remove one binding which had a reference to
   // another one. That one will get removed in the next pass if it is now unreferenced.
+
+  // Recrawl to get all bindings.
+  scope.crawl();
+
   let removed;
   do {
     removed = false;
 
-    // Recrawl to get all bindings.
-    scope.crawl();
     Object.keys(scope.bindings).forEach(name => {
       let binding = getUnusedBinding(scope.path, name);
 
@@ -99,12 +102,12 @@ function remove(path) {
         path.parentPath.replaceWith(path);
         remove(path.parentPath);
       } else {
-        path.remove();
+        removePathBindingRecursive(path, path.scope.getProgramParent());
       }
     } else if (!path.parentPath.isExpressionStatement()) {
       path.replaceWith(path.node.right);
     } else {
-      path.remove();
+      removePathBindingRecursive(path, path.scope.getProgramParent());
     }
   } else if (isExportAssignment(path)) {
     remove(path.parentPath.parentPath);
@@ -119,7 +122,7 @@ function remove(path) {
       path.parentPath.replaceWith(path);
       remove(path.parentPath);
     } else {
-      path.remove();
+      removePathBindingRecursive(path, path.scope.getProgramParent());
     }
   }
 }
