@@ -8,6 +8,7 @@
   },
   "main": "src/TSCTransformer",
   "dependencies": {
+    "@parcel/local-require": "^2.0.0-alpha.0",
     "@parcel/plugin": "^2.0.0-alpha.0",
     "typescript": "^3.4.5"
   }
