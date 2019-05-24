@@ -2,9 +2,9 @@
 
 Transformers have three roles: to transform an assets content from one form to another, to create additional assets, and to register dependencies and connected files.
 
-### Transform
+### Transform / Compile
 
-TODO: Put a blurb here
+Covertes the assets content from one structure to another.
 
 **Common Examples**
 
@@ -13,16 +13,17 @@ TODO: Put a blurb here
 
 ### Create Assets
 
-TODO: Put a blurb here
+Dynamic create new assets based on the assests provided.
 
 **Common Examples**
 
 - Babel: Transforms latest JavaScript to browser compatible JavaScript
 - SASS: Compiles sass files into css files
+- CSSModules: Produces JavaScript files to be imported
 
 ### Register Dependencies
 
-TODO: Put a blurb here
+Examine and determine dependencies of a given asset.
 
 **Common Examples**
 
