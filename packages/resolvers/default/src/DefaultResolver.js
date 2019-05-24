@@ -6,7 +6,7 @@ import type {
   Dependency,
   PackageJSON,
   FilePath,
-  TransformerRequest
+  AssetRequest
 } from '@parcel/types';
 import path from 'path';
 import * as fs from '@parcel/fs';
@@ -26,7 +26,7 @@ export default new Resolver({
       return null;
     }
 
-    let result: TransformerRequest = {
+    let result: AssetRequest = {
       filePath: resolved.path,
       env: dependency.env
     };

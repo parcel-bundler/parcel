@@ -145,7 +145,7 @@ export default class BundlerRunner {
       let builder = new AssetGraphBuilder({
         options: this.options,
         config: this.config,
-        transformerRequest: {
+        assetRequest: {
           code,
           filePath,
           env: bundle.env

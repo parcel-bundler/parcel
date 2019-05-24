@@ -52,7 +52,7 @@ export default async function dumpGraphToGraphViz(
     } else if (node.type === 'asset' || node.type === 'asset_reference') {
       label += path.basename(node.value.filePath) + '#' + node.value.type;
     } else if (node.type === 'file') {
-      label += path.basename(node.value.filePath);
+      label += path.basename(node.value);
     } else if (node.type === 'transformer_request') {
       label +=
         path.basename(node.value.filePath) +
