@@ -20,6 +20,7 @@
     "@babel/generator": "^7.0.0",
     "@babel/plugin-transform-flow-strip-types": "^7.0.0",
     "@babel/plugin-transform-react-jsx": "^7.0.0",
+    "@babel/plugin-transform-typescript": "^7.4.5",
     "@babel/preset-env": "^7.0.0",
     "@babel/traverse": "^7.0.0",
     "@parcel/fs": "^2.0.0-alpha.0",
