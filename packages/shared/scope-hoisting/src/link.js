@@ -9,7 +9,7 @@ import * as t from '@babel/types';
 import traverse from '@babel/traverse';
 import treeShake from './shake';
 import mangleScope from './mangler';
-import {getName, getIdentifier} from './utils';
+import {getName, getIdentifier, removeReference} from './utils';
 
 const ESMODULE_TEMPLATE = template(`$parcel$defineInteropFlag(EXPORTS);`);
 const DEFAULT_INTEROP_TEMPLATE = template(
@@ -115,10 +115,19 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
           })
         );
 
-        let binding = path.scope.getBinding(getName(mod, 'exports'));
-        if (binding) {
-          binding.reference(decl.get('declarations.0.init'));
-        }
+        // decl =
+        // VariableDeclaration{
+        //   declarations: [VariableDeclarator{
+        //     id: Identifier{name: name},
+        //     init: CallExpression{
+        //       callee: Identifier{name: '$parcel$interopDefault'},
+        //       arguments: [node]
+        //     }
+        //   }]
+        // }
+        addIdentifierToBindings(decl.get('declarations.0.id'));
+        addIdentifierToBindings(decl.get('declarations.0.init.callee'));
+        addIdentifierToBindings(decl.get('declarations.0.init.arguments.0'));
 
         path.scope.registerDeclaration(decl);
       }
@@ -141,6 +150,17 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
         (path.key !== path.container.length - 1 ||
           isUnusedValue(path.parentPath)))
     );
+  }
+
+  function addIdentifierToBindings(path) {
+    if (path.isIdentifier()) {
+      let binding = path.scope.getProgramParent().getBinding(path.node.name);
+      if (binding) {
+        binding.reference(path);
+      }
+    } else if (path.isMemberExpression()) {
+      addIdentifierToBindings(path.get('object'));
+    }
   }
 
   traverse(ast, {
@@ -174,8 +194,9 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
         if (!mod) {
           if (dep.isOptional) {
             path.replaceWith(
-              THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)})
+              THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)}).expression
             );
+            addIdentifierToBindings(path.get('callee')); // add $parcel$missingModule
           } else if (dep.isWeak) {
             path.remove();
           } else {
@@ -184,8 +205,8 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
             );
           }
         } else {
-          let node;
           if (assets.get(mod.id)) {
+            let node;
             // Replace with nothing if the require call's result is not used.
             if (!isUnusedValue(path)) {
               let name = getName(mod, 'exports');
@@ -201,13 +222,21 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
                 let binding = path.scope.getBinding(name);
                 if (binding && !binding.path.getData('hasESModuleFlag')) {
                   if (binding.path.node.init) {
-                    binding.path
+                    let expr = binding.path
                       .getStatementParent()
-                      .insertAfter(ESMODULE_TEMPLATE({EXPORTS: name}));
+                      .insertAfter(ESMODULE_TEMPLATE({EXPORTS: name}))[0];
+
+                    // $parcel$defineInteropFlag($....$exports):
+                    addIdentifierToBindings(expr.get('expression.callee'));
+                    addIdentifierToBindings(expr.get('expression.arguments.0'));
                   }
 
                   for (let path of binding.constantViolations) {
-                    path.insertAfter(ESMODULE_TEMPLATE({EXPORTS: name}));
+                    let expr = path.insertAfter(
+                      ESMODULE_TEMPLATE({EXPORTS: name})
+                    )[0];
+                    addIdentifierToBindings(expr.get('expression.callee'));
+                    addIdentifierToBindings(expr.get('expression.arguments.0'));
                   }
 
                   binding.path.setData('hasESModuleFlag', true);
@@ -220,17 +249,36 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
             // function, if statement, or conditional expression.
             if (mod.meta.shouldWrap) {
               let call = t.callExpression(getIdentifier(mod, 'init'), []);
-              node = node ? t.sequenceExpression([call, node]) : call;
+              if (node) {
+                node = t.sequenceExpression([call, node]);
+                path.replaceWith(node);
+
+                // node = ($...$init(), $...$exports)
+                addIdentifierToBindings(path.get('expressions.0.callee'));
+                addIdentifierToBindings(path.get('expressions.1'));
+              } else {
+                node = call;
+                path.replaceWith(node);
+
+                // node = CallExpression{callee: Identifier{name: $...$exports}, arguments:[]}
+                addIdentifierToBindings(path.get('callee'));
+              }
+              return;
+            } else if (node) {
+              path.replaceWith(node);
+
+              // node = Identifier{name: $...$exports}
+              addIdentifierToBindings(path);
+              return;
             }
           } else if (mod.type === 'js') {
-            node = REQUIRE_TEMPLATE({ID: t.stringLiteral(mod.id)}).expression;
+            let node = REQUIRE_TEMPLATE({ID: t.stringLiteral(mod.id)})
+              .expression;
+            path.replaceWith(node);
+            return;
           }
 
-          if (node) {
-            path.replaceWith(node);
-          } else {
-            path.remove();
-          }
+          path.remove();
         }
       } else if (callee.name === '$parcel$require$resolve') {
         let [id, source] = args;
@@ -251,6 +299,7 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
             .find(dep => dep.moduleSpecifier === source.value)
         );
         let mod = nullthrows(bundle.getDependencyResolution(dep));
+        //TODO
         path.replaceWith(t.valueToNode(mod.id));
       }
     },
@@ -285,24 +334,32 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
           }
 
           if (id.properties.length === 0) {
+            // is empty now, remove reference to init
+            removeReference(path.node.init, path.scope.getProgramParent());
             path.remove();
           }
         } else if (t.isIdentifier(id)) {
-          replace(id.name, init.name, path);
+          if (replace(id.name, init.name, path)) {
+            // remove init reference after successful inlining
+            removeReference(init, path.scope.getProgramParent());
+          }
         }
 
         function replace(id, init, path) {
           let binding = path.scope.getBinding(id);
           if (!binding.constant) {
-            return;
+            return false;
           }
 
           for (let ref of binding.referencePaths) {
             ref.replaceWith(t.identifier(init));
+            addIdentifierToBindings(ref);
           }
 
           replacements.set(id, init);
+          path.scope.removeBinding(id);
           path.remove();
+          return true;
         }
       }
     },
@@ -334,7 +391,12 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
 
         // Check if $id$export$name exists and if so, replace the node by it.
         if (identifier) {
+          // remove $id$export$name binding
+          removeReference(path.node.object, path.scope.getProgramParent());
+
           path.replaceWith(t.identifier(identifier));
+          // add new (direct) identifier reference
+          addIdentifierToBindings(path);
         }
       }
     },
@@ -351,9 +413,11 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
         // If the export does not exist, replace with an empty object.
         if (!node) {
           node = t.objectExpression([]);
+          path.replaceWith(node);
+        } else {
+          path.replaceWith(node);
+          addIdentifierToBindings(path);
         }
-
-        path.replaceWith(node);
         return;
       }
 

@@ -5,15 +5,13 @@ import {removePathBindingRecursive} from './utils';
  * This is a small small implementation of dead code removal specialized to handle
  * removing unused exports. All other dead code removal happens in workers on each
  * individual file by terser.
+ * The bindings in the scope *must* reflect the current state of the AST because
+ * the scope is not crawled for performance reasons.
  */
 export default function treeShake(scope) {
   // Keep passing over all bindings in the scope until we don't remove any.
   // This handles cases where we remove one binding which had a reference to
   // another one. That one will get removed in the next pass if it is now unreferenced.
-
-  // Recrawl to get all bindings.
-  scope.crawl();
-
   let removed;
   do {
     removed = false;
