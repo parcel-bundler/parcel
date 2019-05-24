@@ -137,6 +137,7 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
 
     // if there is a CommonJS export return $id$exports.name
     if (originalName !== '*') {
+      // TODO
       return t.memberExpression(node, t.identifier(originalName));
     }
 
@@ -299,7 +300,7 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
             .find(dep => dep.moduleSpecifier === source.value)
         );
         let mod = nullthrows(bundle.getDependencyResolution(dep));
-        //TODO
+        // TODO
         path.replaceWith(t.valueToNode(mod.id));
       }
     },
