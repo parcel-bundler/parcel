@@ -11,6 +11,9 @@
     "build": "babel src --out-dir lib",
     "prepublish": "yarn build"
   },
+  "engines": {
+    "node": ">= 8.0.0"
+  },
   "dependencies": {
     "@parcel/fs": "^2.0.0-alpha.0",
     "@parcel/logger": "^2.0.0-alpha.0",
