@@ -6,6 +6,7 @@
       "@parcel/transformer-js",
       "@parcel/transformer-terser"
     ],
+    "*.json": ["@parcel/transformer-json"],
     "*.css": ["@parcel/transformer-css", "@parcel/transformer-postcss"],
     "*.{htm,html}": ["@parcel/transformer-html"],
     "*.{jpg,jpeg,png,gif,svg,webm,webp,pdf,txt}": ["@parcel/transformer-raw"]
