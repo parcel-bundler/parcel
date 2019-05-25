@@ -1,1 +1,1 @@
-export const foo = eval("'bar'")
+export const foo = eval("'bar'");

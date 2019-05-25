@@ -515,6 +515,12 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, 'bar');
+
+      let contents = await fs.readFile(
+        path.join(__dirname, '/../dist/a.js'),
+        'utf8'
+      );
+      assert(contents.includes('foobar'));
     });
 
     it('should support the jsx pragma', async function() {
