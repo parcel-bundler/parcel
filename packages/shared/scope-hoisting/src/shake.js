@@ -1,5 +1,6 @@
 import * as t from '@babel/types';
-import {removePathBindingRecursive} from './utils';
+import {removeReference} from './utils';
+import {simple as walkSimple} from 'babylon-walk';
 
 /**
  * This is a small small implementation of dead code removal specialized to handle
@@ -123,4 +124,17 @@ function remove(path) {
       removePathBindingRecursive(path, path.scope.getProgramParent());
     }
   }
+}
+
+const VisitorRemovePathBindingRecursive = {
+  Identifier(node, scope) {
+    removeReference(node, scope);
+  }
+};
+
+// update the bindings in 'scope' of all identifiers
+// inside 'path' to remove need for crawl()ing
+export function removePathBindingRecursive(path, scope) {
+  walkSimple(path.node, VisitorRemovePathBindingRecursive, scope);
+  path.remove();
 }

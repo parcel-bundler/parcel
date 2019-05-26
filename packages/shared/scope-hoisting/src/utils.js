@@ -1,5 +1,4 @@
 import * as t from '@babel/types';
-import {simple as walkSimple} from 'babylon-walk';
 
 export function getName(asset, type, ...rest) {
   return (
@@ -33,17 +32,4 @@ export function removeReference(node, scope) {
       binding.referencePaths.splice(i, 1);
     }
   }
-}
-
-const VisitorRemovePathBindingRecursive = {
-  Identifier(node, scope) {
-    removeReference(node, scope);
-  }
-};
-
-// update bindings in program scope of all identifiers
-// inside 'path' to remove need for crawl()ing
-export function removePathBindingRecursive(path, scope) {
-  walkSimple(path.node, VisitorRemovePathBindingRecursive, scope);
-  path.remove();
 }
