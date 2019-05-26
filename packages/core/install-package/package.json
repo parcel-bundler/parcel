@@ -1,6 +1,6 @@
 {
   "name": "@parcel/install-package",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/installPackage.js",
   "license": "MIT",
@@ -15,9 +15,9 @@
     "access": "public"
   },
   "dependencies": {
-    "@parcel/logger": "^2.0.0",
-    "@parcel/utils": "^2.0.0",
-    "@parcel/workers": "^2.0.0",
+    "@parcel/logger": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0",
+    "@parcel/workers": "^2.0.0-alpha.0",
     "command-exists": "^1.2.6",
     "cross-spawn": "^6.0.4",
     "nullthrows": "^1.1.1",

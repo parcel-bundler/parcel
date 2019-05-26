@@ -1,6 +1,6 @@
 {
   "name": "@parcel/resolver-default",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,16 +8,16 @@
   },
   "main": "src/DefaultResolver",
   "engines": {
-    "parcel": "2.x"
+    "parcel": "^2.0.0-alpha.0"
   },
   "scripts": {
     "build": "babel src -d lib",
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "@parcel/fs": "^2.0.0",
-    "@parcel/plugin": "^2.0.0",
-    "@parcel/utils": "^2.0.0",
+    "@parcel/fs": "^2.0.0-alpha.0",
+    "@parcel/plugin": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0",
     "micromatch": "^3.0.4",
     "node-libs-browser": "^2.1.0"
   },

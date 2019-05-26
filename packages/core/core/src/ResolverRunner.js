@@ -1,10 +1,6 @@
 // @flow
 
-import type {
-  ParcelOptions,
-  Dependency,
-  TransformerRequest
-} from '@parcel/types';
+import type {ParcelOptions, Dependency, AssetRequest} from '@parcel/types';
 import path from 'path';
 import Config from './Config';
 import {report} from './ReporterRunner';
@@ -20,7 +16,7 @@ const getCacheKey = (filename, parent) =>
 export default class ResolverRunner {
   config: Config;
   options: ParcelOptions;
-  cache: Map<string, TransformerRequest>;
+  cache: Map<string, AssetRequest>;
 
   constructor({config, options}: Opts) {
     this.config = config;
@@ -28,7 +24,7 @@ export default class ResolverRunner {
     this.cache = new Map();
   }
 
-  async resolve(dependency: Dependency): Promise<TransformerRequest> {
+  async resolve(dependency: Dependency): Promise<AssetRequest> {
     report({
       type: 'buildProgress',
       phase: 'resolving',
@@ -55,7 +51,9 @@ export default class ResolverRunner {
       }
     }
 
-    let dir = path.dirname(dependency.sourcePath);
+    let dir = dependency.sourcePath
+      ? path.dirname(dependency.sourcePath)
+      : '<none>';
     let err = new Error(
       `Cannot find module '${dependency.moduleSpecifier}' from '${dir}'`
     );

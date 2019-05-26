@@ -1,9 +1,9 @@
 {
   "name": "@parcel/reporter-cli",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "main": "src/index.js",
   "engines": {
-    "parcel": "^2.0.0"
+    "parcel": "^2.0.0-alpha.0"
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
@@ -12,10 +12,10 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "@parcel/logger": "^2.0.0",
-    "@parcel/plugin": "^2.0.0",
-    "@parcel/types": "^2.0.0",
-    "@parcel/utils": "^2.0.0",
+    "@parcel/logger": "^2.0.0-alpha.0",
+    "@parcel/plugin": "^2.0.0-alpha.0",
+    "@parcel/types": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0",
     "cli-spinners": "^2.0.0",
     "filesize": "^3.6.0",
     "grapheme-breaker": "^0.3.2",

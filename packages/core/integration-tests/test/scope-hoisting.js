@@ -569,6 +569,17 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output.foo, 'bar');
     });
+
+    it('should correctly rename references to a class in the class body', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/es6/class-selfreference/a.js'
+        )
+      );
+      let output = await run(b);
+      assert.deepEqual(output.foo, 'bar');
+    });
   });
 
   describe('commonjs', function() {
@@ -1251,6 +1262,42 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, 2);
+    });
+
+    it('should also hoist inserted polyfills of globals', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/globals-polyfills/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.equal(output, true);
+    });
+
+    it('should support wrapping array destructuring declarations', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-destructuring-array/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [1, 2]);
+    });
+
+    it('should support wrapping object destructuring declarations', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-destructuring-object/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [4, 2]);
     });
   });
 });

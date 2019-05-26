@@ -6,7 +6,6 @@ import type {
   AST,
   Blob,
   Config,
-  Dependency as IDependency,
   DependencyOptions,
   Environment,
   File,
@@ -42,7 +41,7 @@ type AssetOptions = {|
   ast?: ?AST,
   map?: ?SourceMap,
   mapKey?: ?string,
-  dependencies?: Iterable<[string, IDependency]>,
+  dependencies?: Iterable<[string, Dependency]>,
   connectedFiles?: Iterable<[FilePath, File]>,
   isIsolated?: boolean,
   outputHash?: string,
@@ -57,7 +56,7 @@ type SerializedOptions = {|
   ...AssetOptions,
   ...{|
     connectedFiles: Array<[FilePath, File]>,
-    dependencies: Array<[string, IDependency]>
+    dependencies: Array<[string, Dependency]>
   |}
 |};
 
@@ -70,7 +69,7 @@ export default class Asset {
   ast: ?AST;
   map: ?SourceMap;
   mapKey: ?string;
-  dependencies: Map<string, IDependency>;
+  dependencies: Map<string, Dependency>;
   connectedFiles: Map<FilePath, File>;
   isIsolated: boolean;
   outputHash: string;
@@ -270,19 +269,12 @@ export default class Asset {
     return Array.from(this.connectedFiles.values());
   }
 
-  getDependencies(): Array<IDependency> {
+  getDependencies(): Array<Dependency> {
     return Array.from(this.dependencies.values());
   }
 
   createChildAsset(result: TransformerResult): Asset {
-    let content;
-    if (result.content != null) {
-      content = result.content;
-    } else if (result.code != null) {
-      content = result.code;
-    } else {
-      content = '';
-    }
+    let content = result.content ?? result.code ?? '';
 
     let hash;
     let size;
@@ -314,8 +306,7 @@ export default class Asset {
         size
       },
       symbols: new Map([...this.symbols, ...(result.symbols || [])]),
-      sideEffects:
-        result.sideEffects != null ? result.sideEffects : this.sideEffects
+      sideEffects: result.sideEffects ?? this.sideEffects
     });
 
     let dependencies = result.dependencies;

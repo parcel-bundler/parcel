@@ -1,6 +1,6 @@
 {
   "name": "@parcel/babel-preset",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "license": "MIT",
   "dependencies": {
     "@babel/plugin-proposal-class-properties": "^7.1.0",

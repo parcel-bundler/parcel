@@ -252,7 +252,7 @@ describe('css', () => {
     );
   });
 
-  it.skip('should minify CSS in when minify is set', async function() {
+  it('should minify CSS when minify is set', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/cssnano/index.js'),
       {
@@ -267,6 +267,8 @@ describe('css', () => {
     let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.local'));
     assert(css.includes('.index'));
-    assert.equal(css.split('\n').length, 2); // sourceMappingURL
+
+    // TODO: Make this `2` when a `sourceMappingURL` is added
+    assert.equal(css.split('\n').length, 1);
   });
 });

@@ -6,7 +6,7 @@ import type {
   Dependency,
   PackageJSON,
   FilePath,
-  TransformerRequest
+  AssetRequest
 } from '@parcel/types';
 import path from 'path';
 import * as fs from '@parcel/fs';
@@ -26,7 +26,7 @@ export default new Resolver({
       return null;
     }
 
-    let result: TransformerRequest = {
+    let result: AssetRequest = {
       filePath: resolved.path,
       env: dependency.env
     };
@@ -104,6 +104,9 @@ class NodeResolver {
   }: Dependency) {
     // Check if this is a glob
     if (isGlob(filename)) {
+      if (parent == null) {
+        throw new Error('Globs can only be required from a parent file');
+      }
       return {path: path.resolve(path.dirname(parent), filename)};
     }
 

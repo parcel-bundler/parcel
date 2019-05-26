@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-css",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,10 +8,10 @@
   },
   "main": "src/CSSTransformer.js",
   "engines": {
-    "parcel": "2.x"
+    "parcel": "^2.0.0-alpha.0"
   },
   "dependencies": {
-    "@parcel/plugin": "2.0.0",
+    "@parcel/plugin": "^2.0.0-alpha.0",
     "postcss": "^7.0.5",
     "postcss-value-parser": "^3.3.1",
     "semver": "^5.4.1"

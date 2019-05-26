@@ -1,6 +1,6 @@
 {
   "name": "@parcel/register",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "main": "./src/register.js",
   "license": "MIT",
   "scripts": {
@@ -10,8 +10,7 @@
     "clean": "rm -rf .parcel-cache"
   },
   "dependencies": {
-    "@parcel/core": "^2.0.0",
-    "@parcel/utils": "^2.0.0",
-    "pirates": "^4.0.0"
+    "@parcel/config-default": "^2.0.0-alpha.0",
+    "@parcel/core": "^2.0.0-alpha.0"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@parcel/local-require",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/localRequire.js",
   "license": "MIT",
@@ -15,7 +15,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@parcel/install-package": "^2.0.0",
-    "@parcel/utils": "^2.0.0"
+    "@parcel/install-package": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0"
   }
 }

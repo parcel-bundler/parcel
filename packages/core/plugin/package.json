@@ -1,6 +1,6 @@
 {
   "name": "@parcel/plugin",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,6 +12,6 @@
   },
   "main": "./src/PluginAPI.js",
   "dependencies": {
-    "@parcel/types": "^2.0.0"
+    "@parcel/types": "^2.0.0-alpha.0"
   }
 }

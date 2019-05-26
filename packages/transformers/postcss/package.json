@@ -1,0 +1,24 @@
+{
+  "name": "@parcel/transformer-postcss",
+  "version": "2.0.0-alpha.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "src/PostCSSTransformer.js",
+  "engines": {
+    "parcel": "^2.0.0-alpha.0"
+  },
+  "dependencies": {
+    "@parcel/fs": "^2.0.0-alpha.0",
+    "@parcel/local-require": "^2.0.0-alpha.0",
+    "@parcel/plugin": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0",
+    "css-modules-loader-core": "^1.1.0",
+    "nullthrows": "^1.1.1",
+    "postcss": "^7.0.5",
+    "postcss-value-parser": "^3.3.1",
+    "semver": "^5.4.1"
+  }
+}

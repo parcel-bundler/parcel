@@ -1,13 +1,13 @@
 {
   "name": "@parcel/react-hmr-example",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "license": "MIT",
   "private": true,
   "scripts": {
     "demo": "parcel2 serve src/index.html"
   },
   "devDependencies": {
-    "parcel": "^2.0.0"
+    "parcel": "^2.0.0-alpha.0"
   },
   "browser": "dist/legacy/index.html",
   "browserModern": "dist/modern/index.html",

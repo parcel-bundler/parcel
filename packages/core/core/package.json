@@ -1,8 +1,8 @@
 {
   "name": "@parcel/core",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "license": "MIT",
-  "main": "./src/Parcel.js",
+  "main": "./src/index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
@@ -13,16 +13,16 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "@parcel/cache": "^2.0.0",
-    "@parcel/events": "^2.0.0",
-    "@parcel/fs": "^2.0.0",
-    "@parcel/local-require": "^2.0.0",
-    "@parcel/logger": "^2.0.0",
-    "@parcel/plugin": "^2.0.0",
-    "@parcel/types": "^2.0.0",
-    "@parcel/utils": "^2.0.0",
+    "@parcel/cache": "^2.0.0-alpha.0",
+    "@parcel/events": "^2.0.0-alpha.0",
+    "@parcel/fs": "^2.0.0-alpha.0",
+    "@parcel/local-require": "^2.0.0-alpha.0",
+    "@parcel/logger": "^2.0.0-alpha.0",
+    "@parcel/plugin": "^2.0.0-alpha.0",
+    "@parcel/types": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0",
     "@parcel/watcher": "^2.0.0-alpha.3",
-    "@parcel/workers": "^2.0.0",
+    "@parcel/workers": "^2.0.0-alpha.0",
     "abortcontroller-polyfill": "^1.1.9",
     "browserslist": "^4.1.0",
     "clone": "^2.1.1",
@@ -31,6 +31,7 @@
     "json5": "^1.0.1",
     "micromatch": "^3.0.4",
     "nullthrows": "^1.1.1",
+    "pirates": "^4.0.0",
     "semver": "^5.4.1"
   },
   "devDependencies": {

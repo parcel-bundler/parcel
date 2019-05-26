@@ -4,9 +4,10 @@ import type {
   MutableAsset as IMutableAsset,
   Blob,
   File,
+  FilePath,
   GenerateOutput,
   Transformer,
-  TransformerRequest,
+  AssetRequest,
   TransformerResult,
   ParcelOptions
 } from '@parcel/types';
@@ -23,7 +24,9 @@ import Cache from '@parcel/cache';
 import {TapStream, unique} from '@parcel/utils';
 import {createReadStream} from 'fs';
 
+import Dependency from './Dependency';
 import Config from './Config';
+import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset from './Asset';
@@ -40,13 +43,18 @@ const BUFFER_LIMIT = 5000000; // 5mb
 export default class TransformerRunner {
   options: ParcelOptions;
   config: Config;
+  resolverRunner: ResolverRunner;
 
-  constructor(opts: Opts) {
-    this.options = opts.options;
-    this.config = opts.config;
+  constructor({config, options}: Opts) {
+    this.options = options;
+    this.config = config;
+    this.resolverRunner = new ResolverRunner({
+      config,
+      options
+    });
   }
 
-  async transform(req: TransformerRequest): Promise<CacheEntry> {
+  async transform(req: AssetRequest): Promise<CacheEntry> {
     report({
       type: 'buildProgress',
       phase: 'transforming',
@@ -189,12 +197,23 @@ export default class TransformerRunner {
     transformer: Transformer,
     previousGenerate: ?GenerateFunc
   ) {
+    const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
+      return (await this.resolverRunner.resolve(
+        new Dependency({
+          env: input.env,
+          moduleSpecifier: to,
+          sourcePath: from
+        })
+      )).filePath;
+    };
+
     // Load config for the transformer.
     let config = null;
     if (transformer.getConfig) {
       config = await transformer.getConfig({
         asset: new MutableAsset(input),
-        options: this.options
+        options: this.options,
+        resolve
       });
     }
 
@@ -299,12 +318,12 @@ async function checkConnectedFiles(files: Array<File>): Promise<boolean> {
   return files.every((file, index) => file.hash === hashes[index]);
 }
 
-function reqCacheKey(req: TransformerRequest): string {
+function reqCacheKey(req: AssetRequest): string {
   return md5FromString(req.filePath + JSON.stringify(req.env));
 }
 
 async function summarizeRequest(
-  req: TransformerRequest
+  req: AssetRequest
 ): Promise<{|content: Blob, hash: string, size: number|}> {
   let code = req.code;
   let content: Blob;

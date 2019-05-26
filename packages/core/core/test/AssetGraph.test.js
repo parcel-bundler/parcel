@@ -1,7 +1,7 @@
 // @flow
 
 import assert from 'assert';
-import AssetGraph, {nodeFromTransformerRequest} from '../src/OldAssetGraph';
+import AssetGraph, {nodeFromAssetGroup} from '../src/AssetGraph';
 import Dependency from '../src/Dependency';
 import Asset from '../src/Asset';
 import Environment from '../src/Environment';
@@ -27,17 +27,16 @@ const stats = {size: 0, time: 0};
 describe('AssetGraph', () => {
   it('initialization should create one root node with edges to dependency nodes for each entry', () => {
     let graph = new AssetGraph();
-    graph.initializeGraph({
+    graph.initialize({
       targets: TARGETS,
-      entries: ['./index1', './index2'],
-      rootDir: '/'
+      entries: ['/path/to/index1', '/path/to/index2']
     });
 
-    assert(graph.nodes.has('/'));
+    assert(graph.nodes.has('@@root'));
     assert(
       graph.nodes.has(
         new Dependency({
-          moduleSpecifier: './index1',
+          moduleSpecifier: '/path/to/index1',
           env: DEFAULT_ENV
         }).id
       )
@@ -45,23 +44,23 @@ describe('AssetGraph', () => {
     assert(
       graph.nodes.has(
         new Dependency({
-          moduleSpecifier: './index2',
+          moduleSpecifier: '/path/to/index2',
           env: DEFAULT_ENV
         }).id
       )
     );
     assert.deepEqual(graph.getAllEdges(), [
       {
-        from: '/',
+        from: '@@root',
         to: new Dependency({
-          moduleSpecifier: './index1',
+          moduleSpecifier: '/path/to/index1',
           env: DEFAULT_ENV
         }).id
       },
       {
-        from: '/',
+        from: '@@root',
         to: new Dependency({
-          moduleSpecifier: './index2',
+          moduleSpecifier: '/path/to/index2',
           env: DEFAULT_ENV
         }).id
       }
@@ -70,50 +69,44 @@ describe('AssetGraph', () => {
 
   it('resolveDependency should update the file a dependency is connected to', () => {
     let graph = new AssetGraph();
-    graph.initializeGraph({
+    graph.initialize({
       targets: TARGETS,
-      entries: ['./index'],
-      rootDir: '/'
+      entries: ['/path/to/index']
     });
 
     let dep = new Dependency({
-      moduleSpecifier: './index',
-      env: DEFAULT_ENV,
-      sourcePath: '/index'
+      moduleSpecifier: '/path/to/index',
+      env: DEFAULT_ENV
     });
     let req = {filePath: '/index.js', env: DEFAULT_ENV};
 
     graph.resolveDependency(dep, req);
-    assert(graph.nodes.has(nodeFromTransformerRequest(req).id));
-    assert(graph.hasEdge(dep.id, nodeFromTransformerRequest(req).id));
-    assert(graph.incompleteNodes.has(nodeFromTransformerRequest(req).id));
+    assert(graph.nodes.has(nodeFromAssetGroup(req).id));
+    assert(graph.hasEdge(dep.id, nodeFromAssetGroup(req).id));
 
     let req2 = {filePath: '/index.jsx', env: DEFAULT_ENV};
     graph.resolveDependency(dep, req2);
-    assert(!graph.nodes.has(nodeFromTransformerRequest(req).id));
-    assert(graph.nodes.has(nodeFromTransformerRequest(req2).id));
-    assert(graph.hasEdge(dep.id, nodeFromTransformerRequest(req2).id));
-    assert(!graph.hasEdge(dep.id, nodeFromTransformerRequest(req).id));
-    assert(graph.incompleteNodes.has(nodeFromTransformerRequest(req2).id));
+    assert(!graph.nodes.has(nodeFromAssetGroup(req).id));
+    assert(graph.nodes.has(nodeFromAssetGroup(req2).id));
+    assert(graph.hasEdge(dep.id, nodeFromAssetGroup(req2).id));
+    assert(!graph.hasEdge(dep.id, nodeFromAssetGroup(req).id));
 
     graph.resolveDependency(dep, req2);
-    assert(graph.nodes.has(nodeFromTransformerRequest(req2).id));
-    assert(graph.hasEdge(dep.id, nodeFromTransformerRequest(req2).id));
-    assert(graph.incompleteNodes.has(nodeFromTransformerRequest(req2).id));
+    assert(graph.nodes.has(nodeFromAssetGroup(req2).id));
+    assert(graph.hasEdge(dep.id, nodeFromAssetGroup(req2).id));
   });
 
-  it('resolveTransformerRequest should update the asset and dep nodes a file is connected to', () => {
+  it('resolveAssetGroup should update the asset and dep nodes a file is connected to', () => {
     let graph = new AssetGraph();
-    graph.initializeGraph({
+    graph.initialize({
       targets: TARGETS,
-      entries: ['./index'],
-      rootDir: '/'
+      entries: ['/path/to/index']
     });
 
     let dep = new Dependency({
-      moduleSpecifier: './index',
+      moduleSpecifier: '/path/to/index',
       env: DEFAULT_ENV,
-      sourcePath: '/index'
+      sourcePath: ''
     });
     let filePath = '/index.js';
     let req = {filePath, env: DEFAULT_ENV};
@@ -178,38 +171,17 @@ describe('AssetGraph', () => {
       connectedFiles: []
     };
 
-    graph.resolveTransformerRequest(req, cacheEntry);
+    graph.resolveAssetGroup(req, cacheEntry);
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(graph.nodes.has('3'));
     assert(graph.nodes.has(assets[0].getDependencies()[0].id));
     assert(graph.nodes.has(assets[1].getDependencies()[0].id));
-    assert(graph.nodes.has('/index.js'));
-    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, '1'));
-    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, '2'));
-    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, '3'));
-    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, filePath));
+    assert(graph.hasEdge(nodeFromAssetGroup(req).id, '1'));
+    assert(graph.hasEdge(nodeFromAssetGroup(req).id, '2'));
+    assert(graph.hasEdge(nodeFromAssetGroup(req).id, '3'));
     assert(graph.hasEdge('1', assets[0].getDependencies()[0].id));
     assert(graph.hasEdge('2', assets[1].getDependencies()[0].id));
-    assert(!graph.incompleteNodes.has(nodeFromTransformerRequest(req).id));
-    assert(
-      graph.incompleteNodes.has(
-        new Dependency({
-          moduleSpecifier: './utils',
-          env: DEFAULT_ENV,
-          sourcePath
-        }).id
-      )
-    );
-    assert(
-      graph.incompleteNodes.has(
-        new Dependency({
-          moduleSpecifier: './styles',
-          env: DEFAULT_ENV,
-          sourcePath
-        }).id
-      )
-    );
 
     let assets2 = [
       new Asset({
@@ -251,45 +223,24 @@ describe('AssetGraph', () => {
       connectedFiles: []
     };
 
-    graph.resolveTransformerRequest(req, cacheEntry);
+    graph.resolveAssetGroup(req, cacheEntry);
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(!graph.nodes.has('3'));
     assert(graph.nodes.has(assets[0].getDependencies()[0].id));
     assert(!graph.nodes.has(assets[1].getDependencies()[0].id));
-    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, '1'));
-    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, '2'));
-    assert(!graph.hasEdge(nodeFromTransformerRequest(req).id, '3'));
-    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, filePath));
+    assert(graph.hasEdge(nodeFromAssetGroup(req).id, '1'));
+    assert(graph.hasEdge(nodeFromAssetGroup(req).id, '2'));
+    assert(!graph.hasEdge(nodeFromAssetGroup(req).id, '3'));
     assert(graph.hasEdge('1', assets[0].getDependencies()[0].id));
     assert(!graph.hasEdge('2', assets[1].getDependencies()[0].id));
-    assert(!graph.incompleteNodes.has(nodeFromTransformerRequest(req).id));
-    assert(
-      graph.incompleteNodes.has(
-        new Dependency({
-          moduleSpecifier: './utils',
-          env: DEFAULT_ENV,
-          sourcePath
-        }).id
-      )
-    );
-    assert(
-      !graph.incompleteNodes.has(
-        new Dependency({
-          moduleSpecifier: './styles',
-          env: DEFAULT_ENV,
-          sourcePath
-        }).id
-      )
-    );
   });
 
-  it('resolveTransformerRequest should add connected file nodes', () => {
+  it('resolveAssetRequest should add connected file nodes', () => {
     let graph = new AssetGraph();
-    graph.initializeGraph({
+    graph.initialize({
       targets: TARGETS,
-      entries: ['./index'],
-      rootDir: '/'
+      entries: ['./index']
     });
 
     let dep = new Dependency({moduleSpecifier: './index', env: DEFAULT_ENV});
@@ -333,10 +284,8 @@ describe('AssetGraph', () => {
       initialAssets: null
     };
 
-    graph.resolveTransformerRequest(req, cacheEntry);
+    graph.resolveAssetGroup(req, cacheEntry);
     assert(graph.nodes.has('1'));
-    assert(graph.nodes.has('/foo/bar'));
-    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, '1'));
-    assert(graph.hasEdge(nodeFromTransformerRequest(req).id, '/foo/bar'));
+    assert(graph.hasEdge(nodeFromAssetGroup(req).id, '1'));
   });
 });

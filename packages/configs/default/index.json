@@ -6,7 +6,7 @@
       "@parcel/transformer-js",
       "@parcel/transformer-terser"
     ],
-    "*.css": ["@parcel/transformer-css"],
+    "*.css": ["@parcel/transformer-css", "@parcel/transformer-postcss"],
     "*.{htm,html}": ["@parcel/transformer-html"],
     "*": ["@parcel/transformer-raw"]
   },

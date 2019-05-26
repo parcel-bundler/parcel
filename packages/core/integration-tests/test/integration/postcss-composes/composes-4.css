@@ -1,4 +1,0 @@
-.composes4 {
-  composes: test from '~mixins.css';
-  border: 3px solid black;
-}

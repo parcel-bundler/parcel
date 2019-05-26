@@ -1,15 +1,15 @@
 {
   "name": "@parcel/kitchen-sink-example",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "license": "MIT",
   "private": true,
   "scripts": {
     "demo": "parcel2 build src/index.js"
   },
   "devDependencies": {
-    "@parcel/babel-register": "^2.0.0",
-    "@parcel/config-default": "^2.0.0",
-    "parcel": "^2.0.0"
+    "@parcel/babel-register": "^2.0.0-alpha.0",
+    "@parcel/config-default": "^2.0.0-alpha.0",
+    "parcel": "^2.0.0-alpha.0"
   },
   "browser": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",

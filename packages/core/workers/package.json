@@ -1,6 +1,6 @@
 {
   "name": "@parcel/workers",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/WorkerFarm.js",
   "license": "MIT",
@@ -22,8 +22,8 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "@parcel/logger": "^2.0.0",
-    "@parcel/utils": "^2.0.0",
+    "@parcel/logger": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0",
     "physical-cpu-count": "^2.0.0",
     "nullthrows": "^1.1.1"
   }

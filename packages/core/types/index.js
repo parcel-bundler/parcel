@@ -210,7 +210,7 @@ export interface Dependency {
   symbols: Map<Symbol, Symbol>;
 
   // TODO: get this from graph instead of storing them on dependencies
-  sourcePath: FilePath;
+  sourcePath: ?FilePath;
 
   merge(other: Dependency): void;
 }
@@ -220,16 +220,11 @@ export type File = {
   hash?: string
 };
 
-export type TransformerRequest = {
+export type AssetRequest = {|
   filePath: FilePath,
   env: Environment,
   sideEffects?: boolean,
   code?: string
-};
-
-export type AssetGroup = {|
-  filePath: FilePath,
-  env: Environment
 |};
 
 interface BaseAsset {
@@ -308,6 +303,7 @@ type Async<T> = T | Promise<T>;
 export type Transformer = {
   getConfig?: ({
     asset: MutableAsset,
+    resolve: (from: FilePath, to: string) => Promise<FilePath>,
     options: ParcelOptions
   }) => Async<Config | void>,
   canReuseAST?: ({ast: AST, options: ParcelOptions}) => boolean,
@@ -491,7 +487,7 @@ export type Resolver = {|
   resolve({
     dependency: Dependency,
     options: ParcelOptions
-  }): Async<?TransformerRequest>
+  }): Async<?AssetRequest>
 |};
 
 export type ProgressLogEvent = {|
@@ -534,7 +530,7 @@ type ResolvingProgressEvent = {|
 type TransformingProgressEvent = {|
   type: 'buildProgress',
   phase: 'transforming',
-  request: TransformerRequest
+  request: AssetRequest
 |};
 
 type BundlingProgressEvent = {|

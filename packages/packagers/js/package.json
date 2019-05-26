@@ -1,6 +1,6 @@
 {
   "name": "@parcel/packager-js",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,10 +8,10 @@
   },
   "main": "src/JSPackager",
   "engines": {
-    "parcel": "2.x"
+    "parcel": "^2.0.0-alpha.0"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0",
-    "@parcel/scope-hoisting": "^2.0.0"
+    "@parcel/plugin": "^2.0.0-alpha.0",
+    "@parcel/scope-hoisting": "^2.0.0-alpha.0"
   }
 }

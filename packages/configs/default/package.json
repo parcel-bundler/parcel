@@ -1,6 +1,6 @@
 {
   "name": "@parcel/config-default",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -10,23 +10,24 @@
     "test": "mocha"
   },
   "dependencies": {
-    "@parcel/bundler-default": "^2.0.0",
-    "@parcel/namer-default": "^2.0.0",
-    "@parcel/packager-css": "^2.0.0",
-    "@parcel/packager-html": "^2.0.0",
-    "@parcel/packager-js": "^2.0.0",
-    "@parcel/packager-raw": "^2.0.0",
-    "@parcel/reporter-cli": "^2.0.0",
-    "@parcel/resolver-default": "^2.0.0",
-    "@parcel/runtime-js": "^2.0.0",
-    "@parcel/transformer-babel": "^2.0.0",
-    "@parcel/transformer-css": "^2.0.0",
-    "@parcel/transformer-html": "^2.0.0",
-    "@parcel/transformer-js": "^2.0.0",
-    "@parcel/transformer-raw": "^2.0.0",
-    "@parcel/transformer-terser": "^2.0.0",
-    "@parcel/reporter-dev-server": "^2.0.0",
-    "@parcel/reporter-hmr-server": "^2.0.0",
-    "@parcel/runtime-browser-hmr": "^2.0.0"
+    "@parcel/bundler-default": "^2.0.0-alpha.0",
+    "@parcel/namer-default": "^2.0.0-alpha.0",
+    "@parcel/packager-css": "^2.0.0-alpha.0",
+    "@parcel/packager-html": "^2.0.0-alpha.0",
+    "@parcel/packager-js": "^2.0.0-alpha.0",
+    "@parcel/packager-raw": "^2.0.0-alpha.0",
+    "@parcel/reporter-cli": "^2.0.0-alpha.0",
+    "@parcel/resolver-default": "^2.0.0-alpha.0",
+    "@parcel/runtime-js": "^2.0.0-alpha.0",
+    "@parcel/transformer-babel": "^2.0.0-alpha.0",
+    "@parcel/transformer-css": "^2.0.0-alpha.0",
+    "@parcel/transformer-html": "^2.0.0-alpha.0",
+    "@parcel/transformer-js": "^2.0.0-alpha.0",
+    "@parcel/transformer-postcss": "^2.0.0-alpha.0",
+    "@parcel/transformer-raw": "^2.0.0-alpha.0",
+    "@parcel/transformer-terser": "^2.0.0-alpha.0",
+    "@parcel/reporter-dev-server": "^2.0.0-alpha.0",
+    "@parcel/reporter-hmr-server": "^2.0.0-alpha.0",
+    "@parcel/runtime-browser-hmr": "^2.0.0-alpha.0"
   }
 }
