@@ -8,7 +8,7 @@ import type InternalBundleGraph from './BundleGraph';
 
 import invariant from 'assert';
 import {mkdirp, writeFile, writeFileStream} from '@parcel/fs';
-import {TapStream, urlRelative} from '@parcel/utils';
+import {TapStream, urlJoin} from '@parcel/utils';
 import {NamedBundle} from './public/Bundle';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -150,7 +150,10 @@ function generateDepToBundlePath(
     let entryBundle = entryBundleNode.value;
     depToBundlePath.set(
       dep.id,
-      urlRelative(nullthrows(bundle.name), nullthrows(entryBundle.name))
+      urlJoin(
+        nullthrows(entryBundle.target).publicUrl ?? '/',
+        nullthrows(entryBundle.name)
+      )
     );
   });
   return depToBundlePath;

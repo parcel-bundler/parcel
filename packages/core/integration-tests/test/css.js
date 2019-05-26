@@ -6,10 +6,15 @@ const {
   run,
   assertBundles,
   assertBundleTree,
-  distDir
+  distDir,
+  removeDistDirectory
 } = require('@parcel/test-utils');
 
-describe('css in v2', () => {
+describe('css', () => {
+  afterEach(async () => {
+    await removeDistDirectory();
+  });
+
   it('should produce two bundles when importing a CSS file', async () => {
     let b = await bundle(path.join(__dirname, '/integration/css/index.js'));
 
@@ -85,10 +90,8 @@ describe('css in v2', () => {
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 3);
   });
-});
 
-describe.skip('css', function() {
-  it('should support importing CSS from a CSS file', async function() {
+  it.skip('should support importing CSS from a CSS file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/css-import/index.js')
     );
@@ -130,38 +133,26 @@ describe.skip('css', function() {
   it('should support linking to assets with url() from CSS', async function() {
     let b = await bundle(path.join(__dirname, '/integration/css-url/index.js'));
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.css'],
-      childBundles: [
-        {
-          name: 'index.css',
-          assets: ['index.css'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        },
-        {
-          type: 'map'
-        },
-        {
-          type: 'woff2',
-          assets: ['test.woff2'],
-          childBundles: []
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.css']
+      },
+      {
+        type: 'woff2',
+        assets: ['test.woff2']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(/url\("\/test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
@@ -172,11 +163,7 @@ describe.skip('css', function() {
 
     assert(
       await fs.exists(
-        path.join(
-          __dirname,
-          '/dist/',
-          css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1]
-        )
+        path.join(distDir, css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1])
       )
     );
   });
@@ -185,42 +172,30 @@ describe.skip('css', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/css-url/index.js'),
       {
-        production: true
+        minify: true
       }
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.css'],
-      childBundles: [
-        {
-          name: 'index.css',
-          assets: ['index.css'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        },
-        {
-          type: 'map'
-        },
-        {
-          type: 'woff2',
-          assets: ['test.woff2'],
-          childBundles: []
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.css']
+      },
+      {
+        type: 'woff2',
+        assets: ['test.woff2']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(
       /url\(\/test\.[0-9a-f]+\.woff2\)/.test(css),
       'woff ext found in css'
@@ -234,11 +209,7 @@ describe.skip('css', function() {
 
     assert(
       await fs.exists(
-        path.join(
-          __dirname,
-          '/dist/',
-          css.match(/url\((\/test\.[0-9a-f]+\.woff2)\)/)[1]
-        )
+        path.join(distDir, css.match(/url\((\/test\.[0-9a-f]+\.woff2)\)/)[1])
       )
     );
   });
@@ -250,48 +221,42 @@ describe.skip('css', function() {
         path.join(__dirname, '/integration/css-url-relative/src/b/style2.css')
       ],
       {
-        production: true,
+        minify: true,
         sourceMaps: false
       }
     );
 
-    await assertBundleTree(b, [
+    await assertBundles(b, [
       {
         type: 'css',
-        assets: ['style1.css'],
-        childBundles: [
-          {
-            type: 'png'
-          }
-        ]
+        assets: ['style1.css']
       },
       {
         type: 'css',
         assets: ['style2.css']
+      },
+      {
+        type: 'png',
+        assets: ['foo.png']
       }
     ]);
 
-    let css = await fs.readFile(
-      path.join(__dirname, '/dist/a/style1.css'),
-      'utf8'
-    );
+    let css = await fs.readFile(path.join(distDir, 'a', 'style1.css'), 'utf8');
 
     assert(css.includes('background-image'), 'includes `background-image`');
     assert(/url\([^)]*\)/.test(css), 'includes url()');
 
     assert(
-      await fs.exists(
-        path.join(__dirname, 'dist', css.match(/url\(([^)]*)\)/)[1])
-      ),
+      await fs.exists(path.join(distDir, css.match(/url\(([^)]*)\)/)[1])),
       'path specified in url() exists'
     );
   });
 
-  it('should minify CSS in production mode', async function() {
+  it('should minify CSS when minify is set', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/cssnano/index.js'),
       {
-        production: true
+        minify: true
       }
     );
 
@@ -299,12 +264,11 @@ describe.skip('css', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
 
-    let css = await fs.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.local'));
     assert(css.includes('.index'));
-    assert.equal(css.split('\n').length, 2); // sourceMappingURL
+
+    // TODO: Make this `2` when a `sourceMappingURL` is added
+    assert.equal(css.split('\n').length, 1);
   });
 });
