@@ -1,6 +1,9 @@
 // @flow
-import type {MutableAsset} from '@parcel/types';
+
+import type {Engines, MutableAsset} from '@parcel/types';
+
 import presetEnv from '@babel/preset-env';
+import semver from 'semver';
 import getTargetEngines from './getTargetEngines';
 
 /**
@@ -43,9 +46,27 @@ export default async function getEnvConfig(
 
 const envCache = new Map();
 
-async function getEnvPlugins(targets, useBuiltIns = false) {
-  if (!targets) {
+async function getEnvPlugins(engines: Engines, useBuiltIns = false) {
+  if (!engines) {
     return null;
+  }
+
+  // "Targets" is the name @babel/preset-env uses for what Parcel calls engines.
+  // This should not be confused with Parcel's own targets.
+  // Unlike Parcel's engines, @babel/preset-env expects to work with minimum
+  // versions, not semver ranges, of its targets.
+  let targets = {};
+  for (let engineName of Object.keys(engines)) {
+    let engineValue = engines[engineName];
+
+    // if the engineValue is a string, it might be a semver range. Use the minimum
+    // possible version instead.
+    if (typeof engineValue === 'string') {
+      let minVersion = getMinSemver(engineValue);
+      targets[engineName] = minVersion ?? engineValue;
+    } else {
+      targets[engineName] = engineValue;
+    }
   }
 
   let key = JSON.stringify(targets);
@@ -65,4 +86,16 @@ async function getEnvPlugins(targets, useBuiltIns = false) {
 
   envCache.set(key, plugins);
   return plugins;
+}
+
+// TODO: Replace with `minVersion` (https://github.com/npm/node-semver#ranges-1)
+//       once semver has been upgraded across Parcel.
+function getMinSemver(version) {
+  try {
+    let range = new semver.Range(version);
+    let sorted = range.set.sort((a, b) => a[0].semver.compare(b[0].semver));
+    return sorted[0][0].semver.version;
+  } catch (err) {
+    return null;
+  }
 }
