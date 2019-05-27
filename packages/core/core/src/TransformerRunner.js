@@ -177,7 +177,8 @@ export default class TransformerRunner {
     }
 
     // If the transformer has a postProcess function, execute that with the result of the pipeline.
-    let finalAssets = await postProcess(clone(assets));
+    // TODO: Find a performant way to clone assets before finalising...
+    let finalAssets = await postProcess(assets);
     return {
       assets: finalAssets || assets,
       initialAssets: finalAssets ? assets : null
