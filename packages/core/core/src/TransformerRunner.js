@@ -20,7 +20,6 @@ import {
   md5FromReadableStream,
   md5FromString
 } from '@parcel/utils';
-import Cache from '@parcel/cache';
 import {TapStream, unique} from '@parcel/utils';
 import {createReadStream} from 'fs';
 
@@ -30,6 +29,7 @@ import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset from './Asset';
+import {getCacheByDir} from '@parcel/cache';
 
 type Opts = {|
   config: Config,
@@ -68,10 +68,12 @@ export default class TransformerRunner {
       request: req
     });
 
+    let cache = getCacheByDir(this.options.cacheDir);
+
     // If a cache entry matches, no need to transform.
     let cacheEntry;
     if (this.options.cache !== false && req.code == null) {
-      cacheEntry = await Cache.get(reqCacheKey(req));
+      cacheEntry = await cache.get(reqCacheKey(req));
     }
 
     let {content, size, hash} = await summarizeRequest(req);
@@ -89,6 +91,7 @@ export default class TransformerRunner {
       idBase: req.code ? hash : req.filePath,
       filePath: req.filePath,
       type: path.extname(req.filePath).slice(1),
+      cacheDir: cache.dir,
       ast: null,
       content,
       hash,
@@ -118,7 +121,7 @@ export default class TransformerRunner {
     await Promise.all(
       unique([...assets, ...(initialAssets || [])]).map(asset => asset.commit())
     );
-    await Cache.set(reqCacheKey(req), cacheEntry);
+    await cache.set(reqCacheKey(req), cacheEntry);
     return cacheEntry;
   }
 
