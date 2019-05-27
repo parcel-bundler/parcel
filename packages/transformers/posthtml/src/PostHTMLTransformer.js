@@ -9,27 +9,23 @@ import nullthrows from 'nullthrows';
 import semver from 'semver';
 import loadPlugins from './loadPlugins';
 
-const getPostHTMLConfig = async asset => {
-  let config = await asset.getConfig(
-    ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
-    {
-      packageKey: 'posthtml'
-    }
-  );
-
-  config = config || {};
-
-  // load plugins
-  config.plugins = await loadPlugins(config.plugins, asset.filePath);
-
-  // tells posthtml that we have already called parse
-  config.skipParse = true;
-  return config;
-};
-
 export default new Transformer({
   async getConfig({asset}) {
-    return getPostHTMLConfig(asset);
+    let config = await asset.getConfig(
+      ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
+      {
+        packageKey: 'posthtml'
+      }
+    );
+
+    config = config || {};
+
+    // load plugins
+    config.plugins = await loadPlugins(config.plugins, asset.filePath);
+
+    // tells posthtml that we have already called parse
+    config.skipParse = true;
+    return config;
   },
 
   canReuseAST({ast}) {
