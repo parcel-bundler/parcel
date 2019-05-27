@@ -10,6 +10,6 @@ export default new Packager({
     });
     let outputs = await Promise.all(promises);
 
-    return outputs.map(output => output).join('\n');
+    return {code: await outputs.map(output => output).join('\n')};
   }
 });

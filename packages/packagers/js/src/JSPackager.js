@@ -98,20 +98,22 @@ export default new Packager({
       }
     });
 
-    return (
-      PRELUDE +
-      '({' +
-      assets +
-      '},{},' +
-      JSON.stringify(
-        bundle
-          .getEntryAssets()
-          .reverse()
-          .map(asset => asset.id)
-      ) +
-      ', ' +
-      'null' +
-      ')'
-    );
+    return {
+      code:
+        PRELUDE +
+        '({' +
+        assets +
+        '},{},' +
+        JSON.stringify(
+          bundle
+            .getEntryAssets()
+            .reverse()
+            .map(asset => asset.id)
+        ) +
+        ', ' +
+        'null' +
+        ')',
+      map
+    };
   }
 });

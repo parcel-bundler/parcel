@@ -473,11 +473,15 @@ export type Packager = {|
     bundle: Bundle,
     bundleGraph: BundleGraph,
     opts: ParcelOptions
-  ): Async<Blob>
+  ): Async<{code: Blob, map?: SourceMap}>
 |};
 
 export type Optimizer = {|
-  optimize(bundle: Bundle, contents: Blob, opts: ParcelOptions): Async<Blob>
+  optimize(
+    bundle: Bundle,
+    contents: {code: Blob, map?: SourceMap},
+    opts: ParcelOptions
+  ): Async<{code: Blob, map?: SourceMap}>
 |};
 
 export type Resolver = {|

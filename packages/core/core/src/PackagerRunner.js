@@ -1,7 +1,7 @@
 // @flow
 
 import {Readable} from 'stream';
-import type {ParcelOptions, Blob, FilePath} from '@parcel/types';
+import type {ParcelOptions, Blob, FilePath, SourceMap} from '@parcel/types';
 import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
 import type InternalBundleGraph from './BundleGraph';
@@ -45,15 +45,19 @@ export default class PackagerRunner {
     }
 
     let size;
-    if (contents instanceof Readable) {
+    if (contents.code instanceof Readable) {
       size = 0;
       await writeFileStream(
         filePath,
-        contents.pipe(new TapStream(chunk => (size += chunk.length)))
+        contents.code.pipe(new TapStream(chunk => (size += chunk.length)))
       );
     } else {
-      await writeFile(filePath, contents);
-      size = contents.length;
+      await writeFile(filePath, contents.code);
+      size = contents.code.length;
+    }
+
+    if (contents.map) {
+      await writeFile(filePath + '.map', contents.map.stringify(filePath));
     }
 
     return {
@@ -65,7 +69,7 @@ export default class PackagerRunner {
   async package(
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph
-  ): Promise<Blob> {
+  ): Promise<{code: Blob, map?: SourceMap}> {
     let bundle = new NamedBundle(internalBundle);
     report({
       type: 'buildProgress',
@@ -80,18 +84,22 @@ export default class PackagerRunner {
       this.options
     );
 
-    return typeof packageContent === 'string'
-      ? replaceReferences(
-          packageContent,
-          generateDepToBundlePath(internalBundle)
-        )
-      : packageContent;
+    return {
+      code:
+        typeof packageContent.code === 'string'
+          ? replaceReferences(
+              packageContent.code,
+              generateDepToBundlePath(internalBundle)
+            )
+          : packageContent.code,
+      map: packageContent.map
+    };
   }
 
   async optimize(
     internalBundle: InternalBundle,
-    contents: Blob
-  ): Promise<Blob> {
+    contents: {code: Blob, map?: SourceMap}
+  ): Promise<{code: Blob, map?: SourceMap}> {
     let bundle = new NamedBundle(internalBundle);
     let optimizers = await this.config.getOptimizers(bundle.filePath);
     if (!optimizers.length) {
@@ -116,7 +124,7 @@ export default class PackagerRunner {
  * Build a mapping from async, url dependency ids to web-friendly relative paths
  * to their bundles. These will be relative to the current bundle if `publicUrl`
  * is not provided. If `publicUrl` is provided, the paths will be joined to it.
- * 
+ *
  * These are used to translate any placeholder dependency ids written during
  * transformation back to a path that can be loaded in a browser (such as
  * in a "raw" loader or any transformed dependencies referred to by url).
