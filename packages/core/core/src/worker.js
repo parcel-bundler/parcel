@@ -7,7 +7,6 @@ import type BundleGraph from './BundleGraph';
 import TransformerRunner from './TransformerRunner';
 import PackagerRunner from './PackagerRunner';
 import Config from './Config';
-import Cache from '@parcel/cache';
 
 type Options = {|
   config: Config,
@@ -20,8 +19,6 @@ let packagerRunner: PackagerRunner | null = null;
 
 export function init({config, options, env}: Options) {
   Object.assign(process.env, env || {});
-
-  Cache.init(options);
 
   transformerRunner = new TransformerRunner({
     config,
