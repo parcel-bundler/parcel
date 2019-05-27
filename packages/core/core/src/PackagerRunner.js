@@ -8,7 +8,7 @@ import type InternalBundleGraph from './BundleGraph';
 
 import invariant from 'assert';
 import {mkdirp, writeFile, writeFileStream} from '@parcel/fs';
-import {TapStream, urlJoin} from '@parcel/utils';
+import {urlJoin} from '@parcel/utils';
 import {NamedBundle} from './public/Bundle';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -46,11 +46,7 @@ export default class PackagerRunner {
 
     let size;
     if (contents instanceof Readable) {
-      size = 0;
-      await writeFileStream(
-        filePath,
-        contents.pipe(new TapStream(chunk => (size += chunk.length)))
-      );
+      size = await writeFileStream(filePath, contents);
     } else {
       await writeFile(filePath, contents);
       size = contents.length;

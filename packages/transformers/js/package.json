@@ -8,6 +8,7 @@
   },
   "main": "src/JSTransformer",
   "engines": {
+    "node": ">= 8.0.0",
     "parcel": "^2.0.0-alpha.0"
   },
   "scripts": {
