@@ -2,51 +2,22 @@
 
 import type {Readable} from 'stream';
 
-import type {FilePath, ParcelOptions, JSONObject} from '@parcel/types';
+import type {FilePath} from '@parcel/types';
 
 import * as fs from '@parcel/fs';
 import {createReadStream, createWriteStream} from 'fs';
 import invariant from 'assert';
 import path from 'path';
 import logger from '@parcel/logger';
-import {objectHash, serialize, deserialize} from '@parcel/utils';
-import pkg from '../package.json';
+import {DefaultMap, serialize, deserialize} from '@parcel/utils';
 
-// These keys can affect the output, so if they differ, the cache should not match
-// const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
-const OPTION_KEYS = [];
-
-// Cache for whether a cache dir exists
-const existsCache = new Set();
-
-export class Cache {
+class Cache {
   dir: FilePath;
   invalidated: Set<FilePath>;
-  optionsHash: string;
 
-  init(options: ParcelOptions) {
-    this.dir = path.resolve(options.cacheDir);
+  constructor(cacheDir: FilePath) {
+    this.dir = cacheDir;
     this.invalidated = new Set();
-    this.optionsHash = objectHash(
-      OPTION_KEYS.reduce((p: JSONObject, k) => ((p[k] = options[k]), p), {
-        version: pkg.version
-      })
-    );
-  }
-
-  async createCacheDir(dir: FilePath): Promise<void> {
-    dir = path.resolve(dir);
-    if (existsCache.has(dir)) {
-      return;
-    }
-
-    // Create sub-directories for every possible hex value
-    // This speeds up large caches on many file systems since there are fewer files in a single directory.
-    for (let i = 0; i < 256; i++) {
-      await fs.mkdirp(path.join(dir, ('00' + i.toString(16)).slice(-2)));
-    }
-
-    existsCache.add(dir);
   }
 
   getCachePath(cacheId: string, extension: string = '.json'): FilePath {
@@ -105,4 +76,35 @@ export class Cache {
   }
 }
 
-export default new Cache();
+// Cache for whether a cache dir exists
+const existsCache: Set<FilePath> = new Set();
+const cacheByDir: DefaultMap<FilePath, Cache> = new DefaultMap(dir => {
+  return new Cache(dir);
+});
+
+export async function createCacheDir(dir: FilePath): Promise<void> {
+  if (existsCache.has(dir)) {
+    return;
+  }
+
+  // First, create the main cache directory if necessary.
+  await fs.mkdirp(dir);
+
+  // In parallel, create sub-directories for every possible hex value
+  // This speeds up large caches on many file systems since there are fewer files in a single directory.
+  let dirPromises = [];
+  for (let i = 0; i < 256; i++) {
+    dirPromises.push(
+      fs.mkdirp(path.join(dir, ('00' + i.toString(16)).slice(-2)))
+    );
+  }
+
+  await dirPromises;
+  existsCache.add(dir);
+}
+
+export function getCacheByDir(dir: FilePath): Cache {
+  return cacheByDir.get(dir);
+}
+
+export type {Cache};

@@ -7,7 +7,6 @@ import type BundleGraph from './BundleGraph';
 import TransformerRunner from './TransformerRunner';
 import PackagerRunner from './PackagerRunner';
 import Config from './Config';
-import Cache from '@parcel/cache';
 import registerCoreWithSerializer from './registerCoreWithSerializer';
 
 type Options = {|
@@ -23,8 +22,6 @@ registerCoreWithSerializer();
 
 export function init({config, options, env}: Options) {
   Object.assign(process.env, env || {});
-
-  Cache.init(options);
 
   transformerRunner = new TransformerRunner({
     config,
