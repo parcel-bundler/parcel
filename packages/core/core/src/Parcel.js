@@ -24,7 +24,6 @@ import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
-import Cache from '@parcel/cache';
 import watcher from '@parcel/watcher';
 import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
@@ -34,6 +33,7 @@ import MainAssetGraph from './public/MainAssetGraph';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
+import {createCacheDir} from '@parcel/cache';
 
 type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
 
@@ -69,7 +69,7 @@ export default class Parcel {
       this.#initialOptions
     );
     this.#resolvedOptions = resolvedOptions;
-    await Cache.createCacheDir(resolvedOptions.cacheDir);
+    await createCacheDir(resolvedOptions.cacheDir);
 
     let configResolver = new ConfigResolver();
     let config;
