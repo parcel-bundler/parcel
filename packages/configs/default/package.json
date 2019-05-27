@@ -12,6 +12,7 @@
   "dependencies": {
     "@parcel/bundler-default": "^2.0.0-alpha.0",
     "@parcel/namer-default": "^2.0.0-alpha.0",
+    "@parcel/optimizer-cssnano": "^2.0.0-alpha.0",
     "@parcel/packager-css": "^2.0.0-alpha.0",
     "@parcel/packager-html": "^2.0.0-alpha.0",
     "@parcel/packager-js": "^2.0.0-alpha.0",
