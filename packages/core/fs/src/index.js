@@ -71,6 +71,7 @@ export function writeFileStream(
     let fsStream = fs.createWriteStream(filePath);
     stream
       .pipe(fsStream)
+      // $FlowFixMe
       .on('finish', () => resolve(fsStream.bytesWritten))
       .on('error', reject);
   });
