@@ -4,7 +4,7 @@ Transformers have three roles: to transform an assets content from one form to a
 
 ### Transform / Compile
 
-Covertes the assets content from one structure to another.
+Converts the assets content from one structure to another.
 
 **Common Examples**
 
@@ -13,7 +13,7 @@ Covertes the assets content from one structure to another.
 
 ### Create Assets
 
-Dynamic create new assets based on the assests provided.
+Dynamic create new assets based on the assets provided.
 
 **Common Examples**
 
