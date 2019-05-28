@@ -7,7 +7,7 @@ import type {
 } from '@parcel/types';
 
 import {getRootDir} from '@parcel/utils';
-import loadEnv from './loadEnv';
+import loadDotEnv from './loadDotEnv';
 import path from 'path';
 import TargetResolver from './TargetResolver';
 import {resolveConfig} from '@parcel/utils';
@@ -35,10 +35,6 @@ export default async function resolveOptions(
   let targetResolver = new TargetResolver();
   let targets = await targetResolver.resolve(rootDir, initialOptions);
 
-  if (!initialOptions.env) {
-    await loadEnv(path.join(rootDir, 'index'));
-  }
-
   let projectRoot = path.dirname(
     (await resolveConfig(path.join(process.cwd(), 'index'), [
       'yarn.lock',
@@ -51,7 +47,7 @@ export default async function resolveOptions(
 
   // $FlowFixMe
   return {
-    env: process.env,
+    env: initialOptions.env ?? (await loadDotEnv(path.join(rootDir, 'index'))),
     ...initialOptions,
     cacheDir:
       initialOptions.cacheDir != null

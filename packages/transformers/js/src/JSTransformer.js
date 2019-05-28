@@ -74,7 +74,7 @@ export default new Transformer({
 
     // Inline environment variables
     if (!asset.env.isNode() && ENV_RE.test(code)) {
-      walk.simple(ast.program, envVisitor, asset);
+      walk.simple(ast.program, envVisitor, {asset, env: options.env});
     }
 
     // Collect dependencies
