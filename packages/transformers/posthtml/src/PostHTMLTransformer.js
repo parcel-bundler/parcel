@@ -56,6 +56,17 @@ export default new Transformer({
 
     let res = await posthtml(config.plugins).process(ast.program, config);
 
+    if (res.messages) {
+      await Promise.all(
+        res.messages.map(({type, file: filePath}) => {
+          if (type === 'dependency') {
+            return asset.addConnectedFile({filePath});
+          }
+          return Promise.resolve();
+        })
+      );
+    }
+
     ast.program = res.tree;
     asset.ast = ast;
 
