@@ -84,7 +84,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     // This expects the worker farm to already be initialized by Parcel prior to calling
     // AssetGraphBuilder, which avoids needing to pass the options through here.
     this.farm = await WorkerFarm.getShared();
-    this.runTransform = this.farm.mkhandle('runTransform');
+    this.runTransform = this.farm.createHandle('runTransform');
   }
 
   async completeRequests() {

@@ -120,7 +120,7 @@ export default class Parcel {
 
     await this.#assetGraphBuilder.initFarm();
 
-    this.#runPackage = this.#farm.mkhandle('runPackage');
+    this.#runPackage = this.#farm.createHandle('runPackage');
     this.#initialized = true;
   }
 

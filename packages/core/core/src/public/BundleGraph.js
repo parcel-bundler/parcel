@@ -293,6 +293,25 @@ class BundleReference implements IBundleReference {
     this.#bundle = bundle;
   }
 
+  // Once serialized, BundleReferences are frozen as a copy and no longer
+  // continue to update to reflect the properties of the bundle they reference.
+  static deserialize(props): IBundleReference {
+    return props;
+  }
+
+  serialize(): IBundleReference {
+    return {
+      id: this.id,
+      type: this.type,
+      env: this.env,
+      isEntry: this.isEntry,
+      target: this.target,
+      filePath: this.filePath,
+      name: this.name,
+      stats: this.stats
+    };
+  }
+
   get id() {
     return this.#bundle.id;
   }
