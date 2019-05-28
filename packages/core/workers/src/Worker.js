@@ -1,7 +1,7 @@
 // @flow
 
 import type {FilePath} from '@parcel/types';
-import type {BundlerOptions, WorkerMessage} from './types';
+import type {WorkerMessage} from './types';
 
 import childProcess, {type ChildProcess} from 'child_process';
 import EventEmitter from 'events';
@@ -43,7 +43,7 @@ export default class Worker extends EventEmitter {
     this.options = options;
   }
 
-  async fork(forkModule: FilePath, bundlerOptions: BundlerOptions) {
+  async fork(forkModule: FilePath) {
     let filteredArgs = process.execArgv.filter(
       v => !/^--(debug|inspect)/.test(v)
     );
@@ -90,16 +90,16 @@ export default class Worker extends EventEmitter {
       });
     });
 
-    await this.init(bundlerOptions);
+    await this.init();
   }
 
-  async init(bundlerOptions: BundlerOptions) {
+  async init() {
     this.ready = false;
 
     return new Promise((resolve, reject) => {
       this.call({
         method: 'init',
-        args: [bundlerOptions],
+        args: [],
         retries: 0,
         resolve: (...args) => {
           this.ready = true;
