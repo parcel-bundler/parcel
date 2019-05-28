@@ -269,6 +269,7 @@ export interface MutableAsset extends BaseAsset {
 export interface Asset extends BaseAsset {
   +outputHash: string;
   +stats: Stats;
+  +map?: SourceMap;
 }
 
 export type Stats = {|
@@ -287,6 +288,7 @@ export type Blob = string | Buffer | Readable;
 export interface TransformerResult {
   type: string;
   code?: string;
+  map?: SourceMap;
   content?: Blob;
   ast?: ?AST;
   dependencies?: $ReadOnlyArray<DependencyOptions>;
