@@ -347,7 +347,7 @@ export default class SourceMap {
 
     for (let sourceName of Object.keys(this.sources)) {
       let sourceContent = this.sourceContentFor(sourceName);
-      if (typeof sourceContent === 'string') {
+      if (sourceContent !== null) {
         generator.setSourceContent(sourceName, sourceContent);
       }
     }
