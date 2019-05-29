@@ -20,9 +20,7 @@ let packagerRunner: PackagerRunner | null = null;
 
 registerCoreWithSerializer();
 
-export function init({config, options, env}: Options) {
-  Object.assign(process.env, env || {});
-
+export function init({config, options}: Options) {
   transformerRunner = new TransformerRunner({
     config,
     options
