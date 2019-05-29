@@ -2,6 +2,7 @@
 
 import assert from 'assert';
 import Disposable from '../src/Disposable';
+import {AlreadyDisposedError} from '../src/errors';
 
 describe('Disposable', () => {
   it('can wrap an IDisposable', () => {
@@ -103,12 +104,9 @@ describe('Disposable', () => {
   it('throws if `add` is called after it has been disposed', () => {
     let disposable = new Disposable();
     disposable.dispose();
-    assert.throws(
-      () => {
-        disposable.add(() => {});
-      },
-      {name: 'AlreadyDisposedError'}
-    );
+    assert.throws(() => {
+      disposable.add(() => {});
+    }, AlreadyDisposedError);
   });
 
   it('can be checked for disposal state', () => {
