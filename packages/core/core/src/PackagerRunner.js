@@ -35,8 +35,9 @@ export default class PackagerRunner {
 
   async writeBundle(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
     let start = Date.now();
-    let contents = await this.package(bundle, bundleGraph);
-    contents = await this.optimize(bundle, contents);
+    let packaged = await this.package(bundle, bundleGraph);
+    // $FlowFixMe
+    let {code, map} = await this.optimize(bundle, packaged);
 
     let filePath = nullthrows(bundle.filePath);
     let dir = path.dirname(filePath);
@@ -46,16 +47,15 @@ export default class PackagerRunner {
     }
 
     let size;
-    let code = contents.code;
     if (code instanceof Readable) {
       size = await writeFileStream(filePath, code);
     } else {
       await writeFile(filePath, code);
-      size = contents.code.length;
+      size = code.length;
     }
 
-    if (contents.map) {
-      await writeFile(filePath + '.map', contents.map.stringify(filePath));
+    if (map) {
+      await writeFile(filePath + '.map', map.stringify(filePath));
     }
 
     return {

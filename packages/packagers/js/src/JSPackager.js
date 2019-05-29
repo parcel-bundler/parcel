@@ -14,7 +14,7 @@ const PRELUDE = fs
 export default new Packager({
   async package({bundle, bundleGraph, options}) {
     // If scope hoisting is enabled, we use a different code path.
-    if (false) {
+    if (options.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
       ast = link(bundle, ast, options);
       return generate(bundle, ast, options);
