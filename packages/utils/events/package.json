@@ -13,6 +13,7 @@
   "scripts": {
     "build": "babel src -d lib",
     "prepublish": "yarn build",
-    "test": "mocha"
+    "test": "mocha",
+    "test-ci": "yarn test"
   }
 }
