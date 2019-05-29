@@ -60,6 +60,7 @@ export default async function resolveOptions(
     entries,
     rootDir,
     targets,
+    sourceMaps: initialOptions.sourceMaps ?? true,
     scopeHoist:
       initialOptions.scopeHoist ?? initialOptions.mode === 'production',
     logLevel: initialOptions.logLevel ?? 'info',
