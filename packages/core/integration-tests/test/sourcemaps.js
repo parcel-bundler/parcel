@@ -4,7 +4,7 @@ const path = require('path');
 const os = require('os');
 const mapValidator = require('sourcemap-validator');
 const SourceMap = require('parcel-bundler/src/SourceMap');
-const {bundler, bundle, run, assertBundleTree} = require('@parcel/test-utils');
+const {distDir, bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 function indexToLineCol(str, index) {
   let beforeIndex = str.slice(0, index);
@@ -68,47 +68,29 @@ function checkSourceMapping({
   );
 }
 
-describe.skip('sourcemaps', function() {
-  it('should create a valid sourcemap as a child of a JS bundle', async function() {
-    let b = bundler(path.join(__dirname, '/integration/sourcemap/index.js'));
-    let bu = await b.bundle();
-
-    await assertBundleTree(bu, {
-      name: 'index.js',
-      assets: ['index.js'],
-      childBundles: [
-        {
-          name: 'index.js.map',
-          type: 'map'
-        }
-      ]
-    });
-
-    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
-    let map = await fs.readFile(
-      path.join(__dirname, '/dist/index.js.map'),
-      'utf8'
+describe('sourcemaps', function() {
+  it.only('should write a valid sourcemap', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sourcemap/index.js')
     );
+
+    let raw = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    let map = await fs.readFile(path.join(distDir, 'index.js.map'), 'utf8');
     mapValidator(raw, map);
     let mapObject = JSON.parse(map);
     assert(
-      mapObject.sourceRoot ===
-        path.relative(b.options.outDir, b.options.rootDir),
+      mapObject.sourceRoot === '../test/integration/sourcemap',
       'sourceRoot should be the root of the source files, relative to the output directory.'
     );
     assert(
       await fs.exists(
-        path.resolve(
-          b.options.outDir,
-          mapObject.sourceRoot,
-          mapObject.sources[0]
-        )
+        path.resolve(distDir, mapObject.sourceRoot, mapObject.sources[0])
       ),
       'combining sourceRoot and sources object should resolve to the original file'
     );
     assert.equal(mapObject.sources.length, 1);
 
-    let output = await run(bu);
+    let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 'hello world');
   });
