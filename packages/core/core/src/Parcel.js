@@ -34,6 +34,9 @@ import MainAssetGraph from './public/MainAssetGraph';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
+import registerCoreWithSerializer from './registerCoreWithSerializer';
+
+registerCoreWithSerializer();
 
 type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
 
