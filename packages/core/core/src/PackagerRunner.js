@@ -1,7 +1,8 @@
 // @flow
 
 import {Readable} from 'stream';
-import type {ParcelOptions, Blob, FilePath, SourceMap} from '@parcel/types';
+import type {ParcelOptions, Blob, FilePath} from '@parcel/types';
+import type SourceMap from '@parcel/source-map';
 import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
 import type InternalBundleGraph from './BundleGraph';

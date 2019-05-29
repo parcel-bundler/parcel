@@ -14,7 +14,7 @@ const PRELUDE = fs
 export default new Packager({
   async package({bundle, bundleGraph, options}) {
     // If scope hoisting is enabled, we use a different code path.
-    if (options.scopeHoist) {
+    if (false) {
       let ast = await concat(bundle, bundleGraph);
       ast = link(bundle, ast, options);
       return generate(bundle, ast, options);
@@ -22,13 +22,19 @@ export default new Packager({
 
     // For development, we just concatenate all of the code together
     // rather then enabling scope hoisting, which would be too slow.
-    let promises = [];
+    let codePromises = [];
+    let mapPromises = [];
     bundle.traverse(node => {
       if (node.type === 'asset') {
-        promises.push(node.value.getCode());
+        codePromises.push(node.value.getCode());
+        mapPromises.push(node.value.getMap());
       }
     });
-    let outputs = await Promise.all(promises);
+
+    let [code, maps] = await Promise.all([
+      Promise.all(codePromises),
+      Promise.all(mapPromises)
+    ]);
 
     let assets = '';
     let i = 0;
@@ -63,7 +69,7 @@ export default new Packager({
           }
         }
 
-        let output = outputs[i];
+        let output = code[i];
         wrapped +=
           JSON.stringify(asset.id) +
           ':[function(require,module,exports) {\n' +
@@ -78,23 +84,17 @@ export default new Packager({
       assets += wrapped;
       first = false;
 
+      if (node.type === 'asset_reference') {
+        return;
+      }
+
       if (options.sourceMaps) {
-        if (!node.value.map) {
-          node.value.map = SourceMap.generateEmptyMap(
-            node.value.filePath,
-            wrapped
-          );
-        }
+        let asset = node.value;
+        let assetMap =
+          maps[i] ?? SourceMap.generateEmptyMap(asset.filePath, wrapped);
 
-        if (node.value.map) {
-          map.addMap(node.value.map, lineOffset + 1);
-
-          lineOffset += countLines(wrapped);
-        } else {
-          map.addMap(node.value.map, lineOffset);
-
-          lineOffset += map.linecount;
-        }
+        map.addMap(assetMap, lineOffset + 1);
+        lineOffset += countLines(wrapped);
       }
     });
 

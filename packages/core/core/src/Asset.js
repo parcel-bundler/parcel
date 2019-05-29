@@ -1,7 +1,5 @@
 // @flow strict-local
 
-import {Readable} from 'stream';
-
 import type {
   AST,
   Blob,
@@ -12,12 +10,13 @@ import type {
   FilePath,
   Meta,
   PackageJSON,
-  SourceMap,
   Stats,
   Symbol,
   TransformerResult
 } from '@parcel/types';
+import type SourceMap from '@parcel/source-map';
 
+import {Readable} from 'stream';
 import crypto from 'crypto';
 import {
   bufferStream,
