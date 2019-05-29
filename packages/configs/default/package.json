@@ -26,6 +26,7 @@
     "@parcel/transformer-html": "^2.0.0-alpha.0",
     "@parcel/transformer-js": "^2.0.0-alpha.0",
     "@parcel/transformer-postcss": "^2.0.0-alpha.0",
+    "@parcel/transformer-posthtml": "^2.0.0-alpha.0",
     "@parcel/transformer-raw": "^2.0.0-alpha.0",
     "@parcel/transformer-terser": "^2.0.0-alpha.0",
     "@parcel/reporter-dev-server": "^2.0.0-alpha.0",
