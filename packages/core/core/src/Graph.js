@@ -3,6 +3,7 @@
 import type {Edge, Node, NodeId} from './types';
 import type {TraversalActions, GraphVisitor} from '@parcel/types';
 import nullthrows from 'nullthrows';
+import {DefaultMap} from '@parcel/utils';
 
 export type GraphOpts<TNode> = {|
   nodes?: Array<[NodeId, TNode]>,
@@ -15,25 +16,46 @@ type GraphUpdates<TNode> = {|
   removed: Graph<TNode>
 |};
 
+type AdjacencyList = DefaultMap<NodeId, Set<NodeId>>;
+
 export default class Graph<TNode: Node> {
   nodes: Map<NodeId, TNode>;
-  edges: Set<Edge>;
+  inboundEdges: AdjacencyList = new DefaultMap(() => new Set());
+  outboundEdges: AdjacencyList = new DefaultMap(() => new Set());
   rootNodeId: ?NodeId;
 
   constructor(
     opts: GraphOpts<TNode> = {nodes: [], edges: [], rootNodeId: null}
   ) {
     this.nodes = new Map(opts.nodes);
-    this.edges = new Set(opts.edges);
     this.rootNodeId = opts.rootNodeId;
+
+    if (opts.edges) {
+      for (let edge of opts.edges) {
+        this.addEdge(edge.from, edge.to);
+      }
+    }
   }
 
   serialize(): GraphOpts<TNode> {
     return {
       nodes: [...this.nodes],
-      edges: [...this.edges],
+      edges: this.getAllEdges(),
       rootNodeId: this.rootNodeId
     };
+  }
+
+  // Returns a list of all edges in the graph. This can be large, so iterating
+  // the complete list can be costly in large graphs. Used in serialization and
+  // copying of graphs.
+  getAllEdges(): Array<Edge> {
+    let edges = [];
+    for (let [from, edgeList] of this.outboundEdges) {
+      for (let to of edgeList) {
+        edges.push({from, to});
+      }
+    }
+    return edges;
   }
 
   addNode(node: TNode): TNode {
@@ -58,29 +80,25 @@ export default class Graph<TNode: Node> {
     return this.rootNodeId ? this.getNode(this.rootNodeId) : null;
   }
 
-  addEdge(edge: Edge): Edge {
-    this.edges.add(edge);
-    return edge;
+  addEdge(from: NodeId, to: NodeId): void {
+    this.outboundEdges.get(from).add(to);
+    this.inboundEdges.get(to).add(from);
   }
 
-  hasEdge(edge: Edge): boolean {
-    for (let e of this.edges) {
-      if (edge.from == e.from && edge.to === e.to) {
-        return true;
-      }
-    }
-
-    return false;
+  hasEdge(from: NodeId, to: NodeId): boolean {
+    return this.outboundEdges.get(from).has(to);
   }
 
   getNodesConnectedTo(node: TNode): Array<TNode> {
-    let edges = Array.from(this.edges).filter(edge => edge.to === node.id);
-    return edges.map(edge => nullthrows(this.nodes.get(edge.from)));
+    return Array.from(this.inboundEdges.get(node.id).values()).map(from =>
+      nullthrows(this.nodes.get(from))
+    );
   }
 
   getNodesConnectedFrom(node: TNode): Array<TNode> {
-    let edges = Array.from(this.edges).filter(edge => edge.from === node.id);
-    return edges.map(edge => nullthrows(this.nodes.get(edge.to)));
+    return Array.from(this.outboundEdges.get(node.id).values()).map(to =>
+      nullthrows(this.nodes.get(to))
+    );
   }
 
   merge(graph: Graph<TNode>): void {
@@ -88,74 +106,70 @@ export default class Graph<TNode: Node> {
       this.addNode(node);
     }
 
-    for (let edge of graph.edges) {
-      this.addEdge(edge);
+    for (let edge of graph.getAllEdges()) {
+      this.addEdge(edge.from, edge.to);
     }
   }
 
-  // Removes node and any edges coming from that node
-  removeNode(node: TNode): this {
+  // Removes node and any edges coming from or to that node
+  removeNode(node: TNode): Graph<TNode> {
     let removed = new this.constructor();
+
+    for (let from of this.inboundEdges.get(node.id)) {
+      removed.merge(this.removeEdge(from, node.id));
+    }
+
+    for (let to of this.outboundEdges.get(node.id)) {
+      removed.merge(this.removeEdge(node.id, to));
+    }
 
     this.nodes.delete(node.id);
     removed.addNode(node);
 
-    for (let edge of this.edges) {
-      if (edge.from === node.id || edge.to === node.id) {
-        removed.merge(this.removeEdge(edge));
-      }
-    }
-
     return removed;
+  }
+
+  removeById(id: NodeId) {
+    let node = nullthrows(this.getNode(id));
+    this.removeNode(node);
   }
 
   removeEdges(node: TNode): this {
     let removed = new this.constructor();
 
-    for (let edge of this.edges) {
-      if (edge.from === node.id) {
-        removed.merge(this.removeEdge(edge));
-      }
+    for (let to of this.outboundEdges.get(node.id)) {
+      removed.merge(this.removeEdge(node.id, to));
     }
 
     return removed;
   }
 
   // Removes edge and node the edge is to if the node is orphaned
-  removeEdge(edge: Edge): this {
+  removeEdge(from: NodeId, to: NodeId): this {
     let removed = new this.constructor();
 
-    this.edges.delete(edge);
-    removed.addEdge(edge);
+    this.outboundEdges.get(from).delete(to);
+    this.inboundEdges.get(to).delete(from);
+    removed.addEdge(from, to);
 
-    for (let [id, node] of this.nodes) {
-      if (edge.to === id) {
-        if (this.isOrphanedNode(node)) {
-          removed.merge(this.removeNode(node));
-        }
-      }
+    let connectedNode = nullthrows(this.nodes.get(to));
+    if (this.isOrphanedNode(connectedNode)) {
+      removed.merge(this.removeNode(connectedNode));
     }
 
     return removed;
   }
 
   isOrphanedNode(node: TNode): boolean {
-    for (let edge of this.edges) {
-      if (edge.to === node.id) {
-        return false;
-      }
-    }
-    return true;
+    return this.inboundEdges.get(node.id).size === 0;
   }
 
   replaceNode(fromNode: TNode, toNode: TNode): void {
     this.addNode(toNode);
 
-    for (let edge of this.edges) {
-      if (edge.to === fromNode.id) {
-        this.addEdge({from: edge.from, to: toNode.id});
-        this.edges.delete(edge);
-      }
+    for (let parent of this.inboundEdges.get(fromNode.id)) {
+      this.addEdge(parent, toNode.id);
+      this.removeEdge(parent, fromNode.id);
     }
 
     this.removeNode(fromNode);
@@ -170,11 +184,7 @@ export default class Graph<TNode: Node> {
     let removed = new this.constructor();
     let added = new this.constructor();
 
-    let edgesBefore = Array.from(this.edges).filter(
-      edge => edge.from === fromNode.id
-    );
-    let edgesToRemove = edgesBefore;
-
+    let childrenToRemove = new Set(this.outboundEdges.get(fromNode.id));
     for (let toNode of toNodes) {
       let existingNode = this.getNode(toNode.id);
       if (!existingNode) {
@@ -184,17 +194,16 @@ export default class Graph<TNode: Node> {
         existingNode.value = toNode.value;
       }
 
-      edgesToRemove = edgesToRemove.filter(edge => edge.to !== toNode.id);
+      childrenToRemove.delete(toNode.id);
 
-      let edge = {from: fromNode.id, to: toNode.id};
-      if (!this.hasEdge(edge)) {
-        this.addEdge(edge);
-        added.addEdge(edge);
+      if (!this.hasEdge(fromNode.id, toNode.id)) {
+        this.addEdge(fromNode.id, toNode.id);
+        added.addEdge(fromNode.id, toNode.id);
       }
     }
 
-    for (let edge of edgesToRemove) {
-      removed.merge(this.removeEdge(edge));
+    for (let child of childrenToRemove) {
+      removed.merge(this.removeEdge(fromNode.id, child));
     }
 
     return {removed, added};
@@ -356,9 +365,8 @@ export default class Graph<TNode: Node> {
     this.traverse(node => {
       graph.addNode(node);
 
-      let edges = Array.from(this.edges).filter(edge => edge.from === node.id);
-      for (let edge of edges) {
-        graph.addEdge(edge);
+      for (let to of this.outboundEdges.get(node.id)) {
+        graph.addEdge(node.id, to);
       }
     }, node);
 

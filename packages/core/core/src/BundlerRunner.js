@@ -39,11 +39,11 @@ export default class BundlerRunner {
     let bundler = await this.config.getBundler();
 
     let bundleGraph = new InternalBundleGraph();
-    await bundler.bundle(
-      new MainAssetGraph(graph),
-      new MutableBundleGraph(bundleGraph),
-      this.options
-    );
+    await bundler.bundle({
+      assetGraph: new MainAssetGraph(graph),
+      bundleGraph: new MutableBundleGraph(bundleGraph),
+      options: this.options
+    });
     await this.nameBundles(bundleGraph);
     await this.applyRuntimes(bundleGraph);
 
@@ -78,7 +78,7 @@ export default class BundlerRunner {
     let bundleGraph = new BundleGraph(internalBundleGraph);
 
     for (let namer of namers) {
-      let name = await namer.name(bundle, bundleGraph, this.options);
+      let name = await namer.name({bundle, bundleGraph, options: this.options});
 
       if (name != null) {
         if (path.extname(name).slice(1) !== bundle.type) {
@@ -111,11 +111,11 @@ export default class BundlerRunner {
     for (let bundle of bundles) {
       let runtimes = await this.config.getRuntimes(bundle.env.context);
       for (let runtime of runtimes) {
-        let applied = await runtime.apply(
+        let applied = await runtime.apply({
           bundle,
-          new BundleGraph(bundleGraph),
-          this.options
-        );
+          bundleGraph: new BundleGraph(bundleGraph),
+          options: this.options
+        });
         if (applied) {
           await this.addRuntimesToBundle(
             bundle.id,
@@ -145,7 +145,7 @@ export default class BundlerRunner {
       let builder = new AssetGraphBuilder({
         options: this.options,
         config: this.config,
-        transformerRequest: {
+        assetRequest: {
           code,
           filePath,
           env: bundle.env
@@ -173,12 +173,12 @@ export default class BundlerRunner {
       // the node to it.
       bundle.assetGraph.merge(subGraph);
 
-      bundle.assetGraph.addEdge({
-        from: dependency
+      bundle.assetGraph.addEdge(
+        dependency
           ? dependency.id
           : nullthrows(bundle.assetGraph.getRootNode()).id,
-        to: entryId
-      });
+        entryId
+      );
     }
   }
 }

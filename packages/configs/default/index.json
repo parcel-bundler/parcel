@@ -6,20 +6,23 @@
       "@parcel/transformer-js",
       "@parcel/transformer-terser"
     ],
-    "*.css": ["@parcel/transformer-css"],
+    "*.css": ["@parcel/transformer-css", "@parcel/transformer-postcss"],
     "*.{htm,html}": ["@parcel/transformer-html"],
-    "*.{jpg,jpeg,png,gif,svg,webm,webp,pdf,txt}": ["@parcel/transformer-raw"]
+    "*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": {
     "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
     "node": ["@parcel/runtime-js"]
   },
+  "optimizers": {
+    "*.css": ["@parcel/optimizer-cssnano"]
+  },
   "packagers": {
     "*.html": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
     "*.js": "@parcel/packager-js",
-    "*.{jpg,jpeg,png,gif,svg,webm,webp,pdf,txt}": "@parcel/packager-raw"
+    "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],
   "reporters": [

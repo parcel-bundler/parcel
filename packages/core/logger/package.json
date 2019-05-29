@@ -1,6 +1,6 @@
 {
   "name": "@parcel/logger",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/Logger.js",
   "license": "MIT",
@@ -21,6 +21,6 @@
     "prepublish": "yarn build"
   },
   "dependencies": {
-    "@parcel/events": "^2.0.0"
+    "@parcel/events": "^2.0.0-alpha.0"
   }
 }

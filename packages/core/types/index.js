@@ -128,7 +128,6 @@ export type InitialParcelOptions = {|
   env?: {[string]: ?string},
   targets?: ?Array<string | Target>,
 
-  watch?: boolean,
   cache?: boolean,
   cacheDir?: FilePath,
   killWorkers?: boolean,
@@ -153,7 +152,8 @@ export type ParcelOptions = {|
   entries: Array<FilePath>,
   logLevel: LogLevel,
   rootDir: FilePath,
-  targets: Array<Target>
+  targets: Array<Target>,
+  projectRoot: FilePath
 |};
 
 export type ServerOptions = {|
@@ -210,7 +210,7 @@ export interface Dependency {
   symbols: Map<Symbol, Symbol>;
 
   // TODO: get this from graph instead of storing them on dependencies
-  sourcePath: FilePath;
+  sourcePath: ?FilePath;
 
   merge(other: Dependency): void;
 }
@@ -220,12 +220,12 @@ export type File = {
   hash?: string
 };
 
-export type TransformerRequest = {
+export type AssetRequest = {|
   filePath: FilePath,
   env: Environment,
   sideEffects?: boolean,
   code?: string
-};
+|};
 
 interface BaseAsset {
   +ast: ?AST;
@@ -288,7 +288,7 @@ export type Blob = string | Buffer | Readable;
 export interface TransformerResult {
   type: string;
   code?: string;
-  map?: SourceMap;
+  map?: ?SourceMap;
   content?: Blob;
   ast?: ?AST;
   dependencies?: $ReadOnlyArray<DependencyOptions>;
@@ -303,31 +303,32 @@ export interface TransformerResult {
 type Async<T> = T | Promise<T>;
 
 export type Transformer = {
-  getConfig?: (
+  getConfig?: ({
     asset: MutableAsset,
-    opts: ParcelOptions
-  ) => Async<Config | void>,
-  canReuseAST?: (ast: AST, opts: ParcelOptions) => boolean,
-  parse?: (
-    asset: MutableAsset,
-    config: ?Config,
-    opts: ParcelOptions
-  ) => Async<?AST>,
-  transform(
+    resolve: (from: FilePath, to: string) => Promise<FilePath>,
+    options: ParcelOptions
+  }) => Async<Config | void>,
+  canReuseAST?: ({ast: AST, options: ParcelOptions}) => boolean,
+  parse?: ({
     asset: MutableAsset,
     config: ?Config,
-    opts: ParcelOptions
-  ): Async<Array<TransformerResult | MutableAsset>>,
-  generate?: (
+    options: ParcelOptions
+  }) => Async<?AST>,
+  transform({
     asset: MutableAsset,
     config: ?Config,
-    opts: ParcelOptions
-  ) => Async<GenerateOutput>,
-  postProcess?: (
+    options: ParcelOptions
+  }): Async<Array<TransformerResult | MutableAsset>>,
+  generate?: ({
+    asset: MutableAsset,
+    config: ?Config,
+    options: ParcelOptions
+  }) => Async<GenerateOutput>,
+  postProcess?: ({
     assets: Array<MutableAsset>,
     config: ?Config,
-    opts: ParcelOptions
-  ) => Async<Array<TransformerResult>>
+    options: ParcelOptions
+  }) => Async<Array<TransformerResult>>
 };
 
 export interface TraversalActions {
@@ -441,19 +442,19 @@ export interface MutableBundleGraph {
 }
 
 export type Bundler = {|
-  bundle(
-    graph: MainAssetGraph,
+  bundle({
+    assetGraph: MainAssetGraph,
     bundleGraph: MutableBundleGraph,
-    opts: ParcelOptions
-  ): Async<void>
+    options: ParcelOptions
+  }): Async<void>
 |};
 
 export type Namer = {|
-  name(
+  name({
     bundle: Bundle,
     bundleGraph: BundleGraph,
-    opts: ParcelOptions
-  ): Async<?FilePath>
+    options: ParcelOptions
+  }): Async<?FilePath>
 |};
 
 export type RuntimeAsset = {|
@@ -463,34 +464,34 @@ export type RuntimeAsset = {|
 |};
 
 export type Runtime = {|
-  apply(
+  apply({
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
-    opts: ParcelOptions
-  ): Async<void | RuntimeAsset | Array<RuntimeAsset>>
+    options: ParcelOptions
+  }): Async<void | RuntimeAsset | Array<RuntimeAsset>>
 |};
 
 export type Packager = {|
-  package(
+  package({
     bundle: Bundle,
     bundleGraph: BundleGraph,
-    opts: ParcelOptions
-  ): Async<{code: Blob, map?: SourceMap}>
+    options: ParcelOptions
+  }): Async<{code: Blob, map?: SourceMap}>
 |};
 
 export type Optimizer = {|
-  optimize(
+  optimize({
     bundle: Bundle,
     contents: {code: Blob, map?: SourceMap},
-    opts: ParcelOptions
-  ): Async<{code: Blob, map?: SourceMap}>
+    options: ParcelOptions
+  }): Async<{code: Blob, map?: SourceMap}>
 |};
 
 export type Resolver = {|
-  resolve(
+  resolve({
     dependency: Dependency,
-    opts: ParcelOptions
-  ): Async<?TransformerRequest>
+    options: ParcelOptions
+  }): Async<?AssetRequest>
 |};
 
 export type ProgressLogEvent = {|
@@ -516,6 +517,14 @@ export type BuildStartEvent = {|
   type: 'buildStart'
 |};
 
+type WatchStartEvent = {|
+  type: 'watchStart'
+|};
+
+type WatchEndEvent = {|
+  type: 'watchEnd'
+|};
+
 type ResolvingProgressEvent = {|
   type: 'buildProgress',
   phase: 'resolving',
@@ -525,7 +534,7 @@ type ResolvingProgressEvent = {|
 type TransformingProgressEvent = {|
   type: 'buildProgress',
   phase: 'transforming',
-  request: TransformerRequest
+  request: AssetRequest
 |};
 
 type BundlingProgressEvent = {|
@@ -570,7 +579,9 @@ export type ReporterEvent =
   | BuildStartEvent
   | BuildProgressEvent
   | BuildSuccessEvent
-  | BuildFailureEvent;
+  | BuildFailureEvent
+  | WatchStartEvent
+  | WatchEndEvent;
 
 export type Reporter = {|
   report(event: ReporterEvent, opts: ParcelOptions): Async<void>
@@ -581,5 +592,9 @@ export interface ErrorWithCode extends Error {
 }
 
 export interface IDisposable {
-  dispose(): void;
+  dispose(): mixed;
+}
+
+export interface AsyncSubscription {
+  unsubscribe(): Promise<mixed>;
 }

@@ -2,6 +2,8 @@
 import type {Request, Response, DevServerOptions} from './types.js.flow';
 import type {BundleGraph} from '@parcel/types';
 import type {PrintableError} from '@parcel/utils';
+import type {Server as HTTPServer} from 'http';
+import type {Server as HTTPSServer} from 'https';
 
 import EventEmitter from 'events';
 import path from 'path';
@@ -39,6 +41,7 @@ export default class Server extends EventEmitter {
   ) => any;
   bundleGraph: BundleGraph | null;
   error: PrintableError | null;
+  server: HTTPServer | HTTPSServer;
 
   constructor(options: DevServerOptions) {
     super();
@@ -58,6 +61,7 @@ export default class Server extends EventEmitter {
 
   buildSuccess(bundleGraph: BundleGraph) {
     this.bundleGraph = bundleGraph;
+    this.error = null;
     this.pending = false;
 
     this.emit('bundled');
@@ -161,7 +165,6 @@ export default class Server extends EventEmitter {
   }
 
   async start() {
-    let server;
     const handler = (req: Request, res: Response) => {
       this.logAccessIfVerbose(req);
 
@@ -176,39 +179,53 @@ export default class Server extends EventEmitter {
     };
 
     if (!this.options.https) {
-      server = http.createServer(handler);
+      this.server = http.createServer(handler);
     } else if (typeof this.options.https === 'boolean') {
-      server = https.createServer(
+      this.server = https.createServer(
         await generateCertificate(this.options.cacheDir),
         handler
       );
     } else {
-      server = https.createServer(
+      this.server = https.createServer(
         await getCertificate(this.options.https),
         handler
       );
     }
 
-    server.listen(this.options.port, this.options.host);
+    this.server.listen(this.options.port, this.options.host);
 
     return new Promise((resolve, reject) => {
-      server.on('error', err => {
+      this.server.once('error', err => {
         logger.error(new Error(serverErrors(err, this.options.port)));
         reject(err);
       });
 
-      server.once('listening', () => {
+      this.server.once('listening', () => {
         let addon =
-          server.address().port !== this.options.port
+          this.server.address().port !== this.options.port
             ? `- configured port ${this.options.port.toString()} could not be used.`
             : '';
 
         logger.log(
           `Server running at ${this.options.https ? 'https' : 'http'}://${this
-            .options.host || 'localhost'}:${server.address().port} ${addon}`
+            .options.host || 'localhost'}:${
+            this.server.address().port
+          } ${addon}`
         );
 
-        resolve(server);
+        resolve(this.server);
+      });
+    });
+  }
+
+  stop(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.server.close(err => {
+        if (err != null) {
+          reject(err);
+          return;
+        }
+        resolve();
       });
     });
   }

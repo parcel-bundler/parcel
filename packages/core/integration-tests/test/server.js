@@ -2,37 +2,66 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
 const logger = require('@parcel/logger');
-const {bundler, sleep} = require('@parcel/test-utils');
+const {bundler} = require('@parcel/test-utils');
 const http = require('http');
 const https = require('https');
 const getPort = require('get-port');
 const sinon = require('sinon');
 
-describe('server', function() {
-  function get(file, port, client = http) {
-    return new Promise((resolve, reject) => {
-      client.get(
-        {
-          hostname: 'localhost',
-          port: port,
-          path: file,
-          rejectUnauthorized: false
-        },
-        res => {
-          res.setEncoding('utf8');
-          let data = '';
-          res.on('data', c => (data += c));
-          res.on('end', () => {
-            if (res.statusCode !== 200) {
-              return reject({statusCode: res.statusCode, data});
-            }
+function get(file, port, client = http) {
+  return new Promise((resolve, reject) => {
+    client.get(
+      {
+        hostname: 'localhost',
+        port: port,
+        path: file,
+        rejectUnauthorized: false
+      },
+      res => {
+        res.setEncoding('utf8');
+        let data = '';
+        res.on('data', c => (data += c));
+        res.on('end', () => {
+          if (res.statusCode !== 200) {
+            return reject({statusCode: res.statusCode, data});
+          }
 
-            resolve(data);
-          });
+          resolve(data);
+        });
+      }
+    );
+  });
+}
+
+function getNextBuild(b) {
+  return new Promise((resolve, reject) => {
+    let subscriptionPromise = b
+      .watch((err, buildEvent) => {
+        if (err) {
+          reject(err);
+          return;
         }
-      );
-    });
-  }
+
+        subscriptionPromise
+          .then(subscription => subscription.unsubscribe())
+          .then(() => {
+            resolve(buildEvent);
+          })
+          .catch(reject);
+      })
+      .catch(reject);
+  });
+}
+
+describe('server', function() {
+  let subscription;
+
+  afterEach(async () => {
+    if (subscription) {
+      await subscription.unsubscribe();
+    }
+    subscription = null;
+  });
 
   it('should serve files', async function() {
     let port = await getPort();
@@ -41,17 +70,18 @@ describe('server', function() {
         https: false,
         port: port,
         host: 'localhost'
-      },
-      watch: true
+      }
     });
 
-    await b.run();
+    subscription = await b.watch();
+    await getNextBuild(b);
 
     let data = await get('/index.js', port);
     let distFile = await fs.readFile(
       path.join(__dirname, '../dist/index.js'),
       'utf8'
     );
+
     assert.equal(data, distFile);
   });
 
@@ -63,11 +93,11 @@ describe('server', function() {
         https: false,
         port: port,
         host: 'localhost'
-      },
-      watch: true
+      }
     });
 
-    await b.run();
+    subscription = await b.watch();
+    await getNextBuild(b);
 
     let data = await get('/', port);
     assert.equal(
@@ -89,11 +119,11 @@ describe('server', function() {
         https: false,
         port: port,
         host: 'localhost'
-      },
-      watch: true
+      }
     });
 
-    await b.run();
+    subscription = await b.watch();
+    await getNextBuild(b);
 
     let statusCode = 200;
     try {
@@ -116,19 +146,16 @@ describe('server', function() {
         https: false,
         port: port,
         host: 'localhost'
-      },
-      watch: true
+      }
     });
 
-    await b.run();
-
-    await sleep(4000);
+    subscription = await b.watch();
+    await getNextBuild(b);
     await fs.writeFile(path.join(inputDir, 'local.js'), 'syntax\\error');
 
-    // TODO: Programatically wait for an error to occur, or time out. Right now,
-    //       Parcel does not expose this without creating a reporter that must
-    //       be loaded from disk.
-    await sleep(4000);
+    // Await the second build failing (which means resolving with
+    // a buildFailure event)
+    await getNextBuild(b);
 
     let statusCode = 200;
     try {
@@ -136,6 +163,8 @@ describe('server', function() {
     } catch (err) {
       statusCode = err.statusCode;
       assert(err.data.includes('Expecting Unicode escape sequence'));
+    } finally {
+      await subscription.unsubscribe();
     }
 
     assert.equal(statusCode, 500);
@@ -148,11 +177,11 @@ describe('server', function() {
         https: true,
         port: port,
         host: 'localhost'
-      },
-      watch: true
+      }
     });
 
-    await b.run();
+    subscription = await b.watch();
+    await getNextBuild(b);
 
     let data = await get('/index.js', port, https);
     assert.equal(
@@ -171,11 +200,11 @@ describe('server', function() {
         },
         port: port,
         host: 'localhost'
-      },
-      watch: true
+      }
     });
 
-    await b.run();
+    subscription = await b.watch();
+    await getNextBuild(b);
 
     let data = await get('/index.js', port, https);
     assert.equal(
@@ -192,11 +221,11 @@ describe('server', function() {
         port: port,
         host: 'localhost',
         publicUrl: '/dist'
-      },
-      watch: true
+      }
     });
 
-    await b.run();
+    subscription = await b.watch();
+    await getNextBuild(b);
 
     let data = await get('/dist/index.js', port);
     assert.equal(
@@ -214,11 +243,11 @@ describe('server', function() {
         port: port,
         host: 'localhost',
         publicUrl: '/dist'
-      },
-      watch: true
+      }
     });
 
-    await b.run();
+    subscription = await b.watch();
+    await getNextBuild(b);
 
     // When accessing / we should get the index page.
     let data = await get('/', port);
@@ -240,11 +269,11 @@ describe('server', function() {
         https: false,
         port: port,
         host: 'localhost'
-      },
-      watch: true
+      }
     });
 
-    await b.run();
+    subscription = await b.watch();
+    await getNextBuild(b);
 
     let data = await get('/index.js?foo=bar.baz', port);
     assert.equal(

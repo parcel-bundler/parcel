@@ -6,7 +6,7 @@ import {Transformer} from '@parcel/plugin';
 import SourceMap from '@parcel/source-map';
 
 export default new Transformer({
-  async getConfig(asset) {
+  async getConfig({asset}) {
     return asset.getConfig([
       '.terserrc',
       '.uglifyrc',
@@ -15,7 +15,7 @@ export default new Transformer({
     ]);
   },
 
-  async transform(asset, config, options) {
+  async transform({asset, config, options}) {
     if (!options.minify) {
       return [asset];
     }

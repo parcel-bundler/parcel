@@ -31,7 +31,7 @@ export default class Dependency implements IDependency {
   env: IEnvironment;
   meta: Meta;
   target: ?Target;
-  sourcePath: FilePath;
+  sourcePath: ?FilePath;
   symbols: Map<Symbol, Symbol>;
 
   constructor(opts: DependencyOpts) {

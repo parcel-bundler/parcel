@@ -48,6 +48,17 @@ export default class Worker extends EventEmitter {
       v => !/^--(debug|inspect)/.test(v)
     );
 
+    for (let i = 0; i < filteredArgs.length; i++) {
+      let arg = filteredArgs[i];
+      if (
+        (arg === '-r' || arg === '--require') &&
+        filteredArgs[i + 1] === '@parcel/register'
+      ) {
+        filteredArgs.splice(i, 2);
+        i--;
+      }
+    }
+
     this.child = childProcess.fork(childModule, process.argv, {
       execArgv: filteredArgs,
       env: process.env,

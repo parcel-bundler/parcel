@@ -1,6 +1,6 @@
 {
   "name": "@parcel/eslint-config-browser",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "dependencies": {
     "@parcel/eslint-config": "^1.10.3"
   }

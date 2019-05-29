@@ -1,18 +1,18 @@
 // @flow strict-local
 
 import type {
+  AssetRequest,
   BundleGroup,
-  Dependency,
   Environment,
   File,
   FilePath,
   Stats,
-  Target,
-  TransformerRequest
+  Target
 } from '@parcel/types';
 
 import type Asset from './Asset';
 import type AssetGraph from './AssetGraph';
+import type Dependency from './Dependency';
 
 export type NodeId = string;
 
@@ -44,21 +44,39 @@ export type DependencyNode = {|
 export type FileNode = {|id: string, +type: 'file', value: File|};
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
 
-export type TransformerRequestNode = {|
+// Asset group nodes are essentially used as placeholders for the results of an asset request
+export type AssetGroup = AssetRequest;
+export type AssetGroupNode = {|
   id: string,
-  +type: 'transformer_request',
-  value: TransformerRequest
+  +type: 'asset_group',
+  // An asset group node is used to
+  value: AssetGroup
+|};
+
+export type DepPathRequestNode = {|
+  id: string,
+  +type: 'dep_path_request',
+  value: Dependency
+|};
+
+export type AssetRequestNode = {|
+  id: string,
+  +type: 'asset_request',
+  value: AssetRequest
 |};
 
 export type AssetGraphNode =
+  | AssetGroupNode
   | AssetNode
   | AssetReferenceNode
   | DependencyNode
-  | FileNode
   | RootNode
-  | TransformerRequestNode
   | BundleGroupNode
   | BundleReferenceNode;
+
+export type RequestGraphNode = RequestNode | FileNode;
+export type RequestNode = DepPathRequestNode | AssetRequestNode;
+export type RequestResult = CacheEntry | AssetRequest | null;
 
 export interface BundleReference {
   +id: string;

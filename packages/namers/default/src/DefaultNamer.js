@@ -10,7 +10,7 @@ import path from 'path';
 const COMMON_NAMES = new Set(['index', 'src', 'lib']);
 
 export default new Namer({
-  name(bundle, bundleGraph, opts) {
+  name({bundle, bundleGraph, options}) {
     // If the bundle has an explicit file path given (e.g. by a target), use that.
     if (bundle.filePath != null) {
       // TODO: what about multiple assets in the same dep?
@@ -47,7 +47,7 @@ export default new Namer({
     // Base split bundle names on the first bundle in their group.
     // e.g. if `index.js` imports `foo.css`, the css bundle should be called
     //      `index.css`.
-    let name = nameFromContent(firstBundleInGroup, opts.rootDir);
+    let name = nameFromContent(firstBundleInGroup, options.rootDir);
     if (!bundle.isEntry) {
       name += '.' + getHash(bundle).slice(-8);
     }

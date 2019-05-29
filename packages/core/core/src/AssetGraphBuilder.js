@@ -1,191 +1,126 @@
-// @flow
-
-import type {Node} from './types';
-import type {
-  ParcelOptions,
-  Dependency,
-  Target,
-  TransformerRequest
-} from '@parcel/types';
-import type Asset from './Asset';
-import type Config from './Config';
-
+// @flow strict-local
 import EventEmitter from 'events';
-import {
-  AbortController,
-  type AbortSignal
-} from 'abortcontroller-polyfill/dist/cjs-ponyfill';
-import Watcher from '@parcel/watcher';
-import {PromiseQueue} from '@parcel/utils';
-import AssetGraph from './AssetGraph';
-import ResolverRunner from './ResolverRunner';
-import WorkerFarm from '@parcel/workers';
 
-type BuildOpts = {|
-  signal: AbortSignal,
-  shallow?: boolean
-|};
+import type {AssetRequest, ParcelOptions, Target} from '@parcel/types';
+import {PromiseQueue} from '@parcel/utils';
+import type {Event} from '@parcel/watcher';
+
+import type Asset from './Asset';
+import AssetGraph from './AssetGraph';
+import type Config from './Config';
+import RequestGraph from './RequestGraph';
+import type {
+  AssetGraphNode,
+  AssetRequestNode,
+  CacheEntry,
+  DepPathRequestNode
+} from './types';
+
+import dumpToGraphViz from './dumpGraphToGraphViz';
 
 type Opts = {|
   options: ParcelOptions,
   config: Config,
   entries?: Array<string>,
   targets?: Array<Target>,
-  transformerRequest?: TransformerRequest
+  assetRequest?: AssetRequest
 |};
 
 export default class AssetGraphBuilder extends EventEmitter {
-  graph: AssetGraph;
-  watcher: Watcher;
+  assetGraph: AssetGraph;
+  requestGraph: RequestGraph;
   queue: PromiseQueue;
-  resolverRunner: ResolverRunner;
   controller: AbortController;
-  farm: WorkerFarm;
-  runTransform: (file: TransformerRequest) => Promise<any>;
   changedAssets: Map<string, Asset>;
 
-  constructor({config, options, entries, targets, transformerRequest}: Opts) {
+  constructor({config, options, entries, targets, assetRequest}: Opts) {
     super();
-
-    this.queue = new PromiseQueue();
-    this.resolverRunner = new ResolverRunner({
-      config,
-      options
-    });
 
     this.changedAssets = new Map();
 
-    this.graph = new AssetGraph();
-    this.graph.initializeGraph({
-      entries,
-      targets,
-      transformerRequest,
-      rootDir: options.rootDir
+    this.assetGraph = new AssetGraph({
+      onNodeAdded: node => this.handleNodeAddedToAssetGraph(node),
+      onNodeRemoved: node => this.handleNodeRemovedFromAssetGraph(node)
+    });
+    this.requestGraph = new RequestGraph({
+      config,
+      options,
+      onAssetRequestComplete: this.handleCompletedAssetRequest.bind(this),
+      onDepPathRequestComplete: this.handleCompletedDepPathRequest.bind(this)
     });
 
-    this.controller = new AbortController();
-    if (options.watch) {
-      this.watcher = new Watcher();
-      this.watcher.on('change', async filePath => {
-        if (this.graph.hasNode(filePath)) {
-          this.controller.abort();
-          this.graph.invalidateFile(filePath);
-
-          this.emit('invalidate', filePath);
-        }
-      });
-    }
-  }
-
-  async initFarm() {
-    // This expects the worker farm to already be initialized by Parcel prior to calling
-    // AssetGraphBuilder, which avoids needing to pass the options through here.
-    this.farm = await WorkerFarm.getShared();
-    this.runTransform = this.farm.mkhandle('runTransform');
+    this.assetGraph.initialize({
+      entries,
+      targets,
+      assetGroup: assetRequest
+    });
   }
 
   async build(): Promise<{|
     assetGraph: AssetGraph,
     changedAssets: Map<string, Asset>
   |}> {
-    if (!this.farm) {
-      await this.initFarm();
-    }
-
-    this.controller = new AbortController();
-    let signal = this.controller.signal;
-
     this.changedAssets = new Map();
 
-    await this.updateGraph({signal});
-    await this.completeGraph({signal});
-    return {assetGraph: this.graph, changedAssets: this.changedAssets};
+    await this.requestGraph.completeRequests();
+
+    dumpToGraphViz(this.assetGraph, 'AssetGraph');
+    dumpToGraphViz(this.requestGraph, 'RequestGraph');
+
+    return {assetGraph: this.assetGraph, changedAssets: this.changedAssets};
   }
 
-  async updateGraph({signal}: BuildOpts) {
-    for (let [, node] of this.graph.invalidNodes) {
-      this.queue.add(() => this.processNode(node, {signal, shallow: true}));
-    }
-    await this.queue.run();
-  }
-
-  async completeGraph({signal}: BuildOpts) {
-    for (let [, node] of this.graph.incompleteNodes) {
-      this.queue.add(() => this.processNode(node, {signal}));
-    }
-
-    await this.queue.run();
-  }
-
-  processNode(node: Node, {signal}: BuildOpts) {
+  handleNodeAddedToAssetGraph(node: AssetGraphNode) {
     switch (node.type) {
       case 'dependency':
-        return this.resolve(node.value, {signal});
-      case 'transformer_request':
-        return this.transform(node.value, {signal});
-      default:
-        throw new Error(
-          `Cannot process graph node with type ${node.type || 'undefined'}`
-        );
+        this.requestGraph.addDepPathRequest(node.value);
+        break;
+      case 'asset_group':
+        this.requestGraph.addAssetRequest(node.value);
+        break;
+      case 'asset': {
+        let asset = node.value;
+        this.changedAssets.set(asset.id, asset); // ? Is this right?
+        break;
+      }
     }
   }
 
-  async resolve(dep: Dependency, {signal}: BuildOpts) {
-    let req;
-    try {
-      req = await this.resolverRunner.resolve(dep);
-    } catch (err) {
-      if (err.code === 'MODULE_NOT_FOUND' && dep.isOptional) {
-        return;
-      }
-
-      throw err;
-    }
-
-    if (signal.aborted) {
-      throw new BuildAbortError();
-    }
-
-    let {newRequest} = this.graph.resolveDependency(dep, req);
-    if (newRequest) {
-      this.queue.add(() => this.transform(newRequest, {signal}));
-      if (this.watcher) this.watcher.watch(newRequest.filePath);
+  handleNodeRemovedFromAssetGraph(node: AssetGraphNode) {
+    switch (node.type) {
+      case 'dependency':
+        this.requestGraph.removeById(node.id);
+        break;
+      case 'asset_group':
+        this.requestGraph.removeById(node.id);
+        break;
     }
   }
 
-  async transform(req: TransformerRequest, {signal, shallow}: BuildOpts) {
-    let start = Date.now();
-    let cacheEntry = await this.runTransform(req);
-    let time = Date.now() - start;
+  handleCompletedAssetRequest(
+    requestNode: AssetRequestNode,
+    result: CacheEntry
+  ) {
+    this.assetGraph.resolveAssetGroup(requestNode.value, result);
+  }
 
-    for (let asset of cacheEntry.assets) {
-      asset.stats.time = time;
-      this.changedAssets.set(asset.id, asset);
-    }
+  handleCompletedDepPathRequest(
+    requestNode: DepPathRequestNode,
+    result: AssetRequest | null
+  ) {
+    this.assetGraph.resolveDependency(requestNode.value, result);
+  }
 
-    if (signal.aborted) throw new BuildAbortError();
-    let {
-      addedFiles,
-      removedFiles,
-      newDeps
-    } = this.graph.resolveTransformerRequest(req, cacheEntry);
+  isInvalid() {
+    return this.requestGraph.isInvalid();
+  }
 
-    if (this.watcher) {
-      for (let file of addedFiles) {
-        this.watcher.watch(file.filePath);
-      }
+  respondToFSEvents(events: Array<Event>) {
+    this.requestGraph.respondToFSEvents(events);
+  }
 
-      for (let file of removedFiles) {
-        this.watcher.unwatch(file.filePath);
-      }
-    }
-
-    // The shallow option is used during the update phase
-    if (!shallow) {
-      for (let dep of newDeps) {
-        this.queue.add(() => this.resolve(dep, {signal}));
-      }
-    }
+  initFarm() {
+    return this.requestGraph.initFarm();
   }
 }
 

@@ -222,7 +222,7 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
               let call = t.callExpression(getIdentifier(mod, 'init'), []);
               node = node ? t.sequenceExpression([call, node]) : call;
             }
-          } else {
+          } else if (mod.type === 'js') {
             node = REQUIRE_TEMPLATE({ID: t.stringLiteral(mod.id)}).expression;
           }
 

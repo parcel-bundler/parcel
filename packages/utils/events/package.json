@@ -1,12 +1,15 @@
 {
   "name": "@parcel/events",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "main": "src/index.js",
+  "engines": {
+    "node": ">= 8.0.0"
+  },
   "scripts": {
     "build": "babel src -d lib",
     "prepublish": "yarn build",

@@ -33,9 +33,32 @@ export default class MainAssetGraph implements IMainAssetGraph {
       value: null
     });
 
-    graph.addEdge({
-      from: 'root',
-      to: assetNode.id
+    graph.addEdge('root', assetNode.id);
+
+    // Prune assets that don't match the bundle type when including the asset's
+    // subgraph. These are replaced with asset references, but the concrete assets
+    // cannot exist in this bundle.
+    //
+    // The concrete assets are visited when traversing the MainAssetGraph, so they
+    // will have their own opportunity to be bundled in a bundle of the appropriate
+    // type.
+    graph.traverseAssets(currentAsset => {
+      if (currentAsset.type !== asset.type) {
+        graph.removeAsset(currentAsset);
+      }
+    });
+
+    // Prune assets that don't match the bundle type when including the asset's
+    // subgraph. These are replaced with asset references, but the concrete assets
+    // cannot exist in this bundle.
+    //
+    // The concrete assets are visited when traversing the MainAssetGraph, so they
+    // will have their own opportunity to be bundled in a bundle of the appropriate
+    // type.
+    graph.traverseAssets(currentAsset => {
+      if (currentAsset.type !== asset.type) {
+        graph.removeAsset(currentAsset);
+      }
     });
 
     return new MutableBundle({

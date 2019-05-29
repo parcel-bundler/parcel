@@ -8,7 +8,7 @@ import type InternalBundleGraph from './BundleGraph';
 
 import invariant from 'assert';
 import {mkdirp, writeFile, writeFileStream} from '@parcel/fs';
-import {TapStream, urlRelative} from '@parcel/utils';
+import {urlJoin} from '@parcel/utils';
 import {NamedBundle} from './public/Bundle';
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -45,14 +45,11 @@ export default class PackagerRunner {
     }
 
     let size;
-    if (contents.code instanceof Readable) {
-      size = 0;
-      await writeFileStream(
-        filePath,
-        contents.code.pipe(new TapStream(chunk => (size += chunk.length)))
-      );
+    let code = contents.code;
+    if (code instanceof Readable) {
+      size = await writeFileStream(filePath, code);
     } else {
-      await writeFile(filePath, contents.code);
+      await writeFile(filePath, code);
       size = contents.code.length;
     }
 
@@ -78,11 +75,11 @@ export default class PackagerRunner {
     });
 
     let packager = await this.config.getPackager(bundle.filePath);
-    let packageContent = await packager.package(
+    let packageContent = await packager.package({
       bundle,
-      new BundleGraph(bundleGraph),
-      this.options
-    );
+      bundleGraph: new BundleGraph(bundleGraph),
+      options: this.options
+    });
 
     return {
       code:
@@ -113,7 +110,11 @@ export default class PackagerRunner {
     });
 
     for (let optimizer of optimizers) {
-      contents = await optimizer.optimize(bundle, contents, this.options);
+      contents = await optimizer.optimize({
+        bundle,
+        contents,
+        options: this.options
+      });
     }
 
     return contents;
@@ -154,7 +155,10 @@ function generateDepToBundlePath(
     let entryBundle = entryBundleNode.value;
     depToBundlePath.set(
       dep.id,
-      urlRelative(nullthrows(bundle.name), nullthrows(entryBundle.name))
+      urlJoin(
+        nullthrows(entryBundle.target).publicUrl ?? '/',
+        nullthrows(entryBundle.name)
+      )
     );
   });
   return depToBundlePath;

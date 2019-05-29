@@ -34,6 +34,11 @@ jobs:
               cargo -V
             displayName: Install Rust
 
+      - ${{ if eq(parameters.name, 'Linux') }}:
+          - script: |
+              echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p;
+            displayName: Bump max inotify watches
+
       # use `--frozen-lockfile` to fail immediately if the committed yarn.lock needs updates
       # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
       - script: yarn --frozen-lockfile

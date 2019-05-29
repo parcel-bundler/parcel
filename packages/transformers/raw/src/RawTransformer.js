@@ -3,7 +3,7 @@
 import {Transformer} from '@parcel/plugin';
 
 export default new Transformer({
-  transform(asset) {
+  transform({asset}) {
     asset.isIsolated = true;
     return [asset];
   }

@@ -1,9 +1,23 @@
-// @flow
+// @flow strict-local
 
-import type {InitialParcelOptions, ParcelOptions, Stats} from '@parcel/types';
+import type {
+  AsyncSubscription,
+  BundleGraph as IBundleGraph,
+  BuildFailureEvent,
+  BuildSuccessEvent,
+  EnvironmentOpts,
+  FilePath,
+  InitialParcelOptions,
+  ModuleSpecifier,
+  ParcelOptions,
+  Stats
+} from '@parcel/types';
 import type {Bundle} from './types';
 import type InternalBundleGraph from './BundleGraph';
 
+import invariant from 'assert';
+import Dependency from './Dependency';
+import Environment from './Environment';
 import {Asset} from './public/Asset';
 import {BundleGraph} from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
@@ -11,12 +25,20 @@ import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
 import Cache from '@parcel/cache';
+import watcher from '@parcel/watcher';
+import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
 import ConfigResolver from './ConfigResolver';
 import ReporterRunner from './ReporterRunner';
 import MainAssetGraph from './public/MainAssetGraph';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
+import {ValueEmitter} from '@parcel/events';
+
+type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
+
+export const INTERNAL_TRANSFORM = Symbol('internal_transform');
+export const INTERNAL_RESOLVE = Symbol('internal_resolve');
 
 export default class Parcel {
   #assetGraphBuilder; // AssetGraphBuilder
@@ -25,8 +47,14 @@ export default class Parcel {
   #initialized = false; // boolean
   #initialOptions; // InitialParcelOptions;
   #reporterRunner; // ReporterRunner
-  #resolvedOptions; // ?ParcelOptions
+  #resolvedOptions = null; // ?ParcelOptions
   #runPackage; // (bundle: Bundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
+  #watchEvents = new ValueEmitter<
+    | {+error: Error, +buildEvent?: void}
+    | {+buildEvent: BuildEvent, +error?: void}
+  >();
+  #watcherSubscription; // AsyncSubscription
+  #watcherCount = 0; // number
 
   constructor(options: InitialParcelOptions) {
     this.#initialOptions = clone(options);
@@ -90,40 +118,80 @@ export default class Parcel {
       }
     );
 
-    this.#runPackage = this.#farm.mkhandle('runPackage');
+    await this.#assetGraphBuilder.initFarm();
 
+    this.#runPackage = this.#farm.mkhandle('runPackage');
     this.#initialized = true;
   }
 
-  // `run()` returns `Promise<?BundleGraph>` because in watch mode it does not
-  // return a bundle graph, but outside of watch mode it always will.
-  async run(): Promise<?BundleGraph> {
+  async run(): Promise<IBundleGraph> {
     if (!this.#initialized) {
       await this.init();
     }
 
-    let resolvedOptions = nullthrows(this.#resolvedOptions);
-    try {
-      this.#assetGraphBuilder.on('invalidate', () => {
-        this.build().catch(e => {
-          if (!resolvedOptions.watch) {
-            throw e;
-          }
-        });
-      });
+    let result = await this.build();
 
-      let graph = await this.build();
-      if (!resolvedOptions.watch) {
-        return graph;
-      }
-    } catch (e) {
-      if (!resolvedOptions.watch) {
-        throw e;
-      }
+    let resolvedOptions = nullthrows(this.#resolvedOptions);
+    if (resolvedOptions.killWorkers !== false) {
+      await this.#farm.end();
     }
+
+    if (result.type === 'buildFailure') {
+      throw new BuildError(result.error);
+    }
+
+    return result.bundleGraph;
   }
 
-  async build(): Promise<BundleGraph> {
+  async watch(
+    cb?: (err: ?Error, buildEvent?: BuildEvent) => mixed
+  ): Promise<AsyncSubscription> {
+    let watchEventsDisposable;
+    if (cb) {
+      watchEventsDisposable = this.#watchEvents.addListener(
+        ({error, buildEvent}) => cb(error, buildEvent)
+      );
+    }
+
+    if (this.#watcherCount === 0) {
+      if (!this.#initialized) {
+        await this.init();
+      }
+
+      this.#watcherSubscription = await this._getWatcherSubscription();
+      await this.#reporterRunner.report({type: 'watchStart'});
+
+      // Kick off a first build, but don't await its results. Its results will
+      // be provided to the callback.
+      this.build()
+        .then(buildEvent => {
+          this.#watchEvents.emit({buildEvent});
+        })
+        .catch(error => {
+          // Ignore BuildAbortErrors and only emit critical errors.
+          this.#watchEvents.emit({error});
+        });
+    }
+
+    this.#watcherCount++;
+
+    return {
+      unsubscribe: async () => {
+        if (watchEventsDisposable) {
+          watchEventsDisposable.dispose();
+        }
+
+        this.#watcherCount--;
+        if (this.#watcherCount === 0) {
+          await nullthrows(this.#watcherSubscription).unsubscribe();
+          this.#watcherSubscription = null;
+          await this.#reporterRunner.report({type: 'watchEnd'});
+        }
+      }
+    };
+  }
+
+  async build(): Promise<BuildEvent> {
     try {
       this.#reporterRunner.report({
         type: 'buildStart'
@@ -138,7 +206,7 @@ export default class Parcel {
 
       await packageBundles(bundleGraph, this.#runPackage);
 
-      this.#reporterRunner.report({
+      let event = {
         type: 'buildSuccess',
         changedAssets: new Map(
           Array.from(changedAssets).map(([id, asset]) => [id, new Asset(asset)])
@@ -146,24 +214,104 @@ export default class Parcel {
         assetGraph: new MainAssetGraph(assetGraph),
         bundleGraph: new BundleGraph(bundleGraph),
         buildTime: Date.now() - startTime
-      });
+      };
+      this.#reporterRunner.report(event);
 
-      let resolvedOptions = nullthrows(this.#resolvedOptions);
-      if (!resolvedOptions.watch && resolvedOptions.killWorkers !== false) {
-        await this.#farm.end();
-      }
-
-      return new BundleGraph(bundleGraph);
+      return event;
     } catch (e) {
-      if (!(e instanceof BuildAbortError)) {
-        await this.#reporterRunner.report({
-          type: 'buildFailure',
-          error: e
-        });
+      if (e instanceof BuildAbortError) {
+        throw e;
       }
 
-      throw e;
+      let event = {
+        type: 'buildFailure',
+        error: e
+      };
+      await this.#reporterRunner.report(event);
+      return event;
     }
+  }
+
+  // $FlowFixMe
+  async [INTERNAL_TRANSFORM]({
+    filePath,
+    env,
+    code
+  }: {
+    filePath: FilePath,
+    env: EnvironmentOpts,
+    code?: string
+  }) {
+    let [result] = await Promise.all([
+      this.#assetGraphBuilder.runTransform({
+        filePath,
+        code,
+        env: new Environment(env)
+      }),
+      this.#reporterRunner.config.getReporters()
+    ]);
+
+    return result;
+  }
+
+  // $FlowFixMe
+  async [INTERNAL_RESOLVE]({
+    moduleSpecifier,
+    sourcePath,
+    env
+  }: {
+    moduleSpecifier: ModuleSpecifier,
+    sourcePath: FilePath,
+    env: EnvironmentOpts
+  }): Promise<FilePath> {
+    let resolved = await this.#assetGraphBuilder.resolverRunner.resolve(
+      new Dependency({
+        moduleSpecifier,
+        sourcePath,
+        env: new Environment(env)
+      })
+    );
+
+    return resolved.filePath;
+  }
+
+  async _getWatcherSubscription(): Promise<AsyncSubscription> {
+    invariant(this.#watcherSubscription == null);
+
+    let resolvedOptions = nullthrows(this.#resolvedOptions);
+    let targetDirs = resolvedOptions.targets.map(target =>
+      path.resolve(target.distDir)
+    );
+    let cacheDir = path.resolve(resolvedOptions.cacheDir);
+    let vcsDirs = ['.git', '.hg'].map(dir =>
+      path.join(resolvedOptions.projectRoot, dir)
+    );
+    let ignore = [cacheDir, ...targetDirs, ...vcsDirs];
+
+    return watcher.subscribe(
+      resolvedOptions.projectRoot,
+      async (err, events) => {
+        if (err) {
+          this.#watchEvents.emit({error: err});
+          return;
+        }
+
+        this.#assetGraphBuilder.respondToFSEvents(events);
+        if (this.#assetGraphBuilder.isInvalid()) {
+          try {
+            this.#watchEvents.emit({
+              buildEvent: await this.build()
+            });
+          } catch (error) {
+            // Ignore BuildAbortErrors and only emit critical errors.
+            if (!(err instanceof BuildAbortError)) {
+              this.#watchEvents.emit({error});
+            }
+          }
+        }
+      },
+      {ignore}
+    );
   }
 }
 
@@ -186,6 +334,14 @@ function packageBundles(
   return Promise.all(promises);
 }
 
+export class BuildError extends Error {
+  name = 'BuildError';
+  error: mixed;
+
+  constructor(error: mixed) {
+    super(error instanceof Error ? error.message : 'Unknown Build Error');
+    this.error = error;
+  }
+}
+
 export {default as Asset} from './Asset';
-export {default as Dependency} from './Dependency';
-export {default as Environment} from './Environment';

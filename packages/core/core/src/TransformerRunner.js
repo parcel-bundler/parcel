@@ -4,9 +4,10 @@ import type {
   MutableAsset as IMutableAsset,
   Blob,
   File,
+  FilePath,
   GenerateOutput,
   Transformer,
-  TransformerRequest,
+  AssetRequest,
   TransformerResult,
   ParcelOptions
 } from '@parcel/types';
@@ -23,7 +24,9 @@ import Cache from '@parcel/cache';
 import {TapStream, unique} from '@parcel/utils';
 import {createReadStream} from 'fs';
 
+import Dependency from './Dependency';
 import Config from './Config';
+import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset from './Asset';
@@ -40,13 +43,18 @@ const BUFFER_LIMIT = 5000000; // 5mb
 export default class TransformerRunner {
   options: ParcelOptions;
   config: Config;
+  resolverRunner: ResolverRunner;
 
-  constructor(opts: Opts) {
-    this.options = opts.options;
-    this.config = opts.config;
+  constructor({config, options}: Opts) {
+    this.options = options;
+    this.config = config;
+    this.resolverRunner = new ResolverRunner({
+      config,
+      options
+    });
   }
 
-  async transform(req: TransformerRequest): Promise<CacheEntry> {
+  async transform(req: AssetRequest): Promise<CacheEntry> {
     report({
       type: 'buildProgress',
       phase: 'transforming',
@@ -190,13 +198,24 @@ export default class TransformerRunner {
     transformer: Transformer,
     previousGenerate: ?GenerateFunc
   ) {
+    const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
+      return (await this.resolverRunner.resolve(
+        new Dependency({
+          env: input.env,
+          moduleSpecifier: to,
+          sourcePath: from
+        })
+      )).filePath;
+    };
+
     // Load config for the transformer.
     let config = null;
     if (transformer.getConfig) {
-      config = await transformer.getConfig(
-        new MutableAsset(input),
-        this.options
-      );
+      config = await transformer.getConfig({
+        asset: new MutableAsset(input),
+        options: this.options,
+        resolve
+      });
     }
 
     // If an ast exists on the input, but we cannot reuse it,
@@ -204,7 +223,7 @@ export default class TransformerRunner {
     if (
       input.ast &&
       (!transformer.canReuseAST ||
-        !transformer.canReuseAST(input.ast, this.options)) &&
+        !transformer.canReuseAST({ast: input.ast, options: this.options})) &&
       previousGenerate
     ) {
       let output = await previousGenerate(new MutableAsset(input));
@@ -215,23 +234,31 @@ export default class TransformerRunner {
 
     // Parse if there is no AST available from a previous transform.
     if (!input.ast && transformer.parse) {
-      input.ast = await transformer.parse(
-        new MutableAsset(input),
+      input.ast = await transformer.parse({
+        asset: new MutableAsset(input),
         config,
-        this.options
-      );
+        options: this.options
+      });
     }
 
     // Transform.
     let results = normalizeAssets(
       // $FlowFixMe
-      await transformer.transform(new MutableAsset(input), config, this.options)
+      await transformer.transform({
+        asset: new MutableAsset(input),
+        config,
+        options: this.options
+      })
     );
 
     // Create a generate function that can be called later to lazily generate
     let generate = async (input: IMutableAsset): Promise<GenerateOutput> => {
       if (transformer.generate) {
-        return transformer.generate(input, config, this.options);
+        return transformer.generate({
+          asset: input,
+          config,
+          options: this.options
+        });
       }
 
       throw new Error(
@@ -245,11 +272,11 @@ export default class TransformerRunner {
     ): Promise<Array<InternalAsset> | null> => {
       let {postProcess} = transformer;
       if (postProcess) {
-        let results = await postProcess(
-          assets.map(asset => new MutableAsset(asset)),
+        let results = await postProcess({
+          assets: assets.map(asset => new MutableAsset(asset)),
           config,
-          this.options
-        );
+          options: this.options
+        });
 
         return Promise.all(
           results.map(result => input.createChildAsset(result))
@@ -293,12 +320,12 @@ async function checkConnectedFiles(files: Array<File>): Promise<boolean> {
   return files.every((file, index) => file.hash === hashes[index]);
 }
 
-function reqCacheKey(req: TransformerRequest): string {
+function reqCacheKey(req: AssetRequest): string {
   return md5FromString(req.filePath + JSON.stringify(req.env));
 }
 
 async function summarizeRequest(
-  req: TransformerRequest
+  req: AssetRequest
 ): Promise<{|content: Blob, hash: string, size: number|}> {
   let code = req.code;
   let content: Blob;

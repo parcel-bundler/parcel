@@ -1,7 +1,8 @@
 // @flow
 
-// Derived from the ink source:
+// Derived from the ink source available at:
 // https://github.com/vadimdemedes/ink
+// Which is licensed MIT
 
 declare module 'ink' {
   declare export interface StdoutLike {
@@ -27,6 +28,8 @@ declare module 'ink' {
     yellow?: boolean
   |};
   declare export var Color: React$ComponentType<ColorProps>;
+  // https://github.com/vadimdemedes/ink#static
+  declare export var Static: React$ComponentType<{children: React$Node}>;
 
   declare type TextProps = {|
     children: React$Node
@@ -38,8 +41,14 @@ declare module 'ink' {
   |};
   declare export var Box: React$ComponentType<BoxProps>;
 
+  declare export type RerenderFunc = (node: React$Node) => void;
+
   declare export function render(
     node: React$Node,
     options?: RenderOptions
-  ): mixed;
+  ): {|
+    rerender: RerenderFunc,
+    unmount: () => void,
+    waitUntilExit: Promise<void>
+  |};
 }

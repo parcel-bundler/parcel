@@ -6,7 +6,7 @@ import type {
   Dependency,
   PackageJSON,
   FilePath,
-  TransformerRequest
+  AssetRequest
 } from '@parcel/types';
 import path from 'path';
 import * as fs from '@parcel/fs';
@@ -16,19 +16,19 @@ import builtins from './builtins';
 // import nodeBuiltins from 'node-libs-browser';
 
 export default new Resolver({
-  async resolve(dep: Dependency, options: ParcelOptions) {
+  async resolve({dependency, options}) {
     const resolved = await new NodeResolver({
       extensions: ['js', 'json', 'css'],
       options
-    }).resolve(dep);
+    }).resolve(dependency);
 
     if (!resolved) {
       return null;
     }
 
-    let result: TransformerRequest = {
+    let result: AssetRequest = {
       filePath: resolved.path,
-      env: dep.env
+      env: dependency.env
     };
 
     if (resolved.pkg && !hasSideEffects(resolved.path, resolved.pkg)) {
@@ -104,6 +104,9 @@ class NodeResolver {
   }: Dependency) {
     // Check if this is a glob
     if (isGlob(filename)) {
+      if (parent == null) {
+        throw new Error('Globs can only be required from a parent file');
+      }
       return {path: path.resolve(path.dirname(parent), filename)};
     }
 

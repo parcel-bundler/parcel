@@ -1,6 +1,6 @@
 {
   "name": "@parcel/eslint-plugin",
-  "version": "2.0.0",
+  "version": "2.0.0-alpha.0",
   "main": "index.js",
   "scripts": {
     "test": "mocha test test/rules"

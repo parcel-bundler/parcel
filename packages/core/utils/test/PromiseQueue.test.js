@@ -1,6 +1,5 @@
 // @flow
 import assert from 'assert';
-import {sleep} from '@parcel/test-utils';
 import randomInt from 'random-int';
 
 import PromiseQueue from '../src/PromiseQueue';
@@ -36,21 +35,37 @@ describe('PromiseQueue', () => {
     // no need to assert, test will hang or throw an error if condition fails
   });
 
+  it(".add() should resolve with the same result when the passed in function's promise resolves", async () => {
+    let queue = new PromiseQueue();
+    let promise = queue.add(() => Promise.resolve(42));
+    await queue.run();
+    let result = await promise;
+    assert.equal(result, 42);
+  });
+
+  it(".add() should reject with the same error when the passed in function's promise rejects", async () => {
+    let queue = new PromiseQueue();
+    let error = new Error('Oh no!');
+    let promise = queue.add(() => Promise.reject(error));
+    await queue.run().catch(() => null);
+    await promise.then(null, e => assert.equal(e, error));
+  });
+
   it('constructor() should allow for configuration of max concurrent running functions', async () => {
     const maxConcurrent = 5;
     const queue = new PromiseQueue({maxConcurrent});
     let running = 0;
 
-    const input = new Array(100).fill(0).map(() =>
+    new Array(100).fill(0).map(() =>
       queue.add(async () => {
         running++;
         assert(queue._numRunning === running);
         assert(running <= maxConcurrent);
-        await sleep(randomInt(30, 200));
+        await Promise.resolve(randomInt(1, 10)); //sleep(randomInt(1, 10));
         running--;
       })
     );
 
-    await Promise.all(input);
+    await queue.run();
   });
 });

@@ -66,11 +66,13 @@ export const ncp: (
 export function writeFileStream(
   filePath: FilePath,
   stream: Readable
-): Promise<void> {
+): Promise<number> {
   return new Promise((resolve, reject) => {
+    let fsStream = fs.createWriteStream(filePath);
     stream
-      .pipe(fs.createWriteStream(filePath))
-      .on('finish', resolve)
+      .pipe(fsStream)
+      // $FlowFixMe
+      .on('finish', () => resolve(fsStream.bytesWritten))
       .on('error', reject);
   });
 }
