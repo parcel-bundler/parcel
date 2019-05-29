@@ -689,6 +689,9 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/env-file/index.js')
     );
 
+    // Make sure dotenv doesn't leak its values into the main process's env
+    assert(process.env.FOO == null);
+
     let output = await run(b);
     assert.equal(output, 'bartest');
   });
