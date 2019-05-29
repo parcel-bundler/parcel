@@ -55,7 +55,13 @@ export default class PackagerRunner {
     }
 
     if (map) {
-      await writeFile(filePath + '.map', map.stringify(filePath));
+      await writeFile(
+        filePath + '.map',
+        map.stringify(
+          filePath,
+          path.relative(nullthrows(bundle.target).distDir, this.options.rootDir)
+        )
+      );
     }
 
     return {
