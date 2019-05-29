@@ -2,6 +2,9 @@
 
 import type {IDisposable} from './types';
 
+import invariant from 'assert';
+import {AlreadyDisposedError} from './errors';
+
 type DisposableLike = IDisposable | (() => mixed);
 
 /*
@@ -10,19 +13,32 @@ type DisposableLike = IDisposable | (() => mixed);
  * disposable-like values to be disposed of at once.
  */
 export default class Disposable implements IDisposable {
-  #disposables; // Set<DisposableLike>
+  disposed: boolean = false;
+  #disposables; // ?Set<DisposableLike>
 
   constructor(...disposables: Array<DisposableLike>) {
     this.#disposables = new Set(disposables);
   }
 
-  add(...disposables: Array<DisposableLike>) {
+  add(...disposables: Array<DisposableLike>): void {
+    if (this.disposed) {
+      throw new AlreadyDisposedError(
+        'Cannot add new disposables after disposable has been disposed'
+      );
+    }
+
+    invariant(this.#disposables != null);
     for (let disposable of disposables) {
       this.#disposables.add(disposable);
     }
   }
 
-  dispose() {
+  dispose(): void {
+    if (this.disposed) {
+      return;
+    }
+
+    invariant(this.#disposables != null);
     for (let disposable of this.#disposables) {
       if (typeof disposable === 'function') {
         disposable();
@@ -30,5 +46,8 @@ export default class Disposable implements IDisposable {
         disposable.dispose();
       }
     }
+
+    this.#disposables = null;
+    this.disposed = true;
   }
 }
