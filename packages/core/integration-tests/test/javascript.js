@@ -14,7 +14,7 @@ const {makeDeferredWithPromise} = require('@parcel/utils');
 
 describe('javascript', function() {
   afterEach(async () => {
-    await removeDistDirectory();
+    // await removeDistDirectory();
   });
 
   it('should produce a basic JS bundle with CommonJS requires', async function() {
@@ -762,18 +762,15 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
-  it.skip('should support requiring CoffeeScript files', async function() {
+  it('should support requiring CoffeeScript files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/coffee/index.js'));
 
-    await assertBundles(b, {
-      name: 'index.js',
-      assets: ['index.js', 'local.coffee'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'local.coffee']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
