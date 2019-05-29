@@ -8,6 +8,7 @@ import TransformerRunner from './TransformerRunner';
 import PackagerRunner from './PackagerRunner';
 import Config from './Config';
 import Cache from '@parcel/cache';
+import registerCoreWithSerializer from './registerCoreWithSerializer';
 
 type Options = {|
   config: Config,
@@ -17,6 +18,8 @@ type Options = {|
 
 let transformerRunner: TransformerRunner | null = null;
 let packagerRunner: PackagerRunner | null = null;
+
+registerCoreWithSerializer();
 
 export function init({config, options, env}: Options) {
   Object.assign(process.env, env || {});

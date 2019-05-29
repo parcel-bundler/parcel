@@ -12,12 +12,23 @@ import type {
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
-import {deserialize, errorToJson, jsonToError, serialize} from '@parcel/utils';
+import {
+  deserialize,
+  errorToJson,
+  jsonToError,
+  registerSerializableClass,
+  serialize
+} from '@parcel/utils';
 import Logger from '@parcel/logger';
 import bus from './bus';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 import Handle from './Handle';
+import packageJson from '../package.json';
+
+// Register the Handle as a serializable class so that it will properly be deserialized
+// by anything that uses WorkerFarm.
+registerSerializableClass(`${packageJson.version}:Handle`, Handle);
 
 let shared = null;
 
