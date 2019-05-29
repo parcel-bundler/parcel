@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {Readable} from 'stream';
+import type SourceMap from '@parcel/source-map';
 
 import type {AST as _AST, Config as _Config} from './unsafe';
 
@@ -241,7 +242,7 @@ interface BaseAsset {
   getCode(): Promise<string>;
   getBuffer(): Promise<Buffer>;
   getStream(): Readable;
-  getMap(): ?SourceMap;
+  getMap(): Promise<?SourceMap>;
   getConnectedFiles(): $ReadOnlyArray<File>;
   getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(
@@ -269,7 +270,6 @@ export interface MutableAsset extends BaseAsset {
 export interface Asset extends BaseAsset {
   +outputHash: string;
   +stats: Stats;
-  +map?: SourceMap;
 }
 
 export type Stats = {|
@@ -282,7 +282,6 @@ export type GenerateOutput = {|
   map?: SourceMap
 |};
 
-export type SourceMap = JSONObject;
 export type Blob = string | Buffer | Readable;
 
 export interface TransformerResult {

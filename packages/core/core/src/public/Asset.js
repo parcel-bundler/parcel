@@ -1,6 +1,7 @@
 // @flow strict-local
 // flowlint unsafe-getters-setters:off
 
+import type SourceMap from '@parcel/source-map';
 import type {Readable} from 'stream';
 
 import type {
@@ -15,7 +16,6 @@ import type {
   Meta,
   MutableAsset as IMutableAsset,
   PackageJSON,
-  SourceMap,
   Stats,
   Symbol
 } from '@parcel/types';
@@ -51,10 +51,6 @@ class BaseAsset {
 
   get ast(): ?AST {
     return this.#asset.ast;
-  }
-
-  get map(): ?SourceMap {
-    return this.#asset.map;
   }
 
   get type(): string {
@@ -154,11 +150,7 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     this.#asset.ast = ast;
   }
 
-  get map(): ?SourceMap {
-    return this.#asset.map;
-  }
-
-  set map(map: ?SourceMap): void {
+  setMap(map: ?SourceMap): void {
     this.#asset.map = map;
   }
 
@@ -196,10 +188,6 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   setStream(stream: Readable): void {
     this.#asset.setStream(stream);
-  }
-
-  setMap(sourceMap: ?SourceMap): void {
-    this.#asset.setMap(sourceMap);
   }
 
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string {

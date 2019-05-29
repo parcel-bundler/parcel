@@ -14,7 +14,6 @@ import type {
 import type {CacheEntry} from './types';
 
 import path from 'path';
-import clone from 'clone';
 import {
   md5FromFilePath,
   md5FromReadableStream,
@@ -368,20 +367,23 @@ function normalizeAssets(
   results: Array<TransformerResult | MutableAsset>
 ): Array<TransformerResult> {
   return results.map(result => {
-    return result instanceof MutableAsset
-      ? {
-          type: result.type,
-          content: assetToInternalAsset(result).content,
-          ast: result.ast,
-          map: result.map,
-          // $FlowFixMe
-          dependencies: result.getDependencies(),
-          connectedFiles: result.getConnectedFiles(),
-          // $FlowFixMe
-          env: result.env,
-          isIsolated: result.isIsolated,
-          meta: result.meta
-        }
-      : result;
+    if (!(result instanceof MutableAsset)) {
+      return result;
+    }
+
+    let internalAsset = assetToInternalAsset(result);
+    return {
+      type: result.type,
+      content: internalAsset.content,
+      ast: result.ast,
+      map: internalAsset.map,
+      // $FlowFixMe
+      dependencies: result.getDependencies(),
+      connectedFiles: result.getConnectedFiles(),
+      // $FlowFixMe
+      env: result.env,
+      isIsolated: result.isIsolated,
+      meta: result.meta
+    };
   });
 }
