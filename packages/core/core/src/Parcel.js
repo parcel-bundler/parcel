@@ -28,7 +28,7 @@ import clone from 'clone';
 import watcher from '@parcel/watcher';
 import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
-import ConfigResolver from './ConfigResolver';
+import loadParcelConfig from './loadParcelConfig';
 import ReporterRunner from './ReporterRunner';
 import MainAssetGraph from './public/MainAssetGraph';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
@@ -76,24 +76,10 @@ export default class Parcel {
     this.#resolvedOptions = resolvedOptions;
     await createCacheDir(resolvedOptions.cacheDir);
 
-    let configResolver = new ConfigResolver();
-    let config;
-
-    // If an explicit `config` option is passed use that, otherwise resolve a .parcelrc from the filesystem.
-    if (resolvedOptions.config) {
-      config = await configResolver.create(resolvedOptions.config);
-    } else {
-      config = await configResolver.resolve(resolvedOptions.rootDir);
-    }
-
-    // If no config was found, default to the `defaultConfig` option if one is provided.
-    if (!config && resolvedOptions.defaultConfig) {
-      config = await configResolver.create(resolvedOptions.defaultConfig);
-    }
-
-    if (!config) {
-      throw new Error('Could not find a .parcelrc');
-    }
+    let config = await loadParcelConfig(
+      path.join(process.cwd(), 'index'),
+      resolvedOptions
+    );
     this.#config = config;
 
     this.#bundlerRunner = new BundlerRunner({

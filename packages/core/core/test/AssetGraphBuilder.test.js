@@ -5,7 +5,7 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 
 import AssetGraphBuilder from '../src/AssetGraphBuilder';
-import ConfigResolver from '../src/ConfigResolver';
+import {resolve} from '../src/loadParcelConfig';
 import Dependency from '../src/Dependency';
 import Environment from '../src/Environment';
 
@@ -43,7 +43,7 @@ describe('AssetGraphBuilder', () => {
   let config;
   let builder;
   beforeEach(async () => {
-    config = nullthrows(await new ConfigResolver().resolve(CONFIG_DIR));
+    config = nullthrows(await resolve(path.join(CONFIG_DIR, 'index')));
 
     builder = new AssetGraphBuilder({
       options: DEFAULT_OPTIONS,
