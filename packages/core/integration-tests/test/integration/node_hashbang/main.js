@@ -2,6 +2,4 @@
 
 var {b} = require('./local');
 
-module.exports = function () {
-  return b;
-};
+console.log(b);

@@ -8,7 +8,7 @@ import type InternalBundleGraph from './BundleGraph';
 
 import {Readable} from 'stream';
 import invariant from 'assert';
-import {mkdirp, writeFile, writeFileStream} from '@parcel/fs';
+import * as fs from '@parcel/fs';
 import {urlJoin} from '@parcel/utils';
 import {NamedBundle} from './public/Bundle';
 import nullthrows from 'nullthrows';
@@ -46,15 +46,20 @@ export default class PackagerRunner {
     let filePath = nullthrows(bundle.filePath);
     let dir = path.dirname(filePath);
     if (!this.distExists.has(dir)) {
-      await mkdirp(dir);
+      await fs.mkdirp(dir);
       this.distExists.add(dir);
     }
 
+    // Use the file mode from the entry asset as the file mode for the bundle
+    let options = {
+      mode: (await fs.stat(bundle.assetGraph.getEntryAssets()[0].filePath)).mode
+    };
+
     let size;
     if (contents instanceof Readable) {
-      size = await writeFileStream(filePath, contents);
+      size = await fs.writeFileStream(filePath, contents, options);
     } else {
-      await writeFile(filePath, contents);
+      await fs.writeFile(filePath, contents, options);
       size = contents.length;
     }
 
@@ -91,7 +96,7 @@ export default class PackagerRunner {
       }
 
       let mapFilename = filePath + '.map';
-      await writeFile(
+      await fs.writeFile(
         mapFilename,
         await map.stringify({
           file: path.basename(mapFilename),
