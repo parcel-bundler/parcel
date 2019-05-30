@@ -575,18 +575,15 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
-  it.skip('should support requiring JSON5 files', async function() {
+  it('should support requiring JSON5 files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/json5/index.js'));
 
-    await assertBundles(b, {
-      name: 'index.js',
-      assets: ['index.js', 'local.json5'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'local.json5']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
