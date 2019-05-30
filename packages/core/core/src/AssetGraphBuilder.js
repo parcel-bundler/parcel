@@ -7,7 +7,7 @@ import type {Event} from '@parcel/watcher';
 
 import type Asset from './Asset';
 import AssetGraph from './AssetGraph';
-import type Config from './Config';
+import type Config from './ParcelConfig';
 import RequestGraph from './RequestGraph';
 import type {
   AssetGraphNode,

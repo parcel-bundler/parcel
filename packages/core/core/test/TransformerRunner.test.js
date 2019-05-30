@@ -1,6 +1,6 @@
 // @flow
 import TransformerRunner from '../src/TransformerRunner';
-import Config from '../src/Config';
+import Config from '../src/ParcelConfig';
 import Environment from '../src/Environment';
 
 const config = require('@parcel/config-default');

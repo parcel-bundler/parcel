@@ -23,7 +23,7 @@ import {TapStream, unique} from '@parcel/utils';
 import {createReadStream} from 'fs';
 
 import Dependency from './Dependency';
-import Config from './Config';
+import type Config from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';

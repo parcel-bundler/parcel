@@ -2,7 +2,7 @@
 import ConfigResolver from '../src/ConfigResolver';
 import assert from 'assert';
 import path from 'path';
-import Config from '../src/Config';
+import Config from '../src/ParcelConfig';
 
 describe('ConfigResolver', () => {
   let resolver = new ConfigResolver();

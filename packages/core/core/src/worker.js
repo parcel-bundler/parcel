@@ -6,7 +6,7 @@ import type BundleGraph from './BundleGraph';
 
 import TransformerRunner from './TransformerRunner';
 import PackagerRunner from './PackagerRunner';
-import Config from './Config';
+import Config from './ParcelConfig';
 import registerCoreWithSerializer from './registerCoreWithSerializer';
 
 registerCoreWithSerializer();

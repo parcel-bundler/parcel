@@ -2,7 +2,7 @@
 
 import type {ParcelOptions, Dependency, AssetRequest} from '@parcel/types';
 import path from 'path';
-import Config from './Config';
+import type Config from './ParcelConfig';
 import {report} from './ReporterRunner';
 
 type Opts = {|

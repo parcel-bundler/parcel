@@ -1,5 +1,5 @@
 // @flow
-import Config from '../src/Config';
+import Config from '../src/ParcelConfig';
 import assert from 'assert';
 import path from 'path';
 import sinon from 'sinon';
