@@ -84,7 +84,15 @@ export default new Transformer({
       walk.ancestor(ast.program, collectDependencies, asset);
     }
 
-    if (!asset.env.isNode()) {
+    if (asset.env.isNode()) {
+      // If there's a hashbang, remove it and store it on the asset meta.
+      // During packaging, if this is the entry asset, it will be prepended to the
+      // packaged output.
+      if (ast.program.program.interpreter != null) {
+        asset.meta.interpreter = ast.program.program.interpreter.value;
+        delete ast.program.program.interpreter;
+      }
+    } else {
       // Inline fs calls
       let fsDep = asset
         .getDependencies()
