@@ -69,10 +69,11 @@ export const ncp: (
 
 export function writeFileStream(
   filePath: FilePath,
-  stream: Readable
+  stream: Readable,
+  options: ?mixed
 ): Promise<number> {
   return new Promise((resolve, reject) => {
-    let fsStream = fs.createWriteStream(filePath);
+    let fsStream = fs.createWriteStream(filePath, options);
     stream
       .pipe(fsStream)
       // $FlowFixMe

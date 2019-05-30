@@ -126,12 +126,21 @@ describe('javascript', function() {
     assert.equal(output(), 7);
   });
 
-  it('should preserve hashbangs in bundles', async () => {
-    await bundle(path.join(__dirname, '/integration/node_hashbang/main.js'));
+  it('should preserve hashbangs in bundles and preserve executable file mode', async () => {
+    let mainEntryPath = path.join(
+      __dirname,
+      '/integration/node_hashbang/main.js'
+    );
+    await bundle(mainEntryPath);
 
-    let main = await fs.readFile(path.join(distDir, 'main.js'), 'utf8');
-    // console.log(main);
+    let mainPath = path.join(distDir, 'main.js');
+    let main = await fs.readFile(mainPath, 'utf8');
+
     assert.equal(main.lastIndexOf('#!/usr/bin/env node\n'), 0);
+    assert.equal(
+      (await fs.stat(mainPath)).mode,
+      (await fs.stat(mainEntryPath)).mode
+    );
   });
 
   it('should preserve hashbangs in scopehoisted bundles', async () => {
@@ -140,7 +149,6 @@ describe('javascript', function() {
     });
 
     let main = await fs.readFile(path.join(distDir, 'main.js'), 'utf8');
-    // console.log(main);
     assert.equal(main.lastIndexOf('#!/usr/bin/env node\n'), 0);
   });
 
