@@ -14,6 +14,7 @@
   "dependencies": {
     "@parcel/plugin": "^2.0.0-alpha.0",
     "coffeescript": "^2.0.3",
+    "nullthrows": "^1.1.1",
     "semver": "^5.4.1"
   }
 }

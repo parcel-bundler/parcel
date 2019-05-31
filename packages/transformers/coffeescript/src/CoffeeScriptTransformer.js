@@ -1,6 +1,7 @@
 import {Transformer} from '@parcel/plugin';
 import coffee from 'coffeescript';
 import semver from 'semver';
+import nullthrows from 'nullthrows';
 
 export default new Transformer({
   canReuseAST({ast}) {
@@ -24,10 +25,10 @@ export default new Transformer({
   },
 
   async generate({asset}) {
-    const transpiled = coffee.compile(await asset.getCode());
+    const ast = nullthrows(asset.ast);
 
     return {
-      code: transpiled
+      code: ast.program.compile()
     };
   }
 });

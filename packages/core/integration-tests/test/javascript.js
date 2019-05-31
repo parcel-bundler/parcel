@@ -14,7 +14,7 @@ const {makeDeferredWithPromise} = require('@parcel/utils');
 
 describe('javascript', function() {
   afterEach(async () => {
-    // await removeDistDirectory();
+    await removeDistDirectory();
   });
 
   it('should produce a basic JS bundle with CommonJS requires', async function() {
