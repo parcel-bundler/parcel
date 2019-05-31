@@ -19,6 +19,6 @@
     "@parcel/plugin": "^2.0.0-alpha.0",
     "@parcel/utils": "^2.0.0-alpha.0",
     "nullthrows": "^1.1.1",
-    "terser": "^3.7.3"
+    "terser": "^4.0.0"
   }
 }
