@@ -6,7 +6,7 @@ export default new Packager({
   async package({bundle}) {
     let promises = [];
     bundle.traverseAssets({
-      exit: async asset => {
+      exit: asset => {
         let parentDep;
         bundle.traverseAncestors(asset, (node, _, {stop}) => {
           if (node.type === 'dependency') {
