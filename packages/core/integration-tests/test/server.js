@@ -8,6 +8,8 @@ const https = require('https');
 const getPort = require('get-port');
 const sinon = require('sinon');
 
+const distDir = path.resolve(__dirname, '../../../../.parcel-cache/dist');
+
 function get(file, port, client = http) {
   return new Promise((resolve, reject) => {
     client.get(
@@ -77,10 +79,7 @@ describe('server', function() {
     await getNextBuild(b);
 
     let data = await get('/index.js', port);
-    let distFile = await fs.readFile(
-      path.join(__dirname, '../dist/index.js'),
-      'utf8'
-    );
+    let distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
 
     assert.equal(data, distFile);
   });
@@ -102,13 +101,13 @@ describe('server', function() {
     let data = await get('/', port);
     assert.equal(
       data,
-      await fs.readFile(path.join(__dirname, '../dist/index.html'), 'utf8')
+      await fs.readFile(path.join(distDir, 'index.html'), 'utf8')
     );
 
     data = await get('/foo/bar', port);
     assert.equal(
       data,
-      await fs.readFile(path.join(__dirname, '../dist/index.html'), 'utf8')
+      await fs.readFile(path.join(distDir, 'index.html'), 'utf8')
     );
   });
 
@@ -186,7 +185,7 @@ describe('server', function() {
     let data = await get('/index.js', port, https);
     assert.equal(
       data,
-      await fs.readFile(path.join(__dirname, '../dist/index.js'), 'utf8')
+      await fs.readFile(path.join(distDir, 'index.js'), 'utf8')
     );
   });
 
@@ -209,7 +208,7 @@ describe('server', function() {
     let data = await get('/index.js', port, https);
     assert.equal(
       data,
-      await fs.readFile(path.join(__dirname, '../dist/index.js'), 'utf8')
+      await fs.readFile(path.join(distDir, 'index.js'), 'utf8')
     );
   });
 
@@ -230,7 +229,7 @@ describe('server', function() {
     let data = await get('/dist/index.js', port);
     assert.equal(
       data,
-      await fs.readFile(path.join(__dirname, '../dist/index.js'), 'utf8')
+      await fs.readFile(path.join(distDir, 'index.js'), 'utf8')
     );
   });
 
@@ -253,11 +252,11 @@ describe('server', function() {
     let data = await get('/', port);
     assert.equal(
       data,
-      await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8')
+      await fs.readFile(path.join(distDir, 'index.html'), 'utf8')
     );
 
     // When accessing /hello.txt we should get txt document.
-    await fs.writeFile(path.join(__dirname, '/dist/hello.txt'), 'hello');
+    await fs.writeFile(path.join(distDir, 'hello.txt'), 'hello');
     data = await get('/hello.txt', port);
     assert.equal(data, 'hello');
   });
@@ -278,7 +277,7 @@ describe('server', function() {
     let data = await get('/index.js?foo=bar.baz', port);
     assert.equal(
       data,
-      await fs.readFile(path.join(__dirname, '../dist/index.js'), 'utf8')
+      await fs.readFile(path.join(distDir, 'index.js'), 'utf8')
     );
   });
 
@@ -291,7 +290,7 @@ describe('server', function() {
     let data = await get('/bar.baz');
     assert.equal(
       data,
-      await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8')
+      await fs.readFile(path.join(distDir, 'index.html'), 'utf8')
     );
   });
 
