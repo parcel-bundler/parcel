@@ -7,11 +7,13 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "scripts": {
-    "test": "mocha"
+    "test": "mocha",
+    "test-ci": "mocha"
   },
   "dependencies": {
     "@parcel/bundler-default": "^2.0.0-alpha.0",
     "@parcel/namer-default": "^2.0.0-alpha.0",
+    "@parcel/optimizer-cssnano": "^2.0.0-alpha.0",
     "@parcel/packager-css": "^2.0.0-alpha.0",
     "@parcel/packager-html": "^2.0.0-alpha.0",
     "@parcel/packager-js": "^2.0.0-alpha.0",
@@ -23,7 +25,9 @@
     "@parcel/transformer-css": "^2.0.0-alpha.0",
     "@parcel/transformer-html": "^2.0.0-alpha.0",
     "@parcel/transformer-js": "^2.0.0-alpha.0",
+    "@parcel/transformer-json": "^2.0.0-alpha.0",
     "@parcel/transformer-postcss": "^2.0.0-alpha.0",
+    "@parcel/transformer-posthtml": "^2.0.0-alpha.0",
     "@parcel/transformer-raw": "^2.0.0-alpha.0",
     "@parcel/transformer-terser": "^2.0.0-alpha.0",
     "@parcel/reporter-dev-server": "^2.0.0-alpha.0",

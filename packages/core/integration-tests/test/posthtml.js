@@ -1,9 +1,18 @@
 const assert = require('assert');
 const fs = require('@parcel/fs');
-const {bundle, assertBundles, assertBundleTree} = require('@parcel/test-utils');
+const {
+  bundle,
+  assertBundles,
+  removeDistDirectory,
+  distDir
+} = require('@parcel/test-utils');
 const path = require('path');
 
-describe.skip('posthtml', function() {
+describe('posthtml', function() {
+  afterEach(async () => {
+    await removeDistDirectory();
+  });
+
   it('should support transforming HTML with posthtml', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/posthtml/index.html')
@@ -16,7 +25,7 @@ describe.skip('posthtml', function() {
       }
     ]);
 
-    let html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
+    let html = await fs.readFile(path.join(distDir, 'index.html'));
     assert(html.includes('<h1>Other page</h1>'));
   });
 
@@ -25,24 +34,19 @@ describe.skip('posthtml', function() {
       path.join(__dirname, '/integration/posthtml-assets/index.html')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'js',
-          assets: ['index.js'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        type: 'html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: ['index.js']
+      }
+    ]);
   });
 
-  it('should add dependencies referenced by posthtml-include', async () => {
+  it.skip('should add dependencies referenced by posthtml-include', async () => {
     const b = await bundle(
       path.join(__dirname, '/integration/posthtml-assets/index.html')
     );
@@ -55,7 +59,7 @@ describe.skip('posthtml', function() {
     assert(asset.dependencies.get(other).includedInParent);
   });
 
-  it('should add dependencies referenced by plugins', async () => {
+  it.skip('should add dependencies referenced by plugins', async () => {
     const b = await bundle(
       path.join(__dirname, '/integration/posthtml-plugin-deps/index.html')
     );

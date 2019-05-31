@@ -5,7 +5,6 @@ import type {
   BundlerOptions,
   CallRequest,
   WorkerRequest,
-  WorkerResponse,
   WorkerDataResponse,
   WorkerErrorResponse
 } from './types';
@@ -13,11 +12,12 @@ import type {
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
-import {errorToJson} from '@parcel/utils';
+import {deserialize, errorToJson, jsonToError, serialize} from '@parcel/utils';
 import Logger from '@parcel/logger';
 import bus from './bus';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
+import Handle from './Handle';
 
 let shared = null;
 
@@ -49,6 +49,7 @@ export default class WorkerFarm extends EventEmitter {
   run: HandleFunction;
   warmWorkers: number = 0;
   workers: Map<number, Worker> = new Map();
+  handles: Map<number, Handle> = new Map();
 
   constructor(
     bundlerOptions: BundlerOptions,
@@ -70,7 +71,7 @@ export default class WorkerFarm extends EventEmitter {
 
     // $FlowFixMe this must be dynamic
     this.localWorker = require(this.options.workerPath);
-    this.run = this.mkhandle('run');
+    this.run = this.createHandle('run');
 
     this.init(bundlerOptions);
   }
@@ -103,7 +104,7 @@ export default class WorkerFarm extends EventEmitter {
     );
   }
 
-  mkhandle(method: string): HandleFunction {
+  createHandle(method: string): HandleFunction {
     return (...args) => {
       // Child process workers are slow to start (~600ms).
       // While we're waiting, just run on the main thread.
@@ -115,7 +116,8 @@ export default class WorkerFarm extends EventEmitter {
           this.warmupWorker(method, args);
         }
 
-        return this.localWorker[method](...args, false);
+        let processedArgs = deserialize(serialize([...args, false]));
+        return this.localWorker[method](...processedArgs);
       }
     };
   }
@@ -192,9 +194,15 @@ export default class WorkerFarm extends EventEmitter {
       location: FilePath
     |} & $Shape<WorkerRequest>,
     worker?: Worker
-  ): Promise<?WorkerResponse> {
-    let {method, args, location, awaitResponse, idx} = data;
-    if (!location) {
+  ): Promise<?string> {
+    let {method, args, location, awaitResponse, idx, handle} = data;
+    let mod;
+    if (handle) {
+      mod = nullthrows(this.handles.get(handle));
+    } else if (location) {
+      // $FlowFixMe this must be dynamic
+      mod = require(location);
+    } else {
       throw new Error('Unknown request');
     }
 
@@ -212,8 +220,6 @@ export default class WorkerFarm extends EventEmitter {
       content: errorToJson(e)
     });
 
-    // $FlowFixMe this must be dynamic
-    const mod = require(location);
     let result;
     if (method == null) {
       try {
@@ -233,7 +239,10 @@ export default class WorkerFarm extends EventEmitter {
       if (worker) {
         worker.send(result);
       } else {
-        return result;
+        if (result.contentType === 'error') {
+          throw jsonToError(result.content);
+        }
+        return result.content;
       }
     }
   }
@@ -271,7 +280,7 @@ export default class WorkerFarm extends EventEmitter {
       this.persistBundlerOptions();
     }
 
-    this.localWorker.init(bundlerOptions);
+    this.localWorker.init(deserialize(serialize(bundlerOptions)));
     this.startMaxWorkers();
   }
 
@@ -300,6 +309,12 @@ export default class WorkerFarm extends EventEmitter {
       ((this.warmWorkers >= this.workers.size || !this.options.warmWorkers) &&
         this.options.maxConcurrentWorkers > 0)
     );
+  }
+
+  createReverseHandle(fn: () => mixed) {
+    let handle = new Handle();
+    this.handles.set(handle.id, fn);
+    return handle;
   }
 
   static async getShared(
@@ -346,7 +361,10 @@ export default class WorkerFarm extends EventEmitter {
       return child.addCall(request, awaitResponse);
     } else {
       // $FlowFixMe
-      return (await WorkerFarm.getShared()).processRequest(request);
+      return (await WorkerFarm.getShared()).processRequest({
+        ...request,
+        awaitResponse
+      });
     }
   }
 
@@ -356,6 +374,16 @@ export default class WorkerFarm extends EventEmitter {
 
   static getConcurrentCallsPerWorker() {
     return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
+  }
+
+  static createReverseHandle(fn: () => mixed) {
+    if (WorkerFarm.isWorker()) {
+      throw new Error(
+        'Cannot call WorkerFarm.createReverseHandle() from within Worker'
+      );
+    }
+
+    return nullthrows(shared).createReverseHandle(fn);
   }
 }
 

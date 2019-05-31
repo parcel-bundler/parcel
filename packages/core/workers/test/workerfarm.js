@@ -256,4 +256,21 @@ describe('WorkerFarm', () => {
     logDisposable.dispose();
     await workerfarm.end();
   });
+
+  it('Should support reverse handle functions in main process that can be called in workers', async () => {
+    let workerfarm = new WorkerFarm(
+      {},
+      {
+        warmWorkers: true,
+        useLocalWorker: false,
+        workerPath: require.resolve(
+          './integration/workerfarm/reverse-handle.js'
+        )
+      }
+    );
+
+    let handle = workerfarm.createReverseHandle(() => 42);
+    let result = await workerfarm.run(handle);
+    assert.equal(result, 42);
+  });
 });
