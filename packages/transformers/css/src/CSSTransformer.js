@@ -21,6 +21,10 @@ export default new Transformer({
   },
 
   async parse({asset}) {
+    if (asset.meta.hasDependencies === false) {
+      return null;
+    }
+
     let code = await asset.getCode();
     if (!canHaveDependencies(asset.filePath, code)) {
       return null;

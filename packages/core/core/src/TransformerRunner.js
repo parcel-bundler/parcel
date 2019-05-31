@@ -97,6 +97,7 @@ export default class TransformerRunner {
     let {assets, initialAssets} = await this.runPipeline(
       input,
       pipeline,
+      pipeline,
       cacheEntry
     );
 
@@ -117,6 +118,7 @@ export default class TransformerRunner {
 
   async runPipeline(
     input: InternalAsset,
+    originalPipeline: Array<Transformer>,
     pipeline: Array<Transformer>,
     cacheEntry: ?CacheEntry,
     previousGenerate: ?GenerateFunc
@@ -125,6 +127,7 @@ export default class TransformerRunner {
     initialAssets: ?Array<InternalAsset>
   |}> {
     // Run the first transformer in the pipeline.
+    let inputType = input.type;
     let {results, generate, postProcess} = await this.runTransform(
       input,
       pipeline[0],
@@ -150,9 +153,18 @@ export default class TransformerRunner {
         }
       }
 
-      // If the generated asset has the same type as the input...
-      // TODO: this is incorrect since multiple file types could map to the same pipeline. need to compare the pipelines.
-      if (result.type === input.type) {
+      // If the generated asset has a different type from the input, find the next pipeline
+      let nextPipeline = originalPipeline;
+      if (result.type !== inputType) {
+        let nextFilePath =
+          input.filePath.slice(0, -path.extname(input.filePath).length) +
+          '.' +
+          result.type;
+        nextPipeline = await this.config.getTransformers(nextFilePath);
+      }
+
+      // If the generated asset maps to the same pipeline as the input...
+      if (isEqualPipeline(originalPipeline, nextPipeline)) {
         // If we have reached the last transform in the pipeline, then we are done.
         if (pipeline.length === 1) {
           assets.push(await finalize(asset, generate));
@@ -160,6 +172,7 @@ export default class TransformerRunner {
           // Recursively run the remaining transforms in the pipeline.
           let nextPipelineResult = await this.runPipeline(
             asset,
+            originalPipeline,
             pipeline.slice(1),
             null,
             generate
@@ -169,13 +182,10 @@ export default class TransformerRunner {
         }
       } else {
         // Jump to a different pipeline for the generated asset.
-        let nextFilePath =
-          input.filePath.slice(0, -path.extname(input.filePath).length) +
-          '.' +
-          result.type;
         let nextPipelineResult = await this.runPipeline(
           asset,
-          await this.config.getTransformers(nextFilePath),
+          nextPipeline,
+          nextPipeline,
           null,
           generate
         );
@@ -235,7 +245,8 @@ export default class TransformerRunner {
       input.ast = await transformer.parse({
         asset: new MutableAsset(input),
         config,
-        options: this.options
+        options: this.options,
+        resolve
       });
     }
 
@@ -245,7 +256,8 @@ export default class TransformerRunner {
       await transformer.transform({
         asset: new MutableAsset(input),
         config,
-        options: this.options
+        options: this.options,
+        resolve
       })
     );
 
@@ -255,7 +267,8 @@ export default class TransformerRunner {
         return transformer.generate({
           asset: input,
           config,
-          options: this.options
+          options: this.options,
+          resolve
         });
       }
 
@@ -273,7 +286,8 @@ export default class TransformerRunner {
         let results = await postProcess({
           assets: assets.map(asset => new MutableAsset(asset)),
           config,
-          options: this.options
+          options: this.options,
+          resolve
         });
 
         return Promise.all(
@@ -286,6 +300,19 @@ export default class TransformerRunner {
 
     return {results, generate, postProcess};
   }
+}
+
+function isEqualPipeline(a, b) {
+  if (a === b) {
+    return true;
+  }
+
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  // Plugins are cached, so we can just do a shallow comparison
+  return a.every((p, i) => p === b[i]);
 }
 
 async function finalize(

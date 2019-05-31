@@ -7,6 +7,7 @@
       "@parcel/transformer-terser"
     ],
     "*.{json,json5}": ["@parcel/transformer-json"],
+    "*.{styl,stylus}": ["@parcel/transformer-stylus"],
     "*.css": ["@parcel/transformer-css", "@parcel/transformer-postcss"],
     "*.{htm,html}": [
       "@parcel/transformer-posthtml",
