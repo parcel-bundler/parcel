@@ -158,15 +158,20 @@ describe('babel', function() {
   });
 
   it('can build using @babel/preset-env when engines have semver ranges', async () => {
-    await bundle(
-      path.join(__dirname, '/integration/babel-semver-engine/index.js')
-    );
+    let fixtureDir = path.join(__dirname, '/integration/babel-semver-engine');
+    await bundle(path.join(fixtureDir, 'index.js'));
 
-    let legacy = await fs.readFile('dist/legacy.js', 'utf8');
+    let legacy = await fs.readFile(
+      path.join(fixtureDir, 'dist', 'legacy.js'),
+      'utf8'
+    );
     assert(legacy.includes('function Foo'));
     assert(legacy.includes('function Bar'));
 
-    let modern = await fs.readFile('dist/modern.js', 'utf8');
+    let modern = await fs.readFile(
+      path.join(fixtureDir, 'dist', 'modern.js'),
+      'utf8'
+    );
     assert(modern.includes('class Foo'));
     assert(modern.includes('class Bar'));
   });
