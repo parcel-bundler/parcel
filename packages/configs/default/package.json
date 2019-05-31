@@ -14,6 +14,7 @@
     "@parcel/bundler-default": "^2.0.0-alpha.0",
     "@parcel/namer-default": "^2.0.0-alpha.0",
     "@parcel/optimizer-cssnano": "^2.0.0-alpha.0",
+    "@parcel/optimizer-terser": "^2.0.0-alpha.0",
     "@parcel/packager-css": "^2.0.0-alpha.0",
     "@parcel/packager-html": "^2.0.0-alpha.0",
     "@parcel/packager-js": "^2.0.0-alpha.0",
@@ -29,7 +30,6 @@
     "@parcel/transformer-postcss": "^2.0.0-alpha.0",
     "@parcel/transformer-posthtml": "^2.0.0-alpha.0",
     "@parcel/transformer-raw": "^2.0.0-alpha.0",
-    "@parcel/transformer-terser": "^2.0.0-alpha.0",
     "@parcel/reporter-dev-server": "^2.0.0-alpha.0",
     "@parcel/reporter-hmr-server": "^2.0.0-alpha.0",
     "@parcel/runtime-browser-hmr": "^2.0.0-alpha.0"
