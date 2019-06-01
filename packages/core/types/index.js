@@ -471,16 +471,18 @@ export type Runtime = {|
 
 export type Packager = {|
   package({
-    bundle: Bundle,
+    bundle: NamedBundle,
     bundleGraph: BundleGraph,
     options: ParcelOptions
   }): Async<Blob>
 |};
 
 export type Optimizer = {|
-  optimize({bundle: Bundle, contents: Blob, options: ParcelOptions}): Async<
-    Blob
-  >
+  optimize({
+    bundle: NamedBundle,
+    contents: Blob,
+    options: ParcelOptions
+  }): Async<Blob>
 |};
 
 export type Resolver = {|
