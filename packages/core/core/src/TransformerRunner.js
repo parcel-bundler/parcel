@@ -37,6 +37,13 @@ type Opts = {|
 |};
 
 type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutput>;
+type PipelineOpts = {|
+  input: InternalAsset,
+  originalPipeline?: Array<Transformer>,
+  pipeline: Array<Transformer>,
+  cacheEntry?: ?CacheEntry,
+  previousGenerate?: ?GenerateFunc
+|};
 
 const BUFFER_LIMIT = 5000000; // 5mb
 
@@ -94,12 +101,11 @@ export default class TransformerRunner {
     });
 
     let pipeline = await this.config.getTransformers(req.filePath);
-    let {assets, initialAssets} = await this.runPipeline(
+    let {assets, initialAssets} = await this.runPipeline({
       input,
       pipeline,
-      pipeline,
       cacheEntry
-    );
+    });
 
     cacheEntry = {
       filePath: req.filePath,
@@ -116,13 +122,13 @@ export default class TransformerRunner {
     return cacheEntry;
   }
 
-  async runPipeline(
-    input: InternalAsset,
-    originalPipeline: Array<Transformer>,
-    pipeline: Array<Transformer>,
-    cacheEntry: ?CacheEntry,
-    previousGenerate: ?GenerateFunc
-  ): Promise<{|
+  async runPipeline({
+    input,
+    pipeline,
+    originalPipeline = pipeline,
+    cacheEntry,
+    previousGenerate
+  }: PipelineOpts): Promise<{|
     assets: Array<InternalAsset>,
     initialAssets: ?Array<InternalAsset>
   |}> {
@@ -170,25 +176,22 @@ export default class TransformerRunner {
           assets.push(await finalize(asset, generate));
         } else {
           // Recursively run the remaining transforms in the pipeline.
-          let nextPipelineResult = await this.runPipeline(
-            asset,
+          let nextPipelineResult = await this.runPipeline({
+            input: asset,
             originalPipeline,
-            pipeline.slice(1),
-            null,
-            generate
-          );
+            pipeline: pipeline.slice(1),
+            previousGenerate: generate
+          });
 
           assets = assets.concat(nextPipelineResult.assets);
         }
       } else {
         // Jump to a different pipeline for the generated asset.
-        let nextPipelineResult = await this.runPipeline(
-          asset,
-          nextPipeline,
-          nextPipeline,
-          null,
-          generate
-        );
+        let nextPipelineResult = await this.runPipeline({
+          input: asset,
+          pipeline: nextPipeline,
+          previousGenerate: generate
+        });
 
         assets = assets.concat(nextPipelineResult.assets);
       }
