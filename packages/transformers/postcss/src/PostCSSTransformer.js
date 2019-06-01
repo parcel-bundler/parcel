@@ -99,7 +99,11 @@ export default new Transformer({
     return ast.type === 'postcss' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  async parse({asset}) {
+  async parse({asset, config}) {
+    if (!config) {
+      return;
+    }
+
     return {
       type: 'postcss',
       version: '7.0.0',

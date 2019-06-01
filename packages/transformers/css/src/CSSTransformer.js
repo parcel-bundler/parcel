@@ -21,6 +21,16 @@ export default new Transformer({
   },
 
   async parse({asset}) {
+    // This is set by other transformers (e.g. Stylus) to indicate that it has already processed
+    // all dependencies, and that the CSS transformer can skip this asset completely. This is
+    // required because when stylus processes e.g. url() it replaces them with a dependency id
+    // to be filled in later. When the CSS transformer runs, it would pick that up and try to
+    // resolve a dependency for the id which obviously doesn't exist. Also, it's faster to do
+    // it this way since the resulting CSS doesn't need to be re-parsed.
+    if (asset.meta.hasDependencies === false) {
+      return null;
+    }
+
     let code = await asset.getCode();
     if (!canHaveDependencies(asset.filePath, code)) {
       return null;
