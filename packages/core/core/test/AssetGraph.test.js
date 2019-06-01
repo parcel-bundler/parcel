@@ -6,10 +6,11 @@ import Dependency from '../src/Dependency';
 import Asset from '../src/Asset';
 import Environment from '../src/Environment';
 import tempy from 'tempy';
-import {createCacheDir} from '@parcel/cache';
+import {createCacheDir, getCacheByDir} from '@parcel/cache';
 
 let cacheDir = tempy.directory();
 createCacheDir(cacheDir);
+let cache = getCacheByDir(cacheDir);
 
 const DEFAULT_ENV = new Environment({
   context: 'browser',
@@ -121,7 +122,7 @@ describe('AssetGraph', () => {
       new Asset({
         id: '1',
         filePath,
-        cacheDir,
+        cache,
         type: 'js',
         hash: '#1',
         stats,
@@ -142,7 +143,7 @@ describe('AssetGraph', () => {
         id: '2',
         filePath,
         type: 'js',
-        cacheDir,
+        cache,
         hash: '#2',
         stats,
         dependencies: [
@@ -161,7 +162,7 @@ describe('AssetGraph', () => {
       new Asset({
         id: '3',
         filePath,
-        cacheDir,
+        cache,
         type: 'js',
         hash: '#3',
         dependencies: [],
@@ -195,7 +196,7 @@ describe('AssetGraph', () => {
       new Asset({
         id: '1',
         filePath,
-        cacheDir,
+        cache,
         type: 'js',
         hash: '#1',
         stats,
@@ -215,7 +216,7 @@ describe('AssetGraph', () => {
       new Asset({
         id: '2',
         filePath,
-        cacheDir,
+        cache,
         type: 'js',
         hash: '#2',
         stats,
@@ -262,7 +263,7 @@ describe('AssetGraph', () => {
       new Asset({
         id: '1',
         filePath,
-        cacheDir,
+        cache,
         type: 'js',
         hash: '#1',
         stats,

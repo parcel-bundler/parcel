@@ -11,13 +11,27 @@ import path from 'path';
 import logger from '@parcel/logger';
 import {DefaultMap, serialize, deserialize} from '@parcel/utils';
 
-class Cache {
+// Do not construct this directly! This is the default export only so that it
+// can be referenced by the deserializer.
+// Instead, use the exported `getCacheByDir` below to get the unique instance
+// corresponding to a given cache directory.
+export default class Cache {
   dir: FilePath;
   invalidated: Set<FilePath>;
 
   constructor(cacheDir: FilePath) {
     this.dir = cacheDir;
     this.invalidated = new Set();
+  }
+
+  static deserialize(opts: {cacheDir: FilePath}) {
+    return getCacheByDir(opts.cacheDir);
+  }
+
+  serialize() {
+    return {
+      cacheDir: this.dir
+    };
   }
 
   getCachePath(cacheId: string, extension: string = '.json'): FilePath {
@@ -106,5 +120,3 @@ export async function createCacheDir(dir: FilePath): Promise<void> {
 export function getCacheByDir(dir: FilePath): Cache {
   return cacheByDir.get(dir);
 }
-
-export type {Cache};

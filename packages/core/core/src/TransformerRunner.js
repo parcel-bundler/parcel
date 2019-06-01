@@ -84,7 +84,7 @@ export default class TransformerRunner {
       idBase: req.code ? hash : req.filePath,
       filePath: req.filePath,
       type: path.extname(req.filePath).slice(1),
-      cacheDir: cache.dir,
+      cache,
       ast: null,
       content,
       hash,

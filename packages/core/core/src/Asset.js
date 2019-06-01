@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {Cache} from '@parcel/cache';
+import type Cache from '@parcel/cache';
 
 import type {
   AST,
@@ -29,13 +29,12 @@ import {
   TapStream
 } from '@parcel/utils';
 import Dependency from './Dependency';
-import {getCacheByDir} from '@parcel/cache';
 
 type AssetOptions = {|
   id?: string,
   hash?: ?string,
   idBase?: string,
-  cacheDir: string,
+  cache: Cache,
   filePath: FilePath,
   type: string,
   content?: Blob,
@@ -99,7 +98,7 @@ export default class Asset {
     this.content = options.content || '';
     this.contentKey = options.contentKey;
     this.ast = options.ast || null;
-    this.cache = getCacheByDir(options.cacheDir);
+    this.cache = options.cache;
     this.map = options.map;
     this.dependencies = options.dependencies
       ? new Map(options.dependencies)
@@ -121,7 +120,7 @@ export default class Asset {
       id: this.id,
       hash: this.hash,
       filePath: this.filePath,
-      cacheDir: this.cache.dir,
+      cache: this.cache,
       type: this.type,
       dependencies: Array.from(this.dependencies),
       connectedFiles: Array.from(this.connectedFiles),
@@ -181,6 +180,7 @@ export default class Asset {
 
   async getCode(): Promise<string> {
     if (this.contentKey != null) {
+      // console.log('c', this.cache);
       this.content = this.cache.getStream(this.contentKey);
     }
 
@@ -300,7 +300,7 @@ export default class Asset {
       filePath: this.filePath,
       type: result.type,
       content,
-      cacheDir: this.cache.dir,
+      cache: this.cache,
       ast: result.ast,
       isIsolated: result.isIsolated,
       env: this.env.merge(result.env),
