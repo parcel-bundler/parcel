@@ -15,13 +15,16 @@ import type {CacheEntry} from './types';
 
 import path from 'path';
 import clone from 'clone';
+import {createReadStream} from 'fs';
+import shallowEqual from 'shallowequal';
 import {
   md5FromFilePath,
   md5FromReadableStream,
   md5FromString
 } from '@parcel/utils';
 import {TapStream, unique} from '@parcel/utils';
-import {createReadStream} from 'fs';
+import {getCacheByDir} from '@parcel/cache';
+import {pick, objectSortedEntriesDeep} from '@parcel/utils';
 
 import Dependency from './Dependency';
 import Config from './Config';
@@ -29,7 +32,7 @@ import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset from './Asset';
-import {getCacheByDir} from '@parcel/cache';
+import corePackage from '../package.json';
 
 type Opts = {|
   config: Config,
@@ -38,7 +41,11 @@ type Opts = {|
 
 type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutput>;
 
+const CORE_VERSION = corePackage.version;
 const BUFFER_LIMIT = 5000000; // 5mb
+
+// These keys can affect asset output, so if they differ, we should always transform
+const IMPACTFUL_OPTIONS = ['minify', 'hmr', 'scopeHoist'];
 
 export default class TransformerRunner {
   options: ParcelOptions;
@@ -69,10 +76,13 @@ export default class TransformerRunner {
       cacheEntry = await cache.get(reqCacheKey(req));
     }
 
+    let impactfulOptions = pick(this.options, IMPACTFUL_OPTIONS);
     let {content, size, hash} = await summarizeRequest(req);
     if (
       cacheEntry &&
       cacheEntry.hash === hash &&
+      cacheEntry.version === CORE_VERSION &&
+      shallowEqual(cacheEntry.options, impactfulOptions) &&
       (await checkCachedAssets(cacheEntry.assets))
     ) {
       return cacheEntry;
@@ -108,7 +118,9 @@ export default class TransformerRunner {
       env: req.env,
       hash,
       assets,
-      initialAssets
+      initialAssets,
+      version: CORE_VERSION,
+      options: impactfulOptions
     };
 
     await Promise.all(
@@ -322,7 +334,9 @@ async function checkConnectedFiles(files: Array<File>): Promise<boolean> {
 }
 
 function reqCacheKey(req: AssetRequest): string {
-  return md5FromString(req.filePath + JSON.stringify(req.env));
+  return md5FromString(
+    req.filePath + JSON.stringify(objectSortedEntriesDeep(req.env))
+  );
 }
 
 async function summarizeRequest(
