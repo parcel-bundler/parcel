@@ -3,8 +3,7 @@
   "transforms": {
     "*.{js,mjs,jsm,jsx,es6}": [
       "@parcel/transformer-babel",
-      "@parcel/transformer-js",
-      "@parcel/transformer-terser"
+      "@parcel/transformer-js"
     ],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.{styl,stylus}": ["@parcel/transformer-stylus"],
@@ -21,7 +20,8 @@
     "node": ["@parcel/runtime-js"]
   },
   "optimizers": {
-    "*.css": ["@parcel/optimizer-cssnano"]
+    "*.css": ["@parcel/optimizer-cssnano"],
+    "*.js": ["@parcel/optimizer-terser"]
   },
   "packagers": {
     "*.html": "@parcel/packager-html",
