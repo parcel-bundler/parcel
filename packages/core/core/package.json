@@ -33,7 +33,8 @@
     "micromatch": "^3.0.4",
     "nullthrows": "^1.1.1",
     "pirates": "^4.0.0",
-    "semver": "^5.4.1"
+    "semver": "^5.4.1",
+    "shallowequal": "^1.1.0"
   },
   "devDependencies": {
     "graphviz": "^0.0.9",
