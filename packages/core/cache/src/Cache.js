@@ -90,17 +90,11 @@ export default class Cache {
   }
 }
 
-// Cache for whether a cache dir exists
-const existsCache: Set<FilePath> = new Set();
 const cacheByDir: DefaultMap<FilePath, Cache> = new DefaultMap(dir => {
   return new Cache(dir);
 });
 
 export async function createCacheDir(dir: FilePath): Promise<void> {
-  if (existsCache.has(dir)) {
-    return;
-  }
-
   // First, create the main cache directory if necessary.
   await fs.mkdirp(dir);
 
@@ -114,7 +108,6 @@ export async function createCacheDir(dir: FilePath): Promise<void> {
   }
 
   await dirPromises;
-  existsCache.add(dir);
 }
 
 export function getCacheByDir(dir: FilePath): Cache {
