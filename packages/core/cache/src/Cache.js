@@ -1,4 +1,4 @@
-// @flow
+// @flow strict-local
 
 import type {Readable} from 'stream';
 
@@ -9,18 +9,28 @@ import {createReadStream, createWriteStream} from 'fs';
 import invariant from 'assert';
 import path from 'path';
 import logger from '@parcel/logger';
-import {DefaultMap, serialize, deserialize} from '@parcel/utils';
+import {serialize, deserialize, registerSerializableClass} from '@parcel/utils';
+// $FlowFixMe this is untyped
+import packageJson from '../package.json';
 
-class Cache {
+export default class Cache {
   dir: FilePath;
-  invalidated: Set<FilePath>;
 
   constructor(cacheDir: FilePath) {
     this.dir = cacheDir;
-    this.invalidated = new Set();
   }
 
-  getCachePath(cacheId: string, extension: string = '.json'): FilePath {
+  static deserialize(opts: {cacheDir: FilePath}) {
+    return new Cache(opts.cacheDir);
+  }
+
+  serialize() {
+    return {
+      cacheDir: this.dir
+    };
+  }
+
+  _getCachePath(cacheId: string, extension: string = '.json'): FilePath {
     return path.join(
       this.dir,
       cacheId.slice(0, 2),
@@ -29,13 +39,13 @@ class Cache {
   }
 
   getStream(key: string): Readable {
-    return createReadStream(this.getCachePath(key, '.blob'));
+    return createReadStream(this._getCachePath(key, '.blob'));
   }
 
   async setStream(key: string, stream: Readable): Promise<string> {
     return new Promise((resolve, reject) => {
       stream
-        .pipe(createWriteStream(this.getCachePath(key, '.blob')))
+        .pipe(createWriteStream(this._getCachePath(key, '.blob')))
         .on('error', reject)
         .on('finish', () => resolve(key));
     });
@@ -43,16 +53,10 @@ class Cache {
 
   async get(key: string) {
     try {
-      // let extension = path.extname(key);
-      // TODO: support more extensions
-      let data = await fs.readFile(this.getCachePath(key), {encoding: 'utf8'});
+      let data = await fs.readFile(this._getCachePath(key), {encoding: 'utf8'});
 
-      // if (extension === '.json') {
       invariant(typeof data === 'string');
       return deserialize(data);
-      //}
-
-      //return data;
     } catch (err) {
       if (err.code === 'ENOENT') {
         return null;
@@ -62,10 +66,9 @@ class Cache {
     }
   }
 
-  async set(key: string, value: any) {
+  async set(key: string, value: mixed) {
     try {
-      // TODO: support more than just JSON
-      let blobPath = this.getCachePath(key);
+      let blobPath = this._getCachePath(key);
       let data = serialize(value);
 
       await fs.writeFile(blobPath, data);
@@ -78,9 +81,6 @@ class Cache {
 
 // Cache for whether a cache dir exists
 const existsCache: Set<FilePath> = new Set();
-const cacheByDir: DefaultMap<FilePath, Cache> = new DefaultMap(dir => {
-  return new Cache(dir);
-});
 
 export async function createCacheDir(dir: FilePath): Promise<void> {
   if (existsCache.has(dir)) {
@@ -103,8 +103,4 @@ export async function createCacheDir(dir: FilePath): Promise<void> {
   existsCache.add(dir);
 }
 
-export function getCacheByDir(dir: FilePath): Cache {
-  return cacheByDir.get(dir);
-}
-
-export type {Cache};
+registerSerializableClass(`${packageJson.version}:Cache`, Cache);

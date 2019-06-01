@@ -29,7 +29,7 @@ import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset from './Asset';
-import {getCacheByDir} from '@parcel/cache';
+import Cache from '@parcel/cache';
 
 type Opts = {|
   config: Config,
@@ -68,7 +68,7 @@ export default class TransformerRunner {
       request: req
     });
 
-    let cache = getCacheByDir(this.options.cacheDir);
+    let cache = new Cache(this.options.cacheDir);
 
     // If a cache entry matches, no need to transform.
     let cacheEntry;
@@ -91,7 +91,7 @@ export default class TransformerRunner {
       idBase: req.code ? hash : req.filePath,
       filePath: req.filePath,
       type: path.extname(req.filePath).slice(1),
-      cacheDir: cache.dir,
+      cache,
       ast: null,
       content,
       hash,
