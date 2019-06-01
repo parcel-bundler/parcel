@@ -79,14 +79,7 @@ export default class Cache {
   }
 }
 
-// Cache for whether a cache dir exists
-const existsCache: Set<FilePath> = new Set();
-
 export async function createCacheDir(dir: FilePath): Promise<void> {
-  if (existsCache.has(dir)) {
-    return;
-  }
-
   // First, create the main cache directory if necessary.
   await fs.mkdirp(dir);
 
@@ -100,7 +93,6 @@ export async function createCacheDir(dir: FilePath): Promise<void> {
   }
 
   await dirPromises;
-  existsCache.add(dir);
 }
 
 registerSerializableClass(`${packageJson.version}:Cache`, Cache);
