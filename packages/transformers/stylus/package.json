@@ -1,23 +1,23 @@
 {
-  "name": "@parcel/transformer-terser",
+  "name": "@parcel/transformer-stylus",
   "version": "2.0.0-alpha.0",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/TerserTransformer",
+  "main": "src/StylusTransformer.js",
   "engines": {
     "node": ">= 8.0.0",
     "parcel": "^2.0.0-alpha.0"
   },
-  "scripts": {
-    "build": "babel src -d lib",
-    "prepublish": "yarn build"
-  },
   "dependencies": {
+    "@parcel/fs": "^2.0.0-alpha.0",
+    "@parcel/local-require": "^2.0.0-alpha.0",
     "@parcel/plugin": "^2.0.0-alpha.0",
-    "nullthrows": "^1.1.1",
-    "terser": "^3.7.3"
+    "@parcel/utils": "^2.0.0-alpha.0"
+  },
+  "devDependencies": {
+    "stylus": "^0.54.5"
   }
 }

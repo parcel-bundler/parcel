@@ -300,31 +300,36 @@ export interface TransformerResult {
 
 type Async<T> = T | Promise<T>;
 
+type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 export type Transformer = {
   getConfig?: ({
     asset: MutableAsset,
-    resolve: (from: FilePath, to: string) => Promise<FilePath>,
+    resolve: ResolveFn,
     options: ParcelOptions
   }) => Async<Config | void>,
   canReuseAST?: ({ast: AST, options: ParcelOptions}) => boolean,
   parse?: ({
     asset: MutableAsset,
     config: ?Config,
+    resolve: ResolveFn,
     options: ParcelOptions
   }) => Async<?AST>,
   transform({
     asset: MutableAsset,
     config: ?Config,
+    resolve: ResolveFn,
     options: ParcelOptions
   }): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({
     asset: MutableAsset,
     config: ?Config,
+    resolve: ResolveFn,
     options: ParcelOptions
   }) => Async<GenerateOutput>,
   postProcess?: ({
     assets: Array<MutableAsset>,
     config: ?Config,
+    resolve: ResolveFn,
     options: ParcelOptions
   }) => Async<Array<TransformerResult>>
 };
@@ -471,16 +476,18 @@ export type Runtime = {|
 
 export type Packager = {|
   package({
-    bundle: Bundle,
+    bundle: NamedBundle,
     bundleGraph: BundleGraph,
     options: ParcelOptions
   }): Async<Blob>
 |};
 
 export type Optimizer = {|
-  optimize({bundle: Bundle, contents: Blob, options: ParcelOptions}): Async<
-    Blob
-  >
+  optimize({
+    bundle: NamedBundle,
+    contents: Blob,
+    options: ParcelOptions
+  }): Async<Blob>
 |};
 
 export type Resolver = {|

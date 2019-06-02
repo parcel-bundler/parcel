@@ -1,39 +1,28 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
+const {bundle, run, assertBundles, distDir} = require('@parcel/test-utils');
 
-describe.skip('stylus', function() {
+describe('stylus', function() {
   it('should support requiring stylus files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/stylus/index.js'));
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.styl'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.styl'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.styl']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.index'));
   });
 
@@ -44,33 +33,22 @@ describe.skip('stylus', function() {
 
     // a.styl shouldn't be included as a dependency that we can see.
     // stylus takes care of inlining it.
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.styl'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.styl'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.styl']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.index'));
     assert(css.includes('.a'));
     assert(css.includes('-webkit-box'));
@@ -82,85 +60,58 @@ describe.skip('stylus', function() {
       path.join(__dirname, '/integration/stylus-url/index.js')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.styl'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.styl'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        },
-        {
-          type: 'woff2',
-          assets: ['test.woff2'],
-          childBundles: []
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.styl']
+      },
+      {
+        type: 'woff2',
+        assets: ['test.woff2']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
-    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
+    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(/url\("\/test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
 
     assert(
       await fs.exists(
-        path.join(
-          __dirname,
-          '/dist/',
-          css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
-        )
+        path.join(distDir, css.match(/url\("\/(test\.[0-9a-f]+\.woff2)"\)/)[1])
       )
     );
   });
 
-  it('should support transforming stylus with postcss', async function() {
+  it('should support transforming stylus with css modules', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/stylus-postcss/index.js')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.styl'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.styl'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'index.module.styl']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.module.styl']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert(output().startsWith('_index_'));
 
-    let css = await fs.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('._index_'));
   });
 
@@ -169,33 +120,22 @@ describe.skip('stylus', function() {
       path.join(__dirname, '/integration/stylus-glob-import/index.js')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.styl'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.styl'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.styl']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.index'));
     assert(css.includes('.main'));
     assert(css.includes('.foo'));

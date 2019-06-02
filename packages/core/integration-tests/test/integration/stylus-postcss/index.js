@@ -1,4 +1,4 @@
-var map = require('./index.styl');
+var map = require('./index.module.styl');
 
 module.exports = function () {
   return map.index;
