@@ -6,6 +6,11 @@ import type {
   Engines
 } from '@parcel/types';
 
+const DEFAULT_ENGINES = {
+  browsers: ['> 0.25%'],
+  node: '>= 8.0.0'
+};
+
 const BROWSER_ENVS = new Set([
   'browser',
   'web-worker',
@@ -21,13 +26,47 @@ export default class Environment implements IEnvironment {
   engines: Engines;
   includeNodeModules: boolean;
 
-  constructor(opts: ?EnvironmentOpts) {
-    this.context = (opts && opts.context) || 'browser';
-    this.engines = (opts && opts.engines) || {};
-    this.includeNodeModules =
-      opts && typeof opts.includeNodeModules === 'boolean'
-        ? opts.includeNodeModules
-        : true;
+  constructor({context, engines, includeNodeModules}: EnvironmentOpts = {}) {
+    if (context != null) {
+      this.context = context;
+    } else if (engines?.node) {
+      this.context = 'node';
+    } else if (engines?.browsers) {
+      this.context = 'browser';
+    } else {
+      this.context = 'browser';
+    }
+
+    if (engines) {
+      this.engines = engines;
+    } else if (this.isNode()) {
+      this.engines = {
+        node: DEFAULT_ENGINES.node
+      };
+    } else if (this.isBrowser()) {
+      this.engines = {
+        browsers: DEFAULT_ENGINES.browsers
+      };
+    } else {
+      this.engines = {};
+    }
+
+    if (includeNodeModules != null) {
+      this.includeNodeModules = includeNodeModules;
+    } else {
+      switch (this.context) {
+        case 'node':
+        case 'electron':
+          this.includeNodeModules = false;
+          break;
+        case 'browser':
+        case 'web-worker':
+        case 'service-worker':
+        default:
+          this.includeNodeModules = true;
+          break;
+      }
+    }
   }
 
   merge(env: ?EnvironmentOpts) {
