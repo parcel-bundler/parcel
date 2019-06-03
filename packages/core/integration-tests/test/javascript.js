@@ -127,29 +127,43 @@ describe('javascript', function() {
   });
 
   it('should preserve hashbangs in bundles and preserve executable file mode', async () => {
-    let mainEntryPath = path.join(
-      __dirname,
-      '/integration/node_hashbang/main.js'
-    );
-    await bundle(mainEntryPath);
+    let fixturePath = path.join(__dirname, '/integration/node_hashbang');
+    await bundle(path.join(fixturePath, 'main.js'));
 
-    let mainPath = path.join(distDir, 'main.js');
+    let mainPath = path.join(fixturePath, 'dist', 'node', 'main.js');
     let main = await fs.readFile(mainPath, 'utf8');
-
     assert.equal(main.lastIndexOf('#!/usr/bin/env node\n'), 0);
     assert.equal(
       (await fs.stat(mainPath)).mode,
-      (await fs.stat(mainEntryPath)).mode
+      (await fs.stat(path.join(fixturePath, 'main.js'))).mode
     );
+    await fs.rimraf(path.join(fixturePath, 'dist'));
+  });
+
+  it('should not preserve hashbangs in browser bundles', async () => {
+    let fixturePath = path.join(__dirname, '/integration/node_hashbang');
+    await bundle(path.join(fixturePath, 'main.js'));
+
+    let main = await fs.readFile(
+      path.join(fixturePath, 'dist', 'browser', 'main.js'),
+      'utf8'
+    );
+    assert(!main.includes('#!/usr/bin/env node\n'));
+    await fs.rimraf(path.join(fixturePath, 'dist'));
   });
 
   it('should preserve hashbangs in scopehoisted bundles', async () => {
+    let fixturePath = path.join(__dirname, '/integration/node_hashbang');
     await bundle(path.join(__dirname, '/integration/node_hashbang/main.js'), {
       scopeHoist: true
     });
 
-    let main = await fs.readFile(path.join(distDir, 'main.js'), 'utf8');
+    let main = await fs.readFile(
+      path.join(fixturePath, 'dist', 'node', 'main.js'),
+      'utf8'
+    );
     assert.equal(main.lastIndexOf('#!/usr/bin/env node\n'), 0);
+    await fs.rimraf(path.join(fixturePath, 'dist'));
   });
 
   it('should bundle node_modules for a node environment if includeNodeModules is specified', async function() {
