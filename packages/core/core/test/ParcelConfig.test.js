@@ -1,13 +1,13 @@
 // @flow
-import Config from '../src/ParcelConfig';
+import ParcelConfig from '../src/ParcelConfig';
 import assert from 'assert';
 import path from 'path';
 import sinon from 'sinon';
 import logger from '@parcel/logger';
 
-describe('Config', () => {
+describe('ParcelConfig', () => {
   describe('matchGlobMap', () => {
-    let config = new Config({
+    let config = new ParcelConfig({
       filePath: '.parcelrc',
       packagers: {
         '*.css': 'parcel-packager-css',
@@ -27,7 +27,7 @@ describe('Config', () => {
   });
 
   describe('matchGlobMapPipelines', () => {
-    let config = new Config({
+    let config = new ParcelConfig({
       filePath: '.parcelrc',
       transforms: {
         '*.jsx': ['parcel-transform-jsx', '...'],
@@ -56,7 +56,7 @@ describe('Config', () => {
 
   describe('loadPlugin', () => {
     it('should warn if a plugin needs to specify an engines.parcel field in package.json', async () => {
-      let config = new Config({
+      let config = new ParcelConfig({
         filePath: path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
         transforms: {
           '*.js': ['parcel-transformer-no-engines']
@@ -76,7 +76,7 @@ describe('Config', () => {
     });
 
     it('should error if a plugin specifies an invalid engines.parcel field in package.json', async () => {
-      let config = new Config({
+      let config = new ParcelConfig({
         filePath: path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
         transforms: {
           '*.js': ['parcel-transformer-bad-engines']

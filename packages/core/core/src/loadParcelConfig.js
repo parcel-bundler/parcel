@@ -1,18 +1,19 @@
 // @flow
 import type {
   FilePath,
-  ParcelConfig,
   ParcelConfigFile,
+  ResolvedParcelConfigFile,
   PackageName,
   ParcelOptions
 } from '@parcel/types';
 import {resolveConfig} from '@parcel/utils';
-import Config from './ParcelConfig';
 import * as fs from '@parcel/fs';
 import {parse} from 'json5';
 import path from 'path';
 import {localResolve} from '@parcel/local-require';
 import assert from 'assert';
+
+import ParcelConfig from './ParcelConfig';
 
 type Pipeline = Array<PackageName>;
 type ConfigMap<K, V> = {[K]: V};
@@ -42,7 +43,7 @@ export default async function loadParcelConfig(
   return parcelConfig;
 }
 
-export async function resolve(filePath: FilePath): Promise<?Config> {
+export async function resolve(filePath: FilePath) {
   let configPath = await resolveConfig(filePath, ['.parcelrc'], {
     noCache: true
   });
@@ -50,40 +51,42 @@ export async function resolve(filePath: FilePath): Promise<?Config> {
     return null;
   }
 
-  let [config, extendedFiles] = await readAndProcess(configPath);
-  return new Config({...config, extendedFiles, filePath: configPath});
+  return readAndProcess(configPath);
 }
 
-export async function create(config: ParcelConfig) {
-  let [result, extendedFiles] = await processConfig(config);
-  return new Config({extendedFiles, ...result});
+export async function create(config: ParcelConfigFile) {
+  return processConfig(config, process.cwd());
 }
 
 export async function readAndProcess(configPath: FilePath) {
   let config: ParcelConfigFile = parse(await fs.readFile(configPath));
-  return processConfig({...config, filePath: configPath});
+  return processConfig(config, configPath);
 }
 
-export async function processConfig(config: ParcelConfig) {
-  let relativePath = path.relative(process.cwd(), config.filePath);
-  validateConfig(config, relativePath);
+export async function processConfig(
+  configFile: ParcelConfigFile,
+  filePath: FilePath
+) {
+  let resolvedFile: ResolvedParcelConfigFile = {filePath, ...configFile};
+  let config = new ParcelConfig(resolvedFile);
+  let relativePath = path.relative(process.cwd(), filePath);
+  validateConfigFile(configFile, relativePath);
 
-  let extendedFiles: Array<FilePath> = [];
+  //let extendedFiles: Array<FilePath> = [];
 
-  if (config.extends) {
-    let exts = Array.isArray(config.extends)
-      ? config.extends
-      : [config.extends];
+  if (configFile.extends) {
+    let exts = Array.isArray(configFile.extends)
+      ? configFile.extends
+      : [configFile.extends];
     for (let ext of exts) {
-      let resolved = await resolveExtends(ext, config.filePath);
-      extendedFiles.push(resolved);
-      let [baseConfig, moreExtendedFiles] = await readAndProcess(resolved);
-      extendedFiles = extendedFiles.concat(moreExtendedFiles);
-      config = mergeConfigs(baseConfig, config);
+      let resolved = await resolveExtends(ext, filePath);
+      //extendedFiles.push(resolved);
+      let baseConfig = await readAndProcess(resolved);
+      config = mergeConfigs(baseConfig, resolvedFile);
     }
   }
 
-  return [config, extendedFiles];
+  return config;
 }
 
 export async function resolveExtends(ext: string, configPath: FilePath) {
@@ -95,7 +98,10 @@ export async function resolveExtends(ext: string, configPath: FilePath) {
   }
 }
 
-export function validateConfig(config: ParcelConfig, relativePath: FilePath) {
+export function validateConfigFile(
+  config: ParcelConfigFile,
+  relativePath: FilePath
+) {
   validateExtends(config.extends, relativePath);
   validatePipeline(config.resolvers, 'resolver', 'resolvers', relativePath);
   validateMap(
@@ -241,9 +247,9 @@ export function validatePackageName(
 
 export function mergeConfigs(
   base: ParcelConfig,
-  ext: ParcelConfig
+  ext: ResolvedParcelConfigFile
 ): ParcelConfig {
-  return {
+  return new ParcelConfig({
     filePath: base.filePath, // TODO: revisit this - it should resolve plugins based on the actual config they are defined in
     resolvers: mergePipelines(base.resolvers, ext.resolvers),
     transforms: mergeMaps(base.transforms, ext.transforms, mergePipelines),
@@ -253,7 +259,7 @@ export function mergeConfigs(
     packagers: mergeMaps(base.packagers, ext.packagers),
     optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
     reporters: mergePipelines(base.reporters, ext.reporters)
-  };
+  });
 }
 
 export function mergePipelines(base: ?Pipeline, ext: ?Pipeline): Pipeline {

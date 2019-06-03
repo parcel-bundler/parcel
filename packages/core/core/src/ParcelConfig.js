@@ -1,7 +1,6 @@
 // @flow
-
 import type {
-  ParcelConfig,
+  ResolvedParcelConfigFile,
   FilePath,
   Glob,
   Transformer,
@@ -27,7 +26,7 @@ type GlobMap<T> = {[Glob]: T};
 
 const PARCEL_VERSION = require('../package.json').version;
 
-export default class Config {
+export default class ParcelConfig {
   filePath: FilePath;
   resolvers: Pipeline;
   transforms: GlobMap<Pipeline>;
@@ -39,7 +38,7 @@ export default class Config {
   reporters: Pipeline;
   pluginCache: Map<PackageName, any>;
 
-  constructor(config: ParcelConfig) {
+  constructor(config: ResolvedParcelConfigFile) {
     this.filePath = config.filePath;
     this.resolvers = config.resolvers || [];
     this.transforms = config.transforms || {};
@@ -52,7 +51,7 @@ export default class Config {
     this.pluginCache = new Map();
   }
 
-  serialize(): ParcelConfig {
+  serialize(): ResolvedParcelConfigFile {
     return {
       filePath: this.filePath,
       resolvers: this.resolvers,

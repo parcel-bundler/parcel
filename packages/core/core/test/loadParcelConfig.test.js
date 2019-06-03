@@ -1,13 +1,13 @@
 // @flow
 import assert from 'assert';
 import path from 'path';
-import Config from '../src/ParcelConfig';
+import ParcelConfig from '../src/ParcelConfig';
 import {
   validatePackageName,
   validatePipeline,
   validateMap,
   validateExtends,
-  validateConfig,
+  validateConfigFile,
   mergePipelines,
   mergeMaps,
   mergeConfigs,
@@ -213,10 +213,10 @@ describe('loadParcelConfig', () => {
     });
   });
 
-  describe('validateConfig', () => {
+  describe('validateConfigFile', () => {
     it('should throw on invalid config', () => {
       assert.throws(() => {
-        validateConfig(
+        validateConfigFile(
           {
             filePath: '.parcelrc',
             extends: 'parcel-config-foo',
@@ -230,7 +230,7 @@ describe('loadParcelConfig', () => {
     });
 
     it('should succeed on valid config', () => {
-      validateConfig(
+      validateConfigFile(
         {
           filePath: '.parcelrc',
           extends: 'parcel-config-foo',
@@ -333,7 +333,7 @@ describe('loadParcelConfig', () => {
 
   describe('mergeConfigs', () => {
     it('should merge configs', () => {
-      let base = {
+      let base = new ParcelConfig({
         filePath: '.parcelrc',
         resolvers: ['parcel-resolver-base'],
         transforms: {
@@ -341,7 +341,7 @@ describe('loadParcelConfig', () => {
           '*.css': ['parcel-transform-css']
         },
         bundler: 'parcel-bundler-base'
-      };
+      });
 
       let ext = {
         filePath: '.parcelrc',
@@ -351,7 +351,7 @@ describe('loadParcelConfig', () => {
         }
       };
 
-      let merged = {
+      let merged = new ParcelConfig({
         filePath: '.parcelrc',
         resolvers: ['parcel-resolver-ext', 'parcel-resolver-base'],
         transforms: {
@@ -364,7 +364,7 @@ describe('loadParcelConfig', () => {
         optimizers: {},
         packagers: {},
         reporters: []
-      };
+      });
 
       assert.deepEqual(mergeConfigs(base, ext), merged);
     });
@@ -395,10 +395,11 @@ describe('loadParcelConfig', () => {
     it('should load and merge configs', async () => {
       let defaultConfig = require('@parcel/config-default');
       // $FlowFixMe
-      let [resolved] = await readAndProcess(
+      let resolved = await readAndProcess(
         path.join(__dirname, 'fixtures', 'config', 'subfolder', '.parcelrc'),
         __dirname
       );
+
       assert.deepEqual(resolved.transforms['*.js'], [
         'parcel-transformer-sub',
         'parcel-transformer-base',
@@ -424,7 +425,8 @@ describe('loadParcelConfig', () => {
       let resolved = await resolve(
         path.join(__dirname, 'fixtures', 'config', 'subfolder')
       );
-      assert(resolved instanceof Config);
+
+      assert(resolved !== null);
     });
   });
 });

@@ -49,7 +49,7 @@ export type ParcelConfigFile = {
   reporters?: Array<PackageName>
 };
 
-export type ParcelConfig = ParcelConfigFile & {
+export type ResolvedParcelConfigFile = ParcelConfigFile & {
   filePath: FilePath
 };
 
@@ -143,8 +143,8 @@ export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
 export type InitialParcelOptions = {|
   entries?: FilePath | Array<FilePath>,
   rootDir?: FilePath,
-  config?: ParcelConfig,
-  defaultConfig?: ParcelConfig,
+  config?: ResolvedParcelConfigFile,
+  defaultConfig?: ResolvedParcelConfigFile,
   env?: {[string]: ?string},
   targets?: ?(Array<string> | {+[string]: TargetDescriptor}),
 

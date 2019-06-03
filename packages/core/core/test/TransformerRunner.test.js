@@ -1,6 +1,6 @@
 // @flow
 import TransformerRunner from '../src/TransformerRunner';
-import Config from '../src/ParcelConfig';
+import ParcelConfig from '../src/ParcelConfig';
 import Environment from '../src/Environment';
 
 const config = require('@parcel/config-default');
@@ -15,7 +15,7 @@ const EMPTY_OPTIONS = {
 };
 
 const runner = new TransformerRunner({
-  config: new Config({
+  config: new ParcelConfig({
     ...config,
     filePath: require.resolve('@parcel/config-default')
   }),

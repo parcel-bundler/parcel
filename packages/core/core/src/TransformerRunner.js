@@ -23,7 +23,7 @@ import {TapStream, unique} from '@parcel/utils';
 import {createReadStream} from 'fs';
 
 import Dependency from './Dependency';
-import type Config from './ParcelConfig';
+import type ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
@@ -31,7 +31,7 @@ import InternalAsset from './Asset';
 import Cache from '@parcel/cache';
 
 type Opts = {|
-  config: Config,
+  config: ParcelConfig,
   options: ParcelOptions
 |};
 
@@ -48,7 +48,7 @@ const BUFFER_LIMIT = 5000000; // 5mb
 
 export default class TransformerRunner {
   options: ParcelOptions;
-  config: Config;
+  config: ParcelConfig;
   resolverRunner: ResolverRunner;
 
   constructor({config, options}: Opts) {

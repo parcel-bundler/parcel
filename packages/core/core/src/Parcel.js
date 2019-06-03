@@ -14,7 +14,7 @@ import type {
 } from '@parcel/types';
 import type {Bundle} from './types';
 import type InternalBundleGraph from './BundleGraph';
-import type Config from './Config';
+import type ParcelConfig from './ParcelConfig';
 
 import invariant from 'assert';
 import Dependency from './Dependency';
@@ -304,12 +304,12 @@ export default class Parcel {
 
 function packageBundles(
   bundleGraph: InternalBundleGraph,
-  config: Config,
+  config: ParcelConfig,
   options: ParcelOptions,
   runPackage: ({
     bundle: Bundle,
     bundleGraph: InternalBundleGraph,
-    config: Config,
+    config: ParcelConfig,
     options: ParcelOptions
   }) => Promise<Stats>
 ): Promise<mixed> {

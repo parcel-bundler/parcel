@@ -3,7 +3,7 @@
 import type AssetGraph from './AssetGraph';
 import type {Namer, ParcelOptions, RuntimeAsset} from '@parcel/types';
 import type {Bundle as InternalBundle} from './types';
-import type Config from './ParcelConfig';
+import type ParcelConfig from './ParcelConfig';
 
 import assert from 'assert';
 import path from 'path';
@@ -18,12 +18,12 @@ import {normalizeSeparators, unique} from '@parcel/utils';
 
 type Opts = {|
   options: ParcelOptions,
-  config: Config
+  config: ParcelConfig
 |};
 
 export default class BundlerRunner {
   options: ParcelOptions;
-  config: Config;
+  config: ParcelConfig;
 
   constructor(opts: Opts) {
     this.options = opts.options;

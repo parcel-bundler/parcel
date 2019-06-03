@@ -7,8 +7,8 @@ import WorkerFarm from '@parcel/workers';
 
 import Dependency from './Dependency';
 import Graph, {type GraphOpts} from './Graph';
+import type ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
-import type Config from './Config';
 import type {
   AssetRequestNode,
   CacheEntry,
@@ -21,7 +21,7 @@ import type {
 
 type RequestGraphOpts = {|
   ...GraphOpts<RequestGraphNode>,
-  config: Config,
+  config: ParcelConfig,
   options: ParcelOptions,
   onAssetRequestComplete: (AssetRequestNode, CacheEntry) => mixed,
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed
@@ -54,7 +54,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   invalidNodes: Map<NodeId, RequestNode> = new Map();
   runTransform: ({
     request: AssetRequest,
-    config: Config,
+    config: ParcelConfig,
     options: ParcelOptions
   }) => Promise<CacheEntry>;
   resolverRunner: ResolverRunner;
@@ -62,7 +62,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed;
   queue: PromiseQueue;
   farm: WorkerFarm;
-  config: Config;
+  config: ParcelConfig;
   options: ParcelOptions;
 
   constructor({

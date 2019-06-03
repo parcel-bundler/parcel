@@ -6,7 +6,7 @@ import type BundleGraph from './BundleGraph';
 
 import TransformerRunner from './TransformerRunner';
 import PackagerRunner from './PackagerRunner';
-import Config from './ParcelConfig';
+import ParcelConfig from './ParcelConfig';
 import registerCoreWithSerializer from './registerCoreWithSerializer';
 
 registerCoreWithSerializer();
@@ -17,7 +17,7 @@ export function runTransform({
   options
 }: {
   request: AssetRequest,
-  config: Config,
+  config: ParcelConfig,
   options: ParcelOptions
 }) {
   return new TransformerRunner({
@@ -34,7 +34,7 @@ export function runPackage({
 }: {
   bundle: Bundle,
   bundleGraph: BundleGraph,
-  config: Config,
+  config: ParcelConfig,
   options: ParcelOptions
 }) {
   return new PackagerRunner({

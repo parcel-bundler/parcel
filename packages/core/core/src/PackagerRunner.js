@@ -3,7 +3,7 @@
 import type {ParcelOptions, Blob, FilePath} from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import type {Bundle as InternalBundle} from './types';
-import type Config from './ParcelConfig';
+import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
 
 import {Readable} from 'stream';
@@ -18,12 +18,12 @@ import {report} from './ReporterRunner';
 import {BundleGraph} from './public/BundleGraph';
 
 type Opts = {|
-  config: Config,
+  config: ParcelConfig,
   options: ParcelOptions
 |};
 
 export default class PackagerRunner {
-  config: Config;
+  config: ParcelConfig;
   options: ParcelOptions;
   distDir: FilePath;
   distExists: Set<FilePath>;

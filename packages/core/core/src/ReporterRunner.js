@@ -4,17 +4,17 @@ import type {ParcelOptions, ReporterEvent} from '@parcel/types';
 
 import {bundleToInternal, NamedBundle} from './public/Bundle';
 import {bus} from '@parcel/workers';
-import Config from './ParcelConfig';
+import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
 import nullthrows from 'nullthrows';
 
 type Opts = {|
-  config: Config,
+  config: ParcelConfig,
   options: ParcelOptions
 |};
 
 export default class ReporterRunner {
-  config: Config;
+  config: ParcelConfig;
   options: ParcelOptions;
 
   constructor(opts: Opts) {

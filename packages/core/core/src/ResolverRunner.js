@@ -2,11 +2,11 @@
 
 import type {ParcelOptions, Dependency, AssetRequest} from '@parcel/types';
 import path from 'path';
-import type Config from './ParcelConfig';
+import type ParcelConfig from './ParcelConfig';
 import {report} from './ReporterRunner';
 
 type Opts = {|
-  config: Config,
+  config: ParcelConfig,
   options: ParcelOptions
 |};
 
@@ -14,7 +14,7 @@ const getCacheKey = (filename, parent) =>
   (parent ? path.dirname(parent) : '') + ':' + filename;
 
 export default class ResolverRunner {
-  config: Config;
+  config: ParcelConfig;
   options: ParcelOptions;
   cache: Map<string, AssetRequest>;
 
