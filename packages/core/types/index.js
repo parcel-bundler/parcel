@@ -75,8 +75,8 @@ export type EnvironmentContext =
   | 'electron';
 
 export type EnvironmentOpts = {
-  context: EnvironmentContext,
-  engines: Engines,
+  context?: EnvironmentContext,
+  engines?: Engines,
   includeNodeModules?: boolean,
   publicUrl?: string
 };

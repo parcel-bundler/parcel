@@ -1,8 +1,6 @@
 // @flow
 
 import type {
-  Engines,
-  EnvironmentContext,
   FilePath,
   InitialParcelOptions,
   PackageJSON,
@@ -13,11 +11,6 @@ import {loadConfig} from '@parcel/utils';
 import Environment from './Environment';
 import path from 'path';
 import browserslist from 'browserslist';
-
-const DEFAULT_ENGINES = {
-  browsers: ['> 0.25%'],
-  node: '8'
-};
 
 const DEVELOPMENT_BROWSERS = [
   'last 1 Chrome version',
@@ -153,6 +146,7 @@ export default class TargetResolver {
         let distDir;
         let distEntry;
 
+        let env = pkgTargets[targetName] || {};
         if (typeof targetDist === 'string') {
           distDir = path.resolve(pkgDir, path.dirname(targetDist));
           distEntry = path.basename(targetDist);
@@ -164,10 +158,12 @@ export default class TargetResolver {
           name: targetName,
           distDir,
           distEntry,
-          publicUrl: pkgTargets[targetName]?.publicUrl ?? '/',
-          env: this.getEnvironment(pkgEngines, mainContext).merge(
-            pkgTargets[targetName]
-          )
+          publicUrl: env.publicUrl ?? '/',
+          env: new Environment({
+            engines: env.engines ?? pkgEngines,
+            context: env.context ?? mainContext,
+            includeNodeModules: env.includeNodeModules
+          })
         });
       }
     }
@@ -190,14 +186,16 @@ export default class TargetResolver {
 
       let env = pkgTargets[name];
       if (env) {
-        let context =
-          env.context || (env.engines && env.engines.node ? 'node' : 'browser');
         targets.set(name, {
           name,
           distDir,
           distEntry,
           publicUrl: env.publicUrl ?? '/',
-          env: this.getEnvironment(pkgEngines, context).merge(env)
+          env: new Environment({
+            engines: env.engines ?? pkgEngines,
+            context: env.context,
+            includeNodeModules: env.includeNodeModules
+          })
         });
       }
     }
@@ -209,29 +207,13 @@ export default class TargetResolver {
         name: 'default',
         distDir: path.resolve(DEFAULT_DIST_DIRNAME),
         publicUrl: '/',
-        env: this.getEnvironment(pkgEngines, context)
+        env: new Environment({
+          engines: pkgEngines,
+          context
+        })
       });
     }
 
     return targets;
-  }
-
-  getEnvironment(
-    pkgEngines: Engines,
-    context: EnvironmentContext
-  ): Environment {
-    let engines = {};
-
-    if (context === 'node') {
-      engines.node = pkgEngines.node || DEFAULT_ENGINES.node;
-    } else {
-      engines.browsers = pkgEngines.browsers || DEFAULT_ENGINES.browsers;
-    }
-
-    return new Environment({
-      context,
-      engines,
-      includeNodeModules: context === 'browser'
-    });
   }
 }
