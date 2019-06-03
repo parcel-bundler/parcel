@@ -90,25 +90,8 @@ export default class Worker extends EventEmitter {
       });
     });
 
-    await this.init();
-  }
-
-  async init() {
-    this.ready = false;
-
-    return new Promise((resolve, reject) => {
-      this.call({
-        method: 'init',
-        args: [],
-        retries: 0,
-        resolve: (...args) => {
-          this.ready = true;
-          this.emit('ready');
-          resolve(...args);
-        },
-        reject
-      });
-    });
+    this.ready = true;
+    this.emit('ready');
   }
 
   send(data: WorkerMessage): void {
