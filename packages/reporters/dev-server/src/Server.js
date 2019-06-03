@@ -72,7 +72,7 @@ export default class Server extends EventEmitter {
   }
 
   respond(req: Request, res: Response) {
-    let {pathname} = url.parse(req.url);
+    let {pathname} = url.parse(req.originalUrl || req.url);
 
     if (this.error) {
       return this.send500(req, res);
@@ -161,7 +161,7 @@ export default class Server extends EventEmitter {
   }
 
   logAccessIfVerbose(req: Request) {
-    logger.verbose(`Request: ${req.headers.host}${req.url}`);
+    logger.verbose(`Request: ${req.headers.host}${req.originalUrl || req.url}`);
   }
 
   async start() {
