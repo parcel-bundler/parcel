@@ -64,7 +64,7 @@ export type Target = {|
   distDir: FilePath,
   env: Environment,
   name: string,
-  publicUrl?: string
+  publicUrl: ?string
 |};
 
 export type EnvironmentContext =
@@ -74,11 +74,23 @@ export type EnvironmentContext =
   | 'node'
   | 'electron';
 
-export type EnvironmentOpts = {
+export type PackageTargetDescriptor = {|
   context?: EnvironmentContext,
   engines?: Engines,
   includeNodeModules?: boolean,
-  publicUrl?: string
+  publicUrl?: string,
+  distDir?: FilePath
+|};
+
+export type TargetDescriptor = {|
+  ...PackageTargetDescriptor,
+  distDir: FilePath
+|};
+
+export type EnvironmentOpts = {
+  context?: EnvironmentContext,
+  engines?: Engines,
+  includeNodeModules?: boolean
 };
 
 export interface Environment {
@@ -110,7 +122,7 @@ export type PackageJSON = {
   browserslist?: Array<string>,
   engines?: Engines,
   targets?: {
-    [string]: EnvironmentOpts
+    [string]: PackageTargetDescriptor
   },
   dependencies?: PackageDependencies,
   devDependencies?: PackageDependencies,
@@ -126,7 +138,7 @@ export type InitialParcelOptions = {|
   config?: ParcelConfig,
   defaultConfig?: ParcelConfig,
   env?: {[string]: ?string},
-  targets?: ?Array<string | Target>,
+  targets?: ?(Array<string> | {+[string]: TargetDescriptor}),
 
   cache?: boolean,
   cacheDir?: FilePath,
