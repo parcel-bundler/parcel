@@ -6,6 +6,7 @@ import semver from 'semver';
 import babel6 from './babel6';
 import babel7 from './babel7';
 import getBabelConfig from './config';
+import path from 'path';
 
 export default new Transformer({
   async getConfig({asset}) {
@@ -31,16 +32,21 @@ export default new Transformer({
   },
 
   async generate({asset, options}) {
+    let sourceFileName: string = path.relative(
+      options.projectRoot,
+      asset.filePath
+    );
+
     // $FlowFixMe: figure out how to make AST required in generate method
     let generated = generate(asset.ast.program, {
       sourceMaps: options.sourceMaps,
-      sourceFileName: asset.filePath // Not sure how to get relative paths...
+      sourceFileName: sourceFileName
     });
 
     return {
       code: generated.code,
       map: new SourceMap(generated.rawMappings, {
-        [asset.filePath]: null
+        [sourceFileName]: null
       })
     };
   }

@@ -3,6 +3,8 @@ import type {Mapping, Position, MappingItem, RawSourceMap} from 'source-map';
 
 import {SourceMapConsumer, SourceMapGenerator} from 'source-map';
 import {countLines} from '@parcel/utils';
+import {readFile} from '@parcel/fs';
+import path from 'path';
 
 type RawMapInput = SourceMapConsumer | string | RawSourceMap;
 
@@ -340,17 +342,41 @@ export default class SourceMap {
     }));
   }
 
-  stringify(file: string, sourceRoot: string) {
+  async stringify({
+    file,
+    sourceRoot,
+    rootDir,
+    inlineSources
+  }: {
+    file?: string, // Filename of the bundle/file sourcemap applies to
+    sourceRoot?: string, // The root dir of sourcemap sourceContent, all sourceContent of mappings should exist in here...
+    rootDir?: string, // Parcel's rootDir where all mappings are relative to
+    inlineSources?: boolean // true = inline everything, false = inline nothing
+  }) {
     let generator = new SourceMapGenerator({file, sourceRoot});
 
     this.eachMapping(mapping => {
       generator.addMapping(mapping);
     });
 
-    for (let sourceName of Object.keys(this.sources)) {
-      let sourceContent = this.sourceContentFor(sourceName);
-      if (sourceContent !== null) {
-        generator.setSourceContent(sourceName, sourceContent);
+    if (inlineSources) {
+      for (let sourceName of Object.keys(this.sources)) {
+        let sourceContent = this.sourceContentFor(sourceName);
+        if (sourceContent !== null) {
+          generator.setSourceContent(sourceName, sourceContent);
+        } else {
+          try {
+            let content = await readFile(
+              path.join(rootDir || '', sourceName),
+              'utf8'
+            );
+            if (content) {
+              generator.setSourceContent(sourceName, content);
+            }
+          } catch (e) {
+            // do nothing
+          }
+        }
       }
     }
 

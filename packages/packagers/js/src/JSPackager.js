@@ -5,6 +5,7 @@ import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
 import SourceMap from '@parcel/source-map';
 import {countLines} from '@parcel/utils';
+import path from 'path';
 
 const PRELUDE = fs
   .readFileSync(__dirname + '/prelude.js', 'utf8')
@@ -91,7 +92,11 @@ export default new Packager({
       if (options.sourceMaps) {
         let asset = node.value;
         let assetMap =
-          maps[i] ?? SourceMap.generateEmptyMap(asset.filePath, wrapped);
+          maps[i] ??
+          SourceMap.generateEmptyMap(
+            path.relative(options.projectRoot, asset.filePath),
+            wrapped
+          );
 
         map.addMap(assetMap, lineOffset + 1);
         lineOffset += countLines(wrapped);

@@ -13,6 +13,7 @@ import * as walk from 'babylon-walk';
 import * as babelCore from '@babel/core';
 import {hoist} from '@parcel/scope-hoisting';
 import SourceMap from '@parcel/source-map';
+import path from 'path';
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -137,11 +138,16 @@ export default new Transformer({
     };
 
     if (asset.ast && asset.ast.isDirty !== false) {
+      let sourceFileName: string = path.relative(
+        options.projectRoot,
+        asset.filePath
+      );
+
       let generated = generate(
         asset.ast.program,
         {
           sourceMaps: options.sourceMaps,
-          sourceFileName: asset.filePath // Not sure how to get relative paths...
+          sourceFileName: sourceFileName
         },
         code
       );
@@ -149,7 +155,7 @@ export default new Transformer({
       res.code = generated.code;
       // $FlowFixMe...
       res.map = new SourceMap(generated.rawMappings, {
-        [asset.filePath]: null
+        [sourceFileName]: null
       });
     }
 

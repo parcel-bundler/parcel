@@ -4,6 +4,7 @@ import nullthrows from 'nullthrows';
 import {minify} from 'terser';
 import {Transformer} from '@parcel/plugin';
 import SourceMap from '@parcel/source-map';
+import path from 'path';
 
 export default new Transformer({
   async getConfig({asset}) {
@@ -24,6 +25,9 @@ export default new Transformer({
       warnings: true,
       mangle: {
         toplevel: false
+      },
+      sourceMap: {
+        filename: path.relative(options.projectRoot, asset.filePath)
       }
     };
 

@@ -36,7 +36,6 @@ export default class PackagerRunner {
   async writeBundle(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
     let start = Date.now();
     let packaged = await this.package(bundle, bundleGraph);
-    // $FlowFixMe
     let {code, map} = await this.optimize(bundle, packaged);
 
     let filePath = nullthrows(bundle.filePath);
@@ -57,10 +56,16 @@ export default class PackagerRunner {
     if (map) {
       await writeFile(
         filePath + '.map',
-        map.stringify(
-          filePath,
-          path.relative(nullthrows(bundle.target).distDir, this.options.rootDir)
-        )
+        await map.stringify({
+          // filePath outputs dist/ which is incorrect as publicUrl is / by default
+          // resulting in bundle needing to be located at /dist/<filename> which it's not
+          file: filePath,
+          rootDir: this.options.projectRoot,
+          // sourceRoot should be a relative path between outDir and rootDir for node.js targets
+          // For production this will always be inlined and can be undefined...
+          sourceRoot: '/__parcel_source_root',
+          inlineSources: false
+        })
       );
     }
 

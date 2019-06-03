@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@parcel/utils": "^2.0.0-alpha.0",
+    "@parcel/fs": "^2.0.0-alpha.0",
     "source-map": "^0.7.3"
   },
   "devDependencies": {
