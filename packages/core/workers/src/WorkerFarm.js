@@ -42,9 +42,9 @@ type FarmOptions = {|
 
 type HandleFunction = (...args: Array<any>) => Promise<any>;
 
-type WorkerModule = {
-  init(): void
-};
+type WorkerModule = {|
+  +[string]: (...args: Array<mixed>) => Promise<mixed>
+|};
 
 /**
  * workerPath should always be defined inside farmOptions
@@ -79,7 +79,7 @@ export default class WorkerFarm extends EventEmitter {
     this.localWorker = require(this.options.workerPath);
     this.run = this.createHandle('run');
 
-    this.init();
+    this.startMaxWorkers();
   }
 
   warmupWorker(method: string, args: Array<any>): void {
@@ -277,17 +277,6 @@ export default class WorkerFarm extends EventEmitter {
     );
     this.ending = false;
     shared = null;
-  }
-
-  init(): void {
-    if (this.shouldStartRemoteWorkers()) {
-      for (let worker of this.workers.values()) {
-        worker.init();
-      }
-    }
-
-    this.localWorker.init();
-    this.startMaxWorkers();
   }
 
   startMaxWorkers(): void {

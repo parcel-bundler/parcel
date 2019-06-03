@@ -15,9 +15,4 @@ function run() {
   });
 }
 
-function init() {
-  // Do nothing
-}
-
 exports.run = run;
-exports.init = init;
