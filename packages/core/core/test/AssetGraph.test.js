@@ -18,7 +18,8 @@ const TARGETS = [
     name: 'test',
     distDir: 'dist',
     distEntry: 'out.js',
-    env: DEFAULT_ENV
+    env: DEFAULT_ENV,
+    publicUrl: null
   }
 ];
 

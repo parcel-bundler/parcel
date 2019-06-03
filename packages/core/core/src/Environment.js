@@ -70,7 +70,10 @@ export default class Environment implements IEnvironment {
   }
 
   merge(env: ?EnvironmentOpts) {
-    return new Environment(Object.assign({}, this, env));
+    return new Environment({
+      ...this,
+      ...env
+    });
   }
 
   isBrowser() {

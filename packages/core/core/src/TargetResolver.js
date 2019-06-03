@@ -1,6 +1,7 @@
 // @flow
 
 import type {
+  TargetDescriptor,
   FilePath,
   InitialParcelOptions,
   PackageJSON,
@@ -28,31 +29,40 @@ export default class TargetResolver {
     cacheDir: FilePath,
     initialOptions: InitialParcelOptions
   ): Promise<Array<Target>> {
-    let packageTargets = await this.resolvePackageTargets(rootDir);
-
     let serveOptions = initialOptions.serve ?? initialOptions.hot;
-    let targets;
-    if (initialOptions.targets) {
-      if (initialOptions.targets.length === 0) {
-        throw new Error('Targets was an empty array');
-      }
+    let optionTargets = initialOptions.targets;
 
-      targets = initialOptions.targets.map(target => {
-        if (typeof target === 'string') {
+    let targets: Array<Target>;
+    if (optionTargets) {
+      if (Array.isArray(optionTargets)) {
+        if (optionTargets.length === 0) {
+          throw new Error('Targets was an empty array');
+        }
+
+        // If an array of strings is passed, it's a filter on the resolved package
+        // targets. Load them, and find the matching targets.
+        let packageTargets = await this.resolvePackageTargets(rootDir);
+        targets = optionTargets.map(target => {
           let matchingTarget = packageTargets.get(target);
           if (!matchingTarget) {
             throw new Error(`Could not find target with name ${target}`);
           }
           return matchingTarget;
-        }
-
-        return {
-          ...target,
-          // In the case the supplied target was a relative path, resolve it from
-          // cwd just like Node does for other file paths.
-          distDir: path.resolve(target.distDir)
-        };
-      });
+        });
+      } else {
+        // Otherwise, it's an object map of target descriptors (similar to those
+        // in package.json). Adapt them to native targets.
+        targets = Object.entries(optionTargets).map(([name, _descriptor]) => {
+          // $FlowFixMe
+          let descriptor: TargetDescriptor = _descriptor;
+          return {
+            name,
+            distDir: path.resolve(descriptor.distDir),
+            publicUrl: descriptor.publicUrl,
+            env: new Environment(descriptor)
+          };
+        });
+      }
 
       if (serveOptions) {
         // In serve mode, we only support a single browser target. If the user
@@ -67,7 +77,8 @@ export default class TargetResolver {
         }
       }
     } else {
-      // Explicit targets were not provided
+      // Explicit targets were not provided. Either use a modern target for server
+      // mode, or simply use the package.json targets.
       if (serveOptions) {
         // In serve mode, we only support a single browser target. Since the user
         // hasn't specified a target, use one targeting modern browsers for development
@@ -88,6 +99,7 @@ export default class TargetResolver {
           }
         ];
       } else {
+        let packageTargets = await this.resolvePackageTargets(rootDir);
         targets = Array.from(packageTargets.values());
       }
     }
@@ -115,7 +127,10 @@ export default class TargetResolver {
     let pkgTargets = pkg.targets || {};
     let pkgEngines = {...pkg.engines};
     if (!pkgEngines.browsers) {
-      pkgEngines.browsers = browserslist.loadConfig({path: rootDir});
+      let browserslistBrowsers = browserslist.loadConfig({path: rootDir});
+      if (browserslistBrowsers) {
+        pkgEngines.browsers = browserslistBrowsers;
+      }
     }
 
     let targets: Map<string, Target> = new Map();
@@ -146,7 +161,7 @@ export default class TargetResolver {
         let distDir;
         let distEntry;
 
-        let env = pkgTargets[targetName] || {};
+        let descriptor = pkgTargets[targetName] || {};
         if (typeof targetDist === 'string') {
           distDir = path.resolve(pkgDir, path.dirname(targetDist));
           distEntry = path.basename(targetDist);
@@ -158,11 +173,14 @@ export default class TargetResolver {
           name: targetName,
           distDir,
           distEntry,
-          publicUrl: env.publicUrl ?? '/',
+          publicUrl: descriptor.publicUrl ?? '/',
           env: new Environment({
-            engines: env.engines ?? pkgEngines,
-            context: env.context ?? mainContext,
-            includeNodeModules: env.includeNodeModules
+            engines: descriptor.engines ?? pkgEngines,
+            context:
+              descriptor.context ?? targetName === 'browser'
+                ? 'browser'
+                : mainContext,
+            includeNodeModules: descriptor.includeNodeModules
           })
         });
       }
@@ -184,17 +202,17 @@ export default class TargetResolver {
         distEntry = path.basename(distPath);
       }
 
-      let env = pkgTargets[name];
-      if (env) {
+      let descriptor = pkgTargets[name];
+      if (descriptor) {
         targets.set(name, {
           name,
           distDir,
           distEntry,
-          publicUrl: env.publicUrl ?? '/',
+          publicUrl: descriptor.publicUrl ?? '/',
           env: new Environment({
-            engines: env.engines ?? pkgEngines,
-            context: env.context,
-            includeNodeModules: env.includeNodeModules
+            engines: descriptor.engines ?? pkgEngines,
+            context: descriptor.context,
+            includeNodeModules: descriptor.includeNodeModules
           })
         });
       }
