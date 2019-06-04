@@ -13,7 +13,7 @@ const {mkdirp} = require('@parcel/fs');
 const {makeDeferredWithPromise} = require('@parcel/utils');
 
 describe('javascript', function() {
-  afterEach(async () => {
+  beforeEach(async () => {
     await removeDistDirectory();
   });
 
