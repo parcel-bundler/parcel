@@ -395,23 +395,23 @@ describe('loadParcelConfig', () => {
     it('should load and merge configs', async () => {
       let defaultConfig = require('@parcel/config-default');
       // $FlowFixMe
-      let resolved = await readAndProcess(
+      let {config} = await readAndProcess(
         path.join(__dirname, 'fixtures', 'config', 'subfolder', '.parcelrc'),
         __dirname
       );
 
-      assert.deepEqual(resolved.transforms['*.js'], [
+      assert.deepEqual(config.transforms['*.js'], [
         'parcel-transformer-sub',
         'parcel-transformer-base',
         '...'
       ]);
-      assert(Object.keys(resolved.transforms).length > 1);
-      assert.deepEqual(resolved.resolvers, defaultConfig.resolvers);
-      assert.deepEqual(resolved.bundler, defaultConfig.bundler);
-      assert.deepEqual(resolved.namers, defaultConfig.namers || []);
-      assert.deepEqual(resolved.packagers, defaultConfig.packagers || {});
-      assert.deepEqual(resolved.optimizers, defaultConfig.optimizers || {});
-      assert.deepEqual(resolved.reporters, defaultConfig.reporters || []);
+      assert(Object.keys(config.transforms).length > 1);
+      assert.deepEqual(config.resolvers, defaultConfig.resolvers);
+      assert.deepEqual(config.bundler, defaultConfig.bundler);
+      assert.deepEqual(config.namers, defaultConfig.namers || []);
+      assert.deepEqual(config.packagers, defaultConfig.packagers || {});
+      assert.deepEqual(config.optimizers, defaultConfig.optimizers || {});
+      assert.deepEqual(config.reporters, defaultConfig.reporters || []);
     });
   });
 

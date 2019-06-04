@@ -72,7 +72,7 @@ export async function processConfig(
   let relativePath = path.relative(process.cwd(), filePath);
   validateConfigFile(configFile, relativePath);
 
-  //let extendedFiles: Array<FilePath> = [];
+  let extendedFiles: Array<FilePath> = [];
 
   if (configFile.extends) {
     let exts = Array.isArray(configFile.extends)
@@ -80,13 +80,17 @@ export async function processConfig(
       : [configFile.extends];
     for (let ext of exts) {
       let resolved = await resolveExtends(ext, filePath);
-      //extendedFiles.push(resolved);
-      let baseConfig = await readAndProcess(resolved);
+      extendedFiles.push(resolved);
+      let {
+        extendedFiles: moreExtendedFiles,
+        config: baseConfig
+      } = await readAndProcess(resolved);
+      extendedFiles = extendedFiles.concat(moreExtendedFiles);
       config = mergeConfigs(baseConfig, resolvedFile);
     }
   }
 
-  return config;
+  return {config, extendedFiles};
 }
 
 export async function resolveExtends(ext: string, configPath: FilePath) {

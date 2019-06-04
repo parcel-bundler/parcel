@@ -76,7 +76,7 @@ export default class Parcel {
     this.#resolvedOptions = resolvedOptions;
     await createCacheDir(resolvedOptions.cacheDir);
 
-    let config = await loadParcelConfig(
+    let {config} = await loadParcelConfig(
       path.join(process.cwd(), 'index'),
       resolvedOptions
     );

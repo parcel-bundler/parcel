@@ -247,6 +247,15 @@ export type AssetRequest = {|
   code?: string
 |};
 
+export type ConfigRequest = {|
+  filePath: FilePath,
+  plugin?: PackageName,
+  //$FlowFixMe will lock this down more in a future commit
+  meta: any,
+  //$FlowFixMe will lock this down more in a future commit
+  result?: any
+|};
+
 interface BaseAsset {
   +ast: ?AST;
   +env: Environment;

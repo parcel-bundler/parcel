@@ -3,6 +3,7 @@
 import type {
   AssetRequest,
   BundleGroup,
+  ConfigRequest,
   Environment,
   File,
   FilePath,
@@ -74,9 +75,18 @@ export type AssetGraphNode =
   | BundleGroupNode
   | BundleReferenceNode;
 
-export type RequestGraphNode = RequestNode | FileNode;
+export type ConfigRequestNode = {|
+  id: string,
+  +type: 'config_request',
+  value: ConfigRequest
+|};
+
+export type RequestGraphNode = RequestNode | FileNode | ConfigRequestNode;
 export type RequestNode = DepPathRequestNode | AssetRequestNode;
-export type RequestResult = CacheEntry | AssetRequest | null;
+export type SubRequestNode = ConfigRequestNode;
+
+// TODO: get rid of if no longer needed
+// export type RequestResult = CacheEntry | AssetRequest | null;
 
 export interface BundleReference {
   +id: string;

@@ -102,15 +102,19 @@ export default class ParcelConfig {
     return Promise.all(plugins.map(pluginName => this.loadPlugin(pluginName)));
   }
 
-  async getResolvers(): Promise<Array<Resolver>> {
+  getResolverNames() {
     if (this.resolvers.length === 0) {
       throw new Error('No resolver plugins specified in .parcelrc config');
     }
 
-    return this.loadPlugins(this.resolvers);
+    return this.resolvers;
   }
 
-  async getTransformers(filePath: FilePath): Promise<Array<Transformer>> {
+  async getResolvers(): Promise<Array<Resolver>> {
+    return this.loadPlugins(this.getResolverNames());
+  }
+
+  getTransformerNames(filePath: FilePath): Array<string> {
     let transformers: Pipeline | null = this.matchGlobMapPipelines(
       filePath,
       this.transforms
@@ -119,7 +123,11 @@ export default class ParcelConfig {
       throw new Error(`No transformers found for "${filePath}".`);
     }
 
-    return this.loadPlugins(transformers);
+    return transformers;
+  }
+
+  async getTransformers(filePath: FilePath): Promise<Array<Transformer>> {
+    return this.loadPlugins(this.getTransformerNames(filePath));
   }
 
   async getBundler(): Promise<Bundler> {

@@ -1,10 +1,18 @@
 // @flow strict-local
+import invariant from 'assert';
+import nullthrows from 'nullthrows';
 
 import {PromiseQueue, md5FromString} from '@parcel/utils';
-import type {AssetRequest, FilePath, ParcelOptions} from '@parcel/types';
+import type {
+  AssetRequest,
+  ConfigRequest,
+  FilePath,
+  ParcelOptions
+} from '@parcel/types';
 import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
 
+import ConfigLoader from './ConfigLoader';
 import Dependency from './Dependency';
 import Graph, {type GraphOpts} from './Graph';
 import type ParcelConfig from './ParcelConfig';
@@ -16,7 +24,7 @@ import type {
   NodeId,
   RequestGraphNode,
   RequestNode,
-  RequestResult
+  SubRequestNode
 } from './types';
 
 type RequestGraphOpts = {|
@@ -43,6 +51,16 @@ const nodeFromAssetRequest = (assetRequest: AssetRequest) => ({
   value: assetRequest
 });
 
+const nodeFromConfigRequest = (configRequest: ConfigRequest) => ({
+  id: md5FromString(
+    `${configRequest.filePath}:${
+      configRequest.plugin != null ? configRequest.plugin : 'parcel'
+    }`
+  ),
+  type: 'config_request',
+  value: configRequest
+});
+
 const nodeFromFilePath = (filePath: string) => ({
   id: filePath,
   type: 'file',
@@ -50,20 +68,25 @@ const nodeFromFilePath = (filePath: string) => ({
 });
 
 export default class RequestGraph extends Graph<RequestGraphNode> {
-  inProgress: Map<NodeId, Promise<RequestResult>> = new Map();
+  // $FlowFixMe
+  inProgress: Map<NodeId, Promise<any>> = new Map();
   invalidNodes: Map<NodeId, RequestNode> = new Map();
   runTransform: ({
     request: AssetRequest,
+    loadConfig: mixed,
+    parentNodeId: NodeId,
     config: ParcelConfig,
     options: ParcelOptions
   }) => Promise<CacheEntry>;
   resolverRunner: ResolverRunner;
+  configLoader: ConfigLoader;
   onAssetRequestComplete: (AssetRequestNode, CacheEntry) => mixed;
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed;
   queue: PromiseQueue;
   farm: WorkerFarm;
   config: ParcelConfig;
   options: ParcelOptions;
+  loadConfigHandle: mixed;
 
   constructor({
     onAssetRequestComplete,
@@ -83,6 +106,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       config,
       options
     });
+
+    this.configLoader = new ConfigLoader(options);
   }
 
   async initFarm() {
@@ -90,6 +115,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     // AssetGraphBuilder, which avoids needing to pass the options through here.
     this.farm = await WorkerFarm.getShared();
     this.runTransform = this.farm.createHandle('runTransform');
+    this.loadConfigHandle = WorkerFarm.createReverseHandle(
+      this.loadConfig.bind(this)
+    );
   }
 
   async completeRequests() {
@@ -104,11 +132,15 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     await this.queue.run();
   }
 
+  addNode(node: RequestGraphNode) {
+    this.processNode(node);
+    return super.addNode(node);
+  }
+
   addDepPathRequest(dep: Dependency) {
     let requestNode = nodeFromDepPathRequest(dep);
     if (!this.hasNode(requestNode.id)) {
       this.addNode(requestNode);
-      this.processNode(requestNode);
     }
   }
 
@@ -116,18 +148,17 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     let requestNode = nodeFromAssetRequest(request);
     if (!this.hasNode(requestNode.id)) {
       this.addNode(requestNode);
-      this.processNode(requestNode);
     }
 
     this.connectFile(requestNode, request.filePath);
   }
 
-  async processNode(requestNode: RequestNode) {
+  async processNode(requestNode: RequestGraphNode) {
     let promise;
     switch (requestNode.type) {
       case 'asset_request':
         promise = this.queue.add(() =>
-          this.transform(requestNode.value).then(result => {
+          this.transform(requestNode).then(result => {
             this.onAssetRequestComplete(requestNode, result);
             return result;
           })
@@ -141,30 +172,38 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
           })
         );
         break;
+      case 'config_request':
+        promise = this.runConfigRequest(requestNode.value);
+        break;
       default:
-        throw new Error('Unrecognized request type ' + requestNode.type);
+      // Do nothing
     }
 
-    try {
-      this.inProgress.set(requestNode.id, promise);
-      await promise;
-      // ? Should these be updated before it comes off the queue?
-      this.invalidNodes.delete(requestNode.id);
-      this.inProgress.delete(requestNode.id);
-    } catch (e) {
-      // Do nothing
-      // Main tasks will be caught by the queue
-      // Sun tasks will end up rejecting the main task promise
+    if (promise) {
+      try {
+        this.inProgress.set(requestNode.id, promise);
+        await promise;
+        // ? Should these be updated before it comes off the queue?
+        this.invalidNodes.delete(requestNode.id);
+        this.inProgress.delete(requestNode.id);
+      } catch (e) {
+        // Do nothing
+        // Main tasks will be caught by the queue
+        // Sun tasks will end up rejecting the main task promise
+      }
     }
   }
 
-  async transform(request: AssetRequest) {
+  async transform(requestNode: AssetRequestNode) {
     try {
       let start = Date.now();
+      let request = requestNode.value;
       let cacheEntry = await this.runTransform({
-        request,
         config: this.config,
-        options: this.options
+        options: this.options,
+        request,
+        loadConfig: this.loadConfigHandle,
+        parentNodeId: requestNode.id
       });
 
       let time = Date.now() - start;
@@ -192,6 +231,62 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
 
       throw err;
     }
+  }
+
+  async loadConfig(configRequest: ConfigRequest, parentNodeId: NodeId) {
+    let configRequestNode = nodeFromConfigRequest(configRequest);
+    if (!this.hasNode(configRequestNode.id)) this.addNode(configRequestNode);
+    if (!this.hasEdge(parentNodeId, configRequestNode.id))
+      this.addEdge(parentNodeId, configRequestNode.id);
+
+    let config = await this.getSubTaskResult(configRequestNode);
+
+    // await Promise.all(
+    //   config.getDevDepRequests().map(async devDepRequest => {
+    //     let devDepRequestNode = nodeFromDevDepRequest(devDepRequest);
+    //     let {version} = await this.getSubTaskResult(devDepRequestNode);
+    //     config.setDevDep(devDepRequest.moduleSpecifier, version);
+    //   })
+    // );
+
+    return config;
+  }
+
+  async runConfigRequest(configRequest: ConfigRequest) {
+    let result = await this.configLoader.load(configRequest);
+    configRequest.result = result;
+    //this.addConfigResultToGraph(requestNode, result);
+    return result;
+  }
+
+  addSubRequest(subRequestNode: SubRequestNode, nodeId: NodeId) {
+    if (!this.nodes.has(subRequestNode.id)) {
+      this.addNode(subRequestNode);
+      this.processNode(subRequestNode);
+    }
+
+    if (!this.hasEdge(nodeId, subRequestNode.id)) {
+      this.addEdge(nodeId, subRequestNode.id);
+    }
+
+    return subRequestNode;
+  }
+
+  async getSubTaskResult(node: SubRequestNode) {
+    let result;
+    if (this.inProgress.has(node.id)) {
+      result = await this.inProgress.get(node.id);
+    } else {
+      result = this.getResultFromGraph(node);
+    }
+
+    return result;
+  }
+
+  getResultFromGraph(subRequestNode: SubRequestNode) {
+    let node = nullthrows(this.getNode(subRequestNode.id));
+    invariant(node.type === 'config_request');
+    return nullthrows(node.value.result);
   }
 
   connectFile(requestNode: RequestNode, filePath: FilePath) {

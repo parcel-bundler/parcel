@@ -1,8 +1,9 @@
 // @flow
-
+import nullthrows from 'nullthrows';
 import type {
   MutableAsset as IMutableAsset,
   Blob,
+  ConfigRequest,
   File,
   FilePath,
   GenerateOutput,
@@ -11,24 +12,26 @@ import type {
   TransformerResult,
   ParcelOptions
 } from '@parcel/types';
-import type {CacheEntry} from './types';
 
 import path from 'path';
+import Cache from '@parcel/cache';
 import {
   md5FromFilePath,
   md5FromReadableStream,
-  md5FromString
+  md5FromString,
+  TapStream,
+  unique
 } from '@parcel/utils';
-import {TapStream, unique} from '@parcel/utils';
 import {createReadStream} from 'fs';
 
+import Config from './Config';
 import Dependency from './Dependency';
 import type ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset from './Asset';
-import Cache from '@parcel/cache';
+import type {CacheEntry, NodeId} from './types';
 
 type Opts = {|
   config: ParcelConfig,
@@ -60,7 +63,11 @@ export default class TransformerRunner {
     });
   }
 
-  async transform(req: AssetRequest): Promise<CacheEntry> {
+  async transform(
+    req: AssetRequest,
+    loadConfig: () => Promise<Config>,
+    parentNodeId: NodeId
+  ): Promise<CacheEntry> {
     report({
       type: 'buildProgress',
       phase: 'transforming',
@@ -68,6 +75,7 @@ export default class TransformerRunner {
     });
 
     let cache = new Cache(this.options.cacheDir);
+    let config = await this.loadConfig(req, loadConfig, parentNodeId);
 
     // If a cache entry matches, no need to transform.
     let cacheEntry;
@@ -102,7 +110,7 @@ export default class TransformerRunner {
       sideEffects: req.sideEffects
     });
 
-    let pipeline = await this.config.getTransformers(req.filePath);
+    let pipeline = await config.getTransformers(req.filePath);
     let {assets, initialAssets} = await this.runPipeline({
       input,
       pipeline,
@@ -122,6 +130,24 @@ export default class TransformerRunner {
     );
     await cache.set(reqCacheKey(req), cacheEntry);
     return cacheEntry;
+  }
+
+  async loadConfig(
+    request: AssetRequest,
+    loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
+    parentNodeId: NodeId
+  ) {
+    let configRequest = {
+      filePath: request.filePath,
+      meta: {
+        pluginType: 'transformer'
+      }
+    };
+
+    let config = await loadConfig(configRequest, parentNodeId);
+    let parcelConfig = nullthrows(config.result);
+
+    return parcelConfig;
   }
 
   async runPipeline({
