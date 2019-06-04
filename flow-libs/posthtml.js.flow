@@ -14,11 +14,30 @@ declare module 'posthtml' {
     content?: Array<string>
   };
 
+  declare type PostHTMLTree = Array<PostHTMLNode>;
+  declare type PostHTMLOptions = {
+    sync: Boolean,
+    skipParse: Boolean
+  };
+  declare type PostHTMLMessage = {
+    type: 'dependency',
+    file: string
+  };
+
   declare var walk: (fn: (node: PostHTMLNode) => PostHTMLNode) => void;
+  declare var process: (
+    tree: PostHTMLTree | string,
+    options: ?PostHTMLOptions
+  ) => Promise<{
+    html: string,
+    tree: PostHTMLTree,
+    messages: Array<PostHTMLMessage>
+  }>;
 
   declare class Api {
     static walk: typeof walk;
     walk: typeof walk;
+    process: typeof process;
   }
 
   declare class PostHTML extends Api {
@@ -26,5 +45,5 @@ declare module 'posthtml' {
     version: number;
   }
 
-  declare module.exports: () => PostHTML;
+  declare module.exports: (plugins: ?Array<Function>) => PostHTML;
 }

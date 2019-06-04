@@ -12,7 +12,6 @@ module.exports = () => ({
     require('@babel/preset-flow')
   ],
   plugins: [
-    require('./serializer'),
     require('@babel/plugin-proposal-class-properties'),
     require('@babel/plugin-proposal-nullish-coalescing-operator'),
     require('@babel/plugin-proposal-optional-chaining')

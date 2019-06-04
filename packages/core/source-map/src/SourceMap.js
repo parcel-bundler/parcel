@@ -347,12 +347,12 @@ export default class SourceMap {
     sourceRoot,
     rootDir,
     inlineSources
-  }: {
+  }: {|
     file?: string, // Filename of the bundle/file sourcemap applies to
     sourceRoot?: string, // The root dir of sourcemap sourceContent, all sourceContent of mappings should exist in here...
     rootDir?: string, // Parcel's rootDir where all mappings are relative to
     inlineSources?: boolean // true = inline everything, false = inline nothing
-  }) {
+  |}) {
     let generator = new SourceMapGenerator({file, sourceRoot});
 
     this.eachMapping(mapping => {

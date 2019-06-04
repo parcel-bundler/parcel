@@ -76,7 +76,7 @@ export default new Transformer({
 
     // Inline environment variables
     if (!asset.env.isNode() && ENV_RE.test(code)) {
-      walk.simple(ast.program, envVisitor, asset);
+      walk.simple(ast.program, envVisitor, {asset, env: options.env});
     }
 
     // Collect dependencies
@@ -137,14 +137,15 @@ export default new Transformer({
       code
     };
 
-    if (asset.ast && asset.ast.isDirty !== false) {
+    let ast = asset.ast;
+    if (ast && ast.isDirty !== false) {
       let sourceFileName: string = path.relative(
         options.projectRoot,
         asset.filePath
       );
 
       let generated = generate(
-        asset.ast.program,
+        ast.program,
         {
           sourceMaps: options.sourceMaps,
           sourceFileName: sourceFileName

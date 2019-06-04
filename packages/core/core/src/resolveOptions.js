@@ -7,13 +7,13 @@ import type {
 } from '@parcel/types';
 
 import {getRootDir} from '@parcel/utils';
-import loadEnv from './loadEnv';
+import loadDotEnv from './loadDotEnv';
 import path from 'path';
 import TargetResolver from './TargetResolver';
 import {resolveConfig} from '@parcel/utils';
 
 // Default cache directory name
-const DEFAULT_CACHE_DIR = '.parcel-cache';
+const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
 
 export default async function resolveOptions(
   initialOptions: InitialParcelOptions
@@ -32,13 +32,6 @@ export default async function resolveOptions(
       ? initialOptions.rootDir
       : getRootDir(entries);
 
-  let targetResolver = new TargetResolver();
-  let targets = await targetResolver.resolve(rootDir, initialOptions);
-
-  if (!initialOptions.env) {
-    await loadEnv(path.join(rootDir, 'index'));
-  }
-
   let projectRoot = path.dirname(
     (await resolveConfig(path.join(process.cwd(), 'index'), [
       'yarn.lock',
@@ -49,14 +42,21 @@ export default async function resolveOptions(
     ])) || path.join(process.cwd(), 'index')
   );
 
+  let cacheDir =
+    // If a cacheDir is provided, resolve it relative to cwd. Otherwise,
+    // use a default directory resolved relative to the project root.
+    initialOptions.cacheDir != null
+      ? path.resolve(initialOptions.cacheDir)
+      : path.resolve(projectRoot, DEFAULT_CACHE_DIRNAME);
+
+  let targetResolver = new TargetResolver();
+  let targets = await targetResolver.resolve(rootDir, cacheDir, initialOptions);
+
   // $FlowFixMe
   return {
-    env: process.env,
+    env: initialOptions.env ?? (await loadDotEnv(path.join(rootDir, 'index'))),
     ...initialOptions,
-    cacheDir:
-      initialOptions.cacheDir != null
-        ? initialOptions.cacheDir
-        : DEFAULT_CACHE_DIR,
+    cacheDir,
     entries,
     rootDir,
     targets,

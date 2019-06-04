@@ -560,36 +560,30 @@ describe('javascript', function() {
     assert.deepEqual(output, {default: {asdf: 1}});
   });
 
-  it.skip('should support requiring JSON files', async function() {
+  it('should support requiring JSON files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/json/index.js'));
 
-    await assertBundles(b, {
-      name: 'index.js',
-      assets: ['index.js', 'local.json'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'local.json']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
 
-  it.skip('should support requiring JSON5 files', async function() {
+  it('should support requiring JSON5 files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/json5/index.js'));
 
-    await assertBundles(b, {
-      name: 'index.js',
-      assets: ['index.js', 'local.json5'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'local.json5']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
@@ -694,6 +688,9 @@ describe('javascript', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/env-file/index.js')
     );
+
+    // Make sure dotenv doesn't leak its values into the main process's env
+    assert(process.env.FOO == null);
 
     let output = await run(b);
     assert.equal(output, 'bartest');

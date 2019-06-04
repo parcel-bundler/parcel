@@ -180,6 +180,7 @@ class Child {
       child: call.child,
       type: call.type,
       location: call.location,
+      handle: call.handle,
       method: call.method,
       args: call.args,
       awaitResponse: call.awaitResponse

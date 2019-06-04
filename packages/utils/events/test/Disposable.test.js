@@ -2,6 +2,7 @@
 
 import assert from 'assert';
 import Disposable from '../src/Disposable';
+import {AlreadyDisposedError} from '../src/errors';
 
 describe('Disposable', () => {
   it('can wrap an IDisposable', () => {
@@ -80,5 +81,38 @@ describe('Disposable', () => {
     assert.equal(disposed2, true);
     assert.equal(disposed3, true);
     assert.equal(disposed4, true);
+  });
+
+  it(
+    'does not dispose inner disposables more than once,' +
+      ' and does not throw on subsequent disposals',
+    () => {
+      let disposed;
+      let disposable = new Disposable(() => {
+        if (disposed) {
+          // $FlowFixMe
+          assert.fail();
+        }
+        disposed = true;
+      });
+
+      disposable.dispose();
+      disposable.dispose();
+    }
+  );
+
+  it('throws if `add` is called after it has been disposed', () => {
+    let disposable = new Disposable();
+    disposable.dispose();
+    assert.throws(() => {
+      disposable.add(() => {});
+    }, AlreadyDisposedError);
+  });
+
+  it('can be checked for disposal state', () => {
+    let disposable = new Disposable();
+    assert.equal(disposable.disposed, false);
+    disposable.dispose();
+    assert.equal(disposable.disposed, true);
   });
 });

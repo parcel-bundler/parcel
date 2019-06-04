@@ -14,6 +14,7 @@ import type {
 } from '@parcel/types';
 import type {Bundle} from './types';
 import type InternalBundleGraph from './BundleGraph';
+import type Config from './Config';
 
 import invariant from 'assert';
 import Dependency from './Dependency';
@@ -24,7 +25,6 @@ import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
 import clone from 'clone';
-import Cache from '@parcel/cache';
 import watcher from '@parcel/watcher';
 import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
@@ -34,6 +34,10 @@ import MainAssetGraph from './public/MainAssetGraph';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
+import registerCoreWithSerializer from './registerCoreWithSerializer';
+import {createCacheDir} from '@parcel/cache';
+
+registerCoreWithSerializer();
 
 type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
 
@@ -43,6 +47,7 @@ export const INTERNAL_RESOLVE = Symbol('internal_resolve');
 export default class Parcel {
   #assetGraphBuilder; // AssetGraphBuilder
   #bundlerRunner; // BundlerRunner
+  #config;
   #farm; // WorkerFarm
   #initialized = false; // boolean
   #initialOptions; // InitialParcelOptions;
@@ -69,7 +74,7 @@ export default class Parcel {
       this.#initialOptions
     );
     this.#resolvedOptions = resolvedOptions;
-    await Cache.createCacheDir(resolvedOptions.cacheDir);
+    await createCacheDir(resolvedOptions.cacheDir);
 
     let configResolver = new ConfigResolver();
     let config;
@@ -89,6 +94,7 @@ export default class Parcel {
     if (!config) {
       throw new Error('Could not find a .parcelrc');
     }
+    this.#config = config;
 
     this.#bundlerRunner = new BundlerRunner({
       options: resolvedOptions,
@@ -107,20 +113,13 @@ export default class Parcel {
       targets: resolvedOptions.targets
     });
 
-    this.#farm = await WorkerFarm.getShared(
-      {
-        config,
-        options: resolvedOptions,
-        env: resolvedOptions.env
-      },
-      {
-        workerPath: require.resolve('./worker')
-      }
-    );
+    this.#farm = await WorkerFarm.getShared({
+      workerPath: require.resolve('./worker')
+    });
 
     await this.#assetGraphBuilder.initFarm();
 
-    this.#runPackage = this.#farm.mkhandle('runPackage');
+    this.#runPackage = this.#farm.createHandle('runPackage');
     this.#initialized = true;
   }
 
@@ -204,7 +203,12 @@ export default class Parcel {
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
       dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
 
-      await packageBundles(bundleGraph, this.#runPackage);
+      await packageBundles(
+        bundleGraph,
+        this.#config,
+        nullthrows(this.#resolvedOptions),
+        this.#runPackage
+      );
 
       let event = {
         type: 'buildSuccess',
@@ -279,14 +283,11 @@ export default class Parcel {
     invariant(this.#watcherSubscription == null);
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
-    let targetDirs = resolvedOptions.targets.map(target =>
-      path.resolve(target.distDir)
-    );
-    let cacheDir = path.resolve(resolvedOptions.cacheDir);
+    let targetDirs = resolvedOptions.targets.map(target => target.distDir);
     let vcsDirs = ['.git', '.hg'].map(dir =>
       path.join(resolvedOptions.projectRoot, dir)
     );
-    let ignore = [cacheDir, ...targetDirs, ...vcsDirs];
+    let ignore = [resolvedOptions.cacheDir, ...targetDirs, ...vcsDirs];
 
     return watcher.subscribe(
       resolvedOptions.projectRoot,
@@ -317,15 +318,19 @@ export default class Parcel {
 
 function packageBundles(
   bundleGraph: InternalBundleGraph,
-  runPackage: (
+  config: Config,
+  options: ParcelOptions,
+  runPackage: ({
     bundle: Bundle,
-    bundleGraph: InternalBundleGraph
-  ) => Promise<Stats>
+    bundleGraph: InternalBundleGraph,
+    config: Config,
+    options: ParcelOptions
+  }) => Promise<Stats>
 ): Promise<mixed> {
   let promises = [];
   bundleGraph.traverseBundles(bundle => {
     promises.push(
-      runPackage(bundle, bundleGraph).then(stats => {
+      runPackage({bundle, bundleGraph, config, options}).then(stats => {
         bundle.stats = stats;
       })
     );

@@ -1,5 +1,7 @@
 // @flow strict-local
 
+import type Cache from '@parcel/cache';
+
 import type {
   AST,
   Blob,
@@ -26,13 +28,13 @@ import {
   readableFromStringOrBuffer,
   TapStream
 } from '@parcel/utils';
-import Cache from '@parcel/cache';
 import Dependency from './Dependency';
 
 type AssetOptions = {|
   id?: string,
   hash?: ?string,
   idBase?: string,
+  cache: Cache,
   filePath: FilePath,
   type: string,
   content?: Blob,
@@ -66,6 +68,7 @@ export default class Asset {
   filePath: FilePath;
   type: string;
   ast: ?AST;
+  cache: Cache;
   map: ?SourceMap;
   mapKey: ?string;
   dependencies: Map<string, Dependency>;
@@ -95,6 +98,7 @@ export default class Asset {
     this.content = options.content || '';
     this.contentKey = options.contentKey;
     this.ast = options.ast || null;
+    this.cache = options.cache;
     this.map = options.map;
     this.dependencies = options.dependencies
       ? new Map(options.dependencies)
@@ -116,6 +120,7 @@ export default class Asset {
       id: this.id,
       hash: this.hash,
       filePath: this.filePath,
+      cache: this.cache,
       type: this.type,
       dependencies: Array.from(this.dependencies),
       connectedFiles: Array.from(this.connectedFiles),
@@ -154,7 +159,7 @@ export default class Asset {
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
     let [contentKey, mapKey] = await Promise.all([
-      Cache.setStream(
+      this.cache.setStream(
         this.generateCacheKey('content'),
         contentStream.pipe(
           new TapStream(buf => {
@@ -165,7 +170,7 @@ export default class Asset {
       ),
       this.map == null
         ? Promise.resolve()
-        : Cache.set(this.generateCacheKey('map'), this.map)
+        : this.cache.set(this.generateCacheKey('map'), this.map)
     ]);
     this.contentKey = contentKey;
     this.mapKey = mapKey;
@@ -175,7 +180,7 @@ export default class Asset {
 
   async getCode(): Promise<string> {
     if (this.contentKey != null) {
-      this.content = Cache.getStream(this.contentKey);
+      this.content = this.cache.getStream(this.contentKey);
     }
 
     if (typeof this.content === 'string' || this.content instanceof Buffer) {
@@ -189,7 +194,7 @@ export default class Asset {
 
   async getBuffer(): Promise<Buffer> {
     if (this.contentKey != null) {
-      this.content = Cache.getStream(this.contentKey);
+      this.content = this.cache.getStream(this.contentKey);
     }
 
     if (typeof this.content === 'string' || this.content instanceof Buffer) {
@@ -202,7 +207,7 @@ export default class Asset {
 
   getStream(): Readable {
     if (this.contentKey != null) {
-      this.content = Cache.getStream(this.contentKey);
+      this.content = this.cache.getStream(this.contentKey);
     }
 
     if (this.content instanceof Readable) {
@@ -226,7 +231,7 @@ export default class Asset {
 
   async getMap(): Promise<?SourceMap> {
     if (this.mapKey != null) {
-      this.map = await Cache.get(this.mapKey);
+      this.map = await this.cache.get(this.mapKey);
     }
 
     return this.map;
@@ -294,6 +299,7 @@ export default class Asset {
       filePath: this.filePath,
       type: result.type,
       content,
+      cache: this.cache,
       ast: result.ast,
       map: result.map,
       isIsolated: result.isIsolated,

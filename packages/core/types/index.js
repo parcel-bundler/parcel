@@ -65,7 +65,7 @@ export type Target = {|
   distDir: FilePath,
   env: Environment,
   name: string,
-  publicUrl?: string
+  publicUrl: ?string
 |};
 
 export type EnvironmentContext =
@@ -75,11 +75,23 @@ export type EnvironmentContext =
   | 'node'
   | 'electron';
 
-export type EnvironmentOpts = {
-  context: EnvironmentContext,
-  engines: Engines,
+export type PackageTargetDescriptor = {|
+  context?: EnvironmentContext,
+  engines?: Engines,
   includeNodeModules?: boolean,
-  publicUrl?: string
+  publicUrl?: string,
+  distDir?: FilePath
+|};
+
+export type TargetDescriptor = {|
+  ...PackageTargetDescriptor,
+  distDir: FilePath
+|};
+
+export type EnvironmentOpts = {
+  context?: EnvironmentContext,
+  engines?: Engines,
+  includeNodeModules?: boolean
 };
 
 export interface Environment {
@@ -111,7 +123,7 @@ export type PackageJSON = {
   browserslist?: Array<string>,
   engines?: Engines,
   targets?: {
-    [string]: EnvironmentOpts
+    [string]: PackageTargetDescriptor
   },
   dependencies?: PackageDependencies,
   devDependencies?: PackageDependencies,
@@ -127,7 +139,7 @@ export type InitialParcelOptions = {|
   config?: ParcelConfig,
   defaultConfig?: ParcelConfig,
   env?: {[string]: ?string},
-  targets?: ?Array<string | Target>,
+  targets?: ?(Array<string> | {+[string]: TargetDescriptor}),
 
   cache?: boolean,
   cacheDir?: FilePath,
@@ -301,31 +313,36 @@ export interface TransformerResult {
 
 type Async<T> = T | Promise<T>;
 
+type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 export type Transformer = {
   getConfig?: ({
     asset: MutableAsset,
-    resolve: (from: FilePath, to: string) => Promise<FilePath>,
+    resolve: ResolveFn,
     options: ParcelOptions
   }) => Async<Config | void>,
   canReuseAST?: ({ast: AST, options: ParcelOptions}) => boolean,
   parse?: ({
     asset: MutableAsset,
     config: ?Config,
+    resolve: ResolveFn,
     options: ParcelOptions
   }) => Async<?AST>,
   transform({
     asset: MutableAsset,
     config: ?Config,
+    resolve: ResolveFn,
     options: ParcelOptions
   }): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({
     asset: MutableAsset,
     config: ?Config,
+    resolve: ResolveFn,
     options: ParcelOptions
   }) => Async<GenerateOutput>,
   postProcess?: ({
     assets: Array<MutableAsset>,
     config: ?Config,
+    resolve: ResolveFn,
     options: ParcelOptions
   }) => Async<Array<TransformerResult>>
 };
@@ -472,18 +489,18 @@ export type Runtime = {|
 
 export type Packager = {|
   package({
-    bundle: Bundle,
+    bundle: NamedBundle,
     bundleGraph: BundleGraph,
     options: ParcelOptions
-  }): Async<{code: Blob, map?: SourceMap}>
+  }): Async<{code: Blob, map?: ?SourceMap}>
 |};
 
 export type Optimizer = {|
   optimize({
-    bundle: Bundle,
-    contents: {code: Blob, map?: SourceMap},
+    bundle: NamedBundle,
+    contents: {|code: Blob, map?: ?SourceMap|},
     options: ParcelOptions
-  }): Async<{code: Blob, map?: SourceMap}>
+  }): Async<{|code: Blob, map?: ?SourceMap|}>
 |};
 
 export type Resolver = {|

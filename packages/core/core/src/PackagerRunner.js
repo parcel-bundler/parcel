@@ -78,7 +78,7 @@ export default class PackagerRunner {
   async package(
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph
-  ): Promise<{code: Blob, map?: SourceMap}> {
+  ): Promise<{|code: Blob, map?: ?SourceMap|}> {
     let bundle = new NamedBundle(internalBundle);
     report({
       type: 'buildProgress',
@@ -107,8 +107,8 @@ export default class PackagerRunner {
 
   async optimize(
     internalBundle: InternalBundle,
-    contents: {code: Blob, map?: SourceMap}
-  ): Promise<{code: Blob, map?: SourceMap}> {
+    contents: {|code: Blob, map?: ?SourceMap|}
+  ): Promise<{code: Blob, map?: ?SourceMap}> {
     let bundle = new NamedBundle(internalBundle);
     let optimizers = await this.config.getOptimizers(bundle.filePath);
     if (!optimizers.length) {

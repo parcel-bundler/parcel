@@ -2,40 +2,42 @@
 
 import nullthrows from 'nullthrows';
 import {minify} from 'terser';
-import {Transformer} from '@parcel/plugin';
+import {Optimizer} from '@parcel/plugin';
+import {loadConfig} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import path from 'path';
 
-export default new Transformer({
-  async getConfig({asset}) {
-    return asset.getConfig([
+export default new Optimizer({
+  async optimize({contents, bundle, options}) {
+    if (!options.minify) {
+      return contents;
+    }
+
+    let {code, map} = contents;
+    if (typeof code !== 'string') {
+      throw new Error(
+        'TerserOptimizer: Only string contents are currently supported'
+      );
+    }
+
+    let userConfig = await loadConfig(bundle.filePath, [
       '.terserrc',
       '.uglifyrc',
       '.uglifyrc.js',
       '.terserrc.js'
     ]);
-  },
 
-  async transform({asset, config, options}) {
-    if (!options.minify) {
-      return [asset];
-    }
-
-    let terserOptions = {
+    let config = {
       warnings: true,
-      mangle: {
-        toplevel: false
-      },
-      sourceMap: {
-        filename: path.relative(options.projectRoot, asset.filePath)
-      }
+      ...userConfig?.config,
+      sourceMap: {filename: path.relative(options.projectRoot, bundle.filePath)}
     };
 
     let sourceMap = null;
     if (options.sourceMaps) {
       sourceMap = new SourceMap();
       // $FlowFixMe
-      terserOptions.output = {
+      config.output = {
         source_map: {
           add(source, gen_line, gen_col, orig_line, orig_col, name) {
             // $FlowFixMe
@@ -56,30 +58,16 @@ export default new Transformer({
       };
     }
 
-    if (config) {
-      terserOptions = Object.assign({}, terserOptions, config);
+    if (sourceMap && map) {
+      sourceMap = map.extend(sourceMap);
     }
 
-    let result = minify(await asset.getCode(), terserOptions);
-
-    // $FlowFixMe
-    if (sourceMap && asset.map) {
-      // $FlowFixMe
-      sourceMap = asset.map.extend(sourceMap);
-    }
+    let result = minify(code, config);
 
     if (result.error) {
       throw result.error;
     }
 
-    let code = nullthrows(result.code);
-
-    return [
-      {
-        type: 'js',
-        code,
-        map: sourceMap
-      }
-    ];
+    return {code: nullthrows(result.code), map: sourceMap};
   }
 });

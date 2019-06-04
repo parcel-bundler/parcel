@@ -22,7 +22,8 @@ export type WorkerRequest = {|
   idx?: number,
   location?: FilePath,
   method?: ?string,
-  type: 'request'
+  type: 'request',
+  handle?: number
 |};
 
 export type WorkerDataResponse = {|
