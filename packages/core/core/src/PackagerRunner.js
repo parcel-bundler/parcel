@@ -60,15 +60,33 @@ export default class PackagerRunner {
 
     if (map) {
       // sourceRoot should be a relative path between outDir and rootDir for node.js targets
-      let sourceRoot;
-      if (!sourceRoot && this.options.mode !== 'production') {
-        if (bundle.target && bundle.target.env.context === 'browser') {
+      let sourceRoot: string = path.relative(
+        path.dirname(filePath),
+        this.options.projectRoot
+      );
+      let inlineSources = false;
+
+      if (bundle.target) {
+        if (
+          bundle.target.meta.sourceMap &&
+          bundle.target.meta.sourceMap.sourceRoot !== undefined
+        ) {
+          sourceRoot = bundle.target.meta.sourceMap.sourceRoot;
+        } else if (
+          bundle.target.env.context === 'browser' &&
+          this.options.mode !== 'production'
+        ) {
           sourceRoot = '/__parcel_source_root';
-        } else {
-          sourceRoot = path.relative(
-            path.dirname(filePath),
-            this.options.projectRoot
-          );
+        }
+
+        if (
+          bundle.target.meta.sourceMap &&
+          bundle.target.meta.sourceMap.inlineSources !== undefined
+        ) {
+          inlineSources = bundle.target.meta.sourceMap.inlineSources;
+        } else if (bundle.target.env.context !== 'node') {
+          // inlining should only happen in production for browser targets by default
+          inlineSources = this.options.mode === 'production';
         }
       }
 
@@ -77,22 +95,13 @@ export default class PackagerRunner {
         sourceRoot += '/';
       }
 
-      // inlining should only happen in production for browser targets by default
-      let inlineSources = false;
-      if (
-        !inlineSources &&
-        (!bundle.target || bundle.target.env.context !== 'node')
-      ) {
-        inlineSources = this.options.mode === 'production';
-      }
-
       await writeFile(
         filePath + '.map',
         await map.stringify({
           // TODO: Fix file as it's currently not keeping in mind publicUrl...
           file: filePath,
           rootDir: this.options.projectRoot,
-          sourceRoot,
+          sourceRoot: !inlineSources ? sourceRoot : undefined,
           inlineSources
         })
       );

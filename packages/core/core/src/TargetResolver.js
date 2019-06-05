@@ -59,7 +59,8 @@ export default class TargetResolver {
             name,
             distDir: path.resolve(descriptor.distDir),
             publicUrl: descriptor.publicUrl,
-            env: new Environment(descriptor)
+            env: new Environment(descriptor),
+            meta: descriptor.meta ?? {}
           };
         });
       }
@@ -95,7 +96,8 @@ export default class TargetResolver {
               engines: {
                 browsers: DEVELOPMENT_BROWSERS
               }
-            })
+            }),
+            meta: {}
           }
         ];
       } else {
@@ -181,7 +183,8 @@ export default class TargetResolver {
                 ? 'browser'
                 : mainContext,
             includeNodeModules: descriptor.includeNodeModules
-          })
+          }),
+          meta: descriptor.meta ?? {}
         });
       }
     }
@@ -213,7 +216,8 @@ export default class TargetResolver {
             engines: descriptor.engines ?? pkgEngines,
             context: descriptor.context,
             includeNodeModules: descriptor.includeNodeModules
-          })
+          }),
+          meta: descriptor.meta ?? {}
         });
       }
     }
@@ -228,7 +232,8 @@ export default class TargetResolver {
         env: new Environment({
           engines: pkgEngines,
           context
-        })
+        }),
+        meta: {}
       });
     }
 

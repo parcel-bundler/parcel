@@ -60,10 +60,18 @@ export type Engines = {
   parcel?: SemverRange
 };
 
+export type TargetMeta = {
+  sourceMap?: {
+    sourceRoot?: string,
+    inlineSources?: string
+  }
+};
+
 export type Target = {|
   distEntry?: ?FilePath,
   distDir: FilePath,
   env: Environment,
+  meta: TargetMeta,
   name: string,
   publicUrl: ?string
 |};
@@ -80,7 +88,8 @@ export type PackageTargetDescriptor = {|
   engines?: Engines,
   includeNodeModules?: boolean,
   publicUrl?: string,
-  distDir?: FilePath
+  distDir?: FilePath,
+  meta?: TargetMeta
 |};
 
 export type TargetDescriptor = {|
