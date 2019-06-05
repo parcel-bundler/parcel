@@ -4,7 +4,7 @@ const path = require('path');
 const os = require('os');
 const mapValidator = require('sourcemap-validator');
 const SourceMap = require('parcel-bundler/src/SourceMap');
-const {distDir, bundle, run, assertBundleTree} = require('@parcel/test-utils');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 function indexToLineCol(str, index) {
   let beforeIndex = str.slice(0, index);
@@ -72,16 +72,10 @@ describe.only('sourcemaps', function() {
   it.only('Should create a basic browser sourcemap', async function() {
     await bundle(path.join(__dirname, '/integration/sourcemap/index.js'));
 
-    let sourcemapDistDir = path.join(__dirname, '/integration/sourcemap/dist/');
+    let distDir = path.join(__dirname, '/integration/sourcemap/dist/');
 
-    let raw = await fs.readFile(
-      path.join(sourcemapDistDir, 'index.js'),
-      'utf8'
-    );
-    let map = await fs.readFile(
-      path.join(sourcemapDistDir, 'index.js.map'),
-      'utf8'
-    );
+    let raw = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    let map = await fs.readFile(path.join(distDir, 'index.js.map'), 'utf8');
     mapValidator(raw, map);
 
     let mapObject = JSON.parse(map);
@@ -97,19 +91,10 @@ describe.only('sourcemaps', function() {
   it.only('Should create a basic node sourcemap', async function() {
     await bundle(path.join(__dirname, '/integration/sourcemap-node/index.js'));
 
-    let sourcemapDistDir = path.join(
-      __dirname,
-      '/integration/sourcemap-node/dist/'
-    );
+    let distDir = path.join(__dirname, '/integration/sourcemap-node/dist/');
 
-    let raw = await fs.readFile(
-      path.join(sourcemapDistDir, 'index.js'),
-      'utf8'
-    );
-    let map = await fs.readFile(
-      path.join(sourcemapDistDir, 'index.js.map'),
-      'utf8'
-    );
+    let raw = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    let map = await fs.readFile(path.join(distDir, 'index.js.map'), 'utf8');
     mapValidator(raw, map);
 
     let mapObject = JSON.parse(map);
@@ -121,7 +106,7 @@ describe.only('sourcemaps', function() {
 
     for (let sourceFile of mapObject.sources) {
       assert(
-        await fs.exists(sourcemapDistDir + mapObject.sourceRoot + sourceFile),
+        await fs.exists(distDir + mapObject.sourceRoot + sourceFile),
         'combining sourceRoot and sources object should resolve to the original file'
       );
     }
