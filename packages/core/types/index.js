@@ -498,7 +498,8 @@ export type Packager = {|
   package({
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
-    options: ParcelOptions
+    options: ParcelOptions,
+    sourceMapPath: FilePath
   }): Async<{|contents: Blob, map?: ?SourceMap|}>
 |};
 

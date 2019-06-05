@@ -125,6 +125,7 @@ export default class PackagerRunner {
     let packaged = await packager.package({
       bundle,
       bundleGraph: new BundleGraph(bundleGraph),
+      sourceMapPath: path.basename(bundle.filePath) + '.map',
       options: this.options
     });
 
