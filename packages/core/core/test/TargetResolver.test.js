@@ -106,7 +106,9 @@ describe('TargetResolver', () => {
             },
             includeNodeModules: false
           },
-          sourceMap: undefined
+          sourceMap: {
+            inlineSources: true
+          }
         },
         {
           name: 'browser',
