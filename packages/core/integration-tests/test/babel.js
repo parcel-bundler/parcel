@@ -252,6 +252,7 @@ describe('babel', function() {
     await bundle(path.join(__dirname, '/integration/jsx/index.jsx'));
 
     let file = await fs.readFile('dist/index.js', 'utf8');
+    // console.log('FILE', file);
     assert(file.includes('React.createElement("div"'));
   });
 

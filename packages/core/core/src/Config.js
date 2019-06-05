@@ -18,6 +18,7 @@ export default class Config {
   searchPath: FilePath;
   resolvedPath: ?FilePath;
   result: ?any;
+  resultHash: ?string;
   includedFiles: Set<FilePath>;
   invalidatingFiles: Set<FilePath>;
   globPatterns: Set<string>;
@@ -61,8 +62,8 @@ export default class Config {
     this.result = result;
   }
 
-  getContent() {
-    return this.result;
+  setResultHash(resultHash: string) {
+    this.resultHash = resultHash;
   }
 
   addIncludedFile(filePath: FilePath) {

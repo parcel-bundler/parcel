@@ -2,6 +2,7 @@
 import nullthrows from 'nullthrows';
 
 import type {ConfigRequest, ParcelOptions} from '@parcel/types';
+import {md5FromString} from '@parcel/utils';
 
 import Config from './Config';
 import type ParcelConfig from './ParcelConfig';
@@ -46,6 +47,8 @@ export default class ConfigLoader {
         break;
     }
     devDeps.forEach(devDep => config.setDevDep(devDep));
+
+    config.setResultHash(md5FromString(JSON.stringify(devDeps)));
 
     config.addGlobWatchPattern('**/.parcelrc');
 

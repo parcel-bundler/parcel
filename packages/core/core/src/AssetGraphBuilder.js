@@ -12,7 +12,6 @@ import RequestGraph from './RequestGraph';
 import type {
   AssetGraphNode,
   AssetRequestNode,
-  CacheEntry,
   DepPathRequestNode
 } from './types';
 
@@ -99,9 +98,9 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   handleCompletedAssetRequest(
     requestNode: AssetRequestNode,
-    result: CacheEntry
+    assets: Array<Asset>
   ) {
-    this.assetGraph.resolveAssetGroup(requestNode.value, result);
+    this.assetGraph.resolveAssetGroup(requestNode.value, assets);
   }
 
   handleCompletedDepPathRequest(

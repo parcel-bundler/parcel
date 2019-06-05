@@ -12,26 +12,28 @@ import type {
 import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
 
+import Config from './Config';
 import ConfigLoader from './ConfigLoader';
 import Dependency from './Dependency';
 import Graph, {type GraphOpts} from './Graph';
 import type ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
+import type InternalAsset from './Asset';
 import type {
   AssetRequestNode,
-  CacheEntry,
   DepPathRequestNode,
   NodeId,
   RequestGraphNode,
   RequestNode,
-  SubRequestNode
+  SubRequestNode,
+  TransformationOpts
 } from './types';
 
 type RequestGraphOpts = {|
   ...GraphOpts<RequestGraphNode>,
   config: ParcelConfig,
   options: ParcelOptions,
-  onAssetRequestComplete: (AssetRequestNode, CacheEntry) => mixed,
+  onAssetRequestComplete: (AssetRequestNode, Array<InternalAsset>) => mixed,
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed
 |};
 
@@ -71,22 +73,16 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   // $FlowFixMe
   inProgress: Map<NodeId, Promise<any>> = new Map();
   invalidNodes: Map<NodeId, RequestNode> = new Map();
-  runTransform: ({
-    request: AssetRequest,
-    loadConfig: mixed,
-    parentNodeId: NodeId,
-    config: ParcelConfig,
-    options: ParcelOptions
-  }) => Promise<CacheEntry>;
+  runTransform: TransformationOpts => Promise<Array<InternalAsset>>;
+  loadConfigHandle: () => Promise<Config>;
   resolverRunner: ResolverRunner;
   configLoader: ConfigLoader;
-  onAssetRequestComplete: (AssetRequestNode, CacheEntry) => mixed;
+  onAssetRequestComplete: (AssetRequestNode, Array<InternalAsset>) => mixed;
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed;
   queue: PromiseQueue;
   farm: WorkerFarm;
   config: ParcelConfig;
   options: ParcelOptions;
-  loadConfigHandle: mixed;
 
   constructor({
     onAssetRequestComplete,
@@ -96,6 +92,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     ...graphOpts
   }: RequestGraphOpts) {
     super(graphOpts);
+    this.options = options;
     this.queue = new PromiseQueue();
     this.onAssetRequestComplete = onAssetRequestComplete;
     this.onDepPathRequestComplete = onDepPathRequestComplete;
@@ -198,20 +195,19 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     try {
       let start = Date.now();
       let request = requestNode.value;
-      let cacheEntry = await this.runTransform({
-        config: this.config,
-        options: this.options,
+      let assets = await this.runTransform({
         request,
         loadConfig: this.loadConfigHandle,
-        parentNodeId: requestNode.id
+        parentNodeId: requestNode.id,
+        options: this.options
       });
 
       let time = Date.now() - start;
-      for (let asset of cacheEntry.assets) {
+      for (let asset of assets) {
         asset.stats.time = time;
       }
 
-      return cacheEntry;
+      return assets;
     } catch (e) {
       // TODO: add connectedFiles even if it failed so we can try a rebuild if those files change
       throw e;

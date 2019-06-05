@@ -8,12 +8,14 @@ import type {
   File,
   FilePath,
   Stats,
-  Target
+  Target,
+  ParcelOptions
 } from '@parcel/types';
 
 import type Asset from './Asset';
 import type AssetGraph from './AssetGraph';
 import type Dependency from './Dependency';
+import type Config from './Config';
 
 export type NodeId = string;
 
@@ -85,9 +87,6 @@ export type RequestGraphNode = RequestNode | FileNode | ConfigRequestNode;
 export type RequestNode = DepPathRequestNode | AssetRequestNode;
 export type SubRequestNode = ConfigRequestNode;
 
-// TODO: get rid of if no longer needed
-// export type RequestResult = CacheEntry | AssetRequest | null;
-
 export interface BundleReference {
   +id: string;
   +type: string;
@@ -138,3 +137,10 @@ export type BundleGroupNode = {|
 |};
 
 export type BundleGraphNode = BundleNode | BundleGroupNode | RootNode;
+
+export type TransformationOpts = {|
+  request: AssetRequest,
+  loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
+  parentNodeId: NodeId,
+  options: ParcelOptions
+|};

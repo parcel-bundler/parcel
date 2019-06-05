@@ -1,248 +1,321 @@
-// @flow
+// @flow strict-local
 import nullthrows from 'nullthrows';
 import type {
   MutableAsset as IMutableAsset,
   Blob,
   ConfigRequest,
-  File,
   FilePath,
   GenerateOutput,
   Transformer,
   AssetRequest,
   TransformerResult,
-  ParcelOptions
+  ParcelOptions,
+  PackageName
 } from '@parcel/types';
+//import type {CacheEntry} from './types';
 
 import path from 'path';
-import Cache from '@parcel/cache';
+//import clone from 'clone';
 import {
-  md5FromFilePath,
+  //md5FromFilePath,
   md5FromReadableStream,
   md5FromString,
-  TapStream,
-  unique
+  TapStream
+  // unique
 } from '@parcel/utils';
+import Cache from '@parcel/cache';
 import {createReadStream} from 'fs';
 
 import Config from './Config';
 import Dependency from './Dependency';
-import type ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset from './Asset';
-import type {CacheEntry, NodeId} from './types';
-
-type Opts = {|
-  config: ParcelConfig,
-  options: ParcelOptions
-|};
+import type {NodeId} from './types';
 
 type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutput>;
-type PipelineOpts = {|
-  input: InternalAsset,
-  originalPipeline?: Array<Transformer>,
-  pipeline: Array<Transformer>,
-  cacheEntry?: ?CacheEntry,
-  previousGenerate?: ?GenerateFunc
-|};
+// type PipelineOpts = {|
+//   input: InternalAsset,
+//   originalPipeline?: Array<Transformer>,
+//   pipeline: Array<Transformer>,
+//   cacheEntry?: ?CacheEntry,
+//   previousGenerate?: ?GenerateFunc
+// |};
+type PostProcessFunc = (
+  Array<InternalAsset>
+) => Promise<Array<InternalAsset> | null>;
 
 const BUFFER_LIMIT = 5000000; // 5mb
 
-export default class TransformerRunner {
-  options: ParcelOptions;
-  config: ParcelConfig;
-  resolverRunner: ResolverRunner;
+export type TransformationOpts = {|
+  request: AssetRequest,
+  loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
+  parentNodeId: NodeId,
+  options: ParcelOptions
+|};
 
-  constructor({config, options}: Opts) {
+type ConfigMap = Map<PackageName, Config>;
+export class Transformation {
+  request: AssetRequest;
+  loadConfig: ConfigRequest => Promise<Config>;
+  options: ParcelOptions;
+  cache: Cache;
+
+  constructor({
+    request,
+    loadConfig,
+    parentNodeId,
+    options
+  }: TransformationOpts) {
+    this.request = request;
+    this.loadConfig = configRequest => loadConfig(configRequest, parentNodeId);
     this.options = options;
-    this.config = config;
-    this.resolverRunner = new ResolverRunner({
-      config,
-      options
-    });
   }
 
-  async transform(
-    req: AssetRequest,
-    loadConfig: () => Promise<Config>,
-    parentNodeId: NodeId
-  ): Promise<CacheEntry> {
+  async run() {
     report({
       type: 'buildProgress',
       phase: 'transforming',
-      request: req
+      request: this.request
     });
 
-    let cache = new Cache(this.options.cacheDir);
-    let config = await this.loadConfig(req, loadConfig, parentNodeId);
+    this.cache = new Cache(this.options.cacheDir);
 
-    // If a cache entry matches, no need to transform.
-    let cacheEntry;
-    if (this.options.cache !== false && req.code == null) {
-      cacheEntry = await cache.get(reqCacheKey(req));
-    }
+    let asset = await this.loadAsset();
+    let pipeline = await this.loadPipeline(asset.filePath);
+    return this.runPipeline(pipeline, asset);
+  }
 
-    let {content, size, hash} = await summarizeRequest(req);
-    if (
-      cacheEntry &&
-      cacheEntry.hash === hash &&
-      (await checkCachedAssets(cacheEntry.assets))
-    ) {
-      return cacheEntry;
-    }
+  async loadAsset() {
+    let {filePath, env, code, sideEffects} = this.request;
+    let {content, size, hash} = await summarizeRequest(this.request);
 
-    let input = new InternalAsset({
+    return new InternalAsset({
       // If the transformer request passed code rather than a filename,
       // use a hash as the base for the id to ensure it is unique.
-      idBase: req.code ? hash : req.filePath,
-      filePath: req.filePath,
-      type: path.extname(req.filePath).slice(1),
-      cache,
+      idBase: code != null ? hash : filePath,
+      filePath: filePath,
+      type: path.extname(filePath).slice(1),
+      cache: this.cache,
       ast: null,
       content,
       hash,
-      env: req.env,
+      env: env,
       stats: {
         time: 0,
         size
       },
-      sideEffects: req.sideEffects
+      sideEffects: sideEffects
     });
-
-    let pipeline = await config.getTransformers(req.filePath);
-    let {assets, initialAssets} = await this.runPipeline({
-      input,
-      pipeline,
-      cacheEntry
-    });
-
-    cacheEntry = {
-      filePath: req.filePath,
-      env: req.env,
-      hash,
-      assets,
-      initialAssets
-    };
-
-    await Promise.all(
-      unique([...assets, ...(initialAssets || [])]).map(asset => asset.commit())
-    );
-    await cache.set(reqCacheKey(req), cacheEntry);
-    return cacheEntry;
   }
 
-  async loadConfig(
-    request: AssetRequest,
-    loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
-    parentNodeId: NodeId
-  ) {
-    let configRequest = {
-      filePath: request.filePath,
-      meta: {
-        pluginType: 'transformer'
-      }
-    };
-
-    let config = await loadConfig(configRequest, parentNodeId);
-    let parcelConfig = nullthrows(config.result);
-
-    return parcelConfig;
-  }
-
-  async runPipeline({
-    input,
-    pipeline,
-    originalPipeline = pipeline,
-    cacheEntry,
-    previousGenerate
-  }: PipelineOpts): Promise<{|
-    assets: Array<InternalAsset>,
-    initialAssets: ?Array<InternalAsset>
-  |}> {
-    // Run the first transformer in the pipeline.
-    let inputType = input.type;
-    let {results, generate, postProcess} = await this.runTransform(
-      input,
-      pipeline[0],
-      previousGenerate
+  async runPipeline(pipeline: Pipeline, initialAsset: InternalAsset) {
+    let initialType = initialAsset.type;
+    let initialCacheEntry = await this.readFromCache(
+      [initialAsset],
+      pipeline.configs
     );
 
-    let assets: Array<InternalAsset> = [];
-    for (let result of results) {
-      let asset = input.createChildAsset(result);
+    // TODO: remove debugging
+    // if (initialCacheEntry) console.log('CACHE ENTRY FOUND');
+    // else console.log('TRANSFORMING');
 
-      // Check if any of the cached assets match the result.
-      if (cacheEntry) {
-        let cachedAssets: Array<InternalAsset> = (
-          cacheEntry.initialAssets || cacheEntry.assets
-        ).filter(child => child.hash && child.hash === asset.hash);
+    let assets = initialCacheEntry || (await pipeline.transform(initialAsset));
+    if (!initialCacheEntry) {
+      await this.writeToCache(assets, pipeline.configs);
+    }
 
-        if (
-          cachedAssets.length > 0 &&
-          (await checkCachedAssets(cachedAssets))
-        ) {
-          assets = assets.concat(cachedAssets);
-          continue;
-        }
-      }
-
-      // If the generated asset has a different type from the input, find the next pipeline
-      let nextPipeline = originalPipeline;
-      if (result.type !== inputType) {
+    let finalAssets: Array<InternalAsset> = [];
+    for (let asset of assets) {
+      if (asset.type !== initialType) {
         let nextFilePath =
-          input.filePath.slice(0, -path.extname(input.filePath).length) +
+          initialAsset.filePath.slice(
+            0,
+            -path.extname(initialAsset.filePath).length
+          ) +
           '.' +
-          result.type;
-        nextPipeline = await this.config.getTransformers(nextFilePath);
-      }
-
-      // If the generated asset maps to the same pipeline as the input...
-      if (isEqualPipeline(originalPipeline, nextPipeline)) {
-        // If we have reached the last transform in the pipeline, then we are done.
-        if (pipeline.length === 1) {
-          assets.push(await finalize(asset, generate));
-        } else {
-          // Recursively run the remaining transforms in the pipeline.
-          let nextPipelineResult = await this.runPipeline({
-            input: asset,
-            originalPipeline,
-            pipeline: pipeline.slice(1),
-            previousGenerate: generate
-          });
-
-          assets = assets.concat(nextPipelineResult.assets);
-        }
+          asset.type;
+        let nextPipeline = await this.loadPipeline(nextFilePath);
+        let nextPipelineAssets = await this.runPipeline(nextPipeline, asset);
+        await Promise.all(
+          nextPipelineAssets.map(nextAsset => nextAsset.getCode())
+        );
+        finalAssets = finalAssets.concat(nextPipelineAssets);
       } else {
-        // Jump to a different pipeline for the generated asset.
-        let nextPipelineResult = await this.runPipeline({
-          input: asset,
-          pipeline: nextPipeline,
-          previousGenerate: generate
-        });
-
-        assets = assets.concat(nextPipelineResult.assets);
+        finalAssets.push(asset);
       }
     }
 
-    // If the transformer has a postProcess function, execute that with the result of the pipeline.
-    // TODO: Find a performant way to clone assets before finalising...
-    let finalAssets = await postProcess(assets);
-    return {
-      assets: finalAssets || assets,
-      initialAssets: finalAssets ? assets : null
-    };
+    const postProcess = pipeline.postProcess;
+    if (!postProcess) {
+      return finalAssets;
+    }
+
+    let processedCacheEntry = await this.readFromCache(
+      finalAssets,
+      pipeline.configs
+    );
+
+    let processedFinalAssets =
+      // For Flow
+      processedCacheEntry || (await postProcess.call(pipeline, assets));
+    if (!processedCacheEntry) {
+      await this.writeToCache(processedFinalAssets, pipeline.configs);
+    }
+
+    return processedFinalAssets;
   }
 
-  async runTransform(
-    input: InternalAsset,
-    transformer: Transformer,
-    previousGenerate: ?GenerateFunc
+  async readFromCache(assets: Array<InternalAsset>, configs: ConfigMap) {
+    let cacheKey = await this.getCacheKey(assets, configs);
+    let cachedAssets = this.cache.get(cacheKey);
+    if (cachedAssets) {
+      await Promise.all(assets.map(asset => asset.getCode()));
+    }
+    return cachedAssets;
+  }
+
+  async writeToCache(assets: Array<InternalAsset>, configs: ConfigMap) {
+    let cacheKey = await this.getCacheKey(assets, configs);
+    await Promise.all(assets.map(asset => asset.commit()));
+    this.cache.set(cacheKey, assets);
+  }
+
+  async getCacheKey(assets: Array<InternalAsset>, configs: ConfigMap) {
+    let assetIdentities = assets.map(({filePath, type, hash}) => ({
+      filePath,
+      hash,
+      type
+    }));
+
+    // TODO: sort
+    let configHashes = [...configs].map(([, config]) => config.resultHash);
+
+    // TODO: these options may not impact all transformations, let transformers decide if they care or not
+    let {minify, hot, scopeHoist} = this.options;
+    let impactfulOptions = {minify, hot, scopeHoist};
+
+    return md5FromString(
+      JSON.stringify({
+        assetIdentities,
+        configHashes,
+        env: this.request.env,
+        impactfulOptions
+      })
+    );
+  }
+
+  async loadPipeline(filePath: FilePath) {
+    let configRequest = {
+      filePath,
+      meta: {
+        actionType: 'transformation'
+      }
+    };
+    let configs = new Map();
+
+    let config = await this.loadConfig(configRequest);
+    let parcelConfig = nullthrows(config.result);
+
+    configs.set('parcel', config);
+
+    for (let [moduleName] of config.devDeps) {
+      let plugin = await parcelConfig.loadPlugin(moduleName);
+      // TODO: implement loadPlugin in existing plugins that require config
+      if (plugin.loadConfig) {
+        let thirdPartyConfig = await this.loadTransformerConfig(
+          filePath,
+          moduleName,
+          parcelConfig.resolvedPath
+        );
+        configs.set(moduleName, thirdPartyConfig);
+      }
+    }
+
+    let pipeline = new Pipeline(
+      await parcelConfig.getTransformers(filePath),
+      configs,
+      this.options
+    );
+
+    return pipeline;
+  }
+
+  async loadTransformerConfig(
+    filePath: FilePath,
+    plugin: PackageName,
+    parcelConfigPath: FilePath
   ) {
+    let configRequest = {
+      filePath,
+      plugin,
+      meta: {
+        parcelConfigPath
+      }
+    };
+    return this.loadConfig(configRequest);
+  }
+}
+
+class Pipeline {
+  transformers: Array<Transformer>;
+  configs: ConfigMap;
+  options: ParcelOptions;
+  resolverRunner: ResolverRunner;
+  generate: GenerateFunc;
+  postProcess: ?PostProcessFunc;
+
+  constructor(
+    transformers: Array<Transformer>,
+    configs: ConfigMap,
+    options: ParcelOptions
+  ) {
+    this.transformers = transformers;
+    this.configs = configs;
+    this.options = options;
+    let parcelConfig = nullthrows(this.configs.get('parcel'));
+    parcelConfig = nullthrows(parcelConfig.result);
+    this.resolverRunner = new ResolverRunner({
+      config: parcelConfig,
+      options
+    });
+  }
+
+  async transform(initialAsset: InternalAsset) {
+    let inputAssets = [initialAsset];
+    let resultingAssets;
+    let finalAssets = [];
+    for (let transformer of this.transformers) {
+      resultingAssets = [];
+      for (let asset of inputAssets) {
+        if (asset.type !== initialAsset.type) {
+          finalAssets.push(asset);
+        } else {
+          let transformerResults = await this.runTransformer(
+            asset,
+            transformer
+          );
+          for (let result of transformerResults) {
+            resultingAssets.push(asset.createChildAsset(result));
+          }
+        }
+      }
+      inputAssets = resultingAssets;
+    }
+
+    finalAssets = finalAssets.concat(resultingAssets);
+
+    return Promise.all(
+      finalAssets.map(asset => finalize(nullthrows(asset), this.generate))
+    );
+  }
+
+  async runTransformer(asset: InternalAsset, transformer: Transformer) {
     const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
       return (await this.resolverRunner.resolve(
         new Dependency({
-          env: input.env,
+          env: asset.env,
           moduleSpecifier: to,
           sourcePath: from
         })
@@ -253,30 +326,29 @@ export default class TransformerRunner {
     let config = null;
     if (transformer.getConfig) {
       config = await transformer.getConfig({
-        asset: new MutableAsset(input),
+        asset: new MutableAsset(asset),
         options: this.options,
         resolve
       });
     }
 
-    // If an ast exists on the input, but we cannot reuse it,
+    // If an ast exists on the asset, but we cannot reuse it,
     // use the previous transform to generate code that we can re-parse.
     if (
-      input.ast &&
+      asset.ast &&
       (!transformer.canReuseAST ||
-        !transformer.canReuseAST({ast: input.ast, options: this.options})) &&
-      previousGenerate
+        !transformer.canReuseAST({ast: asset.ast, options: this.options})) &&
+      this.generate
     ) {
-      let output = await previousGenerate(new MutableAsset(input));
-      input.content = output.code;
-      input.map = output.map;
-      input.ast = null;
+      let output = await this.generate(new MutableAsset(asset));
+      asset.content = output.code;
+      asset.ast = null;
     }
 
     // Parse if there is no AST available from a previous transform.
-    if (!input.ast && transformer.parse) {
-      input.ast = await transformer.parse({
-        asset: new MutableAsset(input),
+    if (!asset.ast && transformer.parse) {
+      asset.ast = await transformer.parse({
+        asset: new MutableAsset(asset),
         config,
         options: this.options,
         resolve
@@ -284,18 +356,18 @@ export default class TransformerRunner {
     }
 
     // Transform.
-    let results = normalizeAssets(
+    let results = await normalizeAssets(
       // $FlowFixMe
       await transformer.transform({
-        asset: new MutableAsset(input),
+        asset: new MutableAsset(asset),
         config,
         options: this.options,
         resolve
       })
     );
 
-    // Create a generate function that can be called later to lazily generate
-    let generate = async (input: IMutableAsset): Promise<GenerateOutput> => {
+    // Create generate and postProcess functions that can be called later
+    this.generate = async (input: IMutableAsset): Promise<GenerateOutput> => {
       if (transformer.generate) {
         return transformer.generate({
           asset: input,
@@ -310,13 +382,13 @@ export default class TransformerRunner {
       );
     };
 
-    // Create a postProcess function that can be called later
-    let postProcess = async (
-      assets: Array<InternalAsset>
-    ): Promise<Array<InternalAsset> | null> => {
-      let {postProcess} = transformer;
-      if (postProcess) {
-        let results = await postProcess({
+    // For Flow
+    let postProcess = transformer.postProcess;
+    if (postProcess) {
+      this.postProcess = async (
+        assets: Array<InternalAsset>
+      ): Promise<Array<InternalAsset> | null> => {
+        let results = await postProcess.call(transformer, {
           assets: assets.map(asset => new MutableAsset(asset)),
           config,
           options: this.options,
@@ -324,28 +396,13 @@ export default class TransformerRunner {
         });
 
         return Promise.all(
-          results.map(result => input.createChildAsset(result))
+          results.map(result => asset.createChildAsset(result))
         );
-      }
+      };
+    }
 
-      return null;
-    };
-
-    return {results, generate, postProcess};
+    return results;
   }
-}
-
-function isEqualPipeline(a, b) {
-  if (a === b) {
-    return true;
-  }
-
-  if (a.length !== b.length) {
-    return false;
-  }
-
-  // Plugins are cached, so we can just do a shallow comparison
-  return a.every((p, i) => p === b[i]);
 }
 
 async function finalize(
@@ -358,28 +415,6 @@ async function finalize(
     asset.map = result.map;
   }
   return asset;
-}
-
-async function checkCachedAssets(
-  assets: Array<InternalAsset>
-): Promise<boolean> {
-  let results = await Promise.all(
-    assets.map(asset => checkConnectedFiles(asset.getConnectedFiles()))
-  );
-
-  return results.every(Boolean);
-}
-
-async function checkConnectedFiles(files: Array<File>): Promise<boolean> {
-  let hashes = await Promise.all(
-    files.map(file => md5FromFilePath(file.filePath))
-  );
-
-  return files.every((file, index) => file.hash === hashes[index]);
-}
-
-function reqCacheKey(req: AssetRequest): string {
-  return md5FromString(req.filePath + JSON.stringify(req.env));
 }
 
 async function summarizeRequest(
