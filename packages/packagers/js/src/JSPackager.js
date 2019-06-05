@@ -103,6 +103,8 @@ export default new Packager({
       }
     });
 
+    let sourcemapComment = `// ${path.basename(bundle.filePath) + '.map'}`;
+
     return {
       contents:
         PRELUDE +
@@ -117,7 +119,8 @@ export default new Packager({
         ) +
         ', ' +
         'null' +
-        ')',
+        ')\n' +
+        sourcemapComment,
       map
     };
   }
