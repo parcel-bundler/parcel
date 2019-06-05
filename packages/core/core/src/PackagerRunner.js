@@ -89,8 +89,7 @@ export default class PackagerRunner {
       await writeFile(
         filePath + '.map',
         await map.stringify({
-          // filePath outputs dist/ which is incorrect as publicUrl is / by default
-          // resulting in bundle needing to be located at /dist/<filename> which it's not
+          // TODO: Fix file as it's currently not keeping in mind publicUrl...
           file: filePath,
           rootDir: this.options.projectRoot,
           sourceRoot,

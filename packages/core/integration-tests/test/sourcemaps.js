@@ -119,12 +119,12 @@ describe.only('sourcemaps', function() {
       'sourceRoot should be the root of the source files, relative to the output directory.'
     );
 
-    assert(
-      await fs.exists(
-        sourcemapDistDir + mapObject.sourceRoot + mapObject.sources[0]
-      ),
-      'combining sourceRoot and sources object should resolve to the original file'
-    );
+    for (let sourceFile of mapObject.sources) {
+      assert(
+        await fs.exists(sourcemapDistDir + mapObject.sourceRoot + sourceFile),
+        'combining sourceRoot and sources object should resolve to the original file'
+      );
+    }
 
     assert.equal(mapObject.sources.length, 1);
   });
