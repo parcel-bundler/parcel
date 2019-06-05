@@ -146,7 +146,7 @@ export default class PackagerRunner {
     internalBundle: InternalBundle,
     contents: Blob,
     map?: ?SourceMap
-  ): Promise<{contents: Blob, map?: ?SourceMap}> {
+  ): Promise<{|contents: Blob, map?: ?SourceMap|}> {
     let bundle = new NamedBundle(internalBundle);
     let optimizers = await this.config.getOptimizers(bundle.filePath);
     if (!optimizers.length) {
@@ -159,16 +159,15 @@ export default class PackagerRunner {
       bundle
     });
 
-    let optimized;
+    let optimized = {contents, map};
     for (let optimizer of optimizers) {
       optimized = await optimizer.optimize({
         bundle,
-        contents,
-        map,
+        contents: optimized.contents,
+        map: optimized.map,
         options: this.options
       });
     }
-    invariant(optimized != null);
 
     return optimized;
   }

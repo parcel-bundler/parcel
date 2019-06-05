@@ -62,7 +62,7 @@ export type Engines = {
 
 export type TargetSourceMapOptions = {
   sourceRoot?: string,
-  inlineSources?: string
+  inlineSources?: boolean
 };
 
 export type Target = {|
@@ -499,14 +499,14 @@ export type Packager = {|
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
     options: ParcelOptions
-  }): Async<{contents: Blob, map?: ?SourceMap}>
+  }): Async<{|contents: Blob, map?: ?SourceMap|}>
 |};
 
 export type Optimizer = {|
   optimize({
     bundle: NamedBundle,
     contents: Blob,
-    map?: ?SourceMap,
+    map: ?SourceMap,
     options: ParcelOptions
   }): Async<{|contents: Blob, map?: ?SourceMap|}>
 |};
