@@ -59,7 +59,8 @@ export default class TargetResolver {
             name,
             distDir: path.resolve(descriptor.distDir),
             publicUrl: descriptor.publicUrl,
-            env: new Environment(descriptor)
+            env: new Environment(descriptor),
+            sourceMap: descriptor.sourceMap
           };
         });
       }
@@ -181,7 +182,8 @@ export default class TargetResolver {
                 ? 'browser'
                 : mainContext,
             includeNodeModules: descriptor.includeNodeModules
-          })
+          }),
+          sourceMap: descriptor.sourceMap
         });
       }
     }
@@ -213,7 +215,8 @@ export default class TargetResolver {
             engines: descriptor.engines ?? pkgEngines,
             context: descriptor.context,
             includeNodeModules: descriptor.includeNodeModules
-          })
+          }),
+          sourceMap: descriptor.sourceMap
         });
       }
     }

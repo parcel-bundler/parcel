@@ -1,0 +1,22 @@
+{
+  "name": "@parcel/source-map",
+  "version": "2.0.0-alpha.0",
+  "main": "./src/SourceMap.js",
+  "license": "MIT",
+  "scripts": {
+    "test": "mocha",
+    "build": "babel src --out-dir lib",
+    "prepublish": "yarn build"
+  },
+  "engines": {
+    "node": ">= 8.0.0"
+  },
+  "dependencies": {
+    "@parcel/utils": "^2.0.0-alpha.0",
+    "@parcel/fs": "^2.0.0-alpha.0",
+    "source-map": "^0.7.3"
+  },
+  "devDependencies": {
+    "clone": "^2.1.1"
+  }
+}

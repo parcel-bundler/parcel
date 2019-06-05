@@ -12,14 +12,14 @@ import type {
   FilePath,
   Meta,
   PackageJSON,
-  SourceMap,
   Stats,
   Symbol,
   TransformerResult
 } from '@parcel/types';
+import type SourceMap from '@parcel/source-map';
 
-import crypto from 'crypto';
 import {Readable} from 'stream';
+import crypto from 'crypto';
 import {
   bufferStream,
   loadConfig,
@@ -301,6 +301,7 @@ export default class Asset {
       content,
       cache: this.cache,
       ast: result.ast,
+      map: result.map,
       isIsolated: result.isIsolated,
       env: this.env.merge(result.env),
       dependencies: this.dependencies,

@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {Readable} from 'stream';
+import type SourceMap from '@parcel/source-map';
 
 import type {AST as _AST, Config as _Config} from './unsafe';
 
@@ -59,10 +60,16 @@ export type Engines = {
   parcel?: SemverRange
 };
 
+export type TargetSourceMapOptions = {
+  sourceRoot?: string,
+  inlineSources?: boolean
+};
+
 export type Target = {|
   distEntry?: ?FilePath,
   distDir: FilePath,
   env: Environment,
+  sourceMap?: TargetSourceMapOptions,
   name: string,
   publicUrl: ?string
 |};
@@ -79,7 +86,8 @@ export type PackageTargetDescriptor = {|
   engines?: Engines,
   includeNodeModules?: boolean,
   publicUrl?: string,
-  distDir?: FilePath
+  distDir?: FilePath,
+  sourceMap?: TargetSourceMapOptions
 |};
 
 export type TargetDescriptor = {|
@@ -253,7 +261,7 @@ interface BaseAsset {
   getCode(): Promise<string>;
   getBuffer(): Promise<Buffer>;
   getStream(): Readable;
-  getMap(): ?SourceMap;
+  getMap(): Promise<?SourceMap>;
   getConnectedFiles(): $ReadOnlyArray<File>;
   getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(
@@ -293,12 +301,12 @@ export type GenerateOutput = {|
   map?: SourceMap
 |};
 
-export type SourceMap = JSONObject;
 export type Blob = string | Buffer | Readable;
 
 export interface TransformerResult {
   type: string;
   code?: string;
+  map?: ?SourceMap;
   content?: Blob;
   ast?: ?AST;
   dependencies?: $ReadOnlyArray<DependencyOptions>;
@@ -490,16 +498,18 @@ export type Packager = {|
   package({
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
-    options: ParcelOptions
-  }): Async<Blob>
+    options: ParcelOptions,
+    sourceMapPath: FilePath
+  }): Async<{|contents: Blob, map?: ?SourceMap|}>
 |};
 
 export type Optimizer = {|
   optimize({
     bundle: NamedBundle,
     contents: Blob,
+    map: ?SourceMap,
     options: ParcelOptions
-  }): Async<Blob>
+  }): Async<{|contents: Blob, map?: ?SourceMap|}>
 |};
 
 export type Resolver = {|

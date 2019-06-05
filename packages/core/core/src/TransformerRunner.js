@@ -14,7 +14,6 @@ import type {
 import type {CacheEntry} from './types';
 
 import path from 'path';
-import clone from 'clone';
 import {
   md5FromFilePath,
   md5FromReadableStream,
@@ -201,7 +200,8 @@ export default class TransformerRunner {
     }
 
     // If the transformer has a postProcess function, execute that with the result of the pipeline.
-    let finalAssets = await postProcess(clone(assets));
+    // TODO: Find a performant way to clone assets before finalising...
+    let finalAssets = await postProcess(assets);
     return {
       assets: finalAssets || assets,
       initialAssets: finalAssets ? assets : null
@@ -243,6 +243,7 @@ export default class TransformerRunner {
     ) {
       let output = await previousGenerate(new MutableAsset(input));
       input.content = output.code;
+      input.map = output.map;
       input.ast = null;
     }
 
@@ -399,19 +400,23 @@ function normalizeAssets(
   results: Array<TransformerResult | MutableAsset>
 ): Array<TransformerResult> {
   return results.map(result => {
-    return result instanceof MutableAsset
-      ? {
-          type: result.type,
-          content: assetToInternalAsset(result).content,
-          ast: result.ast,
-          // $FlowFixMe
-          dependencies: result.getDependencies(),
-          connectedFiles: result.getConnectedFiles(),
-          // $FlowFixMe
-          env: result.env,
-          isIsolated: result.isIsolated,
-          meta: result.meta
-        }
-      : result;
+    if (!(result instanceof MutableAsset)) {
+      return result;
+    }
+
+    let internalAsset = assetToInternalAsset(result);
+    return {
+      type: result.type,
+      content: internalAsset.content,
+      ast: result.ast,
+      map: internalAsset.map,
+      // $FlowFixMe
+      dependencies: result.getDependencies(),
+      connectedFiles: result.getConnectedFiles(),
+      // $FlowFixMe
+      env: result.env,
+      isIsolated: result.isIsolated,
+      meta: result.meta
+    };
   });
 }

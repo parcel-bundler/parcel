@@ -4,7 +4,7 @@ const path = require('path');
 const os = require('os');
 const mapValidator = require('sourcemap-validator');
 const SourceMap = require('parcel-bundler/src/SourceMap');
-const {bundler, bundle, run, assertBundleTree} = require('@parcel/test-utils');
+const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
 function indexToLineCol(str, index) {
   let beforeIndex = str.slice(0, index);
@@ -68,49 +68,50 @@ function checkSourceMapping({
   );
 }
 
-describe.skip('sourcemaps', function() {
-  it('should create a valid sourcemap as a child of a JS bundle', async function() {
-    let b = bundler(path.join(__dirname, '/integration/sourcemap/index.js'));
-    let bu = await b.bundle();
+describe('sourcemaps', function() {
+  it.only('Should create a basic browser sourcemap', async function() {
+    await bundle(path.join(__dirname, '/integration/sourcemap/index.js'));
 
-    await assertBundleTree(bu, {
-      name: 'index.js',
-      assets: ['index.js'],
-      childBundles: [
-        {
-          name: 'index.js.map',
-          type: 'map'
-        }
-      ]
-    });
+    let distDir = path.join(__dirname, '/integration/sourcemap/dist/');
 
-    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
-    let map = await fs.readFile(
-      path.join(__dirname, '/dist/index.js.map'),
-      'utf8'
-    );
+    let raw = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    let map = await fs.readFile(path.join(distDir, 'index.js.map'), 'utf8');
     mapValidator(raw, map);
+
     let mapObject = JSON.parse(map);
+
     assert(
-      mapObject.sourceRoot ===
-        path.relative(b.options.outDir, b.options.rootDir),
+      mapObject.sourceRoot === '/__parcel_source_root/',
+      'sourceRoot should be the project root mounted to dev server.'
+    );
+
+    assert.equal(mapObject.sources.length, 1);
+  });
+
+  it.only('Should create a basic node sourcemap', async function() {
+    await bundle(path.join(__dirname, '/integration/sourcemap-node/index.js'));
+
+    let distDir = path.join(__dirname, '/integration/sourcemap-node/dist/');
+
+    let raw = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    let map = await fs.readFile(path.join(distDir, 'index.js.map'), 'utf8');
+    mapValidator(raw, map);
+
+    let mapObject = JSON.parse(map);
+
+    assert(
+      mapObject.sourceRoot === '../../../../../../../',
       'sourceRoot should be the root of the source files, relative to the output directory.'
     );
-    assert(
-      await fs.exists(
-        path.resolve(
-          b.options.outDir,
-          mapObject.sourceRoot,
-          mapObject.sources[0]
-        )
-      ),
-      'combining sourceRoot and sources object should resolve to the original file'
-    );
-    assert.equal(mapObject.sources.length, 1);
 
-    let output = await run(bu);
-    assert.equal(typeof output, 'function');
-    assert.equal(output(), 'hello world');
+    for (let sourceFile of mapObject.sources) {
+      assert(
+        await fs.exists(distDir + mapObject.sourceRoot + sourceFile),
+        'combining sourceRoot and sources object should resolve to the original file'
+      );
+    }
+
+    assert.equal(mapObject.sources.length, 1);
   });
 
   it('should create a valid sourcemap as a child of a TS bundle', async function() {

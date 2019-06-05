@@ -13,5 +13,5 @@ export function generate(bundle: Bundle, ast: AST, options: ParcelOptions) {
     code = `\n${code}\n`;
   }
 
-  return `(function(){${code}})();`;
+  return {contents: `(function(){${code}})();`};
 }
