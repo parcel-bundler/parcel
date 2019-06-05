@@ -13,6 +13,7 @@ import {urlJoin} from '@parcel/utils';
 import {NamedBundle} from './public/Bundle';
 import nullthrows from 'nullthrows';
 import path from 'path';
+import url from 'url';
 import {report} from './ReporterRunner';
 import {BundleGraph} from './public/BundleGraph';
 
@@ -89,18 +90,15 @@ export default class PackagerRunner {
         }
       }
 
-      // TODO: Find a more proper/cross platform way to format urls...
-      if (sourceRoot) {
-        sourceRoot += '/';
-      }
-
       await writeFile(
         filePath + '.map',
         await map.stringify({
           // TODO: Fix file as it's currently not keeping in mind publicUrl...
           file: filePath,
           rootDir: this.options.projectRoot,
-          sourceRoot: !inlineSources ? sourceRoot : undefined,
+          sourceRoot: !inlineSources
+            ? url.format(url.parse(sourceRoot + '/'))
+            : undefined,
           inlineSources
         })
       );
