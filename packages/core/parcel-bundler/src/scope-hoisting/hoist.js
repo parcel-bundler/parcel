@@ -268,13 +268,23 @@ module.exports = {
       let scope = path.scope.getProgramParent();
       if (!scope.hasBinding(identifier.name)) {
         asset.cacheData.exports[name] = identifier.name;
-        let [decl] = path.insertBefore(
-          t.variableDeclaration('var', [
-            t.variableDeclarator(t.clone(identifier), right)
-          ])
-        );
 
-        scope.registerDeclaration(decl);
+        // If in the program scope, create a variable declaration and initialize with the exported value.
+        // Otherwise, declare the variable in the program scope, and assign to it here.
+        if (path.scope === scope) {
+          let [decl] = path.insertBefore(
+            t.variableDeclaration('var', [
+              t.variableDeclarator(t.clone(identifier), right)
+            ])
+          );
+
+          scope.registerDeclaration(decl);
+        } else {
+          scope.push({id: t.clone(identifier)});
+          path.insertBefore(
+            t.assignmentExpression('=', t.clone(identifier), right)
+          );
+        }
       } else {
         path.insertBefore(
           t.assignmentExpression('=', t.clone(identifier), right)

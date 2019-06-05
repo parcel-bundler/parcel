@@ -1204,5 +1204,54 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, 42);
     });
+
+    it('should insert __esModule interop flag when importing from an ES module', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/interop-require-es-module/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.equal(output.__esModule, true);
+      assert.equal(output.default, 2);
+    });
+
+    it('should support assigning to exports from inside a function', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/export-assign-scope/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, 2);
+    });
+
+    it('should support wrapping array destructuring declarations', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-destructuring-array/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [1, 2]);
+    });
+
+    it('should support wrapping object destructuring declarations', async function() {
+      let b = await bundle(
+        path.join(
+          __dirname,
+          '/integration/scope-hoisting/commonjs/wrap-destructuring-object/a.js'
+        )
+      );
+
+      let output = await run(b);
+      assert.deepEqual(output, [4, 2]);
+    });
   });
 });
