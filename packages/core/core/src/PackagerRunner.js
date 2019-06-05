@@ -13,7 +13,6 @@ import {urlJoin} from '@parcel/utils';
 import {NamedBundle} from './public/Bundle';
 import nullthrows from 'nullthrows';
 import path from 'path';
-import url from 'url';
 import {report} from './ReporterRunner';
 import {BundleGraph} from './public/BundleGraph';
 
@@ -68,10 +67,10 @@ export default class PackagerRunner {
 
       if (bundle.target) {
         if (
-          bundle.target.meta.sourceMap &&
-          bundle.target.meta.sourceMap.sourceRoot !== undefined
+          bundle.target.sourceMap &&
+          bundle.target.sourceMap.sourceRoot !== undefined
         ) {
-          sourceRoot = bundle.target.meta.sourceMap.sourceRoot;
+          sourceRoot = bundle.target.sourceMap.sourceRoot;
         } else if (
           bundle.target.env.context === 'browser' &&
           this.options.mode !== 'production'
@@ -80,10 +79,10 @@ export default class PackagerRunner {
         }
 
         if (
-          bundle.target.meta.sourceMap &&
-          bundle.target.meta.sourceMap.inlineSources !== undefined
+          bundle.target.sourceMap &&
+          bundle.target.sourceMap.inlineSources !== undefined
         ) {
-          inlineSources = bundle.target.meta.sourceMap.inlineSources;
+          inlineSources = bundle.target.sourceMap.inlineSources;
         } else if (bundle.target.env.context !== 'node') {
           // inlining should only happen in production for browser targets by default
           inlineSources = this.options.mode === 'production';
