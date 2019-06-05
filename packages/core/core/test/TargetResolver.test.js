@@ -56,7 +56,8 @@ describe('TargetResolver', () => {
             engines: {
               browsers: ['> 0.25%']
             }
-          }
+          },
+          sourceMap: undefined
         },
         {
           name: 'customB',
@@ -68,7 +69,8 @@ describe('TargetResolver', () => {
             engines: {
               node: '>= 8.0.0'
             }
-          }
+          },
+          sourceMap: undefined
         }
       ]
     );
@@ -89,7 +91,8 @@ describe('TargetResolver', () => {
               node: '>= 8.0.0'
             },
             includeNodeModules: false
-          }
+          },
+          sourceMap: undefined
         },
         {
           name: 'module',
@@ -102,7 +105,8 @@ describe('TargetResolver', () => {
               node: '>= 12.0.0'
             },
             includeNodeModules: false
-          }
+          },
+          sourceMap: undefined
         },
         {
           name: 'browser',
@@ -115,7 +119,8 @@ describe('TargetResolver', () => {
               browsers: ['last 1 version']
             },
             includeNodeModules: true
-          }
+          },
+          sourceMap: undefined
         }
       ]
     );
@@ -136,7 +141,8 @@ describe('TargetResolver', () => {
               node: '>= 8.0.0'
             },
             includeNodeModules: false
-          }
+          },
+          sourceMap: undefined
         },
         {
           name: 'browserModern',
@@ -152,7 +158,8 @@ describe('TargetResolver', () => {
               browsers: ['last 1 version']
             },
             includeNodeModules: true
-          }
+          },
+          sourceMap: undefined
         },
         {
           name: 'browserLegacy',
@@ -168,7 +175,8 @@ describe('TargetResolver', () => {
               browsers: ['ie11']
             },
             includeNodeModules: true
-          }
+          },
+          sourceMap: undefined
         }
       ]
     );
@@ -191,7 +199,8 @@ describe('TargetResolver', () => {
               node: '>= 8.0.0'
             },
             includeNodeModules: false
-          }
+          },
+          sourceMap: undefined
         },
         {
           name: 'browser',
@@ -204,7 +213,8 @@ describe('TargetResolver', () => {
               browsers: ['last 1 version']
             },
             includeNodeModules: true
-          }
+          },
+          sourceMap: undefined
         }
       ]
     );
