@@ -60,7 +60,7 @@ describe('Get Sourcemap Position', () => {
     });
 
     // Should be able to stringify the map without errors...
-    map.stringify('index.min.js', '/root');
+    await map.stringify({file: 'index.min.js', rootDir: '/root'});
   });
 
   it('get original position linked to non exact mappings', async function() {
@@ -91,7 +91,13 @@ describe('Get Sourcemap Position', () => {
     });
 
     // Should be able to stringify the map without errors...
-    map.stringify('index.min.js', '/root');
+    assert.equal(
+      await map.stringify({
+        file: 'index.min.js',
+        rootDir: '/root'
+      }),
+      '{"version":3,"sources":["a.js","b.js"],"names":["A","B"],"mappings":";;;;;eAA4JA;yBCCjIC","file":"index.min.js"}'
+    );
   });
 
   it('get original position of null mappings (aka return null)', async function() {
@@ -144,6 +150,12 @@ describe('Get Sourcemap Position', () => {
     });
 
     // Should be able to stringify the map without errors...
-    map.stringify('index.min.js', '/root');
+    assert.equal(
+      await map.stringify({
+        file: 'index.min.js',
+        rootDir: '/root'
+      }),
+      '{"version":3,"sources":["a.js","b.js"],"names":["A","B"],"mappings":";;;;;eAA4JA;yBCCjIC,wC","file":"index.min.js"}'
+    );
   });
 });

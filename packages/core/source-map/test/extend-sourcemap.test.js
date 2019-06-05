@@ -1,4 +1,5 @@
 // @flow
+
 import assert from 'assert';
 
 import SourceMap from '../src/SourceMap';
@@ -52,7 +53,13 @@ describe('SourceMap', () => {
     });
 
     // Should be able to stringify the map without errors...
-    map.stringify('index.min.js', '/root');
+    assert.equal(
+      await map.stringify({
+        file: 'index.min.js',
+        rootDir: '/root'
+      }),
+      '{"version":3,"sources":["index.js"],"names":["A"],"mappings":";;;;YAAAA","file":"index.min.js"}'
+    );
   });
 
   it('Extending null mappings', async function() {
@@ -115,6 +122,12 @@ describe('SourceMap', () => {
     });
 
     // Should be able to stringify the map without errors...
-    map.stringify('index.min.js', '/root');
+    assert.equal(
+      await map.stringify({
+        file: 'index.min.js',
+        rootDir: '/root'
+      }),
+      '{"version":3,"sources":["index.js"],"names":[""],"mappings":";;;;YAKeA,A","file":"index.min.js"}'
+    );
   });
 });
