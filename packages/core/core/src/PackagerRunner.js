@@ -13,6 +13,7 @@ import {urlJoin} from '@parcel/utils';
 import {NamedBundle} from './public/Bundle';
 import nullthrows from 'nullthrows';
 import path from 'path';
+import url from 'url';
 import {report} from './ReporterRunner';
 import {BundleGraph} from './public/BundleGraph';
 
@@ -58,6 +59,33 @@ export default class PackagerRunner {
     }
 
     if (map) {
+      // sourceRoot should be a relative path between outDir and rootDir for node.js targets
+      let sourceRoot;
+      if (!sourceRoot && this.options.mode !== 'production') {
+        if (bundle.target && bundle.target.env.context === 'browser') {
+          sourceRoot = '/__parcel_source_root';
+        } else {
+          sourceRoot = path.relative(
+            path.dirname(filePath),
+            this.options.projectRoot
+          );
+        }
+      }
+
+      // TODO: Find a more proper/cross platform way to format urls...
+      if (sourceRoot) {
+        sourceRoot += '/';
+      }
+
+      // inlining should only happen in production for browser targets by default
+      let inlineSources = false;
+      if (
+        !inlineSources &&
+        (!bundle.target || bundle.target.env.context !== 'node')
+      ) {
+        inlineSources = this.options.mode === 'production';
+      }
+
       await writeFile(
         filePath + '.map',
         await map.stringify({
@@ -65,10 +93,8 @@ export default class PackagerRunner {
           // resulting in bundle needing to be located at /dist/<filename> which it's not
           file: filePath,
           rootDir: this.options.projectRoot,
-          // sourceRoot should be a relative path between outDir and rootDir for node.js targets
-          // For production this will always be inlined and can be undefined...
-          sourceRoot: '/__parcel_source_root',
-          inlineSources: false
+          sourceRoot,
+          inlineSources
         })
       );
     }
