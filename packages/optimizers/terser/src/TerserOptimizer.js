@@ -8,13 +8,12 @@ import SourceMap from '@parcel/source-map';
 import path from 'path';
 
 export default new Optimizer({
-  async optimize({contents, bundle, options}) {
+  async optimize({contents, map, bundle, options}) {
     if (!options.minify) {
-      return contents;
+      return {contents, map};
     }
 
-    let {code, map} = contents;
-    if (typeof code !== 'string') {
+    if (typeof contents !== 'string') {
       throw new Error(
         'TerserOptimizer: Only string contents are currently supported'
       );
@@ -59,15 +58,15 @@ export default new Optimizer({
     }
 
     if (sourceMap && map) {
-      sourceMap = map.extend(sourceMap);
+      sourceMap = await map.extend(sourceMap);
     }
 
-    let result = minify(code, config);
+    let result = minify(contents, config);
 
     if (result.error) {
       throw result.error;
     }
 
-    return {code: nullthrows(result.code), map: sourceMap};
+    return {contents: nullthrows(result.code), map: sourceMap};
   }
 });

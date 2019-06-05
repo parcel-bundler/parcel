@@ -7,19 +7,19 @@ import postcss from 'postcss';
 import cssnano from 'cssnano';
 
 export default new Optimizer({
-  async optimize({contents, options}) {
+  async optimize({contents, map, options}) {
     if (!options.minify) {
-      return contents;
+      return {contents, map};
     }
 
-    if (typeof contents.code !== 'string') {
+    if (typeof contents !== 'string') {
       throw new Error(
         'CSSNanoOptimizer: Only string contents are currently supported'
       );
     }
 
     return {
-      code: (await postcss([cssnano]).process(contents.code)).css
+      contents: (await postcss([cssnano]).process(contents)).css
     };
   }
 });

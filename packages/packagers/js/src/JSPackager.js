@@ -104,7 +104,7 @@ export default new Packager({
     });
 
     return {
-      code:
+      contents:
         PRELUDE +
         '({' +
         assets +

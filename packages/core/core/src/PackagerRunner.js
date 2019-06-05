@@ -1,12 +1,12 @@
 // @flow
 
-import {Readable} from 'stream';
 import type {ParcelOptions, Blob, FilePath} from '@parcel/types';
 import type SourceMap from '@parcel/source-map';
 import type {Bundle as InternalBundle} from './types';
 import type Config from './Config';
 import type InternalBundleGraph from './BundleGraph';
 
+import {Readable} from 'stream';
 import invariant from 'assert';
 import {mkdirp, writeFile, writeFileStream} from '@parcel/fs';
 import {urlJoin} from '@parcel/utils';
@@ -36,7 +36,11 @@ export default class PackagerRunner {
   async writeBundle(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
     let start = Date.now();
     let packaged = await this.package(bundle, bundleGraph);
-    let {code, map} = await this.optimize(bundle, packaged);
+    let {contents, map} = await this.optimize(
+      bundle,
+      packaged.contents,
+      packaged.map
+    );
 
     let filePath = nullthrows(bundle.filePath);
     let dir = path.dirname(filePath);
@@ -46,11 +50,11 @@ export default class PackagerRunner {
     }
 
     let size;
-    if (code instanceof Readable) {
-      size = await writeFileStream(filePath, code);
+    if (contents instanceof Readable) {
+      size = await writeFileStream(filePath, contents);
     } else {
-      await writeFile(filePath, code);
-      size = code.length;
+      await writeFile(filePath, contents);
+      size = contents.length;
     }
 
     if (map) {
@@ -78,7 +82,7 @@ export default class PackagerRunner {
   async package(
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph
-  ): Promise<{|code: Blob, map?: ?SourceMap|}> {
+  ): Promise<{|contents: Blob, map?: ?SourceMap|}> {
     let bundle = new NamedBundle(internalBundle);
     report({
       type: 'buildProgress',
@@ -87,32 +91,33 @@ export default class PackagerRunner {
     });
 
     let packager = await this.config.getPackager(bundle.filePath);
-    let packageContent = await packager.package({
+    let packaged = await packager.package({
       bundle,
       bundleGraph: new BundleGraph(bundleGraph),
       options: this.options
     });
 
     return {
-      code:
-        typeof packageContent.code === 'string'
+      contents:
+        typeof packaged.contents === 'string'
           ? replaceReferences(
-              packageContent.code,
+              packaged.contents,
               generateDepToBundlePath(internalBundle)
             )
-          : packageContent.code,
-      map: packageContent.map
+          : packaged.contents,
+      map: packaged.map
     };
   }
 
   async optimize(
     internalBundle: InternalBundle,
-    contents: {|code: Blob, map?: ?SourceMap|}
-  ): Promise<{code: Blob, map?: ?SourceMap}> {
+    contents: Blob,
+    map?: ?SourceMap
+  ): Promise<{contents: Blob, map?: ?SourceMap}> {
     let bundle = new NamedBundle(internalBundle);
     let optimizers = await this.config.getOptimizers(bundle.filePath);
     if (!optimizers.length) {
-      return contents;
+      return {contents, map};
     }
 
     report({
@@ -121,15 +126,18 @@ export default class PackagerRunner {
       bundle
     });
 
+    let optimized;
     for (let optimizer of optimizers) {
-      contents = await optimizer.optimize({
+      optimized = await optimizer.optimize({
         bundle,
         contents,
+        map,
         options: this.options
       });
     }
+    invariant(optimized != null);
 
-    return contents;
+    return optimized;
   }
 }
 

@@ -12,6 +12,6 @@ export default new Packager({
 
     assert.equal(assets.length, 1, 'HTML bundles must only contain one asset');
 
-    return {code: await assets[0].getCode()};
+    return {contents: await assets[0].getCode()};
   }
 });

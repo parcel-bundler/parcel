@@ -12,6 +12,6 @@ export default new Packager({
     });
     let outputs = await Promise.all(promises);
 
-    return {code: await outputs.map(output => output).join('\n')};
+    return {contents: await outputs.map(output => output).join('\n')};
   }
 });
