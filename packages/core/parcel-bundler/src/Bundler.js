@@ -781,7 +781,10 @@ class Bundler extends EventEmitter {
   }
 
   async onAdd(path) {
-    path = Path.join(process.cwd(), path);
+    // The path to the newly-added items are not absolute.
+    if (!Path.isAbsolute(path)) {
+      path = Path.resolve(process.cwd(), path);
+    }
 
     let asset = this.parser.getAsset(path, this.options);
     this.loadedAssets.set(path, asset);
