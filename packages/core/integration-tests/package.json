@@ -12,7 +12,7 @@
     "test-ci": "yarn test --reporter mocha-multi-reporters --reporter-options configFile=./test/mochareporters.json"
   },
   "devDependencies": {
-    "@babel/core": "^7.0.0-0",
+    "@babel/core": "^7.4.4",
     "@babel/plugin-syntax-export-default-from": "^7.2.0",
     "@babel/plugin-syntax-export-namespace-from": "^7.2.0",
     "@jetbrains/kotlinc-js-api": "^1.2.12",
