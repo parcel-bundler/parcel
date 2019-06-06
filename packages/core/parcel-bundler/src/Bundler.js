@@ -781,7 +781,7 @@ class Bundler extends EventEmitter {
   }
 
   async onAdd(path) {
-    // The path to the newly-added items are not absolute.
+    // The path to a newly added item may not be absolute.
     if (!Path.isAbsolute(path)) {
       path = Path.resolve(process.cwd(), path);
     }
@@ -796,7 +796,7 @@ class Bundler extends EventEmitter {
   }
 
   async onChange(path) {
-    // The path to the newly-added items are not absolute.
+    // The path to a newly added item may not be absolute.
     if (!Path.isAbsolute(path)) {
       path = Path.resolve(process.cwd(), path);
     }
@@ -822,7 +822,7 @@ class Bundler extends EventEmitter {
   }
 
   async onUnlink(path) {
-    // The path to the newly-added items are not absolute.
+    // The path to a newly added item may not be absolute.
     if (!Path.isAbsolute(path)) {
       path = Path.resolve(process.cwd(), path);
     }
