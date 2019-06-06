@@ -10,7 +10,10 @@
 parcelRequire = function(modules, cache, entry, globalName) {
   // Save the require from previous bundle to this closure if any
   var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
-  var nodeRequire = typeof global !== 'undefined' && global.require;
+  var nodeRequire =
+    typeof global !== 'undefined' &&
+    typeof global.require === 'function' &&
+    global.require;
 
   function newRequire(name, jumped) {
     if (!cache[name]) {
