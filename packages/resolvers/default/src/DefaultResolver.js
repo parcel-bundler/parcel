@@ -89,8 +89,8 @@ class NodeResolver {
   rootPackage: InternalPackageJSON | null;
 
   constructor(opts: Options) {
-    this.extensions = opts.extensions.map(
-      ext => (ext.startsWith('.') ? ext : '.' + ext)
+    this.extensions = opts.extensions.map(ext =>
+      ext.startsWith('.') ? ext : '.' + ext
     );
     this.options = opts.options;
     this.packageCache = new Map();

@@ -9,6 +9,7 @@ const syncPromise = require('./utils/syncPromise');
 const logger = require('@parcel/logger');
 const Resolver = require('./Resolver');
 const objectHash = require('./utils/objectHash');
+const t = require('babel-types');
 
 /**
  * An Asset represents a file in the dependency tree. Assets can have multiple
@@ -204,7 +205,7 @@ class Asset {
     if (!this.id) {
       this.id =
         this.options.production || this.options.scopeHoist
-          ? md5(this.relativeName, 'base64').slice(0, 4)
+          ? t.toIdentifier(md5(this.relativeName, 'base64')).slice(0, 4)
           : this.relativeName;
     }
 
