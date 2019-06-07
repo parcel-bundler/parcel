@@ -66,6 +66,9 @@ export default class Yarn {
       // Invoking yarn with --json provides streaming, newline-delimited JSON output.
       .pipe(split())
       .pipe(new JSONParseStream())
+      .on('error', e => {
+        logger.error(e);
+      })
       .on('data', (message: YarnStdOutMessage) => {
         switch (message.type) {
           case 'step':
@@ -89,6 +92,9 @@ export default class Yarn {
     installProcess.stderr
       .pipe(split())
       .pipe(new JSONParseStream())
+      .on('error', e => {
+        logger.error(e);
+      })
       .on('data', (message: YarnStdErrMessage) => {
         switch (message.type) {
           case 'warning':
