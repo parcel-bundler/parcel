@@ -6,8 +6,7 @@
 // anything defined in a previous bundle is accessed via the
 // orig method which is the require for previous bundles
 
-// eslint-disable-next-line no-global-assign
-parcelRequire = function(modules, cache, entry, globalName) {
+(function(modules, cache, entry, globalName) {
   // Save the require from previous bundle to this closure if any
   var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
   var nodeRequire = typeof require === 'function' && require;
@@ -87,6 +86,12 @@ parcelRequire = function(modules, cache, entry, globalName) {
     ];
   };
 
+  /* eslint-disable no-undef */
+  if (typeof window !== 'undefined') window.parcelRequire = newRequire;
+  else if (typeof self !== 'undefined') self.parcelRequire = newRequire;
+  else if (typeof global !== 'undefined') global.parcelRequire = newRequire;
+  /* eslint-enable no-undef */
+
   for (var i = 0; i < entry.length; i++) {
     newRequire(entry[i]);
   }
@@ -111,7 +116,4 @@ parcelRequire = function(modules, cache, entry, globalName) {
       this[globalName] = mainExports;
     }
   }
-
-  // Override the current require with this new one
-  return newRequire;
-};
+});
