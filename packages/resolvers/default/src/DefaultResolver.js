@@ -138,7 +138,7 @@ class NodeResolver {
 
     // If this isn't the entrypoint, resolve the input file to an absolute path
     if (parent) {
-      filename = this.resolveFilename(filename, dir, isURL);
+      filename = await this.resolveFilename(filename, dir, isURL);
     }
 
     // Resolve aliases in the parent module for this file.
@@ -175,7 +175,7 @@ class NodeResolver {
     return (parent ? path.dirname(parent) : '') + ':' + filename;
   }
 
-  resolveFilename(filename: string, dir: string, isURL: ?boolean) {
+  async resolveFilename(filename: string, dir: string, isURL: ?boolean) {
     switch (filename[0]) {
       case '/':
         // Absolute path. Resolve relative to project root.
@@ -183,10 +183,11 @@ class NodeResolver {
 
       case '~':
         // Tilde path. Resolve relative to nearest node_modules directory,
-        // or the project root - whichever comes first.
+        // the nearest directory with package.json or the project root - whichever comes first.
         while (
-          dir !== this.options.rootDir &&
-          path.basename(path.dirname(dir)) !== 'node_modules'
+          dir !== this.options.projectRoot &&
+          path.basename(path.dirname(dir)) !== 'node_modules' &&
+          !(await fs.exists(path.join(dir, 'package.json')))
         ) {
           dir = path.dirname(dir);
 
@@ -382,14 +383,14 @@ class NodeResolver {
     pkg: InternalPackageJSON | null
   ) {
     // Try all supported extensions
-    for (let f of this.expandFile(file, extensions, pkg)) {
+    for (let f of await this.expandFile(file, extensions, pkg)) {
       if (await this.isFile(f)) {
         return {path: f, pkg};
       }
     }
   }
 
-  expandFile(
+  async expandFile(
     file: string,
     extensions: Array<string>,
     pkg: InternalPackageJSON | null,
@@ -401,7 +402,7 @@ class NodeResolver {
       let f = file + ext;
 
       if (expandAliases) {
-        let alias = this.resolveAliases(file + ext, pkg);
+        let alias = await this.resolveAliases(file + ext, pkg);
         if (alias !== f) {
           res = res.concat(this.expandFile(alias, extensions, pkg, false));
         }
@@ -413,29 +414,32 @@ class NodeResolver {
     return res;
   }
 
-  resolveAliases(filename: string, pkg: InternalPackageJSON | null) {
+  async resolveAliases(filename: string, pkg: InternalPackageJSON | null) {
     // First resolve local package aliases, then project global ones.
     return this.resolvePackageAliases(
-      this.resolvePackageAliases(filename, pkg),
+      await this.resolvePackageAliases(filename, pkg),
       this.rootPackage
     );
   }
 
-  resolvePackageAliases(filename: string, pkg: InternalPackageJSON | null) {
+  async resolvePackageAliases(
+    filename: string,
+    pkg: InternalPackageJSON | null
+  ) {
     if (!pkg) {
       return filename;
     }
 
     // Resolve aliases in the package.source, package.alias, and package.browser fields.
     return (
-      this.getAlias(filename, pkg.pkgdir, pkg.source) ||
-      this.getAlias(filename, pkg.pkgdir, pkg.alias) ||
-      this.getAlias(filename, pkg.pkgdir, this.getBrowserField(pkg)) ||
+      (await this.getAlias(filename, pkg.pkgdir, pkg.source)) ||
+      (await this.getAlias(filename, pkg.pkgdir, pkg.alias)) ||
+      (await this.getAlias(filename, pkg.pkgdir, this.getBrowserField(pkg))) ||
       filename
     );
   }
 
-  getAlias(filename, dir, aliases) {
+  async getAlias(filename, dir, aliases) {
     if (!filename || !aliases || typeof aliases !== 'object') {
       return null;
     }
@@ -449,14 +453,14 @@ class NodeResolver {
         filename = './' + filename;
       }
 
-      alias = this.lookupAlias(aliases, filename, dir);
+      alias = await this.lookupAlias(aliases, filename, dir);
     } else {
       // It is a node_module. First try the entire filename as a key.
-      alias = this.lookupAlias(aliases, filename, dir);
+      alias = await this.lookupAlias(aliases, filename, dir);
       if (alias == null) {
         // If it didn't match, try only the module name.
         let parts = this.getModuleParts(filename);
-        alias = this.lookupAlias(aliases, parts[0], dir);
+        alias = await this.lookupAlias(aliases, parts[0], dir);
         if (typeof alias === 'string') {
           // Append the filename back onto the aliased module.
           alias = path.join(alias, ...parts.slice(1));
@@ -472,7 +476,7 @@ class NodeResolver {
     return alias;
   }
 
-  lookupAlias(aliases, filename, dir) {
+  async lookupAlias(aliases, filename, dir) {
     // First, try looking up the exact filename
     let alias = aliases[filename];
     if (alias == null) {
