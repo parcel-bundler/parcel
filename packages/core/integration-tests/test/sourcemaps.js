@@ -69,7 +69,7 @@ function checkSourceMapping({
   );
 }
 
-describe.only('sourcemaps', function() {
+describe('sourcemaps', function() {
   it('Should create a basic browser sourcemap', async function() {
     await bundle(path.join(__dirname, '/integration/sourcemap/index.js'));
 
