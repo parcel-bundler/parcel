@@ -6,8 +6,8 @@ parcelRequire = function(name) {
   }
 
   // Try the node require function if it exists.
-  if (typeof require === 'function') {
-    return require(name);
+  if (typeof global !== 'undefined' && typeof global.require === 'function') {
+    return global.require(name);
   }
 
   var err = new Error("Cannot find module '" + name + "'");
