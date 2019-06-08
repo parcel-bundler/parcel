@@ -93,8 +93,7 @@ export default class PackagerRunner {
       await writeFile(
         filePath + '.map',
         await map.stringify({
-          // TODO: Fix file as it's currently not keeping in mind publicUrl...
-          file: filePath,
+          file: path.basename(filePath),
           rootDir: this.options.projectRoot,
           sourceRoot: !inlineSources
             ? url.format(url.parse(sourceRoot + '/'))
