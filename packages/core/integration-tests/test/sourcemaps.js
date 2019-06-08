@@ -226,47 +226,6 @@ describe('sourcemaps', function() {
     assert.equal(output(), 14);
   });
 
-  it.skip('should create a valid sourcemap reference for a child bundle', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/sourcemap-reference/index.html')
-    );
-
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'js',
-          assets: ['index.js', 'data.js'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
-
-    let jsOutput = await fs.readFile(
-      Array.from(b.childBundles)[0].name,
-      'utf8'
-    );
-
-    let sourcemapReference = path.join(
-      __dirname,
-      '/dist/',
-      jsOutput.substring(jsOutput.lastIndexOf('//# sourceMappingURL') + 22)
-    );
-    assert(
-      await fs.exists(path.join(sourcemapReference)),
-      'referenced sourcemap should exist'
-    );
-
-    let map = await fs.readFile(path.join(sourcemapReference), 'utf8');
-    assert.equal(JSON.parse(map).sources.length, 2);
-    mapValidator(jsOutput, map);
-  });
-
   it.skip('should load existing sourcemaps of libraries', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/sourcemap-existing/index.js')
@@ -373,36 +332,6 @@ describe('sourcemaps', function() {
       'Sourcemap should contain the existing sourcemap'
     );
     mapValidator(jsOutput, map);
-  });
-
-  it.skip('should create correct sourceMappingURL', async function() {
-    const b = await bundle(
-      path.join(__dirname, '/integration/sourcemap-sourcemappingurl/index.js')
-    );
-
-    const jsOutput = await fs.readFile(b.name, 'utf8');
-    assert(jsOutput.includes('//# sourceMappingURL=/index.js.map'));
-  });
-
-  it.skip('should create correct sourceMappingURL with multiple entrypoints', async function() {
-    const b = await bundle([
-      path.join(
-        __dirname,
-        '/integration/sourcemap-sourcemappingurl-multiple-entrypoints/a/index.js'
-      ),
-      path.join(
-        __dirname,
-        '/integration/sourcemap-sourcemappingurl-multiple-entrypoints/b/index.js'
-      )
-    ]);
-
-    const bundle1 = [...b.childBundles][0];
-    const bundle2 = [...b.childBundles][1];
-    const jsOutput1 = await fs.readFile(bundle1.name, 'utf8');
-    const jsOutput2 = await fs.readFile(bundle2.name, 'utf8');
-
-    assert(jsOutput1.includes('//# sourceMappingURL=/a/index.js.map'));
-    assert(jsOutput2.includes('//# sourceMappingURL=/b/index.js.map'));
   });
 
   it.skip('should create a valid sourcemap as a child of a CSS bundle', async function() {
