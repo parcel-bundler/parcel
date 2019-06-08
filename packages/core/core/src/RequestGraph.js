@@ -145,11 +145,17 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         throw new Error('Unrecognized request type ' + requestNode.type);
     }
 
-    this.inProgress.set(requestNode.id, promise);
-    await promise;
-    // ? Should these be updated before it comes off the queue?
-    this.invalidNodes.delete(requestNode.id);
-    this.inProgress.delete(requestNode.id);
+    try {
+      this.inProgress.set(requestNode.id, promise);
+      await promise;
+      // ? Should these be updated before it comes off the queue?
+      this.invalidNodes.delete(requestNode.id);
+      this.inProgress.delete(requestNode.id);
+    } catch (e) {
+      // Do nothing
+      // Main tasks will be caught by the queue
+      // Sun tasks will end up rejecting the main task promise
+    }
   }
 
   async transform(request: AssetRequest) {
