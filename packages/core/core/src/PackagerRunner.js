@@ -90,10 +90,11 @@ export default class PackagerRunner {
         }
       }
 
+      let mapFilename = filePath + '.map';
       await writeFile(
-        filePath + '.map',
+        mapFilename,
         await map.stringify({
-          file: path.basename(filePath),
+          file: path.basename(mapFilename),
           rootDir: this.options.projectRoot,
           sourceRoot: !inlineSources
             ? url.format(url.parse(sourceRoot + '/'))
