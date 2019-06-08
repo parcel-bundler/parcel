@@ -109,7 +109,6 @@
     "pug": "^2.0.3",
     "rimraf": "^2.6.1",
     "sass": "^1.10.2",
-    "sourcemap-validator": "^1.0.6",
     "stylus": "^0.54.5",
     "sugarss": "^2.0.0",
     "typescript": "^3.0.0",

@@ -3,13 +3,11 @@
   "version": "1.0.0",
   "license": "MIT",
   "private": true,
-  "browser": "dist/index.js",
+  "node": "dist/index.js",
   "targets": {
-    "browser": {
+    "node": {
       "engines": {
-        "browsers": [
-          "> 0.25%"
-        ]
+        "node": ">= 8.0.0"
       }
     }
   }
