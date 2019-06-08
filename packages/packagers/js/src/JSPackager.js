@@ -103,7 +103,6 @@ export default new Packager({
       }
     });
 
-    let sourcemapComment = '// ' + sourceMapPath;
     return {
       contents:
         PRELUDE +
@@ -118,8 +117,10 @@ export default new Packager({
         ) +
         ', ' +
         'null' +
-        ')\n' +
-        sourcemapComment,
+        ')\n\n' +
+        '//# sourceMappingURL=' +
+        sourceMapPath +
+        '\n',
       map
     };
   }

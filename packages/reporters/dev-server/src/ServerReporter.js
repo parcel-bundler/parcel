@@ -20,6 +20,7 @@ export default new Reporter({
         let target = options.targets[0];
         let serverOptions = {
           ...serve,
+          projectRoot: options.projectRoot,
           cacheDir: options.cacheDir,
           distDir: target.distDir,
           // Override the target's publicUrl as that is likely meant for production.
