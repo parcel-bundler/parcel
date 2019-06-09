@@ -98,7 +98,7 @@ export default new Packager({
             wrapped
           );
 
-        map.addMap(assetMap, lineOffset + 1);
+        map.addMap(assetMap, lineOffset);
         lineOffset += countLines(wrapped) - 1;
       }
     });
