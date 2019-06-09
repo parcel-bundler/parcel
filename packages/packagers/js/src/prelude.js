@@ -13,7 +13,7 @@ parcelRequire = function(modules, cache, entry, globalName) {
   var nodeRequire =
     typeof module !== 'undefined' &&
     typeof module.require === 'function' &&
-    module.require;
+    module.require.bind(module);
 
   function newRequire(name, jumped) {
     if (!cache[name]) {
