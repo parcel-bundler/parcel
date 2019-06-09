@@ -418,7 +418,7 @@ class NodeResolver {
 
   async resolveAliases(filename: string, pkg: InternalPackageJSON | null) {
     // First resolve local package aliases, then project global ones.
-    return await this.resolvePackageAliases(
+    return this.resolvePackageAliases(
       await this.resolvePackageAliases(filename, pkg),
       this.rootPackage
     );
@@ -496,7 +496,7 @@ class NodeResolver {
     }
 
     if (typeof alias === 'string') {
-      return await this.resolveFilename(alias, dir);
+      return this.resolveFilename(alias, dir);
     }
 
     return typeof alias === 'string' ? alias : null;
@@ -526,7 +526,7 @@ class NodeResolver {
 
     // Load the local package, and resolve aliases
     let pkg = await this.findPackage(dir);
-    return await this.resolveAliases(filename, pkg);
+    return this.resolveAliases(filename, pkg);
   }
 
   getModuleParts(name) {
