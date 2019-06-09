@@ -99,7 +99,7 @@ export default new Packager({
           );
 
         map.addMap(assetMap, lineOffset + 1);
-        lineOffset += countLines(wrapped);
+        lineOffset += countLines(wrapped) - 1;
       }
     });
 
