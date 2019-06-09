@@ -1,6 +1,7 @@
 {
   "bundler": "@parcel/bundler-default",
   "transforms": {
+    "*.{ts,tsx}": ["@parcel/transformer-typescript-checker"],
     "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
       "@parcel/transformer-babel",
       "@parcel/transformer-js"

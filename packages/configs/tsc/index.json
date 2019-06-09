@@ -2,6 +2,7 @@
   "extends": "@parcel/config-default",
   "transforms": {
     "*.{ts,tsx}": [
+      "@parcel/transformer-typescript-checker",
       "@parcel/transformer-typescript-tsc",
       "@parcel/transformer-js"
     ]
