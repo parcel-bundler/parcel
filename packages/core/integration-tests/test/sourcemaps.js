@@ -68,7 +68,7 @@ function checkSourceMapping({
   );
 }
 
-describe.only('sourcemaps', function() {
+describe('sourcemaps', function() {
   it('Should create a basic browser sourcemap', async function() {
     let sourceFilename = path.join(
       __dirname,
@@ -248,8 +248,7 @@ describe.only('sourcemaps', function() {
         'packages/core/integration-tests/test/integration/sourcemap-nested/local.js'
     });
 
-    // TODO: Figure out why this fails
-    /*checkSourceMapping({
+    checkSourceMapping({
       map: sourceMap,
       source: inputs[2],
       generated: raw,
@@ -257,7 +256,7 @@ describe.only('sourcemaps', function() {
       generatedStr: 'exports.count = function (a, b) {',
       sourcePath:
         'packages/core/integration-tests/test/integration/sourcemap-nested/utils/util.js'
-    });*/
+    });
 
     checkSourceMapping({
       map: sourceMap,
