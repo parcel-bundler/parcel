@@ -404,7 +404,9 @@ class NodeResolver {
       if (expandAliases) {
         let alias = await this.resolveAliases(file + ext, pkg);
         if (alias !== f) {
-          res = res.concat(this.expandFile(alias, extensions, pkg, false));
+          res = res.concat(
+            await this.expandFile(alias, extensions, pkg, false)
+          );
         }
       }
 
@@ -416,7 +418,7 @@ class NodeResolver {
 
   async resolveAliases(filename: string, pkg: InternalPackageJSON | null) {
     // First resolve local package aliases, then project global ones.
-    return this.resolvePackageAliases(
+    return await this.resolvePackageAliases(
       await this.resolvePackageAliases(filename, pkg),
       this.rootPackage
     );
@@ -494,7 +496,7 @@ class NodeResolver {
     }
 
     if (typeof alias === 'string') {
-      return this.resolveFilename(alias, dir);
+      return await this.resolveFilename(alias, dir);
     }
 
     return typeof alias === 'string' ? alias : null;
@@ -524,7 +526,7 @@ class NodeResolver {
 
     // Load the local package, and resolve aliases
     let pkg = await this.findPackage(dir);
-    return this.resolveAliases(filename, pkg);
+    return await this.resolveAliases(filename, pkg);
   }
 
   getModuleParts(name) {
