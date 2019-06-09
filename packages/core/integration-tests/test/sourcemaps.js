@@ -284,7 +284,7 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    // let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
     let map = await fs.readFile(
       path.join(__dirname, '/dist/index.js.map'),
       'utf8'
@@ -312,7 +312,7 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    // let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
     let map = await fs.readFile(
       path.join(__dirname, '/dist/index.js.map'),
       'utf8'
@@ -343,7 +343,7 @@ describe('sourcemaps', function() {
       ]
     });
 
-    let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    // let raw = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
     let map = await fs.readFile(
       path.join(__dirname, '/dist/index.js.map'),
       'utf8'
