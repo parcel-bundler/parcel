@@ -1,17 +1,17 @@
 // @flow strict-local
 
-import {Transformer} from '@parcel/plugin';
+import {Validator} from '@parcel/plugin';
 import localRequire from '@parcel/local-require';
 import * as ts from 'typescript';
 import formatDiagnostics from './formatDiagnostics';
 import LanguageServiceHost from './LanguageServiceHost';
 
-export default new Transformer({
+export default new Validator({
   async getConfig({asset}) {
     return asset.getConfig(['tsconfig.json']);
   },
 
-  async transform({asset, config, options}) {
+  async validate({asset, config, options}) {
     // let ts = await localRequire('typescript', asset.filePath);
 
     // options.projectRoot should be dir of tsconfig... I guess idk
@@ -35,12 +35,5 @@ export default new Transformer({
       const formatted = formatDiagnostics(diagnostics, options.projectRoot);
       throw formatted;
     }
-
-    return [
-      {
-        type: asset.type,
-        code: await asset.getCode()
-      }
-    ];
   }
 });
