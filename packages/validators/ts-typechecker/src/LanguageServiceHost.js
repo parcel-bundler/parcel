@@ -1,5 +1,36 @@
+// @flow
+import type {ParsedCommandLine} from 'typescript';
+
+type FileNames = Array<string>;
+type ReadFileFunc = (path: string, encoding?: string) => string | void;
+type FileExistsFunc = (path: string) => boolean;
+type ReadDirectoryFunc = (
+  path: string,
+  extensions?: $ReadOnlyArray<string>,
+  exclude?: $ReadOnlyArray<string>,
+  include?: $ReadOnlyArray<string>,
+  depth?: number
+) => string[];
+
 export default class LanguageServiceHost {
-  constructor({fileNames, options}, ts) {
+  // Instance of typescript module
+  ts: any;
+
+  options: ParsedCommandLine;
+  fileNames: FileNames;
+  fileExists: FileExistsFunc;
+  readFile: ReadFileFunc;
+  readDirectory: ReadDirectoryFunc;
+  files: {
+    [key: string]: {
+      version: number
+    }
+  };
+
+  constructor(
+    {fileNames, options}: {fileNames: FileNames, options: ParsedCommandLine},
+    ts: any
+  ) {
     this.options = options;
     this.fileNames = fileNames;
     this.fileExists = ts.sys.fileExists;
@@ -9,13 +40,13 @@ export default class LanguageServiceHost {
     this.ts = ts;
   }
 
-  invalidate(file) {
-    const entry = this.files[file];
+  invalidate(fileName: string) {
+    const entry = this.files[fileName];
 
     if (entry) {
       entry.version++;
     } else {
-      this.files[file] = {
+      this.files[fileName] = {
         version: 0
       };
     }
@@ -25,11 +56,11 @@ export default class LanguageServiceHost {
     return this.fileNames;
   }
 
-  getScriptVersion(fileName) {
+  getScriptVersion(fileName: string) {
     return this.files[fileName] && this.files[fileName].version.toString();
   }
 
-  getScriptSnapshot(fileName) {
+  getScriptSnapshot(fileName: string) {
     if (!this.ts.sys.fileExists(fileName)) {
       return;
     }
@@ -49,7 +80,7 @@ export default class LanguageServiceHost {
     return this.options;
   }
 
-  getDefaultLibFileName(projectOptions) {
+  getDefaultLibFileName(projectOptions: any) {
     return this.ts.getDefaultLibFilePath(projectOptions);
   }
 }

@@ -1,21 +1,29 @@
+// @flow
+import path from 'path';
+import findUp from 'find-up';
 import {Validator} from '@parcel/plugin';
 import localRequire from '@parcel/local-require';
+
 import formatDiagnostics from './formatDiagnostics';
 import LanguageServiceHost from './LanguageServiceHost';
 
 export default new Validator({
-  async getConfig({asset}) {
-    return asset.getConfig(['tsconfig.json']);
-  },
-
-  async validate({asset, config, options}) {
+  async validate({asset, options}) {
     let ts = await localRequire('typescript', asset.filePath);
+    let config = {
+      config: await asset.getConfig(['tsconfig.json']),
+      baseDir:
+        path.dirname(
+          await findUp('tsconfig.json', {
+            cwd: path.dirname(asset.filePath)
+          })
+        ) || options.projectRoot
+    };
 
     let tsConfig = ts.parseJsonConfigFileContent(
-      config,
+      config.config,
       ts.sys,
-      // This should be path of tsconfig
-      options.projectRoot
+      path.dirname(config.baseDir)
     );
     let host = new LanguageServiceHost(tsConfig, ts);
     let langService = ts.createLanguageService(

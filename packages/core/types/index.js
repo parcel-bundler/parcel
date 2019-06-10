@@ -306,14 +306,8 @@ type Async<T> = T | Promise<T>;
 type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 
 export type Validator = {|
-  getConfig?: ({
-    asset: MutableAsset,
-    resolve: ResolveFn,
-    options: ParcelOptions
-  }) => Async<Config | void>,
   validate({
     asset: MutableAsset,
-    config: ?Config,
     resolve: ResolveFn,
     options: ParcelOptions
   }): Async<void>

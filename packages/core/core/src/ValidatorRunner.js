@@ -59,18 +59,8 @@ export default class validatorRunner {
     };
 
     // Load config for the transformer.
-    let config = null;
-    if (validator.getConfig) {
-      config = await validator.getConfig({
-        asset: new MutableAsset(input),
-        options: this.options,
-        resolve
-      });
-    }
-
     await validator.validate({
       asset: new MutableAsset(input),
-      config,
       resolve,
       options: this.options
     });
