@@ -22,6 +22,7 @@ export type Response = HTTPServerResponse | HTTPSServerResponse;
 export type Server = HTTPServer | HTTPSServer;
 export type DevServerOptions = {|
   ...ServerOptions,
+  projectRoot: string,
   distDir: string,
   publicUrl: string,
   cacheDir: string
