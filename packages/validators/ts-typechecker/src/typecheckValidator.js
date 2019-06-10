@@ -21,7 +21,7 @@ export default new Validator({
     let tsConfig = ts.parseJsonConfigFileContent(
       config.config,
       ts.sys,
-      path.dirname(config.baseDir)
+      config.baseDir
     );
     let host = new LanguageServiceHost(tsConfig, ts);
     let langService = ts.createLanguageService(
