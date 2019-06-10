@@ -7,8 +7,23 @@
 // orig method which is the require for previous bundles
 
 (function(modules, cache, entry, globalName) {
+  /* eslint-disable no-undef */
+  var globalObject =
+    typeof globalThis !== 'undefined'
+      ? globalThis
+      : typeof self !== 'undefined'
+        ? self
+        : typeof window !== 'undefined'
+          ? window
+          : typeof global !== 'undefined'
+            ? global
+            : {};
+  /* eslint-enable no-undef */
+
   // Save the require from previous bundle to this closure if any
-  var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
+  var previousRequire =
+    typeof globalObject.parcelRequire === 'function' &&
+    globalObject.parcelRequire;
   var nodeRequire = typeof require === 'function' && require;
 
   function newRequire(name, jumped) {
@@ -86,11 +101,7 @@
     ];
   };
 
-  /* eslint-disable no-undef */
-  if (typeof window !== 'undefined') window.parcelRequire = newRequire;
-  else if (typeof self !== 'undefined') self.parcelRequire = newRequire;
-  else if (typeof global !== 'undefined') global.parcelRequire = newRequire;
-  /* eslint-enable no-undef */
+  globalObject.parcelRequire = newRequire;
 
   for (var i = 0; i < entry.length; i++) {
     newRequire(entry[i]);
