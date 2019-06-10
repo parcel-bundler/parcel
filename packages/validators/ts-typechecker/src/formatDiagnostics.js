@@ -1,22 +1,38 @@
-// This code has been taken from https://github.com/fathyb/parcel-plugin-typescript
+// @flow
 import {EOL} from 'os';
 import {codeFrameColumns} from '@babel/code-frame';
 import chalk from 'chalk';
-import * as ts from 'typescript';
 
-const normalizePath = require('normalize-path');
+import type {Diagnostic} from 'typescript';
 
-export default function formatDiagnostics(diagnostics, context) {
-  return (
+type CodeFrameError = Error & {codeFrame?: string};
+type Location = {
+  line: number,
+  column: number
+};
+type CodeFrameLocation = {
+  start: Location,
+  end?: Location
+};
+
+export default function formatDiagnostics(
+  diagnostics: Array<Diagnostic>,
+  fileName: string
+): null | CodeFrameError {
+  if (!diagnostics || diagnostics.length === 0) return null;
+
+  let err: CodeFrameError = new Error(`Typing error in: ${fileName}`);
+  err.codeFrame =
+    EOL +
     diagnostics
       .map(diagnostic => {
-        const messageText = formatDiagnosticMessage(
-          diagnostic.messageText,
-          '',
-          context
-        );
         const {file} = diagnostic;
-        let message = messageText;
+        let messageText = chalk.redBright(
+          typeof diagnostic.messageText === 'string'
+            ? diagnostic.messageText
+            : diagnostic.messageText.messageText
+        );
+        let messages = [];
 
         if (file != null && diagnostic.start != null) {
           const lineChar = file.getLineAndCharacterOfPosition(diagnostic.start);
@@ -25,12 +41,12 @@ export default function formatDiagnostics(diagnostics, context) {
             line: lineChar.line + 1,
             column: lineChar.character + 1
           };
-          const location = {start};
+          const location: CodeFrameLocation = {start};
           const red = chalk.red(
-            `${file.fileName}(${start.line},${start.column})`
+            `${file.fileName}(${start.line},${start.column}):`
           );
-
-          const messages = [`${red}\n${chalk.redBright(messageText)}`];
+          messages.push(red);
+          messages.push(messageText);
 
           if (source != null) {
             if (typeof diagnostic.length === 'number') {
@@ -52,25 +68,16 @@ export default function formatDiagnostics(diagnostics, context) {
 
             messages.push(
               frame
-                .split('\n')
+                .split(EOL)
                 .map(str => `  ${str}`)
-                .join('\n')
+                .join(EOL)
             );
           }
-
-          message = messages.join('\n');
         }
 
-        return message + EOL;
+        return messages.length > 0 ? messages.join(EOL) : messageText;
       })
-      .join(EOL) + EOL
-  );
-}
+      .join(EOL);
 
-function formatDiagnosticMessage(diagnostic, delimiter, context) {
-  const contextPath = normalizePath(context);
-
-  return ts
-    .flattenDiagnosticMessageText(diagnostic, delimiter)
-    .replace(new RegExp(contextPath, 'g'), '.');
+  return err;
 }

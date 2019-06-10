@@ -11,10 +11,10 @@ export default new Validator({
   async validate({asset, config, options}) {
     let ts = await localRequire('typescript', asset.filePath);
 
-    // options.projectRoot should be dir of tsconfig... I guess idk
     let tsConfig = ts.parseJsonConfigFileContent(
       config,
       ts.sys,
+      // This should be path of tsconfig
       options.projectRoot
     );
     let host = new LanguageServiceHost(tsConfig, ts);
@@ -24,12 +24,13 @@ export default new Validator({
     );
 
     const diagnostics = [
-      ...langService.getSemanticDiagnostics(asset.filePath),
-      ...langService.getSyntacticDiagnostics(asset.filePath)
+      ...langService.getSemanticDiagnostics(asset.filePath)
+      // We probably don't need this as it'll throw on transform...
+      // ...langService.getSyntacticDiagnostics(asset.filePath)
     ];
 
     if (diagnostics.length > 0) {
-      const formatted = formatDiagnostics(diagnostics, options.projectRoot);
+      const formatted = formatDiagnostics(diagnostics, asset.filePath);
       throw formatted;
     }
   }
