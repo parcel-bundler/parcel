@@ -1,28 +1,21 @@
 // @flow
 import path from 'path';
-import findUp from 'find-up';
+import {resolveConfig} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
 import localRequire from '@parcel/local-require';
 
 import formatDiagnostics from './formatDiagnostics';
 import LanguageServiceHost from './LanguageServiceHost';
 
-async function findUpDir(fileName, cwd) {
-  let foundFile = await findUp(fileName, {cwd});
-
-  if (foundFile) {
-    return path.dirname(foundFile);
-  }
-}
-
 export default new Validator({
   async validate({asset, options}) {
     let ts = await localRequire('typescript', asset.filePath);
+
+    let configNames = ['tsconfig.json'];
+    let configPath = await resolveConfig(asset.filePath, configNames);
     let config = {
-      config: await asset.getConfig(['tsconfig.json']),
-      baseDir:
-        (await findUpDir('tsconfig.json', path.dirname(asset.filePath))) ||
-        options.projectRoot
+      config: await asset.getConfig(configNames),
+      baseDir: configPath ? path.dirname(configPath) : options.projectRoot
     };
 
     let tsConfig = ts.parseJsonConfigFileContent(
