@@ -56,6 +56,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   inProgress: Map<NodeId, Promise<RequestResult>> = new Map();
   invalidNodes: Map<NodeId, RequestNode> = new Map();
   runTransform: (file: AssetRequest) => Promise<CacheEntry>;
+  runValidate: (file: AssetRequest) => Promise<void>;
   resolverRunner: ResolverRunner;
   onAssetRequestComplete: (AssetRequestNode, CacheEntry) => mixed;
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed;
@@ -85,6 +86,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     // AssetGraphBuilder, which avoids needing to pass the options through here.
     this.farm = await WorkerFarm.getShared();
     this.runTransform = this.farm.createHandle('runTransform');
+    this.runValidate = this.farm.createHandle('runValidate');
   }
 
   async completeRequests() {
@@ -150,6 +152,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   async transform(request: AssetRequest) {
     try {
       let start = Date.now();
+      await this.runValidate(request);
       let cacheEntry = await this.runTransform(request);
 
       let time = Date.now() - start;

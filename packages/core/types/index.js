@@ -31,6 +31,9 @@ export type GlobMap<T> = {[Glob]: T};
 export type ParcelConfigFile = {
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
   resolvers?: Array<PackageName>,
+  validators?: {
+    [Glob]: Array<PackageName>
+  },
   transforms?: {
     [Glob]: Array<PackageName>
   },
@@ -549,6 +552,12 @@ type ResolvingProgressEvent = {|
   dependency: Dependency
 |};
 
+type ValidatingProgressEvent = {|
+  type: 'buildProgress',
+  phase: 'validating',
+  request: AssetRequest
+|};
+
 type TransformingProgressEvent = {|
   type: 'buildProgress',
   phase: 'transforming',
@@ -574,6 +583,7 @@ type OptimizingProgressEvent = {|
 
 export type BuildProgressEvent =
   | ResolvingProgressEvent
+  | ValidatingProgressEvent
   | TransformingProgressEvent
   | BundlingProgressEvent
   | PackagingProgressEvent

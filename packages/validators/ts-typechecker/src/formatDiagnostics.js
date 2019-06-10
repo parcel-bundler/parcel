@@ -27,7 +27,7 @@ export default function formatDiagnostics(diagnostics, context) {
           };
           const location = {start};
           const red = chalk.red(
-            `🚨  ${file.fileName}(${start.line},${start.column})`
+            `${file.fileName}(${start.line},${start.column})`
           );
 
           const messages = [`${red}\n${chalk.redBright(messageText)}`];

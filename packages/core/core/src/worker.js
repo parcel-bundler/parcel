@@ -6,6 +6,7 @@ import type BundleGraph from './BundleGraph';
 
 import TransformerRunner from './TransformerRunner';
 import PackagerRunner from './PackagerRunner';
+import ValidatorRunner from './ValidatorRunner';
 import Config from './Config';
 import Cache from '@parcel/cache';
 import registerCoreWithSerializer from './registerCoreWithSerializer';
@@ -18,6 +19,7 @@ type Options = {|
 
 let transformerRunner: TransformerRunner | null = null;
 let packagerRunner: PackagerRunner | null = null;
+let validatorRunner: ValidatorRunner | null = null;
 
 registerCoreWithSerializer();
 
@@ -34,6 +36,10 @@ export function init({config, options, env}: Options) {
     config,
     options
   });
+  validatorRunner = new ValidatorRunner({
+    config,
+    options
+  });
 }
 
 export function runTransform(req: AssetRequest) {
@@ -42,6 +48,14 @@ export function runTransform(req: AssetRequest) {
   }
 
   return transformerRunner.transform(req);
+}
+
+export function runValidate(req: AssetRequest) {
+  if (!validatorRunner) {
+    throw new Error('.runValidate() called before .init()');
+  }
+
+  return validatorRunner.validate(req);
 }
 
 export function runPackage(bundle: Bundle, bundleGraph: BundleGraph) {

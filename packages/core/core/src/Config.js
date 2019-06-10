@@ -13,7 +13,8 @@ import type {
   PackageName,
   Packager,
   Optimizer,
-  Reporter
+  Reporter,
+  Validator
 } from '@parcel/types';
 import {localResolve} from '@parcel/local-require';
 import {isMatch} from 'micromatch';
@@ -35,6 +36,7 @@ export default class Config {
   namers: Pipeline;
   runtimes: {[EnvironmentContext]: Pipeline};
   packagers: GlobMap<PackageName>;
+  validators: GlobMap<Pipeline>;
   optimizers: GlobMap<Pipeline>;
   reporters: Pipeline;
   pluginCache: Map<PackageName, any>;
@@ -49,6 +51,7 @@ export default class Config {
     this.packagers = config.packagers || {};
     this.optimizers = config.optimizers || {};
     this.reporters = config.reporters || [];
+    this.validators = config.validators || {};
     this.pluginCache = new Map();
   }
 
@@ -57,6 +60,7 @@ export default class Config {
       filePath: this.filePath,
       resolvers: this.resolvers,
       transforms: this.transforms,
+      validators: this.validators,
       runtimes: this.runtimes,
       bundler: this.bundler,
       namers: this.namers,
@@ -121,6 +125,19 @@ export default class Config {
     }
 
     return this.loadPlugins(transformers);
+  }
+
+  async getValidators(filePath: FilePath): Promise<Array<Validator>> {
+    let validators: Pipeline | null = this.matchGlobMapPipelines(
+      filePath,
+      this.validators
+    );
+
+    if (!validators || validators.length === 0) {
+      throw new Error(`No validators found for "${filePath}".`);
+    }
+
+    return this.loadPlugins(validators);
   }
 
   async getBundler(): Promise<Bundler> {
