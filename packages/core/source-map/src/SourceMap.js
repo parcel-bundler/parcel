@@ -130,7 +130,7 @@ export default class SourceMap {
   ) {
     if (mapping.original) {
       this.mappings.push({
-        source: mapping.source,
+        source: mapping.source.replace(/\\+/g, '/'),
         name: mapping.name,
         original: mapping.original,
         generated: {
