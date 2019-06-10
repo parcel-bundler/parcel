@@ -14,7 +14,7 @@ export default new Validator({
     let configNames = ['tsconfig.json'];
     let configPath = await resolveConfig(asset.filePath, configNames);
     let config = {
-      config: await asset.getConfig(configNames),
+      config: (await asset.getConfig(configNames)) || {},
       baseDir: configPath ? path.dirname(configPath) : options.projectRoot
     };
 
