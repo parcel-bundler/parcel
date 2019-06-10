@@ -7,17 +7,22 @@ import localRequire from '@parcel/local-require';
 import formatDiagnostics from './formatDiagnostics';
 import LanguageServiceHost from './LanguageServiceHost';
 
+async function findUpDir(fileName, cwd) {
+  let foundFile = await findUp(fileName, {cwd});
+
+  if (foundFile) {
+    return path.dirname(foundFile);
+  }
+}
+
 export default new Validator({
   async validate({asset, options}) {
     let ts = await localRequire('typescript', asset.filePath);
     let config = {
       config: await asset.getConfig(['tsconfig.json']),
       baseDir:
-        path.dirname(
-          await findUp('tsconfig.json', {
-            cwd: path.dirname(asset.filePath)
-          })
-        ) || options.projectRoot
+        (await findUpDir('tsconfig.json', path.dirname(asset.filePath))) ||
+        options.projectRoot
     };
 
     let tsConfig = ts.parseJsonConfigFileContent(
