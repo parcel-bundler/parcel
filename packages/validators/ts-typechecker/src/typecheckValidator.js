@@ -13,19 +13,17 @@ export default new Validator({
 
     let configNames = ['tsconfig.json'];
     let configPath = await resolveConfig(asset.filePath, configNames);
-    let config = {
-      config: (await asset.getConfig(configNames)) || {},
-      baseDir: configPath ? path.dirname(configPath) : options.projectRoot
-    };
+    let tsconfig = (await asset.getConfig(configNames)) || {};
+    let baseDir = configPath ? path.dirname(configPath) : options.projectRoot;
 
-    let tsConfig = ts.parseJsonConfigFileContent(
-      config.config,
+    let parsedCommandLine = ts.parseJsonConfigFileContent(
+      tsconfig,
       ts.sys,
-      config.baseDir
+      baseDir
     );
-    let host = new LanguageServiceHost(tsConfig, ts);
+
     let langService = ts.createLanguageService(
-      host,
+      new LanguageServiceHost(parsedCommandLine, ts),
       ts.createDocumentRegistry()
     );
 
