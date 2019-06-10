@@ -8,6 +8,7 @@ import type {
 } from '@parcel/types';
 import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
+import {realpath} from '@parcel/fs';
 
 import Dependency from './Dependency';
 import Graph, {type GraphOpts} from './Graph';
@@ -152,7 +153,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   async transform(request: AssetRequest) {
     try {
       let start = Date.now();
-      if (!request.filePath.includes('node_modules')) {
+      if (!(await realpath(request.filePath)).includes('node_modules')) {
         await this.runValidate(request);
       }
       let cacheEntry = await this.runTransform(request);
