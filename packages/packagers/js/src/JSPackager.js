@@ -83,7 +83,9 @@ export default new Packager({
           let assetMap =
             maps[i] ??
             SourceMap.generateEmptyMap(
-              path.relative(options.projectRoot, asset.filePath),
+              path
+                .relative(options.projectRoot, asset.filePath)
+                .replace(/\\+/g, '/'),
               output
             );
 
