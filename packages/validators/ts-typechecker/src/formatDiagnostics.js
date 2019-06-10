@@ -1,4 +1,3 @@
-// @flow
 // This code has been taken from https://github.com/fathyb/parcel-plugin-typescript
 import {EOL} from 'os';
 import {codeFrameColumns} from '@babel/code-frame';

@@ -1,8 +1,5 @@
-// @flow strict-local
-
 import {Validator} from '@parcel/plugin';
 import localRequire from '@parcel/local-require';
-import * as ts from 'typescript';
 import formatDiagnostics from './formatDiagnostics';
 import LanguageServiceHost from './LanguageServiceHost';
 
@@ -12,7 +9,7 @@ export default new Validator({
   },
 
   async validate({asset, config, options}) {
-    // let ts = await localRequire('typescript', asset.filePath);
+    let ts = await localRequire('typescript', asset.filePath);
 
     // options.projectRoot should be dir of tsconfig... I guess idk
     let tsConfig = ts.parseJsonConfigFileContent(
@@ -20,7 +17,7 @@ export default new Validator({
       ts.sys,
       options.projectRoot
     );
-    let host = new LanguageServiceHost(tsConfig);
+    let host = new LanguageServiceHost(tsConfig, ts);
     let langService = ts.createLanguageService(
       host,
       ts.createDocumentRegistry()

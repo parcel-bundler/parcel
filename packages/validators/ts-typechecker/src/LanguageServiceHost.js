@@ -1,13 +1,12 @@
-import * as ts from 'typescript';
-
 export default class LanguageServiceHost {
-  constructor({fileNames, options}) {
+  constructor({fileNames, options}, ts) {
     this.options = options;
     this.fileNames = fileNames;
     this.fileExists = ts.sys.fileExists;
     this.readFile = ts.sys.readFile;
     this.readDirectory = ts.sys.readDirectory;
     this.files = {};
+    this.ts = ts;
   }
 
   invalidate(file) {
@@ -31,14 +30,14 @@ export default class LanguageServiceHost {
   }
 
   getScriptSnapshot(fileName) {
-    if (!ts.sys.fileExists(fileName)) {
+    if (!this.ts.sys.fileExists(fileName)) {
       return;
     }
 
-    const content = ts.sys.readFile(fileName);
+    const content = this.ts.sys.readFile(fileName);
 
     if (content) {
-      return ts.ScriptSnapshot.fromString(content);
+      return this.ts.ScriptSnapshot.fromString(content);
     }
   }
 
@@ -51,6 +50,6 @@ export default class LanguageServiceHost {
   }
 
   getDefaultLibFileName(projectOptions) {
-    return ts.getDefaultLibFilePath(projectOptions);
+    return this.ts.getDefaultLibFilePath(projectOptions);
   }
 }
