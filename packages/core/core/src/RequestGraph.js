@@ -152,7 +152,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   async transform(request: AssetRequest) {
     try {
       let start = Date.now();
-      await this.runValidate(request);
+      if (!request.filePath.includes('node_modules')) {
+        await this.runValidate(request);
+      }
       let cacheEntry = await this.runTransform(request);
 
       let time = Date.now() - start;
