@@ -1,5 +1,7 @@
 // @flow strict-local
 import invariant from 'assert';
+//$FlowFixMe
+import {isMatch} from 'micromatch';
 import nullthrows from 'nullthrows';
 
 import {PromiseQueue, md5FromString} from '@parcel/utils';
@@ -7,6 +9,7 @@ import type {
   AssetRequest,
   ConfigRequest,
   FilePath,
+  Glob,
   ParcelOptions
 } from '@parcel/types';
 import type {Event} from '@parcel/watcher';
@@ -21,7 +24,9 @@ import ResolverRunner from './ResolverRunner';
 import type InternalAsset from './Asset';
 import type {
   AssetRequestNode,
+  ConfigRequestNode,
   DepPathRequestNode,
+  GlobNode,
   NodeId,
   RequestGraphNode,
   RequestNode,
@@ -69,6 +74,12 @@ const nodeFromFilePath = (filePath: string) => ({
   value: {filePath}
 });
 
+const nodeFromGlob = (glob: Glob) => ({
+  id: glob,
+  type: 'glob',
+  value: glob
+});
+
 export default class RequestGraph extends Graph<RequestGraphNode> {
   // $FlowFixMe
   inProgress: Map<NodeId, Promise<any>> = new Map();
@@ -83,6 +94,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   farm: WorkerFarm;
   config: ParcelConfig;
   options: ParcelOptions;
+  globNodes: Array<GlobNode>;
 
   constructor({
     onAssetRequestComplete,
@@ -94,6 +106,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     super(graphOpts);
     this.options = options;
     this.queue = new PromiseQueue();
+    this.globNodes = [];
     this.onAssetRequestComplete = onAssetRequestComplete;
     this.onDepPathRequestComplete = onDepPathRequestComplete;
     this.config = config;
@@ -131,6 +144,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
 
   addNode(node: RequestGraphNode) {
     this.processNode(node);
+    if (node.type === 'glob') {
+      this.globNodes.push(node);
+    }
     return super.addNode(node);
   }
 
@@ -170,7 +186,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         );
         break;
       case 'config_request':
-        promise = this.runConfigRequest(requestNode.value);
+        promise = this.runConfigRequest(requestNode);
         break;
       default:
       // Do nothing
@@ -237,22 +253,33 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
 
     let config = await this.getSubTaskResult(configRequestNode);
 
-    // await Promise.all(
-    //   config.getDevDepRequests().map(async devDepRequest => {
-    //     let devDepRequestNode = nodeFromDevDepRequest(devDepRequest);
-    //     let {version} = await this.getSubTaskResult(devDepRequestNode);
-    //     config.setDevDep(devDepRequest.moduleSpecifier, version);
-    //   })
-    // );
+    // TODO: add DepVersionRequests to invalidate when plugins change
 
     return config;
   }
 
-  async runConfigRequest(configRequest: ConfigRequest) {
-    let result = await this.configLoader.load(configRequest);
-    configRequest.result = result;
-    //this.addConfigResultToGraph(requestNode, result);
-    return result;
+  async runConfigRequest(configRequestNode: ConfigRequestNode) {
+    let configRequest = configRequestNode.value;
+    let config = await this.configLoader.load(configRequest);
+    configRequest.result = config;
+
+    let invalidationNodes = [];
+
+    if (config.resolvedPath != null) {
+      invalidationNodes.push(nodeFromFilePath(config.resolvedPath));
+    }
+
+    for (let filePath of config.includedFiles) {
+      invalidationNodes.push(nodeFromFilePath(filePath));
+    }
+
+    if (config.watchGlob != null) {
+      invalidationNodes.push(nodeFromGlob(config.watchGlob));
+    }
+
+    this.replaceNodesConnectedTo(configRequestNode, invalidationNodes);
+
+    return config;
   }
 
   addSubRequest(subRequestNode: SubRequestNode, nodeId: NodeId) {
@@ -296,28 +323,90 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     }
   }
 
-  invalidateNode(node: RequestNode) {
-    this.invalidNodes.set(node.id, node);
+  connectGlob(requestNode: RequestNode, glob: Glob) {
+    let globNode = nodeFromGlob(glob);
+    if (!this.hasNode(globNode.id)) {
+      this.addNode(globNode);
+    }
+
+    if (!this.hasEdge(requestNode.id, globNode.id)) {
+      this.addEdge(requestNode.id, globNode.id);
+    }
   }
 
+  // invalidateNode(node: RequestNode) {
+  //   this.invalidNodes.set(node.id, node);
+  // }
+
+  invalidateNode(node: RequestNode) {
+    switch (node.type) {
+      case 'asset_request':
+      case 'dep_path_request':
+        this.invalidNodes.set(node.id, node);
+        break;
+      case 'config_request': {
+        this.invalidNodes.set(node.id, node);
+        let mainRequestNode = nullthrows(this.getMainRequestNode(node));
+        this.invalidNodes.set(mainRequestNode.id, mainRequestNode);
+        break;
+      }
+      default:
+        throw new Error(
+          `Cannot invalidate node with unrecognized type ${node.type}`
+        );
+    }
+  }
+
+  getMainRequestNode(node: SubRequestNode) {
+    if (node.type === 'config_request') {
+      let [mainRequestNode] = this.getNodesConnectedTo(node);
+      invariant(
+        mainRequestNode.type !== 'file' && mainRequestNode.type !== 'glob'
+      );
+      return mainRequestNode;
+    }
+  }
+
+  // TODO: add edge types to make invalidation more flexible and less precarious
   respondToFSEvents(events: Array<Event>) {
     for (let {path, type} of events) {
       let node = this.getNode(path);
-      let connectedNodes = node ? this.getNodesConnectedTo(node) : [];
 
-      if (type === 'create' && !this.hasNode(path)) {
-        // TODO: invalidate dep path requests that have failed and this creation may fulfill the request
-        // TODO: invalidate glob modules
-      } else if (type === 'create' || type === 'update') {
-        // sometimes mac reports update events as create events
-        for (let connectedNode of connectedNodes) {
-          if (connectedNode.type === 'asset_request') {
-            this.invalidateNode(connectedNode);
+      let connectedNodes =
+        node && node.type === 'file' ? this.getNodesConnectedTo(node) : [];
+
+      // TODO: invalidate dep path requests that have failed and this creation may fulfill the request
+      if (type === 'create') {
+        for (let globNode of this.globNodes) {
+          if (isMatch(path, globNode.value)) {
+            let connectedNodes = this.getNodesConnectedTo(globNode);
+            for (let connectedNode of connectedNodes) {
+              // TODO: actually fixype
+              invariant(
+                connectedNode.type !== 'file' && connectedNode.type !== 'glob'
+              );
+              this.invalidateNode(connectedNode);
+            }
           }
         }
-      } else if (type === 'delete') {
+      } else if (node && (type === 'create' || type === 'update')) {
+        // sometimes mac reports update events as create events
+        if (node.type === 'file') {
+          for (let connectedNode of connectedNodes) {
+            if (
+              connectedNode.type === 'asset_request' ||
+              connectedNode.type === 'config_request'
+            ) {
+              this.invalidateNode(connectedNode);
+            }
+          }
+        }
+      } else if (node && type === 'delete') {
         for (let connectedNode of connectedNodes) {
-          if (connectedNode.type === 'dep_path_request') {
+          if (
+            connectedNode.type === 'dep_path_request' ||
+            connectedNode.type === 'config_request'
+          ) {
             this.invalidateNode(connectedNode);
           }
         }

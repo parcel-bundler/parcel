@@ -12,11 +12,6 @@ export type GraphOpts<TNode> = {|
   rootNodeId?: ?NodeId
 |};
 
-type GraphUpdates<TNode> = {|
-  added: Graph<TNode>,
-  removed: Graph<TNode>
-|};
-
 type AdjacencyList = DefaultMap<NodeId, Set<NodeId>>;
 
 export default class Graph<TNode: Node> {
@@ -113,21 +108,16 @@ export default class Graph<TNode: Node> {
   }
 
   // Removes node and any edges coming from or to that node
-  removeNode(node: TNode): Graph<TNode> {
-    let removed = new this.constructor();
-
+  removeNode(node: TNode) {
     for (let from of this.inboundEdges.get(node.id)) {
-      removed.merge(this.removeEdge(from, node.id));
+      this.removeEdge(from, node.id);
     }
 
     for (let to of this.outboundEdges.get(node.id)) {
-      removed.merge(this.removeEdge(node.id, to));
+      this.removeEdge(node.id, to);
     }
 
     this.nodes.delete(node.id);
-    removed.addNode(node);
-
-    return removed;
   }
 
   removeById(id: NodeId) {
@@ -135,30 +125,21 @@ export default class Graph<TNode: Node> {
     this.removeNode(node);
   }
 
-  removeEdges(node: TNode): this {
-    let removed = new this.constructor();
-
+  removeEdges(node: TNode) {
     for (let to of this.outboundEdges.get(node.id)) {
-      removed.merge(this.removeEdge(node.id, to));
+      this.removeEdge(node.id, to);
     }
-
-    return removed;
   }
 
   // Removes edge and node the edge is to if the node is orphaned
-  removeEdge(from: NodeId, to: NodeId): this {
-    let removed = new this.constructor();
-
+  removeEdge(from: NodeId, to: NodeId) {
     this.outboundEdges.get(from).delete(to);
     this.inboundEdges.get(to).delete(from);
-    removed.addEdge(from, to);
 
     let connectedNode = nullthrows(this.nodes.get(to));
     if (this.isOrphanedNode(connectedNode)) {
-      removed.merge(this.removeNode(connectedNode));
+      this.removeNode(connectedNode);
     }
-
-    return removed;
   }
 
   isOrphanedNode(node: TNode): boolean {
@@ -178,19 +159,12 @@ export default class Graph<TNode: Node> {
 
   // Update a node's downstream nodes making sure to prune any orphaned branches
   // Also keeps track of all added and removed edges and nodes
-  replaceNodesConnectedTo(
-    fromNode: TNode,
-    toNodes: Array<TNode>
-  ): GraphUpdates<TNode> {
-    let removed = new this.constructor();
-    let added = new this.constructor();
-
+  replaceNodesConnectedTo(fromNode: TNode, toNodes: Array<TNode>): void {
     let childrenToRemove = new Set(this.outboundEdges.get(fromNode.id));
     for (let toNode of toNodes) {
       let existingNode = this.getNode(toNode.id);
       if (!existingNode) {
         this.addNode(toNode);
-        added.addNode(toNode);
       } else {
         existingNode.value = toNode.value;
       }
@@ -199,15 +173,12 @@ export default class Graph<TNode: Node> {
 
       if (!this.hasEdge(fromNode.id, toNode.id)) {
         this.addEdge(fromNode.id, toNode.id);
-        added.addEdge(fromNode.id, toNode.id);
       }
     }
 
     for (let child of childrenToRemove) {
-      removed.merge(this.removeEdge(fromNode.id, child));
+      this.removeEdge(fromNode.id, child);
     }
-
-    return {removed, added};
   }
 
   traverse<TContext>(visit: GraphVisitor<TNode, TContext>, startNode: ?TNode) {

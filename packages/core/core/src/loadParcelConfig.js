@@ -254,7 +254,7 @@ export function mergeConfigs(
   ext: ResolvedParcelConfigFile
 ): ParcelConfig {
   return new ParcelConfig({
-    filePath: base.filePath, // TODO: revisit this - it should resolve plugins based on the actual config they are defined in
+    filePath: ext.filePath, // TODO: revisit this - it should resolve plugins based on the actual config they are defined in
     resolvers: mergePipelines(base.resolvers, ext.resolvers),
     transforms: mergeMaps(base.transforms, ext.transforms, mergePipelines),
     bundler: ext.bundler || base.bundler,

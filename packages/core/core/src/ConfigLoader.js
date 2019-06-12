@@ -50,7 +50,7 @@ export default class ConfigLoader {
 
     config.setResultHash(md5FromString(JSON.stringify(devDeps)));
 
-    config.addGlobWatchPattern('**/.parcelrc');
+    config.setWatchGlob('**/.parcelrc');
 
     // let reliesOnLockFile = false;
     for (let extendedFile of extendedFiles) {

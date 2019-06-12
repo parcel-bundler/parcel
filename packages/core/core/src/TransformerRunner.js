@@ -117,10 +117,6 @@ export class Transformation {
       pipeline.configs
     );
 
-    // TODO: remove debugging
-    // if (initialCacheEntry) console.log('CACHE ENTRY FOUND');
-    // else console.log('TRANSFORMING');
-
     let assets = initialCacheEntry || (await pipeline.transform(initialAsset));
     if (!initialCacheEntry) {
       await this.writeToCache(assets, pipeline.configs);

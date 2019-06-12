@@ -7,9 +7,10 @@ import type {
   Environment,
   File,
   FilePath,
+  Glob,
+  ParcelOptions,
   Stats,
-  Target,
-  ParcelOptions
+  Target
 } from '@parcel/types';
 
 import type Asset from './Asset';
@@ -45,6 +46,7 @@ export type DependencyNode = {|
 |};
 
 export type FileNode = {|id: string, +type: 'file', value: File|};
+export type GlobNode = {|id: string, +type: 'glob', value: Glob|};
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
 
 // Asset group nodes are essentially used as placeholders for the results of an asset request
@@ -83,8 +85,11 @@ export type ConfigRequestNode = {|
   value: ConfigRequest
 |};
 
-export type RequestGraphNode = RequestNode | FileNode | ConfigRequestNode;
-export type RequestNode = DepPathRequestNode | AssetRequestNode;
+export type RequestGraphNode = RequestNode | FileNode | GlobNode;
+export type RequestNode =
+  | DepPathRequestNode
+  | AssetRequestNode
+  | ConfigRequestNode;
 export type SubRequestNode = ConfigRequestNode;
 
 export interface BundleReference {

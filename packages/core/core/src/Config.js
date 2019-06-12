@@ -2,15 +2,14 @@
 import nullthrows from 'nullthrows';
 import path from 'path';
 
-import type {FilePath, PackageName} from '@parcel/types';
+import type {FilePath, PackageName, Glob} from '@parcel/types';
 
 type ConfigOpts = {|
   searchPath: FilePath,
   resolvedPath?: FilePath,
   result?: any,
   includedFiles?: Iterator<FilePath>,
-  invalidatingFiles?: Iterator<FilePath>,
-  globPatterns?: Iterator<string>,
+  watchGlob?: Glob,
   devDeps?: Iterator<[PackageName, ?string]>
 |};
 
@@ -20,8 +19,7 @@ export default class Config {
   result: ?any;
   resultHash: ?string;
   includedFiles: Set<FilePath>;
-  invalidatingFiles: Set<FilePath>;
-  globPatterns: Set<string>;
+  watchGlob: ?Glob;
   devDeps: Map<PackageName, ?string>;
 
   constructor({
@@ -29,16 +27,14 @@ export default class Config {
     resolvedPath,
     result,
     includedFiles,
-    invalidatingFiles,
-    globPatterns,
+    watchGlob,
     devDeps
   }: ConfigOpts) {
     this.searchPath = searchPath;
     this.resolvedPath = resolvedPath;
     this.result = result || null;
     this.includedFiles = new Set(includedFiles);
-    this.invalidatingFiles = new Set(invalidatingFiles);
-    this.globPatterns = new Set(globPatterns);
+    this.watchGlob = watchGlob;
     this.devDeps = new Map(devDeps);
   }
 
@@ -48,8 +44,7 @@ export default class Config {
       resolvedPath: this.resolvedPath,
       result: this.result,
       includedFiles: [...this.includedFiles],
-      invalidatingFiles: [...this.invalidatingFiles],
-      globPatterns: [...this.globPatterns],
+      watchGlob: this.watchGlob,
       devDeps: [...this.devDeps]
     };
   }
@@ -70,10 +65,6 @@ export default class Config {
     this.includedFiles.add(filePath);
   }
 
-  addInvalidatingFile(filePath: FilePath) {
-    this.invalidatingFiles.add(filePath);
-  }
-
   setDevDep(name: PackageName, version?: string) {
     this.devDeps.set(name, version);
   }
@@ -82,17 +73,18 @@ export default class Config {
     return this.devDeps.get(name);
   }
 
-  addGlobWatchPattern(glob: string) {
-    this.globPatterns.add(glob);
+  setWatchGlob(glob: string) {
+    this.watchGlob = glob;
   }
 
+  // This will be more useful when we have edge types
   getInvalidations() {
     let invalidations = [];
 
-    for (let globPattern of this.globPatterns) {
+    if (this.watchGlob) {
       invalidations.push({
         action: 'add',
-        pattern: globPattern
+        pattern: this.watchGlob
       });
     }
 
