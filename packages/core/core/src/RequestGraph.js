@@ -334,10 +334,6 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     }
   }
 
-  // invalidateNode(node: RequestNode) {
-  //   this.invalidNodes.set(node.id, node);
-  // }
-
   invalidateNode(node: RequestNode) {
     switch (node.type) {
       case 'asset_request':
@@ -376,20 +372,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         node && node.type === 'file' ? this.getNodesConnectedTo(node) : [];
 
       // TODO: invalidate dep path requests that have failed and this creation may fulfill the request
-      if (type === 'create') {
-        for (let globNode of this.globNodes) {
-          if (isMatch(path, globNode.value)) {
-            let connectedNodes = this.getNodesConnectedTo(globNode);
-            for (let connectedNode of connectedNodes) {
-              // TODO: actually fixype
-              invariant(
-                connectedNode.type !== 'file' && connectedNode.type !== 'glob'
-              );
-              this.invalidateNode(connectedNode);
-            }
-          }
-        }
-      } else if (node && (type === 'create' || type === 'update')) {
+      if (node && (type === 'create' || type === 'update')) {
         // sometimes mac reports update events as create events
         if (node.type === 'file') {
           for (let connectedNode of connectedNodes) {
@@ -397,6 +380,18 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
               connectedNode.type === 'asset_request' ||
               connectedNode.type === 'config_request'
             ) {
+              this.invalidateNode(connectedNode);
+            }
+          }
+        }
+      } else if (type === 'create') {
+        for (let globNode of this.globNodes) {
+          if (isMatch(path, globNode.value)) {
+            let connectedNodes = this.getNodesConnectedTo(globNode);
+            for (let connectedNode of connectedNodes) {
+              invariant(
+                connectedNode.type !== 'file' && connectedNode.type !== 'glob'
+              );
               this.invalidateNode(connectedNode);
             }
           }
