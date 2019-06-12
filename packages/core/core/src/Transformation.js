@@ -12,17 +12,9 @@ import type {
   ParcelOptions,
   PackageName
 } from '@parcel/types';
-//import type {CacheEntry} from './types';
 
 import path from 'path';
-//import clone from 'clone';
-import {
-  //md5FromFilePath,
-  md5FromReadableStream,
-  md5FromString,
-  TapStream
-  // unique
-} from '@parcel/utils';
+import {md5FromReadableStream, md5FromString, TapStream} from '@parcel/utils';
 import Cache from '@parcel/cache';
 import {createReadStream} from 'fs';
 
@@ -35,13 +27,7 @@ import InternalAsset from './Asset';
 import type {NodeId} from './types';
 
 type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutput>;
-// type PipelineOpts = {|
-//   input: InternalAsset,
-//   originalPipeline?: Array<Transformer>,
-//   pipeline: Array<Transformer>,
-//   cacheEntry?: ?CacheEntry,
-//   previousGenerate?: ?GenerateFunc
-// |};
+
 type PostProcessFunc = (
   Array<InternalAsset>
 ) => Promise<Array<InternalAsset> | null>;
@@ -56,7 +42,7 @@ export type TransformationOpts = {|
 |};
 
 type ConfigMap = Map<PackageName, Config>;
-export class Transformation {
+export default class Transformation {
   request: AssetRequest;
   loadConfig: ConfigRequest => Promise<Config>;
   options: ParcelOptions;

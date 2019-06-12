@@ -4,8 +4,7 @@ import type {ParcelOptions} from '@parcel/types';
 import type {Bundle} from './types';
 import type BundleGraph from './BundleGraph';
 
-import {Transformation} from './TransformerRunner';
-import type {TransformationOpts} from './TransformerRunner';
+import Transformation, {type TransformationOpts} from './Transformation';
 import PackagerRunner from './PackagerRunner';
 import ParcelConfig from './ParcelConfig';
 import registerCoreWithSerializer from './registerCoreWithSerializer';
