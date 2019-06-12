@@ -52,6 +52,7 @@ export default class ConfigLoader {
 
     config.setWatchGlob('**/.parcelrc');
 
+    // TODO: if extended config comes from a package, yarn.lock change should invalidate config request
     // let reliesOnLockFile = false;
     for (let extendedFile of extendedFiles) {
       // // ? Does this work for Windows
