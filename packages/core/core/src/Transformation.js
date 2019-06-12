@@ -18,7 +18,7 @@ import {md5FromReadableStream, md5FromString, TapStream} from '@parcel/utils';
 import Cache from '@parcel/cache';
 import {createReadStream} from 'fs';
 
-import Config from './Config';
+import type Config from './public/Config';
 import Dependency from './Dependency';
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';

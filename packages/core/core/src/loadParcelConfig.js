@@ -44,9 +44,7 @@ export default async function loadParcelConfig(
 }
 
 export async function resolve(filePath: FilePath) {
-  let configPath = await resolveConfig(filePath, ['.parcelrc'], {
-    noCache: true
-  });
+  let configPath = await resolveConfig(filePath, ['.parcelrc']);
   if (!configPath) {
     return null;
   }

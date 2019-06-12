@@ -35,6 +35,5 @@ export default async function loadPlugin(
   let plugin = require(resolved);
   plugin = plugin.default ? plugin.default : plugin;
   plugin = plugin[CONFIG];
-  // this.pluginCache.set(pluginName, plugin);
   return plugin;
 }

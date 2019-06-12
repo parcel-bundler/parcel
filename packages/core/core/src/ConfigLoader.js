@@ -4,7 +4,7 @@ import nullthrows from 'nullthrows';
 import type {ConfigRequest, ParcelOptions} from '@parcel/types';
 import {md5FromString} from '@parcel/utils';
 
-import Config from './Config';
+import Config from './public/Config';
 import type ParcelConfig from './ParcelConfig';
 import loadParcelConfig from './loadParcelConfig';
 import loadPlugin from './loadParcelPlugin';
@@ -53,19 +53,9 @@ export default class ConfigLoader {
     config.setWatchGlob('**/.parcelrc');
 
     // TODO: if extended config comes from a package, yarn.lock change should invalidate config request
-    // let reliesOnLockFile = false;
     for (let extendedFile of extendedFiles) {
-      // // ? Does this work for Windows
-      // if (extendedFile.includes('/node_modules/')) {
-      //   reliesOnLockFile = true;
-      // }
-
       config.addIncludedFile(extendedFile);
     }
-
-    // if (reliesOnLockFile) {
-    //   config.addInvalidatingFile(this.options.lockFilePath);
-    // }
 
     return config;
   }
