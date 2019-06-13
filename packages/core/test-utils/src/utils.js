@@ -8,6 +8,7 @@ import type {
   InitialParcelOptions
 } from '@parcel/types';
 
+import invariant from 'assert';
 import Parcel from '@parcel/core';
 import defaultConfigContents from '@parcel/config-default';
 import assert from 'assert';
@@ -101,8 +102,8 @@ export async function bundle(
   return nullthrows(await bundler(entries, opts).run());
 }
 
-export function getNextBuild(b: Parcel) {
-  return new Promise<BuildEvent | void>((resolve, reject) => {
+export function getNextBuild(b: Parcel): Promise<BuildEvent> {
+  return new Promise((resolve, reject) => {
     let subscriptionPromise = b
       .watch((err, buildEvent) => {
         if (err) {
@@ -111,8 +112,14 @@ export function getNextBuild(b: Parcel) {
         }
 
         subscriptionPromise
-          .then(subscription => subscription?.unsubscribe())
+          .then(subscription => {
+            // If the watch callback was reached, subscription must have been successful
+            invariant(subscription != null);
+            return subscription.unsubscribe();
+          })
           .then(() => {
+            // If the build promise hasn't been rejected, buildEvent must exist
+            invariant(buildEvent != null);
             resolve(buildEvent);
           })
           .catch(reject);
