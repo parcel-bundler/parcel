@@ -2,7 +2,7 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
 const logger = require('@parcel/logger');
-const {bundler} = require('@parcel/test-utils');
+const {bundler, getNextBuild} = require('@parcel/test-utils');
 const http = require('http');
 const https = require('https');
 const getPort = require('get-port');
@@ -32,26 +32,6 @@ function get(file, port, client = http) {
         });
       }
     );
-  });
-}
-
-function getNextBuild(b) {
-  return new Promise((resolve, reject) => {
-    let subscriptionPromise = b
-      .watch((err, buildEvent) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-
-        subscriptionPromise
-          .then(subscription => subscription.unsubscribe())
-          .then(() => {
-            resolve(buildEvent);
-          })
-          .catch(reject);
-      })
-      .catch(reject);
   });
 }
 

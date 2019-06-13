@@ -1,6 +1,7 @@
 // @flow
 
 import type {
+  BuildEvent,
   BundleGraph,
   Bundle,
   FilePath,
@@ -98,6 +99,26 @@ export async function bundle(
   opts: InitialParcelOptions
 ): Promise<BundleGraph> {
   return nullthrows(await bundler(entries, opts).run());
+}
+
+export function getNextBuild(b: Parcel) {
+  return new Promise<BuildEvent | void>((resolve, reject) => {
+    let subscriptionPromise = b
+      .watch((err, buildEvent) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        subscriptionPromise
+          .then(subscription => subscription?.unsubscribe())
+          .then(() => {
+            resolve(buildEvent);
+          })
+          .catch(reject);
+      })
+      .catch(reject);
+  });
 }
 
 export async function run(

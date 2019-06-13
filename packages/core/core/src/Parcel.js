@@ -3,8 +3,7 @@
 import type {
   AsyncSubscription,
   BundleGraph as IBundleGraph,
-  BuildFailureEvent,
-  BuildSuccessEvent,
+  BuildEvent,
   EnvironmentOpts,
   FilePath,
   InitialParcelOptions,
@@ -38,8 +37,6 @@ import registerCoreWithSerializer from './registerCoreWithSerializer';
 import {createCacheDir} from '@parcel/cache';
 
 registerCoreWithSerializer();
-
-type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
 
 export const INTERNAL_TRANSFORM = Symbol('internal_transform');
 export const INTERNAL_RESOLVE = Symbol('internal_resolve');

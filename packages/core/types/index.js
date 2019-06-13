@@ -608,6 +608,8 @@ export type BuildFailureEvent = {|
   error: Error
 |};
 
+export type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
+
 export type ReporterEvent =
   | LogEvent
   | BuildStartEvent
