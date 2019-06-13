@@ -22,6 +22,10 @@ export const writeFile: $PropertyType<FSPromise, 'writeFile'> = promisify(
   fs.writeFile
 );
 
+export const copyFile: $PropertyType<FSPromise, 'copyFile'> = promisify(
+  fs.copyFile
+);
+
 export const stat: $PropertyType<FSPromise, 'stat'> = promisify(fs.stat);
 
 export const readdir: $PropertyType<FSPromise, 'readdir'> = promisify(
