@@ -141,7 +141,7 @@ export default class Asset {
    * Prepares the asset for being serialized to the cache by commiting its
    * content and map of the asset to the cache.
    */
-  async commit(): Promise<void> {
+  async commit(pipelineKey: string): Promise<void> {
     this.ast = null;
 
     let contentStream = this.getStream();
@@ -162,7 +162,7 @@ export default class Asset {
     // and hash while it's being written to the cache.
     let [contentKey, mapKey] = await Promise.all([
       this.cache.setStream(
-        this.generateCacheKey('content'),
+        this.generateCacheKey('content' + pipelineKey),
         contentStream.pipe(
           new TapStream(buf => {
             size += buf.length;
@@ -172,7 +172,7 @@ export default class Asset {
       ),
       this.map == null
         ? Promise.resolve()
-        : this.cache.set(this.generateCacheKey('map'), this.map)
+        : this.cache.set(this.generateCacheKey('map' + pipelineKey), this.map)
     ]);
     this.contentKey = contentKey;
     this.mapKey = mapKey;

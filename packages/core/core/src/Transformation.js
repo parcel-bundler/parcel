@@ -42,11 +42,14 @@ export type TransformationOpts = {|
 |};
 
 type ConfigMap = Map<PackageName, Config>;
+
 export default class Transformation {
   request: AssetRequest;
   loadConfig: ConfigRequest => Promise<Config>;
   options: ParcelOptions;
   cache: Cache;
+  envId: string;
+  impactfulOptionsId: string;
 
   constructor({
     request,
@@ -57,6 +60,12 @@ export default class Transformation {
     this.request = request;
     this.loadConfig = configRequest => loadConfig(configRequest, parentNodeId);
     this.options = options;
+
+    // TODO: these options may not impact all transformations, let transformers decide if they care or not
+    let {minify, hot, scopeHoist} = this.options;
+    this.impactfulOptionsId = JSON.stringify({minify, hot, scopeHoist});
+
+    this.envId = JSON.stringify(this.request.env);
   }
 
   async run() {
@@ -160,31 +169,29 @@ export default class Transformation {
 
   async writeToCache(assets: Array<InternalAsset>, configs: ConfigMap) {
     let cacheKey = await this.getCacheKey(assets, configs);
-    await Promise.all(assets.map(asset => asset.commit()));
+    await Promise.all(
+      // TODO: account for impactfulOptions maybe being different per pipeline
+      assets.map(asset => asset.commit(this.impactfulOptionsId))
+    );
     this.cache.set(cacheKey, assets);
   }
 
   async getCacheKey(assets: Array<InternalAsset>, configs: ConfigMap) {
-    let assetIdentities = assets.map(({filePath, type, hash}) => ({
-      filePath,
-      hash,
-      type
-    }));
+    let assetsId = JSON.stringify(
+      assets.map(({filePath, type, hash}) => ({
+        filePath,
+        hash,
+        type
+      }))
+    );
 
     // TODO: sort
-    let configHashes = [...configs].map(([, config]) => config.resultHash);
-
-    // TODO: these options may not impact all transformations, let transformers decide if they care or not
-    let {minify, hot, scopeHoist} = this.options;
-    let impactfulOptions = {minify, hot, scopeHoist};
+    let configHashesId = JSON.stringify(
+      [...configs].map(([, config]) => config.resultHash)
+    );
 
     return md5FromString(
-      JSON.stringify({
-        assetIdentities,
-        configHashes,
-        env: this.request.env,
-        impactfulOptions
-      })
+      assetsId + configHashesId + this.envId + this.impactfulOptionsId
     );
   }
 
