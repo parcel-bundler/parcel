@@ -47,14 +47,14 @@ function collectConfigPackageReferences(
   configSection: mixed,
   references: Set<string> = new Set()
 ): Set<string> {
-  if (!isPlainObject(configSection) && !Array.isArray(configSection)) {
+  if (configSection == null || typeof configSection !== 'object') {
     throw new TypeError('Expected config section to be an object or an array');
   }
 
   for (let value of Object.values(configSection)) {
     if (typeof value === 'string') {
       references.add(value);
-    } else if (isPlainObject(value) || Array.isArray(value)) {
+    } else if (configSection != null && typeof configSection === 'object') {
       collectConfigPackageReferences(value, references);
     } else {
       throw new Error(
@@ -64,10 +64,4 @@ function collectConfigPackageReferences(
   }
 
   return references;
-}
-
-function isPlainObject(maybeObj: any): boolean {
-  // This won't work with Objects with a null prototype, but those aren't produced
-  // by JSON.parse
-  return maybeObj != null && maybeObj.constructor === Object;
 }
