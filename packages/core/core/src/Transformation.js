@@ -13,6 +13,7 @@ import type {
   PackageName
 } from '@parcel/types';
 
+import invariant from 'assert';
 import path from 'path';
 import {md5FromReadableStream, md5FromString, TapStream} from '@parcel/utils';
 import Cache from '@parcel/cache';
@@ -68,7 +69,7 @@ export default class Transformation {
     this.envId = JSON.stringify(this.request.env);
   }
 
-  async run() {
+  async run(): Promise<Array<InternalAsset>> {
     report({
       type: 'buildProgress',
       phase: 'transforming',
@@ -82,7 +83,7 @@ export default class Transformation {
     return this.runPipeline(pipeline, asset);
   }
 
-  async loadAsset() {
+  async loadAsset(): Promise<InternalAsset> {
     let {filePath, env, code, sideEffects} = this.request;
     let {content, size, hash} = await summarizeRequest(this.request);
 
@@ -105,7 +106,10 @@ export default class Transformation {
     });
   }
 
-  async runPipeline(pipeline: Pipeline, initialAsset: InternalAsset) {
+  async runPipeline(
+    pipeline: Pipeline,
+    initialAsset: InternalAsset
+  ): Promise<Array<InternalAsset>> {
     let initialType = initialAsset.type;
     let initialCacheEntry = await this.readFromCache(
       [initialAsset],
@@ -139,8 +143,7 @@ export default class Transformation {
       }
     }
 
-    const postProcess = pipeline.postProcess;
-    if (!postProcess) {
+    if (!pipeline.postProcess) {
       return finalAssets;
     }
 
@@ -149,9 +152,10 @@ export default class Transformation {
       pipeline.configs
     );
 
-    let processedFinalAssets =
-      // For Flow
-      processedCacheEntry || (await postProcess.call(pipeline, assets));
+    invariant(pipeline.postProcess != null);
+    let processedFinalAssets: Array<InternalAsset> =
+      processedCacheEntry ?? (await pipeline.postProcess(assets)) ?? [];
+
     if (!processedCacheEntry) {
       await this.writeToCache(processedFinalAssets, pipeline.configs);
     }
@@ -159,7 +163,10 @@ export default class Transformation {
     return processedFinalAssets;
   }
 
-  async readFromCache(assets: Array<InternalAsset>, configs: ConfigMap) {
+  async readFromCache(
+    assets: Array<InternalAsset>,
+    configs: ConfigMap
+  ): Promise<null | Array<InternalAsset>> {
     if (!this.options.cache || this.request.code == null) {
       return null;
     }
@@ -172,7 +179,10 @@ export default class Transformation {
     return cachedAssets;
   }
 
-  async writeToCache(assets: Array<InternalAsset>, configs: ConfigMap) {
+  async writeToCache(
+    assets: Array<InternalAsset>,
+    configs: ConfigMap
+  ): Promise<void> {
     let cacheKey = await this.getCacheKey(assets, configs);
     await Promise.all(
       // TODO: account for impactfulOptions maybe being different per pipeline
@@ -181,7 +191,10 @@ export default class Transformation {
     this.cache.set(cacheKey, assets);
   }
 
-  async getCacheKey(assets: Array<InternalAsset>, configs: ConfigMap) {
+  async getCacheKey(
+    assets: Array<InternalAsset>,
+    configs: ConfigMap
+  ): Promise<string> {
     let assetsId = JSON.stringify(
       assets.map(({filePath, type, hash}) => ({
         filePath,
@@ -200,7 +213,7 @@ export default class Transformation {
     );
   }
 
-  async loadPipeline(filePath: FilePath) {
+  async loadPipeline(filePath: FilePath): Promise<Pipeline> {
     let configRequest = {
       filePath,
       meta: {
@@ -241,7 +254,7 @@ export default class Transformation {
     filePath: string,
     nextType: string,
     currentPipeline: Pipeline
-  ) {
+  ): Promise<?Pipeline> {
     let nextFilePath =
       filePath.slice(0, -path.extname(filePath).length) + '.' + nextType;
     let nextPipeline = await this.loadPipeline(nextFilePath);
@@ -257,7 +270,7 @@ export default class Transformation {
     filePath: FilePath,
     plugin: PackageName,
     parcelConfigPath: FilePath
-  ) {
+  ): Promise<Config> {
     let configRequest = {
       filePath,
       plugin,
@@ -298,7 +311,7 @@ class Pipeline {
     });
   }
 
-  async transform(initialAsset: InternalAsset) {
+  async transform(initialAsset: InternalAsset): Promise<Array<InternalAsset>> {
     let inputAssets = [initialAsset];
     let resultingAssets;
     let finalAssets = [];
@@ -327,7 +340,10 @@ class Pipeline {
     );
   }
 
-  async runTransformer(asset: InternalAsset, transformer: Transformer) {
+  async runTransformer(
+    asset: InternalAsset,
+    transformer: Transformer
+  ): Promise<Array<TransformerResult>> {
     const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
       return (await this.resolverRunner.resolve(
         new Dependency({
