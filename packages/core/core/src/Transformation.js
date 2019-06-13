@@ -119,15 +119,16 @@ export default class Transformation {
 
     let finalAssets: Array<InternalAsset> = [];
     for (let asset of assets) {
+      let nextPipeline;
       if (asset.type !== initialType) {
-        let nextFilePath =
-          initialAsset.filePath.slice(
-            0,
-            -path.extname(initialAsset.filePath).length
-          ) +
-          '.' +
-          asset.type;
-        let nextPipeline = await this.loadPipeline(nextFilePath);
+        nextPipeline = await this.loadNextPipeline(
+          initialAsset.filePath,
+          asset.type,
+          pipeline
+        );
+      }
+
+      if (nextPipeline) {
         let nextPipelineAssets = await this.runPipeline(nextPipeline, asset);
         await Promise.all(
           nextPipelineAssets.map(nextAsset => nextAsset.getCode())
@@ -159,6 +160,10 @@ export default class Transformation {
   }
 
   async readFromCache(assets: Array<InternalAsset>, configs: ConfigMap) {
+    if (!this.options.cache || this.request.code == null) {
+      return null;
+    }
+
     let cacheKey = await this.getCacheKey(assets, configs);
     let cachedAssets = this.cache.get(cacheKey);
     if (cachedAssets) {
@@ -222,13 +227,30 @@ export default class Transformation {
       }
     }
 
-    let pipeline = new Pipeline(
-      await parcelConfig.getTransformers(filePath),
+    let pipeline = new Pipeline({
+      id: parcelConfig.getTransformerNames(filePath),
+      transformers: await parcelConfig.getTransformers(filePath),
       configs,
-      this.options
-    );
+      options: this.options
+    });
 
     return pipeline;
+  }
+
+  async loadNextPipeline(
+    filePath: string,
+    nextType: string,
+    currentPipeline: Pipeline
+  ) {
+    let nextFilePath =
+      filePath.slice(0, -path.extname(filePath).length) + '.' + nextType;
+    let nextPipeline = await this.loadPipeline(nextFilePath);
+
+    if (nextPipeline.id === currentPipeline.id) {
+      return null;
+    }
+
+    return nextPipeline;
   }
 
   async loadTransformerConfig(
@@ -247,7 +269,15 @@ export default class Transformation {
   }
 }
 
+type PipelineOpts = {|
+  id: string,
+  transformers: Array<Transformer>,
+  configs: ConfigMap,
+  options: ParcelOptions
+|};
+
 class Pipeline {
+  id: string;
   transformers: Array<Transformer>;
   configs: ConfigMap;
   options: ParcelOptions;
@@ -255,11 +285,8 @@ class Pipeline {
   generate: GenerateFunc;
   postProcess: ?PostProcessFunc;
 
-  constructor(
-    transformers: Array<Transformer>,
-    configs: ConfigMap,
-    options: ParcelOptions
-  ) {
+  constructor({id, transformers, configs, options}: PipelineOpts) {
+    this.id = id;
     this.transformers = transformers;
     this.configs = configs;
     this.options = options;
