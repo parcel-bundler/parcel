@@ -1,5 +1,6 @@
 require('v8-compile-cache');
 const chalk = require('chalk');
+const envinfo = require('envinfo');
 const program = require('commander');
 const version = require('../package.json').version;
 
@@ -166,6 +167,22 @@ program
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
   .option('--node-modules-dir <path>', 'overrides the node_modules path."')
   .action(bundle);
+
+program
+  .command('info')
+  .description('Prints debugging information about the local environment')
+  .action(function() {
+    console.log(chalk.bold('\nEnvironment Info:'));
+    envinfo
+      .run({
+        System: ['OS', 'CPU'],
+        Binaries: ['Node', 'Yarn', 'npm'],
+        Browsers: ['Chrome', 'Edge', 'Firefox', 'Safari'],
+        npmPackages: ['parcel-bundler'],
+        npmGlobalPackages: ['parcel-bundler']
+      })
+      .then(console.log);
+  });
 
 program
   .command('help [command]')

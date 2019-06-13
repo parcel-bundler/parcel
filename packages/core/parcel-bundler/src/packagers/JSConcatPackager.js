@@ -283,17 +283,30 @@ class JSConcatPackager extends Packager {
       // so that they can be referenced by other modules directly.
       if (t.isVariableDeclaration(node)) {
         for (let decl of node.declarations) {
-          decls.push(t.variableDeclarator(decl.id));
-          if (decl.init) {
-            body.push(
-              t.expressionStatement(
-                t.assignmentExpression(
-                  '=',
-                  t.identifier(decl.id.name),
-                  decl.init
+          if (t.isObjectPattern(decl.id) || t.isArrayPattern(decl.id)) {
+            for (let prop of Object.values(t.getBindingIdentifiers(decl.id))) {
+              decls.push(t.variableDeclarator(prop));
+            }
+            if (decl.init) {
+              body.push(
+                t.expressionStatement(
+                  t.assignmentExpression('=', decl.id, decl.init)
                 )
-              )
-            );
+              );
+            }
+          } else {
+            decls.push(t.variableDeclarator(decl.id));
+            if (decl.init) {
+              body.push(
+                t.expressionStatement(
+                  t.assignmentExpression(
+                    '=',
+                    t.identifier(decl.id.name),
+                    decl.init
+                  )
+                )
+              );
+            }
           }
         }
       } else if (t.isFunctionDeclaration(node)) {
