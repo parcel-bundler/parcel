@@ -583,7 +583,7 @@ describe('html', function() {
     ]);
   });
 
-  it.skip('should process inline JS', async function() {
+  it('should process inline JS', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js/index.html'),
       {
@@ -591,91 +591,95 @@ describe('html', function() {
       }
     );
 
-    const bundleContent = (await outputFS.readFile(b.filePath)).toString();
-    assert(!bundleContent.includes('someArgument'));
+    assertBundles(b, [{name: 'index.html', assets: ['index.html']}]);
+
+    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    assert(!html.includes('`${hello} ${world}${end}`'));
+    // asserts that ugify was ran when production flag is passed
+    assert(!html.includes('someArgument'));
   });
 
-  it.skip('should process inline styles', async function() {
+  it('should process inline styles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-styles/index.html'),
       {production: true}
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'jpg',
-          assets: ['bg.jpg'],
-          childBundles: []
-        },
-        {
-          type: 'jpg',
-          assets: ['img.jpg'],
-          childBundles: []
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'jpg',
+        assets: ['bg.jpg'],
+        childBundles: []
+      },
+      {
+        type: 'jpg',
+        assets: ['img.jpg'],
+        childBundles: []
+      }
+    ]);
   });
 
-  it.skip('should process inline styles using lang', async function() {
+  it('should process inline styles using lang', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-sass/index.html'),
       {production: true}
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.html',
       assets: ['index.html']
     });
 
     let html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
+      path.join(distDir, 'index.html'),
       'utf8'
     );
-
     assert(html.includes('<style>.index{color:#00f}</style>'));
   });
 
-  it.skip('should process inline non-js scripts', async function() {
+  it('should process inline non-js scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-coffeescript/index.html'),
       {production: true}
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html']
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      }
+    ]);
 
     let html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
+      path.join(distDir, 'index.html'),
       'utf8'
     );
-
     assert(html.includes('alert("Hello, World!")'));
   });
 
-  it.skip('should handle inline css with @imports', async function() {
+  it('should handle inline css with @imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-css-import/index.html'),
       {production: true}
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'css',
-          assets: ['test.css']
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['test.css']
+      }
+    ]);
 
     let html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
+      path.join(distDir, 'index.html'),
       'utf8'
     );
     assert(html.includes('@import'));

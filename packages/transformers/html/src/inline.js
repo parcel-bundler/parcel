@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {MutableAsset, TransformerResult} from '@parcel/types';
+import {md5FromString} from '@parcel/utils';
 import type {PostHTMLNode} from 'posthtml';
 
 import PostHTML from 'posthtml';
@@ -50,9 +51,11 @@ export default function extractInlineAssets(
         }
 
         parts.push({
+          id: md5FromString(value),
           type,
           code: value,
-          inlineHTML: true,
+          isIsolated: true,
+          isInline: true,
           meta: {
             type: 'tag',
             node
@@ -66,6 +69,7 @@ export default function extractInlineAssets(
       parts.push({
         type: 'css',
         code: node.attrs.style,
+        isIsolated: true,
         meta: {
           type: 'attr',
           node
