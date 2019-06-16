@@ -288,7 +288,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, ['test']);
     });
 
-    it.skip('throws a meaningful error on undefined exports', async function() {
+    it('throws a meaningful error on undefined exports', async function() {
       let threw = false;
       try {
         await bundle(
@@ -299,7 +299,7 @@ describe('scope hoisting', function() {
         );
       } catch (err) {
         threw = true;
-        assert.equal(err.message, "Export 'Test' is not defined (1:8)");
+        assert(err.message.includes("Export 'Test' is not defined (1:8)"));
       }
 
       assert(threw);

@@ -19,6 +19,7 @@ export default new Optimizer({
       );
     }
 
+    //TODO bundle.filePath should be path to entry asset
     let userConfig = await loadConfig(bundle.filePath, [
       '.terserrc',
       '.uglifyrc',
@@ -28,6 +29,9 @@ export default new Optimizer({
 
     let config = {
       warnings: true,
+      mangle: {
+        toplevel: !options.scopeHoist
+      },
       ...userConfig?.config,
       sourceMap: {filename: path.relative(options.projectRoot, bundle.filePath)}
     };
