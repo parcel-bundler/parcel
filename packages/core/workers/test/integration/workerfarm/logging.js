@@ -10,7 +10,4 @@ function run() {
   }
 }
 
-function init() {}
-
-exports.init = init;
 exports.run = run;

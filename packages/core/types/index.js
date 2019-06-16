@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {Readable} from 'stream';
+import type SourceMap from '@parcel/source-map';
 
 import type {AST as _AST, Config as _Config} from './unsafe';
 
@@ -59,12 +60,18 @@ export type Engines = {
   parcel?: SemverRange
 };
 
+export type TargetSourceMapOptions = {
+  sourceRoot?: string,
+  inlineSources?: boolean
+};
+
 export type Target = {|
   distEntry?: ?FilePath,
   distDir: FilePath,
   env: Environment,
+  sourceMap?: TargetSourceMapOptions,
   name: string,
-  publicUrl?: string
+  publicUrl: ?string
 |};
 
 export type EnvironmentContext =
@@ -74,11 +81,24 @@ export type EnvironmentContext =
   | 'node'
   | 'electron';
 
-export type EnvironmentOpts = {
-  context: EnvironmentContext,
-  engines: Engines,
+export type PackageTargetDescriptor = {|
+  context?: EnvironmentContext,
+  engines?: Engines,
   includeNodeModules?: boolean,
-  publicUrl?: string
+  publicUrl?: string,
+  distDir?: FilePath,
+  sourceMap?: TargetSourceMapOptions
+|};
+
+export type TargetDescriptor = {|
+  ...PackageTargetDescriptor,
+  distDir: FilePath
+|};
+
+export type EnvironmentOpts = {
+  context?: EnvironmentContext,
+  engines?: Engines,
+  includeNodeModules?: boolean
 };
 
 export interface Environment {
@@ -110,7 +130,7 @@ export type PackageJSON = {
   browserslist?: Array<string>,
   engines?: Engines,
   targets?: {
-    [string]: EnvironmentOpts
+    [string]: PackageTargetDescriptor
   },
   dependencies?: PackageDependencies,
   devDependencies?: PackageDependencies,
@@ -126,7 +146,7 @@ export type InitialParcelOptions = {|
   config?: ParcelConfig,
   defaultConfig?: ParcelConfig,
   env?: {[string]: ?string},
-  targets?: ?Array<string | Target>,
+  targets?: ?(Array<string> | {+[string]: TargetDescriptor}),
 
   cache?: boolean,
   cacheDir?: FilePath,
@@ -241,7 +261,7 @@ interface BaseAsset {
   getCode(): Promise<string>;
   getBuffer(): Promise<Buffer>;
   getStream(): Readable;
-  getMap(): ?SourceMap;
+  getMap(): Promise<?SourceMap>;
   getConnectedFiles(): $ReadOnlyArray<File>;
   getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(
@@ -281,12 +301,12 @@ export type GenerateOutput = {|
   map?: SourceMap
 |};
 
-export type SourceMap = JSONObject;
 export type Blob = string | Buffer | Readable;
 
 export interface TransformerResult {
   type: string;
   code?: string;
+  map?: ?SourceMap;
   content?: Blob;
   ast?: ?AST;
   dependencies?: $ReadOnlyArray<DependencyOptions>;
@@ -478,16 +498,18 @@ export type Packager = {|
   package({
     bundle: NamedBundle,
     bundleGraph: BundleGraph,
-    options: ParcelOptions
-  }): Async<Blob>
+    options: ParcelOptions,
+    sourceMapPath: FilePath
+  }): Async<{|contents: Blob, map?: ?SourceMap|}>
 |};
 
 export type Optimizer = {|
   optimize({
     bundle: NamedBundle,
     contents: Blob,
+    map: ?SourceMap,
     options: ParcelOptions
-  }): Async<Blob>
+  }): Async<{|contents: Blob, map?: ?SourceMap|}>
 |};
 
 export type Resolver = {|

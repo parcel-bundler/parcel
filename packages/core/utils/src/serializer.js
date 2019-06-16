@@ -18,11 +18,12 @@ export function registerSerializableClass(name: string, ctor: Class<*>) {
 
 export function serialize(object: any): string {
   return JSON.stringify(object, (key, value) => {
-    let serialized = value;
-
-    // If the object has a serialize method, call it
+    let serialized;
     if (value && typeof value.serialize === 'function') {
+      // If the object has a serialize method, call it
       serialized = value.serialize();
+    } else {
+      serialized = value;
     }
 
     // Add a $$type property with the name of this class, if any is registered.
@@ -33,9 +34,9 @@ export function serialize(object: any): string {
     ) {
       let type = ctorToName.get(value.constructor);
       if (type != null) {
-        serialized = {
+        return {
           $$type: type,
-          value: Object.assign({}, serialized)
+          value: {...serialized}
         };
       }
     }

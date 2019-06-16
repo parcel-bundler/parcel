@@ -689,6 +689,9 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/env-file/index.js')
     );
 
+    // Make sure dotenv doesn't leak its values into the main process's env
+    assert(process.env.FOO == null);
+
     let output = await run(b);
     assert.equal(output, 'bartest');
   });
@@ -759,18 +762,15 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
-  it.skip('should support requiring CoffeeScript files', async function() {
+  it('should support requiring CoffeeScript files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/coffee/index.js'));
 
-    await assertBundles(b, {
-      name: 'index.js',
-      assets: ['index.js', 'local.coffee'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'local.coffee']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');

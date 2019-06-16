@@ -3,6 +3,9 @@
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
+import SourceMap from '@parcel/source-map';
+import {countLines} from '@parcel/utils';
+import path from 'path';
 
 const PRELUDE = fs
   .readFileSync(__dirname + '/prelude.js', 'utf8')
@@ -10,7 +13,7 @@ const PRELUDE = fs
   .replace(/;$/, '');
 
 export default new Packager({
-  async package({bundle, bundleGraph, options}) {
+  async package({bundle, bundleGraph, sourceMapPath, options}) {
     // If scope hoisting is enabled, we use a different code path.
     if (options.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
@@ -20,17 +23,26 @@ export default new Packager({
 
     // For development, we just concatenate all of the code together
     // rather then enabling scope hoisting, which would be too slow.
-    let promises = [];
+    let codePromises = [];
+    let mapPromises = [];
     bundle.traverse(node => {
       if (node.type === 'asset') {
-        promises.push(node.value.getCode());
+        codePromises.push(node.value.getCode());
+        mapPromises.push(node.value.getMap());
       }
     });
-    let outputs = await Promise.all(promises);
+
+    let [code, maps] = await Promise.all([
+      Promise.all(codePromises),
+      Promise.all(mapPromises)
+    ]);
 
     let assets = '';
     let i = 0;
     let first = true;
+    let map = new SourceMap();
+    let lineOffset = countLines(PRELUDE);
+
     bundle.traverse(node => {
       if (node.type !== 'asset' && node.type !== 'asset_reference') {
         return;
@@ -58,36 +70,59 @@ export default new Packager({
           }
         }
 
-        let output = outputs[i];
+        let output = code[i] || '';
         wrapped +=
           JSON.stringify(asset.id) +
           ':[function(require,module,exports) {\n' +
-          (output || '') +
+          output +
           '\n},';
         wrapped += JSON.stringify(deps);
         wrapped += ']';
+
+        if (options.sourceMaps) {
+          let assetMap =
+            maps[i] ??
+            SourceMap.generateEmptyMap(
+              path
+                .relative(options.projectRoot, asset.filePath)
+                .replace(/\\+/g, '/'),
+              output
+            );
+
+          map.addMap(assetMap, lineOffset);
+          lineOffset += countLines(output) + 1;
+        }
 
         i++;
       }
 
       assets += wrapped;
       first = false;
+
+      if (node.type === 'asset_reference') {
+        return;
+      }
     });
 
-    return (
-      PRELUDE +
-      '({' +
-      assets +
-      '},{},' +
-      JSON.stringify(
-        bundle
-          .getEntryAssets()
-          .reverse()
-          .map(asset => asset.id)
-      ) +
-      ', ' +
-      'null' +
-      ')'
-    );
+    return {
+      contents:
+        PRELUDE +
+        '({' +
+        assets +
+        '},{},' +
+        JSON.stringify(
+          bundle
+            .getEntryAssets()
+            .reverse()
+            .map(asset => asset.id)
+        ) +
+        ', ' +
+        'null' +
+        ')\n\n' +
+        '//# sourceMappingURL=' +
+        sourceMapPath +
+        '\n',
+      map
+    };
   }
 });
