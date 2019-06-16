@@ -9,9 +9,7 @@
   },
   "scripts": {
     "test": "mocha",
-    "test-ci": "mocha",
-    "build": "babel src --out-dir lib",
-    "prepublish": "yarn build"
+    "test-ci": "mocha"
   },
   "dependencies": {
     "@parcel/cache": "^2.0.0-alpha.0",

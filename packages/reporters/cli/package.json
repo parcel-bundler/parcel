@@ -8,9 +8,7 @@
   },
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
-    "test-ci": "yarn build && yarn test",
-    "build": "babel src -d lib",
-    "prepublish": "yarn build"
+    "test-ci": "yarn test"
   },
   "dependencies": {
     "@parcel/logger": "^2.0.0-alpha.0",

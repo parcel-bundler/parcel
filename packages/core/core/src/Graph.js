@@ -2,8 +2,9 @@
 
 import type {Edge, Node, NodeId} from './types';
 import type {TraversalActions, GraphVisitor} from '@parcel/types';
-import nullthrows from 'nullthrows';
+
 import {DefaultMap} from '@parcel/utils';
+import nullthrows from 'nullthrows';
 
 export type GraphOpts<TNode> = {|
   nodes?: Array<[NodeId, TNode]>,
@@ -226,16 +227,29 @@ export default class Graph<TNode: Node> {
     return this.traverse<TContext>(
       {
         enter: (node, ...args) => {
-          let fn = visit.enter || visit;
+          let enter = typeof visit === 'function' ? visit : visit.enter;
+          if (!enter) {
+            return;
+          }
+
           let value = filter(node);
-          if (value != null && typeof fn === 'function') {
-            return fn(value, ...args);
+          if (value != null) {
+            return enter(value, ...args);
           }
         },
         exit: (node, ...args) => {
+          if (typeof visit === 'function') {
+            return;
+          }
+
+          let exit = visit.exit;
+          if (!exit) {
+            return;
+          }
+
           let value = filter(node);
-          if (value != null && typeof visit.exit === 'function') {
-            return visit.exit(value, ...args);
+          if (value != null) {
+            return exit(value, ...args);
           }
         }
       },
@@ -312,7 +326,7 @@ export default class Graph<TNode: Node> {
         }
       }
 
-      if (visit.exit) {
+      if (typeof visit !== 'function' && visit.exit) {
         let newContext = visit.exit(node, context, actions);
         if (typeof newContext !== 'undefined') {
           context = newContext;
