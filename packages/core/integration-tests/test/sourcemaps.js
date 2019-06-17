@@ -43,6 +43,8 @@ function checkSourceMapping({
   let mapping = map.mappings[index];
   assert(mapping, "no mapping for '" + str + "'" + msg);
 
+  console.log({mapping, nextMapping: map.mappings[index + 1]});
+
   let generatedDiff = {
     line: generatedPosition.line - mapping.generated.line,
     column: generatedPosition.column - mapping.generated.column
@@ -119,7 +121,7 @@ describe('sourcemaps', function() {
       map: sourceMap,
       source: input,
       generated: raw,
-      str: 'hello world',
+      str: '"hello world"',
       sourcePath
     });
   });
@@ -178,7 +180,7 @@ describe('sourcemaps', function() {
       map: sourceMap,
       source: input,
       generated: raw,
-      str: 'hello world',
+      str: '"hello world"',
       sourcePath
     });
   });
