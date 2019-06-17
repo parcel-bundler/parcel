@@ -7,18 +7,22 @@ export default new Packager({
     let promises = [];
     bundle.traverseAssets({
       exit: asset => {
-        let parentDep;
-        bundle.traverseAncestors(asset, (node, _, {stop}) => {
+        let media = [];
+        bundle.traverseAncestors(asset, (node, _, {skipChildren}) => {
           if (node.type === 'dependency') {
-            parentDep = node.value;
-            stop();
+            let dep = node.value;
+            if (!dep.meta || !dep.meta.media) {
+              skipChildren();
+              return;
+            }
+            media.push(dep.meta.media);
           }
         });
 
         promises.push(
           asset.getCode().then((css: string) => {
-            if (parentDep && parentDep.meta && parentDep.meta.media) {
-              return `@media ${parentDep.meta.media} {\n${css}\n}\n`;
+            if (media.length) {
+              return `@media ${media.join(', ')} {\n${css.trim()}\n}\n`;
             }
 
             return css;
