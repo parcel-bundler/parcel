@@ -43,8 +43,6 @@ function checkSourceMapping({
   let mapping = map.mappings[index];
   assert(mapping, "no mapping for '" + str + "'" + msg);
 
-  console.log({mapping, nextMapping: map.mappings[index + 1]});
-
   let generatedDiff = {
     line: generatedPosition.line - mapping.generated.line,
     column: generatedPosition.column - mapping.generated.column
