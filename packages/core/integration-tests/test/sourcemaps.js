@@ -119,7 +119,7 @@ describe('sourcemaps', function() {
       map: sourceMap,
       source: input,
       generated: raw,
-      str: 'hello world',
+      str: '"hello world"',
       sourcePath
     });
   });
@@ -178,7 +178,7 @@ describe('sourcemaps', function() {
       map: sourceMap,
       source: input,
       generated: raw,
-      str: 'hello world',
+      str: '"hello world"',
       sourcePath
     });
   });
