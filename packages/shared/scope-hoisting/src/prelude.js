@@ -1,6 +1,6 @@
 var $parcel$modules = {};
 
-parcelRequire = function(name) {
+var parcelRequire = function(name) {
   if (name in $parcel$modules) {
     return $parcel$modules[name];
   }
