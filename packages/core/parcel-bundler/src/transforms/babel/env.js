@@ -48,15 +48,18 @@ async function getEnvPlugins(targets, useBuiltIns = false) {
     return envCache.get(key);
   }
 
-  let plugins = presetEnv.default(
-    {assertVersion: () => true},
-    {
-      targets,
-      modules: false,
-      useBuiltIns: useBuiltIns ? 'entry' : false,
-      shippedProposals: true
-    }
-  ).plugins;
+  const options = {
+    targets,
+    modules: false,
+    useBuiltIns: useBuiltIns ? 'entry' : false,
+    shippedProposals: true
+  };
+
+  if (useBuiltIns) {
+    options.corejs = 2;
+  }
+
+  let plugins = presetEnv.default({assertVersion: () => true}, options).plugins;
 
   envCache.set(key, plugins);
   return plugins;

@@ -2,6 +2,7 @@ const path = require('path');
 const mm = require('micromatch');
 const t = require('@babel/types');
 const template = require('@babel/template').default;
+const traverse = require('@babel/traverse').default;
 const rename = require('./renamer');
 const {getName, getIdentifier, getExportIdentifier} = require('./utils');
 
@@ -51,6 +52,7 @@ function hasSideEffects(asset, {sideEffects} = asset._package) {
 module.exports = {
   Program: {
     enter(path, asset) {
+      traverse.cache.clearScope();
       path.scope.crawl();
 
       asset.cacheData.imports = asset.cacheData.imports || Object.create(null);
@@ -189,6 +191,13 @@ module.exports = {
       path.replaceWith(t.identifier('null'));
     }
 
+    if (
+      t.matchesPattern(path.node, 'module.require') &&
+      asset.options.target !== 'node'
+    ) {
+      path.replaceWith(t.identifier('null'));
+    }
+
     if (t.matchesPattern(path.node, 'module.bundle')) {
       path.replaceWith(t.identifier('require'));
     }
@@ -259,13 +268,23 @@ module.exports = {
       let scope = path.scope.getProgramParent();
       if (!scope.hasBinding(identifier.name)) {
         asset.cacheData.exports[name] = identifier.name;
-        let [decl] = path.insertBefore(
-          t.variableDeclaration('var', [
-            t.variableDeclarator(t.clone(identifier), right)
-          ])
-        );
 
-        scope.registerDeclaration(decl);
+        // If in the program scope, create a variable declaration and initialize with the exported value.
+        // Otherwise, declare the variable in the program scope, and assign to it here.
+        if (path.scope === scope) {
+          let [decl] = path.insertBefore(
+            t.variableDeclaration('var', [
+              t.variableDeclarator(t.clone(identifier), right)
+            ])
+          );
+
+          scope.registerDeclaration(decl);
+        } else {
+          scope.push({id: t.clone(identifier)});
+          path.insertBefore(
+            t.assignmentExpression('=', t.clone(identifier), right)
+          );
+        }
       } else {
         path.insertBefore(
           t.assignmentExpression('=', t.clone(identifier), right)
