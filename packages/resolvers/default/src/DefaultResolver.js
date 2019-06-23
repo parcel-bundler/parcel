@@ -184,10 +184,13 @@ class NodeResolver {
       case '~':
         // Tilde path. Resolve relative to nearest node_modules directory,
         // the nearest directory with package.json or the project root - whichever comes first.
+        const insideNodeModules = dir.includes('node_modules');
+
         while (
           dir !== this.options.projectRoot &&
           path.basename(path.dirname(dir)) !== 'node_modules' &&
-          !(await fs.exists(path.join(dir, 'package.json')))
+          (insideNodeModules ||
+            !(await fs.exists(path.join(dir, 'package.json'))))
         ) {
           dir = path.dirname(dir);
 
