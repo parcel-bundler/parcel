@@ -70,14 +70,28 @@ export default new Packager({
           }
         }
 
-        let output = code[i];
+        let output = code[i] || '';
         wrapped +=
           JSON.stringify(asset.id) +
           ':[function(require,module,exports) {\n' +
-          (output || '') +
+          output +
           '\n},';
         wrapped += JSON.stringify(deps);
         wrapped += ']';
+
+        if (options.sourceMaps) {
+          let assetMap =
+            maps[i] ??
+            SourceMap.generateEmptyMap(
+              path
+                .relative(options.projectRoot, asset.filePath)
+                .replace(/\\+/g, '/'),
+              output
+            );
+
+          map.addMap(assetMap, lineOffset);
+          lineOffset += countLines(output) + 1;
+        }
 
         i++;
       }
@@ -88,22 +102,8 @@ export default new Packager({
       if (node.type === 'asset_reference') {
         return;
       }
-
-      if (options.sourceMaps) {
-        let asset = node.value;
-        let assetMap =
-          maps[i] ??
-          SourceMap.generateEmptyMap(
-            path.relative(options.projectRoot, asset.filePath),
-            wrapped
-          );
-
-        map.addMap(assetMap, lineOffset + 1);
-        lineOffset += countLines(wrapped);
-      }
     });
 
-    let sourcemapComment = '// ' + sourceMapPath;
     return {
       contents:
         PRELUDE +
@@ -118,8 +118,10 @@ export default new Packager({
         ) +
         ', ' +
         'null' +
-        ')\n' +
-        sourcemapComment,
+        ')\n\n' +
+        '//# sourceMappingURL=' +
+        sourceMapPath +
+        '\n',
       map
     };
   }

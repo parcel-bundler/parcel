@@ -13,7 +13,7 @@ const {mkdirp} = require('@parcel/fs');
 const {makeDeferredWithPromise} = require('@parcel/utils');
 
 describe('javascript', function() {
-  afterEach(async () => {
+  beforeEach(async () => {
     await removeDistDirectory();
   });
 
@@ -762,18 +762,15 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
-  it.skip('should support requiring CoffeeScript files', async function() {
+  it('should support requiring CoffeeScript files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/coffee/index.js'));
 
-    await assertBundles(b, {
-      name: 'index.js',
-      assets: ['index.js', 'local.coffee'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'local.coffee']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
@@ -992,10 +989,12 @@ describe('javascript', function() {
 
     let output = await run(b);
 
-    let err = new Error('Cannot find module "optional-dep"');
-    err.code = 'MODULE_NOT_FOUND';
-
-    assert.deepEqual(output, err);
+    assert.equal(Object.getPrototypeOf(output).constructor.name, 'Error');
+    assert(
+      /Cannot find module ['"]optional-dep['"]/.test(output.message),
+      'Should set correct error message'
+    );
+    assert.equal(output.code, 'MODULE_NOT_FOUND');
   });
 
   it('should support excluding dependencies in falsy branches', async function() {

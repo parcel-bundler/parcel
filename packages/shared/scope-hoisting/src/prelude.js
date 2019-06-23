@@ -19,8 +19,9 @@ globalObject.parcelRequire = function(name) {
   }
 
   // Try the node require function if it exists.
-  if (typeof require === 'function') {
-    return require(name);
+  // Do not use `require` to prevent Webpack from trying to bundle this call
+  if (typeof module !== 'undefined' && typeof module.require === 'function') {
+    return module.require(name);
   }
 
   var err = new Error("Cannot find module '" + name + "'");

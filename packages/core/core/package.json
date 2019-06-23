@@ -9,9 +9,7 @@
   },
   "scripts": {
     "test": "mocha",
-    "test-ci": "mocha",
-    "build": "babel src --out-dir lib",
-    "prepublish": "yarn build"
+    "test-ci": "mocha"
   },
   "dependencies": {
     "@parcel/cache": "^2.0.0-alpha.0",
@@ -20,6 +18,7 @@
     "@parcel/local-require": "^2.0.0-alpha.0",
     "@parcel/logger": "^2.0.0-alpha.0",
     "@parcel/plugin": "^2.0.0-alpha.0",
+    "@parcel/source-map": "^2.0.0-alpha.0",
     "@parcel/types": "^2.0.0-alpha.0",
     "@parcel/utils": "^2.0.0-alpha.0",
     "@parcel/watcher": "^2.0.0-alpha.3",

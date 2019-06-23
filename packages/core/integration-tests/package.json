@@ -29,7 +29,6 @@
     "parcel-bundler": "^1.12.3",
     "rimraf": "^2.6.1",
     "sinon": "^5.0.1",
-    "sourcemap-validator": "^1.0.6",
     "ws": "^5.1.1"
   }
 }

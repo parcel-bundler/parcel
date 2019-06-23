@@ -24,7 +24,11 @@
   var previousRequire =
     typeof globalObject.parcelRequire === 'function' &&
     globalObject.parcelRequire;
-  var nodeRequire = typeof require === 'function' && require;
+  // Do not use `require` to prevent Webpack from trying to bundle this call
+  var nodeRequire =
+    typeof module !== 'undefined' &&
+    typeof module.require === 'function' &&
+    module.require.bind(module);
 
   function newRequire(name, jumped) {
     if (!cache[name]) {
