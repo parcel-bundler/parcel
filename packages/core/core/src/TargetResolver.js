@@ -29,7 +29,6 @@ export default class TargetResolver {
     cacheDir: FilePath,
     initialOptions: InitialParcelOptions
   ): Promise<Array<Target>> {
-    let serveOptions = initialOptions.serve ?? initialOptions.hot;
     let optionTargets = initialOptions.targets;
 
     let targets: Array<Target>;
@@ -65,7 +64,7 @@ export default class TargetResolver {
         });
       }
 
-      if (serveOptions) {
+      if (initialOptions.serve) {
         // In serve mode, we only support a single browser target. If the user
         // provided more than one, or the matching target is not a browser, throw.
         if (targets.length > 1) {
@@ -80,9 +79,10 @@ export default class TargetResolver {
     } else {
       // Explicit targets were not provided. Either use a modern target for server
       // mode, or simply use the package.json targets.
-      if (serveOptions) {
+      if (initialOptions.serve) {
         // In serve mode, we only support a single browser target. Since the user
         // hasn't specified a target, use one targeting modern browsers for development
+        let serveOptions = initialOptions.serve;
         targets = [
           {
             name: 'default',
@@ -90,7 +90,7 @@ export default class TargetResolver {
             // temporary, likely in a .gitignore or similar, but still readily
             // available for introspection by the user if necessary.
             distDir: path.resolve(cacheDir, DEFAULT_DIST_DIRNAME),
-            publicUrl: serveOptions?.publicUrl ?? '/',
+            publicUrl: serveOptions.publicUrl ?? '/',
             env: new Environment({
               context: 'browser',
               engines: {
