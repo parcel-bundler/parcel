@@ -177,11 +177,12 @@ class NodeResolver {
 
   async resolveFilename(filename: string, dir: string, isURL: ?boolean) {
     switch (filename[0]) {
-      case '/':
+      case '/': {
         // Absolute path. Resolve relative to project root.
         return path.resolve(this.options.rootDir, filename.slice(1));
+      }
 
-      case '~':
+      case '~': {
         // Tilde path. Resolve relative to nearest node_modules directory,
         // the nearest directory with package.json or the project root - whichever comes first.
         const insideNodeModules = dir.includes('node_modules');
@@ -201,18 +202,21 @@ class NodeResolver {
         }
 
         return path.join(dir, filename.slice(1));
+      }
 
-      case '.':
+      case '.': {
         // Relative path.
         return path.resolve(dir, filename);
+      }
 
-      default:
+      default: {
         if (isURL) {
           return path.resolve(dir, filename);
         }
 
         // Module
         return filename;
+      }
     }
   }
 
