@@ -12,12 +12,6 @@
     "node": ">= 6.0.0",
     "parcel": "^2.0.0-alpha.0"
   },
-  "scripts": {
-    "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
-    "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
-    "build": "babel src -d lib",
-    "prepublish": "yarn build"
-  },
   "dependencies": {
     "@parcel/fs": "^2.0.0-alpha.0",
     "@parcel/logger": "^2.0.0-alpha.0",

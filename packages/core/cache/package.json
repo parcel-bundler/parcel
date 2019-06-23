@@ -7,10 +7,6 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "main": "src/Cache",
-  "scripts": {
-    "build": "babel src --out-dir lib",
-    "prepublish": "yarn build"
-  },
   "engines": {
     "node": ">= 8.0.0"
   },

@@ -11,10 +11,6 @@
     "node": ">= 8.0.0",
     "parcel": "^2.0.0-alpha.0"
   },
-  "scripts": {
-    "build": "babel src -d lib",
-    "prepublish": "yarn build"
-  },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-alpha.0",
     "@parcel/source-map": "^2.0.0-alpha.0",

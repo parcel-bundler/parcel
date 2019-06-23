@@ -21,6 +21,8 @@ export {default as resolve} from './resolve';
 export {default as syncPromise} from './syncPromise';
 export {default as TapStream} from './TapStream';
 export {default as urlJoin} from './urlJoin';
+export {default as loadSourceMapUrl} from './loadSourceMapUrl';
+export {default as relativeUrl} from './relativeUrl';
 
 export * from './collection';
 export * from './config';

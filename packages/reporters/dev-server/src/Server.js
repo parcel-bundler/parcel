@@ -31,14 +31,19 @@ function setHeaders(res: Response) {
   );
 }
 
+const SOURCES_ENDPOINT = '/__parcel_source_root';
+
+type ServeFunction = (
+  req: Request,
+  res: Response,
+  next?: (req: Request, res: Response, next?: (any) => any) => any
+) => any;
+
 export default class Server extends EventEmitter {
   pending: boolean;
   options: DevServerOptions;
-  serve: (
-    req: Request,
-    res: Response,
-    next?: (req: Request, res: Response, next?: (any) => any) => any
-  ) => any;
+  serve: ServeFunction;
+  serveSources: ServeFunction;
   bundleGraph: BundleGraph | null;
   error: PrintableError | null;
   server: HTTPServer | HTTPSServer;
@@ -52,6 +57,13 @@ export default class Server extends EventEmitter {
     this.error = null;
 
     this.serve = serveStatic(this.options.distDir, {
+      index: false,
+      redirect: false,
+      setHeaders: setHeaders,
+      dotfiles: 'allow'
+    });
+
+    this.serveSources = serveStatic(this.options.projectRoot, {
       index: false,
       redirect: false,
       setHeaders: setHeaders,
@@ -84,6 +96,9 @@ export default class Server extends EventEmitter {
       // If the URL doesn't start with the public path, or the URL doesn't
       // have a file extension, send the main HTML bundle.
       return this.sendIndex(req, res);
+    } else if (pathname.startsWith(SOURCES_ENDPOINT)) {
+      req.url = pathname.slice(SOURCES_ENDPOINT.length);
+      return this.serveSources(req, res, () => this.sendIndex(req, res));
     } else {
       // Otherwise, serve the file from the dist folder
       req.url = pathname.slice(this.options.publicUrl.length);

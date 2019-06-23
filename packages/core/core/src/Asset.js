@@ -16,10 +16,10 @@ import type {
   Symbol,
   TransformerResult
 } from '@parcel/types';
-import type SourceMap from '@parcel/source-map';
 
 import {Readable} from 'stream';
 import crypto from 'crypto';
+import SourceMap from '@parcel/source-map';
 import {
   bufferStream,
   loadConfig,
@@ -100,6 +100,7 @@ export default class Asset {
     this.ast = options.ast || null;
     this.cache = options.cache;
     this.map = options.map;
+    this.mapKey = options.mapKey;
     this.dependencies = options.dependencies
       ? new Map(options.dependencies)
       : new Map();
@@ -130,6 +131,7 @@ export default class Asset {
       meta: this.meta,
       stats: this.stats,
       contentKey: this.contentKey,
+      mapKey: this.mapKey,
       symbols: [...this.symbols],
       sideEffects: this.sideEffects
     };
@@ -231,7 +233,10 @@ export default class Asset {
 
   async getMap(): Promise<?SourceMap> {
     if (this.mapKey != null) {
-      this.map = await this.cache.get(this.mapKey);
+      let cached = await this.cache.get(this.mapKey);
+      if (cached != null) {
+        this.map = SourceMap.deserialize(cached);
+      }
     }
 
     return this.map;

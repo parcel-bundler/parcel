@@ -11,8 +11,6 @@
     "node": ">= 8.0.0"
   },
   "scripts": {
-    "build": "babel src -d lib",
-    "prepublish": "yarn build",
     "test": "mocha",
     "test-ci": "yarn test"
   }
