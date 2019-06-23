@@ -12,8 +12,8 @@ import traverse from '@babel/traverse';
 import * as walk from 'babylon-walk';
 import * as babelCore from '@babel/core';
 import {hoist} from '@parcel/scope-hoisting';
+import {relativeUrl} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
-import path from 'path';
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -139,7 +139,7 @@ export default new Transformer({
 
     let ast = asset.ast;
     if (ast && ast.isDirty !== false) {
-      let sourceFileName: string = path.relative(
+      let sourceFileName: string = relativeUrl(
         options.projectRoot,
         asset.filePath
       );
