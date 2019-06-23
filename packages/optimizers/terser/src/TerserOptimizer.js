@@ -3,7 +3,6 @@
 import nullthrows from 'nullthrows';
 import {minify} from 'terser';
 import {Optimizer} from '@parcel/plugin';
-import {loadConfig} from '@parcel/utils';
 import SourceMap from '@parcel/source-map';
 import path from 'path';
 
@@ -19,13 +18,11 @@ export default new Optimizer({
       );
     }
 
-    //TODO bundle.filePath should be path to entry asset
-    let userConfig = await loadConfig(bundle.filePath, [
-      '.terserrc',
-      '.uglifyrc',
-      '.uglifyrc.js',
-      '.terserrc.js'
-    ]);
+    let userConfig = await bundle
+      .getEntryAssets()[0]
+      .getConfig(['.terserrc', '.uglifyrc', '.uglifyrc.js', '.terserrc.js'], {
+        packageKey: 'terser'
+      });
 
     let config = {
       warnings: true,
@@ -39,7 +36,6 @@ export default new Optimizer({
     let sourceMap = null;
     if (options.sourceMaps) {
       sourceMap = new SourceMap();
-      // $FlowFixMe
       config.output = {
         source_map: {
           add(source, gen_line, gen_col, orig_line, orig_col, name) {
