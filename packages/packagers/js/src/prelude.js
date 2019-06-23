@@ -6,10 +6,24 @@
 // anything defined in a previous bundle is accessed via the
 // orig method which is the require for previous bundles
 
-// eslint-disable-next-line no-global-assign
-parcelRequire = function(modules, cache, entry, globalName) {
+(function(modules, cache, entry, globalName) {
+  /* eslint-disable no-undef */
+  var globalObject =
+    typeof globalThis !== 'undefined'
+      ? globalThis
+      : typeof self !== 'undefined'
+      ? self
+      : typeof window !== 'undefined'
+      ? window
+      : typeof global !== 'undefined'
+      ? global
+      : {};
+  /* eslint-enable no-undef */
+
   // Save the require from previous bundle to this closure if any
-  var previousRequire = typeof parcelRequire === 'function' && parcelRequire;
+  var previousRequire =
+    typeof globalObject.parcelRequire === 'function' &&
+    globalObject.parcelRequire;
   // Do not use `require` to prevent Webpack from trying to bundle this call
   var nodeRequire =
     typeof module !== 'undefined' &&
@@ -91,6 +105,8 @@ parcelRequire = function(modules, cache, entry, globalName) {
     ];
   };
 
+  globalObject.parcelRequire = newRequire;
+
   for (var i = 0; i < entry.length; i++) {
     newRequire(entry[i]);
   }
@@ -115,7 +131,4 @@ parcelRequire = function(modules, cache, entry, globalName) {
       this[globalName] = mainExports;
     }
   }
-
-  // Override the current require with this new one
-  return newRequire;
-};
+});
