@@ -29,7 +29,7 @@ export default new Optimizer({
       mangle: {
         toplevel: !options.scopeHoist
       },
-      ...userConfig?.config,
+      ...userConfig,
       sourceMap: {filename: path.relative(options.projectRoot, bundle.filePath)}
     };
 
