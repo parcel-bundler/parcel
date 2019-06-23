@@ -5,7 +5,6 @@ const {
   bundle,
   run,
   assertBundles,
-  assertBundleTree,
   distDir,
   removeDistDirectory
 } = require('@parcel/test-utils');
@@ -91,39 +90,27 @@ describe('css', () => {
     assert.equal(await output(), 3);
   });
 
-  it.skip('should support importing CSS from a CSS file', async function() {
+  it('should support importing CSS from a CSS file', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/css-import/index.js')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.css', 'other.css', 'local.css'],
-      childBundles: [
-        {
-          name: 'index.css',
-          assets: ['index.css', 'other.css', 'local.css'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        },
-        {
-          name: 'index.js.map',
-          type: 'map'
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.css', 'other.css', 'local.css']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await fs.readFile(path.join(distDir, '/index.css'), 'utf8');
     assert(css.includes('.local'));
     assert(css.includes('.other'));
     assert(/@media print {\s*.other/.test(css));
