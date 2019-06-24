@@ -26,9 +26,6 @@ export default new Optimizer({
 
     let config = {
       warnings: true,
-      mangle: {
-        toplevel: !options.scopeHoist
-      },
       ...userConfig,
       sourceMap: {filename: path.relative(options.projectRoot, bundle.filePath)}
     };
