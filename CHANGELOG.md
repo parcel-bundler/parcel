@@ -25,11 +25,14 @@ and Parcel adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [1.12.0] - 2019-03-06
 
+### Breaking changes
+
+- **Hot Module Reloading (HMR) is no longer automatically enabled by default.** We found that HMR seems to fail more often than not, so made it an opt-in feature. To re-enable, call `module.hot.accept()` in your app. [Details](https://github.com/parcel-bundler/parcel/pull/2676)
+
 ### Added
 
 - CSS/SASS/LESS sourcemaps [Details](https://github.com/parcel-bundler/parcel/pull/2489)
 - Add Markdown support [Details](https://github.com/parcel-bundler/parcel/pull/2538)
-- Unhandled HMR updates should cause a page reload [Details](https://github.com/parcel-bundler/parcel/pull/2676)
 - Enables jsx plugin in case jsx syntax is used in js files [Details](https://github.com/parcel-bundler/parcel/pull/2530)
 - Add disabling of autoinstall globally via environment variable [Details](https://github.com/parcel-bundler/parcel/pull/2152)
 - Add support for `chrome-extension://` protocol to bundle-url.js [Details](https://github.com/parcel-bundler/parcel/pull/2434)
