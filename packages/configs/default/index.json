@@ -1,0 +1,39 @@
+{
+  "bundler": "@parcel/bundler-default",
+  "transforms": {
+    "*.{js,mjs,jsm,jsx,es6}": [
+      "@parcel/transformer-babel",
+      "@parcel/transformer-js"
+    ],
+    "*.{json,json5}": ["@parcel/transformer-json"],
+    "*.{styl,stylus}": ["@parcel/transformer-stylus"],
+    "*.css": ["@parcel/transformer-css", "@parcel/transformer-postcss"],
+    "*.{htm,html}": [
+      "@parcel/transformer-posthtml",
+      "@parcel/transformer-html"
+    ],
+    "*.coffee": ["@parcel/transformer-coffeescript"],
+    "*": ["@parcel/transformer-raw"]
+  },
+  "namers": ["@parcel/namer-default"],
+  "runtimes": {
+    "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
+    "node": ["@parcel/runtime-js"]
+  },
+  "optimizers": {
+    "*.css": ["@parcel/optimizer-cssnano"],
+    "*.js": ["@parcel/optimizer-terser"]
+  },
+  "packagers": {
+    "*.html": "@parcel/packager-html",
+    "*.css": "@parcel/packager-css",
+    "*.js": "@parcel/packager-js",
+    "*": "@parcel/packager-raw"
+  },
+  "resolvers": ["@parcel/resolver-default"],
+  "reporters": [
+    "@parcel/reporter-cli",
+    "@parcel/reporter-dev-server",
+    "@parcel/reporter-hmr-server"
+  ]
+}

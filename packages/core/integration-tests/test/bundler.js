@@ -8,7 +8,7 @@ const {
   nextBundle
 } = require('@parcel/test-utils');
 
-describe('bundler', function() {
+describe.skip('bundler', function() {
   it('should bundle once before exporting middleware', async function() {
     let b = bundler(
       path.join(__dirname, '/integration/bundler-middleware/index.js')

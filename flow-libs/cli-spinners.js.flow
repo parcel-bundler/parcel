@@ -1,0 +1,10 @@
+// @flow
+
+declare module 'cli-spinners' {
+  declare export type CLISpinner = {interval: number, frames: Array<number>};
+  declare type CLISpinners = {
+    dots: CLISpinner,
+    [string]: ?CLISpinner
+  };
+  declare export default CLISpinners;
+}

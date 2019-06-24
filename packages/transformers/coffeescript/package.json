@@ -1,0 +1,20 @@
+{
+  "name": "@parcel/transformer-coffeescript",
+  "version": "2.0.0-alpha.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "src/CoffeeScriptTransformer.js",
+  "engines": {
+    "node": ">= 8.0.0",
+    "parcel": "^2.0.0-alpha.0"
+  },
+  "dependencies": {
+    "@parcel/plugin": "^2.0.0-alpha.0",
+    "coffeescript": "^2.0.3",
+    "nullthrows": "^1.1.1",
+    "semver": "^5.4.1"
+  }
+}

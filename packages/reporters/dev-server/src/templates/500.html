@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>🚨 Build Error</title>
+    <style>
+      body {
+        margin: 0;
+      }
+
+      .error-title-style {
+        display: flex;
+      }
+
+      .error-title-emoji {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        width: 75px;
+      }
+
+      .error-title-heading {
+        background-color: #FE0140;
+        color: #FFFFFF;
+        width: 100%;
+        font-size: 2rem;
+        padding: 10px;
+        margin: 0;
+        font-family: sans-serif;
+      }
+
+      .error-stack-trace {
+        padding: 20px 0;
+        background-color: #282c33;
+        color: #c5ccdb;
+        font-family: monospace; white-space: pre;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="error-title-style">
+      <div class="error-title-emoji">🚨</div>
+      <h1 class="error-title-heading"><%- error.message %></h1>
+    </div>
+    <div class="error-stack-trace">
+      <%- error.stack %>
+    </div>
+  </body>
+</html>

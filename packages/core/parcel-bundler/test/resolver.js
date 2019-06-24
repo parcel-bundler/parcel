@@ -1,8 +1,8 @@
 const Resolver = require('../src/Resolver');
 const path = require('path');
 const assert = require('assert');
-const {rimraf, ncp} = require('@parcel/test-utils');
-const {mkdirp} = require('@parcel/fs');
+const {ncp} = require('@parcel/test-utils');
+const {mkdirp, rimraf} = require('@parcel/fs');
 const {symlinkPrivilegeWarning} = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
 

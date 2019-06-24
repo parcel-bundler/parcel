@@ -1,25 +1,42 @@
 {
   "name": "@parcel/utils",
-  "version": "1.11.0",
+  "version": "2.0.0-alpha.0",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "index.js",
+  "main": "src/index.js",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "engines": {
-    "node": ">= 6.0.0"
+    "node": ">= 8.0.0"
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "test": "echo this package has no tests yet",
-    "test-ci": "yarn build && yarn test",
-    "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
-    "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
-    "build": "babel src -d lib",
-    "prepublish": "yarn build"
+    "test": "mocha",
+    "test-ci": "yarn test"
+  },
+  "dependencies": {
+    "@iarna/toml": "^2.2.0",
+    "@parcel/fs": "^2.0.0-alpha.0",
+    "@parcel/logger": "^2.0.0-alpha.0",
+    "clone": "^2.1.1",
+    "deasync": "^0.1.14",
+    "fast-glob": "^2.2.2",
+    "is-glob": "^4.0.0",
+    "is-url": "^1.2.2",
+    "json5": "^1.0.1",
+    "nullthrows": "^1.1.1",
+    "resolve": "^1.4.0",
+    "serialize-to-js": "^1.1.1",
+    "tempy": "^0.2.1",
+    "node-forge": "^0.8.1",
+    "terser": "^3.7.3"
+  },
+  "devDependencies": {
+    "@babel/plugin-transform-flow-strip-types": "^7.2.0",
+    "random-int": "^1.0.0"
   }
 }

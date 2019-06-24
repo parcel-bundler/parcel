@@ -1,3 +1,6 @@
 {
-  "name": "babel-plugin-autoinstall"
+  "name": "babel-plugin-autoinstall",
+  "devDependencies": {
+    "@babel/core": "^7.1.2"
+  }
 }

@@ -1,8 +1,8 @@
 {
   "name": "@parcel/test-utils",
-  "version": "1.12.0",
+  "version": "2.0.0-alpha.0",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "index.js",
+  "main": "src/utils.js",
   "license": "MIT",
   "private": true,
   "repository": {
@@ -10,14 +10,20 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "engines": {
-    "node": ">= 6.0.0"
+    "node": ">= 8.0.0"
+  },
+  "dependencies": {
+    "@parcel/config-default": "^2.0.0-alpha.0",
+    "@parcel/core": "^2.0.0-alpha.0",
+    "@parcel/fs": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0",
+    "chalk": "^2.1.0",
+    "ncp": "^2.0.0",
+    "nullthrows": "^1.1.1",
+    "ws": "^5.1.1"
   },
   "scripts": {
     "test": "echo this package has no tests yet",
-    "test-ci": "yarn build && yarn test",
-    "format": "prettier --write \"./{src,bin,test}/**/*.{js,json,md}\"",
-    "lint": "eslint . && prettier \"./{src,bin,test}/**/*.{js,json,md}\" --list-different",
-    "build": "babel src -d lib",
-    "prepublish": "yarn build"
+    "test-ci": "yarn test"
   }
 }

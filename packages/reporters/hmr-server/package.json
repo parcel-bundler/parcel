@@ -1,0 +1,26 @@
+{
+  "name": "@parcel/reporter-hmr-server",
+  "version": "2.0.0-alpha.0",
+  "description": "Blazing fast, zero configuration web application bundler",
+  "main": "src/HMRReporter.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "engines": {
+    "node": ">= 6.0.0",
+    "parcel": "^2.0.0-alpha.0"
+  },
+  "dependencies": {
+    "@parcel/plugin": "^2.0.0-alpha.0",
+    "@parcel/logger": "^2.0.0-alpha.0",
+    "@parcel/reporter-cli": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0",
+    "ansi-html": "^0.0.7",
+    "ws": "^6.2.0"
+  },
+  "devDependencies": {
+    "@parcel/babel-preset": "^2.0.0-alpha.0"
+  }
+}

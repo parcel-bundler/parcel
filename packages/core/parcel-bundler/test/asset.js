@@ -22,7 +22,7 @@ describe('Asset', () => {
     assert.equal(a.generateErrorMessage(err), err);
   });
 
-  it('should support overriding the filename of the root bundle', async function() {
+  it.skip('should support overriding the filename of the root bundle', async function() {
     const outFile = 'custom-out-file.html';
     await bundle(path.join(__dirname, '/integration/html/index.html'), {
       outFile

@@ -1,0 +1,21 @@
+{
+  "name": "parcel",
+  "version": "2.0.0-alpha.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "bin": {
+    "parcel2": "src/bin.js"
+  },
+  "dependencies": {
+    "@parcel/config-default": "^2.0.0-alpha.0",
+    "@parcel/core": "^2.0.0-alpha.0",
+    "chalk": "^2.1.0",
+    "commander": "^2.19.0",
+    "get-port": "^4.2.0",
+    "react": "^16.7.0",
+    "v8-compile-cache": "^2.0.0"
+  }
+}

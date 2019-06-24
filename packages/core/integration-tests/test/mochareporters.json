@@ -1,5 +1,5 @@
 {
-    "reporterEnabled": "spec, mocha-junit-reporter",
+    "reporterEnabled": "spec, mocha-junit-reporter, ./ready-yet-reporter.js",
     "mochaJunitReporterReporterOptions": {
         "mochaFile": "junit-testresults.xml"
     }

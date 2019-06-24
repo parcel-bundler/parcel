@@ -1,13 +1,13 @@
 const assert = require('assert');
 const Path = require('path');
 const fs = require('@parcel/fs');
-const {sleep, rimraf, ncp, bundler} = require('@parcel/test-utils');
+const {sleep, ncp, bundler} = require('@parcel/test-utils');
 
 let inputRoot = Path.join(__dirname, 'input', 'detect-dir-change');
 
-describe('detect directory changes', function() {
+describe.skip('detect directory changes', function() {
   beforeEach(async function() {
-    await rimraf(inputRoot);
+    await fs.rimraf(inputRoot);
     await fs.mkdirp(inputRoot);
     await ncp(__dirname + '/integration/detect-dir-change/', inputRoot);
   });

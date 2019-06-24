@@ -1,35 +1,69 @@
-const {errorUtils} = require('@parcel/utils');
+// @flow
+
+import type {
+  CallRequest,
+  WorkerDataResponse,
+  WorkerErrorResponse,
+  WorkerMessage,
+  WorkerRequest,
+  WorkerResponse
+} from './types';
+
+import type {IDisposable} from '@parcel/types';
+
+import invariant from 'assert';
+import nullthrows from 'nullthrows';
+import {inspect} from 'util';
+import Logger from '@parcel/logger';
+import {errorToJson, jsonToError, serialize, deserialize} from '@parcel/utils';
+
+import bus from './bus';
+
+type ChildCall = WorkerRequest & {|
+  resolve: (result: Promise<any> | any) => void,
+  reject: (error: any) => void
+|};
+
+let consolePatched;
 
 class Child {
+  callQueue: Array<ChildCall> = [];
+  childId: ?number;
+  maxConcurrentCalls: number = 10;
+  module: ?any;
+  responseId = 0;
+  responseQueue: Map<number, ChildCall> = new Map();
+  loggerDisposable: IDisposable;
+
   constructor() {
     if (!process.send) {
       throw new Error('Only create Child instances in a worker!');
     }
 
-    this.module = undefined;
-    this.childId = undefined;
-
-    this.callQueue = [];
-    this.responseQueue = new Map();
-    this.responseId = 0;
-    this.maxConcurrentCalls = 10;
+    patchConsoleToLogger();
+    // Monitior all logging events inside this child process and forward to
+    // the main process via the bus.
+    this.loggerDisposable = Logger.onLog(event => {
+      bus.emit('logEvent', event);
+    });
   }
 
-  messageListener(data) {
+  messageListener(data: string): void | Promise<void> {
     if (data === 'die') {
       return this.end();
     }
 
-    let type = data.type;
-    if (type === 'response') {
-      return this.handleResponse(data);
-    } else if (type === 'request') {
-      return this.handleRequest(data);
+    let message: WorkerMessage = deserialize(data);
+    if (message.type === 'response') {
+      return this.handleResponse(message);
+    } else if (message.type === 'request') {
+      return this.handleRequest(message);
     }
   }
 
-  async send(data) {
-    process.send(data, err => {
+  async send(data: WorkerMessage): Promise<void> {
+    let processSend = nullthrows(process.send).bind(process);
+    processSend(serialize(data), err => {
       if (err && err instanceof Error) {
         if (err.code === 'ERR_IPC_CHANNEL_CLOSED') {
           // IPC connection closed
@@ -40,41 +74,61 @@ class Child {
     });
   }
 
-  childInit(module, childId) {
+  childInit(module: string, childId: number): void {
+    // $FlowFixMe this must be dynamic
     this.module = require(module);
     this.childId = childId;
   }
 
-  async handleRequest(data) {
-    let idx = data.idx;
-    let child = data.child;
-    let method = data.method;
-    let args = data.args;
+  async handleRequest(data: WorkerRequest): Promise<void> {
+    let {idx, method, args} = data;
+    let child = nullthrows(data.child);
 
-    let result = {idx, child, type: 'response'};
-    try {
-      result.contentType = 'data';
-      if (method === 'childInit') {
-        result.content = this.childInit(...args, child);
-      } else {
-        result.content = await this.module[method](...args);
+    const responseFromContent = (content: any): WorkerDataResponse => ({
+      idx,
+      child,
+      type: 'response',
+      contentType: 'data',
+      content
+    });
+
+    const errorResponseFromError = (e: Error): WorkerErrorResponse => ({
+      idx,
+      child,
+      type: 'response',
+      contentType: 'error',
+      content: errorToJson(e)
+    });
+
+    let result;
+    if (method === 'childInit') {
+      try {
+        let [moduleName] = args;
+        result = responseFromContent(this.childInit(moduleName, child));
+      } catch (e) {
+        result = errorResponseFromError(e);
       }
-    } catch (e) {
-      result.contentType = 'error';
-      result.content = errorUtils.errorToJson(e);
+    } else {
+      try {
+        // $FlowFixMe
+        result = responseFromContent(await this.module[method](...args));
+      } catch (e) {
+        result = errorResponseFromError(e);
+      }
     }
 
     this.send(result);
   }
 
-  async handleResponse(data) {
-    let idx = data.idx;
+  async handleResponse(data: WorkerResponse): Promise<void> {
+    let idx = nullthrows(data.idx);
     let contentType = data.contentType;
     let content = data.content;
-    let call = this.responseQueue.get(idx);
+    let call = nullthrows(this.responseQueue.get(idx));
 
     if (contentType === 'error') {
-      call.reject(errorUtils.jsonToError(content));
+      invariant(typeof content !== 'string');
+      call.reject(jsonToError(content));
     } else {
       call.resolve(content);
     }
@@ -86,11 +140,19 @@ class Child {
   }
 
   // Keep in mind to make sure responses to these calls are JSON.Stringify safe
-  async addCall(request, awaitResponse = true) {
-    let call = request;
-    call.type = 'request';
-    call.child = this.childId;
-    call.awaitResponse = awaitResponse;
+  async addCall(
+    request: CallRequest,
+    awaitResponse: boolean = true
+  ): Promise<mixed> {
+    // $FlowFixMe
+    let call: ChildCall = {
+      ...request,
+      type: 'request',
+      child: this.childId,
+      awaitResponse,
+      resolve: () => {},
+      reject: () => {}
+    };
 
     let promise;
     if (awaitResponse) {
@@ -106,24 +168,26 @@ class Child {
     return promise;
   }
 
-  async sendRequest(call) {
+  async sendRequest(call: ChildCall): Promise<void> {
     let idx;
     if (call.awaitResponse) {
       idx = this.responseId++;
       this.responseQueue.set(idx, call);
     }
+
     this.send({
-      idx: idx,
+      idx,
       child: call.child,
       type: call.type,
       location: call.location,
+      handle: call.handle,
       method: call.method,
       args: call.args,
       awaitResponse: call.awaitResponse
     });
   }
 
-  async processQueue() {
+  async processQueue(): Promise<void> {
     if (!this.callQueue.length) {
       return;
     }
@@ -133,7 +197,8 @@ class Child {
     }
   }
 
-  end() {
+  end(): void {
+    this.loggerDisposable.dispose();
     process.exit();
   }
 }
@@ -141,4 +206,41 @@ class Child {
 let child = new Child();
 process.on('message', child.messageListener.bind(child));
 
-module.exports = child;
+export default child;
+
+// Patch `console` APIs within workers to forward their messages to the Logger
+// at the appropriate levels.
+// TODO: Implement the rest of the console api as needed.
+// TODO: Does this need to be disposable/reversible?
+function patchConsoleToLogger() {
+  if (consolePatched) {
+    return;
+  }
+  /* eslint-disable no-console */
+  // $FlowFixMe
+  console.log = console.info = (...messages: Array<mixed>) => {
+    Logger.info(joinLogMessages(messages));
+  };
+
+  // $FlowFixMe
+  console.debug = (...messages: Array<mixed>) => {
+    // TODO: dedicated debug level?
+    Logger.verbose(joinLogMessages(messages));
+  };
+
+  // $FlowFixMe
+  console.warn = (...messages: Array<mixed>) => {
+    Logger.warn(joinLogMessages(messages));
+  };
+
+  // $FlowFixMe
+  console.error = (...messages: Array<mixed>) => {
+    Logger.error(joinLogMessages(messages));
+  };
+  /* eslint-enable no-console */
+  consolePatched = true;
+}
+
+function joinLogMessages(messages: Array<mixed>): string {
+  return messages.map(m => (typeof m === 'string' ? m : inspect(m))).join(' ');
+}

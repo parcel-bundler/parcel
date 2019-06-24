@@ -1,10 +1,10 @@
 const fs = require('@parcel/fs');
 const Resolver = require('./Resolver');
 const Parser = require('./Parser');
-const WorkerFarm = require('@parcel/workers');
+const WorkerFarm = require('@parcel/workers').default;
 const Path = require('path');
 const Bundle = require('./Bundle');
-const Watcher = require('@parcel/watcher');
+const Watcher = require('@parcel/watcher').default;
 const FSCache = require('./FSCache');
 const HMRServer = require('./HMRServer');
 const Server = require('./Server');
@@ -18,7 +18,7 @@ const PromiseQueue = require('./utils/PromiseQueue');
 const installPackage = require('./utils/installPackage');
 const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
-const getRootDir = require('./utils/getRootDir');
+const getRootDir = require('@parcel/utils/src/getRootDir').default;
 const {glob, isGlob} = require('./utils/glob');
 
 /**

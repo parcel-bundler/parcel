@@ -1,0 +1,22 @@
+{
+  "name": "@parcel/transformer-posthtml",
+  "version": "2.0.0-alpha.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "src/PostHTMLTransformer",
+  "engines": {
+    "parcel": "^2.0.0-alpha.0"
+  },
+  "dependencies": {
+    "@parcel/plugin": "^2.0.0-alpha.0",
+    "@parcel/local-require": "^2.0.0-alpha.0",
+    "nullthrows": "^1.1.1",
+    "posthtml": "^0.11.3",
+    "posthtml-parser": "^0.4.1",
+    "posthtml-render": "^1.1.5",
+    "semver": "^5.4.1"
+  }
+}

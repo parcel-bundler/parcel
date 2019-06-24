@@ -1,5 +1,6 @@
 {
   "extends": "../.eslintrc.json",
+  "parser": "espree",
   "parserOptions": {
     "ecmaVersion": 5
   },

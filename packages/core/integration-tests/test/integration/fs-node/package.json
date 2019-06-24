@@ -1,0 +1,6 @@
+{
+  "name": "fs-node",
+  "engines": {
+    "node": "6"
+  }
+}

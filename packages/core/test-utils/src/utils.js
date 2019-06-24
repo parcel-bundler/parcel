@@ -1,28 +1,61 @@
-const Bundler = require('parcel-bundler');
-const assert = require('assert');
-const vm = require('vm');
-const fs = require('@parcel/fs');
-const nodeFS = require('fs');
-const path = require('path');
-const WebSocket = require('ws');
-const Module = require('module');
+// @flow
 
-const {promisify} = require('@parcel/utils');
-//const {sleep} = require('@parcel/test-utils');
-const rimraf = promisify(require('rimraf'));
-const ncp = promisify(require('ncp'));
+import type {
+  BundleGraph,
+  Bundle,
+  FilePath,
+  InitialParcelOptions
+} from '@parcel/types';
 
-const chalk = new (require('chalk')).constructor({enabled: true});
+import Parcel from '@parcel/core';
+import defaultConfigContents from '@parcel/config-default';
+import assert from 'assert';
+import vm from 'vm';
+import * as fs from '@parcel/fs';
+import nodeFS from 'fs';
+import path from 'path';
+import WebSocket from 'ws';
+// $FlowFixMe
+import Module from 'module';
+import nullthrows from 'nullthrows';
+
+import {promisify} from '@parcel/utils';
+import _ncp from 'ncp';
+import _chalk from 'chalk';
+
+export const ncp = promisify(_ncp);
+
+const defaultConfig = {
+  ...defaultConfigContents,
+  filePath: require.resolve('@parcel/config-default')
+};
+
+const chalk = new _chalk.constructor({enabled: true});
 const warning = chalk.keyword('orange');
-// eslint-disable-next-line no-console
+
+/* eslint-disable no-console */
+// $FlowFixMe
 console.warn = (...args) => {
   // eslint-disable-next-line no-console
   console.error(warning(...args));
 };
+/* eslint-enable no-console */
 
-async function removeDistDirectory(count = 0) {
+export function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export const distDir = path.resolve(
+  __dirname,
+  '..',
+  '..',
+  'integration-tests',
+  'dist'
+);
+
+export async function removeDistDirectory(count: number = 0) {
   try {
-    await rimraf(path.join(process.cwd(), 'test/dist'));
+    await fs.rimraf(distDir);
   } catch (e) {
     if (count > 8) {
       // eslint-disable-next-line no-console
@@ -35,11 +68,7 @@ async function removeDistDirectory(count = 0) {
   }
 }
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function symlinkPrivilegeWarning() {
+export function symlinkPrivilegeWarning() {
   // eslint-disable-next-line no-console
   console.warn(
     `-----------------------------------
@@ -50,31 +79,43 @@ If you don't know how, check here: https://bit.ly/2UmWsbD
   );
 }
 
-function bundler(file, opts) {
-  return new Bundler(
-    file,
-    Object.assign(
-      {
-        outDir: path.join(process.cwd(), 'test/dist'),
-        watch: false,
-        cache: false,
-        killWorkers: false,
-        hmr: false,
-        logLevel: 0,
-        throwErrors: true
-      },
-      opts
-    )
-  );
+export function bundler(
+  entries: FilePath | Array<FilePath>,
+  opts: InitialParcelOptions
+) {
+  return new Parcel({
+    entries,
+    cache: false,
+    logLevel: 'none',
+    killWorkers: false,
+    defaultConfig,
+    ...opts
+  });
 }
 
-function bundle(file, opts) {
-  return bundler(file, opts).bundle();
+export async function bundle(
+  entries: FilePath | Array<FilePath>,
+  opts: InitialParcelOptions
+): Promise<BundleGraph> {
+  return nullthrows(await bundler(entries, opts).run());
 }
 
-async function run(bundle, globals, opts = {}) {
+export async function run(
+  bundleGraph: BundleGraph,
+  globals: mixed,
+  opts: {require?: boolean} = {}
+): Promise<mixed> {
+  let bundles = [];
+  bundleGraph.traverseBundles(bundle => {
+    bundles.push(bundle);
+  });
+
+  let bundle = nullthrows(bundles.find(b => b.isEntry));
+  let entryAsset = bundle.getEntryAssets()[0];
+  let target = entryAsset.env.context;
+
   var ctx;
-  switch (bundle.entryAsset.options.target) {
+  switch (target) {
     case 'browser':
       ctx = prepareBrowserContext(bundle, globals);
       break;
@@ -87,18 +128,22 @@ async function run(bundle, globals, opts = {}) {
         prepareNodeContext(bundle, globals)
       );
       break;
+    default:
+      throw new Error('Unknown target ' + target);
   }
 
   vm.createContext(ctx);
-  vm.runInContext(await fs.readFile(bundle.name), ctx);
+  vm.runInContext(await fs.readFile(nullthrows(bundle.filePath), 'utf8'), ctx);
 
   if (opts.require !== false) {
     if (ctx.parcelRequire) {
-      return ctx.parcelRequire(bundle.entryAsset.id);
+      // $FlowFixMe
+      return ctx.parcelRequire(entryAsset.id);
     } else if (ctx.output) {
       return ctx.output;
     }
     if (ctx.module) {
+      // $FlowFixMe
       return ctx.module.exports;
     }
   }
@@ -106,84 +151,79 @@ async function run(bundle, globals, opts = {}) {
   return ctx;
 }
 
-async function assertBundleTree(bundle, tree) {
-  if (tree.name) {
-    assert.equal(
-      path.basename(bundle.name),
-      tree.name,
-      'bundle names mismatched'
-    );
-  }
-
-  if (tree.type) {
-    assert.equal(
-      bundle.type.toLowerCase(),
-      tree.type.toLowerCase(),
-      'bundle types mismatched'
-    );
-  }
-
-  if (tree.assets) {
-    assert.deepEqual(
-      Array.from(bundle.assets)
-        .map(a => a.basename)
-        .sort(),
-      tree.assets.sort()
-    );
-  }
-
-  let childBundles = Array.isArray(tree) ? tree : tree.childBundles;
-  if (childBundles) {
-    let children = Array.from(bundle.childBundles).sort((a, b) => {
-      let assetA = Array.from(a.assets).sort()[0];
-      let assetB = Array.from(b.assets).sort()[0];
-      if (assetA.basename < assetB.basename) {
-        return -1;
-      } else if (assetA.basename > assetB.basename) {
-        return 1;
-      } else {
-        return a.type < b.type ? -1 : 1;
-      }
+export async function assertBundles(
+  bundleGraph: BundleGraph,
+  bundles: Array<{|
+    name?: string | RegExp,
+    type?: string,
+    assets?: Array<string>
+  |}>
+) {
+  let actualBundles = [];
+  bundleGraph.traverseBundles(bundle => {
+    let assets = [];
+    bundle.traverseAssets(asset => {
+      assets.push(path.basename(asset.filePath));
     });
-    assert.equal(
-      bundle.childBundles.size,
-      childBundles.length,
-      'expected number of child bundles mismatched'
-    );
-    await Promise.all(
-      childBundles.map((b, i) => assertBundleTree(children[i], b))
-    );
-  }
 
-  if (/js|css/.test(bundle.type)) {
-    assert(await fs.exists(bundle.name), 'expected file does not exist');
-  }
-}
-
-function nextBundle(b) {
-  return new Promise(resolve => {
-    b.once('bundled', resolve);
-  });
-}
-
-function deferred() {
-  let resolve, reject;
-  let promise = new Promise((res, rej) => {
-    resolve = res;
-    reject = rej;
+    assets.sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1));
+    actualBundles.push({
+      name: path.basename(nullthrows(bundle.filePath)),
+      type: bundle.type,
+      assets
+    });
   });
 
-  promise.resolve = resolve;
-  promise.reject = reject;
+  for (let bundle of bundles) {
+    // $FlowFixMe
+    bundle.assets.sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1));
+  }
 
-  return promise;
+  // $FlowFixMe
+  bundles.sort((a, b) => (a.assets[0] < b.assets[0] ? -1 : 1));
+  actualBundles.sort((a, b) => (a.assets[0] < b.assets[0] ? -1 : 1));
+  assert.equal(
+    actualBundles.length,
+    bundles.length,
+    'expected number of bundles mismatched'
+  );
+
+  let i = 0;
+  for (let bundle of bundles) {
+    let actualBundle = actualBundles[i++];
+    let name = bundle.name;
+    if (name) {
+      if (typeof name === 'string') {
+        assert.equal(actualBundle.name, name);
+      } else if (name instanceof RegExp) {
+        assert(
+          actualBundle.name.match(name),
+          `${actualBundle.name} does not match regexp ${name.toString()}`
+        );
+      } else {
+        // $FlowFixMe
+        assert.fail();
+      }
+    }
+
+    if (bundle.type) {
+      assert.equal(actualBundle.type, bundle.type);
+    }
+
+    if (bundle.assets) {
+      assert.deepEqual(actualBundle.assets, bundle.assets);
+    }
+
+    // assert(await fs.exists(bundle.filePath), 'expected file does not exist');
+  }
 }
 
-function normaliseNewlines(text) {
+export function normaliseNewlines(text: string): string {
   return text.replace(/(\r\n|\n|\r)/g, '\n');
 }
 
-function prepareBrowserContext(bundle, globals) {
+function prepareBrowserContext(bundle: Bundle, globals: mixed): vm$Context {
+  let filePath = nullthrows(bundle.filePath);
   // for testing dynamic imports
   const fakeElement = {
     remove() {}
@@ -202,7 +242,8 @@ function prepareBrowserContext(bundle, globals) {
               if (el.tag === 'script') {
                 vm.runInContext(
                   nodeFS.readFileSync(
-                    path.join(path.dirname(bundle.name), el.src)
+                    path.join(path.dirname(filePath), el.src),
+                    'utf8'
                   ),
                   ctx
                 );
@@ -234,20 +275,20 @@ function prepareBrowserContext(bundle, globals) {
       document: fakeDocument,
       WebSocket,
       console,
-      location: {hostname: 'localhost', reload() {}},
+      location: {hostname: 'localhost'},
       fetch(url) {
         return Promise.resolve({
           arrayBuffer() {
             return Promise.resolve(
               new Uint8Array(
-                nodeFS.readFileSync(path.join(path.dirname(bundle.name), url))
+                nodeFS.readFileSync(path.join(path.dirname(filePath), url))
               ).buffer
             );
           },
           text() {
             return Promise.resolve(
               nodeFS.readFileSync(
-                path.join(path.dirname(bundle.name), url),
+                path.join(path.dirname(filePath), url),
                 'utf8'
               )
             );
@@ -263,15 +304,16 @@ function prepareBrowserContext(bundle, globals) {
 }
 
 function prepareNodeContext(bundle, globals) {
-  var mod = new Module(bundle.name);
-  mod.paths = [path.dirname(bundle.name) + '/node_modules'];
+  let filePath = nullthrows(bundle.filePath);
+  var mod = new Module(filePath);
+  mod.paths = [path.dirname(filePath) + '/node_modules'];
 
   var ctx = Object.assign(
     {
       module: mod,
       exports: module.exports,
-      __filename: bundle.name,
-      __dirname: path.dirname(bundle.name),
+      __filename: filePath,
+      __dirname: path.dirname(filePath),
       require: function(path) {
         return mod.require(path);
       },
@@ -286,17 +328,3 @@ function prepareNodeContext(bundle, globals) {
   ctx.global = ctx;
   return ctx;
 }
-
-exports.sleep = sleep;
-exports.removeDistDirectory = removeDistDirectory;
-exports.symlinkPrivilegeWarning = symlinkPrivilegeWarning;
-exports.bundler = bundler;
-exports.bundle = bundle;
-exports.run = run;
-exports.prepareBrowserContext = prepareBrowserContext;
-exports.assertBundleTree = assertBundleTree;
-exports.nextBundle = nextBundle;
-exports.deferred = deferred;
-exports.rimraf = rimraf;
-exports.ncp = ncp;
-exports.normaliseNewlines = normaliseNewlines;

@@ -1,0 +1,32 @@
+{
+  "name": "@parcel/transformer-babel",
+  "version": "2.0.0-alpha.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "src/BabelTransformer.js",
+  "engines": {
+    "node": ">= 8.0.0",
+    "parcel": "^2.0.0-alpha.0"
+  },
+  "dependencies": {
+    "@babel/core": "^7.0.0",
+    "@babel/generator": "^7.0.0",
+    "@babel/plugin-transform-flow-strip-types": "^7.0.0",
+    "@babel/plugin-transform-react-jsx": "^7.0.0",
+    "@babel/preset-env": "^7.0.0",
+    "@babel/traverse": "^7.0.0",
+    "@parcel/fs": "^2.0.0-alpha.0",
+    "@parcel/install-package": "^2.0.0-alpha.0",
+    "@parcel/local-require": "^2.0.0-alpha.0",
+    "@parcel/logger": "^2.0.0-alpha.0",
+    "@parcel/plugin": "^2.0.0-alpha.0",
+    "@parcel/source-map": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0",
+    "browserslist": "^4.1.0",
+    "micromatch": "^3.0.4",
+    "semver": "^5.4.1"
+  }
+}

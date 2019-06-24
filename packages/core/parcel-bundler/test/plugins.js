@@ -4,7 +4,7 @@ const path = require('path');
 const logger = require('@parcel/logger');
 const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 
-describe('plugins', function() {
+describe.skip('plugins', function() {
   it('should load plugins and apply custom asset type', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/plugins/test-plugin/index.js')

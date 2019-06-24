@@ -1,6 +1,8 @@
 {
-  "extends": "../../../../.eslintrc.json",
+  "extends": "@parcel/eslint-config",
   "rules": {
-    "no-console": 0
+    "no-console": 0,
+    "no-restricted-imports": "off",
+    "no-restricted-modules": "off"
   }
 }

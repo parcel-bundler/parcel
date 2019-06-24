@@ -2,7 +2,7 @@ const assert = require('assert');
 const {bundle, assertBundleTree, run} = require('@parcel/test-utils');
 const commandExists = require('command-exists');
 
-describe('kotlin', function() {
+describe.skip('kotlin', function() {
   if (!commandExists.sync('java')) {
     // eslint-disable-next-line no-console
     console.log(

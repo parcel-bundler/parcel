@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('@parcel/fs');
 const {bundle, rimraf, ncp} = require('@parcel/test-utils');
 
-describe('content hashing', function() {
+describe.skip('content hashing', function() {
   beforeEach(async function() {
     await rimraf(path.join(__dirname, '/input'));
   });

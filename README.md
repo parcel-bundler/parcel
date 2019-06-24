@@ -40,9 +40,9 @@ npm install -g parcel-bundler
 
 ```html
 <html>
-<body>
-  <script src="./index.js"></script>
-</body>
+  <body>
+    <script src="./index.js"></script>
+  </body>
 </html>
 ```
 
