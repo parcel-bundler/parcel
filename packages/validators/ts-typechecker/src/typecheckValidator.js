@@ -19,7 +19,6 @@ export default new Validator({
     if (!langServiceCache[configPath]) {
       let tsconfig = (await asset.getConfig(configNames)) || {};
       let baseDir = configPath ? path.dirname(configPath) : options.projectRoot;
-
       let parsedCommandLine = ts.parseJsonConfigFileContent(
         tsconfig,
         ts.sys,
@@ -27,7 +26,7 @@ export default new Validator({
       );
 
       langServiceCache[configPath] = ts.createLanguageService(
-        new LanguageServiceHost(parsedCommandLine, ts),
+        new LanguageServiceHost(parsedCommandLine, ts, baseDir),
         ts.createDocumentRegistry()
       );
     }

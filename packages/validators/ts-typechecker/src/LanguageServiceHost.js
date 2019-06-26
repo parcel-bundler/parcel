@@ -26,10 +26,12 @@ export default class LanguageServiceHost {
       version: number
     }
   };
+  baseDir: string;
 
   constructor(
     {fileNames, options}: {fileNames: FileNames, options: ParsedCommandLine},
-    ts: any
+    ts: any,
+    baseDir: string
   ) {
     this.options = options;
     this.fileNames = fileNames;
@@ -38,6 +40,7 @@ export default class LanguageServiceHost {
     this.readDirectory = ts.sys.readDirectory;
     this.files = {};
     this.ts = ts;
+    this.baseDir = baseDir;
   }
 
   invalidate(fileName: string) {
@@ -73,7 +76,7 @@ export default class LanguageServiceHost {
   }
 
   getCurrentDirectory() {
-    return process.cwd();
+    return this.baseDir;
   }
 
   getCompilationSettings() {
