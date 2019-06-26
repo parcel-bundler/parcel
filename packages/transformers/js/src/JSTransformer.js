@@ -12,6 +12,8 @@ import traverse from '@babel/traverse';
 import * as walk from 'babylon-walk';
 import * as babelCore from '@babel/core';
 import {hoist} from '@parcel/scope-hoisting';
+import {relativeUrl} from '@parcel/utils';
+import SourceMap from '@parcel/source-map';
 
 const IMPORT_RE = /\b(?:import\b|export\b|require\s*\()/;
 const ENV_RE = /\b(?:process\.env)\b/;
@@ -74,7 +76,7 @@ export default new Transformer({
 
     // Inline environment variables
     if (!asset.env.isNode() && ENV_RE.test(code)) {
-      walk.simple(ast.program, envVisitor, asset);
+      walk.simple(ast.program, envVisitor, {asset, env: options.env});
     }
 
     // Collect dependencies
@@ -129,24 +131,33 @@ export default new Transformer({
     return [asset];
   },
 
-  async generate({asset}) {
+  async generate({asset, options}) {
     let code = await asset.getCode();
     let res = {
       code
     };
 
-    if (asset.ast && asset.ast.isDirty !== false) {
+    let ast = asset.ast;
+    if (ast && ast.isDirty !== false) {
+      let sourceFileName: string = relativeUrl(
+        options.projectRoot,
+        asset.filePath
+      );
+
       let generated = generate(
-        asset.ast.program,
+        ast.program,
         {
-          // sourceMaps: options.sourceMaps,
-          // sourceFileName: asset.relativeName
+          sourceMaps: options.sourceMaps,
+          sourceFileName: sourceFileName
         },
         code
       );
 
       res.code = generated.code;
-      // res.map = generated.map;
+      // $FlowFixMe...
+      res.map = new SourceMap(generated.rawMappings, {
+        [sourceFileName]: null
+      });
     }
 
     if (asset.meta.globals && asset.meta.globals.size > 0) {
@@ -158,6 +169,7 @@ export default new Transformer({
         res.code;
     }
     delete asset.meta.globals;
+
     return res;
   }
 });

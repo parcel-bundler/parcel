@@ -1,10 +1,12 @@
 // @flow
 import {Transformer} from '@parcel/plugin';
+import SourceMap from '@parcel/source-map';
 import generate from '@babel/generator';
 import semver from 'semver';
 import babel6 from './babel6';
 import babel7 from './babel7';
 import getBabelConfig from './config';
+import {relativeUrl} from '@parcel/utils';
 
 export default new Transformer({
   async getConfig({asset}) {
@@ -29,18 +31,23 @@ export default new Transformer({
     return [asset];
   },
 
-  generate({asset}) {
-    // let opts = {
-    //   sourceMaps: options.sourceMaps,
-    //   sourceFileName: this.relativeName
-    // };
+  async generate({asset, options}) {
+    let sourceFileName: string = relativeUrl(
+      options.projectRoot,
+      asset.filePath
+    );
 
     // $FlowFixMe: figure out how to make AST required in generate method
-    let {code, map} = generate(asset.ast.program);
+    let generated = generate(asset.ast.program, {
+      sourceMaps: options.sourceMaps,
+      sourceFileName: sourceFileName
+    });
 
     return {
-      code,
-      map
+      code: generated.code,
+      map: new SourceMap(generated.rawMappings, {
+        [sourceFileName]: null
+      })
     };
   }
 });

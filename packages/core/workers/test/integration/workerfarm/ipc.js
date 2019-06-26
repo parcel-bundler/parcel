@@ -7,9 +7,4 @@ function run(a, b) {
   });
 }
 
-function init() {
-  // Do nothing
-}
-
 exports.run = run;
-exports.init = init;

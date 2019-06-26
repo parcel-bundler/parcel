@@ -1,11 +1,7 @@
 // @flow strict-local
+
 import {PromiseQueue, md5FromString} from '@parcel/utils';
-import type {
-  AssetRequest,
-  Config,
-  FilePath,
-  ParcelOptions
-} from '@parcel/types';
+import type {AssetRequest, FilePath, ParcelOptions} from '@parcel/types';
 import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
 import {realpath} from '@parcel/fs';
@@ -13,6 +9,7 @@ import {realpath} from '@parcel/fs';
 import Dependency from './Dependency';
 import Graph, {type GraphOpts} from './Graph';
 import ResolverRunner from './ResolverRunner';
+import type Config from './Config';
 import type {
   AssetRequestNode,
   CacheEntry,
@@ -56,13 +53,23 @@ const nodeFromFilePath = (filePath: string) => ({
 export default class RequestGraph extends Graph<RequestGraphNode> {
   inProgress: Map<NodeId, Promise<RequestResult>> = new Map();
   invalidNodes: Map<NodeId, RequestNode> = new Map();
-  runTransform: (file: AssetRequest) => Promise<CacheEntry>;
-  runValidate: (file: AssetRequest) => Promise<void>;
+  runValidate: ({
+    request: AssetRequest,
+    config: Config,
+    options: ParcelOptions
+  }) => Promise<void>;
+  runTransform: ({
+    request: AssetRequest,
+    config: Config,
+    options: ParcelOptions
+  }) => Promise<CacheEntry>;
   resolverRunner: ResolverRunner;
   onAssetRequestComplete: (AssetRequestNode, CacheEntry) => mixed;
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed;
   queue: PromiseQueue;
   farm: WorkerFarm;
+  config: Config;
+  options: ParcelOptions;
 
   constructor({
     onAssetRequestComplete,
@@ -75,6 +82,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     this.queue = new PromiseQueue();
     this.onAssetRequestComplete = onAssetRequestComplete;
     this.onDepPathRequestComplete = onDepPathRequestComplete;
+    this.config = config;
+    this.options = options;
 
     this.resolverRunner = new ResolverRunner({
       config,
@@ -143,20 +152,34 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         throw new Error('Unrecognized request type ' + requestNode.type);
     }
 
-    this.inProgress.set(requestNode.id, promise);
-    await promise;
-    // ? Should these be updated before it comes off the queue?
-    this.invalidNodes.delete(requestNode.id);
-    this.inProgress.delete(requestNode.id);
+    try {
+      this.inProgress.set(requestNode.id, promise);
+      await promise;
+      // ? Should these be updated before it comes off the queue?
+      this.invalidNodes.delete(requestNode.id);
+      this.inProgress.delete(requestNode.id);
+    } catch (e) {
+      // Do nothing
+      // Main tasks will be caught by the queue
+      // Sun tasks will end up rejecting the main task promise
+    }
   }
 
   async transform(request: AssetRequest) {
     try {
       let start = Date.now();
       if (!(await realpath(request.filePath)).includes('node_modules')) {
-        await this.runValidate(request);
+        await this.runValidate({
+          request,
+          config: this.config,
+          options: this.options
+        });
       }
-      let cacheEntry = await this.runTransform(request);
+      let cacheEntry = await this.runTransform({
+        request,
+        config: this.config,
+        options: this.options
+      });
 
       let time = Date.now() - start;
       for (let asset of cacheEntry.assets) {

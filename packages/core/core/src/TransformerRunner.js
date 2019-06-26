@@ -14,13 +14,11 @@ import type {
 import type {CacheEntry} from './types';
 
 import path from 'path';
-import clone from 'clone';
 import {
   md5FromFilePath,
   md5FromReadableStream,
   md5FromString
 } from '@parcel/utils';
-import Cache from '@parcel/cache';
 import {TapStream, unique} from '@parcel/utils';
 import {createReadStream} from 'fs';
 
@@ -30,6 +28,7 @@ import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset from './Asset';
+import Cache from '@parcel/cache';
 
 type Opts = {|
   config: Config,
@@ -68,10 +67,12 @@ export default class TransformerRunner {
       request: req
     });
 
+    let cache = new Cache(this.options.cacheDir);
+
     // If a cache entry matches, no need to transform.
     let cacheEntry;
     if (this.options.cache !== false && req.code == null) {
-      cacheEntry = await Cache.get(reqCacheKey(req));
+      cacheEntry = await cache.get(reqCacheKey(req));
     }
 
     let {content, size, hash} = await summarizeRequest(req);
@@ -89,6 +90,7 @@ export default class TransformerRunner {
       idBase: req.code ? hash : req.filePath,
       filePath: req.filePath,
       type: path.extname(req.filePath).slice(1),
+      cache,
       ast: null,
       content,
       hash,
@@ -118,7 +120,7 @@ export default class TransformerRunner {
     await Promise.all(
       unique([...assets, ...(initialAssets || [])]).map(asset => asset.commit())
     );
-    await Cache.set(reqCacheKey(req), cacheEntry);
+    await cache.set(reqCacheKey(req), cacheEntry);
     return cacheEntry;
   }
 
@@ -198,7 +200,8 @@ export default class TransformerRunner {
     }
 
     // If the transformer has a postProcess function, execute that with the result of the pipeline.
-    let finalAssets = await postProcess(clone(assets));
+    // TODO: Find a performant way to clone assets before finalising...
+    let finalAssets = await postProcess(assets);
     return {
       assets: finalAssets || assets,
       initialAssets: finalAssets ? assets : null
@@ -240,6 +243,7 @@ export default class TransformerRunner {
     ) {
       let output = await previousGenerate(new MutableAsset(input));
       input.content = output.code;
+      input.map = output.map;
       input.ast = null;
     }
 
@@ -396,19 +400,23 @@ function normalizeAssets(
   results: Array<TransformerResult | MutableAsset>
 ): Array<TransformerResult> {
   return results.map(result => {
-    return result instanceof MutableAsset
-      ? {
-          type: result.type,
-          content: assetToInternalAsset(result).content,
-          ast: result.ast,
-          // $FlowFixMe
-          dependencies: result.getDependencies(),
-          connectedFiles: result.getConnectedFiles(),
-          // $FlowFixMe
-          env: result.env,
-          isIsolated: result.isIsolated,
-          meta: result.meta
-        }
-      : result;
+    if (!(result instanceof MutableAsset)) {
+      return result;
+    }
+
+    let internalAsset = assetToInternalAsset(result);
+    return {
+      type: result.type,
+      content: internalAsset.content,
+      ast: result.ast,
+      map: internalAsset.map,
+      // $FlowFixMe
+      dependencies: result.getDependencies(),
+      connectedFiles: result.getConnectedFiles(),
+      // $FlowFixMe
+      env: result.env,
+      isIsolated: result.isIsolated,
+      meta: result.meta
+    };
   });
 }

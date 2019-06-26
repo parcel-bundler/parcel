@@ -15,6 +15,7 @@
       "@parcel/transformer-posthtml",
       "@parcel/transformer-html"
     ],
+    "*.coffee": ["@parcel/transformer-coffeescript"],
     "*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],

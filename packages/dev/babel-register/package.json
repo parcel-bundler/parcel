@@ -9,7 +9,7 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "dependencies": {
-    "@babel/register": "^7.0.0",
+    "@babel/register": "^7.4.4",
     "@parcel/babel-preset": "^2.0.0-alpha.0"
   }
 }

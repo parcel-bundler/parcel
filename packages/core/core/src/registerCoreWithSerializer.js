@@ -21,12 +21,17 @@ export default function registerCoreWithSerializer() {
     return;
   }
 
-  register(Asset);
-  register(AssetGraph);
-  register(BundleGraph);
-  register(Config);
-  register(Dependency);
-  register(Environment);
+  for (let ctor of [
+    Asset,
+    AssetGraph,
+    BundleGraph,
+    Config,
+    Dependency,
+    Environment
+  ]) {
+    register(ctor);
+  }
+
   registered = true;
 }
 

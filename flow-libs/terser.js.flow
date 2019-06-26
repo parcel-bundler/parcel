@@ -126,6 +126,13 @@ declare module 'terser' {
     shebang?: boolean
   |};
 
+  declare type SourceMapOptions = {|
+    filename?: string,
+    url?: string,
+    content?: string,
+    root?: string
+  |}
+
   declare type MinifyOptions = {|
     compress?: CompressOptions,
     ecma?: ECMAVersion,
@@ -139,7 +146,8 @@ declare module 'terser' {
     nameCache?: ?{[string]: string},
     safari10?: boolean,
     toplevel?: boolean,
-    warnings?: boolean
+    warnings?: boolean,
+    sourceMap?: SourceMapOptions
   |};
 
   declare module.exports: {
