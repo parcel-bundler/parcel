@@ -134,9 +134,6 @@ export default class Transformation {
 
       if (nextPipeline) {
         let nextPipelineAssets = await this.runPipeline(nextPipeline, asset);
-        await Promise.all(
-          nextPipelineAssets.map(nextAsset => nextAsset.getCode())
-        );
         finalAssets = finalAssets.concat(nextPipelineAssets);
       } else {
         finalAssets.push(asset);
@@ -167,7 +164,7 @@ export default class Transformation {
     assets: Array<InternalAsset>,
     configs: ConfigMap
   ): Promise<null | Array<InternalAsset>> {
-    if (!this.options.cache || this.request.code == null) {
+    if (this.options.cache === false || this.request.code != null) {
       return null;
     }
 
