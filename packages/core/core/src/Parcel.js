@@ -3,8 +3,7 @@
 import type {
   AsyncSubscription,
   BundleGraph as IBundleGraph,
-  BuildFailureEvent,
-  BuildSuccessEvent,
+  BuildEvent,
   EnvironmentOpts,
   FilePath,
   InitialParcelOptions,
@@ -14,7 +13,7 @@ import type {
 } from '@parcel/types';
 import type {Bundle} from './types';
 import type InternalBundleGraph from './BundleGraph';
-import type Config from './Config';
+import type ParcelConfig from './ParcelConfig';
 
 import invariant from 'assert';
 import Dependency from './Dependency';
@@ -28,7 +27,7 @@ import clone from 'clone';
 import watcher from '@parcel/watcher';
 import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
-import ConfigResolver from './ConfigResolver';
+import loadParcelConfig from './loadParcelConfig';
 import ReporterRunner from './ReporterRunner';
 import MainAssetGraph from './public/MainAssetGraph';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
@@ -38,8 +37,6 @@ import registerCoreWithSerializer from './registerCoreWithSerializer';
 import {createCacheDir} from '@parcel/cache';
 
 registerCoreWithSerializer();
-
-type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
 
 export const INTERNAL_TRANSFORM = Symbol('internal_transform');
 export const INTERNAL_RESOLVE = Symbol('internal_resolve');
@@ -76,24 +73,10 @@ export default class Parcel {
     this.#resolvedOptions = resolvedOptions;
     await createCacheDir(resolvedOptions.cacheDir);
 
-    let configResolver = new ConfigResolver();
-    let config;
-
-    // If an explicit `config` option is passed use that, otherwise resolve a .parcelrc from the filesystem.
-    if (resolvedOptions.config) {
-      config = await configResolver.create(resolvedOptions.config);
-    } else {
-      config = await configResolver.resolve(resolvedOptions.rootDir);
-    }
-
-    // If no config was found, default to the `defaultConfig` option if one is provided.
-    if (!config && resolvedOptions.defaultConfig) {
-      config = await configResolver.create(resolvedOptions.defaultConfig);
-    }
-
-    if (!config) {
-      throw new Error('Could not find a .parcelrc');
-    }
+    let {config} = await loadParcelConfig(
+      path.join(process.cwd(), 'index'),
+      resolvedOptions
+    );
     this.#config = config;
 
     this.#bundlerRunner = new BundlerRunner({
@@ -318,12 +301,12 @@ export default class Parcel {
 
 function packageBundles(
   bundleGraph: InternalBundleGraph,
-  config: Config,
+  config: ParcelConfig,
   options: ParcelOptions,
   runPackage: ({
     bundle: Bundle,
     bundleGraph: InternalBundleGraph,
-    config: Config,
+    config: ParcelConfig,
     options: ParcelOptions
   }) => Promise<Stats>
 ): Promise<mixed> {

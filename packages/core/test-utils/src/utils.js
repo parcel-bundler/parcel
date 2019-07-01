@@ -1,12 +1,14 @@
 // @flow
 
 import type {
+  BuildEvent,
   BundleGraph,
   Bundle,
   FilePath,
   InitialParcelOptions
 } from '@parcel/types';
 
+import invariant from 'assert';
 import Parcel from '@parcel/core';
 import defaultConfigContents from '@parcel/config-default';
 import assert from 'assert';
@@ -98,6 +100,32 @@ export async function bundle(
   opts: InitialParcelOptions
 ): Promise<BundleGraph> {
   return nullthrows(await bundler(entries, opts).run());
+}
+
+export function getNextBuild(b: Parcel): Promise<BuildEvent> {
+  return new Promise((resolve, reject) => {
+    let subscriptionPromise = b
+      .watch((err, buildEvent) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        subscriptionPromise
+          .then(subscription => {
+            // If the watch callback was reached, subscription must have been successful
+            invariant(subscription != null);
+            return subscription.unsubscribe();
+          })
+          .then(() => {
+            // If the build promise hasn't been rejected, buildEvent must exist
+            invariant(buildEvent != null);
+            resolve(buildEvent);
+          })
+          .catch(reject);
+      })
+      .catch(reject);
+  });
 }
 
 export async function run(

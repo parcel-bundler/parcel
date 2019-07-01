@@ -3,9 +3,12 @@
 import type {
   AssetRequest,
   BundleGroup,
+  ConfigRequest,
   Environment,
   File,
   FilePath,
+  Glob,
+  ParcelOptions,
   Stats,
   Target
 } from '@parcel/types';
@@ -13,6 +16,7 @@ import type {
 import type Asset from './Asset';
 import type AssetGraph from './AssetGraph';
 import type Dependency from './Dependency';
+import type Config from './public/Config';
 
 export type NodeId = string;
 
@@ -42,6 +46,7 @@ export type DependencyNode = {|
 |};
 
 export type FileNode = {|id: string, +type: 'file', value: File|};
+export type GlobNode = {|id: string, +type: 'glob', value: Glob|};
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
 
 // Asset group nodes are essentially used as placeholders for the results of an asset request
@@ -74,9 +79,18 @@ export type AssetGraphNode =
   | BundleGroupNode
   | BundleReferenceNode;
 
-export type RequestGraphNode = RequestNode | FileNode;
-export type RequestNode = DepPathRequestNode | AssetRequestNode;
-export type RequestResult = CacheEntry | AssetRequest | null;
+export type ConfigRequestNode = {|
+  id: string,
+  +type: 'config_request',
+  value: ConfigRequest
+|};
+
+export type RequestGraphNode = RequestNode | FileNode | GlobNode;
+export type RequestNode =
+  | DepPathRequestNode
+  | AssetRequestNode
+  | ConfigRequestNode;
+export type SubRequestNode = ConfigRequestNode;
 
 export interface BundleReference {
   +id: string;
@@ -128,3 +142,10 @@ export type BundleGroupNode = {|
 |};
 
 export type BundleGraphNode = BundleNode | BundleGroupNode | RootNode;
+
+export type TransformationOpts = {|
+  request: AssetRequest,
+  loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
+  parentNodeId: NodeId,
+  options: ParcelOptions
+|};

@@ -49,7 +49,7 @@ export type ParcelConfigFile = {
   reporters?: Array<PackageName>
 };
 
-export type ParcelConfig = ParcelConfigFile & {
+export type ResolvedParcelConfigFile = ParcelConfigFile & {
   filePath: FilePath
 };
 
@@ -143,8 +143,8 @@ export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
 export type InitialParcelOptions = {|
   entries?: FilePath | Array<FilePath>,
   rootDir?: FilePath,
-  config?: ParcelConfig,
-  defaultConfig?: ParcelConfig,
+  config?: ResolvedParcelConfigFile,
+  defaultConfig?: ResolvedParcelConfigFile,
   env?: {[string]: ?string},
   targets?: ?(Array<string> | {+[string]: TargetDescriptor}),
 
@@ -245,6 +245,15 @@ export type AssetRequest = {|
   env: Environment,
   sideEffects?: boolean,
   code?: string
+|};
+
+export type ConfigRequest = {|
+  filePath: FilePath,
+  plugin?: PackageName,
+  //$FlowFixMe will lock this down more in a future commit
+  meta: any,
+  //$FlowFixMe will lock this down more in a future commit
+  result?: any
 |};
 
 interface BaseAsset {
@@ -598,6 +607,8 @@ export type BuildFailureEvent = {|
   type: 'buildFailure',
   error: Error
 |};
+
+export type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
 
 export type ReporterEvent =
   | LogEvent

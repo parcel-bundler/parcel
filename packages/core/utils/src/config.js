@@ -36,11 +36,7 @@ export async function resolveConfig(
 
   for (const filename of filenames) {
     let file = path.join(filepath, filename);
-    let exists = existsCache.has(file)
-      ? existsCache.get(file)
-      : await fs.exists(file);
-    if (exists) {
-      existsCache.set(file, true);
+    if (await fs.exists(file)) {
       return file;
     }
   }

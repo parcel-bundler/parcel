@@ -172,16 +172,8 @@ describe('AssetGraph', () => {
         connectedFiles: []
       })
     ];
-    let cacheEntry = {
-      filePath,
-      env: DEFAULT_ENV,
-      hash: '#hash',
-      assets,
-      initialAssets: null,
-      connectedFiles: []
-    };
 
-    graph.resolveAssetGroup(req, cacheEntry);
+    graph.resolveAssetGroup(req, assets);
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(graph.nodes.has('3'));
@@ -226,16 +218,8 @@ describe('AssetGraph', () => {
         connectedFiles: []
       })
     ];
-    cacheEntry = {
-      filePath,
-      env: DEFAULT_ENV,
-      hash: '#hash',
-      assets: assets2,
-      initialAssets: null,
-      connectedFiles: []
-    };
 
-    graph.resolveAssetGroup(req, cacheEntry);
+    graph.resolveAssetGroup(req, assets2);
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(!graph.nodes.has('3'));
@@ -289,15 +273,8 @@ describe('AssetGraph', () => {
         ])
       })
     ];
-    let cacheEntry = {
-      filePath,
-      env: DEFAULT_ENV,
-      hash: '#hash',
-      assets,
-      initialAssets: null
-    };
 
-    graph.resolveAssetGroup(req, cacheEntry);
+    graph.resolveAssetGroup(req, assets);
     assert(graph.nodes.has('1'));
     assert(graph.hasEdge(nodeFromAssetGroup(req).id, '1'));
   });

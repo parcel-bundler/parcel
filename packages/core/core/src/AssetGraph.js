@@ -15,13 +15,7 @@ import {md5FromString} from '@parcel/utils';
 import type Asset from './Asset';
 import Dependency from './Dependency';
 import Graph, {type GraphOpts} from './Graph';
-import type {
-  AssetGraphNode,
-  AssetGroup,
-  CacheEntry,
-  DependencyNode,
-  NodeId
-} from './types';
+import type {AssetGraphNode, AssetGroup, DependencyNode, NodeId} from './types';
 
 type AssetGraphOpts = {|
   ...GraphOpts<AssetGraphNode>,
@@ -154,12 +148,12 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     }
   }
 
-  resolveAssetGroup(assetGroup: AssetGroup, cacheEntry: CacheEntry) {
+  resolveAssetGroup(assetGroup: AssetGroup, assets: Array<Asset>) {
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
     assetGroupNode = nullthrows(this.nodes.get(assetGroupNode.id));
 
     let assetNodes = [];
-    for (let asset of cacheEntry.assets) {
+    for (let asset of assets) {
       let assetNode = nodeFromAsset(asset);
       assetNodes.push(assetNode);
       let depNodes = [];

@@ -1,7 +1,6 @@
 // @flow
-
 import type {
-  ParcelConfig,
+  ResolvedParcelConfigFile,
   FilePath,
   Glob,
   Transformer,
@@ -15,19 +14,14 @@ import type {
   Optimizer,
   Reporter
 } from '@parcel/types';
-import {localResolve} from '@parcel/local-require';
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
-import {CONFIG} from '@parcel/plugin';
-import logger from '@parcel/logger';
-import semver from 'semver';
+import loadPlugin from './loadParcelPlugin';
 
 type Pipeline = Array<PackageName>;
 type GlobMap<T> = {[Glob]: T};
 
-const PARCEL_VERSION = require('../package.json').version;
-
-export default class Config {
+export default class ParcelConfig {
   filePath: FilePath;
   resolvers: Pipeline;
   transforms: GlobMap<Pipeline>;
@@ -39,7 +33,7 @@ export default class Config {
   reporters: Pipeline;
   pluginCache: Map<PackageName, any>;
 
-  constructor(config: ParcelConfig) {
+  constructor(config: ResolvedParcelConfigFile) {
     this.filePath = config.filePath;
     this.resolvers = config.resolvers || [];
     this.transforms = config.transforms || {};
@@ -52,7 +46,7 @@ export default class Config {
     this.pluginCache = new Map();
   }
 
-  serialize(): ParcelConfig {
+  serialize(): ResolvedParcelConfigFile {
     return {
       filePath: this.filePath,
       resolvers: this.resolvers,
@@ -67,51 +61,26 @@ export default class Config {
   }
 
   async loadPlugin(pluginName: PackageName) {
-    let cached = this.pluginCache.get(pluginName);
-    if (cached) {
-      return cached;
-    }
-
-    let [resolved, pkg] = await localResolve(pluginName, this.filePath);
-
-    // Validate the engines.parcel field in the plugin's package.json
-    let parcelVersionRange = pkg && pkg.engines && pkg.engines.parcel;
-    if (!parcelVersionRange) {
-      logger.warn(
-        `The plugin "${pluginName}" needs to specify a \`package.json#engines.parcel\` field with the supported Parcel version range.`
-      );
-    }
-
-    if (
-      parcelVersionRange &&
-      !semver.satisfies(PARCEL_VERSION, parcelVersionRange)
-    ) {
-      throw new Error(
-        `The plugin "${pluginName}" is not compatible with the current version of Parcel. Requires "${parcelVersionRange}" but the current version is "${PARCEL_VERSION}".`
-      );
-    }
-
-    // $FlowFixMe
-    let plugin = require(resolved);
-    plugin = plugin.default ? plugin.default : plugin;
-    plugin = plugin[CONFIG];
-    this.pluginCache.set(pluginName, plugin);
-    return plugin;
+    return loadPlugin(pluginName, this.filePath);
   }
 
   async loadPlugins(plugins: Pipeline) {
     return Promise.all(plugins.map(pluginName => this.loadPlugin(pluginName)));
   }
 
-  async getResolvers(): Promise<Array<Resolver>> {
+  getResolverNames() {
     if (this.resolvers.length === 0) {
       throw new Error('No resolver plugins specified in .parcelrc config');
     }
 
-    return this.loadPlugins(this.resolvers);
+    return this.resolvers;
   }
 
-  async getTransformers(filePath: FilePath): Promise<Array<Transformer>> {
+  async getResolvers(): Promise<Array<Resolver>> {
+    return this.loadPlugins(this.getResolverNames());
+  }
+
+  getTransformerNames(filePath: FilePath): Array<string> {
     let transformers: Pipeline | null = this.matchGlobMapPipelines(
       filePath,
       this.transforms
@@ -120,7 +89,11 @@ export default class Config {
       throw new Error(`No transformers found for "${filePath}".`);
     }
 
-    return this.loadPlugins(transformers);
+    return transformers;
+  }
+
+  async getTransformers(filePath: FilePath): Promise<Array<Transformer>> {
+    return this.loadPlugins(this.getTransformerNames(filePath));
   }
 
   async getBundler(): Promise<Bundler> {

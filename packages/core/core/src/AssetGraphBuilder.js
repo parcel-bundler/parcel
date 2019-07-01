@@ -7,12 +7,11 @@ import type {Event} from '@parcel/watcher';
 
 import type Asset from './Asset';
 import AssetGraph from './AssetGraph';
-import type Config from './Config';
+import type ParcelConfig from './ParcelConfig';
 import RequestGraph from './RequestGraph';
 import type {
   AssetGraphNode,
   AssetRequestNode,
-  CacheEntry,
   DepPathRequestNode
 } from './types';
 
@@ -20,7 +19,7 @@ import dumpToGraphViz from './dumpGraphToGraphViz';
 
 type Opts = {|
   options: ParcelOptions,
-  config: Config,
+  config: ParcelConfig,
   entries?: Array<string>,
   targets?: Array<Target>,
   assetRequest?: AssetRequest
@@ -99,9 +98,9 @@ export default class AssetGraphBuilder extends EventEmitter {
 
   handleCompletedAssetRequest(
     requestNode: AssetRequestNode,
-    result: CacheEntry
+    assets: Array<Asset>
   ) {
-    this.assetGraph.resolveAssetGroup(requestNode.value, result);
+    this.assetGraph.resolveAssetGroup(requestNode.value, assets);
   }
 
   handleCompletedDepPathRequest(
