@@ -73,9 +73,11 @@ export default class validatorRunner {
       request: req
     });
 
+    let cache = new Cache(this.options.cacheDir);
+
     let cacheEntry;
     if (this.options.cache !== false && req.code == null) {
-      cacheEntry = await Cache.get(reqCacheKey(req));
+      cacheEntry = await cache.get(reqCacheKey(req));
     }
 
     let {content, size, hash} = await summarizeRequest(req);
@@ -97,6 +99,7 @@ export default class validatorRunner {
       content,
       hash,
       env: req.env,
+      cache,
       stats: {
         time: 0,
         size
