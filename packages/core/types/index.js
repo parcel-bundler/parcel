@@ -23,8 +23,8 @@ export type JSONObject = {
 export type PackageName = string;
 export type FilePath = string;
 export type Glob = string;
-type Semver = string;
-type SemverRange = string;
+export type Semver = string;
+export type SemverRange = string;
 export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T};
@@ -173,7 +173,8 @@ export type ParcelOptions = {|
   logLevel: LogLevel,
   rootDir: FilePath,
   targets: Array<Target>,
-  projectRoot: FilePath
+  projectRoot: FilePath,
+  lockFile?: FilePath
 |};
 
 export type ServerOptions = {|
@@ -245,15 +246,6 @@ export type AssetRequest = {|
   env: Environment,
   sideEffects?: boolean,
   code?: string
-|};
-
-export type ConfigRequest = {|
-  filePath: FilePath,
-  plugin?: PackageName,
-  //$FlowFixMe will lock this down more in a future commit
-  meta: any,
-  //$FlowFixMe will lock this down more in a future commit
-  result?: any
 |};
 
 interface BaseAsset {

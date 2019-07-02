@@ -3,12 +3,13 @@
 import type {
   AssetRequest,
   BundleGroup,
-  ConfigRequest,
   Environment,
   File,
   FilePath,
   Glob,
   ParcelOptions,
+  PackageName,
+  Semver,
   Stats,
   Target
 } from '@parcel/types';
@@ -85,12 +86,33 @@ export type ConfigRequestNode = {|
   value: ConfigRequest
 |};
 
+export type ConfigRequest = {|
+  filePath: FilePath,
+  plugin?: PackageName,
+  //$FlowFixMe will lock this down more in a future commit
+  meta: any,
+  result?: Config
+|};
+
+export type DepVersionRequestNode = {|
+  id: string,
+  +type: 'dep_version_request',
+  value: DepVersionRequest
+|};
+
+export type DepVersionRequest = {|
+  moduleSpecifier: PackageName,
+  resolveFrom: FilePath,
+  result?: Semver
+|};
+
 export type RequestGraphNode = RequestNode | FileNode | GlobNode;
 export type RequestNode =
   | DepPathRequestNode
   | AssetRequestNode
-  | ConfigRequestNode;
-export type SubRequestNode = ConfigRequestNode;
+  | ConfigRequestNode
+  | DepVersionRequestNode;
+export type SubRequestNode = ConfigRequestNode | DepVersionRequestNode;
 
 export interface BundleReference {
   +id: string;

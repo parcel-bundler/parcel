@@ -3,7 +3,6 @@ import nullthrows from 'nullthrows';
 import type {
   MutableAsset as IMutableAsset,
   Blob,
-  ConfigRequest,
   FilePath,
   GenerateOutput,
   Transformer,
@@ -25,7 +24,7 @@ import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset from './Asset';
-import type {NodeId} from './types';
+import type {NodeId, ConfigRequest} from './types';
 
 type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutput>;
 
@@ -46,6 +45,7 @@ type ConfigMap = Map<PackageName, Config>;
 
 export default class Transformation {
   request: AssetRequest;
+  configRequests: Array<ConfigRequest>;
   loadConfig: ConfigRequest => Promise<Config>;
   options: ParcelOptions;
   cache: Cache;
@@ -59,7 +59,11 @@ export default class Transformation {
     options
   }: TransformationOpts) {
     this.request = request;
-    this.loadConfig = configRequest => loadConfig(configRequest, parentNodeId);
+    this.configRequests = [];
+    this.loadConfig = configRequest => {
+      this.configRequests.push(configRequest);
+      return loadConfig(configRequest, parentNodeId);
+    };
     this.options = options;
 
     // TODO: these options may not impact all transformations, let transformers decide if they care or not
@@ -69,7 +73,10 @@ export default class Transformation {
     this.envId = JSON.stringify(this.request.env);
   }
 
-  async run(): Promise<Array<InternalAsset>> {
+  async run(): Promise<{
+    assets: Array<InternalAsset>,
+    configRequests: Array<ConfigRequest>
+  }> {
     report({
       type: 'buildProgress',
       phase: 'transforming',
@@ -80,7 +87,9 @@ export default class Transformation {
 
     let asset = await this.loadAsset();
     let pipeline = await this.loadPipeline(asset.filePath);
-    return this.runPipeline(pipeline, asset);
+    let assets = await this.runPipeline(pipeline, asset);
+
+    return {assets, configRequests: this.configRequests};
   }
 
   async loadAsset(): Promise<InternalAsset> {
@@ -201,12 +210,15 @@ export default class Transformation {
     );
 
     // TODO: sort
-    let configHashesId = JSON.stringify(
-      [...configs].map(([, config]) => config.resultHash)
+    let configsId = JSON.stringify(
+      [...configs].map(([, {resultHash, devDeps}]) => ({
+        resultHash,
+        devDeps: [...devDeps]
+      }))
     );
 
     return md5FromString(
-      assetsId + configHashesId + this.envId + this.impactfulOptionsId
+      assetsId + configsId + this.envId + this.impactfulOptionsId
     );
   }
 
