@@ -10,18 +10,13 @@ type Opts = {|
   options: ParcelOptions
 |};
 
-const getCacheKey = (filename, parent) =>
-  (parent ? path.dirname(parent) : '') + ':' + filename;
-
 export default class ResolverRunner {
   config: ParcelConfig;
   options: ParcelOptions;
-  cache: Map<string, AssetRequest>;
 
   constructor({config, options}: Opts) {
     this.config = config;
     this.options = options;
-    this.cache = new Map();
   }
 
   async resolve(dependency: Dependency): Promise<AssetRequest> {
@@ -31,22 +26,12 @@ export default class ResolverRunner {
       dependency
     });
 
-    // Check the cache first
-    let key = getCacheKey(dependency.moduleSpecifier, dependency.sourcePath);
-    let cached = this.cache.get(key);
-
-    if (cached) {
-      return cached;
-    }
-
     let resolvers = await this.config.getResolvers();
 
     for (let resolver of resolvers) {
       let result = await resolver.resolve({dependency, options: this.options});
 
       if (result) {
-        this.cache.set(key, result);
-
         return result;
       }
     }
