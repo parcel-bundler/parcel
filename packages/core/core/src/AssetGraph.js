@@ -10,7 +10,7 @@ import type {
   SymbolResolution,
   Target
 } from '@parcel/types';
-import {md5FromString} from '@parcel/utils';
+import {md5FromObject} from '@parcel/utils';
 
 import type Asset from './Asset';
 import Dependency from './Dependency';
@@ -29,10 +29,6 @@ type InitOpts = {|
   assetGroup?: AssetGroup
 |};
 
-const hashObject = obj => {
-  return md5FromString(JSON.stringify(obj));
-};
-
 const invertMap = <K, V>(map: Map<K, V>): Map<V, K> =>
   new Map([...map].map(([key, val]) => [val, key]));
 
@@ -43,7 +39,7 @@ const nodeFromDep = (dep: Dependency): DependencyNode => ({
 });
 
 export const nodeFromAssetGroup = (assetGroup: AssetGroup) => ({
-  id: hashObject(assetGroup),
+  id: md5FromObject(assetGroup),
   type: 'asset_group',
   value: assetGroup
 });
