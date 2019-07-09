@@ -236,7 +236,7 @@ async function bundle(main, command) {
   const bundler = new Bundler(main, command);
 
   command.target = command.target || 'browser';
-  if (command.name() === 'serve' && command.target === 'browser') {
+  if (command.name() === 'serve' && command.target !== 'node') {
     const port = command.port || process.env.PORT || 1234;
     const server = await bundler.serve(port, command.https, command.host);
     if (server && command.open) {

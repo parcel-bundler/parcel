@@ -264,4 +264,21 @@ describe('server', function() {
     logger._log.restore();
     logger.setOptions({logLevel: 3});
   });
+
+  it('should start the dev server when --target=electron', async function() {
+    let b = await bundler(
+      path.join(__dirname, '/integration/html/index.html'),
+      {
+        target: 'node'
+      }
+    );
+
+    server = await b.serve(0);
+
+    let data = await get('/');
+    assert.equal(
+      data,
+      await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8')
+    );
+  });
 });
