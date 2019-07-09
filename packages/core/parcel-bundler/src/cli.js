@@ -67,6 +67,10 @@ program
     /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
+  .option(
+    '--root-dir <path>',
+    'set directory which will be used as root for resource resolving'
+  )
   .action(bundle);
 
 program
@@ -116,6 +120,10 @@ program
     /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
+  .option(
+    '--root-dir <path>',
+    'set directory which will be used as root for resource resolving'
+  )
   .action(bundle);
 
 program
@@ -163,6 +171,10 @@ program
     /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
+  .option(
+    '--root-dir <path>',
+    'set directory which will be used as root for resource resolving'
+  )
   .action(bundle);
 
 program

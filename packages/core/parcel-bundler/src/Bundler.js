@@ -131,7 +131,10 @@ class Bundler extends EventEmitter {
       logLevel: isNaN(options.logLevel) ? 3 : options.logLevel,
       entryFiles: this.entryFiles,
       hmrPort: options.hmrPort || 0,
-      rootDir: getRootDir(this.entryFiles),
+      rootDir:
+        options.rootDir !== undefined
+          ? Path.resolve(options.rootDir)
+          : getRootDir(this.entryFiles),
       sourceMaps:
         (typeof options.sourceMaps === 'boolean' ? options.sourceMaps : true) &&
         !scopeHoist,
