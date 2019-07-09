@@ -1,4 +1,4 @@
-var nodeBuiltins = require('nodeBuiltin.js');
+var nodeBuiltins = require('./nodeBuiltin.js');
 
 var builtins = Object.create(null);
 for (var key in nodeBuiltins) {
