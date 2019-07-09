@@ -1,5 +1,5 @@
 const builtins = require('./builtins');
-const nodeBuiltins = require('node-libs-browser');
+const nodeBuiltins = require('./builtins/nodeBuiltin.js');
 const path = require('path');
 const {isGlob} = require('./utils/glob');
 const fs = require('@parcel/fs');
