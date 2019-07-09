@@ -61,6 +61,8 @@
     "node-forge": "^0.7.1",
     "buffer": "^5.2.1",
     "process": "^0.11.10",
+    "stream-browserify": "^2.0.2",
+    "readable-stream": "^3.4.0",
     "browserify-zlib": "^0.2.0",
     "opn": "^5.1.0",
     "postcss": "^7.0.11",
