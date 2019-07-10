@@ -7,6 +7,17 @@ import getFlowConfig from './flow';
 import path from 'path';
 
 const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
+
+type BabelConfig = {
+  plugins?: Array<any>,
+  presets?: Array<any>
+};
+type WrappedBabelConfig = {
+  internal: boolean,
+  babelVersion: number,
+  config: BabelConfig
+};
+
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
 export default async function getBabelConfig(asset: MutableAsset) {
@@ -24,8 +35,7 @@ export default async function getBabelConfig(asset: MutableAsset) {
   let babelrc = await getBabelRc(asset, pkg, isSource);
   isSource = isSource || !!babelrc;
 
-  let result = {};
-  mergeConfigs(result, babelrc);
+  let result = babelrc;
 
   // Typescript must use the plugin directly (not the typescript preset) and must
   // come before preset env, otherwise proposals and nonstandard syntax is not
@@ -88,7 +98,7 @@ export default async function getBabelConfig(asset: MutableAsset) {
 
   if (!hasReact) {
     let jsxConfig = await getJSXConfig(asset, pkg, isSource);
-    mergeConfigs(result, jsxConfig);
+    result = mergeConfigs(result, jsxConfig);
   }
 
   // Add a generated babel-preset-env config if it is not already specified in the babelrc
@@ -108,16 +118,16 @@ export default async function getBabelConfig(asset: MutableAsset) {
   return result;
 }
 
-function mergeConfigs(result, config) {
+function mergeConfigs(result, config?: null | WrappedBabelConfig) {
   if (
     !config ||
     ((!config.config.presets || config.config.presets.length === 0) &&
       (!config.config.plugins || config.config.plugins.length === 0))
   ) {
-    return;
+    return result;
   }
 
-  let merged = result[config.babelVersion];
+  let merged = result;
   if (merged) {
     merged.config.presets = (merged.config.presets || []).concat(
       config.config.presets || []
@@ -126,8 +136,10 @@ function mergeConfigs(result, config) {
       config.config.plugins || []
     );
   } else {
-    result[config.babelVersion] = config;
+    result = config;
   }
+
+  return result;
 }
 
 function hasPlugin(arr, plugins) {
