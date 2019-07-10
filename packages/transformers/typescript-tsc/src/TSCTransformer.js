@@ -23,13 +23,11 @@ export default new Transformer({
   async transform({asset, config}) {
     asset.type = 'js';
 
-    let typescript =
-      config == null
-        ? // $FlowFixMe
-          require('typescript')
-        : await localRequire('typescript', asset.filePath);
+    let [typescript, code] = await Promise.all([
+      localRequire('typescript', asset.filePath),
+      asset.getCode()
+    ]);
 
-    let code = await asset.getCode();
     let transpiled = typescript.transpileModule(
       code,
       ({
