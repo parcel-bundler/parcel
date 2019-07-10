@@ -16,40 +16,6 @@ describe('babel', function() {
     await removeDistDirectory();
   });
 
-  it('should produce a basic JS bundle using Babel 6', async function() {
-    let b = await bundle(
-      __dirname + '/integration/babel-6-compatibility/index.js'
-    );
-
-    let output = await run(b);
-    assert.equal(typeof output, 'object');
-    assert.equal(typeof output.default, 'function');
-    assert.equal(output.default(), 3);
-  });
-
-  it.skip('should auto install babel-core v6', async function() {
-    let originalPkg = await inputFS.readFile(
-      __dirname + '/integration/babel-6-autoinstall/package.json'
-    );
-    let b = await bundle(
-      __dirname + '/integration/babel-6-autoinstall/index.js'
-    );
-
-    let output = await run(b);
-    assert.equal(typeof output, 'object');
-    assert.equal(typeof output.default, 'function');
-    assert.equal(output.default(), 3);
-
-    let pkg = await inputFS.readFile(
-      __dirname + '/integration/babel-6-autoinstall/package.json'
-    );
-    assert(JSON.parse(pkg).devDependencies['babel-core']);
-    await inputFS.writeFile(
-      __dirname + '/integration/babel-6-autoinstall/package.json',
-      originalPkg
-    );
-  });
-
   it.skip('should auto install @babel/core v7', async function() {
     let originalPkg = await inputFS.readFile(
       __dirname + '/integration/babel-7-autoinstall/package.json'
@@ -189,19 +155,6 @@ describe('babel', function() {
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(/class \S+ \{\}/.test(file));
-    assert(file.includes('function Bar'));
-  });
-
-  it('should compile node_modules if legacy browserify options are found', async function() {
-    await bundle(
-      path.join(
-        __dirname,
-        '/integration/babel-node-modules-browserify/index.js'
-      )
-    );
-
-    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('function Foo'));
     assert(file.includes('function Bar'));
   });
 
