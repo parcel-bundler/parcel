@@ -14,6 +14,7 @@ import {resolveConfig} from '@parcel/utils';
 
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
+const LOCK_FILE_NAMES = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
 
 export default async function resolveOptions(
   initialOptions: InitialParcelOptions
@@ -32,15 +33,19 @@ export default async function resolveOptions(
       ? initialOptions.rootDir
       : getRootDir(entries);
 
-  let projectRoot = path.dirname(
+  let projectRootFile =
     (await resolveConfig(path.join(process.cwd(), 'index'), [
-      'yarn.lock',
-      'package-lock.json',
-      'pnpm-lock.yaml',
+      ...LOCK_FILE_NAMES,
       '.git',
       '.hg'
-    ])) || path.join(process.cwd(), 'index')
-  );
+    ])) || path.join(process.cwd(), 'index');
+
+  let lockFile = null;
+  let rootFileName = path.basename(projectRootFile);
+  if (LOCK_FILE_NAMES.includes(rootFileName)) {
+    lockFile = projectRootFile;
+  }
+  let projectRoot = path.dirname(projectRootFile);
 
   let cacheDir =
     // If a cacheDir is provided, resolve it relative to cwd. Otherwise,
@@ -64,6 +69,7 @@ export default async function resolveOptions(
     scopeHoist:
       initialOptions.scopeHoist ?? initialOptions.mode === 'production',
     logLevel: initialOptions.logLevel ?? 'info',
-    projectRoot
+    projectRoot,
+    lockFile
   };
 }

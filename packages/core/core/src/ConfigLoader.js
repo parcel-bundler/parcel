@@ -1,13 +1,14 @@
 // @flow
 import nullthrows from 'nullthrows';
 
-import type {ConfigRequest, ParcelOptions} from '@parcel/types';
+import type {ParcelOptions} from '@parcel/types';
 import {md5FromString} from '@parcel/utils';
 
 import Config from './public/Config';
 import type ParcelConfig from './ParcelConfig';
 import loadParcelConfig from './loadParcelConfig';
 import loadPlugin from './loadParcelPlugin';
+import type {ConfigRequest} from './types';
 
 export default class ConfigLoader {
   options: ParcelOptions;

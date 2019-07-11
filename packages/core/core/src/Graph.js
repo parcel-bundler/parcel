@@ -159,8 +159,19 @@ export default class Graph<TNode: Node> {
 
   // Update a node's downstream nodes making sure to prune any orphaned branches
   // Also keeps track of all added and removed edges and nodes
-  replaceNodesConnectedTo(fromNode: TNode, toNodes: Array<TNode>): void {
-    let childrenToRemove = new Set(this.outboundEdges.get(fromNode.id));
+  replaceNodesConnectedTo(
+    fromNode: TNode,
+    toNodes: Array<TNode>,
+    replaceFilter?: TNode => boolean
+  ): void {
+    let outboundEdges = this.outboundEdges.get(fromNode.id);
+    let childrenToRemove = new Set(
+      replaceFilter
+        ? [...outboundEdges].filter(toNodeId =>
+            replaceFilter(nullthrows(this.nodes.get(toNodeId)))
+          )
+        : outboundEdges
+    );
     for (let toNode of toNodes) {
       let existingNode = this.getNode(toNode.id);
       if (!existingNode) {

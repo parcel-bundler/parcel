@@ -3,7 +3,6 @@ import nullthrows from 'nullthrows';
 import type {
   MutableAsset as IMutableAsset,
   Blob,
-  ConfigRequest,
   FilePath,
   GenerateOutput,
   Transformer,
@@ -15,7 +14,12 @@ import type {
 
 import invariant from 'assert';
 import path from 'path';
-import {md5FromReadableStream, md5FromString, TapStream} from '@parcel/utils';
+import {
+  md5FromReadableStream,
+  md5FromString,
+  md5FromObject,
+  TapStream
+} from '@parcel/utils';
 import Cache from '@parcel/cache';
 import {createReadStream} from 'fs';
 
@@ -25,7 +29,7 @@ import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset from './Asset';
-import type {NodeId} from './types';
+import type {NodeId, ConfigRequest} from './types';
 
 type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutput>;
 
@@ -46,11 +50,11 @@ type ConfigMap = Map<PackageName, Config>;
 
 export default class Transformation {
   request: AssetRequest;
+  configRequests: Array<ConfigRequest>;
   loadConfig: ConfigRequest => Promise<Config>;
   options: ParcelOptions;
   cache: Cache;
-  envId: string;
-  impactfulOptionsId: string;
+  impactfulOptions: $Shape<ParcelOptions>;
 
   constructor({
     request,
@@ -59,17 +63,22 @@ export default class Transformation {
     options
   }: TransformationOpts) {
     this.request = request;
-    this.loadConfig = configRequest => loadConfig(configRequest, parentNodeId);
+    this.configRequests = [];
+    this.loadConfig = configRequest => {
+      this.configRequests.push(configRequest);
+      return loadConfig(configRequest, parentNodeId);
+    };
     this.options = options;
 
     // TODO: these options may not impact all transformations, let transformers decide if they care or not
     let {minify, hot, scopeHoist} = this.options;
-    this.impactfulOptionsId = JSON.stringify({minify, hot, scopeHoist});
-
-    this.envId = JSON.stringify(this.request.env);
+    this.impactfulOptions = {minify, hot, scopeHoist};
   }
 
-  async run(): Promise<Array<InternalAsset>> {
+  async run(): Promise<{
+    assets: Array<InternalAsset>,
+    configRequests: Array<ConfigRequest>
+  }> {
     report({
       type: 'buildProgress',
       phase: 'transforming',
@@ -80,7 +89,9 @@ export default class Transformation {
 
     let asset = await this.loadAsset();
     let pipeline = await this.loadPipeline(asset.filePath);
-    return this.runPipeline(pipeline, asset);
+    let assets = await this.runPipeline(pipeline, asset);
+
+    return {assets, configRequests: this.configRequests};
   }
 
   async loadAsset(): Promise<InternalAsset> {
@@ -183,7 +194,7 @@ export default class Transformation {
     let cacheKey = await this.getCacheKey(assets, configs);
     await Promise.all(
       // TODO: account for impactfulOptions maybe being different per pipeline
-      assets.map(asset => asset.commit(this.impactfulOptionsId))
+      assets.map(asset => asset.commit(md5FromObject(this.impactfulOptions)))
     );
     this.cache.set(cacheKey, assets);
   }
@@ -192,22 +203,23 @@ export default class Transformation {
     assets: Array<InternalAsset>,
     configs: ConfigMap
   ): Promise<string> {
-    let assetsId = JSON.stringify(
-      assets.map(({filePath, type, hash}) => ({
-        filePath,
-        hash,
-        type
-      }))
-    );
+    let assetsKeyInfo = assets.map(({filePath, type, hash}) => ({
+      filePath,
+      hash,
+      type
+    }));
 
-    // TODO: sort
-    let configHashesId = JSON.stringify(
-      [...configs].map(([, config]) => config.resultHash)
-    );
+    let configsKeyInfo = [...configs].map(([, {resultHash, devDeps}]) => ({
+      resultHash,
+      devDeps: [...devDeps]
+    }));
 
-    return md5FromString(
-      assetsId + configHashesId + this.envId + this.impactfulOptionsId
-    );
+    return md5FromObject({
+      assets: assetsKeyInfo,
+      configs: configsKeyInfo,
+      env: this.request.env,
+      impactfulOptions: this.impactfulOptions
+    });
   }
 
   async loadPipeline(filePath: FilePath): Promise<Pipeline> {

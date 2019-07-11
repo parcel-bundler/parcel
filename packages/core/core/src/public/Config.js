@@ -1,7 +1,4 @@
 // @flow
-import nullthrows from 'nullthrows';
-import path from 'path';
-
 import type {FilePath, PackageName, Glob} from '@parcel/types';
 
 type ConfigOpts = {|
@@ -101,17 +98,5 @@ export default class Config {
     }
 
     return invalidations;
-  }
-
-  getDevDepRequests() {
-    let devDepRequests = [];
-    for (let [moduleSpecifier] of this.devDeps) {
-      devDepRequests.push({
-        moduleSpecifier,
-        resolveFrom: path.dirname(nullthrows(this.resolvedPath)) // TODO: resolveFrom should be nearest package boundary
-      });
-    }
-
-    return devDepRequests;
   }
 }
