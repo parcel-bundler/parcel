@@ -2,11 +2,16 @@ import assert from 'assert';
 import path from 'path';
 import * as fs from '@parcel/fs';
 import {bundle, run, distDir} from '@parcel/test-utils';
-import tscConfigContents from '@parcel/config-tsc';
+import {readFileSync} from 'fs';
+
+const configPath = path.join(
+  __dirname,
+  '/integration/typescript-config/.parcelrc'
+);
 
 const config = {
-  ...tscConfigContents,
-  filePath: require.resolve('@parcel/config-tsc')
+  ...JSON.parse(readFileSync(configPath)),
+  filePath: configPath
 };
 
 describe('typescript', function() {
