@@ -14,7 +14,12 @@ import type {
 
 import invariant from 'assert';
 import path from 'path';
-import {md5FromReadableStream, md5FromString, TapStream} from '@parcel/utils';
+import {
+  md5FromReadableStream,
+  md5FromString,
+  md5FromObject,
+  TapStream
+} from '@parcel/utils';
 import Cache from '@parcel/cache';
 import {createReadStream} from 'fs';
 
@@ -49,8 +54,7 @@ export default class Transformation {
   loadConfig: ConfigRequest => Promise<Config>;
   options: ParcelOptions;
   cache: Cache;
-  envId: string;
-  impactfulOptionsId: string;
+  impactfulOptions: $Shape<ParcelOptions>;
 
   constructor({
     request,
@@ -68,9 +72,7 @@ export default class Transformation {
 
     // TODO: these options may not impact all transformations, let transformers decide if they care or not
     let {minify, hot, scopeHoist} = this.options;
-    this.impactfulOptionsId = JSON.stringify({minify, hot, scopeHoist});
-
-    this.envId = JSON.stringify(this.request.env);
+    this.impactfulOptions = {minify, hot, scopeHoist};
   }
 
   async run(): Promise<{
@@ -192,7 +194,7 @@ export default class Transformation {
     let cacheKey = await this.getCacheKey(assets, configs);
     await Promise.all(
       // TODO: account for impactfulOptions maybe being different per pipeline
-      assets.map(asset => asset.commit(this.impactfulOptionsId))
+      assets.map(asset => asset.commit(md5FromObject(this.impactfulOptions)))
     );
     this.cache.set(cacheKey, assets);
   }
@@ -201,25 +203,23 @@ export default class Transformation {
     assets: Array<InternalAsset>,
     configs: ConfigMap
   ): Promise<string> {
-    let assetsId = JSON.stringify(
-      assets.map(({filePath, type, hash}) => ({
-        filePath,
-        hash,
-        type
-      }))
-    );
+    let assetsKeyInfo = assets.map(({filePath, type, hash}) => ({
+      filePath,
+      hash,
+      type
+    }));
 
-    // TODO: sort
-    let configsId = JSON.stringify(
-      [...configs].map(([, {resultHash, devDeps}]) => ({
-        resultHash,
-        devDeps: [...devDeps]
-      }))
-    );
+    let configsKeyInfo = [...configs].map(([, {resultHash, devDeps}]) => ({
+      resultHash,
+      devDeps: [...devDeps]
+    }));
 
-    return md5FromString(
-      assetsId + configsId + this.envId + this.impactfulOptionsId
-    );
+    return md5FromObject({
+      assets: assetsKeyInfo,
+      configs: configsKeyInfo,
+      env: this.request.env,
+      impactfulOptions: this.impactfulOptions
+    });
   }
 
   async loadPipeline(filePath: FilePath): Promise<Pipeline> {

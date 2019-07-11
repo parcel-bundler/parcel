@@ -271,10 +271,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
 
   async loadConfig(configRequest: ConfigRequest, parentNodeId: NodeId) {
     let configRequestNode = nodeFromConfigRequest(configRequest);
-    this.ensureConnection(
-      nullthrows(this.getNode(parentNodeId)),
-      configRequestNode
-    );
+    if (!this.hasNode(configRequestNode.id)) {
+      this.addNode(configRequestNode);
+    }
+    this.addEdge(parentNodeId, configRequestNode.id);
 
     let config = nullthrows(await this.getSubTaskResult(configRequestNode));
     invariant(config.devDeps != null);
@@ -286,7 +286,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         resolveFrom: path.dirname(nullthrows(config.resolvedPath)) // TODO: resolveFrom should be nearest package boundary
       };
       let depVersionRequestNode = nodeFromDepVersionRequest(depVersionRequest);
-      this.ensureConnection(configRequestNode, depVersionRequestNode);
+      if (!this.hasNode(depVersionRequestNode.id)) {
+        this.addNode(depVersionRequestNode);
+      }
+      this.addEdge(configRequestNode.id, depVersionRequestNode.id);
       depVersionRequestNodes.push(
         nullthrows(this.getNode(depVersionRequestNode.id))
       );

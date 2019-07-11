@@ -174,7 +174,7 @@ export type ParcelOptions = {|
   rootDir: FilePath,
   targets: Array<Target>,
   projectRoot: FilePath,
-  lockFile?: FilePath
+  lockFile: ?FilePath
 |};
 
 export type ServerOptions = {|

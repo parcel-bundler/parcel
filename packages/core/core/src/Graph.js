@@ -85,20 +85,6 @@ export default class Graph<TNode: Node> {
     return this.outboundEdges.get(from).has(to);
   }
 
-  ensureConnection(fromNode: TNode, toNode: TNode) {
-    if (!this.hasNode(fromNode.id)) {
-      this.addNode(fromNode);
-    }
-
-    if (!this.hasNode(toNode.id)) {
-      this.addNode(toNode);
-    }
-
-    if (!this.hasEdge(fromNode.id, toNode.id)) {
-      this.addEdge(fromNode.id, toNode.id);
-    }
-  }
-
   getNodesConnectedTo(node: TNode): Array<TNode> {
     return Array.from(this.inboundEdges.get(node.id).values()).map(from =>
       nullthrows(this.nodes.get(from))
@@ -176,7 +162,7 @@ export default class Graph<TNode: Node> {
   replaceNodesConnectedTo(
     fromNode: TNode,
     toNodes: Array<TNode>,
-    replaceFilter?: Function
+    replaceFilter?: TNode => boolean
   ): void {
     let outboundEdges = this.outboundEdges.get(fromNode.id);
     let childrenToRemove = new Set(
