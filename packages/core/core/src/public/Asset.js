@@ -8,7 +8,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {
   Asset as IAsset,
   AST,
-  Config,
+  ThirdPartyConfig,
   Dependency as IDependency,
   DependencyOptions,
   Environment as IEnvironment,
@@ -100,7 +100,7 @@ class BaseAsset {
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
-  ): Promise<Config | null> {
+  ): Promise<ThirdPartyConfig | null> {
     return this.#asset.getConfig(filePaths, options);
   }
 

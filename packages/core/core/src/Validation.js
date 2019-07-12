@@ -1,9 +1,10 @@
 // @flow strict-local
-import nullthrows from 'nullthrows';
+
 import type Config from './public/Config';
 import type {AssetRequest, NodeId, ConfigRequest, ParcelOptions} from './types';
 
 import path from 'path';
+import nullthrows from 'nullthrows';
 import {resolveConfig} from '@parcel/utils';
 
 import {report} from './ReporterRunner';
@@ -42,7 +43,9 @@ export default class Validation {
     });
 
     let asset = await this.loadAsset();
+
     let configRequest = {
+      env: asset.value.env,
       filePath: this.request.filePath,
       meta: {
         actionType: 'validation'

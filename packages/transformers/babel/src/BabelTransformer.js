@@ -4,12 +4,16 @@ import SourceMap from '@parcel/source-map';
 import generate from '@babel/generator';
 import semver from 'semver';
 import babel7 from './babel7';
-import getBabelConfig from './config';
 import {relativeUrl} from '@parcel/utils';
+import {load, rehydrate} from './config';
 
 export default new Transformer({
-  async getConfig({asset}) {
-    return getBabelConfig(asset);
+  async loadConfig(config) {
+    await load(config);
+  },
+
+  rehydrateConfig(config) {
+    rehydrate(config);
   },
 
   canReuseAST({ast}) {
@@ -17,7 +21,8 @@ export default new Transformer({
   },
 
   async transform({asset, config}) {
-    if (config) {
+    // TODO: come up with a better name
+    if (config?.config) {
       asset.ast = await babel7(asset, config);
     }
 

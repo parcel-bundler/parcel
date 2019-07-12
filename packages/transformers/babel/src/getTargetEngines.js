@@ -1,6 +1,6 @@
 // @flow
 
-import type {Engines, MutableAsset} from '@parcel/types';
+import type {Engines, IConfig} from '@parcel/types';
 
 import browserslist from 'browserslist';
 
@@ -12,12 +12,12 @@ const BROWSER_CONTEXT = new Set(['browser', 'web-worker', 'service-worker']);
  *   - package.json browserslist field
  *   - browserslist or .browserslistrc files
  */
-export default async function getTargetEngines(asset: MutableAsset): Engines {
+export default async function getTargetEngines(config: IConfig): Engines {
   let targets = {};
-  let compileTarget = BROWSER_CONTEXT.has(asset.env.context)
+  let compileTarget = BROWSER_CONTEXT.has(config.env.context)
     ? 'browsers'
-    : asset.env.context;
-  let pkg = await asset.getPackage();
+    : config.env.context;
+  let pkg = await config.getPackage();
   let engines = pkg && pkg.engines;
 
   if (compileTarget === 'node') {
@@ -35,7 +35,7 @@ export default async function getTargetEngines(asset: MutableAsset): Engines {
     } else if (pkg && pkg.browserslist) {
       targets.browsers = pkg.browserslist;
     } else {
-      let browserslist = await loadBrowserslist(asset);
+      let browserslist = await loadBrowserslist(config);
       if (browserslist) {
         targets.browsers = browserslist;
       }
@@ -68,12 +68,15 @@ export default async function getTargetEngines(asset: MutableAsset): Engines {
   return targets;
 }
 
-async function loadBrowserslist(asset) {
-  let config = await asset.getConfig(['browserslist', '.browserslistrc'], {
-    parse: false
-  });
+async function loadBrowserslist(config) {
+  let browserslistConfig = await config.getConfig(
+    ['browserslist', '.browserslistrc'],
+    {
+      parse: false
+    }
+  );
 
-  if (config) {
-    return browserslist.parseConfig(config);
+  if (browserslistConfig) {
+    return browserslist.parseConfig(browserslistConfig);
   }
 }

@@ -1,52 +1,44 @@
 // @flow
+import semver from 'semver';
 
-import type {Engines, MutableAsset} from '@parcel/types';
+import type {IConfig, Engines} from '@parcel/types';
+import getTargetEngines from './getTargetEngines';
 
 import presetEnv from '@babel/preset-env';
-import semver from 'semver';
-import getTargetEngines from './getTargetEngines';
 
 /**
  * Generates a @babel/preset-env config for an asset.
  * This is done by finding the source module's target engines, and the app's
  * target engines, and doing a diff to include only the necessary plugins.
  */
-export default async function getEnvConfig(
-  asset: MutableAsset,
-  isSourceModule: boolean
-) {
+export default async function getEnvOptions(config: IConfig) {
   // Load the target engines for the app and generate a @babel/preset-env config
-  let targetEngines = asset.env.engines;
-  let targetEnv = await getEnvPlugins(targetEngines, true);
-  if (!targetEnv) {
-    return null;
-  }
+  let targetEngines = config.env.engines;
+  let envOptions = await getPresetOptions(targetEngines, true);
 
   // If this is the app module, the source and target will be the same, so just compile everything.
   // Otherwise, load the source engines and generate a babel-present-env config.
-  if (!isSourceModule) {
-    let sourceEngines = await getTargetEngines(asset);
-    let sourceEnv = (await getEnvPlugins(sourceEngines, false)) || targetEnv;
+  if (!(await config.isSource())) {
+    let sourceEngines = await getTargetEngines(config);
+    if (!sourceEngines) return null;
 
-    // Do a diff of the returned plugins. We only need to process the remaining plugins to get to the app target.
-    let sourcePlugins = new Set(sourceEnv.map(p => p[0]));
-    targetEnv = targetEnv.filter(plugin => {
+    let appPlugins = getEnvPlugins(targetEngines, true);
+    let sourcePlugins = getEnvPlugins(sourceEngines, false);
+
+    sourcePlugins = new Set(sourcePlugins.map(p => p[0]));
+    appPlugins = appPlugins.filter(plugin => {
       return !sourcePlugins.has(plugin[0]);
     });
+
+    if (appPlugins.length === 0) return null;
   }
 
   return {
-    internal: true,
-    babelVersion: 7,
-    config: {
-      plugins: targetEnv
-    }
+    presets: [['@babel/preset-env', envOptions]]
   };
 }
 
-const envCache = new Map();
-
-async function getEnvPlugins(engines: Engines, useBuiltIns = false) {
+function getPresetOptions(engines: Engines, useBuiltIns = false) {
   if (!engines) {
     return null;
   }
@@ -69,22 +61,20 @@ async function getEnvPlugins(engines: Engines, useBuiltIns = false) {
     }
   }
 
-  let key = JSON.stringify(targets);
-  if (envCache.has(key)) {
-    return envCache.get(key);
-  }
+  return {
+    targets,
+    modules: false,
+    useBuiltIns: useBuiltIns ? 'entry' : false,
+    corejs: 3,
+    shippedProposals: true
+  };
+}
 
-  let plugins = presetEnv(
-    {assertVersion: () => true},
-    {
-      targets,
-      modules: false,
-      useBuiltIns: useBuiltIns ? 'entry' : false,
-      shippedProposals: true
-    }
-  ).plugins;
+function getEnvPlugins(engines: Engines, useBuiltIns = false) {
+  let envOptions = getPresetOptions(engines, useBuiltIns);
 
-  envCache.set(key, plugins);
+  let {plugins} = presetEnv({assertVersion: () => true}, envOptions);
+
   return plugins;
 }
 
