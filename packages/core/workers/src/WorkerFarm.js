@@ -340,10 +340,12 @@ export default class WorkerFarm extends EventEmitter {
       return child.addCall(request, awaitResponse);
     } else {
       // $FlowFixMe
-      return (await WorkerFarm.getShared()).processRequest({
+      let result = await (await WorkerFarm.getShared()).processRequest({
         ...request,
         awaitResponse
       });
+
+      return deserialize(serialize(result));
     }
   }
 

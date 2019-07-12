@@ -1,4 +1,4 @@
-const flowModule = require('flow-typed');
+const flowModule = require('./flow-typed-file');
 
 module.exports = function() {
   return flowModule();

@@ -87,6 +87,7 @@ export type ConfigRequestNode = {|
 
 export type ConfigRequest = {|
   filePath: FilePath,
+  env: Environment,
   plugin?: PackageName,
   //$FlowFixMe will lock this down more in a future commit
   meta: any,

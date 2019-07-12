@@ -222,6 +222,7 @@ export default class Transformation {
   async loadPipeline(filePath: FilePath): Promise<Pipeline> {
     let configRequest = {
       filePath,
+      env: this.request.env,
       meta: {
         actionType: 'transformation'
       }
@@ -242,13 +243,19 @@ export default class Transformation {
           moduleName,
           parcelConfig.resolvedPath
         );
+        if (thirdPartyConfig.rehydrate) {
+          await plugin.rehydrateConfig(thirdPartyConfig);
+        } else if (thirdPartyConfig.reload) {
+          await plugin.load(thirdPartyConfig);
+        }
+
         configs.set(moduleName, thirdPartyConfig);
       }
     }
 
     let pipeline = new Pipeline({
-      id: parcelConfig.getTransformerNames(filePath).join(':'),
-      transformers: await parcelConfig.getTransformers(filePath),
+      names: parcelConfig.getTransformerNames(filePath),
+      plugins: await parcelConfig.getTransformers(filePath),
       configs,
       options: this.options
     });
@@ -279,6 +286,7 @@ export default class Transformation {
   ): Promise<Config> {
     let configRequest = {
       filePath,
+      env: this.request.env,
       plugin,
       meta: {
         parcelConfigPath
@@ -289,24 +297,36 @@ export default class Transformation {
 }
 
 type PipelineOpts = {|
-  id: string,
-  transformers: Array<Transformer>,
+  names: Array<PackageName>,
+  plugins: Array<Transformer>,
   configs: ConfigMap,
   options: ParcelOptions
 |};
 
+// ? Open to suggestions for a better name
+type TransformerWithNameAndConfig = {|
+  name: PackageName,
+  plugin: Transformer,
+  config: ?Config
+|};
+
 class Pipeline {
   id: string;
-  transformers: Array<Transformer>;
+  transformers: Array<TransformerWithNameAndConfig>;
   configs: ConfigMap;
   options: ParcelOptions;
   resolverRunner: ResolverRunner;
   generate: GenerateFunc;
   postProcess: ?PostProcessFunc;
 
-  constructor({id, transformers, configs, options}: PipelineOpts) {
-    this.id = id;
-    this.transformers = transformers;
+  constructor({names, plugins, configs, options}: PipelineOpts) {
+    this.id = names.join(':');
+
+    this.transformers = names.map((name, i) => ({
+      name,
+      config: configs.get(name)?.result,
+      plugin: plugins[i]
+    }));
     this.configs = configs;
     this.options = options;
     let parcelConfig = nullthrows(this.configs.get('parcel'));
@@ -333,7 +353,8 @@ class Pipeline {
         } else {
           let transformerResults = await this.runTransformer(
             asset,
-            transformer
+            transformer.plugin,
+            transformer.config
           );
           for (let result of transformerResults) {
             resultingAssets.push(asset.createChildAsset(result));
@@ -352,7 +373,8 @@ class Pipeline {
 
   async runTransformer(
     asset: InternalAsset,
-    transformer: Transformer
+    transformer: Transformer,
+    preloadedConfig: ?Config
   ): Promise<Array<TransformerResult>> {
     const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
       return (await this.resolverRunner.resolve(
@@ -365,8 +387,9 @@ class Pipeline {
     };
 
     // Load config for the transformer.
-    let config = null;
+    let config = preloadedConfig;
     if (transformer.getConfig) {
+      // TODO: deprecate getConfig
       config = await transformer.getConfig({
         asset: new MutableAsset(asset),
         options: this.options,

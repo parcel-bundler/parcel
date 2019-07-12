@@ -5,7 +5,7 @@ import type Cache from '@parcel/cache';
 import type {
   AST,
   Blob,
-  Config,
+  ThirdPartyConfig,
   DependencyOptions,
   Environment,
   File,
@@ -333,7 +333,7 @@ export default class Asset {
   async getConfig(
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
-  ): Promise<Config | null> {
+  ): Promise<ThirdPartyConfig | null> {
     let packageKey = options?.packageKey;
     let parse = options && options.parse;
 

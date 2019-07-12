@@ -27,8 +27,8 @@ export default class ConfigLoader {
   }
 
   async loadParcelConfig(configRequest: ConfigRequest) {
-    let {filePath} = configRequest;
-    let config = new Config({searchPath: filePath});
+    let {filePath, env} = configRequest;
+    let config = new Config({searchPath: filePath, env, options: this.options});
 
     let {config: parcelConfig, extendedFiles} = nullthrows(
       await loadParcelConfig(filePath, this.options)
@@ -66,13 +66,14 @@ export default class ConfigLoader {
 
   async loadPluginConfig({
     plugin,
+    env,
     filePath,
     meta: {parcelConfigPath}
   }: ConfigRequest) {
-    let config = new Config({searchPath: filePath});
+    let config = new Config({searchPath: filePath, env, options: this.options});
     plugin = await loadPlugin(nullthrows(plugin), parcelConfigPath);
 
-    plugin.loadConfig && plugin.loadConfig(config);
+    plugin.loadConfig && (await plugin.loadConfig(config));
 
     return config;
   }

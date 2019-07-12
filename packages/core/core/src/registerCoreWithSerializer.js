@@ -27,13 +27,13 @@ export default function registerCoreWithSerializer() {
   for (let ctor of [
     Asset,
     AssetGraph,
+    Config,
     BundleGraph,
     Graph,
     ParcelConfig,
     Dependency,
     Environment,
-    RequestGraph,
-    Config
+    RequestGraph
   ]) {
     register(ctor);
   }

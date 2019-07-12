@@ -66,11 +66,11 @@ describe('babel', function() {
   });
 
   it('should support compiling with babel using .babelrc config', async function() {
-    await bundle(path.join(__dirname, '/integration/babel/index.js'));
+    await bundle(path.join(__dirname, '/integration/babel-custom/index.js'));
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(!file.includes('function Foo'));
-    assert(!file.includes('function Bar'));
+    assert(!file.includes('REPLACE_ME'));
+    assert(file.includes('hello there'));
   });
 
   it('should compile with babel with default engines if no config', async function() {
@@ -91,8 +91,9 @@ describe('babel', function() {
     assert(file.includes('function Bar'));
   });
 
-  it('should support splitting babel-polyfill using browserlist', async function() {
-    await bundle(path.join(__dirname, '/integration/babel-polyfill/index.js'));
+  // TODO: rework this test ?
+  it('should support splitting core-js using browserlist', async function() {
+    await bundle(path.join(__dirname, '/integration/babel-core-js/index.js'));
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('async function'));
