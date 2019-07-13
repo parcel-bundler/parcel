@@ -59,8 +59,8 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
         assetsToAccept.forEach(function (v) {
           hmrAcceptRun(v[0], v[1]);
         });
-      } else {
-        window.location.reload();
+      } else if (location.reload) { // `location` global exists in a web worker context but lacks `.reload()` function.
+        location.reload();
       }
     }
 
