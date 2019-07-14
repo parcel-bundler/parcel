@@ -122,6 +122,7 @@ export default class Transformation {
     initialAsset: InternalAsset
   ): Promise<Array<InternalAsset>> {
     let initialType = initialAsset.type;
+    // TODO: is this reading/writing from the cache every time we jump a pipeline? Seems possibly unnecessary...
     let initialCacheEntry = await this.readFromCache(
       [initialAsset],
       pipeline.configs
@@ -250,7 +251,7 @@ export default class Transformation {
     }
 
     let pipeline = new Pipeline({
-      id: parcelConfig.getTransformerNames(filePath),
+      id: parcelConfig.getTransformerNames(filePath).join(':'),
       transformers: await parcelConfig.getTransformers(filePath),
       configs,
       options: this.options
@@ -321,13 +322,17 @@ class Pipeline {
   }
 
   async transform(initialAsset: InternalAsset): Promise<Array<InternalAsset>> {
+    let initialType = initialAsset.type;
     let inputAssets = [initialAsset];
     let resultingAssets;
     let finalAssets = [];
     for (let transformer of this.transformers) {
       resultingAssets = [];
       for (let asset of inputAssets) {
-        if (asset.type !== initialAsset.type) {
+        // TODO: I think there may be a bug here if the type changes but does not
+        // change pipelines (e.g. .html -> .htm). It should continue on the same
+        // pipeline in that case.
+        if (asset.type !== initialType) {
           finalAssets.push(asset);
         } else {
           let transformerResults = await this.runTransformer(
