@@ -1,14 +1,9 @@
 // @flow
 import EventEmitter from 'events';
-
-let WorkerFarm;
+import WorkerFarm from './WorkerFarm';
 
 class Bus extends EventEmitter {
   emit(event: string, ...args: Array<any>): boolean {
-    if (!WorkerFarm) {
-      WorkerFarm = require('./WorkerFarm').default; // circular dep
-    }
-
     if (WorkerFarm.isWorker()) {
       WorkerFarm.callMaster(
         {
