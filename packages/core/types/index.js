@@ -213,7 +213,7 @@ export type DependencyOptions = {|
   env?: EnvironmentOpts,
   meta?: Meta,
   target?: Target,
-  symbols?: Map<Symbol, Symbol> | Array<[Symbol, Symbol]>
+  symbols?: Map<Symbol, Symbol>
 |};
 
 export interface Dependency {

@@ -54,15 +54,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
   onNodeAdded: ?(node: AssetGraphNode) => mixed;
   onNodeRemoved: ?(node: AssetGraphNode) => mixed;
 
-  constructor(
-    {onNodeAdded, onNodeRemoved, ...graphOpts}: AssetGraphOpts = {
-      nodes: [],
-      edges: [],
-      rootNodeId: null,
-      onNodeAdded: undefined, // flow is dumb
-      onNodeRemoved: undefined
-    }
-  ) {
+  constructor({onNodeAdded, onNodeRemoved, ...graphOpts}: AssetGraphOpts = {}) {
     super(graphOpts);
     this.onNodeAdded = onNodeAdded;
     this.onNodeRemoved = onNodeRemoved;

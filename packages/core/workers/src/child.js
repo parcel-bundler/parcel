@@ -53,7 +53,7 @@ class Child {
       return this.end();
     }
 
-    let message: WorkerMessage = deserialize(data);
+    let message: WorkerMessage = deserialize(Buffer.from(data, 'base64'));
     if (message.type === 'response') {
       return this.handleResponse(message);
     } else if (message.type === 'request') {
@@ -63,7 +63,7 @@ class Child {
 
   async send(data: WorkerMessage): Promise<void> {
     let processSend = nullthrows(process.send).bind(process);
-    processSend(serialize(data), err => {
+    processSend(serialize(data).toString('base64'), err => {
       if (err && err instanceof Error) {
         if (err.code === 'ERR_IPC_CHANNEL_CLOSED') {
           // IPC connection closed

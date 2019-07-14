@@ -7,7 +7,7 @@ import {DefaultMap} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
 export type GraphOpts<TNode> = {|
-  nodes?: Array<[NodeId, TNode]>,
+  nodes?: Map<NodeId, TNode>,
   edges?: Array<Edge>,
   rootNodeId?: ?NodeId
 |};
@@ -21,9 +21,9 @@ export default class Graph<TNode: Node> {
   rootNodeId: ?NodeId;
 
   constructor(
-    opts: GraphOpts<TNode> = {nodes: [], edges: [], rootNodeId: null}
+    opts: GraphOpts<TNode> = ({}: any) // flow is dumb
   ) {
-    this.nodes = new Map(opts.nodes);
+    this.nodes = opts.nodes || new Map();
     this.rootNodeId = opts.rootNodeId;
 
     if (opts.edges) {
@@ -33,9 +33,13 @@ export default class Graph<TNode: Node> {
     }
   }
 
+  static deserialize(opts: GraphOpts<TNode>) {
+    return new this(opts);
+  }
+
   serialize(): GraphOpts<TNode> {
     return {
-      nodes: [...this.nodes],
+      nodes: this.nodes,
       edges: this.getAllEdges(),
       rootNodeId: this.rootNodeId
     };

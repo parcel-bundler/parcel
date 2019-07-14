@@ -100,7 +100,7 @@ export default class Worker extends EventEmitter {
       return;
     }
 
-    let result = this.child.send(serialize(data), error => {
+    let result = this.child.send(serialize(data).toString('base64'), error => {
       if (error && error instanceof Error) {
         // Ignore this, the workerfarm handles child errors
         return;
@@ -143,8 +143,7 @@ export default class Worker extends EventEmitter {
       return;
     }
 
-    let message: WorkerMessage = deserialize(data);
-
+    let message: WorkerMessage = deserialize(Buffer.from(data, 'base64'));
     if (message.type === 'request') {
       this.emit('request', message);
     } else if (message.type === 'response') {
