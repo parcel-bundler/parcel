@@ -46,7 +46,10 @@ export type ParcelConfigFile = {
   optimizers?: {
     [Glob]: Array<PackageName>
   },
-  reporters?: Array<PackageName>
+  reporters?: Array<PackageName>,
+  validators?: {
+    [Glob]: Array<PackageName>
+  }
 };
 
 export type ResolvedParcelConfigFile = ParcelConfigFile & {
@@ -322,6 +325,15 @@ export interface TransformerResult {
 type Async<T> = T | Promise<T>;
 
 type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
+
+export type Validator = {|
+  validate({
+    asset: MutableAsset,
+    resolve: ResolveFn,
+    options: ParcelOptions
+  }): Async<void>
+|};
+
 export type Transformer = {
   getConfig?: ({
     asset: MutableAsset,
@@ -580,12 +592,19 @@ type OptimizingProgressEvent = {|
   bundle: NamedBundle
 |};
 
+type ValidatingProgressEvent = {|
+  type: 'buildProgress',
+  phase: 'validating',
+  request: AssetRequest
+|};
+
 export type BuildProgressEvent =
   | ResolvingProgressEvent
   | TransformingProgressEvent
   | BundlingProgressEvent
   | PackagingProgressEvent
-  | OptimizingProgressEvent;
+  | OptimizingProgressEvent
+  | ValidatingProgressEvent;
 
 export type BuildSuccessEvent = {|
   type: 'buildSuccess',

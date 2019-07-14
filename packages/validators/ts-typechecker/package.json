@@ -1,0 +1,17 @@
+{
+  "name": "@parcel/validator-ts-typechecker",
+  "version": "2.0.0-alpha.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "src/typecheckValidator",
+  "dependencies": {
+    "@babel/code-frame": "^7.0.0",
+    "@parcel/local-require": "^2.0.0-alpha.0",
+    "@parcel/plugin": "^2.0.0-alpha.0",
+    "@parcel/utils": "^2.0.0-alpha.0",
+    "chalk": "^2.4.2"
+  }
+}

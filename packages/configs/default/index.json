@@ -15,6 +15,9 @@
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*": ["@parcel/transformer-raw"]
   },
+  "validators": {
+    "*.{ts,tsx}": ["@parcel/validator-ts-typechecker"]
+  },
   "namers": ["@parcel/namer-default"],
   "runtimes": {
     "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
