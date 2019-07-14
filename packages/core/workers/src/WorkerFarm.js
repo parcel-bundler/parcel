@@ -234,6 +234,11 @@ export default class WorkerFarm extends EventEmitter {
         result = errorResponseFromError(e);
       }
     } else {
+      // ESModule default interop
+      if (mod.__esModule && !mod[method] && mod.default) {
+        mod = mod.default;
+      }
+
       try {
         result = responseFromContent(await mod[method](...args));
       } catch (e) {
@@ -350,7 +355,13 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   static isWorker() {
-    return process.send && require.main.filename === require.resolve('./child');
+    try {
+      return !require('worker_threads').isMainThread;
+    } catch (err) {
+      return (
+        process.send && require.main.filename === require.resolve('./child')
+      );
+    }
   }
 
   static getConcurrentCallsPerWorker() {

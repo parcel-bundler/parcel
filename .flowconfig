@@ -6,6 +6,7 @@
 <PROJECT_ROOT>/.nyc_output/.*
 .*/tmp/**/.*
 .*/.parcel-cache/.*
+.*/dist/.*
 
 [include]
 
