@@ -414,7 +414,7 @@ describe('html', function() {
     ]);
   });
 
-  it('should support bundling HTM', async function() {
+  it.skip('should support bundling HTM', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/htm-extension/index.htm')
     );
