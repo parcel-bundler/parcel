@@ -30,7 +30,8 @@ class TypeScriptAsset extends Asset {
       fileName: this.relativeName
     };
 
-    let tsconfig = await this.getConfig(['tsconfig.json']);
+    const tsconfigPath = this.options.tsconfig || 'tsconfig.json';
+    let tsconfig = await this.getConfig([tsconfigPath]);
 
     // Overwrite default if config is found
     if (tsconfig) {

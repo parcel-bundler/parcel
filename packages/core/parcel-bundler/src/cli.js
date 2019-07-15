@@ -67,6 +67,10 @@ program
     /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
+  .option(
+    '--tsconfig <path>',
+    'sets the path to custom tsconfig file. defaults to "tsconfig.json"'
+  )
   .action(bundle);
 
 program
@@ -116,6 +120,10 @@ program
     /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
+  .option(
+    '--tsconfig <path>',
+    'sets the path to custom tsconfig file. defaults to "tsconfig.json"'
+  )
   .action(bundle);
 
 program
@@ -163,6 +171,10 @@ program
     /^([0-5])$/
   )
   .option('--cache-dir <path>', 'set the cache directory. defaults to ".cache"')
+  .option(
+    '--tsconfig <path>',
+    'sets the path to custom tsconfig file. defaults to "tsconfig.json"'
+  )
   .action(bundle);
 
 program

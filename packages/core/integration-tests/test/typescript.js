@@ -99,9 +99,24 @@ describe('typescript', function() {
     assert(!js.includes('local.a'));
   });
 
-  it('should support loading tsconfig.json', async function() {
+  it('should support loading tsconfig.json from default path', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/typescript-config/index.ts')
+    );
+
+    let output = await run(b);
+    assert.equal(output, 2);
+
+    let js = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    assert(!js.includes('/* test comment */'));
+  });
+
+  it('should support loading tsconfig from option-specified path', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/typescript-custom-tsconfig/index.ts'),
+      {
+        tsconfig: 'custom.tsconfig.json'
+      }
     );
 
     let output = await run(b);

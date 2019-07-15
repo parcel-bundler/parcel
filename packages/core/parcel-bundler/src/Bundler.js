@@ -153,7 +153,8 @@ class Bundler extends EventEmitter {
           ? options.contentHash
           : isProduction,
       throwErrors:
-        typeof options.throwErrors === 'boolean' ? options.throwErrors : true
+        typeof options.throwErrors === 'boolean' ? options.throwErrors : true,
+      tsconfig: typeof options.tsconfig === 'string' ? options.tsconfig : ''
     };
   }
 
