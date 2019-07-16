@@ -50,10 +50,14 @@ export default class PackagerRunner {
       this.distExists.add(dir);
     }
 
-    // Use the file mode from the entry asset as the file mode for the bundle
-    let options = {
-      mode: (await fs.stat(bundle.assetGraph.getEntryAssets()[0].filePath)).mode
-    };
+    // Use the file mode from the entry asset as the file mode for the bundle.
+    // Don't do this for browser builds, as the executable bit in particular is unnecessary.
+    let options = nullthrows(bundle.target).env.isBrowser()
+      ? undefined
+      : {
+          mode: (await fs.stat(bundle.assetGraph.getEntryAssets()[0].filePath))
+            .mode
+        };
 
     let size;
     if (contents instanceof Readable) {
