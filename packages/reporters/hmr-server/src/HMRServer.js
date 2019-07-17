@@ -49,11 +49,14 @@ export default class HMRServer {
         this.server = http.createServer();
       } else if (this.options.https === true) {
         this.server = https.createServer(
-          await generateCertificate(this.options.cacheDir)
+          await generateCertificate(
+            this.options.outputFS,
+            this.options.cacheDir
+          )
         );
       } else {
         this.server = https.createServer(
-          await getCertificate(this.options.https)
+          await getCertificate(this.options.inputFS, this.options.https)
         );
       }
 

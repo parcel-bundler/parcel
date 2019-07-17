@@ -1,7 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const fs = require('@parcel/fs');
-const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
+const {bundle, run, assertBundleTree, outputFS} = require('@parcel/test-utils');
 
 describe.skip('sass', function() {
   it('should support requiring sass files', async function() {
@@ -30,7 +29,7 @@ describe.skip('sass', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
+    let css = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
@@ -63,7 +62,7 @@ describe.skip('sass', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
+    let css = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
@@ -98,7 +97,7 @@ describe.skip('sass', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
+    let css = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
@@ -135,7 +134,7 @@ describe.skip('sass', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
+    let css = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
@@ -184,7 +183,7 @@ describe.skip('sass', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
+    let css = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
@@ -193,7 +192,7 @@ describe.skip('sass', function() {
     assert(css.includes('.index'));
 
     assert(
-      await fs.exists(
+      await outputFS.exists(
         path.join(
           __dirname,
           '/dist/',
@@ -232,7 +231,7 @@ describe.skip('sass', function() {
     let className = output();
     assert.notStrictEqual(className, 'index');
 
-    let css = await fs.readFile(
+    let css = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
@@ -254,7 +253,7 @@ describe.skip('sass', function() {
       ]
     });
 
-    let css = (await fs.readFile(
+    let css = (await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     )).replace(/\s+/g, ' ');
@@ -272,7 +271,7 @@ describe.skip('sass', function() {
       assets: ['style.scss']
     });
 
-    let css = await fs.readFile(
+    let css = await outputFS.readFile(
       path.join(__dirname, '/dist/style.css'),
       'utf8'
     );

@@ -1,7 +1,6 @@
 const assert = require('assert');
-const fs = require('@parcel/fs');
 const path = require('path');
-const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
+const {bundle, run, assertBundleTree, outputFS} = require('@parcel/test-utils');
 
 describe.skip('glob', function() {
   it('should require a glob of files', async function() {
@@ -70,7 +69,7 @@ describe.skip('glob', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
+    let css = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );

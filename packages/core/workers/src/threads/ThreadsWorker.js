@@ -4,10 +4,15 @@ import type {
   WorkerImpl,
   MessageHandler,
   ErrorHandler,
-  ExitHandler
+  ExitHandler,
+  WorkerMessage
 } from '../types';
 import {Worker} from 'worker_threads';
 import path from 'path';
+import {
+  prepareForSerialization,
+  restoreDeserializedObject
+} from '@parcel/utils';
 
 const WORKER_PATH = path.join(__dirname, 'ThreadsChild.js');
 
@@ -36,7 +41,7 @@ export default class ThreadsWorker implements WorkerImpl {
       env: process.env
     });
 
-    this.worker.on('message', this.onMessage);
+    this.worker.on('message', data => this.handleMessage(data));
     this.worker.on('error', this.onError);
     this.worker.on('exit', this.onExit);
 
@@ -51,7 +56,11 @@ export default class ThreadsWorker implements WorkerImpl {
     return this.worker.terminate();
   }
 
-  send(data: Buffer) {
-    this.worker.postMessage(data, [data.buffer]);
+  handleMessage(data: WorkerMessage) {
+    this.onMessage(restoreDeserializedObject(data));
+  }
+
+  send(data: WorkerMessage) {
+    this.worker.postMessage(prepareForSerialization(data));
   }
 }

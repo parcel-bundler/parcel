@@ -16,7 +16,7 @@ import logger from '@parcel/logger';
 import {prettyError} from '@parcel/utils';
 import {generateCertificate, getCertificate} from '@parcel/utils';
 import serverErrors from './serverErrors';
-import {readFile} from '@parcel/fs';
+import fs from 'fs';
 import ejs from 'ejs';
 
 function setHeaders(res: Response) {
@@ -32,6 +32,15 @@ function setHeaders(res: Response) {
 }
 
 const SOURCES_ENDPOINT = '/__parcel_source_root';
+const TEMPLATE_404 = fs.readFileSync(
+  path.join(__dirname, 'templates/404.html'),
+  'utf8'
+);
+
+const TEMPLATE_500 = fs.readFileSync(
+  path.join(__dirname, 'templates/500.html'),
+  'utf8'
+);
 
 type ServeFunction = (
   req: Request,
@@ -141,13 +150,8 @@ export default class Server extends EventEmitter {
 
   async send404(req: Request, res: Response) {
     res.statusCode = 404;
-
-    let template404 = (await readFile(
-      path.join(__dirname, 'templates/404.html')
-    )).toString('utf8');
-
     setHeaders(res);
-    res.end(template404);
+    res.end(TEMPLATE_404);
   }
 
   async send500(req: Request, res: Response) {
@@ -161,12 +165,8 @@ export default class Server extends EventEmitter {
       error.message = ansiHtml(error.message);
       error.stack = ansiHtml(error.stack);
 
-      let template500 = (await readFile(
-        path.join(__dirname, 'templates/500.html')
-      )).toString('utf8');
-
       res.end(
-        ejs.render(template500, {
+        ejs.render(TEMPLATE_500, {
           error
         })
       );
@@ -197,12 +197,12 @@ export default class Server extends EventEmitter {
       this.server = http.createServer(handler);
     } else if (typeof this.options.https === 'boolean') {
       this.server = https.createServer(
-        await generateCertificate(this.options.cacheDir),
+        await generateCertificate(this.options.outputFS, this.options.cacheDir),
         handler
       );
     } else {
       this.server = https.createServer(
-        await getCertificate(this.options.https),
+        await getCertificate(this.options.inputFS, this.options.https),
         handler
       );
     }

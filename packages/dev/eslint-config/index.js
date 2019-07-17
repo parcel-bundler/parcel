@@ -23,7 +23,8 @@ module.exports = {
   },
   globals: {
     parcelRequire: true,
-    define: true
+    define: true,
+    SharedArrayBuffer: true
   },
   // https://eslint.org/docs/user-guide/configuring#configuration-based-on-glob-patterns
   overrides: [

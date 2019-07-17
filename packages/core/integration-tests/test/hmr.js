@@ -1,12 +1,12 @@
 const assert = require('assert');
-const fs = require('@parcel/fs');
 const path = require('path');
 const {
   bundle,
   bundler,
   run,
   ncp,
-  prepareBrowserContext
+  prepareBrowserContext,
+  inputFS: fs
 } = require('@parcel/test-utils');
 const vm = require('vm');
 const {sleep} = require('@parcel/test-utils');

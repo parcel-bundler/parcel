@@ -6,16 +6,18 @@ import Environment from '../src/Environment';
 import Cache, {createCacheDir} from '@parcel/cache';
 // $FlowFixMe this is untyped
 import tempy from 'tempy';
+import {inputFS as fs, outputFS} from '@parcel/test-utils';
 
 const stats = {time: 0, size: 0};
 
 let cacheDir = tempy.directory();
-createCacheDir(cacheDir);
-let cache = new Cache(cacheDir);
+createCacheDir(outputFS, cacheDir);
+let cache = new Cache(outputFS, cacheDir);
 
 describe('Asset', () => {
   it('only includes connected files once per filePath', () => {
     let asset = new Asset({
+      fs,
       filePath: '/foo/asset.js',
       cache,
       env: new Environment(),
@@ -34,6 +36,7 @@ describe('Asset', () => {
 
   it('only includes dependencies once per id', () => {
     let asset = new Asset({
+      fs,
       filePath: '/foo/asset.js',
       cache,
       env: new Environment(),
@@ -50,6 +53,7 @@ describe('Asset', () => {
 
   it('includes different dependencies if their id differs', () => {
     let asset = new Asset({
+      fs,
       filePath: '/foo/asset.js',
       cache,
       env: new Environment(),

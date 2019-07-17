@@ -1,11 +1,14 @@
 // @flow
 import type {HTTPSOptions} from '@parcel/types';
-import {readFile} from '@parcel/fs';
+import type {FileSystem} from '@parcel/fs';
 
-export default async function getCertificate(options: HTTPSOptions) {
+export default async function getCertificate(
+  fs: FileSystem,
+  options: HTTPSOptions
+) {
   try {
-    let cert = await readFile(options.cert);
-    let key = await readFile(options.key);
+    let cert = await fs.readFile(options.cert);
+    let key = await fs.readFile(options.key);
 
     return {key, cert};
   } catch (err) {

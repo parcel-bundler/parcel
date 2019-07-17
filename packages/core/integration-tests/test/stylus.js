@@ -1,7 +1,12 @@
 const assert = require('assert');
 const path = require('path');
-const fs = require('@parcel/fs');
-const {bundle, run, assertBundles, distDir} = require('@parcel/test-utils');
+const {
+  bundle,
+  run,
+  assertBundles,
+  distDir,
+  outputFS
+} = require('@parcel/test-utils');
 
 describe('stylus', function() {
   it('should support requiring stylus files', async function() {
@@ -22,7 +27,7 @@ describe('stylus', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.index'));
   });
 
@@ -48,7 +53,7 @@ describe('stylus', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.index'));
     assert(css.includes('.a'));
     assert(css.includes('-webkit-box'));
@@ -79,13 +84,13 @@ describe('stylus', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(/url\("\/test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
 
     assert(
-      await fs.exists(
+      await outputFS.exists(
         path.join(distDir, css.match(/url\("\/(test\.[0-9a-f]+\.woff2)"\)/)[1])
       )
     );
@@ -111,7 +116,7 @@ describe('stylus', function() {
     assert.equal(typeof output, 'function');
     assert(output().startsWith('_index_'));
 
-    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('._index_'));
   });
 
@@ -135,7 +140,7 @@ describe('stylus', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.index'));
     assert(css.includes('.main'));
     assert(css.includes('.foo'));

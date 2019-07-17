@@ -3,6 +3,7 @@
 
 import type SourceMap from '@parcel/source-map';
 import type {Readable} from 'stream';
+import type {FileSystem} from '@parcel/fs';
 
 import type {
   Asset as IAsset,
@@ -59,6 +60,10 @@ class BaseAsset {
 
   get env(): Environment {
     return this.#asset.env;
+  }
+
+  get fs(): FileSystem {
+    return this.#asset.fs;
   }
 
   get filePath(): FilePath {

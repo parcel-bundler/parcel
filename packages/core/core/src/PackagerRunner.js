@@ -5,10 +5,10 @@ import type SourceMap from '@parcel/source-map';
 import type {Bundle as InternalBundle} from './types';
 import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
+import type {FileSystem} from '@parcel/fs';
 
 import {Readable} from 'stream';
 import invariant from 'assert';
-import * as fs from '@parcel/fs';
 import {urlJoin} from '@parcel/utils';
 import {NamedBundle} from './public/Bundle';
 import nullthrows from 'nullthrows';
@@ -35,6 +35,7 @@ export default class PackagerRunner {
   }
 
   async writeBundle(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
+    let fs = this.options.outputFS;
     let start = Date.now();
     let packaged = await this.package(bundle, bundleGraph);
     let {contents, map} = await this.optimize(
@@ -61,9 +62,9 @@ export default class PackagerRunner {
 
     let size;
     if (contents instanceof Readable) {
-      size = await fs.writeFileStream(filePath, contents, options);
+      size = await writeFileStream(fs, filePath, contents);
     } else {
-      await fs.writeFile(filePath, contents, options);
+      await fs.writeFile(filePath, contents);
       size = contents.length;
     }
 
@@ -179,6 +180,21 @@ export default class PackagerRunner {
 
     return optimized;
   }
+}
+
+function writeFileStream(
+  fs: FileSystem,
+  filePath: FilePath,
+  stream: Readable
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    let fsStream = fs.createWriteStream(filePath);
+    stream
+      .pipe(fsStream)
+      // $FlowFixMe
+      .on('finish', () => resolve(fsStream.bytesWritten))
+      .on('error', reject);
+  });
 }
 
 /*

@@ -3,7 +3,7 @@
 import assert from 'assert';
 import path from 'path';
 import tempy from 'tempy';
-import {rimraf} from '@parcel/fs';
+import {inputFS as fs} from '@parcel/test-utils';
 
 import TargetResolver from '../src/TargetResolver';
 
@@ -21,12 +21,12 @@ describe('TargetResolver', () => {
   let targetResolver;
   let cacheDir;
   beforeEach(() => {
-    targetResolver = new TargetResolver();
+    targetResolver = new TargetResolver(fs);
     cacheDir = tempy.directory();
   });
 
   afterEach(() => {
-    return rimraf(cacheDir);
+    return fs.rimraf(cacheDir);
   });
 
   it('resolves exactly specified targets', async () => {

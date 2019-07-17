@@ -1,7 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle: _bundle, run} = require('@parcel/test-utils');
-const fs = require('@parcel/fs');
+const {bundle: _bundle, run, outputFS} = require('@parcel/test-utils');
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
@@ -482,7 +481,7 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output.default, 2);
 
-      let contents = await fs.readFile(
+      let contents = await outputFS.readFile(
         path.join(__dirname, '/../dist/a.js'),
         'utf8'
       );
@@ -502,7 +501,7 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output.default, 9);
 
-      let contents = await fs.readFile(
+      let contents = await outputFS.readFile(
         path.join(__dirname, '/../dist/a.js'),
         'utf8'
       );
@@ -567,7 +566,7 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, 2);
 
-      let contents = await fs.readFile(
+      let contents = await outputFS.readFile(
         path.join(__dirname, '/../dist/a.js'),
         'utf8'
       );
@@ -1197,7 +1196,7 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, 2);
 
-      let contents = await fs.readFile(
+      let contents = await outputFS.readFile(
         path.join(__dirname, '/../dist/a.js'),
         'utf8'
       );

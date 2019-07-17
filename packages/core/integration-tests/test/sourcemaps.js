@@ -1,10 +1,12 @@
 const assert = require('assert');
-const fs = require('@parcel/fs');
 const path = require('path');
 const os = require('os');
 const SourceMap = require('parcel-bundler/src/SourceMap');
 const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
 const {loadSourceMapUrl} = require('@parcel/utils');
+const {NodeFS} = require('@parcel/fs');
+
+const fs = new NodeFS();
 
 function indexToLineCol(str, index) {
   let beforeIndex = str.slice(0, index);
@@ -80,7 +82,7 @@ describe('sourcemaps', function() {
 
     let filename = path.join(distDir, 'index.js');
     let raw = await fs.readFile(filename, 'utf8');
-    let mapUrlData = await loadSourceMapUrl(filename, raw);
+    let mapUrlData = await loadSourceMapUrl(fs, filename, raw);
     if (!mapUrlData) {
       throw new Error('Could not load map');
     }
@@ -134,7 +136,7 @@ describe('sourcemaps', function() {
     let distDir = path.join(__dirname, '/integration/sourcemap-node/dist/');
     let filename = path.join(distDir, 'index.js');
     let raw = await fs.readFile(filename, 'utf8');
-    let mapUrlData = await loadSourceMapUrl(filename, raw);
+    let mapUrlData = await loadSourceMapUrl(fs, filename, raw);
     if (!mapUrlData) {
       throw new Error('Could not load map');
     }
@@ -191,7 +193,7 @@ describe('sourcemaps', function() {
     let distDir = path.join(__dirname, '/integration/sourcemap-nested/dist/');
     let filename = path.join(distDir, 'index.js');
     let raw = await fs.readFile(filename, 'utf8');
-    let mapUrlData = await loadSourceMapUrl(filename, raw);
+    let mapUrlData = await loadSourceMapUrl(fs, filename, raw);
     if (!mapUrlData) {
       throw new Error('Could not load map');
     }

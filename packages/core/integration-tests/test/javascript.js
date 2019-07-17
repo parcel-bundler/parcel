@@ -1,5 +1,4 @@
 const assert = require('assert');
-const fs = require('@parcel/fs');
 const path = require('path');
 const {
   bundle,
@@ -7,9 +6,9 @@ const {
   run,
   assertBundles,
   removeDistDirectory,
-  distDir
+  distDir,
+  outputFS
 } = require('@parcel/test-utils');
-const {mkdirp} = require('@parcel/fs');
 const {makeDeferredWithPromise} = require('@parcel/utils');
 
 describe('javascript', function() {
@@ -91,9 +90,9 @@ describe('javascript', function() {
       }
     ]);
 
-    await mkdirp('dist/node_modules/testmodule');
-    await fs.writeFile(
-      'dist/node_modules/testmodule/index.js',
+    await outputFS.mkdirp(path.join(distDir, 'node_modules/testmodule'));
+    await outputFS.writeFile(
+      path.join(distDir, 'node_modules/testmodule/index.js'),
       'exports.a = 5;'
     );
 
@@ -115,9 +114,9 @@ describe('javascript', function() {
       assets: ['main.js', 'local.js']
     });
 
-    await mkdirp('dist/node_modules/testmodule');
-    await fs.writeFile(
-      'dist/node_modules/testmodule/index.js',
+    await outputFS.mkdirp(path.join(distDir, 'node_modules/testmodule'));
+    await outputFS.writeFile(
+      path.join(distDir, 'node_modules/testmodule/index.js'),
       'exports.a = 5;'
     );
 
@@ -649,7 +648,7 @@ describe('javascript', function() {
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert(/^\/test\.[0-9a-f]+\.txt$/.test(output()));
-    assert(await fs.exists(path.join(distDir, output())));
+    assert(await outputFS.exists(path.join(distDir, output())));
   });
 
   it.skip('should minify JS in production mode', async function() {
@@ -661,7 +660,7 @@ describe('javascript', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
 
-    let js = await fs.readFile('dist/index.js', 'utf8');
+    let js = await outputFS.readFile('dist/index.js', 'utf8');
     assert(!js.includes('local.a'));
   });
 
@@ -670,7 +669,7 @@ describe('javascript', function() {
       production: true
     });
 
-    let js = await fs.readFile('dist/index.js', 'utf8');
+    let js = await outputFS.readFile('dist/index.js', 'utf8');
     assert(!js.includes('console.log'));
     assert(!js.includes('// This is a comment'));
   });
@@ -971,7 +970,7 @@ describe('javascript', function() {
       production: true
     });
 
-    let json = await fs.readFile('dist/index.js', 'utf8');
+    let json = await outputFS.readFile('dist/index.js', 'utf8');
     assert(json.includes('{test:"test"}'));
   });
 
@@ -983,7 +982,7 @@ describe('javascript', function() {
       }
     );
 
-    let json = await fs.readFile('dist/index.js', 'utf8');
+    let json = await outputFS.readFile('dist/index.js', 'utf8');
     assert(json.includes('{test:"test"}'));
   });
 
@@ -997,7 +996,7 @@ describe('javascript', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
 
-    let json = await fs.readFile('dist/index.js', 'utf8');
+    let json = await outputFS.readFile('dist/index.js', 'utf8');
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 
@@ -1011,7 +1010,7 @@ describe('javascript', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
 
-    let json = await fs.readFile('dist/index.js', 'utf8');
+    let json = await outputFS.readFile('dist/index.js', 'utf8');
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 
