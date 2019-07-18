@@ -286,7 +286,7 @@ function mergeBundleGraphIntoBundleAssetGraph(
   }
 }
 
-class BundleReference implements IBundleReference {
+export class BundleReference implements IBundleReference {
   #bundle;
 
   constructor(bundle: InternalBundle) {
