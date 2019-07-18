@@ -6,7 +6,8 @@
 <PROJECT_ROOT>/.nyc_output/.*
 .*/tmp/**/.*
 .*/.parcel-cache/.*
-.*/dist/.*
+<PROJECT_ROOT>/packages/core/integration-tests/dist/**
+<PROJECT_ROOT>/packages/core/integration-tests/test/input/**
 
 [include]
 
