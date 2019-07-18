@@ -137,12 +137,6 @@ export function serialize(object: any): Buffer {
   let mapped = mapObject(
     object,
     value => {
-      let serialized = value;
-      if (value && typeof value.serialize === 'function') {
-        // If the object has a serialize method, call it
-        serialized = value.serialize();
-      }
-
       // Add a $$type property with the name of this class, if any is registered.
       if (
         value &&
@@ -151,6 +145,12 @@ export function serialize(object: any): Buffer {
       ) {
         let type = ctorToName.get(value.constructor);
         if (type != null) {
+          let serialized = value;
+          if (value && typeof value.serialize === 'function') {
+            // If the object has a serialize method, call it
+            serialized = value.serialize();
+          }
+
           return {
             $$type: type,
             value: {...serialized}
@@ -158,7 +158,7 @@ export function serialize(object: any): Buffer {
         }
       }
 
-      return serialized;
+      return value;
     },
     true
   );
