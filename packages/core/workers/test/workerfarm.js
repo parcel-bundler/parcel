@@ -92,7 +92,8 @@ describe('WorkerFarm', () => {
     await workerfarm.end();
   });
 
-  it('Bi-directional call should return masters pid', async () => {
+  it.skip('Bi-directional call should return masters pid', async () => {
+    // TODO: this test is only good for processes not threads
     let workerfarm = new WorkerFarm({
       warmWorkers: false,
       useLocalWorker: false,

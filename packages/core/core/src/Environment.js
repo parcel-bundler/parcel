@@ -70,6 +70,11 @@ export default class Environment implements IEnvironment {
   }
 
   merge(env: ?EnvironmentOpts) {
+    // If merging the same object, avoid copying.
+    if (env === this) {
+      return this;
+    }
+
     return new Environment({
       ...this,
       ...env

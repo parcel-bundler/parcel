@@ -46,7 +46,7 @@ export default class Dependency implements IDependency {
     this.target = opts.target;
     this.env = opts.env;
     this.sourcePath = opts.sourcePath || ''; // TODO: get from graph?
-    this.symbols = new Map(opts.symbols || []);
+    this.symbols = opts.symbols || new Map();
     this.id =
       opts.id ||
       md5FromString(
@@ -57,23 +57,5 @@ export default class Dependency implements IDependency {
   merge(other: IDependency) {
     Object.assign(this.meta, other.meta);
     this.symbols = new Map([...this.symbols, ...other.symbols]);
-  }
-
-  serialize() {
-    return {
-      moduleSpecifier: this.moduleSpecifier,
-      isAsync: this.isAsync,
-      isEntry: this.isEntry,
-      isOptional: this.isOptional,
-      isURL: this.isURL,
-      isWeak: this.isWeak,
-      loc: this.loc,
-      meta: this.meta,
-      target: this.target,
-      env: this.env,
-      sourcePath: this.sourcePath,
-      symbols: [...this.symbols],
-      id: this.id
-    };
   }
 }

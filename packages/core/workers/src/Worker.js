@@ -1,14 +1,12 @@
 // @flow
 
 import type {FilePath} from '@parcel/types';
-import type {WorkerMessage} from './types';
+import type {WorkerMessage, WorkerImpl, BackendType} from './types';
 
-import childProcess, {type ChildProcess} from 'child_process';
 import EventEmitter from 'events';
 import {jsonToError} from '@parcel/utils';
 import {serialize, deserialize} from '@parcel/utils';
-
-const childModule = require.resolve('./child');
+import {getWorkerBackend} from './backend';
 
 export type WorkerCall = {|
   method: string,
@@ -19,16 +17,15 @@ export type WorkerCall = {|
 |};
 
 type WorkerOpts = {|
-  forcedKillTime: number
+  forcedKillTime: number,
+  backend: BackendType
 |};
 
 let WORKER_ID = 0;
 export default class Worker extends EventEmitter {
   +options: WorkerOpts;
-  child: ChildProcess;
+  worker: WorkerImpl;
   id: number = WORKER_ID++;
-  processQueue: boolean = true;
-  sendQueue: Array<any> = [];
 
   calls: Map<number, WorkerCall> = new Map();
   exitCode = null;
@@ -59,26 +56,19 @@ export default class Worker extends EventEmitter {
       }
     }
 
-    this.child = childProcess.fork(childModule, process.argv, {
-      execArgv: filteredArgs,
-      env: process.env,
-      cwd: process.cwd()
-    });
-
-    // Unref the child and IPC channel so that the workers don't prevent the main process from exiting
-    this.child.unref();
-    this.child.channel.unref();
-
-    this.child.on('message', data => this.receive(data));
-
-    this.child.once('exit', code => {
+    let onMessage = data => this.receive(data);
+    let onExit = code => {
       this.exitCode = code;
       this.emit('exit', code);
-    });
+    };
 
-    this.child.on('error', err => {
+    let onError = err => {
       this.emit('error', err);
-    });
+    };
+
+    let WorkerBackend = getWorkerBackend(this.options.backend);
+    this.worker = new WorkerBackend(filteredArgs, onMessage, onError, onExit);
+    await this.worker.start();
 
     await new Promise((resolve, reject) => {
       this.call({
@@ -95,30 +85,7 @@ export default class Worker extends EventEmitter {
   }
 
   send(data: WorkerMessage): void {
-    if (!this.processQueue) {
-      this.sendQueue.push(data);
-      return;
-    }
-
-    let result = this.child.send(serialize(data), error => {
-      if (error && error instanceof Error) {
-        // Ignore this, the workerfarm handles child errors
-        return;
-      }
-
-      this.processQueue = true;
-
-      if (this.sendQueue.length > 0) {
-        let queueCopy = this.sendQueue.slice(0);
-        this.sendQueue = [];
-        queueCopy.forEach(entry => this.send(entry));
-      }
-    });
-
-    if (!result || /^win/.test(process.platform)) {
-      // Queue is handling too much messages throttle it
-      this.processQueue = false;
-    }
+    this.worker.send(serialize(data));
   }
 
   call(call: WorkerCall): void {
@@ -138,13 +105,12 @@ export default class Worker extends EventEmitter {
     });
   }
 
-  receive(data: string): void {
+  receive(data: Buffer): void {
     if (this.stopped || this.isStopping) {
       return;
     }
 
     let message: WorkerMessage = deserialize(data);
-
     if (message.type === 'request') {
       this.emit('request', message);
     } else if (message.type === 'response') {
@@ -174,18 +140,8 @@ export default class Worker extends EventEmitter {
     if (!this.stopped) {
       this.stopped = true;
 
-      if (this.child) {
-        this.child.send('die');
-
-        let forceKill = setTimeout(
-          () => this.child.kill('SIGINT'),
-          this.options.forcedKillTime
-        );
-        await new Promise(resolve => {
-          this.child.once('exit', resolve);
-        });
-
-        clearTimeout(forceKill);
+      if (this.worker) {
+        await this.worker.stop();
       }
     }
   }

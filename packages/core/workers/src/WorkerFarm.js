@@ -1,33 +1,22 @@
 // @flow
 
-import type {ErrorWithCode, FilePath, LogEvent} from '@parcel/types';
+import type {ErrorWithCode, FilePath} from '@parcel/types';
 import type {
   CallRequest,
   WorkerRequest,
   WorkerDataResponse,
-  WorkerErrorResponse
+  WorkerErrorResponse,
+  BackendType
 } from './types';
 
-import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
-import {
-  deserialize,
-  errorToJson,
-  jsonToError,
-  registerSerializableClass,
-  serialize
-} from '@parcel/utils';
-import Logger from '@parcel/logger';
-import bus from './bus';
+import {deserialize, errorToJson, jsonToError, serialize} from '@parcel/utils';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 import Handle from './Handle';
-import packageJson from '../package.json';
-
-// Register the Handle as a serializable class so that it will properly be deserialized
-// by anything that uses WorkerFarm.
-registerSerializableClass(`${packageJson.version}:Handle`, Handle);
+import {child} from './childState';
+import {detectBackend} from './backend';
 
 let shared = null;
 
@@ -37,7 +26,8 @@ type FarmOptions = {|
   forcedKillTime: number,
   useLocalWorker: boolean,
   warmWorkers: boolean,
-  workerPath?: FilePath
+  workerPath?: FilePath,
+  backend: BackendType
 |};
 
 type HandleFunction = (...args: Array<any>) => Promise<any>;
@@ -68,6 +58,7 @@ export default class WorkerFarm extends EventEmitter {
       forcedKillTime: 500,
       warmWorkers: true,
       useLocalWorker: true,
+      backend: detectBackend(),
       ...farmOptions
     };
 
@@ -136,7 +127,10 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   startChild() {
-    let worker = new Worker({forcedKillTime: this.options.forcedKillTime});
+    let worker = new Worker({
+      forcedKillTime: this.options.forcedKillTime,
+      backend: this.options.backend
+    });
 
     worker.fork(nullthrows(this.options.workerPath));
 
@@ -234,6 +228,11 @@ export default class WorkerFarm extends EventEmitter {
         result = errorResponseFromError(e);
       }
     } else {
+      // ESModule default interop
+      if (mod.__esModule && !mod[method] && mod.default) {
+        mod = mod.default;
+      }
+
       try {
         result = responseFromContent(await mod[method](...args));
       } catch (e) {
@@ -337,8 +336,7 @@ export default class WorkerFarm extends EventEmitter {
     request: CallRequest,
     awaitResponse: boolean = true
   ): Promise<mixed> {
-    if (WorkerFarm.isWorker()) {
-      const child = require('./child').default;
+    if (child) {
       return child.addCall(request, awaitResponse);
     } else {
       // $FlowFixMe
@@ -350,7 +348,7 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   static isWorker() {
-    return process.send && require.main.filename === require.resolve('./child');
+    return !!child;
   }
 
   static getConcurrentCallsPerWorker() {
@@ -367,33 +365,3 @@ export default class WorkerFarm extends EventEmitter {
     return nullthrows(shared).createReverseHandle(fn);
   }
 }
-
-if (!WorkerFarm.isWorker()) {
-  // Forward all logger events originating from workers into the main process
-  bus.on('logEvent', (e: LogEvent) => {
-    switch (e.level) {
-      case 'info':
-        invariant(typeof e.message === 'string');
-        Logger.info(e.message);
-        break;
-      case 'progress':
-        invariant(typeof e.message === 'string');
-        Logger.progress(e.message);
-        break;
-      case 'verbose':
-        invariant(typeof e.message === 'string');
-        Logger.verbose(e.message);
-        break;
-      case 'warn':
-        Logger.warn(e.message);
-        break;
-      case 'error':
-        Logger.error(e.message);
-        break;
-      default:
-        throw new Error('Unknown log level');
-    }
-  });
-}
-
-export {bus};

@@ -5,9 +5,9 @@ type ConfigOpts = {|
   searchPath: FilePath,
   resolvedPath?: FilePath,
   result?: any,
-  includedFiles?: Iterator<FilePath>,
+  includedFiles?: Set<FilePath>,
   watchGlob?: Glob,
-  devDeps?: Iterator<[PackageName, ?string]>
+  devDeps?: Map<PackageName, ?string>
 |};
 
 export default class Config {
@@ -30,20 +30,9 @@ export default class Config {
     this.searchPath = searchPath;
     this.resolvedPath = resolvedPath;
     this.result = result || null;
-    this.includedFiles = new Set(includedFiles);
+    this.includedFiles = includedFiles || new Set();
     this.watchGlob = watchGlob;
-    this.devDeps = new Map(devDeps);
-  }
-
-  serialize() {
-    return {
-      searchPath: this.searchPath,
-      resolvedPath: this.resolvedPath,
-      result: this.result,
-      includedFiles: [...this.includedFiles],
-      watchGlob: this.watchGlob,
-      devDeps: [...this.devDeps]
-    };
+    this.devDeps = devDeps || new Map();
   }
 
   setResolvedPath(filePath: FilePath) {
