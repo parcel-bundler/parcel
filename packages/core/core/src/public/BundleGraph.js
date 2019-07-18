@@ -295,7 +295,7 @@ export class BundleReference implements IBundleReference {
 
   // Once serialized, BundleReferences are frozen as a copy and no longer
   // continue to update to reflect the properties of the bundle they reference.
-  static deserialize(props): IBundleReference {
+  static deserialize(props: IBundleReference): IBundleReference {
     return props;
   }
 
