@@ -6,7 +6,8 @@ import type {
   WorkerErrorResponse,
   WorkerMessage,
   WorkerRequest,
-  WorkerResponse
+  WorkerResponse,
+  ChildImpl
 } from './types';
 
 import type {IDisposable} from '@parcel/types';
@@ -16,7 +17,6 @@ import nullthrows from 'nullthrows';
 import {inspect} from 'util';
 import Logger from '@parcel/logger';
 import {errorToJson, jsonToError, serialize, deserialize} from '@parcel/utils';
-
 import bus from './bus';
 
 type ChildCall = WorkerRequest & {|
@@ -26,7 +26,7 @@ type ChildCall = WorkerRequest & {|
 
 let consolePatched;
 
-class Child {
+export class Child {
   callQueue: Array<ChildCall> = [];
   childId: ?number;
   maxConcurrentCalls: number = 10;
@@ -34,11 +34,13 @@ class Child {
   responseId = 0;
   responseQueue: Map<number, ChildCall> = new Map();
   loggerDisposable: IDisposable;
+  child: ChildImpl;
 
-  constructor() {
-    if (!process.send) {
-      throw new Error('Only create Child instances in a worker!');
-    }
+  constructor(ChildBackend: Class<ChildImpl>) {
+    this.child = new ChildBackend(
+      this.messageListener.bind(this),
+      this.handleEnd.bind(this)
+    );
 
     patchConsoleToLogger();
     // Monitior all logging events inside this child process and forward to
@@ -48,12 +50,8 @@ class Child {
     });
   }
 
-  messageListener(data: string): void | Promise<void> {
-    if (data === 'die') {
-      return this.end();
-    }
-
-    let message: WorkerMessage = deserialize(Buffer.from(data, 'base64'));
+  messageListener(data: Buffer): void | Promise<void> {
+    let message: WorkerMessage = deserialize(data);
     if (message.type === 'response') {
       return this.handleResponse(message);
     } else if (message.type === 'request') {
@@ -62,16 +60,7 @@ class Child {
   }
 
   async send(data: WorkerMessage): Promise<void> {
-    let processSend = nullthrows(process.send).bind(process);
-    processSend(serialize(data).toString('base64'), err => {
-      if (err && err instanceof Error) {
-        if (err.code === 'ERR_IPC_CHANNEL_CLOSED') {
-          // IPC connection closed
-          // no need to keep the worker running if it can't send or receive data
-          return this.end();
-        }
-      }
-    });
+    this.child.send(serialize(data));
   }
 
   childInit(module: string, childId: number): void {
@@ -197,16 +186,10 @@ class Child {
     }
   }
 
-  end(): void {
+  handleEnd(): void {
     this.loggerDisposable.dispose();
-    process.exit();
   }
 }
-
-let child = new Child();
-process.on('message', child.messageListener.bind(child));
-
-export default child;
 
 // Patch `console` APIs within workers to forward their messages to the Logger
 // at the appropriate levels.
