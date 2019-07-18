@@ -59,7 +59,7 @@ describe('Graph', () => {
     assert(graph.nodes.has('d'));
     assert(!graph.nodes.has('b'));
     assert(!graph.nodes.has('c'));
-    assert.deepEqual(graph.getAllEdges(), [{from: 'a', to: 'd'}]);
+    assert.deepEqual(graph.getAllEdges(), [{from: 'a', to: 'd', type: null}]);
   });
 
   it("replaceNodesConnectedTo should update a node's downstream nodes", () => {
@@ -78,8 +78,8 @@ describe('Graph', () => {
     assert(!graph.nodes.has('c'));
     assert(graph.nodes.has('d'));
     assert.deepEqual(graph.getAllEdges(), [
-      {from: 'a', to: 'b'},
-      {from: 'a', to: 'd'}
+      {from: 'a', to: 'b', type: null},
+      {from: 'a', to: 'd', type: null}
     ]);
   });
 });
