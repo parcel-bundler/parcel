@@ -24,10 +24,25 @@ type TraversalContext = {|
 
 // eslint-disable-next-line no-unused-vars
 export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
-  let promises = [];
-  bundle.traverseAssets(asset => {
-    promises.push(processAsset(bundle, asset));
+  let assets = [];
+  bundle.traverse((node, shouldWrap) => {
+    switch (node.type) {
+      case 'dependency':
+        // Mark assets that should be wrapped, based on metadata in the incoming dependency tree
+        if (shouldWrap || node.value.meta.shouldWrap) {
+          let resolved = bundle.getDependencyResolution(node.value);
+          if (resolved) {
+            resolved.meta.shouldWrap = true;
+          }
+          return true;
+        }
+        break;
+      case 'asset':
+        assets.push(node.value);
+    }
   });
+
+  let promises = assets.map(asset => processAsset(bundle, asset));
   let outputs = new Map(await Promise.all(promises));
   let result = [...parse(HELPERS, HELPERS_PATH)];
 
@@ -135,7 +150,7 @@ async function processAsset(bundle: Bundle, asset: Asset) {
     addComment(statements[0], ` ASSET: ${asset.filePath}`);
   }
 
-  if (shouldWrap(bundle, asset)) {
+  if (asset.meta.shouldWrap) {
     statements = wrapModule(asset, statements);
   }
 
@@ -234,32 +249,6 @@ function findRequires(bundle: Bundle, asset: Asset, ast) {
   });
 
   return result;
-}
-
-function shouldWrap(bundle: Bundle, asset: Asset) {
-  if (asset.meta.shouldWrap != null) {
-    return asset.meta.shouldWrap;
-  }
-
-  // We need to wrap if any of the deps are marked by the hoister, e.g.
-  // when the dep is required inside a function or conditional.
-  // We also need to wrap if any of the parents are wrapped - transitive requires
-  // shouldn't be evaluated until their parents are.
-  let shouldWrap = false;
-  bundle.traverseAncestors(asset, (node, context, traversal) => {
-    switch (node.type) {
-      case 'dependency':
-      case 'asset':
-        if (node.value.meta.shouldWrap) {
-          shouldWrap = true;
-          traversal.stop();
-        }
-        break;
-    }
-  });
-
-  asset.meta.shouldWrap = shouldWrap;
-  return shouldWrap;
 }
 
 function wrapModule(asset: Asset, statements) {
