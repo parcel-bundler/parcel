@@ -376,12 +376,14 @@ export type GraphTraversalCallback<TNode, TContext> = (
 interface AssetGraphLike {
   getDependencies(asset: Asset): Array<Dependency>;
   getDependencyResolution(dependency: Dependency): ?Asset;
+  getIncomingDependencies(asset: Asset): Array<Dependency>;
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
 }
 
 export type BundleTraversable =
   | {|+type: 'asset', value: Asset|}
-  | {|+type: 'asset_reference', value: Asset|};
+  | {|+type: 'asset_reference', value: Asset|}
+  | {|+type: 'dependency', value: Dependency|};
 
 export type MainAssetGraphTraversable =
   | {|+type: 'asset', value: Asset|}
@@ -415,10 +417,6 @@ export interface Bundle extends AssetGraphLike {
   hasChildBundles(): boolean;
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>
-  ): ?TContext;
-  traverseAncestors<TContext>(
-    asset: Asset,
-    visit: GraphVisitor<*, TContext>
   ): ?TContext;
   resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
 }

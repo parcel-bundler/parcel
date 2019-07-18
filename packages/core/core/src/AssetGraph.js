@@ -128,7 +128,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
         assets[0].type === 'asset' || assets[0].type === 'asset_reference'
       );
       let resolvedAsset = assets[0].value;
-      let deps = this.getAncestorDependencies(resolvedAsset);
+      let deps = this.getIncomingDependencies(resolvedAsset);
       defer = deps.every(
         d =>
           !d.symbols.has('*') &&
@@ -197,7 +197,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     return res;
   }
 
-  getAncestorDependencies(asset: Asset): Array<Dependency> {
+  getIncomingDependencies(asset: Asset): Array<IDependency> {
     let node = this.getNode(asset.id);
     if (!node) {
       return [];
