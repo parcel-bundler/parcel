@@ -5,7 +5,8 @@ import type {
   CallRequest,
   WorkerRequest,
   WorkerDataResponse,
-  WorkerErrorResponse
+  WorkerErrorResponse,
+  BackendType
 } from './types';
 
 import nullthrows from 'nullthrows';
@@ -14,6 +15,8 @@ import {deserialize, errorToJson, jsonToError, serialize} from '@parcel/utils';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 import Handle from './Handle';
+import {child} from './childState';
+import {detectBackend} from './backend';
 
 let shared = null;
 
@@ -23,7 +26,8 @@ type FarmOptions = {|
   forcedKillTime: number,
   useLocalWorker: boolean,
   warmWorkers: boolean,
-  workerPath?: FilePath
+  workerPath?: FilePath,
+  backend: BackendType
 |};
 
 type HandleFunction = (...args: Array<any>) => Promise<any>;
@@ -54,6 +58,7 @@ export default class WorkerFarm extends EventEmitter {
       forcedKillTime: 500,
       warmWorkers: true,
       useLocalWorker: true,
+      backend: detectBackend(),
       ...farmOptions
     };
 
@@ -122,7 +127,10 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   startChild() {
-    let worker = new Worker({forcedKillTime: this.options.forcedKillTime});
+    let worker = new Worker({
+      forcedKillTime: this.options.forcedKillTime,
+      backend: this.options.backend
+    });
 
     worker.fork(nullthrows(this.options.workerPath));
 
@@ -328,8 +336,7 @@ export default class WorkerFarm extends EventEmitter {
     request: CallRequest,
     awaitResponse: boolean = true
   ): Promise<mixed> {
-    if (WorkerFarm.isWorker()) {
-      const child = require('./child').default;
+    if (child) {
       return child.addCall(request, awaitResponse);
     } else {
       // $FlowFixMe
@@ -341,13 +348,7 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   static isWorker() {
-    try {
-      return !require('worker_threads').isMainThread;
-    } catch (err) {
-      return (
-        process.send && require.main.filename === require.resolve('./child')
-      );
-    }
+    return !!child;
   }
 
   static getConcurrentCallsPerWorker() {

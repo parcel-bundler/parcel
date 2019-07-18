@@ -2,6 +2,8 @@
 
 import type {ChildImpl, MessageHandler, ExitHandler} from '../types';
 import nullthrows from 'nullthrows';
+import {setChild} from '../childState';
+import {Child} from '../child';
 
 export default class ProcessChild implements ChildImpl {
   onMessage: MessageHandler;
@@ -43,3 +45,5 @@ export default class ProcessChild implements ChildImpl {
     process.exit();
   }
 }
+
+setChild(new Child(ProcessChild));

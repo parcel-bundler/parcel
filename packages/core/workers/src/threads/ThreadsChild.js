@@ -3,6 +3,8 @@
 import type {ChildImpl, MessageHandler, ExitHandler} from '../types';
 import {isMainThread, parentPort} from 'worker_threads';
 import nullthrows from 'nullthrows';
+import {setChild} from '../childState';
+import {Child} from '../child';
 
 export default class ThreadsChild implements ChildImpl {
   onMessage: MessageHandler;
@@ -23,3 +25,5 @@ export default class ThreadsChild implements ChildImpl {
     nullthrows(parentPort).postMessage(data, [data.buffer]);
   }
 }
+
+setChild(new Child(ThreadsChild));

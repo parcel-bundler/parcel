@@ -6,7 +6,8 @@ import type {
   WorkerErrorResponse,
   WorkerMessage,
   WorkerRequest,
-  WorkerResponse
+  WorkerResponse,
+  ChildImpl
 } from './types';
 
 import type {IDisposable} from '@parcel/types';
@@ -16,15 +17,7 @@ import nullthrows from 'nullthrows';
 import {inspect} from 'util';
 import Logger from '@parcel/logger';
 import {errorToJson, jsonToError, serialize, deserialize} from '@parcel/utils';
-import type {ChildImpl} from './types';
 import bus from './bus';
-
-let ChildBackend: Class<ChildImpl>;
-try {
-  ChildBackend = require('./threads/ThreadsChild').default;
-} catch (err) {
-  ChildBackend = require('./process/ProcessChild').default;
-}
 
 type ChildCall = WorkerRequest & {|
   resolve: (result: Promise<any> | any) => void,
@@ -33,7 +26,7 @@ type ChildCall = WorkerRequest & {|
 
 let consolePatched;
 
-class Child {
+export class Child {
   callQueue: Array<ChildCall> = [];
   childId: ?number;
   maxConcurrentCalls: number = 10;
@@ -43,7 +36,7 @@ class Child {
   loggerDisposable: IDisposable;
   child: ChildImpl;
 
-  constructor() {
+  constructor(ChildBackend: Class<ChildImpl>) {
     this.child = new ChildBackend(
       this.messageListener.bind(this),
       this.handleEnd.bind(this)
@@ -197,8 +190,6 @@ class Child {
     this.loggerDisposable.dispose();
   }
 }
-
-export default new Child();
 
 // Patch `console` APIs within workers to forward their messages to the Logger
 // at the appropriate levels.

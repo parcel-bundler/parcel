@@ -1,20 +1,12 @@
 // @flow
 
 import type {FilePath} from '@parcel/types';
-import type {WorkerMessage, WorkerImpl} from './types';
+import type {WorkerMessage, WorkerImpl, BackendType} from './types';
 
 import EventEmitter from 'events';
 import {jsonToError} from '@parcel/utils';
 import {serialize, deserialize} from '@parcel/utils';
-
-const childModule = require.resolve('./child');
-
-let WorkerBackend: Class<WorkerImpl>;
-try {
-  WorkerBackend = require('./threads/ThreadsWorker').default;
-} catch (err) {
-  WorkerBackend = require('./process/ProcessWorker').default;
-}
+import {getWorkerBackend} from './backend';
 
 export type WorkerCall = {|
   method: string,
@@ -25,7 +17,8 @@ export type WorkerCall = {|
 |};
 
 type WorkerOpts = {|
-  forcedKillTime: number
+  forcedKillTime: number,
+  backend: BackendType
 |};
 
 let WORKER_ID = 0;
@@ -73,13 +66,8 @@ export default class Worker extends EventEmitter {
       this.emit('error', err);
     };
 
-    this.worker = new WorkerBackend(
-      childModule,
-      filteredArgs,
-      onMessage,
-      onError,
-      onExit
-    );
+    let WorkerBackend = getWorkerBackend(this.options.backend);
+    this.worker = new WorkerBackend(filteredArgs, onMessage, onError, onExit);
     await this.worker.start();
 
     await new Promise((resolve, reject) => {

@@ -1,6 +1,5 @@
 // @flow
 
-import type {FilePath} from '@parcel/types';
 import type {
   WorkerImpl,
   MessageHandler,
@@ -8,9 +7,11 @@ import type {
   ExitHandler
 } from '../types';
 import {Worker} from 'worker_threads';
+import path from 'path';
+
+const WORKER_PATH = path.join(__dirname, 'ThreadsChild.js');
 
 export default class ThreadsWorker implements WorkerImpl {
-  workerPath: FilePath;
   execArgv: Object;
   onMessage: MessageHandler;
   onError: ErrorHandler;
@@ -18,13 +19,11 @@ export default class ThreadsWorker implements WorkerImpl {
   worker: Worker;
 
   constructor(
-    workerPath: FilePath,
     execArgv: Object,
     onMessage: MessageHandler,
     onError: ErrorHandler,
     onExit: ExitHandler
   ) {
-    this.workerPath = workerPath;
     this.execArgv = execArgv;
     this.onMessage = onMessage;
     this.onError = onError;
@@ -32,7 +31,7 @@ export default class ThreadsWorker implements WorkerImpl {
   }
 
   async start() {
-    this.worker = new Worker(this.workerPath, {
+    this.worker = new Worker(WORKER_PATH, {
       execArgv: this.execArgv,
       env: process.env
     });
