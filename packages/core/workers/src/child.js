@@ -15,7 +15,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {inspect} from 'util';
 import Logger from '@parcel/logger';
-import {errorToJson, jsonToError, serialize, deserialize} from '@parcel/utils';
+import {errorToJson, jsonToError} from '@parcel/utils';
 import bus from './bus';
 
 type ChildCall = WorkerRequest & {|
