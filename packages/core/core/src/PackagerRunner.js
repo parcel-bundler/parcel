@@ -5,7 +5,7 @@ import type SourceMap from '@parcel/source-map';
 import type {Bundle as InternalBundle} from './types';
 import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
-import type {FileSystem} from '@parcel/fs';
+import type {FileSystem, FileOptions} from '@parcel/fs';
 
 import {Readable} from 'stream';
 import invariant from 'assert';
@@ -35,7 +35,7 @@ export default class PackagerRunner {
   }
 
   async writeBundle(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
-    let fs = this.options.outputFS;
+    let {inputFS, outputFS} = this.options;
     let start = Date.now();
     let packaged = await this.package(bundle, bundleGraph);
     let {contents, map} = await this.optimize(
@@ -47,7 +47,7 @@ export default class PackagerRunner {
     let filePath = nullthrows(bundle.filePath);
     let dir = path.dirname(filePath);
     if (!this.distExists.has(dir)) {
-      await fs.mkdirp(dir);
+      await outputFS.mkdirp(dir);
       this.distExists.add(dir);
     }
 
@@ -56,15 +56,16 @@ export default class PackagerRunner {
     let options = nullthrows(bundle.target).env.isBrowser()
       ? undefined
       : {
-          mode: (await fs.stat(bundle.assetGraph.getEntryAssets()[0].filePath))
-            .mode
+          mode: (await inputFS.stat(
+            bundle.assetGraph.getEntryAssets()[0].filePath
+          )).mode
         };
 
     let size;
     if (contents instanceof Readable) {
-      size = await writeFileStream(fs, filePath, contents);
+      size = await writeFileStream(outputFS, filePath, contents, options);
     } else {
-      await fs.writeFile(filePath, contents);
+      await outputFS.writeFile(filePath, contents, options);
       size = contents.length;
     }
 
@@ -101,7 +102,7 @@ export default class PackagerRunner {
       }
 
       let mapFilename = filePath + '.map';
-      await fs.writeFile(
+      await outputFS.writeFile(
         mapFilename,
         await map.stringify({
           file: path.basename(mapFilename),
@@ -185,10 +186,11 @@ export default class PackagerRunner {
 function writeFileStream(
   fs: FileSystem,
   filePath: FilePath,
-  stream: Readable
+  stream: Readable,
+  options: ?FileOptions
 ): Promise<number> {
   return new Promise((resolve, reject) => {
-    let fsStream = fs.createWriteStream(filePath);
+    let fsStream = fs.createWriteStream(filePath, options);
     stream
       .pipe(fsStream)
       // $FlowFixMe
