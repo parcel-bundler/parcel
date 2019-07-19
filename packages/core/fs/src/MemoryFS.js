@@ -77,7 +77,7 @@ export class MemoryFS implements FileSystem {
     // console.log(contents.buffer)
     let buffer = makeShared(contents);
     let file = this.files.get(filePath);
-    let mode = options ? options.mode : 0o666;
+    let mode = (options && options.mode) || 0o666;
     if (file) {
       file.write(buffer, mode);
     } else {
