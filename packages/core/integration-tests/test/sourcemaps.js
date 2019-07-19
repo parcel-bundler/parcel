@@ -159,7 +159,7 @@ describe('sourcemaps', function() {
     assert.equal(Object.keys(sourceMap.sources).length, 1);
     assert.strictEqual(sourceMap.sources[sourcePath], null);
     assert(
-      await inputFS.exists(distDir + sourceRoot + sourcePath),
+      await inputFS.exists(path.resolve(distDir + sourceRoot + sourcePath)),
       'combining sourceRoot and sources object should resolve to the original file'
     );
 
@@ -215,7 +215,7 @@ describe('sourcemaps', function() {
     for (let source of Object.keys(sourceMap.sources)) {
       assert.strictEqual(sourceMap.sources[source], null);
       assert(
-        await inputFS.exists(distDir + sourceRoot + source),
+        await inputFS.exists(path.resolve(distDir + sourceRoot + source)),
         'combining sourceRoot and sources object should resolve to the original file'
       );
     }
