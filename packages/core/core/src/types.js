@@ -21,9 +21,10 @@ import type Config from './public/Config';
 
 export type NodeId = string;
 
-export type Edge = {|
+export type Edge<TEdgeType: string | null> = {|
   from: NodeId,
-  to: NodeId
+  to: NodeId,
+  type: TEdgeType
 |};
 
 export interface Node {

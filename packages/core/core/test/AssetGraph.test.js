@@ -62,14 +62,16 @@ describe('AssetGraph', () => {
         to: new Dependency({
           moduleSpecifier: '/path/to/index1',
           env: DEFAULT_ENV
-        }).id
+        }).id,
+        type: null
       },
       {
         from: '@@root',
         to: new Dependency({
           moduleSpecifier: '/path/to/index2',
           env: DEFAULT_ENV
-        }).id
+        }).id,
+        type: null
       }
     ]);
   });
