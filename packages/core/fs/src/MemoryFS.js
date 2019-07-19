@@ -1,5 +1,5 @@
 // @flow
-import type {FileSystem} from './types';
+import type {FileSystem, FileOptions} from './types';
 import type {FilePath} from '@parcel/types';
 import path from 'path';
 import {Readable, Writable} from 'stream';
@@ -18,12 +18,12 @@ type SerializedMemoryFS = {
 };
 
 export class MemoryFS implements FileSystem {
-  dirs: Set<FilePath>;
-  files: Map<FilePath, Buffer>;
+  dirs: Map<FilePath, Directory>;
+  files: Map<FilePath, File>;
   id: number;
   handle: any;
   constructor() {
-    this.dirs = new Set(['/']);
+    this.dirs = new Map([['/', new Directory()]]);
     this.files = new Map();
     this.id = id++;
     instances.set(this.id, this);
@@ -59,7 +59,11 @@ export class MemoryFS implements FileSystem {
     return path.resolve(this.cwd(), filePath);
   }
 
-  async writeFile(filePath: FilePath, contents: Buffer | string) {
+  async writeFile(
+    filePath: FilePath,
+    contents: Buffer | string,
+    options: ?FileOptions
+  ) {
     filePath = this._normalizePath(filePath);
     if (this.dirs.has(filePath)) {
       throw new Error(`EISDIR: ${filePath} is a directory`);
@@ -72,16 +76,23 @@ export class MemoryFS implements FileSystem {
 
     // console.log(contents.buffer)
     let buffer = makeShared(contents);
-    this.files.set(filePath, buffer);
+    let file = this.files.get(filePath);
+    let mode = options ? options.mode : 0o666;
+    if (file) {
+      file.write(buffer, mode);
+    } else {
+      this.files.set(filePath, new File(buffer, mode));
+    }
   }
 
   async readFile(filePath: FilePath, encoding?: buffer$Encoding): Promise<any> {
     filePath = this._normalizePath(filePath);
-    let buffer = this.files.get(filePath);
-    if (buffer == null) {
+    let file = this.files.get(filePath);
+    if (file == null) {
       throw new Error(`${filePath} does not exist`);
     }
 
+    let buffer = file.read();
     if (encoding) {
       return buffer.toString(encoding);
     }
@@ -97,16 +108,17 @@ export class MemoryFS implements FileSystem {
   async stat(filePath: FilePath) {
     filePath = this._normalizePath(filePath);
 
-    if (this.dirs.has(filePath)) {
-      return createStat(0, true);
+    let dir = this.dirs.get(filePath);
+    if (dir) {
+      return dir.stat();
     }
 
-    let buffer = this.files.get(filePath);
-    if (buffer == null) {
+    let file = this.files.get(filePath);
+    if (file == null) {
       throw new Error(`ENOENT: ${filePath} does not exist`);
     }
 
-    return createStat(buffer.byteLength, false);
+    return file.stat();
   }
 
   async readdir(dir: FilePath) {
@@ -157,7 +169,7 @@ export class MemoryFS implements FileSystem {
         break;
       }
 
-      this.dirs.add(dir);
+      this.dirs.set(dir, new Directory());
       dir = path.dirname(dir);
     }
   }
@@ -188,13 +200,17 @@ export class MemoryFS implements FileSystem {
     source = this._normalizePath(source);
 
     if (this.dirs.has(source)) {
-      this.dirs.add(destination);
+      if (!this.dirs.has(destination)) {
+        this.dirs.set(destination, new Directory());
+      }
 
       let dir = source + path.sep;
-      for (let dirPath of this.dirs) {
+      for (let dirPath of this.dirs.keys()) {
         if (dirPath.startsWith(dir)) {
           let destName = path.join(destination, dirPath.slice(dir.length));
-          this.dirs.add(destName);
+          if (!this.dirs.has(destName)) {
+            this.dirs.set(destName, new Directory());
+          }
         }
       }
 
@@ -211,8 +227,14 @@ export class MemoryFS implements FileSystem {
 
   createReadStream(filePath: FilePath) {
     let fs = this;
+    let reading = false;
     class ReadStream extends Readable {
       _read() {
+        if (reading) {
+          return;
+        }
+
+        reading = true;
         fs.readFile(filePath).then(
           res => {
             this.push(res);
@@ -228,7 +250,7 @@ export class MemoryFS implements FileSystem {
     return new ReadStream();
   }
 
-  createWriteStream(filePath: FilePath) {
+  createWriteStream(filePath: FilePath, options: ?FileOptions) {
     let fs = this;
     let buffer = Buffer.alloc(0);
     class WriteStream extends Writable {
@@ -243,7 +265,7 @@ export class MemoryFS implements FileSystem {
       }
 
       _final(callback: (error?: Error) => void) {
-        fs.writeFile(filePath, buffer).then(callback);
+        fs.writeFile(filePath, buffer, options).then(callback);
       }
     }
 
@@ -261,34 +283,98 @@ export class MemoryFS implements FileSystem {
   }
 }
 
-function createStat(size, isDir) {
-  return {
-    dev: 0,
-    ino: 0,
-    mode: 0,
-    nlink: 0,
-    uid: 0,
-    gid: 0,
-    rdev: 0,
-    size,
-    blksize: 0,
-    blocks: 0,
-    atimeMs: 0,
-    mtimeMs: 0,
-    ctimeMs: 0,
-    birthtimeMs: 0,
-    atime: new Date(0),
-    mtime: new Date(0),
-    ctime: new Date(0),
-    birthtime: new Date(0),
-    isFile: () => !isDir,
-    isDirectory: () => isDir,
-    isBlockDevice: () => false,
-    isCharacterDevice: () => false,
-    isSymbolicLink: () => false,
-    isFIFO: () => false,
-    isSocket: () => false
-  };
+const S_IFREG = 0o100000;
+const S_IFDIR = 0o040000;
+
+class Entry {
+  mode: number;
+  atime: number;
+  mtime: number;
+  ctime: number;
+  birthtime: number;
+  constructor(mode: number) {
+    this.mode = mode;
+    let now = Date.now();
+    this.atime = now;
+    this.mtime = now;
+    this.ctime = now;
+    this.birthtime = now;
+  }
+
+  access() {
+    let now = Date.now();
+    this.atime = now;
+    this.ctime = now;
+  }
+
+  modify(mode: number) {
+    let now = Date.now();
+    this.mtime = now;
+    this.ctime = now;
+    this.mode = mode;
+  }
+
+  getSize() {
+    return 0;
+  }
+
+  stat() {
+    return {
+      dev: 0,
+      ino: 0,
+      mode: this.mode,
+      nlink: 0,
+      uid: 0,
+      gid: 0,
+      rdev: 0,
+      size: this.getSize(),
+      blksize: 0,
+      blocks: 0,
+      atimeMs: this.atime,
+      mtimeMs: this.mtime,
+      ctimeMs: this.ctime,
+      birthtimeMs: this.birthtime,
+      atime: new Date(this.atime),
+      mtime: new Date(this.mtime),
+      ctime: new Date(this.ctime),
+      birthtime: new Date(this.birthtime),
+      isFile: () => Boolean(this.mode & S_IFREG),
+      isDirectory: () => Boolean(this.mode & S_IFDIR),
+      isBlockDevice: () => false,
+      isCharacterDevice: () => false,
+      isSymbolicLink: () => false,
+      isFIFO: () => false,
+      isSocket: () => false
+    };
+  }
+}
+
+class File extends Entry {
+  buffer: Buffer;
+  constructor(buffer: Buffer, mode: number) {
+    super(S_IFREG | mode);
+    this.buffer = buffer;
+  }
+
+  read(): Buffer {
+    super.access();
+    return this.buffer;
+  }
+
+  write(buffer: Buffer, mode: number) {
+    super.modify(S_IFREG | mode);
+    this.buffer = buffer;
+  }
+
+  getSize() {
+    return this.buffer.length;
+  }
+}
+
+class Directory extends Entry {
+  constructor() {
+    super(S_IFDIR);
+  }
 }
 
 function makeShared(contents: Buffer | string): Buffer {
@@ -331,9 +417,13 @@ class WorkerFS extends MemoryFS {
     };
   }
 
-  async writeFile(filePath: FilePath, contents: Buffer | string) {
+  async writeFile(
+    filePath: FilePath,
+    contents: Buffer | string,
+    options: ?FileOptions
+  ) {
     let buffer = makeShared(contents);
-    return this.handle('writeFile', [filePath, buffer]);
+    return this.handle('writeFile', [filePath, buffer, options]);
   }
 
   async readFile(filePath: FilePath, encoding?: buffer$Encoding) {
