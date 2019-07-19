@@ -6,7 +6,6 @@ import type {FilePath} from '@parcel/types';
 
 import * as fs from '@parcel/fs';
 import {createReadStream, createWriteStream} from 'fs';
-import invariant from 'assert';
 import path from 'path';
 import logger from '@parcel/logger';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/utils';
@@ -20,17 +19,7 @@ export default class Cache {
     this.dir = cacheDir;
   }
 
-  static deserialize(opts: {cacheDir: FilePath}) {
-    return new Cache(opts.cacheDir);
-  }
-
-  serialize() {
-    return {
-      cacheDir: this.dir
-    };
-  }
-
-  _getCachePath(cacheId: string, extension: string = '.json'): FilePath {
+  _getCachePath(cacheId: string, extension: string = '.v8'): FilePath {
     return path.join(
       this.dir,
       cacheId.slice(0, 2),
@@ -53,9 +42,7 @@ export default class Cache {
 
   async get(key: string) {
     try {
-      let data = await fs.readFile(this._getCachePath(key), {encoding: 'utf8'});
-
-      invariant(typeof data === 'string');
+      let data = await fs.readFile(this._getCachePath(key));
       return deserialize(data);
     } catch (err) {
       if (err.code === 'ENOENT') {

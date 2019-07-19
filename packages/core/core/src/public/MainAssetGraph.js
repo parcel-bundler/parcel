@@ -72,6 +72,10 @@ export default class MainAssetGraph implements IMainAssetGraph {
     }
   }
 
+  getIncomingDependencies(asset: IAsset): Array<Dependency> {
+    return this.#graph.getIncomingDependencies(assetToInternalAsset(asset));
+  }
+
   traverse<TContext>(
     visit: GraphVisitor<MainAssetGraphTraversable, TContext>
   ): ?TContext {

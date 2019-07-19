@@ -42,23 +42,15 @@ type AssetOptions = {|
   ast?: ?AST,
   map?: ?SourceMap,
   mapKey?: ?string,
-  dependencies?: Iterable<[string, Dependency]>,
-  connectedFiles?: Iterable<[FilePath, File]>,
+  dependencies?: Map<string, Dependency>,
+  connectedFiles?: Map<FilePath, File>,
   isIsolated?: boolean,
   outputHash?: string,
   env: Environment,
   meta?: Meta,
   stats: Stats,
-  symbols?: Map<Symbol, Symbol> | Array<[Symbol, Symbol]>,
+  symbols?: Map<Symbol, Symbol>,
   sideEffects?: boolean
-|};
-
-type SerializedOptions = {|
-  ...AssetOptions,
-  ...{|
-    connectedFiles: Array<[FilePath, File]>,
-    dependencies: Array<[string, Dependency]>
-  |}
 |};
 
 export default class Asset {
@@ -101,21 +93,21 @@ export default class Asset {
     this.cache = options.cache;
     this.map = options.map;
     this.mapKey = options.mapKey;
-    this.dependencies = options.dependencies
-      ? new Map(options.dependencies)
-      : new Map();
-    this.connectedFiles = options.connectedFiles
-      ? new Map(options.connectedFiles)
-      : new Map();
+    this.dependencies = options.dependencies || new Map();
+    this.connectedFiles = options.connectedFiles || new Map();
     this.outputHash = options.outputHash || '';
     this.env = options.env;
     this.meta = options.meta || {};
     this.stats = options.stats;
-    this.symbols = new Map(options.symbols || []);
+    this.symbols = options.symbols || new Map();
     this.sideEffects = options.sideEffects != null ? options.sideEffects : true;
   }
 
-  serialize(): SerializedOptions {
+  static deserialize(opts: AssetOptions) {
+    return new Asset(opts);
+  }
+
+  serialize(): AssetOptions {
     // Exclude `code`, `map`, and `ast` from cache
     return {
       id: this.id,
@@ -123,8 +115,8 @@ export default class Asset {
       filePath: this.filePath,
       cache: this.cache,
       type: this.type,
-      dependencies: Array.from(this.dependencies),
-      connectedFiles: Array.from(this.connectedFiles),
+      dependencies: this.dependencies,
+      connectedFiles: this.connectedFiles,
       isIsolated: this.isIsolated,
       outputHash: this.outputHash,
       env: this.env,
@@ -132,7 +124,7 @@ export default class Asset {
       stats: this.stats,
       contentKey: this.contentKey,
       mapKey: this.mapKey,
-      symbols: [...this.symbols],
+      symbols: this.symbols,
       sideEffects: this.sideEffects
     };
   }
@@ -309,8 +301,8 @@ export default class Asset {
       map: result.map,
       isIsolated: result.isIsolated,
       env: this.env.merge(result.env),
-      dependencies: this.dependencies,
-      connectedFiles: this.connectedFiles,
+      dependencies: new Map(this.dependencies),
+      connectedFiles: new Map(this.connectedFiles),
       meta: {...this.meta, ...result.meta},
       stats: {
         time: 0,

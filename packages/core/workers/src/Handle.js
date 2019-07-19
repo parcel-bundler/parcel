@@ -1,4 +1,6 @@
 import WorkerFarm from './WorkerFarm';
+import packageJson from '../package.json';
+import {registerSerializableClass} from '@parcel/utils';
 
 let HANDLE_ID = 0;
 
@@ -13,3 +15,7 @@ export default class Handle {
     };
   }
 }
+
+// Register the Handle as a serializable class so that it will properly be deserialized
+// by anything that uses WorkerFarm.
+registerSerializableClass(`${packageJson.version}:Handle`, Handle);

@@ -62,14 +62,16 @@ describe('AssetGraph', () => {
         to: new Dependency({
           moduleSpecifier: '/path/to/index1',
           env: DEFAULT_ENV
-        }).id
+        }).id,
+        type: null
       },
       {
         from: '@@root',
         to: new Dependency({
           moduleSpecifier: '/path/to/index2',
           env: DEFAULT_ENV
-        }).id
+        }).id,
+        type: null
       }
     ]);
   });
@@ -127,7 +129,7 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#1',
         stats,
-        dependencies: [
+        dependencies: new Map([
           [
             'utils',
             new Dependency({
@@ -136,9 +138,9 @@ describe('AssetGraph', () => {
               sourcePath
             })
           ]
-        ],
+        ]),
         env: DEFAULT_ENV,
-        connectedFiles: []
+        connectedFiles: new Map()
       }),
       new Asset({
         id: '2',
@@ -147,7 +149,7 @@ describe('AssetGraph', () => {
         cache,
         hash: '#2',
         stats,
-        dependencies: [
+        dependencies: new Map([
           [
             'styles',
             new Dependency({
@@ -156,9 +158,9 @@ describe('AssetGraph', () => {
               sourcePath
             })
           ]
-        ],
+        ]),
         env: DEFAULT_ENV,
-        connectedFiles: []
+        connectedFiles: new Map()
       }),
       new Asset({
         id: '3',
@@ -166,10 +168,10 @@ describe('AssetGraph', () => {
         cache,
         type: 'js',
         hash: '#3',
-        dependencies: [],
+        dependencies: new Map(),
         env: DEFAULT_ENV,
         stats,
-        connectedFiles: []
+        connectedFiles: new Map()
       })
     ];
 
@@ -193,7 +195,7 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#1',
         stats,
-        dependencies: [
+        dependencies: new Map([
           [
             'utils',
             new Dependency({
@@ -202,9 +204,9 @@ describe('AssetGraph', () => {
               sourcePath
             })
           ]
-        ],
+        ]),
         env: DEFAULT_ENV,
-        connectedFiles: []
+        connectedFiles: new Map()
       }),
       new Asset({
         id: '2',
@@ -213,9 +215,9 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#2',
         stats,
-        dependencies: [],
+        dependencies: new Map(),
         env: DEFAULT_ENV,
-        connectedFiles: []
+        connectedFiles: new Map()
       })
     ];
 
@@ -252,7 +254,7 @@ describe('AssetGraph', () => {
         type: 'js',
         hash: '#1',
         stats,
-        dependencies: [
+        dependencies: new Map([
           [
             'utils',
             new Dependency({
@@ -261,7 +263,7 @@ describe('AssetGraph', () => {
               sourcePath
             })
           ]
-        ],
+        ]),
         env: DEFAULT_ENV,
         connectedFiles: new Map([
           [
