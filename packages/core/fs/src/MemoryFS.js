@@ -248,11 +248,13 @@ class ReadStream extends Readable {
   fs: FileSystem;
   filePath: FilePath;
   reading: boolean;
+  bytesRead: number;
   constructor(fs: FileSystem, filePath: FilePath) {
     super();
     this.fs = fs;
     this.filePath = filePath;
     this.reading = false;
+    this.bytesRead = 0;
   }
 
   _read() {
@@ -263,6 +265,7 @@ class ReadStream extends Readable {
     this.reading = true;
     this.fs.readFile(this.filePath).then(
       res => {
+        this.bytesRead += res.byteLength;
         this.push(res);
         this.push(null);
       },
@@ -298,6 +301,10 @@ class WriteStream extends Writable {
 
   _final(callback: (error?: Error) => void) {
     this.fs.writeFile(this.filePath, this.buffer, this.options).then(callback);
+  }
+
+  get bytesWritten() {
+    return this.buffer.byteLength;
   }
 }
 
