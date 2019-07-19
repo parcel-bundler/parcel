@@ -226,50 +226,11 @@ export class MemoryFS implements FileSystem {
   }
 
   createReadStream(filePath: FilePath) {
-    let fs = this;
-    let reading = false;
-    class ReadStream extends Readable {
-      _read() {
-        if (reading) {
-          return;
-        }
-
-        reading = true;
-        fs.readFile(filePath).then(
-          res => {
-            this.push(res);
-            this.push(null);
-          },
-          err => {
-            this.emit('error', err);
-          }
-        );
-      }
-    }
-
-    return new ReadStream();
+    return new ReadStream(this, filePath);
   }
 
   createWriteStream(filePath: FilePath, options: ?FileOptions) {
-    let fs = this;
-    let buffer = Buffer.alloc(0);
-    class WriteStream extends Writable {
-      _write(
-        chunk: Buffer | string,
-        encoding: any,
-        callback: (error?: Error) => void
-      ) {
-        let c = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
-        buffer = Buffer.concat([buffer, c]);
-        callback();
-      }
-
-      _final(callback: (error?: Error) => void) {
-        fs.writeFile(filePath, buffer, options).then(callback);
-      }
-    }
-
-    return new WriteStream();
+    return new WriteStream(this, filePath, options);
   }
 
   async realpath(filePath: FilePath) {
@@ -280,6 +241,63 @@ export class MemoryFS implements FileSystem {
   async exists(filePath: FilePath) {
     filePath = this._normalizePath(filePath);
     return this.files.has(filePath) || this.dirs.has(filePath);
+  }
+}
+
+class ReadStream extends Readable {
+  fs: FileSystem;
+  filePath: FilePath;
+  reading: boolean;
+  constructor(fs: FileSystem, filePath: FilePath) {
+    super();
+    this.fs = fs;
+    this.filePath = filePath;
+    this.reading = false;
+  }
+
+  _read() {
+    if (this.reading) {
+      return;
+    }
+
+    this.reading = true;
+    this.fs.readFile(this.filePath).then(
+      res => {
+        this.push(res);
+        this.push(null);
+      },
+      err => {
+        this.emit('error', err);
+      }
+    );
+  }
+}
+
+class WriteStream extends Writable {
+  fs: FileSystem;
+  filePath: FilePath;
+  options: ?FileOptions;
+  buffer: Buffer;
+  constructor(fs: FileSystem, filePath: FilePath, options: ?FileOptions) {
+    super();
+    this.fs = fs;
+    this.filePath = filePath;
+    this.options = options;
+    this.buffer = Buffer.alloc(0);
+  }
+
+  _write(
+    chunk: Buffer | string,
+    encoding: any,
+    callback: (error?: Error) => void
+  ) {
+    let c = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
+    this.buffer = Buffer.concat([this.buffer, c]);
+    callback();
+  }
+
+  _final(callback: (error?: Error) => void) {
+    this.fs.writeFile(this.filePath, this.buffer, this.options).then(callback);
   }
 }
 
