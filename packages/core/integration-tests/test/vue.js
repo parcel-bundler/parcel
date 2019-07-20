@@ -1,7 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle, assertBundleTree, run} = require('@parcel/test-utils');
-const fs = require('@parcel/fs');
+const {bundle, assertBundleTree, run, outputFS} = require('@parcel/test-utils');
 
 describe.skip('vue', function() {
   it('should produce a basic vue bundle', async function() {
@@ -80,7 +79,7 @@ describe.skip('vue', function() {
     assert.deepEqual(output.staticRenderFns, []);
     assert.deepEqual(output.data(), {msg: 'Hello from coffee!'});
 
-    let contents = await fs.readFile(
+    let contents = await outputFS.readFile(
       path.join(__dirname, '/dist/pre-processors.css'),
       'utf8'
     );
@@ -114,7 +113,7 @@ describe.skip('vue', function() {
     output._injectStyles.call(ctx);
     assert.equal(typeof ctx.$style.red, 'string');
 
-    let contents = await fs.readFile(
+    let contents = await outputFS.readFile(
       path.join(__dirname, '/dist/functional.css'),
       'utf8'
     );
@@ -145,7 +144,7 @@ describe.skip('vue', function() {
     assert(/^data-v-[0-9a-h]{6}$/.test(output._scopeId));
     assert.deepEqual(output.data(), {ok: true});
 
-    let contents = await fs.readFile(
+    let contents = await outputFS.readFile(
       path.join(__dirname, '/dist/App.css'),
       'utf8'
     );
@@ -180,7 +179,7 @@ describe.skip('vue', function() {
     output.beforeCreate[0].call(ctx);
     assert.equal(typeof ctx.$style.red, 'string');
 
-    let contents = await fs.readFile(
+    let contents = await outputFS.readFile(
       path.join(__dirname, '/dist/App.css'),
       'utf8'
     );

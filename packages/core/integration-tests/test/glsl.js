@@ -1,6 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const fs = require('@parcel/fs');
+const fs = require('fs');
 const {
   bundle,
   run,
@@ -22,7 +22,7 @@ describe.skip('glsl', function() {
       ]
     });
 
-    let shader = await fs.readFile(
+    let shader = fs.readFileSync(
       path.join(__dirname, '/integration/glsl/compiled.glsl'),
       'utf8'
     );

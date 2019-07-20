@@ -12,7 +12,6 @@
     "parcel": "^2.0.0-alpha.0"
   },
   "dependencies": {
-    "@parcel/fs": "^2.0.0-alpha.0",
     "@parcel/local-require": "^2.0.0-alpha.0",
     "@parcel/plugin": "^2.0.0-alpha.0",
     "@parcel/utils": "^2.0.0-alpha.0"

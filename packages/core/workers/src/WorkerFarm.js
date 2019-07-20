@@ -355,7 +355,7 @@ export default class WorkerFarm extends EventEmitter {
     return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
   }
 
-  static createReverseHandle(fn: () => mixed) {
+  static createReverseHandle(fn: (...args: any[]) => mixed) {
     if (WorkerFarm.isWorker()) {
       throw new Error(
         'Cannot call WorkerFarm.createReverseHandle() from within Worker'

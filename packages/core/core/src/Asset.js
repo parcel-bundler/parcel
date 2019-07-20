@@ -16,6 +16,7 @@ import type {
   Symbol,
   TransformerResult
 } from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 
 import {Readable} from 'stream';
 import crypto from 'crypto';
@@ -35,6 +36,7 @@ type AssetOptions = {|
   hash?: ?string,
   idBase?: string,
   cache: Cache,
+  fs: FileSystem,
   filePath: FilePath,
   type: string,
   content?: Blob,
@@ -57,6 +59,7 @@ export default class Asset {
   id: string;
   hash: ?string;
   idBase: string;
+  fs: FileSystem;
   filePath: FilePath;
   type: string;
   ast: ?AST;
@@ -84,6 +87,7 @@ export default class Asset {
             this.idBase + options.type + JSON.stringify(options.env)
           );
     this.hash = options.hash;
+    this.fs = options.fs;
     this.filePath = options.filePath;
     this.isIsolated = options.isIsolated == null ? false : options.isIsolated;
     this.type = options.type;
@@ -112,6 +116,7 @@ export default class Asset {
     return {
       id: this.id,
       hash: this.hash,
+      fs: this.fs,
       filePath: this.filePath,
       cache: this.cache,
       type: this.type,
@@ -260,7 +265,7 @@ export default class Asset {
 
   async addConnectedFile(file: File) {
     if (file.hash == null) {
-      file.hash = await md5FromFilePath(file.filePath);
+      file.hash = await md5FromFilePath(this.fs, file.filePath);
     }
 
     this.connectedFiles.set(file.filePath, file);
@@ -293,6 +298,7 @@ export default class Asset {
     let asset = new Asset({
       idBase: this.idBase,
       hash,
+      fs: this.fs,
       filePath: this.filePath,
       type: result.type,
       content,
@@ -344,6 +350,7 @@ export default class Asset {
     }
 
     let conf = await loadConfig(
+      this.fs,
       this.filePath,
       filePaths,
       parse == null ? null : {parse}

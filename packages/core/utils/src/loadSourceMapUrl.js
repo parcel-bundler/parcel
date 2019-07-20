@@ -1,11 +1,12 @@
 // @flow
+import type {FileSystem} from '@parcel/fs';
 import path from 'path';
-import {readFile} from '@parcel/fs';
 
 const SOURCEMAP_RE = /(?:\/\*|\/\/)\s*[@#]\s*sourceMappingURL\s*=\s*([^\r\n*]+)(?:\s*\*\/)?/;
 const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
 
 export default async function loadSourceMapUrl(
+  fs: FileSystem,
   filename: string,
   contents: string
 ) {
@@ -21,7 +22,7 @@ export default async function loadSourceMapUrl(
       map: JSON.parse(
         dataURLMatch
           ? Buffer.from(dataURLMatch[1], 'base64').toString()
-          : await readFile(filename, 'utf8')
+          : await fs.readFile(filename, 'utf8')
       )
     };
   }

@@ -4,7 +4,6 @@ import {Transformer} from '@parcel/plugin';
 import localRequire from '@parcel/local-require';
 import {isGlob, glob} from '@parcel/utils';
 import path from 'path';
-import * as fs from '@parcel/fs';
 
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
@@ -131,7 +130,7 @@ async function getDependencies(
         if (!seen.has(resolved)) {
           await asset.addConnectedFile({filePath: resolved});
 
-          let code = await fs.readFile(resolved, 'utf8');
+          let code = await asset.fs.readFile(resolved, 'utf8');
           for (let [path, resolvedPath] of await getDependencies(
             code,
             resolved,

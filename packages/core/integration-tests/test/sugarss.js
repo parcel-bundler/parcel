@@ -1,6 +1,5 @@
 const assert = require('assert');
-const {bundle, assertBundleTree} = require('@parcel/test-utils');
-const fs = require('@parcel/fs');
+const {bundle, assertBundleTree, outputFS} = require('@parcel/test-utils');
 const path = require('path');
 
 describe.skip('sugarss', function() {
@@ -14,7 +13,7 @@ describe.skip('sugarss', function() {
       assets: ['index.sss']
     });
 
-    let cssContent = await fs.readFile(
+    let cssContent = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );

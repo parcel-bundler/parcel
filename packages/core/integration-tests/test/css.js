@@ -1,12 +1,12 @@
 const assert = require('assert');
 const path = require('path');
-const fs = require('@parcel/fs');
 const {
   bundle,
   run,
   assertBundles,
   distDir,
-  removeDistDirectory
+  removeDistDirectory,
+  outputFS
 } = require('@parcel/test-utils');
 
 describe('css', () => {
@@ -54,7 +54,7 @@ describe('css', () => {
       }
     ]);
 
-    let css = await fs.readFile(path.join(distDir, 'a.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, 'a.css'), 'utf8');
     assert.ok(
       css.indexOf('.c {') < css.indexOf('.d {') &&
         css.indexOf('.d {') < css.indexOf('.b {') &&
@@ -110,7 +110,7 @@ describe('css', () => {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(path.join(distDir, '/index.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, '/index.css'), 'utf8');
     assert(css.includes('.local'));
     assert(css.includes('.other'));
     assert(/@media print {\s*.other/.test(css));
@@ -139,7 +139,7 @@ describe('css', () => {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(/url\("\/test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
@@ -149,7 +149,7 @@ describe('css', () => {
     assert(css.includes('.no-quote'));
 
     assert(
-      await fs.exists(
+      await outputFS.exists(
         path.join(distDir, css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1])
       )
     );
@@ -182,7 +182,7 @@ describe('css', () => {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(
       /url\(\/test\.[0-9a-f]+\.woff2\)/.test(css),
       'woff ext found in css'
@@ -195,7 +195,7 @@ describe('css', () => {
     assert(css.includes('.no-quote'));
 
     assert(
-      await fs.exists(
+      await outputFS.exists(
         path.join(distDir, css.match(/url\((\/test\.[0-9a-f]+\.woff2)\)/)[1])
       )
     );
@@ -228,13 +228,16 @@ describe('css', () => {
       }
     ]);
 
-    let css = await fs.readFile(path.join(distDir, 'a', 'style1.css'), 'utf8');
+    let css = await outputFS.readFile(
+      path.join(distDir, 'a', 'style1.css'),
+      'utf8'
+    );
 
     assert(css.includes('background-image'), 'includes `background-image`');
     assert(/url\([^)]*\)/.test(css), 'includes url()');
 
     assert(
-      await fs.exists(path.join(distDir, css.match(/url\(([^)]*)\)/)[1])),
+      await outputFS.exists(path.join(distDir, css.match(/url\(([^)]*)\)/)[1])),
       'path specified in url() exists'
     );
   });
@@ -251,7 +254,7 @@ describe('css', () => {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
 
-    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.local'));
     assert(css.includes('.index'));
 

@@ -1,7 +1,12 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle, bundler, run, assertBundleTree} = require('@parcel/test-utils');
-const fs = require('@parcel/fs');
+const {
+  bundle,
+  bundler,
+  run,
+  assertBundleTree,
+  outputFS
+} = require('@parcel/test-utils');
 const commandExists = require('command-exists');
 
 describe.skip('rust', function() {
@@ -41,7 +46,9 @@ describe.skip('rust', function() {
     assert.equal(res, 5);
 
     // not minified
-    assert((await fs.stat(Array.from(b.childBundles)[0].name)).size > 500);
+    assert(
+      (await outputFS.stat(Array.from(b.childBundles)[0].name)).size > 500
+    );
   });
 
   it('should generate a wasm file from a rust file with rustc with --target=node', async function() {
@@ -74,7 +81,9 @@ describe.skip('rust', function() {
     assert.equal(res, 5);
 
     // not minified
-    assert((await fs.stat(Array.from(b.childBundles)[0].name)).size > 500);
+    assert(
+      (await outputFS.stat(Array.from(b.childBundles)[0].name)).size > 500
+    );
   });
 
   it('should support rust files with dependencies via rustc', async function() {

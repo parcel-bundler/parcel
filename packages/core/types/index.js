@@ -2,6 +2,7 @@
 
 import type {Readable} from 'stream';
 import type SourceMap from '@parcel/source-map';
+import type {FileSystem} from '@parcel/fs';
 
 import type {AST as _AST, Config as _Config} from './unsafe';
 
@@ -161,7 +162,10 @@ export type InitialParcelOptions = {|
   hot?: ServerOptions | false,
   serve?: ServerOptions | false,
   autoinstall?: boolean,
-  logLevel?: LogLevel
+  logLevel?: LogLevel,
+
+  inputFS?: FileSystem,
+  outputFS?: FileSystem
 
   // contentHash
   // throwErrors
@@ -177,7 +181,9 @@ export type ParcelOptions = {|
   rootDir: FilePath,
   targets: Array<Target>,
   projectRoot: FilePath,
-  lockFile: ?FilePath
+  lockFile: ?FilePath,
+  inputFS: FileSystem,
+  outputFS: FileSystem
 |};
 
 export type ServerOptions = {|
@@ -254,6 +260,7 @@ export type AssetRequest = {|
 interface BaseAsset {
   +ast: ?AST;
   +env: Environment;
+  +fs: FileSystem;
   +filePath: FilePath;
   +id: string;
   +meta: Meta;

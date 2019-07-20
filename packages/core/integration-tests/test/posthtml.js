@@ -1,10 +1,10 @@
 const assert = require('assert');
-const fs = require('@parcel/fs');
 const {
   bundle,
   assertBundles,
   removeDistDirectory,
-  distDir
+  distDir,
+  outputFS
 } = require('@parcel/test-utils');
 const path = require('path');
 
@@ -25,7 +25,7 @@ describe('posthtml', function() {
       }
     ]);
 
-    let html = await fs.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
     assert(html.includes('<h1>Other page</h1>'));
   });
 
