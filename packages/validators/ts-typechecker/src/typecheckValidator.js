@@ -5,7 +5,7 @@ import {Validator} from '@parcel/plugin';
 import localRequire from '@parcel/local-require';
 
 import formatDiagnostics from './formatDiagnostics';
-import LanguageServiceHost from './LanguageServiceHost';
+import LanguageServiceHost from './languageServiceHost';
 
 let langServiceCache = {};
 
