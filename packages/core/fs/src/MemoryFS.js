@@ -66,12 +66,12 @@ export class MemoryFS implements FileSystem {
   ) {
     filePath = this._normalizePath(filePath);
     if (this.dirs.has(filePath)) {
-      throw new Error(`EISDIR: ${filePath} is a directory`);
+      throw new FSError('EISDIR', filePath, 'is a directory');
     }
 
     let dir = path.dirname(filePath);
     if (!this.dirs.has(dir)) {
-      throw new Error(`ENOENT: ${dir} does not exist`);
+      throw new FSError('ENOENT', dir, 'does not exist');
     }
 
     // console.log(contents.buffer)
@@ -89,7 +89,7 @@ export class MemoryFS implements FileSystem {
     filePath = this._normalizePath(filePath);
     let file = this.files.get(filePath);
     if (file == null) {
-      throw new Error(`${filePath} does not exist`);
+      throw new FSError('ENOENT', filePath, 'does not exist');
     }
 
     let buffer = file.read();
@@ -115,7 +115,7 @@ export class MemoryFS implements FileSystem {
 
     let file = this.files.get(filePath);
     if (file == null) {
-      throw new Error(`ENOENT: ${filePath} does not exist`);
+      throw new FSError('ENOENT', filePath, 'does not exist');
     }
 
     return file.stat();
@@ -124,7 +124,7 @@ export class MemoryFS implements FileSystem {
   async readdir(dir: FilePath) {
     dir = this._normalizePath(dir);
     if (!this.dirs.has(dir)) {
-      throw new Error(`ENOENT: ${dir} does not exist`);
+      throw new FSError('ENOENT', filePath, 'does not exist');
     }
 
     dir += path.sep;
@@ -146,7 +146,7 @@ export class MemoryFS implements FileSystem {
   async unlink(filePath: FilePath) {
     filePath = this._normalizePath(filePath);
     if (!this.files.has(filePath) && !this.dirs.has(filePath)) {
-      throw new Error(`${filePath} does not exist`);
+      throw new FSError('ENOENT', filePath, 'does not exist');
     }
 
     this.files.delete(filePath);
@@ -160,7 +160,7 @@ export class MemoryFS implements FileSystem {
     }
 
     if (this.files.has(dir)) {
-      throw new Error('ENOTDIR: Not a directory');
+      throw new FSError('ENOENT', dir, 'is not a directory');
     }
 
     let root = path.parse(dir).root;
@@ -244,6 +244,18 @@ export class MemoryFS implements FileSystem {
   }
 }
 
+class FSError extends Error {
+  code: string;
+  path: FilePath;
+  constructor(code: string, path: FilePath, message: string) {
+    super(`${code}: ${path} ${message}`);
+    this.name = 'FSError';
+    this.code = code;
+    this.path = path;
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
 class ReadStream extends Readable {
   fs: FileSystem;
   filePath: FilePath;
@@ -300,7 +312,9 @@ class WriteStream extends Writable {
   }
 
   _final(callback: (error?: Error) => void) {
-    this.fs.writeFile(this.filePath, this.buffer, this.options).then(callback);
+    this.fs
+      .writeFile(this.filePath, this.buffer, this.options)
+      .then(() => callback(), err => callback(err));
   }
 
   get bytesWritten() {
