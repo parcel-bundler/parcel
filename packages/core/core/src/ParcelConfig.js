@@ -96,18 +96,6 @@ export default class ParcelConfig {
     return transformers;
   }
 
-  getValidatorNames(filePath: FilePath): Array<string> {
-    let validators: Pipeline | null = this.matchGlobMapPipelines(
-      filePath,
-      this.validators
-    );
-    if (!validators || validators.length === 0) {
-      throw new Error(`No validators found for "${filePath}".`);
-    }
-
-    return validators;
-  }
-
   async getValidators(filePath: FilePath): Promise<Array<Validator>> {
     let validators: Pipeline | null = this.matchGlobMapPipelines(
       filePath,

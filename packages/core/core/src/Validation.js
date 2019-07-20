@@ -112,7 +112,6 @@ export default class Validation {
     configs.set('parcel', config);
 
     let pipeline = new Pipeline({
-      id: parcelConfig.getValidatorNames(filePath).join(':'),
       validators: await parcelConfig.getValidators(filePath),
       configs,
       options: this.options
@@ -146,7 +145,6 @@ type PipelineOpts = {|
 |};
 
 class Pipeline {
-  id: string;
   validators: Array<Validator>;
   configs: ConfigMap;
   options: ParcelOptions;
@@ -154,8 +152,7 @@ class Pipeline {
   generate: GenerateFunc;
   postProcess: ?PostProcessFunc;
 
-  constructor({id, validators, configs, options}: PipelineOpts) {
-    this.id = id;
+  constructor({validators, configs, options}: PipelineOpts) {
     this.validators = validators;
     this.configs = configs;
     this.options = options;
