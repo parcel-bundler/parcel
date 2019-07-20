@@ -119,26 +119,9 @@ export default class Validation {
 
     return pipeline;
   }
-
-  async loadNextPipeline(
-    filePath: string,
-    nextType: string,
-    currentPipeline: Pipeline
-  ): Promise<?Pipeline> {
-    let nextFilePath =
-      filePath.slice(0, -path.extname(filePath).length) + '.' + nextType;
-    let nextPipeline = await this.loadPipeline(nextFilePath);
-
-    if (nextPipeline.id === currentPipeline.id) {
-      return null;
-    }
-
-    return nextPipeline;
-  }
 }
 
 type PipelineOpts = {|
-  id: string,
   validators: Array<Validator>,
   configs: ConfigMap,
   options: ParcelOptions
