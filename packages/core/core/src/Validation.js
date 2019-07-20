@@ -10,11 +10,11 @@ import type {
   ParcelOptions,
   PackageName
 } from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 
 import path from 'path';
 import {md5FromReadableStream, md5FromString, TapStream} from '@parcel/utils';
 import Cache from '@parcel/cache';
-import {createReadStream} from 'fs';
 
 import type Config from './public/Config';
 import Dependency from './Dependency';
@@ -67,7 +67,7 @@ export default class Validation {
       request: this.request
     });
 
-    this.cache = new Cache(this.options.cacheDir);
+    this.cache = new Cache(this.options.outputFS, this.options.cacheDir);
 
     let asset = await this.loadAsset();
     let pipeline = await this.loadPipeline(asset.filePath);
@@ -76,12 +76,16 @@ export default class Validation {
 
   async loadAsset(): Promise<InternalAsset> {
     let {filePath, env, code, sideEffects} = this.request;
-    let {content, size, hash} = await summarizeRequest(this.request);
+    let {content, size, hash} = await summarizeRequest(
+      this.options.inputFS,
+      this.request
+    );
 
     return new InternalAsset({
       // If the transformer request passed code rather than a filename,
       // use a hash as the base for the id to ensure it is unique.
       idBase: code != null ? hash : filePath,
+      fs: this.options.inputFS,
       filePath: filePath,
       type: path.extname(filePath).slice(1),
       cache: this.cache,
@@ -169,6 +173,7 @@ class Pipeline {
 }
 
 async function summarizeRequest(
+  fs: FileSystem,
   req: AssetRequest
 ): Promise<{|content: Blob, hash: string, size: number|}> {
   let code = req.code;
@@ -184,14 +189,14 @@ async function summarizeRequest(
     content = Buffer.from([]);
     size = 0;
     hash = await md5FromReadableStream(
-      createReadStream(req.filePath).pipe(
+      fs.createReadStream(req.filePath).pipe(
         new TapStream(buf => {
           size += buf.length;
           if (content instanceof Buffer) {
             if (size > BUFFER_LIMIT) {
               // if buffering this content would put this over BUFFER_LIMIT, replace
               // it with a stream
-              content = createReadStream(req.filePath);
+              content = fs.createReadStream(req.filePath);
             } else {
               content = Buffer.concat([content, buf]);
             }
