@@ -124,7 +124,7 @@ export class MemoryFS implements FileSystem {
   async readdir(dir: FilePath) {
     dir = this._normalizePath(dir);
     if (!this.dirs.has(dir)) {
-      throw new FSError('ENOENT', filePath, 'does not exist');
+      throw new FSError('ENOENT', dir, 'does not exist');
     }
 
     dir += path.sep;
