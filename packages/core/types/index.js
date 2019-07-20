@@ -590,19 +590,12 @@ type OptimizingProgressEvent = {|
   bundle: NamedBundle
 |};
 
-type ValidatingProgressEvent = {|
-  type: 'buildProgress',
-  phase: 'validating',
-  request: AssetRequest
-|};
-
 export type BuildProgressEvent =
   | ResolvingProgressEvent
   | TransformingProgressEvent
   | BundlingProgressEvent
   | PackagingProgressEvent
-  | OptimizingProgressEvent
-  | ValidatingProgressEvent;
+  | OptimizingProgressEvent;
 
 export type BuildSuccessEvent = {|
   type: 'buildSuccess',
@@ -619,6 +612,11 @@ export type BuildFailureEvent = {|
 
 export type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
 
+export type ValidationEvent = {|
+  type: 'validation',
+  request: AssetRequest
+|};
+
 export type ReporterEvent =
   | LogEvent
   | BuildStartEvent
@@ -626,7 +624,8 @@ export type ReporterEvent =
   | BuildSuccessEvent
   | BuildFailureEvent
   | WatchStartEvent
-  | WatchEndEvent;
+  | WatchEndEvent
+  | ValidationEvent;
 
 export type Reporter = {|
   report(event: ReporterEvent, opts: ParcelOptions): Async<void>

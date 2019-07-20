@@ -172,3 +172,10 @@ export type TransformationOpts = {|
   parentNodeId: NodeId,
   options: ParcelOptions
 |};
+
+export type ValidationOpts = {|
+  request: AssetRequest,
+  loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
+  parentNodeId: NodeId,
+  options: ParcelOptions
+|};

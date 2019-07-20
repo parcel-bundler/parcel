@@ -29,7 +29,8 @@ import type {
   RequestGraphNode,
   RequestNode,
   SubRequestNode,
-  TransformationOpts
+  TransformationOpts,
+  ValidationOpts
 } from './types';
 
 type RequestGraphOpts = {|
@@ -92,6 +93,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     assets: Array<InternalAsset>,
     configRequests: Array<ConfigRequest>
   }>;
+  runValidate: ValidationOpts => Promise<void>;
   loadConfigHandle: () => Promise<Config>;
   resolverRunner: ResolverRunner;
   configLoader: ConfigLoader;
@@ -134,6 +136,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     // AssetGraphBuilder, which avoids needing to pass the options through here.
     this.farm = await WorkerFarm.getShared();
     this.runTransform = this.farm.createHandle('runTransform');
+    this.runValidate = this.farm.createHandle('runValidate');
     this.loadConfigHandle = WorkerFarm.createReverseHandle(
       this.loadConfig.bind(this)
     );
@@ -226,6 +229,13 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       let start = Date.now();
       let request = requestNode.value;
       let {assets, configRequests} = await this.runTransform({
+        request,
+        loadConfig: this.loadConfigHandle,
+        parentNodeId: requestNode.id,
+        options: this.options
+      });
+
+      await this.runValidate({
         request,
         loadConfig: this.loadConfigHandle,
         parentNodeId: requestNode.id,
