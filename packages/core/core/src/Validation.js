@@ -60,6 +60,8 @@ export default class Validation {
   }
 
   async run(): Promise<void> {
+    if (this.request.filePath.includes('node_modules')) return;
+
     report({
       type: 'validation',
       request: this.request
