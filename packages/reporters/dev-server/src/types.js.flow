@@ -1,5 +1,6 @@
 // @flow
 import type {ServerOptions} from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 import {
   IncomingMessage as HTTPIncomingMessage,
   ServerResponse as HTTPServerResponse,
@@ -25,5 +26,7 @@ export type DevServerOptions = {|
   projectRoot: string,
   distDir: string,
   publicUrl: string,
-  cacheDir: string
+  cacheDir: string,
+  inputFS: FileSystem,
+  outputFS: FileSystem
 |};

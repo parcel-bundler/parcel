@@ -9,7 +9,6 @@ import type {
   AssetRequest
 } from '@parcel/types';
 import path from 'path';
-import * as fs from '@parcel/fs';
 import {isGlob} from '@parcel/utils';
 import micromatch from 'micromatch';
 import builtins from './builtins';
@@ -134,7 +133,7 @@ class NodeResolver {
   }
 
   async resolveModule(filename, parent, isURL) {
-    let dir = parent ? path.dirname(parent) : process.cwd();
+    let dir = parent ? path.dirname(parent) : this.options.inputFS.cwd();
 
     // If this isn't the entrypoint, resolve the input file to an absolute path
     if (parent) {
@@ -191,7 +190,9 @@ class NodeResolver {
           dir !== this.options.projectRoot &&
           path.basename(path.dirname(dir)) !== 'node_modules' &&
           (insideNodeModules ||
-            !(await fs.exists(path.join(dir, 'package.json'))))
+            !(await this.options.inputFS.exists(
+              path.join(dir, 'package.json')
+            )))
         ) {
           dir = path.dirname(dir);
 
@@ -252,7 +253,7 @@ class NodeResolver {
       try {
         // First, check if the module directory exists. This prevents a lot of unnecessary checks later.
         let moduleDir = path.join(dir, 'node_modules', parts[0]);
-        let stats = await fs.stat(moduleDir);
+        let stats = await this.options.inputFS.stat(moduleDir);
         if (stats.isDirectory()) {
           return {
             moduleName: parts[0],
@@ -291,7 +292,7 @@ class NodeResolver {
 
   async isFile(file) {
     try {
-      let stat = await fs.stat(file);
+      let stat = await this.options.inputFS.stat(file);
       return stat.isFile() || stat.isFIFO();
     } catch (err) {
       return false;
@@ -334,7 +335,7 @@ class NodeResolver {
       return cached;
     }
 
-    let json = await fs.readFile(file, 'utf8');
+    let json = await this.options.inputFS.readFile(file, 'utf8');
     let pkg = JSON.parse(json);
 
     pkg.pkgfile = file;
@@ -343,7 +344,7 @@ class NodeResolver {
     // If the package has a `source` field, check if it is behind a symlink.
     // If so, we treat the module as source code rather than a pre-compiled module.
     if (pkg.source) {
-      let realpath = await fs.realpath(file);
+      let realpath = await this.options.inputFS.realpath(file);
       if (realpath === file) {
         delete pkg.source;
       }

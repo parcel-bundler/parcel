@@ -1,10 +1,19 @@
 // @flow
 
-import type {ChildImpl, MessageHandler, ExitHandler} from '../types';
+import type {
+  ChildImpl,
+  MessageHandler,
+  ExitHandler,
+  WorkerMessage
+} from '../types';
 import {isMainThread, parentPort} from 'worker_threads';
 import nullthrows from 'nullthrows';
 import {setChild} from '../childState';
 import {Child} from '../child';
+import {
+  prepareForSerialization,
+  restoreDeserializedObject
+} from '@parcel/utils';
 
 export default class ThreadsChild implements ChildImpl {
   onMessage: MessageHandler;
@@ -17,12 +26,16 @@ export default class ThreadsChild implements ChildImpl {
 
     this.onMessage = onMessage;
     this.onExit = onExit;
-    parentPort.on('message', data => this.onMessage(Buffer.from(data.buffer)));
+    parentPort.on('message', data => this.handleMessage(data));
     parentPort.on('close', this.onExit);
   }
 
-  send(data: Buffer) {
-    nullthrows(parentPort).postMessage(data, [data.buffer]);
+  handleMessage(data: WorkerMessage) {
+    this.onMessage(restoreDeserializedObject(data));
+  }
+
+  send(data: WorkerMessage) {
+    nullthrows(parentPort).postMessage(prepareForSerialization(data));
   }
 }
 

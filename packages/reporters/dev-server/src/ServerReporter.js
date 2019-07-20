@@ -25,7 +25,9 @@ export default new Reporter({
           distDir: target.distDir,
           // Override the target's publicUrl as that is likely meant for production.
           // This could be configurable in the future.
-          publicUrl: serve.publicUrl ?? '/'
+          publicUrl: serve.publicUrl ?? '/',
+          inputFS: options.inputFS,
+          outputFS: options.outputFS
         };
 
         server = new Server(serverOptions);

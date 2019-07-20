@@ -1,7 +1,12 @@
 import assert from 'assert';
 import path from 'path';
-import * as fs from '@parcel/fs';
-import {bundle, run, assertBundles, distDir} from '@parcel/test-utils';
+import {
+  bundle,
+  run,
+  assertBundles,
+  distDir,
+  outputFS
+} from '@parcel/test-utils';
 import {readFileSync} from 'fs';
 
 const configPath = path.join(
@@ -112,7 +117,7 @@ describe('typescript', function() {
       let output = await run(b);
       assert.equal(typeof output.getRaw, 'function');
       assert(/^\/test\.[0-9a-f]+\.txt$/.test(output.getRaw()));
-      assert(await fs.exists(path.join(distDir, output.getRaw())));
+      assert(await outputFS.exists(path.join(distDir, output.getRaw())));
     });
 
     it('should minify with minify enabled', async function() {
@@ -135,7 +140,7 @@ describe('typescript', function() {
       assert.equal(typeof output.count, 'function');
       assert.equal(output.count(), 3);
 
-      let js = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+      let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
       assert(!js.includes('local.a'));
     });
 
@@ -145,7 +150,10 @@ describe('typescript', function() {
         {config}
       );
 
-      let file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+      let file = await outputFS.readFile(
+        path.join(distDir, 'index.js'),
+        'utf8'
+      );
       assert(file.includes('React.createElement("div"'));
     });
 

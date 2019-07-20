@@ -1,11 +1,12 @@
 const assert = require('assert');
-const fs = require('@parcel/fs');
 const {
   bundle,
   assertBundles,
   assertBundleTree,
   removeDistDirectory,
-  distDir
+  distDir,
+  inputFS,
+  outputFS
 } = require('@parcel/test-utils');
 const path = require('path');
 
@@ -44,8 +45,8 @@ describe('html', function() {
       }
     ]);
 
-    let files = await fs.readdir(distDir);
-    let html = await fs.readFile(path.join(distDir, 'index.html'));
+    let files = await outputFS.readdir(distDir);
+    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
     for (let file of files) {
       let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {
@@ -91,7 +92,7 @@ describe('html', function() {
       }
     ]);
 
-    let html = await fs.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
     assert(
       /<link rel="stylesheet" href="[/\\]{1}html-css\.[a-f0-9]+\.css">/.test(
         html
@@ -129,7 +130,7 @@ describe('html', function() {
       ]
     });
 
-    let html = await fs.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
     assert(
       /<html>\s*<link rel="stylesheet" href="[/\\]{1}html-css-head\.[a-f0-9]+\.css">\s*<body>/.test(
         html
@@ -175,7 +176,7 @@ describe('html', function() {
       ]
     });
 
-    let html = await fs.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
     assert(/<script src="[/\\]{1}html-css-js\.[a-f0-9]+\.js">/.test(html));
   });
 
@@ -213,7 +214,7 @@ describe('html', function() {
       ]
     });
 
-    let html = await fs.readFile(path.join(distDir, 'index.html'));
+    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
     assert(
       /<\/script>\s*<link rel="stylesheet" href="[/\\]{1}html-css-optional-elements\.[a-f0-9]+\.css"><h1>Hello/.test(
         html
@@ -227,14 +228,14 @@ describe('html', function() {
       production: true
     });
 
-    let inputSize = (await fs.stat(inputFile)).size;
+    let inputSize = (await inputFS.stat(inputFile)).size;
 
     let outputFile = path.join(__dirname, '/dist/index.html');
-    let outputSize = (await fs.stat(outputFile)).size;
+    let outputSize = (await outputFS.stat(outputFile)).size;
 
     assert(inputSize > outputSize);
 
-    let html = await fs.readFile(outputFile, 'utf8');
+    let html = await outputFS.readFile(outputFile, 'utf8');
     assert(html.includes('Other page'));
   });
 
@@ -245,7 +246,7 @@ describe('html', function() {
     });
 
     let outputFile = path.join(distDir, 'index.html');
-    let html = await fs.readFile(outputFile, 'utf8');
+    let html = await outputFS.readFile(outputFile, 'utf8');
     assert.equal(html.length, 0);
   });
 
@@ -257,7 +258,7 @@ describe('html', function() {
       }
     );
 
-    let html = await fs.readFile(
+    let html = await outputFS.readFile(
       path.join(__dirname, '/dist/index.html'),
       'utf8'
     );
@@ -291,21 +292,24 @@ describe('html', function() {
       production: true
     });
 
-    let inputSize = (await fs.stat(inputFile)).size;
+    let inputSize = (await inputFS.stat(inputFile)).size;
 
     let outputFile = path.join(__dirname, '/dist/index.html');
-    let outputSize = (await fs.stat(outputFile)).size;
+    let outputSize = (await outputFS.stat(outputFile)).size;
 
     assert(inputSize > outputSize);
 
-    let html = await fs.readFile(outputFile, 'utf8');
+    let html = await outputFS.readFile(outputFile, 'utf8');
     assert(html.includes('<input type="text">'));
   });
 
   it('should not prepend the public path to assets with remote URLs', async function() {
     await bundle(path.join(__dirname, '/integration/html/index.html'));
 
-    let html = await fs.readFile(path.join(distDir, 'index.html'), 'utf8');
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8'
+    );
     assert(
       html.includes('<script src="https://unpkg.com/parcel-bundler"></script>')
     );
@@ -314,7 +318,10 @@ describe('html', function() {
   it('should not prepend the public path to hash links', async function() {
     await bundle(path.join(__dirname, '/integration/html/index.html'));
 
-    let html = await fs.readFile(path.join(distDir, 'index.html'), 'utf8');
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8'
+    );
     assert(html.includes('<a href="#hash_link">'));
   });
 
@@ -338,11 +345,11 @@ describe('html', function() {
   it('should not update root/main file in the bundles', async function() {
     await bundle(path.join(__dirname, '/integration/html-root/index.html'));
 
-    let files = await fs.readdir(distDir);
+    let files = await outputFS.readdir(distDir);
 
     for (let file of files) {
       if (file !== 'index.html' && file.endsWith('.html')) {
-        let html = await fs.readFile(path.join(distDir, file), 'utf8');
+        let html = await outputFS.readFile(path.join(distDir, file), 'utf8');
         assert(html.includes('index.html'));
       }
     }
@@ -353,7 +360,10 @@ describe('html', function() {
       production: true
     });
 
-    let html = await fs.readFile(path.join(distDir, 'index.html'), 'utf8');
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8'
+    );
     assert(/<i>hello<\/i> <i>world<\/i>/.test(html));
   });
 
@@ -522,7 +532,9 @@ describe('html', function() {
       ]
     });
 
-    const html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
+    const html = await outputFS.readFile(
+      path.join(__dirname, '/dist/index.html')
+    );
     assert(html.includes('<link rel="manifest" href="/manifest.webmanifest">'));
   });
 
@@ -602,7 +614,7 @@ describe('html', function() {
       }
     );
 
-    const bundleContent = (await fs.readFile(b.filePath)).toString();
+    const bundleContent = (await outputFS.readFile(b.filePath)).toString();
     assert(!bundleContent.includes('someArgument'));
   });
 
@@ -641,7 +653,7 @@ describe('html', function() {
       assets: ['index.html']
     });
 
-    let html = await fs.readFile(
+    let html = await outputFS.readFile(
       path.join(__dirname, '/dist/index.html'),
       'utf8'
     );
@@ -660,7 +672,7 @@ describe('html', function() {
       assets: ['index.html']
     });
 
-    let html = await fs.readFile(
+    let html = await outputFS.readFile(
       path.join(__dirname, '/dist/index.html'),
       'utf8'
     );
@@ -685,7 +697,7 @@ describe('html', function() {
       ]
     });
 
-    let html = await fs.readFile(
+    let html = await outputFS.readFile(
       path.join(__dirname, '/dist/index.html'),
       'utf8'
     );

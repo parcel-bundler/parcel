@@ -50,7 +50,14 @@ function shallowCopy(object: any) {
   return object;
 }
 
-function mapObject(object: any, fn: (val: any) => any, preOrder = false) {
+function isBuffer(object) {
+  return (
+    object.buffer instanceof ArrayBuffer ||
+    object.buffer instanceof SharedArrayBuffer
+  );
+}
+
+function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
   let cache = new Map();
   let memo = new Map();
 
@@ -120,7 +127,7 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false) {
       for (let [key, val] of object.entries()) {
         processKey(key, val);
       }
-    } else {
+    } else if (!isBuffer(object)) {
       for (let key in object) {
         processKey(key, object[key]);
       }
@@ -133,8 +140,8 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false) {
   return walk(mapped, mapped === object);
 }
 
-export function serialize(object: any): Buffer {
-  let mapped = mapObject(
+export function prepareForSerialization(object: any) {
+  return mapObject(
     object,
     value => {
       // Add a $$type property with the name of this class, if any is registered.
@@ -162,15 +169,10 @@ export function serialize(object: any): Buffer {
     },
     true
   );
-
-  // $FlowFixMe - flow doesn't know about this method yet
-  return v8.serialize(mapped);
 }
 
-export function deserialize(buffer: Buffer): any {
-  // $FlowFixMe - flow doesn't know about this method yet
-  let obj = v8.deserialize(buffer);
-  return mapObject(obj, value => {
+export function restoreDeserializedObject(object: any) {
+  return mapObject(object, value => {
     // If the value has a $$type property, use it to restore the object type
     if (value && value.$$type) {
       let ctor = nameToCtor.get(value.$$type);
@@ -192,4 +194,16 @@ export function deserialize(buffer: Buffer): any {
 
     return value;
   });
+}
+
+export function serialize(object: any): Buffer {
+  let mapped = prepareForSerialization(object);
+  // $FlowFixMe - flow doesn't know about this method yet
+  return v8.serialize(mapped);
+}
+
+export function deserialize(buffer: Buffer): any {
+  // $FlowFixMe - flow doesn't know about this method yet
+  let obj = v8.deserialize(buffer);
+  return restoreDeserializedObject(obj);
 }

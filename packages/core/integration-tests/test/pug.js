@@ -1,7 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const fs = require('@parcel/fs');
-const {bundle, assertBundleTree} = require('@parcel/test-utils');
+const {bundle, assertBundleTree, outputFS} = require('@parcel/test-utils');
 
 describe.skip('pug', function() {
   it('should support bundling HTML', async function() {
@@ -42,8 +41,10 @@ describe.skip('pug', function() {
       ]
     });
 
-    const files = await fs.readdir(path.join(__dirname, '/dist'));
-    const html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
+    const files = await outputFS.readdir(path.join(__dirname, '/dist'));
+    const html = await outputFS.readFile(
+      path.join(__dirname, '/dist/index.html')
+    );
     for (const file of files) {
       const ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {
@@ -62,7 +63,7 @@ describe.skip('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = await fs.readFile(
+    const html = await outputFS.readFile(
       path.join(__dirname, '/dist/index.html'),
       'utf-8'
     );
@@ -81,7 +82,7 @@ describe.skip('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = await fs.readFile(
+    const html = await outputFS.readFile(
       path.join(__dirname, '/dist/index.html'),
       'utf-8'
     );
@@ -99,7 +100,7 @@ describe.skip('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = await fs.readFile(
+    const html = await outputFS.readFile(
       path.join(__dirname, '/dist/index.html'),
       'utf-8'
     );
@@ -116,7 +117,7 @@ describe.skip('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = await fs.readFile(
+    const html = await outputFS.readFile(
       path.join(__dirname, '/dist/index.html'),
       'utf-8'
     );
@@ -136,7 +137,7 @@ describe.skip('pug', function() {
       assets: ['index.pug']
     });
 
-    const html = await fs.readFile(
+    const html = await outputFS.readFile(
       path.join(__dirname, '/dist/index.html'),
       'utf-8'
     );

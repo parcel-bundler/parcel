@@ -7,10 +7,11 @@ import Asset from '../src/Asset';
 import Environment from '../src/Environment';
 import tempy from 'tempy';
 import Cache, {createCacheDir} from '@parcel/cache';
+import {inputFS as fs, outputFS} from '@parcel/test-utils';
 
 let cacheDir = tempy.directory();
-createCacheDir(cacheDir);
-let cache = new Cache(cacheDir);
+createCacheDir(outputFS, cacheDir);
+let cache = new Cache(outputFS, cacheDir);
 
 const DEFAULT_ENV = new Environment({
   context: 'browser',
@@ -124,6 +125,7 @@ describe('AssetGraph', () => {
     let assets = [
       new Asset({
         id: '1',
+        fs,
         filePath,
         cache,
         type: 'js',
@@ -144,6 +146,7 @@ describe('AssetGraph', () => {
       }),
       new Asset({
         id: '2',
+        fs,
         filePath,
         type: 'js',
         cache,
@@ -164,6 +167,7 @@ describe('AssetGraph', () => {
       }),
       new Asset({
         id: '3',
+        fs,
         filePath,
         cache,
         type: 'js',
@@ -190,6 +194,7 @@ describe('AssetGraph', () => {
     let assets2 = [
       new Asset({
         id: '1',
+        fs,
         filePath,
         cache,
         type: 'js',
@@ -210,6 +215,7 @@ describe('AssetGraph', () => {
       }),
       new Asset({
         id: '2',
+        fs,
         filePath,
         cache,
         type: 'js',
@@ -249,6 +255,7 @@ describe('AssetGraph', () => {
     let assets = [
       new Asset({
         id: '1',
+        fs,
         filePath,
         cache,
         type: 'js',

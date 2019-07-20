@@ -1,17 +1,21 @@
 // @flow
+import type {FileSystem} from '@parcel/fs';
 import forge from 'node-forge';
-import {mkdirp, exists, readFile, writeFile} from '@parcel/fs';
 import path from 'path';
 import logger from '@parcel/logger';
 
-export default async function generateCertificate(cacheDir: string) {
+export default async function generateCertificate(
+  fs: FileSystem,
+  cacheDir: string
+) {
   let certDirectory = cacheDir;
 
   const privateKeyPath = path.join(certDirectory, 'private.pem');
   const certPath = path.join(certDirectory, 'primary.crt');
   const cachedKey =
-    (await exists(privateKeyPath)) && (await readFile(privateKeyPath));
-  const cachedCert = (await exists(certPath)) && (await readFile(certPath));
+    (await fs.exists(privateKeyPath)) && (await fs.readFile(privateKeyPath));
+  const cachedCert =
+    (await fs.exists(certPath)) && (await fs.readFile(certPath));
 
   if (cachedKey && cachedCert) {
     return {
@@ -115,9 +119,9 @@ export default async function generateCertificate(cacheDir: string) {
   const privPem = pki.privateKeyToPem(keys.privateKey);
   const certPem = pki.certificateToPem(cert);
 
-  await mkdirp(certDirectory);
-  await writeFile(privateKeyPath, privPem);
-  await writeFile(certPath, certPem);
+  await fs.mkdirp(certDirectory);
+  await fs.writeFile(privateKeyPath, privPem);
+  await fs.writeFile(certPath, certPem);
 
   return {
     key: privPem,

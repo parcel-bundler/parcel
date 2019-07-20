@@ -1,7 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const fs = require('@parcel/fs');
-const {bundle, run, assertBundleTree} = require('@parcel/test-utils');
+const {bundle, run, assertBundleTree, outputFS} = require('@parcel/test-utils');
 
 describe.skip('less', function() {
   it('should support requiring less files', async function() {
@@ -30,7 +29,7 @@ describe.skip('less', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
+    let css = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
@@ -65,7 +64,7 @@ describe.skip('less', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
+    let css = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
@@ -101,7 +100,7 @@ describe.skip('less', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
+    let css = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
@@ -137,7 +136,7 @@ describe.skip('less', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
+    let css = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
@@ -181,7 +180,7 @@ describe.skip('less', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await fs.readFile(
+    let css = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );
@@ -190,7 +189,7 @@ describe.skip('less', function() {
     assert(css.includes('.index'));
 
     assert(
-      await fs.exists(
+      await outputFS.exists(
         path.join(
           __dirname,
           '/dist/',
@@ -228,7 +227,7 @@ describe.skip('less', function() {
     assert.equal(typeof output, 'function');
     assert(output().startsWith('_index_'));
 
-    let css = await fs.readFile(
+    let css = await outputFS.readFile(
       path.join(__dirname, '/dist/index.css'),
       'utf8'
     );

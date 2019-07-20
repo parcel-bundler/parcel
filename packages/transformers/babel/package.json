@@ -19,7 +19,6 @@
     "@babel/plugin-transform-typescript": "^7.4.5",
     "@babel/preset-env": "^7.0.0",
     "@babel/traverse": "^7.0.0",
-    "@parcel/fs": "^2.0.0-alpha.0",
     "@parcel/install-package": "^2.0.0-alpha.0",
     "@parcel/local-require": "^2.0.0-alpha.0",
     "@parcel/logger": "^2.0.0-alpha.0",

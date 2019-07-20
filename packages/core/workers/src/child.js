@@ -9,14 +9,13 @@ import type {
   WorkerResponse,
   ChildImpl
 } from './types';
-
 import type {IDisposable} from '@parcel/types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {inspect} from 'util';
 import Logger from '@parcel/logger';
-import {errorToJson, jsonToError, serialize, deserialize} from '@parcel/utils';
+import {errorToJson, jsonToError} from '@parcel/utils';
 import bus from './bus';
 
 type ChildCall = WorkerRequest & {|
@@ -50,8 +49,7 @@ export class Child {
     });
   }
 
-  messageListener(data: Buffer): void | Promise<void> {
-    let message: WorkerMessage = deserialize(data);
+  messageListener(message: WorkerMessage): void | Promise<void> {
     if (message.type === 'response') {
       return this.handleResponse(message);
     } else if (message.type === 'request') {
@@ -60,7 +58,7 @@ export class Child {
   }
 
   async send(data: WorkerMessage): Promise<void> {
-    this.child.send(serialize(data));
+    this.child.send(data);
   }
 
   childInit(module: string, childId: number): void {

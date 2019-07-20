@@ -5,7 +5,6 @@ import getEnvConfig from './env';
 import getJSXConfig from './jsx';
 import getFlowConfig from './flow';
 import path from 'path';
-import * as fs from '@parcel/fs';
 
 const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
@@ -18,7 +17,7 @@ export default async function getBabelConfig(asset: MutableAsset) {
     !!(
       pkg &&
       pkg.source &&
-      (await fs.realpath(asset.filePath)) !== asset.filePath
+      (await asset.fs.realpath(asset.filePath)) !== asset.filePath
     ) || !asset.filePath.includes(NODE_MODULES);
 
   // Try to resolve a .babelrc file. If one is found, consider the module source code.

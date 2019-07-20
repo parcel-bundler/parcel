@@ -1,7 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const fs = require('@parcel/fs');
-const {bundle, assertBundleTree} = require('@parcel/test-utils');
+const {bundle, assertBundleTree, outputFS} = require('@parcel/test-utils');
 
 describe.skip('markdown', function() {
   it('should support bundling Markdown', async function() {
@@ -21,8 +20,10 @@ describe.skip('markdown', function() {
       ]
     });
 
-    let files = await fs.readdir(path.join(__dirname, '/dist'));
-    let html = await fs.readFile(path.join(__dirname, '/dist/index.html'));
+    let files = await outputFS.readdir(path.join(__dirname, '/dist'));
+    let html = await outputFS.readFile(
+      path.join(__dirname, '/dist/index.html')
+    );
     for (let file of files) {
       let ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {

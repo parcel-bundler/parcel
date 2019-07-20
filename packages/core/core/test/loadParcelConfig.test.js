@@ -15,6 +15,7 @@ import {
   readAndProcess,
   resolve
 } from '../src/loadParcelConfig';
+import {inputFS as fs} from '@parcel/test-utils';
 
 describe('loadParcelConfig', () => {
   describe('validatePackageName', () => {
@@ -373,6 +374,7 @@ describe('loadParcelConfig', () => {
   describe('resolveExtends', () => {
     it('should resolve a relative path', async () => {
       let resolved = await resolveExtends(
+        fs,
         '../.parcelrc',
         path.join(__dirname, 'fixtures', 'config', 'subfolder', '.parcelrc')
       );
@@ -384,6 +386,7 @@ describe('loadParcelConfig', () => {
 
     it('should resolve a package name', async () => {
       let resolved = await resolveExtends(
+        fs,
         '@parcel/config-default',
         path.join(__dirname, 'fixtures', 'config', 'subfolder', '.parcelrc')
       );
@@ -396,6 +399,7 @@ describe('loadParcelConfig', () => {
       let defaultConfig = require('@parcel/config-default');
       // $FlowFixMe
       let {config} = await readAndProcess(
+        fs,
         path.join(__dirname, 'fixtures', 'config', 'subfolder', '.parcelrc'),
         __dirname
       );
@@ -417,12 +421,13 @@ describe('loadParcelConfig', () => {
 
   describe('resolve', () => {
     it('should return null if there is no .parcelrc file found', async () => {
-      let resolved = await resolve(__dirname);
+      let resolved = await resolve(fs, __dirname);
       assert.equal(resolved, null);
     });
 
     it('should resolve a config if a .parcelrc file is found', async () => {
       let resolved = await resolve(
+        fs,
         path.join(__dirname, 'fixtures', 'config', 'subfolder')
       );
 

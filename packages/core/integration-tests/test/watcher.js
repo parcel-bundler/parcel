@@ -1,5 +1,4 @@
 const assert = require('assert');
-const fs = require('@parcel/fs');
 const nodeFS = require('fs');
 const path = require('path');
 const {
@@ -8,7 +7,8 @@ const {
   run,
   assertBundleTree,
   nextBundle,
-  ncp
+  ncp,
+  inputFS: fs
 } = require('@parcel/test-utils');
 const {sleep} = require('@parcel/test-utils');
 const {symlinkPrivilegeWarning} = require('@parcel/test-utils');
@@ -58,6 +58,7 @@ describe('watcher', function() {
     let configPath = path.join(inputDir, '.parcelrc');
 
     let b = bundler(path.join(inputDir, 'index.js'), {
+      outputFS: fs,
       targets: {
         main: {
           engines: {

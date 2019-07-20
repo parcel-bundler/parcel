@@ -3,7 +3,6 @@
 import type {
   BuildEvent,
   BundleGraph,
-  Bundle,
   FilePath,
   InitialParcelOptions
 } from '@parcel/types';
@@ -13,23 +12,24 @@ import Parcel from '@parcel/core';
 import defaultConfigContents from '@parcel/config-default';
 import assert from 'assert';
 import vm from 'vm';
-import * as fs from '@parcel/fs';
-import nodeFS from 'fs';
+import {NodeFS, MemoryFS} from '@parcel/fs';
 import path from 'path';
 import WebSocket from 'ws';
-// $FlowFixMe
-import Module from 'module';
 import nullthrows from 'nullthrows';
 
-import {promisify} from '@parcel/utils';
+import {promisify, syncPromise} from '@parcel/utils';
 import _ncp from 'ncp';
 import _chalk from 'chalk';
+import resolve from 'resolve';
 
+export const inputFS = new NodeFS();
+export const outputFS = new MemoryFS();
 export const ncp = promisify(_ncp);
 
-const defaultConfig = {
+export const defaultConfig = {
   ...defaultConfigContents,
-  filePath: require.resolve('@parcel/config-default')
+  filePath: require.resolve('@parcel/config-default'),
+  reporters: []
 };
 
 const chalk = new _chalk.constructor({enabled: true});
@@ -55,19 +55,8 @@ export const distDir = path.resolve(
   'dist'
 );
 
-export async function removeDistDirectory(count: number = 0) {
-  try {
-    await fs.rimraf(distDir);
-  } catch (e) {
-    if (count > 8) {
-      // eslint-disable-next-line no-console
-      console.warn('WARNING: Unable to remove dist directory:', e.message);
-      return;
-    }
-
-    await sleep(250);
-    await removeDistDirectory(count + 1);
-  }
+export async function removeDistDirectory() {
+  await outputFS.rimraf(distDir);
 }
 
 export function symlinkPrivilegeWarning() {
@@ -91,6 +80,8 @@ export function bundler(
     logLevel: 'none',
     killWorkers: false,
     defaultConfig,
+    inputFS,
+    outputFS,
     ...opts
   });
 }
@@ -145,15 +136,15 @@ export async function run(
   var ctx;
   switch (target) {
     case 'browser':
-      ctx = prepareBrowserContext(bundle, globals);
+      ctx = prepareBrowserContext(nullthrows(bundle.filePath), globals);
       break;
     case 'node':
-      ctx = prepareNodeContext(bundle, globals);
+      ctx = prepareNodeContext(nullthrows(bundle.filePath), globals);
       break;
     case 'electron':
       ctx = Object.assign(
-        prepareBrowserContext(bundle, globals),
-        prepareNodeContext(bundle, globals)
+        prepareBrowserContext(nullthrows(bundle.filePath), globals),
+        prepareNodeContext(nullthrows(bundle.filePath), globals)
       );
       break;
     default:
@@ -161,7 +152,10 @@ export async function run(
   }
 
   vm.createContext(ctx);
-  vm.runInContext(await fs.readFile(nullthrows(bundle.filePath), 'utf8'), ctx);
+  vm.runInContext(
+    await outputFS.readFile(nullthrows(bundle.filePath), 'utf8'),
+    ctx
+  );
 
   if (opts.require !== false) {
     if (ctx.parcelRequire) {
@@ -250,8 +244,7 @@ export function normaliseNewlines(text: string): string {
   return text.replace(/(\r\n|\n|\r)/g, '\n');
 }
 
-function prepareBrowserContext(bundle: Bundle, globals: mixed): vm$Context {
-  let filePath = nullthrows(bundle.filePath);
+function prepareBrowserContext(filePath: FilePath, globals: mixed): vm$Context {
   // for testing dynamic imports
   const fakeElement = {
     remove() {}
@@ -269,9 +262,11 @@ function prepareBrowserContext(bundle: Bundle, globals: mixed): vm$Context {
             setTimeout(function() {
               if (el.tag === 'script') {
                 vm.runInContext(
-                  nodeFS.readFileSync(
-                    path.join(path.dirname(filePath), el.src),
-                    'utf8'
+                  syncPromise(
+                    outputFS.readFile(
+                      path.join(path.dirname(filePath), el.src),
+                      'utf8'
+                    )
                   ),
                   ctx
                 );
@@ -306,19 +301,15 @@ function prepareBrowserContext(bundle: Bundle, globals: mixed): vm$Context {
       location: {hostname: 'localhost'},
       fetch(url) {
         return Promise.resolve({
-          arrayBuffer() {
-            return Promise.resolve(
-              new Uint8Array(
-                nodeFS.readFileSync(path.join(path.dirname(filePath), url))
-              ).buffer
-            );
+          async arrayBuffer() {
+            return new Uint8Array(
+              await outputFS.readFile(path.join(path.dirname(filePath), url))
+            ).buffer;
           },
-          text() {
-            return Promise.resolve(
-              nodeFS.readFileSync(
-                path.join(path.dirname(filePath), url),
-                'utf8'
-              )
+          async text() {
+            return outputFS.readFile(
+              path.join(path.dirname(filePath), url),
+              'utf8'
             );
           }
         });
@@ -331,20 +322,72 @@ function prepareBrowserContext(bundle: Bundle, globals: mixed): vm$Context {
   return ctx;
 }
 
-function prepareNodeContext(bundle, globals) {
-  let filePath = nullthrows(bundle.filePath);
-  var mod = new Module(filePath);
-  mod.paths = [path.dirname(filePath) + '/node_modules'];
+const nodeCache = {};
+function prepareNodeContext(filePath, globals) {
+  let exports = {};
+  let req = specifier => {
+    // $FlowFixMe
+    let res = resolve.sync(specifier, {
+      basedir: path.dirname(filePath),
+      preserveSymlinks: true,
+      extensions: ['.js', '.json'],
+      readFileSync: (...args) => {
+        return syncPromise(outputFS.readFile(...args));
+      },
+      isFile: file => {
+        try {
+          var stat = syncPromise(outputFS.stat(file));
+        } catch (err) {
+          return false;
+        }
+        return stat.isFile();
+      },
+      isDirectory: file => {
+        try {
+          var stat = syncPromise(outputFS.stat(file));
+        } catch (err) {
+          return false;
+        }
+        return stat.isDirectory();
+      }
+    });
+
+    // Shim FS module using outputFS
+    if (res === 'fs') {
+      return {
+        readFile: async (file, encoding, cb) => {
+          let res = await outputFS.readFile(file, encoding);
+          cb(null, res);
+        },
+        readFileSync: (file, encoding) => {
+          return syncPromise(outputFS.readFile(file, encoding));
+        }
+      };
+    }
+
+    if (res === specifier) {
+      return require(specifier);
+    }
+
+    if (nodeCache[res]) {
+      return nodeCache[res].module.exports;
+    }
+
+    let ctx = prepareNodeContext(res, globals);
+    nodeCache[res] = ctx;
+
+    vm.createContext(ctx);
+    vm.runInContext(syncPromise(outputFS.readFile(res, 'utf8')), ctx);
+    return ctx.module.exports;
+  };
 
   var ctx = Object.assign(
     {
-      module: mod,
-      exports: module.exports,
+      module: {exports, require: req},
+      exports,
       __filename: filePath,
       __dirname: path.dirname(filePath),
-      require: function(path) {
-        return mod.require(path);
-      },
+      require: req,
       console,
       process: process,
       setTimeout: setTimeout,

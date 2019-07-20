@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@parcel/utils": "^2.0.0-alpha.0",
-    "@parcel/fs": "^2.0.0-alpha.0",
-    "source-map": "^0.7.3"
+    "source-map": "^0.7.3",
+    "nullthrows": "^1.1.1"
   },
   "devDependencies": {
     "clone": "^2.1.1"

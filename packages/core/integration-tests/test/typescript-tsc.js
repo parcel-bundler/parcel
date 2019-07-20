@@ -1,7 +1,6 @@
 import assert from 'assert';
 import path from 'path';
-import * as fs from '@parcel/fs';
-import {bundle, run, distDir} from '@parcel/test-utils';
+import {bundle, run, distDir, outputFS} from '@parcel/test-utils';
 import {readFileSync} from 'fs';
 
 const configPath = path.join(
@@ -24,7 +23,7 @@ describe('typescript', function() {
     let output = await run(b);
     assert.equal(output, 2);
 
-    let js = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!js.includes('/* test comment */'));
   });
 });

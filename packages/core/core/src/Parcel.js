@@ -23,7 +23,6 @@ import {BundleGraph} from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
-import clone from 'clone';
 import watcher from '@parcel/watcher';
 import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
@@ -59,7 +58,7 @@ export default class Parcel {
   #watcherCount = 0; // number
 
   constructor(options: InitialParcelOptions) {
-    this.#initialOptions = clone(options);
+    this.#initialOptions = options;
   }
 
   async init(): Promise<void> {
@@ -71,10 +70,10 @@ export default class Parcel {
       this.#initialOptions
     );
     this.#resolvedOptions = resolvedOptions;
-    await createCacheDir(resolvedOptions.cacheDir);
+    await createCacheDir(resolvedOptions.outputFS, resolvedOptions.cacheDir);
 
     let {config} = await loadParcelConfig(
-      path.join(process.cwd(), 'index'),
+      path.join(resolvedOptions.inputFS.cwd(), 'index'),
       resolvedOptions
     );
     this.#config = config;

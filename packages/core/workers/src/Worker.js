@@ -5,7 +5,6 @@ import type {WorkerMessage, WorkerImpl, BackendType} from './types';
 
 import EventEmitter from 'events';
 import {jsonToError} from '@parcel/utils';
-import {serialize, deserialize} from '@parcel/utils';
 import {getWorkerBackend} from './backend';
 
 export type WorkerCall = {|
@@ -85,7 +84,7 @@ export default class Worker extends EventEmitter {
   }
 
   send(data: WorkerMessage): void {
-    this.worker.send(serialize(data));
+    this.worker.send(data);
   }
 
   call(call: WorkerCall): void {
@@ -105,12 +104,11 @@ export default class Worker extends EventEmitter {
     });
   }
 
-  receive(data: Buffer): void {
+  receive(message: WorkerMessage): void {
     if (this.stopped || this.isStopping) {
       return;
     }
 
-    let message: WorkerMessage = deserialize(data);
     if (message.type === 'request') {
       this.emit('request', message);
     } else if (message.type === 'response') {
