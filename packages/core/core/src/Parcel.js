@@ -204,6 +204,8 @@ export default class Parcel {
       };
       this.#reporterRunner.report(event);
 
+      await this.#assetGraphBuilder.validate();
+
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {

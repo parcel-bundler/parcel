@@ -100,6 +100,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   onAssetRequestComplete: (AssetRequestNode, Array<InternalAsset>) => mixed;
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed;
   queue: PromiseQueue;
+  validationQueue: PromiseQueue;
   farm: WorkerFarm;
   config: ParcelConfig;
   options: ParcelOptions;
@@ -116,6 +117,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     super(graphOpts);
     this.options = options;
     this.queue = new PromiseQueue();
+    this.validationQueue = new PromiseQueue();
     this.globNodes = [];
     this.depVersionRequestNodes = [];
     this.onAssetRequestComplete = onAssetRequestComplete;
@@ -140,6 +142,14 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     this.loadConfigHandle = WorkerFarm.createReverseHandle(
       this.loadConfig.bind(this)
     );
+  }
+
+  async completeValidations() {
+    if (!this.farm) {
+      await this.initFarm();
+    }
+
+    await this.validationQueue.run();
   }
 
   async completeRequests() {
@@ -190,6 +200,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
             return result;
           })
         );
+
+        this.validationQueue.add(() => this.validate(requestNode));
+
         break;
       case 'dep_path_request':
         promise = this.queue.add(() =>
@@ -224,18 +237,24 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     }
   }
 
+  async validate(requestNode: AssetRequestNode) {
+    try {
+      await this.runValidate({
+        request: requestNode.value,
+        loadConfig: this.loadConfigHandle,
+        parentNodeId: requestNode.id,
+        options: this.options
+      });
+    } catch (e) {
+      throw e;
+    }
+  }
+
   async transform(requestNode: AssetRequestNode) {
     try {
       let start = Date.now();
       let request = requestNode.value;
       let {assets, configRequests} = await this.runTransform({
-        request,
-        loadConfig: this.loadConfigHandle,
-        parentNodeId: requestNode.id,
-        options: this.options
-      });
-
-      await this.runValidate({
         request,
         loadConfig: this.loadConfigHandle,
         parentNodeId: requestNode.id,
