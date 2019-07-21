@@ -26,7 +26,7 @@ import {
   loadConfig,
   md5FromFilePath,
   md5FromString,
-  readableFromStringOrBuffer,
+  blobToStream,
   TapStream
 } from '@parcel/utils';
 import Dependency from './Dependency';
@@ -209,11 +209,7 @@ export default class Asset {
       this.content = this.cache.getStream(this.contentKey);
     }
 
-    if (this.content instanceof Readable) {
-      return this.content;
-    }
-
-    return readableFromStringOrBuffer(this.content);
+    return blobToStream(this.content);
   }
 
   setCode(code: string) {
@@ -230,10 +226,7 @@ export default class Asset {
 
   async getMap(): Promise<?SourceMap> {
     if (this.mapKey != null) {
-      let cached = await this.cache.get(this.mapKey);
-      if (cached != null) {
-        this.map = SourceMap.deserialize(cached);
-      }
+      this.map = await this.cache.get(this.mapKey);
     }
 
     return this.map;

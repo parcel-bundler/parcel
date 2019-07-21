@@ -24,7 +24,6 @@ import type {
   ConfigRequestNode,
   DepPathRequestNode,
   DepVersionRequestNode,
-  GlobNode,
   NodeId,
   RequestGraphNode,
   RequestNode,
@@ -38,6 +37,12 @@ type RequestGraphOpts = {|
   options: ParcelOptions,
   onAssetRequestComplete: (AssetRequestNode, Array<InternalAsset>) => mixed,
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed
+|};
+
+type SerializedRequestGraph = {|
+  ...GraphOpts<RequestGraphNode>,
+  globNodeIds: Set<NodeId>,
+  depVersionRequestNodeIds: Set<NodeId>
 |};
 
 const hashObject = obj => {
@@ -87,7 +92,7 @@ const nodeFromGlob = (glob: Glob) => ({
 export default class RequestGraph extends Graph<RequestGraphNode> {
   // $FlowFixMe
   inProgress: Map<NodeId, Promise<any>> = new Map();
-  invalidNodes: Map<NodeId, RequestNode> = new Map();
+  invalidNodeIds: Set<NodeId> = new Set();
   runTransform: TransformationOpts => Promise<{
     assets: Array<InternalAsset>,
     configRequests: Array<ConfigRequest>
@@ -101,25 +106,37 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   farm: WorkerFarm;
   config: ParcelConfig;
   options: ParcelOptions;
-  globNodes: Array<GlobNode>;
-  depVersionRequestNodes: Array<DepVersionRequestNode>;
+  globNodeIds: Set<NodeId> = new Set();
+  depVersionRequestNodeIds: Set<NodeId> = new Set();
 
-  constructor({
+  // $FlowFixMe
+  static deserialize(opts: SerializedRequestGraph) {
+    let deserialized = new RequestGraph(opts);
+    deserialized.globNodeIds = opts.globNodeIds;
+    deserialized.depVersionRequestNodeIds = opts.depVersionRequestNodeIds;
+    return deserialized;
+  }
+
+  // $FlowFixMe
+  serialize(): SerializedRequestGraph {
+    return {
+      ...super.serialize(),
+      globNodeIds: this.globNodeIds,
+      depVersionRequestNodeIds: this.depVersionRequestNodeIds
+    };
+  }
+
+  initOptions({
     onAssetRequestComplete,
     onDepPathRequestComplete,
     config,
-    options,
-    ...graphOpts
+    options
   }: RequestGraphOpts) {
-    super(graphOpts);
     this.options = options;
     this.queue = new PromiseQueue();
-    this.globNodes = [];
-    this.depVersionRequestNodes = [];
     this.onAssetRequestComplete = onAssetRequestComplete;
     this.onDepPathRequestComplete = onDepPathRequestComplete;
     this.config = config;
-    this.options = options;
 
     this.resolverRunner = new ResolverRunner({
       config,
@@ -144,7 +161,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       await this.initFarm();
     }
 
-    for (let [, node] of this.invalidNodes) {
+    for (let id of this.invalidNodeIds) {
+      let node = nullthrows(this.getNode(id));
       this.processNode(node);
     }
 
@@ -154,11 +172,20 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   addNode(node: RequestGraphNode) {
     this.processNode(node);
     if (node.type === 'glob') {
-      this.globNodes.push(node);
+      this.globNodeIds.add(node.id);
     } else if (node.type === 'dep_version_request') {
-      this.depVersionRequestNodes.push(node);
+      this.depVersionRequestNodeIds.add(node.id);
     }
     return super.addNode(node);
+  }
+
+  removeNode(node: RequestGraphNode) {
+    if (node.type === 'glob') {
+      this.globNodeIds.delete(node.id);
+    } else if (node.type === 'dep_version_request') {
+      this.depVersionRequestNodeIds.delete(node.id);
+    }
+    return super.removeNode(node);
   }
 
   addDepPathRequest(dep: Dependency) {
@@ -211,7 +238,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         this.inProgress.set(requestNode.id, promise);
         await promise;
         // ? Should these be updated before it comes off the queue?
-        this.invalidNodes.delete(requestNode.id);
+        this.invalidNodeIds.delete(requestNode.id);
         this.inProgress.delete(requestNode.id);
       } catch (e) {
         // Do nothing
@@ -408,13 +435,13 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     switch (node.type) {
       case 'asset_request':
       case 'dep_path_request':
-        this.invalidNodes.set(node.id, node);
+        this.invalidNodeIds.add(node.id);
         break;
       case 'config_request':
       case 'dep_version_request': {
-        this.invalidNodes.set(node.id, node);
+        this.invalidNodeIds.add(node.id);
         let mainRequestNode = nullthrows(this.getMainRequestNode(node));
-        this.invalidNodes.set(mainRequestNode.id, mainRequestNode);
+        this.invalidNodeIds.add(mainRequestNode.id);
         break;
       }
       default:
@@ -437,7 +464,13 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   respondToFSEvents(events: Array<Event>) {
     for (let {path, type} of events) {
       if (path === this.options.lockFile) {
-        for (let depVersionRequestNode of this.depVersionRequestNodes) {
+        for (let id of this.depVersionRequestNodeIds) {
+          let depVersionRequestNode = this.getNode(id);
+          invariant(
+            depVersionRequestNode &&
+              depVersionRequestNode.type === 'dep_version_request'
+          );
+
           this.invalidateNode(depVersionRequestNode);
         }
       }
@@ -461,7 +494,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
           }
         }
       } else if (type === 'create') {
-        for (let globNode of this.globNodes) {
+        for (let id of this.globNodeIds) {
+          let globNode = this.getNode(id);
+          invariant(globNode && globNode.type === 'glob');
+
           if (isMatch(path, globNode.value)) {
             let connectedNodes = this.getNodesConnectedTo(globNode);
             for (let connectedNode of connectedNodes) {
@@ -486,6 +522,6 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   isInvalid() {
-    return this.invalidNodes.size > 0;
+    return this.invalidNodeIds.size > 0;
   }
 }
