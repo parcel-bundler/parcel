@@ -51,7 +51,7 @@ describe('AssetGraphBuilder', () => {
       .config;
 
     builder = new AssetGraphBuilder();
-    builder.init({
+    await builder.init({
       options: DEFAULT_OPTIONS,
       config,
       entries: ['./module-b'],
