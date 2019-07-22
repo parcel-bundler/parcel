@@ -228,13 +228,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
         : outboundEdges
     );
     for (let toNode of toNodes) {
-      let existingNode = this.getNode(toNode.id);
-      if (!existingNode) {
-        this.addNode(toNode);
-      } else {
-        existingNode.value = toNode.value;
-      }
-
+      this.addNode(toNode);
       childrenToRemove.delete(toNode.id);
 
       if (!this.hasEdge(fromNode.id, toNode.id, type)) {

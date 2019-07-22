@@ -2,12 +2,11 @@
 import type {FileSystem} from './types';
 import type {FilePath} from '@parcel/types';
 
-import {promisify} from 'util';
 import fs from 'fs';
 import ncp from 'ncp';
 import mkdirp from 'mkdirp';
 import rimraf from 'rimraf';
-import {registerSerializableClass} from '@parcel/utils';
+import {registerSerializableClass, promisify} from '@parcel/utils';
 import packageJSON from '../package.json';
 
 // Most of this can go away once we only support Node 10+, which includes

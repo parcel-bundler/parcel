@@ -46,6 +46,10 @@ export default class ParcelConfig {
     this.pluginCache = new Map();
   }
 
+  static deserialize(config: ResolvedParcelConfigFile) {
+    return new ParcelConfig(config);
+  }
+
   serialize(): ResolvedParcelConfigFile {
     return {
       filePath: this.filePath,
@@ -61,7 +65,14 @@ export default class ParcelConfig {
   }
 
   async loadPlugin(pluginName: PackageName) {
-    return loadPlugin(pluginName, this.filePath);
+    let plugin = this.pluginCache.get(pluginName);
+    if (plugin) {
+      return plugin;
+    }
+
+    plugin = loadPlugin(pluginName, this.filePath);
+    this.pluginCache.set(pluginName, plugin);
+    return plugin;
   }
 
   async loadPlugins(plugins: Pipeline) {
@@ -121,7 +132,7 @@ export default class ParcelConfig {
     return this.loadPlugins(runtimes);
   }
 
-  async getPackager(filePath: FilePath): Promise<Packager> {
+  getPackagerName(filePath: FilePath): string {
     let packagerName: ?PackageName = this.matchGlobMap(
       filePath,
       this.packagers
@@ -129,16 +140,28 @@ export default class ParcelConfig {
     if (!packagerName) {
       throw new Error(`No packager found for "${filePath}".`);
     }
+    return packagerName;
+  }
 
+  async getPackager(filePath: FilePath): Promise<Packager> {
+    let packagerName = this.getPackagerName(filePath);
     return this.loadPlugin(packagerName);
   }
 
-  async getOptimizers(filePath: FilePath): Promise<Array<Optimizer>> {
+  getOptimizerNames(filePath: FilePath): Array<string> {
     let optimizers: ?Pipeline = this.matchGlobMapPipelines(
       filePath,
       this.optimizers
     );
     if (!optimizers) {
+      return [];
+    }
+    return optimizers;
+  }
+
+  async getOptimizers(filePath: FilePath): Promise<Array<Optimizer>> {
+    let optimizers = this.getOptimizerNames(filePath);
+    if (optimizers.length === 0) {
       return [];
     }
 

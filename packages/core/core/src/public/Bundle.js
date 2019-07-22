@@ -142,6 +142,10 @@ export class Bundle implements IBundle {
 
     return result;
   }
+
+  getHash(): string {
+    return this.#bundle.assetGraph.getHash();
+  }
 }
 
 export class MutableBundle extends Bundle implements IMutableBundle {
