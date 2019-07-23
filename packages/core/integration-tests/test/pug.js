@@ -123,6 +123,24 @@ describe('pug', function() {
     assert(html.includes('FILTERED: Hello!'));
   });
 
+  it('should support post-processing with PostHTML', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/pug-posthtml/index.pug')
+    );
+
+    await assertBundleTree(b, {
+      name: 'index.html',
+      assets: ['index.pug']
+    });
+
+    const html = await fs.readFile(
+      path.join(__dirname, '/dist/index.html'),
+      'utf-8'
+    );
+    assert(html.includes(`I'm included!`));
+    assert(!html.includes('<include src="included.html"></include>'));
+  });
+
   it('should minify HTML in production mode', async function() {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-minify/index.pug'),

@@ -2861,10 +2861,29 @@ charenc@~0.0.1:
   resolved "https://registry.yarnpkg.com/charenc/-/charenc-0.0.2.tgz#c0a1d2f3a7092e03774bfa83f14c0fc5790a8667"
   integrity sha1-wKHS86cJLgN3S/qD8UwPxXkKhmc=
 
-chokidar@^2.0.0, chokidar@^2.0.3, chokidar@^2.0.4:
+chokidar@^2.0.0, chokidar@^2.0.4:
   version "2.1.5"
   resolved "https://registry.yarnpkg.com/chokidar/-/chokidar-2.1.5.tgz#0ae8434d962281a5f56c72869e79cb6d9d86ad4d"
   integrity sha512-i0TprVWp+Kj4WRPtInjexJ8Q+BqTE909VpH8xVhXrJkoc5QC8VO9TryGOqTr+2hljzc1sC62t22h5tZePodM/A==
+  dependencies:
+    anymatch "^2.0.0"
+    async-each "^1.0.1"
+    braces "^2.3.2"
+    glob-parent "^3.1.0"
+    inherits "^2.0.3"
+    is-binary-path "^1.0.0"
+    is-glob "^4.0.0"
+    normalize-path "^3.0.0"
+    path-is-absolute "^1.0.0"
+    readdirp "^2.2.1"
+    upath "^1.1.1"
+  optionalDependencies:
+    fsevents "^1.2.7"
+
+chokidar@^2.1.5:
+  version "2.1.6"
+  resolved "https://registry.yarnpkg.com/chokidar/-/chokidar-2.1.6.tgz#b6cad653a929e244ce8a834244164d241fa954c5"
+  integrity sha512-V2jUo67OKkc6ySiRpJrjlpJKl9kDuG+Xb8VgsGzb+aEouhgS1D0weyPU4lEzdAcsCAvrih2J2BqyXqHWvVLw5g==
   dependencies:
     anymatch "^2.0.0"
     async-each "^1.0.1"
@@ -3931,10 +3950,10 @@ dot-prop@^4.1.1, dot-prop@^4.2.0:
   dependencies:
     is-obj "^1.0.0"
 
-dotenv-expand@^4.2.0:
-  version "4.2.0"
-  resolved "https://registry.yarnpkg.com/dotenv-expand/-/dotenv-expand-4.2.0.tgz#def1f1ca5d6059d24a766e587942c21106ce1275"
-  integrity sha1-3vHxyl1gWdJKdm5YeULCEQbOEnU=
+dotenv-expand@^5.1.0:
+  version "5.1.0"
+  resolved "https://registry.yarnpkg.com/dotenv-expand/-/dotenv-expand-5.1.0.tgz#3fbaf020bfd794884072ea26b1e9791d45a629f0"
+  integrity sha512-YXQl1DSa4/PQyRfgrv6aoNjhasp/p4qs9FjJ4q4cQk+8m4r6k4ZSiEyytKG8f8W9gi8WsQtIObNmKd+tMzNTmA==
 
 dotenv@^5.0.0:
   version "5.0.1"
@@ -4049,6 +4068,11 @@ entities@^1.1.1:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/entities/-/entities-1.1.2.tgz#bdfa735299664dfafd34529ed4f8522a275fea56"
   integrity sha512-f2LZMYl1Fzu7YSBKg+RoROelpOaNrcGmE9AZubeDfrCEia483oW4MI4VyFd5VNHIgQ/7qm1I0wUHK1eJnn2y2w==
+
+envinfo@^7.3.1:
+  version "7.3.1"
+  resolved "https://registry.yarnpkg.com/envinfo/-/envinfo-7.3.1.tgz#892e42f7bf858b3446d9414ad240dbaf8da52f09"
+  integrity sha512-GvXiDTqLYrORVSCuJCsWHPXF5BFvoWMQA9xX4YVjPT1jyS3aZEHUBwjzxU/6LTPF9ReHgVEbX7IEN5UvSXHw/A==
 
 err-code@^1.0.0:
   version "1.1.2"

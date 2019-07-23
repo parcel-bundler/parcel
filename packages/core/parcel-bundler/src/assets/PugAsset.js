@@ -1,20 +1,19 @@
 const path = require('path');
-const Asset = require('../Asset');
+const HTMLAsset = require('./HTMLAsset');
 const localRequire = require('../utils/localRequire');
 
-class PugAsset extends Asset {
+class PugAsset extends HTMLAsset {
   constructor(name, options) {
     super(name, options);
-    this.type = 'html';
-    this.hmrPageReload = true;
+    this.pugDependencies = [];
   }
 
-  async generate() {
+  async parse(code) {
     const pug = await localRequire('pug', this.name);
     const config =
       (await this.getConfig(['.pugrc', '.pugrc.js', 'pug.config.js'])) || {};
 
-    const compiled = pug.compile(this.contents, {
+    const compiled = pug.compile(code, {
       compileDebug: false,
       filename: this.name,
       basedir: path.dirname(this.name),
@@ -26,14 +25,21 @@ class PugAsset extends Asset {
     });
 
     if (compiled.dependencies) {
-      for (let item of compiled.dependencies) {
-        this.addDependency(item, {
-          includedInParent: true
-        });
-      }
+      this.pugDependencies = compiled.dependencies;
     }
 
-    return compiled(config.locals);
+    // Process the HTML output of the Pug file as if it was an HTML file
+    return super.parse(compiled(config.locals));
+  }
+
+  collectDependencies() {
+    for (const item of this.pugDependencies) {
+      this.addDependency(item, {
+        includedInParent: true
+      });
+    }
+
+    super.collectDependencies();
   }
 }
 
