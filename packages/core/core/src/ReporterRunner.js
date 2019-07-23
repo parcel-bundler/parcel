@@ -31,7 +31,7 @@ export default class ReporterRunner {
       } else {
         this.report({
           ...event,
-          bundle: new NamedBundle(event.bundle)
+          bundle: new NamedBundle(event.bundle, event.bundleGraph)
         });
       }
     });

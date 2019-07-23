@@ -227,7 +227,7 @@ function shouldExcludeAsset(
   );
 }
 
-function findRequires(bundle: Bundle, asset: Asset, ast) {
+function findRequires(bundle: Bundle, asset: Asset, ast): Array<Asset> {
   let result = [];
   walk.simple(ast, {
     CallExpression(node) {
@@ -243,7 +243,7 @@ function findRequires(bundle: Bundle, asset: Asset, ast) {
         if (!dep) {
           throw new Error(`Could not find dep for "${args[1].value}`);
         }
-        result.push(bundle.getDependencyResolution(dep));
+        result.push(nullthrows(bundle.getDependencyResolution(dep)));
       }
     }
   });

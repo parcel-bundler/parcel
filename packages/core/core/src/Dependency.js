@@ -3,11 +3,11 @@ import type {
   DependencyOptions,
   Dependency as IDependency,
   Environment as IEnvironment,
+  FilePath,
   SourceLocation,
   Meta,
   Target,
   ModuleSpecifier,
-  FilePath,
   Symbol
 } from '@parcel/types';
 import {md5FromString} from '@parcel/utils';
@@ -16,7 +16,8 @@ type DependencyOpts = {|
   ...DependencyOptions,
   env: IEnvironment,
   id?: string,
-  sourcePath?: FilePath
+  sourcePath?: string,
+  sourceAssetId?: string
 |};
 
 export default class Dependency implements IDependency {
@@ -31,6 +32,7 @@ export default class Dependency implements IDependency {
   env: IEnvironment;
   meta: Meta;
   target: ?Target;
+  sourceAssetId: ?string;
   sourcePath: ?FilePath;
   symbols: Map<Symbol, Symbol>;
 
@@ -45,12 +47,15 @@ export default class Dependency implements IDependency {
     this.meta = opts.meta || {};
     this.target = opts.target;
     this.env = opts.env;
-    this.sourcePath = opts.sourcePath || ''; // TODO: get from graph?
+    this.sourceAssetId = opts.sourceAssetId;
+    this.sourcePath = opts.sourcePath;
     this.symbols = opts.symbols || new Map();
     this.id =
       opts.id ||
       md5FromString(
-        `${this.sourcePath}:${this.moduleSpecifier}:${JSON.stringify(this.env)}`
+        `${this.sourceAssetId ?? ''}:${this.moduleSpecifier}:${JSON.stringify(
+          this.env
+        )}`
       );
   }
 

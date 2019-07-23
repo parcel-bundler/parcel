@@ -1,5 +1,6 @@
 // @flow strict-local
 
+import invariant from 'assert';
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
@@ -43,24 +44,33 @@ export default new Packager({
     let map = new SourceMap();
     let lineOffset = countLines(PRELUDE);
 
+    let stubsWritten = new Set();
     bundle.traverse(node => {
-      if (node.type !== 'asset' && node.type !== 'asset_reference') {
-        return;
-      }
-
-      let asset = node.value;
-      if (node.type === 'asset_reference' && asset.type === 'js') {
-        // if this is a reference to another javascript asset, we should not include
-        // its output, as its contents should already be loaded.
-        return;
-      }
-
       let wrapped = first ? '' : ',';
-      if (node.type === 'asset_reference') {
-        wrapped +=
-          JSON.stringify(asset.id) +
-          ':[function(require,module,exports) {},{}]';
-      } else {
+
+      if (node.type === 'dependency') {
+        let resolved = bundleGraph.getDependencyResolution(node.value);
+        if (
+          resolved &&
+          resolved.type !== 'js' &&
+          !stubsWritten.has(resolved.id)
+        ) {
+          // if this is a reference to another javascript asset, we should not include
+          // its output, as its contents should already be loaded.
+          invariant(!bundle.hasAsset(resolved));
+          wrapped += JSON.stringify(resolved.id) + ':[function() {},{}]';
+        } else {
+          return;
+        }
+      }
+
+      if (node.type === 'asset') {
+        let asset = node.value;
+        invariant(
+          asset.type === 'js',
+          'all assets in a js bundle must be js assets'
+        );
+
         let deps = {};
         let dependencies = bundle.getDependencies(asset);
         for (let dep of dependencies) {
@@ -92,16 +102,11 @@ export default new Packager({
           map.addMap(assetMap, lineOffset);
           lineOffset += countLines(output) + 1;
         }
-
         i++;
       }
 
       assets += wrapped;
       first = false;
-
-      if (node.type === 'asset_reference') {
-        return;
-      }
     });
 
     let entryAsset = bundle.getEntryAssets()[0];

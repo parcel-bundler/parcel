@@ -245,6 +245,7 @@ export default class Asset {
     let dep = new Dependency({
       ...rest,
       env: this.env.merge(env),
+      sourceAssetId: this.id,
       sourcePath: this.filePath
     });
     let existing = this.dependencies.get(dep.id);
@@ -300,7 +301,8 @@ export default class Asset {
       map: result.map,
       isIsolated: result.isIsolated,
       env: this.env.merge(result.env),
-      dependencies: new Map(this.dependencies),
+      dependencies:
+        this.type === result.type ? new Map(this.dependencies) : new Map(),
       connectedFiles: new Map(this.connectedFiles),
       meta: {...this.meta, ...result.meta},
       stats: {

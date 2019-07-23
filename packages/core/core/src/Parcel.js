@@ -11,7 +11,7 @@ import type {
   ParcelOptions,
   Stats
 } from '@parcel/types';
-import type {Bundle} from './types';
+import type {Bundle as IBundle} from './types';
 import type InternalBundleGraph from './BundleGraph';
 import type ParcelConfig from './ParcelConfig';
 
@@ -19,7 +19,7 @@ import invariant from 'assert';
 import Dependency from './Dependency';
 import Environment from './Environment';
 import {Asset} from './public/Asset';
-import {BundleGraph} from './public/BundleGraph';
+import BundleGraph from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
@@ -28,7 +28,6 @@ import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
 import loadParcelConfig from './loadParcelConfig';
 import ReporterRunner from './ReporterRunner';
-import MainAssetGraph from './public/MainAssetGraph';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
@@ -49,7 +48,7 @@ export default class Parcel {
   #initialOptions; // InitialParcelOptions;
   #reporterRunner; // ReporterRunner
   #resolvedOptions = null; // ?ParcelOptions
-  #runPackage; // (bundle: Bundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
+  #runPackage; // (bundle: IBundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
   #watchEvents = new ValueEmitter<
     | {+error: Error, +buildEvent?: void}
     | {+buildEvent: BuildEvent, +error?: void}
@@ -124,7 +123,7 @@ export default class Parcel {
     }
 
     if (result.type === 'buildFailure') {
-      throw new BuildError(result.error);
+      throw result.error;
     }
 
     return result.bundleGraph;
@@ -188,21 +187,20 @@ export default class Parcel {
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
-      dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
+      dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
-      await packageBundles(
+      await packageBundles({
         bundleGraph,
-        this.#config,
-        nullthrows(this.#resolvedOptions),
-        this.#runPackage
-      );
+        config: this.#config,
+        options: nullthrows(this.#resolvedOptions),
+        runPackage: this.#runPackage
+      });
 
       let event = {
         type: 'buildSuccess',
         changedAssets: new Map(
           Array.from(changedAssets).map(([id, asset]) => [id, new Asset(asset)])
         ),
-        assetGraph: new MainAssetGraph(assetGraph),
         bundleGraph: new BundleGraph(bundleGraph),
         buildTime: Date.now() - startTime
       };
@@ -299,25 +297,30 @@ export default class Parcel {
   }
 }
 
-function packageBundles(
+async function packageBundles({
+  bundleGraph,
+  config,
+  options,
+  runPackage
+}: {
   bundleGraph: InternalBundleGraph,
   config: ParcelConfig,
   options: ParcelOptions,
   runPackage: ({
-    bundle: Bundle,
+    bundle: IBundle,
     bundleGraph: InternalBundleGraph,
     config: ParcelConfig,
     options: ParcelOptions
   }) => Promise<Stats>
-): Promise<mixed> {
+}): Promise<mixed> {
   let promises = [];
-  bundleGraph.traverseBundles(bundle => {
+  for (let bundle of bundleGraph.getBundles()) {
     promises.push(
       runPackage({bundle, bundleGraph, config, options}).then(stats => {
         bundle.stats = stats;
       })
     );
-  });
+  }
 
   return Promise.all(promises);
 }

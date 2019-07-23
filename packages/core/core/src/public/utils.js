@@ -2,7 +2,6 @@
 
 import type {
   Asset as IAsset,
-  BundleGroup,
   GraphTraversalCallback,
   GraphVisitor
 } from '@parcel/types';
@@ -12,17 +11,12 @@ import type AssetGraph from '../AssetGraph';
 import {Asset} from './Asset';
 import invariant from 'assert';
 
-export const getBundleGroupId = (bundleGroup: BundleGroup) =>
-  'bundle_group:' + bundleGroup.entryAssetId;
-
 export function getInternalAsset(
   assetGraph: AssetGraph,
   publicAsset: IAsset
 ): InternalAsset {
   let node = assetGraph.getNode(publicAsset.id);
-  invariant(
-    node != null && (node.type === 'asset' || node.type === 'asset_reference')
-  );
+  invariant(node != null && node.type === 'asset');
   return node.value;
 }
 

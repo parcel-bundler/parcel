@@ -37,41 +37,6 @@ export default new Runtime({
     let loaders = LOADERS[bundle.env.context];
 
     let assets = [];
-    bundle.traverseAssets(asset => {
-      let dependencies = bundle.getDependencies(asset);
-      for (let dependency of dependencies) {
-        let resolvedAsset = bundle.getDependencyResolution(dependency);
-        if (resolvedAsset && resolvedAsset.type !== 'js') {
-          // "raw asset"-style fallback
-          // if this dependency doesn't resolve to a js asset, it's an asset reference
-          // of a different type. If there isn't a loader for it, replace it with
-          // a js asset that exports a relative url (using publicURL) to the bundle
-          // it's located in.
-          let assetBundle = bundleGraph.findBundlesWithAsset(resolvedAsset)[0];
-          let hasLoader = loaders && loaders[assetBundle.type];
-          if (!hasLoader) {
-            if (assetBundle.target == null) {
-              throw new Error('JSRuntime: Bundle did not have a target');
-            }
-            if (assetBundle.target.publicUrl == null) {
-              throw new Error(
-                'JSRuntime: Bundle target did not have a publicUrl'
-              );
-            }
-
-            assets.push({
-              filePath: resolvedAsset.filePath + '.js',
-              code: `module.exports = '${urlJoin(
-                assetBundle.target.publicUrl,
-                nullthrows(assetBundle.name)
-              )}'`,
-              dependency
-            });
-          }
-        }
-      }
-    });
-
     if (!loaders) {
       return assets;
     }
@@ -103,8 +68,7 @@ export default new Runtime({
           }
 
           return `[require(${JSON.stringify(loader)}), ${JSON.stringify(
-            // $FlowFixMe - bundle.filePath already exists here
-            path.relative(path.dirname(bundle.filePath), b.filePath)
+            path.relative(path.dirname(bundle.filePath), nullthrows(b.filePath))
           )}]`;
         })
         .filter(Boolean);
@@ -117,6 +81,28 @@ export default new Runtime({
           )}, ${JSON.stringify(bundleGroup.entryAssetId)}]);`,
           dependency: bundleGroup.dependency
         });
+      } else {
+        for (let bundle of bundles) {
+          let filePath = bundle.getEntryAssets()[0].filePath;
+          if (bundle.target == null) {
+            throw new Error('JSRuntime: Bundle did not have a target');
+          }
+
+          if (bundle.target.publicUrl == null) {
+            throw new Error(
+              'JSRuntime: Bundle target did not have a publicUrl'
+            );
+          }
+
+          assets.push({
+            filePath: filePath + '.js',
+            code: `module.exports = '${urlJoin(
+              bundle.target.publicUrl,
+              nullthrows(bundle.name)
+            )}'`,
+            dependency: bundleGroup.dependency
+          });
+        }
       }
     }
 
