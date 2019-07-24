@@ -233,7 +233,7 @@ export default class BundlerRunner {
       let entryIsReference = false;
       for (let [asset, dependency] of duplicated) {
         bundleGraph.createAssetReference(dependency, asset);
-        bundleGraph.removeAssetTreeFromBundle(asset, bundle);
+        bundleGraph.removeAssetGraphFromBundle(asset, bundle);
 
         if (entry.id === asset.id) {
           entryIsReference = true;

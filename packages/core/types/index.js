@@ -416,7 +416,7 @@ export interface BundlerBundleGraph {
 }
 
 export interface BundlerOptimizeBundleGraph extends BundlerBundleGraph {
-  addAssetTreeToBundle(Asset, Bundle): void;
+  addAssetGraphToBundle(Asset, Bundle): void;
   findBundlesWithAsset(Asset): Array<Bundle>;
   getBundleGroupsContainingBundle(Bundle): Array<BundleGroup>;
   getBundlesInBundleGroup(BundleGroup): Array<Bundle>;
@@ -424,7 +424,7 @@ export interface BundlerOptimizeBundleGraph extends BundlerBundleGraph {
   getTotalSize(Asset): number;
   isAssetInAncestorBundles(Bundle, Asset): boolean;
   removeAssetFromBundle(Asset, Bundle): void;
-  removeAssetTreeFromBundle(Asset, Bundle): void;
+  removeAssetGraphFromBundle(Asset, Bundle): void;
   traverseBundles<TContext>(GraphVisitor<Bundle, TContext>): ?TContext;
   traverseContents<TContext>(
     GraphVisitor<BundlerBundleGraphTraversable, TContext>

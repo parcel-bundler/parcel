@@ -39,8 +39,8 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
     );
   }
 
-  addAssetTreeToBundle(asset: IAsset, bundle: IBundle) {
-    this.#graph.addAssetTreeToBundle(
+  addAssetGraphToBundle(asset: IAsset, bundle: IBundle) {
+    this.#graph.addAssetGraphToBundle(
       assetToInternalAsset(asset),
       nullthrows(bundleToInternal.get(bundle))
     );
@@ -241,8 +241,8 @@ export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
     );
   }
 
-  removeAssetTreeFromBundle(asset: IAsset, bundle: IBundle) {
-    this.#graph.removeAssetTreeFromBundle(
+  removeAssetGraphFromBundle(asset: IAsset, bundle: IBundle) {
+    this.#graph.removeAssetGraphFromBundle(
       assetToInternalAsset(asset),
       nullthrows(bundleToInternal.get(bundle))
     );

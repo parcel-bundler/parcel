@@ -122,7 +122,7 @@ export default new Bundler({
           for (let asset of assets) {
             if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
               bundleGraph.createAssetReference(dependency, asset);
-              bundleGraph.removeAssetTreeFromBundle(asset, bundle);
+              bundleGraph.removeAssetGraphFromBundle(asset, bundle);
               actions.skipChildren();
             }
           }
@@ -217,9 +217,9 @@ export default new Bundler({
 
       // Remove all of the root assets from each of the original bundles
       for (let asset of assets) {
-        bundleGraph.addAssetTreeToBundle(asset, sharedBundle);
+        bundleGraph.addAssetGraphToBundle(asset, sharedBundle);
         for (let bundle of sourceBundles) {
-          bundleGraph.removeAssetTreeFromBundle(asset, bundle);
+          bundleGraph.removeAssetGraphFromBundle(asset, bundle);
           for (let dependency of bundleGraph.getDependenciesInBundle(
             bundle,
             asset
