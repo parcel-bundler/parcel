@@ -251,7 +251,7 @@ describe('scope hoisting', function() {
       assert.equal(output, 8);
     });
 
-    it.skip('supports dynamic import syntax for code splitting', async function() {
+    it('supports dynamic import syntax for code splitting', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -263,7 +263,7 @@ describe('scope hoisting', function() {
       assert.equal(await output.default, 5);
     });
 
-    it.skip('supports nested dynamic imports', async function() {
+    it('supports nested dynamic imports', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -316,7 +316,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, 'foobar');
     });
 
-    it.skip('supports import default CommonJS interop with dynamic imports', async function() {
+    it('supports import default CommonJS interop with dynamic imports', async function() {
       let b = await bundle(
         path.join(
           __dirname,
@@ -458,7 +458,7 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, {b: {}});
     });
 
-    it.skip('supports importing a namespace from a commonjs module when code split', async function() {
+    it('supports importing a namespace from a commonjs module when code split', async function() {
       let b = await bundle(
         path.join(
           __dirname,
