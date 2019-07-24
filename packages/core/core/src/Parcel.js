@@ -123,7 +123,7 @@ export default class Parcel {
     }
 
     if (result.type === 'buildFailure') {
-      throw result.error;
+      throw new BuildError(result.error);
     }
 
     return result.bundleGraph;
@@ -332,6 +332,9 @@ export class BuildError extends Error {
   constructor(error: mixed) {
     super(error instanceof Error ? error.message : 'Unknown Build Error');
     this.error = error;
+    if (error instanceof Error) {
+      this.stack = error.stack;
+    }
   }
 }
 
