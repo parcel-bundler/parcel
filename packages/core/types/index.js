@@ -379,35 +379,40 @@ export type GraphTraversalCallback<TNode, TContext> = (
 ) => ?TContext;
 
 export type BundleTraversable =
-  | {|type: 'asset', value: Asset|}
-  | {|type: 'dependency', value: Dependency|};
+  | {|+type: 'asset', value: Asset|}
+  | {|+type: 'dependency', value: Dependency|};
 
 export type BundlerBundleGraphTraversable =
   | {|+type: 'asset', value: Asset|}
   | {|+type: 'dependency', value: Dependency|};
 
+export type CreateBundleOpts =
+  // If an entryAsset is provided, a bundle id, type, and environment will be
+  // inferred from the entryAsset.
+  | {|
+      id?: string,
+      entryAsset: Asset,
+      target: Target,
+      isEntry?: ?boolean,
+      type?: ?string,
+      env?: ?Environment
+    |}
+  // If an entryAsset is not provided, a bundle id, type, and environment must
+  // be provided.
+  | {|
+      id: string,
+      entryAsset?: Asset,
+      target: Target,
+      isEntry?: ?boolean,
+      type: string,
+      env: Environment
+    |};
+
 export interface BundlerBundleGraph {
   addBundleToBundleGroup(Bundle, BundleGroup): void;
   addAssetToBundle(Asset, Bundle): void;
   createAssetReference(Dependency, Asset): void;
-  createBundle(
-    | {|
-        id?: string,
-        entryAsset: Asset,
-        target: Target,
-        isEntry?: ?boolean,
-        type?: ?string,
-        env?: ?Environment
-      |}
-    | {|
-        id: string,
-        entryAsset?: Asset,
-        target: Target,
-        isEntry?: ?boolean,
-        type: string,
-        env: Environment
-      |}
-  ): Bundle;
+  createBundle(CreateBundleOpts): Bundle;
   createBundleGroup(Dependency, Target): BundleGroup;
   getDependencyAssets(Dependency): Array<Asset>;
   traverse<TContext>(

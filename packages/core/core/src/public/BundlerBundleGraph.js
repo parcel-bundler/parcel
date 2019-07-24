@@ -4,8 +4,8 @@ import type {
   Asset as IAsset,
   Bundle as IBundle,
   BundleGroup,
+  CreateBundleOpts,
   Dependency,
-  Environment,
   GraphVisitor,
   BundlerBundleGraph as IBundlerBundleGraph,
   BundlerOptimizeBundleGraph as IBundlerOptimizeBundleGraph,
@@ -111,25 +111,7 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
     return bundleGroup;
   }
 
-  createBundle(
-    opts:
-      | {|
-          id?: string,
-          entryAsset: IAsset,
-          target: Target,
-          isEntry?: ?boolean,
-          type?: ?string,
-          env?: ?Environment
-        |}
-      | {|
-          id: string,
-          entryAsset?: IAsset,
-          target: Target,
-          isEntry?: ?boolean,
-          type: string,
-          env: Environment
-        |}
-  ): Bundle {
+  createBundle(opts: CreateBundleOpts): Bundle {
     let bundleId = 'bundle:' + (opts.id ?? nullthrows(opts.entryAsset?.id));
     let bundleNode = {
       type: 'bundle',
