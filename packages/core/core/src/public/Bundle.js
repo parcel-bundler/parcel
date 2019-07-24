@@ -19,10 +19,9 @@ import type BundleGraph from '../BundleGraph';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {mapVisitor} from '../Graph';
 
 import {Asset, assetToInternalAsset} from './Asset';
-import {assetGraphVisitorToInternal} from './utils';
+import {mapVisitor} from '../Graph';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -117,7 +116,7 @@ export class Bundle implements IBundle {
   traverseAssets<TContext>(visit: GraphVisitor<IAsset, TContext>) {
     return this.#bundleGraph.traverseAssets(
       this.#bundle,
-      assetGraphVisitorToInternal(visit)
+      mapVisitor(asset => new Asset(asset), visit)
     );
   }
 
