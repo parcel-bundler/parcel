@@ -19,7 +19,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
 import InternalBundleGraph from '../BundleGraph';
-import {Bundle, bundleToInternal} from './Bundle';
+import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
 
 import {Asset, assetToInternalAsset} from './Asset';
@@ -35,14 +35,14 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
   addAssetToBundle(asset: IAsset, bundle: IBundle) {
     this.#graph.addAssetToBundle(
       assetToInternalAsset(asset),
-      nullthrows(bundleToInternal.get(bundle))
+      bundleToInternalBundle(bundle)
     );
   }
 
   addAssetGraphToBundle(asset: IAsset, bundle: IBundle) {
     this.#graph.addAssetGraphToBundle(
       assetToInternalAsset(asset),
-      nullthrows(bundleToInternal.get(bundle))
+      bundleToInternalBundle(bundle)
     );
   }
 
@@ -195,7 +195,7 @@ export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
 
   getBundleGroupsContainingBundle(bundle: IBundle): Array<BundleGroup> {
     return this.#graph.getBundleGroupsContainingBundle(
-      nullthrows(bundleToInternal.get(bundle))
+      bundleToInternalBundle(bundle)
     );
   }
 
@@ -207,7 +207,7 @@ export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
 
   getDependenciesInBundle(bundle: IBundle, asset: IAsset): Array<Dependency> {
     return this.#graph.getDependenciesInBundle(
-      nullthrows(bundleToInternal.get(bundle)),
+      bundleToInternalBundle(bundle),
       assetToInternalAsset(asset)
     );
   }
@@ -218,7 +218,7 @@ export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
 
   isAssetInAncestorBundles(bundle: IBundle, asset: IAsset): boolean {
     return this.#graph.isAssetInAncestorBundles(
-      nullthrows(bundleToInternal.get(bundle)),
+      bundleToInternalBundle(bundle),
       assetToInternalAsset(asset)
     );
   }
@@ -226,14 +226,14 @@ export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
   removeAssetGraphFromBundle(asset: IAsset, bundle: IBundle) {
     this.#graph.removeAssetGraphFromBundle(
       assetToInternalAsset(asset),
-      nullthrows(bundleToInternal.get(bundle))
+      bundleToInternalBundle(bundle)
     );
   }
 
   removeAssetFromBundle(asset: IAsset, bundle: IBundle) {
     this.#graph.removeAssetFromBundle(
       assetToInternalAsset(asset),
-      nullthrows(bundleToInternal.get(bundle))
+      bundleToInternalBundle(bundle)
     );
   }
 

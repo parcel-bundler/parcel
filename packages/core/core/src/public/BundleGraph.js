@@ -14,7 +14,7 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
 import {assetToInternalAsset, Asset} from './Asset';
-import {Bundle, bundleToInternal} from './Bundle';
+import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor} from '../Graph';
 
 export default class BundleGraph implements IBundleGraph {
@@ -37,7 +37,7 @@ export default class BundleGraph implements IBundleGraph {
 
   getBundleGroupsContainingBundle(bundle: IBundle): Array<BundleGroup> {
     return this.#graph.getBundleGroupsContainingBundle(
-      nullthrows(bundleToInternal.get(bundle))
+      bundleToInternalBundle(bundle)
     );
   }
 

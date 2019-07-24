@@ -25,7 +25,10 @@ import {mapVisitor} from '../Graph';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
-export const bundleToInternal: WeakMap<IBundle, InternalBundle> = new WeakMap();
+const _bundleToInternalBundle: WeakMap<IBundle, InternalBundle> = new WeakMap();
+export function bundleToInternalBundle(bundle: IBundle): InternalBundle {
+  return nullthrows(_bundleToInternalBundle.get(bundle));
+}
 
 export class Bundle implements IBundle {
   #bundle; // InternalBundle
@@ -34,7 +37,7 @@ export class Bundle implements IBundle {
   constructor(bundle: InternalBundle, bundleGraph: BundleGraph) {
     this.#bundle = bundle;
     this.#bundleGraph = bundleGraph;
-    bundleToInternal.set(this, bundle);
+    _bundleToInternalBundle.set(this, bundle);
   }
 
   get id(): string {
