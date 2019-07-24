@@ -18,7 +18,7 @@ export default new Packager({
     // If scope hoisting is enabled, we use a different code path.
     if (options.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
-      ast = link(bundle, ast, options);
+      ast = link({bundle, bundleGraph, ast, options});
       return generate(bundle, ast, options);
     }
 
@@ -72,9 +72,9 @@ export default new Packager({
         );
 
         let deps = {};
-        let dependencies = bundle.getDependencies(asset);
+        let dependencies = bundleGraph.getDependencies(asset);
         for (let dep of dependencies) {
-          let resolved = bundle.getDependencyResolution(dep);
+          let resolved = bundleGraph.getDependencyResolution(dep);
           if (resolved) {
             deps[dep.moduleSpecifier] = resolved.id;
           }

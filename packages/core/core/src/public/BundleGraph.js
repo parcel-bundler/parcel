@@ -6,7 +6,8 @@ import type {
   BundleGraph as IBundleGraph,
   BundleGroup,
   Dependency as IDependency,
-  GraphTraversalCallback
+  GraphTraversalCallback,
+  Symbol
 } from '@parcel/types';
 import type InternalBundleGraph from '../BundleGraph';
 
@@ -84,6 +85,10 @@ export default class BundleGraph implements IBundleGraph {
     return this.#graph
       .getBundles()
       .map(bundle => new Bundle(bundle, this.#graph));
+  }
+
+  resolveSymbol(asset: IAsset, symbol: Symbol) {
+    return this.#graph.resolveSymbol(assetToInternalAsset(asset), symbol);
   }
 
   traverseBundles<TContext>(

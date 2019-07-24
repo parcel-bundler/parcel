@@ -451,8 +451,6 @@ export interface Bundle {
   +filePath: ?FilePath;
   +name: ?string;
   +stats: Stats;
-  getDependencies(asset: Asset): Array<Dependency>;
-  getDependencyResolution(dependency: Dependency): ?Asset;
   getEntryAssets(): Array<Asset>;
   hasAsset(Asset): boolean;
   hasChildBundles(): boolean;
@@ -461,7 +459,6 @@ export interface Bundle {
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>
   ): ?TContext;
-  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
 }
 
 export interface NamedBundle extends Bundle {
@@ -484,10 +481,11 @@ export interface BundleGraph {
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   getDependencyResolution(dependency: Dependency): ?Asset;
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean;
+  isAssetReferenced(asset: Asset): boolean;
+  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>
   ): ?TContext;
-  isAssetReferenced(asset: Asset): boolean;
 }
 
 export type BundleResult = {|

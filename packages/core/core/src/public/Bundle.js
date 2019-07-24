@@ -6,13 +6,11 @@ import type {
   Asset as IAsset,
   Bundle as IBundle,
   BundleTraversable,
-  Dependency,
   Environment,
   FilePath,
   NamedBundle as INamedBundle,
   Stats,
   Target,
-  Symbol,
   GraphVisitor
 } from '@parcel/types';
 import type BundleGraph from '../BundleGraph';
@@ -79,18 +77,6 @@ export class Bundle implements IBundle {
     );
   }
 
-  getDependencies(asset: IAsset): Array<Dependency> {
-    return this.#bundleGraph.getDependencies(assetToInternalAsset(asset));
-  }
-
-  getDependencyResolution(dependency: Dependency): ?Asset {
-    let resolution = this.#bundleGraph.getDependencyResolution(dependency);
-
-    if (resolution) {
-      return new Asset(resolution);
-    }
-  }
-
   getEntryAssets(): Array<IAsset> {
     if (this.#bundle.entryAssetId == null) {
       return [];
@@ -121,10 +107,6 @@ export class Bundle implements IBundle {
       this.#bundle,
       mapVisitor(asset => new Asset(asset), visit)
     );
-  }
-
-  resolveSymbol(asset: IAsset, symbol: Symbol) {
-    return this.#bundleGraph.resolveSymbol(assetToInternalAsset(asset), symbol);
   }
 
   hasChildBundles() {
