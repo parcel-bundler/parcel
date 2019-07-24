@@ -2,9 +2,11 @@
 import type {Mapping, Position, MappingItem, RawSourceMap} from 'source-map';
 import type {FileSystem} from '@parcel/fs';
 import {SourceMapConsumer, SourceMapGenerator} from 'source-map';
-import {countLines} from '@parcel/utils';
+import {countLines, registerSerializableClass} from '@parcel/utils';
 import path from 'path';
 import nullthrows from 'nullthrows';
+// $FlowFixMe
+import pkg from '../package.json';
 
 type RawMapInput = SourceMapConsumer | string | RawSourceMap;
 
@@ -384,14 +386,6 @@ export default class SourceMap {
 
     return generator.toString();
   }
-
-  static deserialize({
-    mappings,
-    sources
-  }: {
-    mappings: Array<Mapping>,
-    sources: Sources
-  }) {
-    return new SourceMap(mappings, sources);
-  }
 }
+
+registerSerializableClass(`${pkg.version}:SourceMap`, SourceMap);

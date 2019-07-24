@@ -397,6 +397,7 @@ interface AssetGraphLike {
   getDependencyResolution(dependency: Dependency): ?Asset;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
   traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
+  getHash(): string;
 }
 
 export type BundleTraversable =
@@ -482,6 +483,12 @@ export interface MutableBundleGraph {
   ): ?TContext;
 }
 
+export type BundleResult = {|
+  contents: Blob,
+  ast?: AST,
+  map?: ?SourceMap
+|};
+
 export type Bundler = {|
   bundle({
     assetGraph: MainAssetGraph,
@@ -518,7 +525,7 @@ export type Packager = {|
     bundleGraph: BundleGraph,
     options: ParcelOptions,
     sourceMapPath: FilePath
-  }): Async<{|contents: Blob, map?: ?SourceMap|}>
+  }): Async<BundleResult>
 |};
 
 export type Optimizer = {|
@@ -527,7 +534,7 @@ export type Optimizer = {|
     contents: Blob,
     map: ?SourceMap,
     options: ParcelOptions
-  }): Async<{|contents: Blob, map?: ?SourceMap|}>
+  }): Async<BundleResult>
 |};
 
 export type Resolver = {|

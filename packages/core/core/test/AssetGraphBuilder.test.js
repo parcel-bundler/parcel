@@ -50,7 +50,8 @@ describe('AssetGraphBuilder', () => {
     config = nullthrows(await resolve(inputFS, path.join(CONFIG_DIR, 'index')))
       .config;
 
-    builder = new AssetGraphBuilder({
+    builder = new AssetGraphBuilder();
+    await builder.init({
       options: DEFAULT_OPTIONS,
       config,
       entries: ['./module-b'],

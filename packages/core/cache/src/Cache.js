@@ -41,6 +41,19 @@ export default class Cache {
     });
   }
 
+  async blobExists(key: string): Promise<boolean> {
+    return this.fs.exists(this._getCachePath(key, '.blob'));
+  }
+
+  async getBlob(key: string, encoding?: buffer$Encoding) {
+    return this.fs.readFile(this._getCachePath(key, '.blob'), encoding);
+  }
+
+  async setBlob(key: string, contents: Buffer | string) {
+    await this.fs.writeFile(this._getCachePath(key, '.blob'), contents);
+    return key;
+  }
+
   async get(key: string) {
     try {
       let data = await this.fs.readFile(this._getCachePath(key));

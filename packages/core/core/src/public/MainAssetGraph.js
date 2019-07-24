@@ -91,4 +91,8 @@ export default class MainAssetGraph implements IMainAssetGraph {
   traverseAssets<TContext>(visit: GraphVisitor<IAsset, TContext>): ?TContext {
     return this.#graph.traverseAssets(assetGraphVisitorToInternal(visit));
   }
+
+  getHash(): string {
+    return this.#graph.getHash();
+  }
 }
