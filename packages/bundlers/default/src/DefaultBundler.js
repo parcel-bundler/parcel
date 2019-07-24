@@ -111,7 +111,7 @@ export default new Bundler({
     // Step 2: remove assets that are duplicated in a parent bundle
     bundleGraph.traverseBundles({
       exit(bundle) {
-        bundle.traverse((node, _, actions) => {
+        bundle.traverse(node => {
           if (node.type !== 'dependency') {
             return;
           }
@@ -123,7 +123,6 @@ export default new Bundler({
             if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
               bundleGraph.createAssetReference(dependency, asset);
               bundleGraph.removeAssetGraphFromBundle(asset, bundle);
-              actions.skipChildren();
             }
           }
         });
