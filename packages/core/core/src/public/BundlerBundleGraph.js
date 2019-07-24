@@ -13,15 +13,11 @@ import type {
   Target
 } from '@parcel/types';
 
-import type {AssetNode} from '../types';
-
-import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
 import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
-
 import {Asset, assetToInternalAsset} from './Asset';
 import {getBundleGroupId} from '../utils';
 
@@ -52,20 +48,15 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
       throw new Error('Dependency not found');
     }
 
-    let resolved: ?AssetNode;
-    this.#graph._graph.traverse((node, _, actions) => {
-      if (node.type === 'asset') {
-        resolved = node;
-        actions.stop();
-      }
-    }, dependencyNode);
-
-    invariant(resolved != null);
+    let resolved = this.#graph.getDependencyResolution(dependency);
+    if (!resolved) {
+      throw new Error('Dependency did not resolve to an asset');
+    }
 
     let bundleGroup: BundleGroup = {
       dependency,
       target,
-      entryAssetId: resolved.value.id
+      entryAssetId: resolved.id
     };
 
     let bundleGroupNode = {
