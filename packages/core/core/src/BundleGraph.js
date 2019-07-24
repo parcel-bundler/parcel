@@ -20,7 +20,19 @@ import nullthrows from 'nullthrows';
 import {getBundleGroupId} from './utils';
 import {mapVisitor} from './Graph';
 
-type BundleGraphEdgeTypes = 'contains' | 'bundle' | 'references';
+type BundleGraphEdgeTypes =
+  // A lack of an edge type indicates to follow the edge while traversing
+  // the bundle's contents, e.g. `bundle.traverse()` during packaging.
+  | null
+  // Used for constant-time checks of presence of a dependency or asset in a bundle,
+  // avoiding bundle traversal in cases like `isAssetInAncestors`
+  | 'contains'
+  // Connections between bundles and bundle groups, for quick traversal of the
+  // bundle hierarchy.
+  | 'bundle'
+  // Indicates that the asset a dependency references is contained in another bundle.
+  // Using this type prevents referenced assets from being traversed normally.
+  | 'references';
 
 export default class BundleGraph {
   _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>;
@@ -36,11 +48,14 @@ export default class BundleGraph {
   }
 
   addAssetToBundle(asset: Asset, bundle: Bundle) {
+    // This asset should be reached via traversal
     this._graph.addEdge(bundle.id, asset.id);
     this._graph.addEdge(bundle.id, asset.id, 'contains');
   }
 
-  addAssetTreeToBundle(asset: Asset, bundle: Bundle) {
+  addAssetGraphToBundle(asset: Asset, bundle: Bundle) {
+    // The root asset should be reached directly from the bundle in traversal.
+    // Its children will be traversed from there.
     this._graph.addEdge(bundle.id, asset.id);
     this._graph.traverse(node => {
       if (node.type === 'asset' || node.type === 'dependency') {
@@ -49,7 +64,7 @@ export default class BundleGraph {
     }, nullthrows(this._graph.getNode(asset.id)));
   }
 
-  removeAssetTreeFromBundle(asset: Asset, bundle: Bundle) {
+  removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
     this._graph.removeEdge(bundle.id, asset.id);
     this._graph.traverse(node => {
       if (node.type === 'asset' || node.type === 'dependency') {
