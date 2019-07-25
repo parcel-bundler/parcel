@@ -48,9 +48,5 @@
   "collective": {
     "type": "opencollective",
     "url": "https://opencollective.com/parcel"
-  },
-  "dependencies": {
-    "@babel/core": "^7.5.5",
-    "@babel/register": "^7.5.5"
   }
 }
