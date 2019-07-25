@@ -42,8 +42,9 @@ export default class ProcessWorker implements WorkerImpl {
     });
 
     // Unref the child and IPC channel so that the workers don't prevent the main process from exiting
-    this.child.unref();
-    this.child.channel.unref();
+    // TODO: Done by Aparna to eliminate the serialize error
+    // this.child.unref();
+    // this.child.channel.unref();
 
     this.child.on('message', (data: string) => {
       this.onMessage(deserialize(Buffer.from(data, 'base64')));

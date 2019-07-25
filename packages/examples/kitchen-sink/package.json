@@ -4,7 +4,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel2 build src/index.js"
+    "demo": "parcel2 build src/render.js"
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-alpha.0",
@@ -32,6 +32,7 @@
   "dependencies": {
     "lodash": "^4.17.11",
     "react": "^16.6.3",
-    "react-dom": "^16.6.3"
+    "react-dom": "^16.6.3",
+    "@mdx-js/react": "^1.0.0-rc.0"
   }
 }

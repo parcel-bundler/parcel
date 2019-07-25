@@ -1,0 +1,20 @@
+{
+  "name": "@parcel/transformer-mdx",
+  "version": "2.0.0-alpha.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "src/mdxTransformer",
+  "engines": {
+    "parcel": "^2.0.0-alpha.0"
+  },
+  "dependencies": {
+    "@mdx-js/mdx": "^1.1.0",
+    "@parcel/plugin": "^2.0.0-alpha.0"
+  },
+  "peerDependencies": {
+    "@mdx-js/react": "^1.0.0-rc.0"
+  }
+}

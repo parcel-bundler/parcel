@@ -1,6 +1,7 @@
 {
   "extends": "@parcel/config-default",
   "transforms": {
-    "*.js": ["@parcel/transformer-babel", "..."]
+    "*.js": ["@parcel/transformer-babel", "..."],
+    "*.{md,mdx}": ["@parcel/transformer-mdx"]
   }
 }

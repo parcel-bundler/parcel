@@ -34,6 +34,7 @@
     "@parcel/transformer-stylus": "^2.0.0-alpha.0",
     "@parcel/reporter-dev-server": "^2.0.0-alpha.0",
     "@parcel/reporter-hmr-server": "^2.0.0-alpha.0",
-    "@parcel/runtime-browser-hmr": "^2.0.0-alpha.0"
+    "@parcel/runtime-browser-hmr": "^2.0.0-alpha.0",
+    "@parcel/transformer-mdx": "^2.0.0-alpha.0"
   }
 }

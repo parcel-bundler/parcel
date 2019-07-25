@@ -160,7 +160,8 @@ async function processAsset(bundle: Bundle, asset: Asset) {
 function parse(code, filename) {
   let ast = babylon.parse(code, {
     sourceFilename: filename,
-    allowReturnOutsideFunction: true
+    allowReturnOutsideFunction: true,
+    allowImportExportEverywhere: true //TODO: Added by Aparna to fix the default import/export error
   });
 
   return ast.program.body;
