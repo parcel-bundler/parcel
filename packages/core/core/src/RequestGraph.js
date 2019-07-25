@@ -114,6 +114,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     let deserialized = new RequestGraph(opts);
     deserialized.globNodeIds = opts.globNodeIds;
     deserialized.depVersionRequestNodeIds = opts.depVersionRequestNodeIds;
+    // $FlowFixMe
     return deserialized;
   }
 

@@ -7,22 +7,23 @@ import type ParcelConfig from './ParcelConfig';
 import type InternalBundleGraph from './BundleGraph';
 import type {FileSystem, FileOptions} from '@parcel/fs';
 
-import {Readable} from 'stream';
-import invariant from 'assert';
 import {
   urlJoin,
   md5FromObject,
   md5FromString,
   blobToStream
 } from '@parcel/utils';
-import {NamedBundle} from './public/Bundle';
+import {Readable} from 'stream';
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
-import {report} from './ReporterRunner';
-import {BundleGraph} from './public/BundleGraph';
-import Cache from '@parcel/cache';
+
 import {localResolve} from '@parcel/local-require';
+import {NamedBundle} from './public/Bundle';
+import {report} from './ReporterRunner';
+import BundleGraph from './public/BundleGraph';
+import Cache from '@parcel/cache';
 
 type Opts = {|
   config: ParcelConfig,
@@ -49,13 +50,18 @@ export default class PackagerRunner {
 
     let result, cacheKey;
     if (this.options.cache !== false) {
-      cacheKey = await this.getCacheKey(bundle);
+      cacheKey = await this.getCacheKey(bundle, bundleGraph);
       result = await this.readFromCache(cacheKey);
     }
 
     if (!result) {
       let packaged = await this.package(bundle, bundleGraph);
-      result = await this.optimize(bundle, packaged.contents, packaged.map);
+      result = await this.optimize(
+        bundle,
+        bundleGraph,
+        packaged.contents,
+        packaged.map
+      );
 
       if (cacheKey != null) {
         await this.writeToCache(cacheKey, result);
@@ -76,7 +82,7 @@ export default class PackagerRunner {
       ? undefined
       : {
           mode: (await inputFS.stat(
-            bundle.assetGraph.getEntryAssets()[0].filePath
+            new NamedBundle(bundle, bundleGraph).getEntryAssets()[0].filePath
           )).mode
         };
 
@@ -144,7 +150,7 @@ export default class PackagerRunner {
     internalBundle: InternalBundle,
     bundleGraph: InternalBundleGraph
   ): Promise<BundleResult> {
-    let bundle = new NamedBundle(internalBundle);
+    let bundle = new NamedBundle(internalBundle, bundleGraph);
     report({
       type: 'buildProgress',
       phase: 'packaging',
@@ -164,7 +170,7 @@ export default class PackagerRunner {
         typeof packaged.contents === 'string'
           ? replaceReferences(
               packaged.contents,
-              generateDepToBundlePath(internalBundle)
+              generateDepToBundlePath(internalBundle, bundleGraph)
             )
           : packaged.contents,
       map: packaged.map
@@ -173,10 +179,11 @@ export default class PackagerRunner {
 
   async optimize(
     internalBundle: InternalBundle,
+    bundleGraph: InternalBundleGraph,
     contents: Blob,
     map?: ?SourceMap
   ): Promise<BundleResult> {
-    let bundle = new NamedBundle(internalBundle);
+    let bundle = new NamedBundle(internalBundle, bundleGraph);
     let optimizers = await this.config.getOptimizers(bundle.filePath);
     if (!optimizers.length) {
       return {contents, map};
@@ -201,7 +208,7 @@ export default class PackagerRunner {
     return optimized;
   }
 
-  async getCacheKey(bundle: InternalBundle) {
+  async getCacheKey(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
     let filePath = nullthrows(bundle.filePath);
     let packager = this.config.getPackagerName(filePath);
     let optimizers = this.config.getOptimizerNames(filePath);
@@ -222,7 +229,7 @@ export default class PackagerRunner {
     return md5FromObject({
       deps,
       opts: {minify, scopeHoist, sourceMaps},
-      hash: bundle.assetGraph.getHash()
+      hash: bundleGraph.getHash(bundle)
     });
   }
 
@@ -278,10 +285,11 @@ function writeFileStream(
  * in a "raw" loader or any transformed dependencies referred to by url).
  */
 function generateDepToBundlePath(
-  bundle: InternalBundle
+  bundle: InternalBundle,
+  bundleGraph: InternalBundleGraph
 ): Map<string, FilePath> {
   let depToBundlePath: Map<string, FilePath> = new Map();
-  bundle.assetGraph.traverse(node => {
+  bundleGraph.traverseBundle(bundle, node => {
     if (node.type !== 'dependency') {
       return;
     }
@@ -291,13 +299,14 @@ function generateDepToBundlePath(
       return;
     }
 
-    let [bundleGroupNode] = bundle.assetGraph.getNodesConnectedFrom(node);
+    let [bundleGroupNode] = bundleGraph._graph.getNodesConnectedFrom(node);
     invariant(bundleGroupNode && bundleGroupNode.type === 'bundle_group');
 
-    let [entryBundleNode] = bundle.assetGraph.getNodesConnectedFrom(
-      bundleGroupNode
+    let [entryBundleNode] = bundleGraph._graph.getNodesConnectedFrom(
+      bundleGroupNode,
+      'bundle'
     );
-    invariant(entryBundleNode && entryBundleNode.type === 'bundle_reference');
+    invariant(entryBundleNode && entryBundleNode.type === 'bundle');
 
     let entryBundle = entryBundleNode.value;
     depToBundlePath.set(
@@ -308,6 +317,7 @@ function generateDepToBundlePath(
       )
     );
   });
+
   return depToBundlePath;
 }
 

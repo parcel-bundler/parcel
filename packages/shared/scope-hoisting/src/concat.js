@@ -30,7 +30,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       case 'dependency':
         // Mark assets that should be wrapped, based on metadata in the incoming dependency tree
         if (shouldWrap || node.value.meta.shouldWrap) {
-          let resolved = bundle.getDependencyResolution(node.value);
+          let resolved = bundleGraph.getDependencyResolution(node.value);
           if (resolved) {
             resolved.meta.shouldWrap = true;
           }
@@ -55,7 +55,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }
 
-  let usedExports = getUsedExports(bundle);
+  let usedExports = getUsedExports(bundle, bundleGraph);
 
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
@@ -80,7 +80,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       for (let i = 0; i < statements.length; i++) {
         let statement = statements[i];
         if (t.isExpressionStatement(statement)) {
-          for (let depAsset of findRequires(bundle, asset, statement)) {
+          for (let depAsset of findRequires(bundleGraph, asset, statement)) {
             if (depAsset && !statementIndices.has(depAsset.id)) {
               statementIndices.set(depAsset.id, i);
             }
@@ -176,11 +176,14 @@ function addComment(statement, comment) {
   });
 }
 
-function getUsedExports(bundle: Bundle): Map<string, Set<Symbol>> {
+function getUsedExports(
+  bundle: Bundle,
+  bundleGraph: BundleGraph
+): Map<string, Set<Symbol>> {
   let usedExports: Map<string, Set<Symbol>> = new Map();
   bundle.traverseAssets(asset => {
-    for (let dep of bundle.getDependencies(asset)) {
-      let resolvedAsset = bundle.getDependencyResolution(dep);
+    for (let dep of bundleGraph.getDependencies(asset)) {
+      let resolvedAsset = bundleGraph.getDependencyResolution(dep);
       if (!resolvedAsset) {
         continue;
       }
@@ -202,7 +205,7 @@ function getUsedExports(bundle: Bundle): Map<string, Set<Symbol>> {
   });
 
   function markUsed(asset, symbol) {
-    let resolved = bundle.resolveSymbol(asset, symbol);
+    let resolved = bundleGraph.resolveSymbol(asset, symbol);
 
     let used = usedExports.get(resolved.asset.id);
     if (!used) {
@@ -227,7 +230,11 @@ function shouldExcludeAsset(
   );
 }
 
-function findRequires(bundle: Bundle, asset: Asset, ast) {
+function findRequires(
+  bundleGraph: BundleGraph,
+  asset: Asset,
+  ast: mixed
+): Array<Asset> {
   let result = [];
   walk.simple(ast, {
     CallExpression(node) {
@@ -237,13 +244,13 @@ function findRequires(bundle: Bundle, asset: Asset, ast) {
       }
 
       if (callee.name === '$parcel$require') {
-        let dep = bundle
+        let dep = bundleGraph
           .getDependencies(asset)
           .find(dep => dep.moduleSpecifier === args[1].value);
         if (!dep) {
           throw new Error(`Could not find dep for "${args[1].value}`);
         }
-        result.push(bundle.getDependencyResolution(dep));
+        result.push(nullthrows(bundleGraph.getDependencyResolution(dep)));
       }
     }
   });
