@@ -12,7 +12,6 @@
     "node": ">= 8.0.0"
   },
   "scripts": {
-    "test": "true",
     "test-ci": "yarn test"
   },
   "dependencies": {
