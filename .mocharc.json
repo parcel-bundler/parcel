@@ -1,0 +1,4 @@
+{
+  "spec": "packages/**/*.test.js",
+  "require": "@parcel/babel-register"
+}
