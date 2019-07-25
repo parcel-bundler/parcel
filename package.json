@@ -19,7 +19,7 @@
     "precommit": "lint-staged",
     "prepublishOnly": "yarn build",
     "test-ci": "lerna run test-ci --stream",
-    "test": "lerna run test --stream"
+    "test": "mocha packages/**/*.test.js --require @parcel/babel-register"
   },
   "devDependencies": {
     "eslint": "^5.16.0",
@@ -48,5 +48,9 @@
   "collective": {
     "type": "opencollective",
     "url": "https://opencollective.com/parcel"
+  },
+  "dependencies": {
+    "@babel/core": "^7.5.5",
+    "@babel/register": "^7.5.5"
   }
 }
