@@ -12,8 +12,6 @@ import type {
 import type InternalBundleGraph from '../BundleGraph';
 
 import invariant from 'assert';
-import nullthrows from 'nullthrows';
-
 import {assetToInternalAsset, Asset} from './Asset';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor} from '../Graph';
@@ -42,20 +40,12 @@ export default class BundleGraph implements IBundleGraph {
     );
   }
 
-  getBundleGroupsReferencedByBundle(bundle: IBundle): Array<BundleGroup> {
-    let node = nullthrows(
-      this.#graph._graph.getNode(bundle.id),
-      'Bundle graph must contain bundle'
+  getBundleGroupsReferencedByBundle(
+    bundle: IBundle
+  ): Array<{bundleGroup: BundleGroup, dependency: IDependency}> {
+    return this.#graph.getBundleGroupsReferencedByBundle(
+      bundleToInternalBundle(bundle)
     );
-
-    let groups = [];
-    this.#graph._graph.traverse((node, context, actions) => {
-      if (node.type === 'bundle_group') {
-        groups.push(node.value);
-        actions.skipChildren();
-      }
-    }, node);
-    return groups;
   }
 
   getDependencies(asset: IAsset): Array<IDependency> {

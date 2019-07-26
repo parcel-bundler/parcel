@@ -467,7 +467,6 @@ export interface NamedBundle extends Bundle {
 }
 
 export type BundleGroup = {
-  dependency: Dependency,
   target: Target,
   entryAssetId: string
 };
@@ -475,7 +474,9 @@ export type BundleGroup = {
 export interface BundleGraph {
   getBundles(): Array<Bundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundleGroupsReferencedByBundle(bundle: Bundle): Array<BundleGroup>;
+  getBundleGroupsReferencedByBundle(
+    bundle: Bundle
+  ): Array<{bundleGroup: BundleGroup, dependency: Dependency}>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;

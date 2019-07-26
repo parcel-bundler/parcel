@@ -41,11 +41,12 @@ export default new Runtime({
       return assets;
     }
 
-    for (let bundleGroup of bundleGraph.getBundleGroupsReferencedByBundle(
-      bundle
-    )) {
+    for (let {
+      bundleGroup,
+      dependency
+    } of bundleGraph.getBundleGroupsReferencedByBundle(bundle)) {
       // Ignore deps with native loaders, e.g. workers.
-      if (bundleGroup.dependency.isURL) {
+      if (dependency.isURL) {
         continue;
       }
 
@@ -79,7 +80,7 @@ export default new Runtime({
           code: `module.exports = require('./bundle-loader')([${loaderModules.join(
             ', '
           )}, ${JSON.stringify(bundleGroup.entryAssetId)}]);`,
-          dependency: bundleGroup.dependency
+          dependency
         });
       } else {
         for (let bundle of bundles) {
@@ -100,7 +101,7 @@ export default new Runtime({
               bundle.target.publicUrl,
               nullthrows(bundle.name)
             )}'`,
-            dependency: bundleGroup.dependency
+            dependency
           });
         }
       }

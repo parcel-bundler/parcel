@@ -54,7 +54,6 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
     }
 
     let bundleGroup: BundleGroup = {
-      dependency,
       target,
       entryAssetId: resolved.id
     };
