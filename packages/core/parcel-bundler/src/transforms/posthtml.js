@@ -45,7 +45,10 @@ async function getConfig(asset) {
           asset.addDependency(name, {includedInParent: true})
       }
     };
-    Object.keys(plugins).forEach(p => Object.assign(plugins[p], depConfig));
+    
+    Object.keys(plugins).forEach(p => {
+        plugins[p] = Object.assign({}, plugins[p], depConfig);
+    });
   }
   config.plugins = await loadPlugins(plugins, asset.name);
   config.skipParse = true;
