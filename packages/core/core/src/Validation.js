@@ -1,14 +1,6 @@
 // @flow strict-local
 import nullthrows from 'nullthrows';
-import type {
-  MutableAsset as IMutableAsset,
-  FilePath,
-  GenerateOutput,
-  Validator,
-  AssetRequest,
-  ParcelOptions,
-  PackageName
-} from '@parcel/types';
+import type {FilePath, AssetRequest, ParcelOptions} from '@parcel/types';
 
 import path from 'path';
 import Cache from '@parcel/cache';
@@ -22,20 +14,12 @@ import type {NodeId, ConfigRequest} from './types';
 import {MutableAsset} from './public/Asset';
 import summarizeRequest from './summarizeRequest';
 
-type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutput>;
-
-type PostProcessFunc = (
-  Array<InternalAsset>
-) => Promise<Array<InternalAsset> | null>;
-
 export type ValidationOpts = {|
   request: AssetRequest,
   loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
   parentNodeId: NodeId,
   options: ParcelOptions
 |};
-
-type ConfigMap = Map<PackageName, Config>;
 
 export default class Validation {
   request: AssetRequest;
@@ -66,8 +50,39 @@ export default class Validation {
     this.cache = new Cache(this.options.outputFS, this.options.cacheDir);
 
     let asset = await this.loadAsset();
-    let pipeline = await this.loadPipeline(asset.filePath);
-    await pipeline.run(asset);
+    let configRequest = {
+      filePath: this.request.filePath,
+      meta: {
+        actionType: 'validation'
+      }
+    };
+
+    let config = await this.loadConfig(configRequest);
+    let parcelConfig = nullthrows(config.result);
+
+    let validators = await parcelConfig.getValidators(this.request.filePath);
+    let resolverRunner = new ResolverRunner({
+      config: parcelConfig,
+      options: this.options
+    });
+
+    const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
+      return (await resolverRunner.resolve(
+        new Dependency({
+          env: asset.env,
+          moduleSpecifier: to,
+          sourcePath: from
+        })
+      )).filePath;
+    };
+
+    for (let validator of validators) {
+      await validator.validate({
+        asset: new MutableAsset(asset),
+        options: this.options,
+        resolve
+      });
+    }
   }
 
   async loadAsset(): Promise<InternalAsset> {
@@ -95,75 +110,5 @@ export default class Validation {
       },
       sideEffects: sideEffects
     });
-  }
-
-  async loadPipeline(filePath: FilePath): Promise<Pipeline> {
-    let configRequest = {
-      filePath,
-      meta: {
-        actionType: 'validation'
-      }
-    };
-    let configs = new Map();
-
-    let config = await this.loadConfig(configRequest);
-    let parcelConfig = nullthrows(config.result);
-
-    configs.set('parcel', config);
-
-    let pipeline = new Pipeline({
-      validators: await parcelConfig.getValidators(filePath),
-      configs,
-      options: this.options
-    });
-
-    return pipeline;
-  }
-}
-
-type PipelineOpts = {|
-  validators: Array<Validator>,
-  configs: ConfigMap,
-  options: ParcelOptions
-|};
-
-class Pipeline {
-  validators: Array<Validator>;
-  configs: ConfigMap;
-  options: ParcelOptions;
-  resolverRunner: ResolverRunner;
-  generate: GenerateFunc;
-  postProcess: ?PostProcessFunc;
-
-  constructor({validators, configs, options}: PipelineOpts) {
-    this.validators = validators;
-    this.configs = configs;
-    this.options = options;
-    let parcelConfig = nullthrows(this.configs.get('parcel'));
-    parcelConfig = nullthrows(parcelConfig.result);
-    this.resolverRunner = new ResolverRunner({
-      config: parcelConfig,
-      options
-    });
-  }
-
-  async run(asset: InternalAsset): Promise<void> {
-    const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
-      return (await this.resolverRunner.resolve(
-        new Dependency({
-          env: asset.env,
-          moduleSpecifier: to,
-          sourcePath: from
-        })
-      )).filePath;
-    };
-
-    for (let validator of this.validators) {
-      await validator.validate({
-        asset: new MutableAsset(asset),
-        options: this.options,
-        resolve
-      });
-    }
   }
 }
