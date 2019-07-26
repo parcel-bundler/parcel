@@ -95,6 +95,13 @@ export default class ParcelConfig {
     return this.loadPlugins(this.getResolverNames());
   }
 
+  getValidatorNames(filePath: FilePath): Array<string> {
+    let validators: Pipeline =
+      this.matchGlobMapPipelines(filePath, this.validators) || [];
+
+    return validators;
+  }
+
   getTransformerNames(filePath: FilePath): Array<string> {
     let transformers: Pipeline | null = this.matchGlobMapPipelines(
       filePath,
@@ -108,13 +115,7 @@ export default class ParcelConfig {
   }
 
   async getValidators(filePath: FilePath): Promise<Array<Validator>> {
-    let validators: Pipeline | null = this.matchGlobMapPipelines(
-      filePath,
-      this.validators
-    );
-
-    if (!validators || validators.length === 0) return [];
-    return this.loadPlugins(validators);
+    return this.loadPlugins(this.getValidatorNames(filePath));
   }
 
   async getTransformers(filePath: FilePath): Promise<Array<Transformer>> {
