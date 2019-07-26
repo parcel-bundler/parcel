@@ -57,6 +57,7 @@ export default new Bundler({
 
         return {
           bundleGroup,
+          bundleGroupDependency: dependency,
           bundleByType,
           parentNode: node
         };
@@ -90,7 +91,7 @@ export default new Bundler({
             bundle = bundleGraph.createBundle({
               entryAsset: asset,
               target: context.bundleGroup.target,
-              isEntry: context.bundleGroup.dependency.isEntry
+              isEntry: context.bundleGroupDependency.isEntry
             });
             bundleGraph.addBundleToBundleGroup(bundle, context.bundleGroup);
             context.bundleByType.set(bundle.type, bundle);
