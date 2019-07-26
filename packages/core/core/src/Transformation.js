@@ -2,7 +2,6 @@
 import nullthrows from 'nullthrows';
 import type {
   MutableAsset as IMutableAsset,
-  Blob,
   FilePath,
   GenerateOutput,
   Transformer,
@@ -11,16 +10,10 @@ import type {
   ParcelOptions,
   PackageName
 } from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
 
 import invariant from 'assert';
 import path from 'path';
-import {
-  md5FromReadableStream,
-  md5FromString,
-  md5FromObject,
-  TapStream
-} from '@parcel/utils';
+import {md5FromObject} from '@parcel/utils';
 import Cache from '@parcel/cache';
 
 import type Config from './public/Config';
@@ -30,14 +23,13 @@ import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset from './Asset';
 import type {NodeId, ConfigRequest} from './types';
+import summarizeRequest from './summarizeRequest';
 
 type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutput>;
 
 type PostProcessFunc = (
   Array<InternalAsset>
 ) => Promise<Array<InternalAsset> | null>;
-
-const BUFFER_LIMIT = 5000000; // 5mb
 
 export type TransformationOpts = {|
   request: AssetRequest,
@@ -465,47 +457,6 @@ async function finalize(
     asset.map = result.map;
   }
   return asset;
-}
-
-async function summarizeRequest(
-  fs: FileSystem,
-  req: AssetRequest
-): Promise<{|content: Blob, hash: string, size: number|}> {
-  let code = req.code;
-  let content: Blob;
-  let hash: string;
-  let size: number;
-  if (code == null) {
-    // As an optimization for the common case of source code, while we read in
-    // data to compute its md5 and size, buffer its contents in memory.
-    // This avoids reading the data now, and then again during transformation.
-    // If it exceeds BUFFER_LIMIT, throw it out and replace it with a stream to
-    // lazily read it at a later point.
-    content = Buffer.from([]);
-    size = 0;
-    hash = await md5FromReadableStream(
-      fs.createReadStream(req.filePath).pipe(
-        new TapStream(buf => {
-          size += buf.length;
-          if (content instanceof Buffer) {
-            if (size > BUFFER_LIMIT) {
-              // if buffering this content would put this over BUFFER_LIMIT, replace
-              // it with a stream
-              content = fs.createReadStream(req.filePath);
-            } else {
-              content = Buffer.concat([content, buf]);
-            }
-          }
-        })
-      )
-    );
-  } else {
-    content = code;
-    hash = md5FromString(code);
-    size = Buffer.from(code).length;
-  }
-
-  return {content, hash, size};
 }
 
 function normalizeAssets(
