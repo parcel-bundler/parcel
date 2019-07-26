@@ -1,0 +1,5 @@
+{
+  "spec": "packages/core/workers/test/*.js",
+  "require": "@parcel/babel-register",
+  "timeout": 50000
+}

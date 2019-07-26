@@ -1,0 +1,4 @@
+{
+  "spec": "packages/*/!(parcel-bundler|workers|integration-tests)/test/*.js",
+  "require": "@parcel/babel-register"
+}

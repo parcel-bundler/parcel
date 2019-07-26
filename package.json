@@ -18,8 +18,11 @@
     "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different",
     "precommit": "lint-staged",
     "prepublishOnly": "yarn build",
-    "test-ci": "lerna run test-ci --stream",
-    "test": "cross-env NODE_ENV=test mocha"
+    "test:unit": "cross-env NODE_ENV=test mocha --config unit.mocharc.json",
+    "test:integration": "(cd packages/core/integration-tests && yarn test) && mocha --config integration.mocharc.json",
+    "test:integration-ci": "(cd packages/core/integration-tests && yarn test-ci) && mocha --config integration.mocharc.json",
+    "test": "yarn test:unit && yarn test:integration",
+    "test-ci": "yarn test:unit && yarn test:integration-ci"
   },
   "devDependencies": {
     "eslint": "^5.16.0",
