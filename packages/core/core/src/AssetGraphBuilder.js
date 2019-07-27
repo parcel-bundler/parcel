@@ -1,11 +1,11 @@
 // @flow strict-local
 
 import type WorkerFarm from '@parcel/workers';
-import type {ParcelOptions, Target} from './types';
+import type {ParcelOptions, Target} from '@parcel/types';
 
 import EventEmitter from 'events';
 import {md5FromObject, md5FromString} from '@parcel/utils';
-import watcher, {type Event} from '@parcel/watcher';
+import type {Event} from '@parcel/watcher';
 
 import type {Asset} from './types';
 import AssetGraph from './AssetGraph';
@@ -182,7 +182,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
       let opts = this.getWatcherOptions();
       let snapshotPath = this.options.cache._getCachePath(snapshotKey, '.txt');
-      return watcher.getEventsSince(
+      return this.options.inputFS.getEventsSince(
         this.options.projectRoot,
         snapshotPath,
         opts
@@ -203,7 +203,11 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     let opts = this.getWatcherOptions();
     let snapshotPath = this.options.cache._getCachePath(snapshotKey, '.txt');
-    await watcher.writeSnapshot(this.options.projectRoot, snapshotPath, opts);
+    await this.options.inputFS.writeSnapshot(
+      this.options.projectRoot,
+      snapshotPath,
+      opts
+    );
   }
 }
 

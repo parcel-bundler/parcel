@@ -7,10 +7,11 @@ import installPackage, {
   installPackageFromWorker
 } from '@parcel/install-package';
 import {dirname} from 'path';
-
 import {resolve} from '@parcel/utils';
+import {NodeFS} from '@parcel/fs';
 
 const cache: Map<string, [string, ?PackageJSON]> = new Map();
+const nodeFS = new NodeFS();
 
 export async function localRequireFromWorker(
   workerApi: WorkerApi,
@@ -40,7 +41,10 @@ async function localResolveBase(
   let resolved = cache.get(key);
   if (!resolved) {
     try {
-      resolved = await resolve(name, {basedir, extensions: ['.js', '.json']});
+      resolved = await resolve(nodeFS, name, {
+        basedir,
+        extensions: ['.js', '.json']
+      });
     } catch (e) {
       if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
         await install([name], path);
