@@ -123,10 +123,10 @@ export default class HMRServer {
 
     let assets = await Promise.all(
       changedAssets.map(async asset => {
-        let dependencies = event.assetGraph.getDependencies(asset);
+        let dependencies = event.bundleGraph.getDependencies(asset);
         let deps = {};
         for (let dep of dependencies) {
-          let resolved = event.assetGraph.getDependencyResolution(dep);
+          let resolved = event.bundleGraph.getDependencyResolution(dep);
           if (resolved) {
             deps[dep.moduleSpecifier] = resolved.id;
           }

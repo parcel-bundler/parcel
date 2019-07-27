@@ -2,11 +2,10 @@
 
 import type {ParcelOptions, ReporterEvent} from '@parcel/types';
 
-import {bundleToInternal, NamedBundle} from './public/Bundle';
+import {bundleToInternalBundle, NamedBundle} from './public/Bundle';
 import {bus} from '@parcel/workers';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
-import nullthrows from 'nullthrows';
 
 type Opts = {|
   config: ParcelConfig,
@@ -31,7 +30,7 @@ export default class ReporterRunner {
       } else {
         this.report({
           ...event,
-          bundle: new NamedBundle(event.bundle)
+          bundle: new NamedBundle(event.bundle, event.bundleGraph)
         });
       }
     });
@@ -54,7 +53,7 @@ export function report(event: ReporterEvent) {
     // easy serialization
     bus.emit('reporterEvent', {
       ...event,
-      bundle: nullthrows(bundleToInternal.get(event.bundle))
+      bundle: bundleToInternalBundle(event.bundle)
     });
   }
 }
