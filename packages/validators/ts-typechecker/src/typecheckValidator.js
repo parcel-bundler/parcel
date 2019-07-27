@@ -1,6 +1,6 @@
 // @flow
 import path from 'path';
-import {resolveConfig} from '@parcel/utils';
+import {md5FromObject} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
 import localRequire from '@parcel/local-require';
 
@@ -10,29 +10,29 @@ import LanguageServiceHost from './languageServiceHost';
 let langServiceCache = {};
 
 export default new Validator({
-  async validate({asset, options}) {
+  async validate({asset, options, resolveConfig}) {
     let ts = await localRequire('typescript', asset.filePath);
 
     let configNames = ['tsconfig.json'];
-    // $FlowFixMe
-    let configPath = await resolveConfig(asset.filePath, configNames);
+    let tsconfig = await asset.getConfig(configNames);
+    let configPath = await resolveConfig(configNames);
+    let baseDir = configPath ? path.dirname(configPath) : options.projectRoot;
+    let configHash = (tsconfig ? md5FromObject(tsconfig) : '') + '-' + baseDir;
 
-    if (!langServiceCache[configPath]) {
-      let tsconfig = (await asset.getConfig(configNames)) || {};
-      let baseDir = configPath ? path.dirname(configPath) : options.projectRoot;
+    if (tsconfig && !langServiceCache[configHash]) {
       let parsedCommandLine = ts.parseJsonConfigFileContent(
         tsconfig,
         ts.sys,
         baseDir
       );
 
-      langServiceCache[configPath] = ts.createLanguageService(
+      langServiceCache[configHash] = ts.createLanguageService(
         new LanguageServiceHost(parsedCommandLine, ts, baseDir),
         ts.createDocumentRegistry()
       );
     }
 
-    const diagnostics = langServiceCache[configPath].getSemanticDiagnostics(
+    const diagnostics = langServiceCache[configHash].getSemanticDiagnostics(
       asset.filePath
     );
     if (diagnostics.length > 0) {

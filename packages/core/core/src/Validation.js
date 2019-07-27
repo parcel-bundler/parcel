@@ -1,13 +1,12 @@
 // @flow strict-local
 import nullthrows from 'nullthrows';
-import type {FilePath, AssetRequest, ParcelOptions} from '@parcel/types';
+import type {AssetRequest, ParcelOptions} from '@parcel/types';
 
 import path from 'path';
 import Cache from '@parcel/cache';
+import {resolveConfig} from '@parcel/utils';
 
 import type Config from './public/Config';
-import Dependency from './Dependency';
-import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import InternalAsset from './Asset';
 import type {NodeId, ConfigRequest} from './types';
@@ -61,26 +60,12 @@ export default class Validation {
     let parcelConfig = nullthrows(config.result);
 
     let validators = await parcelConfig.getValidators(this.request.filePath);
-    let resolverRunner = new ResolverRunner({
-      config: parcelConfig,
-      options: this.options
-    });
-
-    const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
-      return (await resolverRunner.resolve(
-        new Dependency({
-          env: asset.env,
-          moduleSpecifier: to,
-          sourcePath: from
-        })
-      )).filePath;
-    };
-
     for (let validator of validators) {
       await validator.validate({
         asset: new MutableAsset(asset),
         options: this.options,
-        resolve
+        resolveConfig: (configNames: Array<string>) =>
+          resolveConfig(this.options.inputFS, asset.filePath, configNames)
       });
     }
   }

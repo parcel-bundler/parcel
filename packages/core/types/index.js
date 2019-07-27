@@ -332,10 +332,12 @@ type Async<T> = T | Promise<T>;
 
 type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
 
+type ResolveConfigFn = (configNames: Array<FilePath>) => Promise<FilePath>;
+
 export type Validator = {|
   validate({
     asset: MutableAsset,
-    resolve: ResolveFn,
+    resolveConfig: ResolveConfigFn, // This is a temporary function and should be replaced with something cacheable
     options: ParcelOptions
   }): Async<void>
 |};

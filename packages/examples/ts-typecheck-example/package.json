@@ -4,7 +4,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel2 build src/index.ts"
+    "demo": "parcel2 build src/index.ts --no-cache"
   },
   "browser": "dist/legacy/index.js",
   "browserModern": "dist/modern/index.js",
