@@ -18,8 +18,7 @@
     "@parcel/reporter-cli": "^2.0.0-alpha.0",
     "@parcel/utils": "^2.0.0-alpha.0",
     "ansi-html": "^0.0.7",
-    "ejs": "^2.6.1",
-    "serve-static": "^1.13.2"
+    "ejs": "^2.6.1"
   },
   "devDependencies": {
     "@parcel/babel-preset": "^2.0.0-alpha.0",

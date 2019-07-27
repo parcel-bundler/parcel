@@ -17,14 +17,35 @@ import path from 'path';
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
 
-import {promisify, syncPromise} from '@parcel/utils';
-import _ncp from 'ncp';
+import {syncPromise} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
 
 export const inputFS = new NodeFS();
 export const outputFS = new MemoryFS();
-export const ncp = promisify(_ncp);
+
+// Recursively opies a directory from the inputFS to the outputFS
+export async function ncp(source: FilePath, destination: FilePath) {
+  await outputFS.mkdirp(destination);
+  let files = await inputFS.readdir(source);
+  for (let file of files) {
+    let sourcePath = path.join(source, file);
+    let destPath = path.join(destination, file);
+    let stats = await inputFS.stat(sourcePath);
+    if (stats.isFile()) {
+      await new Promise((resolve, reject) => {
+        inputFS
+          .createReadStream(sourcePath)
+          .pipe(outputFS.createWriteStream(destPath))
+          .on('finish', () => resolve())
+          .on('error', reject);
+      });
+    } else if (stats.isDirectory()) {
+      outputFS.mkdirp(destPath);
+      await ncp(sourcePath, destPath);
+    }
+  }
+}
 
 export const defaultConfig = {
   ...defaultConfigContents,

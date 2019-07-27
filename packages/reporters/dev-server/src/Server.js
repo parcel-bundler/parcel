@@ -1,16 +1,16 @@
 // @flow
 import type {Request, Response, DevServerOptions} from './types.js.flow';
-import type {BundleGraph} from '@parcel/types';
+import type {BundleGraph, FilePath} from '@parcel/types';
 import type {PrintableError} from '@parcel/utils';
 import type {Server as HTTPServer} from 'http';
 import type {Server as HTTPSServer} from 'https';
+import type {FileSystem} from '@parcel/fs';
 
 import EventEmitter from 'events';
 import path from 'path';
 import http from 'http';
 import https from 'https';
 import url from 'url';
-import serveStatic from 'serve-static';
 import ansiHtml from 'ansi-html';
 import logger from '@parcel/logger';
 import {prettyError} from '@parcel/utils';
@@ -42,17 +42,11 @@ const TEMPLATE_500 = fs.readFileSync(
   'utf8'
 );
 
-type ServeFunction = (
-  req: Request,
-  res: Response,
-  next?: (req: Request, res: Response, next?: (any) => any) => any
-) => any;
+type NextFunction = (req: Request, res: Response, next?: (any) => any) => any;
 
 export default class Server extends EventEmitter {
   pending: boolean;
   options: DevServerOptions;
-  serve: ServeFunction;
-  serveSources: ServeFunction;
   bundleGraph: BundleGraph | null;
   error: PrintableError | null;
   server: HTTPServer | HTTPSServer;
@@ -64,20 +58,6 @@ export default class Server extends EventEmitter {
     this.pending = true;
     this.bundleGraph = null;
     this.error = null;
-
-    this.serve = serveStatic(this.options.distDir, {
-      index: false,
-      redirect: false,
-      setHeaders: setHeaders,
-      dotfiles: 'allow'
-    });
-
-    this.serveSources = serveStatic(this.options.projectRoot, {
-      index: false,
-      redirect: false,
-      setHeaders: setHeaders,
-      dotfiles: 'allow'
-    });
   }
 
   buildSuccess(bundleGraph: BundleGraph) {
@@ -107,11 +87,17 @@ export default class Server extends EventEmitter {
       return this.sendIndex(req, res);
     } else if (pathname.startsWith(SOURCES_ENDPOINT)) {
       req.url = pathname.slice(SOURCES_ENDPOINT.length);
-      return this.serveSources(req, res, () => this.sendIndex(req, res));
+      return this.serve(
+        this.options.inputFS,
+        this.options.projectRoot,
+        req,
+        res,
+        () => this.send404(req, res)
+      );
     } else {
       // Otherwise, serve the file from the dist folder
       req.url = pathname.slice(this.options.publicUrl.length);
-      return this.serve(req, res, () => this.sendIndex(req, res));
+      return this.serveDist(req, res, () => this.sendIndex(req, res));
     }
   }
 
@@ -139,13 +125,94 @@ export default class Server extends EventEmitter {
       if (htmlBundle) {
         req.url = `/${path.basename(htmlBundle.filePath)}`;
 
-        this.serve(req, res, () => this.send404(req, res));
+        this.serveDist(req, res, () => this.send404(req, res));
       } else {
         this.send404(req, res);
       }
     } else {
       this.send404(req, res);
     }
+  }
+
+  async serveDist(req: Request, res: Response, next: NextFunction) {
+    return this.serve(
+      this.options.outputFS,
+      this.options.distDir,
+      req,
+      res,
+      next
+    );
+  }
+
+  async serve(
+    fs: FileSystem,
+    root: FilePath,
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      // method not allowed
+      res.statusCode = 405;
+      res.setHeader('Allow', 'GET, HEAD');
+      res.setHeader('Content-Length', '0');
+      res.end();
+      return;
+    }
+
+    try {
+      var filePath = url.parse(req.url).pathname || '';
+      filePath = decodeURIComponent(filePath);
+    } catch (err) {
+      return this.sendError(res, 400);
+    }
+
+    if (filePath) {
+      filePath = path.normalize('.' + path.sep + filePath);
+    }
+
+    // malicious path
+    if (filePath.includes(path.sep + '..' + path.sep)) {
+      return this.sendError(res, 403);
+    }
+
+    // join / normalize from the root dir
+    filePath = path.normalize(path.join(root, filePath));
+
+    try {
+      var stat = await fs.stat(filePath);
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return next(req, res);
+      }
+
+      return this.sendError(res, 500);
+    }
+
+    // Fall back to next handler if not a file
+    if (!stat || !stat.isFile()) {
+      return next(req, res);
+    }
+
+    setHeaders(res);
+    res.setHeader('Content-Length', '' + stat.size);
+    if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
+
+    return new Promise((resolve, reject) => {
+      fs.createReadStream(filePath)
+        .pipe(res)
+        .on('finish', resolve)
+        .on('error', reject);
+    });
+  }
+
+  sendError(res: Response, statusCode: number) {
+    res.statusCode = statusCode;
+    setHeaders(res);
+    res.end();
   }
 
   async send404(req: Request, res: Response) {

@@ -1,13 +1,15 @@
 // @flow strict-local
 
 import type {FilePath, PackageJSON} from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 
 import installPackage from '@parcel/install-package';
 import {dirname} from 'path';
-
 import {resolve} from '@parcel/utils';
+import {NodeFS} from '@parcel/fs';
 
 const cache: Map<string, [string, ?PackageJSON]> = new Map();
+const nodeFS = new NodeFS();
 
 export default async function localRequire(
   name: string,
@@ -15,7 +17,7 @@ export default async function localRequire(
   triedInstall: boolean = false
   // $FlowFixMe this must be dynamic
 ): Promise<any> {
-  let [resolved] = await localResolve(name, path, triedInstall);
+  let [resolved] = await localResolve(name, path, nodeFS, triedInstall);
   // $FlowFixMe this must be dynamic
   return require(resolved);
 }
@@ -23,6 +25,7 @@ export default async function localRequire(
 export async function localResolve(
   name: string,
   path: FilePath,
+  fs: FileSystem = nodeFS,
   triedInstall: boolean = false
 ): Promise<[string, ?PackageJSON]> {
   let basedir = dirname(path);
@@ -30,11 +33,14 @@ export async function localResolve(
   let resolved = cache.get(key);
   if (!resolved) {
     try {
-      resolved = await resolve(name, {basedir, extensions: ['.js', '.json']});
+      resolved = await resolve(fs, name, {
+        basedir,
+        extensions: ['.js', '.json']
+      });
     } catch (e) {
       if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
         await installPackage([name], path);
-        return localResolve(name, path, true);
+        return localResolve(name, path, fs, true);
       }
       throw e;
     }

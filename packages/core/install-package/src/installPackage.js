@@ -65,7 +65,7 @@ async function installPeerDependencies(
   options
 ) {
   let basedir = path.dirname(filepath);
-  const [resolved] = await resolve(name, {basedir});
+  const [resolved] = await resolve(fs, name, {basedir});
   const pkg = nullthrows(await loadConfig(fs, resolved, ['package.json']))
     .config;
   const peers = pkg.peerDependencies || {};

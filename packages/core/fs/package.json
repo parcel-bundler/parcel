@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@parcel/utils": "^2.0.0-alpha.0",
+    "@parcel/watcher": "^2.0.0-alpha.3",
     "@parcel/workers": "^2.0.0-alpha.0",
     "mkdirp": "^0.5.1",
     "nullthrows": "^1.1.1",

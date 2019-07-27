@@ -3,7 +3,7 @@ import EventEmitter from 'events';
 
 import type {AssetRequest, ParcelOptions, Target} from '@parcel/types';
 import {PromiseQueue, md5FromObject, md5FromString} from '@parcel/utils';
-import watcher, {type Event} from '@parcel/watcher';
+import type {Event} from '@parcel/watcher';
 
 import type Asset from './Asset';
 import AssetGraph from './AssetGraph';
@@ -179,7 +179,7 @@ export default class AssetGraphBuilder extends EventEmitter {
 
       let opts = this.getWatcherOptions();
       let snapshotPath = this.cache._getCachePath(snapshotKey, '.txt');
-      return watcher.getEventsSince(
+      return this.options.inputFS.getEventsSince(
         this.options.projectRoot,
         snapshotPath,
         opts
@@ -200,7 +200,11 @@ export default class AssetGraphBuilder extends EventEmitter {
 
     let opts = this.getWatcherOptions();
     let snapshotPath = this.cache._getCachePath(snapshotKey, '.txt');
-    await watcher.writeSnapshot(this.options.projectRoot, snapshotPath, opts);
+    await this.options.inputFS.writeSnapshot(
+      this.options.projectRoot,
+      snapshotPath,
+      opts
+    );
   }
 }
 
