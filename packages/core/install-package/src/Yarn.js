@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {FilePath} from '@parcel/types';
+import type {PackageManager, InstallOptions} from './types';
 
 import commandExists from 'command-exists';
 import spawn from 'cross-spawn';
@@ -31,13 +31,7 @@ type YarnStdErrMessage = {|
 |};
 
 let hasYarn: ?boolean;
-export default class Yarn {
-  cwd: FilePath;
-
-  constructor({cwd}: {cwd: FilePath, ...}) {
-    this.cwd = cwd;
-  }
-
+export default class Yarn implements PackageManager {
   static async exists(): Promise<boolean> {
     if (hasYarn != null) {
       return hasYarn;
@@ -52,16 +46,13 @@ export default class Yarn {
     return hasYarn;
   }
 
-  async install(
-    modules: Array<string>,
-    saveDev: boolean = true
-  ): Promise<void> {
+  async install({modules, cwd, saveDev = true}: InstallOptions): Promise<void> {
     let args = ['add', '--json', ...modules];
     if (saveDev) {
       args.push('-D');
     }
 
-    let installProcess = spawn(YARN_CMD, args, {cwd: this.cwd});
+    let installProcess = spawn(YARN_CMD, args, {cwd});
     installProcess.stdout
       // Invoking yarn with --json provides streaming, newline-delimited JSON output.
       .pipe(split())

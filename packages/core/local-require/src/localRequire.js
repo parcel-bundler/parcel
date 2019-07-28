@@ -50,7 +50,7 @@ async function localResolveBase(
       });
     } catch (e) {
       if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
-        await install([name], path);
+        await installPackage(fs, [name], path);
         return localResolve(name, path, fs, true);
       }
       throw e;
