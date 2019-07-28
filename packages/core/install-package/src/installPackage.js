@@ -1,12 +1,13 @@
 // @flow
 
 import type {FilePath} from '@parcel/types';
+import type {PackageManager} from './types';
+import type {FileSystem} from '@parcel/fs';
 
 import WorkerFarm from '@parcel/workers';
 import logger from '@parcel/logger';
 import path from 'path';
 import nullthrows from 'nullthrows';
-import {NodeFS} from '@parcel/fs';
 
 import {loadConfig, PromiseQueue, resolve, resolveConfig} from '@parcel/utils';
 import Npm from './Npm';
@@ -15,51 +16,41 @@ import Yarn from './Yarn';
 type InstallOptions = {
   installPeers?: boolean,
   saveDev?: boolean,
-  packageManager?: 'npm' | 'yarn'
+  packageManager?: PackageManager
 };
 
-// TODO: should we allow other file systems? npm/yarn only work on node anyway...
-const fs = new NodeFS();
-
 async function install(
+  fs: FileSystem,
   modules: Array<string>,
   filepath: FilePath,
   options: InstallOptions = {}
 ): Promise<void> {
-  let {
-    installPeers = true,
-    saveDev = true,
-    packageManager: packageManagerName
-  } = options;
+  let {installPeers = true, saveDev = true, packageManager} = options;
 
   logger.progress(`Installing ${modules.join(', ')}...`);
 
-  let packageLocation = await resolveConfig(fs, filepath, ['package.json']);
-  let cwd = packageLocation ? path.dirname(packageLocation) : fs.cwd();
+  let packagePath = await resolveConfig(fs, filepath, ['package.json']);
+  let cwd = packagePath ? path.dirname(packagePath) : fs.cwd();
 
-  if (!packageManagerName) {
-    packageManagerName = await determinePackageManager(filepath);
+  if (!packageManager) {
+    packageManager = await determinePackageManager(fs, filepath);
   }
 
-  let packageManager =
-    packageManagerName === 'npm'
-      ? new Npm({cwd, packageLocation})
-      : new Yarn({cwd});
-
   try {
-    await packageManager.install(modules, saveDev);
+    await packageManager.install({modules, saveDev, cwd, packagePath, fs});
   } catch (err) {
     throw new Error(`Failed to install ${modules.join(', ')}.`);
   }
 
   if (installPeers) {
     await Promise.all(
-      modules.map(m => installPeerDependencies(filepath, m, options))
+      modules.map(m => installPeerDependencies(fs, filepath, m, options))
     );
   }
 }
 
 async function installPeerDependencies(
+  fs: FileSystem,
   filepath: FilePath,
   name: string,
   options
@@ -77,6 +68,7 @@ async function installPeerDependencies(
 
   if (modules.length) {
     await install(
+      fs,
       modules,
       filepath,
       Object.assign({}, options, {installPeers: false})
@@ -85,8 +77,9 @@ async function installPeerDependencies(
 }
 
 async function determinePackageManager(
+  fs: FileSystem,
   filepath: FilePath
-): Promise<'npm' | 'yarn'> {
+): Promise<PackageManager> {
   let configFile = await resolveConfig(fs, filepath, [
     'yarn.lock',
     'package-lock.json'
@@ -96,10 +89,10 @@ async function determinePackageManager(
   // If Yarn isn't available, or there is a package-lock.json file, use npm.
   let configName = configFile && path.basename(configFile);
   if (!hasYarn || configName === 'package-lock.json') {
-    return 'npm';
+    return new Npm();
   }
 
-  return 'yarn';
+  return new Yarn();
 }
 
 let queue = new PromiseQueue({maxConcurrent: 1});
@@ -108,6 +101,7 @@ let modulesInstalling: Set<string> = new Set();
 // Do not call this directly! This can result in concurrent package installations
 // across multiple instances of the package manager.
 export function _addToInstallQueue(
+  fs: FileSystem,
   modules: Array<string>,
   filePath: FilePath,
   options?: InstallOptions
@@ -125,7 +119,7 @@ export function _addToInstallQueue(
     }
 
     queue.add(() =>
-      install(modulesToInstall, filePath, options).then(() => {
+      install(fs, modulesToInstall, filePath, options).then(() => {
         for (let m of modulesToInstall) {
           modulesInstalling.delete(m);
         }
@@ -137,7 +131,9 @@ export function _addToInstallQueue(
 }
 
 export default function installPackage(
-  ...args: [Array<string>, FilePath] | [Array<string>, FilePath, InstallOptions]
+  ...args:
+    | [FileSystem, Array<string>, FilePath]
+    | [FileSystem, Array<string>, FilePath, InstallOptions]
 ): Promise<mixed> {
   return WorkerFarm.callMaster({
     location: __filename,

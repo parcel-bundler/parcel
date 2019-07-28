@@ -6,7 +6,8 @@ const {
   assertBundles,
   distDir,
   inputFS,
-  outputFS
+  outputFS,
+  ncp
 } = require('@parcel/test-utils');
 
 describe('postcss', () => {
@@ -233,30 +234,38 @@ describe('postcss', () => {
     assert(composes6Classes[2].startsWith('_test-2_'));
   });
 
-  it('should automatically install postcss plugins with npm if needed', async () => {
-    await inputFS.rimraf(path.join(__dirname, '/input'));
-    await inputFS.ncp(
-      path.join(__dirname, '/integration/postcss-autoinstall/npm'),
-      path.join(__dirname, '/input')
-    );
-    await bundle(path.join(__dirname, '/input/index.css'));
+  it.only(
+    'should automatically install postcss plugins if needed',
+    async () => {
+      await outputFS.rimraf(path.join(__dirname, '/input'));
+      await ncp(
+        path.join(__dirname, '/integration/postcss-autoinstall/npm'),
+        path.join(__dirname, '/input')
+      );
+      await bundle(path.join(__dirname, '/input/index.css'), {
+        inputFS: outputFS
+      });
 
-    // cssnext was installed
-    let pkg = require('./input/package.json');
-    assert(pkg.devDependencies['postcss-cssnext']);
+      // cssnext was installed
+      let pkg = require('./input/package.json');
+      assert(pkg.devDependencies['postcss-cssnext']);
 
-    // peer dependency caniuse-lite was installed
-    assert(pkg.devDependencies['caniuse-lite']);
+      // peer dependency caniuse-lite was installed
+      assert(pkg.devDependencies['caniuse-lite']);
 
-    // cssnext is applied
-    let css = await inputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert(css.includes('rgba'));
+      // cssnext is applied
+      let css = await outputFS.readFile(
+        path.join(distDir, 'index.css'),
+        'utf8'
+      );
+      assert(css.includes('rgba'));
 
-    // Increase the timeout for just this test. It takes a while with npm.
-    // This method works with arrow functions, and doesn't seem to be documented
-    // on the main Mocha docs.
-    // https://stackoverflow.com/questions/15971167/how-to-increase-timeout-for-a-single-test-case-in-mocha
-  }).timeout(150000);
+      // Increase the timeout for just this test. It takes a while with npm.
+      // This method works with arrow functions, and doesn't seem to be documented
+      // on the main Mocha docs.
+      // https://stackoverflow.com/questions/15971167/how-to-increase-timeout-for-a-single-test-case-in-mocha
+    }
+  ).timeout(150000);
 
   it('should automatically install postcss plugins with yarn if needed', async () => {
     await inputFS.rimraf(path.join(__dirname, '/input'));

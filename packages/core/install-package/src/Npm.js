@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {FilePath} from '@parcel/types';
+import type {PackageManager, InstallOptions} from './types';
 
 import fs from 'fs';
 import path from 'path';
@@ -11,29 +11,17 @@ import promiseFromProcess from './promiseFromProcess';
 
 const NPM_CMD = 'npm';
 
-export default class Npm {
-  cwd: FilePath;
-  packageLocation: ?FilePath;
-
-  constructor({
+export default class Npm implements PackageManager {
+  async install({
+    modules,
     cwd,
-    packageLocation
-  }: {
-    cwd: FilePath,
-    packageLocation: ?FilePath
-  }) {
-    this.cwd = cwd;
-    this.packageLocation = packageLocation;
-  }
-
-  async install(
-    modules: Array<string>,
-    saveDev: boolean = true
-  ): Promise<void> {
+    packagePath,
+    saveDev = true
+  }: InstallOptions): Promise<void> {
     // npm doesn't auto-create a package.json when installing,
     // so create an empty one if needed.
-    if (this.packageLocation == null) {
-      await fs.writeFile(path.join(this.cwd, 'package.json'), '{}');
+    if (packagePath == null) {
+      await fs.writeFile(path.join(cwd, 'package.json'), '{}');
     }
 
     let args = [
@@ -43,7 +31,7 @@ export default class Npm {
       saveDev ? '--save-dev' : '--save'
     ];
 
-    let installProcess = spawn(NPM_CMD, args, {cwd: this.cwd});
+    let installProcess = spawn(NPM_CMD, args, {cwd});
     let stdout = '';
     installProcess.stdout.on('data', str => {
       stdout += str;
