@@ -20,7 +20,9 @@
     "@parcel/utils": "^2.0.0-alpha.0",
     "ansi-html": "^0.0.7",
     "ejs": "^2.6.1",
-    "serve-static": "^1.13.2"
+    "serve-static": "^1.13.2",
+    "parseurl": "^1.3.3",
+    "http-proxy-middleware": "^0.19.1"
   },
   "devDependencies": {
     "@parcel/babel-preset": "^2.0.0-alpha.0",
