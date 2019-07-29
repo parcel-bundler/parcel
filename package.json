@@ -20,7 +20,7 @@
     "prepublishOnly": "yarn build",
     "test:unit": "cross-env NODE_ENV=test mocha --config unit.mocharc.json",
     "test:integration": "mocha --config integration.mocharc.json && (pushd packages/core/integration-tests && yarn test && popd)",
-    "test:integration-ci": "mocha --config integration.mocharc.json && (pushd packages/core/integration-tests && yarn test-ci && popd)",
+    "test:integration-ci": "mocha --config integration.mocharc.json && (cd packages/core/integration-tests && yarn test-ci)",
     "test": "yarn test:unit && yarn test:integration"
   },
   "devDependencies": {
