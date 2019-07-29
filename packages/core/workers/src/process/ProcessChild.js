@@ -1,9 +1,15 @@
 // @flow
 
-import type {ChildImpl, MessageHandler, ExitHandler} from '../types';
+import type {
+  ChildImpl,
+  MessageHandler,
+  ExitHandler,
+  WorkerMessage
+} from '../types';
 import nullthrows from 'nullthrows';
 import {setChild} from '../childState';
 import {Child} from '../child';
+import {serialize, deserialize} from '@parcel/utils';
 
 export default class ProcessChild implements ChildImpl {
   onMessage: MessageHandler;
@@ -24,12 +30,12 @@ export default class ProcessChild implements ChildImpl {
       return this.stop();
     }
 
-    this.onMessage(Buffer.from(data, 'base64'));
+    this.onMessage(deserialize(Buffer.from(data, 'base64')));
   }
 
-  send(data: Buffer) {
+  send(data: WorkerMessage) {
     let processSend = nullthrows(process.send).bind(process);
-    processSend(data.toString('base64'), err => {
+    processSend(serialize(data).toString('base64'), err => {
       if (err && err instanceof Error) {
         if (err.code === 'ERR_IPC_CHANNEL_CLOSED') {
           // IPC connection closed

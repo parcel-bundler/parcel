@@ -4,10 +4,12 @@ import type {
   WorkerImpl,
   MessageHandler,
   ErrorHandler,
-  ExitHandler
+  ExitHandler,
+  WorkerMessage
 } from '../types';
 import childProcess, {type ChildProcess} from 'child_process';
 import path from 'path';
+import {serialize, deserialize} from '@parcel/utils';
 
 const WORKER_PATH = path.join(__dirname, 'ProcessChild.js');
 
@@ -39,12 +41,8 @@ export default class ProcessWorker implements WorkerImpl {
       cwd: process.cwd()
     });
 
-    // Unref the child and IPC channel so that the workers don't prevent the main process from exiting
-    this.child.unref();
-    this.child.channel.unref();
-
     this.child.on('message', (data: string) => {
-      this.onMessage(Buffer.from(data, 'base64'));
+      this.onMessage(deserialize(Buffer.from(data, 'base64')));
     });
 
     this.child.once('exit', this.onExit);
@@ -62,13 +60,13 @@ export default class ProcessWorker implements WorkerImpl {
     clearTimeout(forceKill);
   }
 
-  send(data: Buffer) {
+  send(data: WorkerMessage) {
     if (!this.processQueue) {
       this.sendQueue.push(data);
       return;
     }
 
-    let result = this.child.send(data.toString('base64'), error => {
+    let result = this.child.send(serialize(data).toString('base64'), error => {
       if (error && error instanceof Error) {
         // Ignore this, the workerfarm handles child errors
         return;

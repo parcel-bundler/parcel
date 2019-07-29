@@ -6,8 +6,8 @@ import type {
   PackageName,
   ParcelOptions
 } from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 import {resolveConfig} from '@parcel/utils';
-import * as fs from '@parcel/fs';
 import {parse} from 'json5';
 import path from 'path';
 import {localResolve} from '@parcel/local-require';
@@ -22,17 +22,18 @@ export default async function loadParcelConfig(
   filePath: FilePath,
   options: ParcelOptions
 ) {
+  let fs = options.inputFS;
   // Resolve plugins from cwd when a config is passed programmatically
   let parcelConfig = options.config
-    ? await create({
+    ? await create(fs, {
         ...options.config,
-        resolveFrom: process.cwd()
+        resolveFrom: fs.cwd()
       })
-    : await resolve(filePath);
+    : await resolve(fs, filePath);
   if (!parcelConfig && options.defaultConfig) {
-    parcelConfig = await create({
+    parcelConfig = await create(fs, {
       ...options.defaultConfig,
-      resolveFrom: process.cwd()
+      resolveFrom: fs.cwd()
     });
   }
 
@@ -43,31 +44,32 @@ export default async function loadParcelConfig(
   return parcelConfig;
 }
 
-export async function resolve(filePath: FilePath) {
-  let configPath = await resolveConfig(filePath, ['.parcelrc']);
+export async function resolve(fs: FileSystem, filePath: FilePath) {
+  let configPath = await resolveConfig(fs, filePath, ['.parcelrc']);
   if (!configPath) {
     return null;
   }
 
-  return readAndProcess(configPath);
+  return readAndProcess(fs, configPath);
 }
 
-export async function create(config: ParcelConfigFile) {
-  return processConfig(config, process.cwd());
+export async function create(fs: FileSystem, config: ParcelConfigFile) {
+  return processConfig(fs, config, fs.cwd());
 }
 
-export async function readAndProcess(configPath: FilePath) {
+export async function readAndProcess(fs: FileSystem, configPath: FilePath) {
   let config: ParcelConfigFile = parse(await fs.readFile(configPath));
-  return processConfig(config, configPath);
+  return processConfig(fs, config, configPath);
 }
 
 export async function processConfig(
+  fs: FileSystem,
   configFile: ParcelConfigFile,
   filePath: FilePath
 ) {
   let resolvedFile: ResolvedParcelConfigFile = {filePath, ...configFile};
   let config = new ParcelConfig(resolvedFile);
-  let relativePath = path.relative(process.cwd(), filePath);
+  let relativePath = path.relative(fs.cwd(), filePath);
   validateConfigFile(configFile, relativePath);
 
   let extendedFiles: Array<FilePath> = [];
@@ -77,12 +79,12 @@ export async function processConfig(
       ? configFile.extends
       : [configFile.extends];
     for (let ext of exts) {
-      let resolved = await resolveExtends(ext, filePath);
+      let resolved = await resolveExtends(fs, ext, filePath);
       extendedFiles.push(resolved);
       let {
         extendedFiles: moreExtendedFiles,
         config: baseConfig
-      } = await readAndProcess(resolved);
+      } = await readAndProcess(fs, resolved);
       extendedFiles = extendedFiles.concat(moreExtendedFiles);
       config = mergeConfigs(baseConfig, resolvedFile);
     }
@@ -91,7 +93,11 @@ export async function processConfig(
   return {config, extendedFiles};
 }
 
-export async function resolveExtends(ext: string, configPath: FilePath) {
+export async function resolveExtends(
+  fs: FileSystem,
+  ext: string,
+  configPath: FilePath
+) {
   if (ext.startsWith('.')) {
     return path.resolve(path.dirname(configPath), ext);
   } else {

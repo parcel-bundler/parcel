@@ -7,6 +7,7 @@ import type {
   PackageJSON,
   Target
 } from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 
 import {loadConfig} from '@parcel/utils';
 import Environment from './Environment';
@@ -24,6 +25,11 @@ const DEFAULT_DIST_DIRNAME = 'dist';
 const COMMON_TARGETS = ['main', 'module', 'browser'];
 
 export default class TargetResolver {
+  fs: FileSystem;
+  constructor(fs: FileSystem) {
+    this.fs = fs;
+  }
+
   async resolve(
     rootDir: FilePath,
     cacheDir: FilePath,
@@ -56,7 +62,7 @@ export default class TargetResolver {
           let descriptor: TargetDescriptor = _descriptor;
           return {
             name,
-            distDir: path.resolve(descriptor.distDir),
+            distDir: path.resolve(this.fs.cwd(), descriptor.distDir),
             publicUrl: descriptor.publicUrl,
             env: new Environment(descriptor),
             sourceMap: descriptor.sourceMap
@@ -109,7 +115,9 @@ export default class TargetResolver {
   }
 
   async resolvePackageTargets(rootDir: FilePath): Promise<Map<string, Target>> {
-    let conf = await loadConfig(path.join(rootDir, 'index'), ['package.json']);
+    let conf = await loadConfig(this.fs, path.join(rootDir, 'index'), [
+      'package.json'
+    ]);
 
     let pkg: PackageJSON;
     let pkgDir: FilePath;
@@ -122,7 +130,7 @@ export default class TargetResolver {
       pkgDir = path.dirname(pkgFile.filePath);
     } else {
       pkg = {};
-      pkgDir = process.cwd();
+      pkgDir = this.fs.cwd();
     }
 
     let pkgTargets = pkg.targets || {};
@@ -226,7 +234,7 @@ export default class TargetResolver {
       let context = browsers || !node ? 'browser' : 'node';
       targets.set('default', {
         name: 'default',
-        distDir: path.resolve(DEFAULT_DIST_DIRNAME),
+        distDir: path.resolve(this.fs.cwd(), DEFAULT_DIST_DIRNAME),
         publicUrl: '/',
         env: new Environment({
           engines: pkgEngines,

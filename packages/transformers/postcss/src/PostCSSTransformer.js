@@ -4,7 +4,6 @@ import type {FilePath, MutableAsset} from '@parcel/types';
 
 import {md5FromString} from '@parcel/utils';
 import {Transformer} from '@parcel/plugin';
-import * as fs from '@parcel/fs';
 import FileSystemLoader from 'css-modules-loader-core/lib/file-system-loader';
 import localRequire from '@parcel/local-require';
 import nullthrows from 'nullthrows';
@@ -188,7 +187,7 @@ function createLoader(
         rootRelativePath = rootRelativePath.substr(root.length);
       }
 
-      let source = await fs.readFile(resolved, 'utf-8');
+      let source = await asset.fs.readFile(resolved, 'utf-8');
       let {exportTokens} = await this.core.load(
         source,
         rootRelativePath,

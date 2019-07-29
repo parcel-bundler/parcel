@@ -17,6 +17,8 @@ type AdjacencyList<TEdgeType> = DefaultMap<
   DefaultMap<TEdgeType, Set<NodeId>>
 >;
 
+export const ALL_EDGE_TYPES = '@@all_edge_types';
+
 export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   nodes: Map<NodeId, TNode>;
   inboundEdges: AdjacencyList<TEdgeType | null> = new DefaultMap(
@@ -35,7 +37,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
 
     if (opts.edges) {
       for (let edge of opts.edges) {
-        this.addEdge(edge.from, edge.to);
+        this.addEdge(edge.from, edge.to, edge.type);
       }
     }
   }
@@ -111,24 +113,44 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     node: TNode,
     type: TEdgeType | null = null
   ): Array<TNode> {
-    return Array.from(
-      this.inboundEdges
+    let nodes;
+    if (type === ALL_EDGE_TYPES) {
+      nodes = new Set();
+      for (let [, typeNodes] of this.inboundEdges.get(node.id)) {
+        for (let node of typeNodes) {
+          nodes.add(node);
+        }
+      }
+    } else {
+      nodes = this.inboundEdges
         .get(node.id)
         .get(type)
-        .values()
-    ).map(from => nullthrows(this.nodes.get(from)));
+        .values();
+    }
+
+    return [...nodes].map(to => nullthrows(this.nodes.get(to)));
   }
 
   getNodesConnectedFrom(
     node: TNode,
     type: TEdgeType | null = null
   ): Array<TNode> {
-    return Array.from(
-      this.outboundEdges
+    let nodes;
+    if (type === ALL_EDGE_TYPES) {
+      nodes = new Set();
+      for (let [, typeNodes] of this.outboundEdges.get(node.id)) {
+        for (let node of typeNodes) {
+          nodes.add(node);
+        }
+      }
+    } else {
+      nodes = this.outboundEdges
         .get(node.id)
         .get(type)
-        .values()
-    ).map(to => nullthrows(this.nodes.get(to)));
+        .values();
+    }
+
+    return [...nodes].map(to => nullthrows(this.nodes.get(to)));
   }
 
   merge(graph: Graph<TNode>): void {
@@ -228,13 +250,7 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
         : outboundEdges
     );
     for (let toNode of toNodes) {
-      let existingNode = this.getNode(toNode.id);
-      if (!existingNode) {
-        this.addNode(toNode);
-      } else {
-        existingNode.value = toNode.value;
-      }
-
+      this.addNode(toNode);
       childrenToRemove.delete(toNode.id);
 
       if (!this.hasEdge(fromNode.id, toNode.id, type)) {
@@ -251,9 +267,8 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
     visit: GraphVisitor<TNode, TContext>,
     startNode: ?TNode,
     type: TEdgeType | null = null
-  ) {
+  ): ?TContext {
     return this.dfs({
-      // $FlowFixMe
       visit,
       startNode,
       getChildren: node => this.getNodesConnectedFrom(node, type)
@@ -261,41 +276,12 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   }
 
   filteredTraverse<TValue, TContext>(
-    filter: TNode => ?TValue,
+    filter: (TNode, TraversalActions) => ?TValue,
     visit: GraphVisitor<TValue, TContext>,
-    startNode: ?TNode
+    startNode: ?TNode,
+    type?: TEdgeType | null
   ): ?TContext {
-    return this.traverse<TContext>(
-      {
-        enter: (node, ...args) => {
-          let enter = typeof visit === 'function' ? visit : visit.enter;
-          if (!enter) {
-            return;
-          }
-
-          let value = filter(node);
-          if (value != null) {
-            return enter(value, ...args);
-          }
-        },
-        exit: (node, ...args) => {
-          if (typeof visit === 'function') {
-            return;
-          }
-
-          let exit = visit.exit;
-          if (!exit) {
-            return;
-          }
-
-          let value = filter(node);
-          if (value != null) {
-            return exit(value, ...args);
-          }
-        }
-      },
-      startNode
-    );
+    return this.traverse(mapVisitor(filter, visit), startNode, type);
   }
 
   traverseAncestors<TContext>(
@@ -482,4 +468,38 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   findNodes(predicate: TNode => boolean): Array<TNode> {
     return Array.from(this.nodes.values()).filter(predicate);
   }
+}
+
+export function mapVisitor<TNode, TValue, TContext>(
+  filter: (TNode, TraversalActions) => ?TValue,
+  visit: GraphVisitor<TValue, TContext>
+): GraphVisitor<TNode, TContext> {
+  return {
+    enter: (node, context, actions) => {
+      let enter = typeof visit === 'function' ? visit : visit.enter;
+      if (!enter) {
+        return;
+      }
+
+      let value = filter(node, actions);
+      if (value != null) {
+        return enter(value, context, actions);
+      }
+    },
+    exit: (node, context, actions) => {
+      if (typeof visit === 'function') {
+        return;
+      }
+
+      let exit = visit.exit;
+      if (!exit) {
+        return;
+      }
+
+      let value = filter(node, actions);
+      if (value != null) {
+        return exit(value, context, actions);
+      }
+    }
+  };
 }

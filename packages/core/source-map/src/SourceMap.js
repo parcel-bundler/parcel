@@ -1,10 +1,12 @@
 // @flow strict-local
 import type {Mapping, Position, MappingItem, RawSourceMap} from 'source-map';
-
+import type {FileSystem} from '@parcel/fs';
 import {SourceMapConsumer, SourceMapGenerator} from 'source-map';
-import {countLines} from '@parcel/utils';
-import {readFile} from '@parcel/fs';
+import {countLines, registerSerializableClass} from '@parcel/utils';
 import path from 'path';
+import nullthrows from 'nullthrows';
+// $FlowFixMe
+import pkg from '../package.json';
 
 type RawMapInput = SourceMapConsumer | string | RawSourceMap;
 
@@ -346,12 +348,14 @@ export default class SourceMap {
     file,
     sourceRoot,
     rootDir,
-    inlineSources
+    inlineSources,
+    fs
   }: {|
     file?: string, // Filename of the bundle/file sourcemap applies to
     sourceRoot?: string, // The root dir of sourcemap sourceContent, all sourceContent of mappings should exist in here...
     rootDir?: string, // Parcel's rootDir where all mappings are relative to
-    inlineSources?: boolean // true = inline everything, false = inline nothing
+    inlineSources?: boolean, // true = inline everything, false = inline nothing
+    fs?: FileSystem
   |}) {
     let generator = new SourceMapGenerator({file, sourceRoot});
 
@@ -366,7 +370,7 @@ export default class SourceMap {
           generator.setSourceContent(sourceName, sourceContent);
         } else {
           try {
-            let content = await readFile(
+            let content = await nullthrows(fs).readFile(
               path.join(rootDir || '', sourceName),
               'utf8'
             );
@@ -382,14 +386,6 @@ export default class SourceMap {
 
     return generator.toString();
   }
-
-  static deserialize({
-    mappings,
-    sources
-  }: {
-    mappings: Array<Mapping>,
-    sources: Sources
-  }) {
-    return new SourceMap(mappings, sources);
-  }
 }
+
+registerSerializableClass(`${pkg.version}:SourceMap`, SourceMap);

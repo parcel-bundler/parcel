@@ -1,9 +1,9 @@
 // @flow strict-local
 
 import type {Readable} from 'stream';
+import type {FileSystem} from '@parcel/fs';
 
 import crypto from 'crypto';
-import fs from 'fs';
 import {objectSortedEntriesDeep} from './collection';
 
 type StringHashEncoding = 'hex' | 'latin1' | 'binary' | 'base64';
@@ -36,6 +36,9 @@ export function md5FromObject(
   return md5FromString(JSON.stringify(objectSortedEntriesDeep(obj)), encoding);
 }
 
-export function md5FromFilePath(filePath: string): Promise<string> {
+export function md5FromFilePath(
+  fs: FileSystem,
+  filePath: string
+): Promise<string> {
   return md5FromReadableStream(fs.createReadStream(filePath));
 }

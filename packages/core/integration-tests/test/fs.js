@@ -1,11 +1,12 @@
 const assert = require('assert');
-const fs = require('@parcel/fs');
 const path = require('path');
 const {
   assertBundles,
   bundle,
   removeDistDirectory,
-  run
+  run,
+  outputFS,
+  distDir
 } = require('@parcel/test-utils');
 
 describe('fs', function() {
@@ -145,11 +146,14 @@ describe('fs', function() {
         }
       ]);
 
-      let contents = await fs.readFile('dist/index.js', 'utf8');
+      let contents = await outputFS.readFile(
+        path.join(distDir, 'index.js'),
+        'utf8'
+      );
       assert(contents.includes("require('fs')"));
       assert(contents.includes('readFileSync'));
 
-      await fs.writeFile('dist/test.txt', 'hey');
+      await outputFS.writeFile(path.join(distDir, 'test.txt'), 'hey');
       let output = await run(b);
       assert.equal(output, 'hey');
     });
@@ -168,11 +172,14 @@ describe('fs', function() {
         }
       ]);
 
-      let contents = await fs.readFile('dist/index.js', 'utf8');
+      let contents = await outputFS.readFile(
+        path.join(distDir, 'index.js'),
+        'utf8'
+      );
       assert(contents.includes("require('fs')"));
       assert(contents.includes('readFileSync'));
 
-      await fs.writeFile('dist/test.txt', 'hey');
+      await outputFS.writeFile(path.join(distDir, 'test.txt'), 'hey');
       let output = await run(b);
       assert.equal(output, 'hey');
     });

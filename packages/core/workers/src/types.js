@@ -45,7 +45,7 @@ export type WorkerErrorResponse = {|
 export type WorkerResponse = WorkerDataResponse | WorkerErrorResponse;
 export type WorkerMessage = WorkerRequest | WorkerResponse;
 
-export type MessageHandler = (data: Buffer) => void;
+export type MessageHandler = (data: WorkerMessage) => void;
 export type ErrorHandler = (err: Error) => void;
 export type ExitHandler = (code: number) => void;
 export interface WorkerImpl {
@@ -57,12 +57,12 @@ export interface WorkerImpl {
   ): void;
   start(): Promise<void>;
   stop(): Promise<void>;
-  send(data: Buffer): void;
+  send(data: WorkerMessage): void;
 }
 
 export interface ChildImpl {
   constructor(onMessage: MessageHandler, onExit: ExitHandler): void;
-  send(data: Buffer): void;
+  send(data: WorkerMessage): void;
 }
 
 export type BackendType = 'threads' | 'process';

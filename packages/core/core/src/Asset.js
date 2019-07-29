@@ -16,6 +16,7 @@ import type {
   Symbol,
   TransformerResult
 } from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 
 import {Readable} from 'stream';
 import crypto from 'crypto';
@@ -25,7 +26,7 @@ import {
   loadConfig,
   md5FromFilePath,
   md5FromString,
-  readableFromStringOrBuffer,
+  blobToStream,
   TapStream
 } from '@parcel/utils';
 import Dependency from './Dependency';
@@ -35,6 +36,7 @@ type AssetOptions = {|
   hash?: ?string,
   idBase?: string,
   cache: Cache,
+  fs: FileSystem,
   filePath: FilePath,
   type: string,
   content?: Blob,
@@ -57,6 +59,7 @@ export default class Asset {
   id: string;
   hash: ?string;
   idBase: string;
+  fs: FileSystem;
   filePath: FilePath;
   type: string;
   ast: ?AST;
@@ -84,6 +87,7 @@ export default class Asset {
             this.idBase + options.type + JSON.stringify(options.env)
           );
     this.hash = options.hash;
+    this.fs = options.fs;
     this.filePath = options.filePath;
     this.isIsolated = options.isIsolated == null ? false : options.isIsolated;
     this.type = options.type;
@@ -112,6 +116,7 @@ export default class Asset {
     return {
       id: this.id,
       hash: this.hash,
+      fs: this.fs,
       filePath: this.filePath,
       cache: this.cache,
       type: this.type,
@@ -204,11 +209,7 @@ export default class Asset {
       this.content = this.cache.getStream(this.contentKey);
     }
 
-    if (this.content instanceof Readable) {
-      return this.content;
-    }
-
-    return readableFromStringOrBuffer(this.content);
+    return blobToStream(this.content);
   }
 
   setCode(code: string) {
@@ -225,10 +226,7 @@ export default class Asset {
 
   async getMap(): Promise<?SourceMap> {
     if (this.mapKey != null) {
-      let cached = await this.cache.get(this.mapKey);
-      if (cached != null) {
-        this.map = SourceMap.deserialize(cached);
-      }
+      this.map = await this.cache.get(this.mapKey);
     }
 
     return this.map;
@@ -247,6 +245,7 @@ export default class Asset {
     let dep = new Dependency({
       ...rest,
       env: this.env.merge(env),
+      sourceAssetId: this.id,
       sourcePath: this.filePath
     });
     let existing = this.dependencies.get(dep.id);
@@ -260,7 +259,7 @@ export default class Asset {
 
   async addConnectedFile(file: File) {
     if (file.hash == null) {
-      file.hash = await md5FromFilePath(file.filePath);
+      file.hash = await md5FromFilePath(this.fs, file.filePath);
     }
 
     this.connectedFiles.set(file.filePath, file);
@@ -293,6 +292,7 @@ export default class Asset {
     let asset = new Asset({
       idBase: this.idBase,
       hash,
+      fs: this.fs,
       filePath: this.filePath,
       type: result.type,
       content,
@@ -301,7 +301,8 @@ export default class Asset {
       map: result.map,
       isIsolated: result.isIsolated,
       env: this.env.merge(result.env),
-      dependencies: new Map(this.dependencies),
+      dependencies:
+        this.type === result.type ? new Map(this.dependencies) : new Map(),
       connectedFiles: new Map(this.connectedFiles),
       meta: {...this.meta, ...result.meta},
       stats: {
@@ -344,6 +345,7 @@ export default class Asset {
     }
 
     let conf = await loadConfig(
+      this.fs,
       this.filePath,
       filePaths,
       parse == null ? null : {parse}

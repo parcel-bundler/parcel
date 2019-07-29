@@ -3,9 +3,10 @@
 import {resolveConfig} from '@parcel/utils';
 import dotenv from 'dotenv';
 import variableExpansion from 'dotenv-expand';
-import * as fs from '@parcel/fs';
+import type {FileSystem} from '@parcel/fs';
 
 export default async function loadEnv(
+  fs: FileSystem,
   filePath: string
 ): Promise<{[string]: string}> {
   const NODE_ENV = process.env.NODE_ENV ?? 'development';
@@ -22,7 +23,7 @@ export default async function loadEnv(
 
   let envs = await Promise.all(
     dotenvFiles.map(async dotenvFile => {
-      const envPath = await resolveConfig(filePath, [dotenvFile]);
+      const envPath = await resolveConfig(fs, filePath, [dotenvFile]);
       if (envPath == null) {
         return;
       }

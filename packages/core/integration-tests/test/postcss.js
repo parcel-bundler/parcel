@@ -1,7 +1,13 @@
 const assert = require('assert');
 const path = require('path');
-const fs = require('@parcel/fs');
-const {bundle, run, assertBundles, distDir} = require('@parcel/test-utils');
+const {
+  bundle,
+  run,
+  assertBundles,
+  distDir,
+  inputFS,
+  outputFS
+} = require('@parcel/test-utils');
 
 describe('postcss', () => {
   it('should support transforming css modules with postcss', async () => {
@@ -28,7 +34,7 @@ describe('postcss', () => {
 
     let cssClass = value.match(/(_foo_[0-9a-z])/)[1];
 
-    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes(`.${cssClass}`));
   });
 
@@ -81,7 +87,7 @@ describe('postcss', () => {
     assert(composes2Classes[0].startsWith('_composes2_'));
     assert(composes2Classes[1].startsWith('_test_'));
 
-    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     let cssClass1 = value.composes1.match(/(_composes1_[0-9a-z]+)/)[1];
     assert(css.includes(`.${cssClass1}`));
     let cssClass2 = value.composes2.match(/(_composes2_[0-9a-z]+)/)[1];
@@ -95,7 +101,7 @@ describe('postcss', () => {
 
     await run(b);
 
-    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert.equal(
       css.indexOf('height: 100px;'),
       css.lastIndexOf('height: 100px;')
@@ -126,7 +132,10 @@ describe('postcss', () => {
     assert(composes3Classes[0].startsWith('_composes3_'));
     assert(composes3Classes[1].startsWith('_test_'));
 
-    let css = await fs.readFile(path.join(distDir, 'composes-3.css'), 'utf8');
+    let css = await outputFS.readFile(
+      path.join(distDir, 'composes-3.css'),
+      'utf8'
+    );
     assert(css.includes('height: 200px;'));
   });
 
@@ -154,7 +163,7 @@ describe('postcss', () => {
     assert(composes4Classes[0].startsWith('_composes4_'));
     assert(composes4Classes[1].startsWith('_test_'));
 
-    let css = await fs.readFile(path.join(distDir, 'index3.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, 'index3.css'), 'utf8');
     assert(css.includes('height: 100px;'));
   });
 
@@ -192,7 +201,7 @@ describe('postcss', () => {
     assert(composes5Classes[1].startsWith('_intermediate_'));
     assert(composes5Classes[2].startsWith('_test_'));
 
-    let css = await fs.readFile(path.join(distDir, 'index4.css'), 'utf8');
+    let css = await outputFS.readFile(path.join(distDir, 'index4.css'), 'utf8');
     assert(css.includes('height: 100px;'));
     assert(css.includes('height: 300px;'));
     assert(css.indexOf('._test_') < css.indexOf('._intermediate_'));
@@ -225,12 +234,12 @@ describe('postcss', () => {
   });
 
   it('should automatically install postcss plugins with npm if needed', async () => {
-    await fs.rimraf(path.join(__dirname, '/input'));
-    await fs.ncp(
+    await inputFS.rimraf(path.join(__dirname, '/input'));
+    await inputFS.ncp(
       path.join(__dirname, '/integration/postcss-autoinstall/npm'),
       path.join(__dirname, '/input')
     );
-    await bundle(path.join(__dirname, '/input/index.css'));
+    await bundle(path.join(__dirname, '/input/index.css'), {outputFS: inputFS});
 
     // cssnext was installed
     let pkg = require('./input/package.json');
@@ -240,7 +249,7 @@ describe('postcss', () => {
     assert(pkg.devDependencies['caniuse-lite']);
 
     // cssnext is applied
-    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let css = await inputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('rgba'));
 
     // Increase the timeout for just this test. It takes a while with npm.
@@ -250,12 +259,12 @@ describe('postcss', () => {
   }).timeout(150000);
 
   it('should automatically install postcss plugins with yarn if needed', async () => {
-    await fs.rimraf(path.join(__dirname, '/input'));
-    await fs.ncp(
+    await inputFS.rimraf(path.join(__dirname, '/input'));
+    await inputFS.ncp(
       path.join(__dirname, '/integration/postcss-autoinstall/yarn'),
       path.join(__dirname, '/input')
     );
-    await bundle(path.join(__dirname, '/input/index.css'));
+    await bundle(path.join(__dirname, '/input/index.css'), {outputFS: inputFS});
 
     // cssnext was installed
     let pkg = require('./input/package.json');
@@ -269,7 +278,7 @@ describe('postcss', () => {
     // assert(lockfile.includes('postcss-cssnext'));
 
     // cssnext is applied
-    let css = await fs.readFile(path.join(distDir, 'index.css'), 'utf8');
+    let css = await inputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('rgba'));
   });
 });

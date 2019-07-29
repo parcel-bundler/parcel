@@ -1,0 +1,19 @@
+// @flow
+
+declare class SharedArrayBuffer {
+  constructor(byteLength: number): SharedArrayBuffer;
+
+  +byteLength: number;
+  slice(begin?: number, end?: number): SharedArrayBuffer;
+
+  +[key: $SymbolToStringTag]: 'SharedArrayBuffer';
+}
+
+declare class Buffer extends Buffer {
+  // Flow doesn't have a definition for SharedArrayBuffer in Buffer
+  static from(value: SharedArrayBuffer, byteOffset?: number, length?: number): Buffer;
+  static from(value: Buffer): Buffer;
+  static from(value: string, encoding?: buffer$Encoding): Buffer;
+  static from(value: ArrayBuffer, byteOffset?: number, length?: number): Buffer;
+  static from(value: Iterable<number>): this;
+}

@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import {Readable} from 'stream';
+import type {Blob} from '@parcel/types';
 
 export async function measureStreamLength(stream: Readable): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -32,4 +33,12 @@ export async function bufferStream(stream: Readable): Promise<Buffer> {
     });
     stream.on('error', reject);
   });
+}
+
+export function blobToStream(blob: Blob): Readable {
+  if (blob instanceof Readable) {
+    return blob;
+  }
+
+  return readableFromStringOrBuffer(blob);
 }

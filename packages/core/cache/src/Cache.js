@@ -4,8 +4,7 @@ import type {Readable} from 'stream';
 
 import type {FilePath} from '@parcel/types';
 
-import * as fs from '@parcel/fs';
-import {createReadStream, createWriteStream} from 'fs';
+import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import logger from '@parcel/logger';
 import {serialize, deserialize, registerSerializableClass} from '@parcel/utils';
@@ -13,9 +12,11 @@ import {serialize, deserialize, registerSerializableClass} from '@parcel/utils';
 import packageJson from '../package.json';
 
 export default class Cache {
+  fs: FileSystem;
   dir: FilePath;
 
-  constructor(cacheDir: FilePath) {
+  constructor(fs: FileSystem, cacheDir: FilePath) {
+    this.fs = fs;
     this.dir = cacheDir;
   }
 
@@ -28,21 +29,34 @@ export default class Cache {
   }
 
   getStream(key: string): Readable {
-    return createReadStream(this._getCachePath(key, '.blob'));
+    return this.fs.createReadStream(this._getCachePath(key, '.blob'));
   }
 
   async setStream(key: string, stream: Readable): Promise<string> {
     return new Promise((resolve, reject) => {
       stream
-        .pipe(createWriteStream(this._getCachePath(key, '.blob')))
+        .pipe(this.fs.createWriteStream(this._getCachePath(key, '.blob')))
         .on('error', reject)
         .on('finish', () => resolve(key));
     });
   }
 
+  async blobExists(key: string): Promise<boolean> {
+    return this.fs.exists(this._getCachePath(key, '.blob'));
+  }
+
+  async getBlob(key: string, encoding?: buffer$Encoding) {
+    return this.fs.readFile(this._getCachePath(key, '.blob'), encoding);
+  }
+
+  async setBlob(key: string, contents: Buffer | string) {
+    await this.fs.writeFile(this._getCachePath(key, '.blob'), contents);
+    return key;
+  }
+
   async get(key: string) {
     try {
-      let data = await fs.readFile(this._getCachePath(key));
+      let data = await this.fs.readFile(this._getCachePath(key));
       return deserialize(data);
     } catch (err) {
       if (err.code === 'ENOENT') {
@@ -58,7 +72,7 @@ export default class Cache {
       let blobPath = this._getCachePath(key);
       let data = serialize(value);
 
-      await fs.writeFile(blobPath, data);
+      await this.fs.writeFile(blobPath, data);
       return key;
     } catch (err) {
       logger.error(`Error writing to cache: ${err.message}`);
@@ -66,7 +80,10 @@ export default class Cache {
   }
 }
 
-export async function createCacheDir(dir: FilePath): Promise<void> {
+export async function createCacheDir(
+  fs: FileSystem,
+  dir: FilePath
+): Promise<void> {
   // First, create the main cache directory if necessary.
   await fs.mkdirp(dir);
 
@@ -79,7 +96,7 @@ export async function createCacheDir(dir: FilePath): Promise<void> {
     );
   }
 
-  await dirPromises;
+  await Promise.all(dirPromises);
 }
 
 registerSerializableClass(`${packageJson.version}:Cache`, Cache);
