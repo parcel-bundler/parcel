@@ -2,7 +2,9 @@ import Logger from '@parcel/logger';
 import assert from 'assert';
 import WorkerFarm from '../';
 
-describe('WorkerFarm', () => {
+describe('WorkerFarm', function() {
+  this.timeout(10000);
+
   it('Should start up workers', async () => {
     let workerfarm = new WorkerFarm({
       warmWorkers: false,
@@ -216,4 +218,4 @@ describe('WorkerFarm', () => {
     assert.equal(result, 42);
     await workerfarm.end();
   });
-}).timeout(10000);
+});
