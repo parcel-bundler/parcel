@@ -1,5 +1,6 @@
 // @flow
 import type {Request, Response, DevServerOptions} from './types.js.flow';
+import ProxyHandler from './ProxyHandler';
 import type {BundleGraph} from '@parcel/types';
 import type {PrintableError} from '@parcel/utils';
 import type {Server as HTTPServer} from 'http';
@@ -180,7 +181,7 @@ export default class Server extends EventEmitter {
   }
 
   async start() {
-    const handler = (req: Request, res: Response) => {
+    const finalHandler = (req: Request, res: Response) => {
       this.logAccessIfVerbose(req);
 
       const response = () => this.respond(req, res);
@@ -191,6 +192,14 @@ export default class Server extends EventEmitter {
       } else {
         response();
       }
+    };
+
+    const proxyHandler = new ProxyHandler();
+    await proxyHandler.loadProxyTable(this.options.projectRoot);
+    await proxyHandler.use(finalHandler);
+
+    const handler = (req: Request, res: Response) => {
+      proxyHandler.handle(req, res);
     };
 
     if (!this.options.https) {
