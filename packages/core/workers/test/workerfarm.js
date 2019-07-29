@@ -214,5 +214,6 @@ describe('WorkerFarm', () => {
     let handle = workerfarm.createReverseHandle(() => 42);
     let result = await workerfarm.run(handle);
     assert.equal(result, 42);
+    await workerfarm.end();
   });
 }).timeout(10000);
