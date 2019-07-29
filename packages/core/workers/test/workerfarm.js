@@ -215,4 +215,4 @@ describe('WorkerFarm', () => {
     let result = await workerfarm.run(handle);
     assert.equal(result, 42);
   });
-});
+}).timeout(10000);
