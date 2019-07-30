@@ -10,7 +10,7 @@ import type Config from './public/Config';
 import {report} from './ReporterRunner';
 import InternalAsset from './Asset';
 import type {NodeId, ConfigRequest} from './types';
-import {MutableAsset} from './public/Asset';
+import {Asset} from './public/Asset';
 import summarizeRequest from './summarizeRequest';
 
 export type ValidationOpts = {|
@@ -62,7 +62,7 @@ export default class Validation {
     let validators = await parcelConfig.getValidators(this.request.filePath);
     for (let validator of validators) {
       await validator.validate({
-        asset: new MutableAsset(asset),
+        asset: new Asset(asset),
         options: this.options,
         resolveConfig: (configNames: Array<string>) =>
           resolveConfig(this.options.inputFS, asset.filePath, configNames)

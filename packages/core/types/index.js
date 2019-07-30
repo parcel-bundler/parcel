@@ -338,7 +338,7 @@ type ResolveConfigFn = (
 
 export type Validator = {|
   validate({
-    asset: MutableAsset,
+    asset: Asset,
     resolveConfig: ResolveConfigFn, // This is a temporary function and should be replaced with something cacheable
     options: ParcelOptions
   }): Async<void>
