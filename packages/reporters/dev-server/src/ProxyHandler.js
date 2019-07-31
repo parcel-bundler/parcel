@@ -1,8 +1,10 @@
 // @flow
 import type {Request, Response} from './types.js.flow';
+import type {FileSystem} from '@parcel/fs';
 import logger from '@parcel/logger';
 import {loadConfig} from '@parcel/utils';
 import http from 'http';
+import path from 'path';
 import parseUrl from 'parseurl';
 import httpProxyMiddleware from 'http-proxy-middleware';
 
@@ -17,11 +19,16 @@ export default class ProxyHandler {
   route: string;
   stack: Array<MiddlewareLayer>;
 
+  constructor() {
+    this.route = '/';
+    this.stack = [];
+  }
+
   /**
    * Load proxy table from package.json and apply them.
    */
-  async loadProxyTable(root: string) {
-    const pkg = await loadConfig(root, ['package.json']);
+  async loadProxyTable(fs: FileSystem, root: string) {
+    const pkg = await loadConfig(fs, path.join(root, '_'), ['package.json']);
 
     if (!pkg || !pkg.config || !pkg.config.proxy) {
       return null;
@@ -56,7 +63,7 @@ export default class ProxyHandler {
     if (typeof route === 'string') {
       this.mount(route, fn);
     } else {
-      this.mount('/', fn);
+      this.mount('/', route);
     }
 
     return this;
@@ -70,7 +77,7 @@ export default class ProxyHandler {
    * @private
    */
   mount(path: string, fn: any) {
-    logger.verbose(`proxy:  '${path} =>  ${fn.name || 'anonymous'}`);
+    logger.verbose(`proxy:  '${path} =>  ${fn.name || '<anonymous>'}`);
     let handle: ?RequestHandler;
 
     if (typeof fn.handle === 'function') {
@@ -99,7 +106,7 @@ export default class ProxyHandler {
    */
   handle(req: Request, res: Response, out?: any => any) {
     // current stack index
-    let index = 0;
+    let index = -1;
 
     // save the context path
     let removed = '';
@@ -149,13 +156,13 @@ export default class ProxyHandler {
       const route = layer.route;
 
       // skip the current layer if the route path doesn't match
-      if (path.toLowerCase().startsWith(route.toLowerCase())) {
+      if (!path.toLowerCase().startsWith(route.toLowerCase())) {
         return next(err);
       }
 
       // compare mounted context, and request path
       if (path.length > route.length) {
-        const c = path.length > route.length && path[route.length];
+        const c = path[route.length];
         if (c !== '/' && c !== '.') {
           return next(err);
         }

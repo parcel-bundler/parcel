@@ -195,7 +195,10 @@ export default class Server extends EventEmitter {
     };
 
     const proxyHandler = new ProxyHandler();
-    await proxyHandler.loadProxyTable(this.options.projectRoot);
+    await proxyHandler.loadProxyTable(
+      this.options.inputFS,
+      this.options.projectRoot
+    );
     await proxyHandler.use(finalHandler);
 
     const handler = (req: Request, res: Response) => {
