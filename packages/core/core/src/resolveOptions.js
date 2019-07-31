@@ -24,9 +24,9 @@ export default async function resolveOptions(
   if (initialOptions.entries == null || initialOptions.entries === '') {
     entries = [];
   } else if (Array.isArray(initialOptions.entries)) {
-    entries = initialOptions.entries;
+    entries = initialOptions.entries.map(entry => path.resolve(entry));
   } else {
-    entries = [initialOptions.entries];
+    entries = [path.resolve(initialOptions.entries)];
   }
 
   let inputFS = initialOptions.inputFS || new NodeFS();
@@ -34,7 +34,7 @@ export default async function resolveOptions(
 
   let rootDir =
     initialOptions.rootDir != null
-      ? initialOptions.rootDir
+      ? path.resolve(initialOptions.rootDir)
       : getRootDir(entries);
 
   let projectRootFile =
