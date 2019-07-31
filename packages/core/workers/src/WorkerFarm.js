@@ -110,6 +110,8 @@ export default class WorkerFarm extends EventEmitter {
         return this.addCall(method, [...args, false]);
       } else {
         if (this.options.warmWorkers && this.shouldStartRemoteWorkers()) {
+          // Have the worker execute the method once warmed up but throw away the results
+          // This lets v8 optimize the hot paths so that the next execution will be faster
           this.warmupWorker(method, args);
         }
 
