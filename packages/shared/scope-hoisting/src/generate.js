@@ -13,5 +13,14 @@ export function generate(bundle: Bundle, ast: AST, options: ParcelOptions) {
     code = `\n${code}\n`;
   }
 
-  return {contents: `(function(){${code}})();`};
+  let entryAsset = bundle.getEntryAssets()[0];
+  // $FlowFixMe
+  let interpreter: ?string = bundle.target.env.isBrowser()
+    ? null
+    : entryAsset.meta.interpreter;
+  return {
+    contents: `${
+      interpreter != null ? `#!${interpreter}\n` : ''
+    }(function(){${code}})();`
+  };
 }

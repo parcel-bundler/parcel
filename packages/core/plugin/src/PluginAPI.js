@@ -8,7 +8,8 @@ import type {
   Runtime as RuntimeOpts,
   Packager as PackagerOpts,
   Optimizer as OptimizerOpts,
-  Reporter as ReporterOpts
+  Reporter as ReporterOpts,
+  Validator as ValidatorOpts
 } from '@parcel/types';
 
 export const CONFIG = Symbol('config');
@@ -43,6 +44,13 @@ export class Namer {
 
 export class Runtime {
   constructor(opts: RuntimeOpts) {
+    // $FlowFixMe
+    this[CONFIG] = opts;
+  }
+}
+
+export class Validator {
+  constructor(opts: ValidatorOpts) {
     // $FlowFixMe
     this[CONFIG] = opts;
   }

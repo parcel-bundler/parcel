@@ -1,29 +1,23 @@
 // @flow strict-local
 
-import type {ParcelOptions, AssetRequest} from '@parcel/types';
+import type {ParcelOptions} from '@parcel/types';
 import type {Bundle} from './types';
 import type BundleGraph from './BundleGraph';
 
-import TransformerRunner from './TransformerRunner';
+import Transformation, {type TransformationOpts} from './Transformation';
 import PackagerRunner from './PackagerRunner';
-import Config from './Config';
+import Validation, {type ValidationOpts} from './Validation';
+import ParcelConfig from './ParcelConfig';
 import registerCoreWithSerializer from './registerCoreWithSerializer';
 
 registerCoreWithSerializer();
 
-export function runTransform({
-  request,
-  config,
-  options
-}: {
-  request: AssetRequest,
-  config: Config,
-  options: ParcelOptions
-}) {
-  return new TransformerRunner({
-    config,
-    options
-  }).transform(request);
+export function runTransform(opts: TransformationOpts) {
+  return new Transformation(opts).run();
+}
+
+export function runValidate(opts: ValidationOpts) {
+  return new Validation(opts).run();
 }
 
 export function runPackage({
@@ -34,7 +28,7 @@ export function runPackage({
 }: {
   bundle: Bundle,
   bundleGraph: BundleGraph,
-  config: Config,
+  config: ParcelConfig,
   options: ParcelOptions
 }) {
   return new PackagerRunner({

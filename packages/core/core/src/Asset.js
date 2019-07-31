@@ -16,6 +16,7 @@ import type {
   Symbol,
   TransformerResult
 } from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
 
 import {Readable} from 'stream';
 import crypto from 'crypto';
@@ -25,7 +26,7 @@ import {
   loadConfig,
   md5FromFilePath,
   md5FromString,
-  readableFromStringOrBuffer,
+  blobToStream,
   TapStream
 } from '@parcel/utils';
 import Dependency from './Dependency';
@@ -35,6 +36,7 @@ type AssetOptions = {|
   hash?: ?string,
   idBase?: string,
   cache: Cache,
+  fs: FileSystem,
   filePath: FilePath,
   type: string,
   content?: Blob,
@@ -42,29 +44,22 @@ type AssetOptions = {|
   ast?: ?AST,
   map?: ?SourceMap,
   mapKey?: ?string,
-  dependencies?: Iterable<[string, Dependency]>,
-  connectedFiles?: Iterable<[FilePath, File]>,
+  dependencies?: Map<string, Dependency>,
+  connectedFiles?: Map<FilePath, File>,
   isIsolated?: boolean,
   outputHash?: string,
   env: Environment,
   meta?: Meta,
   stats: Stats,
-  symbols?: Map<Symbol, Symbol> | Array<[Symbol, Symbol]>,
+  symbols?: Map<Symbol, Symbol>,
   sideEffects?: boolean
-|};
-
-type SerializedOptions = {|
-  ...AssetOptions,
-  ...{|
-    connectedFiles: Array<[FilePath, File]>,
-    dependencies: Array<[string, Dependency]>
-  |}
 |};
 
 export default class Asset {
   id: string;
   hash: ?string;
   idBase: string;
+  fs: FileSystem;
   filePath: FilePath;
   type: string;
   ast: ?AST;
@@ -92,6 +87,7 @@ export default class Asset {
             this.idBase + options.type + JSON.stringify(options.env)
           );
     this.hash = options.hash;
+    this.fs = options.fs;
     this.filePath = options.filePath;
     this.isIsolated = options.isIsolated == null ? false : options.isIsolated;
     this.type = options.type;
@@ -101,30 +97,31 @@ export default class Asset {
     this.cache = options.cache;
     this.map = options.map;
     this.mapKey = options.mapKey;
-    this.dependencies = options.dependencies
-      ? new Map(options.dependencies)
-      : new Map();
-    this.connectedFiles = options.connectedFiles
-      ? new Map(options.connectedFiles)
-      : new Map();
+    this.dependencies = options.dependencies || new Map();
+    this.connectedFiles = options.connectedFiles || new Map();
     this.outputHash = options.outputHash || '';
     this.env = options.env;
     this.meta = options.meta || {};
     this.stats = options.stats;
-    this.symbols = new Map(options.symbols || []);
+    this.symbols = options.symbols || new Map();
     this.sideEffects = options.sideEffects != null ? options.sideEffects : true;
   }
 
-  serialize(): SerializedOptions {
+  static deserialize(opts: AssetOptions) {
+    return new Asset(opts);
+  }
+
+  serialize(): AssetOptions {
     // Exclude `code`, `map`, and `ast` from cache
     return {
       id: this.id,
       hash: this.hash,
+      fs: this.fs,
       filePath: this.filePath,
       cache: this.cache,
       type: this.type,
-      dependencies: Array.from(this.dependencies),
-      connectedFiles: Array.from(this.connectedFiles),
+      dependencies: this.dependencies,
+      connectedFiles: this.connectedFiles,
       isIsolated: this.isIsolated,
       outputHash: this.outputHash,
       env: this.env,
@@ -132,7 +129,7 @@ export default class Asset {
       stats: this.stats,
       contentKey: this.contentKey,
       mapKey: this.mapKey,
-      symbols: [...this.symbols],
+      symbols: this.symbols,
       sideEffects: this.sideEffects
     };
   }
@@ -141,7 +138,7 @@ export default class Asset {
    * Prepares the asset for being serialized to the cache by commiting its
    * content and map of the asset to the cache.
    */
-  async commit(): Promise<void> {
+  async commit(pipelineKey: string): Promise<void> {
     this.ast = null;
 
     let contentStream = this.getStream();
@@ -162,7 +159,7 @@ export default class Asset {
     // and hash while it's being written to the cache.
     let [contentKey, mapKey] = await Promise.all([
       this.cache.setStream(
-        this.generateCacheKey('content'),
+        this.generateCacheKey('content' + pipelineKey),
         contentStream.pipe(
           new TapStream(buf => {
             size += buf.length;
@@ -172,7 +169,7 @@ export default class Asset {
       ),
       this.map == null
         ? Promise.resolve()
-        : this.cache.set(this.generateCacheKey('map'), this.map)
+        : this.cache.set(this.generateCacheKey('map' + pipelineKey), this.map)
     ]);
     this.contentKey = contentKey;
     this.mapKey = mapKey;
@@ -212,11 +209,7 @@ export default class Asset {
       this.content = this.cache.getStream(this.contentKey);
     }
 
-    if (this.content instanceof Readable) {
-      return this.content;
-    }
-
-    return readableFromStringOrBuffer(this.content);
+    return blobToStream(this.content);
   }
 
   setCode(code: string) {
@@ -233,10 +226,7 @@ export default class Asset {
 
   async getMap(): Promise<?SourceMap> {
     if (this.mapKey != null) {
-      let cached = await this.cache.get(this.mapKey);
-      if (cached != null) {
-        this.map = SourceMap.deserialize(cached);
-      }
+      this.map = await this.cache.get(this.mapKey);
     }
 
     return this.map;
@@ -255,6 +245,7 @@ export default class Asset {
     let dep = new Dependency({
       ...rest,
       env: this.env.merge(env),
+      sourceAssetId: this.id,
       sourcePath: this.filePath
     });
     let existing = this.dependencies.get(dep.id);
@@ -268,7 +259,7 @@ export default class Asset {
 
   async addConnectedFile(file: File) {
     if (file.hash == null) {
-      file.hash = await md5FromFilePath(file.filePath);
+      file.hash = await md5FromFilePath(this.fs, file.filePath);
     }
 
     this.connectedFiles.set(file.filePath, file);
@@ -301,6 +292,7 @@ export default class Asset {
     let asset = new Asset({
       idBase: this.idBase,
       hash,
+      fs: this.fs,
       filePath: this.filePath,
       type: result.type,
       content,
@@ -309,8 +301,9 @@ export default class Asset {
       map: result.map,
       isIsolated: result.isIsolated,
       env: this.env.merge(result.env),
-      dependencies: this.dependencies,
-      connectedFiles: this.connectedFiles,
+      dependencies:
+        this.type === result.type ? new Map(this.dependencies) : new Map(),
+      connectedFiles: new Map(this.connectedFiles),
       meta: {...this.meta, ...result.meta},
       stats: {
         time: 0,
@@ -352,6 +345,7 @@ export default class Asset {
     }
 
     let conf = await loadConfig(
+      this.fs,
       this.filePath,
       filePaths,
       parse == null ? null : {parse}

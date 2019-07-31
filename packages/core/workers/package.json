@@ -2,7 +2,7 @@
   "name": "@parcel/workers",
   "version": "2.0.0-alpha.0",
   "description": "Blazing fast, zero configuration web application bundler",
-  "main": "src/WorkerFarm.js",
+  "main": "src/index.js",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -15,7 +15,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "cross-env NODE_ENV=test mocha",
     "test-ci": "yarn test"
   },
   "dependencies": {

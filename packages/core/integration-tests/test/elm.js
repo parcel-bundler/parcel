@@ -1,6 +1,5 @@
 const assert = require('assert');
-const fs = require('@parcel/fs');
-const {bundle, assertBundleTree, run} = require('@parcel/test-utils');
+const {bundle, assertBundleTree, run, outputFS} = require('@parcel/test-utils');
 
 describe.skip('elm', function() {
   it('should produce a basic Elm bundle', async function() {
@@ -18,7 +17,7 @@ describe.skip('elm', function() {
     let b = await bundle(__dirname + '/integration/elm/index.js');
 
     await run(b);
-    let js = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
+    let js = await outputFS.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(js.includes('elm$browser$Debugger'));
   });
 
@@ -32,7 +31,7 @@ describe.skip('elm', function() {
       assets: ['Main.elm', 'hmr-runtime.js', 'index.js']
     });
 
-    let js = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
+    let js = await outputFS.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(js.includes('[elm-hot]'));
   });
 
@@ -42,7 +41,7 @@ describe.skip('elm', function() {
     });
 
     await run(b);
-    let js = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
+    let js = await outputFS.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(!js.includes('elm$browser$Debugger'));
   });
 
@@ -54,7 +53,7 @@ describe.skip('elm', function() {
     let output = await run(b);
     assert.equal(typeof output().Elm.Main.init, 'function');
 
-    let js = await fs.readFile(__dirname + '/dist/index.js', 'utf8');
+    let js = await outputFS.readFile(__dirname + '/dist/index.js', 'utf8');
     assert(!js.includes('elm$core'));
   });
 });

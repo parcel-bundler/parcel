@@ -3,8 +3,7 @@
 import type {
   AsyncSubscription,
   BundleGraph as IBundleGraph,
-  BuildFailureEvent,
-  BuildSuccessEvent,
+  BuildEvent,
   EnvironmentOpts,
   FilePath,
   InitialParcelOptions,
@@ -12,25 +11,23 @@ import type {
   ParcelOptions,
   Stats
 } from '@parcel/types';
-import type {Bundle} from './types';
+import type {Bundle as IBundle} from './types';
 import type InternalBundleGraph from './BundleGraph';
-import type Config from './Config';
+import type ParcelConfig from './ParcelConfig';
 
 import invariant from 'assert';
 import Dependency from './Dependency';
 import Environment from './Environment';
 import {Asset} from './public/Asset';
-import {BundleGraph} from './public/BundleGraph';
+import BundleGraph from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
-import clone from 'clone';
 import watcher from '@parcel/watcher';
 import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
-import ConfigResolver from './ConfigResolver';
+import loadParcelConfig from './loadParcelConfig';
 import ReporterRunner from './ReporterRunner';
-import MainAssetGraph from './public/MainAssetGraph';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
@@ -38,8 +35,6 @@ import registerCoreWithSerializer from './registerCoreWithSerializer';
 import {createCacheDir} from '@parcel/cache';
 
 registerCoreWithSerializer();
-
-type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
 
 export const INTERNAL_TRANSFORM = Symbol('internal_transform');
 export const INTERNAL_RESOLVE = Symbol('internal_resolve');
@@ -53,7 +48,7 @@ export default class Parcel {
   #initialOptions; // InitialParcelOptions;
   #reporterRunner; // ReporterRunner
   #resolvedOptions = null; // ?ParcelOptions
-  #runPackage; // (bundle: Bundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
+  #runPackage; // (bundle: IBundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
   #watchEvents = new ValueEmitter<
     | {+error: Error, +buildEvent?: void}
     | {+buildEvent: BuildEvent, +error?: void}
@@ -62,7 +57,7 @@ export default class Parcel {
   #watcherCount = 0; // number
 
   constructor(options: InitialParcelOptions) {
-    this.#initialOptions = clone(options);
+    this.#initialOptions = options;
   }
 
   async init(): Promise<void> {
@@ -74,26 +69,12 @@ export default class Parcel {
       this.#initialOptions
     );
     this.#resolvedOptions = resolvedOptions;
-    await createCacheDir(resolvedOptions.cacheDir);
+    await createCacheDir(resolvedOptions.outputFS, resolvedOptions.cacheDir);
 
-    let configResolver = new ConfigResolver();
-    let config;
-
-    // If an explicit `config` option is passed use that, otherwise resolve a .parcelrc from the filesystem.
-    if (resolvedOptions.config) {
-      config = await configResolver.create(resolvedOptions.config);
-    } else {
-      config = await configResolver.resolve(resolvedOptions.rootDir);
-    }
-
-    // If no config was found, default to the `defaultConfig` option if one is provided.
-    if (!config && resolvedOptions.defaultConfig) {
-      config = await configResolver.create(resolvedOptions.defaultConfig);
-    }
-
-    if (!config) {
-      throw new Error('Could not find a .parcelrc');
-    }
+    let {config} = await loadParcelConfig(
+      path.join(resolvedOptions.inputFS.cwd(), 'index'),
+      resolvedOptions
+    );
     this.#config = config;
 
     this.#bundlerRunner = new BundlerRunner({
@@ -106,7 +87,8 @@ export default class Parcel {
       options: resolvedOptions
     });
 
-    this.#assetGraphBuilder = new AssetGraphBuilder({
+    this.#assetGraphBuilder = new AssetGraphBuilder();
+    await this.#assetGraphBuilder.init({
       options: resolvedOptions,
       config,
       entries: resolvedOptions.entries,
@@ -124,13 +106,18 @@ export default class Parcel {
   }
 
   async run(): Promise<IBundleGraph> {
+    let startTime = Date.now();
     if (!this.#initialized) {
       await this.init();
     }
 
-    let result = await this.build();
+    let result = await this.build(startTime);
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
+    if (result.type === 'buildSuccess') {
+      await this.#assetGraphBuilder.writeToCache();
+    }
+
     if (resolvedOptions.killWorkers !== false) {
       await this.#farm.end();
     }
@@ -190,36 +177,36 @@ export default class Parcel {
     };
   }
 
-  async build(): Promise<BuildEvent> {
+  async build(startTime: number = Date.now()): Promise<BuildEvent> {
     try {
       this.#reporterRunner.report({
         type: 'buildStart'
       });
 
-      let startTime = Date.now();
       let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build();
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
-      dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
+      dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
-      await packageBundles(
+      await packageBundles({
         bundleGraph,
-        this.#config,
-        nullthrows(this.#resolvedOptions),
-        this.#runPackage
-      );
+        config: this.#config,
+        options: nullthrows(this.#resolvedOptions),
+        runPackage: this.#runPackage
+      });
 
       let event = {
         type: 'buildSuccess',
         changedAssets: new Map(
           Array.from(changedAssets).map(([id, asset]) => [id, new Asset(asset)])
         ),
-        assetGraph: new MainAssetGraph(assetGraph),
         bundleGraph: new BundleGraph(bundleGraph),
         buildTime: Date.now() - startTime
       };
       this.#reporterRunner.report(event);
+
+      await this.#assetGraphBuilder.validate();
 
       return event;
     } catch (e) {
@@ -283,11 +270,7 @@ export default class Parcel {
     invariant(this.#watcherSubscription == null);
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
-    let targetDirs = resolvedOptions.targets.map(target => target.distDir);
-    let vcsDirs = ['.git', '.hg'].map(dir =>
-      path.join(resolvedOptions.projectRoot, dir)
-    );
-    let ignore = [resolvedOptions.cacheDir, ...targetDirs, ...vcsDirs];
+    let opts = this.#assetGraphBuilder.getWatcherOptions();
 
     return watcher.subscribe(
       resolvedOptions.projectRoot,
@@ -311,30 +294,35 @@ export default class Parcel {
           }
         }
       },
-      {ignore}
+      opts
     );
   }
 }
 
-function packageBundles(
+async function packageBundles({
+  bundleGraph,
+  config,
+  options,
+  runPackage
+}: {
   bundleGraph: InternalBundleGraph,
-  config: Config,
+  config: ParcelConfig,
   options: ParcelOptions,
   runPackage: ({
-    bundle: Bundle,
+    bundle: IBundle,
     bundleGraph: InternalBundleGraph,
-    config: Config,
+    config: ParcelConfig,
     options: ParcelOptions
   }) => Promise<Stats>
-): Promise<mixed> {
+}): Promise<mixed> {
   let promises = [];
-  bundleGraph.traverseBundles(bundle => {
+  for (let bundle of bundleGraph.getBundles()) {
     promises.push(
       runPackage({bundle, bundleGraph, config, options}).then(stats => {
         bundle.stats = stats;
       })
     );
-  });
+  }
 
   return Promise.all(promises);
 }
@@ -346,6 +334,9 @@ export class BuildError extends Error {
   constructor(error: mixed) {
     super(error instanceof Error ? error.message : 'Unknown Build Error');
     this.error = error;
+    if (error instanceof Error) {
+      this.stack = error.stack;
+    }
   }
 }
 

@@ -7,10 +7,11 @@ import Asset from '../src/Asset';
 import Environment from '../src/Environment';
 import tempy from 'tempy';
 import Cache, {createCacheDir} from '@parcel/cache';
+import {inputFS as fs, outputFS} from '@parcel/test-utils';
 
 let cacheDir = tempy.directory();
-createCacheDir(cacheDir);
-let cache = new Cache(cacheDir);
+createCacheDir(outputFS, cacheDir);
+let cache = new Cache(outputFS, cacheDir);
 
 const DEFAULT_ENV = new Environment({
   context: 'browser',
@@ -62,14 +63,16 @@ describe('AssetGraph', () => {
         to: new Dependency({
           moduleSpecifier: '/path/to/index1',
           env: DEFAULT_ENV
-        }).id
+        }).id,
+        type: null
       },
       {
         from: '@@root',
         to: new Dependency({
           moduleSpecifier: '/path/to/index2',
           env: DEFAULT_ENV
-        }).id
+        }).id,
+        type: null
       }
     ]);
   });
@@ -122,12 +125,13 @@ describe('AssetGraph', () => {
     let assets = [
       new Asset({
         id: '1',
+        fs,
         filePath,
         cache,
         type: 'js',
         hash: '#1',
         stats,
-        dependencies: [
+        dependencies: new Map([
           [
             'utils',
             new Dependency({
@@ -136,18 +140,19 @@ describe('AssetGraph', () => {
               sourcePath
             })
           ]
-        ],
+        ]),
         env: DEFAULT_ENV,
-        connectedFiles: []
+        connectedFiles: new Map()
       }),
       new Asset({
         id: '2',
+        fs,
         filePath,
         type: 'js',
         cache,
         hash: '#2',
         stats,
-        dependencies: [
+        dependencies: new Map([
           [
             'styles',
             new Dependency({
@@ -156,32 +161,25 @@ describe('AssetGraph', () => {
               sourcePath
             })
           ]
-        ],
+        ]),
         env: DEFAULT_ENV,
-        connectedFiles: []
+        connectedFiles: new Map()
       }),
       new Asset({
         id: '3',
+        fs,
         filePath,
         cache,
         type: 'js',
         hash: '#3',
-        dependencies: [],
+        dependencies: new Map(),
         env: DEFAULT_ENV,
         stats,
-        connectedFiles: []
+        connectedFiles: new Map()
       })
     ];
-    let cacheEntry = {
-      filePath,
-      env: DEFAULT_ENV,
-      hash: '#hash',
-      assets,
-      initialAssets: null,
-      connectedFiles: []
-    };
 
-    graph.resolveAssetGroup(req, cacheEntry);
+    graph.resolveAssetGroup(req, assets);
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(graph.nodes.has('3'));
@@ -196,12 +194,13 @@ describe('AssetGraph', () => {
     let assets2 = [
       new Asset({
         id: '1',
+        fs,
         filePath,
         cache,
         type: 'js',
         hash: '#1',
         stats,
-        dependencies: [
+        dependencies: new Map([
           [
             'utils',
             new Dependency({
@@ -210,32 +209,25 @@ describe('AssetGraph', () => {
               sourcePath
             })
           ]
-        ],
+        ]),
         env: DEFAULT_ENV,
-        connectedFiles: []
+        connectedFiles: new Map()
       }),
       new Asset({
         id: '2',
+        fs,
         filePath,
         cache,
         type: 'js',
         hash: '#2',
         stats,
-        dependencies: [],
+        dependencies: new Map(),
         env: DEFAULT_ENV,
-        connectedFiles: []
+        connectedFiles: new Map()
       })
     ];
-    cacheEntry = {
-      filePath,
-      env: DEFAULT_ENV,
-      hash: '#hash',
-      assets: assets2,
-      initialAssets: null,
-      connectedFiles: []
-    };
 
-    graph.resolveAssetGroup(req, cacheEntry);
+    graph.resolveAssetGroup(req, assets2);
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(!graph.nodes.has('3'));
@@ -263,12 +255,13 @@ describe('AssetGraph', () => {
     let assets = [
       new Asset({
         id: '1',
+        fs,
         filePath,
         cache,
         type: 'js',
         hash: '#1',
         stats,
-        dependencies: [
+        dependencies: new Map([
           [
             'utils',
             new Dependency({
@@ -277,7 +270,7 @@ describe('AssetGraph', () => {
               sourcePath
             })
           ]
-        ],
+        ]),
         env: DEFAULT_ENV,
         connectedFiles: new Map([
           [
@@ -289,15 +282,8 @@ describe('AssetGraph', () => {
         ])
       })
     ];
-    let cacheEntry = {
-      filePath,
-      env: DEFAULT_ENV,
-      hash: '#hash',
-      assets,
-      initialAssets: null
-    };
 
-    graph.resolveAssetGroup(req, cacheEntry);
+    graph.resolveAssetGroup(req, assets);
     assert(graph.nodes.has('1'));
     assert(graph.hasEdge(nodeFromAssetGroup(req).id, '1'));
   });

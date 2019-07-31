@@ -8,6 +8,8 @@ jobs:
           node_version: 8.x
         node_10_x:
           node_version: 10.x
+        node_12_x:
+          node_version: 12.x
       maxParallel: 3
     steps:
       - task: NodeTool@0
@@ -43,8 +45,10 @@ jobs:
       # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
       - script: yarn --frozen-lockfile
         displayName: 'Install dependencies'
-      - script: yarn test-ci
-        displayName: 'Run tests'
+      - script: yarn test:unit
+        displayName: 'Run unit tests'
+      - script: yarn test:integration-ci
+        displayName: 'Run integration tests'
       - script: yarn flow
         displayName: 'Type check with Flow'
       - script: yarn lint

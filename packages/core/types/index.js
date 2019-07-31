@@ -2,6 +2,7 @@
 
 import type {Readable} from 'stream';
 import type SourceMap from '@parcel/source-map';
+import type {FileSystem} from '@parcel/fs';
 
 import type {AST as _AST, Config as _Config} from './unsafe';
 
@@ -23,8 +24,8 @@ export type JSONObject = {
 export type PackageName = string;
 export type FilePath = string;
 export type Glob = string;
-type Semver = string;
-type SemverRange = string;
+export type Semver = string;
+export type SemverRange = string;
 export type ModuleSpecifier = string;
 
 export type GlobMap<T> = {[Glob]: T};
@@ -46,10 +47,13 @@ export type ParcelConfigFile = {
   optimizers?: {
     [Glob]: Array<PackageName>
   },
-  reporters?: Array<PackageName>
+  reporters?: Array<PackageName>,
+  validators?: {
+    [Glob]: Array<PackageName>
+  }
 };
 
-export type ParcelConfig = ParcelConfigFile & {
+export type ResolvedParcelConfigFile = ParcelConfigFile & {
   filePath: FilePath
 };
 
@@ -143,8 +147,8 @@ export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
 export type InitialParcelOptions = {|
   entries?: FilePath | Array<FilePath>,
   rootDir?: FilePath,
-  config?: ParcelConfig,
-  defaultConfig?: ParcelConfig,
+  config?: ResolvedParcelConfigFile,
+  defaultConfig?: ResolvedParcelConfigFile,
   env?: {[string]: ?string},
   targets?: ?(Array<string> | {+[string]: TargetDescriptor}),
 
@@ -158,7 +162,10 @@ export type InitialParcelOptions = {|
   hot?: ServerOptions | false,
   serve?: ServerOptions | false,
   autoinstall?: boolean,
-  logLevel?: LogLevel
+  logLevel?: LogLevel,
+
+  inputFS?: FileSystem,
+  outputFS?: FileSystem
 
   // contentHash
   // throwErrors
@@ -173,7 +180,10 @@ export type ParcelOptions = {|
   logLevel: LogLevel,
   rootDir: FilePath,
   targets: Array<Target>,
-  projectRoot: FilePath
+  projectRoot: FilePath,
+  lockFile: ?FilePath,
+  inputFS: FileSystem,
+  outputFS: FileSystem
 |};
 
 export type ServerOptions = {|
@@ -212,7 +222,7 @@ export type DependencyOptions = {|
   env?: EnvironmentOpts,
   meta?: Meta,
   target?: Target,
-  symbols?: Map<Symbol, Symbol> | Array<[Symbol, Symbol]>
+  symbols?: Map<Symbol, Symbol>
 |};
 
 export interface Dependency {
@@ -227,10 +237,9 @@ export interface Dependency {
   env: Environment;
   meta: Meta;
   target: ?Target;
+  sourceAssetId: ?string;
+  sourcePath: ?string;
   symbols: Map<Symbol, Symbol>;
-
-  // TODO: get this from graph instead of storing them on dependencies
-  sourcePath: ?FilePath;
 
   merge(other: Dependency): void;
 }
@@ -250,6 +259,7 @@ export type AssetRequest = {|
 interface BaseAsset {
   +ast: ?AST;
   +env: Environment;
+  +fs: FileSystem;
   +filePath: FilePath;
   +id: string;
   +meta: Meta;
@@ -321,6 +331,19 @@ export interface TransformerResult {
 type Async<T> = T | Promise<T>;
 
 type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
+
+type ResolveConfigFn = (
+  configNames: Array<FilePath>
+) => Promise<FilePath | null>;
+
+export type Validator = {|
+  validate({
+    asset: Asset,
+    resolveConfig: ResolveConfigFn, // This is a temporary function and should be replaced with something cacheable
+    options: ParcelOptions
+  }): Async<void>
+|};
+
 export type Transformer = {
   getConfig?: ({
     asset: MutableAsset,
@@ -371,26 +394,61 @@ export type GraphTraversalCallback<TNode, TContext> = (
   actions: TraversalActions
 ) => ?TContext;
 
-// Not a directly exported interface.
-interface AssetGraphLike {
-  getDependencies(asset: Asset): Array<Dependency>;
-  getDependencyResolution(dependency: Dependency): ?Asset;
-  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
-}
-
 export type BundleTraversable =
-  | {|+type: 'asset', value: Asset|}
-  | {|+type: 'asset_reference', value: Asset|};
-
-export type MainAssetGraphTraversable =
   | {|+type: 'asset', value: Asset|}
   | {|+type: 'dependency', value: Dependency|};
 
-// Always read-only.
-export interface MainAssetGraph extends AssetGraphLike {
-  createBundle(asset: Asset): MutableBundle;
+export type BundlerBundleGraphTraversable =
+  | {|+type: 'asset', value: Asset|}
+  | {|+type: 'dependency', value: Dependency|};
+
+export type CreateBundleOpts =
+  // If an entryAsset is provided, a bundle id, type, and environment will be
+  // inferred from the entryAsset.
+  | {|
+      id?: string,
+      entryAsset: Asset,
+      target: Target,
+      isEntry?: ?boolean,
+      type?: ?string,
+      env?: ?Environment
+    |}
+  // If an entryAsset is not provided, a bundle id, type, and environment must
+  // be provided.
+  | {|
+      id: string,
+      entryAsset?: Asset,
+      target: Target,
+      isEntry?: ?boolean,
+      type: string,
+      env: Environment
+    |};
+
+export interface BundlerBundleGraph {
+  addBundleToBundleGroup(Bundle, BundleGroup): void;
+  addAssetToBundle(Asset, Bundle): void;
+  createAssetReference(Dependency, Asset): void;
+  createBundle(CreateBundleOpts): Bundle;
+  createBundleGroup(Dependency, Target): BundleGroup;
+  getDependencyAssets(Dependency): Array<Asset>;
   traverse<TContext>(
-    visit: GraphVisitor<MainAssetGraphTraversable, TContext>
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>
+  ): ?TContext;
+}
+
+export interface BundlerOptimizeBundleGraph extends BundlerBundleGraph {
+  addAssetGraphToBundle(Asset, Bundle): void;
+  findBundlesWithAsset(Asset): Array<Bundle>;
+  getBundleGroupsContainingBundle(Bundle): Array<BundleGroup>;
+  getBundlesInBundleGroup(BundleGroup): Array<Bundle>;
+  getDependenciesInBundle(Bundle, Asset): Array<Dependency>;
+  getTotalSize(Asset): number;
+  isAssetInAncestorBundles(Bundle, Asset): boolean;
+  removeAssetFromBundle(Asset, Bundle): void;
+  removeAssetGraphFromBundle(Asset, Bundle): void;
+  traverseBundles<TContext>(GraphVisitor<Bundle, TContext>): ?TContext;
+  traverseContents<TContext>(
+    GraphVisitor<BundlerBundleGraphTraversable, TContext>
   ): ?TContext;
 }
 
@@ -400,32 +458,23 @@ export type SymbolResolution = {|
   symbol: void | Symbol
 |};
 
-export interface Bundle extends AssetGraphLike {
+export interface Bundle {
   +id: string;
   +type: string;
   +env: Environment;
   +isEntry: ?boolean;
-  +target: ?Target;
+  +target: Target;
   +filePath: ?FilePath;
   +name: ?string;
   +stats: Stats;
   getEntryAssets(): Array<Asset>;
-  getTotalSize(asset?: Asset): number;
+  hasAsset(Asset): boolean;
   hasChildBundles(): boolean;
+  getHash(): string;
+  traverseAssets<TContext>(visit: GraphVisitor<Asset, TContext>): ?TContext;
   traverse<TContext>(
     visit: GraphVisitor<BundleTraversable, TContext>
   ): ?TContext;
-  traverseAncestors<TContext>(
-    asset: Asset,
-    visit: GraphVisitor<*, TContext>
-  ): ?TContext;
-  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
-}
-
-export interface MutableBundle extends Bundle {
-  isEntry: ?boolean;
-  merge(Bundle): void;
-  removeAsset(Asset): void;
 }
 
 export interface NamedBundle extends Bundle {
@@ -434,40 +483,41 @@ export interface NamedBundle extends Bundle {
 }
 
 export type BundleGroup = {
-  dependency: Dependency,
-  target: ?Target,
+  target: Target,
   entryAssetId: string
 };
 
 export interface BundleGraph {
-  findBundlesWithAsset(asset: Asset): Array<Bundle>;
+  getBundles(): Array<Bundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundleGroupsReferencedByBundle(bundle: Bundle): Array<BundleGroup>;
+  getBundleGroupsReferencedByBundle(
+    bundle: Bundle
+  ): Array<{bundleGroup: BundleGroup, dependency: Dependency}>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
-  isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
+  getDependencies(asset: Asset): Array<Dependency>;
+  getIncomingDependencies(asset: Asset): Array<Dependency>;
+  getDependencyResolution(dependency: Dependency): ?Asset;
+  isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean;
+  isAssetReferenced(asset: Asset): boolean;
+  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>
   ): ?TContext;
-  isAssetReferenced(asset: Asset): boolean;
 }
 
-export interface MutableBundleGraph {
-  addBundle(bundleGroup: BundleGroup, bundle: Bundle): void;
-  addBundleGroup(parentBundle: ?Bundle, bundleGroup: BundleGroup): void;
-  findBundlesWithAsset(asset: Asset): Array<MutableBundle>;
-  getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundleGroupsReferencedByBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<MutableBundle>;
-  isAssetInAncestorBundle(bundle: Bundle, asset: Asset): boolean;
-  traverseBundles<TContext>(
-    visit: GraphTraversalCallback<MutableBundle, TContext>
-  ): ?TContext;
-}
+export type BundleResult = {|
+  contents: Blob,
+  ast?: AST,
+  map?: ?SourceMap
+|};
 
 export type Bundler = {|
   bundle({
-    assetGraph: MainAssetGraph,
-    bundleGraph: MutableBundleGraph,
+    bundleGraph: BundlerBundleGraph,
+    options: ParcelOptions
+  }): Async<void>,
+  optimize({
+    bundleGraph: BundlerOptimizeBundleGraph,
     options: ParcelOptions
   }): Async<void>
 |};
@@ -500,7 +550,7 @@ export type Packager = {|
     bundleGraph: BundleGraph,
     options: ParcelOptions,
     sourceMapPath: FilePath
-  }): Async<{|contents: Blob, map?: ?SourceMap|}>
+  }): Async<BundleResult>
 |};
 
 export type Optimizer = {|
@@ -509,7 +559,7 @@ export type Optimizer = {|
     contents: Blob,
     map: ?SourceMap,
     options: ParcelOptions
-  }): Async<{|contents: Blob, map?: ?SourceMap|}>
+  }): Async<BundleResult>
 |};
 
 export type Resolver = {|
@@ -588,7 +638,6 @@ export type BuildProgressEvent =
 
 export type BuildSuccessEvent = {|
   type: 'buildSuccess',
-  assetGraph: MainAssetGraph,
   bundleGraph: BundleGraph,
   buildTime: number,
   changedAssets: Map<string, Asset>
@@ -599,6 +648,13 @@ export type BuildFailureEvent = {|
   error: Error
 |};
 
+export type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
+
+export type ValidationEvent = {|
+  type: 'validation',
+  request: AssetRequest
+|};
+
 export type ReporterEvent =
   | LogEvent
   | BuildStartEvent
@@ -606,7 +662,8 @@ export type ReporterEvent =
   | BuildSuccessEvent
   | BuildFailureEvent
   | WatchStartEvent
-  | WatchEndEvent;
+  | WatchEndEvent
+  | ValidationEvent;
 
 export type Reporter = {|
   report(event: ReporterEvent, opts: ParcelOptions): Async<void>

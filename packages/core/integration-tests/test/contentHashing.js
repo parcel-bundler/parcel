@@ -1,7 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const fs = require('@parcel/fs');
-const {bundle, rimraf, ncp} = require('@parcel/test-utils');
+const {bundle, rimraf, ncp, inputFS: fs} = require('@parcel/test-utils');
 
 describe.skip('content hashing', function() {
   beforeEach(async function() {

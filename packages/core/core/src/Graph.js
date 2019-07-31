@@ -6,41 +6,49 @@ import type {TraversalActions, GraphVisitor} from '@parcel/types';
 import {DefaultMap} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
-export type GraphOpts<TNode> = {|
-  nodes?: Array<[NodeId, TNode]>,
-  edges?: Array<Edge>,
+export type GraphOpts<TNode, TEdgeType: string | null = null> = {|
+  nodes?: Map<NodeId, TNode>,
+  edges?: Array<Edge<TEdgeType | null>>,
   rootNodeId?: ?NodeId
 |};
 
-type GraphUpdates<TNode> = {|
-  added: Graph<TNode>,
-  removed: Graph<TNode>
-|};
+type AdjacencyList<TEdgeType> = DefaultMap<
+  NodeId,
+  DefaultMap<TEdgeType, Set<NodeId>>
+>;
 
-type AdjacencyList = DefaultMap<NodeId, Set<NodeId>>;
+export const ALL_EDGE_TYPES = '@@all_edge_types';
 
-export default class Graph<TNode: Node> {
+export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   nodes: Map<NodeId, TNode>;
-  inboundEdges: AdjacencyList = new DefaultMap(() => new Set());
-  outboundEdges: AdjacencyList = new DefaultMap(() => new Set());
+  inboundEdges: AdjacencyList<TEdgeType | null> = new DefaultMap(
+    () => new DefaultMap(() => new Set())
+  );
+  outboundEdges: AdjacencyList<TEdgeType | null> = new DefaultMap(
+    () => new DefaultMap(() => new Set())
+  );
   rootNodeId: ?NodeId;
 
   constructor(
-    opts: GraphOpts<TNode> = {nodes: [], edges: [], rootNodeId: null}
+    opts: GraphOpts<TNode, TEdgeType> = ({}: any) // flow is dumb
   ) {
-    this.nodes = new Map(opts.nodes);
+    this.nodes = opts.nodes || new Map();
     this.rootNodeId = opts.rootNodeId;
 
     if (opts.edges) {
       for (let edge of opts.edges) {
-        this.addEdge(edge.from, edge.to);
+        this.addEdge(edge.from, edge.to, edge.type);
       }
     }
   }
 
-  serialize(): GraphOpts<TNode> {
+  static deserialize(opts: GraphOpts<TNode, TEdgeType>) {
+    return new this(opts);
+  }
+
+  serialize(): GraphOpts<TNode, TEdgeType> {
     return {
-      nodes: [...this.nodes],
+      nodes: this.nodes,
       edges: this.getAllEdges(),
       rootNodeId: this.rootNodeId
     };
@@ -49,11 +57,13 @@ export default class Graph<TNode: Node> {
   // Returns a list of all edges in the graph. This can be large, so iterating
   // the complete list can be costly in large graphs. Used in serialization and
   // copying of graphs.
-  getAllEdges(): Array<Edge> {
+  getAllEdges(): Array<Edge<TEdgeType | null>> {
     let edges = [];
     for (let [from, edgeList] of this.outboundEdges) {
-      for (let to of edgeList) {
-        edges.push({from, to});
+      for (let [type, toNodes] of edgeList) {
+        for (let to of toNodes) {
+          edges.push({from, to, type});
+        }
       }
     }
     return edges;
@@ -81,25 +91,66 @@ export default class Graph<TNode: Node> {
     return this.rootNodeId ? this.getNode(this.rootNodeId) : null;
   }
 
-  addEdge(from: NodeId, to: NodeId): void {
-    this.outboundEdges.get(from).add(to);
-    this.inboundEdges.get(to).add(from);
+  addEdge(from: NodeId, to: NodeId, type: TEdgeType | null = null): void {
+    this.outboundEdges
+      .get(from)
+      .get(type)
+      .add(to);
+    this.inboundEdges
+      .get(to)
+      .get(type)
+      .add(from);
   }
 
-  hasEdge(from: NodeId, to: NodeId): boolean {
-    return this.outboundEdges.get(from).has(to);
+  hasEdge(from: NodeId, to: NodeId, type?: TEdgeType | null = null): boolean {
+    return this.outboundEdges
+      .get(from)
+      .get(type)
+      .has(to);
   }
 
-  getNodesConnectedTo(node: TNode): Array<TNode> {
-    return Array.from(this.inboundEdges.get(node.id).values()).map(from =>
-      nullthrows(this.nodes.get(from))
-    );
+  getNodesConnectedTo(
+    node: TNode,
+    type: TEdgeType | null = null
+  ): Array<TNode> {
+    let nodes;
+    if (type === ALL_EDGE_TYPES) {
+      nodes = new Set();
+      for (let [, typeNodes] of this.inboundEdges.get(node.id)) {
+        for (let node of typeNodes) {
+          nodes.add(node);
+        }
+      }
+    } else {
+      nodes = this.inboundEdges
+        .get(node.id)
+        .get(type)
+        .values();
+    }
+
+    return [...nodes].map(to => nullthrows(this.nodes.get(to)));
   }
 
-  getNodesConnectedFrom(node: TNode): Array<TNode> {
-    return Array.from(this.outboundEdges.get(node.id).values()).map(to =>
-      nullthrows(this.nodes.get(to))
-    );
+  getNodesConnectedFrom(
+    node: TNode,
+    type: TEdgeType | null = null
+  ): Array<TNode> {
+    let nodes;
+    if (type === ALL_EDGE_TYPES) {
+      nodes = new Set();
+      for (let [, typeNodes] of this.outboundEdges.get(node.id)) {
+        for (let node of typeNodes) {
+          nodes.add(node);
+        }
+      }
+    } else {
+      nodes = this.outboundEdges
+        .get(node.id)
+        .get(type)
+        .values();
+    }
+
+    return [...nodes].map(to => nullthrows(this.nodes.get(to)));
   }
 
   merge(graph: Graph<TNode>): void {
@@ -108,26 +159,25 @@ export default class Graph<TNode: Node> {
     }
 
     for (let edge of graph.getAllEdges()) {
-      this.addEdge(edge.from, edge.to);
+      this.addEdge(edge.from, edge.to, edge.type);
     }
   }
 
   // Removes node and any edges coming from or to that node
-  removeNode(node: TNode): Graph<TNode> {
-    let removed = new this.constructor();
-
-    for (let from of this.inboundEdges.get(node.id)) {
-      removed.merge(this.removeEdge(from, node.id));
+  removeNode(node: TNode) {
+    for (let [type, nodesForType] of this.inboundEdges.get(node.id)) {
+      for (let from of nodesForType) {
+        this.removeEdge(from, node.id, type);
+      }
     }
 
-    for (let to of this.outboundEdges.get(node.id)) {
-      removed.merge(this.removeEdge(node.id, to));
+    for (let [type, toNodes] of this.outboundEdges.get(node.id)) {
+      for (let to of toNodes) {
+        this.removeEdge(node.id, to, type);
+      }
     }
 
     this.nodes.delete(node.id);
-    removed.addNode(node);
-
-    return removed;
   }
 
   removeById(id: NodeId) {
@@ -135,42 +185,49 @@ export default class Graph<TNode: Node> {
     this.removeNode(node);
   }
 
-  removeEdges(node: TNode): this {
-    let removed = new this.constructor();
-
-    for (let to of this.outboundEdges.get(node.id)) {
-      removed.merge(this.removeEdge(node.id, to));
+  removeEdges(node: TNode, type: TEdgeType | null = null) {
+    for (let to of this.outboundEdges.get(node.id).get(type)) {
+      this.removeEdge(node.id, to, type);
     }
-
-    return removed;
   }
 
   // Removes edge and node the edge is to if the node is orphaned
-  removeEdge(from: NodeId, to: NodeId): this {
-    let removed = new this.constructor();
-
-    this.outboundEdges.get(from).delete(to);
-    this.inboundEdges.get(to).delete(from);
-    removed.addEdge(from, to);
+  removeEdge(from: NodeId, to: NodeId, type: TEdgeType | null = null) {
+    this.outboundEdges
+      .get(from)
+      .get(type)
+      .delete(to);
+    this.inboundEdges
+      .get(to)
+      .get(type)
+      .delete(from);
 
     let connectedNode = nullthrows(this.nodes.get(to));
     if (this.isOrphanedNode(connectedNode)) {
-      removed.merge(this.removeNode(connectedNode));
+      this.removeNode(connectedNode);
     }
-
-    return removed;
   }
 
   isOrphanedNode(node: TNode): boolean {
-    return this.inboundEdges.get(node.id).size === 0;
+    for (let [, typeMap] of this.inboundEdges.get(node.id)) {
+      if (typeMap.size !== 0) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
-  replaceNode(fromNode: TNode, toNode: TNode): void {
+  replaceNode(
+    fromNode: TNode,
+    toNode: TNode,
+    type: TEdgeType | null = null
+  ): void {
     this.addNode(toNode);
 
-    for (let parent of this.inboundEdges.get(fromNode.id)) {
-      this.addEdge(parent, toNode.id);
-      this.removeEdge(parent, fromNode.id);
+    for (let parent of this.inboundEdges.get(fromNode.id).get(type)) {
+      this.addEdge(parent, toNode.id, type);
+      this.removeEdge(parent, fromNode.id, type);
     }
 
     this.removeNode(fromNode);
@@ -180,91 +237,62 @@ export default class Graph<TNode: Node> {
   // Also keeps track of all added and removed edges and nodes
   replaceNodesConnectedTo(
     fromNode: TNode,
-    toNodes: Array<TNode>
-  ): GraphUpdates<TNode> {
-    let removed = new this.constructor();
-    let added = new this.constructor();
-
-    let childrenToRemove = new Set(this.outboundEdges.get(fromNode.id));
+    toNodes: Array<TNode>,
+    replaceFilter?: TNode => boolean,
+    type?: TEdgeType | null = null
+  ): void {
+    let outboundEdges = this.outboundEdges.get(fromNode.id).get(type);
+    let childrenToRemove = new Set(
+      replaceFilter
+        ? [...outboundEdges].filter(toNodeId =>
+            replaceFilter(nullthrows(this.nodes.get(toNodeId)))
+          )
+        : outboundEdges
+    );
     for (let toNode of toNodes) {
-      let existingNode = this.getNode(toNode.id);
-      if (!existingNode) {
-        this.addNode(toNode);
-        added.addNode(toNode);
-      } else {
-        existingNode.value = toNode.value;
-      }
-
+      this.addNode(toNode);
       childrenToRemove.delete(toNode.id);
 
-      if (!this.hasEdge(fromNode.id, toNode.id)) {
-        this.addEdge(fromNode.id, toNode.id);
-        added.addEdge(fromNode.id, toNode.id);
+      if (!this.hasEdge(fromNode.id, toNode.id, type)) {
+        this.addEdge(fromNode.id, toNode.id, type);
       }
     }
 
     for (let child of childrenToRemove) {
-      removed.merge(this.removeEdge(fromNode.id, child));
+      this.removeEdge(fromNode.id, child, type);
     }
-
-    return {removed, added};
   }
 
-  traverse<TContext>(visit: GraphVisitor<TNode, TContext>, startNode: ?TNode) {
+  traverse<TContext>(
+    visit: GraphVisitor<TNode, TContext>,
+    startNode: ?TNode,
+    type: TEdgeType | null = null
+  ): ?TContext {
     return this.dfs({
-      // $FlowFixMe
       visit,
       startNode,
-      getChildren: this.getNodesConnectedFrom.bind(this)
+      getChildren: node => this.getNodesConnectedFrom(node, type)
     });
   }
 
   filteredTraverse<TValue, TContext>(
-    filter: TNode => ?TValue,
+    filter: (TNode, TraversalActions) => ?TValue,
     visit: GraphVisitor<TValue, TContext>,
-    startNode: ?TNode
+    startNode: ?TNode,
+    type?: TEdgeType | null
   ): ?TContext {
-    return this.traverse<TContext>(
-      {
-        enter: (node, ...args) => {
-          let enter = typeof visit === 'function' ? visit : visit.enter;
-          if (!enter) {
-            return;
-          }
-
-          let value = filter(node);
-          if (value != null) {
-            return enter(value, ...args);
-          }
-        },
-        exit: (node, ...args) => {
-          if (typeof visit === 'function') {
-            return;
-          }
-
-          let exit = visit.exit;
-          if (!exit) {
-            return;
-          }
-
-          let value = filter(node);
-          if (value != null) {
-            return exit(value, ...args);
-          }
-        }
-      },
-      startNode
-    );
+    return this.traverse(mapVisitor(filter, visit), startNode, type);
   }
 
   traverseAncestors<TContext>(
     startNode: TNode,
-    visit: GraphVisitor<TNode, TContext>
+    visit: GraphVisitor<TNode, TContext>,
+    type: TEdgeType | null = null
   ) {
     return this.dfs({
       visit,
       startNode,
-      getChildren: this.getNodesConnectedTo.bind(this)
+      getChildren: node => this.getNodesConnectedTo(node, type)
     });
   }
 
@@ -379,8 +407,10 @@ export default class Graph<TNode: Node> {
     this.traverse(node => {
       graph.addNode(node);
 
-      for (let to of this.outboundEdges.get(node.id)) {
-        graph.addEdge(node.id, to);
+      for (let [type, toNodes] of this.outboundEdges.get(node.id)) {
+        for (let to of toNodes) {
+          graph.addEdge(node.id, to, type);
+        }
       }
     }, node);
 
@@ -438,4 +468,38 @@ export default class Graph<TNode: Node> {
   findNodes(predicate: TNode => boolean): Array<TNode> {
     return Array.from(this.nodes.values()).filter(predicate);
   }
+}
+
+export function mapVisitor<TNode, TValue, TContext>(
+  filter: (TNode, TraversalActions) => ?TValue,
+  visit: GraphVisitor<TValue, TContext>
+): GraphVisitor<TNode, TContext> {
+  return {
+    enter: (node, context, actions) => {
+      let enter = typeof visit === 'function' ? visit : visit.enter;
+      if (!enter) {
+        return;
+      }
+
+      let value = filter(node, actions);
+      if (value != null) {
+        return enter(value, context, actions);
+      }
+    },
+    exit: (node, context, actions) => {
+      if (typeof visit === 'function') {
+        return;
+      }
+
+      let exit = visit.exit;
+      if (!exit) {
+        return;
+      }
+
+      let value = filter(node, actions);
+      if (value != null) {
+        return exit(value, context, actions);
+      }
+    }
+  };
 }

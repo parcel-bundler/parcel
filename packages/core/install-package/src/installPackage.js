@@ -6,6 +6,7 @@ import WorkerFarm from '@parcel/workers';
 import logger from '@parcel/logger';
 import path from 'path';
 import nullthrows from 'nullthrows';
+import {NodeFS} from '@parcel/fs';
 
 import {loadConfig, PromiseQueue, resolve, resolveConfig} from '@parcel/utils';
 import Npm from './Npm';
@@ -16,6 +17,9 @@ type InstallOptions = {
   saveDev?: boolean,
   packageManager?: 'npm' | 'yarn'
 };
+
+// TODO: should we allow other file systems? npm/yarn only work on node anyway...
+const fs = new NodeFS();
 
 async function install(
   modules: Array<string>,
@@ -30,8 +34,8 @@ async function install(
 
   logger.progress(`Installing ${modules.join(', ')}...`);
 
-  let packageLocation = await resolveConfig(filepath, ['package.json']);
-  let cwd = packageLocation ? path.dirname(packageLocation) : process.cwd();
+  let packageLocation = await resolveConfig(fs, filepath, ['package.json']);
+  let cwd = packageLocation ? path.dirname(packageLocation) : fs.cwd();
 
   if (!packageManagerName) {
     packageManagerName = await determinePackageManager(filepath);
@@ -62,7 +66,8 @@ async function installPeerDependencies(
 ) {
   let basedir = path.dirname(filepath);
   const [resolved] = await resolve(name, {basedir});
-  const pkg = nullthrows(await loadConfig(resolved, ['package.json'])).config;
+  const pkg = nullthrows(await loadConfig(fs, resolved, ['package.json']))
+    .config;
   const peers = pkg.peerDependencies || {};
 
   const modules = [];
@@ -82,7 +87,7 @@ async function installPeerDependencies(
 async function determinePackageManager(
   filepath: FilePath
 ): Promise<'npm' | 'yarn'> {
-  let configFile = await resolveConfig(filepath, [
+  let configFile = await resolveConfig(fs, filepath, [
     'yarn.lock',
     'package-lock.json'
   ]);

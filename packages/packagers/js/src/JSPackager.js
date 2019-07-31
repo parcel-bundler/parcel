@@ -1,5 +1,6 @@
 // @flow strict-local
 
+import invariant from 'assert';
 import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
@@ -17,7 +18,7 @@ export default new Packager({
     // If scope hoisting is enabled, we use a different code path.
     if (options.scopeHoist) {
       let ast = await concat(bundle, bundleGraph);
-      ast = link(bundle, ast, options);
+      ast = link({bundle, bundleGraph, ast, options});
       return generate(bundle, ast, options);
     }
 
@@ -43,28 +44,37 @@ export default new Packager({
     let map = new SourceMap();
     let lineOffset = countLines(PRELUDE);
 
+    let stubsWritten = new Set();
     bundle.traverse(node => {
-      if (node.type !== 'asset' && node.type !== 'asset_reference') {
-        return;
-      }
-
-      let asset = node.value;
-      if (node.type === 'asset_reference' && asset.type === 'js') {
-        // if this is a reference to another javascript asset, we should not include
-        // its output, as its contents should already be loaded.
-        return;
-      }
-
       let wrapped = first ? '' : ',';
-      if (node.type === 'asset_reference') {
-        wrapped +=
-          JSON.stringify(asset.id) +
-          ':[function(require,module,exports) {},{}]';
-      } else {
+
+      if (node.type === 'dependency') {
+        let resolved = bundleGraph.getDependencyResolution(node.value);
+        if (
+          resolved &&
+          resolved.type !== 'js' &&
+          !stubsWritten.has(resolved.id)
+        ) {
+          // if this is a reference to another javascript asset, we should not include
+          // its output, as its contents should already be loaded.
+          invariant(!bundle.hasAsset(resolved));
+          wrapped += JSON.stringify(resolved.id) + ':[function() {},{}]';
+        } else {
+          return;
+        }
+      }
+
+      if (node.type === 'asset') {
+        let asset = node.value;
+        invariant(
+          asset.type === 'js',
+          'all assets in a js bundle must be js assets'
+        );
+
         let deps = {};
-        let dependencies = bundle.getDependencies(asset);
+        let dependencies = bundleGraph.getDependencies(asset);
         for (let dep of dependencies) {
-          let resolved = bundle.getDependencyResolution(dep);
+          let resolved = bundleGraph.getDependencyResolution(dep);
           if (resolved) {
             deps[dep.moduleSpecifier] = resolved.id;
           }
@@ -92,36 +102,39 @@ export default new Packager({
           map.addMap(assetMap, lineOffset);
           lineOffset += countLines(output) + 1;
         }
-
         i++;
       }
 
       assets += wrapped;
       first = false;
-
-      if (node.type === 'asset_reference') {
-        return;
-      }
     });
+
+    let entryAsset = bundle.getEntryAssets()[0];
+    // $FlowFixMe
+    let interpreter: ?string = bundle.target.env.isBrowser()
+      ? null
+      : entryAsset.meta.interpreter;
 
     return {
       contents:
-        PRELUDE +
-        '({' +
-        assets +
-        '},{},' +
-        JSON.stringify(
-          bundle
-            .getEntryAssets()
-            .reverse()
-            .map(asset => asset.id)
-        ) +
-        ', ' +
-        'null' +
-        ')\n\n' +
-        '//# sourceMappingURL=' +
-        sourceMapPath +
-        '\n',
+        // If the entry asset included a hashbang, repeat it at the top of the bundle
+        (interpreter != null ? `#!${interpreter}\n` : '') +
+        (PRELUDE +
+          '({' +
+          assets +
+          '},{},' +
+          JSON.stringify(
+            bundle
+              .getEntryAssets()
+              .reverse()
+              .map(asset => asset.id)
+          ) +
+          ', ' +
+          'null' +
+          ')\n\n' +
+          '//# sourceMappingURL=' +
+          sourceMapPath +
+          '\n'),
       map
     };
   }

@@ -11,9 +11,11 @@ import loadDotEnv from './loadDotEnv';
 import path from 'path';
 import TargetResolver from './TargetResolver';
 import {resolveConfig} from '@parcel/utils';
+import {NodeFS} from '@parcel/fs';
 
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
+const LOCK_FILE_NAMES = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
 
 export default async function resolveOptions(
   initialOptions: InitialParcelOptions
@@ -27,34 +29,44 @@ export default async function resolveOptions(
     entries = [initialOptions.entries];
   }
 
+  let inputFS = initialOptions.inputFS || new NodeFS();
+  let outputFS = initialOptions.outputFS || new NodeFS();
+
   let rootDir =
     initialOptions.rootDir != null
       ? initialOptions.rootDir
       : getRootDir(entries);
 
-  let projectRoot = path.dirname(
-    (await resolveConfig(path.join(process.cwd(), 'index'), [
-      'yarn.lock',
-      'package-lock.json',
-      'pnpm-lock.yaml',
+  let projectRootFile =
+    (await resolveConfig(inputFS, path.join(inputFS.cwd(), 'index'), [
+      ...LOCK_FILE_NAMES,
       '.git',
       '.hg'
-    ])) || path.join(process.cwd(), 'index')
-  );
+    ])) || path.join(inputFS.cwd(), 'index');
 
+  let lockFile = null;
+  let rootFileName = path.basename(projectRootFile);
+  if (LOCK_FILE_NAMES.includes(rootFileName)) {
+    lockFile = projectRootFile;
+  }
+  let projectRoot = path.dirname(projectRootFile);
+
+  let outputCwd = outputFS.cwd();
   let cacheDir =
     // If a cacheDir is provided, resolve it relative to cwd. Otherwise,
     // use a default directory resolved relative to the project root.
     initialOptions.cacheDir != null
-      ? path.resolve(initialOptions.cacheDir)
+      ? path.resolve(outputCwd, initialOptions.cacheDir)
       : path.resolve(projectRoot, DEFAULT_CACHE_DIRNAME);
 
-  let targetResolver = new TargetResolver();
+  let targetResolver = new TargetResolver(inputFS);
   let targets = await targetResolver.resolve(rootDir, cacheDir, initialOptions);
 
   // $FlowFixMe
   return {
-    env: initialOptions.env ?? (await loadDotEnv(path.join(rootDir, 'index'))),
+    env:
+      initialOptions.env ??
+      (await loadDotEnv(inputFS, path.join(rootDir, 'index'))),
     ...initialOptions,
     cacheDir,
     entries,
@@ -64,6 +76,9 @@ export default async function resolveOptions(
     scopeHoist:
       initialOptions.scopeHoist ?? initialOptions.mode === 'production',
     logLevel: initialOptions.logLevel ?? 'info',
-    projectRoot
+    projectRoot,
+    lockFile,
+    inputFS,
+    outputFS
   };
 }

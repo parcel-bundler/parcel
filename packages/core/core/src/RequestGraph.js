@@ -1,30 +1,49 @@
 // @flow strict-local
+import invariant from 'assert';
+//$FlowFixMe
+import {isMatch} from 'micromatch';
+import nullthrows from 'nullthrows';
+import path from 'path';
 
-import {PromiseQueue, md5FromString} from '@parcel/utils';
-import type {AssetRequest, FilePath, ParcelOptions} from '@parcel/types';
+import {localResolve} from '@parcel/local-require';
+import {PromiseQueue, md5FromString, md5FromObject} from '@parcel/utils';
+import type {AssetRequest, FilePath, Glob, ParcelOptions} from '@parcel/types';
 import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
 
+import type Config from './public/Config';
+import ConfigLoader from './ConfigLoader';
 import Dependency from './Dependency';
 import Graph, {type GraphOpts} from './Graph';
+import type ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
-import type Config from './Config';
+import type InternalAsset from './Asset';
 import type {
   AssetRequestNode,
-  CacheEntry,
+  ConfigRequest,
+  ConfigRequestNode,
   DepPathRequestNode,
+  DepVersionRequestNode,
   NodeId,
   RequestGraphNode,
   RequestNode,
-  RequestResult
+  SubRequestNode,
+  TransformationOpts,
+  ValidationOpts
 } from './types';
 
 type RequestGraphOpts = {|
   ...GraphOpts<RequestGraphNode>,
-  config: Config,
+  config: ParcelConfig,
   options: ParcelOptions,
-  onAssetRequestComplete: (AssetRequestNode, CacheEntry) => mixed,
+  onAssetRequestComplete: (AssetRequestNode, Array<InternalAsset>) => mixed,
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed
+|};
+
+type SerializedRequestGraph = {|
+  ...GraphOpts<RequestGraphNode>,
+  globNodeIds: Set<NodeId>,
+  depVersionRequestNodeIds: Set<NodeId>
 |};
 
 const hashObject = obj => {
@@ -43,46 +62,93 @@ const nodeFromAssetRequest = (assetRequest: AssetRequest) => ({
   value: assetRequest
 });
 
+const nodeFromConfigRequest = (configRequest: ConfigRequest) => ({
+  id: md5FromString(
+    `${configRequest.filePath}:${
+      configRequest.plugin != null ? configRequest.plugin : 'parcel'
+    }`
+  ),
+  type: 'config_request',
+  value: configRequest
+});
+
+const nodeFromDepVersionRequest = depVersionRequest => ({
+  id: md5FromObject(depVersionRequest),
+  type: 'dep_version_request',
+  value: depVersionRequest
+});
+
 const nodeFromFilePath = (filePath: string) => ({
   id: filePath,
   type: 'file',
   value: {filePath}
 });
 
+const nodeFromGlob = (glob: Glob) => ({
+  id: glob,
+  type: 'glob',
+  value: glob
+});
+
 export default class RequestGraph extends Graph<RequestGraphNode> {
-  inProgress: Map<NodeId, Promise<RequestResult>> = new Map();
-  invalidNodes: Map<NodeId, RequestNode> = new Map();
-  runTransform: ({
-    request: AssetRequest,
-    config: Config,
-    options: ParcelOptions
-  }) => Promise<CacheEntry>;
+  // $FlowFixMe
+  inProgress: Map<NodeId, Promise<any>> = new Map();
+  invalidNodeIds: Set<NodeId> = new Set();
+  runTransform: TransformationOpts => Promise<{
+    assets: Array<InternalAsset>,
+    configRequests: Array<ConfigRequest>
+  }>;
+  runValidate: ValidationOpts => Promise<void>;
+  loadConfigHandle: () => Promise<Config>;
   resolverRunner: ResolverRunner;
-  onAssetRequestComplete: (AssetRequestNode, CacheEntry) => mixed;
+  configLoader: ConfigLoader;
+  onAssetRequestComplete: (AssetRequestNode, Array<InternalAsset>) => mixed;
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed;
   queue: PromiseQueue;
+  validationQueue: PromiseQueue;
   farm: WorkerFarm;
-  config: Config;
+  config: ParcelConfig;
   options: ParcelOptions;
+  globNodeIds: Set<NodeId> = new Set();
+  depVersionRequestNodeIds: Set<NodeId> = new Set();
 
-  constructor({
+  // $FlowFixMe
+  static deserialize(opts: SerializedRequestGraph) {
+    let deserialized = new RequestGraph(opts);
+    deserialized.globNodeIds = opts.globNodeIds;
+    deserialized.depVersionRequestNodeIds = opts.depVersionRequestNodeIds;
+    // $FlowFixMe
+    return deserialized;
+  }
+
+  // $FlowFixMe
+  serialize(): SerializedRequestGraph {
+    return {
+      ...super.serialize(),
+      globNodeIds: this.globNodeIds,
+      depVersionRequestNodeIds: this.depVersionRequestNodeIds
+    };
+  }
+
+  initOptions({
     onAssetRequestComplete,
     onDepPathRequestComplete,
     config,
-    options,
-    ...graphOpts
+    options
   }: RequestGraphOpts) {
-    super(graphOpts);
+    this.options = options;
     this.queue = new PromiseQueue();
+    this.validationQueue = new PromiseQueue();
     this.onAssetRequestComplete = onAssetRequestComplete;
     this.onDepPathRequestComplete = onDepPathRequestComplete;
     this.config = config;
-    this.options = options;
 
     this.resolverRunner = new ResolverRunner({
       config,
       options
     });
+
+    this.configLoader = new ConfigLoader(options);
   }
 
   async initFarm() {
@@ -90,6 +156,18 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     // AssetGraphBuilder, which avoids needing to pass the options through here.
     this.farm = await WorkerFarm.getShared();
     this.runTransform = this.farm.createHandle('runTransform');
+    this.runValidate = this.farm.createHandle('runValidate');
+    this.loadConfigHandle = WorkerFarm.createReverseHandle(
+      this.loadConfig.bind(this)
+    );
+  }
+
+  async completeValidations() {
+    if (!this.farm) {
+      await this.initFarm();
+    }
+
+    await this.validationQueue.run();
   }
 
   async completeRequests() {
@@ -97,18 +175,37 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       await this.initFarm();
     }
 
-    for (let [, node] of this.invalidNodes) {
+    for (let id of this.invalidNodeIds) {
+      let node = nullthrows(this.getNode(id));
       this.processNode(node);
     }
 
     await this.queue.run();
   }
 
+  addNode(node: RequestGraphNode) {
+    this.processNode(node);
+    if (node.type === 'glob') {
+      this.globNodeIds.add(node.id);
+    } else if (node.type === 'dep_version_request') {
+      this.depVersionRequestNodeIds.add(node.id);
+    }
+    return super.addNode(node);
+  }
+
+  removeNode(node: RequestGraphNode) {
+    if (node.type === 'glob') {
+      this.globNodeIds.delete(node.id);
+    } else if (node.type === 'dep_version_request') {
+      this.depVersionRequestNodeIds.delete(node.id);
+    }
+    return super.removeNode(node);
+  }
+
   addDepPathRequest(dep: Dependency) {
     let requestNode = nodeFromDepPathRequest(dep);
     if (!this.hasNode(requestNode.id)) {
       this.addNode(requestNode);
-      this.processNode(requestNode);
     }
   }
 
@@ -116,22 +213,24 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     let requestNode = nodeFromAssetRequest(request);
     if (!this.hasNode(requestNode.id)) {
       this.addNode(requestNode);
-      this.processNode(requestNode);
     }
 
     this.connectFile(requestNode, request.filePath);
   }
 
-  async processNode(requestNode: RequestNode) {
+  async processNode(requestNode: RequestGraphNode) {
     let promise;
     switch (requestNode.type) {
       case 'asset_request':
         promise = this.queue.add(() =>
-          this.transform(requestNode.value).then(result => {
+          this.transform(requestNode).then(result => {
             this.onAssetRequestComplete(requestNode, result);
             return result;
           })
         );
+
+        this.validationQueue.add(() => this.validate(requestNode));
+
         break;
       case 'dep_path_request':
         promise = this.queue.add(() =>
@@ -141,38 +240,71 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
           })
         );
         break;
+      case 'config_request':
+        promise = this.runConfigRequest(requestNode);
+        break;
+      case 'dep_version_request':
+        promise = this.runDepVersionRequest(requestNode);
+        break;
       default:
-        throw new Error('Unrecognized request type ' + requestNode.type);
+      // Do nothing
     }
 
-    try {
-      this.inProgress.set(requestNode.id, promise);
-      await promise;
-      // ? Should these be updated before it comes off the queue?
-      this.invalidNodes.delete(requestNode.id);
-      this.inProgress.delete(requestNode.id);
-    } catch (e) {
-      // Do nothing
-      // Main tasks will be caught by the queue
-      // Sun tasks will end up rejecting the main task promise
+    if (promise) {
+      try {
+        this.inProgress.set(requestNode.id, promise);
+        await promise;
+        // ? Should these be updated before it comes off the queue?
+        this.invalidNodeIds.delete(requestNode.id);
+        this.inProgress.delete(requestNode.id);
+      } catch (e) {
+        // Do nothing
+        // Main tasks will be caught by the queue
+        // Sub tasks will end up rejecting the main task promise
+      }
     }
   }
 
-  async transform(request: AssetRequest) {
+  async validate(requestNode: AssetRequestNode) {
+    try {
+      await this.runValidate({
+        request: requestNode.value,
+        loadConfig: this.loadConfigHandle,
+        parentNodeId: requestNode.id,
+        options: this.options
+      });
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  async transform(requestNode: AssetRequestNode) {
     try {
       let start = Date.now();
-      let cacheEntry = await this.runTransform({
+      let request = requestNode.value;
+      let {assets, configRequests} = await this.runTransform({
         request,
-        config: this.config,
+        loadConfig: this.loadConfigHandle,
+        parentNodeId: requestNode.id,
         options: this.options
       });
 
       let time = Date.now() - start;
-      for (let asset of cacheEntry.assets) {
+      for (let asset of assets) {
         asset.stats.time = time;
       }
 
-      return cacheEntry;
+      let configRequestNodes = configRequests.map(configRequest => {
+        let id = nodeFromConfigRequest(configRequest).id;
+        return nullthrows(this.getNode(id));
+      });
+      this.replaceNodesConnectedTo(
+        requestNode,
+        configRequestNodes,
+        node => node.type === 'config_request'
+      );
+
+      return assets;
     } catch (e) {
       // TODO: add connectedFiles even if it failed so we can try a rebuild if those files change
       throw e;
@@ -194,6 +326,119 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     }
   }
 
+  async loadConfig(configRequest: ConfigRequest, parentNodeId: NodeId) {
+    let configRequestNode = nodeFromConfigRequest(configRequest);
+    if (!this.hasNode(configRequestNode.id)) {
+      this.addNode(configRequestNode);
+    }
+    this.addEdge(parentNodeId, configRequestNode.id);
+
+    let config = nullthrows(await this.getSubTaskResult(configRequestNode));
+    invariant(config.devDeps != null);
+
+    let depVersionRequestNodes = [];
+    for (let [moduleSpecifier] of config.devDeps) {
+      let depVersionRequest = {
+        moduleSpecifier,
+        resolveFrom: path.dirname(nullthrows(config.resolvedPath)) // TODO: resolveFrom should be nearest package boundary
+      };
+      let depVersionRequestNode = nodeFromDepVersionRequest(depVersionRequest);
+      if (!this.hasNode(depVersionRequestNode.id)) {
+        this.addNode(depVersionRequestNode);
+      }
+      this.addEdge(configRequestNode.id, depVersionRequestNode.id);
+      depVersionRequestNodes.push(
+        nullthrows(this.getNode(depVersionRequestNode.id))
+      );
+
+      let version = await this.getSubTaskResult(depVersionRequestNode);
+      config.setDevDep(depVersionRequest.moduleSpecifier, version);
+    }
+    this.replaceNodesConnectedTo(
+      configRequestNode,
+      depVersionRequestNodes,
+      node => node.type === 'dep_version_request'
+    );
+
+    return config;
+  }
+
+  async runConfigRequest(configRequestNode: ConfigRequestNode) {
+    let configRequest = configRequestNode.value;
+    let config = await this.configLoader.load(configRequest);
+    configRequest.result = config;
+
+    let invalidationNodes = [];
+
+    if (config.resolvedPath != null) {
+      invalidationNodes.push(nodeFromFilePath(config.resolvedPath));
+    }
+
+    for (let filePath of config.includedFiles) {
+      invalidationNodes.push(nodeFromFilePath(filePath));
+    }
+
+    if (config.watchGlob != null) {
+      invalidationNodes.push(nodeFromGlob(config.watchGlob));
+    }
+
+    this.replaceNodesConnectedTo(
+      configRequestNode,
+      invalidationNodes,
+      node => node.type === 'file' || node.type === 'glob'
+    );
+
+    return config;
+  }
+
+  async runDepVersionRequest(requestNode: DepVersionRequestNode) {
+    let {value: request} = requestNode;
+    let {moduleSpecifier, resolveFrom} = request;
+    let [, resolvedPkg] = await localResolve(
+      `${moduleSpecifier}/package.json`,
+      `${resolveFrom}/index`
+    );
+
+    // TODO: Figure out how to handle when local plugin packages change, since version won't be enough
+    let version = nullthrows(resolvedPkg).version;
+    request.result = version;
+
+    return version;
+  }
+
+  addSubRequest(subRequestNode: SubRequestNode, nodeId: NodeId) {
+    if (!this.nodes.has(subRequestNode.id)) {
+      this.addNode(subRequestNode);
+      this.processNode(subRequestNode);
+    }
+
+    if (!this.hasEdge(nodeId, subRequestNode.id)) {
+      this.addEdge(nodeId, subRequestNode.id);
+    }
+
+    return subRequestNode;
+  }
+
+  //$FlowFixMe
+  async getSubTaskResult(node: SubRequestNode): any {
+    let result;
+    if (this.inProgress.has(node.id)) {
+      result = await this.inProgress.get(node.id);
+    } else {
+      result = this.getResultFromGraph(node);
+    }
+
+    return result;
+  }
+
+  getResultFromGraph(subRequestNode: SubRequestNode) {
+    let node = nullthrows(this.getNode(subRequestNode.id));
+    invariant(
+      node.type === 'config_request' || node.type === 'dep_version_request'
+    );
+    return node.value.result;
+  }
+
   connectFile(requestNode: RequestNode, filePath: FilePath) {
     let fileNode = nodeFromFilePath(filePath);
     if (!this.hasNode(fileNode.id)) {
@@ -205,28 +450,100 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     }
   }
 
-  invalidateNode(node: RequestNode) {
-    this.invalidNodes.set(node.id, node);
+  connectGlob(requestNode: RequestNode, glob: Glob) {
+    let globNode = nodeFromGlob(glob);
+    if (!this.hasNode(globNode.id)) {
+      this.addNode(globNode);
+    }
+
+    if (!this.hasEdge(requestNode.id, globNode.id)) {
+      this.addEdge(requestNode.id, globNode.id);
+    }
   }
 
+  invalidateNode(node: RequestNode) {
+    switch (node.type) {
+      case 'asset_request':
+      case 'dep_path_request':
+        this.invalidNodeIds.add(node.id);
+        break;
+      case 'config_request':
+      case 'dep_version_request': {
+        this.invalidNodeIds.add(node.id);
+        let mainRequestNode = nullthrows(this.getMainRequestNode(node));
+        this.invalidNodeIds.add(mainRequestNode.id);
+        break;
+      }
+      default:
+        throw new Error(
+          `Cannot invalidate node with unrecognized type ${node.type}`
+        );
+    }
+  }
+
+  getMainRequestNode(node: SubRequestNode) {
+    let [parentNode] = this.getNodesConnectedTo(node);
+    if (parentNode.type === 'config_request') {
+      [parentNode] = this.getNodesConnectedTo(parentNode);
+    }
+    invariant(parentNode.type !== 'file' && parentNode.type !== 'glob');
+    return parentNode;
+  }
+
+  // TODO: add edge types to make invalidation more flexible and less precarious
   respondToFSEvents(events: Array<Event>) {
     for (let {path, type} of events) {
-      let node = this.getNode(path);
-      let connectedNodes = node ? this.getNodesConnectedTo(node) : [];
+      if (path === this.options.lockFile) {
+        for (let id of this.depVersionRequestNodeIds) {
+          let depVersionRequestNode = this.getNode(id);
+          invariant(
+            depVersionRequestNode &&
+              depVersionRequestNode.type === 'dep_version_request'
+          );
 
-      if (type === 'create' && !this.hasNode(path)) {
-        // TODO: invalidate dep path requests that have failed and this creation may fulfill the request
-        // TODO: invalidate glob modules
-      } else if (type === 'create' || type === 'update') {
+          this.invalidateNode(depVersionRequestNode);
+        }
+      }
+
+      let node = this.getNode(path);
+
+      let connectedNodes =
+        node && node.type === 'file' ? this.getNodesConnectedTo(node) : [];
+
+      // TODO: invalidate dep path requests that have failed and this creation may fulfill the request
+      if (node && (type === 'create' || type === 'update')) {
         // sometimes mac reports update events as create events
-        for (let connectedNode of connectedNodes) {
-          if (connectedNode.type === 'asset_request') {
-            this.invalidateNode(connectedNode);
+        if (node.type === 'file') {
+          for (let connectedNode of connectedNodes) {
+            if (
+              connectedNode.type === 'asset_request' ||
+              connectedNode.type === 'config_request'
+            ) {
+              this.invalidateNode(connectedNode);
+            }
           }
         }
-      } else if (type === 'delete') {
+      } else if (type === 'create') {
+        for (let id of this.globNodeIds) {
+          let globNode = this.getNode(id);
+          invariant(globNode && globNode.type === 'glob');
+
+          if (isMatch(path, globNode.value)) {
+            let connectedNodes = this.getNodesConnectedTo(globNode);
+            for (let connectedNode of connectedNodes) {
+              invariant(
+                connectedNode.type !== 'file' && connectedNode.type !== 'glob'
+              );
+              this.invalidateNode(connectedNode);
+            }
+          }
+        }
+      } else if (node && type === 'delete') {
         for (let connectedNode of connectedNodes) {
-          if (connectedNode.type === 'dep_path_request') {
+          if (
+            connectedNode.type === 'dep_path_request' ||
+            connectedNode.type === 'config_request'
+          ) {
             this.invalidateNode(connectedNode);
           }
         }
@@ -235,6 +552,6 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   isInvalid() {
-    return this.invalidNodes.size > 0;
+    return this.invalidNodeIds.size > 0;
   }
 }

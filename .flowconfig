@@ -6,6 +6,8 @@
 <PROJECT_ROOT>/.nyc_output/.*
 .*/tmp/**/.*
 .*/.parcel-cache/.*
+<PROJECT_ROOT>/packages/core/integration-tests/dist/**
+<PROJECT_ROOT>/packages/core/integration-tests/test/input/**
 
 [include]
 
@@ -31,4 +33,4 @@ untyped-import
 untyped-type-import
 
 [version]
-0.101.0
+0.103.0

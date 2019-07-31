@@ -18,12 +18,14 @@
     "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different",
     "precommit": "lint-staged",
     "prepublishOnly": "yarn build",
-    "test-ci": "lerna run test-ci --stream",
-    "test": "lerna run test --stream"
+    "test:unit": "cross-env NODE_ENV=test mocha",
+    "test:integration": "yarn workspace @parcel/integration-tests test",
+    "test:integration-ci": "yarn workspace @parcel/integration-tests test-ci",
+    "test": "yarn test:unit && yarn test:integration"
   },
   "devDependencies": {
     "eslint": "^5.16.0",
-    "flow-bin": "0.101.0",
+    "flow-bin": "0.103.0",
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
     "lerna": "^3.3.2",

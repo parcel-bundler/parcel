@@ -1,0 +1,20 @@
+{
+  "name": "node_require",
+  "main": "dist/node/main.js",
+  "browser": "dist/browser/main.js",
+  "engines": {
+    "node": "8"
+  },
+  "targets": {
+    "main": {
+      "engines": {
+        "node": "8"
+      }
+    },
+    "browser": {
+      "engines": {
+        "browsers": "last 1 version"
+      }
+    }
+  }
+}

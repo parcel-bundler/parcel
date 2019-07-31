@@ -2,7 +2,9 @@ import Logger from '@parcel/logger';
 import assert from 'assert';
 import WorkerFarm from '../';
 
-describe('WorkerFarm', () => {
+describe('WorkerFarm', function() {
+  this.timeout(10000);
+
   it('Should start up workers', async () => {
     let workerfarm = new WorkerFarm({
       warmWorkers: false,
@@ -92,7 +94,8 @@ describe('WorkerFarm', () => {
     await workerfarm.end();
   });
 
-  it('Bi-directional call should return masters pid', async () => {
+  it.skip('Bi-directional call should return masters pid', async () => {
+    // TODO: this test is only good for processes not threads
     let workerfarm = new WorkerFarm({
       warmWorkers: false,
       useLocalWorker: false,
@@ -213,5 +216,6 @@ describe('WorkerFarm', () => {
     let handle = workerfarm.createReverseHandle(() => 42);
     let result = await workerfarm.run(handle);
     assert.equal(result, 42);
+    await workerfarm.end();
   });
 });

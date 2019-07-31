@@ -1,7 +1,7 @@
 // @flow
 
 import type {Config, File, FilePath} from '@parcel/types';
-import * as fs from '@parcel/fs';
+import type {FileSystem} from '@parcel/fs';
 import path from 'path';
 import clone from 'clone';
 
@@ -22,6 +22,7 @@ const PARSERS = {
 const existsCache = new Map();
 
 export async function resolveConfig(
+  fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
   opts: ?ConfigOptions,
@@ -36,24 +37,21 @@ export async function resolveConfig(
 
   for (const filename of filenames) {
     let file = path.join(filepath, filename);
-    let exists = existsCache.has(file)
-      ? existsCache.get(file)
-      : await fs.exists(file);
-    if (exists) {
-      existsCache.set(file, true);
+    if (await fs.exists(file)) {
       return file;
     }
   }
 
-  return resolveConfig(filepath, filenames, opts);
+  return resolveConfig(fs, filepath, filenames, opts);
 }
 
 export async function loadConfig(
+  fs: FileSystem,
   filepath: FilePath,
   filenames: Array<FilePath>,
   opts: ?ConfigOptions
 ): Promise<ConfigOutput | null> {
-  let configFile = await resolveConfig(filepath, filenames, opts);
+  let configFile = await resolveConfig(fs, filepath, filenames, opts);
   if (configFile) {
     try {
       let extname = path.extname(configFile).slice(1);
@@ -65,7 +63,7 @@ export async function loadConfig(
         };
       }
 
-      let configContent = await fs.readFile(configFile, {encoding: 'utf8'});
+      let configContent = await fs.readFile(configFile, 'utf8');
       if (!configContent) {
         return null;
       }

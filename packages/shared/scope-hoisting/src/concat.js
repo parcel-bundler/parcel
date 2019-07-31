@@ -24,10 +24,25 @@ type TraversalContext = {|
 
 // eslint-disable-next-line no-unused-vars
 export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
-  let promises = [];
-  bundle.traverseAssets(asset => {
-    promises.push(processAsset(bundle, asset));
+  let assets = [];
+  bundle.traverse((node, shouldWrap) => {
+    switch (node.type) {
+      case 'dependency':
+        // Mark assets that should be wrapped, based on metadata in the incoming dependency tree
+        if (shouldWrap || node.value.meta.shouldWrap) {
+          let resolved = bundleGraph.getDependencyResolution(node.value);
+          if (resolved) {
+            resolved.meta.shouldWrap = true;
+          }
+          return true;
+        }
+        break;
+      case 'asset':
+        assets.push(node.value);
+    }
   });
+
+  let promises = assets.map(asset => processAsset(bundle, asset));
   let outputs = new Map(await Promise.all(promises));
   let result = [...parse(HELPERS, HELPERS_PATH)];
 
@@ -40,7 +55,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }
 
-  let usedExports = getUsedExports(bundle);
+  let usedExports = getUsedExports(bundle, bundleGraph);
 
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
@@ -65,7 +80,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       for (let i = 0; i < statements.length; i++) {
         let statement = statements[i];
         if (t.isExpressionStatement(statement)) {
-          for (let depAsset of findRequires(bundle, asset, statement)) {
+          for (let depAsset of findRequires(bundleGraph, asset, statement)) {
             if (depAsset && !statementIndices.has(depAsset.id)) {
               statementIndices.set(depAsset.id, i);
             }
@@ -135,7 +150,7 @@ async function processAsset(bundle: Bundle, asset: Asset) {
     addComment(statements[0], ` ASSET: ${asset.filePath}`);
   }
 
-  if (shouldWrap(bundle, asset)) {
+  if (asset.meta.shouldWrap) {
     statements = wrapModule(asset, statements);
   }
 
@@ -161,11 +176,14 @@ function addComment(statement, comment) {
   });
 }
 
-function getUsedExports(bundle: Bundle): Map<string, Set<Symbol>> {
+function getUsedExports(
+  bundle: Bundle,
+  bundleGraph: BundleGraph
+): Map<string, Set<Symbol>> {
   let usedExports: Map<string, Set<Symbol>> = new Map();
   bundle.traverseAssets(asset => {
-    for (let dep of bundle.getDependencies(asset)) {
-      let resolvedAsset = bundle.getDependencyResolution(dep);
+    for (let dep of bundleGraph.getDependencies(asset)) {
+      let resolvedAsset = bundleGraph.getDependencyResolution(dep);
       if (!resolvedAsset) {
         continue;
       }
@@ -187,7 +205,7 @@ function getUsedExports(bundle: Bundle): Map<string, Set<Symbol>> {
   });
 
   function markUsed(asset, symbol) {
-    let resolved = bundle.resolveSymbol(asset, symbol);
+    let resolved = bundleGraph.resolveSymbol(asset, symbol);
 
     let used = usedExports.get(resolved.asset.id);
     if (!used) {
@@ -212,7 +230,11 @@ function shouldExcludeAsset(
   );
 }
 
-function findRequires(bundle: Bundle, asset: Asset, ast) {
+function findRequires(
+  bundleGraph: BundleGraph,
+  asset: Asset,
+  ast: mixed
+): Array<Asset> {
   let result = [];
   walk.simple(ast, {
     CallExpression(node) {
@@ -222,44 +244,18 @@ function findRequires(bundle: Bundle, asset: Asset, ast) {
       }
 
       if (callee.name === '$parcel$require') {
-        let dep = bundle
+        let dep = bundleGraph
           .getDependencies(asset)
           .find(dep => dep.moduleSpecifier === args[1].value);
         if (!dep) {
           throw new Error(`Could not find dep for "${args[1].value}`);
         }
-        result.push(bundle.getDependencyResolution(dep));
+        result.push(nullthrows(bundleGraph.getDependencyResolution(dep)));
       }
     }
   });
 
   return result;
-}
-
-function shouldWrap(bundle: Bundle, asset: Asset) {
-  if (asset.meta.shouldWrap != null) {
-    return asset.meta.shouldWrap;
-  }
-
-  // We need to wrap if any of the deps are marked by the hoister, e.g.
-  // when the dep is required inside a function or conditional.
-  // We also need to wrap if any of the parents are wrapped - transitive requires
-  // shouldn't be evaluated until their parents are.
-  let shouldWrap = false;
-  bundle.traverseAncestors(asset, (node, context, traversal) => {
-    switch (node.type) {
-      case 'dependency':
-      case 'asset':
-        if (node.value.meta.shouldWrap) {
-          shouldWrap = true;
-          traversal.stop();
-        }
-        break;
-    }
-  });
-
-  asset.meta.shouldWrap = shouldWrap;
-  return shouldWrap;
 }
 
 function wrapModule(asset: Asset, statements) {

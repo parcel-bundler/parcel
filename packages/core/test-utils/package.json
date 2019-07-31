@@ -20,10 +20,10 @@
     "chalk": "^2.1.0",
     "ncp": "^2.0.0",
     "nullthrows": "^1.1.1",
+    "resolve": "^1.4.0",
     "ws": "^5.1.1"
   },
   "scripts": {
-    "test": "echo this package has no tests yet",
     "test-ci": "yarn test"
   }
 }

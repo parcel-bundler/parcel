@@ -4,7 +4,6 @@ import type {Bundle, FilePath} from '@parcel/types';
 
 import {Namer} from '@parcel/plugin';
 import assert from 'assert';
-import crypto from 'crypto';
 import path from 'path';
 
 const COMMON_NAMES = new Set(['index', 'src', 'lib']);
@@ -49,7 +48,7 @@ export default new Namer({
     //      `index.css`.
     let name = nameFromContent(firstBundleInGroup, options.rootDir);
     if (!bundle.isEntry) {
-      name += '.' + getHash(bundle).slice(-8);
+      name += '.' + bundle.getHash().slice(-8);
     }
     return name + '.' + bundle.type;
   }
@@ -75,13 +74,4 @@ function nameFromContent(bundle: Bundle, rootDir: FilePath): string {
 
     return name;
   }
-}
-
-function getHash(bundle: Bundle): string {
-  let hash = crypto.createHash('md5');
-  bundle.traverseAssets(asset => {
-    hash.update(asset.outputHash);
-  });
-
-  return hash.digest('hex');
 }
