@@ -28,7 +28,8 @@ import type {
   RequestGraphNode,
   RequestNode,
   SubRequestNode,
-  TransformationOpts
+  TransformationOpts,
+  ValidationOpts
 } from './types';
 
 type RequestGraphOpts = {|
@@ -97,12 +98,14 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     assets: Array<InternalAsset>,
     configRequests: Array<ConfigRequest>
   }>;
+  runValidate: ValidationOpts => Promise<void>;
   loadConfigHandle: () => Promise<Config>;
   resolverRunner: ResolverRunner;
   configLoader: ConfigLoader;
   onAssetRequestComplete: (AssetRequestNode, Array<InternalAsset>) => mixed;
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed;
   queue: PromiseQueue;
+  validationQueue: PromiseQueue;
   farm: WorkerFarm;
   config: ParcelConfig;
   options: ParcelOptions;
@@ -135,6 +138,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }: RequestGraphOpts) {
     this.options = options;
     this.queue = new PromiseQueue();
+    this.validationQueue = new PromiseQueue();
     this.onAssetRequestComplete = onAssetRequestComplete;
     this.onDepPathRequestComplete = onDepPathRequestComplete;
     this.config = config;
@@ -152,9 +156,18 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     // AssetGraphBuilder, which avoids needing to pass the options through here.
     this.farm = await WorkerFarm.getShared();
     this.runTransform = this.farm.createHandle('runTransform');
+    this.runValidate = this.farm.createHandle('runValidate');
     this.loadConfigHandle = WorkerFarm.createReverseHandle(
       this.loadConfig.bind(this)
     );
+  }
+
+  async completeValidations() {
+    if (!this.farm) {
+      await this.initFarm();
+    }
+
+    await this.validationQueue.run();
   }
 
   async completeRequests() {
@@ -215,6 +228,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
             return result;
           })
         );
+
+        this.validationQueue.add(() => this.validate(requestNode));
+
         break;
       case 'dep_path_request':
         promise = this.queue.add(() =>
@@ -246,6 +262,19 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         // Main tasks will be caught by the queue
         // Sub tasks will end up rejecting the main task promise
       }
+    }
+  }
+
+  async validate(requestNode: AssetRequestNode) {
+    try {
+      await this.runValidate({
+        request: requestNode.value,
+        loadConfig: this.loadConfigHandle,
+        parentNodeId: requestNode.id,
+        options: this.options
+      });
+    } catch (e) {
+      throw e;
     }
   }
 
