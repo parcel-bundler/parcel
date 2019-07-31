@@ -7,7 +7,6 @@
     "parcel": "^2.0.0-alpha.0"
   },
   "scripts": {
-    "test": "echo this package has no tests yet",
     "test-ci": "yarn test"
   },
   "dependencies": {

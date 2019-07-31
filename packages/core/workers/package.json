@@ -15,7 +15,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "cross-env NODE_ENV=test mocha",
     "test-ci": "yarn test"
   },
   "dependencies": {

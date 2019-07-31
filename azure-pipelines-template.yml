@@ -45,8 +45,10 @@ jobs:
       # https://yarnpkg.com/lang/en/docs/cli/install/#toc-yarn-install-frozen-lockfile
       - script: yarn --frozen-lockfile
         displayName: 'Install dependencies'
-      - script: yarn test-ci
-        displayName: 'Run tests'
+      - script: yarn test:unit
+        displayName: 'Run unit tests'
+      - script: yarn test:integration-ci
+        displayName: 'Run integration tests'
       - script: yarn flow
         displayName: 'Type check with Flow'
       - script: yarn lint

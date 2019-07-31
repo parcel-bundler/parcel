@@ -3,9 +3,7 @@
   "version": "2.0.0-alpha.0",
   "main": "./src/SourceMap.js",
   "license": "MIT",
-  "scripts": {
-    "test": "mocha"
-  },
+  "scripts": {},
   "engines": {
     "node": ">= 8.0.0"
   },
