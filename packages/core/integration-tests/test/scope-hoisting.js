@@ -1392,6 +1392,6 @@ describe('scope hoisting', function() {
 
     let output = (await run(jsBundle)).default;
     assert.equal(typeof output, 'function');
-    console.log(await output());
+    assert.equal(await output(), 'Imported: foobar');
   });
 });

@@ -4,7 +4,8 @@ import type {
   BuildEvent,
   BundleGraph,
   FilePath,
-  InitialParcelOptions
+  InitialParcelOptions,
+  Bundle
 } from '@parcel/types';
 
 import invariant from 'assert';
@@ -133,7 +134,7 @@ export async function run(
 
     bundle = (nullthrows(bundles.find(b => b.isEntry)): Bundle);
   } else {
-    bundle = bundleOrGraph;
+    bundle = (bundleOrGraph: Bundle);
   }
   let entryAsset = bundle.getEntryAssets()[0];
   let target = entryAsset.env.context;

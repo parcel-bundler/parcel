@@ -185,6 +185,15 @@ export default class BundleGraph {
     );
   }
 
+  isAssetReferencedByType(asset: Asset, type: string): boolean {
+    return this._graph
+      .getNodesConnectedTo(
+        nullthrows(this._graph.getNode(asset.id)),
+        'references'
+      )
+      .some(v => v.type === type);
+  }
+
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean {
     let parentNodes = this._graph.getNodesConnectedTo(
       nullthrows(this._graph.getNode(bundle.id)),
