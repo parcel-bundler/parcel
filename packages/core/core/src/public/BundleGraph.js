@@ -72,6 +72,13 @@ export default class BundleGraph implements IBundleGraph {
     );
   }
 
+  hasParentBundleOfType(bundle: IBundle, type: string): boolean {
+    return this.#graph.hasParentBundleOfType(
+      bundleToInternalBundle(bundle),
+      type
+    );
+  }
+
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)

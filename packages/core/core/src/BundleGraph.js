@@ -194,6 +194,20 @@ export default class BundleGraph {
       .some(v => v.type === type);
   }
 
+  hasParentBundleOfType(bundle: Bundle, type: string): boolean {
+    return (
+      this._graph
+        .getNodesConnectedTo(
+          nullthrows(this._graph.getNode(bundle.id)),
+          'bundle'
+        )
+        .map(node => this._graph.getNodesConnectedTo(node, 'bundle'))
+        .reduce((acc, v) => acc.concat(v), [])
+        .filter(node => node.type === 'bundle' && node.value.type === type)
+        .length > 0
+    );
+  }
+
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean {
     let parentNodes = this._graph.getNodesConnectedTo(
       nullthrows(this._graph.getNode(bundle.id)),

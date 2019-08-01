@@ -48,22 +48,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
   // If this is an entry bundle and it has child bundles, we need to add the prelude code, which allows
   // registering modules dynamically at runtime.
-  let isEntry = true;
-  // isEntry = "bundleGraph.hasParentOfType(bundle, 'js')"
-  bundleGraph.traverseBundles<boolean>((b, ctx, traversal) => {
-    if (b.type === 'js') {
-      let children: Array<Bundle> = bundleGraph
-        .getBundleGroupsReferencedByBundle(b)
-        .map(v => bundleGraph.getBundlesInBundleGroup(v.bundleGroup))
-        .reduce((acc, v) => acc.concat(v), []);
-
-      if (children.some(v => v.id === bundle.id)) {
-        // `v` is a JS parent, so `bundle` is a child
-        isEntry = false;
-        traversal.stop();
-      }
-    }
-  });
+  let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
   let hasChildBundles = bundle.hasChildBundles();
   let needsPrelude = isEntry && hasChildBundles;
   let registerEntry = !isEntry || hasChildBundles;
