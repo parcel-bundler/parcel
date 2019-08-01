@@ -120,16 +120,21 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
 }
 
 export async function run(
-  bundleGraph: BundleGraph,
+  bundleOrGraph: BundleGraph | Bundle,
   globals: mixed,
   opts: {require?: boolean} = {}
 ): Promise<mixed> {
-  let bundles = [];
-  bundleGraph.traverseBundles(bundle => {
-    bundles.push(bundle);
-  });
+  let bundle: Bundle;
+  if (bundleOrGraph.traverseBundles) {
+    let bundles = [];
+    bundleOrGraph.traverseBundles(bundle => {
+      bundles.push(bundle);
+    });
 
-  let bundle = nullthrows(bundles.find(b => b.isEntry));
+    bundle = (nullthrows(bundles.find(b => b.isEntry)): Bundle);
+  } else {
+    bundle = bundleOrGraph;
+  }
   let entryAsset = bundle.getEntryAssets()[0];
   let target = entryAsset.env.context;
 

@@ -1,6 +1,11 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle: _bundle, run, outputFS} = require('@parcel/test-utils');
+const {
+  bundle: _bundle,
+  run,
+  outputFS,
+  assertBundles
+} = require('@parcel/test-utils');
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
@@ -1315,5 +1320,78 @@ describe('scope hoisting', function() {
       let output = await run(b);
       assert.deepEqual(output, [4, 2]);
     });
+  });
+
+  it('should not throw with JS included from HTML', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js/index.html')
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: ['index.js']
+      }
+    ]);
+
+    let jsBundle;
+    b.traverseBundles((bundle, ctx, traversal) => {
+      if (bundle.type === 'js') {
+        jsBundle = bundle;
+        traversal.stop();
+      }
+    });
+
+    let value = null;
+    await run(jsBundle, {
+      alert: v => (value = v)
+    });
+    assert.equal(value, 'Hi');
+  });
+
+  it('should not throw with JS dynamic imports included from HTML', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-js-dynamic/index.html')
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: [
+          'bundle-loader.js',
+          'bundle-url.js',
+          'index.js',
+          'js-loader.js',
+          'JSRuntime.js'
+        ]
+      },
+      {
+        type: 'js',
+        assets: ['local.js']
+      }
+    ]);
+
+    let htmlBundle;
+    b.traverseBundles((bundle, ctx, traversal) => {
+      if (bundle.isEntry) {
+        htmlBundle = bundle;
+        traversal.stop();
+      }
+    });
+    let jsBundle = b.getBundlesInBundleGroup(
+      b.getBundleGroupsReferencedByBundle(htmlBundle)[0].bundleGroup
+    )[0];
+
+    let output = (await run(jsBundle)).default;
+    assert.equal(typeof output, 'function');
+    console.log(await output());
   });
 });
