@@ -1372,4 +1372,36 @@ describe('javascript', function() {
 
     await run(b);
   });
+
+  it('supports async importing the same module from different bundles', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/shared-bundlegroup/index.js')
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'bundle-url.js',
+          'bundle-loader.js',
+          'js-loader.js'
+        ]
+      },
+      {
+        assets: ['a.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['b.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['c.js']
+      }
+    ]);
+
+    let {default: promise} = await run(b);
+    assert.deepEqual(await promise, ['hello from a test', 'hello from b test']);
+  });
 });

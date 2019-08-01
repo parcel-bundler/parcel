@@ -1,4 +1,5 @@
 const fs = require('@parcel/fs');
+const path = require('path');
 const assert = require('assert');
 const lineCounter = require('../src/utils/lineCounter');
 
@@ -12,7 +13,9 @@ describe('line counter', async function() {
   });
 
   it('counts number of lines of a file from disk', async function() {
-    const input = (await fs.readFile('./test/lineCounter.js')).toString();
-    assert(lineCounter(input) === 19);
+    const input = (await fs.readFile(
+      path.join(__dirname, 'lineCounter.js')
+    )).toString();
+    assert.equal(lineCounter(input), 22);
   });
 });

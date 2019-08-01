@@ -7,7 +7,6 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "scripts": {
-    "test": "mocha",
     "test-ci": "mocha"
   },
   "dependencies": {

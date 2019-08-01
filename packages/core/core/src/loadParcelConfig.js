@@ -119,6 +119,13 @@ export function validateConfigFile(
     'transforms',
     relativePath
   );
+  validateMap(
+    config.validators,
+    validatePipeline.bind(this),
+    'validator',
+    'validators',
+    relativePath
+  );
   validatePackageName(config.bundler, 'bundler', 'bundler', relativePath);
   validatePipeline(config.namers, 'namer', 'namers', relativePath);
   validateMap(
@@ -261,6 +268,7 @@ export function mergeConfigs(
     filePath: ext.filePath, // TODO: revisit this - it should resolve plugins based on the actual config they are defined in
     resolvers: mergePipelines(base.resolvers, ext.resolvers),
     transforms: mergeMaps(base.transforms, ext.transforms, mergePipelines),
+    validators: mergeMaps(base.validators, ext.validators, mergePipelines),
     bundler: ext.bundler || base.bundler,
     namers: mergePipelines(base.namers, ext.namers),
     runtimes: mergeMaps(base.runtimes, ext.runtimes),

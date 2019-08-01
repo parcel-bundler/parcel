@@ -43,6 +43,9 @@ export default class ConfigLoader {
       case 'transformation':
         devDeps = parcelConfig.getTransformerNames(filePath);
         break;
+      case 'validation':
+        devDeps = parcelConfig.getValidatorNames(filePath);
+        break;
       case 'dependency':
         devDeps = parcelConfig.getResolverNames();
         break;

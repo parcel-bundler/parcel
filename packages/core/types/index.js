@@ -47,7 +47,10 @@ export type ParcelConfigFile = {
   optimizers?: {
     [Glob]: Array<PackageName>
   },
-  reporters?: Array<PackageName>
+  reporters?: Array<PackageName>,
+  validators?: {
+    [Glob]: Array<PackageName>
+  }
 };
 
 export type ResolvedParcelConfigFile = ParcelConfigFile & {
@@ -328,6 +331,19 @@ export interface TransformerResult {
 type Async<T> = T | Promise<T>;
 
 type ResolveFn = (from: FilePath, to: string) => Promise<FilePath>;
+
+type ResolveConfigFn = (
+  configNames: Array<FilePath>
+) => Promise<FilePath | null>;
+
+export type Validator = {|
+  validate({
+    asset: Asset,
+    resolveConfig: ResolveConfigFn, // This is a temporary function and should be replaced with something cacheable
+    options: ParcelOptions
+  }): Async<void>
+|};
+
 export type Transformer = {
   getConfig?: ({
     asset: MutableAsset,
@@ -467,7 +483,6 @@ export interface NamedBundle extends Bundle {
 }
 
 export type BundleGroup = {
-  dependency: Dependency,
   target: Target,
   entryAssetId: string
 };
@@ -475,7 +490,9 @@ export type BundleGroup = {
 export interface BundleGraph {
   getBundles(): Array<Bundle>;
   getBundleGroupsContainingBundle(bundle: Bundle): Array<BundleGroup>;
-  getBundleGroupsReferencedByBundle(bundle: Bundle): Array<BundleGroup>;
+  getBundleGroupsReferencedByBundle(
+    bundle: Bundle
+  ): Array<{bundleGroup: BundleGroup, dependency: Dependency}>;
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<Bundle>;
   getDependencies(asset: Asset): Array<Dependency>;
   getIncomingDependencies(asset: Asset): Array<Dependency>;
@@ -633,6 +650,11 @@ export type BuildFailureEvent = {|
 
 export type BuildEvent = BuildFailureEvent | BuildSuccessEvent;
 
+export type ValidationEvent = {|
+  type: 'validation',
+  request: AssetRequest
+|};
+
 export type ReporterEvent =
   | LogEvent
   | BuildStartEvent
@@ -640,7 +662,8 @@ export type ReporterEvent =
   | BuildSuccessEvent
   | BuildFailureEvent
   | WatchStartEvent
-  | WatchEndEvent;
+  | WatchEndEvent
+  | ValidationEvent;
 
 export type Reporter = {|
   report(event: ReporterEvent, opts: ParcelOptions): Async<void>

@@ -15,7 +15,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "mocha",
     "test-ci": "yarn test"
   },
   "dependencies": {

@@ -12,7 +12,8 @@ import type {
   PackageName,
   Packager,
   Optimizer,
-  Reporter
+  Reporter,
+  Validator
 } from '@parcel/types';
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
@@ -29,6 +30,7 @@ export default class ParcelConfig {
   namers: Pipeline;
   runtimes: {[EnvironmentContext]: Pipeline};
   packagers: GlobMap<PackageName>;
+  validators: GlobMap<Pipeline>;
   optimizers: GlobMap<Pipeline>;
   reporters: Pipeline;
   pluginCache: Map<PackageName, any>;
@@ -43,6 +45,7 @@ export default class ParcelConfig {
     this.packagers = config.packagers || {};
     this.optimizers = config.optimizers || {};
     this.reporters = config.reporters || [];
+    this.validators = config.validators || {};
     this.pluginCache = new Map();
   }
 
@@ -55,6 +58,7 @@ export default class ParcelConfig {
       filePath: this.filePath,
       resolvers: this.resolvers,
       transforms: this.transforms,
+      validators: this.validators,
       runtimes: this.runtimes,
       bundler: this.bundler,
       namers: this.namers,
@@ -91,6 +95,13 @@ export default class ParcelConfig {
     return this.loadPlugins(this.getResolverNames());
   }
 
+  getValidatorNames(filePath: FilePath): Array<string> {
+    let validators: Pipeline =
+      this.matchGlobMapPipelines(filePath, this.validators) || [];
+
+    return validators;
+  }
+
   getTransformerNames(filePath: FilePath): Array<string> {
     let transformers: Pipeline | null = this.matchGlobMapPipelines(
       filePath,
@@ -101,6 +112,10 @@ export default class ParcelConfig {
     }
 
     return transformers;
+  }
+
+  async getValidators(filePath: FilePath): Promise<Array<Validator>> {
+    return this.loadPlugins(this.getValidatorNames(filePath));
   }
 
   async getTransformers(filePath: FilePath): Promise<Array<Transformer>> {

@@ -92,6 +92,10 @@ export default class AssetGraphBuilder extends EventEmitter {
     return {assetGraph: this.assetGraph, changedAssets: changedAssets};
   }
 
+  async validate(): Promise<void> {
+    return this.requestGraph.completeValidations();
+  }
+
   handleNodeAddedToAssetGraph(node: AssetGraphNode) {
     switch (node.type) {
       case 'dependency':
