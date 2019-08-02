@@ -8,11 +8,11 @@ import {relativeUrl} from '@parcel/utils';
 import {load, rehydrate} from './config';
 
 export default new Transformer({
-  async loadConfig(config) {
+  async loadConfig({config}) {
     await load(config);
   },
 
-  rehydrateConfig(config) {
+  rehydrateConfig({config}) {
     rehydrate(config);
   },
 

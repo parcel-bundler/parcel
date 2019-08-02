@@ -62,7 +62,7 @@ export default {
         replacementNode = t.stringLiteral(res);
       }
 
-      asset.addConnectedFile({
+      asset.addIncludedFile({
         filePath: filename
       });
 

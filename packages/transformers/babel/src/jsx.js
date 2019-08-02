@@ -1,5 +1,5 @@
 // @flow
-import type {IConfig} from '@parcel/types';
+import type {Config} from '@parcel/types';
 import path from 'path';
 
 const JSX_EXTENSIONS = {
@@ -18,7 +18,7 @@ const JSX_PRAGMA = {
  * Generates a babel config for JSX. Attempts to detect react or react-like libraries
  * and changes the pragma accordingly.
  */
-export default async function getJSXOptions(config: IConfig) {
+export default async function getJSXOptions(config: Config) {
   if (!(await config.isSource())) {
     return null;
   }

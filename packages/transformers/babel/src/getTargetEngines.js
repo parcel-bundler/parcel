@@ -1,6 +1,6 @@
 // @flow
 
-import type {Engines, IConfig} from '@parcel/types';
+import type {Engines, Config} from '@parcel/types';
 
 import browserslist from 'browserslist';
 
@@ -12,7 +12,7 @@ const BROWSER_CONTEXT = new Set(['browser', 'web-worker', 'service-worker']);
  *   - package.json browserslist field
  *   - browserslist or .browserslistrc files
  */
-export default async function getTargetEngines(config: IConfig): Engines {
+export default async function getTargetEngines(config: Config): Engines {
   let targets = {};
   let compileTarget = BROWSER_CONTEXT.has(config.env.context)
     ? 'browsers'

@@ -1,10 +1,10 @@
 // @flow
 import path from 'path';
 
-import {IConfig} from '@parcel/types';
+import {Config} from '@parcel/types';
 import type {BabelConfig} from './types';
 
-export default function getTypescriptOptions(config: IConfig): BabelConfig {
+export default function getTypescriptOptions(config: Config): BabelConfig {
   return {
     plugins: [
       [

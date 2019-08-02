@@ -1,8 +1,6 @@
 // @flow strict-local
-import path from 'path';
-
 import type {
-  IConfig,
+  Config as IConfig,
   Environment,
   FilePath,
   Glob,
@@ -12,6 +10,8 @@ import type {
   ThirdPartyConfig
 } from '@parcel/types';
 import {loadConfig} from '@parcel/utils';
+
+import path from 'path';
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
@@ -85,7 +85,7 @@ export default class Config implements IConfig {
     this.includedFiles.add(filePath);
   }
 
-  setDevDep(name: PackageName, version?: string) {
+  addDevDependency(name: PackageName, version?: string) {
     this.devDeps.set(name, version);
   }
 

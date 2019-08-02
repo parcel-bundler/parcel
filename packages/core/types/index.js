@@ -272,7 +272,7 @@ interface BaseAsset {
   getBuffer(): Promise<Buffer>;
   getStream(): Readable;
   getMap(): Promise<?SourceMap>;
-  getConnectedFiles(): $ReadOnlyArray<File>;
+  getIncludedFiles(): $ReadOnlyArray<File>;
   getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(
     filePaths: Array<FilePath>,
@@ -291,7 +291,7 @@ export interface MutableAsset extends BaseAsset {
   setCode(string): void;
   setBuffer(Buffer): void;
   setStream(Readable): void;
-  addConnectedFile(file: File): Promise<void>;
+  addIncludedFile(file: File): Promise<void>;
   addDependency(opts: DependencyOptions): string;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
 }
@@ -301,26 +301,17 @@ export interface Asset extends BaseAsset {
   +stats: Stats;
 }
 
-// TODO: figure out naming
-export interface IConfig {
+export interface Config {
   searchPath: FilePath;
   env: Environment;
   options: PluginOptions;
-  resolvedPath: ?FilePath;
-  // $FlowFixMe could be anything
-  result: ?any;
-  resultHash: ?string;
-  includedFiles: Set<FilePath>;
-  watchGlob: ?Glob;
-  devDeps: Map<PackageName, ?string>;
-  pkg: ?PackageJSON;
 
   setResolvedPath(filePath: FilePath): void;
   // $FlowFixMe could be anything
   setResult(result: any): void; // TODO: fix
   setResultHash(resultHash: string): void;
   addIncludedFile(filePath: FilePath): void;
-  setDevDep(name: PackageName, version?: Semver): void;
+  addDevDependency(name: PackageName, version?: Semver): void;
   setWatchGlob(glob: string): void;
   getConfigFrom(
     searchPath: FilePath,
@@ -356,7 +347,7 @@ export interface TransformerResult {
   content?: Blob;
   ast?: ?AST;
   dependencies?: $ReadOnlyArray<DependencyOptions>;
-  connectedFiles?: $ReadOnlyArray<File>;
+  includedFiles?: $ReadOnlyArray<File>;
   isIsolated?: boolean;
   env?: EnvironmentOpts;
   meta?: Meta;
@@ -381,11 +372,20 @@ export type Validator = {|
 |};
 
 export type Transformer = {
+  // TODO: deprecate getConfig
   getConfig?: ({
     asset: MutableAsset,
     resolve: ResolveFn,
     options: PluginOptions
   }) => Async<ThirdPartyConfig | void>,
+  loadConfig?: ({
+    config: Config,
+    options: PluginOptions
+  }) => Async<void>,
+  rehydrateConfig?: ({
+    config: Config,
+    options: PluginOptions
+  }) => Async<void>,
   canReuseAST?: ({ast: AST, options: PluginOptions}) => boolean,
   parse?: ({
     asset: MutableAsset,

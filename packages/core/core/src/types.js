@@ -62,7 +62,7 @@ export type Asset = {|
   filePath: FilePath,
   type: string,
   dependencies: Map<string, Dependency>,
-  connectedFiles: Map<FilePath, File>,
+  includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
   outputHash: string,
   env: Environment,
