@@ -128,7 +128,7 @@ async function getDependencies(
       // Recursively process resolved files as well to get nested deps
       for (let resolved of found) {
         if (!seen.has(resolved)) {
-          await asset.addConnectedFile({filePath: resolved});
+          await asset.addIncludedFile({filePath: resolved});
 
           let code = await asset.fs.readFile(resolved, 'utf8');
           for (let [path, resolvedPath] of await getDependencies(

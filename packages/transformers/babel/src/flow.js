@@ -1,12 +1,12 @@
 // @flow
 
-import {IConfig} from '@parcel/types';
+import {Config} from '@parcel/types';
 import type {BabelConfig} from './types';
 
 /**
  * Generates a babel config for stripping away Flow types.
  */
-export default async function getFlowOptions(config: IConfig): BabelConfig {
+export default async function getFlowOptions(config: Config): BabelConfig {
   if (!(await config.isSource())) {
     return null;
   }

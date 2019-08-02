@@ -142,7 +142,7 @@ describe('AssetGraph', () => {
           ]
         ]),
         env: DEFAULT_ENV,
-        connectedFiles: new Map()
+        includedFiles: new Map()
       }),
       new Asset({
         id: '2',
@@ -163,7 +163,7 @@ describe('AssetGraph', () => {
           ]
         ]),
         env: DEFAULT_ENV,
-        connectedFiles: new Map()
+        includedFiles: new Map()
       }),
       new Asset({
         id: '3',
@@ -175,7 +175,7 @@ describe('AssetGraph', () => {
         dependencies: new Map(),
         env: DEFAULT_ENV,
         stats,
-        connectedFiles: new Map()
+        includedFiles: new Map()
       })
     ];
 
@@ -211,7 +211,7 @@ describe('AssetGraph', () => {
           ]
         ]),
         env: DEFAULT_ENV,
-        connectedFiles: new Map()
+        includedFiles: new Map()
       }),
       new Asset({
         id: '2',
@@ -223,7 +223,7 @@ describe('AssetGraph', () => {
         stats,
         dependencies: new Map(),
         env: DEFAULT_ENV,
-        connectedFiles: new Map()
+        includedFiles: new Map()
       })
     ];
 
@@ -272,7 +272,7 @@ describe('AssetGraph', () => {
           ]
         ]),
         env: DEFAULT_ENV,
-        connectedFiles: new Map([
+        includedFiles: new Map([
           [
             '/foo/bar',
             {

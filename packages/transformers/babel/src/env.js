@@ -1,7 +1,7 @@
 // @flow
 import semver from 'semver';
 
-import type {IConfig, Engines} from '@parcel/types';
+import type {Config, Engines} from '@parcel/types';
 import getTargetEngines from './getTargetEngines';
 
 import presetEnv from '@babel/preset-env';
@@ -11,7 +11,7 @@ import presetEnv from '@babel/preset-env';
  * This is done by finding the source module's target engines, and the app's
  * target engines, and doing a diff to include only the necessary plugins.
  */
-export default async function getEnvOptions(config: IConfig) {
+export default async function getEnvOptions(config: Config) {
   // Load the target engines for the app and generate a @babel/preset-env config
   let targetEngines = config.env.engines;
   let envOptions = await getPresetOptions(targetEngines, true);
@@ -25,6 +25,8 @@ export default async function getEnvOptions(config: IConfig) {
     let appPlugins = getEnvPlugins(targetEngines, true);
     let sourcePlugins = getEnvPlugins(sourceEngines, false);
 
+    // Do a diff of the returned plugins. If there are more app plugins then the asset was built to
+    // a higher target and will need to be compiled further
     sourcePlugins = new Set(sourcePlugins.map(p => p[0]));
     appPlugins = appPlugins.filter(plugin => {
       return !sourcePlugins.has(plugin[0]);

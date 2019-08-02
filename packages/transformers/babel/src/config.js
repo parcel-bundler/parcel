@@ -3,7 +3,7 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import {loadPartialConfig, createConfigItem} from '@babel/core';
 
-import {IConfig} from '@parcel/types';
+import type {Config} from '@parcel/types';
 import {md5FromObject} from '@parcel/utils';
 
 import getEnvOptions from './env';
@@ -15,7 +15,7 @@ import type {BabelConfig} from './types';
 const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
 const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 
-export async function load(config: IConfig) {
+export async function load(config: Config) {
   let partialConfig = loadPartialConfig({filename: config.searchPath});
   if (partialConfig && partialConfig.hasFilesystemConfig()) {
     let {babelrc, config: configjs} = partialConfig;
@@ -61,7 +61,7 @@ export async function load(config: IConfig) {
   }
 }
 
-async function buildDefaultBabelConfig(config: IConfig) {
+async function buildDefaultBabelConfig(config: Config) {
   let babelOptions;
   if (path.extname(config.searchPath).match(TYPESCRIPT_EXTNAME_RE)) {
     babelOptions = getTypescriptOptions(config);
@@ -142,6 +142,8 @@ async function isLocal(/* configItemPath */) {
 }
 
 function prepForReyhdration(options) {
+  // ConfigItem.value is a function which the v8 serializer chokes on
+  // It is being ommited here and will be rehydrated later using the path provided by ConfigItem.file
   options.presets = (options.presets || []).map(configItem => ({
     file: configItem.file,
     options: configItem.options
@@ -166,12 +168,12 @@ async function definePluginDependencies(config) {
           parse: true
         })
       );
-      config.setDevDep(pkg.name, pkg.version);
+      config.addDevDependency(pkg.name, pkg.version);
     })
   );
 }
 
-export function rehydrate(config: IConfig) {
+export function rehydrate(config: Config) {
   config.result.config.presets = config.result.config.presets.map(
     configItem => {
       // $FlowFixMe

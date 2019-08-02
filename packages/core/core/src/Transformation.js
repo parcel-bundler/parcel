@@ -244,9 +244,15 @@ export default class Transformation {
           parcelConfig.resolvedPath
         );
         if (thirdPartyConfig.rehydrate) {
-          await plugin.rehydrateConfig(thirdPartyConfig);
+          await plugin.rehydrateConfig({
+            config: thirdPartyConfig,
+            options: this.options
+          });
         } else if (thirdPartyConfig.reload) {
-          await plugin.load(thirdPartyConfig);
+          await plugin.loadConfig({
+            config: thirdPartyConfig,
+            options: this.options
+          });
         }
 
         configs.set(moduleName, thirdPartyConfig);
@@ -303,7 +309,6 @@ type PipelineOpts = {|
   options: ParcelOptions
 |};
 
-// ? Open to suggestions for a better name
 type TransformerWithNameAndConfig = {|
   name: PackageName,
   plugin: Transformer,
@@ -498,7 +503,7 @@ function normalizeAssets(
       map: internalAsset.map,
       // $FlowFixMe
       dependencies: result.getDependencies(),
-      connectedFiles: result.getConnectedFiles(),
+      includedFiles: result.getIncludedFiles(),
       // $FlowFixMe
       env: result.env,
       isIsolated: result.isIsolated,

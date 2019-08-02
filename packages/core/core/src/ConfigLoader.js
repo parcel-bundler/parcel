@@ -50,7 +50,7 @@ export default class ConfigLoader {
         devDeps = parcelConfig.getResolverNames();
         break;
     }
-    devDeps.forEach(devDep => config.setDevDep(devDep));
+    devDeps.forEach(devDep => config.addDevDependency(devDep));
 
     config.setResultHash(md5FromString(JSON.stringify(devDeps)));
 
@@ -73,7 +73,8 @@ export default class ConfigLoader {
     let config = new Config({searchPath: filePath, env, options: this.options});
     plugin = await loadPlugin(nullthrows(plugin), parcelConfigPath);
 
-    plugin.loadConfig && (await plugin.loadConfig(config));
+    plugin.loadConfig &&
+      (await plugin.loadConfig({config, options: this.options}));
 
     return config;
   }

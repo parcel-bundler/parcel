@@ -45,7 +45,7 @@ type AssetOptions = {|
   map?: ?SourceMap,
   mapKey?: ?string,
   dependencies?: Map<string, Dependency>,
-  connectedFiles?: Map<FilePath, File>,
+  includedFiles?: Map<FilePath, File>,
   isIsolated?: boolean,
   outputHash?: string,
   env: Environment,
@@ -67,7 +67,7 @@ export default class Asset {
   map: ?SourceMap;
   mapKey: ?string;
   dependencies: Map<string, Dependency>;
-  connectedFiles: Map<FilePath, File>;
+  includedFiles: Map<FilePath, File>;
   isIsolated: boolean;
   outputHash: string;
   env: Environment;
@@ -98,7 +98,7 @@ export default class Asset {
     this.map = options.map;
     this.mapKey = options.mapKey;
     this.dependencies = options.dependencies || new Map();
-    this.connectedFiles = options.connectedFiles || new Map();
+    this.includedFiles = options.includedFiles || new Map();
     this.outputHash = options.outputHash || '';
     this.env = options.env;
     this.meta = options.meta || {};
@@ -121,7 +121,7 @@ export default class Asset {
       cache: this.cache,
       type: this.type,
       dependencies: this.dependencies,
-      connectedFiles: this.connectedFiles,
+      includedFiles: this.includedFiles,
       isIsolated: this.isIsolated,
       outputHash: this.outputHash,
       env: this.env,
@@ -257,16 +257,16 @@ export default class Asset {
     return dep.id;
   }
 
-  async addConnectedFile(file: File) {
+  async addIncludedFile(file: File) {
     if (file.hash == null) {
       file.hash = await md5FromFilePath(this.fs, file.filePath);
     }
 
-    this.connectedFiles.set(file.filePath, file);
+    this.includedFiles.set(file.filePath, file);
   }
 
-  getConnectedFiles(): Array<File> {
-    return Array.from(this.connectedFiles.values());
+  getIncludedFiles(): Array<File> {
+    return Array.from(this.includedFiles.values());
   }
 
   getDependencies(): Array<Dependency> {
@@ -303,7 +303,7 @@ export default class Asset {
       env: this.env.merge(result.env),
       dependencies:
         this.type === result.type ? new Map(this.dependencies) : new Map(),
-      connectedFiles: new Map(this.connectedFiles),
+      includedFiles: new Map(this.includedFiles),
       meta: {...this.meta, ...result.meta},
       stats: {
         time: 0,
@@ -320,10 +320,10 @@ export default class Asset {
       }
     }
 
-    let connectedFiles = result.connectedFiles;
-    if (connectedFiles) {
-      for (let file of connectedFiles) {
-        asset.addConnectedFile(file);
+    let includedFiles = result.includedFiles;
+    if (includedFiles) {
+      for (let file of includedFiles) {
+        asset.addIncludedFile(file);
       }
     }
 
@@ -355,7 +355,7 @@ export default class Asset {
     }
 
     for (let file of conf.files) {
-      this.addConnectedFile(file);
+      this.addIncludedFile(file);
     }
 
     return conf.config;

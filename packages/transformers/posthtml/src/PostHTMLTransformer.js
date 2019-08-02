@@ -60,7 +60,7 @@ export default new Transformer({
       await Promise.all(
         res.messages.map(({type, file: filePath}) => {
           if (type === 'dependency') {
-            return asset.addConnectedFile({filePath});
+            return asset.addIncludedFile({filePath});
           }
           return Promise.resolve();
         })

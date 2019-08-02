@@ -305,7 +305,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
 
       return assets;
     } catch (e) {
-      // TODO: add connectedFiles even if it failed so we can try a rebuild if those files change
+      // TODO: add includedFiles even if it failed so we can try a rebuild if those files change
       throw e;
     }
   }
@@ -351,9 +351,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         nullthrows(this.getNode(depVersionRequestNode.id))
       );
 
-      if (version != null) {
+      if (version == null) {
         let result = await this.getSubTaskResult(depVersionRequestNode);
-        config.setDevDep(depVersionRequest.moduleSpecifier, result);
+        config.addDevDependency(depVersionRequest.moduleSpecifier, result);
       }
     }
     this.replaceNodesConnectedTo(
