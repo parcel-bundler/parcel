@@ -31,7 +31,12 @@ import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset from './Asset';
 import type {NodeId, ConfigRequest} from './types';
 
-type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutput>;
+type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutputWithHash>;
+
+type GenerateOutputWithHash = {|
+  ...GenerateOutput,
+  hash: string
+|};
 
 type PostProcessFunc = (
   Array<InternalAsset>
@@ -208,10 +213,9 @@ export default class Transformation {
     assets: Array<InternalAsset>,
     configs: ConfigMap
   ): Promise<string> {
-    let assetsKeyInfo = assets.map(({filePath, type, hash}) => ({
+    let assetsKeyInfo = assets.map(({filePath, hash}) => ({
       filePath,
-      hash,
-      type
+      hash
     }));
 
     let configsKeyInfo = [...configs].map(([, {resultHash, devDeps}]) => ({
@@ -272,7 +276,6 @@ export default class Transformation {
     let nextFilePath =
       filePath.slice(0, -path.extname(filePath).length) + '.' + nextType;
     let nextPipeline = await this.loadPipeline(nextFilePath);
-
     if (nextPipeline.id === currentPipeline.id) {
       return null;
     }
@@ -393,6 +396,7 @@ class Pipeline {
       let output = await this.generate(new MutableAsset(asset));
       asset.content = output.code;
       asset.ast = null;
+      asset.hash = output.hash;
     }
 
     // Parse if there is no AST available from a previous transform.
@@ -417,14 +421,19 @@ class Pipeline {
     );
 
     // Create generate and postProcess functions that can be called later
-    this.generate = async (input: IMutableAsset): Promise<GenerateOutput> => {
+    this.generate = async (
+      input: IMutableAsset
+    ): Promise<GenerateOutputWithHash> => {
       if (transformer.generate) {
-        return transformer.generate({
+        let output = await transformer.generate({
           asset: input,
           config,
           options: this.options,
           resolve
         });
+
+        let hash = md5FromString(output.code);
+        return {...output, hash};
       }
 
       throw new Error(
@@ -463,6 +472,7 @@ async function finalize(
     let result = await generate(new MutableAsset(asset));
     asset.content = result.code;
     asset.map = result.map;
+    asset.hash = result.hash;
   }
   return asset;
 }

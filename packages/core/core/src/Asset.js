@@ -1,5 +1,6 @@
 // @flow strict-local
 
+import nullthrows from 'nullthrows';
 import type Cache from '@parcel/cache';
 
 import type {
@@ -237,7 +238,9 @@ export default class Asset {
   }
 
   generateCacheKey(key: string): string {
-    return md5FromString(key + this.id + JSON.stringify(this.env));
+    return md5FromString(
+      key + nullthrows(this.hash) + JSON.stringify(this.env)
+    );
   }
 
   addDependency(opts: DependencyOptions) {
