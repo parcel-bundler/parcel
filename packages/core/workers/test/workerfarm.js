@@ -218,4 +218,17 @@ describe('WorkerFarm', function() {
     assert.equal(result, 42);
     await workerfarm.end();
   });
+
+  it('Should dispose of handle objects when ending', async () => {
+    let workerfarm = new WorkerFarm({
+      warmWorkers: true,
+      useLocalWorker: false,
+      workerPath: require.resolve('./integration/workerfarm/reverse-handle.js')
+    });
+
+    workerfarm.createReverseHandle(() => 42);
+    assert.equal(workerfarm.handles.size, 1);
+    await workerfarm.end();
+    assert.equal(workerfarm.handles.size, 0);
+  });
 });
