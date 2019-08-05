@@ -8,7 +8,7 @@ import type {
 } from '@parcel/types';
 
 import invariant from 'assert';
-import Parcel from '@parcel/core';
+import Parcel, {createWorkerFarm} from '@parcel/core';
 import defaultConfigContents from '@parcel/config-default';
 import assert from 'assert';
 import vm from 'vm';
@@ -22,9 +22,19 @@ import _ncp from 'ncp';
 import _chalk from 'chalk';
 import resolve from 'resolve';
 
+const workerFarm = createWorkerFarm();
 export const inputFS = new NodeFS();
-export const outputFS = new MemoryFS();
+export const outputFS = new MemoryFS(workerFarm);
 export const ncp = promisify(_ncp);
+
+// Mocha is currently run with exit: true because of this issue preventing us
+// from properly ending the workerfarm after the test run:
+// https://github.com/nodejs/node/pull/28788
+//
+// TODO: Remove exit: true in .mocharc.json and instead add the following in this file:
+//   // Spin down the worker farm to stop it from preventing the main process from exiting
+//   await workerFarm.end();
+// when https://github.com/nodejs/node/pull/28788 is resolved.
 
 export const defaultConfig = {
   ...defaultConfigContents,
@@ -78,10 +88,10 @@ export function bundler(
     entries,
     disableCache: true,
     logLevel: 'none',
-    killWorkers: false,
     defaultConfig,
     inputFS,
     outputFS,
+    workerFarm,
     ...opts
   });
 }
