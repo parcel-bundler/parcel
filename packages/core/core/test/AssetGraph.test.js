@@ -3,7 +3,7 @@
 import assert from 'assert';
 import AssetGraph, {nodeFromAssetGroup} from '../src/AssetGraph';
 import {createDependency} from '../src/Dependency';
-import {createAsset} from '../src/Asset';
+import {createAsset} from '../src/InternalAsset';
 import {createEnvironment} from '../src/Environment';
 
 const DEFAULT_ENV = createEnvironment({

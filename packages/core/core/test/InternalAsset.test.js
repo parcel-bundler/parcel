@@ -1,13 +1,13 @@
 // @flow strict-local
 
 import assert from 'assert';
-import Asset, {createAsset} from '../src/Asset';
+import Asset, {createAsset} from '../src/InternalAsset';
 import {createEnvironment} from '../src/Environment';
 import {DEFAULT_OPTIONS} from './utils';
 
 const stats = {time: 0, size: 0};
 
-describe('Asset', () => {
+describe('InternalAsset', () => {
   it('only includes connected files once per filePath', () => {
     let asset = new Asset({
       value: createAsset({
