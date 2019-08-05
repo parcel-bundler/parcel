@@ -85,7 +85,7 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
 
     let processKey = (key: any, value: any) => {
       let newValue = value;
-      if (preOrder) {
+      if (preOrder && value && typeof value === 'object') {
         newValue = memoizedFn(value);
       }
 
@@ -94,7 +94,7 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
         newValue = walk(newValue, newValue === value);
       }
 
-      if (!preOrder) {
+      if (!preOrder && newValue && typeof newValue === 'object') {
         newValue = memoizedFn(newValue);
       }
 
@@ -137,7 +137,11 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
   };
 
   let mapped = memoizedFn(object);
-  return walk(mapped, mapped === object);
+  if (mapped && typeof mapped === 'object' && mapped.$$raw !== true) {
+    return walk(mapped, mapped === object);
+  }
+
+  return mapped;
 }
 
 export function prepareForSerialization(object: any) {
