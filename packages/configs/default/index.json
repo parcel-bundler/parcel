@@ -33,6 +33,7 @@
   "resolvers": ["@parcel/resolver-default"],
   "reporters": [
     "@parcel/reporter-cli",
+    "@parcel/reporter-loc",
     "@parcel/reporter-dev-server",
     "@parcel/reporter-hmr-server"
   ]
