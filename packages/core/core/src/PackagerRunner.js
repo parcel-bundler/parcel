@@ -56,15 +56,21 @@ export default class PackagerRunner {
 
     if (!result) {
       let packaged = await this.package(bundle, bundleGraph);
-      result = await this.optimize(
+      let res = await this.optimize(
         bundle,
         bundleGraph,
         packaged.contents,
         packaged.map
       );
 
+      let map = res.map ? await this.generateSourceMap(bundle, res.map) : null;
+      result = {
+        contents: res.contents,
+        map
+      };
+
       if (cacheKey != null) {
-        await this.writeToCache(cacheKey, result);
+        await this.writeToCache(cacheKey, result.contents, map);
       }
     }
 
@@ -94,50 +100,12 @@ export default class PackagerRunner {
       size = contents.length;
     }
 
-    if (map) {
-      // sourceRoot should be a relative path between outDir and rootDir for node.js targets
-      let sourceRoot: string = path.relative(
-        path.dirname(filePath),
-        this.options.projectRoot
-      );
-      let inlineSources = false;
-
-      if (bundle.target) {
-        if (
-          bundle.target.sourceMap &&
-          bundle.target.sourceMap.sourceRoot !== undefined
-        ) {
-          sourceRoot = bundle.target.sourceMap.sourceRoot;
-        } else if (
-          bundle.target.env.context === 'browser' &&
-          this.options.mode !== 'production'
-        ) {
-          sourceRoot = '/__parcel_source_root';
-        }
-
-        if (
-          bundle.target.sourceMap &&
-          bundle.target.sourceMap.inlineSources !== undefined
-        ) {
-          inlineSources = bundle.target.sourceMap.inlineSources;
-        } else if (bundle.target.env.context !== 'node') {
-          // inlining should only happen in production for browser targets by default
-          inlineSources = this.options.mode === 'production';
-        }
+    if (map != null) {
+      if (map instanceof Readable) {
+        await writeFileStream(outputFS, filePath + '.map', map);
+      } else {
+        await outputFS.writeFile(filePath + '.map', map);
       }
-
-      let mapFilename = filePath + '.map';
-      await outputFS.writeFile(
-        mapFilename,
-        await map.stringify({
-          file: path.basename(mapFilename),
-          rootDir: this.options.projectRoot,
-          sourceRoot: !inlineSources
-            ? url.format(url.parse(sourceRoot + '/'))
-            : undefined,
-          inlineSources
-        })
-      );
     }
 
     return {
@@ -208,6 +176,50 @@ export default class PackagerRunner {
     return optimized;
   }
 
+  async generateSourceMap(bundle: InternalBundle, map: SourceMap) {
+    // sourceRoot should be a relative path between outDir and rootDir for node.js targets
+    let filePath = nullthrows(bundle.filePath);
+    let sourceRoot: string = path.relative(
+      path.dirname(filePath),
+      this.options.projectRoot
+    );
+    let inlineSources = false;
+
+    if (bundle.target) {
+      if (
+        bundle.target.sourceMap &&
+        bundle.target.sourceMap.sourceRoot !== undefined
+      ) {
+        sourceRoot = bundle.target.sourceMap.sourceRoot;
+      } else if (
+        bundle.target.env.context === 'browser' &&
+        this.options.mode !== 'production'
+      ) {
+        sourceRoot = '/__parcel_source_root';
+      }
+
+      if (
+        bundle.target.sourceMap &&
+        bundle.target.sourceMap.inlineSources !== undefined
+      ) {
+        inlineSources = bundle.target.sourceMap.inlineSources;
+      } else if (bundle.target.env.context !== 'node') {
+        // inlining should only happen in production for browser targets by default
+        inlineSources = this.options.mode === 'production';
+      }
+    }
+
+    let mapFilename = filePath + '.map';
+    return map.stringify({
+      file: path.basename(mapFilename),
+      rootDir: this.options.projectRoot,
+      sourceRoot: !inlineSources
+        ? url.format(url.parse(sourceRoot + '/'))
+        : undefined,
+      inlineSources
+    });
+  }
+
   async getCacheKey(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
     let filePath = nullthrows(bundle.filePath);
     let packager = this.config.getPackagerName(filePath);
@@ -233,7 +245,9 @@ export default class PackagerRunner {
     });
   }
 
-  async readFromCache(cacheKey: string): Promise<?BundleResult> {
+  async readFromCache(
+    cacheKey: string
+  ): Promise<?{contents: Readable, map: ?Readable}> {
     let contentKey = md5FromString(`${cacheKey}:content`);
     let mapKey = md5FromString(`${cacheKey}:map`);
 
@@ -242,22 +256,22 @@ export default class PackagerRunner {
       return null;
     }
 
+    let mapExists = await this.options.cache.blobExists(mapKey);
+
     return {
       contents: this.options.cache.getStream(contentKey),
-      map: await this.options.cache.get(mapKey)
+      map: mapExists ? this.options.cache.getStream(mapKey) : null
     };
   }
 
-  async writeToCache(cacheKey: string, result: BundleResult) {
+  async writeToCache(cacheKey: string, contents: Blob, map: ?Blob) {
     let contentKey = md5FromString(`${cacheKey}:content`);
 
-    await this.options.cache.setStream(
-      contentKey,
-      blobToStream(result.contents)
-    );
-    if (result.map) {
+    await this.options.cache.setStream(contentKey, blobToStream(contents));
+
+    if (map != null) {
       let mapKey = md5FromString(`${cacheKey}:map`);
-      await this.options.cache.set(mapKey, result.map);
+      await this.options.cache.setStream(mapKey, blobToStream(map));
     }
   }
 }
