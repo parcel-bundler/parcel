@@ -18,7 +18,7 @@ import type BundleGraph from '../BundleGraph';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
-import {assetToInternalAsset, assetFromValue} from '../InternalAsset';
+import {assetToInternalAsset, assetFromValue} from './Asset';
 import {mapVisitor} from '../Graph';
 import Environment from './Environment';
 import Dependency from './Dependency';
