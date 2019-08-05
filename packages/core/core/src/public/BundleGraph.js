@@ -9,29 +9,37 @@ import type {
   GraphTraversalCallback,
   Symbol
 } from '@parcel/types';
+import type {ParcelOptions} from '../types';
 import type InternalBundleGraph from '../BundleGraph';
 
 import invariant from 'assert';
-import {assetToInternalAsset, Asset} from './Asset';
+import {assetFromValue, assetToInternalAsset, Asset} from './Asset';
 import {Bundle, bundleToInternalBundle} from './Bundle';
+import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {mapVisitor} from '../Graph';
 
 export default class BundleGraph implements IBundleGraph {
   #graph; // InternalBundleGraph
+  #options; // ParcelOptions
 
-  constructor(graph: InternalBundleGraph) {
+  constructor(graph: InternalBundleGraph, options: ParcelOptions) {
     this.#graph = graph;
+    this.#options = options;
   }
 
   getDependencyResolution(dep: IDependency): ?Asset {
-    let resolution = this.#graph.getDependencyResolution(dep);
+    let resolution = this.#graph.getDependencyResolution(
+      dependencyToInternalDependency(dep)
+    );
     if (resolution) {
-      return new Asset(resolution);
+      return assetFromValue(resolution, this.#options);
     }
   }
 
   getIncomingDependencies(asset: IAsset): Array<IDependency> {
-    return this.#graph.getIncomingDependencies(assetToInternalAsset(asset));
+    return this.#graph
+      .getIncomingDependencies(assetToInternalAsset(asset).value)
+      .map(dep => new Dependency(dep));
   }
 
   getBundleGroupsContainingBundle(bundle: IBundle): Array<BundleGroup> {
@@ -43,13 +51,18 @@ export default class BundleGraph implements IBundleGraph {
   getBundleGroupsReferencedByBundle(
     bundle: IBundle
   ): Array<{bundleGroup: BundleGroup, dependency: IDependency}> {
-    return this.#graph.getBundleGroupsReferencedByBundle(
-      bundleToInternalBundle(bundle)
-    );
+    return this.#graph
+      .getBundleGroupsReferencedByBundle(bundleToInternalBundle(bundle))
+      .map(({bundleGroup, dependency}) => ({
+        bundleGroup,
+        dependency: new Dependency(dependency)
+      }));
   }
 
   getDependencies(asset: IAsset): Array<IDependency> {
-    return this.#graph.getDependencies(assetToInternalAsset(asset));
+    return this.#graph
+      .getDependencies(assetToInternalAsset(asset).value)
+      .map(dep => new Dependency(dep));
   }
 
   isAssetInAncestorBundles(bundle: IBundle, asset: IAsset): boolean {
@@ -57,35 +70,46 @@ export default class BundleGraph implements IBundleGraph {
     invariant(internalNode != null && internalNode.type === 'bundle');
     return this.#graph.isAssetInAncestorBundles(
       internalNode.value,
-      assetToInternalAsset(asset)
+      assetToInternalAsset(asset).value
     );
   }
 
   isAssetReferenced(asset: IAsset): boolean {
-    return this.#graph.isAssetReferenced(assetToInternalAsset(asset));
+    return this.#graph.isAssetReferenced(assetToInternalAsset(asset).value);
   }
 
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)
-      .map(bundle => new Bundle(bundle, this.#graph));
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
   getBundles(): Array<IBundle> {
     return this.#graph
       .getBundles()
-      .map(bundle => new Bundle(bundle, this.#graph));
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
   resolveSymbol(asset: IAsset, symbol: Symbol) {
-    return this.#graph.resolveSymbol(assetToInternalAsset(asset), symbol);
+    let res = this.#graph.resolveSymbol(
+      assetToInternalAsset(asset).value,
+      symbol
+    );
+    return {
+      asset: assetFromValue(res.asset, this.#options),
+      exportSymbol: res.exportSymbol,
+      symbol: res.symbol
+    };
   }
 
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<IBundle, TContext>
   ): ?TContext {
     return this.#graph.traverseBundles(
-      mapVisitor(bundle => new Bundle(bundle, this.#graph), visit)
+      mapVisitor(
+        bundle => new Bundle(bundle, this.#graph, this.#options),
+        visit
+      )
     );
   }
 }

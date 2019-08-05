@@ -1,66 +1,52 @@
 // @flow
 import type {
-  DependencyOptions,
-  Dependency as IDependency,
-  Environment as IEnvironment,
-  FilePath,
   SourceLocation,
   Meta,
-  Target,
   ModuleSpecifier,
   Symbol
 } from '@parcel/types';
 import {md5FromString} from '@parcel/utils';
+import type {Dependency, Environment, Target} from './types';
 
 type DependencyOpts = {|
-  ...DependencyOptions,
-  env: IEnvironment,
   id?: string,
   sourcePath?: string,
-  sourceAssetId?: string
+  sourceAssetId?: string,
+  moduleSpecifier: ModuleSpecifier,
+  isAsync?: boolean,
+  isEntry?: boolean,
+  isOptional?: boolean,
+  isURL?: boolean,
+  isWeak?: boolean,
+  loc?: SourceLocation,
+  env: Environment,
+  meta?: Meta,
+  target?: Target,
+  symbols?: Map<Symbol, Symbol>
 |};
 
-export default class Dependency implements IDependency {
-  id: string;
-  moduleSpecifier: ModuleSpecifier;
-  isAsync: ?boolean;
-  isEntry: ?boolean;
-  isOptional: ?boolean;
-  isURL: ?boolean;
-  isWeak: ?boolean;
-  loc: ?SourceLocation;
-  env: IEnvironment;
-  meta: Meta;
-  target: ?Target;
-  sourceAssetId: ?string;
-  sourcePath: ?FilePath;
-  symbols: Map<Symbol, Symbol>;
+export function createDependency(opts: DependencyOpts): Dependency {
+  let id =
+    opts.id ||
+    md5FromString(
+      `${opts.sourceAssetId ?? ''}:${opts.moduleSpecifier}:${JSON.stringify(
+        opts.env
+      )}`
+    );
 
-  constructor(opts: DependencyOpts) {
-    this.moduleSpecifier = opts.moduleSpecifier;
-    this.isAsync = opts.isAsync;
-    this.isEntry = opts.isEntry;
-    this.isOptional = opts.isOptional;
-    this.isURL = opts.isURL;
-    this.isWeak = opts.isWeak;
-    this.loc = opts.loc;
-    this.meta = opts.meta || {};
-    this.target = opts.target;
-    this.env = opts.env;
-    this.sourceAssetId = opts.sourceAssetId;
-    this.sourcePath = opts.sourcePath;
-    this.symbols = opts.symbols || new Map();
-    this.id =
-      opts.id ||
-      md5FromString(
-        `${this.sourceAssetId ?? ''}:${this.moduleSpecifier}:${JSON.stringify(
-          this.env
-        )}`
-      );
-  }
+  return {
+    ...opts,
+    id,
+    meta: opts.meta || {},
+    symbols: opts.symbols || new Map()
+  };
+}
 
-  merge(other: IDependency) {
-    Object.assign(this.meta, other.meta);
-    this.symbols = new Map([...this.symbols, ...other.symbols]);
+export function mergeDependencies(a: Dependency, b: Dependency): void {
+  let {meta, symbols, ...other} = b;
+  Object.assign(a, other);
+  Object.assign(a.meta, meta);
+  for (let [k, v] of symbols) {
+    a.symbols.set(k, v);
   }
 }

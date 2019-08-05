@@ -3,7 +3,7 @@
 import type {
   BundleGraph,
   LogEvent,
-  ParcelOptions,
+  PluginOptions,
   ProgressLogEvent
 } from '@parcel/types';
 
@@ -15,7 +15,7 @@ import BundleReport from './BundleReport';
 type Props = {|
   bundleGraph: ?BundleGraph,
   logs: Array<LogEvent>,
-  options: ParcelOptions,
+  options: PluginOptions,
   progress: ?ProgressLogEvent
 |};
 

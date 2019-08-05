@@ -3,7 +3,7 @@
 import type {
   BundleGraph,
   LogEvent,
-  ParcelOptions,
+  PluginOptions,
   ProgressLogEvent,
   ReporterEvent
 } from '@parcel/types';
@@ -46,7 +46,7 @@ export default new Reporter({
 function reducer(
   state: State,
   event: ReporterEvent,
-  options: ParcelOptions
+  options: PluginOptions
 ): State {
   let logLevel = logLevels[options.logLevel];
 

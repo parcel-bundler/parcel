@@ -9,9 +9,9 @@ import type {
   Asset as IAsset,
   AST,
   Config,
-  Dependency,
+  Dependency as IDependency,
   DependencyOptions,
-  Environment,
+  Environment as IEnvironment,
   File,
   FilePath,
   Meta,
@@ -20,12 +20,14 @@ import type {
   Stats,
   Symbol
 } from '@parcel/types';
-
-import type InternalAsset from '../Asset';
+import type {Asset as AssetValue, ParcelOptions} from '../types';
 
 import URL from 'url';
 import nullthrows from 'nullthrows';
 import {isURL} from '@parcel/utils';
+import Environment from './Environment';
+import Dependency from './Dependency';
+import InternalAsset from '../Asset';
 
 const _assetToInternalAsset: WeakMap<
   IAsset | IMutableAsset | BaseAsset,
@@ -38,6 +40,15 @@ export function assetToInternalAsset(
   return nullthrows(_assetToInternalAsset.get(asset));
 }
 
+export function assetFromValue(value: AssetValue, options: ParcelOptions) {
+  return new Asset(
+    new InternalAsset({
+      value,
+      options
+    })
+  );
+}
+
 class BaseAsset {
   #asset; // InternalAsset
 
@@ -47,7 +58,7 @@ class BaseAsset {
   }
 
   get id(): string {
-    return this.#asset.id;
+    return this.#asset.value.id;
   }
 
   get ast(): ?AST {
@@ -55,35 +66,35 @@ class BaseAsset {
   }
 
   get type(): string {
-    return this.#asset.type;
+    return this.#asset.value.type;
   }
 
-  get env(): Environment {
-    return this.#asset.env;
+  get env(): IEnvironment {
+    return new Environment(this.#asset.value.env);
   }
 
   get fs(): FileSystem {
-    return this.#asset.fs;
+    return this.#asset.options.inputFS;
   }
 
   get filePath(): FilePath {
-    return this.#asset.filePath;
+    return this.#asset.value.filePath;
   }
 
   get meta(): Meta {
-    return this.#asset.meta;
+    return this.#asset.value.meta;
   }
 
   get isIsolated(): boolean {
-    return this.#asset.isIsolated;
+    return this.#asset.value.isIsolated;
   }
 
   get sideEffects(): boolean {
-    return this.#asset.sideEffects;
+    return this.#asset.value.sideEffects;
   }
 
   get symbols(): Map<Symbol, Symbol> {
-    return this.#asset.symbols;
+    return this.#asset.value.symbols;
   }
 
   getConfig(
@@ -97,8 +108,8 @@ class BaseAsset {
     return this.#asset.getConnectedFiles();
   }
 
-  getDependencies(): $ReadOnlyArray<Dependency> {
-    return this.#asset.getDependencies();
+  getDependencies(): $ReadOnlyArray<IDependency> {
+    return this.#asset.getDependencies().map(dep => new Dependency(dep));
   }
 
   getPackage(): Promise<PackageJSON | null> {
@@ -131,11 +142,11 @@ export class Asset extends BaseAsset implements IAsset {
   }
 
   get outputHash(): string {
-    return this.#asset.outputHash;
+    return this.#asset.value.outputHash;
   }
 
   get stats(): Stats {
-    return this.#asset.stats;
+    return this.#asset.value.stats;
   }
 }
 
@@ -160,19 +171,19 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
   }
 
   get type(): string {
-    return this.#asset.type;
+    return this.#asset.value.type;
   }
 
   set type(type: string): void {
-    this.#asset.type = type;
+    this.#asset.value.type = type;
   }
 
   get isIsolated(): boolean {
-    return this.#asset.isIsolated;
+    return this.#asset.value.isIsolated;
   }
 
   set isIsolated(isIsolated: boolean): void {
-    this.#asset.isIsolated = isIsolated;
+    this.#asset.value.isIsolated = isIsolated;
   }
 
   addDependency(dep: DependencyOptions): string {

@@ -5,50 +5,58 @@ import type {
   Bundle as IBundle,
   BundleGroup,
   CreateBundleOpts,
-  Dependency,
+  Dependency as IDependency,
   GraphVisitor,
   BundlerBundleGraph as IBundlerBundleGraph,
   BundlerOptimizeBundleGraph as IBundlerOptimizeBundleGraph,
   BundlerBundleGraphTraversable,
   Target
 } from '@parcel/types';
+import type {ParcelOptions} from '../types';
 
 import nullthrows from 'nullthrows';
 
 import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
-import {Asset, assetToInternalAsset} from './Asset';
+import {assetFromValue, assetToInternalAsset} from './Asset';
 import {getBundleGroupId} from '../utils';
+import Dependency, {dependencyToInternalDependency} from './Dependency';
+import {environmentToInternalEnvironment} from './Environment';
+import {targetToInternalTarget} from './Target';
 
 export class BundlerBundleGraph implements IBundlerBundleGraph {
   #graph; // InternalBundleGraph
+  #options; // ParcelOptions
 
-  constructor(graph: InternalBundleGraph) {
+  constructor(graph: InternalBundleGraph, options: ParcelOptions) {
     this.#graph = graph;
+    this.#options = options;
   }
 
   addAssetToBundle(asset: IAsset, bundle: IBundle) {
     this.#graph.addAssetToBundle(
-      assetToInternalAsset(asset),
+      assetToInternalAsset(asset).value,
       bundleToInternalBundle(bundle)
     );
   }
 
   addAssetGraphToBundle(asset: IAsset, bundle: IBundle) {
     this.#graph.addAssetGraphToBundle(
-      assetToInternalAsset(asset),
+      assetToInternalAsset(asset).value,
       bundleToInternalBundle(bundle)
     );
   }
 
-  createBundleGroup(dependency: Dependency, target: Target): BundleGroup {
+  createBundleGroup(dependency: IDependency, target: Target): BundleGroup {
     let dependencyNode = this.#graph._graph.getNode(dependency.id);
     if (!dependencyNode) {
       throw new Error('Dependency not found');
     }
 
-    let resolved = this.#graph.getDependencyResolution(dependency);
+    let resolved = this.#graph.getDependencyResolution(
+      dependencyToInternalDependency(dependency)
+    );
     if (!resolved) {
       throw new Error('Dependency did not resolve to an asset');
     }
@@ -109,11 +117,13 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
       value: {
         id: bundleId,
         type: opts.type ?? nullthrows(opts.entryAsset).type,
-        env: opts.env ?? nullthrows(opts.entryAsset).env,
+        env: environmentToInternalEnvironment(
+          opts.env ?? nullthrows(opts.entryAsset).env
+        ),
         entryAssetId: opts.entryAsset?.id,
         filePath: null,
         isEntry: opts.isEntry,
-        target: opts.target,
+        target: targetToInternalTarget(opts.target),
         name: null,
         stats: {size: 0, time: 0}
       }
@@ -124,7 +134,7 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
       this.#graph._graph.addEdge(bundleNode.id, opts.entryAsset.id);
     }
 
-    return new Bundle(bundleNode.value, this.#graph);
+    return new Bundle(bundleNode.value, this.#graph, this.#options);
   }
 
   addBundleToBundleGroup(bundle: IBundle, bundleGroup: BundleGroup) {
@@ -136,17 +146,17 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
     }
   }
 
-  createAssetReference(dependency: Dependency, asset: IAsset): void {
+  createAssetReference(dependency: IDependency, asset: IAsset): void {
     return this.#graph.createAssetReference(
-      dependency,
-      assetToInternalAsset(asset)
+      dependencyToInternalDependency(dependency),
+      assetToInternalAsset(asset).value
     );
   }
 
-  getDependencyAssets(dependency: Dependency): Array<IAsset> {
+  getDependencyAssets(dependency: IDependency): Array<IAsset> {
     return this.#graph
-      .getDependencyAssets(dependency)
-      .map(asset => new Asset(asset));
+      .getDependencyAssets(dependencyToInternalDependency(dependency))
+      .map(asset => assetFromValue(asset, this.#options));
   }
 
   traverse<TContext>(
@@ -155,9 +165,12 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
     return this.#graph._graph.filteredTraverse(
       node => {
         if (node.type === 'asset') {
-          return {type: 'asset', value: new Asset(node.value)};
+          return {
+            type: 'asset',
+            value: assetFromValue(node.value, this.#options)
+          };
         } else if (node.type === 'dependency') {
-          return {type: 'dependency', value: node.value};
+          return {type: 'dependency', value: new Dependency(node.value)};
         }
       },
       visit,
@@ -171,16 +184,18 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
 export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
   implements IBundlerOptimizeBundleGraph {
   #graph; // InternalBundleGraph
+  #options; // ParcelOptions
 
-  constructor(graph: InternalBundleGraph) {
-    super(graph);
+  constructor(graph: InternalBundleGraph, options: ParcelOptions) {
+    super(graph, options);
     this.#graph = graph;
+    this.#options = options;
   }
 
   findBundlesWithAsset(asset: IAsset): Array<IBundle> {
     return this.#graph
-      .findBundlesWithAsset(assetToInternalAsset(asset))
-      .map(bundle => new Bundle(bundle, this.#graph));
+      .findBundlesWithAsset(assetToInternalAsset(asset).value)
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
   getBundleGroupsContainingBundle(bundle: IBundle): Array<BundleGroup> {
@@ -192,44 +207,49 @@ export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
   getBundlesInBundleGroup(bundleGroup: BundleGroup): Array<IBundle> {
     return this.#graph
       .getBundlesInBundleGroup(bundleGroup)
-      .map(bundle => new Bundle(bundle, this.#graph));
+      .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
-  getDependenciesInBundle(bundle: IBundle, asset: IAsset): Array<Dependency> {
-    return this.#graph.getDependenciesInBundle(
-      bundleToInternalBundle(bundle),
-      assetToInternalAsset(asset)
-    );
+  getDependenciesInBundle(bundle: IBundle, asset: IAsset): Array<IDependency> {
+    return this.#graph
+      .getDependenciesInBundle(
+        bundleToInternalBundle(bundle),
+        assetToInternalAsset(asset).value
+      )
+      .map(dep => new Dependency(dep));
   }
 
   getTotalSize(asset: IAsset): number {
-    return this.#graph.getTotalSize(assetToInternalAsset(asset));
+    return this.#graph.getTotalSize(assetToInternalAsset(asset).value);
   }
 
   isAssetInAncestorBundles(bundle: IBundle, asset: IAsset): boolean {
     return this.#graph.isAssetInAncestorBundles(
       bundleToInternalBundle(bundle),
-      assetToInternalAsset(asset)
+      assetToInternalAsset(asset).value
     );
   }
 
   removeAssetGraphFromBundle(asset: IAsset, bundle: IBundle) {
     this.#graph.removeAssetGraphFromBundle(
-      assetToInternalAsset(asset),
+      assetToInternalAsset(asset).value,
       bundleToInternalBundle(bundle)
     );
   }
 
   removeAssetFromBundle(asset: IAsset, bundle: IBundle) {
     this.#graph.removeAssetFromBundle(
-      assetToInternalAsset(asset),
+      assetToInternalAsset(asset).value,
       bundleToInternalBundle(bundle)
     );
   }
 
   traverseBundles<TContext>(visit: GraphVisitor<IBundle, TContext>): ?TContext {
     return this.#graph.traverseBundles(
-      mapVisitor(bundle => new Bundle(bundle, this.#graph), visit)
+      mapVisitor(
+        bundle => new Bundle(bundle, this.#graph, this.#options),
+        visit
+      )
     );
   }
 
@@ -240,10 +260,10 @@ export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
       mapVisitor(
         node =>
           node.type === 'asset'
-            ? {type: 'asset', value: new Asset(node.value)}
+            ? {type: 'asset', value: assetFromValue(node.value, this.#options)}
             : {
                 type: 'dependency',
-                value: node.value
+                value: new Dependency(node.value)
               },
         visit
       )

@@ -1,11 +1,6 @@
 // @flow strict-local
 
-import type {
-  BuildProgressEvent,
-  LogEvent,
-  ParcelOptions,
-  ReporterEvent
-} from '@parcel/types';
+import type {BuildProgressEvent, LogEvent} from '@parcel/types';
 import type {BundleReport} from '@parcel/utils';
 
 import {Reporter} from '@parcel/plugin';
@@ -27,7 +22,7 @@ const LOG_LEVELS = {
 };
 
 export default new Reporter({
-  report(event: ReporterEvent, options: ParcelOptions) {
+  report(event, options) {
     let logLevelFilter = options.logLevel || 'info';
 
     switch (event.type) {
@@ -136,7 +131,7 @@ function progressEventToJSONEvent(
       return {
         type: 'buildProgress',
         phase: 'transforming',
-        filePath: progressEvent.request.filePath
+        filePath: progressEvent.filePath
       };
     case 'bundling':
       return {

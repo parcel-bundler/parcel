@@ -8,17 +8,16 @@ import type {
   FilePath,
   InitialParcelOptions,
   ModuleSpecifier,
-  ParcelOptions,
   Stats
 } from '@parcel/types';
-import type {Bundle as IBundle} from './types';
+import type {Bundle as IBundle, ParcelOptions} from './types';
 import type InternalBundleGraph from './BundleGraph';
 import type ParcelConfig from './ParcelConfig';
 
 import invariant from 'assert';
-import Dependency from './Dependency';
-import Environment from './Environment';
-import {Asset} from './public/Asset';
+import {createDependency} from './Dependency';
+import {createEnvironment} from './Environment';
+import {assetFromValue} from './public/Asset';
 import BundleGraph from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
@@ -189,19 +188,23 @@ export default class Parcel {
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
+      let options = nullthrows(this.#resolvedOptions);
       await packageBundles({
         bundleGraph,
         config: this.#config,
-        options: nullthrows(this.#resolvedOptions),
+        options,
         runPackage: this.#runPackage
       });
 
       let event = {
         type: 'buildSuccess',
         changedAssets: new Map(
-          Array.from(changedAssets).map(([id, asset]) => [id, new Asset(asset)])
+          Array.from(changedAssets).map(([id, asset]) => [
+            id,
+            assetFromValue(asset, options)
+          ])
         ),
-        bundleGraph: new BundleGraph(bundleGraph),
+        bundleGraph: new BundleGraph(bundleGraph, options),
         buildTime: Date.now() - startTime
       };
       this.#reporterRunner.report(event);
@@ -237,7 +240,7 @@ export default class Parcel {
       this.#assetGraphBuilder.runTransform({
         filePath,
         code,
-        env: new Environment(env)
+        env: createEnvironment(env)
       }),
       this.#reporterRunner.config.getReporters()
     ]);
@@ -256,10 +259,10 @@ export default class Parcel {
     env: EnvironmentOpts
   }): Promise<FilePath> {
     let resolved = await this.#assetGraphBuilder.resolverRunner.resolve(
-      new Dependency({
+      createDependency({
         moduleSpecifier,
         sourcePath,
-        env: new Environment(env)
+        env: createEnvironment(env)
       })
     );
 

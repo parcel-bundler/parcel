@@ -1,15 +1,13 @@
 // @flow strict-local
 import nullthrows from 'nullthrows';
-import type {AssetRequest, ParcelOptions} from '@parcel/types';
+import type Config from './public/Config';
+import type {AssetRequest, NodeId, ConfigRequest, ParcelOptions} from './types';
 
 import path from 'path';
-import Cache from '@parcel/cache';
 import {resolveConfig} from '@parcel/utils';
 
-import type Config from './public/Config';
 import {report} from './ReporterRunner';
-import InternalAsset from './Asset';
-import type {NodeId, ConfigRequest} from './types';
+import InternalAsset, {createAsset} from './Asset';
 import {Asset} from './public/Asset';
 import summarizeRequest from './summarizeRequest';
 
@@ -25,7 +23,6 @@ export default class Validation {
   configRequests: Array<ConfigRequest>;
   loadConfig: ConfigRequest => Promise<Config>;
   options: ParcelOptions;
-  cache: Cache;
   impactfulOptions: $Shape<ParcelOptions>;
 
   constructor({request, loadConfig, parentNodeId, options}: ValidationOpts) {
@@ -43,10 +40,8 @@ export default class Validation {
 
     report({
       type: 'validation',
-      request: this.request
+      filePath: this.request.filePath
     });
-
-    this.cache = new Cache(this.options.outputFS, this.options.cacheDir);
 
     let asset = await this.loadAsset();
     let configRequest = {
@@ -65,7 +60,7 @@ export default class Validation {
         asset: new Asset(asset),
         options: this.options,
         resolveConfig: (configNames: Array<string>) =>
-          resolveConfig(this.options.inputFS, asset.filePath, configNames)
+          resolveConfig(this.options.inputFS, asset.value.filePath, configNames)
       });
     }
   }
@@ -77,23 +72,25 @@ export default class Validation {
       this.request
     );
 
+    // If the transformer request passed code rather than a filename,
+    // use a hash as the base for the id to ensure it is unique.
+    let idBase = code != null ? hash : filePath;
     return new InternalAsset({
-      // If the transformer request passed code rather than a filename,
-      // use a hash as the base for the id to ensure it is unique.
-      idBase: code != null ? hash : filePath,
-      fs: this.options.inputFS,
-      filePath: filePath,
-      type: path.extname(filePath).slice(1),
-      cache: this.cache,
-      ast: null,
-      content,
-      hash,
-      env: env,
-      stats: {
-        time: 0,
-        size
-      },
-      sideEffects: sideEffects
+      idBase,
+      value: createAsset({
+        idBase,
+        filePath: filePath,
+        type: path.extname(filePath).slice(1),
+        hash,
+        env: env,
+        stats: {
+          time: 0,
+          size
+        },
+        sideEffects: sideEffects
+      }),
+      options: this.options,
+      content
     });
   }
 }

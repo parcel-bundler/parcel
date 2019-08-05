@@ -1,28 +1,22 @@
 // @flow strict-local
 
 import assert from 'assert';
-import Asset from '../src/Asset';
-import Environment from '../src/Environment';
-import Cache, {createCacheDir} from '@parcel/cache';
-// $FlowFixMe this is untyped
-import tempy from 'tempy';
-import {inputFS as fs, outputFS} from '@parcel/test-utils';
+import Asset, {createAsset} from '../src/Asset';
+import {createEnvironment} from '../src/Environment';
+import {DEFAULT_OPTIONS} from './utils';
 
 const stats = {time: 0, size: 0};
-
-let cacheDir = tempy.directory();
-createCacheDir(outputFS, cacheDir);
-let cache = new Cache(outputFS, cacheDir);
 
 describe('Asset', () => {
   it('only includes connected files once per filePath', () => {
     let asset = new Asset({
-      fs,
-      filePath: '/foo/asset.js',
-      cache,
-      env: new Environment(),
-      stats,
-      type: 'js'
+      value: createAsset({
+        filePath: '/foo/asset.js',
+        env: createEnvironment(),
+        stats,
+        type: 'js'
+      }),
+      options: DEFAULT_OPTIONS
     });
     asset.addConnectedFile({filePath: '/foo/file', hash: 'abc'});
     asset.addConnectedFile({filePath: '/foo/file', hash: 'bcd'});
@@ -36,12 +30,13 @@ describe('Asset', () => {
 
   it('only includes dependencies once per id', () => {
     let asset = new Asset({
-      fs,
-      filePath: '/foo/asset.js',
-      cache,
-      env: new Environment(),
-      stats,
-      type: 'js'
+      value: createAsset({
+        filePath: '/foo/asset.js',
+        env: createEnvironment(),
+        stats,
+        type: 'js'
+      }),
+      options: DEFAULT_OPTIONS
     });
 
     asset.addDependency({moduleSpecifier: './foo'});
@@ -53,12 +48,13 @@ describe('Asset', () => {
 
   it('includes different dependencies if their id differs', () => {
     let asset = new Asset({
-      fs,
-      filePath: '/foo/asset.js',
-      cache,
-      env: new Environment(),
-      stats,
-      type: 'js'
+      value: createAsset({
+        filePath: '/foo/asset.js',
+        env: createEnvironment(),
+        stats,
+        type: 'js'
+      }),
+      options: DEFAULT_OPTIONS
     });
 
     asset.addDependency({moduleSpecifier: './foo'});

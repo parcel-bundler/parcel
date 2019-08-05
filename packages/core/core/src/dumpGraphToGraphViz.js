@@ -1,6 +1,6 @@
 // @flow
 
-import type {Environment} from '@parcel/types';
+import type {Environment} from './types';
 
 import type Graph from './Graph';
 import type {AssetGraphNode, BundleGraphNode} from './types';

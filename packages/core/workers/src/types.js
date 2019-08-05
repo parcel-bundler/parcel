@@ -1,13 +1,7 @@
 // @flow
 
-import type {Config, FilePath, ParcelOptions} from '@parcel/types';
+import type {FilePath} from '@parcel/types';
 import type {JSONError} from '@parcel/utils';
-
-export type BundlerOptions = {|
-  options: ParcelOptions,
-  config: Config,
-  env: ?{[string]: ?string}
-|};
 
 export type CallRequest = {|
   args: $ReadOnlyArray<mixed>,

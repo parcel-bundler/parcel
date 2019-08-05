@@ -65,12 +65,12 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
   // output by reference for the same input. This is important to maintain
   // reference integrity when deserializing rather than cloning.
   let memoizedFn = (val: any) => {
-    if (memo.has(val)) {
-      return memo.get(val);
+    let res = memo.get(val);
+    if (res == null) {
+      res = fn(val);
+      memo.set(val, res);
     }
 
-    let res = fn(val);
-    memo.set(val, res);
     return res;
   };
 
@@ -90,7 +90,7 @@ function mapObject(object: any, fn: (val: any) => any, preOrder = false): any {
       }
 
       // Recursively walk the children
-      if (newValue && typeof newValue === 'object') {
+      if (newValue && typeof newValue === 'object' && newValue.$$raw !== true) {
         newValue = walk(newValue, newValue === value);
       }
 
@@ -153,13 +153,16 @@ export function prepareForSerialization(object: any) {
         let type = ctorToName.get(value.constructor);
         if (type != null) {
           let serialized = value;
+          let raw = false;
           if (value && typeof value.serialize === 'function') {
             // If the object has a serialize method, call it
             serialized = value.serialize();
+            raw = true;
           }
 
           return {
             $$type: type,
+            $$raw: raw,
             value: {...serialized}
           };
         }

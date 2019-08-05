@@ -1,7 +1,6 @@
 // @flow strict-local
 
-import type {ParcelOptions} from '@parcel/types';
-import type {Bundle} from './types';
+import type {Bundle, ParcelOptions} from './types';
 import type BundleGraph from './BundleGraph';
 
 import Transformation, {type TransformationOpts} from './Transformation';
