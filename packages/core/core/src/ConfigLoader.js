@@ -6,8 +6,7 @@ import type ParcelConfig from './ParcelConfig';
 import nullthrows from 'nullthrows';
 import {md5FromString} from '@parcel/utils';
 
-import Environment from './public/Environment';
-import PluginOptions from './public/PluginOptions';
+import InternalConfig from './Config';
 import Config from './public/Config';
 import loadParcelConfig from './loadParcelConfig';
 import loadPlugin from './loadParcelPlugin';
@@ -30,11 +29,12 @@ export default class ConfigLoader {
 
   async loadParcelConfig(configRequest: ConfigRequest) {
     let {filePath, env} = configRequest;
-    let config = new Config({
+    let internalConfig = new InternalConfig({
       searchPath: filePath,
-      env: new Environment(env),
-      options: new PluginOptions(this.options)
+      env,
+      options: this.options
     });
+    let config = new Config(internalConfig);
 
     let {config: parcelConfig, extendedFiles} = nullthrows(
       await loadParcelConfig(filePath, this.options)
@@ -67,7 +67,7 @@ export default class ConfigLoader {
       config.addIncludedFile(extendedFile);
     }
 
-    return config;
+    return internalConfig;
   }
 
   async loadPluginConfig({
@@ -76,16 +76,17 @@ export default class ConfigLoader {
     filePath,
     meta: {parcelConfigPath}
   }: ConfigRequest) {
-    let config = new Config({
+    let internalConfig = new InternalConfig({
       searchPath: filePath,
-      env: new Environment(env),
-      options: new PluginOptions(this.options)
+      env,
+      options: this.options
     });
+    let config = new Config(internalConfig);
     plugin = await loadPlugin(nullthrows(plugin), parcelConfigPath);
 
     plugin.loadConfig &&
       (await plugin.loadConfig({config, options: this.options}));
 
-    return config;
+    return internalConfig;
   }
 }

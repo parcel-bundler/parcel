@@ -20,9 +20,11 @@ import type {
   Symbol,
   TargetSourceMapOptions
 } from '@parcel/types';
+
 import type {FileSystem} from '@parcel/fs';
 import type Cache from '@parcel/cache';
-import type Config from './public/Config';
+
+import type Config from './Config';
 
 export type Environment = {|
   context: EnvironmentContext,

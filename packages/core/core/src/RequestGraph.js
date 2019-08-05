@@ -11,7 +11,7 @@ import type {ParcelOptions} from './types';
 import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
 
-import type Config from './public/Config';
+import type Config from './Config';
 import ConfigLoader from './ConfigLoader';
 import type {Dependency} from './types';
 import Graph, {type GraphOpts} from './Graph';

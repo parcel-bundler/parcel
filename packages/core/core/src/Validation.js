@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type Config from './public/Config';
+import type Config from './Config';
 import type {AssetRequest, NodeId, ConfigRequest, ParcelOptions} from './types';
 
 import path from 'path';
