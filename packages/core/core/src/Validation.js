@@ -45,11 +45,11 @@ export default class Validation {
     let asset = await this.loadAsset();
 
     let configRequest = {
-      env: asset.value.env,
       filePath: this.request.filePath,
       meta: {
         actionType: 'validation'
-      }
+      },
+      env: this.request.env
     };
 
     let config = await this.loadConfig(configRequest);
