@@ -11,7 +11,12 @@ import type {
 
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
-import {deserialize, errorToJson, jsonToError, serialize} from '@parcel/utils';
+import {
+  errorToJson,
+  jsonToError,
+  prepareForSerialization,
+  restoreDeserializedObject
+} from '@parcel/utils';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
 import Handle from './Handle';
@@ -113,7 +118,9 @@ export default class WorkerFarm extends EventEmitter {
           this.warmupWorker(method, args);
         }
 
-        let processedArgs = deserialize(serialize([...args, false]));
+        let processedArgs = restoreDeserializedObject(
+          prepareForSerialization([...args, false])
+        );
         return this.localWorker[method](...processedArgs);
       }
     };
