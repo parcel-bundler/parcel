@@ -19,6 +19,7 @@
     "@parcel/packager-js": "^2.0.0-alpha.0",
     "@parcel/packager-raw": "^2.0.0-alpha.0",
     "@parcel/reporter-cli": "^2.0.0-alpha.0",
+    "@parcel/reporter-loc": "^2.0.0-alpha.0",
     "@parcel/resolver-default": "^2.0.0-alpha.0",
     "@parcel/runtime-js": "^2.0.0-alpha.0",
     "@parcel/transformer-babel": "^2.0.0-alpha.0",
