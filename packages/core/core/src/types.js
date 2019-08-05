@@ -16,7 +16,7 @@ import type {
 
 import type Asset from './Asset';
 import type Dependency from './Dependency';
-import type Config from './public/Config';
+import type Config from './Config';
 
 export type NodeId = string;
 

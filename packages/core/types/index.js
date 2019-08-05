@@ -305,9 +305,9 @@ export interface Asset extends BaseAsset {
 }
 
 export interface Config {
-  searchPath: FilePath;
-  env: Environment;
-  options: ParcelOptions;
+  +searchPath: FilePath;
+  +result: ThirdPartyConfig;
+  +env: Environment;
 
   setResolvedPath(filePath: FilePath): void;
   // $FlowFixMe could be anything

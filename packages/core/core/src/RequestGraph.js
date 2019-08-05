@@ -10,7 +10,7 @@ import type {AssetRequest, FilePath, Glob, ParcelOptions} from '@parcel/types';
 import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
 
-import type Config from './public/Config';
+import type Config from './Config';
 import ConfigLoader from './ConfigLoader';
 import Dependency from './Dependency';
 import Graph, {type GraphOpts} from './Graph';

@@ -16,7 +16,8 @@ import path from 'path';
 import {md5FromObject} from '@parcel/utils';
 import Cache from '@parcel/cache';
 
-import type Config from './public/Config';
+import InternalConfig from './Config';
+import Config from './public/Config';
 import Dependency from './Dependency';
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
@@ -33,17 +34,17 @@ type PostProcessFunc = (
 
 export type TransformationOpts = {|
   request: AssetRequest,
-  loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
+  loadConfig: (ConfigRequest, NodeId) => Promise<InternalConfig>,
   parentNodeId: NodeId,
   options: ParcelOptions
 |};
 
-type ConfigMap = Map<PackageName, Config>;
+type ConfigMap = Map<PackageName, InternalConfig>;
 
 export default class Transformation {
   request: AssetRequest;
   configRequests: Array<ConfigRequest>;
-  loadConfig: ConfigRequest => Promise<Config>;
+  loadConfig: ConfigRequest => Promise<InternalConfig>;
   options: ParcelOptions;
   cache: Cache;
   impactfulOptions: $Shape<ParcelOptions>;
@@ -243,14 +244,15 @@ export default class Transformation {
           moduleName,
           parcelConfig.resolvedPath
         );
-        if (thirdPartyConfig.rehydrate) {
+
+        if (thirdPartyConfig.shouldRehydrate === true) {
           await plugin.rehydrateConfig({
-            config: thirdPartyConfig,
+            config: new Config(thirdPartyConfig),
             options: this.options
           });
-        } else if (thirdPartyConfig.reload) {
+        } else if (thirdPartyConfig.shouldReload === true) {
           await plugin.loadConfig({
-            config: thirdPartyConfig,
+            config: new Config(thirdPartyConfig),
             options: this.options
           });
         }
@@ -289,7 +291,7 @@ export default class Transformation {
     filePath: FilePath,
     plugin: PackageName,
     parcelConfigPath: FilePath
-  ): Promise<Config> {
+  ): Promise<InternalConfig> {
     let configRequest = {
       filePath,
       env: this.request.env,

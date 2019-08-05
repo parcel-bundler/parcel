@@ -1,130 +1,74 @@
 // @flow strict-local
+// flowlint unsafe-getters-setters:off
 import type {
   Config as IConfig,
-  Environment,
   FilePath,
   Glob,
   PackageJSON,
   PackageName,
-  ParcelOptions,
   ThirdPartyConfig
 } from '@parcel/types';
+import type InternalConfig from '../Config';
 import {loadConfig} from '@parcel/utils';
 
 import path from 'path';
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
-type ConfigOpts = {|
-  searchPath: FilePath,
-  env: Environment,
-  options: ParcelOptions,
-  resolvedPath?: FilePath,
-  // $FlowFixMe
-  result?: any,
-  includedFiles?: Set<FilePath>,
-  watchGlob?: Glob,
-  devDeps?: Map<PackageName, ?string>,
-  rehydrate?: boolean,
-  reload?: boolean
-|};
-
 export default class Config implements IConfig {
-  searchPath: FilePath;
-  env: Environment;
-  options: ParcelOptions;
-  resolvedPath: ?FilePath;
-  // $FlowFixMe
-  result: ?any;
-  resultHash: ?string;
-  includedFiles: Set<FilePath>;
-  watchGlob: ?Glob;
-  devDeps: Map<PackageName, ?string>;
-  pkg: ?PackageJSON;
-  rehydrate: ?boolean;
-  reload: ?boolean;
+  #config: InternalConfig;
 
-  constructor({
-    searchPath,
-    env,
-    options,
-    resolvedPath,
-    result,
-    includedFiles,
-    watchGlob,
-    devDeps,
-    rehydrate,
-    reload
-  }: ConfigOpts) {
-    this.searchPath = searchPath;
-    this.env = env;
-    this.options = options;
-    this.resolvedPath = resolvedPath;
-    this.result = result || null;
-    this.includedFiles = includedFiles || new Set();
-    this.watchGlob = watchGlob;
-    this.devDeps = devDeps || new Map();
-    this.rehydrate = rehydrate;
-    this.reload = reload;
+  constructor(config: InternalConfig) {
+    this.#config = config;
+  }
+
+  get env() {
+    return this.#config.env;
+  }
+
+  get options() {
+    return this.#config.options;
+  }
+
+  get searchPath() {
+    return this.#config.searchPath;
+  }
+
+  get result() {
+    return this.#config.result;
   }
 
   setResolvedPath(filePath: FilePath) {
-    this.resolvedPath = filePath;
+    this.#config.resolvedPath = filePath;
   }
 
   // $FlowFixMe
   setResult(result: any) {
-    this.result = result;
+    this.#config.result = result;
   }
 
   setResultHash(resultHash: string) {
-    this.resultHash = resultHash;
+    this.#config.resultHash = resultHash;
   }
 
   addIncludedFile(filePath: FilePath) {
-    this.includedFiles.add(filePath);
+    this.#config.includedFiles.add(filePath);
   }
 
   addDevDependency(name: PackageName, version?: string) {
-    this.devDeps.set(name, version);
+    this.#config.devDeps.set(name, version);
   }
 
-  setWatchGlob(glob: string) {
-    this.watchGlob = glob;
+  setWatchGlob(glob: Glob) {
+    this.#config.watchGlob = glob;
   }
 
   shouldRehydrate() {
-    this.rehydrate = true;
+    this.#config.shouldRehydrate = true;
   }
 
   shouldReload() {
-    this.reload = true;
-  }
-
-  // This will be more useful when we have edge types
-  getInvalidations() {
-    let invalidations = [];
-
-    if (this.watchGlob != null) {
-      invalidations.push({
-        action: 'add',
-        pattern: this.watchGlob
-      });
-    }
-
-    for (let filePath of [this.resolvedPath, ...this.includedFiles]) {
-      invalidations.push({
-        action: 'change',
-        pattern: filePath
-      });
-
-      invalidations.push({
-        action: 'unlink',
-        pattern: filePath
-      });
-    }
-
-    return invalidations;
+    this.#config.shouldReload = true;
   }
 
   async getConfigFrom(
@@ -158,12 +102,12 @@ export default class Config implements IConfig {
   }
 
   async getPackage(): Promise<PackageJSON | null> {
-    if (this.pkg) {
-      return this.pkg;
+    if (this.#config.pkg) {
+      return this.#config.pkg;
     }
 
-    this.pkg = await this.getConfig(['package.json']);
-    return this.pkg;
+    this.#config.pkg = await this.getConfig(['package.json']);
+    return this.#config.pkg;
   }
 
   async isSource() {
@@ -174,7 +118,7 @@ export default class Config implements IConfig {
         pkg.source != null &&
         (await this.options.inputFS.realpath(this.searchPath)) !==
           this.searchPath
-      ) || !this.searchPath.includes(NODE_MODULES)
+      ) || !this.#config.searchPath.includes(NODE_MODULES)
     );
   }
 }

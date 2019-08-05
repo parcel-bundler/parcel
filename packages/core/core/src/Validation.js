@@ -6,7 +6,7 @@ import path from 'path';
 import Cache from '@parcel/cache';
 import {resolveConfig} from '@parcel/utils';
 
-import type Config from './public/Config';
+import type Config from './Config';
 import {report} from './ReporterRunner';
 import InternalAsset from './Asset';
 import type {NodeId, ConfigRequest} from './types';
