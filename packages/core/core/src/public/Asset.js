@@ -27,7 +27,7 @@ import nullthrows from 'nullthrows';
 import {isURL} from '@parcel/utils';
 import Environment from './Environment';
 import Dependency from './Dependency';
-import InternalAsset from '../Asset';
+import InternalAsset from '../InternalAsset';
 
 const _assetToInternalAsset: WeakMap<
   IAsset | IMutableAsset | BaseAsset,

@@ -5,7 +5,6 @@ import type {ParcelOptions, Target} from './types';
 import {PromiseQueue, md5FromObject, md5FromString} from '@parcel/utils';
 import watcher, {type Event} from '@parcel/watcher';
 
-// import type Asset from './Asset';
 import type {Asset} from './types';
 import AssetGraph from './AssetGraph';
 import type ParcelConfig from './ParcelConfig';

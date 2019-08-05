@@ -13,7 +13,7 @@ import type {ParcelOptions} from '../types';
 import type InternalBundleGraph from '../BundleGraph';
 
 import invariant from 'assert';
-import {assetFromValue, assetToInternalAsset, Asset} from './Asset';
+import {assetFromValue, assetToInternalAsset, Asset} from '../InternalAsset';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {mapVisitor} from '../Graph';

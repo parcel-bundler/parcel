@@ -7,7 +7,7 @@ import path from 'path';
 import {resolveConfig} from '@parcel/utils';
 
 import {report} from './ReporterRunner';
-import InternalAsset, {createAsset} from './Asset';
+import InternalAsset, {createAsset} from './InternalAsset';
 import {Asset} from './public/Asset';
 import summarizeRequest from './summarizeRequest';
 

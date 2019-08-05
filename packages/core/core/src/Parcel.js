@@ -343,4 +343,4 @@ export class BuildError extends Error {
   }
 }
 
-export {default as Asset} from './Asset';
+export {default as Asset} from './InternalAsset';

@@ -25,7 +25,7 @@ import {createDependency} from './Dependency';
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
-import InternalAsset, {createAsset} from './Asset';
+import InternalAsset, {createAsset} from './InternalAsset';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 

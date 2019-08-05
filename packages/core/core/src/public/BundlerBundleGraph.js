@@ -19,7 +19,7 @@ import nullthrows from 'nullthrows';
 import InternalBundleGraph from '../BundleGraph';
 import {Bundle, bundleToInternalBundle} from './Bundle';
 import {mapVisitor, ALL_EDGE_TYPES} from '../Graph';
-import {assetFromValue, assetToInternalAsset} from './Asset';
+import {assetFromValue, assetToInternalAsset} from '../InternalAsset';
 import {getBundleGroupId} from '../utils';
 import Dependency, {dependencyToInternalDependency} from './Dependency';
 import {environmentToInternalEnvironment} from './Environment';
