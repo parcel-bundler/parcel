@@ -229,7 +229,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
           })
         );
 
-        this.validationQueue.add(() => this.validate(requestNode));
+        if (!requestNode.filePath.includes('node_modules')) {
+          this.validationQueue.add(() => this.validate(requestNode));
+        }
 
         break;
       case 'dep_path_request':
