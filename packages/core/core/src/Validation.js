@@ -53,7 +53,8 @@ export default class Validation {
       filePath: this.request.filePath,
       meta: {
         actionType: 'validation'
-      }
+      },
+      env: this.request.env
     };
 
     let config = await this.loadConfig(configRequest);
