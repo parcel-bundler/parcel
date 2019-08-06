@@ -27,12 +27,14 @@ export async function load(config: Config) {
     if (babelrc != null && configjs == null) {
       config.setResolvedPath(babelrc);
     } else if (configjs) {
-      // TODO: warn and invalidate on startup
+      // TODO: warn about invalidation on startup
+      config.shouldInvalidateOnStartup();
     }
 
     if (babelrc && (await isExtended(/*babelrc*/))) {
-      // TODO: warn and invalidate on startup
+      // TODO: warn about invalidation on startup
       // TODO: maybe add feature to babel that gives details on extended files?
+      config.shouldInvalidateOnStartup();
     }
 
     if (dependsOnRelative || dependsOnLocal) {
@@ -54,7 +56,8 @@ export async function load(config: Config) {
     } else {
       config.shouldReload();
       config.setResultHash(JSON.stringify(Date.now()));
-      // TODO: warn and invalidate on startup
+      // TODO: warn about invalidation on startup
+      config.shouldInvalidateOnStartup();
     }
   } else {
     await buildDefaultBabelConfig(config);

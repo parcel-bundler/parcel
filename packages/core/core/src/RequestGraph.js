@@ -111,6 +111,9 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   config: ParcelConfig;
   options: ParcelOptions;
   globNodeIds: Set<NodeId> = new Set();
+  // Unpredictable nodes are requests that cannot be predicted whether they should rerun based on
+  // filesystem changes alone. They should rerun on each startup of Parcel.
+  unpredicatableNodeIds: Set<NodeId> = new Set();
   depVersionRequestNodeIds: Set<NodeId> = new Set();
 
   // $FlowFixMe
@@ -127,6 +130,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     return {
       ...super.serialize(),
       globNodeIds: this.globNodeIds,
+      unpredicatableNodeIds: this.unpredicatableNodeIds,
       depVersionRequestNodeIds: this.depVersionRequestNodeIds
     };
   }
@@ -199,7 +203,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       this.globNodeIds.delete(node.id);
     } else if (node.type === 'dep_version_request') {
       this.depVersionRequestNodeIds.delete(node.id);
+    } else if (node.type === 'config_request') {
+      this.unpredicatableNodeIds.delete(node.id);
     }
+
     return super.removeNode(node);
   }
 
@@ -397,6 +404,12 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       node => node.type === 'file' || node.type === 'glob'
     );
 
+    if (config.shouldInvalidateOnStartup) {
+      this.unpredicatableNodeIds.add(configRequestNode.id);
+    } else {
+      this.unpredicatableNodeIds.delete(configRequestNode.id);
+    }
+
     return config;
   }
 
@@ -491,6 +504,14 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         throw new Error(
           `Cannot invalidate node with unrecognized type ${node.type}`
         );
+    }
+  }
+
+  invalidateUnpredictableNodes() {
+    for (let nodeId of this.unpredicatableNodeIds) {
+      let node = nullthrows(this.getNode(nodeId));
+      invariant(node.type !== 'file' && node.type !== 'glob');
+      this.invalidateNode(node);
     }
   }
 
