@@ -11,17 +11,14 @@ import nullthrows from 'nullthrows';
 const instances = new Map();
 let id = 0;
 
-type FSHandle = (fn: string, args: any[]) => any;
 type SerializedMemoryFS = {
-  id: number,
-  handle?: FSHandle
+  id: number
 };
 
 export class MemoryFS implements FileSystem {
   dirs: Map<FilePath, Directory>;
   files: Map<FilePath, File>;
   id: number;
-  handle: any;
   constructor() {
     this.dirs = new Map([['/', new Directory()]]);
     this.files = new Map();
@@ -30,24 +27,12 @@ export class MemoryFS implements FileSystem {
   }
 
   static deserialize(opts: SerializedMemoryFS) {
-    return (
-      instances.get(opts.id) || new WorkerFS(opts.id, nullthrows(opts.handle))
-    );
+    return instances.get(opts.id) || new WorkerFS(opts.id);
   }
 
   serialize(): SerializedMemoryFS {
-    if (!this.handle) {
-      this.handle = WorkerFarm.createReverseHandle(
-        async (fn: string, args: any[]) => {
-          // $FlowFixMe
-          return this[fn](...args);
-        }
-      );
-    }
-
     return {
-      id: this.id,
-      handle: this.handle
+      id: this.id
     };
   }
 
@@ -74,7 +59,6 @@ export class MemoryFS implements FileSystem {
       throw new FSError('ENOENT', dir, 'does not exist');
     }
 
-    // console.log(contents.buffer)
     let buffer = makeShared(contents);
     let file = this.files.get(filePath);
     let mode = (options && options.mode) || 0o666;
@@ -436,14 +420,19 @@ function makeShared(contents: Buffer | string): Buffer {
   return buffer;
 }
 
+// exported for worker farm IPC
+export async function _handle(id: number, method: string, args: Array<any>) {
+  let instance = nullthrows(instances.get(id));
+  // $FlowFixMe
+  return instance[method](...args);
+}
+
 class WorkerFS extends MemoryFS {
   id: number;
-  handle: FSHandle;
 
-  constructor(id: number, handle: FSHandle) {
+  constructor(id: number) {
     super();
     this.id = id;
-    this.handle = handle;
   }
 
   static deserialize(opts: SerializedMemoryFS) {
@@ -454,6 +443,14 @@ class WorkerFS extends MemoryFS {
     return {
       id: this.id
     };
+  }
+
+  handle(method: string, args: Array<any>): Promise<any> {
+    return WorkerFarm.callMaster({
+      location: __filename,
+      args: [this.id, method, args],
+      method: '_handle'
+    });
   }
 
   async writeFile(

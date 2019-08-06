@@ -1,11 +1,13 @@
 // @flow strict-local
 
-import type {ParcelOptions, ReporterEvent} from '@parcel/types';
+import type {ReporterEvent} from '@parcel/types';
+import type {ParcelOptions} from './types';
 
 import {bundleToInternalBundle, NamedBundle} from './public/Bundle';
 import {bus} from '@parcel/workers';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
+import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
   config: ParcelConfig,
@@ -15,10 +17,12 @@ type Opts = {|
 export default class ReporterRunner {
   config: ParcelConfig;
   options: ParcelOptions;
+  pluginOptions: PluginOptions;
 
   constructor(opts: Opts) {
     this.config = opts.config;
     this.options = opts.options;
+    this.pluginOptions = new PluginOptions(this.options);
 
     logger.onLog(event => this.report(event));
 
@@ -30,7 +34,7 @@ export default class ReporterRunner {
       } else {
         this.report({
           ...event,
-          bundle: new NamedBundle(event.bundle, event.bundleGraph)
+          bundle: new NamedBundle(event.bundle, event.bundleGraph, this.options)
         });
       }
     });
@@ -40,7 +44,7 @@ export default class ReporterRunner {
     let reporters = await this.config.getReporters();
 
     for (let reporter of reporters) {
-      await reporter.report(event, this.options);
+      await reporter.report(event, this.pluginOptions);
     }
   }
 }

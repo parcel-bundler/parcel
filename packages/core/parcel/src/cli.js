@@ -210,7 +210,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let mode = command.name() === 'build' ? 'production' : 'development';
   return {
-    cache: command.cache !== false,
+    disableCache: command.cache === false,
     cacheDir: command.cacheDir,
     mode,
     minify: command.minify != null ? command.minify : mode === 'production',

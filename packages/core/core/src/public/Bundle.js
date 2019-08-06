@@ -1,16 +1,16 @@
 // @flow strict-local
 // flowlint unsafe-getters-setters:off
 
-import type {Bundle as InternalBundle} from '../types';
+import type {Bundle as InternalBundle, ParcelOptions} from '../types';
 import type {
   Asset as IAsset,
   Bundle as IBundle,
   BundleTraversable,
-  Environment,
+  Environment as IEnvironment,
   FilePath,
   NamedBundle as INamedBundle,
   Stats,
-  Target,
+  Target as ITarget,
   GraphVisitor
 } from '@parcel/types';
 import type BundleGraph from '../BundleGraph';
@@ -18,8 +18,11 @@ import type BundleGraph from '../BundleGraph';
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
-import {Asset, assetToInternalAsset} from './Asset';
+import {assetToInternalAsset, assetFromValue} from './Asset';
 import {mapVisitor} from '../Graph';
+import Environment from './Environment';
+import Dependency from './Dependency';
+import Target from './Target';
 
 // Friendly access for other modules within this package that need access
 // to the internal bundle.
@@ -31,10 +34,16 @@ export function bundleToInternalBundle(bundle: IBundle): InternalBundle {
 export class Bundle implements IBundle {
   #bundle; // InternalBundle
   #bundleGraph; // BundleGraph
+  #options; // ParcelOptions
 
-  constructor(bundle: InternalBundle, bundleGraph: BundleGraph) {
+  constructor(
+    bundle: InternalBundle,
+    bundleGraph: BundleGraph,
+    options: ParcelOptions
+  ) {
     this.#bundle = bundle;
     this.#bundleGraph = bundleGraph;
+    this.#options = options;
     _bundleToInternalBundle.set(this, bundle);
   }
 
@@ -46,16 +55,16 @@ export class Bundle implements IBundle {
     return this.#bundle.type;
   }
 
-  get env(): Environment {
-    return this.#bundle.env;
+  get env(): IEnvironment {
+    return new Environment(this.#bundle.env);
   }
 
   get isEntry(): ?boolean {
     return this.#bundle.isEntry;
   }
 
-  get target(): Target {
-    return this.#bundle.target;
+  get target(): ITarget {
+    return new Target(this.#bundle.target);
   }
 
   get filePath(): ?FilePath {
@@ -73,7 +82,7 @@ export class Bundle implements IBundle {
   hasAsset(asset: IAsset): boolean {
     return this.#bundleGraph.bundleHasAsset(
       this.#bundle,
-      assetToInternalAsset(asset)
+      assetToInternalAsset(asset).value
     );
   }
 
@@ -84,7 +93,7 @@ export class Bundle implements IBundle {
 
     let assetNode = this.#bundleGraph._graph.getNode(this.#bundle.entryAssetId);
     invariant(assetNode != null && assetNode.type === 'asset');
-    return [new Asset(assetNode.value)];
+    return [assetFromValue(assetNode.value, this.#options)];
   }
 
   traverse<TContext>(
@@ -94,9 +103,12 @@ export class Bundle implements IBundle {
       this.#bundle,
       mapVisitor(node => {
         if (node.type === 'asset') {
-          return {type: 'asset', value: new Asset(node.value)};
+          return {
+            type: 'asset',
+            value: assetFromValue(node.value, this.#options)
+          };
         } else if (node.type === 'dependency') {
-          return {type: 'dependency', value: node.value};
+          return {type: 'dependency', value: new Dependency(node.value)};
         }
       }, visit)
     );
@@ -105,7 +117,7 @@ export class Bundle implements IBundle {
   traverseAssets<TContext>(visit: GraphVisitor<IAsset, TContext>) {
     return this.#bundleGraph.traverseAssets(
       this.#bundle,
-      mapVisitor(asset => new Asset(asset), visit)
+      mapVisitor(asset => assetFromValue(asset, this.#options), visit)
     );
   }
 
@@ -122,8 +134,12 @@ export class NamedBundle extends Bundle implements INamedBundle {
   #bundle; // InternalBundle
   #bundleGraph; // BundleGraph
 
-  constructor(bundle: InternalBundle, bundleGraph: BundleGraph) {
-    super(bundle, bundleGraph);
+  constructor(
+    bundle: InternalBundle,
+    bundleGraph: BundleGraph,
+    options: ParcelOptions
+  ) {
+    super(bundle, bundleGraph, options);
     this.#bundle = bundle; // Repeating for flow
     this.#bundleGraph = bundleGraph; // Repeating for flow
   }

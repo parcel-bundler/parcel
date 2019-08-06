@@ -4,13 +4,13 @@ import type {
   TargetDescriptor,
   FilePath,
   InitialParcelOptions,
-  PackageJSON,
-  Target
+  PackageJSON
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
+import type {Target} from './types';
 
 import {loadConfig} from '@parcel/utils';
-import Environment from './Environment';
+import {createEnvironment} from './Environment';
 import path from 'path';
 import browserslist from 'browserslist';
 
@@ -64,7 +64,7 @@ export default class TargetResolver {
             name,
             distDir: path.resolve(this.fs.cwd(), descriptor.distDir),
             publicUrl: descriptor.publicUrl,
-            env: new Environment(descriptor),
+            env: createEnvironment(descriptor),
             sourceMap: descriptor.sourceMap
           };
         });
@@ -97,7 +97,7 @@ export default class TargetResolver {
             // available for introspection by the user if necessary.
             distDir: path.resolve(cacheDir, DEFAULT_DIST_DIRNAME),
             publicUrl: serveOptions.publicUrl ?? '/',
-            env: new Environment({
+            env: createEnvironment({
               context: 'browser',
               engines: {
                 browsers: DEVELOPMENT_BROWSERS
@@ -183,7 +183,7 @@ export default class TargetResolver {
           distDir,
           distEntry,
           publicUrl: descriptor.publicUrl ?? '/',
-          env: new Environment({
+          env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context:
               descriptor.context ?? targetName === 'browser'
@@ -219,7 +219,7 @@ export default class TargetResolver {
           distDir,
           distEntry,
           publicUrl: descriptor.publicUrl ?? '/',
-          env: new Environment({
+          env: createEnvironment({
             engines: descriptor.engines ?? pkgEngines,
             context: descriptor.context,
             includeNodeModules: descriptor.includeNodeModules
@@ -236,7 +236,7 @@ export default class TargetResolver {
         name: 'default',
         distDir: path.resolve(this.fs.cwd(), DEFAULT_DIST_DIRNAME),
         publicUrl: '/',
-        env: new Environment({
+        env: createEnvironment({
           engines: pkgEngines,
           context
         })

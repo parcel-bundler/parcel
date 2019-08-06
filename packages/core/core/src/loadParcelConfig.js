@@ -3,9 +3,9 @@ import type {
   FilePath,
   ParcelConfigFile,
   ResolvedParcelConfigFile,
-  PackageName,
-  ParcelOptions
+  PackageName
 } from '@parcel/types';
+import type {ParcelOptions} from './types';
 import type {FileSystem} from '@parcel/fs';
 import {resolveConfig} from '@parcel/utils';
 import {parse} from 'json5';
