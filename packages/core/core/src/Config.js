@@ -19,7 +19,8 @@ type ConfigOpts = {|
   watchGlob?: Glob,
   devDeps?: Map<PackageName, ?string>,
   shouldRehydrate?: boolean,
-  shouldReload?: boolean
+  shouldReload?: boolean,
+  shouldInvalidateOnStartup?: boolean
 |};
 
 export default class Config {
@@ -35,6 +36,7 @@ export default class Config {
   pkg: ?PackageJSON;
   shouldRehydrate: ?boolean;
   shouldReload: ?boolean;
+  shouldInvalidateOnStartup: ?boolean;
 
   constructor({
     searchPath,
@@ -46,7 +48,8 @@ export default class Config {
     watchGlob,
     devDeps,
     shouldRehydrate,
-    shouldReload
+    shouldReload,
+    shouldInvalidateOnStartup
   }: ConfigOpts) {
     this.searchPath = searchPath;
     this.env = env;
@@ -58,6 +61,7 @@ export default class Config {
     this.devDeps = devDeps || new Map();
     this.shouldRehydrate = shouldRehydrate;
     this.shouldReload = shouldReload;
+    this.shouldInvalidateOnStartup = shouldInvalidateOnStartup;
   }
 
   addDevDependency(name: PackageName, version?: string) {

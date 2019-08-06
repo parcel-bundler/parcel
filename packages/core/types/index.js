@@ -329,6 +329,7 @@ export interface Config {
   isSource(): Promise<boolean>;
   shouldRehydrate(): void;
   shouldReload(): void;
+  shouldInvalidateOnStartup(): void;
 }
 
 export type Stats = {|

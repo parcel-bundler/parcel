@@ -234,7 +234,6 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   }
 
   // Update a node's downstream nodes making sure to prune any orphaned branches
-  // Also keeps track of all added and removed edges and nodes
   replaceNodesConnectedTo(
     fromNode: TNode,
     toNodes: Array<TNode>,

@@ -71,6 +71,10 @@ export default class Config implements IConfig {
     this.#config.shouldReload = true;
   }
 
+  shouldInvalidateOnStartup() {
+    this.#config.shouldInvalidateOnStartup = true;
+  }
+
   async getConfigFrom(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
