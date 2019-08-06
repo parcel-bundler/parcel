@@ -7,6 +7,7 @@ const fs = require('fs');
 const {PromiseQueue} = require('@parcel/utils');
 const os = require('os');
 const util = require('util');
+
 const exists = util.promisify(fs.exists);
 
 const runtimesPath = path.resolve('../../runtimes');
@@ -46,7 +47,6 @@ const countLinesInFile = async filePath => {
 
   return new Promise((resolve, reject) => {
     let lineCount = 0;
-    let isBinary;
 
     let stream = fs
       .createReadStream(filePath)
@@ -55,7 +55,6 @@ const countLinesInFile = async filePath => {
         lineCount--;
 
         if (buf.includes(NULL_BYTE)) {
-          isBinary = true;
           stream.destroy();
           resolve(0);
           return;

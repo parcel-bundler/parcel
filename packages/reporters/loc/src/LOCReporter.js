@@ -1,12 +1,6 @@
 // @flow strict-local
 
-import type {
-  BundleGraph,
-  LogEvent,
-  ParcelOptions,
-  ProgressLogEvent,
-  ReporterEvent
-} from '@parcel/types';
+import type {ParcelOptions, ReporterEvent} from '@parcel/types';
 
 import {Reporter} from '@parcel/plugin';
 import Logger from '@parcel/logger';
