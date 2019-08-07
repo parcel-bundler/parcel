@@ -319,11 +319,11 @@ export interface Config {
   getConfigFrom(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
-    options: ?{packageKey?: string, parse?: boolean}
+    options: ?{packageKey?: string, parse?: boolean, exclude?: boolean}
   ): Promise<ThirdPartyConfig | null>;
   getConfig(
     filePaths: Array<FilePath>,
-    options: ?{packageKey?: string, parse?: boolean}
+    options: ?{packageKey?: string, parse?: boolean, exclude?: boolean}
   ): Promise<ThirdPartyConfig | null>;
   getPackage(): Promise<PackageJSON | null>;
   isSource(): Promise<boolean>;

@@ -187,12 +187,16 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   addNode(node: RequestGraphNode) {
-    this.processNode(node);
-    if (node.type === 'glob') {
-      this.globNodeIds.add(node.id);
-    } else if (node.type === 'dep_version_request') {
-      this.depVersionRequestNodeIds.add(node.id);
+    if (!this.hasNode(node.id)) {
+      this.processNode(node);
+
+      if (node.type === 'glob') {
+        this.globNodeIds.add(node.id);
+      } else if (node.type === 'dep_version_request') {
+        this.depVersionRequestNodeIds.add(node.id);
+      }
     }
+
     return super.addNode(node);
   }
 
