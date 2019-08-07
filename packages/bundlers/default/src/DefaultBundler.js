@@ -147,8 +147,12 @@ export default new Bundler({
       }
 
       let asset = node.value;
-      let containingBundles = bundleGraph.findBundlesWithAsset(asset);
-
+      let containingBundles = bundleGraph
+        .findBundlesWithAsset(asset)
+        // Don't create shared bundles from entry bundles, as that would require
+        // another entry bundle depending on these conditions, making it difficult
+        // to predict and reference.
+        .filter(b => !b.isEntry);
       if (containingBundles.length > OPTIONS.minBundles) {
         let id = containingBundles
           .map(b => b.id)
