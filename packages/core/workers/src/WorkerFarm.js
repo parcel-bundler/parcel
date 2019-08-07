@@ -12,10 +12,12 @@ import type {
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
 import {
+  deserialize,
   errorToJson,
   jsonToError,
   prepareForSerialization,
-  restoreDeserializedObject
+  restoreDeserializedObject,
+  serialize
 } from '@parcel/utils';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
@@ -347,10 +349,12 @@ export default class WorkerFarm extends EventEmitter {
       return child.addCall(request, awaitResponse);
     } else {
       // $FlowFixMe
-      return (await WorkerFarm.getShared()).processRequest({
+      let result = await (await WorkerFarm.getShared()).processRequest({
         ...request,
         awaitResponse
       });
+
+      return deserialize(serialize(result));
     }
   }
 

@@ -80,7 +80,7 @@ export default class Config implements IConfig {
   async getConfigFrom(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
-    options: ?{parse?: boolean}
+    options: ?{parse?: boolean, exclude?: boolean}
   ): Promise<ThirdPartyConfig | null> {
     let parse = options && options.parse;
     let conf = await loadConfig(
@@ -93,8 +93,10 @@ export default class Config implements IConfig {
       return null;
     }
 
-    for (let file of conf.files) {
-      this.addIncludedFile(file.filePath);
+    if (!options || !options.exclude) {
+      for (let file of conf.files) {
+        this.addIncludedFile(file.filePath);
+      }
     }
 
     return conf.config;
@@ -102,7 +104,7 @@ export default class Config implements IConfig {
 
   async getConfig(
     filePaths: Array<FilePath>,
-    options: ?{parse?: boolean}
+    options: ?{parse?: boolean, exclude?: boolean}
   ): Promise<ThirdPartyConfig | null> {
     return this.getConfigFrom(this.searchPath, filePaths, options);
   }

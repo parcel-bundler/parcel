@@ -12,7 +12,7 @@ const https = require('https');
 const getPort = require('get-port');
 const sinon = require('sinon');
 
-const distDir = path.resolve(__dirname, '../../../../.parcel-cache/dist');
+const distDir = path.resolve(__dirname, '.parcel-cache/dist');
 const config = {
   ...defaultConfig,
   reporters: ['@parcel/reporter-dev-server']

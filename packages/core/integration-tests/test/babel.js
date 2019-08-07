@@ -255,4 +255,16 @@ describe('babel', function() {
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!file.includes('OptionsType'));
   });
+
+  it('should support compiling with babel using babel.config.js config', async function() {
+    await bundle(
+      path.join(__dirname, '/integration/babel-config-js/src/index.js')
+    );
+
+    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(!file.includes('REPLACE_ME'));
+    assert(file.includes('hello there'));
+  });
+
+  it('should rebuild when babel config changes', () => {});
 });
