@@ -5,7 +5,7 @@ import type {
   AST,
   Bundle,
   BundleGraph,
-  ParcelOptions,
+  PluginOptions,
   Symbol
 } from '@parcel/types';
 
@@ -34,7 +34,7 @@ export function link({
   bundle: Bundle,
   bundleGraph: BundleGraph,
   ast: AST,
-  options: ParcelOptions
+  options: PluginOptions
 }) {
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, [Asset, Symbol]> = new Map();

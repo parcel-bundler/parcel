@@ -2,18 +2,11 @@
 
 import assert from 'assert';
 import AssetGraph, {nodeFromAssetGroup} from '../src/AssetGraph';
-import Dependency from '../src/Dependency';
-import Asset from '../src/Asset';
-import Environment from '../src/Environment';
-import tempy from 'tempy';
-import Cache, {createCacheDir} from '@parcel/cache';
-import {inputFS as fs, outputFS} from '@parcel/test-utils';
+import {createDependency} from '../src/Dependency';
+import {createAsset} from '../src/InternalAsset';
+import {createEnvironment} from '../src/Environment';
 
-let cacheDir = tempy.directory();
-createCacheDir(outputFS, cacheDir);
-let cache = new Cache(outputFS, cacheDir);
-
-const DEFAULT_ENV = new Environment({
+const DEFAULT_ENV = createEnvironment({
   context: 'browser',
   engines: {
     browsers: ['> 1%']
@@ -43,7 +36,7 @@ describe('AssetGraph', () => {
     assert(graph.nodes.has('@@root'));
     assert(
       graph.nodes.has(
-        new Dependency({
+        createDependency({
           moduleSpecifier: '/path/to/index1',
           env: DEFAULT_ENV
         }).id
@@ -51,7 +44,7 @@ describe('AssetGraph', () => {
     );
     assert(
       graph.nodes.has(
-        new Dependency({
+        createDependency({
           moduleSpecifier: '/path/to/index2',
           env: DEFAULT_ENV
         }).id
@@ -60,7 +53,7 @@ describe('AssetGraph', () => {
     assert.deepEqual(graph.getAllEdges(), [
       {
         from: '@@root',
-        to: new Dependency({
+        to: createDependency({
           moduleSpecifier: '/path/to/index1',
           env: DEFAULT_ENV
         }).id,
@@ -68,7 +61,7 @@ describe('AssetGraph', () => {
       },
       {
         from: '@@root',
-        to: new Dependency({
+        to: createDependency({
           moduleSpecifier: '/path/to/index2',
           env: DEFAULT_ENV
         }).id,
@@ -84,7 +77,7 @@ describe('AssetGraph', () => {
       entries: ['/path/to/index']
     });
 
-    let dep = new Dependency({
+    let dep = createDependency({
       moduleSpecifier: '/path/to/index',
       env: DEFAULT_ENV
     });
@@ -113,7 +106,7 @@ describe('AssetGraph', () => {
       entries: ['/path/to/index']
     });
 
-    let dep = new Dependency({
+    let dep = createDependency({
       moduleSpecifier: '/path/to/index',
       env: DEFAULT_ENV,
       sourcePath: ''
@@ -123,18 +116,16 @@ describe('AssetGraph', () => {
     graph.resolveDependency(dep, req);
     let sourcePath = filePath;
     let assets = [
-      new Asset({
+      createAsset({
         id: '1',
-        fs,
         filePath,
-        cache,
         type: 'js',
         hash: '#1',
         stats,
         dependencies: new Map([
           [
             'utils',
-            new Dependency({
+            createDependency({
               moduleSpecifier: './utils',
               env: DEFAULT_ENV,
               sourcePath
@@ -144,18 +135,16 @@ describe('AssetGraph', () => {
         env: DEFAULT_ENV,
         connectedFiles: new Map()
       }),
-      new Asset({
+      createAsset({
         id: '2',
-        fs,
         filePath,
         type: 'js',
-        cache,
         hash: '#2',
         stats,
         dependencies: new Map([
           [
             'styles',
-            new Dependency({
+            createDependency({
               moduleSpecifier: './styles',
               env: DEFAULT_ENV,
               sourcePath
@@ -165,11 +154,9 @@ describe('AssetGraph', () => {
         env: DEFAULT_ENV,
         connectedFiles: new Map()
       }),
-      new Asset({
+      createAsset({
         id: '3',
-        fs,
         filePath,
-        cache,
         type: 'js',
         hash: '#3',
         dependencies: new Map(),
@@ -183,27 +170,25 @@ describe('AssetGraph', () => {
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(graph.nodes.has('3'));
-    assert(graph.nodes.has(assets[0].getDependencies()[0].id));
-    assert(graph.nodes.has(assets[1].getDependencies()[0].id));
+    assert(graph.nodes.has([...assets[0].dependencies.values()][0].id));
+    assert(graph.nodes.has([...assets[1].dependencies.values()][0].id));
     assert(graph.hasEdge(nodeFromAssetGroup(req).id, '1'));
     assert(graph.hasEdge(nodeFromAssetGroup(req).id, '2'));
     assert(graph.hasEdge(nodeFromAssetGroup(req).id, '3'));
-    assert(graph.hasEdge('1', assets[0].getDependencies()[0].id));
-    assert(graph.hasEdge('2', assets[1].getDependencies()[0].id));
+    assert(graph.hasEdge('1', [...assets[0].dependencies.values()][0].id));
+    assert(graph.hasEdge('2', [...assets[1].dependencies.values()][0].id));
 
     let assets2 = [
-      new Asset({
+      createAsset({
         id: '1',
-        fs,
         filePath,
-        cache,
         type: 'js',
         hash: '#1',
         stats,
         dependencies: new Map([
           [
             'utils',
-            new Dependency({
+            createDependency({
               moduleSpecifier: './utils',
               env: DEFAULT_ENV,
               sourcePath
@@ -213,11 +198,9 @@ describe('AssetGraph', () => {
         env: DEFAULT_ENV,
         connectedFiles: new Map()
       }),
-      new Asset({
+      createAsset({
         id: '2',
-        fs,
         filePath,
-        cache,
         type: 'js',
         hash: '#2',
         stats,
@@ -231,13 +214,13 @@ describe('AssetGraph', () => {
     assert(graph.nodes.has('1'));
     assert(graph.nodes.has('2'));
     assert(!graph.nodes.has('3'));
-    assert(graph.nodes.has(assets[0].getDependencies()[0].id));
-    assert(!graph.nodes.has(assets[1].getDependencies()[0].id));
+    assert(graph.nodes.has([...assets[0].dependencies.values()][0].id));
+    assert(!graph.nodes.has([...assets[1].dependencies.values()][0].id));
     assert(graph.hasEdge(nodeFromAssetGroup(req).id, '1'));
     assert(graph.hasEdge(nodeFromAssetGroup(req).id, '2'));
     assert(!graph.hasEdge(nodeFromAssetGroup(req).id, '3'));
-    assert(graph.hasEdge('1', assets[0].getDependencies()[0].id));
-    assert(!graph.hasEdge('2', assets[1].getDependencies()[0].id));
+    assert(graph.hasEdge('1', [...assets[0].dependencies.values()][0].id));
+    assert(!graph.hasEdge('2', [...assets[1].dependencies.values()][0].id));
   });
 
   it('resolveAssetRequest should add connected file nodes', () => {
@@ -247,24 +230,22 @@ describe('AssetGraph', () => {
       entries: ['./index']
     });
 
-    let dep = new Dependency({moduleSpecifier: './index', env: DEFAULT_ENV});
+    let dep = createDependency({moduleSpecifier: './index', env: DEFAULT_ENV});
     let filePath = '/index.js';
     let req = {filePath, env: DEFAULT_ENV};
     graph.resolveDependency(dep, req);
     let sourcePath = filePath;
     let assets = [
-      new Asset({
+      createAsset({
         id: '1',
-        fs,
         filePath,
-        cache,
         type: 'js',
         hash: '#1',
         stats,
         dependencies: new Map([
           [
             'utils',
-            new Dependency({
+            createDependency({
               moduleSpecifier: './utils',
               env: DEFAULT_ENV,
               sourcePath

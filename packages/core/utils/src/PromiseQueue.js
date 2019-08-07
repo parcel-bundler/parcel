@@ -33,6 +33,10 @@ export default class PromiseQueue {
         );
 
       this._queue.push(wrapped);
+
+      if (this._numRunning > 0 && this._numRunning < this._maxConcurrent) {
+        this._next();
+      }
     });
   }
 
@@ -68,6 +72,7 @@ export default class PromiseQueue {
 
   async _runFn(fn: () => mixed): Promise<void> {
     this._numRunning++;
+    // console.log('RUNNING', this._numRunning, this._maxConcurrent, this._queue.length)
     try {
       await fn();
       this._numRunning--;

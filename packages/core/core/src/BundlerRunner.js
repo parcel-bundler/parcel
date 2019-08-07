@@ -1,10 +1,11 @@
 // @flow strict-local
 
-import type {Namer, ParcelOptions, RuntimeAsset} from '@parcel/types';
+import type {Namer, RuntimeAsset} from '@parcel/types';
 import type {
   AssetNode,
   Bundle as InternalBundle,
   DependencyNode,
+  ParcelOptions,
   RootNode
 } from './types';
 import type ParcelConfig from './ParcelConfig';
@@ -25,8 +26,8 @@ import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
-import Cache from '@parcel/cache';
 import {localResolve} from '@parcel/local-require';
+import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
   options: ParcelOptions,
@@ -36,12 +37,12 @@ type Opts = {|
 export default class BundlerRunner {
   options: ParcelOptions;
   config: ParcelConfig;
-  cache: Cache;
+  pluginOptions: PluginOptions;
 
   constructor(opts: Opts) {
     this.options = opts.options;
     this.config = opts.config;
-    this.cache = new Cache(this.options.outputFS, this.options.cacheDir);
+    this.pluginOptions = new PluginOptions(this.options);
   }
 
   async bundle(graph: AssetGraph): Promise<InternalBundleGraph> {
@@ -51,9 +52,9 @@ export default class BundlerRunner {
     });
 
     let cacheKey;
-    if (this.options.cache !== false) {
+    if (!this.options.disableCache) {
       cacheKey = await this.getCacheKey(graph);
-      let cachedBundleGraph = await this.cache.get(cacheKey);
+      let cachedBundleGraph = await this.options.cache.get(cacheKey);
       if (cachedBundleGraph) {
         return cachedBundleGraph;
       }
@@ -66,8 +67,8 @@ export default class BundlerRunner {
     let internalBundleGraph = new InternalBundleGraph(bundleGraph);
     await dumpGraphToGraphViz(bundleGraph, 'before_bundle');
     await bundler.bundle({
-      bundleGraph: new BundlerBundleGraph(internalBundleGraph),
-      options: this.options
+      bundleGraph: new BundlerBundleGraph(internalBundleGraph, this.options),
+      options: this.pluginOptions
     });
     await dumpGraphToGraphViz(bundleGraph, 'after_bundle');
     for (let bundle of internalBundleGraph.getBundles()) {
@@ -75,8 +76,11 @@ export default class BundlerRunner {
     }
     await dumpGraphToGraphViz(bundleGraph, 'after_summarize');
     await bundler.optimize({
-      bundleGraph: new BundlerOptimizeBundleGraph(internalBundleGraph),
-      options: this.options
+      bundleGraph: new BundlerOptimizeBundleGraph(
+        internalBundleGraph,
+        this.options
+      ),
+      options: this.pluginOptions
     });
     await dumpGraphToGraphViz(bundleGraph, 'after_optimize');
     await this.nameBundles(internalBundleGraph);
@@ -84,7 +88,7 @@ export default class BundlerRunner {
     await dumpGraphToGraphViz(bundleGraph, 'after_runtimes');
 
     if (cacheKey != null) {
-      await this.cache.set(cacheKey, internalBundleGraph);
+      await this.options.cache.set(cacheKey, internalBundleGraph);
     }
 
     return internalBundleGraph;
@@ -126,14 +130,14 @@ export default class BundlerRunner {
     internalBundle: InternalBundle,
     internalBundleGraph: InternalBundleGraph
   ): Promise<void> {
-    let bundle = new Bundle(internalBundle, internalBundleGraph);
-    let bundleGraph = new BundleGraph(internalBundleGraph);
+    let bundle = new Bundle(internalBundle, internalBundleGraph, this.options);
+    let bundleGraph = new BundleGraph(internalBundleGraph, this.options);
 
     for (let namer of namers) {
       let name = await namer.name({
         bundle,
         bundleGraph,
-        options: this.options
+        options: this.pluginOptions
       });
 
       if (name != null) {
@@ -163,9 +167,9 @@ export default class BundlerRunner {
       let runtimes = await this.config.getRuntimes(bundle.env.context);
       for (let runtime of runtimes) {
         let applied = await runtime.apply({
-          bundle: new NamedBundle(bundle, internalBundleGraph),
-          bundleGraph: new BundleGraph(internalBundleGraph),
-          options: this.options
+          bundle: new NamedBundle(bundle, internalBundleGraph, this.options),
+          bundleGraph: new BundleGraph(internalBundleGraph, this.options),
+          options: this.pluginOptions
         });
         if (applied) {
           await this.addRuntimesToBundle(

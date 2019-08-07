@@ -1,10 +1,7 @@
 // @flow strict-local
 
-import type {
-  FilePath,
-  InitialParcelOptions,
-  ParcelOptions
-} from '@parcel/types';
+import type {FilePath, InitialParcelOptions} from '@parcel/types';
+import type {ParcelOptions} from './types';
 
 import {getRootDir} from '@parcel/utils';
 import loadDotEnv from './loadDotEnv';
@@ -12,6 +9,7 @@ import path from 'path';
 import TargetResolver from './TargetResolver';
 import {resolveConfig} from '@parcel/utils';
 import {NodeFS} from '@parcel/fs';
+import Cache from '@parcel/cache';
 
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
@@ -59,15 +57,26 @@ export default async function resolveOptions(
       ? path.resolve(outputCwd, initialOptions.cacheDir)
       : path.resolve(projectRoot, DEFAULT_CACHE_DIRNAME);
 
+  let cache = new Cache(outputFS, cacheDir);
+
   let targetResolver = new TargetResolver(inputFS);
   let targets = await targetResolver.resolve(rootDir, cacheDir, initialOptions);
+  let mode = initialOptions.mode ?? 'development';
+  let minify = initialOptions.minify ?? mode === 'production';
 
-  // $FlowFixMe
   return {
+    config: initialOptions.config,
+    defaultConfig: initialOptions.defaultConfig,
     env:
       initialOptions.env ??
       (await loadDotEnv(inputFS, path.join(rootDir, 'index'))),
-    ...initialOptions,
+    mode,
+    minify,
+    autoinstall: initialOptions.autoinstall ?? true,
+    hot: initialOptions.hot ?? false,
+    serve: initialOptions.serve ?? false,
+    disableCache: initialOptions.disableCache ?? false,
+    killWorkers: initialOptions.killWorkers ?? false,
     cacheDir,
     entries,
     rootDir,
@@ -79,6 +88,7 @@ export default async function resolveOptions(
     projectRoot,
     lockFile,
     inputFS,
-    outputFS
+    outputFS,
+    cache
   };
 }

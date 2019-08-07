@@ -1,13 +1,10 @@
 // @flow strict-local
 
-import type Cache from '@parcel/cache';
-
 import type {
   AST,
   Blob,
   Config,
   DependencyOptions,
-  Environment,
   File,
   FilePath,
   Meta,
@@ -16,7 +13,7 @@ import type {
   Symbol,
   TransformerResult
 } from '@parcel/types';
-import type {FileSystem} from '@parcel/fs';
+import type {Asset, Dependency, Environment, ParcelOptions} from './types';
 
 import {Readable} from 'stream';
 import crypto from 'crypto';
@@ -29,20 +26,16 @@ import {
   blobToStream,
   TapStream
 } from '@parcel/utils';
-import Dependency from './Dependency';
+import {createDependency, mergeDependencies} from './Dependency';
+import {mergeEnvironments} from './Environment';
 
 type AssetOptions = {|
   id?: string,
   hash?: ?string,
-  idBase?: string,
-  cache: Cache,
-  fs: FileSystem,
+  idBase?: ?string,
   filePath: FilePath,
   type: string,
-  content?: Blob,
   contentKey?: ?string,
-  ast?: ?AST,
-  map?: ?SourceMap,
   mapKey?: ?string,
   dependencies?: Map<string, Dependency>,
   connectedFiles?: Map<FilePath, File>,
@@ -55,83 +48,61 @@ type AssetOptions = {|
   sideEffects?: boolean
 |};
 
-export default class Asset {
-  id: string;
-  hash: ?string;
-  idBase: string;
-  fs: FileSystem;
-  filePath: FilePath;
-  type: string;
-  ast: ?AST;
-  cache: Cache;
-  map: ?SourceMap;
-  mapKey: ?string;
-  dependencies: Map<string, Dependency>;
-  connectedFiles: Map<FilePath, File>;
-  isIsolated: boolean;
-  outputHash: string;
-  env: Environment;
-  meta: Meta;
-  stats: Stats;
-  content: Blob;
-  contentKey: ?string;
-  symbols: Map<Symbol, Symbol>;
-  sideEffects: boolean;
-
-  constructor(options: AssetOptions) {
-    this.idBase = options.idBase != null ? options.idBase : options.filePath;
-    this.id =
+export function createAsset(options: AssetOptions): Asset {
+  let idBase = options.idBase != null ? options.idBase : options.filePath;
+  return {
+    id:
       options.id != null
         ? options.id
-        : md5FromString(
-            this.idBase + options.type + JSON.stringify(options.env)
-          );
-    this.hash = options.hash;
-    this.fs = options.fs;
-    this.filePath = options.filePath;
-    this.isIsolated = options.isIsolated == null ? false : options.isIsolated;
-    this.type = options.type;
-    this.content = options.content || '';
-    this.contentKey = options.contentKey;
-    this.ast = options.ast || null;
-    this.cache = options.cache;
-    this.map = options.map;
-    this.mapKey = options.mapKey;
-    this.dependencies = options.dependencies || new Map();
-    this.connectedFiles = options.connectedFiles || new Map();
-    this.outputHash = options.outputHash || '';
-    this.env = options.env;
-    this.meta = options.meta || {};
-    this.stats = options.stats;
-    this.symbols = options.symbols || new Map();
-    this.sideEffects = options.sideEffects != null ? options.sideEffects : true;
-  }
+        : md5FromString(idBase + options.type + JSON.stringify(options.env)),
+    hash: options.hash,
+    filePath: options.filePath,
+    isIsolated: options.isIsolated == null ? false : options.isIsolated,
+    type: options.type,
+    contentKey: options.contentKey,
+    mapKey: options.mapKey,
+    dependencies: options.dependencies || new Map(),
+    connectedFiles: options.connectedFiles || new Map(),
+    outputHash: options.outputHash || '',
+    env: options.env,
+    meta: options.meta || {},
+    stats: options.stats,
+    symbols: options.symbols || new Map(),
+    sideEffects: options.sideEffects != null ? options.sideEffects : true
+  };
+}
 
-  static deserialize(opts: AssetOptions) {
-    return new Asset(opts);
-  }
+type InternalAssetOptions = {|
+  value: Asset,
+  options: ParcelOptions,
+  content?: Blob,
+  map?: ?SourceMap,
+  ast?: ?AST,
+  idBase?: ?string
+|};
 
-  serialize(): AssetOptions {
-    // Exclude `code`, `map`, and `ast` from cache
-    return {
-      id: this.id,
-      hash: this.hash,
-      fs: this.fs,
-      filePath: this.filePath,
-      cache: this.cache,
-      type: this.type,
-      dependencies: this.dependencies,
-      connectedFiles: this.connectedFiles,
-      isIsolated: this.isIsolated,
-      outputHash: this.outputHash,
-      env: this.env,
-      meta: this.meta,
-      stats: this.stats,
-      contentKey: this.contentKey,
-      mapKey: this.mapKey,
-      symbols: this.symbols,
-      sideEffects: this.sideEffects
-    };
+export default class InternalAsset {
+  value: Asset;
+  options: ParcelOptions;
+  content: Blob;
+  map: ?SourceMap;
+  ast: ?AST;
+  idBase: ?string;
+
+  constructor({
+    value,
+    options,
+    content,
+    map,
+    ast,
+    idBase
+  }: InternalAssetOptions) {
+    this.value = value;
+    this.options = options;
+    this.content = content || '';
+    this.map = map;
+    this.ast = ast;
+    this.idBase = idBase;
   }
 
   /*
@@ -158,7 +129,7 @@ export default class Asset {
     // Since we can only read from the stream once, compute the content length
     // and hash while it's being written to the cache.
     let [contentKey, mapKey] = await Promise.all([
-      this.cache.setStream(
+      this.options.cache.setStream(
         this.generateCacheKey('content' + pipelineKey),
         contentStream.pipe(
           new TapStream(buf => {
@@ -169,17 +140,20 @@ export default class Asset {
       ),
       this.map == null
         ? Promise.resolve()
-        : this.cache.set(this.generateCacheKey('map' + pipelineKey), this.map)
+        : this.options.cache.set(
+            this.generateCacheKey('map' + pipelineKey),
+            this.map
+          )
     ]);
-    this.contentKey = contentKey;
-    this.mapKey = mapKey;
-    this.stats.size = size;
-    this.outputHash = hash.digest('hex');
+    this.value.contentKey = contentKey;
+    this.value.mapKey = mapKey;
+    this.value.stats.size = size;
+    this.value.outputHash = hash.digest('hex');
   }
 
   async getCode(): Promise<string> {
-    if (this.contentKey != null) {
-      this.content = this.cache.getStream(this.contentKey);
+    if (this.value.contentKey != null) {
+      this.content = this.options.cache.getStream(this.value.contentKey);
     }
 
     if (typeof this.content === 'string' || this.content instanceof Buffer) {
@@ -192,8 +166,8 @@ export default class Asset {
   }
 
   async getBuffer(): Promise<Buffer> {
-    if (this.contentKey != null) {
-      this.content = this.cache.getStream(this.contentKey);
+    if (this.value.contentKey != null) {
+      this.content = this.options.cache.getStream(this.value.contentKey);
     }
 
     if (typeof this.content === 'string' || this.content instanceof Buffer) {
@@ -205,8 +179,8 @@ export default class Asset {
   }
 
   getStream(): Readable {
-    if (this.contentKey != null) {
-      this.content = this.cache.getStream(this.contentKey);
+    if (this.value.contentKey != null) {
+      this.content = this.options.cache.getStream(this.value.contentKey);
     }
 
     return blobToStream(this.content);
@@ -225,8 +199,8 @@ export default class Asset {
   }
 
   async getMap(): Promise<?SourceMap> {
-    if (this.mapKey != null) {
-      this.map = await this.cache.get(this.mapKey);
+    if (this.value.mapKey != null) {
+      this.map = await this.options.cache.get(this.value.mapKey);
     }
 
     return this.map;
@@ -237,50 +211,51 @@ export default class Asset {
   }
 
   generateCacheKey(key: string): string {
-    return md5FromString(key + this.id + JSON.stringify(this.env));
+    return md5FromString(key + this.value.id + JSON.stringify(this.value.env));
   }
 
   addDependency(opts: DependencyOptions) {
-    let {env, ...rest} = opts;
-    let dep = new Dependency({
+    // eslint-disable-next-line no-unused-vars
+    let {env, target, ...rest} = opts;
+    let dep = createDependency({
       ...rest,
-      env: this.env.merge(env),
-      sourceAssetId: this.id,
-      sourcePath: this.filePath
+      env: mergeEnvironments(this.value.env, env),
+      sourceAssetId: this.value.id,
+      sourcePath: this.value.filePath
     });
-    let existing = this.dependencies.get(dep.id);
+    let existing = this.value.dependencies.get(dep.id);
     if (existing) {
-      existing.merge(dep);
+      mergeDependencies(existing, dep);
     } else {
-      this.dependencies.set(dep.id, dep);
+      this.value.dependencies.set(dep.id, dep);
     }
     return dep.id;
   }
 
   async addConnectedFile(file: File) {
     if (file.hash == null) {
-      file.hash = await md5FromFilePath(this.fs, file.filePath);
+      file.hash = await md5FromFilePath(this.options.inputFS, file.filePath);
     }
 
-    this.connectedFiles.set(file.filePath, file);
+    this.value.connectedFiles.set(file.filePath, file);
   }
 
   getConnectedFiles(): Array<File> {
-    return Array.from(this.connectedFiles.values());
+    return Array.from(this.value.connectedFiles.values());
   }
 
   getDependencies(): Array<Dependency> {
-    return Array.from(this.dependencies.values());
+    return Array.from(this.value.dependencies.values());
   }
 
-  createChildAsset(result: TransformerResult): Asset {
+  createChildAsset(result: TransformerResult): InternalAsset {
     let content = result.content ?? result.code ?? '';
 
     let hash;
     let size;
     if (content === this.content) {
-      hash = this.hash;
-      size = this.stats.size;
+      hash = this.value.hash;
+      size = this.value.stats.size;
     } else if (typeof content === 'string' || content instanceof Buffer) {
       hash = md5FromString(content);
       size = content.length;
@@ -289,28 +264,32 @@ export default class Asset {
       size = NaN;
     }
 
-    let asset = new Asset({
-      idBase: this.idBase,
-      hash,
-      fs: this.fs,
-      filePath: this.filePath,
-      type: result.type,
+    let asset = new InternalAsset({
+      value: createAsset({
+        idBase: this.idBase,
+        hash,
+        filePath: this.value.filePath,
+        type: result.type,
+        isIsolated: result.isIsolated,
+        env: mergeEnvironments(this.value.env, result.env),
+        dependencies:
+          this.value.type === result.type
+            ? new Map(this.value.dependencies)
+            : new Map(),
+        connectedFiles: new Map(this.value.connectedFiles),
+        meta: {...this.value.meta, ...result.meta},
+        stats: {
+          time: 0,
+          size
+        },
+        symbols: new Map([...this.value.symbols, ...(result.symbols || [])]),
+        sideEffects: result.sideEffects ?? this.value.sideEffects
+      }),
+      options: this.options,
       content,
-      cache: this.cache,
       ast: result.ast,
       map: result.map,
-      isIsolated: result.isIsolated,
-      env: this.env.merge(result.env),
-      dependencies:
-        this.type === result.type ? new Map(this.dependencies) : new Map(),
-      connectedFiles: new Map(this.connectedFiles),
-      meta: {...this.meta, ...result.meta},
-      stats: {
-        time: 0,
-        size
-      },
-      symbols: new Map([...this.symbols, ...(result.symbols || [])]),
-      sideEffects: result.sideEffects ?? this.sideEffects
+      idBase: this.idBase
     });
 
     let dependencies = result.dependencies;
@@ -345,8 +324,8 @@ export default class Asset {
     }
 
     let conf = await loadConfig(
-      this.fs,
-      this.filePath,
+      this.options.inputFS,
+      this.value.filePath,
       filePaths,
       parse == null ? null : {parse}
     );

@@ -1,6 +1,6 @@
 // @flow
 
-import type {Asset, MutableAsset} from '@parcel/types';
+import type {MutableAsset} from '@parcel/types';
 
 import * as t from '@babel/types';
 import traverse from '@babel/traverse';
@@ -47,7 +47,7 @@ export function hoist(asset: MutableAsset) {
 
 const VISITOR = {
   Program: {
-    enter(path, asset: Asset) {
+    enter(path, asset: MutableAsset) {
       traverse.cache.clearScope();
       path.scope.crawl();
 
@@ -108,7 +108,7 @@ const VISITOR = {
       path.scope.setData('shouldWrap', shouldWrap);
     },
 
-    exit(path, asset: Asset) {
+    exit(path, asset: MutableAsset) {
       let scope = path.scope;
 
       if (scope.getData('shouldWrap')) {
@@ -164,7 +164,7 @@ const VISITOR = {
     }
   },
 
-  MemberExpression(path, asset: Asset) {
+  MemberExpression(path, asset: MutableAsset) {
     if (path.scope.hasBinding('module') || path.scope.getData('shouldWrap')) {
       return;
     }
@@ -191,7 +191,7 @@ const VISITOR = {
     }
   },
 
-  ReferencedIdentifier(path, asset: Asset) {
+  ReferencedIdentifier(path, asset: MutableAsset) {
     if (
       path.node.name === 'exports' &&
       !path.scope.hasBinding('exports') &&
@@ -225,14 +225,14 @@ const VISITOR = {
     }
   },
 
-  ThisExpression(path, asset: Asset) {
+  ThisExpression(path, asset: MutableAsset) {
     if (!path.scope.parent && !path.scope.getData('shouldWrap')) {
       path.replaceWith(getExportsIdentifier(asset, path.scope));
       asset.meta.isCommonJS = true;
     }
   },
 
-  AssignmentExpression(path, asset: Asset) {
+  AssignmentExpression(path, asset: MutableAsset) {
     if (path.scope.hasBinding('exports') || path.scope.getData('shouldWrap')) {
       return;
     }
@@ -307,7 +307,7 @@ const VISITOR = {
     }
   },
 
-  CallExpression(path, asset: Asset) {
+  CallExpression(path, asset: MutableAsset) {
     let {callee, arguments: args} = path.node;
     let isRequire = t.isIdentifier(callee, {name: 'require'});
     let ignore =
@@ -368,7 +368,7 @@ const VISITOR = {
     }
   },
 
-  ImportDeclaration(path, asset: Asset) {
+  ImportDeclaration(path, asset: MutableAsset) {
     let dep = asset
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
@@ -396,7 +396,7 @@ const VISITOR = {
     path.remove();
   },
 
-  ExportDefaultDeclaration(path, asset: Asset) {
+  ExportDefaultDeclaration(path, asset: MutableAsset) {
     let {declaration} = path.node;
     let identifier = getExportIdentifier(asset, 'default');
     let name = declaration.id ? declaration.id.name : declaration.name;
@@ -441,7 +441,7 @@ const VISITOR = {
     asset.meta.isES6Module = true;
   },
 
-  ExportNamedDeclaration(path, asset: Asset) {
+  ExportNamedDeclaration(path, asset: MutableAsset) {
     let {declaration, source, specifiers} = path.node;
 
     if (source) {
@@ -464,8 +464,12 @@ const VISITOR = {
           .getDependencies()
           .find(dep => dep.moduleSpecifier === source.value);
         if (dep && imported) {
-          dep.symbols.set(imported, id.name);
-          dep.isWeak = true;
+          // this will merge with the existing dependency
+          asset.addDependency({
+            moduleSpecifier: dep.moduleSpecifier,
+            symbols: new Map([[imported, id.name]]),
+            isWeak: true
+          });
         }
 
         path.insertAfter(
@@ -502,7 +506,7 @@ const VISITOR = {
     asset.meta.isES6Module = true;
   },
 
-  ExportAllDeclaration(path, asset: Asset) {
+  ExportAllDeclaration(path, asset: MutableAsset) {
     let dep = asset
       .getDependencies()
       .find(dep => dep.moduleSpecifier === path.node.source.value);
@@ -522,7 +526,7 @@ const VISITOR = {
   }
 };
 
-function addImport(asset: Asset, path) {
+function addImport(asset: MutableAsset, path) {
   // Replace with a $parcel$require call so we know where to insert side effects.
   let requireCall = REQUIRE_CALL_TEMPLATE({
     ID: t.stringLiteral(asset.id),
@@ -540,7 +544,7 @@ function addImport(asset: Asset, path) {
   path.scope.setData('hoistedImport', lastImport);
 }
 
-function addExport(asset: Asset, path, local, exported) {
+function addExport(asset: MutableAsset, path, local, exported) {
   let scope = path.scope.getProgramParent();
   let identifier = getExportIdentifier(asset, exported.name);
 
@@ -572,7 +576,7 @@ function addExport(asset: Asset, path, local, exported) {
   constantViolations.forEach(path => path.insertAfter(t.cloneDeep(assignNode)));
 }
 
-function hasImport(asset: Asset, id) {
+function hasImport(asset: MutableAsset, id) {
   for (let dep of asset.getDependencies()) {
     if (new Set(dep.symbols.values()).has(id)) {
       return true;
@@ -582,11 +586,11 @@ function hasImport(asset: Asset, id) {
   return false;
 }
 
-function hasExport(asset: Asset, id) {
+function hasExport(asset: MutableAsset, id) {
   return new Set(asset.symbols.values()).has(id);
 }
 
-function safeRename(path, asset: Asset, from, to) {
+function safeRename(path, asset: MutableAsset, from, to) {
   if (from === to) {
     return;
   }
@@ -608,7 +612,7 @@ function safeRename(path, asset: Asset, from, to) {
   }
 }
 
-function getExportsIdentifier(asset: Asset, scope) {
+function getExportsIdentifier(asset: MutableAsset, scope) {
   if (scope.getProgramParent().getData('shouldWrap')) {
     return t.identifier('exports');
   } else {

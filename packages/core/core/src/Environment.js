@@ -1,99 +1,82 @@
 // @flow
-import type {
-  EnvironmentOpts,
-  Environment as IEnvironment,
-  EnvironmentContext,
-  Engines
-} from '@parcel/types';
+import type {EnvironmentOpts} from '@parcel/types';
+import type {Environment} from './types';
 
 const DEFAULT_ENGINES = {
   browsers: ['> 0.25%'],
   node: '>= 8.0.0'
 };
 
-const BROWSER_ENVS = new Set([
-  'browser',
-  'web-worker',
-  'service-worker',
-  'electron-renderer'
-]);
-const ELECTRON_ENVS = new Set(['electron-main', 'electron-renderer']);
-const NODE_ENVS = new Set(['node', ...ELECTRON_ENVS]);
-const ISOLATED_ENVS = new Set(['web-worker', 'service-worker']);
-
-export default class Environment implements IEnvironment {
-  context: EnvironmentContext;
-  engines: Engines;
-  includeNodeModules: boolean;
-
-  constructor({context, engines, includeNodeModules}: EnvironmentOpts = {}) {
-    if (context != null) {
-      this.context = context;
-    } else if (engines?.node) {
-      this.context = 'node';
+export function createEnvironment({
+  context,
+  engines,
+  includeNodeModules
+}: EnvironmentOpts = {}): Environment {
+  if (context == null) {
+    if (engines?.node) {
+      context = 'node';
     } else if (engines?.browsers) {
-      this.context = 'browser';
+      context = 'browser';
     } else {
-      this.context = 'browser';
-    }
-
-    if (engines) {
-      this.engines = engines;
-    } else if (this.isNode()) {
-      this.engines = {
-        node: DEFAULT_ENGINES.node
-      };
-    } else if (this.isBrowser()) {
-      this.engines = {
-        browsers: DEFAULT_ENGINES.browsers
-      };
-    } else {
-      this.engines = {};
-    }
-
-    if (includeNodeModules != null) {
-      this.includeNodeModules = includeNodeModules;
-    } else {
-      switch (this.context) {
-        case 'node':
-        case 'electron':
-          this.includeNodeModules = false;
-          break;
-        case 'browser':
-        case 'web-worker':
-        case 'service-worker':
-        default:
-          this.includeNodeModules = true;
-          break;
-      }
+      context = 'browser';
     }
   }
 
-  merge(env: ?EnvironmentOpts) {
-    // If merging the same object, avoid copying.
-    if (env === this) {
-      return this;
+  if (engines == null) {
+    switch (context) {
+      case 'node':
+      case 'electron-main':
+        engines = {
+          node: DEFAULT_ENGINES.node
+        };
+        break;
+      case 'browser':
+      case 'web-worker':
+      case 'service-worker':
+      case 'electron-renderer':
+        engines = {
+          browsers: DEFAULT_ENGINES.browsers
+        };
+        break;
+      default:
+        engines = {};
     }
-
-    return new Environment({
-      ...this,
-      ...env
-    });
   }
 
-  isBrowser() {
-    return BROWSER_ENVS.has(this.context);
+  if (includeNodeModules == null) {
+    switch (context) {
+      case 'node':
+      case 'electron-main':
+      case 'electron-renderer':
+        includeNodeModules = false;
+        break;
+      case 'browser':
+      case 'web-worker':
+      case 'service-worker':
+      default:
+        includeNodeModules = true;
+        break;
+    }
   }
 
-  isNode() {
-    return NODE_ENVS.has(this.context);
+  return {
+    context,
+    engines,
+    includeNodeModules
+  };
+}
+
+export function mergeEnvironments(
+  a: Environment,
+  b: ?EnvironmentOpts
+): Environment {
+  // If merging the same object, avoid copying.
+  if (a === b) {
+    return a;
   }
 
-  isElectron() {
-    return ELECTRON_ENVS.has(this.context);
-  }
-
-  isIsolated() {
-    return ISOLATED_ENVS.has(this.context);
-  }
+  return {
+    ...a,
+    ...b
+  };
 }

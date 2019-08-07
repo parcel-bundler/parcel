@@ -7,18 +7,20 @@ import path from 'path';
 
 import {localResolve} from '@parcel/local-require';
 import {PromiseQueue, md5FromString, md5FromObject} from '@parcel/utils';
-import type {AssetRequest, FilePath, Glob, ParcelOptions} from '@parcel/types';
+import type {FilePath, Glob} from '@parcel/types';
+import type {ParcelOptions} from './types';
 import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
 
 import type Config from './public/Config';
 import ConfigLoader from './ConfigLoader';
-import Dependency from './Dependency';
+import type {Dependency} from './types';
 import Graph, {type GraphOpts} from './Graph';
 import type ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
-import type InternalAsset from './Asset';
 import type {
+  Asset as AssetValue,
+  AssetRequest,
   AssetRequestNode,
   ConfigRequest,
   ConfigRequestNode,
@@ -36,7 +38,7 @@ type RequestGraphOpts = {|
   ...GraphOpts<RequestGraphNode>,
   config: ParcelConfig,
   options: ParcelOptions,
-  onAssetRequestComplete: (AssetRequestNode, Array<InternalAsset>) => mixed,
+  onAssetRequestComplete: (AssetRequestNode, Array<AssetValue>) => mixed,
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed
 |};
 
@@ -95,14 +97,14 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   inProgress: Map<NodeId, Promise<any>> = new Map();
   invalidNodeIds: Set<NodeId> = new Set();
   runTransform: TransformationOpts => Promise<{
-    assets: Array<InternalAsset>,
+    assets: Array<AssetValue>,
     configRequests: Array<ConfigRequest>
   }>;
   runValidate: ValidationOpts => Promise<void>;
   loadConfigHandle: () => Promise<Config>;
   resolverRunner: ResolverRunner;
   configLoader: ConfigLoader;
-  onAssetRequestComplete: (AssetRequestNode, Array<InternalAsset>) => mixed;
+  onAssetRequestComplete: (AssetRequestNode, Array<AssetValue>) => mixed;
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed;
   queue: PromiseQueue;
   validationQueue: PromiseQueue;
