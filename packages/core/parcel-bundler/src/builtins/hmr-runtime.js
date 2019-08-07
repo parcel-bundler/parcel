@@ -34,14 +34,8 @@ if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
     var data = JSON.parse(event.data);
 
     if (data.type === 'update') {
-      var handled = false;
-      data.assets.forEach(function(asset) {
-        if (!asset.isNew) {
-          var didAccept = hmrAcceptCheck(global.parcelRequire, asset.id);
-          if (didAccept) {
-            handled = true;
-          }
-        }
+      var handled = data.assets.some(function(asset) {
+        return !asset.isNew && hmrAcceptCheck(global.parcelRequire, asset.id);
       });
 
       // Enable HMR for CSS by default.
