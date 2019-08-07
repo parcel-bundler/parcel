@@ -1373,7 +1373,7 @@ describe('javascript', function() {
     await run(b);
   });
 
-  it('supports async importing the same module from different bundles', async () => {
+  it('should support async importing the same module from different bundles', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/shared-bundlegroup/index.js')
     );
@@ -1403,5 +1403,25 @@ describe('javascript', function() {
 
     let {default: promise} = await run(b);
     assert.deepEqual(await promise, ['hello from a test', 'hello from b test']);
+  });
+
+  it('should not create shared bundles from contents of entries', async () => {
+    let b = await bundle(
+      [
+        '/integration/no-shared-bundles-from-entries/a.js',
+        '/integration/no-shared-bundles-from-entries/b.js'
+      ].map(entry => path.join(__dirname, entry))
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'a.js',
+        assets: ['a.js', 'lodash.js']
+      },
+      {
+        name: 'b.js',
+        assets: ['b.js', 'lodash.js']
+      }
+    ]);
   });
 });
