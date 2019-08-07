@@ -8,6 +8,7 @@ function init(options) {
   Object.assign(process.env, options.env || {});
   process.env.HMR_PORT = options.hmrPort;
   process.env.HMR_HOSTNAME = options.hmrHostname;
+  process.env.HMR_PROXY_URL = options.hmrProxyUrl;
 }
 
 async function run(path, isWarmUp) {

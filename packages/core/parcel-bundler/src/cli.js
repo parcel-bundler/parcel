@@ -27,6 +27,10 @@ program
     '--hmr-hostname <hostname>',
     'set the hostname of HMR websockets, defaults to location.hostname of current window'
   )
+  .option(
+    '--hmr-proxy-url <url>',
+    'overrides the hmr websocket url used by the client.'
+  )
   .option('--https', 'serves files over HTTPS')
   .option('--cert <path>', 'path to certificate to use with HTTPS')
   .option('--key <path>', 'path to private key to use with HTTPS')
@@ -93,6 +97,10 @@ program
   .option(
     '--hmr-hostname <hostname>',
     'set the hostname of HMR websockets, defaults to location.hostname of current window'
+  )
+  .option(
+    '--hmr-proxy-url <url>',
+    'overrides the hmr websocket url used by the client.'
   )
   .option('--https', 'listen on HTTPS for HMR connections')
   .option('--cert <path>', 'path to certificate to use with HTTPS')

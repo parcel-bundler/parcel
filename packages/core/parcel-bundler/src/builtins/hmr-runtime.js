@@ -24,9 +24,15 @@ var checkedAssets, assetsToAccept;
 
 var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
-  var hostname = process.env.HMR_HOSTNAME || location.hostname;
-  var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/');
+  var hmrUrl = '';
+  if (process.env.HMR_PROXY_URL) {
+    hmrUrl =  process.env.HMR_PROXY_URL;
+  } else {
+    var hostname = process.env.HMR_HOSTNAME || location.hostname;
+    var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+    hmrUrl = protocol + '://' + hostname + ':' + process.env.HMR_PORT + '/';
+  }
+  var ws = new WebSocket(hmrUrl);
   ws.onmessage = function(event) {
     checkedAssets = {};
     assetsToAccept = [];

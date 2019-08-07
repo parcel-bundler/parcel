@@ -24,7 +24,9 @@ class JSPackager extends Packager {
           this.options.hmrPort
         };process.env.HMR_HOSTNAME=${JSON.stringify(
           this.options.hmrHostname
-        )};` + preludeCode;
+        )};process.env.HMR_PROXY_URL=${JSON.stringify(
+          this.options.hmrProxyUrl
+          )};` + preludeCode;
     }
     await this.write(preludeCode + '({');
     this.lineOffset = lineCounter(preludeCode);
