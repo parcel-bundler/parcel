@@ -423,6 +423,25 @@ describe('javascript', function() {
     });
   });
 
+  it('should not deduplicate assets from a parent bundle in workers', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-no-deduplicate/index.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'lodash.js']
+      },
+      {
+        assets: ['worker-a.js', 'lodash.js']
+      },
+      {
+        assets: ['worker-b.js', 'lodash.js']
+      }
+    ]);
+  });
+
   it('should dynamic import files which import raw files', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-references-raw/index.js')
