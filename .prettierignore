@@ -6,3 +6,4 @@ packages/*/*/test/mochareporters.json
 packages/*/*/test/fixtures
 pacakges/*/*/test/.parcel-cache
 tmp
+.parcel-cache
