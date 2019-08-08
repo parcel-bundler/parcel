@@ -3,18 +3,15 @@
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
 
-import type {
-  Dependency as IDependency,
-  GraphVisitor,
-  Target
-} from '@parcel/types';
+import type {GraphVisitor} from '@parcel/types';
+import type {Target} from './types';
 import {md5FromObject} from '@parcel/utils';
 
-import type Asset from './Asset';
-import Dependency from './Dependency';
+import type {Asset, Dependency} from './types';
 import Graph, {type GraphOpts} from './Graph';
 import type {AssetGraphNode, AssetGroup, DependencyNode} from './types';
 import crypto from 'crypto';
+import {createDependency} from './Dependency';
 
 type AssetGraphOpts = {|
   ...GraphOpts<AssetGraphNode>,
@@ -92,7 +89,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       for (let entry of entries) {
         for (let target of targets) {
           let node = nodeFromDep(
-            new Dependency({
+            createDependency({
               moduleSpecifier: entry,
               target: target,
               env: target.env,
@@ -165,7 +162,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
       let assetNode = nodeFromAsset(asset);
       assetNodes.push(assetNode);
       let depNodes = [];
-      for (let dep of asset.getDependencies()) {
+      for (let dep of asset.dependencies.values()) {
         let depNode = nodeFromDep(dep);
         depNodes.push(this.nodes.get(depNode.id) || depNode);
       }
@@ -174,7 +171,7 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     this.replaceNodesConnectedTo(assetGroupNode, assetNodes);
   }
 
-  getIncomingDependencies(asset: Asset): Array<IDependency> {
+  getIncomingDependencies(asset: Asset): Array<Dependency> {
     let node = this.getNode(asset.id);
     if (!node) {
       return [];

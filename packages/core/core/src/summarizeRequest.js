@@ -1,6 +1,7 @@
 // @flow strict-local
-import type {Blob, AssetRequest} from '@parcel/types';
+import type {Blob} from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
+import type {AssetRequest} from './types';
 import {md5FromReadableStream, md5FromString, TapStream} from '@parcel/utils';
 
 const BUFFER_LIMIT = 5000000; // 5mb

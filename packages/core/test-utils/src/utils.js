@@ -77,7 +77,7 @@ export function bundler(
 ) {
   return new Parcel({
     entries,
-    cache: false,
+    disableCache: true,
     logLevel: 'none',
     killWorkers: false,
     defaultConfig,

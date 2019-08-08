@@ -1,22 +1,22 @@
 // @flow strict-local
 import EventEmitter from 'events';
 
-import type {AssetRequest, ParcelOptions, Target} from '@parcel/types';
+import type {ParcelOptions, Target} from './types';
 import {PromiseQueue, md5FromObject, md5FromString} from '@parcel/utils';
 import watcher, {type Event} from '@parcel/watcher';
 
-import type Asset from './Asset';
+import type {Asset} from './types';
 import AssetGraph from './AssetGraph';
 import type ParcelConfig from './ParcelConfig';
 import RequestGraph from './RequestGraph';
 import type {
   AssetGraphNode,
+  AssetRequest,
   AssetRequestNode,
   DepPathRequestNode
 } from './types';
 
 import dumpToGraphViz from './dumpGraphToGraphViz';
-import Cache from '@parcel/cache';
 import path from 'path';
 
 type Opts = {|
@@ -35,7 +35,6 @@ export default class AssetGraphBuilder extends EventEmitter {
   changedAssets: Map<string, Asset> = new Map();
   options: ParcelOptions;
   cacheKey: string;
-  cache: Cache;
 
   async init({config, options, entries, targets, assetRequest}: Opts) {
     this.options = options;
@@ -45,8 +44,6 @@ export default class AssetGraphBuilder extends EventEmitter {
       entries,
       targets
     });
-
-    this.cache = new Cache(options.outputFS, options.cacheDir);
 
     let changes = await this.readFromCache();
     if (!changes) {
@@ -169,20 +166,20 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async readFromCache(): Promise<?Array<Event>> {
-    if (this.options.cache === false) {
+    if (this.options.disableCache) {
       return null;
     }
 
     let {assetGraphKey, requestGraphKey, snapshotKey} = this.getCacheKeys();
-    let assetGraph = await this.cache.get(assetGraphKey);
-    let requestGraph = await this.cache.get(requestGraphKey);
+    let assetGraph = await this.options.cache.get(assetGraphKey);
+    let requestGraph = await this.options.cache.get(requestGraphKey);
 
     if (assetGraph && requestGraph) {
       this.assetGraph = assetGraph;
       this.requestGraph = requestGraph;
 
       let opts = this.getWatcherOptions();
-      let snapshotPath = this.cache._getCachePath(snapshotKey, '.txt');
+      let snapshotPath = this.options.cache._getCachePath(snapshotKey, '.txt');
       return watcher.getEventsSince(
         this.options.projectRoot,
         snapshotPath,
@@ -194,16 +191,16 @@ export default class AssetGraphBuilder extends EventEmitter {
   }
 
   async writeToCache() {
-    if (this.options.cache === false) {
+    if (this.options.disableCache) {
       return;
     }
 
     let {assetGraphKey, requestGraphKey, snapshotKey} = this.getCacheKeys();
-    await this.cache.set(assetGraphKey, this.assetGraph);
-    await this.cache.set(requestGraphKey, this.requestGraph);
+    await this.options.cache.set(assetGraphKey, this.assetGraph);
+    await this.options.cache.set(requestGraphKey, this.requestGraph);
 
     let opts = this.getWatcherOptions();
-    let snapshotPath = this.cache._getCachePath(snapshotKey, '.txt');
+    let snapshotPath = this.options.cache._getCachePath(snapshotKey, '.txt');
     await watcher.writeSnapshot(this.options.projectRoot, snapshotPath, opts);
   }
 }

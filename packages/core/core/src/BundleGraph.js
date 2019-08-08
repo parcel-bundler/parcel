@@ -2,21 +2,20 @@
 
 import type {
   BundleGroup,
-  Dependency as IDependency,
   GraphVisitor,
   Symbol,
-  SymbolResolution,
   TraversalActions
 } from '@parcel/types';
 
 import type {
+  Asset,
   AssetNode,
   Bundle,
   BundleGraphNode,
   BundleGroupNode,
+  Dependency,
   DependencyNode
 } from './types';
-import type Asset from './Asset';
 import type Graph from './Graph';
 
 import invariant from 'assert';
@@ -79,7 +78,7 @@ export default class BundleGraph {
     }, nullthrows(this._graph.getNode(asset.id)));
   }
 
-  createAssetReference(dependency: IDependency, asset: Asset): void {
+  createAssetReference(dependency: Dependency, asset: Asset): void {
     this._graph.addEdge(dependency.id, asset.id, 'references');
     this._graph.removeEdge(dependency.id, asset.id);
   }
@@ -97,7 +96,7 @@ export default class BundleGraph {
       });
   }
 
-  getDependencyAssets(dependency: IDependency): Array<Asset> {
+  getDependencyAssets(dependency: Dependency): Array<Asset> {
     let dependencyNode = nullthrows(this._graph.getNode(dependency.id));
     return this._graph
       .getNodesConnectedFrom(dependencyNode)
@@ -108,7 +107,7 @@ export default class BundleGraph {
       });
   }
 
-  getDependencyResolution(dep: IDependency): ?Asset {
+  getDependencyResolution(dep: Dependency): ?Asset {
     let depNode = this._graph.getNode(dep.id);
     if (!depNode) {
       return null;
@@ -135,7 +134,7 @@ export default class BundleGraph {
     return res;
   }
 
-  getDependencies(asset: Asset): Array<IDependency> {
+  getDependencies(asset: Asset): Array<Dependency> {
     let node = this._graph.getNode(asset.id);
     if (!node) {
       throw new Error('Asset not found');
@@ -147,7 +146,7 @@ export default class BundleGraph {
     });
   }
 
-  getDependenciesInBundle(bundle: Bundle, asset: Asset): Array<IDependency> {
+  getDependenciesInBundle(bundle: Bundle, asset: Asset): Array<Dependency> {
     let assetNode = this._graph.getNode(asset.id);
     if (!assetNode) {
       throw new Error('Asset not found');
@@ -335,7 +334,7 @@ export default class BundleGraph {
 
   getBundleGroupsReferencedByBundle(
     bundle: Bundle
-  ): Array<{bundleGroup: BundleGroup, dependency: IDependency}> {
+  ): Array<{bundleGroup: BundleGroup, dependency: Dependency}> {
     let node = nullthrows(
       this._graph.getNode(bundle.id),
       'Bundle graph must contain bundle'
@@ -388,7 +387,7 @@ export default class BundleGraph {
     );
   }
 
-  getIncomingDependencies(asset: Asset): Array<IDependency> {
+  getIncomingDependencies(asset: Asset): Array<Dependency> {
     let node = this._graph.getNode(asset.id);
     if (!node) {
       return [];
@@ -418,7 +417,7 @@ export default class BundleGraph {
     );
   }
 
-  resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution {
+  resolveSymbol(asset: Asset, symbol: Symbol) {
     if (symbol === '*') {
       return {asset, exportSymbol: '*', symbol: '*'};
     }

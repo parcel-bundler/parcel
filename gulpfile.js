@@ -29,7 +29,8 @@ const paths = {
   packageOther: [
     'packages/*/scope-hoisting/src/helpers.js',
     'packages/*/*/src/**/loaders/**',
-    'packages/*/*/src/**/prelude.js'
+    'packages/*/*/src/**/prelude.js',
+    'packages/*/dev-server/src/templates/**'
   ],
   packageJson: ['packages/*/*/package.json', ...IGNORED_PACKAGES],
   packages: 'packages/'

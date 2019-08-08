@@ -13,6 +13,15 @@ const EMPTY_OPTIONS = {
   targets: [],
   projectRoot: '',
   lockFile: undefined,
+  autoinstall: false,
+  hot: false,
+  serve: false,
+  mode: 'development',
+  scopeHoist: false,
+  minify: false,
+  env: {},
+  disableCache: false,
+  sourceMaps: false,
   inputFS: new NodeFS(),
   outputFS: new NodeFS()
 };
