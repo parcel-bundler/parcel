@@ -42,6 +42,17 @@ describe('javascript', function() {
     assert.equal(output.default(), 3);
   });
 
+  it('should detect dependencies inserted by a prior transform', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/dependency-prior-transform/index.js')
+    );
+
+    let jsBundle = b.getBundles()[0];
+    let contents = await outputFS.readFile(jsBundle.filePath);
+
+    assert(!contents.includes('import'));
+  });
+
   it('should produce a basic JS bundle with object rest spread support', async function() {
     let b = await bundle(
       path.join(
