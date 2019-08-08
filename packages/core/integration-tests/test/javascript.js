@@ -696,6 +696,18 @@ describe('javascript', function() {
     assert.deepEqual(output(), false);
   });
 
+  it('should insert environment variables inserted by a prior transform', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/env-prior-transform/index.js')
+    );
+
+    let jsBundle = b.getBundles()[0];
+    let contents = await outputFS.readFile(jsBundle.filePath);
+
+    assert(!contents.includes('process.env'));
+    assert.equal(await run(b), 42);
+  });
+
   it('should not insert environment variables in node environment', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/env-node/index.js')
