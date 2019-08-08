@@ -128,12 +128,14 @@ export async function run(
   let bundle: Bundle;
   if (bundleOrGraph.traverseBundles) {
     let bundles = [];
+    //$FlowFixMe
     bundleOrGraph.traverseBundles(bundle => {
       bundles.push(bundle);
     });
 
     bundle = (nullthrows(bundles.find(b => b.isEntry)): Bundle);
   } else {
+    //$FlowFixMe
     bundle = (bundleOrGraph: Bundle);
   }
   let entryAsset = bundle.getEntryAssets()[0];

@@ -99,7 +99,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       // If this module is referenced by another JS bundle, or is an entry module in a child bundle,
       // add code to register the module with the module system.
       if (
-        bundleGraph.isAssetReferencedByType(asset, 'js') ||
+        bundleGraph.isAssetReferencedByAssetType(asset, 'js') ||
         (!context.parent && registerEntry)
       ) {
         let exportsId = getName(asset, 'exports');

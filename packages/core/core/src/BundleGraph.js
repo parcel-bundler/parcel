@@ -185,13 +185,23 @@ export default class BundleGraph {
     );
   }
 
-  isAssetReferencedByType(asset: Asset, type: string): boolean {
+  isAssetReferencedByAssetType(asset: Asset, type: string): boolean {
+    // is `asset` referenced by a dependency from an asset of `type`
     return this._graph
       .getNodesConnectedTo(
         nullthrows(this._graph.getNode(asset.id)),
         'references'
       )
-      .some(v => v.type === type);
+      .map(node => {
+        invariant(node.type === 'dependency');
+        return this._graph.getNodesConnectedTo(node, null);
+      })
+      .reduce((acc, node) => acc.concat(node), ([]: Array<BundleGraphNode>))
+      .filter(node => node.type === 'asset')
+      .some(node => {
+        invariant(node.type === 'asset');
+        return node.value.type === type;
+      });
   }
 
   hasParentBundleOfType(bundle: Bundle, type: string): boolean {

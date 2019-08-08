@@ -65,8 +65,8 @@ export default class BundleGraph implements IBundleGraph {
     return this.#graph.isAssetReferenced(assetToInternalAsset(asset));
   }
 
-  isAssetReferencedByType(asset: IAsset, type: string): boolean {
-    return this.#graph.isAssetReferencedByType(
+  isAssetReferencedByAssetType(asset: IAsset, type: string): boolean {
+    return this.#graph.isAssetReferencedByAssetType(
       assetToInternalAsset(asset),
       type
     );
