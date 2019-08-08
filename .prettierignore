@@ -5,3 +5,4 @@ packages/*/*/test/dist
 packages/*/*/test/mochareporters.json
 packages/*/*/test/fixtures
 tmp
+.parcel-cache
