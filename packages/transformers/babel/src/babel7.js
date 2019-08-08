@@ -39,7 +39,8 @@ export default async function babel7(
     return {
       type: 'babel',
       version: '7.0.0',
-      program: res.ast
+      program: res.ast,
+      isDirty: true
     };
   }
 }
