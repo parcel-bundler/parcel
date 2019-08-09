@@ -27,12 +27,15 @@ export async function load(config: Config, options: PluginOptions) {
       partialConfig.options
     );
 
+    let configIsJS =
+      (babelrc != null && path.extname(babelrc) === '.js') || configjs != null;
+
     // babel.config.js files get required by @babel/core so there's no use in including it for watch mode invalidation
-    if (babelrc != null && configjs == null) {
-      config.setResolvedPath(babelrc);
-    } else if (configjs) {
+    if (configIsJS) {
       // TODO: warn about invalidation on startup
       config.shouldInvalidateOnStartup();
+    } else {
+      config.setResolvedPath(babelrc);
     }
 
     if (babelrc && (await isExtended(/*babelrc*/))) {

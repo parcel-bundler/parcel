@@ -2,22 +2,39 @@ const assert = require('assert');
 const path = require('path');
 const {
   bundle,
+  bundler,
+  getNextBuild,
   removeDistDirectory,
   run,
   ncp,
-  inputFS,
+  inputFS: fs,
   outputFS,
-  distDir
+  distDir,
+  sleep
 } = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
 
+const inputDir = path.join(__dirname, '/input');
+
 describe('babel', function() {
+  let subscription;
+  beforeEach(async function() {
+    // TODO maybe don't do this for all tests
+    await sleep(100);
+    await fs.rimraf(inputDir);
+    await sleep(100);
+  });
+
   afterEach(async () => {
     await removeDistDirectory();
+    if (subscription) {
+      await subscription.unsubscribe();
+      subscription = null;
+    }
   });
 
   it.skip('should auto install @babel/core v7', async function() {
-    let originalPkg = await inputFS.readFile(
+    let originalPkg = await fs.readFile(
       __dirname + '/integration/babel-7-autoinstall/package.json'
     );
     let b = await bundle(
@@ -29,18 +46,18 @@ describe('babel', function() {
     assert.equal(typeof output.default, 'function');
     assert.equal(output.default(), 3);
 
-    let pkg = await inputFS.readFile(
+    let pkg = await fs.readFile(
       __dirname + '/integration/babel-7-autoinstall/package.json'
     );
     assert(JSON.parse(pkg).devDependencies['@babel/core']);
-    await inputFS.writeFile(
+    await fs.writeFile(
       __dirname + '/integration/babel-7-autoinstall/package.json',
       originalPkg
     );
   });
 
   it.skip('should auto install babel plugins', async function() {
-    let originalPkg = await inputFS.readFile(
+    let originalPkg = await fs.readFile(
       __dirname + '/integration/babel-plugin-autoinstall/package.json'
     );
     let b = await bundle(
@@ -52,14 +69,14 @@ describe('babel', function() {
     assert.equal(typeof output.default, 'function');
     assert.equal(output.default(), 3);
 
-    let pkg = await inputFS.readFile(
+    let pkg = await fs.readFile(
       __dirname + '/integration/babel-plugin-autoinstall/package.json'
     );
     assert(JSON.parse(pkg).devDependencies['@babel/core']);
     assert(
       JSON.parse(pkg).devDependencies['@babel/plugin-proposal-class-properties']
     );
-    await inputFS.writeFile(
+    await fs.writeFile(
       __dirname + '/integration/babel-plugin-autoinstall/package.json',
       originalPkg
     );
@@ -173,9 +190,8 @@ describe('babel', function() {
   });
 
   it('should compile node_modules when symlinked with a source field in package.json', async function() {
-    const inputDir = path.join(__dirname, '/input');
-    await inputFS.rimraf(inputDir);
-    await inputFS.mkdirp(path.join(inputDir, 'node_modules'));
+    await fs.rimraf(inputDir);
+    await fs.mkdirp(path.join(inputDir, 'node_modules'));
     await ncp(
       path.join(path.join(__dirname, '/integration/babel-node-modules-source')),
       inputDir
@@ -188,9 +204,9 @@ describe('babel', function() {
       'dir'
     );
 
-    await bundle(inputDir + '/index.js', {outputFS: inputFS});
+    await bundle(inputDir + '/index.js', {outputFS: fs});
 
-    let file = await inputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    let file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('function Foo'));
     assert(file.includes('function Bar'));
   });
@@ -266,5 +282,35 @@ describe('babel', function() {
     assert(file.includes('hello there'));
   });
 
-  it('should rebuild when babel config changes', () => {});
+  it('should rebuild when babel config changes', async function() {
+    let differentPath = path.join(inputDir, 'differentConfig');
+    let configPath = path.join(inputDir, '.babelrc');
+
+    await ncp(path.join(__dirname, 'integration/babel-custom'), inputDir);
+
+    let b = bundler(path.join(inputDir, 'index.js'), {
+      outputFS: fs,
+      targets: {
+        main: {
+          engines: {
+            node: '^4.0.0'
+          },
+          distDir
+        }
+      }
+    });
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+    let distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(distFile.includes('hello there'));
+    await fs.copyFile(differentPath, configPath);
+    let now = Date.now();
+    // fs.copyFile does not reliably update mtime, which babel uses to invalidate cached file contents
+    await fs.utimes(configPath, now, now);
+    await getNextBuild(b);
+    distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(!distFile.includes('hello there'));
+    assert(distFile.includes('something different'));
+  });
 });

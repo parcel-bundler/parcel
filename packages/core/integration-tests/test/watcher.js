@@ -8,10 +8,10 @@ const {
   assertBundleTree,
   nextBundle,
   ncp,
-  inputFS: fs
+  inputFS: fs,
+  sleep,
+  symlinkPrivilegeWarning
 } = require('@parcel/test-utils');
-const {sleep} = require('@parcel/test-utils');
-const {symlinkPrivilegeWarning} = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
 
 const inputDir = path.join(__dirname, '/input');
