@@ -182,8 +182,13 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   if (command.name() === 'serve') {
     let port = command.port || 1234;
     let host = command.host;
-    if (!port) {
-      port = await getPort({port, host});
+    port = await getPort({port, host});
+
+    if (command.port && port !== command.port) {
+      // Parcel logger is not set up at this point, so just use native console.
+      console.warn(
+        chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`)
+      );
     }
 
     serve = {
