@@ -2,6 +2,7 @@
 
 import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
+import {patchConsole} from '@parcel/logger';
 
 require('v8-compile-cache');
 
@@ -141,6 +142,8 @@ async function run(entries: Array<string>, command: any) {
     },
     ...(await normalizeOptions(command))
   });
+
+  patchConsole();
 
   if (command.name() === 'watch' || command.name() === 'serve') {
     await parcel.watch(err => {
