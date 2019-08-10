@@ -11,6 +11,7 @@ import type {
 import type {
   Asset as AssetValue,
   AssetRequest,
+  Config,
   NodeId,
   ConfigRequest,
   ParcelOptions
@@ -21,12 +22,12 @@ import path from 'path';
 import {md5FromObject} from '@parcel/utils';
 
 import {createDependency} from './Dependency';
-import InternalConfig from './Config';
-import Config from './public/Config';
+import PublicConfig from './public/Config';
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset, {createAsset} from './InternalAsset';
+import ParcelConfig from './ParcelConfig';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 
@@ -38,17 +39,17 @@ type PostProcessFunc = (
 
 export type TransformationOpts = {|
   request: AssetRequest,
-  loadConfig: (ConfigRequest, NodeId) => Promise<InternalConfig>,
+  loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
   parentNodeId: NodeId,
   options: ParcelOptions
 |};
 
-type ConfigMap = Map<PackageName, InternalConfig>;
+type ConfigMap = Map<PackageName, Config>;
 
 export default class Transformation {
   request: AssetRequest;
   configRequests: Array<ConfigRequest>;
-  loadConfig: ConfigRequest => Promise<InternalConfig>;
+  loadConfig: ConfigRequest => Promise<Config>;
   options: ParcelOptions;
   impactfulOptions: $Shape<ParcelOptions>;
 
@@ -247,7 +248,7 @@ export default class Transformation {
     configs.set('parcel', config);
 
     for (let [moduleName] of config.devDeps) {
-      let plugin = await parcelConfig.loadPlugin(moduleName);
+      let plugin = await new ParcelConfig(parcelConfig).loadPlugin(moduleName);
       // TODO: implement loadPlugin in existing plugins that require config
       if (plugin.loadConfig) {
         let thirdPartyConfig = await this.loadTransformerConfig(
@@ -258,12 +259,12 @@ export default class Transformation {
 
         if (thirdPartyConfig.shouldRehydrate === true) {
           await plugin.rehydrateConfig({
-            config: new Config(thirdPartyConfig),
+            config: new PublicConfig(thirdPartyConfig, this.options),
             options: this.options
           });
         } else if (thirdPartyConfig.shouldReload === true) {
           await plugin.loadConfig({
-            config: new Config(thirdPartyConfig),
+            config: new PublicConfig(thirdPartyConfig, this.options),
             options: this.options
           });
         }
@@ -302,7 +303,7 @@ export default class Transformation {
     filePath: FilePath,
     plugin: PackageName,
     parcelConfigPath: FilePath
-  ): Promise<InternalConfig> {
+  ): Promise<Config> {
     let configRequest = {
       filePath,
       env: this.request.env,

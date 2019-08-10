@@ -1,4 +1,8 @@
 // @flow strict-local
+
+import type {FilePath, Glob} from '@parcel/types';
+import type {Config, ParcelOptions} from './types';
+
 import invariant from 'assert';
 //$FlowFixMe
 import {isMatch} from 'micromatch';
@@ -6,12 +10,10 @@ import nullthrows from 'nullthrows';
 
 import {localResolve} from '@parcel/local-require';
 import {PromiseQueue, md5FromString, md5FromObject} from '@parcel/utils';
-import type {FilePath, Glob} from '@parcel/types';
-import type {ParcelOptions} from './types';
 import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
 
-import type Config from './Config';
+import {addDevDependency} from './InternalConfig';
 import ConfigLoader from './ConfigLoader';
 import type {Dependency} from './types';
 import Graph, {type GraphOpts} from './Graph';
@@ -371,7 +373,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
 
       if (version == null) {
         let result = await this.getSubTaskResult(depVersionRequestNode);
-        config.addDevDependency(depVersionRequest.moduleSpecifier, result);
+        addDevDependency(config, depVersionRequest.moduleSpecifier, result);
       }
     }
     this.replaceNodesConnectedTo(

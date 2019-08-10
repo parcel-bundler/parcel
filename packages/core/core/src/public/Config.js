@@ -8,7 +8,7 @@ import type {
   PackageName,
   ThirdPartyConfig
 } from '@parcel/types';
-import type InternalConfig from '../Config';
+import type {Config, ParcelOptions} from '../types';
 
 import path from 'path';
 import {loadConfig} from '@parcel/utils';
@@ -17,19 +17,17 @@ import Environment from './Environment';
 
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
-export default class Config implements IConfig {
-  #config: InternalConfig;
+export default class PublicConfig implements IConfig {
+  #config; // Config;
+  #options; // ParcelOptions
 
-  constructor(config: InternalConfig) {
+  constructor(config: Config, options: ParcelOptions) {
     this.#config = config;
+    this.#options = options;
   }
 
   get env() {
     return new Environment(this.#config.env);
-  }
-
-  get options() {
-    return this.#config.options;
   }
 
   get searchPath() {
@@ -84,7 +82,7 @@ export default class Config implements IConfig {
   ): Promise<ThirdPartyConfig | null> {
     let parse = options && options.parse;
     let conf = await loadConfig(
-      this.options.inputFS,
+      this.#options.inputFS,
       searchPath,
       filePaths,
       parse == null ? null : {parse}
@@ -124,7 +122,7 @@ export default class Config implements IConfig {
       !!(
         pkg &&
         pkg.source != null &&
-        (await this.options.inputFS.realpath(this.searchPath)) !==
+        (await this.#options.inputFS.realpath(this.searchPath)) !==
           this.searchPath
       ) || !this.#config.searchPath.includes(NODE_MODULES)
     );

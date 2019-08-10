@@ -6,7 +6,7 @@ import type ParcelConfig from './ParcelConfig';
 import nullthrows from 'nullthrows';
 import {md5FromString} from '@parcel/utils';
 
-import InternalConfig from './Config';
+import {createConfig} from './InternalConfig';
 import Config from './public/Config';
 import loadParcelConfig from './loadParcelConfig';
 import loadPlugin from './loadParcelPlugin';
@@ -29,19 +29,18 @@ export default class ConfigLoader {
 
   async loadParcelConfig(configRequest: ConfigRequest) {
     let {filePath, env} = configRequest;
-    let internalConfig = new InternalConfig({
+    let config = createConfig({
       searchPath: filePath,
-      env,
-      options: this.options
+      env
     });
-    let config = new Config(internalConfig);
+    let publicConfig = new Config(config, this.options);
 
     let {config: parcelConfig, extendedFiles} = nullthrows(
       await loadParcelConfig(filePath, this.options)
     );
 
-    config.setResolvedPath(parcelConfig.filePath);
-    config.setResult(parcelConfig);
+    publicConfig.setResolvedPath(parcelConfig.filePath);
+    publicConfig.setResult(parcelConfig);
     this.parcelConfig = parcelConfig;
 
     let devDeps = [];
@@ -56,18 +55,18 @@ export default class ConfigLoader {
         devDeps = parcelConfig.getResolverNames();
         break;
     }
-    devDeps.forEach(devDep => config.addDevDependency(devDep));
+    devDeps.forEach(devDep => publicConfig.addDevDependency(devDep));
 
-    config.setResultHash(md5FromString(JSON.stringify(devDeps)));
+    publicConfig.setResultHash(md5FromString(JSON.stringify(devDeps)));
 
-    config.setWatchGlob('**/.parcelrc');
+    publicConfig.setWatchGlob('**/.parcelrc');
 
     // TODO: if extended config comes from a package, yarn.lock change should invalidate config request
     for (let extendedFile of extendedFiles) {
-      config.addIncludedFile(extendedFile);
+      publicConfig.addIncludedFile(extendedFile);
     }
 
-    return internalConfig;
+    return config;
   }
 
   async loadPluginConfig({
@@ -76,17 +75,19 @@ export default class ConfigLoader {
     filePath,
     meta: {parcelConfigPath}
   }: ConfigRequest) {
-    let internalConfig = new InternalConfig({
+    let config = createConfig({
       searchPath: filePath,
-      env,
-      options: this.options
+      env
     });
-    let config = new Config(internalConfig);
+
     plugin = await loadPlugin(nullthrows(plugin), parcelConfigPath);
+    if (plugin.loadConfig != null) {
+      await plugin.loadConfig({
+        config: new Config(config, this.options),
+        options: this.options
+      });
+    }
 
-    plugin.loadConfig &&
-      (await plugin.loadConfig({config, options: this.options}));
-
-    return internalConfig;
+    return config;
   }
 }

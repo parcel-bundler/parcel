@@ -12,19 +12,19 @@ import type {
   Meta,
   ModuleSpecifier,
   PackageName,
+  PackageJSON,
   ResolvedParcelConfigFile,
   Semver,
   ServerOptions,
   SourceLocation,
   Stats,
   Symbol,
-  TargetSourceMapOptions
+  TargetSourceMapOptions,
+  ThirdPartyConfig
 } from '@parcel/types';
 
 import type {FileSystem} from '@parcel/fs';
 import type Cache from '@parcel/cache';
-
-import type Config from './Config';
 
 export type Environment = {|
   context: EnvironmentContext,
@@ -175,6 +175,21 @@ export type ConfigRequestNode = {|
   id: string,
   +type: 'config_request',
   value: ConfigRequest
+|};
+
+export type Config = {|
+  searchPath: FilePath,
+  env: Environment,
+  resolvedPath: ?FilePath,
+  resultHash: ?string,
+  result: ThirdPartyConfig,
+  includedFiles: Set<FilePath>,
+  pkg: ?PackageJSON,
+  watchGlob: ?Glob,
+  devDeps: Map<PackageName, ?string>,
+  shouldRehydrate: boolean,
+  shouldReload: boolean,
+  shouldInvalidateOnStartup: boolean
 |};
 
 export type ConfigRequest = {|
