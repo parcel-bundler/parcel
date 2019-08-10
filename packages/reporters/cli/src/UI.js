@@ -11,7 +11,7 @@ import type {ValueEmitter} from '@parcel/events';
 
 import {Color} from 'ink';
 import React, {useEffect, useReducer} from 'react';
-import {Log, Progress} from './Log';
+import {Log, Progress, ServerInfo} from './Log';
 import BundleReport from './BundleReport';
 import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
@@ -49,6 +49,7 @@ export default function UI({events, options}: Props) {
   return (
     <Color reset>
       <div>
+        {options.serve && <ServerInfo options={options.serve} />}
         {logs.map((log, i) => (
           <Log key={i} event={log} />
         ))}
