@@ -54,11 +54,24 @@ export default class Validation {
 
     let validators = await parcelConfig.getValidators(this.request.filePath);
     for (let validator of validators) {
+      let config = null;
+      if (validator.getConfig) {
+        config = await validator.getConfig({
+          asset: new Asset(asset),
+          options: this.options,
+          resolveConfig: (configNames: Array<string>) =>
+            resolveConfig(
+              this.options.inputFS,
+              asset.value.filePath,
+              configNames
+            )
+        });
+      }
+
       await validator.validate({
         asset: new Asset(asset),
         options: this.options,
-        resolveConfig: (configNames: Array<string>) =>
-          resolveConfig(this.options.inputFS, asset.value.filePath, configNames)
+        config
       });
     }
   }

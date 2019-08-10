@@ -336,9 +336,14 @@ type ResolveConfigFn = (
 export type Validator = {|
   validate({
     asset: Asset,
-    resolveConfig: ResolveConfigFn, // This is a temporary function and should be replaced with something cacheable
+    config: Config | void,
     options: PluginOptions
-  }): Async<void>
+  }): Async<void>,
+  getConfig?: ({
+    asset: MutableAsset,
+    resolveConfig: ResolveConfigFn,
+    options: PluginOptions
+  }) => Async<Config | void>
 |};
 
 export type Transformer = {

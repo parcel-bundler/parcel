@@ -9,16 +9,40 @@ import LanguageServiceHost from './languageServiceHost';
 
 let langServiceCache = {};
 
-export default new Validator({
-  async validate({asset, options, resolveConfig}) {
-    let ts = await localRequire('typescript', asset.filePath);
+type TSValidatorConfig = {
+  filepath: string | null,
+  baseDir: string,
+  configHash: string,
+  tsconfig: any
+};
 
+export default new Validator({
+  async getConfig({
+    asset,
+    options,
+    resolveConfig
+  }): Promise<?TSValidatorConfig> {
     let configNames = ['tsconfig.json'];
     let tsconfig = await asset.getConfig(configNames);
-    let configPath = await resolveConfig(configNames);
+    let configPath: string | null = await resolveConfig(configNames);
     let baseDir = configPath ? path.dirname(configPath) : options.projectRoot;
     let configHash = (tsconfig ? md5FromObject(tsconfig) : '') + '-' + baseDir;
 
+    return {
+      filepath: configPath,
+      baseDir,
+      configHash,
+      tsconfig
+    };
+  },
+
+  async validate({asset, config}) {
+    let ts = await localRequire('typescript', asset.filePath);
+
+    // This should never happen...
+    if (!config) return;
+
+    let {baseDir, configHash, tsconfig} = config;
     if (tsconfig && !langServiceCache[configHash]) {
       let parsedCommandLine = ts.parseJsonConfigFileContent(
         tsconfig,
@@ -32,9 +56,12 @@ export default new Validator({
       );
     }
 
+    if (!langServiceCache[configHash]) return;
+
     const diagnostics = langServiceCache[configHash].getSemanticDiagnostics(
       asset.filePath
     );
+
     if (diagnostics.length > 0) {
       const formatted = formatDiagnostics(diagnostics, asset.filePath);
       throw formatted;
