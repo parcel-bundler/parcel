@@ -1,42 +1,37 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle, run, assertBundleTree, outputFS} = require('@parcel/test-utils');
+const {
+  bundle,
+  run,
+  assertBundles,
+  distDir,
+  outputFS
+} = require('@parcel/test-utils');
 
-describe.skip('less', function() {
+describe('less', function() {
   it('should support requiring less files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/less/index.js'));
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.less'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.less'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.less']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.index'));
   });
 
-  it('should support less imports', async function() {
+  it.skip('should support less imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/less-import/index.js')
     );
@@ -72,7 +67,7 @@ describe.skip('less', function() {
     assert(css.includes('.base'));
   });
 
-  it('should support advanced less imports', async function() {
+  it.skip('should support advanced less imports', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/less-advanced-import/index.js')
     );
@@ -108,7 +103,7 @@ describe.skip('less', function() {
     assert(css.includes('.base'));
   });
 
-  it('should support requiring empty less files', async function() {
+  it.skip('should support requiring empty less files', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/less-empty/index.js')
     );
@@ -147,7 +142,7 @@ describe.skip('less', function() {
     );
   });
 
-  it('should support linking to assets with url() from less', async function() {
+  it.skip('should support linking to assets with url() from less', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/less-url/index.js')
     );
@@ -199,7 +194,7 @@ describe.skip('less', function() {
     );
   });
 
-  it('should support transforming less with postcss', async function() {
+  it.skip('should support transforming less with postcss', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/less-postcss/index.js')
     );

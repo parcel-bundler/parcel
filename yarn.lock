@@ -7438,7 +7438,7 @@ lerna@^3.3.2:
     import-local "^1.0.0"
     npmlog "^4.1.2"
 
-less@^3.0.1:
+less@^3.0.1, less@^3.9.0:
   version "3.9.0"
   resolved "https://registry.yarnpkg.com/less/-/less-3.9.0.tgz#b7511c43f37cf57dc87dffd9883ec121289b1474"
   integrity sha512-31CmtPEZraNUtuUREYjSqRkeETFdyEHSEPAGq4erDlUXtda7pzNmctdljdIagSb589d/qXGWiiP31R5JVf+v0w==
