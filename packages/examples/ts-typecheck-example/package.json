@@ -32,6 +32,6 @@
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-alpha.0",
     "@parcel/core": "^2.0.0-alpha.0",
-    "@parcel/validator-ts-typechecker": "^2.0.0-alpha.0"
+    "@parcel/validator-typescript": "^2.0.0-alpha.0"
   }
 }
