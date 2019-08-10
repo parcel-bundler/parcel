@@ -72,7 +72,7 @@ describe('html', function() {
     ]);
   });
 
-  it.skip('should insert sibling CSS bundles for JS files in the HEAD', async function() {
+  it('should insert sibling CSS bundles for JS files in the HEAD', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css/index.html')
     );
@@ -84,7 +84,7 @@ describe('html', function() {
       },
       {
         type: 'js',
-        assets: ['index.js', 'index.css']
+        assets: ['index.js']
       },
       {
         type: 'css',
@@ -100,35 +100,25 @@ describe('html', function() {
     );
   });
 
-  it.skip('should insert sibling bundles before body element if no HEAD', async function() {
+  it('should insert sibling bundles before body element if no HEAD', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css-head/index.html')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'js',
-          assets: ['index.js', 'index.css'],
-          childBundles: [
-            {
-              type: 'css',
-              assets: ['index.css'],
-              childBundles: [
-                {
-                  type: 'map'
-                }
-              ]
-            },
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: ['index.js']
+      },
+      {
+        type: 'css',
+        assets: ['index.css']
+      }
+    ]);
 
     let html = await outputFS.readFile(path.join(distDir, 'index.html'));
     assert(
@@ -146,73 +136,53 @@ describe('html', function() {
       }
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'css',
-          assets: ['index.css'],
-          childBundles: [
-            {
-              type: 'js',
-              assets: [
-                'index.css',
-                'bundle-url.js',
-                'css-loader.js',
-                'hmr-runtime.js'
-              ],
-              childBundles: [
-                {
-                  type: 'map'
-                }
-              ]
-            },
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['index.css']
+      },
+      {
+        type: 'js',
+        assets: [
+          'index.css',
+          'bundle-url.js',
+          'css-loader.js',
+          'hmr-runtime.js'
+        ]
+      }
+    ]);
 
     let html = await outputFS.readFile(path.join(distDir, 'index.html'));
     assert(/<script src="[/\\]{1}html-css-js\.[a-f0-9]+\.js">/.test(html));
   });
 
-  it.skip('should insert sibling bundles at correct location in tree when optional elements are absent', async function() {
+  it('should insert sibling bundles at correct location in tree when optional elements are absent', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-css-optional-elements/index.html')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'js',
-          assets: ['index.js', 'index.css'],
-          childBundles: [
-            {
-              type: 'css',
-              assets: ['index.css'],
-              childBundles: [
-                {
-                  type: 'map'
-                }
-              ]
-            },
-            {
-              type: 'map'
-            }
-          ]
-        },
-        {
-          type: 'js',
-          assets: ['other.js']
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: ['index.js']
+      },
+      {
+        type: 'css',
+        assets: ['index.css']
+      },
+      {
+        type: 'js',
+        assets: ['other.js']
+      }
+    ]);
 
     let html = await outputFS.readFile(path.join(distDir, 'index.html'));
     assert(
