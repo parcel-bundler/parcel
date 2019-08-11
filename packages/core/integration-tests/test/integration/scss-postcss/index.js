@@ -1,4 +1,4 @@
-var map = require('./index.scss');
+var map = require('./index.module.scss');
 
 module.exports = function () {
   return map.index;

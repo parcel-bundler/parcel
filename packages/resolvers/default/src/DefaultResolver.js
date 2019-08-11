@@ -17,7 +17,7 @@ import builtins from './builtins';
 export default new Resolver({
   async resolve({dependency, options}) {
     const resolved = await new NodeResolver({
-      extensions: ['ts', 'tsx', 'js', 'json', 'css', 'styl'],
+      extensions: ['ts', 'tsx', 'js', 'json', 'css', 'styl', 'sass', 'scss'],
       options
     }).resolve(dependency);
 

@@ -1,71 +1,55 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle, run, assertBundleTree, outputFS} = require('@parcel/test-utils');
+const {
+  bundle,
+  run,
+  assertBundles,
+  distDir,
+  outputFS
+} = require('@parcel/test-utils');
 
-describe.skip('sass', function() {
+describe('sass', function() {
   it('should support requiring sass files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/sass/index.js'));
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.sass'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.sass'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.sass']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.index'));
   });
 
   it('should support requiring scss files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/scss/index.js'));
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.scss'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.scss'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.scss']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.index'));
   });
 
@@ -74,33 +58,22 @@ describe.skip('sass', function() {
       path.join(__dirname, '/integration/scss-import/index.js')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.scss'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.scss'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.scss']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.index'));
     assert(css.includes('.foo'));
     assert(css.includes('.bar'));
@@ -111,38 +84,23 @@ describe.skip('sass', function() {
       path.join(__dirname, '/integration/scss-empty/index.js')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.scss'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.scss'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.scss']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
-    assert(
-      /^\/\*# sourceMappingURL=\/\w*\.css\.map \*\/$/.test(
-        css.replace('\n', '')
-      )
-    );
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert.equal(css, '');
   });
 
   it('should support linking to assets with url() from scss', async function() {
@@ -150,54 +108,37 @@ describe.skip('sass', function() {
       path.join(__dirname, '/integration/scss-url/index.js')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.scss'],
-      childBundles: [
-        {
-          type: 'jpeg',
-          assets: ['image.jpeg'],
-          childBundles: []
-        },
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.scss'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        },
-        {
-          type: 'woff2',
-          assets: ['test.woff2'],
-          childBundles: []
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        type: 'jpeg',
+        assets: ['image.jpeg']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.scss']
+      },
+      {
+        type: 'woff2',
+        assets: ['test.woff2']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(/url\("\/test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
 
     assert(
       await outputFS.exists(
-        path.join(
-          __dirname,
-          '/dist/',
-          css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1]
-        )
+        path.join(distDir, css.match(/url\("(\/test\.[0-9a-f]+\.woff2)"\)/)[1])
       )
     );
   });
@@ -207,34 +148,23 @@ describe.skip('sass', function() {
       path.join(__dirname, '/integration/scss-postcss/index.js')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.scss'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.scss'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'index.module.scss']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.module.scss']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     let className = output();
     assert.notStrictEqual(className, 'index');
 
-    let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes(`.${className}`));
   });
 
@@ -243,18 +173,15 @@ describe.skip('sass', function() {
       path.join(__dirname, '/integration/sass-advanced-import/index.sass')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.css',
-      assets: ['index.sass'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.sass']
+      }
+    ]);
 
     let css = (await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
+      path.join(distDir, 'index.css'),
       'utf8'
     )).replace(/\s+/g, ' ');
     assert(css.includes('.foo { color: blue;'));
@@ -266,15 +193,14 @@ describe.skip('sass', function() {
       path.join(__dirname, '/integration/scss-absolute-imports/style.scss')
     );
 
-    await assertBundleTree(b, {
-      name: 'style.css',
-      assets: ['style.scss']
-    });
+    await assertBundles(b, [
+      {
+        name: 'style.css',
+        assets: ['style.scss']
+      }
+    ]);
 
-    let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/style.css'),
-      'utf8'
-    );
+    let css = await outputFS.readFile(path.join(distDir, 'style.css'), 'utf8');
     assert(css.includes('.a'));
     assert(css.includes('.b'));
   });
