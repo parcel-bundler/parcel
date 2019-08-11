@@ -215,7 +215,7 @@ export type Bundle = {|
   id: string,
   type: string,
   env: Environment,
-  entryAssetId: ?string,
+  entryAssetIds: Array<string>,
   isEntry: ?boolean,
   target: Target,
   filePath: ?FilePath,

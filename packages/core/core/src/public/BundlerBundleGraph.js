@@ -120,7 +120,7 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
         env: environmentToInternalEnvironment(
           opts.env ?? nullthrows(opts.entryAsset).env
         ),
-        entryAssetId: opts.entryAsset?.id,
+        entryAssetIds: opts.entryAsset ? [opts.entryAsset.id] : [],
         filePath: null,
         isEntry: opts.isEntry,
         target: targetToInternalTarget(opts.target),
