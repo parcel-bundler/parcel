@@ -80,6 +80,7 @@ describe('less', function() {
 
     assert(css.includes('.index'));
     assert(css.includes('.base'));
+    assert(css.includes('.external'));
   });
 
   it('should support requiring empty less files', async function() {
