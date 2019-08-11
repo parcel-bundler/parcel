@@ -1,91 +1,126 @@
-// @flow
-import type {FilePath, PackageName, Glob} from '@parcel/types';
+// @flow strict-local
+// flowlint unsafe-getters-setters:off
+import type {
+  Config as IConfig,
+  FilePath,
+  Glob,
+  PackageJSON,
+  PackageName,
+  Config as ThirdPartyConfig
+} from '@parcel/types';
+import type {Config, ParcelOptions} from '../types';
 
-type ConfigOpts = {|
-  searchPath: FilePath,
-  resolvedPath?: FilePath,
-  result?: any,
-  includedFiles?: Set<FilePath>,
-  watchGlob?: Glob,
-  devDeps?: Map<PackageName, ?string>
-|};
+import path from 'path';
+import {loadConfig} from '@parcel/utils';
 
-export default class Config {
-  searchPath: FilePath;
-  resolvedPath: ?FilePath;
-  result: ?any;
-  resultHash: ?string;
-  includedFiles: Set<FilePath>;
-  watchGlob: ?Glob;
-  devDeps: Map<PackageName, ?string>;
+import Environment from './Environment';
 
-  constructor({
-    searchPath,
-    resolvedPath,
-    result,
-    includedFiles,
-    watchGlob,
-    devDeps
-  }: ConfigOpts) {
-    this.searchPath = searchPath;
-    this.resolvedPath = resolvedPath;
-    this.result = result || null;
-    this.includedFiles = includedFiles || new Set();
-    this.watchGlob = watchGlob;
-    this.devDeps = devDeps || new Map();
+const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
+
+export default class PublicConfig implements IConfig {
+  #config; // Config;
+  #options; // ParcelOptions
+
+  constructor(config: Config, options: ParcelOptions) {
+    this.#config = config;
+    this.#options = options;
+  }
+
+  get searchPath() {
+    return this.#config.searchPath;
+  }
+
+  get result() {
+    return this.#config.result;
   }
 
   setResolvedPath(filePath: FilePath) {
-    this.resolvedPath = filePath;
+    this.#config.resolvedPath = filePath;
   }
 
+  // $FlowFixMe
   setResult(result: any) {
-    this.result = result;
+    this.#config.result = result;
   }
 
   setResultHash(resultHash: string) {
-    this.resultHash = resultHash;
+    this.#config.resultHash = resultHash;
   }
 
   addIncludedFile(filePath: FilePath) {
-    this.includedFiles.add(filePath);
+    this.#config.includedFiles.add(filePath);
   }
 
-  setDevDep(name: PackageName, version?: string) {
-    this.devDeps.set(name, version);
+  addDevDependency(name: PackageName, version?: string) {
+    this.#config.devDeps.set(name, version);
   }
 
-  getDevDepVersion(name: PackageName) {
-    return this.devDeps.get(name);
+  setWatchGlob(glob: Glob) {
+    this.#config.watchGlob = glob;
   }
 
-  setWatchGlob(glob: string) {
-    this.watchGlob = glob;
+  shouldRehydrate() {
+    this.#config.shouldRehydrate = true;
   }
 
-  // This will be more useful when we have edge types
-  getInvalidations() {
-    let invalidations = [];
+  shouldReload() {
+    this.#config.shouldReload = true;
+  }
 
-    if (this.watchGlob) {
-      invalidations.push({
-        action: 'add',
-        pattern: this.watchGlob
-      });
+  shouldInvalidateOnStartup() {
+    this.#config.shouldInvalidateOnStartup = true;
+  }
+
+  async getConfigFrom(
+    searchPath: FilePath,
+    filePaths: Array<FilePath>,
+    options: ?{parse?: boolean, exclude?: boolean}
+  ): Promise<ThirdPartyConfig | null> {
+    let parse = options && options.parse;
+    let conf = await loadConfig(
+      this.#options.inputFS,
+      searchPath,
+      filePaths,
+      parse == null ? null : {parse}
+    );
+    if (conf == null) {
+      return null;
     }
 
-    for (let filePath of [this.resolvedPath, ...this.includedFiles]) {
-      invalidations.push({
-        action: 'change',
-        pattern: filePath
-      });
-
-      invalidations.push({
-        action: 'unlink',
-        pattern: filePath
-      });
+    if (!options || !options.exclude) {
+      for (let file of conf.files) {
+        this.addIncludedFile(file.filePath);
+      }
     }
 
-    return invalidations;
+    return conf.config;
+  }
+
+  async getConfig(
+    filePaths: Array<FilePath>,
+    options: ?{parse?: boolean, exclude?: boolean}
+  ): Promise<ThirdPartyConfig | null> {
+    return this.getConfigFrom(this.searchPath, filePaths, options);
+  }
+
+  async getPackage(): Promise<PackageJSON | null> {
+    if (this.#config.pkg) {
+      return this.#config.pkg;
+    }
+
+    this.#config.pkg = await this.getConfig(['package.json']);
+    return this.#config.pkg;
+  }
+
+  async isSource() {
+    let pkg = await this.getPackage();
+    return (
+      !!(
+        pkg &&
+        pkg.source != null &&
+        (await this.#options.inputFS.realpath(this.searchPath)) !==
+          this.searchPath
+      ) || !this.#config.searchPath.includes(NODE_MODULES)
+    );
   }
 }

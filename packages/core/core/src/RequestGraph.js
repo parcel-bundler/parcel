@@ -1,4 +1,8 @@
 // @flow strict-local
+
+import type {FilePath, Glob} from '@parcel/types';
+import type {Config, ParcelOptions} from './types';
+
 import invariant from 'assert';
 //$FlowFixMe
 import {isMatch} from 'micromatch';
@@ -7,12 +11,10 @@ import path from 'path';
 
 import {localResolve} from '@parcel/local-require';
 import {PromiseQueue, md5FromString, md5FromObject} from '@parcel/utils';
-import type {FilePath, Glob} from '@parcel/types';
-import type {ParcelOptions} from './types';
 import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
 
-import type Config from './public/Config';
+import {addDevDependency} from './InternalConfig';
 import ConfigLoader from './ConfigLoader';
 import type {Dependency} from './types';
 import Graph, {type GraphOpts} from './Graph';
@@ -344,7 +346,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     invariant(config.devDeps != null);
 
     let depVersionRequestNodes = [];
-    for (let [moduleSpecifier] of config.devDeps) {
+    for (let [moduleSpecifier, version] of config.devDeps) {
       let depVersionRequest = {
         moduleSpecifier,
         resolveFrom: path.dirname(nullthrows(config.resolvedPath)) // TODO: resolveFrom should be nearest package boundary
@@ -358,8 +360,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         nullthrows(this.getNode(depVersionRequestNode.id))
       );
 
-      let version = await this.getSubTaskResult(depVersionRequestNode);
-      config.setDevDep(depVersionRequest.moduleSpecifier, version);
+      if (version == null) {
+        let result = await this.getSubTaskResult(depVersionRequestNode);
+        addDevDependency(config, depVersionRequest.moduleSpecifier, result);
+      }
     }
     this.replaceNodesConnectedTo(
       configRequestNode,
