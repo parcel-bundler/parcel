@@ -27,7 +27,18 @@ export default new Transformer({
   async transform({asset, config}) {
     const less = await localRequire('less', asset.filePath);
     const code = await asset.getCode();
-    const {css} = await less.render(code, config);
+    let css;
+    try {
+      css = (await less.render(code, config)).css;
+    } catch (err) {
+      // For the error reporter
+      err.fileName = err.filename;
+      err.loc = {
+        line: err.line,
+        column: err.column
+      };
+      throw err;
+    }
 
     asset.type = 'css';
     asset.setCode(css);
