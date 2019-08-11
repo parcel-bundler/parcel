@@ -106,8 +106,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   configLoader: ConfigLoader;
   onAssetRequestComplete: (AssetRequestNode, Array<AssetValue>) => mixed;
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed;
-  queue: PromiseQueue;
-  validationQueue: PromiseQueue;
+  queue: PromiseQueue<mixed>;
+  validationQueue: PromiseQueue<mixed>;
   farm: WorkerFarm;
   config: ParcelConfig;
   options: ParcelOptions;
