@@ -508,7 +508,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   // TODO: add edge types to make invalidation more flexible and less precarious
-  respondToFSEvents(events: Array<Event>) {
+  respondToFSEvents(events: Array<Event>): boolean {
+    let isInvalid = false;
     for (let {path, type} of events) {
       if (path === this.options.lockFile) {
         for (let id of this.depVersionRequestNodeIds) {
@@ -519,6 +520,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
           );
 
           this.invalidateNode(depVersionRequestNode);
+          isInvalid = true;
         }
       }
 
@@ -537,6 +539,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
               connectedNode.type === 'config_request'
             ) {
               this.invalidateNode(connectedNode);
+              isInvalid = true;
             }
           }
         }
@@ -552,6 +555,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
                 connectedNode.type !== 'file' && connectedNode.type !== 'glob'
               );
               this.invalidateNode(connectedNode);
+              isInvalid = true;
             }
           }
         }
@@ -562,13 +566,12 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
             connectedNode.type === 'config_request'
           ) {
             this.invalidateNode(connectedNode);
+            isInvalid = true;
           }
         }
       }
     }
-  }
 
-  isInvalid() {
-    return this.invalidNodeIds.size > 0;
+    return isInvalid;
   }
 }
