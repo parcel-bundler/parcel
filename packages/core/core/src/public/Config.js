@@ -13,8 +13,6 @@ import type {Config, ParcelOptions} from '../types';
 import path from 'path';
 import {loadConfig} from '@parcel/utils';
 
-import Environment from './Environment';
-
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
 export default class PublicConfig implements IConfig {
