@@ -16,9 +16,7 @@ export default class Trace {
   }
 
   getEventId() {
-    const id = this.eventId;
-    this.eventId++;
-    return id;
+    return this.eventId++;
   }
 
   init() {
