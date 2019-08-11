@@ -22,8 +22,12 @@ import cpuCount from './cpuCount';
 import Handle from './Handle';
 import {child} from './childState';
 import {detectBackend} from './backend';
+import Profiler from './Profiler';
+import Trace from './Trace';
+import fs from 'fs';
 
 let shared = null;
+let profileId = 1;
 
 type FarmOptions = {|
   maxConcurrentWorkers: number,
@@ -54,6 +58,7 @@ export default class WorkerFarm extends EventEmitter {
   warmWorkers: number = 0;
   workers: Map<number, Worker> = new Map();
   handles: Map<number, Handle> = new Map();
+  profiler: ?Profiler;
 
   constructor(farmOptions: $Shape<FarmOptions> = {}) {
     super();
@@ -288,11 +293,8 @@ export default class WorkerFarm extends EventEmitter {
   startMaxWorkers(): void {
     // Starts workers until the maximum is reached
     if (this.workers.size < this.options.maxConcurrentWorkers) {
-      for (
-        let i = 0;
-        i < this.options.maxConcurrentWorkers - this.workers.size;
-        i++
-      ) {
+      let toStart = this.options.maxConcurrentWorkers - this.workers.size;
+      while (toStart--) {
         this.startChild();
       }
     }
@@ -310,6 +312,56 @@ export default class WorkerFarm extends EventEmitter {
     let handle = new Handle();
     this.handles.set(handle.id, fn);
     return handle;
+  }
+
+  async startProfile() {
+    let promises = [];
+    for (let worker of this.workers.values()) {
+      promises.push(new Promise((resolve, reject) => {
+        worker.call({
+          method: 'startProfile',
+          args: [],
+          resolve,
+          reject
+        });
+      }));
+    }
+
+    this.profiler = new Profiler();
+  
+    promises.push(this.profiler.startProfiling());
+    await Promise.all(promises);
+  }
+  
+  async endProfile() {
+    if (!this.profiler) {
+      return;
+    }
+
+    let promises = [this.profiler.stopProfiling()];
+    let names = ['Master'];
+  
+    for (let worker of this.workers.values()) {
+      names.push('Worker ' + worker.id);
+      promises.push(new Promise((resolve, reject) => {
+        worker.call({
+          method: 'endProfile',
+          args: [],
+          resolve,
+          reject
+        });
+      }));
+    }
+  
+    var profiles = await Promise.all(promises);  
+    let trace = new Trace();
+    trace.chromeTrace.pipe(fs.createWriteStream(`profile-${profileId++}.trace`));
+  
+    for (let profile of profiles) {
+      trace.addCPUProfile(names.shift(), profile);
+    }
+
+    trace.chromeTrace.flush();
   }
 
   static async getShared(

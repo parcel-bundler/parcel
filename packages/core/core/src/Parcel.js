@@ -178,6 +178,8 @@ export default class Parcel {
 
   async build(startTime: number = Date.now()): Promise<BuildEvent> {
     try {
+      // await this.#farm.startProfile();
+
       this.#reporterRunner.report({
         type: 'buildStart'
       });
@@ -210,6 +212,7 @@ export default class Parcel {
       this.#reporterRunner.report(event);
 
       await this.#assetGraphBuilder.validate();
+      // await this.#farm.endProfile();
 
       return event;
     } catch (e) {
