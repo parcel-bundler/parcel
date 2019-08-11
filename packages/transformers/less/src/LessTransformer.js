@@ -1,8 +1,8 @@
-// @flow
+// @flow strict-local
 
 import {Transformer} from '@parcel/plugin';
 import localRequire from '@parcel/local-require';
-import {isGlob, glob} from '@parcel/utils';
+import {parseCSSImport} from '@parcel/utils';
 
 export default new Transformer({
   async getConfig({asset}) {
@@ -11,13 +11,17 @@ export default new Transformer({
     });
   },
 
-  async transform({asset, config}) {
+  async transform({asset, config, resolve}) {
     const less = await localRequire('less', asset.filePath);
     const code = await asset.getCode();
     const output = await less.render(code, {
       ...(config || {}),
       filename: asset.filePath,
-      plugins: [...((config && config.plugins) || []), urlPlugin({asset})]
+      plugins: [
+        ...((config && config.plugins) || []),
+        urlPlugin({asset}),
+        resolvePathPlugin({asset, resolve})
+      ]
     });
 
     asset.type = 'css';
@@ -42,6 +46,33 @@ function urlPlugin({asset}) {
 
       visitor.run = visitor.visit;
       pluginManager.addVisitor(visitor);
+    }
+  };
+}
+
+function resolvePathPlugin({asset, resolve}) {
+  return {
+    install(less, pluginManager) {
+      class LessFileManager extends less.FileManager {
+        supports() {
+          return true;
+        }
+
+        supportsSync() {
+          return false;
+        }
+
+        async loadFile(filename) {
+          const parsedFilename = parseCSSImport(filename);
+          let resolvedPath = await resolve(asset.filePath, parsedFilename);
+          return {
+            contents: await asset.fs.readFile(resolvedPath, 'utf8'),
+            filename: resolvedPath
+          };
+        }
+      }
+
+      pluginManager.addFileManager(new LessFileManager());
     }
   };
 }
