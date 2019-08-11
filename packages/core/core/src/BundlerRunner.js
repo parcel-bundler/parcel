@@ -187,7 +187,7 @@ export default class BundlerRunner {
     bundleGraph: InternalBundleGraph,
     runtimeAssets: Array<RuntimeAsset>
   ) {
-    for (let {code, filePath, dependency} of runtimeAssets) {
+    for (let {code, filePath, dependency, isEntry} of runtimeAssets) {
       let builder = new AssetGraphBuilder();
       await builder.init({
         options: this.options,
@@ -251,6 +251,10 @@ export default class BundlerRunner {
         entry.id,
         entryIsReference ? 'references' : null
       );
+
+      if (isEntry) {
+        bundle.entryAssetIds.unshift(entry.id);
+      }
     }
   }
 }

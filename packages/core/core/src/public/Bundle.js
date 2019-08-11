@@ -87,13 +87,16 @@ export class Bundle implements IBundle {
   }
 
   getEntryAssets(): Array<IAsset> {
-    if (this.#bundle.entryAssetId == null) {
-      return [];
-    }
+    return this.#bundle.entryAssetIds.map(id => {
+      let assetNode = this.#bundleGraph._graph.getNode(id);
+      invariant(assetNode != null && assetNode.type === 'asset');
+      return assetFromValue(assetNode.value, this.#options);
+    });
+  }
 
-    let assetNode = this.#bundleGraph._graph.getNode(this.#bundle.entryAssetId);
-    invariant(assetNode != null && assetNode.type === 'asset');
-    return [assetFromValue(assetNode.value, this.#options)];
+  getMainEntry(): ?IAsset {
+    // The main entry is the last one to execute
+    return this.getEntryAssets().pop();
   }
 
   traverse<TContext>(

@@ -465,6 +465,7 @@ export interface Bundle {
   +name: ?string;
   +stats: Stats;
   getEntryAssets(): Array<Asset>;
+  getMainEntry(): ?Asset;
   hasAsset(Asset): boolean;
   hasChildBundles(): boolean;
   getHash(): string;
@@ -536,7 +537,8 @@ export type Namer = {|
 export type RuntimeAsset = {|
   filePath: FilePath,
   code: string,
-  dependency?: Dependency
+  dependency?: Dependency,
+  isEntry?: boolean
 |};
 
 export type Runtime = {|

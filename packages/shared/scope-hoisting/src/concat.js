@@ -118,7 +118,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
     }
   });
 
-  let entry = bundle.getEntryAssets()[0];
+  let entry = bundle.getMainEntry();
   if (entry && bundle.isEntry) {
     let exportsIdentifier = getName(entry, 'exports');
     let code = await entry.getCode();
