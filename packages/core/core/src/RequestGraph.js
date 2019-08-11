@@ -46,6 +46,7 @@ type RequestGraphOpts = {|
 
 type SerializedRequestGraph = {|
   ...GraphOpts<RequestGraphNode>,
+  invalidNodeIds: Set<NodeId>,
   globNodeIds: Set<NodeId>,
   depVersionRequestNodeIds: Set<NodeId>
 |};
@@ -119,6 +120,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   // $FlowFixMe
   static deserialize(opts: SerializedRequestGraph) {
     let deserialized = new RequestGraph(opts);
+    deserialized.invalidNodeIds = opts.invalidNodeIds;
     deserialized.globNodeIds = opts.globNodeIds;
     deserialized.depVersionRequestNodeIds = opts.depVersionRequestNodeIds;
     // $FlowFixMe
@@ -129,6 +131,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   serialize(): SerializedRequestGraph {
     return {
       ...super.serialize(),
+      invalidNodeIds: this.invalidNodeIds,
       globNodeIds: this.globNodeIds,
       depVersionRequestNodeIds: this.depVersionRequestNodeIds
     };
@@ -188,12 +191,13 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   addNode(node: RequestGraphNode) {
-    this.processNode(node);
+    this.invalidNodeIds.add(node.id);
     if (node.type === 'glob') {
       this.globNodeIds.add(node.id);
     } else if (node.type === 'dep_version_request') {
       this.depVersionRequestNodeIds.add(node.id);
     }
+    this.processNode(node);
     return super.addNode(node);
   }
 
@@ -203,6 +207,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     } else if (node.type === 'dep_version_request') {
       this.depVersionRequestNodeIds.delete(node.id);
     }
+    this.invalidNodeIds.delete(node.id);
     return super.removeNode(node);
   }
 
@@ -256,7 +261,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         promise = this.runDepVersionRequest(requestNode);
         break;
       default:
-      // Do nothing
+        this.invalidNodeIds.delete(requestNode.id);
     }
 
     if (promise) {
@@ -265,11 +270,12 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         await promise;
         // ? Should these be updated before it comes off the queue?
         this.invalidNodeIds.delete(requestNode.id);
-        this.inProgress.delete(requestNode.id);
       } catch (e) {
         // Do nothing
         // Main tasks will be caught by the queue
         // Sub tasks will end up rejecting the main task promise
+      } finally {
+        this.inProgress.delete(requestNode.id);
       }
     }
   }
