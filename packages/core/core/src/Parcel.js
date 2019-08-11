@@ -113,9 +113,7 @@ export default class Parcel {
     let result = await this.build(startTime);
 
     let resolvedOptions = nullthrows(this.#resolvedOptions);
-    if (result.type === 'buildSuccess') {
-      await this.#assetGraphBuilder.writeToCache();
-    }
+    await this.#assetGraphBuilder.writeToCache();
 
     if (resolvedOptions.killWorkers !== false) {
       await this.#farm.end();
@@ -171,6 +169,7 @@ export default class Parcel {
           await nullthrows(this.#watcherSubscription).unsubscribe();
           this.#watcherSubscription = null;
           await this.#reporterRunner.report({type: 'watchEnd'});
+          await this.#assetGraphBuilder.writeToCache();
         }
       }
     };
@@ -283,8 +282,8 @@ export default class Parcel {
           return;
         }
 
-        this.#assetGraphBuilder.respondToFSEvents(events);
-        if (this.#assetGraphBuilder.isInvalid()) {
+        let isInvalid = this.#assetGraphBuilder.respondToFSEvents(events);
+        if (isInvalid) {
           try {
             this.#watchEvents.emit({
               buildEvent: await this.build()

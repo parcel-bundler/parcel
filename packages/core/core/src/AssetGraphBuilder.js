@@ -137,12 +137,8 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.assetGraph.resolveDependency(requestNode.value, result);
   }
 
-  isInvalid() {
-    return this.requestGraph.isInvalid();
-  }
-
   respondToFSEvents(events: Array<Event>) {
-    this.requestGraph.respondToFSEvents(events);
+    return this.requestGraph.respondToFSEvents(events);
   }
 
   initFarm() {
