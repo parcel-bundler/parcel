@@ -1,8 +1,15 @@
+// @flow
+import type {Profile} from './Profiler';
+import type {Writable} from 'stream';
 import {Tracer} from 'chrome-trace-event';
 
 export default class Trace {
+  tracer: Tracer;
+  tid: number;
+  eventId: number;
+
   constructor() {
-    this.chromeTrace = new Tracer();
+    this.tracer = new Tracer();
     this.tid = 0;
     this.eventId = 0;
     this.init();
@@ -15,7 +22,7 @@ export default class Trace {
   }
 
   init() {
-    this.chromeTrace.instantEvent({
+    this.tracer.instantEvent({
       name: 'TracingStartedInPage',
       id: this.getEventId(),
       cat: ['disabled-by-default-devtools.timeline'],
@@ -23,29 +30,31 @@ export default class Trace {
         data: {
           sessionId: '-1',
           page: '0xfff',
-          frames: [{
-            frame: '0xfff',
-            url: 'parcel',
-            name: ''
-          }]
+          frames: [
+            {
+              frame: '0xfff',
+              url: 'parcel',
+              name: ''
+            }
+          ]
         }
       }
     });
 
-    this.chromeTrace.instantEvent({
+    this.tracer.instantEvent({
       name: 'TracingStartedInBrowser',
       id: this.getEventId(),
       cat: ['disabled-by-default-devtools.timeline'],
       args: {
         data: {
           sessionId: '-1'
-        },
+        }
       }
     });
   }
 
-  addCPUProfile(name, profile) {
-    const trace = this.chromeTrace;
+  addCPUProfile(name: string, profile: Profile) {
+    const trace = this.tracer;
     const tid = this.tid;
     this.tid++;
 
@@ -61,9 +70,8 @@ export default class Trace {
         src_file: '../../ipc/ipc_moji_bootstrap.cc',
         src_func: 'Accept'
       },
-      ts: cpuStartTime,
-      // dur: cpuEndTime - cpuStartTime,
-    }));
+      ts: cpuStartTime
+    });
 
     trace.completeEvent({
       tid,
@@ -80,7 +88,7 @@ export default class Trace {
           frame: '0xFFF'
         }
       }
-    }));
+    });
 
     trace.instantEvent({
       tid,
@@ -88,8 +96,8 @@ export default class Trace {
       ph: 'M',
       cat: ['__metadata'],
       name: 'thread_name',
-      args: {name},
-    }));
+      args: {name}
+    });
 
     trace.instantEvent({
       tid,
@@ -99,13 +107,17 @@ export default class Trace {
       ts: cpuEndTime,
       args: {
         data: {
-          cpuProfile: profile,
-        },
-      },
-    }));
+          cpuProfile: profile
+        }
+      }
+    });
   }
 
-  build() {
-    return this.chromeTrace.events;
+  pipe(writable: Writable) {
+    return this.tracer.pipe(writable);
+  }
+
+  flush() {
+    this.tracer.push(null);
   }
 }

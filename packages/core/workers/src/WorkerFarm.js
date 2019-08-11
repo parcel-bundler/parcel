@@ -25,6 +25,7 @@ import {detectBackend} from './backend';
 import Profiler from './Profiler';
 import Trace from './Trace';
 import fs from 'fs';
+import logger from '@parcel/logger';
 
 let shared = null;
 let profileId = 1;
@@ -317,22 +318,25 @@ export default class WorkerFarm extends EventEmitter {
   async startProfile() {
     let promises = [];
     for (let worker of this.workers.values()) {
-      promises.push(new Promise((resolve, reject) => {
-        worker.call({
-          method: 'startProfile',
-          args: [],
-          resolve,
-          reject
-        });
-      }));
+      promises.push(
+        new Promise((resolve, reject) => {
+          worker.call({
+            method: 'startProfile',
+            args: [],
+            resolve,
+            reject,
+            retries: 0
+          });
+        })
+      );
     }
 
     this.profiler = new Profiler();
-  
+
     promises.push(this.profiler.startProfiling());
     await Promise.all(promises);
   }
-  
+
   async endProfile() {
     if (!this.profiler) {
       return;
@@ -340,28 +344,37 @@ export default class WorkerFarm extends EventEmitter {
 
     let promises = [this.profiler.stopProfiling()];
     let names = ['Master'];
-  
+
     for (let worker of this.workers.values()) {
       names.push('Worker ' + worker.id);
-      promises.push(new Promise((resolve, reject) => {
-        worker.call({
-          method: 'endProfile',
-          args: [],
-          resolve,
-          reject
-        });
-      }));
+      promises.push(
+        new Promise((resolve, reject) => {
+          worker.call({
+            method: 'endProfile',
+            args: [],
+            resolve,
+            reject,
+            retries: 0
+          });
+        })
+      );
     }
-  
-    var profiles = await Promise.all(promises);  
+
+    var profiles = await Promise.all(promises);
     let trace = new Trace();
-    trace.chromeTrace.pipe(fs.createWriteStream(`profile-${profileId++}.trace`));
-  
+    let filename = `profile-${profileId++}.trace`;
+    let stream = trace.pipe(fs.createWriteStream(filename));
+
     for (let profile of profiles) {
       trace.addCPUProfile(names.shift(), profile);
     }
 
-    trace.chromeTrace.flush();
+    trace.flush();
+    await new Promise(resolve => {
+      stream.once('finish', resolve);
+    });
+
+    logger.info(`Wrote profile to ${filename}`);
   }
 
   static async getShared(

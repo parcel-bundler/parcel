@@ -95,6 +95,7 @@ export type ParcelOptions = {|
   logLevel: LogLevel,
   projectRoot: FilePath,
   lockFile: ?FilePath,
+  profile: boolean,
 
   inputFS: FileSystem,
   outputFS: FileSystem,

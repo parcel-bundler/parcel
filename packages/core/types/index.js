@@ -164,6 +164,7 @@ export type InitialParcelOptions = {|
   serve?: ServerOptions | false,
   autoinstall?: boolean,
   logLevel?: LogLevel,
+  profile?: boolean,
 
   inputFS?: FileSystem,
   outputFS?: FileSystem
