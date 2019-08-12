@@ -54,6 +54,7 @@ export default class Parcel {
   >();
   #watcherSubscription; // AsyncSubscription
   #watcherCount = 0; // number
+  #currentBuild = null; // ?Promise<IBundleGraph>
 
   constructor(options: InitialParcelOptions) {
     this.#initialOptions = options;
@@ -176,7 +177,7 @@ export default class Parcel {
     };
   }
 
-  async build(startTime: number = Date.now()): Promise<BuildEvent> {
+  async _build(startTime: number = Date.now()): Promise<BuildEvent> {
     try {
       this.#reporterRunner.report({
         type: 'buildStart'
@@ -211,6 +212,7 @@ export default class Parcel {
 
       await this.#assetGraphBuilder.validate();
 
+      this.#currentBuild = null;
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
@@ -222,8 +224,18 @@ export default class Parcel {
         error: e
       };
       await this.#reporterRunner.report(event);
+      this.#currentBuild = null;
       return event;
     }
+  }
+
+  async build(startTime: number = Date.now()): Promise<BuildEvent> {
+    if (this.#currentBuild) {
+      return this.#currentBuild;
+    }
+
+    let build = (this.#currentBuild = this._build(startTime));
+    return build;
   }
 
   // $FlowFixMe

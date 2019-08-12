@@ -12,7 +12,7 @@ const {
 } = require('@parcel/test-utils');
 const {makeDeferredWithPromise} = require('@parcel/utils');
 
-describe('javascript', function() {
+describe.only('javascript', function() {
   beforeEach(async () => {
     await removeDistDirectory();
   });
@@ -26,6 +26,7 @@ describe('javascript', function() {
     // assert.equal(b.childBundles.size, 1);
 
     let output = await run(b);
+
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
   });
@@ -1442,5 +1443,20 @@ describe('javascript', function() {
         assets: ['b.js', 'lodash.js']
       }
     ]);
+  });
+  it.only('should prevent multiple concurrent builds of the same Parcel', async () => {
+    let bu = await bundler(
+      path.join(__dirname, '/integration/commonjs/index.js')
+    );
+    await bu.init();
+
+    let a = bu.build();
+    let b = await bu.build();
+    let f = await bu.build();
+
+    let resolvedA = await a;
+
+    assert.equal(resolvedA.buildTime, b.buildTime);
+    assert.notEqual(resolvedA.buildTime, f.buildTime);
   });
 });
