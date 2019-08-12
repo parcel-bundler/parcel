@@ -95,6 +95,7 @@ let build = program
   .command('build [input...]')
   .description('bundles for production')
   .option('--no-minify', 'disable minification')
+  .option('--no-scope-hoist', 'disable scope-hoisting')
   .action(run);
 
 applyOptions(build, commonOptions);
@@ -238,11 +239,12 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     cacheDir: command.cacheDir,
     mode,
     minify: command.minify != null ? command.minify : mode === 'production',
-    sourceMaps: command.sourceMaps != false,
+    sourceMaps: command.sourceMaps ?? true,
+    scopeHoist: command.scopeHoist ?? true,
     hot: hmr,
     serve,
     targets: command.target.length > 0 ? command.target : null,
-    autoinstall: command.autoinstall !== false,
+    autoinstall: command.autoinstall ?? true,
     logLevel: command.logLevel,
     profile: command.profile
   };
