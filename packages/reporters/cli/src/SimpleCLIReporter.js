@@ -21,6 +21,7 @@ export default new Reporter({
 
 let stdout = process.stdout;
 let stderr = process.stderr;
+let wroteServerInfo = false;
 
 // Exported only for test
 export function _setStdio(stdoutLike: Writable, stderrLike: Writable) {
@@ -33,6 +34,17 @@ export function _report(event: ReporterEvent, options: PluginOptions): void {
   let logLevelFilter = logLevels[options.logLevel || 'info'];
 
   switch (event.type) {
+    case 'buildStart': {
+      if (options.serve && !wroteServerInfo) {
+        writeOut(
+          `Server running at ${
+            options.serve.https ? 'https' : 'http'
+          }://${options.serve.host ?? 'localhost'}:${options.serve.port}`
+        );
+        wroteServerInfo = true;
+      }
+      break;
+    }
     case 'buildProgress': {
       if (logLevelFilter < logLevels.info) {
         break;

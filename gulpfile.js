@@ -73,6 +73,8 @@ function updatePackageJson() {
       for (let [binName, binPath] of Object.entries(json.bin)) {
         json.bin[binName] = binPath.replace('src', 'lib');
       }
+    } else if (typeof json.bin === 'string') {
+      json.bin = json.bin.replace('src', 'lib');
     }
     vinyl.contents = Buffer.from(JSON.stringify(json, null, 2));
   });

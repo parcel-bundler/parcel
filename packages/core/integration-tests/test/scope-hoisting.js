@@ -943,7 +943,7 @@ describe('scope hoisting', function() {
           traversal.stop();
         }
       });
-      let entryAsset = entryBundle.getEntryAssets()[0];
+      let entryAsset = entryBundle.getMainEntry();
 
       // TODO: this test doesn't currently work in older browsers since babel
       // replaces the typeof calls before we can get to them.

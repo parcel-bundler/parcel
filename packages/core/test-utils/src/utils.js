@@ -138,7 +138,7 @@ export async function run(
     //$FlowFixMe
     bundle = (bundleOrGraph: Bundle);
   }
-  let entryAsset = bundle.getEntryAssets()[0];
+  let entryAsset = nullthrows(bundle.getMainEntry());
   let target = entryAsset.env.context;
 
   var ctx;
@@ -183,10 +183,10 @@ export async function run(
 
 export async function assertBundles(
   bundleGraph: BundleGraph,
-  bundles: Array<{|
+  expectedBundles: Array<{|
     name?: string | RegExp,
     type?: string,
-    assets?: Array<string>
+    assets: Array<string>
   |}>
 ) {
   let actualBundles = [];
@@ -204,22 +204,25 @@ export async function assertBundles(
     });
   });
 
-  for (let bundle of bundles) {
-    // $FlowFixMe
+  for (let bundle of expectedBundles) {
+    if (!Array.isArray(bundle.assets)) {
+      throw new Error(
+        'Expected bundle must include an array of expected assets'
+      );
+    }
     bundle.assets.sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1));
   }
 
-  // $FlowFixMe
-  bundles.sort((a, b) => (a.assets[0] < b.assets[0] ? -1 : 1));
+  expectedBundles.sort((a, b) => (a.assets[0] < b.assets[0] ? -1 : 1));
   actualBundles.sort((a, b) => (a.assets[0] < b.assets[0] ? -1 : 1));
   assert.equal(
     actualBundles.length,
-    bundles.length,
+    expectedBundles.length,
     'expected number of bundles mismatched'
   );
 
   let i = 0;
-  for (let bundle of bundles) {
+  for (let bundle of expectedBundles) {
     let actualBundle = actualBundles[i++];
     let name = bundle.name;
     if (name) {
@@ -243,8 +246,6 @@ export async function assertBundles(
     if (bundle.assets) {
       assert.deepEqual(actualBundle.assets, bundle.assets);
     }
-
-    // assert(await fs.exists(bundle.filePath), 'expected file does not exist');
   }
 }
 

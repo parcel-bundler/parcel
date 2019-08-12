@@ -88,8 +88,9 @@ export default class PackagerRunner {
     let options = publicBundle.env.isBrowser()
       ? undefined
       : {
-          mode: (await inputFS.stat(publicBundle.getEntryAssets()[0].filePath))
-            .mode
+          mode: (await inputFS.stat(
+            nullthrows(publicBundle.getMainEntry()).filePath
+          )).mode
         };
 
     let size;

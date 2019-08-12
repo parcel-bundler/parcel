@@ -8,10 +8,10 @@ import type {
   TransformerResult,
   PackageName
 } from '@parcel/types';
-import type Config from './public/Config';
 import type {
   Asset as AssetValue,
   AssetRequest,
+  Config,
   NodeId,
   ConfigRequest,
   ParcelOptions
@@ -26,6 +26,7 @@ import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset, {createAsset} from './InternalAsset';
+import ParcelConfig from './ParcelConfig';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 
@@ -240,7 +241,8 @@ export default class Transformation {
     let configs = new Map();
 
     let config = await this.loadConfig(configRequest);
-    let parcelConfig = nullthrows(config.result);
+    let result = nullthrows(config.result);
+    let parcelConfig = new ParcelConfig(result);
 
     configs.set('parcel', config);
 
@@ -251,7 +253,7 @@ export default class Transformation {
         let thirdPartyConfig = await this.loadTransformerConfig(
           filePath,
           moduleName,
-          parcelConfig.resolvedPath
+          result.resolvedPath
         );
         configs.set(moduleName, thirdPartyConfig);
       }

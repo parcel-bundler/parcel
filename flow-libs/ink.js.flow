@@ -23,6 +23,7 @@ declare module 'ink' {
     gray?: boolean,
     green?: boolean,
     keyword?: string,
+    cyan?: boolean,
     magenta?: boolean,
     reset?: boolean,
     yellow?: boolean

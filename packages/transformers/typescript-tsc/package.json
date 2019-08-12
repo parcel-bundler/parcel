@@ -7,6 +7,10 @@
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
   "main": "src/TSCTransformer",
+  "engines": {
+    "node": ">= 8.0.0",
+    "parcel": "^2.0.0-alpha.0"
+  },
   "dependencies": {
     "@parcel/local-require": "^2.0.0-alpha.0",
     "@parcel/plugin": "^2.0.0-alpha.0"

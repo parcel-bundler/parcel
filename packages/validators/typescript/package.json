@@ -1,12 +1,16 @@
 {
-  "name": "@parcel/validator-ts-typechecker",
+  "name": "@parcel/validator-typescript",
   "version": "2.0.0-alpha.0",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/typecheckValidator",
+  "main": "src/TypeScriptValidator.js",
+  "engines": {
+    "node": ">= 8.0.0",
+    "parcel": "^2.0.0-alpha.0"
+  },
   "dependencies": {
     "@babel/code-frame": "^7.0.0",
     "@parcel/local-require": "^2.0.0-alpha.0",

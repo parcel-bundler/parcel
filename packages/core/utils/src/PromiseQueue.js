@@ -6,12 +6,14 @@ type PromiseQueueOpts = {
   maxConcurrent: number
 };
 
-export default class PromiseQueue {
-  _deferred: ?Deferred<void>;
+export default class PromiseQueue<T> {
+  _deferred: ?Deferred<Array<T>>;
   _maxConcurrent: number;
   _numRunning: number = 0;
-  _queue: Array<() => Promise<mixed>> = [];
-  _runPromise: ?Promise<void> = null;
+  _queue: Array<() => Promise<void>> = [];
+  _runPromise: ?Promise<Array<T>> = null;
+  _count: number = 0;
+  _results: Array<T> = [];
 
   constructor(opts: PromiseQueueOpts = {maxConcurrent: Infinity}) {
     if (opts.maxConcurrent <= 0) {
@@ -21,11 +23,15 @@ export default class PromiseQueue {
     this._maxConcurrent = opts.maxConcurrent;
   }
 
-  add<T>(fn: () => Promise<T>): Promise<T> {
+  add(fn: () => Promise<T>): Promise<T> {
     return new Promise((resolve, reject) => {
+      let i = this._count++;
       let wrapped = () =>
         fn().then(
-          result => resolve(result),
+          result => {
+            this._results[i] = result;
+            resolve(result);
+          },
           err => {
             reject(err);
             throw err;
@@ -40,13 +46,13 @@ export default class PromiseQueue {
     });
   }
 
-  run(): Promise<void> {
+  run(): Promise<Array<T>> {
     if (this._runPromise != null) {
       return this._runPromise;
     }
 
     if (this._queue.length === 0) {
-      return Promise.resolve();
+      return Promise.resolve([]);
     }
 
     let {deferred, promise} = makeDeferredWithPromise();
@@ -84,6 +90,8 @@ export default class PromiseQueue {
 
   _resetState(): void {
     this._queue = [];
+    this._count = 0;
+    this._results = [];
     this._runPromise = null;
     this._numRunning = 0;
     this._deferred = null;
@@ -98,7 +106,7 @@ export default class PromiseQueue {
 
   _resolve(): void {
     if (this._deferred != null) {
-      this._deferred.resolve();
+      this._deferred.resolve(this._results);
     }
     this._resetState();
   }

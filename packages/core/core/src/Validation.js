@@ -1,7 +1,13 @@
 // @flow strict-local
+
 import nullthrows from 'nullthrows';
-import type Config from './public/Config';
-import type {AssetRequest, NodeId, ConfigRequest, ParcelOptions} from './types';
+import type {
+  AssetRequest,
+  Config,
+  NodeId,
+  ConfigRequest,
+  ParcelOptions
+} from './types';
 
 import path from 'path';
 import {resolveConfig} from '@parcel/utils';
@@ -36,8 +42,6 @@ export default class Validation {
   }
 
   async run(): Promise<void> {
-    if (this.request.filePath.includes('node_modules')) return;
-
     report({
       type: 'validation',
       filePath: this.request.filePath
