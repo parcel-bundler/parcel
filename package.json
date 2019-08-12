@@ -24,6 +24,7 @@
     "test": "yarn test:unit && yarn test:integration"
   },
   "devDependencies": {
+    "doctoc": "^1.4.0",
     "eslint": "^5.16.0",
     "flow-bin": "0.104.0",
     "gulp": "^4.0.2",
