@@ -4,13 +4,10 @@ import type {Readable} from 'stream';
 import type SourceMap from '@parcel/source-map';
 import type {FileSystem} from '@parcel/fs';
 
-import type {
-  AST as _AST,
-  ThirdPartyConfig as _ThirdPartyConfig
-} from './unsafe';
+import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
 export type AST = _AST;
-export type ThirdPartyConfig = _ThirdPartyConfig;
+export type ConfigResult = _ConfigResult;
 
 export type JSONValue =
   | null
@@ -278,7 +275,7 @@ interface BaseAsset {
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
-  ): Promise<ThirdPartyConfig | null>;
+  ): Promise<ConfigResult | null>;
   getPackage(): Promise<PackageJSON | null>;
 }
 
@@ -304,12 +301,11 @@ export interface Asset extends BaseAsset {
 
 export interface Config {
   +searchPath: FilePath;
-  +result: ThirdPartyConfig;
+  +result: ConfigResult;
   +env: Environment;
 
   setResolvedPath(filePath: FilePath): void;
-  // $FlowFixMe could be anything
-  setResult(result: any): void; // TODO: fix
+  setResult(result: ConfigResult): void; // TODO: fix
   setResultHash(resultHash: string): void;
   addIncludedFile(filePath: FilePath): void;
   addDevDependency(name: PackageName, version?: Semver): void;
@@ -318,11 +314,11 @@ export interface Config {
     searchPath: FilePath,
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean, exclude?: boolean}
-  ): Promise<ThirdPartyConfig | null>;
+  ): Promise<ConfigResult | null>;
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean, exclude?: boolean}
-  ): Promise<ThirdPartyConfig | null>;
+  ): Promise<ConfigResult | null>;
   getPackage(): Promise<PackageJSON | null>;
   isSource(): Promise<boolean>;
   shouldRehydrate(): void;
@@ -379,7 +375,7 @@ export type Transformer = {
     asset: MutableAsset,
     resolve: ResolveFn,
     options: PluginOptions
-  }) => Async<ThirdPartyConfig | void>,
+  }) => Async<ConfigResult | void>,
   loadConfig?: ({
     config: Config,
     options: PluginOptions
@@ -391,25 +387,25 @@ export type Transformer = {
   canReuseAST?: ({ast: AST, options: PluginOptions}) => boolean,
   parse?: ({
     asset: MutableAsset,
-    config: ?ThirdPartyConfig,
+    config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions
   }) => Async<?AST>,
   transform({
     asset: MutableAsset,
-    config: ?ThirdPartyConfig,
+    config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions
   }): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({
     asset: MutableAsset,
-    config: ?ThirdPartyConfig,
+    config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions
   }) => Async<GenerateOutput>,
   postProcess?: ({
     assets: Array<MutableAsset>,
-    config: ?ThirdPartyConfig,
+    config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions
   }) => Async<Array<TransformerResult>>

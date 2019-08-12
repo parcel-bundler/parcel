@@ -20,7 +20,7 @@ import type {
   Stats,
   Symbol,
   TargetSourceMapOptions,
-  ThirdPartyConfig
+  ConfigResult
 } from '@parcel/types';
 
 import type {FileSystem} from '@parcel/fs';
@@ -183,7 +183,7 @@ export type Config = {|
   env: Environment,
   resolvedPath: ?FilePath,
   resultHash: ?string,
-  result: ThirdPartyConfig,
+  result: ConfigResult,
   includedFiles: Set<FilePath>,
   pkg: ?PackageJSON,
   watchGlob: ?Glob,

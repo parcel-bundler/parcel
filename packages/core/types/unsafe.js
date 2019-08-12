@@ -1,6 +1,6 @@
 // @flow
 
-export type ThirdPartyConfig = any;
+export type ConfigResult = any;
 
 export type AST = {|
   type: string,

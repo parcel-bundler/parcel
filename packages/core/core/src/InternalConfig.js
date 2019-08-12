@@ -1,11 +1,6 @@
 // @flow strict-local
 
-import type {
-  FilePath,
-  Glob,
-  PackageName,
-  ThirdPartyConfig
-} from '@parcel/types';
+import type {FilePath, Glob, PackageName, ConfigResult} from '@parcel/types';
 
 import type {Config, Environment} from './types';
 
@@ -13,7 +8,7 @@ type ConfigOpts = {|
   searchPath: FilePath,
   env: Environment,
   resolvedPath?: FilePath,
-  result?: ThirdPartyConfig,
+  result?: ConfigResult,
   includedFiles?: Set<FilePath>,
   watchGlob?: Glob,
   devDeps?: Map<PackageName, ?string>,

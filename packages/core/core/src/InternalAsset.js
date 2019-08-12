@@ -3,7 +3,7 @@
 import type {
   AST,
   Blob,
-  ThirdPartyConfig,
+  ConfigResult,
   DependencyOptions,
   File,
   FilePath,
@@ -312,7 +312,7 @@ export default class InternalAsset {
   async getConfig(
     filePaths: Array<FilePath>,
     options: ?{packageKey?: string, parse?: boolean}
-  ): Promise<ThirdPartyConfig | null> {
+  ): Promise<ConfigResult | null> {
     let packageKey = options?.packageKey;
     let parse = options && options.parse;
 

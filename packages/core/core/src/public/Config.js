@@ -6,7 +6,7 @@ import type {
   Glob,
   PackageJSON,
   PackageName,
-  ThirdPartyConfig
+  ConfigResult
 } from '@parcel/types';
 import type {Config, ParcelOptions} from '../types';
 
@@ -79,7 +79,7 @@ export default class PublicConfig implements IConfig {
     searchPath: FilePath,
     filePaths: Array<FilePath>,
     options: ?{parse?: boolean, exclude?: boolean}
-  ): Promise<ThirdPartyConfig | null> {
+  ): Promise<ConfigResult | null> {
     let parse = options && options.parse;
     let conf = await loadConfig(
       this.#options.inputFS,
@@ -103,7 +103,7 @@ export default class PublicConfig implements IConfig {
   async getConfig(
     filePaths: Array<FilePath>,
     options: ?{parse?: boolean, exclude?: boolean}
-  ): Promise<ThirdPartyConfig | null> {
+  ): Promise<ConfigResult | null> {
     return this.getConfigFrom(this.searchPath, filePaths, options);
   }
 
