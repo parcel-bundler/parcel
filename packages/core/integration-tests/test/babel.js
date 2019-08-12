@@ -305,9 +305,7 @@ describe('babel', function() {
     let distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(distFile.includes('hello there'));
     await fs.copyFile(differentPath, configPath);
-    // `fs.utimes` arguments must be instances of `Date`, otherwise it fails on Windows.
-    // https://github.com/nodejs/node/issues/5561
-    let now = new Date();
+    let now = Date.now();
     // fs.copyFile does not reliably update mtime, which babel uses to invalidate cached file contents
     await fs.utimes(configPath, now, now);
     await getNextBuild(b);
