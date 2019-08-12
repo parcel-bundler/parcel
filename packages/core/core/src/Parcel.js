@@ -176,7 +176,12 @@ export default class Parcel {
   }
 
   async build(startTime: number = Date.now()): Promise<BuildEvent> {
+    let options = nullthrows(this.#resolvedOptions);
     try {
+      if (options.profile) {
+        await this.#farm.startProfile();
+      }
+
       this.#reporterRunner.report({
         type: 'buildStart'
       });
@@ -187,7 +192,6 @@ export default class Parcel {
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
-      let options = nullthrows(this.#resolvedOptions);
       await packageBundles({
         bundleGraph,
         config: this.#config,
@@ -209,7 +213,6 @@ export default class Parcel {
       this.#reporterRunner.report(event);
 
       await this.#assetGraphBuilder.validate();
-
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
@@ -222,6 +225,10 @@ export default class Parcel {
       };
       await this.#reporterRunner.report(event);
       return event;
+    } finally {
+      if (options.profile) {
+        await this.#farm.endProfile();
+      }
     }
   }
 

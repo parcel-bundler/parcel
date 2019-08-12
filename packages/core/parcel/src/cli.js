@@ -36,6 +36,7 @@ const commonOptions = {
     'set the log level, either "none", "error", "warn", "info", or "verbose".',
     /^(none|error|warn|info|verbose)$/
   ],
+  '--profile': 'enable build profiling',
   '-V, --version': 'output the version number'
 };
 
@@ -242,6 +243,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     serve,
     targets: command.target.length > 0 ? command.target : null,
     autoinstall: command.autoinstall !== false,
-    logLevel: command.logLevel
+    logLevel: command.logLevel,
+    profile: command.profile
   };
 }

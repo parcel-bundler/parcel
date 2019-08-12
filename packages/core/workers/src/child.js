@@ -16,6 +16,7 @@ import nullthrows from 'nullthrows';
 import Logger, {patchConsole} from '@parcel/logger';
 import {errorToJson, jsonToError} from '@parcel/utils';
 import bus from './bus';
+import Profiler from './Profiler';
 
 type ChildCall = WorkerRequest & {|
   resolve: (result: Promise<any> | any) => void,
@@ -31,6 +32,7 @@ export class Child {
   responseQueue: Map<number, ChildCall> = new Map();
   loggerDisposable: IDisposable;
   child: ChildImpl;
+  profiler: ?Profiler;
 
   constructor(ChildBackend: Class<ChildImpl>) {
     this.child = new ChildBackend(
@@ -89,6 +91,20 @@ export class Child {
       try {
         let [moduleName] = args;
         result = responseFromContent(this.childInit(moduleName, child));
+      } catch (e) {
+        result = errorResponseFromError(e);
+      }
+    } else if (method === 'startProfile') {
+      this.profiler = new Profiler();
+      try {
+        result = responseFromContent(await this.profiler.startProfiling());
+      } catch (e) {
+        result = errorResponseFromError(e);
+      }
+    } else if (method === 'endProfile') {
+      try {
+        let res = this.profiler ? await this.profiler.stopProfiling() : null;
+        result = responseFromContent(res);
       } catch (e) {
         result = errorResponseFromError(e);
       }

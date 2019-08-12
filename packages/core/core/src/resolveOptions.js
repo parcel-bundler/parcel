@@ -77,6 +77,7 @@ export default async function resolveOptions(
     serve: initialOptions.serve ?? false,
     disableCache: initialOptions.disableCache ?? false,
     killWorkers: initialOptions.killWorkers ?? false,
+    profile: initialOptions.profile ?? false,
     cacheDir,
     entries,
     rootDir,
