@@ -488,6 +488,7 @@ export type CreateBundleOpts =
       entryAsset: Asset,
       target: Target,
       isEntry?: ?boolean,
+      isInline?: ?boolean,
       type?: ?string,
       env?: ?Environment
     |}
@@ -498,6 +499,7 @@ export type CreateBundleOpts =
       entryAsset?: Asset,
       target: Target,
       isEntry?: ?boolean,
+      isInline?: ?boolean,
       type: string,
       env: Environment
     |};
@@ -540,6 +542,7 @@ export interface Bundle {
   +type: string;
   +env: Environment;
   +isEntry: ?boolean;
+  +isInline: ?boolean;
   +target: Target;
   +filePath: ?FilePath;
   +name: ?string;
