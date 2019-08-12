@@ -3,6 +3,9 @@
 import {Transformer} from '@parcel/plugin';
 import localRequire from '@parcel/local-require';
 
+// E.g: ~library/file.less
+const WEBPACK_ALIAS_RE = /^~[^/]/;
+
 export default new Transformer({
   async getConfig({asset, resolve}) {
     let config = await asset.getConfig(['.lessrc', '.lessrc.js'], {
@@ -79,6 +82,14 @@ function resolvePathPlugin({asset, resolve}) {
 
         async loadFile(rawFilename, ...args) {
           let filename = rawFilename;
+
+          if (WEBPACK_ALIAS_RE.test(filename)) {
+            let correctPath = filename.replace(/^~/, '~/node_modules/');
+            throw new Error(
+              `The @import path "${filename}" is using webpack specific syntax, which isn't supported by Parcel.\n\nTo @import files from node_modules, use "${correctPath}"`
+            );
+          }
+
           if (filename[0] == '/' || filename[0] == '~') {
             filename = await resolve(asset.filePath, filename);
           }
