@@ -13,8 +13,7 @@
   },
   "dependencies": {
     "@parcel/local-require": "^2.0.0-alpha.0",
-    "@parcel/plugin": "^2.0.0-alpha.0",
-    "@parcel/utils": "^2.0.0-alpha.0"
+    "@parcel/plugin": "^2.0.0-alpha.0"
   },
   "devDependencies": {
     "less": "^3.9.0"

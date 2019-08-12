@@ -2,7 +2,6 @@
 
 import {Transformer} from '@parcel/plugin';
 import localRequire from '@parcel/local-require';
-import {parseCSSImport} from '@parcel/utils';
 
 export default new Transformer({
   async getConfig({asset, resolve}) {
@@ -78,13 +77,12 @@ function resolvePathPlugin({asset, resolve}) {
           return false;
         }
 
-        async loadFile(filename) {
-          const parsedFilename = parseCSSImport(filename);
-          let resolvedPath = await resolve(asset.filePath, parsedFilename);
-          return {
-            contents: await asset.fs.readFile(resolvedPath, 'utf8'),
-            filename: resolvedPath
-          };
+        async loadFile(rawFilename, ...args) {
+          let filename = rawFilename;
+          if (filename[0] == '/' || filename[0] == '~') {
+            filename = await resolve(asset.filePath, filename);
+          }
+          return super.loadFile(filename, ...args);
         }
       }
 
