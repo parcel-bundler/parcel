@@ -40,6 +40,7 @@ type AssetOptions = {|
   dependencies?: Map<string, Dependency>,
   includedFiles?: Map<FilePath, File>,
   isIsolated?: boolean,
+  isInline?: boolean,
   outputHash?: string,
   env: Environment,
   meta?: Meta,
@@ -58,6 +59,7 @@ export function createAsset(options: AssetOptions): Asset {
     hash: options.hash,
     filePath: options.filePath,
     isIsolated: options.isIsolated == null ? false : options.isIsolated,
+    isInline: options.isInline == null ? false : options.isInline,
     type: options.type,
     contentKey: options.contentKey,
     mapKey: options.mapKey,
@@ -272,6 +274,7 @@ export default class InternalAsset {
         filePath: this.value.filePath,
         type: result.type,
         isIsolated: result.isIsolated,
+        isInline: result.isInline,
         env: mergeEnvironments(this.value.env, result.env),
         dependencies:
           this.value.type === result.type

@@ -53,7 +53,7 @@ export default class PackagerRunner {
       result = await this.readFromCache(cacheKey);
     }
 
-    if (!result) {
+    if (!result && !bundle.isInline) {
       let packaged = await this.package(bundle, bundleGraph);
       let res = await this.optimize(
         bundle,

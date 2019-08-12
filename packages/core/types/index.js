@@ -269,6 +269,7 @@ interface BaseAsset {
   +id: string;
   +meta: Meta;
   +isIsolated: boolean;
+  +isInline: boolean;
   +type: string;
   +symbols: Map<Symbol, Symbol>;
   +sideEffects: boolean;
@@ -293,6 +294,7 @@ interface BaseAsset {
 export interface MutableAsset extends BaseAsset {
   ast: ?AST;
   isIsolated: boolean;
+  isInline: boolean;
   type: string;
 
   addDependency(dep: DependencyOptions): string;
@@ -369,6 +371,7 @@ export interface TransformerResult {
   dependencies?: $ReadOnlyArray<DependencyOptions>;
   includedFiles?: $ReadOnlyArray<File>;
   isIsolated?: boolean;
+  isInline?: boolean;
   env?: EnvironmentOpts;
   meta?: Meta;
   symbols?: Map<Symbol, Symbol>;

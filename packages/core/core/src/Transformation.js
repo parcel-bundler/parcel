@@ -544,6 +544,7 @@ function normalizeAssets(
       // $FlowFixMe
       env: result.env,
       isIsolated: result.isIsolated,
+      isInline: result.isInline,
       meta: result.meta
     };
   });

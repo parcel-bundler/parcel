@@ -89,6 +89,10 @@ class BaseAsset {
     return this.#asset.value.isIsolated;
   }
 
+  get isInline(): boolean {
+    return this.#asset.value.isInline;
+  }
+
   get sideEffects(): boolean {
     return this.#asset.value.sideEffects;
   }
@@ -188,6 +192,14 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
 
   set isIsolated(isIsolated: boolean): void {
     this.#asset.value.isIsolated = isIsolated;
+  }
+
+  get isInline(): boolean {
+    return this.#asset.value.isInline;
+  }
+
+  set isInline(isInline: boolean): void {
+    this.#asset.value.isInline = isInline;
   }
 
   addDependency(dep: DependencyOptions): string {

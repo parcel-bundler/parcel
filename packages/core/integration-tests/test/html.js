@@ -612,13 +612,11 @@ describe('html', function() {
       },
       {
         type: 'jpg',
-        assets: ['bg.jpg'],
-        childBundles: []
+        assets: ['bg.jpg']
       },
       {
         type: 'jpg',
-        assets: ['img.jpg'],
-        childBundles: []
+        assets: ['img.jpg']
       }
     ]);
   });
