@@ -12,7 +12,7 @@ const {
 } = require('@parcel/test-utils');
 const {makeDeferredWithPromise} = require('@parcel/utils');
 
-describe.only('javascript', function() {
+describe('javascript', function() {
   beforeEach(async () => {
     await removeDistDirectory();
   });
@@ -1444,7 +1444,7 @@ describe.only('javascript', function() {
       }
     ]);
   });
-  it.only('should prevent multiple concurrent builds of the same Parcel', async () => {
+  it('should prevent multiple concurrent builds of the same Parcel', async () => {
     let bu = await bundler(
       path.join(__dirname, '/integration/commonjs/index.js')
     );
