@@ -52,8 +52,10 @@ describe('less', function() {
     assert.equal(output(), 2);
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert(css.includes('.index'));
-    assert(css.includes('.base'));
+    assert(css.includes('.a'));
+    assert(css.includes('.b'));
+    assert(css.includes('.c'));
+    assert(css.includes('.d'));
   });
 
   it('should support advanced less imports', async function() {
@@ -78,9 +80,10 @@ describe('less', function() {
 
     let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
 
-    assert(css.includes('.index'));
-    assert(css.includes('.base'));
-    assert(css.includes('.external'));
+    assert(css.includes('.a'));
+    assert(css.includes('.external-index'));
+    assert(css.includes('.external-a'));
+    assert(css.includes('.external-with-main'));
   });
 
   it('should support requiring empty less files', async function() {
