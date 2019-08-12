@@ -333,6 +333,11 @@ function packageBundles({
 }): Promise<mixed> {
   let promises = [];
   for (let bundle of bundleGraph.getBundles()) {
+    // skip inline bundles, they will be processed via the parent bundle
+    if (bundle.isInline) {
+      continue;
+    }
+
     promises.push(
       runPackage({bundle, bundleGraph, config, options}).then(stats => {
         bundle.stats = stats;
