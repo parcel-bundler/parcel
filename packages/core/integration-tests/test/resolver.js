@@ -24,7 +24,7 @@ describe('resolver', function() {
     assert.strictEqual(output.default, 1234);
   });
 
-  it('should correctly resolve tilde in node_modules', async function() {
+  it('should throw an error on Webpack loader imports', async function() {
     let didThrow = false;
     try {
       await bundle(
