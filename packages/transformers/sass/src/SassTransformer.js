@@ -31,30 +31,20 @@ export default new Transformer({
   },
 
   async transform({asset, config}) {
-    let sass;
-    // Use Node Sass if installed, but prefer Dart Sass.
-    try {
-      sass = await localRequire('node-sass', asset.filePath, true);
-    } catch {
-      sass = await localRequire('sass', asset.filePath);
-    }
+    let sass = await localRequire('sass', asset.filePath);
     const sassRender = promisify(sass.render.bind(sass));
 
     let css;
     try {
       css = (await sassRender(config)).css;
     } catch (err) {
-      if (err.formatted) {
-        // In Node Sass, err.formatted is more detailed than err.message.
-        // In Dart Sass, they're the same.
-        err.message = err.formatted;
-        // Adapt the Error object for the reporter.
-        err.fileName = err.file;
-        err.loc = {
-          line: err.line,
-          column: err.column
-        };
-      }
+      // Adapt the Error object for the reporter.
+      err.fileName = err.file;
+      err.loc = {
+        line: err.line,
+        column: err.column
+      };
+
       throw err;
     }
 
