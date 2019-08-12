@@ -187,4 +187,29 @@ describe('less', function() {
 
     assert(didThrow);
   });
+
+  it('should support configuring less include paths', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/less-include-paths/index.js')
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.less']
+      }
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('.a'));
+    assert(css.includes('.b'));
+  });
 });
