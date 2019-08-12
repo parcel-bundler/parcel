@@ -1,5 +1,6 @@
 {
   "name": "parcel-bundler",
+  "private": true,
   "version": "1.12.3",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "index.js",
@@ -126,7 +127,7 @@
     "clean": "rm -rf node_modules lib && yarn"
   },
   "bin": {
-    "parcel": "bin/cli.js"
+    "parcel1": "bin/cli.js"
   },
   "engines": {
     "node": ">= 8.0.0"

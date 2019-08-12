@@ -61,7 +61,7 @@ export default class WorkerFarm extends EventEmitter {
       maxConcurrentWorkers: WorkerFarm.getNumWorkers(),
       maxConcurrentCallsPerWorker: WorkerFarm.getConcurrentCallsPerWorker(),
       forcedKillTime: 500,
-      warmWorkers: true,
+      warmWorkers: false,
       useLocalWorker: true,
       backend: detectBackend(),
       ...farmOptions

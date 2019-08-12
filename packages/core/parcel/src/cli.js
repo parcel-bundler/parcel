@@ -2,6 +2,7 @@
 
 import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
+import {patchConsole} from '@parcel/logger';
 
 require('v8-compile-cache');
 
@@ -142,6 +143,8 @@ async function run(entries: Array<string>, command: any) {
     ...(await normalizeOptions(command))
   });
 
+  patchConsole();
+
   if (command.name() === 'watch' || command.name() === 'serve') {
     await parcel.watch(err => {
       if (err) {
@@ -179,8 +182,13 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   if (command.name() === 'serve') {
     let port = command.port || 1234;
     let host = command.host;
-    if (!port) {
-      port = await getPort({port, host});
+    port = await getPort({port, host});
+
+    if (command.port && port !== command.port) {
+      // Parcel logger is not set up at this point, so just use native console.
+      console.warn(
+        chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`)
+      );
     }
 
     serve = {
