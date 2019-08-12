@@ -2,7 +2,7 @@
 
 import {Transformer} from '@parcel/plugin';
 import localRequire from '@parcel/local-require';
-import {promisify, parseCSSImport} from '@parcel/utils';
+import {promisify} from '@parcel/utils';
 
 export default new Transformer({
   async getConfig({asset, resolve}) {
@@ -22,10 +22,7 @@ export default new Transformer({
       config.importer = [config.importer];
     }
 
-    config.importer = [
-      ...config.importer,
-      resolvePathImporter({asset, resolve})
-    ];
+    config.importer = [...config.importer, resolvePathImporter({resolve})];
 
     return config;
   },
@@ -54,13 +51,20 @@ export default new Transformer({
   }
 });
 
-function resolvePathImporter({asset, resolve}) {
+function resolvePathImporter({resolve}) {
   return function(rawUrl, prev, done) {
     let url = rawUrl.replace(/^file:\/\//, '');
-    url = parseCSSImport(url);
 
-    resolve(prev === 'stdin' ? asset.filePath : prev, url)
-      .then(resolvedPath => done({file: resolvedPath || url}))
-      .catch(err => done(err));
+    if (url[0] === '/' || url[0] === '~') {
+      resolve(prev, url)
+        .then(resolvedPath => {
+          done({file: resolvedPath});
+        })
+        .catch(err => {
+          done(err);
+        });
+    } else {
+      done(url);
+    }
   };
 }
