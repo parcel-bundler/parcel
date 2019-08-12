@@ -13,17 +13,15 @@ import type {IDisposable} from '@parcel/types';
 
 import invariant from 'assert';
 import nullthrows from 'nullthrows';
-import {inspect} from 'util';
-import Logger from '@parcel/logger';
+import Logger, {patchConsole} from '@parcel/logger';
 import {errorToJson, jsonToError} from '@parcel/utils';
 import bus from './bus';
+import Profiler from './Profiler';
 
 type ChildCall = WorkerRequest & {|
   resolve: (result: Promise<any> | any) => void,
   reject: (error: any) => void
 |};
-
-let consolePatched;
 
 export class Child {
   callQueue: Array<ChildCall> = [];
@@ -34,6 +32,7 @@ export class Child {
   responseQueue: Map<number, ChildCall> = new Map();
   loggerDisposable: IDisposable;
   child: ChildImpl;
+  profiler: ?Profiler;
 
   constructor(ChildBackend: Class<ChildImpl>) {
     this.child = new ChildBackend(
@@ -41,7 +40,7 @@ export class Child {
       this.handleEnd.bind(this)
     );
 
-    patchConsoleToLogger();
+    patchConsole();
     // Monitior all logging events inside this child process and forward to
     // the main process via the bus.
     this.loggerDisposable = Logger.onLog(event => {
@@ -92,6 +91,20 @@ export class Child {
       try {
         let [moduleName] = args;
         result = responseFromContent(this.childInit(moduleName, child));
+      } catch (e) {
+        result = errorResponseFromError(e);
+      }
+    } else if (method === 'startProfile') {
+      this.profiler = new Profiler();
+      try {
+        result = responseFromContent(await this.profiler.startProfiling());
+      } catch (e) {
+        result = errorResponseFromError(e);
+      }
+    } else if (method === 'endProfile') {
+      try {
+        let res = this.profiler ? await this.profiler.stopProfiling() : null;
+        result = responseFromContent(res);
       } catch (e) {
         result = errorResponseFromError(e);
       }
@@ -187,41 +200,4 @@ export class Child {
   handleEnd(): void {
     this.loggerDisposable.dispose();
   }
-}
-
-// Patch `console` APIs within workers to forward their messages to the Logger
-// at the appropriate levels.
-// TODO: Implement the rest of the console api as needed.
-// TODO: Does this need to be disposable/reversible?
-function patchConsoleToLogger() {
-  if (consolePatched) {
-    return;
-  }
-  /* eslint-disable no-console */
-  // $FlowFixMe
-  console.log = console.info = (...messages: Array<mixed>) => {
-    Logger.info(joinLogMessages(messages));
-  };
-
-  // $FlowFixMe
-  console.debug = (...messages: Array<mixed>) => {
-    // TODO: dedicated debug level?
-    Logger.verbose(joinLogMessages(messages));
-  };
-
-  // $FlowFixMe
-  console.warn = (...messages: Array<mixed>) => {
-    Logger.warn(joinLogMessages(messages));
-  };
-
-  // $FlowFixMe
-  console.error = (...messages: Array<mixed>) => {
-    Logger.error(joinLogMessages(messages));
-  };
-  /* eslint-enable no-console */
-  consolePatched = true;
-}
-
-function joinLogMessages(messages: Array<mixed>): string {
-  return messages.map(m => (typeof m === 'string' ? m : inspect(m))).join(' ');
 }

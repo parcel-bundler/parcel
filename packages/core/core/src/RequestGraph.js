@@ -45,6 +45,7 @@ type RequestGraphOpts = {|
 
 type SerializedRequestGraph = {|
   ...GraphOpts<RequestGraphNode>,
+  invalidNodeIds: Set<NodeId>,
   globNodeIds: Set<NodeId>,
   depVersionRequestNodeIds: Set<NodeId>
 |};
@@ -107,8 +108,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   configLoader: ConfigLoader;
   onAssetRequestComplete: (AssetRequestNode, Array<AssetValue>) => mixed;
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed;
-  queue: PromiseQueue;
-  validationQueue: PromiseQueue;
+  queue: PromiseQueue<mixed>;
+  validationQueue: PromiseQueue<mixed>;
   farm: WorkerFarm;
   config: ParcelConfig;
   options: ParcelOptions;
@@ -121,6 +122,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   // $FlowFixMe
   static deserialize(opts: SerializedRequestGraph) {
     let deserialized = new RequestGraph(opts);
+    deserialized.invalidNodeIds = opts.invalidNodeIds;
     deserialized.globNodeIds = opts.globNodeIds;
     deserialized.depVersionRequestNodeIds = opts.depVersionRequestNodeIds;
     // $FlowFixMe
@@ -131,6 +133,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   serialize(): SerializedRequestGraph {
     return {
       ...super.serialize(),
+      invalidNodeIds: this.invalidNodeIds,
       globNodeIds: this.globNodeIds,
       unpredicatableNodeIds: this.unpredicatableNodeIds,
       depVersionRequestNodeIds: this.depVersionRequestNodeIds
@@ -212,7 +215,6 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     } else if (node.type === 'config_request') {
       this.unpredicatableNodeIds.delete(node.id);
     }
-
     return super.removeNode(node);
   }
 
@@ -266,7 +268,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         promise = this.runDepVersionRequest(requestNode);
         break;
       default:
-      // Do nothing
+        this.invalidNodeIds.delete(requestNode.id);
     }
 
     if (promise) {
@@ -275,11 +277,12 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         await promise;
         // ? Should these be updated before it comes off the queue?
         this.invalidNodeIds.delete(requestNode.id);
-        this.inProgress.delete(requestNode.id);
       } catch (e) {
         // Do nothing
         // Main tasks will be caught by the queue
         // Sub tasks will end up rejecting the main task promise
+      } finally {
+        this.inProgress.delete(requestNode.id);
       }
     }
   }
@@ -531,7 +534,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   // TODO: add edge types to make invalidation more flexible and less precarious
-  respondToFSEvents(events: Array<Event>) {
+  respondToFSEvents(events: Array<Event>): boolean {
+    let isInvalid = false;
     for (let {path, type} of events) {
       if (path === this.options.lockFile) {
         for (let id of this.depVersionRequestNodeIds) {
@@ -542,6 +546,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
           );
 
           this.invalidateNode(depVersionRequestNode);
+          isInvalid = true;
         }
       }
 
@@ -560,6 +565,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
               connectedNode.type === 'config_request'
             ) {
               this.invalidateNode(connectedNode);
+              isInvalid = true;
             }
           }
         }
@@ -575,6 +581,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
                 connectedNode.type !== 'file' && connectedNode.type !== 'glob'
               );
               this.invalidateNode(connectedNode);
+              isInvalid = true;
             }
           }
         }
@@ -585,13 +592,12 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
             connectedNode.type === 'config_request'
           ) {
             this.invalidateNode(connectedNode);
+            isInvalid = true;
           }
         }
       }
     }
-  }
 
-  isInvalid() {
-    return this.invalidNodeIds.size > 0;
+    return isInvalid;
   }
 }

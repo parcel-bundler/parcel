@@ -4,7 +4,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "PARCEL_WORKERS=0 parcel2 src/index.js",
+    "demo": "PARCEL_WORKERS=0 parcel src/index.js",
     "clean-demo": "rm -rf .parcel-cache dist && yarn demo"
   },
   "devDependencies": {

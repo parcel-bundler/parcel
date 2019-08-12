@@ -10,6 +10,7 @@
     "test-ci": "yarn test"
   },
   "dependencies": {
+    "@parcel/events": "^2.0.0-alpha.0",
     "@parcel/logger": "^2.0.0-alpha.0",
     "@parcel/plugin": "^2.0.0-alpha.0",
     "@parcel/types": "^2.0.0-alpha.0",

@@ -243,18 +243,19 @@ export default class Transformation {
     let configs = new Map();
 
     let config = await this.loadConfig(configRequest);
-    let parcelConfig = nullthrows(config.result);
+    let result = nullthrows(config.result);
+    let parcelConfig = new ParcelConfig(result);
 
     configs.set('parcel', config);
 
     for (let [moduleName] of config.devDeps) {
-      let plugin = await new ParcelConfig(parcelConfig).loadPlugin(moduleName);
+      let plugin = await parcelConfig.loadPlugin(moduleName);
       // TODO: implement loadPlugin in existing plugins that require config
       if (plugin.loadConfig) {
         let thirdPartyConfig = await this.loadTransformerConfig(
           filePath,
           moduleName,
-          parcelConfig.resolvedPath
+          result.resolvedPath
         );
 
         if (thirdPartyConfig.shouldRehydrate === true) {

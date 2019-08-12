@@ -112,6 +112,12 @@ export default new Bundler({
     // Step 2: remove assets that are duplicated in a parent bundle
     bundleGraph.traverseBundles({
       exit(bundle) {
+        if (bundle.env.isIsolated()) {
+          // If a bundle's environment is isolated, it can't access assets present
+          // in any ancestor bundles. Don't deduplicate any assets.
+          return;
+        }
+
         bundle.traverse(node => {
           if (node.type !== 'dependency') {
             return;
@@ -147,12 +153,19 @@ export default new Bundler({
       }
 
       let asset = node.value;
+      if (asset.env.isIsolated()) {
+        // If an asset's environment is isolated, it can't load shared bundles.
+        // Don't add this asset to a shared bundle.
+        return;
+      }
+
       let containingBundles = bundleGraph
         .findBundlesWithAsset(asset)
         // Don't create shared bundles from entry bundles, as that would require
         // another entry bundle depending on these conditions, making it difficult
         // to predict and reference.
         .filter(b => !b.isEntry);
+
       if (containingBundles.length > OPTIONS.minBundles) {
         let id = containingBundles
           .map(b => b.id)

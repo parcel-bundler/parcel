@@ -36,7 +36,11 @@ export default new Validator({
       asset.filePath
     );
     if (diagnostics.length > 0) {
-      const formatted = formatDiagnostics(diagnostics, asset.filePath);
+      const formatted = formatDiagnostics(
+        diagnostics,
+        asset.filePath,
+        asset.fs.cwd()
+      );
       throw formatted;
     }
   }

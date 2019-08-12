@@ -1,7 +1,9 @@
 // @flow
+import type {FilePath} from '@parcel/types';
 import {EOL} from 'os';
 import {codeFrameColumns} from '@babel/code-frame';
 import chalk from 'chalk';
+import path from 'path';
 
 import type {Diagnostic} from 'typescript';
 
@@ -17,11 +19,14 @@ type CodeFrameLocation = {
 
 export default function formatDiagnostics(
   diagnostics: Array<Diagnostic>,
-  fileName: string
+  fileName: FilePath,
+  rootDir: FilePath
 ): null | CodeFrameError {
   if (!diagnostics || diagnostics.length === 0) return null;
 
-  let err: CodeFrameError = new Error(`Typing error in: ${fileName}`);
+  let err: CodeFrameError = new Error(
+    `TypeScript errors in ${path.relative(rootDir, fileName)}`
+  );
   err.codeFrame =
     EOL +
     diagnostics
@@ -43,7 +48,7 @@ export default function formatDiagnostics(
           };
           const location: CodeFrameLocation = {start};
           const red = chalk.red(
-            `${file.fileName}(${start.line},${start.column}):`
+            `${file.fileName}:${start.line}:${start.column}:`
           );
           messages.push(red);
           messages.push(messageText);

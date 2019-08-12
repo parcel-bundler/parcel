@@ -2,7 +2,7 @@
 import EventEmitter from 'events';
 
 import type {ParcelOptions, Target} from './types';
-import {PromiseQueue, md5FromObject, md5FromString} from '@parcel/utils';
+import {md5FromObject, md5FromString} from '@parcel/utils';
 import watcher, {type Event} from '@parcel/watcher';
 
 import type {Asset} from './types';
@@ -30,7 +30,6 @@ type Opts = {|
 export default class AssetGraphBuilder extends EventEmitter {
   assetGraph: AssetGraph;
   requestGraph: RequestGraph;
-  queue: PromiseQueue;
   controller: AbortController;
   changedAssets: Map<string, Asset> = new Map();
   options: ParcelOptions;
@@ -138,12 +137,8 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.assetGraph.resolveDependency(requestNode.value, result);
   }
 
-  isInvalid() {
-    return this.requestGraph.isInvalid();
-  }
-
   respondToFSEvents(events: Array<Event>) {
-    this.requestGraph.respondToFSEvents(events);
+    return this.requestGraph.respondToFSEvents(events);
   }
 
   initFarm() {

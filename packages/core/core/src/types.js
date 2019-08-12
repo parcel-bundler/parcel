@@ -97,6 +97,7 @@ export type ParcelOptions = {|
   logLevel: LogLevel,
   projectRoot: FilePath,
   lockFile: ?FilePath,
+  profile: boolean,
 
   inputFS: FileSystem,
   outputFS: FileSystem,
@@ -233,7 +234,7 @@ export type Bundle = {|
   id: string,
   type: string,
   env: Environment,
-  entryAssetId: ?string,
+  entryAssetIds: Array<string>,
   isEntry: ?boolean,
   target: Target,
   filePath: ?FilePath,

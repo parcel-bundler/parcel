@@ -4,7 +4,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel2 build src/index.ts"
+    "demo": "parcel build src/index.ts"
   },
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-alpha.0",

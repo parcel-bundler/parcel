@@ -5,7 +5,7 @@ import {Packager} from '@parcel/plugin';
 import fs from 'fs';
 import {concat, link, generate} from '@parcel/scope-hoisting';
 import SourceMap from '@parcel/source-map';
-import {countLines} from '@parcel/utils';
+import {countLines, PromiseQueue} from '@parcel/utils';
 import path from 'path';
 
 const PRELUDE = fs
@@ -24,19 +24,16 @@ export default new Packager({
 
     // For development, we just concatenate all of the code together
     // rather then enabling scope hoisting, which would be too slow.
-    let codePromises = [];
-    let mapPromises = [];
+    let codeQueue = new PromiseQueue({maxConcurrent: 32});
+    let mapQueue = new PromiseQueue({maxConcurrent: 32});
     bundle.traverse(node => {
       if (node.type === 'asset') {
-        codePromises.push(node.value.getCode());
-        mapPromises.push(node.value.getMap());
+        codeQueue.add(() => node.value.getCode());
+        mapQueue.add(() => node.value.getMap());
       }
     });
 
-    let [code, maps] = await Promise.all([
-      Promise.all(codePromises),
-      Promise.all(mapPromises)
-    ]);
+    let [code, maps] = await Promise.all([codeQueue.run(), mapQueue.run()]);
 
     let assets = '';
     let i = 0;
@@ -109,7 +106,8 @@ export default new Packager({
       first = false;
     });
 
-    let entryAsset = bundle.getEntryAssets()[0];
+    let entries = bundle.getEntryAssets();
+    let entryAsset = entries[entries.length - 1];
     // $FlowFixMe
     let interpreter: ?string = bundle.target.env.isBrowser()
       ? null
@@ -123,12 +121,7 @@ export default new Packager({
           '({' +
           assets +
           '},{},' +
-          JSON.stringify(
-            bundle
-              .getEntryAssets()
-              .reverse()
-              .map(asset => asset.id)
-          ) +
+          JSON.stringify(entries.map(asset => asset.id)) +
           ', ' +
           'null' +
           ')\n\n' +

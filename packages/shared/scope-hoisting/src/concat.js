@@ -9,6 +9,7 @@ import * as walk from 'babylon-walk';
 import {getName, getIdentifier} from './utils';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
+import {PromiseQueue} from '@parcel/utils';
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
 const HELPERS = fs.readFileSync(HELPERS_PATH, 'utf8');
@@ -24,7 +25,7 @@ type TraversalContext = {|
 
 // eslint-disable-next-line no-unused-vars
 export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
-  let assets = [];
+  let queue = new PromiseQueue({maxConcurrent: 32});
   bundle.traverse((node, shouldWrap) => {
     switch (node.type) {
       case 'dependency':
@@ -38,12 +39,11 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
         }
         break;
       case 'asset':
-        assets.push(node.value);
+        queue.add(() => processAsset(bundle, node.value));
     }
   });
 
-  let promises = assets.map(asset => processAsset(bundle, asset));
-  let outputs = new Map(await Promise.all(promises));
+  let outputs = new Map(await queue.run());
   let result = [...parse(HELPERS, HELPERS_PATH)];
 
   // If this is an entry bundle and it has child bundles, we need to add the prelude code, which allows
@@ -118,7 +118,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
     }
   });
 
-  let entry = bundle.getEntryAssets()[0];
+  let entry = bundle.getMainEntry();
   if (entry && bundle.isEntry) {
     let exportsIdentifier = getName(entry, 'exports');
     let code = await entry.getCode();

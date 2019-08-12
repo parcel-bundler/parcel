@@ -2,6 +2,7 @@
 
 import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
+import {patchConsole} from '@parcel/logger';
 
 require('v8-compile-cache');
 
@@ -35,6 +36,7 @@ const commonOptions = {
     'set the log level, either "none", "error", "warn", "info", or "verbose".',
     /^(none|error|warn|info|verbose)$/
   ],
+  '--profile': 'enable build profiling',
   '-V, --version': 'output the version number'
 };
 
@@ -142,12 +144,31 @@ async function run(entries: Array<string>, command: any) {
     ...(await normalizeOptions(command))
   });
 
+  patchConsole();
+
   if (command.name() === 'watch' || command.name() === 'serve') {
-    await parcel.watch(err => {
+    let {unsubscribe} = await parcel.watch(err => {
       if (err) {
         throw err;
       }
     });
+
+    // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
+    // We don't use the SIGINT event for this because when run inside yarn, it seems we aren't
+    // given an opportunity to cleanup before being forcefully exited.
+    // Handling events from stdin seems to prevent this.
+    if (process.stdin.isTTY) {
+      // $FlowFixMe
+      process.stdin.setRawMode(true);
+      require('readline').emitKeypressEvents(process.stdin);
+
+      process.stdin.on('keypress', async (char, key) => {
+        if (key.ctrl && key.name === 'c') {
+          await unsubscribe();
+          process.exit();
+        }
+      });
+    }
   } else {
     try {
       await parcel.run();
@@ -179,8 +200,13 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
   if (command.name() === 'serve') {
     let port = command.port || 1234;
     let host = command.host;
-    if (!port) {
-      port = await getPort({port, host});
+    port = await getPort({port, host});
+
+    if (command.port && port !== command.port) {
+      // Parcel logger is not set up at this point, so just use native console.
+      console.warn(
+        chalk.bold.yellowBright(`⚠️  Port ${command.port} could not be used.`)
+      );
     }
 
     serve = {
@@ -192,11 +218,9 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let hmr = false;
   if (command.name() !== 'build' && command.hmr !== false) {
-    let port = command.hmrPort;
+    let port = command.hmrPort || 12345;
     let host = command.hmrHost || command.host;
-    if (!port) {
-      port = await getPort({port, host});
-    }
+    port = await getPort({port, host});
 
     process.env.HMR_HOSTNAME = host || '';
     process.env.HMR_PORT = port;
@@ -219,6 +243,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     serve,
     targets: command.target.length > 0 ? command.target : null,
     autoinstall: command.autoinstall !== false,
-    logLevel: command.logLevel
+    logLevel: command.logLevel,
+    profile: command.profile
   };
 }
