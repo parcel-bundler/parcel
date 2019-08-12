@@ -13,6 +13,7 @@ const {
   sleep
 } = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
+const os = require('os');
 
 const inputDir = path.join(__dirname, '/input');
 
@@ -305,9 +306,12 @@ describe('babel', function() {
     let distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(distFile.includes('hello there'));
     await fs.copyFile(differentPath, configPath);
-    // `fs.utimes` arguments must be instances of `Date`, otherwise it fails on Windows.
+    // On Windows only, `fs.utimes` arguments must be instances of `Date`,
+    // otherwise it fails. For Mac instances on Azure CI, using a Date instance
+    // does not update the utime correctly, so for all other platforms, use a
+    // number.
     // https://github.com/nodejs/node/issues/5561
-    let now = new Date();
+    let now = os.platform() === 'win32' ? new Date() : Date.now();
     // fs.copyFile does not reliably update mtime, which babel uses to invalidate cached file contents
     await fs.utimes(configPath, now, now);
     await getNextBuild(b);
