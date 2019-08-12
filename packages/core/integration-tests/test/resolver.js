@@ -23,4 +23,24 @@ describe('resolver', function() {
     let output = await run(b);
     assert.strictEqual(output.default, 1234);
   });
+
+  it('should correctly resolve tilde in node_modules', async function() {
+    let didThrow = false;
+    try {
+      await bundle(
+        path.join(
+          __dirname,
+          '/integration/webpack-import-syntax-error/index.js'
+        )
+      );
+    } catch (e) {
+      didThrow = true;
+      assert.equal(
+        e.message,
+        `The import path: node-loader!./index.js is using webpack specific loader import syntax, which isn't supported by Parcel.`
+      );
+    }
+
+    assert(didThrow);
+  });
 });
