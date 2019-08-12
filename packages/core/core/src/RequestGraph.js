@@ -125,6 +125,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     deserialized.invalidNodeIds = opts.invalidNodeIds;
     deserialized.globNodeIds = opts.globNodeIds;
     deserialized.depVersionRequestNodeIds = opts.depVersionRequestNodeIds;
+    deserialized.unpredicatableNodeIds = opts.unpredicatableNodeIds;
     // $FlowFixMe
     return deserialized;
   }

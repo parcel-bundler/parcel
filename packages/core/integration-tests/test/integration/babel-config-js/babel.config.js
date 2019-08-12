@@ -1,3 +1,5 @@
 module.exports = {
-  "plugins": ["babel-plugin-dummy"]
+  "plugins": [["babel-plugin-dummy", {
+    text: Date.now()
+  }]]
 }
