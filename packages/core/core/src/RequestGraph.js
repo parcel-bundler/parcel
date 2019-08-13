@@ -1,4 +1,8 @@
 // @flow strict-local
+
+import type {FilePath, Glob} from '@parcel/types';
+import type {Config, ParcelOptions} from './types';
+
 import invariant from 'assert';
 //$FlowFixMe
 import {isMatch} from 'micromatch';
@@ -7,12 +11,10 @@ import path from 'path';
 
 import {localResolve} from '@parcel/local-require';
 import {PromiseQueue, md5FromString, md5FromObject} from '@parcel/utils';
-import type {FilePath, Glob} from '@parcel/types';
-import type {ParcelOptions} from './types';
 import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
 
-import type Config from './public/Config';
+import {addDevDependency} from './InternalConfig';
 import ConfigLoader from './ConfigLoader';
 import type {Dependency} from './types';
 import Graph, {type GraphOpts} from './Graph';
@@ -44,6 +46,7 @@ type RequestGraphOpts = {|
 
 type SerializedRequestGraph = {|
   ...GraphOpts<RequestGraphNode>,
+  invalidNodeIds: Set<NodeId>,
   globNodeIds: Set<NodeId>,
   depVersionRequestNodeIds: Set<NodeId>
 |};
@@ -117,6 +120,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   // $FlowFixMe
   static deserialize(opts: SerializedRequestGraph) {
     let deserialized = new RequestGraph(opts);
+    deserialized.invalidNodeIds = opts.invalidNodeIds;
     deserialized.globNodeIds = opts.globNodeIds;
     deserialized.depVersionRequestNodeIds = opts.depVersionRequestNodeIds;
     // $FlowFixMe
@@ -127,6 +131,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   serialize(): SerializedRequestGraph {
     return {
       ...super.serialize(),
+      invalidNodeIds: this.invalidNodeIds,
       globNodeIds: this.globNodeIds,
       depVersionRequestNodeIds: this.depVersionRequestNodeIds
     };
@@ -186,12 +191,13 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   addNode(node: RequestGraphNode) {
-    this.processNode(node);
+    this.invalidNodeIds.add(node.id);
     if (node.type === 'glob') {
       this.globNodeIds.add(node.id);
     } else if (node.type === 'dep_version_request') {
       this.depVersionRequestNodeIds.add(node.id);
     }
+    this.processNode(node);
     return super.addNode(node);
   }
 
@@ -201,6 +207,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     } else if (node.type === 'dep_version_request') {
       this.depVersionRequestNodeIds.delete(node.id);
     }
+    this.invalidNodeIds.delete(node.id);
     return super.removeNode(node);
   }
 
@@ -254,7 +261,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         promise = this.runDepVersionRequest(requestNode);
         break;
       default:
-      // Do nothing
+        this.invalidNodeIds.delete(requestNode.id);
     }
 
     if (promise) {
@@ -263,11 +270,12 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         await promise;
         // ? Should these be updated before it comes off the queue?
         this.invalidNodeIds.delete(requestNode.id);
-        this.inProgress.delete(requestNode.id);
       } catch (e) {
         // Do nothing
         // Main tasks will be caught by the queue
         // Sub tasks will end up rejecting the main task promise
+      } finally {
+        this.inProgress.delete(requestNode.id);
       }
     }
   }
@@ -344,7 +352,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     invariant(config.devDeps != null);
 
     let depVersionRequestNodes = [];
-    for (let [moduleSpecifier] of config.devDeps) {
+    for (let [moduleSpecifier, version] of config.devDeps) {
       let depVersionRequest = {
         moduleSpecifier,
         resolveFrom: path.dirname(nullthrows(config.resolvedPath)) // TODO: resolveFrom should be nearest package boundary
@@ -358,8 +366,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         nullthrows(this.getNode(depVersionRequestNode.id))
       );
 
-      let version = await this.getSubTaskResult(depVersionRequestNode);
-      config.setDevDep(depVersionRequest.moduleSpecifier, version);
+      if (version == null) {
+        let result = await this.getSubTaskResult(depVersionRequestNode);
+        addDevDependency(config, depVersionRequest.moduleSpecifier, result);
+      }
     }
     this.replaceNodesConnectedTo(
       configRequestNode,
@@ -498,7 +508,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   // TODO: add edge types to make invalidation more flexible and less precarious
-  respondToFSEvents(events: Array<Event>) {
+  respondToFSEvents(events: Array<Event>): boolean {
+    let isInvalid = false;
     for (let {path, type} of events) {
       if (path === this.options.lockFile) {
         for (let id of this.depVersionRequestNodeIds) {
@@ -509,6 +520,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
           );
 
           this.invalidateNode(depVersionRequestNode);
+          isInvalid = true;
         }
       }
 
@@ -527,6 +539,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
               connectedNode.type === 'config_request'
             ) {
               this.invalidateNode(connectedNode);
+              isInvalid = true;
             }
           }
         }
@@ -542,6 +555,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
                 connectedNode.type !== 'file' && connectedNode.type !== 'glob'
               );
               this.invalidateNode(connectedNode);
+              isInvalid = true;
             }
           }
         }
@@ -552,13 +566,12 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
             connectedNode.type === 'config_request'
           ) {
             this.invalidateNode(connectedNode);
+            isInvalid = true;
           }
         }
       }
     }
-  }
 
-  isInvalid() {
-    return this.invalidNodeIds.size > 0;
+    return isInvalid;
   }
 }

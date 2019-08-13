@@ -84,7 +84,7 @@ export default new Runtime({
         });
       } else {
         for (let bundle of bundles) {
-          let filePath = bundle.getEntryAssets()[0].filePath;
+          let filePath = nullthrows(bundle.getMainEntry()).filePath;
           if (bundle.target == null) {
             throw new Error('JSRuntime: Bundle did not have a target');
           }

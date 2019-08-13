@@ -12,17 +12,18 @@ import type {
   Meta,
   ModuleSpecifier,
   PackageName,
+  PackageJSON,
   ResolvedParcelConfigFile,
   Semver,
   ServerOptions,
   SourceLocation,
   Stats,
   Symbol,
-  TargetSourceMapOptions
+  TargetSourceMapOptions,
+  Config as ThirdPartyConfig
 } from '@parcel/types';
 import type {FileSystem} from '@parcel/fs';
 import type Cache from '@parcel/cache';
-import type Config from './public/Config';
 
 export type Environment = {|
   context: EnvironmentContext,
@@ -95,6 +96,7 @@ export type ParcelOptions = {|
   logLevel: LogLevel,
   projectRoot: FilePath,
   lockFile: ?FilePath,
+  profile: boolean,
 
   inputFS: FileSystem,
   outputFS: FileSystem,
@@ -175,6 +177,20 @@ export type ConfigRequestNode = {|
   value: ConfigRequest
 |};
 
+export type Config = {|
+  searchPath: FilePath,
+  resolvedPath: ?FilePath,
+  resultHash: ?string,
+  result: ThirdPartyConfig,
+  includedFiles: Set<FilePath>,
+  pkg: ?PackageJSON,
+  watchGlob: ?Glob,
+  devDeps: Map<PackageName, ?string>,
+  shouldRehydrate: boolean,
+  shouldReload: boolean,
+  shouldInvalidateOnStartup: boolean
+|};
+
 export type ConfigRequest = {|
   filePath: FilePath,
   plugin?: PackageName,
@@ -215,7 +231,7 @@ export type Bundle = {|
   id: string,
   type: string,
   env: Environment,
-  entryAssetId: ?string,
+  entryAssetIds: Array<string>,
   isEntry: ?boolean,
   target: Target,
   filePath: ?FilePath,

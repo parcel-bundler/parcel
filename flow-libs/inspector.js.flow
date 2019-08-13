@@ -1,0 +1,10 @@
+// @flow
+
+// based on https://nodejs.org/api/inspector.html
+declare module 'inspector' {
+  declare export class Session {
+    connect(): void;
+    disconnect(): void;
+    post(method: string, params?: mixed, callback?: (err: Error, result: any) => void): void;
+  }
+}

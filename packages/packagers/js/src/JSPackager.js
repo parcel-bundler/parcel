@@ -106,7 +106,8 @@ export default new Packager({
       first = false;
     });
 
-    let entryAsset = bundle.getEntryAssets()[0];
+    let entries = bundle.getEntryAssets();
+    let entryAsset = entries[entries.length - 1];
     // $FlowFixMe
     let interpreter: ?string = bundle.target.env.isBrowser()
       ? null
@@ -120,12 +121,7 @@ export default new Packager({
           '({' +
           assets +
           '},{},' +
-          JSON.stringify(
-            bundle
-              .getEntryAssets()
-              .reverse()
-              .map(asset => asset.id)
-          ) +
+          JSON.stringify(entries.map(asset => asset.id)) +
           ', ' +
           'null' +
           ')\n\n' +

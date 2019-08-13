@@ -36,6 +36,7 @@ const commonOptions = {
     'set the log level, either "none", "error", "warn", "info", or "verbose".',
     /^(none|error|warn|info|verbose)$/
   ],
+  '--profile': 'enable build profiling',
   '-V, --version': 'output the version number'
 };
 
@@ -94,6 +95,7 @@ let build = program
   .command('build [input...]')
   .description('bundles for production')
   .option('--no-minify', 'disable minification')
+  .option('--no-scope-hoist', 'disable scope-hoisting')
   .action(run);
 
 applyOptions(build, commonOptions);
@@ -146,11 +148,28 @@ async function run(entries: Array<string>, command: any) {
   patchConsole();
 
   if (command.name() === 'watch' || command.name() === 'serve') {
-    await parcel.watch(err => {
+    let {unsubscribe} = await parcel.watch(err => {
       if (err) {
         throw err;
       }
     });
+
+    // Detect the ctrl+c key, and gracefully exit after writing the asset graph to the cache.
+    // We don't use the SIGINT event for this because when run inside yarn, it seems we aren't
+    // given an opportunity to cleanup before being forcefully exited.
+    // Handling events from stdin seems to prevent this.
+    if (process.stdin.isTTY) {
+      // $FlowFixMe
+      process.stdin.setRawMode(true);
+      require('readline').emitKeypressEvents(process.stdin);
+
+      process.stdin.on('keypress', async (char, key) => {
+        if (key.ctrl && key.name === 'c') {
+          await unsubscribe();
+          process.exit();
+        }
+      });
+    }
   } else {
     try {
       await parcel.run();
@@ -200,11 +219,9 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
 
   let hmr = false;
   if (command.name() !== 'build' && command.hmr !== false) {
-    let port = command.hmrPort;
+    let port = command.hmrPort || 12345;
     let host = command.hmrHost || command.host;
-    if (!port) {
-      port = await getPort({port, host});
-    }
+    port = await getPort({port, host});
 
     process.env.HMR_HOSTNAME = host || '';
     process.env.HMR_PORT = port;
@@ -222,11 +239,13 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     cacheDir: command.cacheDir,
     mode,
     minify: command.minify != null ? command.minify : mode === 'production',
-    sourceMaps: command.sourceMaps != false,
+    sourceMaps: command.sourceMaps ?? true,
+    scopeHoist: command.scopeHoist ?? true,
     hot: hmr,
     serve,
     targets: command.target.length > 0 ? command.target : null,
-    autoinstall: command.autoinstall !== false,
-    logLevel: command.logLevel
+    autoinstall: command.autoinstall ?? true,
+    logLevel: command.logLevel,
+    profile: command.profile
   };
 }

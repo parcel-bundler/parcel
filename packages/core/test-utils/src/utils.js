@@ -130,7 +130,7 @@ export async function run(
   });
 
   let bundle = nullthrows(bundles.find(b => b.isEntry));
-  let entryAsset = bundle.getEntryAssets()[0];
+  let entryAsset = nullthrows(bundle.getMainEntry());
   let target = entryAsset.env.context;
 
   var ctx;
