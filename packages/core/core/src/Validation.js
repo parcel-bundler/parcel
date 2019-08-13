@@ -8,14 +8,17 @@ import type {
   ConfigRequest,
   ParcelOptions
 } from './types';
+import type ParcelConfig from './ParcelConfig';
 
 import nullthrows from 'nullthrows';
 import path from 'path';
 import {resolveConfig} from '@parcel/utils';
+import {localRequireFromWorker} from '@parcel/local-require';
 
 import {report} from './ReporterRunner';
 import InternalAsset, {createAsset} from './InternalAsset';
 import {Asset} from './public/Asset';
+import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 
 export type ValidationOpts = {|
@@ -66,15 +69,21 @@ export default class Validation {
     };
 
     let config = await this.loadConfig(configRequest);
-    let parcelConfig = nullthrows(config.result);
+    let parcelConfig: ParcelConfig = nullthrows(config.result);
+    let localRequire = localRequireFromWorker.bind(null, this.workerApi);
 
     let validators = await parcelConfig.getValidators(this.request.filePath);
     for (let validator of validators) {
       await validator.validate({
         asset: new Asset(asset),
-        options: this.options,
+        options: new PluginOptions(this.options),
         resolveConfig: (configNames: Array<string>) =>
-          resolveConfig(this.options.inputFS, asset.value.filePath, configNames)
+          resolveConfig(
+            this.options.inputFS,
+            asset.value.filePath,
+            configNames
+          ),
+        localRequire
       });
     }
   }
