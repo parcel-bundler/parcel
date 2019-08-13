@@ -1,0 +1,37 @@
+{
+  "name": "@parcel/ts-typecheck-example",
+  "version": "2.0.0-alpha.1.1",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "demo": "parcel build src/index.ts --no-cache"
+  },
+  "browser": "dist/legacy/index.js",
+  "browserModern": "dist/modern/index.js",
+  "targets": {
+    "browserModern": {
+      "engines": {
+        "browsers": [
+          "last 1 Chrome version"
+        ]
+      }
+    },
+    "browser": {
+      "engines": {
+        "browsers": [
+          "> 0.25%"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "lodash": "^4.17.11",
+    "react": "^16.6.3",
+    "react-dom": "^16.6.3"
+  },
+  "devDependencies": {
+    "@parcel/babel-register": "^2.0.0-alpha.1.1",
+    "@parcel/core": "^2.0.0-alpha.1.1",
+    "@parcel/validator-typescript": "^2.0.0-alpha.1.1"
+  }
+}

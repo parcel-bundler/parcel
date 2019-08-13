@@ -1,6 +1,13 @@
 // @flow
 
-import type {Asset, AST, Bundle, ParcelOptions, Symbol} from '@parcel/types';
+import type {
+  Asset,
+  AST,
+  Bundle,
+  BundleGraph,
+  PluginOptions,
+  Symbol
+} from '@parcel/types';
 
 import nullthrows from 'nullthrows';
 import {relative} from 'path';
@@ -18,7 +25,17 @@ const DEFAULT_INTEROP_TEMPLATE = template(
 const THROW_TEMPLATE = template('$parcel$missingModule(MODULE)');
 const REQUIRE_TEMPLATE = template('parcelRequire(ID)');
 
-export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
+export function link({
+  bundle,
+  bundleGraph,
+  ast,
+  options
+}: {
+  bundle: Bundle,
+  bundleGraph: BundleGraph,
+  ast: AST,
+  options: PluginOptions
+}) {
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, [Asset, Symbol]> = new Map();
   let assets: Map<string, Asset> = new Map();
@@ -28,8 +45,8 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
   bundle.traverseAssets(asset => {
     assets.set(asset.id, asset);
     exportsMap.set(getName(asset, 'exports'), asset);
-    for (let dep of bundle.getDependencies(asset)) {
-      let resolved = bundle.getDependencyResolution(dep);
+    for (let dep of bundleGraph.getDependencies(asset)) {
+      let resolved = bundleGraph.getDependencyResolution(dep);
       if (resolved) {
         for (let [imported, local] of dep.symbols) {
           imports.set(local, [resolved, imported]);
@@ -39,7 +56,7 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
   });
 
   function resolveSymbol(inputAsset, inputSymbol) {
-    let {asset, exportSymbol, symbol} = bundle.resolveSymbol(
+    let {asset, exportSymbol, symbol} = bundleGraph.resolveSymbol(
       inputAsset,
       inputSymbol
     );
@@ -165,11 +182,11 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
 
         let asset = nullthrows(assets.get(id.value));
         let dep = nullthrows(
-          bundle
+          bundleGraph
             .getDependencies(asset)
             .find(dep => dep.moduleSpecifier === source.value)
         );
-        let mod = bundle.getDependencyResolution(dep);
+        let mod = bundleGraph.getDependencyResolution(dep);
 
         if (!mod) {
           if (dep.isOptional) {
@@ -246,11 +263,11 @@ export function link(bundle: Bundle, ast: AST, options: ParcelOptions) {
 
         let mapped = nullthrows(assets.get(id.value));
         let dep = nullthrows(
-          bundle
+          bundleGraph
             .getDependencies(mapped)
             .find(dep => dep.moduleSpecifier === source.value)
         );
-        let mod = nullthrows(bundle.getDependencyResolution(dep));
+        let mod = nullthrows(bundleGraph.getDependencyResolution(dep));
         path.replaceWith(t.valueToNode(mod.id));
       }
     },

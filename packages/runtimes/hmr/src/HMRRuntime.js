@@ -26,7 +26,8 @@ export default new Runtime({
       filePath: __filename,
       code:
         `var __PARCEL_HMR_ENV_HASH = "${md5FromObject(bundle.env)}";` +
-        HMR_RUNTIME
+        HMR_RUNTIME,
+      isEntry: true
     };
   }
 });

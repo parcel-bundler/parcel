@@ -25,6 +25,10 @@ type NullOriginalPosition = {
 };
 
 type Sources = {[key: string]: string | null};
+type SerializedSourceMap = {
+  mappings: Array<Mapping>,
+  sources: Sources
+};
 
 export default class SourceMap {
   mappings: Array<Mapping>;
@@ -34,6 +38,17 @@ export default class SourceMap {
   constructor(mappings?: Array<Mapping> = [], sources?: Sources = {}) {
     this.mappings = mappings;
     this.sources = sources;
+  }
+
+  static deserialize(opts: SerializedSourceMap) {
+    return new SourceMap(opts.mappings, opts.sources);
+  }
+
+  serialize(): SerializedSourceMap {
+    return {
+      mappings: this.mappings,
+      sources: this.sources
+    };
   }
 
   // Static Helper functions

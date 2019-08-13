@@ -1,16 +1,17 @@
 // @flow
 
 import {Packager} from '@parcel/plugin';
+import {PromiseQueue} from '@parcel/utils';
 
 export default new Packager({
-  async package({bundle}) {
-    let promises = [];
+  async package({bundle, bundleGraph}) {
+    let queue = new PromiseQueue({maxConcurrent: 32});
     bundle.traverseAssets({
       exit: asset => {
         // Figure out which media types this asset was imported with.
         // We only want to import the asset once, so group them all together.
         let media = [];
-        for (let dep of bundle.getIncomingDependencies(asset)) {
+        for (let dep of bundleGraph.getIncomingDependencies(asset)) {
           if (!dep.meta.media) {
             // Asset was imported without a media type. Don't wrap in @media.
             media.length = 0;
@@ -19,7 +20,7 @@ export default new Packager({
           media.push(dep.meta.media);
         }
 
-        promises.push(
+        queue.add(() =>
           asset.getCode().then((css: string) => {
             if (media.length) {
               return `@media ${media.join(', ')} {\n${css.trim()}\n}\n`;
@@ -31,7 +32,7 @@ export default new Packager({
       }
     });
 
-    let outputs = await Promise.all(promises);
+    let outputs = await queue.run();
     return {contents: await outputs.map(output => output).join('\n')};
   }
 });

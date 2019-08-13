@@ -1,10 +1,9 @@
 {
   "name": "@parcel/eslint-plugin",
-  "version": "2.0.0-alpha.0",
+  "private": true,
+  "version": "2.0.0-alpha.1.1",
   "main": "index.js",
-  "scripts": {
-    "test": "mocha test test/rules"
-  },
+  "scripts": {},
   "dependencies": {
     "read-pkg-up": "^5.0.0"
   },

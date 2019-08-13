@@ -1,29 +1,35 @@
 // @flow
+
 import type {FileSystem, FileOptions} from './types';
 import type {FilePath} from '@parcel/types';
+
 import path from 'path';
 import {Readable, Writable} from 'stream';
 import {registerSerializableClass} from '@parcel/utils';
 import packageJSON from '../package.json';
-import WorkerFarm from '@parcel/workers';
+import WorkerFarm, {Handle} from '@parcel/workers';
 import nullthrows from 'nullthrows';
 
 const instances = new Map();
 let id = 0;
 
-type FSHandle = (fn: string, args: any[]) => any;
-type SerializedMemoryFS = {
+type HandleFunction = (...args: Array<any>) => any;
+type SerializedHandle = {|id: number|};
+type SerializedMemoryFS = {|
   id: number,
-  handle?: FSHandle
-};
+  handle: SerializedHandle
+|};
 
 export class MemoryFS implements FileSystem {
   dirs: Map<FilePath, Directory>;
   files: Map<FilePath, File>;
   id: number;
-  handle: any;
-  constructor() {
+  handle: Handle;
+  farm: WorkerFarm;
+
+  constructor(workerFarm: WorkerFarm) {
     this.dirs = new Map([['/', new Directory()]]);
+    this.farm = workerFarm;
     this.files = new Map();
     this.id = id++;
     instances.set(this.id, this);
@@ -37,8 +43,8 @@ export class MemoryFS implements FileSystem {
 
   serialize(): SerializedMemoryFS {
     if (!this.handle) {
-      this.handle = WorkerFarm.createReverseHandle(
-        async (fn: string, args: any[]) => {
+      this.handle = this.farm.createReverseHandle(
+        async (fn: string, args: Array<mixed>) => {
           // $FlowFixMe
           return this[fn](...args);
         }
@@ -47,7 +53,7 @@ export class MemoryFS implements FileSystem {
 
     return {
       id: this.id,
-      handle: this.handle
+      handle: this.handle.serialize()
     };
   }
 
@@ -74,7 +80,6 @@ export class MemoryFS implements FileSystem {
       throw new FSError('ENOENT', dir, 'does not exist');
     }
 
-    // console.log(contents.buffer)
     let buffer = makeShared(contents);
     let file = this.files.get(filePath);
     let mode = (options && options.mode) || 0o666;
@@ -438,12 +443,16 @@ function makeShared(contents: Buffer | string): Buffer {
 
 class WorkerFS extends MemoryFS {
   id: number;
-  handle: FSHandle;
+  handleFn: HandleFunction;
+  serializedHandle: SerializedHandle;
 
-  constructor(id: number, handle: FSHandle) {
+  constructor(id: number, serializedHandle: {|id: number|}) {
+    // TODO Make this not a subclass
+    // $FlowFixMe
     super();
     this.id = id;
-    this.handle = handle;
+    this.handleFn = Handle.deserialize(serializedHandle);
+    this.serializedHandle = serializedHandle;
   }
 
   static deserialize(opts: SerializedMemoryFS) {
@@ -452,7 +461,8 @@ class WorkerFS extends MemoryFS {
 
   serialize(): SerializedMemoryFS {
     return {
-      id: this.id
+      id: this.id,
+      handle: this.handle.serialize()
     };
   }
 
@@ -462,11 +472,11 @@ class WorkerFS extends MemoryFS {
     options: ?FileOptions
   ) {
     let buffer = makeShared(contents);
-    return this.handle('writeFile', [filePath, buffer, options]);
+    return this.handleFn('writeFile', [filePath, buffer, options]);
   }
 
   async readFile(filePath: FilePath, encoding?: buffer$Encoding) {
-    let buffer = await this.handle('readFile', [filePath]);
+    let buffer = await this.handleFn('readFile', [filePath]);
     if (encoding) {
       return Buffer.from(buffer).toString(encoding);
     }
@@ -475,31 +485,31 @@ class WorkerFS extends MemoryFS {
   }
 
   async stat(filePath: FilePath) {
-    return this.handle('stat', [filePath]);
+    return this.handleFn('stat', [filePath]);
   }
 
   async readdir(dir: FilePath) {
-    return this.handle('readdir', [dir]);
+    return this.handleFn('readdir', [dir]);
   }
 
   async unlink(filePath: FilePath) {
-    return this.handle('unlink', [filePath]);
+    return this.handleFn('unlink', [filePath]);
   }
 
   async mkdirp(dir: FilePath) {
-    return this.handle('mkdirp', [dir]);
+    return this.handleFn('mkdirp', [dir]);
   }
 
   async rimraf(filePath: FilePath) {
-    return this.handle('rimraf', [filePath]);
+    return this.handleFn('rimraf', [filePath]);
   }
 
   async ncp(source: FilePath, destination: FilePath) {
-    return this.handle('ncp', [source, destination]);
+    return this.handleFn('ncp', [source, destination]);
   }
 
   async exists(filePath: FilePath) {
-    return this.handle('exists', [filePath]);
+    return this.handleFn('exists', [filePath]);
   }
 }
 

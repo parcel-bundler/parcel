@@ -1,4 +1,8 @@
 // @flow strict-local
+
+import type {FilePath, Glob} from '@parcel/types';
+import type {Config, ParcelOptions} from './types';
+
 import invariant from 'assert';
 //$FlowFixMe
 import {isMatch} from 'micromatch';
@@ -7,18 +11,18 @@ import path from 'path';
 
 import {localResolve} from '@parcel/local-require';
 import {PromiseQueue, md5FromString, md5FromObject} from '@parcel/utils';
-import type {AssetRequest, FilePath, Glob, ParcelOptions} from '@parcel/types';
 import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
 
-import type Config from './public/Config';
+import {addDevDependency} from './InternalConfig';
 import ConfigLoader from './ConfigLoader';
-import Dependency from './Dependency';
+import type {Dependency} from './types';
 import Graph, {type GraphOpts} from './Graph';
 import type ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
-import type InternalAsset from './Asset';
 import type {
+  Asset as AssetValue,
+  AssetRequest,
   AssetRequestNode,
   ConfigRequest,
   ConfigRequestNode,
@@ -28,19 +32,22 @@ import type {
   RequestGraphNode,
   RequestNode,
   SubRequestNode,
-  TransformationOpts
+  TransformationOpts,
+  ValidationOpts
 } from './types';
 
 type RequestGraphOpts = {|
   ...GraphOpts<RequestGraphNode>,
   config: ParcelConfig,
   options: ParcelOptions,
-  onAssetRequestComplete: (AssetRequestNode, Array<InternalAsset>) => mixed,
-  onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed
+  onAssetRequestComplete: (AssetRequestNode, Array<AssetValue>) => mixed,
+  onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed,
+  workerFarm: WorkerFarm
 |};
 
 type SerializedRequestGraph = {|
   ...GraphOpts<RequestGraphNode>,
+  invalidNodeIds: Set<NodeId>,
   globNodeIds: Set<NodeId>,
   depVersionRequestNodeIds: Set<NodeId>
 |};
@@ -94,15 +101,17 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   inProgress: Map<NodeId, Promise<any>> = new Map();
   invalidNodeIds: Set<NodeId> = new Set();
   runTransform: TransformationOpts => Promise<{
-    assets: Array<InternalAsset>,
+    assets: Array<AssetValue>,
     configRequests: Array<ConfigRequest>
   }>;
+  runValidate: ValidationOpts => Promise<void>;
   loadConfigHandle: () => Promise<Config>;
   resolverRunner: ResolverRunner;
   configLoader: ConfigLoader;
-  onAssetRequestComplete: (AssetRequestNode, Array<InternalAsset>) => mixed;
+  onAssetRequestComplete: (AssetRequestNode, Array<AssetValue>) => mixed;
   onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed;
-  queue: PromiseQueue;
+  queue: PromiseQueue<mixed>;
+  validationQueue: PromiseQueue<mixed>;
   farm: WorkerFarm;
   config: ParcelConfig;
   options: ParcelOptions;
@@ -112,8 +121,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   // $FlowFixMe
   static deserialize(opts: SerializedRequestGraph) {
     let deserialized = new RequestGraph(opts);
+    deserialized.invalidNodeIds = opts.invalidNodeIds;
     deserialized.globNodeIds = opts.globNodeIds;
     deserialized.depVersionRequestNodeIds = opts.depVersionRequestNodeIds;
+    // $FlowFixMe
     return deserialized;
   }
 
@@ -121,6 +132,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   serialize(): SerializedRequestGraph {
     return {
       ...super.serialize(),
+      invalidNodeIds: this.invalidNodeIds,
       globNodeIds: this.globNodeIds,
       depVersionRequestNodeIds: this.depVersionRequestNodeIds
     };
@@ -130,10 +142,12 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     onAssetRequestComplete,
     onDepPathRequestComplete,
     config,
-    options
+    options,
+    workerFarm
   }: RequestGraphOpts) {
     this.options = options;
     this.queue = new PromiseQueue();
+    this.validationQueue = new PromiseQueue();
     this.onAssetRequestComplete = onAssetRequestComplete;
     this.onDepPathRequestComplete = onDepPathRequestComplete;
     this.config = config;
@@ -143,24 +157,21 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       options
     });
 
+    this.farm = workerFarm;
+    this.runTransform = this.farm.createHandle('runTransform');
+    this.runValidate = this.farm.createHandle('runValidate');
+    // $FlowFixMe
+    this.loadConfigHandle = this.farm.createReverseHandle(
+      this.loadConfig.bind(this)
+    );
     this.configLoader = new ConfigLoader(options);
   }
 
-  async initFarm() {
-    // This expects the worker farm to already be initialized by Parcel prior to calling
-    // AssetGraphBuilder, which avoids needing to pass the options through here.
-    this.farm = await WorkerFarm.getShared();
-    this.runTransform = this.farm.createHandle('runTransform');
-    this.loadConfigHandle = WorkerFarm.createReverseHandle(
-      this.loadConfig.bind(this)
-    );
+  async completeValidations() {
+    await this.validationQueue.run();
   }
 
   async completeRequests() {
-    if (!this.farm) {
-      await this.initFarm();
-    }
-
     for (let id of this.invalidNodeIds) {
       let node = nullthrows(this.getNode(id));
       this.processNode(node);
@@ -170,12 +181,13 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   addNode(node: RequestGraphNode) {
-    this.processNode(node);
+    this.invalidNodeIds.add(node.id);
     if (node.type === 'glob') {
       this.globNodeIds.add(node.id);
     } else if (node.type === 'dep_version_request') {
       this.depVersionRequestNodeIds.add(node.id);
     }
+    this.processNode(node);
     return super.addNode(node);
   }
 
@@ -185,6 +197,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     } else if (node.type === 'dep_version_request') {
       this.depVersionRequestNodeIds.delete(node.id);
     }
+    this.invalidNodeIds.delete(node.id);
     return super.removeNode(node);
   }
 
@@ -214,6 +227,14 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
             return result;
           })
         );
+
+        if (
+          !requestNode.value.filePath.includes('node_modules') &&
+          this.config.getValidatorNames(requestNode.value.filePath).length > 0
+        ) {
+          this.validationQueue.add(() => this.validate(requestNode));
+        }
+
         break;
       case 'dep_path_request':
         promise = this.queue.add(() =>
@@ -230,7 +251,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         promise = this.runDepVersionRequest(requestNode);
         break;
       default:
-      // Do nothing
+        this.invalidNodeIds.delete(requestNode.id);
     }
 
     if (promise) {
@@ -239,12 +260,26 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         await promise;
         // ? Should these be updated before it comes off the queue?
         this.invalidNodeIds.delete(requestNode.id);
-        this.inProgress.delete(requestNode.id);
       } catch (e) {
         // Do nothing
         // Main tasks will be caught by the queue
         // Sub tasks will end up rejecting the main task promise
+      } finally {
+        this.inProgress.delete(requestNode.id);
       }
+    }
+  }
+
+  async validate(requestNode: AssetRequestNode) {
+    try {
+      await this.runValidate({
+        request: requestNode.value,
+        loadConfig: this.loadConfigHandle,
+        parentNodeId: requestNode.id,
+        options: this.options
+      });
+    } catch (e) {
+      throw e;
     }
   }
 
@@ -307,7 +342,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     invariant(config.devDeps != null);
 
     let depVersionRequestNodes = [];
-    for (let [moduleSpecifier] of config.devDeps) {
+    for (let [moduleSpecifier, version] of config.devDeps) {
       let depVersionRequest = {
         moduleSpecifier,
         resolveFrom: path.dirname(nullthrows(config.resolvedPath)) // TODO: resolveFrom should be nearest package boundary
@@ -321,8 +356,10 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
         nullthrows(this.getNode(depVersionRequestNode.id))
       );
 
-      let version = await this.getSubTaskResult(depVersionRequestNode);
-      config.setDevDep(depVersionRequest.moduleSpecifier, version);
+      if (version == null) {
+        let result = await this.getSubTaskResult(depVersionRequestNode);
+        addDevDependency(config, depVersionRequest.moduleSpecifier, result);
+      }
     }
     this.replaceNodesConnectedTo(
       configRequestNode,
@@ -461,7 +498,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   }
 
   // TODO: add edge types to make invalidation more flexible and less precarious
-  respondToFSEvents(events: Array<Event>) {
+  respondToFSEvents(events: Array<Event>): boolean {
+    let isInvalid = false;
     for (let {path, type} of events) {
       if (path === this.options.lockFile) {
         for (let id of this.depVersionRequestNodeIds) {
@@ -472,6 +510,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
           );
 
           this.invalidateNode(depVersionRequestNode);
+          isInvalid = true;
         }
       }
 
@@ -490,6 +529,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
               connectedNode.type === 'config_request'
             ) {
               this.invalidateNode(connectedNode);
+              isInvalid = true;
             }
           }
         }
@@ -505,6 +545,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
                 connectedNode.type !== 'file' && connectedNode.type !== 'glob'
               );
               this.invalidateNode(connectedNode);
+              isInvalid = true;
             }
           }
         }
@@ -515,13 +556,12 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
             connectedNode.type === 'config_request'
           ) {
             this.invalidateNode(connectedNode);
+            isInvalid = true;
           }
         }
       }
     }
-  }
 
-  isInvalid() {
-    return this.invalidNodeIds.size > 0;
+    return isInvalid;
   }
 }

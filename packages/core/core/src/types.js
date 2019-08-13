@@ -1,23 +1,107 @@
 // @flow strict-local
 
 import type {
-  AssetRequest,
+  BuildMode,
   BundleGroup,
-  Environment,
+  Engines,
+  EnvironmentContext,
   File,
   FilePath,
   Glob,
-  ParcelOptions,
+  LogLevel,
+  Meta,
+  ModuleSpecifier,
   PackageName,
+  PackageJSON,
+  ResolvedParcelConfigFile,
   Semver,
+  ServerOptions,
+  SourceLocation,
   Stats,
-  Target
+  Symbol,
+  TargetSourceMapOptions,
+  Config as ThirdPartyConfig
 } from '@parcel/types';
+import type {FileSystem} from '@parcel/fs';
+import type Cache from '@parcel/cache';
 
-import type Asset from './Asset';
-import type AssetGraph from './AssetGraph';
-import type Dependency from './Dependency';
-import type Config from './public/Config';
+export type Environment = {|
+  context: EnvironmentContext,
+  engines: Engines,
+  includeNodeModules: boolean
+|};
+
+export type Target = {|
+  distEntry?: ?FilePath,
+  distDir: FilePath,
+  env: Environment,
+  sourceMap?: TargetSourceMapOptions,
+  name: string,
+  publicUrl: ?string
+|};
+
+export type Dependency = {|
+  id: string,
+  moduleSpecifier: ModuleSpecifier,
+  isAsync: boolean,
+  isEntry: boolean,
+  isOptional: boolean,
+  isURL: boolean,
+  isWeak: boolean,
+  loc: ?SourceLocation,
+  env: Environment,
+  meta: Meta,
+  target: ?Target,
+  sourceAssetId: ?string,
+  sourcePath: ?string,
+  symbols: Map<Symbol, Symbol>
+|};
+
+export type Asset = {|
+  id: string,
+  hash: ?string,
+  filePath: FilePath,
+  type: string,
+  dependencies: Map<string, Dependency>,
+  connectedFiles: Map<FilePath, File>,
+  isIsolated: boolean,
+  outputHash: string,
+  env: Environment,
+  meta: Meta,
+  stats: Stats,
+  contentKey: ?string,
+  mapKey: ?string,
+  symbols: Map<Symbol, Symbol>,
+  sideEffects: boolean
+|};
+
+export type ParcelOptions = {|
+  entries: Array<FilePath>,
+  rootDir: FilePath,
+  config?: ResolvedParcelConfigFile,
+  defaultConfig?: ResolvedParcelConfigFile,
+  env: {+[string]: string},
+  targets: Array<Target>,
+
+  disableCache: boolean,
+  cacheDir: FilePath,
+  killWorkers?: boolean,
+  mode: BuildMode,
+  minify: boolean,
+  scopeHoist: boolean,
+  sourceMaps: boolean,
+  hot: ServerOptions | false,
+  serve: ServerOptions | false,
+  autoinstall: boolean,
+  logLevel: LogLevel,
+  projectRoot: FilePath,
+  lockFile: ?FilePath,
+  profile: boolean,
+
+  inputFS: FileSystem,
+  outputFS: FileSystem,
+  cache: Cache
+|};
 
 export type NodeId = string;
 
@@ -35,11 +119,6 @@ export interface Node {
 }
 
 export type AssetNode = {|id: string, +type: 'asset', value: Asset|};
-export type AssetReferenceNode = {|
-  id: string,
-  +type: 'asset_reference',
-  value: Asset
-|};
 
 export type DependencyNode = {|
   id: string,
@@ -50,6 +129,13 @@ export type DependencyNode = {|
 export type FileNode = {|id: string, +type: 'file', value: File|};
 export type GlobNode = {|id: string, +type: 'glob', value: Glob|};
 export type RootNode = {|id: string, +type: 'root', value: string | null|};
+
+export type AssetRequest = {|
+  filePath: FilePath,
+  env: Environment,
+  sideEffects?: boolean,
+  code?: string
+|};
 
 // Asset group nodes are essentially used as placeholders for the results of an asset request
 export type AssetGroup = AssetRequest;
@@ -75,16 +161,34 @@ export type AssetRequestNode = {|
 export type AssetGraphNode =
   | AssetGroupNode
   | AssetNode
-  | AssetReferenceNode
+  | DependencyNode
+  | RootNode;
+
+export type BundleGraphNode =
+  | AssetNode
   | DependencyNode
   | RootNode
   | BundleGroupNode
-  | BundleReferenceNode;
+  | BundleNode;
 
 export type ConfigRequestNode = {|
   id: string,
   +type: 'config_request',
   value: ConfigRequest
+|};
+
+export type Config = {|
+  searchPath: FilePath,
+  resolvedPath: ?FilePath,
+  resultHash: ?string,
+  result: ThirdPartyConfig,
+  includedFiles: Set<FilePath>,
+  pkg: ?PackageJSON,
+  watchGlob: ?Glob,
+  devDeps: Map<PackageName, ?string>,
+  shouldRehydrate: boolean,
+  shouldReload: boolean,
+  shouldInvalidateOnStartup: boolean
 |};
 
 export type ConfigRequest = {|
@@ -115,17 +219,6 @@ export type RequestNode =
   | DepVersionRequestNode;
 export type SubRequestNode = ConfigRequestNode | DepVersionRequestNode;
 
-export interface BundleReference {
-  +id: string;
-  +type: string;
-  +env: Environment;
-  +isEntry: ?boolean;
-  +target: ?Target;
-  +filePath: ?FilePath;
-  +name: ?string;
-  +stats: Stats;
-}
-
 export type CacheEntry = {
   filePath: FilePath,
   env: Environment,
@@ -135,12 +228,12 @@ export type CacheEntry = {
 };
 
 export type Bundle = {|
-  assetGraph: AssetGraph,
   id: string,
   type: string,
   env: Environment,
+  entryAssetIds: Array<string>,
   isEntry: ?boolean,
-  target: ?Target,
+  target: Target,
   filePath: ?FilePath,
   name: ?string,
   stats: Stats
@@ -152,21 +245,20 @@ export type BundleNode = {|
   value: Bundle
 |};
 
-export type BundleReferenceNode = {|
-  id: string,
-  +type: 'bundle_reference',
-  value: BundleReference
-|};
-
 export type BundleGroupNode = {|
   id: string,
   +type: 'bundle_group',
   value: BundleGroup
 |};
 
-export type BundleGraphNode = BundleNode | BundleGroupNode | RootNode;
-
 export type TransformationOpts = {|
+  request: AssetRequest,
+  loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
+  parentNodeId: NodeId,
+  options: ParcelOptions
+|};
+
+export type ValidationOpts = {|
   request: AssetRequest,
   loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
   parentNodeId: NodeId,

@@ -216,18 +216,6 @@ export default class Server extends EventEmitter {
       });
 
       this.server.once('listening', () => {
-        let addon =
-          this.server.address().port !== this.options.port
-            ? `- configured port ${this.options.port.toString()} could not be used.`
-            : '';
-
-        logger.log(
-          `Server running at ${this.options.https ? 'https' : 'http'}://${this
-            .options.host || 'localhost'}:${
-            this.server.address().port
-          } ${addon}`
-        );
-
         resolve(this.server);
       });
     });

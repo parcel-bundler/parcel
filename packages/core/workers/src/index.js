@@ -5,6 +5,8 @@ import WorkerFarm from './WorkerFarm';
 import Logger from '@parcel/logger';
 import bus from './bus';
 
+export type {WorkerApi} from './WorkerFarm';
+
 if (!WorkerFarm.isWorker()) {
   // Forward all logger events originating from workers into the main process
   bus.on('logEvent', (e: LogEvent) => {
@@ -35,3 +37,4 @@ if (!WorkerFarm.isWorker()) {
 
 export default WorkerFarm;
 export {bus};
+export {Handle} from './WorkerFarm';

@@ -45,8 +45,6 @@ export default class ThreadsWorker implements WorkerImpl {
     this.worker.on('error', this.onError);
     this.worker.on('exit', this.onExit);
 
-    this.worker.unref();
-
     return new Promise(resolve => {
       this.worker.on('online', resolve);
     });

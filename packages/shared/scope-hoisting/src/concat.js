@@ -9,6 +9,7 @@ import * as walk from 'babylon-walk';
 import {getName, getIdentifier} from './utils';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
+import {PromiseQueue} from '@parcel/utils';
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
 const HELPERS = fs.readFileSync(HELPERS_PATH, 'utf8');
@@ -24,13 +25,13 @@ type TraversalContext = {|
 
 // eslint-disable-next-line no-unused-vars
 export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
-  let assets = [];
+  let queue = new PromiseQueue({maxConcurrent: 32});
   bundle.traverse((node, shouldWrap) => {
     switch (node.type) {
       case 'dependency':
         // Mark assets that should be wrapped, based on metadata in the incoming dependency tree
         if (shouldWrap || node.value.meta.shouldWrap) {
-          let resolved = bundle.getDependencyResolution(node.value);
+          let resolved = bundleGraph.getDependencyResolution(node.value);
           if (resolved) {
             resolved.meta.shouldWrap = true;
           }
@@ -38,24 +39,24 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
         }
         break;
       case 'asset':
-        assets.push(node.value);
+        queue.add(() => processAsset(bundle, node.value));
     }
   });
 
-  let promises = assets.map(asset => processAsset(bundle, asset));
-  let outputs = new Map(await Promise.all(promises));
+  let outputs = new Map(await queue.run());
   let result = [...parse(HELPERS, HELPERS_PATH)];
 
   // If this is an entry bundle and it has child bundles, we need to add the prelude code, which allows
   // registering modules dynamically at runtime.
+  let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
   let hasChildBundles = bundle.hasChildBundles();
-  let needsPrelude = bundle.isEntry && hasChildBundles;
-  let registerEntry = !bundle.isEntry || hasChildBundles;
+  let needsPrelude = isEntry && hasChildBundles;
+  let registerEntry = !isEntry || hasChildBundles;
   if (needsPrelude) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }
 
-  let usedExports = getUsedExports(bundle);
+  let usedExports = getUsedExports(bundle, bundleGraph);
 
   bundle.traverseAssets<TraversalContext>({
     enter(asset, context) {
@@ -80,7 +81,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
       for (let i = 0; i < statements.length; i++) {
         let statement = statements[i];
         if (t.isExpressionStatement(statement)) {
-          for (let depAsset of findRequires(bundle, asset, statement)) {
+          for (let depAsset of findRequires(bundleGraph, asset, statement)) {
             if (depAsset && !statementIndices.has(depAsset.id)) {
               statementIndices.set(depAsset.id, i);
             }
@@ -95,10 +96,10 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
         statements.splice(index, 0, ...ast);
       }
 
-      // If this module is referenced by another bundle, or is an entry module in a child bundle,
+      // If this module is referenced by another JS bundle, or is an entry module in a child bundle,
       // add code to register the module with the module system.
       if (
-        bundleGraph.isAssetReferenced(asset) ||
+        bundleGraph.isAssetReferencedByAssetType(asset, 'js') ||
         (!context.parent && registerEntry)
       ) {
         let exportsId = getName(asset, 'exports');
@@ -118,7 +119,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
     }
   });
 
-  let entry = bundle.getEntryAssets()[0];
+  let entry = bundle.getMainEntry();
   if (entry && bundle.isEntry) {
     let exportsIdentifier = getName(entry, 'exports');
     let code = await entry.getCode();
@@ -177,11 +178,14 @@ function addComment(statement, comment) {
   });
 }
 
-function getUsedExports(bundle: Bundle): Map<string, Set<Symbol>> {
+function getUsedExports(
+  bundle: Bundle,
+  bundleGraph: BundleGraph
+): Map<string, Set<Symbol>> {
   let usedExports: Map<string, Set<Symbol>> = new Map();
   bundle.traverseAssets(asset => {
-    for (let dep of bundle.getDependencies(asset)) {
-      let resolvedAsset = bundle.getDependencyResolution(dep);
+    for (let dep of bundleGraph.getDependencies(asset)) {
+      let resolvedAsset = bundleGraph.getDependencyResolution(dep);
       if (!resolvedAsset) {
         continue;
       }
@@ -203,7 +207,7 @@ function getUsedExports(bundle: Bundle): Map<string, Set<Symbol>> {
   });
 
   function markUsed(asset, symbol) {
-    let resolved = bundle.resolveSymbol(asset, symbol);
+    let resolved = bundleGraph.resolveSymbol(asset, symbol);
 
     let used = usedExports.get(resolved.asset.id);
     if (!used) {
@@ -228,7 +232,11 @@ function shouldExcludeAsset(
   );
 }
 
-function findRequires(bundle: Bundle, asset: Asset, ast) {
+function findRequires(
+  bundleGraph: BundleGraph,
+  asset: Asset,
+  ast: mixed
+): Array<Asset> {
   let result = [];
   walk.simple(ast, {
     CallExpression(node) {
@@ -238,13 +246,13 @@ function findRequires(bundle: Bundle, asset: Asset, ast) {
       }
 
       if (callee.name === '$parcel$require') {
-        let dep = bundle
+        let dep = bundleGraph
           .getDependencies(asset)
           .find(dep => dep.moduleSpecifier === args[1].value);
         if (!dep) {
           throw new Error(`Could not find dep for "${args[1].value}`);
         }
-        result.push(bundle.getDependencyResolution(dep));
+        result.push(nullthrows(bundleGraph.getDependencyResolution(dep)));
       }
     }
   });

@@ -29,7 +29,8 @@ const paths = {
   packageOther: [
     'packages/*/scope-hoisting/src/helpers.js',
     'packages/*/*/src/**/loaders/**',
-    'packages/*/*/src/**/prelude.js'
+    'packages/*/*/src/**/prelude.js',
+    'packages/*/dev-server/src/templates/**'
   ],
   packageJson: ['packages/*/*/package.json', ...IGNORED_PACKAGES],
   packages: 'packages/'
@@ -72,7 +73,13 @@ function updatePackageJson() {
       for (let [binName, binPath] of Object.entries(json.bin)) {
         json.bin[binName] = binPath.replace('src', 'lib');
       }
+    } else if (typeof json.bin === 'string') {
+      json.bin = json.bin.replace('src', 'lib');
     }
+
+    json.publishConfig = {
+      access: 'public'
+    };
     vinyl.contents = Buffer.from(JSON.stringify(json, null, 2));
   });
 }

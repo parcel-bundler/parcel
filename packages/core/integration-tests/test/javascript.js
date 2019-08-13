@@ -423,6 +423,25 @@ describe('javascript', function() {
     });
   });
 
+  it('should not deduplicate assets from a parent bundle in workers', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/worker-no-deduplicate/index.js')
+    );
+
+    assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'lodash.js']
+      },
+      {
+        assets: ['worker-a.js', 'lodash.js']
+      },
+      {
+        assets: ['worker-b.js', 'lodash.js']
+      }
+    ]);
+  });
+
   it('should dynamic import files which import raw files', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/dynamic-references-raw/index.js')
@@ -1371,5 +1390,57 @@ describe('javascript', function() {
     );
 
     await run(b);
+  });
+
+  it('should support async importing the same module from different bundles', async () => {
+    let b = await bundle(
+      path.join(__dirname, '/integration/shared-bundlegroup/index.js')
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: [
+          'index.js',
+          'JSRuntime.js',
+          'JSRuntime.js',
+          'bundle-url.js',
+          'bundle-loader.js',
+          'js-loader.js'
+        ]
+      },
+      {
+        assets: ['a.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['b.js', 'JSRuntime.js']
+      },
+      {
+        assets: ['c.js']
+      }
+    ]);
+
+    let {default: promise} = await run(b);
+    assert.deepEqual(await promise, ['hello from a test', 'hello from b test']);
+  });
+
+  it('should not create shared bundles from contents of entries', async () => {
+    let b = await bundle(
+      [
+        '/integration/no-shared-bundles-from-entries/a.js',
+        '/integration/no-shared-bundles-from-entries/b.js'
+      ].map(entry => path.join(__dirname, entry))
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'a.js',
+        assets: ['a.js', 'lodash.js']
+      },
+      {
+        name: 'b.js',
+        assets: ['b.js', 'lodash.js']
+      }
+    ]);
   });
 });

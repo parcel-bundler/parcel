@@ -1,14 +1,11 @@
 // @flow
 
-import type {Environment} from '@parcel/types';
+import type {Environment} from './types';
 
 import type Graph from './Graph';
 import type {AssetGraphNode, BundleGraphNode} from './types';
 
-import invariant from 'assert';
-import nullthrows from 'nullthrows';
 import path from 'path';
-import BundleGraph from './BundleGraph';
 
 const COLORS = {
   root: 'gray',
@@ -17,6 +14,12 @@ const COLORS = {
   transformer_request: 'cyan',
   file: 'gray',
   default: 'white'
+};
+
+const TYPE_COLORS = {
+  bundle: 'blue',
+  contains: 'grey',
+  references: 'red'
 };
 
 export default async function dumpGraphToGraphViz(
@@ -49,7 +52,7 @@ export default async function dumpGraphToGraphViz(
       if (node.value.isOptional) parts.push('optional');
       if (parts.length) label += ' (' + parts.join(', ') + ')';
       if (node.value.env) label += ` (${getEnvDescription(node.value.env)})`;
-    } else if (node.type === 'asset' || node.type === 'asset_reference') {
+    } else if (node.type === 'asset') {
       label += path.basename(node.value.filePath) + '#' + node.value.type;
     } else if (node.type === 'file') {
       label += path.basename(node.value.filePath);
@@ -58,20 +61,7 @@ export default async function dumpGraphToGraphViz(
         path.basename(node.value.filePath) +
         ` (${getEnvDescription(node.value.env)})`;
     } else if (node.type === 'bundle') {
-      let rootAssets = node.value.assetGraph.getNodesConnectedFrom(
-        nullthrows(node.value.assetGraph.getRootNode())
-      );
-      label += rootAssets
-        .map(asset => {
-          invariant(asset.type === 'asset' || asset.type === 'asset_reference');
-          let parts = asset.value.filePath.split(path.sep);
-          let index = parts.lastIndexOf('node_modules');
-          if (index >= 0) {
-            return parts[index + 1];
-          }
-          return path.basename(asset.value.filePath);
-        })
-        .join(', ');
+      label += node.id;
     } else {
       // label += node.id;
       label = node.type;
@@ -79,26 +69,27 @@ export default async function dumpGraphToGraphViz(
     n.set('label', label);
   }
   for (let edge of graph.getAllEdges()) {
-    g.addEdge(edge.from, edge.to);
+    let gEdge = g.addEdge(edge.from, edge.to);
+    let color = edge.type != null ? TYPE_COLORS[edge.type] : null;
+    if (color != null) {
+      gEdge.set('color', color);
+    }
   }
   let tmp = tempy.file({name: `${name}.png`});
   await g.output('png', tmp);
   // eslint-disable-next-line no-console
   console.log('Dumped', tmp);
-  if (graph instanceof BundleGraph) {
-    graph.traverseBundles(bundle => {
-      dumpGraphToGraphViz(bundle.assetGraph, bundle.id);
-    });
-  }
 }
 
 function getEnvDescription(env: Environment) {
-  let description = '';
-  if (env.engines.browsers) {
+  let description;
+  if (typeof env.engines.browsers === 'string') {
+    description = `${env.context}: ${env.engines.browsers}`;
+  } else if (Array.isArray(env.engines.browsers)) {
     description = `${env.context}: ${env.engines.browsers.join(', ')}`;
   } else if (env.engines.node) {
     description = `node: ${env.engines.node}`;
   }
 
-  return description;
+  return description ?? '';
 }

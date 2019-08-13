@@ -3,9 +3,9 @@ import type {
   FilePath,
   ParcelConfigFile,
   ResolvedParcelConfigFile,
-  PackageName,
-  ParcelOptions
+  PackageName
 } from '@parcel/types';
+import type {ParcelOptions} from './types';
 import type {FileSystem} from '@parcel/fs';
 import {resolveConfig} from '@parcel/utils';
 import {parse} from 'json5';
@@ -117,6 +117,13 @@ export function validateConfigFile(
     validatePipeline.bind(this),
     'transformer',
     'transforms',
+    relativePath
+  );
+  validateMap(
+    config.validators,
+    validatePipeline.bind(this),
+    'validator',
+    'validators',
     relativePath
   );
   validatePackageName(config.bundler, 'bundler', 'bundler', relativePath);
@@ -261,6 +268,7 @@ export function mergeConfigs(
     filePath: ext.filePath, // TODO: revisit this - it should resolve plugins based on the actual config they are defined in
     resolvers: mergePipelines(base.resolvers, ext.resolvers),
     transforms: mergeMaps(base.transforms, ext.transforms, mergePipelines),
+    validators: mergeMaps(base.validators, ext.validators, mergePipelines),
     bundler: ext.bundler || base.bundler,
     namers: mergePipelines(base.namers, ext.namers),
     runtimes: mergeMaps(base.runtimes, ext.runtimes),

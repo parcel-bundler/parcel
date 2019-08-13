@@ -2,7 +2,9 @@ import Logger from '@parcel/logger';
 import assert from 'assert';
 import WorkerFarm from '../';
 
-describe('WorkerFarm', () => {
+describe('WorkerFarm', function() {
+  this.timeout(10000);
+
   it('Should start up workers', async () => {
     let workerfarm = new WorkerFarm({
       warmWorkers: false,
@@ -214,5 +216,19 @@ describe('WorkerFarm', () => {
     let handle = workerfarm.createReverseHandle(() => 42);
     let result = await workerfarm.run(handle);
     assert.equal(result, 42);
+    await workerfarm.end();
+  });
+
+  it('Should dispose of handle objects when ending', async () => {
+    let workerfarm = new WorkerFarm({
+      warmWorkers: true,
+      useLocalWorker: false,
+      workerPath: require.resolve('./integration/workerfarm/reverse-handle.js')
+    });
+
+    workerfarm.createReverseHandle(() => 42);
+    assert.equal(workerfarm.handles.size, 1);
+    await workerfarm.end();
+    assert.equal(workerfarm.handles.size, 0);
   });
 });

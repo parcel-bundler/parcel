@@ -1,12 +1,14 @@
 // @flow
 
 import type {FilePath} from '@parcel/types';
+import type {WorkerApi} from '@parcel/workers';
 
-import WorkerFarm from '@parcel/workers';
+import invariant from 'assert';
 import logger from '@parcel/logger';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {NodeFS} from '@parcel/fs';
+import WorkerFarm from '@parcel/workers';
 
 import {loadConfig, PromiseQueue, resolve, resolveConfig} from '@parcel/utils';
 import Npm from './Npm';
@@ -137,11 +139,23 @@ export function _addToInstallQueue(
 }
 
 export default function installPackage(
-  ...args: [Array<string>, FilePath] | [Array<string>, FilePath, InstallOptions]
+  modules: Array<string>,
+  filePath: FilePath,
+  options?: InstallOptions
 ): Promise<mixed> {
-  return WorkerFarm.callMaster({
+  invariant(!WorkerFarm.isWorker(), new Error().stack);
+  return _addToInstallQueue(modules, filePath, options);
+}
+
+export function installPackageFromWorker(
+  workerApi: WorkerApi,
+  modules: Array<string>,
+  filePath: FilePath,
+  options?: InstallOptions
+): Promise<mixed> {
+  return workerApi.callMaster({
     location: __filename,
-    args,
+    args: [modules, filePath, options],
     method: '_addToInstallQueue'
   });
 }

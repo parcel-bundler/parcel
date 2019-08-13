@@ -2,11 +2,11 @@
 
 import {Resolver} from '@parcel/plugin';
 import type {
-  ParcelOptions,
+  PluginOptions,
   Dependency,
   PackageJSON,
   FilePath,
-  AssetRequest
+  ResolveResult
 } from '@parcel/types';
 import path from 'path';
 import {isGlob} from '@parcel/utils';
@@ -25,9 +25,8 @@ export default new Resolver({
       return null;
     }
 
-    let result: AssetRequest = {
-      filePath: resolved.path,
-      env: dependency.env
+    let result: ResolveResult = {
+      filePath: resolved.path
     };
 
     if (resolved.pkg && !hasSideEffects(resolved.path, resolved.pkg)) {
@@ -64,7 +63,7 @@ type InternalPackageJSON = PackageJSON & {
 const EMPTY_SHIM = require.resolve('./_empty');
 
 type Options = {|
-  options: ParcelOptions,
+  options: PluginOptions,
   extensions: Array<string>
 |};
 
@@ -82,7 +81,7 @@ type Options = {|
  *   - The package.json alias field in the root package for global aliases across all modules.
  */
 class NodeResolver {
-  options: ParcelOptions;
+  options: PluginOptions;
   extensions: Array<string>;
   packageCache: Map<string, InternalPackageJSON>;
   rootPackage: InternalPackageJSON | null;

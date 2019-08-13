@@ -1,9 +1,11 @@
 // @flow
 
-import type {ParcelOptions, Dependency, AssetRequest} from '@parcel/types';
+import type {AssetRequest, Dependency, ParcelOptions} from './types';
 import path from 'path';
 import type ParcelConfig from './ParcelConfig';
 import {report} from './ReporterRunner';
+import PublicDependency from './public/Dependency';
+import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
   config: ParcelConfig,
@@ -13,26 +15,35 @@ type Opts = {|
 export default class ResolverRunner {
   config: ParcelConfig;
   options: ParcelOptions;
+  pluginOptions: PluginOptions;
 
   constructor({config, options}: Opts) {
     this.config = config;
     this.options = options;
+    this.pluginOptions = new PluginOptions(this.options);
   }
 
   async resolve(dependency: Dependency): Promise<AssetRequest> {
+    let dep = new PublicDependency(dependency);
     report({
       type: 'buildProgress',
       phase: 'resolving',
-      dependency
+      dependency: dep
     });
 
     let resolvers = await this.config.getResolvers();
 
     for (let resolver of resolvers) {
-      let result = await resolver.resolve({dependency, options: this.options});
+      let result = await resolver.resolve({
+        dependency: dep,
+        options: this.pluginOptions
+      });
 
       if (result) {
-        return result;
+        return {
+          ...result,
+          env: dependency.env
+        };
       }
     }
 

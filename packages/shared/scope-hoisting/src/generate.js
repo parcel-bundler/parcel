@@ -1,9 +1,10 @@
 // @flow
 
-import type {AST, Bundle, ParcelOptions} from '@parcel/types';
+import type {AST, Bundle, PluginOptions} from '@parcel/types';
 import babelGenerate from '@babel/generator';
+import nullthrows from 'nullthrows';
 
-export function generate(bundle: Bundle, ast: AST, options: ParcelOptions) {
+export function generate(bundle: Bundle, ast: AST, options: PluginOptions) {
   let {code} = babelGenerate(ast, {
     minified: options.minify,
     comments: !options.minify
@@ -13,11 +14,10 @@ export function generate(bundle: Bundle, ast: AST, options: ParcelOptions) {
     code = `\n${code}\n`;
   }
 
-  let entryAsset = bundle.getEntryAssets()[0];
   // $FlowFixMe
   let interpreter: ?string = bundle.target.env.isBrowser()
     ? null
-    : entryAsset.meta.interpreter;
+    : nullthrows(bundle.getMainEntry()).meta.interpreter;
   return {
     contents: `${
       interpreter != null ? `#!${interpreter}\n` : ''

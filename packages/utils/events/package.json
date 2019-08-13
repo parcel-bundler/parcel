@@ -1,6 +1,6 @@
 {
   "name": "@parcel/events",
-  "version": "2.0.0-alpha.0",
+  "version": "2.0.0-alpha.1.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -11,7 +11,6 @@
     "node": ">= 8.0.0"
   },
   "scripts": {
-    "test": "mocha",
     "test-ci": "yarn test"
   }
 }
