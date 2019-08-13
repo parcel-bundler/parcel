@@ -1,5 +1,6 @@
 {
   "name": "@parcel/eslint-config",
+  "private": true,
   "version": "1.10.4-alpha.0",
   "dependencies": {
     "@parcel/eslint-plugin": "^2.0.0-alpha.1",
