@@ -204,4 +204,32 @@ describe('sass', function() {
     assert(css.includes('.a'));
     assert(css.includes('.b'));
   });
+
+  it('should support absolute imports', async function() {
+    let didThrow = false;
+    try {
+      await bundle(
+        path.join(
+          __dirname,
+          '/integration/sass-webpack-import-error/index.sass'
+        )
+      );
+    } catch (err) {
+      assert.equal(
+        err.message,
+        `
+The @import path "~library/style.sass" is using webpack specific syntax, which isn't supported by Parcel.
+
+To @import files from node_modules, use "~/node_modules/library/style.sass"
+  ╷
+1 │ @import "~library/style.sass"
+  │         ^^^^^^^^^^^^^^^^^^^^^
+  ╵
+  test/integration/sass-webpack-import-error/index.sass 1:9  root stylesheet`.trim()
+      );
+      didThrow = true;
+    }
+
+    assert(didThrow);
+  });
 });

@@ -4,6 +4,9 @@ import {Transformer} from '@parcel/plugin';
 import localRequire from '@parcel/local-require';
 import {promisify} from '@parcel/utils';
 
+// E.g: ~library/file.sass
+const WEBPACK_ALIAS_RE = /^~[^/]/;
+
 export default new Transformer({
   async getConfig({asset, resolve}) {
     let config = await asset.getConfig(['.sassrc', '.sassrc.js'], {
@@ -54,6 +57,15 @@ export default new Transformer({
 function resolvePathImporter({resolve}) {
   return function(rawUrl, prev, done) {
     let url = rawUrl.replace(/^file:\/\//, '');
+
+    if (WEBPACK_ALIAS_RE.test(url)) {
+      const correctPath = url.replace(/^~/, '~/node_modules/');
+      const error = new Error(
+        `The @import path "${url}" is using webpack specific syntax, which isn't supported by Parcel.\n\nTo @import files from node_modules, use "${correctPath}"`
+      );
+      done(error);
+      return;
+    }
 
     if (url[0] === '/' || url[0] === '~') {
       resolve(prev, url)
