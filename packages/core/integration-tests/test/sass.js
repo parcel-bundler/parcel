@@ -205,7 +205,7 @@ describe('sass', function() {
     assert(css.includes('.b'));
   });
 
-  it('should support absolute imports', async function() {
+  it('should throw an exception when using webpack syntax', async function() {
     let didThrow = false;
     try {
       await bundle(
@@ -233,5 +233,37 @@ To @import files from node_modules, use "~/node_modules/library/style.sass"
     }
 
     assert(didThrow);
+  });
+
+  it('should support node_modules imports', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sass-node-modules-import/index.sass')
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.sass']
+      }
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('.external'));
+  });
+
+  it('should support imports from includePaths', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/sass-include-paths-import/index.sass')
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.css',
+        assets: ['index.sass']
+      }
+    ]);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('.included'));
   });
 });

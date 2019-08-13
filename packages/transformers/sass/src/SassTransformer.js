@@ -67,16 +67,12 @@ function resolvePathImporter({resolve}) {
       return;
     }
 
-    if (url[0] === '/' || url[0] === '~') {
-      resolve(prev, url)
-        .then(resolvedPath => {
-          done({file: resolvedPath});
-        })
-        .catch(err => {
-          done(err);
-        });
-    } else {
-      done(url);
-    }
+    resolve(prev, url)
+      .then(resolvedPath => {
+        done({file: resolvedPath});
+      })
+      .catch(() => {
+        done(null);
+      });
   };
 }
