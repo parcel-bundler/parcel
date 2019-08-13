@@ -4,7 +4,7 @@
   "main": "src/index.js",
   "engines": {
     "node": ">= 8.0.0",
-    "parcel": "^2.0.0-alpha.0"
+    "parcel": "^2.0.0-alpha.1"
   },
   "scripts": {
     "test-ci": "yarn test"

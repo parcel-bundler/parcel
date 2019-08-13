@@ -1,6 +1,6 @@
 {
   "name": "@parcel/optimizer-cssnano",
-  "version": "2.0.1-alpha.0",
+  "version": "2.0.0-alpha.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,7 +8,7 @@
   },
   "main": "src/CSSNanoOptimizer.js",
   "engines": {
-    "parcel": "^2.0.0-alpha.0"
+    "parcel": "^2.0.0-alpha.1"
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-alpha.1",

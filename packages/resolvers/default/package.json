@@ -8,7 +8,7 @@
   },
   "main": "src/DefaultResolver",
   "engines": {
-    "parcel": "^2.0.0-alpha.0"
+    "parcel": "^2.0.0-alpha.1"
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-alpha.1",

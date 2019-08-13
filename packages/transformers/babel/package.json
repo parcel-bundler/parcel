@@ -9,7 +9,7 @@
   "main": "src/BabelTransformer.js",
   "engines": {
     "node": ">= 8.0.0",
-    "parcel": "^2.0.0-alpha.0"
+    "parcel": "^2.0.0-alpha.1"
   },
   "dependencies": {
     "@babel/core": "^7.0.0",

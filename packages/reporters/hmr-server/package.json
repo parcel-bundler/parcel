@@ -10,7 +10,7 @@
   },
   "engines": {
     "node": ">= 6.0.0",
-    "parcel": "^2.0.0-alpha.0"
+    "parcel": "^2.0.0-alpha.1"
   },
   "dependencies": {
     "@parcel/logger": "^2.0.0-alpha.1",

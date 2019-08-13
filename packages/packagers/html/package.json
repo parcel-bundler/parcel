@@ -9,7 +9,7 @@
   "main": "src/HTMLPackager",
   "engines": {
     "node": ">= 8.0.0",
-    "parcel": "^2.0.0-alpha.0"
+    "parcel": "^2.0.0-alpha.1"
   },
   "dependencies": {
     "@parcel/plugin": "^2.0.0-alpha.1",
