@@ -55,16 +55,8 @@ describe('html', function() {
       }
     }
 
-    let jsBundle;
-    b.traverseBundles((bundle, ctx, traversal) => {
-      if (bundle.type === 'js') {
-        jsBundle = bundle;
-        traversal.stop();
-      }
-    });
-
     let value = null;
-    await run(jsBundle, {
+    await run(b, {
       alert: v => (value = v)
     });
     assert.equal(value, 'Hi');

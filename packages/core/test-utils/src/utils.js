@@ -4,8 +4,7 @@ import type {
   BuildEvent,
   BundleGraph,
   FilePath,
-  InitialParcelOptions,
-  Bundle
+  InitialParcelOptions
 } from '@parcel/types';
 
 import invariant from 'assert';
@@ -121,23 +120,16 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
 }
 
 export async function run(
-  bundleOrGraph: BundleGraph | Bundle,
+  bundleGraph: BundleGraph,
   globals: mixed,
   opts: {require?: boolean} = {}
 ): Promise<mixed> {
-  let bundle: Bundle;
-  if (bundleOrGraph.traverseBundles) {
-    let bundles = [];
-    //$FlowFixMe
-    bundleOrGraph.traverseBundles(bundle => {
-      bundles.push(bundle);
-    });
+  let bundles = [];
+  bundleGraph.traverseBundles(bundle => {
+    bundles.push(bundle);
+  });
 
-    bundle = (nullthrows(bundles.find(b => b.isEntry)): Bundle);
-  } else {
-    //$FlowFixMe
-    bundle = (bundleOrGraph: Bundle);
-  }
+  let bundle = nullthrows(bundles.find(b => b.type === 'js'));
   let entryAsset = nullthrows(bundle.getMainEntry());
   let target = entryAsset.env.context;
 

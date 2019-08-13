@@ -1338,16 +1338,8 @@ describe('scope hoisting', function() {
       }
     ]);
 
-    let jsBundle;
-    b.traverseBundles((bundle, ctx, traversal) => {
-      if (bundle.type === 'js') {
-        jsBundle = bundle;
-        traversal.stop();
-      }
-    });
-
     let value = null;
-    await run(jsBundle, {
+    await run(b, {
       alert: v => (value = v)
     });
     assert.equal(value, 'Hi');
@@ -1379,18 +1371,7 @@ describe('scope hoisting', function() {
       }
     ]);
 
-    let htmlBundle;
-    b.traverseBundles((bundle, ctx, traversal) => {
-      if (bundle.isEntry) {
-        htmlBundle = bundle;
-        traversal.stop();
-      }
-    });
-    let jsBundle = b.getBundlesInBundleGroup(
-      b.getBundleGroupsReferencedByBundle(htmlBundle)[0].bundleGroup
-    )[0];
-
-    let output = (await run(jsBundle)).default;
+    let output = (await run(b)).default;
     assert.equal(typeof output, 'function');
     assert.equal(await output(), 'Imported: foobar');
   });
