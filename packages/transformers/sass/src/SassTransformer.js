@@ -59,7 +59,7 @@ function resolvePathImporter({resolve}) {
     let url = rawUrl.replace(/^file:\/\//, '');
 
     if (WEBPACK_ALIAS_RE.test(url)) {
-      const correctPath = url.replace(/^~/, '~/node_modules/');
+      const correctPath = url.replace(/^~/, '');
       const error = new Error(
         `The @import path "${url}" is using webpack specific syntax, which isn't supported by Parcel.\n\nTo @import files from node_modules, use "${correctPath}"`
       );

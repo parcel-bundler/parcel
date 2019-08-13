@@ -220,7 +220,7 @@ describe('sass', function() {
         `
 The @import path "~library/style.sass" is using webpack specific syntax, which isn't supported by Parcel.
 
-To @import files from node_modules, use "~/node_modules/library/style.sass"
+To @import files from node_modules, use "library/style.sass"
   ╷
 1 │ @import "~library/style.sass"
   │         ^^^^^^^^^^^^^^^^^^^^^
