@@ -129,7 +129,7 @@ export async function run(
     bundles.push(bundle);
   });
 
-  let bundle = nullthrows(bundles.find(b => b.isEntry));
+  let bundle = nullthrows(bundles.find(b => b.type === 'js'));
   let entryAsset = nullthrows(bundle.getMainEntry());
   let target = entryAsset.env.context;
 

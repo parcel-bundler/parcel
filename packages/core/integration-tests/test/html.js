@@ -5,13 +5,14 @@ const {
   assertBundleTree,
   removeDistDirectory,
   distDir,
+  run,
   inputFS,
   outputFS
 } = require('@parcel/test-utils');
 const path = require('path');
 
 describe('html', function() {
-  afterEach(async () => {
+  beforeEach(async () => {
     await removeDistDirectory();
   });
 
@@ -53,6 +54,12 @@ describe('html', function() {
         assert(html.includes(file));
       }
     }
+
+    let value = null;
+    await run(b, {
+      alert: v => (value = v)
+    });
+    assert.equal(value, 'Hi');
   });
 
   it('should find href attr when not first', async function() {
