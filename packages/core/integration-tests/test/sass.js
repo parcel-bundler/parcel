@@ -225,7 +225,9 @@ To @import files from node_modules, use "~/node_modules/library/style.sass"
 1 │ @import "~library/style.sass"
   │         ^^^^^^^^^^^^^^^^^^^^^
   ╵
-  test/integration/sass-webpack-import-error/index.sass 1:9  root stylesheet`.trim()
+  test${path.sep}integration${path.sep}sass-webpack-import-error${
+          path.sep
+        }index.sass 1:9  root stylesheet`.trim()
       );
       didThrow = true;
     }
