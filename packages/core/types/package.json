@@ -6,5 +6,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
