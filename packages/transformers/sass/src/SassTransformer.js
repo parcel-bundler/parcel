@@ -1,11 +1,28 @@
-// @flow strict-local
+// @flow
 
 import {Transformer} from '@parcel/plugin';
-import localRequire from '@parcel/local-require';
+import localRequire, {localResolve} from '@parcel/local-require';
 import {promisify} from '@parcel/utils';
+import logger from '@parcel/logger';
 
 // E.g: ~library/file.sass
 const WEBPACK_ALIAS_RE = /^~[^/]/;
+
+let didWarnAboutNodeSass = false;
+
+async function warnAboutNodeSassBeingUnsupported(filePath) {
+  if (!didWarnAboutNodeSass) {
+    try {
+      await localResolve('node-sass', filePath, true);
+      logger.warn(
+        '`node-sass` is unsupported in Parcel 2, it will use Dart Sass a.k.a. `sass`'
+      );
+    } catch {
+      // noop
+    }
+    didWarnAboutNodeSass = true;
+  }
+}
 
 export default new Transformer({
   async getConfig({asset, resolve}) {
@@ -31,6 +48,7 @@ export default new Transformer({
   },
 
   async transform({asset, config}) {
+    await warnAboutNodeSassBeingUnsupported(asset.filePath);
     let sass = await localRequire('sass', asset.filePath);
     const sassRender = promisify(sass.render.bind(sass));
 
