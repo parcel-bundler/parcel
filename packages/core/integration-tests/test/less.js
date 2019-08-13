@@ -84,6 +84,7 @@ describe('less', function() {
     assert(css.includes('.external-index'));
     assert(css.includes('.external-a'));
     assert(css.includes('.external-with-main'));
+    assert(css.includes('.explicit-external-a'));
   });
 
   it('should support requiring empty less files', async function() {
@@ -180,7 +181,7 @@ describe('less', function() {
     } catch (err) {
       assert.equal(
         err.message,
-        'The @import path "~library/style.less" is using webpack specific syntax, which isn\'t supported by Parcel.\n\nTo @import files from node_modules, use "~/node_modules/library/style.less"'
+        'The @import path "~library/style.less" is using webpack specific syntax, which isn\'t supported by Parcel.\n\nTo @import files from node_modules, use "library/style.less"'
       );
       didThrow = true;
     }

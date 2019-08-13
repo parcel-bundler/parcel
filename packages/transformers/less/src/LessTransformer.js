@@ -84,16 +84,21 @@ function resolvePathPlugin({asset, resolve}) {
           let filename = rawFilename;
 
           if (WEBPACK_ALIAS_RE.test(filename)) {
-            let correctPath = filename.replace(/^~/, '~/node_modules/');
+            let correctPath = filename.replace(/^~/, '');
             throw new Error(
               `The @import path "${filename}" is using webpack specific syntax, which isn't supported by Parcel.\n\nTo @import files from node_modules, use "${correctPath}"`
             );
           }
 
-          if (filename[0] == '/' || filename[0] == '~') {
+          try {
+            return await super.loadFile(filename, ...args);
+          } catch (err) {
+            if (err.type !== 'File') {
+              throw err;
+            }
             filename = await resolve(asset.filePath, filename);
+            return super.loadFile(filename, ...args);
           }
-          return super.loadFile(filename, ...args);
         }
       }
 
