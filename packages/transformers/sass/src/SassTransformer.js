@@ -1,7 +1,7 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-import localRequire, {localResolve} from '@parcel/local-require';
+import {localResolve} from '@parcel/local-require';
 import {promisify} from '@parcel/utils';
 import logger from '@parcel/logger';
 
@@ -47,7 +47,7 @@ export default new Transformer({
     return config;
   },
 
-  async transform({asset, config}) {
+  async transform({asset, localRequire, config}) {
     await warnAboutNodeSassBeingUnsupported(asset.filePath);
     let sass = await localRequire('sass', asset.filePath);
     const sassRender = promisify(sass.render.bind(sass));
