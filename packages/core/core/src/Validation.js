@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import nullthrows from 'nullthrows';
+import type {WorkerApi} from '@parcel/workers';
 import type {
   AssetRequest,
   Config,
@@ -8,20 +8,25 @@ import type {
   ConfigRequest,
   ParcelOptions
 } from './types';
+import type ParcelConfig from './ParcelConfig';
 
+import nullthrows from 'nullthrows';
 import path from 'path';
 import {resolveConfig} from '@parcel/utils';
+import {localRequireFromWorker} from '@parcel/local-require';
 
 import {report} from './ReporterRunner';
 import InternalAsset, {createAsset} from './InternalAsset';
 import {Asset} from './public/Asset';
+import PluginOptions from './public/PluginOptions';
 import summarizeRequest from './summarizeRequest';
 
 export type ValidationOpts = {|
   request: AssetRequest,
   loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
   parentNodeId: NodeId,
-  options: ParcelOptions
+  options: ParcelOptions,
+  workerApi: WorkerApi
 |};
 
 export default class Validation {
@@ -30,8 +35,15 @@ export default class Validation {
   loadConfig: ConfigRequest => Promise<Config>;
   options: ParcelOptions;
   impactfulOptions: $Shape<ParcelOptions>;
+  workerApi: WorkerApi;
 
-  constructor({request, loadConfig, parentNodeId, options}: ValidationOpts) {
+  constructor({
+    request,
+    loadConfig,
+    parentNodeId,
+    options,
+    workerApi
+  }: ValidationOpts) {
     this.request = request;
     this.configRequests = [];
     this.loadConfig = configRequest => {
@@ -39,6 +51,7 @@ export default class Validation {
       return loadConfig(configRequest, parentNodeId);
     };
     this.options = options;
+    this.workerApi = workerApi;
   }
 
   async run(): Promise<void> {
@@ -56,15 +69,21 @@ export default class Validation {
     };
 
     let config = await this.loadConfig(configRequest);
-    let parcelConfig = nullthrows(config.result);
+    let parcelConfig: ParcelConfig = nullthrows(config.result);
+    let localRequire = localRequireFromWorker.bind(null, this.workerApi);
 
     let validators = await parcelConfig.getValidators(this.request.filePath);
     for (let validator of validators) {
       await validator.validate({
         asset: new Asset(asset),
-        options: this.options,
+        options: new PluginOptions(this.options),
         resolveConfig: (configNames: Array<string>) =>
-          resolveConfig(this.options.inputFS, asset.value.filePath, configNames)
+          resolveConfig(
+            this.options.inputFS,
+            asset.value.filePath,
+            configNames
+          ),
+        localRequire
       });
     }
   }

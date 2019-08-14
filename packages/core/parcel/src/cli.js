@@ -240,7 +240,7 @@ async function normalizeOptions(command): Promise<InitialParcelOptions> {
     mode,
     minify: command.minify != null ? command.minify : mode === 'production',
     sourceMaps: command.sourceMaps ?? true,
-    scopeHoist: command.scopeHoist ?? true,
+    scopeHoist: command.scopeHoist,
     hot: hmr,
     serve,
     targets: command.target.length > 0 ? command.target : null,
