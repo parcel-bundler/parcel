@@ -5,7 +5,6 @@ import type {FilePath, MutableAsset} from '@parcel/types';
 import {md5FromString} from '@parcel/utils';
 import {Transformer} from '@parcel/plugin';
 import FileSystemLoader from 'css-modules-loader-core/lib/file-system-loader';
-import localRequire from '@parcel/local-require';
 import nullthrows from 'nullthrows';
 import path from 'path';
 import postcss from 'postcss';
@@ -25,7 +24,11 @@ type ParcelPostCSSConfig = {
 };
 
 export default new Transformer({
-  async getConfig({asset, resolve}): Promise<?ParcelPostCSSConfig> {
+  async getConfig({
+    asset,
+    localRequire,
+    resolve
+  }): Promise<?ParcelPostCSSConfig> {
     let configFile: mixed = await asset.getConfig(
       ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
       {packageKey: 'postcss'}
@@ -68,7 +71,11 @@ export default new Transformer({
       delete configFilePlugins['postcss-modules'];
     }
 
-    let plugins = await loadPlugins(configFilePlugins, asset.filePath);
+    let plugins = await loadPlugins(
+      localRequire,
+      configFilePlugins,
+      asset.filePath
+    );
 
     if (originalModulesConfig) {
       let postcssModules = await localRequire(

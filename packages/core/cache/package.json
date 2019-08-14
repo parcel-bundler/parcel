@@ -1,6 +1,6 @@
 {
   "name": "@parcel/cache",
-  "version": "2.0.0-alpha.0",
+  "version": "2.0.0-alpha.1.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -11,7 +11,7 @@
     "node": ">= 8.0.0"
   },
   "dependencies": {
-    "@parcel/logger": "^2.0.0-alpha.0",
-    "@parcel/utils": "^2.0.0-alpha.0"
+    "@parcel/logger": "^2.0.0-alpha.1.1",
+    "@parcel/utils": "^2.0.0-alpha.1.1"
   }
 }

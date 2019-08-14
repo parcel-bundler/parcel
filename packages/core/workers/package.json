@@ -1,6 +1,6 @@
 {
   "name": "@parcel/workers",
-  "version": "2.0.0-alpha.0",
+  "version": "2.0.0-alpha.1.1",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/index.js",
   "license": "MIT",
@@ -18,8 +18,8 @@
     "test-ci": "yarn test"
   },
   "dependencies": {
-    "@parcel/logger": "^2.0.0-alpha.0",
-    "@parcel/utils": "^2.0.0-alpha.0",
+    "@parcel/logger": "^2.0.0-alpha.1.1",
+    "@parcel/utils": "^2.0.0-alpha.1.1",
     "chrome-trace-event": "^1.0.2",
     "nullthrows": "^1.1.1",
     "physical-cpu-count": "^2.0.0"

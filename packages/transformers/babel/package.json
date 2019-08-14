@@ -1,6 +1,6 @@
 {
   "name": "@parcel/transformer-babel",
-  "version": "2.0.0-alpha.0",
+  "version": "2.0.0-alpha.1.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -9,7 +9,7 @@
   "main": "src/BabelTransformer.js",
   "engines": {
     "node": ">= 8.0.0",
-    "parcel": "^2.0.0-alpha.0"
+    "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
     "@babel/core": "^7.0.0",
@@ -19,13 +19,11 @@
     "@babel/plugin-transform-typescript": "^7.4.5",
     "@babel/preset-env": "^7.0.0",
     "@babel/traverse": "^7.0.0",
-    "@parcel/install-package": "^2.0.0-alpha.0",
-    "@parcel/local-require": "^2.0.0-alpha.0",
-    "@parcel/logger": "^2.0.0-alpha.0",
-    "@parcel/plugin": "^2.0.0-alpha.0",
-    "@parcel/source-map": "^2.0.0-alpha.0",
-    "@parcel/types": "^2.0.0-alpha.0",
-    "@parcel/utils": "^2.0.0-alpha.0",
+    "@parcel/install-package": "^2.0.0-alpha.1.1",
+    "@parcel/logger": "^2.0.0-alpha.1.1",
+    "@parcel/plugin": "^2.0.0-alpha.1.1",
+    "@parcel/source-map": "^2.0.0-alpha.1.1",
+    "@parcel/utils": "^2.0.0-alpha.1.1",
     "browserslist": "^4.1.0",
     "core-js": "^3.1.4",
     "micromatch": "^3.0.4",

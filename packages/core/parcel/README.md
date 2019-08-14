@@ -1,35 +1,26 @@
-# Parcel 2 RFC
+<p align="center">
+  <a href="https://parceljs.org/" target="_blank">
+    <img alt="Parcel" src="https://user-images.githubusercontent.com/19409/31321658-f6aed0f2-ac3d-11e7-8100-1587e676e0ec.png" width="749">
+  </a>
+</p>
 
-This RFC is written as documentation for the project, our documentation should
-be detailed enough to work as a spec, and it's easier to write it once this way
-than to approve a spec and start again on the documentation from scratch.
+[![Backers on Open Collective](https://opencollective.com/parcel/backers/badge.svg)](#backers) [![Sponsors on Open Collective](https://opencollective.com/parcel/sponsors/badge.svg)](#sponsors)
+[![Build Status](https://dev.azure.com/devongovett/devongovett/_apis/build/status/parcel-bundler.parcel?branchName=master)](https://dev.azure.com/devongovett/devongovett/_build/latest?definitionId=1)
+[![Coverage](https://img.shields.io/codecov/c/github/parcel-bundler/parcel/master.svg)](https://codecov.io/github/parcel-bundler/parcel/)
+[![David Dependency Status](https://david-dm.org/parcel-bundler/parcel.svg)](https://david-dm.org/parcel-bundler/parcel)
+[![npm package](https://img.shields.io/npm/v/parcel-bundler.svg)](https://www.npmjs.com/package/parcel-bundler)
+[![npm package](https://img.shields.io/npm/dm/parcel-bundler.svg)](https://www.npmjs.com/package/parcel-bundler)
+[![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/parcel)
+[![Twitter Follow](https://img.shields.io/twitter/follow/parceljs.svg?style=social)](https://twitter.com/parceljs)
 
-Everything in Parcel should be documented here, if it is not documented it will
-not be part of Parcel 2.
+## Features
 
----
-
-## Introduction
-
-Parcel is a compiler for all your code, regardless of the language or toolchain.
-
-Parcel takes all of your files and dependencies, transforms them, and merges
-them together into a smaller set of output files that can be used to run your
-code.
-
-Parcel supports many different languages and file types out of the box, from
-web technologies like HTML, CSS, and JavaScript, to lower level languages like
-Rust, and anything that compiles to WebAssembly (WASM), to assets like images,
-fonts, videos, and more.
-
-Parcel makes your code portable, you can build your code for different
-environments, for the web for your server, or for an app. You can even build
-multiple targets at once and have them live update as you make changes.
-
-Parcel is fast and predictable. It compiles all of your files in isolation in
-parallel inside workers, caching all of them as it goes along. Caches are
-stable across machines and are only affected by the files and configs within
-your project (unless you want to pass specific environment variables).
+- 🚀 **Blazing fast** bundle times - multicore compilation, and a filesystem cache for fast rebuilds even after a restart.
+- 📦 Out of the box support for JS, CSS, HTML, file assets, and more - **no plugins to install**.
+- 🐠 **Automatically transforms modules** using Babel, PostCSS, and PostHTML when needed - even `node_modules`.
+- ✂️ Zero configuration **code splitting** using dynamic `import()` statements.
+- 🔥 Built in support for **hot module replacement**
+- 🚨 Friendly error logging experience - syntax highlighted code frames help pinpoint the problem.
 
 ## Getting Started
 
@@ -43,7 +34,7 @@ yarn init
 Then with Yarn you can install `parcel` into your app:
 
 ```sh
-yarn add --dev parcel
+yarn add --dev parcel@v2
 ```
 
 From there you just need to point Parcel at some of your entry files. Like if
@@ -65,7 +56,7 @@ you're building a website, an `index.html` file:
 Now if you just run:
 
 ```sh
-yarn parcel --serve
+yarn parcel index.html
 ```
 
 You should get a URL that looks something like: `http://localhost:1234/`
@@ -99,6 +90,125 @@ h1 {
 As we make the change you should see the website update with your changes
 without even refreshing the page.
 
+## Documentation
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+
+- [Introduction](#introduction)
+- [Parcel CLI](#parcel-cli)
+  - [CLI Args & Flags](#cli-args--flags)
+    - [`parcel serve`](#parcel-serve)
+    - [`parcel watch`](#parcel-watch)
+    - [`parcel build`](#parcel-build)
+    - [`[...entries]`](#entries)
+    - [`--target [name]`](#--target-name)
+    - [`--open, -o [browser]`](#--open--o-browser)
+    - [`--host <host>`](#--host-host)
+    - [`--port <port>, -p`](#--port-port--p)
+    - [`--https`](#--https)
+      - [`--cert <path>`](#--cert-path)
+      - [`--key <path>`](#--key-path)
+    - [`--cache-dir <dir>`, `--no-cache`](#--cache-dir-dir---no-cache)
+    - [`--hot`, `--no-hot`](#--hot---no-hot)
+      - [`--hot-host <hostname>`](#--hot-host-hostname)
+      - [`--hot-port <port>`](#--hot-port-port)
+    - [`--[no-]source-maps`](#--no-source-maps)
+    - [`--autoinstall [npm/yarn], --no-autoinstall`](#--autoinstall-npmyarn---no-autoinstall)
+    - [`--log-level <level>`](#--log-level-level)
+    - [`--version, -v, -V`](#--version--v--v)
+    - [`--help, -h`](#--help--h)
+- [Parcel Config](#parcel-config)
+  - [Configuring external tools](#configuring-external-tools)
+  - [Configuring Parcel](#configuring-parcel)
+  - [`package.json`](#packagejson)
+    - [`package.json#name`](#packagejsonname)
+    - [`package.json#version`](#packagejsonversion)
+    - [`package.json#main`](#packagejsonmain)
+    - [`package.json#module`](#packagejsonmodule)
+    - [`package.json#browser`](#packagejsonbrowser)
+    - [`package.json#source`](#packagejsonsource)
+    - [`package.json#browserslist`](#packagejsonbrowserslist)
+    - [`package.json#engines`](#packagejsonengines)
+    - [`package.json#targets`](#packagejsontargets)
+    - [`package.json#alias`](#packagejsonalias)
+  - [`.parcelrc`](#parcelrc)
+    - [Glob maps in `.parcelrc`](#glob-maps-in-parcelrc)
+    - [`.parcelrc#extends`](#parcelrcextends)
+    - [`.parcelrc#resolvers`](#parcelrcresolvers)
+    - [`.parcelrc#transforms`](#parcelrctransforms)
+    - [`.parcelrc#bundler`](#parcelrcbundler)
+    - [`.parcelrc#namers`](#parcelrcnamers)
+    - [`.parcelrc#runtimes`](#parcelrcruntimes)
+    - [`.parcelrc#packagers`](#parcelrcpackagers)
+    - [`.parcelrc#optimizers`](#parcelrcoptimizers)
+    - [`.parcelrc#reporters`](#parcelrcreporters)
+    - [`.parcelrc#validators`](#parcelrcvalidators)
+- [Parcel Architecture](#parcel-architecture)
+  - [Phases of Parcel](#phases-of-parcel)
+  - [Asset Graph](#asset-graph)
+  - [Bundles](#bundles)
+  - [Sources](#sources)
+  - [Targets](#targets)
+    - [Target Configuration](#target-configuration)
+  - [Environments](#environments)
+  - [Caching](#caching)
+- [Asset Resolution](#asset-resolution)
+  - [Local Paths](#local-paths)
+  - [Package Paths](#package-paths)
+  - [URLs](#urls)
+  - [Tilde Paths](#tilde-paths)
+  - [Aliases](#aliases)
+- [Plugins](#plugins)
+  - [Resolvers](#resolvers)
+  - [Transforms](#transforms)
+  - [Bundlers](#bundlers)
+  - [Namers](#namers)
+  - [Runtimes](#runtimes)
+  - [Packagers](#packagers)
+  - [Optimizers](#optimizers)
+  - [Reporters](#reporters)
+  - [Validators](#validators)
+- [Creating Plugins](#creating-plugins)
+  - [Naming](#naming)
+  - [Versioning](#versioning)
+  - [Engines](#engines)
+- [Plugin APIs](#plugin-apis)
+  - [Resolvers](#resolvers-1)
+  - [Transforms](#transforms-1)
+  - [Bundler](#bundler)
+  - [Namers](#namers-1)
+  - [Runtimes](#runtimes-1)
+  - [Packagers](#packagers-1)
+  - [Optimizers](#optimizers-1)
+  - [Reporters](#reporters-1)
+  - [Validators](#validators-1)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+## Introduction
+
+Parcel is a compiler for all your code, regardless of the language or toolchain.
+
+Parcel takes all of your files and dependencies, transforms them, and merges
+them together into a smaller set of output files that can be used to run your
+code.
+
+Parcel supports many different languages and file types out of the box, from
+web technologies like HTML, CSS, and JavaScript, to lower level languages like
+Rust, and anything that compiles to WebAssembly (WASM), to assets like images,
+fonts, videos, and more.
+
+Parcel makes your code portable, you can build your code for different
+environments, for the web for your server, or for an app. You can even build
+multiple targets at once and have them live update as you make changes.
+
+Parcel is fast and predictable. It compiles all of your files in isolation in
+parallel inside workers, caching all of them as it goes along. Caches are
+stable across machines and are only affected by the files and configs within
+your project (unless you want to pass specific environment variables).
+
 ## Parcel CLI
 
 The Parcel CLI is built into the main `parcel` package. While you can install
@@ -106,7 +216,7 @@ it globally and run it, it is much better to install it locally into your
 project as a dev dependency.
 
 ```sh
-yarn add --dev parcel
+yarn add --dev parcel@v2
 ```
 
 You should also add some "scripts" to your `package.json` to run it easier.
@@ -115,8 +225,8 @@ You should also add some "scripts" to your `package.json` to run it easier.
 {
   "name": "my-project",
   "scripts": {
-    "build": "parcel --production",
-    "start": "parcel --serve"
+    "build": "parcel build index.html",
+    "start": "parcel serve index.html"
   },
   "devDependencies": {
     "parcel": "latest"
@@ -132,8 +242,20 @@ Now you can run `yarn build` to bundle your project for production and
 Usage:
 
 ```sh
-$ parcel [...entries] [...flags]
+$ parcel [command] [...entries] [...flags]
 ```
+
+#### `parcel serve`
+
+Serve assets on a local server
+
+#### `parcel watch`
+
+Watch and rebuild code on file changes.
+
+#### `parcel build`
+
+Build code once, in production mode.
 
 #### `[...entries]`
 
@@ -141,20 +263,21 @@ Entry files to start bundling, these will be preserved as entry points in the
 output. Defaults to `package.json#source`, falling back to `src/index.*` or
 `index.*`. See [#Entries](#entries-sources-targets-environment).
 
-#### `--serve, -s`
+#### `--target [name]`
 
-Serve assets on a local server
-
-#### `--watch, -w`
-
-Watch and rebuild code on file changes.
+Specifies a specific target to build. If unspecified, Parcel builds all
+targets specified in package.json. See [#Targets](#targets).
 
 #### `--open, -o [browser]`
 
 Open your local server in a browser. You can optionally pass the name of the
 browser you want to open, otherwise it will use your default browser.
 
-#### `--port <port>`
+#### `--host <host>`
+
+Configure the host to serve assets on. The default is to listen on all interfaces.
+
+#### `--port <port>, -p`
 
 Configure the port to serve assets on. Alternatively you can use the `$PORT`
 environment variable.
@@ -172,7 +295,7 @@ Specify the filepath to your SSL certificate when using `--https`.
 
 Specify the filepath to your SSL key when using `--https`.
 
-#### `--cache <dir>`, `--no-cache`
+#### `--cache-dir <dir>`, `--no-cache`
 
 Configure the cache directory with `--cache <dir>` or disable it altogether
 with `--no-cache`.
@@ -181,7 +304,7 @@ with `--no-cache`.
 
 Turn hot reloading on or off.
 
-##### `--hot-hostname <hostname>`
+##### `--hot-host <hostname>`
 
 Configure the hot reloading hostname.
 
@@ -191,8 +314,7 @@ Configure the hot reloading port.
 
 #### `--[no-]source-maps`
 
-Turn source maps on or off. Source maps are turned on by default except in
-production builds.
+Turn source maps on or off. Source maps are turned on by default.
 
 #### `--autoinstall [npm/yarn], --no-autoinstall`
 
@@ -200,32 +322,10 @@ When enabled, whenever Parcel discovers a dependency that isn't installed it
 will attempt to install it with either npm or Yarn (defaults to npm unless a
 `yarn.lock` exists).
 
-#### `--mode <mode>`
-
-Override the environment mode, including those manually configured to something
-else (ex. `--mode production` or `--mode development`). Defaults to the
-`NODE_ENV` environment variable.
-
-##### `--development, --dev`
-
-Aliases for `--mode development`.
-
-##### `--production, --prod`
-
-Aliases for `--mode production`.
-
-##### `--test`
-
-Aliases for `--mode test`.
-
-#### `--public-url <url>`
-
-[todo]
-
 #### `--log-level <level>`
 
-Set the log level, either "0" (no output), "1" (errors), "2" (warnings +
-errors) or "3" (all). (Default: 2)
+Set the log level, either either "none", "error", "warn", "info", or "verbose".
+The default is "info".
 
 #### `--version, -v, -V`
 
@@ -404,7 +504,11 @@ Configuration for individual targets.
         "node": ">=4.x",
         "electron": ">=2.x"
       },
-      "browsers": ["> 1%", "not dead"]
+    },
+    "browser": {
+      "engines": {
+        "browsers": ["> 1%", "not dead"]
+      }
     }
   }
 }
@@ -436,13 +540,18 @@ all), but here's an example of a `.parcelrc` file that contains every field:
 {
   "extends": ["@parcel/config-default"],
   "resolvers": ["@parcel/resolver-default"],
-  "bundler": "@parcel/bundler-default",
   "transforms": {
-    "*.vue": ["@parcel/transform-vue"],
-    "*.scss": ["@parcel/transform-sass"],
-    "*.js": ["@parcel/transform-babel"],
-    "*.css": ["@parcel/transform-postcss"],
-    "*.html": ["@parcel/transform-posthtml"]
+    "*.vue": ["@parcel/transformer-vue"],
+    "*.scss": ["@parcel/transformer-sass"],
+    "*.js": ["@parcel/transformer-babel"],
+    "*.css": ["@parcel/transformer-postcss"],
+    "*.html": ["@parcel/transformer-posthtml"]
+  },
+  "bundler": "@parcel/bundler-default",
+  "namers": ["@parcel/namer-default"],
+  "runtimes": {
+    "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
+    "node": ["@parcel/runtime-js"]
   },
   "packagers": {
     "*.js": "@parcel/packager-js",
@@ -457,11 +566,7 @@ all), but here's an example of a `.parcelrc` file that contains every field:
     "*.html": ["@parcel/optimizer-htmlnano"],
     "*.{png,jpg,jpeg,svg,...}": ["@parcel/optimizer-imagemin"]
   },
-  "loaders": {
-    "*.js": "@parcel/loader-js",
-    "*.wasm": "@parcel/loader-wasm"
-  },
-  "reporters": ["@parcel/reporter-detailed"]
+  "reporters": ["@parcel/reporter-cli"]
 }
 ```
 
@@ -534,11 +639,38 @@ See [Transforms](#transforms)
 
 ```json
 {
-  "bundler": "@parcel/bundler-v1"
+  "bundler": "@parcel/bundler-default"
 }
 ```
 
 See [Bundlers](#bundlers)
+
+#### `.parcelrc#namers`
+
+`bundler` is an array of Parcel namer packages.
+
+```json
+{
+  "namers": ["@parcel/namer-default"]
+}
+```
+
+See [Namers](#namers)
+
+#### `.parcelrc#runtimes`
+
+`runtimes` is an object map of environments to arrays of Parcel runtime packages.
+
+```json
+{
+  "runtimes": {
+    "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
+    "node": ["@parcel/runtime-js"]
+  }
+}
+```
+
+See [Runtimes](#runtimes)
 
 #### `.parcelrc#packagers`
 
@@ -568,25 +700,9 @@ See [Packagers](#packagers)
 
 See [Optimizers](#optimizers)
 
-#### `.parcelrc#loaders`
-
-`loaders` is an object map of globs to Parcel loader packages. See
-[Loaders](#).
-
-```json
-{
-  "loaders": {
-    "*.js": "@parcel/loader-js",
-    "*.wasm": "@parcel/loader-wasm"
-  }
-}
-```
-
-See [Loaders](#loaders)
-
 #### `.parcelrc#reporters`
 
-`reporters` is an array of Parcel reporter packages. See [Reporters](#).
+`reporters` is an array of Parcel reporter packages.
 
 ```json
 {
@@ -594,7 +710,21 @@ See [Loaders](#loaders)
 }
 ```
 
-See [Reporters](#reporters)
+See [Reporters](#reporters).
+
+#### `.parcelrc#validators`
+
+`validators` is an object map of globs to arrays of Parcel validator packages.
+
+```json
+
+  "validators": {
+    "*.ts": ["@parcel/validator-typescript"]
+  }
+}
+```
+
+See [Reporters](#validators).
 
 ## Parcel Architecture
 
@@ -933,13 +1063,46 @@ Bundlers accept the entire asset graph and turn it into sets of bundles.
 
 ```json
 {
-  "bundler": "@parcel/bundler-v1"
+  "bundler": "@parcel/bundler-default"
 }
 ```
 
 **Official Bundlers:**
 
-- `@parcel/bundler-v1`
+- `@parcel/bundler-default`
+
+### Namers
+
+Namers accept a bundle and return a filename for that bundle.
+
+```json
+{
+  "namers": ["@parcel/namer-default"]
+}
+```
+
+**Official Namers:**
+
+- `@parcel/namer-default`
+
+### Runtimes
+
+Runtimes get called after the bundler phase and generate an asset which gets
+included in the final bundle.
+
+```json
+{
+  "runtimes": {
+    "browser": ["@parcel/runtime-js", "@parcel/runtime-browser-hmr"],
+    "node": ["@parcel/runtime-js"]
+  }
+}
+```
+
+**Official Runtimes:**
+
+- `@parcel/runtime-js`
+- `@parcel/runtime-hmr`
 
 ### Packagers
 
@@ -981,28 +1144,6 @@ of a single asset.
 - `@parcel/packager-csso`
 - [todo]
 
-### Loaders
-
-> Do not confuse these with Webpack "loaders", they are not the same thing.
-
-Loaders get called after the bundler phase and generate an asset which gets
-included in the final bundle.
-
-```json
-{
-  "loaders": {
-    "*.wasm": "@parcel/loader-wasm"
-  }
-}
-```
-
-**Official Loaders:**
-
-- `@parcel/loader-js`
-- `@parcel/loader-css`
-- `@parcel/loader-wasm`
-- `@parcel/loader-raw`
-
 ### Reporters
 
 Reporters receive events as they happen and can either use the Parcel logger to
@@ -1011,16 +1152,34 @@ system.
 
 ```json
 {
-  "reporters": ["@parcel/reporter-pretty", "@parcel/reporter-visualizer"]
+  "reporters": ["@parcel/reporter-cli", "@parcel/reporter-dev-server"]
 }
 ```
 
 **Official Reporters:**
 
-- `@parcel/reporter-pretty`
-- `@parcel/reporter-detailed`
-- `@parcel/reporter-graph`
-- `@parcel/reporter-visualizer`
+- `@parcel/reporter-cli`
+- `@parcel/reporter-dev-server`
+- [todo]
+
+### Validators
+
+Validators emit errors for source code after a build is completed.
+For example, type checking and linting.
+
+```json
+{
+  "validators": {
+    "*.ts": ["@parcel/validator-typescript"]
+  }
+}
+```
+
+**Official Validators:**
+
+- `@parcel/validator-typescript`
+- `@parcel/validator-eslint`
+- [todo]
 
 ## Creating Plugins
 
@@ -1033,11 +1192,13 @@ All plugins must follow a naming system:
 | Configs    | `@parcel/config-{name}`    | `parcel-config-{name}`    | `@scope/parcel-config[-{name}]`      |
 | Resolvers  | `@parcel/resolver-{name}`  | `parcel-resolver-{name}`  | `@scope/parcel-resolver[-{name}]`    |
 | Transforms | `@parcel/transform-{name}` | `parcel-transform-{name}` | `@scope/parcel-transform[-{name}]`   |
-| Loaders    | `@parcel/loader-{name}`    | `parcel-loader-{name}`    | `@scope/parcel-loader[-{name}]`      |
 | Bundlers   | `@parcel/bundler-{name}`   | `parcel-bundler-{name}`   | `@scope/parcel-bundler[-{name}]`     |
-| Packagers  | `@parcel/packager-{name}`  | `parcel-packager-{name}`  | `@scope/parcel-packager[-{name}]`    |
 | Namers     | `@parcel/namer-{name}`     | `parcel-namer-{name}`     | `@scope/parcel-namer[-{name}]`       |
+| Runtimes   | `@parcel/runtime-{name}`   | `parcel-runtime-{name}`   | `@scope/parcel-runtime[-{name}]`     |
+| Packagers  | `@parcel/packager-{name}`  | `parcel-packager-{name}`  | `@scope/parcel-packager[-{name}]`    |
+| Optimizers | `@parcel/optimizer-{name}` | `parcel-optimizer-{name}` | `@scope/parcel-optimizer[-{name}]`   |
 | Reporters  | `@parcel/reporter-{name}`  | `parcel-reporter-{name}`  | `@scope/parcel-reporter[-{name}]`    |
+| Validators | `@parcel/validator-{name}` | `parcel-validator-{name}`| `@scope/parcel-validator[-{name}]`    |
 
 The `{name}` must be descriptive and directly related to the purpose of the
 package. Someone should be able to have an idea of what the package does simply
@@ -1164,7 +1325,7 @@ resolve. If the resolver isn't sure how to handle a request, it can also return
 import {Resolver} from '@parcel/plugin';
 
 export default new Resolver({
-  async resolve({assetRequest}) {
+  async resolve({dependency}) {
     // ...
     return {filePath} || null;
   }
@@ -1180,38 +1341,73 @@ asset graph. They mostly call out to different compilers and preprocessors.
 import {Transform} from '@parcel/plugin';
 
 export default new Transform({
-  async config({asset}) {
+  async getConfig({asset}) {
     // ...
-    return {config};
+    return config;
   },
 
   async parse({asset}) {
-    return {asset, dependencies};
+    // ...
+    return ast;
   },
 
   async transform({asset}) {
     // ...
-    return {assets, dependencies};
+    return [assets];
   },
 
   async generate({asset}) {
     // ...
-    return {asset};
+    return {code, map};
   }
 });
 ```
 
 ### Bundler
 
-Bundlers accept the entire asset graph and turn it into sets of bundles.
+Bundlers accept the entire asset graph and modify it to add bundle nodes that group the assets
+into output bundles.
 
 ```js
 import {Bundler} from '@parcel/plugin';
 
 export default new Bundler({
-  async resolve({graph}) {
+  async bundle({graph}) {
     // ...
-    return {bundles};
+  },
+
+  async optimize({graph}) {
+    // ...
+  }
+});
+```
+
+### Namers
+
+Namers accept a bundle and output a filename for that bundle.
+
+```js
+import {Namer} from '@parcel/plugin';
+
+export default new Namer({
+  async name({bundle, bundleGraph}) {
+    // ...
+    return name;
+  }
+});
+```
+
+### Runtimes
+
+Runtimes accept a bundle and return assets to be inserted into that bundle.
+
+```js
+import {Runtime} from '@parcel/runtime';
+
+export default new Runtime({
+  async apply({bundle, bundleGraph}) {
+    // ...
+    return assets;
   }
 });
 ```
@@ -1221,12 +1417,12 @@ export default new Bundler({
 Packagers determine how to merge different asset types into a single bundle.
 
 ```js
-import { Packager } from '@parcel/plugin';
+import {Packager} from '@parcel/plugin';
 
 export default new Packager({
-  async function package({ bundle }) {
+  async package({bundle}) {
     // ...
-    return { assets };
+    return {contents, map};
   },
 });
 ```
@@ -1240,44 +1436,40 @@ of a single asset.
 import {Optimizer} from '@parcel/plugin';
 
 export default new Optimizer({
-  async optimize({bundle}) {
+  async optimize({bundle, contents, map}) {
     // ...
-    return {bundle};
-  }
-});
-```
-
-### Loaders
-
-> Do not confuse these with Webpack "loaders", they are not the same thing.
-
-Loaders get called after the bundler phase and generate an asset which gets
-included in the final bundle.
-
-```js
-import {Loader} from '@parcel/plugin';
-
-export default new Loader({
-  async generate(opts) {
-    // ...
-    return {asset};
+    return {contents, map};
   }
 });
 ```
 
 ### Reporters
 
-Reporters receive events as they happen and can either use the Parcel logger to
-output to stdout/stderr or they can return assets to be generated on the file
-system.
+Reporters receive events as they happen and can output to stdout/stderr,
+or perform other actions.
 
 ```js
-import { Reporter } from '@parcel/plugin';
+import {Reporter} from '@parcel/plugin';
 
 export default new Reporter({
   async report({ event: { type, ... } }) {
     // ...
-    return { assets };
-  },
+  }
+});
+```
+
+### Validators
+
+Validators receive an asset, and can throw errors if that asset is invalid
+in some way, e.g. type errors or linting errors.
+
+```js
+import {Validator} from '@parcel/plugin';
+
+export default new Validator({
+  async validate({asset}) {
+    // ...
+    throw error;
+  }
 });
 ```

@@ -1,5 +1,5 @@
 // @flow strict-local
-import nullthrows from 'nullthrows';
+
 import type {
   MutableAsset as IMutableAsset,
   FilePath,
@@ -16,10 +16,13 @@ import type {
   ConfigRequest,
   ParcelOptions
 } from './types';
+import type {WorkerApi} from '@parcel/workers';
 
 import invariant from 'assert';
 import path from 'path';
+import nullthrows from 'nullthrows';
 import {md5FromObject} from '@parcel/utils';
+import {localRequireFromWorker} from '@parcel/local-require';
 
 import {createDependency} from './Dependency';
 import PublicConfig from './public/Config';
@@ -41,7 +44,8 @@ export type TransformationOpts = {|
   request: AssetRequest,
   loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
   parentNodeId: NodeId,
-  options: ParcelOptions
+  options: ParcelOptions,
+  workerApi: WorkerApi
 |};
 
 type ConfigMap = Map<PackageName, Config>;
@@ -52,12 +56,14 @@ export default class Transformation {
   loadConfig: ConfigRequest => Promise<Config>;
   options: ParcelOptions;
   impactfulOptions: $Shape<ParcelOptions>;
+  workerApi: WorkerApi;
 
   constructor({
     request,
     loadConfig,
     parentNodeId,
-    options
+    options,
+    workerApi
   }: TransformationOpts) {
     this.request = request;
     this.configRequests = [];
@@ -66,6 +72,7 @@ export default class Transformation {
       return loadConfig(configRequest, parentNodeId);
     };
     this.options = options;
+    this.workerApi = workerApi;
 
     // TODO: these options may not impact all transformations, let transformers decide if they care or not
     let {minify, hot, scopeHoist} = this.options;
@@ -278,7 +285,8 @@ export default class Transformation {
       names: parcelConfig.getTransformerNames(filePath),
       plugins: await parcelConfig.getTransformers(filePath),
       configs,
-      options: this.options
+      options: this.options,
+      workerApi: this.workerApi
     });
 
     return pipeline;
@@ -321,7 +329,8 @@ type PipelineOpts = {|
   names: Array<PackageName>,
   plugins: Array<Transformer>,
   configs: ConfigMap,
-  options: ParcelOptions
+  options: ParcelOptions,
+  workerApi: WorkerApi
 |};
 
 type TransformerWithNameAndConfig = {|
@@ -339,8 +348,9 @@ class Pipeline {
   resolverRunner: ResolverRunner;
   generate: GenerateFunc;
   postProcess: ?PostProcessFunc;
+  workerApi: WorkerApi;
 
-  constructor({names, plugins, configs, options}: PipelineOpts) {
+  constructor({names, plugins, configs, options, workerApi}: PipelineOpts) {
     this.id = names.join(':');
 
     this.transformers = names.map((name, i) => ({
@@ -358,6 +368,7 @@ class Pipeline {
     });
 
     this.pluginOptions = new PluginOptions(this.options);
+    this.workerApi = workerApi;
   }
 
   async transform(initialAsset: InternalAsset): Promise<Array<InternalAsset>> {
@@ -409,6 +420,8 @@ class Pipeline {
       )).filePath;
     };
 
+    let localRequire = localRequireFromWorker.bind(null, this.workerApi);
+
     // Load config for the transformer.
     let config = preloadedConfig;
     if (transformer.getConfig) {
@@ -416,7 +429,8 @@ class Pipeline {
       config = await transformer.getConfig({
         asset: new MutableAsset(asset),
         options: this.pluginOptions,
-        resolve
+        resolve,
+        localRequire
       });
     }
 
@@ -453,6 +467,7 @@ class Pipeline {
         asset: new MutableAsset(asset),
         config,
         options: this.pluginOptions,
+        localRequire,
         resolve
       })
     );

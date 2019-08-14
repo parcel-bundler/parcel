@@ -1,9 +1,10 @@
 // @flow
-import type {MutableAsset, AST} from '@parcel/types';
-import localRequire from '@parcel/local-require';
+
+import type {LocalRequire, MutableAsset, AST} from '@parcel/types';
 
 export default async function babel7(
   asset: MutableAsset,
+  localRequire: LocalRequire,
   options: any
 ): Promise<?AST> {
   let config = options.config;

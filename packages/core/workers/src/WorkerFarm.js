@@ -8,6 +8,7 @@ import type {
   WorkerErrorResponse,
   BackendType
 } from './types';
+import type {HandleFunction} from './Handle';
 
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
@@ -29,7 +30,6 @@ import Trace from './Trace';
 import fs from 'fs';
 import logger from '@parcel/logger';
 
-let shared = null;
 let profileId = 1;
 
 type FarmOptions = {|
@@ -42,11 +42,15 @@ type FarmOptions = {|
   backend: BackendType
 |};
 
-type HandleFunction = (...args: Array<any>) => Promise<any>;
-
 type WorkerModule = {|
   +[string]: (...args: Array<mixed>) => Promise<mixed>
 |};
+
+export type WorkerApi = {|
+  callMaster(CallRequest, ?boolean): Promise<mixed>
+|};
+
+export {Handle};
 
 /**
  * workerPath should always be defined inside farmOptions
@@ -85,6 +89,20 @@ export default class WorkerFarm extends EventEmitter {
 
     this.startMaxWorkers();
   }
+
+  workerApi = {
+    callMaster: async (
+      request: CallRequest,
+      awaitResponse: ?boolean = true
+    ): Promise<mixed> => {
+      // $FlowFixMe
+      let result = await this.processRequest({
+        ...request,
+        awaitResponse
+      });
+      return deserialize(serialize(result));
+    }
+  };
 
   warmupWorker(method: string, args: Array<any>): void {
     // Workers are already stopping
@@ -129,7 +147,7 @@ export default class WorkerFarm extends EventEmitter {
         let processedArgs = restoreDeserializedObject(
           prepareForSerialization([...args, false])
         );
-        return this.localWorker[method](...processedArgs);
+        return this.localWorker[method](this.workerApi, ...processedArgs);
       }
     };
   }
@@ -210,10 +228,10 @@ export default class WorkerFarm extends EventEmitter {
     |} & $Shape<WorkerRequest>,
     worker?: Worker
   ): Promise<?string> {
-    let {method, args, location, awaitResponse, idx, handle} = data;
+    let {method, args, location, awaitResponse, idx, handle: handleId} = data;
     let mod;
-    if (handle) {
-      mod = nullthrows(this.handles.get(handle));
+    if (handleId != null) {
+      mod = nullthrows(this.handles.get(handleId)).fn;
     } else if (location) {
       // $FlowFixMe this must be dynamic
       mod = require(location);
@@ -244,11 +262,13 @@ export default class WorkerFarm extends EventEmitter {
       }
     } else {
       // ESModule default interop
+      // $FlowFixMe
       if (mod.__esModule && !mod[method] && mod.default) {
         mod = mod.default;
       }
 
       try {
+        // $FlowFixMe
         result = responseFromContent(await mod[method](...args));
       } catch (e) {
         result = errorResponseFromError(e);
@@ -286,11 +306,16 @@ export default class WorkerFarm extends EventEmitter {
 
   async end(): Promise<void> {
     this.ending = true;
+
+    for (let handle of this.handles.values()) {
+      handle.dispose();
+    }
+    this.handles = new Map();
+
     await Promise.all(
       Array.from(this.workers.values()).map(worker => this.stopWorker(worker))
     );
     this.ending = false;
-    shared = null;
   }
 
   startMaxWorkers(): void {
@@ -311,9 +336,9 @@ export default class WorkerFarm extends EventEmitter {
     );
   }
 
-  createReverseHandle(fn: () => mixed) {
-    let handle = new Handle();
-    this.handles.set(handle.id, fn);
+  createReverseHandle(fn: HandleFunction) {
+    let handle = new Handle({fn, workerApi: this.workerApi});
+    this.handles.set(handle.id, handle);
     return handle;
   }
 
@@ -379,48 +404,10 @@ export default class WorkerFarm extends EventEmitter {
     logger.info(`Wrote profile to ${filename}`);
   }
 
-  static async getShared(
-    farmOptions?: $Shape<FarmOptions>
-  ): Promise<WorkerFarm> {
-    // Farm options shouldn't be considered safe to overwrite
-    // and require an entire new instance to be created
-    if (
-      shared &&
-      farmOptions &&
-      farmOptions.workerPath !== shared.options.workerPath
-    ) {
-      await shared.end();
-      shared = null;
-    }
-
-    if (!shared) {
-      shared = new WorkerFarm(farmOptions);
-    }
-
-    return shared;
-  }
-
   static getNumWorkers() {
     return process.env.PARCEL_WORKERS
       ? parseInt(process.env.PARCEL_WORKERS, 10)
       : cpuCount();
-  }
-
-  static async callMaster(
-    request: CallRequest,
-    awaitResponse: boolean = true
-  ): Promise<mixed> {
-    if (child) {
-      return child.addCall(request, awaitResponse);
-    } else {
-      // $FlowFixMe
-      let result = await (await WorkerFarm.getShared()).processRequest({
-        ...request,
-        awaitResponse
-      });
-
-      return deserialize(serialize(result));
-    }
   }
 
   static isWorker() {
@@ -429,15 +416,5 @@ export default class WorkerFarm extends EventEmitter {
 
   static getConcurrentCallsPerWorker() {
     return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
-  }
-
-  static createReverseHandle(fn: (...args: any[]) => mixed) {
-    if (WorkerFarm.isWorker()) {
-      throw new Error(
-        'Cannot call WorkerFarm.createReverseHandle() from within Worker'
-      );
-    }
-
-    return nullthrows(shared).createReverseHandle(fn);
   }
 }

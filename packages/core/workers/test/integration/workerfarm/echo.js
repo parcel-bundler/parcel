@@ -1,4 +1,4 @@
-function run(data) {
+function run(_, data) {
   return data;
 }
 

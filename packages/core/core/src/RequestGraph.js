@@ -40,7 +40,8 @@ type RequestGraphOpts = {|
   config: ParcelConfig,
   options: ParcelOptions,
   onAssetRequestComplete: (AssetRequestNode, Array<AssetValue>) => mixed,
-  onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed
+  onDepPathRequestComplete: (DepPathRequestNode, AssetRequest | null) => mixed,
+  workerFarm: WorkerFarm
 |};
 
 type SerializedRequestGraph = {|
@@ -145,7 +146,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     onAssetRequestComplete,
     onDepPathRequestComplete,
     config,
-    options
+    options,
+    workerFarm
   }: RequestGraphOpts) {
     this.options = options;
     this.queue = new PromiseQueue();
@@ -159,33 +161,21 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
       options
     });
 
+    this.farm = workerFarm;
+    this.runTransform = this.farm.createHandle('runTransform');
+    this.runValidate = this.farm.createHandle('runValidate');
+    // $FlowFixMe
+    this.loadConfigHandle = this.farm.createReverseHandle(
+      this.loadConfig.bind(this)
+    );
     this.configLoader = new ConfigLoader(options);
   }
 
-  async initFarm() {
-    // This expects the worker farm to already be initialized by Parcel prior to calling
-    // AssetGraphBuilder, which avoids needing to pass the options through here.
-    this.farm = await WorkerFarm.getShared();
-    this.runTransform = this.farm.createHandle('runTransform');
-    this.runValidate = this.farm.createHandle('runValidate');
-    this.loadConfigHandle = WorkerFarm.createReverseHandle(
-      this.loadConfig.bind(this)
-    );
-  }
-
   async completeValidations() {
-    if (!this.farm) {
-      await this.initFarm();
-    }
-
     await this.validationQueue.run();
   }
 
   async completeRequests() {
-    if (!this.farm) {
-      await this.initFarm();
-    }
-
     for (let id of this.invalidNodeIds) {
       let node = nullthrows(this.getNode(id));
       this.processNode(node);
