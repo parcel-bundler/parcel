@@ -58,19 +58,41 @@ export default new Packager({
   }
 });
 
-function getAssetContent(bundleGraph, getBundleResult, assetId) {
-  return `this is where the asset value will go - ${assetId}`;
+async function getAssetContent(bundleGraph, getBundleResult, assetId) {
+  let inlineBundle: ?Bundle;
+  bundleGraph.traverseBundles((bundle, context, {stop}) => {
+    if (bundle.id.includes(assetId)) {
+      inlineBundle = bundle;
+      stop();
+    }
+  });
+
+  if (inlineBundle) {
+    let asset = inlineBundle.getMainEntry();
+
+    return asset.getCode();
+  }
+
+  return `unable to find bundle for id - ${assetId}`;
 }
 
-function replaceInlineAssetContent(getAssetContent, tree) {
+async function replaceInlineAssetContent(getAssetContent, tree) {
+  const inlineNodes = [];
   tree.walk(node => {
     if (node.attrs && node.attrs['data-parcelId']) {
-      node.content = getAssetContent(node.attrs['data-parcelId']);
-      // remove attr from output
-      delete node.attrs['data-parcelId'];
+      inlineNodes.push(node);
     }
     return node;
   });
+
+  for (let node of inlineNodes) {
+    node.attrs['is-inline'] = true;
+    node.attrs['new-content'] = await getAssetContent(
+      node.attrs['data-parcelId']
+    );
+    // remove attr from output
+    delete node.attrs['data-parcelId'];
+  }
 
   return tree;
 }
