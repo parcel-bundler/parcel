@@ -86,7 +86,8 @@ export default class Validation {
               this.options.inputFS,
               asset.value.filePath,
               configNames
-            )
+            ),
+          localRequire
         });
       }
 

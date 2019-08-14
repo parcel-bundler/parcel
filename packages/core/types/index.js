@@ -346,6 +346,7 @@ export type Validator = {|
   getConfig?: ({
     asset: Asset,
     resolveConfig: ResolveConfigFn,
+    localRequire: LocalRequire,
     options: PluginOptions
   }) => Async<Config | void>
 |};
