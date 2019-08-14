@@ -22,8 +22,5 @@
     "nullthrows": "^1.1.1",
     "resolve": "^1.4.0",
     "ws": "^5.1.1"
-  },
-  "scripts": {
-    "test-ci": "yarn test"
   }
 }
