@@ -3,6 +3,7 @@
 import type {Readable} from 'stream';
 import type SourceMap from '@parcel/source-map';
 import type {FileSystem} from '@parcel/fs';
+import type WorkerFarm from '@parcel/workers';
 
 import type {AST as _AST, Config as _Config} from './unsafe';
 
@@ -164,9 +165,11 @@ export type InitialParcelOptions = {|
   serve?: ServerOptions | false,
   autoinstall?: boolean,
   logLevel?: LogLevel,
+  profile?: boolean,
 
   inputFS?: FileSystem,
-  outputFS?: FileSystem
+  outputFS?: FileSystem,
+  workerFarm?: WorkerFarm
 
   // contentHash
   // throwErrors
@@ -337,20 +340,29 @@ export type Validator = {|
   validate({
     asset: Asset,
     config: Config | void,
+    localRequire: LocalRequire,
     options: PluginOptions
   }): Async<void>,
   getConfig?: ({
-    asset: MutableAsset,
+    asset: Asset,
     resolveConfig: ResolveConfigFn,
     options: PluginOptions
   }) => Async<Config | void>
 |};
 
+export type LocalRequire = (
+  name: string,
+  path: FilePath,
+  triedInstall?: boolean
+  // $FlowFixMe
+) => Promise<any>;
+
 export type Transformer = {
   getConfig?: ({
     asset: MutableAsset,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    localRequire: LocalRequire
   }) => Async<Config | void>,
   canReuseAST?: ({ast: AST, options: PluginOptions}) => boolean,
   parse?: ({
@@ -363,7 +375,8 @@ export type Transformer = {
     asset: MutableAsset,
     config: ?Config,
     resolve: ResolveFn,
-    options: PluginOptions
+    options: PluginOptions,
+    localRequire: LocalRequire
   }): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({
     asset: MutableAsset,
@@ -470,6 +483,7 @@ export interface Bundle {
   +name: ?string;
   +stats: Stats;
   getEntryAssets(): Array<Asset>;
+  getMainEntry(): ?Asset;
   hasAsset(Asset): boolean;
   hasChildBundles(): boolean;
   getHash(): string;
@@ -501,6 +515,8 @@ export interface BundleGraph {
   getDependencyResolution(dependency: Dependency): ?Asset;
   isAssetInAncestorBundles(bundle: Bundle, asset: Asset): boolean;
   isAssetReferenced(asset: Asset): boolean;
+  isAssetReferencedByAssetType(asset: Asset, type: string): boolean;
+  hasParentBundleOfType(bundle: Bundle, type: string): boolean;
   resolveSymbol(asset: Asset, symbol: Symbol): SymbolResolution;
   traverseBundles<TContext>(
     visit: GraphTraversalCallback<Bundle, TContext>
@@ -541,7 +557,8 @@ export type Namer = {|
 export type RuntimeAsset = {|
   filePath: FilePath,
   code: string,
-  dependency?: Dependency
+  dependency?: Dependency,
+  isEntry?: boolean
 |};
 
 export type Runtime = {|

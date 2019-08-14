@@ -76,6 +76,10 @@ function updatePackageJson() {
     } else if (typeof json.bin === 'string') {
       json.bin = json.bin.replace('src', 'lib');
     }
+
+    json.publishConfig = {
+      access: 'public'
+    };
     vinyl.contents = Buffer.from(JSON.stringify(json, null, 2));
   });
 }

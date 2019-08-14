@@ -1,6 +1,6 @@
 {
   "name": "parcel",
-  "version": "2.0.0-alpha.0",
+  "version": "2.0.0-alpha.1.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,9 +8,9 @@
   },
   "bin": "src/bin.js",
   "dependencies": {
-    "@parcel/config-default": "^2.0.0-alpha.0",
-    "@parcel/core": "^2.0.0-alpha.0",
-    "@parcel/logger": "^2.0.0-alpha.0",
+    "@parcel/config-default": "^2.0.0-alpha.1.1",
+    "@parcel/core": "^2.0.0-alpha.1.1",
+    "@parcel/logger": "^2.0.0-alpha.1.1",
     "chalk": "^2.1.0",
     "commander": "^2.19.0",
     "get-port": "^4.2.0",

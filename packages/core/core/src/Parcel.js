@@ -75,10 +75,12 @@ export default class Parcel {
       resolvedOptions
     );
     this.#config = config;
+    this.#farm = this.#initialOptions.workerFarm ?? createWorkerFarm();
 
     this.#bundlerRunner = new BundlerRunner({
       options: resolvedOptions,
-      config
+      config,
+      workerFarm: this.#farm
     });
 
     this.#reporterRunner = new ReporterRunner({
@@ -91,14 +93,9 @@ export default class Parcel {
       options: resolvedOptions,
       config,
       entries: resolvedOptions.entries,
-      targets: resolvedOptions.targets
+      targets: resolvedOptions.targets,
+      workerFarm: this.#farm
     });
-
-    this.#farm = await WorkerFarm.getShared({
-      workerPath: require.resolve('./worker')
-    });
-
-    await this.#assetGraphBuilder.initFarm();
 
     this.#runPackage = this.#farm.createHandle('runPackage');
     this.#initialized = true;
@@ -111,13 +108,10 @@ export default class Parcel {
     }
 
     let result = await this.build(startTime);
+    await this.#assetGraphBuilder.writeToCache();
 
-    let resolvedOptions = nullthrows(this.#resolvedOptions);
-    if (result.type === 'buildSuccess') {
-      await this.#assetGraphBuilder.writeToCache();
-    }
-
-    if (resolvedOptions.killWorkers !== false) {
+    if (!this.#initialOptions.workerFarm) {
+      // If there wasn't a workerFarm passed in, we created it. End the farm.
       await this.#farm.end();
     }
 
@@ -171,13 +165,19 @@ export default class Parcel {
           await nullthrows(this.#watcherSubscription).unsubscribe();
           this.#watcherSubscription = null;
           await this.#reporterRunner.report({type: 'watchEnd'});
+          await this.#assetGraphBuilder.writeToCache();
         }
       }
     };
   }
 
   async build(startTime: number = Date.now()): Promise<BuildEvent> {
+    let options = nullthrows(this.#resolvedOptions);
     try {
+      if (options.profile) {
+        await this.#farm.startProfile();
+      }
+
       this.#reporterRunner.report({
         type: 'buildStart'
       });
@@ -188,7 +188,6 @@ export default class Parcel {
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
       dumpGraphToGraphViz(bundleGraph._graph, 'BundleGraph');
 
-      let options = nullthrows(this.#resolvedOptions);
       await packageBundles({
         bundleGraph,
         config: this.#config,
@@ -210,7 +209,6 @@ export default class Parcel {
       this.#reporterRunner.report(event);
 
       await this.#assetGraphBuilder.validate();
-
       return event;
     } catch (e) {
       if (e instanceof BuildAbortError) {
@@ -223,6 +221,10 @@ export default class Parcel {
       };
       await this.#reporterRunner.report(event);
       return event;
+    } finally {
+      if (options.profile) {
+        await this.#farm.endProfile();
+      }
     }
   }
 
@@ -283,8 +285,8 @@ export default class Parcel {
           return;
         }
 
-        this.#assetGraphBuilder.respondToFSEvents(events);
-        if (this.#assetGraphBuilder.isInvalid()) {
+        let isInvalid = this.#assetGraphBuilder.respondToFSEvents(events);
+        if (isInvalid) {
           try {
             this.#watchEvents.emit({
               buildEvent: await this.build()
@@ -344,3 +346,9 @@ export class BuildError extends Error {
 }
 
 export {default as Asset} from './InternalAsset';
+
+export function createWorkerFarm() {
+  return new WorkerFarm({
+    workerPath: require.resolve('./worker')
+  });
+}

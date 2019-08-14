@@ -1,5 +1,5 @@
 // @flow strict-local
-import nullthrows from 'nullthrows';
+
 import type {
   MutableAsset as IMutableAsset,
   FilePath,
@@ -8,24 +8,29 @@ import type {
   TransformerResult,
   PackageName
 } from '@parcel/types';
-import type Config from './public/Config';
 import type {
   Asset as AssetValue,
   AssetRequest,
+  Config,
   NodeId,
   ConfigRequest,
   ParcelOptions
 } from './types';
+import type {WorkerApi} from '@parcel/workers';
 
 import invariant from 'assert';
 import path from 'path';
+import nullthrows from 'nullthrows';
 import {md5FromObject} from '@parcel/utils';
 
 import {createDependency} from './Dependency';
+import {localRequireFromWorker} from '@parcel/local-require';
+
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset, {createAsset} from './InternalAsset';
+import ParcelConfig from './ParcelConfig';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 
@@ -39,7 +44,8 @@ export type TransformationOpts = {|
   request: AssetRequest,
   loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
   parentNodeId: NodeId,
-  options: ParcelOptions
+  options: ParcelOptions,
+  workerApi: WorkerApi
 |};
 
 type ConfigMap = Map<PackageName, Config>;
@@ -50,12 +56,14 @@ export default class Transformation {
   loadConfig: ConfigRequest => Promise<Config>;
   options: ParcelOptions;
   impactfulOptions: $Shape<ParcelOptions>;
+  workerApi: WorkerApi;
 
   constructor({
     request,
     loadConfig,
     parentNodeId,
-    options
+    options,
+    workerApi
   }: TransformationOpts) {
     this.request = request;
     this.configRequests = [];
@@ -64,6 +72,7 @@ export default class Transformation {
       return loadConfig(configRequest, parentNodeId);
     };
     this.options = options;
+    this.workerApi = workerApi;
 
     // TODO: these options may not impact all transformations, let transformers decide if they care or not
     let {minify, hot, scopeHoist} = this.options;
@@ -240,7 +249,8 @@ export default class Transformation {
     let configs = new Map();
 
     let config = await this.loadConfig(configRequest);
-    let parcelConfig = nullthrows(config.result);
+    let result = nullthrows(config.result);
+    let parcelConfig = new ParcelConfig(result);
 
     configs.set('parcel', config);
 
@@ -251,7 +261,7 @@ export default class Transformation {
         let thirdPartyConfig = await this.loadTransformerConfig(
           filePath,
           moduleName,
-          parcelConfig.resolvedPath
+          result.resolvedPath
         );
         configs.set(moduleName, thirdPartyConfig);
       }
@@ -261,7 +271,8 @@ export default class Transformation {
       id: parcelConfig.getTransformerNames(filePath).join(':'),
       transformers: await parcelConfig.getTransformers(filePath),
       configs,
-      options: this.options
+      options: this.options,
+      workerApi: this.workerApi
     });
 
     return pipeline;
@@ -303,7 +314,8 @@ type PipelineOpts = {|
   id: string,
   transformers: Array<Transformer>,
   configs: ConfigMap,
-  options: ParcelOptions
+  options: ParcelOptions,
+  workerApi: WorkerApi
 |};
 
 class Pipeline {
@@ -315,8 +327,9 @@ class Pipeline {
   resolverRunner: ResolverRunner;
   generate: GenerateFunc;
   postProcess: ?PostProcessFunc;
+  workerApi: WorkerApi;
 
-  constructor({id, transformers, configs, options}: PipelineOpts) {
+  constructor({id, transformers, configs, options, workerApi}: PipelineOpts) {
     this.id = id;
     this.transformers = transformers;
     this.configs = configs;
@@ -329,6 +342,7 @@ class Pipeline {
     });
 
     this.pluginOptions = new PluginOptions(this.options);
+    this.workerApi = workerApi;
   }
 
   async transform(initialAsset: InternalAsset): Promise<Array<InternalAsset>> {
@@ -378,13 +392,16 @@ class Pipeline {
       )).filePath;
     };
 
+    let localRequire = localRequireFromWorker.bind(null, this.workerApi);
+
     // Load config for the transformer.
     let config = null;
     if (transformer.getConfig) {
       config = await transformer.getConfig({
         asset: new MutableAsset(asset),
         options: this.pluginOptions,
-        resolve
+        resolve,
+        localRequire
       });
     }
 
@@ -421,6 +438,7 @@ class Pipeline {
         asset: new MutableAsset(asset),
         config,
         options: this.pluginOptions,
+        localRequire,
         resolve
       })
     );

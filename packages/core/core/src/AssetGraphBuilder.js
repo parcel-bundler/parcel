@@ -1,7 +1,9 @@
 // @flow strict-local
-import EventEmitter from 'events';
 
+import type WorkerFarm from '@parcel/workers';
 import type {ParcelOptions, Target} from './types';
+
+import EventEmitter from 'events';
 import {md5FromObject, md5FromString} from '@parcel/utils';
 import watcher, {type Event} from '@parcel/watcher';
 
@@ -24,7 +26,8 @@ type Opts = {|
   config: ParcelConfig,
   entries?: Array<string>,
   targets?: Array<Target>,
-  assetRequest?: AssetRequest
+  assetRequest?: AssetRequest,
+  workerFarm: WorkerFarm
 |};
 
 export default class AssetGraphBuilder extends EventEmitter {
@@ -35,7 +38,14 @@ export default class AssetGraphBuilder extends EventEmitter {
   options: ParcelOptions;
   cacheKey: string;
 
-  async init({config, options, entries, targets, assetRequest}: Opts) {
+  async init({
+    config,
+    options,
+    entries,
+    targets,
+    assetRequest,
+    workerFarm
+  }: Opts) {
     this.options = options;
     let {minify, hot, scopeHoist} = options;
     this.cacheKey = md5FromObject({
@@ -59,7 +69,8 @@ export default class AssetGraphBuilder extends EventEmitter {
       config,
       options,
       onAssetRequestComplete: this.handleCompletedAssetRequest.bind(this),
-      onDepPathRequestComplete: this.handleCompletedDepPathRequest.bind(this)
+      onDepPathRequestComplete: this.handleCompletedDepPathRequest.bind(this),
+      workerFarm
     });
 
     if (changes) {
@@ -136,16 +147,8 @@ export default class AssetGraphBuilder extends EventEmitter {
     this.assetGraph.resolveDependency(requestNode.value, result);
   }
 
-  isInvalid() {
-    return this.requestGraph.isInvalid();
-  }
-
   respondToFSEvents(events: Array<Event>) {
-    this.requestGraph.respondToFSEvents(events);
-  }
-
-  initFarm() {
-    return this.requestGraph.initFarm();
+    return this.requestGraph.respondToFSEvents(events);
   }
 
   getWatcherOptions() {

@@ -2,7 +2,6 @@
 import path from 'path';
 import {md5FromObject} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
-import localRequire from '@parcel/local-require';
 
 import formatDiagnostics from './formatDiagnostics';
 import LanguageServiceHost from './languageServiceHost';
@@ -36,7 +35,7 @@ export default new Validator({
     };
   },
 
-  async validate({asset, config}) {
+  async validate({asset, config, localRequire}) {
     let ts = await localRequire('typescript', asset.filePath);
 
     // This should never happen...

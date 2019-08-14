@@ -9,6 +9,7 @@ import type {
   RootNode
 } from './types';
 import type ParcelConfig from './ParcelConfig';
+import type WorkerFarm from '@parcel/workers';
 
 import assert from 'assert';
 import path from 'path';
@@ -31,18 +32,21 @@ import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
   options: ParcelOptions,
-  config: ParcelConfig
+  config: ParcelConfig,
+  workerFarm: WorkerFarm
 |};
 
 export default class BundlerRunner {
   options: ParcelOptions;
   config: ParcelConfig;
   pluginOptions: PluginOptions;
+  farm: WorkerFarm;
 
   constructor(opts: Opts) {
     this.options = opts.options;
     this.config = opts.config;
     this.pluginOptions = new PluginOptions(this.options);
+    this.farm = opts.workerFarm;
   }
 
   async bundle(graph: AssetGraph): Promise<InternalBundleGraph> {
@@ -187,7 +191,7 @@ export default class BundlerRunner {
     bundleGraph: InternalBundleGraph,
     runtimeAssets: Array<RuntimeAsset>
   ) {
-    for (let {code, filePath, dependency} of runtimeAssets) {
+    for (let {code, filePath, dependency, isEntry} of runtimeAssets) {
       let builder = new AssetGraphBuilder();
       await builder.init({
         options: this.options,
@@ -196,7 +200,8 @@ export default class BundlerRunner {
           code,
           filePath,
           env: bundle.env
-        }
+        },
+        workerFarm: this.farm
       });
 
       // build a graph of just the transformed asset
@@ -251,6 +256,10 @@ export default class BundlerRunner {
         entry.id,
         entryIsReference ? 'references' : null
       );
+
+      if (isEntry) {
+        bundle.entryAssetIds.unshift(entry.id);
+      }
     }
   }
 }

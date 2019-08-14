@@ -1,6 +1,6 @@
 {
   "name": "@parcel/packager-css",
-  "version": "2.0.0-alpha.0",
+  "version": "2.0.0-alpha.1.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -9,10 +9,10 @@
   "main": "src/CSSPackager",
   "engines": {
     "node": ">= 8.0.0",
-    "parcel": "^2.0.0-alpha.0"
+    "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-alpha.0",
-    "@parcel/utils": "^2.0.0-alpha.0"
+    "@parcel/plugin": "^2.0.0-alpha.1.1",
+    "@parcel/utils": "^2.0.0-alpha.1.1"
   }
 }

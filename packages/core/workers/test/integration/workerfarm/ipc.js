@@ -1,7 +1,7 @@
 const WorkerFarm = require('../../../src/WorkerFarm').default;
 
-function run(a, b) {
-  return WorkerFarm.callMaster({
+function run(api, a, b) {
+  return api.callMaster({
     location: require.resolve('./master-sum.js'),
     args: [a, b]
   });

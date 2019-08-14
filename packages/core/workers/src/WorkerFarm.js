@@ -8,6 +8,7 @@ import type {
   WorkerErrorResponse,
   BackendType
 } from './types';
+import type {HandleFunction} from './Handle';
 
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
@@ -22,8 +23,12 @@ import cpuCount from './cpuCount';
 import Handle from './Handle';
 import {child} from './childState';
 import {detectBackend} from './backend';
+import Profiler from './Profiler';
+import Trace from './Trace';
+import fs from 'fs';
+import logger from '@parcel/logger';
 
-let shared = null;
+let profileId = 1;
 
 type FarmOptions = {|
   maxConcurrentWorkers: number,
@@ -35,11 +40,15 @@ type FarmOptions = {|
   backend: BackendType
 |};
 
-type HandleFunction = (...args: Array<any>) => Promise<any>;
-
 type WorkerModule = {|
   +[string]: (...args: Array<mixed>) => Promise<mixed>
 |};
+
+export type WorkerApi = {|
+  callMaster(CallRequest, ?boolean): Promise<mixed>
+|};
+
+export {Handle};
 
 /**
  * workerPath should always be defined inside farmOptions
@@ -54,6 +63,7 @@ export default class WorkerFarm extends EventEmitter {
   warmWorkers: number = 0;
   workers: Map<number, Worker> = new Map();
   handles: Map<number, Handle> = new Map();
+  profiler: ?Profiler;
 
   constructor(farmOptions: $Shape<FarmOptions> = {}) {
     super();
@@ -77,6 +87,19 @@ export default class WorkerFarm extends EventEmitter {
 
     this.startMaxWorkers();
   }
+
+  workerApi = {
+    callMaster: async (
+      request: CallRequest,
+      awaitResponse: ?boolean = true
+    ): Promise<mixed> => {
+      // $FlowFixMe
+      return this.processRequest({
+        ...request,
+        awaitResponse
+      });
+    }
+  };
 
   warmupWorker(method: string, args: Array<any>): void {
     // Workers are already stopping
@@ -121,7 +144,7 @@ export default class WorkerFarm extends EventEmitter {
         let processedArgs = restoreDeserializedObject(
           prepareForSerialization([...args, false])
         );
-        return this.localWorker[method](...processedArgs);
+        return this.localWorker[method](this.workerApi, ...processedArgs);
       }
     };
   }
@@ -202,10 +225,10 @@ export default class WorkerFarm extends EventEmitter {
     |} & $Shape<WorkerRequest>,
     worker?: Worker
   ): Promise<?string> {
-    let {method, args, location, awaitResponse, idx, handle} = data;
+    let {method, args, location, awaitResponse, idx, handle: handleId} = data;
     let mod;
-    if (handle) {
-      mod = nullthrows(this.handles.get(handle));
+    if (handleId != null) {
+      mod = nullthrows(this.handles.get(handleId)).fn;
     } else if (location) {
       // $FlowFixMe this must be dynamic
       mod = require(location);
@@ -236,11 +259,13 @@ export default class WorkerFarm extends EventEmitter {
       }
     } else {
       // ESModule default interop
+      // $FlowFixMe
       if (mod.__esModule && !mod[method] && mod.default) {
         mod = mod.default;
       }
 
       try {
+        // $FlowFixMe
         result = responseFromContent(await mod[method](...args));
       } catch (e) {
         result = errorResponseFromError(e);
@@ -278,21 +303,23 @@ export default class WorkerFarm extends EventEmitter {
 
   async end(): Promise<void> {
     this.ending = true;
+
+    for (let handle of this.handles.values()) {
+      handle.dispose();
+    }
+    this.handles = new Map();
+
     await Promise.all(
       Array.from(this.workers.values()).map(worker => this.stopWorker(worker))
     );
     this.ending = false;
-    shared = null;
   }
 
   startMaxWorkers(): void {
     // Starts workers until the maximum is reached
     if (this.workers.size < this.options.maxConcurrentWorkers) {
-      for (
-        let i = 0;
-        i < this.options.maxConcurrentWorkers - this.workers.size;
-        i++
-      ) {
+      let toStart = this.options.maxConcurrentWorkers - this.workers.size;
+      while (toStart--) {
         this.startChild();
       }
     }
@@ -306,31 +333,72 @@ export default class WorkerFarm extends EventEmitter {
     );
   }
 
-  createReverseHandle(fn: () => mixed) {
-    let handle = new Handle();
-    this.handles.set(handle.id, fn);
+  createReverseHandle(fn: HandleFunction) {
+    let handle = new Handle({fn, workerApi: this.workerApi});
+    this.handles.set(handle.id, handle);
     return handle;
   }
 
-  static async getShared(
-    farmOptions?: $Shape<FarmOptions>
-  ): Promise<WorkerFarm> {
-    // Farm options shouldn't be considered safe to overwrite
-    // and require an entire new instance to be created
-    if (
-      shared &&
-      farmOptions &&
-      farmOptions.workerPath !== shared.options.workerPath
-    ) {
-      await shared.end();
-      shared = null;
+  async startProfile() {
+    let promises = [];
+    for (let worker of this.workers.values()) {
+      promises.push(
+        new Promise((resolve, reject) => {
+          worker.call({
+            method: 'startProfile',
+            args: [],
+            resolve,
+            reject,
+            retries: 0
+          });
+        })
+      );
     }
 
-    if (!shared) {
-      shared = new WorkerFarm(farmOptions);
+    this.profiler = new Profiler();
+
+    promises.push(this.profiler.startProfiling());
+    await Promise.all(promises);
+  }
+
+  async endProfile() {
+    if (!this.profiler) {
+      return;
     }
 
-    return shared;
+    let promises = [this.profiler.stopProfiling()];
+    let names = ['Master'];
+
+    for (let worker of this.workers.values()) {
+      names.push('Worker ' + worker.id);
+      promises.push(
+        new Promise((resolve, reject) => {
+          worker.call({
+            method: 'endProfile',
+            args: [],
+            resolve,
+            reject,
+            retries: 0
+          });
+        })
+      );
+    }
+
+    var profiles = await Promise.all(promises);
+    let trace = new Trace();
+    let filename = `profile-${profileId++}.trace`;
+    let stream = trace.pipe(fs.createWriteStream(filename));
+
+    for (let profile of profiles) {
+      trace.addCPUProfile(names.shift(), profile);
+    }
+
+    trace.flush();
+    await new Promise(resolve => {
+      stream.once('finish', resolve);
+    });
+
+    logger.info(`Wrote profile to ${filename}`);
   }
 
   static getNumWorkers() {
@@ -339,36 +407,11 @@ export default class WorkerFarm extends EventEmitter {
       : cpuCount();
   }
 
-  static async callMaster(
-    request: CallRequest,
-    awaitResponse: boolean = true
-  ): Promise<mixed> {
-    if (child) {
-      return child.addCall(request, awaitResponse);
-    } else {
-      // $FlowFixMe
-      return (await WorkerFarm.getShared()).processRequest({
-        ...request,
-        awaitResponse
-      });
-    }
-  }
-
   static isWorker() {
     return !!child;
   }
 
   static getConcurrentCallsPerWorker() {
     return parseInt(process.env.PARCEL_MAX_CONCURRENT_CALLS, 10) || 5;
-  }
-
-  static createReverseHandle(fn: (...args: any[]) => mixed) {
-    if (WorkerFarm.isWorker()) {
-      throw new Error(
-        'Cannot call WorkerFarm.createReverseHandle() from within Worker'
-      );
-    }
-
-    return nullthrows(shared).createReverseHandle(fn);
   }
 }
