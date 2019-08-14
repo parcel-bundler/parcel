@@ -276,6 +276,35 @@ describe('babel', function() {
     assert(!file.includes('OptionsType'));
   });
 
+  it('should rebuild when .babelrc changes', async function() {
+    let differentPath = path.join(inputDir, 'differentConfig');
+    let configPath = path.join(inputDir, '.babelrc');
+
+    await ncp(path.join(__dirname, 'integration/babel-custom'), inputDir);
+
+    let b = bundler(path.join(inputDir, 'index.js'), {
+      outputFS: fs
+    });
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+    let distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(distFile.includes('hello there'));
+    await fs.copyFile(differentPath, configPath);
+    // On Windows only, `fs.utimes` arguments must be instances of `Date`,
+    // otherwise it fails. For Mac instances on Azure CI, using a Date instance
+    // does not update the utime correctly, so for all other platforms, use a
+    // number.
+    // https://github.com/nodejs/node/issues/5561
+    let now = os.platform() === 'win32' ? new Date() : Date.now();
+    // fs.copyFile does not reliably update mtime, which babel uses to invalidate cached file contents
+    await fs.utimes(configPath, now, now);
+    await getNextBuild(b);
+    distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(!distFile.includes('hello there'));
+    assert(distFile.includes('something different'));
+  });
+
   it('should support compiling with babel using babel.config.js config', async function() {
     await bundle(
       path.join(__dirname, '/integration/babel-config-js/src/index.js')
@@ -315,40 +344,42 @@ describe('babel', function() {
     await fs.rimraf(distDir);
   });
 
-  it('should rebuild when babel config changes', async function() {
-    let differentPath = path.join(inputDir, 'differentConfig');
-    let configPath = path.join(inputDir, '.babelrc');
+  it('should invalidate when babel plugins are upgraded across runs', async function() {
+    let fs = new NodeFS();
 
-    await ncp(path.join(__dirname, 'integration/babel-custom'), inputDir);
+    let fixtureDir = path.join(__dirname, '/integration/babel-plugin-upgrade');
+    let distDir = path.resolve(inputDir, './dist');
+    await ncp(path.join(fixtureDir), inputDir);
 
-    let b = bundler(path.join(inputDir, 'index.js'), {
-      outputFS: fs,
-      targets: {
-        main: {
-          engines: {
-            node: '^4.0.0'
-          },
-          distDir
-        }
-      }
-    });
+    let build = () =>
+      execSync(`${parcelCli} build index.js --no-minify --no-scope-hoist`, {
+        cwd: inputDir
+      });
 
-    subscription = await b.watch();
-    await getNextBuild(b);
-    let distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(distFile.includes('hello there'));
-    await fs.copyFile(differentPath, configPath);
-    // On Windows only, `fs.utimes` arguments must be instances of `Date`,
-    // otherwise it fails. For Mac instances on Azure CI, using a Date instance
-    // does not update the utime correctly, so for all other platforms, use a
-    // number.
-    // https://github.com/nodejs/node/issues/5561
-    let now = os.platform() === 'win32' ? new Date() : Date.now();
-    // fs.copyFile does not reliably update mtime, which babel uses to invalidate cached file contents
-    await fs.utimes(configPath, now, now);
-    await getNextBuild(b);
-    distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(!distFile.includes('hello there'));
-    assert(distFile.includes('something different'));
+    build();
+    let file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(!file.includes('REPLACE_ME'));
+    assert(file.includes('hello there'));
+
+    await fs.writeFile(
+      path.join(inputDir, 'node_modules/babel-plugin-dummy/message.js'),
+      'module.exports = "something different"'
+    );
+    await fs.writeFile(
+      path.join(inputDir, 'node_modules/babel-plugin-dummy/package.json'),
+      JSON.stringify({name: 'babel-plugin-dummy', version: '1.1.0'})
+    );
+    await fs.writeFile(
+      path.join(inputDir, 'yarn.lock'),
+      '# yarn.lock has been updated'
+    );
+
+    build();
+    file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(!file.includes('REPLACE_ME'));
+    assert(!file.includes('hello there'));
+    assert(file.includes('something different'));
+
+    await fs.rimraf(distDir);
   });
 });
