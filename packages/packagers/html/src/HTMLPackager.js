@@ -18,6 +18,17 @@ const metadataContent = new Set([
   'title'
 ]);
 
+// fake implementation, of what will be passed from packageRunner
+const mockGetBundleResult = async (bundle, bundleGraph) => {
+  const asset = bundle.getMainEntry();
+  let [contents, map] = await Promise.all([asset.getCode(), asset.getMap()]);
+
+  return {
+    contents,
+    map
+  };
+};
+
 export default new Packager({
   async package({bundle, bundleGraph}) {
     let assets = [];
@@ -50,7 +61,7 @@ export default new Packager({
       insertBundleReferences.bind(this, bundles),
       replaceInlineAssetContent.bind(
         this,
-        getAssetContent.bind(this, bundleGraph, () => {})
+        getAssetContent.bind(this, bundleGraph, mockGetBundleResult)
       )
     ]).process(code);
 
@@ -68,9 +79,9 @@ async function getAssetContent(bundleGraph, getBundleResult, assetId) {
   });
 
   if (inlineBundle) {
-    let asset = inlineBundle.getMainEntry();
+    const bundleResult = await getBundleResult(inlineBundle, bundleGraph);
 
-    return asset.getCode();
+    return bundleResult.contents;
   }
 
   return `unable to find bundle for id - ${assetId}`;
@@ -86,10 +97,7 @@ async function replaceInlineAssetContent(getAssetContent, tree) {
   });
 
   for (let node of inlineNodes) {
-    node.attrs['is-inline'] = true;
-    node.attrs['new-content'] = await getAssetContent(
-      node.attrs['data-parcelId']
-    );
+    node.content = await getAssetContent(node.attrs['data-parcelId']);
     // remove attr from output
     delete node.attrs['data-parcelId'];
   }
