@@ -1,9 +1,9 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-import {localResolve} from '@parcel/local-require';
-import {promisify} from '@parcel/utils';
+import {promisify, resolve} from '@parcel/utils';
 import logger from '@parcel/logger';
+import {dirname} from 'path';
 
 // E.g: ~library/file.sass
 const WEBPACK_ALIAS_RE = /^~[^/]/;
@@ -13,14 +13,17 @@ let didWarnAboutNodeSass = false;
 async function warnAboutNodeSassBeingUnsupported(filePath) {
   if (!didWarnAboutNodeSass) {
     try {
-      await localResolve('node-sass', filePath, true);
+      await resolve('node-sass', {basedir: dirname(filePath)});
       logger.warn(
         '`node-sass` is unsupported in Parcel 2, it will use Dart Sass a.k.a. `sass`'
       );
-    } catch {
-      // noop
+    } catch (err) {
+      if (err.code !== 'MODULE_NOT_FOUND') {
+        throw err;
+      }
+    } finally {
+      didWarnAboutNodeSass = true;
     }
-    didWarnAboutNodeSass = true;
   }
 }
 
