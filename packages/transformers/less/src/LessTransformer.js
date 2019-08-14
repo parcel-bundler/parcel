@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import {Transformer} from '@parcel/plugin';
-import localRequire from '@parcel/local-require';
 
 // E.g: ~library/file.less
 const WEBPACK_ALIAS_RE = /^~[^/]/;
@@ -26,7 +25,7 @@ export default new Transformer({
     return config;
   },
 
-  async transform({asset, config}) {
+  async transform({asset, localRequire, config}) {
     const less = await localRequire('less', asset.filePath);
     const code = await asset.getCode();
     let css;

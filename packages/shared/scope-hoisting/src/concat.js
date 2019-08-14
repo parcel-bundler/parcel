@@ -48,9 +48,10 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
 
   // If this is an entry bundle and it has child bundles, we need to add the prelude code, which allows
   // registering modules dynamically at runtime.
+  let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
   let hasChildBundles = bundle.hasChildBundles();
-  let needsPrelude = bundle.isEntry && hasChildBundles;
-  let registerEntry = !bundle.isEntry || hasChildBundles;
+  let needsPrelude = isEntry && hasChildBundles;
+  let registerEntry = !isEntry || hasChildBundles;
   if (needsPrelude) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }
@@ -95,10 +96,10 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
         statements.splice(index, 0, ...ast);
       }
 
-      // If this module is referenced by another bundle, or is an entry module in a child bundle,
+      // If this module is referenced by another JS bundle, or is an entry module in a child bundle,
       // add code to register the module with the module system.
       if (
-        bundleGraph.isAssetReferenced(asset) ||
+        bundleGraph.isAssetReferencedByAssetType(asset, 'js') ||
         (!context.parent && registerEntry)
       ) {
         let exportsId = getName(asset, 'exports');

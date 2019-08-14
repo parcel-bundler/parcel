@@ -1,9 +1,9 @@
 const WorkerFarm = require('../../../src/WorkerFarm').default;
 
-function run() {
+function run(api) {
   let result = [process.pid];
   return new Promise((resolve, reject) => {
-    WorkerFarm.callMaster({
+    api.callMaster({
       location: require.resolve('./master-process-id.js'),
       args: []
     })
