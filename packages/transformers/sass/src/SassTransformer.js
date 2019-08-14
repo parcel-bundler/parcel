@@ -90,6 +90,18 @@ function resolvePathImporter({resolve}) {
         done({file: resolvedPath});
       })
       .catch(() => {
+        /*
+         We return `null` instead of an error so that Sass' resolution algorithm can continue.
+
+         Imports are resolved by trying, in order:
+           * Loading a file relative to the file in which the `@import` appeared.
+           * Each custom importer.
+           * Loading a file relative to the current working directory.
+           * Each load path in `includePaths`
+           * Each load path specified in the `SASS_PATH` environment variable, which should be semicolon-separated on Windows and colon-separated elsewhere.
+
+         See: https://sass-lang.com/documentation/js-api#importer
+        */
         done(null);
       });
   };
