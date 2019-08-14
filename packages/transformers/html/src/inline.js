@@ -27,6 +27,7 @@ export default function extractInlineAssets(
     if (node.tag === 'script' || node.tag === 'style') {
       let value = node.content && node.content.join('').trim();
       if (value != null) {
+        let id = md5FromString(value);
         let type;
 
         if (node.tag === 'style') {
@@ -50,8 +51,15 @@ export default function extractInlineAssets(
           type = 'js';
         }
 
+        if (!node.attrs) {
+          node.attrs = {};
+        }
+
+        // insert parcelId to allow us to retrieve node during packaging
+        node.attrs['data-parcelId'] = id;
+
         parts.push({
-          id: md5FromString(value),
+          id,
           type,
           code: value,
           isIsolated: true,

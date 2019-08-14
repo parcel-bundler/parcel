@@ -594,6 +594,7 @@ describe('html', function() {
     assertBundles(b, [{name: 'index.html', assets: ['index.html']}]);
 
     let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    console.log(html.toString());
     assert(!html.includes('`${hello} ${world}${end}`'));
     // asserts that ugify was ran when production flag is passed
     assert(!html.includes('someArgument'));

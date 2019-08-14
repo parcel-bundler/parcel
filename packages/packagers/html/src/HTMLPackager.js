@@ -47,12 +47,33 @@ export default new Packager({
     }, []);
 
     let {html} = await posthtml([
-      insertBundleReferences.bind(this, bundles)
+      insertBundleReferences.bind(this, bundles),
+      replaceInlineAssetContent.bind(
+        this,
+        getAssetContent.bind(this, bundleGraph, () => {})
+      )
     ]).process(code);
 
     return {contents: html};
   }
 });
+
+function getAssetContent(bundleGraph, getBundleResult, assetId) {
+  return `this is where the asset value will go - ${assetId}`;
+}
+
+function replaceInlineAssetContent(getAssetContent, tree) {
+  tree.walk(node => {
+    if (node.attrs && node.attrs['data-parcelId']) {
+      node.content = getAssetContent(node.attrs['data-parcelId']);
+      // remove attr from output
+      delete node.attrs['data-parcelId'];
+    }
+    return node;
+  });
+
+  return tree;
+}
 
 function insertBundleReferences(siblingBundles, tree) {
   const bundles = [];
