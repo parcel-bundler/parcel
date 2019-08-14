@@ -469,52 +469,6 @@ describe('html', function() {
     ]);
   });
 
-  it.skip('should support webmanifest', async function() {
-    let b = await bundle(
-      path.join(__dirname, '/integration/webmanifest/index.html')
-    );
-
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'webmanifest',
-          assets: ['manifest.webmanifest'],
-          childBundles: [
-            {
-              type: 'txt',
-              assets: ['some.txt'],
-              childBundles: []
-            }
-          ]
-        }
-      ]
-    });
-  });
-
-  it.skip("should treat webmanifest as an entry module so it doesn't get content hashed", async function() {
-    const b = await bundle(
-      path.join(__dirname, '/integration/html-manifest/index.html')
-    );
-
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.html'],
-      childBundles: [
-        {
-          type: 'webmanifest',
-          assets: ['manifest.webmanifest']
-        }
-      ]
-    });
-
-    const html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html')
-    );
-    assert(html.includes('<link rel="manifest" href="/manifest.webmanifest">'));
-  });
-
   it('should bundle svg files correctly', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-svg/index.html')
