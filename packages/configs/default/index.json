@@ -13,6 +13,7 @@
       "@parcel/transformer-html"
     ],
     "*.coffee": ["@parcel/transformer-coffeescript"],
+    "*.md": ["@parcel/transformer-markdown"],
     "*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],

@@ -1,24 +1,23 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle, assertBundleTree, outputFS} = require('@parcel/test-utils');
+const {bundle, assertBundles, outputFS} = require('@parcel/test-utils');
 
-describe.skip('markdown', function() {
-  it('should support bundling Markdown', async function() {
+describe('markdown', function() {
+  it.only('should support bundling Markdown', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/markdown/index.md')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.md'],
-      childBundles: [
-        {
-          type: 'png',
-          assets: ['100x100.png'],
-          childBundles: []
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.md']
+      },
+      {
+        type: 'png',
+        assets: ['100x100.png']
+      }
+    ]);
 
     let files = await outputFS.readdir(path.join(__dirname, '/dist'));
     let html = await outputFS.readFile(
