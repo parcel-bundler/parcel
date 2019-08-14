@@ -43,6 +43,7 @@
     "@parcel/transformer-json": "^2.0.0-alpha.3.1",
     "@parcel/transformer-jsonld": "^2.0.0-alpha.3.1",
     "@parcel/transformer-less": "^2.0.0-alpha.3.1",
+    "@parcel/transformer-mdx": "^2.0.0-alpha.3.1",
     "@parcel/transformer-postcss": "^2.0.0-alpha.3.1",
     "@parcel/transformer-posthtml": "^2.0.0-alpha.3.1",
     "@parcel/transformer-pug": "^2.0.0-alpha.3.1",
@@ -54,8 +55,8 @@
     "@parcel/transformer-sugarss": "^2.0.0-alpha.3.1",
     "@parcel/transformer-toml": "^2.0.0-alpha.3.1",
     "@parcel/transformer-typescript-types": "^2.0.0-alpha.3.1",
+    "@parcel/transformer-webmanifest": "^2.0.0-alpha.3.1",
     "@parcel/transformer-yaml": "^2.0.0-alpha.3.1",
-    "@parcel/transformer-mdx": "^2.0.0-alpha.3.1"
   },
   "peerDependencies": {
     "@parcel/core": "^2.0.0-alpha.3.1"

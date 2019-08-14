@@ -1,9 +1,10 @@
 {
   "bundler": "@parcel/bundler-default",
   "transformers": {
-    "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
     "bundle-text:*": ["@parcel/transformer-inline-string", "..."],
     "data-url:*": ["@parcel/transformer-inline-string", "..."],
+    "types:*.{ts,tsx}": ["@parcel/transformer-typescript-types"],
+    "url:*": ["@parcel/transformer-raw"],
     "*.{js,mjs,jsm,jsx,es6,cjs,ts,tsx}": [
       "@parcel/transformer-react-refresh-babel",
       "@parcel/transformer-babel",
@@ -27,7 +28,8 @@
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*.mdx": ["@parcel/transformer-mdx"],
-    "url:*": ["@parcel/transformer-raw"]
+    "*.webmanifest": ["@parcel/transformer-webmanifest"],
+    "*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],
   "runtimes": {
