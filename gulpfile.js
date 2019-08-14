@@ -6,9 +6,6 @@ const path = require('path');
 const rimraf = require('rimraf');
 const babelConfig = require('./babel.config.js');
 
-const BABEL_REGISTER_INTERPRETER =
-  '#!/usr/bin/env node -r @parcel/babel-register';
-
 const IGNORED_PACKAGES = [
   '!packages/examples/**',
   '!packages/core/integration-tests/**',
@@ -45,7 +42,6 @@ exports.default = exports.build = function build() {
     gulp
       .src(paths.packageSrc)
       .pipe(babel(babelConfig))
-      .pipe(removeBabelRegisterInterpreter())
       .pipe(renameStream(relative => relative.replace('src', 'lib')))
       .pipe(gulp.dest(paths.packages)),
     gulp
@@ -81,23 +77,6 @@ function updatePackageJson() {
       access: 'public'
     };
     vinyl.contents = Buffer.from(JSON.stringify(json, null, 2));
-  });
-}
-
-function removeBabelRegisterInterpreter() {
-  return new TapStream(vinyl => {
-    if (
-      vinyl.contents
-        .toString()
-        .trim()
-        .startsWith(BABEL_REGISTER_INTERPRETER)
-    ) {
-      vinyl.contents = Buffer.from(
-        vinyl.contents
-          .toString()
-          .replace(BABEL_REGISTER_INTERPRETER, '#!/usr/bin/env node')
-      );
-    }
   });
 }
 
