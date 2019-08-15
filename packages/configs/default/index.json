@@ -10,7 +10,6 @@
       "@parcel/transformer-js",
       "@parcel/transformer-react-refresh-wrap"
     ],
-    "manifest.json": ["@parcel/transformer-webext-manifest"],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.toml": ["@parcel/transformer-toml"],
     "*.yaml": ["@parcel/transformer-yaml"],
