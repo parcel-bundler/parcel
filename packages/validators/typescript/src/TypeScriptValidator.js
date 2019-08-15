@@ -2,7 +2,6 @@
 import path from 'path';
 import {md5FromObject} from '@parcel/utils';
 import {Validator} from '@parcel/plugin';
-import localRequire from '@parcel/local-require';
 
 import formatDiagnostics from './formatDiagnostics';
 import LanguageServiceHost from './languageServiceHost';
@@ -10,7 +9,7 @@ import LanguageServiceHost from './languageServiceHost';
 let langServiceCache = {};
 
 export default new Validator({
-  async validate({asset, options, resolveConfig}) {
+  async validate({asset, localRequire, options, resolveConfig}) {
     let ts = await localRequire('typescript', asset.filePath);
 
     let configNames = ['tsconfig.json'];

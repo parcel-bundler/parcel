@@ -1,4 +1,4 @@
-function run(handle) {
+function run(_, handle) {
   return handle();
 }
 

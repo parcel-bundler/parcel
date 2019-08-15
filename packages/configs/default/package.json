@@ -31,6 +31,7 @@
     "@parcel/transformer-js": "^2.0.0-alpha.1.1",
     "@parcel/transformer-json": "^2.0.0-alpha.1.1",
     "@parcel/transformer-toml": "^2.0.0-alpha.1.1",
+    "@parcel/transformer-less": "^2.0.0-alpha.1.1",
     "@parcel/transformer-postcss": "^2.0.0-alpha.1.1",
     "@parcel/transformer-posthtml": "^2.0.0-alpha.1.1",
     "@parcel/transformer-raw": "^2.0.0-alpha.1.1",

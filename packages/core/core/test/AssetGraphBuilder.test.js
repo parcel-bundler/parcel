@@ -4,6 +4,7 @@ import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
+import {createWorkerFarm} from '../';
 import AssetGraphBuilder from '../src/AssetGraphBuilder';
 import {resolve} from '../src/loadParcelConfig';
 import {createDependency} from '../src/Dependency';
@@ -34,6 +35,16 @@ const TARGETS = [
 describe('AssetGraphBuilder', () => {
   let config;
   let builder;
+  let workerFarm;
+
+  before(() => {
+    workerFarm = createWorkerFarm();
+  });
+
+  after(async () => {
+    await workerFarm.end();
+  });
+
   beforeEach(async () => {
     config = nullthrows(await resolve(inputFS, path.join(CONFIG_DIR, 'index')))
       .config;
@@ -43,7 +54,8 @@ describe('AssetGraphBuilder', () => {
       options: DEFAULT_OPTIONS,
       config,
       entries: ['./module-b'],
-      targets: TARGETS
+      targets: TARGETS,
+      workerFarm
     });
   });
 

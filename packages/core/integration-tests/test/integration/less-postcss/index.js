@@ -1,4 +1,4 @@
-var map = require('./index.less');
+var map = require('./index.module.less');
 
 module.exports = function () {
   return map.index;
