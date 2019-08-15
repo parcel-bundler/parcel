@@ -4,17 +4,16 @@
 import {Transformer} from '@parcel/plugin';
 import type {MutableAsset} from '@parcel/types';
 
-import nullthrows from 'nullthrows';
-
-const getSrcHandler = (opt = {}) => (asset, dep) => {
-  dep.src = asset.addURLDependency(dep.src, opt);
+const getSrcHandler = (opt = {}) => (asset: MutableAsset, dep) => {
+  const src = asset.addURLDependency(dep.src, opt);
+  return {...dep, src};
 };
 
-const handleArray = (asset, list) => {
+const handleArray = (asset: MutableAsset, list) => {
   if (!Array.isArray(list)) {
-    return;
+    return list;
   }
-  list.forEach(getSrcHandler().bind(null, asset));
+  return list.map(getSrcHandler().bind(null, asset));
 };
 
 const DEPS = {
@@ -26,32 +25,26 @@ const DEPS = {
   })
 };
 
-const collectDependencies = (asset: MutableAsset) => {
-  const ast = nullthrows(asset.ast);
+type JsonObject = {[string]: any};
 
-  Object.keys(DEPS).forEach(key => {
-    // $FlowFixMe
-    let node = ast[key];
-    if (node) {
-      const handler = DEPS[key];
-      handler(asset, node);
-    }
-  });
-};
+const collectDependencies = (asset: MutableAsset, json: JsonObject) =>
+  Object.keys(DEPS).reduce(
+    (acc: JsonObject, key: string) => {
+      const value = json[key];
+      if (value) {
+        const handler = DEPS[key];
+        acc[key] = handler(asset, value);
+      }
+      return acc;
+    },
+    {...json}
+  );
 
 export default new Transformer({
-  async parse({asset}) {
-    return JSON.parse(await asset.getCode());
-  },
-
   async transform({asset}) {
-    collectDependencies(asset);
+    const json = JSON.parse(await asset.getCode());
+    const result = collectDependencies(asset, json);
+    asset.setCode(JSON.stringify(result));
     return [asset];
-  },
-
-  generate({asset}) {
-    return {
-      code: JSON.stringify(asset.ast) || ''
-    };
   }
 });

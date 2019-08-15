@@ -11,8 +11,7 @@
     "parcel": "^2.0.0-alpha.3.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-alpha.3.1",
-    "nullthrows": "^1.1.1"
+    "@parcel/plugin": "^2.0.0-alpha.3.1"
   },
   "publishConfig": {
     "access": "public"
