@@ -9,7 +9,6 @@ import {isMatch} from 'micromatch';
 import nullthrows from 'nullthrows';
 import path from 'path';
 
-import {localResolve} from '@parcel/local-require';
 import {PromiseQueue, md5FromString, md5FromObject} from '@parcel/utils';
 import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
@@ -392,7 +391,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   async runDepVersionRequest(requestNode: DepVersionRequestNode) {
     let {value: request} = requestNode;
     let {moduleSpecifier, resolveFrom} = request;
-    let [, resolvedPkg] = await localResolve(
+    let [, resolvedPkg] = await this.options.packageManager.resolve(
       `${moduleSpecifier}/package.json`,
       `${resolveFrom}/index`
     );

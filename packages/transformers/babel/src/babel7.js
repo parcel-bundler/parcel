@@ -1,19 +1,18 @@
 // @flow
-
-import type {LocalRequire, MutableAsset, AST} from '@parcel/types';
+import type {MutableAsset, AST, ParcelOptions} from '@parcel/types';
 
 export default async function babel7(
   asset: MutableAsset,
-  localRequire: LocalRequire,
-  options: any
+  options: ParcelOptions,
+  babelOptions: any
 ): Promise<?AST> {
-  let config = options.config;
+  let config = babelOptions.config;
 
   // If this is an internally generated config, use our internal @babel/core,
   // otherwise require a local version from the package we're compiling.
-  let babel = options.internal
+  let babel = babelOptions.internal
     ? require('@babel/core')
-    : await localRequire('@babel/core', asset.filePath);
+    : await options.packageManager.require('@babel/core', asset.filePath);
 
   // let pkg = await asset.getPackage();
 

@@ -7,10 +7,9 @@ import type {
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
 import type {FileSystem} from '@parcel/fs';
-import {resolveConfig} from '@parcel/utils';
+import {resolveConfig, resolve} from '@parcel/utils';
 import {parse} from 'json5';
 import path from 'path';
-import {localResolve} from '@parcel/local-require';
 import assert from 'assert';
 
 import ParcelConfig from './ParcelConfig';
@@ -22,19 +21,24 @@ export default async function loadParcelConfig(
   filePath: FilePath,
   options: ParcelOptions
 ) {
-  let fs = options.inputFS;
   // Resolve plugins from cwd when a config is passed programmatically
   let parcelConfig = options.config
-    ? await create(fs, {
-        ...options.config,
-        resolveFrom: fs.cwd()
-      })
-    : await resolve(fs, filePath);
+    ? await create(
+        {
+          ...options.config,
+          resolveFrom: options.inputFS.cwd()
+        },
+        options
+      )
+    : await resolveParcelConfig(filePath, options);
   if (!parcelConfig && options.defaultConfig) {
-    parcelConfig = await create(fs, {
-      ...options.defaultConfig,
-      resolveFrom: fs.cwd()
-    });
+    parcelConfig = await create(
+      {
+        ...options.defaultConfig,
+        resolveFrom: options.inputFS.cwd()
+      },
+      options
+    );
   }
 
   if (!parcelConfig) {
@@ -44,32 +48,42 @@ export default async function loadParcelConfig(
   return parcelConfig;
 }
 
-export async function resolve(fs: FileSystem, filePath: FilePath) {
-  let configPath = await resolveConfig(fs, filePath, ['.parcelrc']);
+export async function resolveParcelConfig(
+  filePath: FilePath,
+  options: ParcelOptions
+) {
+  let configPath = await resolveConfig(options.inputFS, filePath, [
+    '.parcelrc'
+  ]);
   if (!configPath) {
     return null;
   }
 
-  return readAndProcess(fs, configPath);
+  return readAndProcess(configPath, options);
 }
 
-export function create(fs: FileSystem, config: ParcelConfigFile) {
-  return processConfig(fs, config, fs.cwd());
+export async function create(config: ParcelConfigFile, options: ParcelOptions) {
+  return processConfig(config, options.inputFS.cwd(), options);
 }
 
-export async function readAndProcess(fs: FileSystem, configPath: FilePath) {
-  let config: ParcelConfigFile = parse(await fs.readFile(configPath));
-  return processConfig(fs, config, configPath);
+export async function readAndProcess(
+  configPath: FilePath,
+  options: ParcelOptions
+) {
+  let config: ParcelConfigFile = parse(
+    await options.inputFS.readFile(configPath)
+  );
+  return processConfig(config, configPath, options);
 }
 
 export async function processConfig(
-  fs: FileSystem,
   configFile: ParcelConfigFile,
-  filePath: FilePath
+  filePath: FilePath,
+  options: ParcelOptions
 ) {
   let resolvedFile: ResolvedParcelConfigFile = {filePath, ...configFile};
-  let config = new ParcelConfig(resolvedFile);
-  let relativePath = path.relative(fs.cwd(), filePath);
+  let config = new ParcelConfig(resolvedFile, options.packageManager);
+  let relativePath = path.relative(options.inputFS.cwd(), filePath);
   validateConfigFile(configFile, relativePath);
 
   let extendedFiles: Array<FilePath> = [];
@@ -79,12 +93,12 @@ export async function processConfig(
       ? configFile.extends
       : [configFile.extends];
     for (let ext of exts) {
-      let resolved = await resolveExtends(fs, ext, filePath);
+      let resolved = await resolveExtends(ext, filePath, options);
       extendedFiles.push(resolved);
       let {
         extendedFiles: moreExtendedFiles,
         config: baseConfig
-      } = await readAndProcess(fs, resolved);
+      } = await readAndProcess(resolved, options);
       extendedFiles = extendedFiles.concat(moreExtendedFiles);
       config = mergeConfigs(baseConfig, resolvedFile);
     }
@@ -94,15 +108,17 @@ export async function processConfig(
 }
 
 export async function resolveExtends(
-  fs: FileSystem,
   ext: string,
-  configPath: FilePath
+  configPath: FilePath,
+  options: ParcelOptions
 ) {
   if (ext.startsWith('.')) {
     return path.resolve(path.dirname(configPath), ext);
   } else {
-    let [resolved] = await localResolve(ext, configPath, fs);
-    return fs.realpath(resolved);
+    let [resolved] = await resolve(options.inputFS, ext, {
+      basedir: path.dirname(configPath)
+    });
+    return options.inputFS.realpath(resolved);
   }
 }
 
@@ -266,18 +282,21 @@ export function mergeConfigs(
   base: ParcelConfig,
   ext: ResolvedParcelConfigFile
 ): ParcelConfig {
-  return new ParcelConfig({
-    filePath: ext.filePath, // TODO: revisit this - it should resolve plugins based on the actual config they are defined in
-    resolvers: mergePipelines(base.resolvers, ext.resolvers),
-    transforms: mergeMaps(base.transforms, ext.transforms, mergePipelines),
-    validators: mergeMaps(base.validators, ext.validators, mergePipelines),
-    bundler: ext.bundler || base.bundler,
-    namers: mergePipelines(base.namers, ext.namers),
-    runtimes: mergeMaps(base.runtimes, ext.runtimes),
-    packagers: mergeMaps(base.packagers, ext.packagers),
-    optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
-    reporters: mergePipelines(base.reporters, ext.reporters)
-  });
+  return new ParcelConfig(
+    {
+      filePath: ext.filePath, // TODO: revisit this - it should resolve plugins based on the actual config they are defined in
+      resolvers: mergePipelines(base.resolvers, ext.resolvers),
+      transforms: mergeMaps(base.transforms, ext.transforms, mergePipelines),
+      validators: mergeMaps(base.validators, ext.validators, mergePipelines),
+      bundler: ext.bundler || base.bundler,
+      namers: mergePipelines(base.namers, ext.namers),
+      runtimes: mergeMaps(base.runtimes, ext.runtimes),
+      packagers: mergeMaps(base.packagers, ext.packagers),
+      optimizers: mergeMaps(base.optimizers, ext.optimizers, mergePipelines),
+      reporters: mergePipelines(base.reporters, ext.reporters)
+    },
+    base.packageManager
+  );
 }
 
 export function mergePipelines(base: ?Pipeline, ext: ?Pipeline): Pipeline {

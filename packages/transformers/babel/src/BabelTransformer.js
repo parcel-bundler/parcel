@@ -9,8 +9,8 @@ import getBabelConfig from './config';
 import {relativeUrl} from '@parcel/utils';
 
 export default new Transformer({
-  getConfig({asset}) {
-    return getBabelConfig(asset);
+  async getConfig({asset, options}) {
+    return getBabelConfig(asset, options);
   },
 
   canReuseAST({ast}) {

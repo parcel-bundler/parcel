@@ -76,7 +76,11 @@ export default class ConfigLoader {
       searchPath: filePath
     });
 
-    plugin = await loadPlugin(nullthrows(plugin), parcelConfigPath);
+    plugin = await loadPlugin(
+      this.options.packageManager,
+      nullthrows(plugin),
+      parcelConfigPath
+    );
     if (plugin.loadConfig != null) {
       await plugin.loadConfig({
         config: new Config(config, this.options),

@@ -49,8 +49,9 @@ describe('AssetGraphBuilder', function() {
   });
 
   beforeEach(async () => {
-    config = nullthrows(await resolve(inputFS, path.join(CONFIG_DIR, 'index')))
-      .config;
+    config = nullthrows(
+      await resolveParcelConfig(path.join(CONFIG_DIR, 'index'), DEFAULT_OPTIONS)
+    ).config;
 
     builder = new AssetGraphBuilder();
     await builder.init({
