@@ -5,6 +5,11 @@ import json5 from 'json5';
 
 export default new Transformer({
   async transform({asset}) {
+    // handle webmanifest .json
+    if (asset.env.context === 'pwa-manifest') {
+      asset.type = 'webmanifest';
+      return [asset];
+    }
     asset.type = 'js';
     // Use JSON.parse("...") for faster script parsing, see
     // https://v8.dev/blog/cost-of-javascript-2019#json.
