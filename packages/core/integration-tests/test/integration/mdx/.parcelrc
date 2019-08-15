@@ -1,0 +1,6 @@
+{
+  "extends": "@parcel/config-default",
+  "transforms": {
+    "*.{md,mdx}": ["@parcel/transformer-mdx"]
+  }
+}

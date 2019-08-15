@@ -2,12 +2,10 @@
 
 content content content
 
-This is an md file.
+[image](./100x100.png)
 
 # Below is a JSX block
 
 <div style={{ padding: '10px 30px', backgroundColor: 'tomato' }}>
-  <h2>Try making this heading have the color green</h2>
+  <h2>This is a red heading</h2>
 </div>
-
-<!-- [image](../100x100.png)  -->
