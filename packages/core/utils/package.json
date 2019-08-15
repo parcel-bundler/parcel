@@ -14,9 +14,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "scripts": {
-    "test-ci": "yarn test"
-  },
   "dependencies": {
     "@iarna/toml": "^2.2.0",
     "@parcel/logger": "^2.0.0-alpha.1.1",

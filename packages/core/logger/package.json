@@ -14,9 +14,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "scripts": {
-    "test-ci": "yarn test"
-  },
   "dependencies": {
     "@parcel/events": "^2.0.0-alpha.1.1"
   }
