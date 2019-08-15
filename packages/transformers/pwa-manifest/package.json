@@ -1,17 +1,17 @@
 {
-  "name": "@parcel/transformer-webmanifest",
-  "version": "2.0.0-alpha.1.1",
+  "name": "@parcel/transformer-pwa-manifest",
+  "version": "2.0.0-alpha.3.1",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/WebManifestTransformer",
+  "main": "src/PWAManifestTransformer",
   "engines": {
-    "parcel": "^2.0.0-alpha.1.1"
+    "parcel": "^2.0.0-alpha.3.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-alpha.1.1",
+    "@parcel/plugin": "^2.0.0-alpha.3.1",
     "nullthrows": "^1.1.1"
   },
   "publishConfig": {

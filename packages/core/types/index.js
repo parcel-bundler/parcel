@@ -83,7 +83,8 @@ export type EnvironmentContext =
   | 'service-worker'
   | 'node'
   | 'electron-main'
-  | 'electron-renderer';
+  | 'electron-renderer'
+  | 'pwa-manifest';
 
 export type OutputFormat = 'esmodule' | 'commonjs' | 'global';
 export type PackageTargetDescriptor = {|

@@ -7,10 +7,10 @@ const {
   outputFS
 } = require('@parcel/test-utils');
 
-describe('webmanifest', function() {
-  it('should support webmanifest', async function() {
+describe('pwa-manifest', function() {
+  it('should support .webmanifest', async function() {
     let b = await bundle(
-      path.join(__dirname, '/integration/webmanifest/index.html')
+      path.join(__dirname, '/integration/pwa-manifest/index.html')
     );
 
     await assertBundles(b, [
@@ -37,8 +37,29 @@ describe('webmanifest', function() {
     ]);
   });
 
-  it("should treat webmanifest as an entry module so it doesn't get content hashed", async function() {
-    await bundle(path.join(__dirname, '/integration/webmanifest/index.html'));
+  it('should support .json webmanifest', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/pwa-manifest-json/index.html')
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'webmanifest',
+        assets: ['manifest.json']
+      },
+      {
+        type: 'png',
+        assets: ['icon.png']
+      }
+    ]);
+  });
+
+  it("should treat .webmanifest as an entry module so it doesn't get content hashed", async function() {
+    await bundle(path.join(__dirname, '/integration/pwa-manifest/index.html'));
 
     const html = await outputFS.readFile(path.join(distDir, 'index.html'));
     assert(html.includes('<link rel="manifest" href="/manifest.webmanifest">'));
