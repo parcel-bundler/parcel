@@ -1,10 +1,9 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-import localRequire from '@parcel/local-require';
 
 export default new Transformer({
-  async transform({asset}) {
+  async transform({asset, localRequire}) {
     const toml = await localRequire('@iarna/toml', asset.filePath);
     asset.type = 'js';
     asset.setCode(
