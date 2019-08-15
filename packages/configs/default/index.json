@@ -11,6 +11,7 @@
       "@parcel/transformer-js",
       "@parcel/transformer-react-refresh-wrap"
     ],
+    "manifest.json": ["@parcel/transformer-webext-manifest"],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.jsonld": ["@parcel/transformer-jsonld"],
     "*.toml": ["@parcel/transformer-toml"],
@@ -27,8 +28,7 @@
     ],
     "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
-    "*.mdx": ["@parcel/transformer-mdx"],
-    "*.webmanifest": ["@parcel/transformer-webmanifest"],
+    "*.webmanifest": ["@parcel/transformer-pwa-manifest"],
     "*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],

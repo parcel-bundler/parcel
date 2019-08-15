@@ -5,9 +5,6 @@
       "src": "icon.png",
       "sizes": "100x100",
       "type": "image/png"
-    },
-    {
-        "src": ""
     }
   ],
   "screenshots": [
@@ -15,6 +12,9 @@
       "src": "screenshot.png",
       "sizes": "100x100",
       "type": "image/png"
+    },
+    {
+        "src": ""
     }
   ],
   "serviceworker": {

@@ -130,6 +130,7 @@ export default function collectDependencies(asset: MutableAsset, ast: AST) {
     ) {
       attrs.href = asset.addURLDependency(attrs.href, {
         isEntry: true,
+        env: {context: 'pwa-manifest'}
       });
       isDirty = true;
       return node;
