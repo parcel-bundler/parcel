@@ -14,14 +14,20 @@ import type {
   Optimizer,
   Reporter
 } from '@parcel/types';
+import type {PackageManager} from '@parcel/package-manager';
 import {isMatch} from 'micromatch';
 import {basename} from 'path';
 import loadPlugin from './loadParcelPlugin';
 
 type Pipeline = Array<PackageName>;
 type GlobMap<T> = {[Glob]: T};
+type SerializedParcelConfig = {
+  config: ResolvedParcelConfigFile,
+  packageManager: PackageManager
+};
 
 export default class ParcelConfig {
+  packageManager: PackageManager;
   filePath: FilePath;
   resolvers: Pipeline;
   transforms: GlobMap<Pipeline>;
@@ -33,7 +39,11 @@ export default class ParcelConfig {
   reporters: Pipeline;
   pluginCache: Map<PackageName, any>;
 
-  constructor(config: ResolvedParcelConfigFile) {
+  constructor(
+    config: ResolvedParcelConfigFile,
+    packageManager: PackageManager
+  ) {
+    this.packageManager = packageManager;
     this.filePath = config.filePath;
     this.resolvers = config.resolvers || [];
     this.transforms = config.transforms || {};
@@ -46,21 +56,24 @@ export default class ParcelConfig {
     this.pluginCache = new Map();
   }
 
-  static deserialize(config: ResolvedParcelConfigFile) {
-    return new ParcelConfig(config);
+  static deserialize(serialized: SerializedParcelConfig) {
+    return new ParcelConfig(serialized.config, serialized.packageManager);
   }
 
-  serialize(): ResolvedParcelConfigFile {
+  serialize(): SerializedParcelConfig {
     return {
-      filePath: this.filePath,
-      resolvers: this.resolvers,
-      transforms: this.transforms,
-      runtimes: this.runtimes,
-      bundler: this.bundler,
-      namers: this.namers,
-      packagers: this.packagers,
-      optimizers: this.optimizers,
-      reporters: this.reporters
+      packageManager: this.packageManager,
+      config: {
+        filePath: this.filePath,
+        resolvers: this.resolvers,
+        transforms: this.transforms,
+        runtimes: this.runtimes,
+        bundler: this.bundler,
+        namers: this.namers,
+        packagers: this.packagers,
+        optimizers: this.optimizers,
+        reporters: this.reporters
+      }
     };
   }
 
@@ -70,7 +83,7 @@ export default class ParcelConfig {
       return plugin;
     }
 
-    plugin = loadPlugin(pluginName, this.filePath);
+    plugin = loadPlugin(this.packageManager, pluginName, this.filePath);
     this.pluginCache.set(pluginName, plugin);
     return plugin;
   }

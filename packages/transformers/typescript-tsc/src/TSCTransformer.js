@@ -1,7 +1,6 @@
 // @flow strict-local
 
 import {Transformer} from '@parcel/plugin';
-import localRequire from '@parcel/local-require';
 
 type TypescriptCompilerOptions = {
   module?: mixed,
@@ -20,11 +19,11 @@ export default new Transformer({
     return asset.getConfig(['tsconfig.json']);
   },
 
-  async transform({asset, config}) {
+  async transform({asset, config, options}) {
     asset.type = 'js';
 
     let [typescript, code] = await Promise.all([
-      localRequire('typescript', asset.filePath),
+      options.packageManager.require('typescript', asset.filePath),
       asset.getCode()
     ]);
 

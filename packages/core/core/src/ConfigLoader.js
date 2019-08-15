@@ -67,7 +67,11 @@ export default class ConfigLoader {
     meta: {parcelConfigPath}
   }: ConfigRequest) {
     let config = new Config({searchPath: filePath});
-    plugin = await loadPlugin(nullthrows(plugin), parcelConfigPath);
+    plugin = await loadPlugin(
+      this.options.packageManager,
+      nullthrows(plugin),
+      parcelConfigPath
+    );
 
     plugin.loadConfig && plugin.loadConfig(config);
 

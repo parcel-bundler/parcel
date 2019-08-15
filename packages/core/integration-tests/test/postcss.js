@@ -9,6 +9,10 @@ const {
   outputFS,
   ncp
 } = require('@parcel/test-utils');
+const {
+  PackageManager,
+  MockPackageInstaller
+} = require('@parcel/package-manager');
 
 describe('postcss', () => {
   it('should support transforming css modules with postcss', async () => {
@@ -237,28 +241,44 @@ describe('postcss', () => {
   it.only(
     'should automatically install postcss plugins if needed',
     async () => {
-      await outputFS.rimraf(path.join(__dirname, '/input'));
-      await ncp(
+      await inputFS.rimraf(path.join(__dirname, '/input'));
+      await inputFS.ncp(
         path.join(__dirname, '/integration/postcss-autoinstall/npm'),
         path.join(__dirname, '/input')
       );
+
+      let packageInstaller = new MockPackageInstaller();
+      packageInstaller.register(
+        'postcss-test',
+        inputFS,
+        path.join(__dirname, '/integration/postcss-autoinstall/postcss-test')
+      );
+
+      let packageManager = new PackageManager(inputFS, packageInstaller);
+
       await bundle(path.join(__dirname, '/input/index.css'), {
-        inputFS: outputFS
+        // inputFS: outputFS,
+        packageManager
       });
 
       // cssnext was installed
-      let pkg = require('./input/package.json');
-      assert(pkg.devDependencies['postcss-cssnext']);
+      let pkg = JSON.parse(
+        await inputFS.readFile(
+          path.join(__dirname, '/input/package.json'),
+          'utf8'
+        )
+      );
+      assert(pkg.devDependencies['postcss-test']);
 
       // peer dependency caniuse-lite was installed
-      assert(pkg.devDependencies['caniuse-lite']);
+      // assert(pkg.devDependencies['caniuse-lite']);
 
       // cssnext is applied
       let css = await outputFS.readFile(
         path.join(distDir, 'index.css'),
         'utf8'
       );
-      assert(css.includes('rgba'));
+      assert(css.includes('background: green'));
 
       // Increase the timeout for just this test. It takes a while with npm.
       // This method works with arrow functions, and doesn't seem to be documented

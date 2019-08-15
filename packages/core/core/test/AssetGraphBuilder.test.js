@@ -5,10 +5,11 @@ import path from 'path';
 import nullthrows from 'nullthrows';
 
 import AssetGraphBuilder from '../src/AssetGraphBuilder';
-import {resolve} from '../src/loadParcelConfig';
+import {resolveParcelConfig} from '../src/loadParcelConfig';
 import Dependency from '../src/Dependency';
 import Environment from '../src/Environment';
 import {inputFS, outputFS} from '@parcel/test-utils';
+import {PackageManager} from '@parcel/package-manager';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 const CONFIG_DIR = path.join(FIXTURES_DIR, 'config');
@@ -40,15 +41,17 @@ const DEFAULT_OPTIONS = {
   projectRoot: '',
   lockFile: undefined,
   inputFS,
-  outputFS
+  outputFS,
+  packageManager: new PackageManager(inputFS)
 };
 
 describe('AssetGraphBuilder', () => {
   let config;
   let builder;
   beforeEach(async () => {
-    config = nullthrows(await resolve(inputFS, path.join(CONFIG_DIR, 'index')))
-      .config;
+    config = nullthrows(
+      await resolveParcelConfig(path.join(CONFIG_DIR, 'index'), DEFAULT_OPTIONS)
+    ).config;
 
     builder = new AssetGraphBuilder();
     await builder.init({

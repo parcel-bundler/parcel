@@ -1,7 +1,6 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-import localRequire from '@parcel/local-require';
 import {isGlob, glob} from '@parcel/utils';
 import path from 'path';
 
@@ -14,9 +13,9 @@ export default new Transformer({
     });
   },
 
-  async transform({asset, resolve, config}) {
+  async transform({asset, resolve, config, options}) {
     // stylus should be installed locally in the module that's being required
-    let stylus = await localRequire('stylus', asset.filePath);
+    let stylus = await options.packageManager.require('stylus', asset.filePath);
 
     let code = await asset.getCode();
     let style = stylus(code, config);
@@ -29,7 +28,7 @@ export default new Transformer({
     });
     style.set(
       'Evaluator',
-      await createEvaluator(code, asset, resolve, style.options)
+      await createEvaluator(code, asset, resolve, style.options, options)
     );
 
     asset.type = 'css';
@@ -45,12 +44,13 @@ async function getDependencies(
   asset,
   resolve,
   options,
+  parcelOptions,
   seen = new Set()
 ) {
   seen.add(filepath);
   const [Parser, DepsResolver, nodes, utils] = await Promise.all(
     ['parser', 'visitor/deps-resolver', 'nodes', 'utils'].map(dep =>
-      localRequire('stylus/lib/' + dep, filepath)
+      parcelOptions.packageManager.require('stylus/lib/' + dep, filepath)
     )
   );
 
@@ -137,6 +137,7 @@ async function getDependencies(
             asset,
             resolve,
             options,
+            parcelOptions,
             seen
           )) {
             res.set(path, resolvedPath);
@@ -149,15 +150,16 @@ async function getDependencies(
   return res;
 }
 
-async function createEvaluator(code, asset, resolve, options) {
+async function createEvaluator(code, asset, resolve, options, parcelOptions) {
   const deps = await getDependencies(
     code,
     asset.filePath,
     asset,
     resolve,
-    options
+    options,
+    parcelOptions
   );
-  const Evaluator = await localRequire(
+  const Evaluator = await parcelOptions.packageManager.require(
     'stylus/lib/visitor/evaluator',
     asset.filePath
   );

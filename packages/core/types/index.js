@@ -3,6 +3,7 @@
 import type {Readable} from 'stream';
 import type SourceMap from '@parcel/source-map';
 import type {FileSystem} from '@parcel/fs';
+import type {PackageManager} from '@parcel/package-manager';
 
 import type {AST as _AST, Config as _Config} from './unsafe';
 
@@ -162,7 +163,8 @@ export type InitialParcelOptions = {|
   logLevel?: LogLevel,
 
   inputFS?: FileSystem,
-  outputFS?: FileSystem
+  outputFS?: FileSystem,
+  packageManager?: PackageManager
 
   // contentHash
   // throwErrors
@@ -180,7 +182,8 @@ export type ParcelOptions = {|
   projectRoot: FilePath,
   lockFile: ?FilePath,
   inputFS: FileSystem,
-  outputFS: FileSystem
+  outputFS: FileSystem,
+  packageManager: PackageManager
 |};
 
 export type ServerOptions = {|

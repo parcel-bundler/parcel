@@ -12,6 +12,7 @@ import path from 'path';
 import TargetResolver from './TargetResolver';
 import {resolveConfig} from '@parcel/utils';
 import {NodeFS} from '@parcel/fs';
+import {PackageManager} from '@parcel/package-manager';
 
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
@@ -31,6 +32,8 @@ export default async function resolveOptions(
 
   let inputFS = initialOptions.inputFS || new NodeFS();
   let outputFS = initialOptions.outputFS || new NodeFS();
+  let packageManager =
+    initialOptions.packageManager || new PackageManager(inputFS);
 
   let rootDir =
     initialOptions.rootDir != null
@@ -79,6 +82,7 @@ export default async function resolveOptions(
     projectRoot,
     lockFile,
     inputFS,
-    outputFS
+    outputFS,
+    packageManager
   };
 }

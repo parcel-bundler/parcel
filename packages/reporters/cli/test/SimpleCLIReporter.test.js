@@ -3,7 +3,8 @@
 import assert from 'assert';
 import {PassThrough} from 'stream';
 import {_report, _setStdio} from '../src/SimpleCLIReporter';
-import {NodeFS} from '@parcel/fs';
+import {inputFS, outputFS} from '@parcel/test-utils';
+import {PackageManager} from '@parcel/package-manager';
 
 const EMPTY_OPTIONS = {
   cacheDir: '.parcel-cache',
@@ -13,8 +14,9 @@ const EMPTY_OPTIONS = {
   targets: [],
   projectRoot: '',
   lockFile: undefined,
-  inputFS: new NodeFS(),
-  outputFS: new NodeFS()
+  inputFS,
+  outputFS,
+  packageManager: new PackageManager(inputFS)
 };
 
 describe('SimpleCLIReporter', () => {

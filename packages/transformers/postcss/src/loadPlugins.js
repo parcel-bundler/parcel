@@ -1,20 +1,25 @@
-// @flow strict-local
+// @flow
 
-import type {FilePath} from '@parcel/types';
-import localRequire from '@parcel/local-require';
+import type {FilePath, ParcelOptions} from '@parcel/types';
+import type {PackageManager} from '@parcel/package-manager';
 
 export default async function loadExternalPlugins(
   plugins: Array<string> | {+[pluginName: string]: mixed},
-  relative: FilePath
+  relative: FilePath,
+  options: ParcelOptions
 ): Promise<Array<mixed>> {
   if (Array.isArray(plugins)) {
     return Promise.all(
-      plugins.map(p => loadPlugin(p, relative)).filter(Boolean)
+      plugins
+        .map(p => loadPlugin(p, relative, null, options.packageManager))
+        .filter(Boolean)
     );
   } else if (typeof plugins === 'object') {
     let _plugins = plugins;
     let mapPlugins = await Promise.all(
-      Object.keys(plugins).map(p => loadPlugin(p, relative, _plugins[p]))
+      Object.keys(plugins).map(p =>
+        loadPlugin(p, relative, _plugins[p], options.packageManager)
+      )
     );
     return mapPlugins.filter(Boolean);
   } else {
@@ -23,11 +28,16 @@ export default async function loadExternalPlugins(
 }
 
 async function loadPlugin(
-  pluginName: string,
+  pluginArg: string | Function,
   relative: FilePath,
-  options: mixed = {}
+  options: mixed = {},
+  packageManager: PackageManager
 ): mixed {
-  let plugin = await localRequire(pluginName, relative);
+  if (typeof pluginArg !== 'string') {
+    return pluginArg;
+  }
+
+  let plugin = await packageManager.require(pluginArg, relative);
   plugin = plugin.default || plugin;
 
   if (
