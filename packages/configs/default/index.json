@@ -5,6 +5,7 @@
       "@parcel/transformer-babel",
       "@parcel/transformer-js"
     ],
+    "manifest.json": ["@parcel/transformer-webext-manifest"],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.toml": ["@parcel/transformer-toml"],
     "*.{styl,stylus}": ["@parcel/transformer-stylus"],
@@ -16,7 +17,7 @@
       "@parcel/transformer-html"
     ],
     "*.coffee": ["@parcel/transformer-coffeescript"],
-    "*.webmanifest": ["@parcel/transformer-webmanifest"],
+    "*.webmanifest": ["@parcel/transformer-pwa-manifest"],
     "*": ["@parcel/transformer-raw"]
   },
   "namers": ["@parcel/namer-default"],

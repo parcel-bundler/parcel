@@ -117,7 +117,8 @@ export default function collectDependencies(asset: MutableAsset) {
 
     if (tag === 'link' && attrs.rel === 'manifest' && attrs.href) {
       attrs.href = asset.addURLDependency(attrs.href, {
-        isEntry: true
+        isEntry: true,
+        env: {context: 'pwa-manifest'}
       });
       ast.isDirty = true;
       return node;

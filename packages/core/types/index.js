@@ -85,7 +85,8 @@ export type EnvironmentContext =
   | 'service-worker'
   | 'node'
   | 'electron-main'
-  | 'electron-renderer';
+  | 'electron-renderer'
+  | 'pwa-manifest';
 
 export type PackageTargetDescriptor = {|
   context?: EnvironmentContext,
