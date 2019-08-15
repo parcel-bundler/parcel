@@ -5,7 +5,6 @@
       "@parcel/transformer-babel",
       "@parcel/transformer-js"
     ],
-    "manifest.json": ["@parcel/transformer-webext-manifest"],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.toml": ["@parcel/transformer-toml"],
     "*.{styl,stylus}": ["@parcel/transformer-stylus"],
