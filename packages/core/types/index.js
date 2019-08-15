@@ -33,7 +33,9 @@ export type GlobMap<T> = {[Glob]: T};
 
 export type ParcelConfigFile = {
   extends?: PackageName | FilePath | Array<PackageName | FilePath>,
-  resolvers?: Array<PackageName>,
+  resolvers?: {
+    [Glob]: Array<PackageName>
+  },
   transforms?: {
     [Glob]: Array<PackageName>
   },

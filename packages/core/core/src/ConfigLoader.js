@@ -50,7 +50,7 @@ export default class ConfigLoader {
         devDeps = parcelConfig.getValidatorNames(filePath);
         break;
       case 'dependency':
-        devDeps = parcelConfig.getResolverNames();
+        devDeps = parcelConfig.getResolverNames(filePath);
         break;
     }
     devDeps.forEach(devDep => publicConfig.addDevDependency(devDep));

@@ -14,10 +14,23 @@ import micromatch from 'micromatch';
 import builtins from './builtins';
 // import nodeBuiltins from 'node-libs-browser';
 
+const EXTENSIONS = [
+  ['js', 'jsx', 'json', 'ts', 'tsx', 'json', 'json5', 'coffee'],
+  ['css', 'styl', 'sass', 'scss'],
+  ['htm', 'html', 'pug', 'jade']
+].reduce((o, group) => {
+  for (let ext of group) {
+    o[ext] = group;
+  }
+
+  return o;
+}, {});
+
 export default new Resolver({
   async resolve({dependency, options}) {
-    const resolved = await new NodeResolver({
-      extensions: ['ts', 'tsx', 'js', 'json', 'css', 'styl'],
+    let ext = path.extname(dependency.sourcePath).slice(1);
+    let resolved = await new NodeResolver({
+      extensions: EXTENSIONS[ext] || EXTENSIONS.js,
       options
     }).resolve(dependency);
 

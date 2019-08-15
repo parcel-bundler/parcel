@@ -31,7 +31,14 @@ export default class ResolverRunner {
       dependency: dep
     });
 
-    let resolvers = await this.config.getResolvers();
+    if (!dependency.sourcePath) {
+      return {
+        filePath: dependency.moduleSpecifier,
+        env: dependency.env
+      };
+    }
+
+    let resolvers = await this.config.getResolvers(dependency.sourcePath);
 
     for (let resolver of resolvers) {
       let result = await resolver.resolve({

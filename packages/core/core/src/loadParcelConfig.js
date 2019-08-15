@@ -111,7 +111,13 @@ export function validateConfigFile(
   relativePath: FilePath
 ) {
   validateExtends(config.extends, relativePath);
-  validatePipeline(config.resolvers, 'resolver', 'resolvers', relativePath);
+  validateMap(
+    config.resolvers,
+    validatePipeline.bind(this),
+    'resolver',
+    'resolvers',
+    relativePath
+  );
   validateMap(
     config.transforms,
     validatePipeline.bind(this),
@@ -266,7 +272,7 @@ export function mergeConfigs(
 ): ParcelConfig {
   return new ParcelConfig({
     filePath: ext.filePath, // TODO: revisit this - it should resolve plugins based on the actual config they are defined in
-    resolvers: mergePipelines(base.resolvers, ext.resolvers),
+    resolvers: mergeMaps(base.resolvers, ext.resolvers, mergePipelines),
     transforms: mergeMaps(base.transforms, ext.transforms, mergePipelines),
     validators: mergeMaps(base.validators, ext.validators, mergePipelines),
     bundler: ext.bundler || base.bundler,

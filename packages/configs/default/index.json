@@ -1,5 +1,13 @@
 {
   "bundler": "@parcel/bundler-default",
+  "resolvers": {
+    "*.{js,mjs,jsm,jsx,es6,ts,tsx,coffee}": [
+      "@parcel/resolver-path",
+      "@parcel/resolver-node"
+    ],
+    "*.{css,styl,stylus}": ["@parcel/resolver-url"],
+    "*.{htm,html}": ["@parcel/resolver-url"]
+  },
   "transforms": {
     "*.{js,mjs,jsm,jsx,es6,ts,tsx}": [
       "@parcel/transformer-babel",
@@ -31,7 +39,6 @@
     "*.js": "@parcel/packager-js",
     "*": "@parcel/packager-raw"
   },
-  "resolvers": ["@parcel/resolver-default"],
   "reporters": [
     "@parcel/reporter-cli",
     "@parcel/reporter-dev-server",

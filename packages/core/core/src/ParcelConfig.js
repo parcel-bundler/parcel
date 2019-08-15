@@ -24,7 +24,7 @@ type GlobMap<T> = {[Glob]: T};
 
 export default class ParcelConfig {
   filePath: FilePath;
-  resolvers: Pipeline;
+  resolvers: GlobMap<Pipeline>;
   transforms: GlobMap<Pipeline>;
   bundler: PackageName;
   namers: Pipeline;
@@ -37,7 +37,7 @@ export default class ParcelConfig {
 
   constructor(config: ResolvedParcelConfigFile) {
     this.filePath = config.filePath;
-    this.resolvers = config.resolvers || [];
+    this.resolvers = config.resolvers || {};
     this.transforms = config.transforms || {};
     this.runtimes = config.runtimes || {};
     this.bundler = config.bundler || '';
@@ -83,16 +83,20 @@ export default class ParcelConfig {
     return Promise.all(plugins.map(pluginName => this.loadPlugin(pluginName)));
   }
 
-  getResolverNames() {
-    if (this.resolvers.length === 0) {
-      throw new Error('No resolver plugins specified in .parcelrc config');
+  getResolverNames(filePath: FilePath): Array<string> {
+    let resolvers: Pipeline | null = this.matchGlobMapPipelines(
+      filePath,
+      this.resolvers
+    );
+    if (!resolvers || resolvers.length === 0) {
+      throw new Error(`No resolver plugins found for "${filePath}".`);
     }
 
-    return this.resolvers;
+    return resolvers;
   }
 
-  async getResolvers(): Promise<Array<Resolver>> {
-    return this.loadPlugins(this.getResolverNames());
+  async getResolvers(filePath: FilePath): Promise<Array<Resolver>> {
+    return this.loadPlugins(this.getResolverNames(filePath));
   }
 
   getValidatorNames(filePath: FilePath): Array<string> {
