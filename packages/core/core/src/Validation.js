@@ -75,17 +75,29 @@ export default class Validation {
     let localRequire = localRequireFromWorker.bind(null, this.workerApi);
 
     let validators = await parcelConfig.getValidators(this.request.filePath);
+    let pluginOptions = new PluginOptions(this.options);
+
     for (let validator of validators) {
+      let config = null;
+      if (validator.getConfig) {
+        config = await validator.getConfig({
+          asset: new Asset(asset),
+          options: pluginOptions,
+          resolveConfig: (configNames: Array<string>) =>
+            resolveConfig(
+              this.options.inputFS,
+              asset.value.filePath,
+              configNames
+            ),
+          localRequire
+        });
+      }
+
       await validator.validate({
         asset: new Asset(asset),
-        options: new PluginOptions(this.options),
-        resolveConfig: (configNames: Array<string>) =>
-          resolveConfig(
-            this.options.inputFS,
-            asset.value.filePath,
-            configNames
-          ),
-        localRequire
+        options: pluginOptions,
+        localRequire,
+        config
       });
     }
   }

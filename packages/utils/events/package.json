@@ -9,8 +9,5 @@
   "main": "src/index.js",
   "engines": {
     "node": ">= 8.0.0"
-  },
-  "scripts": {
-    "test-ci": "yarn test"
   }
 }

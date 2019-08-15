@@ -11,9 +11,6 @@
   "engines": {
     "node": ">= 8.0.0"
   },
-  "scripts": {
-    "test-ci": "yarn test"
-  },
   "dependencies": {
     "@babel/generator": "^7.3.3",
     "@babel/parser": "^7.0.0",

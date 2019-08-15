@@ -1,0 +1,19 @@
+// @flow
+
+import {Transformer} from '@parcel/plugin';
+import postcss from 'postcss';
+
+export default new Transformer({
+  async transform({asset, localRequire}) {
+    const sugarss = await localRequire('sugarss', asset.filePath);
+    const code = await asset.getCode();
+    const {css} = await postcss().process(code, {
+      from: asset.filePath,
+      to: asset.filePath,
+      parser: sugarss
+    });
+    asset.type = 'css';
+    asset.setCode(css);
+    return [asset];
+  }
+});
