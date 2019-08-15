@@ -109,7 +109,7 @@ export default class AssetGraphBuilder extends EventEmitter {
         this.requestGraph.addDepPathRequest(node.value);
         break;
       case 'asset_group':
-        this.requestGraph.addAssetRequest(node.value);
+        this.requestGraph.addAssetRequest(node.id, node.value);
         break;
       case 'asset': {
         let asset = node.value;
