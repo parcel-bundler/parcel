@@ -826,18 +826,20 @@ describe('javascript', function() {
     assert.equal(output(), 3);
   });
 
-  it.skip('should support requiring TOML files', async function() {
+  it('should support requiring TOML files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/toml/index.js'));
 
-    await assertBundles(b, {
-      name: 'index.js',
-      assets: ['index.js', 'local.toml'],
-      childBundles: [
-        {
-          type: 'map'
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'local.toml'],
+        childBundles: [
+          {
+            type: 'map'
+          }
+        ]
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');

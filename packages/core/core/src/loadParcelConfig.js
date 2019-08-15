@@ -226,6 +226,8 @@ export function validateMap<K, V>(
   }
 }
 
+// Reasoning behind this validation:
+// https://github.com/parcel-bundler/parcel/issues/3397#issuecomment-521353931
 export function validatePackageName(
   pkg: ?PackageName,
   pluginType: string,

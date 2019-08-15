@@ -51,20 +51,10 @@ type SerializedRequestGraph = {|
   depVersionRequestNodeIds: Set<NodeId>
 |};
 
-const hashObject = obj => {
-  return md5FromString(JSON.stringify(obj));
-};
-
 const nodeFromDepPathRequest = (dep: Dependency) => ({
   id: dep.id,
   type: 'dep_path_request',
   value: dep
-});
-
-const nodeFromAssetRequest = (assetRequest: AssetRequest) => ({
-  id: hashObject(assetRequest),
-  type: 'asset_request',
-  value: assetRequest
 });
 
 const nodeFromConfigRequest = (configRequest: ConfigRequest) => ({
@@ -216,8 +206,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     }
   }
 
-  addAssetRequest(request: AssetRequest) {
-    let requestNode = nodeFromAssetRequest(request);
+  addAssetRequest(id: NodeId, request: AssetRequest) {
+    let requestNode = {id, type: 'asset_request', value: request};
     if (!this.hasNode(requestNode.id)) {
       this.addNode(requestNode);
     }
