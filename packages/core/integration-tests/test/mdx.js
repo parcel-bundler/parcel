@@ -10,7 +10,7 @@ const mdConfig = {
   filePath: configPath
 };
 
-describe.skip('markdown/mdx', function() {
+describe('markdown/mdx', function() {
   for (let config of [null /* default config -- testing babel  */, mdConfig]) {
     it('should support bundling MDX', async function() {
       Error.stackTraceLimit = 1000;
