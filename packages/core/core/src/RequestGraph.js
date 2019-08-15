@@ -9,7 +9,7 @@ import {isMatch} from 'micromatch';
 import nullthrows from 'nullthrows';
 
 import {localResolve} from '@parcel/local-require';
-import {PromiseQueue, md5FromString, md5FromObject} from '@parcel/utils';
+import {PromiseQueue, md5FromObject} from '@parcel/utils';
 import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
 
