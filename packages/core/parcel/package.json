@@ -16,5 +16,8 @@
     "get-port": "^4.2.0",
     "react": "^16.7.0",
     "v8-compile-cache": "^2.0.0"
+  },
+  "devDependencies": {
+    "@parcel/babel-register": "^2.0.0-alpha.1.1"
   }
 }

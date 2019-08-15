@@ -541,11 +541,11 @@ all), but here's an example of a `.parcelrc` file that contains every field:
   "extends": ["@parcel/config-default"],
   "resolvers": ["@parcel/resolver-default"],
   "transforms": {
-    "*.vue": ["@parcel/transform-vue"],
-    "*.scss": ["@parcel/transform-sass"],
-    "*.js": ["@parcel/transform-babel"],
-    "*.css": ["@parcel/transform-postcss"],
-    "*.html": ["@parcel/transform-posthtml"]
+    "*.vue": ["@parcel/transformer-vue"],
+    "*.scss": ["@parcel/transformer-sass"],
+    "*.js": ["@parcel/transformer-babel"],
+    "*.css": ["@parcel/transformer-postcss"],
+    "*.html": ["@parcel/transformer-posthtml"]
   },
   "bundler": "@parcel/bundler-default",
   "namers": ["@parcel/namer-default"],

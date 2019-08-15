@@ -79,6 +79,34 @@ describe('watcher', function() {
     assert(distFile.includes('() => null'));
   });
 
+  it('should rebuild properly when a dependency is removed', async function() {
+    await ncp(path.join(__dirname, 'integration/babel-default'), inputDir);
+
+    let b = bundler(path.join(inputDir, 'index.js'), {
+      outputFS: fs,
+      targets: {
+        main: {
+          engines: {
+            node: '^8.0.0'
+          },
+          distDir
+        }
+      }
+    });
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+    let distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(distFile.includes('Foo'));
+    await fs.writeFile(
+      path.join(inputDir, 'index.js'),
+      'console.log("no more dependencies")'
+    );
+    await getNextBuild(b);
+    distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(!distFile.includes('Foo'));
+  });
+
   it.skip('should re-generate bundle tree when files change', async function() {
     await ncp(path.join(__dirname, '/integration/dynamic-hoist'), inputDir);
 
