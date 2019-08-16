@@ -600,8 +600,6 @@ describe('html', function() {
     ]);
 
     let html = await outputFS.readFile(path.join(distDir, 'index.html'));
-    console.log(await outputFS.readdir(distDir));
-    console.log(html.toString());
 
     assert(!html.includes('`${hello} ${world}${end}`'));
     // asserts that ugify was ran when production flag is passed
