@@ -19,9 +19,15 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 
-import {NamedBundle} from './public/Bundle';
+import {NamedBundle, bundleToInternalBundle} from './public/Bundle';
+import {
+  Bundle as BundleType,
+  BundleGraph as BundleGraphType
+} from '@parcel/types';
 import {report} from './ReporterRunner';
-import BundleGraph from './public/BundleGraph';
+import BundleGraph, {
+  bundleGraphToInternalBundleGraph
+} from './public/BundleGraph';
 import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
@@ -43,14 +49,22 @@ export default class PackagerRunner {
     this.pluginOptions = new PluginOptions(this.options);
   }
 
-  async writeBundle(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
-    let {inputFS, outputFS} = this.options;
-    let start = Date.now();
-
+  async getBundleResult(
+    bundle: InternalBundle,
+    bundleGraph: InternalBundleGraph
+  ): Promise<any> {
     let result, cacheKey;
     if (!this.options.disableCache) {
       cacheKey = await this.getCacheKey(bundle, bundleGraph);
-      result = await this.readFromCache(cacheKey);
+      let cacheResult: ?{
+        contents: Readable,
+        map: ?Readable,
+        ...
+      } = await this.readFromCache(cacheKey);
+
+      if (cacheResult) {
+        result = cacheResult;
+      }
     }
 
     if (!result) {
@@ -73,7 +87,14 @@ export default class PackagerRunner {
       }
     }
 
-    let {contents, map} = result;
+    return result;
+  }
+
+  async writeBundle(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
+    let {inputFS, outputFS} = this.options;
+    let start = Date.now();
+
+    let {contents, map} = await this.getBundleResult(bundle, bundleGraph);
     let filePath = nullthrows(bundle.filePath);
     let dir = path.dirname(filePath);
     if (!this.distExists.has(dir)) {
@@ -130,7 +151,13 @@ export default class PackagerRunner {
       bundle,
       bundleGraph: new BundleGraph(bundleGraph, this.options),
       sourceMapPath: path.basename(bundle.filePath) + '.map',
-      options: this.pluginOptions
+      options: this.pluginOptions,
+      getBundleResult: (bundle: BundleType, bundleGraph: BundleGraphType) => {
+        return this.getBundleResult(
+          bundleToInternalBundle(bundle),
+          bundleGraphToInternalBundleGraph(bundleGraph)
+        );
+      }
     });
 
     return {
