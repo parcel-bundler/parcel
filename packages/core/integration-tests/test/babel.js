@@ -324,7 +324,11 @@ describe('babel', function() {
 
     let build = () =>
       execSync(`${parcelCli} build src/index.js --no-minify --no-scope-hoist`, {
-        cwd: fixtureDir
+        cwd: fixtureDir,
+        env: {
+          ...process.env,
+          PARCEL_WORKERS: '0'
+        }
       });
 
     build();
@@ -353,7 +357,11 @@ describe('babel', function() {
 
     let build = () =>
       execSync(`${parcelCli} build index.js --no-minify --no-scope-hoist`, {
-        cwd: inputDir
+        cwd: inputDir,
+        env: {
+          ...process.env,
+          PARCEL_WORKERS: '0'
+        }
       });
 
     build();
