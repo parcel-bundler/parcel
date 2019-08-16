@@ -21,8 +21,8 @@ const DEPS = {
   screenshots: handleArray,
   serviceworker: getSrcHandler({
     isEntry: true,
-    env: {context: 'service-worker'}
-  })
+    env: {context: 'service-worker'},
+  }),
 };
 
 type JsonObject = {[string]: any};
@@ -37,7 +37,7 @@ const collectDependencies = (asset: MutableAsset, json: JsonObject) =>
       }
       return acc;
     },
-    {...json}
+    {...json},
   );
 
 export default new Transformer({
@@ -46,5 +46,5 @@ export default new Transformer({
     const result = collectDependencies(asset, json);
     asset.setCode(JSON.stringify(result));
     return [asset];
-  }
+  },
 });

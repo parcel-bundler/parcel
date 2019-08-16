@@ -53,6 +53,7 @@
     "*.js": "@parcel/packager-js",
     "*.ts": "@parcel/packager-ts",
     "*.jsonld": "@parcel/packager-raw-url",
+    "*.webmanifest": "@parcel/packager-string",
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],
