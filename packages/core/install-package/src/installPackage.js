@@ -13,6 +13,7 @@ import WorkerFarm from '@parcel/workers';
 import {loadConfig, PromiseQueue, resolve, resolveConfig} from '@parcel/utils';
 import Npm from './Npm';
 import Yarn from './Yarn';
+import validateModuleSpecifiers from './validateModuleSpecifiers';
 
 type InstallOptions = {
   installPeers?: boolean,
@@ -114,6 +115,8 @@ export function _addToInstallQueue(
   filePath: FilePath,
   options?: InstallOptions
 ): Promise<mixed> {
+  modules = validateModuleSpecifiers(modules);
+
   // Wrap PromiseQueue and track modules that are currently installing.
   // If a request comes in for a module that is currently installing, don't bother
   // enqueuing it.
