@@ -15,6 +15,7 @@
 flow-libs/
 
 [lints]
+implicit-inexact-object=error
 untyped-type-import=error
 
 [options]
