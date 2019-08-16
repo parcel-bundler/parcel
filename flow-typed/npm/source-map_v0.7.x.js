@@ -1,12 +1,12 @@
-// flow-typed signature: 5dc4832be8a4e3b97e16fecc54691aac
-// flow-typed version: b6551bfd76/source-map_v0.7.x/flow_>=v0.25.x
+// flow-typed signature: df79a314b7d0c7ec7dd9f01a8fcd37cf
+// flow-typed version: 4f76a29260/source-map_v0.7.x/flow_>=v0.104.x
 
 declare module 'source-map' {
   declare export type SourceMapUrl = string;
   declare export type StartOfSourceMap = {|
     +file?: string,
     +sourceRoot?: string,
-    +skipValidation?: boolean
+    +skipValidation?: boolean,
   |};
   declare export type RawSourceMap = {|
     +version: number,
@@ -15,40 +15,40 @@ declare module 'source-map' {
     +sourceRoot?: string,
     +sourcesContent?: string[],
     +mappings: string,
-    +file: string
+    +file: string,
   |};
   declare export type RawIndexMap = {|
     +file?: string,
     +sourceRoot?: string,
     +skipValidation?: boolean,
     +version: number,
-    +sections: RawSection[]
+    +sections: RawSection[],
   |};
 
   declare export type RawSection = {|
     +offset: Position,
-    +map: RawSourceMap
+    +map: RawSourceMap,
   |};
   declare export type Position = {|
     +line: number,
-    +column: number
+    +column: number,
   |};
   declare export type NullablePosition = {|
     +line: number | null,
     +column: number | null,
-    +lastColumn: number | null
+    +lastColumn: number | null,
   |};
   declare export type MappedPosition = {|
     +source: string,
     +line: number,
     +column: number,
-    +name?: string
+    +name?: string,
   |};
   declare export type NullableMappedPosition = {|
     +source: string | null,
     +line: number | null,
     +column: number | null,
-    +name: string | null
+    +name: string | null,
   |};
   declare export type MappingItem =
     | {|
@@ -81,7 +81,7 @@ declare module 'source-map' {
       |};
   declare export type CodeWithSourceMap = {|
     +code: string,
-    +map: SourceMapGenerator
+    +map: SourceMapGenerator,
   |};
   declare export class SourceMapConsumer {
     static +GENERATED_ORDER: number;
@@ -175,9 +175,7 @@ declare module 'source-map' {
      *    - name: The original identifier, or null.
      */
     originalPositionFor(
-      generatedPosition: Position & {
-        bias?: number
-      }
+      generatedPosition: Position & { bias?: number, ... }
     ): NullableMappedPosition;
 
     /**
@@ -200,9 +198,7 @@ declare module 'source-map' {
      *    - column: The column number in the generated source, or null.
      */
     generatedPositionFor(
-      originalPosition: MappedPosition & {
-        bias?: number
-      }
+      originalPosition: MappedPosition & { bias?: number, ... }
     ): NullablePosition;
 
     /**
