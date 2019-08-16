@@ -32,7 +32,10 @@ const TARGETS = [
   }
 ];
 
-describe('AssetGraphBuilder', () => {
+describe('AssetGraphBuilder', function() {
+  // This depends on spinning up a WorkerFarm, which can take some time.
+  this.timeout(20000);
+
   let config;
   let builder;
   let workerFarm;
