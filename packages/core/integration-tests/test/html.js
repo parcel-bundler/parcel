@@ -2,7 +2,6 @@ import assert from 'assert';
 import {
   bundle,
   assertBundles,
-  assertBundleTree,
   removeDistDirectory,
   distDir,
   run,

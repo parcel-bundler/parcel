@@ -6,8 +6,10 @@
     "type": "git",
     "url": "https://github.com/parcel-bundler/parcel.git"
   },
-  "main": "src/WebextManifestTransformer",
+  "main": "lib/WebextManifestTransformer.js",
+  "source": "src/WebextManifestTransformer.js",
   "engines": {
+    "node": ">= 10.0.0",
     "parcel": "^2.0.0-alpha.3.1"
   },
   "dependencies": {

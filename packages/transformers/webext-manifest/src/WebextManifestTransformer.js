@@ -6,10 +6,11 @@ import {Transformer} from '@parcel/plugin';
 
 // TODO
 export default new Transformer({
+  // eslint-disable-next-line require-await
   async transform({asset}) {
     if (asset.env.context === 'pwa-manifest') {
       asset.type = 'webmanifest';
     }
     return [asset];
-  }
+  },
 });
