@@ -49,7 +49,8 @@ export function runPackage(
     bundle: Bundle,
     bundleGraph: BundleGraph,
     config: ParcelConfig,
-    options: ParcelOptions
+    options: ParcelOptions,
+    ...
   }
 ) {
   return new PackagerRunner({

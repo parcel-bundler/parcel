@@ -303,7 +303,8 @@ export default class Graph<TNode: Node, TEdgeType: string | null = null> {
   }: {
     visit: GraphVisitor<TNode, TContext>,
     getChildren(node: TNode): Array<TNode>,
-    startNode?: ?TNode
+    startNode?: ?TNode,
+    ...
   }): ?TContext {
     let root = startNode || this.getRootNode();
     if (!root) {

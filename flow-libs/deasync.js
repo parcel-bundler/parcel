@@ -5,6 +5,7 @@ declare module 'deasync' {
     // TODO: Main callable signature
     loopWhile(() => boolean): void,
     runLoopOnce(): void,
-    sleep(sleepTimeMs: number): void
+    sleep(sleepTimeMs: number): void,
+    ...
   };
 }

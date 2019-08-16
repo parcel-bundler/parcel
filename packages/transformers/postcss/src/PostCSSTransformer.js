@@ -20,7 +20,8 @@ const MODULE_BY_NAME_RE = /\.module\./;
 type ParcelPostCSSConfig = {
   plugins: Array<mixed>,
   from: FilePath,
-  to: FilePath
+  to: FilePath,
+  ...
 };
 
 export default new Transformer({
@@ -124,7 +125,8 @@ export default new Transformer({
     config
   }: {
     asset: MutableAsset,
-    config: ?ParcelPostCSSConfig
+    config: ?ParcelPostCSSConfig,
+    ...
   }) {
     if (!config) {
       return [asset];

@@ -92,7 +92,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   invalidNodeIds: Set<NodeId> = new Set();
   runTransform: TransformationOpts => Promise<{
     assets: Array<AssetValue>,
-    configRequests: Array<ConfigRequest>
+    configRequests: Array<ConfigRequest>,
+    ...
   }>;
   runValidate: ValidationOpts => Promise<void>;
   loadConfigHandle: () => Promise<Config>;

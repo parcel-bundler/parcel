@@ -4,6 +4,7 @@ declare module 'command-exists' {
   declare module.exports: {
     (commandName: string): string,
     (commandName: string, callback: (mixed, string) => mixed): string,
-    sync(commandName: string): string
+    sync(commandName: string): string,
+    ...
   };
 }

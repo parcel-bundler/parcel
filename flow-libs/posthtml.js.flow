@@ -10,18 +10,21 @@ declare module 'posthtml' {
   declare type PostHTMLNode = {
     tag: string,
     // $FlowFixMe
-    attrs?: {[string]: string},
-    content?: Array<string>
+    attrs?: { [string]: string, ... },
+    content?: Array<string>,
+    ...
   };
 
   declare type PostHTMLTree = Array<PostHTMLNode>;
   declare type PostHTMLOptions = {
     sync: Boolean,
-    skipParse: Boolean
+    skipParse: Boolean,
+    ...
   };
   declare type PostHTMLMessage = {
     type: 'dependency',
-    file: string
+    file: string,
+    ...
   };
 
   declare var walk: (fn: (node: PostHTMLNode) => PostHTMLNode) => void;
@@ -31,7 +34,8 @@ declare module 'posthtml' {
   ) => Promise<{
     html: string,
     tree: PostHTMLTree,
-    messages: Array<PostHTMLMessage>
+    messages: Array<PostHTMLMessage>,
+    ...
   }>;
 
   declare class Api {

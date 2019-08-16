@@ -30,7 +30,7 @@ export function md5FromReadableStream(stream: Readable): Promise<string> {
 }
 
 export function md5FromObject(
-  obj: {+[string]: mixed},
+  obj: {+[string]: mixed, ...},
   encoding: StringHashEncoding = 'hex'
 ): string {
   return md5FromString(JSON.stringify(objectSortedEntriesDeep(obj)), encoding);

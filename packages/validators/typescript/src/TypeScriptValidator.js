@@ -12,7 +12,8 @@ type TSValidatorConfig = {
   filepath: string | null,
   baseDir: string,
   configHash: string,
-  tsconfig: any
+  tsconfig: any,
+  ...
 };
 
 export default new Validator({

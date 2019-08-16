@@ -3,9 +3,7 @@ import type {FilePath} from '@parcel/types';
 import type {Stats} from 'fs';
 import type {Readable, Writable} from 'stream';
 
-export type FileOptions = {
-  mode?: number
-};
+export type FileOptions = {mode?: number, ...};
 
 export interface FileSystem {
   readFile(filePath: FilePath): Promise<Buffer>;

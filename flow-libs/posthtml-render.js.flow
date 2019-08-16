@@ -7,13 +7,18 @@
 declare module 'posthtml-render' {
   declare type PostHTMLNode = {
     tag: string,
-    attrs?: {[string]: string},
-    content?: Array<string>
+    attrs?: { [string]: string, ... },
+    content?: Array<string>,
+    ...
   };
 
   declare var parser: (
     tree: PostHTMLNode,
-    options?: {singleTags?: Array<string | RegExp>, closingSingleTag?: string}
+    options?: {
+      singleTags?: Array<string | RegExp>,
+      closingSingleTag?: string,
+      ...
+    }
   ) => string;
 
   declare module.exports: typeof parser;

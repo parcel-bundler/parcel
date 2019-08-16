@@ -4,7 +4,7 @@ import type {FilePath, LocalRequire} from '@parcel/types';
 
 export default async function loadExternalPlugins(
   localRequire: LocalRequire,
-  plugins: Array<string> | {+[pluginName: string]: mixed},
+  plugins: Array<string> | {+[pluginName: string]: mixed, ...},
   relative: FilePath
 ): Promise<Array<mixed>> {
   if (Array.isArray(plugins)) {

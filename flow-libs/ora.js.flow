@@ -4,13 +4,14 @@ declare module 'ora' {
   declare type OraOpts =
     | string
     | {
-        color?: string,
-        enabled?: boolean,
-        indent?: number,
-        interval?: number,
-        stream?: stream$Writable,
-        text?: string
-      };
+    color?: string,
+    enabled?: boolean,
+    indent?: number,
+    interval?: number,
+    stream?: stream$Writable,
+    text?: string,
+    ...
+  };
 
   declare export class Ora {
     get indent(): number;
@@ -30,7 +31,7 @@ declare module 'ora' {
     fail(text?: string): this;
     warn(text?: string): this;
     info(text?: string): this;
-    stopAndPersist(?{text?: string}): this;
+    stopAndPersist(?{ text?: string, ... }): this;
   }
 
   declare interface Spinner {

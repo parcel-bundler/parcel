@@ -11,7 +11,8 @@ declare module 'chrome-trace-event' {
 
   declare type Fields = {
     cat?: any,
-    args?: any
+    args?: any,
+    ...
   };
 
   declare export class Tracer extends stream$Readable {

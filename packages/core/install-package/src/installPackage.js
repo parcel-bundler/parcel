@@ -17,7 +17,8 @@ import Yarn from './Yarn';
 type InstallOptions = {
   installPeers?: boolean,
   saveDev?: boolean,
-  packageManager?: 'npm' | 'yarn'
+  packageManager?: 'npm' | 'yarn',
+  ...
 };
 
 // TODO: should we allow other file systems? npm/yarn only work on node anyway...

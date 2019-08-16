@@ -7,13 +7,13 @@ export type PrintableError =
       highlightedCodeFrame?: string,
       loc?: {
         column: number,
-        line: number
-      }
+        line: number,
+        ...
+      },
+      ...
     });
 
-export type PrettyErrorOpts = {
-  color?: boolean
-};
+export type PrettyErrorOpts = {color?: boolean, ...};
 
 export type PrettyError = {|
   message: string,

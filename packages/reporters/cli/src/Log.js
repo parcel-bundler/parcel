@@ -13,9 +13,7 @@ type StringOrErrorLogProps = {|
 |};
 
 type StringLogProps = {|
-  event: {
-    +message: string
-  }
+  event: {+message: string, ...}
 |};
 
 type ServerInfoProps = {|
@@ -52,7 +50,8 @@ function Stack({
 }: {
   err: string | Error,
   emoji: string,
-  color: string
+  color: string,
+  ...
 }) {
   let {message, stack} = prettyError(err, {color: true});
   return (

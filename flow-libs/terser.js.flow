@@ -28,7 +28,7 @@ declare module 'terser' {
         ecma?: ECMAVersion,
         evaluate?: boolean,
         expression?: boolean,
-        global_defs: {[string]: string},
+        global_defs: { [string]: string, ... },
         hoist_funs?: boolean,
         hoist_props?: boolean,
         hoist_vars?: boolean,
@@ -143,17 +143,15 @@ declare module 'terser' {
     module?: boolean,
     output?: ?OutputOptions,
     parse?: ParseOptions,
-    nameCache?: ?{[string]: string},
+    nameCache?: ?{ [string]: string, ... },
     safari10?: boolean,
     toplevel?: boolean,
     warnings?: boolean,
     sourceMap?: SourceMapOptions
   |};
 
-  declare module.exports: {
-    minify(
-      source: string,
-      options?: MinifyOptions
-    ): {|code?: string, error?: Error, map?: string|}
-  };
+  declare module.exports: { minify(
+    source: string,
+    options?: MinifyOptions
+  ): {|code?: string, error?: Error, map?: string|}, ... };
 }
