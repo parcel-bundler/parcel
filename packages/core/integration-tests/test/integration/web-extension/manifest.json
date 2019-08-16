@@ -1,0 +1,78 @@
+{
+  "manifest_version": 2,
+  "name": "parcel-web-extension-example",
+  "version": "1.0.0",
+
+  "icons": {
+    "48": "images/icon48.png"
+  },
+
+  "browser_action": {
+    "default_icon": {
+      "16": "images/icon16.png"
+    },
+    "default_popup": "public/browser-popup.html",
+    "theme_icons": [
+      {
+        "light": "firefox/light.png",
+        "dark": "firefox/dark.png",
+      }
+    ]
+  },
+  "page_action": {
+    "default_icon": "images/icon32.png",
+    "default_popup": "public/page-popup.html"
+  },
+
+  "background": {
+    "scripts": ["background.ts"]
+  },
+  "content_scripts": [
+    {
+      "css": ["./public/content.css"],
+      "js": ["./public/content.js"]
+    }
+  ],
+  "devtools_page": "public/devtools.html",
+  "options_page": "public/options.html",
+  "options_ui": {
+    "page": "public/options-ui.html"
+  },
+
+  "web_accessible_resources": [
+    "./wildcards/1.js",
+    "wildcards/**/*.css",
+    "wildcards/misc/*",
+    "*.js"
+  ],
+
+  "chrome_settings_overrides": {
+    "homepage": "https://developer.mozilla.org/"
+  },
+  "chrome_url_overrides": {
+    "bookmarks": "chrome/bookmarks.html",
+    "newtab": "chrome/newtab.html",
+    "history": "chrome/history.html"
+  },
+  "nacl_modules": [
+    {
+      "path": "chrome/sample.nmf"
+    }
+  ],
+  "storage": {
+    "managed_schema": "chrome/schema.json"
+  },
+
+  "sidebar_action": {
+    "default_icon": "firefox/star.png",
+    "default_panel": "firefox/sidebar.html"
+  },
+  "theme": {
+    "images": {
+      "theme_frame": "firefox/theme.png"
+    }
+  },
+  "dictionaries": {
+    "en-US": "dictionaries/en-US.dic"
+  }
+}
