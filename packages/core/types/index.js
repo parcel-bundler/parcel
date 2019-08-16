@@ -59,7 +59,7 @@ export type ResolvedParcelConfigFile = ParcelConfigFile & {
 };
 
 export type Engines = {
-  browsers?: Array<string>,
+  browsers?: string | Array<string>,
   electron?: SemverRange,
   node?: SemverRange,
   parcel?: SemverRange

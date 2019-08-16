@@ -1,5 +1,7 @@
 // @flow
+
 import type {Config, PluginOptions} from '@parcel/types';
+import type {BabelConfig} from './types';
 
 import nullthrows from 'nullthrows';
 import path from 'path';
@@ -11,7 +13,7 @@ import getEnvOptions from './env';
 import getJSXOptions from './jsx';
 import getFlowOptions from './flow';
 import getTypescriptOptions from './typescript';
-import type {BabelConfig} from './types';
+import {enginesToBabelTargets} from './utils';
 
 const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
 const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
@@ -59,7 +61,8 @@ export async function load(config: Config, options: PluginOptions) {
       config.shouldRehydrate();
       config.setResult({
         internal: false,
-        config: partialConfig.options
+        config: partialConfig.options,
+        targets: enginesToBabelTargets(config.env.engines)
       });
 
       await definePluginDependencies(config);
@@ -85,7 +88,12 @@ async function buildDefaultBabelConfig(config: Config) {
     babelOptions = await getFlowOptions(config);
   }
 
-  babelOptions = mergeOptions(babelOptions, await getEnvOptions(config));
+  let babelTargets;
+  let envOptions = await getEnvOptions(config);
+  if (envOptions != null) {
+    babelTargets = envOptions.targets;
+    babelOptions = mergeOptions(babelOptions, {presets: envOptions.presets});
+  }
   babelOptions = mergeOptions(babelOptions, await getJSXOptions(config));
 
   if (babelOptions != null) {
@@ -101,7 +109,8 @@ async function buildDefaultBabelConfig(config: Config) {
 
   config.setResult({
     internal: true,
-    config: babelOptions
+    config: babelOptions,
+    targets: babelTargets
   });
   await definePluginDependencies(config);
 }
