@@ -5,6 +5,7 @@
       "@parcel/transformer-babel",
       "@parcel/transformer-js"
     ],
+    "*.{ml,re}": ["@parcel/transformer-reason"],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.toml": ["@parcel/transformer-toml"],
     "*.yaml": ["@parcel/transformer-yaml"],
