@@ -3,7 +3,7 @@ import assert from 'assert';
 import WorkerFarm from '../';
 
 describe('WorkerFarm', function() {
-  this.timeout(10000);
+  this.timeout(20000);
 
   it('Should start up workers', async () => {
     let workerfarm = new WorkerFarm({

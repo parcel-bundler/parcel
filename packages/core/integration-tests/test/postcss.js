@@ -108,7 +108,7 @@ describe('postcss', () => {
     );
   });
 
-  it.skip('should support postcss composes imports for sass', async () => {
+  it('should support postcss composes imports for sass', async () => {
     let b = await bundle(
       path.join(__dirname, '/integration/postcss-composes/index2.js')
     );
@@ -116,11 +116,11 @@ describe('postcss', () => {
     await assertBundles(b, [
       {
         name: 'index2.js',
-        assets: ['index2.js', 'composes-3.css']
+        assets: ['index2.js', 'composes-3.module.css', 'mixins.module.scss']
       },
       {
-        name: 'composes-3.css',
-        assets: ['composes-3.css']
+        name: 'index2.css',
+        assets: ['composes-3.module.css', 'mixins.module.scss']
       }
     ]);
 
@@ -132,10 +132,7 @@ describe('postcss', () => {
     assert(composes3Classes[0].startsWith('_composes3_'));
     assert(composes3Classes[1].startsWith('_test_'));
 
-    let css = await outputFS.readFile(
-      path.join(distDir, 'composes-3.css'),
-      'utf8'
-    );
+    let css = await outputFS.readFile(path.join(distDir, 'index2.css'), 'utf8');
     assert(css.includes('height: 200px;'));
   });
 

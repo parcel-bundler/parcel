@@ -1,38 +1,33 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle, run, assertBundleTree, outputFS} = require('@parcel/test-utils');
+const {
+  bundle,
+  run,
+  assertBundles,
+  distDir,
+  outputFS
+} = require('@parcel/test-utils');
 
-describe.skip('less', function() {
+describe('less', function() {
   it('should support requiring less files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/less/index.js'));
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.less'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.less'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.less']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('.index'));
   });
 
@@ -41,35 +36,26 @@ describe.skip('less', function() {
       path.join(__dirname, '/integration/less-import/index.js')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.less'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.less'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.less']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
-    assert(css.includes('.index'));
-    assert(css.includes('.base'));
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('.a'));
+    assert(css.includes('.b'));
+    assert(css.includes('.c'));
+    assert(css.includes('.d'));
   });
 
   it('should support advanced less imports', async function() {
@@ -77,35 +63,28 @@ describe.skip('less', function() {
       path.join(__dirname, '/integration/less-advanced-import/index.js')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.less'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.less'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.less']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
-    assert(css.includes('.index'));
-    assert(css.includes('.base'));
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+
+    assert(css.includes('.a'));
+    assert(css.includes('.external-index'));
+    assert(css.includes('.external-a'));
+    assert(css.includes('.external-with-main'));
+    assert(css.includes('.explicit-external-a'));
   });
 
   it('should support requiring empty less files', async function() {
@@ -113,38 +92,23 @@ describe.skip('less', function() {
       path.join(__dirname, '/integration/less-empty/index.js')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.less'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.less'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.less']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
-    assert(
-      /^\/\*# sourceMappingURL=\/\w*\.css\.map \*\/$/.test(
-        css.replace('\n', '')
-      )
-    );
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert.equal(css, '');
   });
 
   it('should support linking to assets with url() from less', async function() {
@@ -152,49 +116,33 @@ describe.skip('less', function() {
       path.join(__dirname, '/integration/less-url/index.js')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.less'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.less'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        },
-        {
-          type: 'woff2',
-          assets: ['test.woff2'],
-          childBundles: []
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.less']
+      },
+      {
+        type: 'woff2',
+        assets: ['test.woff2']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 2);
 
-    let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
-    assert(/url\("test\.[0-9a-f]+\.woff2"\)/.test(css));
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(/url\("\/test\.[0-9a-f]+\.woff2"\)/.test(css));
     assert(css.includes('url("http://google.com")'));
     assert(css.includes('.index'));
 
     assert(
       await outputFS.exists(
-        path.join(
-          __dirname,
-          '/dist/',
-          css.match(/url\("(test\.[0-9a-f]+\.woff2)"\)/)[1]
-        )
+        path.join(distDir, css.match(/url\("\/(test\.[0-9a-f]+\.woff2)"\)/)[1])
       )
     );
   });
@@ -204,33 +152,65 @@ describe.skip('less', function() {
       path.join(__dirname, '/integration/less-postcss/index.js')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.less'],
-      childBundles: [
-        {
-          type: 'map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.less'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'index.module.less']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.module.less']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert(output().startsWith('_index_'));
 
-    let css = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.css'),
-      'utf8'
-    );
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
     assert(css.includes('._index_'));
+  });
+
+  it('should throw an exception when using webpack syntax', async function() {
+    let didThrow = false;
+
+    try {
+      await bundle(
+        path.join(__dirname, '/integration/less-webpack-import-error/index.js')
+      );
+    } catch (err) {
+      assert.equal(
+        err.message,
+        'The @import path "~library/style.less" is using webpack specific syntax, which isn\'t supported by Parcel.\n\nTo @import files from node_modules, use "library/style.less"'
+      );
+      didThrow = true;
+    }
+
+    assert(didThrow);
+  });
+
+  it('should support configuring less include paths', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/less-include-paths/index.js')
+    );
+
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js']
+      },
+      {
+        name: 'index.css',
+        assets: ['index.less']
+      }
+    ]);
+
+    let output = await run(b);
+    assert.equal(typeof output, 'function');
+    assert.equal(output(), 2);
+
+    let css = await outputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
+    assert(css.includes('.a'));
+    assert(css.includes('.b'));
   });
 });

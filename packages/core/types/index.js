@@ -339,10 +339,16 @@ type ResolveConfigFn = (
 export type Validator = {|
   validate({
     asset: Asset,
+    config: Config | void,
     localRequire: LocalRequire,
-    resolveConfig: ResolveConfigFn, // This is a temporary function and should be replaced with something cacheable
     options: PluginOptions
-  }): Async<void>
+  }): Async<void>,
+  getConfig?: ({
+    asset: Asset,
+    resolveConfig: ResolveConfigFn,
+    localRequire: LocalRequire,
+    options: PluginOptions
+  }) => Async<Config | void>
 |};
 
 export type LocalRequire = (
