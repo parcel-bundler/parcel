@@ -32,6 +32,7 @@
     "*.html": "@parcel/packager-html",
     "*.css": "@parcel/packager-css",
     "*.js": "@parcel/packager-js",
+    "*.webmanifest": "@parcel/packager-string",
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],

@@ -64,4 +64,14 @@ describe('pwa-manifest', function() {
     const html = await outputFS.readFile(path.join(distDir, 'index.html'));
     assert(html.includes('<link rel="manifest" href="/manifest.webmanifest">'));
   });
+
+  // to prevent infinite loop `.json` -> `.webmanifest`
+  it('should rename webmanifest *.json to *.webmanifest', async function() {
+    await bundle(
+      path.join(__dirname, '/integration/pwa-manifest-json/index.html')
+    );
+
+    const html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    assert(html.includes('<link rel="manifest" href="/manifest.webmanifest">'));
+  });
 });
