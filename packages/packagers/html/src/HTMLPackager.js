@@ -2,6 +2,7 @@
 
 import assert from 'assert';
 import {Packager} from '@parcel/plugin';
+import {Bundle, BundleGraph} from '@parcel/types';
 import posthtml from 'posthtml';
 import {urlJoin} from '@parcel/utils';
 import nullthrows from 'nullthrows';
@@ -18,19 +19,8 @@ const metadataContent = new Set([
   'title'
 ]);
 
-// fake implementation, of what will be passed from packageRunner
-const mockGetBundleResult = async (bundle, bundleGraph) => {
-  const asset = bundle.getMainEntry();
-  let [contents, map] = await Promise.all([asset.getCode(), asset.getMap()]);
-
-  return {
-    contents,
-    map
-  };
-};
-
 export default new Packager({
-  async package({bundle, bundleGraph}) {
+  async package({bundle, bundleGraph, getBundleResult}) {
     let assets = [];
     bundle.traverseAssets(asset => {
       assets.push(asset);
@@ -59,17 +49,18 @@ export default new Packager({
 
     let {html} = await posthtml([
       insertBundleReferences.bind(this, bundles),
-      replaceInlineAssetContent.bind(
-        this,
-        getAssetContent.bind(this, bundleGraph, mockGetBundleResult)
-      )
+      replaceInlineAssetContent.bind(this, bundleGraph, getBundleResult)
     ]).process(code);
 
     return {contents: html};
   }
 });
 
-async function getAssetContent(bundleGraph, getBundleResult, assetId) {
+async function getAssetContent(
+  bundleGraph: BundleGraph,
+  getBundleResult,
+  assetId
+) {
   let inlineBundle: ?Bundle;
   bundleGraph.traverseBundles((bundle, context, {stop}) => {
     if (bundle.id.includes(assetId)) {
@@ -84,10 +75,14 @@ async function getAssetContent(bundleGraph, getBundleResult, assetId) {
     return bundleResult.contents;
   }
 
-  return `unable to find bundle for id - ${assetId}`;
+  return null;
 }
 
-async function replaceInlineAssetContent(getAssetContent, tree) {
+async function replaceInlineAssetContent(
+  bundleGraph: BundleGraph,
+  getBundleResult,
+  tree
+) {
   const inlineNodes = [];
   tree.walk(node => {
     if (node.attrs && node.attrs['data-parcelId']) {
@@ -97,9 +92,17 @@ async function replaceInlineAssetContent(getAssetContent, tree) {
   });
 
   for (let node of inlineNodes) {
-    node.content = await getAssetContent(node.attrs['data-parcelId']);
-    // remove attr from output
-    delete node.attrs['data-parcelId'];
+    let newContent = await getAssetContent(
+      bundleGraph,
+      getBundleResult,
+      node.attrs['data-parcelId']
+    );
+
+    if (newContent) {
+      node.content = newContent;
+      // remove attr from output
+      delete node.attrs['data-parcelId'];
+    }
   }
 
   return tree;
