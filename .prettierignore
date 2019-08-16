@@ -1,3 +1,4 @@
+flow-typed
 packages/*/*/src/builtins
 packages/*/*/test/integration
 packages/*/*/test/input
