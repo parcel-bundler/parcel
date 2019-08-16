@@ -21,7 +21,7 @@ declare module 'chokidar' {
     close(): this;
     getWatched(
       paths: string | Array<string>
-    ): {[directory: string]: Array<string>};
+    ): { [directory: string]: Array<string>, ... };
   }
 
   declare type FSWatcherOptions = {|
@@ -46,6 +46,7 @@ declare module 'chokidar' {
 
   declare module.exports: {
     FSWatcher: typeof FSWatcher,
-    watch(paths: string | Array<string>, options: FSWatcherOptions): FSWatcher
+    watch(paths: string | Array<string>, options: FSWatcherOptions): FSWatcher,
+    ...
   };
 }

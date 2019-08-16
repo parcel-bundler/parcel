@@ -30,7 +30,7 @@ declare module 'ink' {
   |};
   declare export var Color: React$ComponentType<ColorProps>;
   // https://github.com/vadimdemedes/ink#static
-  declare export var Static: React$ComponentType<{children: React$Node}>;
+  declare export var Static: React$ComponentType<{ children: React$Node, ... }>;
 
   declare type TextProps = {|
     children: React$Node

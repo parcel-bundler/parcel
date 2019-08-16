@@ -81,7 +81,8 @@ export default class Transformation {
 
   async run(): Promise<{
     assets: Array<AssetValue>,
-    configRequests: Array<ConfigRequest>
+    configRequests: Array<ConfigRequest>,
+    ...
   }> {
     report({
       type: 'buildProgress',

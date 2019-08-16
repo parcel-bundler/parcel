@@ -3,7 +3,8 @@
 export type JSONError = {
   message: string,
   stack?: string,
-  name?: string
+  name?: string,
+  ...
 };
 
 export function errorToJson(error: string | Error): JSONError {
@@ -26,7 +27,7 @@ export function errorToJson(error: string | Error): JSONError {
 
 export function jsonToError(
   json: ?JSONError
-): void | (Error & {[string]: string}) {
+): void | (Error & {[string]: string, ...}) {
   if (json != null) {
     let error = new Error(json.message);
     Object.keys(json).forEach(key => {

@@ -22,8 +22,8 @@ let helloSpread = {...{
 
 let helloArray = [...[]];
 
-var a: { [a: number]: string; };
+var a: { [a: number]: string, ... };
 
 class C<+T,-U> {}
 function f<+T,-U>() {}
-type D<+T,-U> = {}
+type D<+T,-U> = {...}

@@ -6,12 +6,14 @@ type TypescriptCompilerOptions = {
   module?: mixed,
   jsx?: mixed,
   noEmit?: boolean,
-  sourceMap?: boolean
+  sourceMap?: boolean,
+  ...
 };
 
 type TypescriptTranspilerOptions = {
   compilerOptions: TypescriptCompilerOptions,
-  fileName: string
+  fileName: string,
+  ...
 };
 
 export default new Transformer({

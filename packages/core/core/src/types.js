@@ -80,7 +80,7 @@ export type ParcelOptions = {|
   rootDir: FilePath,
   config?: ResolvedParcelConfigFile,
   defaultConfig?: ResolvedParcelConfigFile,
-  env: {+[string]: string},
+  env: {+[string]: string, ...},
   targets: Array<Target>,
 
   disableCache: boolean,
@@ -224,7 +224,9 @@ export type CacheEntry = {
   env: Environment,
   hash: string,
   assets: Array<Asset>,
-  initialAssets: ?Array<Asset> // Initial assets, pre-post processing
+  // Initial assets, pre-post processing
+  initialAssets: ?Array<Asset>,
+  ...
 };
 
 export type Bundle = {|

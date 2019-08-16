@@ -16,7 +16,7 @@ import assert from 'assert';
 import ParcelConfig from './ParcelConfig';
 
 type Pipeline = Array<PackageName>;
-type ConfigMap<K, V> = {[K]: V};
+type ConfigMap<K, V> = {[K]: V, ...};
 
 export default async function loadParcelConfig(
   filePath: FilePath,

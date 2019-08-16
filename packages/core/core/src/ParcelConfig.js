@@ -20,7 +20,7 @@ import {basename} from 'path';
 import loadPlugin from './loadParcelPlugin';
 
 type Pipeline = Array<PackageName>;
-type GlobMap<T> = {[Glob]: T};
+type GlobMap<T> = {[Glob]: T, ...};
 
 export default class ParcelConfig {
   filePath: FilePath;
@@ -28,7 +28,7 @@ export default class ParcelConfig {
   transforms: GlobMap<Pipeline>;
   bundler: PackageName;
   namers: Pipeline;
-  runtimes: {[EnvironmentContext]: Pipeline};
+  runtimes: {[EnvironmentContext]: Pipeline, ...};
   packagers: GlobMap<PackageName>;
   validators: GlobMap<Pipeline>;
   optimizers: GlobMap<Pipeline>;
@@ -191,7 +191,7 @@ export default class ParcelConfig {
     return isMatch(filePath, pattern) || isMatch(basename(filePath), pattern);
   }
 
-  matchGlobMap(filePath: FilePath, globMap: {[Glob]: any}) {
+  matchGlobMap(filePath: FilePath, globMap: {[Glob]: any, ...}) {
     for (let pattern in globMap) {
       if (this.isGlobMatch(filePath, pattern)) {
         return globMap[pattern];
@@ -201,7 +201,7 @@ export default class ParcelConfig {
     return null;
   }
 
-  matchGlobMapPipelines(filePath: FilePath, globMap: {[Glob]: Pipeline}) {
+  matchGlobMapPipelines(filePath: FilePath, globMap: {[Glob]: Pipeline, ...}) {
     let matches = [];
     for (let pattern in globMap) {
       if (this.isGlobMatch(filePath, pattern)) {

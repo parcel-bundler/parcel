@@ -20,7 +20,8 @@ export default class Npm {
     packageLocation
   }: {
     cwd: FilePath,
-    packageLocation: ?FilePath
+    packageLocation: ?FilePath,
+    ...
   }) {
     this.cwd = cwd;
     this.packageLocation = packageLocation;
@@ -75,6 +76,4 @@ export default class Npm {
   }
 }
 
-type NPMResults = {
-  added: Array<{name: string}>
-};
+type NPMResults = {added: Array<{name: string, ...}>, ...};

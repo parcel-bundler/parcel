@@ -34,7 +34,7 @@ export default class PluginOptions implements IPluginOptions {
     return this.#options.sourceMaps;
   }
 
-  get env(): {+[string]: string} {
+  get env(): {+[string]: string, ...} {
     return this.#options.env;
   }
 

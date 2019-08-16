@@ -18,7 +18,8 @@ declare module 'ncp' {
     clobber?: boolean,
     dereference?: boolean,
     stopOnErr?: boolean,
-    errs?: Writable
+    errs?: Writable,
+    ...
   };
 
   declare module.exports: (
