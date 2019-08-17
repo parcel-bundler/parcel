@@ -15,7 +15,7 @@ describe('postcss', () => {
       path.join(__dirname, '/integration/postcss-modules/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js', 'foo.module.css']
@@ -56,7 +56,7 @@ describe('postcss', () => {
       path.join(__dirname, '/integration/postcss-composes/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: [
@@ -113,7 +113,7 @@ describe('postcss', () => {
       path.join(__dirname, '/integration/postcss-composes/index2.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index2.js',
         assets: ['index2.js', 'composes-3.module.css', 'mixins.module.scss']
@@ -141,7 +141,7 @@ describe('postcss', () => {
       path.join(__dirname, '/integration/postcss-composes/index3.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index3.js',
         assets: ['index3.js', 'composes-4.module.css', 'mixins.module.css']
@@ -169,7 +169,7 @@ describe('postcss', () => {
       path.join(__dirname, '/integration/postcss-composes/index4.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index4.js',
         assets: [
@@ -209,7 +209,7 @@ describe('postcss', () => {
       path.join(__dirname, '/integration/postcss-composes/index5.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index5.js',
         assets: ['index5.js', 'composes-6.module.css', 'mixins.module.css']

@@ -21,7 +21,7 @@ const LOADERS = {
 };
 
 export default new Runtime({
-  async apply({bundle, bundleGraph}) {
+  apply({bundle, bundleGraph}) {
     // Dependency ids in code replaced with referenced bundle names
     // Loader runtime added for bundle groups that don't have a native loader (e.g. HTML/CSS/Worker - isURL?),
     // and which are not loaded by a parent bundle.

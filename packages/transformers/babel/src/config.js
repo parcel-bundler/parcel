@@ -87,7 +87,7 @@ export default async function getBabelConfig(asset: MutableAsset) {
       ]));
 
   if (!hasReact) {
-    let jsxConfig = await getJSXConfig(asset, pkg, isSource);
+    let jsxConfig = getJSXConfig(asset, pkg, isSource);
     mergeConfigs(result, jsxConfig);
   }
 

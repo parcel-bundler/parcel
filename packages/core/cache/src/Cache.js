@@ -32,7 +32,7 @@ export default class Cache {
     return this.fs.createReadStream(this._getCachePath(key, '.blob'));
   }
 
-  async setStream(key: string, stream: Readable): Promise<string> {
+  setStream(key: string, stream: Readable): Promise<string> {
     return new Promise((resolve, reject) => {
       stream
         .pipe(this.fs.createWriteStream(this._getCachePath(key, '.blob')))
@@ -41,11 +41,11 @@ export default class Cache {
     });
   }
 
-  async blobExists(key: string): Promise<boolean> {
+  blobExists(key: string): Promise<boolean> {
     return this.fs.exists(this._getCachePath(key, '.blob'));
   }
 
-  async getBlob(key: string, encoding?: buffer$Encoding) {
+  getBlob(key: string, encoding?: buffer$Encoding) {
     return this.fs.readFile(this._getCachePath(key, '.blob'), encoding);
   }
 

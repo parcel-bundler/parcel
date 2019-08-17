@@ -62,7 +62,7 @@ describe('AssetGraphBuilder', function() {
     });
   });
 
-  it('creates an AssetGraphBuilder', async () => {
+  it('creates an AssetGraphBuilder', () => {
     invariant(
       builder.assetGraph.nodes.has(
         createDependency({

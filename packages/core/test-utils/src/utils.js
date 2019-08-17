@@ -183,7 +183,7 @@ export async function run(
   return ctx;
 }
 
-export async function assertBundles(
+export function assertBundles(
   bundleGraph: BundleGraph,
   expectedBundles: Array<{|
     name?: string | RegExp,
@@ -317,7 +317,7 @@ function prepareBrowserContext(filePath: FilePath, globals: mixed): vm$Context {
               await outputFS.readFile(path.join(path.dirname(filePath), url))
             ).buffer;
           },
-          async text() {
+          text() {
             return outputFS.readFile(
               path.join(path.dirname(filePath), url),
               'utf8'

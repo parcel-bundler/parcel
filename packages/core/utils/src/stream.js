@@ -3,7 +3,7 @@
 import {Readable} from 'stream';
 import type {Blob} from '@parcel/types';
 
-export async function measureStreamLength(stream: Readable): Promise<number> {
+export function measureStreamLength(stream: Readable): Promise<number> {
   return new Promise((resolve, reject) => {
     let length = 0;
     stream.on('data', chunk => {
@@ -22,7 +22,7 @@ export function readableFromStringOrBuffer(str: string | Buffer): Readable {
   return stream;
 }
 
-export async function bufferStream(stream: Readable): Promise<Buffer> {
+export function bufferStream(stream: Readable): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     let buf = Buffer.from([]);
     stream.on('data', data => {

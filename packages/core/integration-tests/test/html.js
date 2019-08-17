@@ -19,7 +19,7 @@ describe('html', function() {
   it('should support bundling HTML', async () => {
     let b = await bundle(path.join(__dirname, '/integration/html/index.html'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -67,7 +67,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/html-attr-order/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -84,7 +84,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/html-css/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -112,7 +112,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/html-css-head/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -143,7 +143,7 @@ describe('html', function() {
       }
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -172,7 +172,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/html-css-optional-elements/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -307,7 +307,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/html-virtualpath/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -352,7 +352,7 @@ describe('html', function() {
       )
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -377,7 +377,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/circular/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -406,7 +406,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/htm-extension/index.htm')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.htm'],
@@ -424,7 +424,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/html-srcset/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -449,7 +449,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/html-source-srcset/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -520,7 +520,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/html-svg/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -537,7 +537,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/html-svg-image/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -554,7 +554,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/html-object/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -571,7 +571,7 @@ describe('html', function() {
       path.join(__dirname, '/integration/resolve-spaces/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']

@@ -12,7 +12,7 @@ describe('less', function() {
   it('should support requiring less files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/less/index.js'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -36,7 +36,7 @@ describe('less', function() {
       path.join(__dirname, '/integration/less-import/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -63,7 +63,7 @@ describe('less', function() {
       path.join(__dirname, '/integration/less-advanced-import/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -92,7 +92,7 @@ describe('less', function() {
       path.join(__dirname, '/integration/less-empty/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -116,7 +116,7 @@ describe('less', function() {
       path.join(__dirname, '/integration/less-url/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -152,7 +152,7 @@ describe('less', function() {
       path.join(__dirname, '/integration/less-postcss/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js', 'index.module.less']
@@ -194,7 +194,7 @@ describe('less', function() {
       path.join(__dirname, '/integration/less-include-paths/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']

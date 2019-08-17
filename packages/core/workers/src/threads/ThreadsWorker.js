@@ -35,7 +35,7 @@ export default class ThreadsWorker implements WorkerImpl {
     this.onExit = onExit;
   }
 
-  async start() {
+  start() {
     this.worker = new Worker(WORKER_PATH, {
       execArgv: this.execArgv,
       env: process.env
@@ -45,13 +45,15 @@ export default class ThreadsWorker implements WorkerImpl {
     this.worker.on('error', this.onError);
     this.worker.on('exit', this.onExit);
 
-    return new Promise(resolve => {
+    return new Promise<void>(resolve => {
       this.worker.on('online', resolve);
     });
   }
 
-  async stop() {
-    return this.worker.terminate();
+  stop() {
+    // In node 12, this returns a promise, but previously it accepted a callback
+    // TODO: Pass a callback in earlier versions of Node
+    return Promise.resolve(this.worker.terminate());
   }
 
   handleMessage(data: WorkerMessage) {
