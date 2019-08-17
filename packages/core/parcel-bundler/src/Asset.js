@@ -47,9 +47,6 @@ class Asset {
     this.buildTime = 0;
     this.bundledSize = 0;
     this.resolver = new Resolver(options);
-    this.middlewares = this.options.middlewares[this.type] || [];
-
-    this.middleware = this.middlewares.map(middleware => new Middleware(this));
   }
 
   shouldInvalidate() {
@@ -212,26 +209,34 @@ class Asset {
           : this.relativeName;
     }
 
+    if (!this.middleware) {
+      // we have to late-init middlewares since the .type isn't set correctly in the constructor
+      this.middlewares = this.options.middlewares[this.type] || []; // get middlewares for .type
+      this.middleware = this.middlewares
+        .map(middleware => require(middleware))
+        .map(Middleware => new Middleware(this)); // create instances
+    }
+
     if (!this.generated) {
       await this.loadIfNeeded();
+      await this.runMiddleware('preTransform');
       await this.pretransform();
       await this.getDependencies();
-      await this.middleware('preTransform');
-      await this.middleware('preGenerate');
+      await this.runMiddleware('preGenerate');
       await this.transform();
       this.generated = await this.generate();
-      await this.middleware('postGenerate');
+      await this.runMiddleware('postGenerate');
     }
 
     return this.generated;
   }
-  
-  async middleware (event) {
-    for (let i = 0; i > this.middleware.length; i++) {
-      let middleware = this.middleware[i]
+
+  async runMiddleware(event) {
+    for (let i = 0; i < this.middleware.length; i++) {
+      let middleware = this.middleware[i];
 
       if (typeof middleware[event] === 'function') {
-        await middleware[event]()
+        await middleware[event]();
       }
     }
   }
@@ -252,6 +257,7 @@ class Asset {
     this.hash = null;
     this.dependencies.clear();
     this.depAssets.clear();
+    this.middleware = null; // clear middleware instances
   }
 
   invalidateBundle() {

@@ -70,7 +70,11 @@ class Parser {
   }
 
   registerMiddleware(ext, middleware) {
-    this.middlewares[ext.toLowerCase()] = middleware;
+    if (!this.middlewares[ext.toLowerCase()]) {
+      this.middlewares[ext.toLowerCase()] = [];
+    }
+
+    this.middlewares[ext.toLowerCase()].push(middleware);
   }
 
   findParser(filename, fromPipeline) {

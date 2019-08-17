@@ -10,4 +10,4 @@ class Middleware {
   }
 }
 
-module.exports = Asset;
+module.exports = Middleware;
