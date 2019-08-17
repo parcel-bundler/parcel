@@ -7,6 +7,7 @@ const {isGlob} = require('./utils/glob');
 class Parser {
   constructor(options = {}) {
     this.extensions = {};
+    this.middlewares = {};
 
     this.registerExtension('js', './assets/JSAsset');
     this.registerExtension('jsx', './assets/JSAsset');
@@ -66,6 +67,10 @@ class Parser {
     }
 
     this.extensions[ext.toLowerCase()] = parser;
+  }
+
+  registerMiddleware(ext, middleware) {
+    this.middlewares[ext.toLowerCase()] = middleware;
   }
 
   findParser(filename, fromPipeline) {

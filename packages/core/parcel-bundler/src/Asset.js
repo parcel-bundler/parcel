@@ -47,6 +47,9 @@ class Asset {
     this.buildTime = 0;
     this.bundledSize = 0;
     this.resolver = new Resolver(options);
+    this.middlewares = this.options.middlewares[this.type] || [];
+
+    this.middleware = this.middlewares.map(middleware => new Middleware(this));
   }
 
   shouldInvalidate() {
@@ -213,11 +216,24 @@ class Asset {
       await this.loadIfNeeded();
       await this.pretransform();
       await this.getDependencies();
+      await this.middleware('preTransform');
+      await this.middleware('preGenerate');
       await this.transform();
       this.generated = await this.generate();
+      await this.middleware('postGenerate');
     }
 
     return this.generated;
+  }
+  
+  async middleware (event) {
+    for (let i = 0; i > this.middleware.length; i++) {
+      let middleware = this.middleware[i]
+
+      if (typeof middleware[event] === 'function') {
+        await middleware[event]()
+      }
+    }
   }
 
   async postProcess(generated) {

@@ -169,6 +169,18 @@ class Bundler extends EventEmitter {
     this.parser.registerExtension(extension, path);
   }
 
+  addAssetMiddleware(extension, path) {
+    if (typeof path !== 'string') {
+      throw new Error('Asset middleware should be a module path.');
+    }
+
+    if (this.farm) {
+      throw new Error('Asset middlewares must be added before bundling.');
+    }
+
+    this.parser.registerMiddleware(extension, path);
+  }
+
   addPackager(type, packager) {
     if (this.farm) {
       throw new Error('Packagers must be added before bundling.');
@@ -380,6 +392,7 @@ class Bundler extends EventEmitter {
     }
 
     this.options.extensions = Object.assign({}, this.parser.extensions);
+    this.options.middlewares = Object.assign({}, this.parser.middlewares);
     this.options.bundleLoaders = this.bundleLoaders;
 
     if (this.options.watch) {
@@ -849,4 +862,5 @@ class Bundler extends EventEmitter {
 
 module.exports = Bundler;
 Bundler.Asset = require('./Asset');
+Bundler.Middleware = require('./Middleware');
 Bundler.Packager = require('./packagers/Packager');
