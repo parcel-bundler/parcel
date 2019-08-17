@@ -46,7 +46,8 @@ module.exports = {
     'import/newline-after-import': 'error',
     'import/no-extraneous-dependencies': 'error',
     'import/no-self-import': 'error',
-    'no-return-await': 'error'
+    'no-return-await': 'error',
+    'require-await': 'error'
   },
   settings: {
     flowtype: {
