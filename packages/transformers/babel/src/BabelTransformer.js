@@ -9,7 +9,7 @@ import getBabelConfig from './config';
 import {relativeUrl} from '@parcel/utils';
 
 export default new Transformer({
-  async getConfig({asset}) {
+  getConfig({asset}) {
     return getBabelConfig(asset);
   },
 
@@ -31,7 +31,7 @@ export default new Transformer({
     return [asset];
   },
 
-  async generate({asset, options}) {
+  generate({asset, options}) {
     let sourceFileName: string = relativeUrl(
       options.projectRoot,
       asset.filePath

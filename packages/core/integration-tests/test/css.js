@@ -17,7 +17,7 @@ describe('css', () => {
   it('should produce two bundles when importing a CSS file', async () => {
     let b = await bundle(path.join(__dirname, '/integration/css/index.js'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js', 'local.js']
@@ -47,7 +47,7 @@ describe('css', () => {
     //
     // ...styles should be applied in the order C, D, B, E, A
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'a.css',
         assets: ['a.css', 'b.css', 'c.css', 'd.css', 'e.css']
@@ -68,7 +68,7 @@ describe('css', () => {
       path.join(__dirname, '/integration/dynamic-css/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: [
@@ -95,7 +95,7 @@ describe('css', () => {
       path.join(__dirname, '/integration/css-import/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -120,7 +120,7 @@ describe('css', () => {
   it('should support linking to assets with url() from CSS', async function() {
     let b = await bundle(path.join(__dirname, '/integration/css-url/index.js'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -163,7 +163,7 @@ describe('css', () => {
       }
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -213,7 +213,7 @@ describe('css', () => {
       }
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'css',
         assets: ['style1.css']

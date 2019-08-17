@@ -291,7 +291,7 @@ export default class Transformation {
     return nextPipeline;
   }
 
-  async loadTransformerConfig(
+  loadTransformerConfig(
     filePath: FilePath,
     plugin: PackageName,
     parcelConfigPath: FilePath
@@ -441,14 +441,16 @@ class Pipeline {
     );
 
     // Create generate and postProcess functions that can be called later
-    this.generate = async (input: IMutableAsset): Promise<GenerateOutput> => {
+    this.generate = (input: IMutableAsset): Promise<GenerateOutput> => {
       if (transformer.generate) {
-        return transformer.generate({
-          asset: input,
-          config,
-          options: this.pluginOptions,
-          resolve
-        });
+        return Promise.resolve(
+          transformer.generate({
+            asset: input,
+            config,
+            options: this.pluginOptions,
+            resolve
+          })
+        );
       }
 
       throw new Error(

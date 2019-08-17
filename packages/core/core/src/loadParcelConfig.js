@@ -53,7 +53,7 @@ export async function resolve(fs: FileSystem, filePath: FilePath) {
   return readAndProcess(fs, configPath);
 }
 
-export async function create(fs: FileSystem, config: ParcelConfigFile) {
+export function create(fs: FileSystem, config: ParcelConfigFile) {
   return processConfig(fs, config, fs.cwd());
 }
 

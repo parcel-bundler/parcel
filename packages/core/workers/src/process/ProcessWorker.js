@@ -34,7 +34,7 @@ export default class ProcessWorker implements WorkerImpl {
     this.onExit = onExit;
   }
 
-  async start() {
+  start() {
     this.child = childProcess.fork(WORKER_PATH, process.argv, {
       execArgv: this.execArgv,
       env: process.env,
@@ -47,6 +47,8 @@ export default class ProcessWorker implements WorkerImpl {
 
     this.child.once('exit', this.onExit);
     this.child.on('error', this.onError);
+
+    return Promise.resolve();
   }
 
   async stop() {

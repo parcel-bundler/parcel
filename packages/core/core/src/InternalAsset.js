@@ -340,7 +340,7 @@ export default class InternalAsset {
     return conf.config;
   }
 
-  async getPackage(): Promise<PackageJSON | null> {
+  getPackage(): Promise<PackageJSON | null> {
     return this.getConfig(['package.json']);
   }
 }

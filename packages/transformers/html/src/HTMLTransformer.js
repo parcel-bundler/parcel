@@ -23,7 +23,7 @@ export default new Transformer({
     };
   },
 
-  async transform({asset}) {
+  transform({asset}) {
     // Handle .htm
     asset.type = 'html';
     collectDependencies(asset);

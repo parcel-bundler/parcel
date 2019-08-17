@@ -44,7 +44,7 @@ export class MemoryFS implements FileSystem {
   serialize(): SerializedMemoryFS {
     if (!this.handle) {
       this.handle = this.farm.createReverseHandle(
-        async (fn: string, args: Array<mixed>) => {
+        (fn: string, args: Array<mixed>) => {
           // $FlowFixMe
           return this[fn](...args);
         }
@@ -65,7 +65,7 @@ export class MemoryFS implements FileSystem {
     return path.resolve(this.cwd(), filePath);
   }
 
-  async writeFile(
+  writeFile(
     filePath: FilePath,
     contents: Buffer | string,
     options: ?FileOptions
@@ -88,9 +88,11 @@ export class MemoryFS implements FileSystem {
     } else {
       this.files.set(filePath, new File(buffer, mode));
     }
+
+    return Promise.resolve();
   }
 
-  async readFile(filePath: FilePath, encoding?: buffer$Encoding): Promise<any> {
+  readFile(filePath: FilePath, encoding?: buffer$Encoding): Promise<any> {
     filePath = this._normalizePath(filePath);
     let file = this.files.get(filePath);
     if (file == null) {
@@ -99,10 +101,10 @@ export class MemoryFS implements FileSystem {
 
     let buffer = file.read();
     if (encoding) {
-      return buffer.toString(encoding);
+      return Promise.resolve(buffer.toString(encoding));
     }
 
-    return buffer;
+    return Promise.resolve(buffer);
   }
 
   async copyFile(source: FilePath, destination: FilePath) {
@@ -110,12 +112,12 @@ export class MemoryFS implements FileSystem {
     await this.writeFile(destination, contents);
   }
 
-  async stat(filePath: FilePath) {
+  stat(filePath: FilePath) {
     filePath = this._normalizePath(filePath);
 
     let dir = this.dirs.get(filePath);
     if (dir) {
-      return dir.stat();
+      return Promise.resolve(dir.stat());
     }
 
     let file = this.files.get(filePath);
@@ -123,10 +125,10 @@ export class MemoryFS implements FileSystem {
       throw new FSError('ENOENT', filePath, 'does not exist');
     }
 
-    return file.stat();
+    return Promise.resolve(file.stat());
   }
 
-  async readdir(dir: FilePath) {
+  readdir(dir: FilePath) {
     dir = this._normalizePath(dir);
     if (!this.dirs.has(dir)) {
       throw new FSError('ENOENT', dir, 'does not exist');
@@ -145,10 +147,10 @@ export class MemoryFS implements FileSystem {
       }
     }
 
-    return res;
+    return Promise.resolve(res);
   }
 
-  async unlink(filePath: FilePath) {
+  unlink(filePath: FilePath) {
     filePath = this._normalizePath(filePath);
     if (!this.files.has(filePath) && !this.dirs.has(filePath)) {
       throw new FSError('ENOENT', filePath, 'does not exist');
@@ -156,12 +158,14 @@ export class MemoryFS implements FileSystem {
 
     this.files.delete(filePath);
     this.dirs.delete(filePath);
+
+    return Promise.resolve();
   }
 
-  async mkdirp(dir: FilePath) {
+  mkdirp(dir: FilePath) {
     dir = this._normalizePath(dir);
     if (this.dirs.has(dir)) {
-      return;
+      return Promise.resolve();
     }
 
     if (this.files.has(dir)) {
@@ -177,9 +181,11 @@ export class MemoryFS implements FileSystem {
       this.dirs.set(dir, new Directory());
       dir = path.dirname(dir);
     }
+
+    return Promise.resolve();
   }
 
-  async rimraf(filePath: FilePath) {
+  rimraf(filePath: FilePath) {
     filePath = this._normalizePath(filePath);
 
     if (this.dirs.has(filePath)) {
@@ -199,6 +205,8 @@ export class MemoryFS implements FileSystem {
 
     this.dirs.delete(filePath);
     this.files.delete(filePath);
+
+    return Promise.resolve();
   }
 
   async ncp(source: FilePath, destination: FilePath) {
@@ -238,14 +246,14 @@ export class MemoryFS implements FileSystem {
     return new WriteStream(this, filePath, options);
   }
 
-  async realpath(filePath: FilePath) {
+  realpath(filePath: FilePath) {
     filePath = this._normalizePath(filePath);
-    return filePath;
+    return Promise.resolve(filePath);
   }
 
-  async exists(filePath: FilePath) {
+  exists(filePath: FilePath) {
     filePath = this._normalizePath(filePath);
-    return this.files.has(filePath) || this.dirs.has(filePath);
+    return Promise.resolve(this.files.has(filePath) || this.dirs.has(filePath));
   }
 }
 
@@ -466,7 +474,7 @@ class WorkerFS extends MemoryFS {
     };
   }
 
-  async writeFile(
+  writeFile(
     filePath: FilePath,
     contents: Buffer | string,
     options: ?FileOptions
@@ -484,31 +492,31 @@ class WorkerFS extends MemoryFS {
     return buffer;
   }
 
-  async stat(filePath: FilePath) {
+  stat(filePath: FilePath) {
     return this.handleFn('stat', [filePath]);
   }
 
-  async readdir(dir: FilePath) {
+  readdir(dir: FilePath) {
     return this.handleFn('readdir', [dir]);
   }
 
-  async unlink(filePath: FilePath) {
+  unlink(filePath: FilePath) {
     return this.handleFn('unlink', [filePath]);
   }
 
-  async mkdirp(dir: FilePath) {
+  mkdirp(dir: FilePath) {
     return this.handleFn('mkdirp', [dir]);
   }
 
-  async rimraf(filePath: FilePath) {
+  rimraf(filePath: FilePath) {
     return this.handleFn('rimraf', [filePath]);
   }
 
-  async ncp(source: FilePath, destination: FilePath) {
+  ncp(source: FilePath, destination: FilePath) {
     return this.handleFn('ncp', [source, destination]);
   }
 
-  async exists(filePath: FilePath) {
+  exists(filePath: FilePath) {
     return this.handleFn('exists', [filePath]);
   }
 }

@@ -54,12 +54,10 @@ export class Child {
   }
 
   workerApi = {
-    callMaster: async (
+    callMaster: (
       request: CallRequest,
       awaitResponse: ?boolean = true
-    ): Promise<mixed> => {
-      return this.addCall(request, awaitResponse);
-    }
+    ): Promise<mixed> => this.addCall(request, awaitResponse)
   };
 
   messageListener(message: WorkerMessage): void | Promise<void> {
@@ -70,7 +68,7 @@ export class Child {
     }
   }
 
-  async send(data: WorkerMessage): Promise<void> {
+  send(data: WorkerMessage): void {
     this.child.send(data);
   }
 
@@ -136,7 +134,7 @@ export class Child {
     this.send(result);
   }
 
-  async handleResponse(data: WorkerResponse): Promise<void> {
+  handleResponse(data: WorkerResponse): void {
     let idx = nullthrows(data.idx);
     let contentType = data.contentType;
     let content = data.content;
@@ -156,7 +154,7 @@ export class Child {
   }
 
   // Keep in mind to make sure responses to these calls are JSON.Stringify safe
-  async addCall(
+  addCall(
     request: CallRequest,
     awaitResponse: ?boolean = true
   ): Promise<mixed> {
@@ -181,10 +179,10 @@ export class Child {
     this.callQueue.push(call);
     this.processQueue();
 
-    return promise;
+    return promise ?? Promise.resolve();
   }
 
-  async sendRequest(call: ChildCall): Promise<void> {
+  sendRequest(call: ChildCall): void {
     let idx;
     if (call.awaitResponse) {
       idx = this.responseId++;
@@ -203,7 +201,7 @@ export class Child {
     });
   }
 
-  async processQueue(): Promise<void> {
+  processQueue(): void {
     if (!this.callQueue.length) {
       return;
     }

@@ -13,7 +13,7 @@ describe('sugarss', function() {
       path.join(__dirname, '/integration/sugarss/index.sss')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.css',
         assets: ['index.sss']
