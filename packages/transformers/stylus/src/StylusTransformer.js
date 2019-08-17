@@ -1,7 +1,6 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-import localRequire from '@parcel/local-require';
 import {isGlob, glob} from '@parcel/utils';
 import path from 'path';
 
@@ -14,7 +13,7 @@ export default new Transformer({
     });
   },
 
-  async transform({asset, resolve, config}) {
+  async transform({asset, resolve, localRequire, config}) {
     // stylus should be installed locally in the module that's being required
     let stylus = await localRequire('stylus', asset.filePath);
 
@@ -29,7 +28,7 @@ export default new Transformer({
     });
     style.set(
       'Evaluator',
-      await createEvaluator(code, asset, resolve, style.options)
+      await createEvaluator(code, asset, resolve, localRequire, style.options)
     );
 
     asset.type = 'css';
@@ -44,6 +43,7 @@ async function getDependencies(
   filepath,
   asset,
   resolve,
+  localRequire,
   options,
   seen = new Set()
 ) {
@@ -136,6 +136,7 @@ async function getDependencies(
             resolved,
             asset,
             resolve,
+            localRequire,
             options,
             seen
           )) {
@@ -149,12 +150,13 @@ async function getDependencies(
   return res;
 }
 
-async function createEvaluator(code, asset, resolve, options) {
+async function createEvaluator(code, asset, resolve, localRequire, options) {
   const deps = await getDependencies(
     code,
     asset.filePath,
     asset,
     resolve,
+    localRequire,
     options
   );
   const Evaluator = await localRequire(

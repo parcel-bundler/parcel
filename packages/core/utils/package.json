@@ -1,6 +1,6 @@
 {
   "name": "@parcel/utils",
-  "version": "2.0.0-alpha.0",
+  "version": "2.0.0-alpha.1.1",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "src/index.js",
   "license": "MIT",
@@ -14,23 +14,20 @@
   "publishConfig": {
     "access": "public"
   },
-  "scripts": {
-    "test-ci": "yarn test"
-  },
   "dependencies": {
     "@iarna/toml": "^2.2.0",
-    "@parcel/logger": "^2.0.0-alpha.0",
+    "@parcel/logger": "^2.0.0-alpha.1.1",
     "clone": "^2.1.1",
     "deasync": "^0.1.14",
     "fast-glob": "^2.2.2",
     "is-glob": "^4.0.0",
     "is-url": "^1.2.2",
     "json5": "^1.0.1",
+    "node-forge": "^0.8.1",
     "nullthrows": "^1.1.1",
     "resolve": "^1.4.0",
     "serialize-to-js": "^1.1.1",
     "tempy": "^0.2.1",
-    "node-forge": "^0.8.1",
     "terser": "^3.7.3"
   },
   "devDependencies": {

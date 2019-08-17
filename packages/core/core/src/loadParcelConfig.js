@@ -3,9 +3,9 @@ import type {
   FilePath,
   ParcelConfigFile,
   ResolvedParcelConfigFile,
-  PackageName,
-  ParcelOptions
+  PackageName
 } from '@parcel/types';
+import type {ParcelOptions} from './types';
 import type {FileSystem} from '@parcel/fs';
 import {resolveConfig} from '@parcel/utils';
 import {parse} from 'json5';
@@ -226,6 +226,8 @@ export function validateMap<K, V>(
   }
 }
 
+// Reasoning behind this validation:
+// https://github.com/parcel-bundler/parcel/issues/3397#issuecomment-521353931
 export function validatePackageName(
   pkg: ?PackageName,
   pluginType: string,

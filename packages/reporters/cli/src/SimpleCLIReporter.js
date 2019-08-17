@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {LogLevel, ReporterEvent, ParcelOptions} from '@parcel/types';
+import type {LogLevel, ReporterEvent, PluginOptions} from '@parcel/types';
 
 import type {Writable} from 'stream';
 
@@ -14,13 +14,14 @@ import {getProgressMessage} from './utils';
 import logLevels from './logLevels';
 
 export default new Reporter({
-  report(event: ReporterEvent, options: ParcelOptions) {
+  report(event, options) {
     _report(event, options);
   }
 });
 
 let stdout = process.stdout;
 let stderr = process.stderr;
+let wroteServerInfo = false;
 
 // Exported only for test
 export function _setStdio(stdoutLike: Writable, stderrLike: Writable) {
@@ -29,10 +30,21 @@ export function _setStdio(stdoutLike: Writable, stderrLike: Writable) {
 }
 
 // Exported only for test
-export function _report(event: ReporterEvent, options: ParcelOptions): void {
+export function _report(event: ReporterEvent, options: PluginOptions): void {
   let logLevelFilter = logLevels[options.logLevel || 'info'];
 
   switch (event.type) {
+    case 'buildStart': {
+      if (options.serve && !wroteServerInfo) {
+        writeOut(
+          `Server running at ${
+            options.serve.https ? 'https' : 'http'
+          }://${options.serve.host ?? 'localhost'}:${options.serve.port}`
+        );
+        wroteServerInfo = true;
+      }
+      break;
+    }
     case 'buildProgress': {
       if (logLevelFilter < logLevels.info) {
         break;

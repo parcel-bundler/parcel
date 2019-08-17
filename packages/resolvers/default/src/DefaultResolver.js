@@ -2,11 +2,11 @@
 
 import {Resolver} from '@parcel/plugin';
 import type {
-  ParcelOptions,
+  PluginOptions,
   Dependency,
   PackageJSON,
   FilePath,
-  AssetRequest
+  ResolveResult
 } from '@parcel/types';
 import path from 'path';
 import {isGlob} from '@parcel/utils';
@@ -14,8 +14,20 @@ import micromatch from 'micromatch';
 import builtins from './builtins';
 // import nodeBuiltins from 'node-libs-browser';
 
+// Throw user friendly errors on special webpack loader syntax
+// ex. `imports-loader?$=jquery!./example.js`
+const WEBPACK_IMPORT_REGEX = /\S+-loader\S*!\S+/g;
+
 export default new Resolver({
   async resolve({dependency, options}) {
+    if (WEBPACK_IMPORT_REGEX.test(dependency.moduleSpecifier)) {
+      throw new Error(
+        `The import path: ${
+          dependency.moduleSpecifier
+        } is using webpack specific loader import syntax, which isn't supported by Parcel.`
+      );
+    }
+
     const resolved = await new NodeResolver({
       extensions: ['ts', 'tsx', 'js', 'json', 'css', 'styl'],
       options
@@ -25,9 +37,8 @@ export default new Resolver({
       return null;
     }
 
-    let result: AssetRequest = {
-      filePath: resolved.path,
-      env: dependency.env
+    let result: ResolveResult = {
+      filePath: resolved.path
     };
 
     if (resolved.pkg && !hasSideEffects(resolved.path, resolved.pkg)) {
@@ -64,7 +75,7 @@ type InternalPackageJSON = PackageJSON & {
 const EMPTY_SHIM = require.resolve('./_empty');
 
 type Options = {|
-  options: ParcelOptions,
+  options: PluginOptions,
   extensions: Array<string>
 |};
 
@@ -82,7 +93,7 @@ type Options = {|
  *   - The package.json alias field in the root package for global aliases across all modules.
  */
 class NodeResolver {
-  options: ParcelOptions;
+  options: PluginOptions;
   extensions: Array<string>;
   packageCache: Map<string, InternalPackageJSON>;
   rootPackage: InternalPackageJSON | null;

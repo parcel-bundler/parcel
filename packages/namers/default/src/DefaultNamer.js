@@ -5,6 +5,7 @@ import type {Bundle, FilePath} from '@parcel/types';
 import {Namer} from '@parcel/plugin';
 import assert from 'assert';
 import path from 'path';
+import nullthrows from 'nullthrows';
 
 const COMMON_NAMES = new Set(['index', 'src', 'lib']);
 
@@ -55,8 +56,7 @@ export default new Namer({
 });
 
 function nameFromContent(bundle: Bundle, rootDir: FilePath): string {
-  let entryAsset = bundle.getEntryAssets()[0];
-  let entryFilePath = entryAsset.filePath;
+  let entryFilePath = nullthrows(bundle.getMainEntry()).filePath;
   let name = path.basename(entryFilePath, path.extname(entryFilePath));
 
   // If this is an entry bundle, use the original relative path.

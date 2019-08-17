@@ -4,16 +4,18 @@ import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 
+import {createWorkerFarm} from '../';
 import AssetGraphBuilder from '../src/AssetGraphBuilder';
 import {resolve} from '../src/loadParcelConfig';
-import Dependency from '../src/Dependency';
-import Environment from '../src/Environment';
-import {inputFS, outputFS} from '@parcel/test-utils';
+import {createDependency} from '../src/Dependency';
+import {createEnvironment} from '../src/Environment';
+import {inputFS} from '@parcel/test-utils';
+import {DEFAULT_OPTIONS} from './utils';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 const CONFIG_DIR = path.join(FIXTURES_DIR, 'config');
 
-const DEFAULT_ENV = new Environment({
+const DEFAULT_ENV = createEnvironment({
   context: 'browser',
   engines: {
     browsers: ['> 1%']
@@ -30,22 +32,22 @@ const TARGETS = [
   }
 ];
 
-const DEFAULT_OPTIONS = {
-  cache: false,
-  cacheDir: '.parcel-cache',
-  entries: [],
-  logLevel: 'none',
-  rootDir: FIXTURES_DIR,
-  targets: [],
-  projectRoot: '',
-  lockFile: undefined,
-  inputFS,
-  outputFS
-};
+describe('AssetGraphBuilder', function() {
+  // This depends on spinning up a WorkerFarm, which can take some time.
+  this.timeout(20000);
 
-describe('AssetGraphBuilder', () => {
   let config;
   let builder;
+  let workerFarm;
+
+  before(() => {
+    workerFarm = createWorkerFarm();
+  });
+
+  after(async () => {
+    await workerFarm.end();
+  });
+
   beforeEach(async () => {
     config = nullthrows(await resolve(inputFS, path.join(CONFIG_DIR, 'index')))
       .config;
@@ -55,14 +57,15 @@ describe('AssetGraphBuilder', () => {
       options: DEFAULT_OPTIONS,
       config,
       entries: ['./module-b'],
-      targets: TARGETS
+      targets: TARGETS,
+      workerFarm
     });
   });
 
   it('creates an AssetGraphBuilder', async () => {
     invariant(
       builder.assetGraph.nodes.has(
-        new Dependency({
+        createDependency({
           moduleSpecifier: './module-b',
           env: DEFAULT_ENV
         }).id

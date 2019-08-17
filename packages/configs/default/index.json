@@ -6,8 +6,12 @@
       "@parcel/transformer-js"
     ],
     "*.{json,json5}": ["@parcel/transformer-json"],
+    "*.toml": ["@parcel/transformer-toml"],
     "*.{styl,stylus}": ["@parcel/transformer-stylus"],
+    "*.{sass,scss}": ["@parcel/transformer-sass"],
+    "*.less": ["@parcel/transformer-less"],
     "*.css": ["@parcel/transformer-css", "@parcel/transformer-postcss"],
+    "*.sss": ["@parcel/transformer-sugarss"],
     "*.{htm,html}": [
       "@parcel/transformer-posthtml",
       "@parcel/transformer-html"

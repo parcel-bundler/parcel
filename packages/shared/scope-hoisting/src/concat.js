@@ -9,6 +9,7 @@ import * as walk from 'babylon-walk';
 import {getName, getIdentifier} from './utils';
 import fs from 'fs';
 import nullthrows from 'nullthrows';
+import {PromiseQueue} from '@parcel/utils';
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
 const HELPERS = fs.readFileSync(HELPERS_PATH, 'utf8');
@@ -24,7 +25,7 @@ type TraversalContext = {|
 
 // eslint-disable-next-line no-unused-vars
 export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
-  let assets = [];
+  let queue = new PromiseQueue({maxConcurrent: 32});
   bundle.traverse((node, shouldWrap) => {
     switch (node.type) {
       case 'dependency':
@@ -38,19 +39,19 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
         }
         break;
       case 'asset':
-        assets.push(node.value);
+        queue.add(() => processAsset(bundle, node.value));
     }
   });
 
-  let promises = assets.map(asset => processAsset(bundle, asset));
-  let outputs = new Map(await Promise.all(promises));
+  let outputs = new Map(await queue.run());
   let result = [...parse(HELPERS, HELPERS_PATH)];
 
   // If this is an entry bundle and it has child bundles, we need to add the prelude code, which allows
   // registering modules dynamically at runtime.
+  let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
   let hasChildBundles = bundle.hasChildBundles();
-  let needsPrelude = bundle.isEntry && hasChildBundles;
-  let registerEntry = !bundle.isEntry || hasChildBundles;
+  let needsPrelude = isEntry && hasChildBundles;
+  let registerEntry = !isEntry || hasChildBundles;
   if (needsPrelude) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }
@@ -95,10 +96,10 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
         statements.splice(index, 0, ...ast);
       }
 
-      // If this module is referenced by another bundle, or is an entry module in a child bundle,
+      // If this module is referenced by another JS bundle, or is an entry module in a child bundle,
       // add code to register the module with the module system.
       if (
-        bundleGraph.isAssetReferenced(asset) ||
+        bundleGraph.isAssetReferencedByAssetType(asset, 'js') ||
         (!context.parent && registerEntry)
       ) {
         let exportsId = getName(asset, 'exports');
@@ -118,7 +119,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
     }
   });
 
-  let entry = bundle.getEntryAssets()[0];
+  let entry = bundle.getMainEntry();
   if (entry && bundle.isEntry) {
     let exportsIdentifier = getName(entry, 'exports');
     let code = await entry.getCode();

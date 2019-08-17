@@ -6,9 +6,6 @@ const path = require('path');
 const rimraf = require('rimraf');
 const babelConfig = require('./babel.config.js');
 
-const BABEL_REGISTER_INTERPRETER =
-  '#!/usr/bin/env node -r @parcel/babel-register';
-
 const IGNORED_PACKAGES = [
   '!packages/examples/**',
   '!packages/core/integration-tests/**',
@@ -29,7 +26,8 @@ const paths = {
   packageOther: [
     'packages/*/scope-hoisting/src/helpers.js',
     'packages/*/*/src/**/loaders/**',
-    'packages/*/*/src/**/prelude.js'
+    'packages/*/*/src/**/prelude.js',
+    'packages/*/dev-server/src/templates/**'
   ],
   packageJson: ['packages/*/*/package.json', ...IGNORED_PACKAGES],
   packages: 'packages/'
@@ -44,7 +42,6 @@ exports.default = exports.build = function build() {
     gulp
       .src(paths.packageSrc)
       .pipe(babel(babelConfig))
-      .pipe(removeBabelRegisterInterpreter())
       .pipe(renameStream(relative => relative.replace('src', 'lib')))
       .pipe(gulp.dest(paths.packages)),
     gulp
@@ -72,25 +69,14 @@ function updatePackageJson() {
       for (let [binName, binPath] of Object.entries(json.bin)) {
         json.bin[binName] = binPath.replace('src', 'lib');
       }
+    } else if (typeof json.bin === 'string') {
+      json.bin = json.bin.replace('src', 'lib');
     }
-    vinyl.contents = Buffer.from(JSON.stringify(json, null, 2));
-  });
-}
 
-function removeBabelRegisterInterpreter() {
-  return new TapStream(vinyl => {
-    if (
-      vinyl.contents
-        .toString()
-        .trim()
-        .startsWith(BABEL_REGISTER_INTERPRETER)
-    ) {
-      vinyl.contents = Buffer.from(
-        vinyl.contents
-          .toString()
-          .replace(BABEL_REGISTER_INTERPRETER, '#!/usr/bin/env node')
-      );
-    }
+    json.publishConfig = {
+      access: 'public'
+    };
+    vinyl.contents = Buffer.from(JSON.stringify(json, null, 2));
   });
 }
 

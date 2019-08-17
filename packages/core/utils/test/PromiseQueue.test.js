@@ -22,7 +22,11 @@ describe('PromiseQueue', () => {
     let error = new Error('some failure');
     try {
       let queue = new PromiseQueue();
-      queue.add(() => Promise.reject(error));
+      queue
+        .add(() => Promise.reject(error))
+        .catch(
+          /* catch this to prevent an unhandled promise rejection*/ () => {}
+        );
       await queue.run();
     } catch (e) {
       assert.equal(e, error);

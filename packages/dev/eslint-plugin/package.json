@@ -1,6 +1,7 @@
 {
   "name": "@parcel/eslint-plugin",
-  "version": "2.0.0-alpha.0",
+  "private": true,
+  "version": "2.0.0-alpha.1.1",
   "main": "index.js",
   "scripts": {},
   "dependencies": {

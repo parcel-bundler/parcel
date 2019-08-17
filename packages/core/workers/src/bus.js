@@ -1,11 +1,11 @@
 // @flow
 import EventEmitter from 'events';
-import WorkerFarm from './WorkerFarm';
+import {child} from './childState';
 
 class Bus extends EventEmitter {
   emit(event: string, ...args: Array<any>): boolean {
-    if (WorkerFarm.isWorker()) {
-      WorkerFarm.callMaster(
+    if (child) {
+      child.workerApi.callMaster(
         {
           location: __filename,
           method: 'emit',

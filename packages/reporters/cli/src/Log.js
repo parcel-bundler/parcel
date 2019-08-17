@@ -1,6 +1,6 @@
 // @flow strict-local
 
-import type {LogEvent} from '@parcel/types';
+import type {LogEvent, ServerOptions} from '@parcel/types';
 
 import {prettyError} from '@parcel/utils';
 import {Box, Text, Color} from 'ink';
@@ -16,6 +16,10 @@ type StringLogProps = {|
   event: {
     +message: string
   }
+|};
+
+type ServerInfoProps = {|
+  options: ServerOptions
 |};
 
 export function Log({event}: StringOrErrorLogProps) {
@@ -90,5 +94,15 @@ export function Progress({event}: StringLogProps) {
         <Spinner /> {event.message}
       </Color>
     </Box>
+  );
+}
+
+export function ServerInfo({options}: ServerInfoProps) {
+  let url = `${options.https ? 'https' : 'http'}://${options.host ??
+    'localhost'}:${options.port}`;
+  return (
+    <Color bold>
+      Server running at <Color cyan>{url}</Color>
+    </Color>
   );
 }

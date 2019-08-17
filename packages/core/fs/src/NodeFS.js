@@ -30,7 +30,7 @@ export class NodeFS implements FileSystem {
 
   async realpath(originalPath: string): Promise<string> {
     try {
-      return realpath(originalPath, 'utf8');
+      return await realpath(originalPath, 'utf8');
     } catch (e) {
       // do nothing
     }

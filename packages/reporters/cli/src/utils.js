@@ -7,7 +7,7 @@ import path from 'path';
 export function getProgressMessage(event: BuildProgressEvent): ?string {
   switch (event.phase) {
     case 'transforming':
-      return `Building ${path.basename(event.request.filePath)}...`;
+      return `Building ${path.basename(event.filePath)}...`;
 
     case 'bundling':
       return 'Bundling...';

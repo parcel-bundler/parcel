@@ -1,29 +1,38 @@
 // @flow strict-local
-import nullthrows from 'nullthrows';
+
 import type {
   MutableAsset as IMutableAsset,
   FilePath,
   GenerateOutput,
   Transformer,
-  AssetRequest,
   TransformerResult,
-  ParcelOptions,
   PackageName
 } from '@parcel/types';
+import type {
+  Asset as AssetValue,
+  AssetRequest,
+  Config,
+  NodeId,
+  ConfigRequest,
+  ParcelOptions
+} from './types';
+import type {WorkerApi} from '@parcel/workers';
 
 import invariant from 'assert';
 import path from 'path';
+import nullthrows from 'nullthrows';
 import {md5FromObject} from '@parcel/utils';
-import Cache from '@parcel/cache';
 
-import type Config from './public/Config';
-import Dependency from './Dependency';
+import {createDependency} from './Dependency';
+import {localRequireFromWorker} from '@parcel/local-require';
+
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
-import InternalAsset from './Asset';
-import type {NodeId, ConfigRequest} from './types';
+import InternalAsset, {createAsset} from './InternalAsset';
+import ParcelConfig from './ParcelConfig';
 import summarizeRequest from './summarizeRequest';
+import PluginOptions from './public/PluginOptions';
 
 type GenerateFunc = (input: IMutableAsset) => Promise<GenerateOutput>;
 
@@ -35,7 +44,8 @@ export type TransformationOpts = {|
   request: AssetRequest,
   loadConfig: (ConfigRequest, NodeId) => Promise<Config>,
   parentNodeId: NodeId,
-  options: ParcelOptions
+  options: ParcelOptions,
+  workerApi: WorkerApi
 |};
 
 type ConfigMap = Map<PackageName, Config>;
@@ -45,14 +55,15 @@ export default class Transformation {
   configRequests: Array<ConfigRequest>;
   loadConfig: ConfigRequest => Promise<Config>;
   options: ParcelOptions;
-  cache: Cache;
   impactfulOptions: $Shape<ParcelOptions>;
+  workerApi: WorkerApi;
 
   constructor({
     request,
     loadConfig,
     parentNodeId,
-    options
+    options,
+    workerApi
   }: TransformationOpts) {
     this.request = request;
     this.configRequests = [];
@@ -61,6 +72,7 @@ export default class Transformation {
       return loadConfig(configRequest, parentNodeId);
     };
     this.options = options;
+    this.workerApi = workerApi;
 
     // TODO: these options may not impact all transformations, let transformers decide if they care or not
     let {minify, hot, scopeHoist} = this.options;
@@ -68,20 +80,19 @@ export default class Transformation {
   }
 
   async run(): Promise<{
-    assets: Array<InternalAsset>,
+    assets: Array<AssetValue>,
     configRequests: Array<ConfigRequest>
   }> {
     report({
       type: 'buildProgress',
       phase: 'transforming',
-      request: this.request
+      filePath: this.request.filePath
     });
 
-    this.cache = new Cache(this.options.outputFS, this.options.cacheDir);
-
     let asset = await this.loadAsset();
-    let pipeline = await this.loadPipeline(asset.filePath);
-    let assets = await this.runPipeline(pipeline, asset);
+    let pipeline = await this.loadPipeline(this.request.filePath);
+    let results = await this.runPipeline(pipeline, asset);
+    let assets = results.map(a => a.value);
 
     return {assets, configRequests: this.configRequests};
   }
@@ -93,23 +104,25 @@ export default class Transformation {
       this.request
     );
 
+    // If the transformer request passed code rather than a filename,
+    // use a hash as the base for the id to ensure it is unique.
+    let idBase = code != null ? hash : filePath;
     return new InternalAsset({
-      // If the transformer request passed code rather than a filename,
-      // use a hash as the base for the id to ensure it is unique.
-      idBase: code != null ? hash : filePath,
-      fs: this.options.inputFS,
-      filePath: filePath,
-      type: path.extname(filePath).slice(1),
-      cache: this.cache,
-      ast: null,
-      content,
-      hash,
-      env: env,
-      stats: {
-        time: 0,
-        size
-      },
-      sideEffects: sideEffects
+      idBase,
+      value: createAsset({
+        idBase,
+        filePath,
+        type: path.extname(filePath).slice(1),
+        hash,
+        env,
+        stats: {
+          time: 0,
+          size
+        },
+        sideEffects
+      }),
+      options: this.options,
+      content
     });
   }
 
@@ -117,7 +130,7 @@ export default class Transformation {
     pipeline: Pipeline,
     initialAsset: InternalAsset
   ): Promise<Array<InternalAsset>> {
-    let initialType = initialAsset.type;
+    let initialType = initialAsset.value.type;
     // TODO: is this reading/writing from the cache every time we jump a pipeline? Seems possibly unnecessary...
     let initialCacheEntry = await this.readFromCache(
       [initialAsset],
@@ -132,10 +145,10 @@ export default class Transformation {
     let finalAssets: Array<InternalAsset> = [];
     for (let asset of assets) {
       let nextPipeline;
-      if (asset.type !== initialType) {
+      if (asset.value.type !== initialType) {
         nextPipeline = await this.loadNextPipeline(
-          initialAsset.filePath,
-          asset.type,
+          initialAsset.value.filePath,
+          asset.value.type,
           pipeline
         );
       }
@@ -172,16 +185,23 @@ export default class Transformation {
     assets: Array<InternalAsset>,
     configs: ConfigMap
   ): Promise<null | Array<InternalAsset>> {
-    if (this.options.cache === false || this.request.code != null) {
+    if (this.options.disableCache || this.request.code != null) {
       return null;
     }
 
     let cacheKey = await this.getCacheKey(assets, configs);
-    let cachedAssets = this.cache.get(cacheKey);
-    if (cachedAssets) {
-      await Promise.all(assets.map(asset => asset.getCode()));
+    let cachedAssets = await this.options.cache.get(cacheKey);
+    if (!cachedAssets) {
+      return null;
     }
-    return cachedAssets;
+
+    return cachedAssets.map(
+      (value: AssetValue) =>
+        new InternalAsset({
+          value,
+          options: this.options
+        })
+    );
   }
 
   async writeToCache(
@@ -193,17 +213,17 @@ export default class Transformation {
       // TODO: account for impactfulOptions maybe being different per pipeline
       assets.map(asset => asset.commit(md5FromObject(this.impactfulOptions)))
     );
-    this.cache.set(cacheKey, assets);
+    this.options.cache.set(cacheKey, assets.map(a => a.value));
   }
 
   async getCacheKey(
     assets: Array<InternalAsset>,
     configs: ConfigMap
   ): Promise<string> {
-    let assetsKeyInfo = assets.map(({filePath, type, hash}) => ({
-      filePath,
-      hash,
-      type
+    let assetsKeyInfo = assets.map(a => ({
+      filePath: a.value.filePath,
+      hash: a.value.hash,
+      type: a.value.type
     }));
 
     let configsKeyInfo = [...configs].map(([, {resultHash, devDeps}]) => ({
@@ -229,7 +249,8 @@ export default class Transformation {
     let configs = new Map();
 
     let config = await this.loadConfig(configRequest);
-    let parcelConfig = nullthrows(config.result);
+    let result = nullthrows(config.result);
+    let parcelConfig = new ParcelConfig(result);
 
     configs.set('parcel', config);
 
@@ -240,7 +261,7 @@ export default class Transformation {
         let thirdPartyConfig = await this.loadTransformerConfig(
           filePath,
           moduleName,
-          parcelConfig.resolvedPath
+          result.resolvedPath
         );
         configs.set(moduleName, thirdPartyConfig);
       }
@@ -250,7 +271,8 @@ export default class Transformation {
       id: parcelConfig.getTransformerNames(filePath).join(':'),
       transformers: await parcelConfig.getTransformers(filePath),
       configs,
-      options: this.options
+      options: this.options,
+      workerApi: this.workerApi
     });
 
     return pipeline;
@@ -292,7 +314,8 @@ type PipelineOpts = {|
   id: string,
   transformers: Array<Transformer>,
   configs: ConfigMap,
-  options: ParcelOptions
+  options: ParcelOptions,
+  workerApi: WorkerApi
 |};
 
 class Pipeline {
@@ -300,11 +323,13 @@ class Pipeline {
   transformers: Array<Transformer>;
   configs: ConfigMap;
   options: ParcelOptions;
+  pluginOptions: PluginOptions;
   resolverRunner: ResolverRunner;
   generate: GenerateFunc;
   postProcess: ?PostProcessFunc;
+  workerApi: WorkerApi;
 
-  constructor({id, transformers, configs, options}: PipelineOpts) {
+  constructor({id, transformers, configs, options, workerApi}: PipelineOpts) {
     this.id = id;
     this.transformers = transformers;
     this.configs = configs;
@@ -315,10 +340,13 @@ class Pipeline {
       config: parcelConfig,
       options
     });
+
+    this.pluginOptions = new PluginOptions(this.options);
+    this.workerApi = workerApi;
   }
 
   async transform(initialAsset: InternalAsset): Promise<Array<InternalAsset>> {
-    let initialType = initialAsset.type;
+    let initialType = initialAsset.value.type;
     let inputAssets = [initialAsset];
     let resultingAssets;
     let finalAssets = [];
@@ -328,7 +356,7 @@ class Pipeline {
         // TODO: I think there may be a bug here if the type changes but does not
         // change pipelines (e.g. .html -> .htm). It should continue on the same
         // pipeline in that case.
-        if (asset.type !== initialType) {
+        if (asset.value.type !== initialType) {
           finalAssets.push(asset);
         } else {
           let transformerResults = await this.runTransformer(
@@ -356,21 +384,24 @@ class Pipeline {
   ): Promise<Array<TransformerResult>> {
     const resolve = async (from: FilePath, to: string): Promise<FilePath> => {
       return (await this.resolverRunner.resolve(
-        new Dependency({
-          env: asset.env,
+        createDependency({
+          env: asset.value.env,
           moduleSpecifier: to,
           sourcePath: from
         })
       )).filePath;
     };
 
+    let localRequire = localRequireFromWorker.bind(null, this.workerApi);
+
     // Load config for the transformer.
     let config = null;
     if (transformer.getConfig) {
       config = await transformer.getConfig({
         asset: new MutableAsset(asset),
-        options: this.options,
-        resolve
+        options: this.pluginOptions,
+        resolve,
+        localRequire
       });
     }
 
@@ -379,7 +410,10 @@ class Pipeline {
     if (
       asset.ast &&
       (!transformer.canReuseAST ||
-        !transformer.canReuseAST({ast: asset.ast, options: this.options})) &&
+        !transformer.canReuseAST({
+          ast: asset.ast,
+          options: this.pluginOptions
+        })) &&
       this.generate
     ) {
       let output = await this.generate(new MutableAsset(asset));
@@ -392,7 +426,7 @@ class Pipeline {
       asset.ast = await transformer.parse({
         asset: new MutableAsset(asset),
         config,
-        options: this.options,
+        options: this.pluginOptions,
         resolve
       });
     }
@@ -403,7 +437,8 @@ class Pipeline {
       await transformer.transform({
         asset: new MutableAsset(asset),
         config,
-        options: this.options,
+        options: this.pluginOptions,
+        localRequire,
         resolve
       })
     );
@@ -414,7 +449,7 @@ class Pipeline {
         return transformer.generate({
           asset: input,
           config,
-          options: this.options,
+          options: this.pluginOptions,
           resolve
         });
       }
@@ -433,7 +468,7 @@ class Pipeline {
         let results = await postProcess.call(transformer, {
           assets: assets.map(asset => new MutableAsset(asset)),
           config,
-          options: this.options,
+          options: this.pluginOptions,
           resolve
         });
 
@@ -474,7 +509,7 @@ function normalizeAssets(
       ast: result.ast,
       map: internalAsset.map,
       // $FlowFixMe
-      dependencies: result.getDependencies(),
+      dependencies: [...internalAsset.value.dependencies.values()],
       connectedFiles: result.getConnectedFiles(),
       // $FlowFixMe
       env: result.env,

@@ -17,14 +17,14 @@ export default new Transformer({
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  async transform({asset, config}) {
+  async transform({asset, config, localRequire}) {
     if (config) {
       if (config[6]) {
-        asset.ast = await babel6(asset, config[6]);
+        asset.ast = await babel6(asset, localRequire, config[6]);
       }
 
       if (config[7]) {
-        asset.ast = await babel7(asset, config[7]);
+        asset.ast = await babel7(asset, localRequire, config[7]);
       }
     }
 

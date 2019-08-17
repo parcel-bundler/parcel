@@ -14,10 +14,12 @@ import serveStatic from 'serve-static';
 import ansiHtml from 'ansi-html';
 import logger from '@parcel/logger';
 import {prettyError} from '@parcel/utils';
-import {generateCertificate, getCertificate} from '@parcel/utils';
+import {loadConfig, generateCertificate, getCertificate} from '@parcel/utils';
 import serverErrors from './serverErrors';
 import fs from 'fs';
 import ejs from 'ejs';
+import connect from 'connect';
+import httpProxyMiddleware from 'http-proxy-middleware';
 
 function setHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -179,8 +181,51 @@ export default class Server extends EventEmitter {
     logger.verbose(`Request: ${req.headers.host}${req.originalUrl || req.url}`);
   }
 
+  /**
+   * Load proxy table from package.json and apply them.
+   */
+  async applyProxyTable(app: any) {
+    // avoid skipping project root
+    const fileInRoot: string = path.join(this.options.projectRoot, '_');
+
+    const pkg = await loadConfig(this.options.inputFS, fileInRoot, [
+      '.proxyrc.js',
+      '.proxyrc'
+    ]);
+
+    if (!pkg || !pkg.config || !pkg.files) {
+      return this;
+    }
+
+    const cfg = pkg.config;
+    const filename = path.basename(pkg.files[0].filePath);
+
+    if (filename === '.proxyrc.js') {
+      if (typeof cfg !== 'function') {
+        logger.warn(
+          "Proxy configuration file '.proxyrc.js' should export a function. Skipping..."
+        );
+        return this;
+      }
+      cfg(app);
+    } else if (filename === '.proxyrc') {
+      if (typeof cfg !== 'object') {
+        logger.warn(
+          "Proxy table in '.proxyrc.js' should be of object type. Skipping..."
+        );
+        return this;
+      }
+      for (const [context, options] of Object.entries(pkg)) {
+        // each key is interpreted as context, and value as middleware options
+        app.use(context, httpProxyMiddleware(options));
+      }
+    }
+
+    return this;
+  }
+
   async start() {
-    const handler = (req: Request, res: Response) => {
+    const finalHandler = (req: Request, res: Response) => {
       this.logAccessIfVerbose(req);
 
       const response = () => this.respond(req, res);
@@ -193,17 +238,21 @@ export default class Server extends EventEmitter {
       }
     };
 
+    const app = connect();
+    await this.applyProxyTable();
+    app.use(finalHandler);
+
     if (!this.options.https) {
-      this.server = http.createServer(handler);
+      this.server = http.createServer(app);
     } else if (typeof this.options.https === 'boolean') {
       this.server = https.createServer(
         await generateCertificate(this.options.outputFS, this.options.cacheDir),
-        handler
+        app
       );
     } else {
       this.server = https.createServer(
         await getCertificate(this.options.inputFS, this.options.https),
-        handler
+        app
       );
     }
 
@@ -216,18 +265,6 @@ export default class Server extends EventEmitter {
       });
 
       this.server.once('listening', () => {
-        let addon =
-          this.server.address().port !== this.options.port
-            ? `- configured port ${this.options.port.toString()} could not be used.`
-            : '';
-
-        logger.log(
-          `Server running at ${this.options.https ? 'https' : 'http'}://${this
-            .options.host || 'localhost'}:${
-            this.server.address().port
-          } ${addon}`
-        );
-
         resolve(this.server);
       });
     });
