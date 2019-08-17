@@ -1026,7 +1026,7 @@ describe('javascript', function() {
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 
-  it.skip('should minify TOML for production', async function() {
+  it('should minify TOML for production', async function() {
     let b = await bundle(path.join(__dirname, '/integration/toml/index.js'), {
       minify: true,
       scopeHoist: false
@@ -1036,7 +1036,7 @@ describe('javascript', function() {
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
 
-    let json = await outputFS.readFile('dist/index.js', 'utf8');
+    let json = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 
