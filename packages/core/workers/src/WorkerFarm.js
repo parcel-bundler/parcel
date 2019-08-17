@@ -89,16 +89,15 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   workerApi = {
-    callMaster: async (
+    callMaster: (
       request: CallRequest,
       awaitResponse: ?boolean = true
-    ): Promise<mixed> => {
+    ): Promise<mixed> =>
       // $FlowFixMe
-      return this.processRequest({
+      this.processRequest({
         ...request,
         awaitResponse
-      });
-    }
+      })
   };
 
   warmupWorker(method: string, args: Array<any>): void {
@@ -197,7 +196,7 @@ export default class WorkerFarm extends EventEmitter {
     }
   }
 
-  async processQueue(): Promise<void> {
+  processQueue(): void {
     if (this.ending || !this.callQueue.length) return;
 
     if (this.workers.size < this.options.maxConcurrentWorkers) {

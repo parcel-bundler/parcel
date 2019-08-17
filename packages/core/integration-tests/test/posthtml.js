@@ -18,7 +18,7 @@ describe('posthtml', function() {
       path.join(__dirname, '/integration/posthtml/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -34,7 +34,7 @@ describe('posthtml', function() {
       path.join(__dirname, '/integration/posthtml-assets/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         type: 'html',
         assets: ['index.html']

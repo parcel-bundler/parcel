@@ -117,7 +117,7 @@ export default class Server extends EventEmitter {
     }
   }
 
-  async sendIndex(req: Request, res: Response) {
+  sendIndex(req: Request, res: Response) {
     if (this.bundleGraph) {
       // If the main asset is an HTML file, serve it
       let htmlBundle = null;
@@ -150,13 +150,13 @@ export default class Server extends EventEmitter {
     }
   }
 
-  async send404(req: Request, res: Response) {
+  send404(req: Request, res: Response) {
     res.statusCode = 404;
     setHeaders(res);
     res.end(TEMPLATE_404);
   }
 
-  async send500(req: Request, res: Response) {
+  send500(req: Request, res: Response) {
     setHeaders(res);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');

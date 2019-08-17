@@ -495,7 +495,7 @@ class NodeResolver {
     return alias;
   }
 
-  async lookupAlias(aliases, filename, dir) {
+  lookupAlias(aliases, filename, dir) {
     // First, try looking up the exact filename
     let alias = aliases[filename];
     if (alias == null) {

@@ -67,7 +67,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/node_require_browser/main.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'main.js',
         assets: ['main.js', 'local.js', 'index.js']
@@ -84,7 +84,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/node_require/main.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'main.js',
         assets: ['main.js', 'local.js']
@@ -110,7 +110,7 @@ describe('javascript', function() {
       }
     );
 
-    await assertBundles(b, {
+    assertBundles(b, {
       name: 'main.js',
       assets: ['main.js', 'local.js']
     });
@@ -171,7 +171,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/include_node_modules/main.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'main.js',
         assets: ['main.js', 'local.js', 'index.js']
@@ -192,7 +192,7 @@ describe('javascript', function() {
       }
     );
 
-    await assertBundles(b, {
+    assertBundles(b, {
       name: 'main.js',
       assets: ['main.js', 'local.js', 'index.js']
     });
@@ -219,7 +219,7 @@ describe('javascript', function() {
   it('should split bundles when a dynamic import is used a browser environment', async function() {
     let b = await bundle(path.join(__dirname, '/integration/dynamic/index.js'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: [
@@ -245,7 +245,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/dynamic-node/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: [
@@ -292,7 +292,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/dynamic-external/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -303,7 +303,7 @@ describe('javascript', function() {
   it('should support bundling workers', async function() {
     let b = await bundle(path.join(__dirname, '/integration/workers/index.js'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js', 'common.js', 'worker-client.js', 'feature.js']
@@ -352,7 +352,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/service-worker/a/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js', 'index.js']
@@ -371,7 +371,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/worker-circular/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -387,7 +387,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/workers-with-other-loaders/index.js')
     );
 
-    await assertBundles(b, {
+    assertBundles(b, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -447,7 +447,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/dynamic-references-raw/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: [
@@ -476,7 +476,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/dynamic-esm/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: [
@@ -502,7 +502,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/dynamic-common-small/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         assets: ['a.js', 'common.js', 'common-dep.js']
       },
@@ -532,7 +532,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/dynamic-common-large/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         assets: ['a.js']
       },
@@ -565,7 +565,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/dynamic-hoist-dup/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: [
@@ -592,7 +592,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/dynamic-hoist-deep/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: [
@@ -622,7 +622,7 @@ describe('javascript', function() {
   it('should support requiring JSON files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/json/index.js'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js', 'local.json']
@@ -637,7 +637,7 @@ describe('javascript', function() {
   it('should support requiring JSON5 files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/json5/index.js'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js', 'local.json5']
@@ -654,7 +654,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/import-raw/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js', 'test.txt.js']
@@ -766,7 +766,7 @@ describe('javascript', function() {
       }
     });
 
-    await assertBundles(b, {
+    assertBundles(b, {
       name: 'index.js',
       assets: ['index.js', 'local.json', 'index.css'],
       childBundles: [
@@ -788,7 +788,7 @@ describe('javascript', function() {
   it.skip('should support requiring YAML files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/yaml/index.js'));
 
-    await assertBundles(b, {
+    assertBundles(b, {
       name: 'index.js',
       assets: ['index.js', 'local.yaml'],
       childBundles: [
@@ -806,7 +806,7 @@ describe('javascript', function() {
   it('should support requiring TOML files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/toml/index.js'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js', 'local.toml'],
@@ -826,7 +826,7 @@ describe('javascript', function() {
   it('should support requiring CoffeeScript files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/coffee/index.js'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js', 'local.coffee']
@@ -843,7 +843,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/resolve-entries/browser.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'browser.js',
         assets: ['browser.js', 'browser-module.js']
@@ -864,7 +864,7 @@ describe('javascript', function() {
       }
     );
 
-    await assertBundles(b, {
+    assertBundles(b, {
       name: 'browser.js',
       assets: ['browser.js', 'node-module.js'],
       childBundles: [
@@ -885,7 +885,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/resolve-entries/browser-multiple.js')
     );
 
-    await assertBundles(b, {
+    assertBundles(b, {
       name: 'browser-multiple.js',
       assets: [
         'browser-multiple.js',
@@ -915,7 +915,7 @@ describe('javascript', function() {
       }
     );
 
-    await assertBundles(b, {
+    assertBundles(b, {
       name: 'browser-multiple.js',
       assets: ['browser-multiple.js', 'node-entry.js', 'projected.js'],
       childBundles: [
@@ -938,7 +938,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/resolve-entries/module-field.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'module-field.js',
         assets: ['module-field.js', 'es6.module.js']
@@ -956,7 +956,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/resolve-entries/both-fields.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'both-fields.js',
         assets: ['both-fields.js', 'es6.module.js']
@@ -974,7 +974,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/resolve-entries/main-field.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'main-field.js',
         assets: ['main-field.js', 'main.js']
@@ -1041,7 +1041,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/optional-dep/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -1063,7 +1063,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/falsy-dep/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js', 'true-alternate.js', 'true-consequent.js']
@@ -1117,7 +1117,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/require-scope/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -1265,7 +1265,7 @@ describe('javascript', function() {
       {sourceMaps: false}
     );
 
-    await assertBundles(b, {
+    assertBundles(b, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -1307,7 +1307,7 @@ describe('javascript', function() {
       }
     );
 
-    await assertBundles(b, {
+    assertBundles(b, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -1348,7 +1348,7 @@ describe('javascript', function() {
       }
     );
 
-    await assertBundles(b, {
+    assertBundles(b, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -1399,7 +1399,7 @@ describe('javascript', function() {
       path.join(__dirname, '/integration/shared-bundlegroup/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: [
@@ -1434,7 +1434,7 @@ describe('javascript', function() {
       ].map(entry => path.join(__dirname, entry))
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'a.js',
         assets: ['a.js', 'lodash.js']
