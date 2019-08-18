@@ -17,6 +17,8 @@ const HELPERS = fs.readFileSync(HELPERS_PATH, 'utf8');
 const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
 const PRELUDE = fs.readFileSync(PRELUDE_PATH, 'utf8');
 
+const EslintNoUnusedVarsRegExp = /\/\/\seslint-disable-next-line\sno-unused-vars/g;
+
 type AssetASTMap = Map<string, Object>;
 type TraversalContext = {|
   parent: ?AssetASTMap,
@@ -44,7 +46,9 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   });
 
   let outputs = new Map(await queue.run());
-  let result = [...parse(HELPERS, HELPERS_PATH)];
+  let result = [
+    ...parse(HELPERS.replace(EslintNoUnusedVarsRegExp, ''), HELPERS_PATH)
+  ];
 
   // If this is an entry bundle and it has child bundles, we need to add the prelude code, which allows
   // registering modules dynamically at runtime.
