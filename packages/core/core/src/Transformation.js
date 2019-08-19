@@ -222,8 +222,7 @@ export default class Transformation {
   ): Promise<string> {
     let assetsKeyInfo = assets.map(a => ({
       filePath: a.value.filePath,
-      hash: a.value.hash,
-      type: a.value.type
+      hash: a.value.hash
     }));
 
     let configsKeyInfo = [...configs].map(([, {resultHash, devDeps}]) => ({
@@ -488,8 +487,7 @@ async function finalize(
 ): Promise<InternalAsset> {
   if (asset.ast && generate) {
     let result = await generate(new MutableAsset(asset));
-    asset.content = result.code;
-    asset.map = result.map;
+    return asset.createChildAsset({type: asset.value.type, ...result});
   }
   return asset;
 }
