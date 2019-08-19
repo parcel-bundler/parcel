@@ -136,6 +136,15 @@ export type PackageJSON = {
 export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
 export type BuildMode = 'development' | 'production' | string;
 
+export interface CacheBackend {
+  getStream(key: string): Readable;
+  setStream(key: string, stream: Readable): Promise<string>;
+  blobExists(key: string): Promise<boolean>;
+  // $FlowFixMe
+  get(key: string): Promise<any>;
+  set(key: string, value: mixed): Promise<?string>;
+}
+
 export type InitialParcelOptions = {|
   entries?: FilePath | Array<FilePath>,
   rootDir?: FilePath,
@@ -146,6 +155,7 @@ export type InitialParcelOptions = {|
 
   disableCache?: boolean,
   cacheDir?: FilePath,
+  cache?: Array<CacheBackend>,
   killWorkers?: boolean,
   mode?: BuildMode,
   minify?: boolean,

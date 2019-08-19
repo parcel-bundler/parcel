@@ -9,7 +9,7 @@ import path from 'path';
 import TargetResolver from './TargetResolver';
 import {resolveConfig} from '@parcel/utils';
 import {NodeFS} from '@parcel/fs';
-import Cache from '@parcel/cache';
+import Cache, {FSCache} from '@parcel/cache';
 
 // Default cache directory name
 const DEFAULT_CACHE_DIRNAME = '.parcel-cache';
@@ -57,7 +57,10 @@ export default async function resolveOptions(
       ? path.resolve(outputCwd, initialOptions.cacheDir)
       : path.resolve(projectRoot, DEFAULT_CACHE_DIRNAME);
 
-  let cache = new Cache(outputFS, cacheDir);
+  let cache =
+    initialOptions.cache != null
+      ? new Cache(initialOptions.cache)
+      : new Cache([new FSCache(outputFS, cacheDir)]);
 
   let targetResolver = new TargetResolver(inputFS);
   let targets = await targetResolver.resolve(rootDir, cacheDir, initialOptions);

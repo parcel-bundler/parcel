@@ -1,102 +1,132 @@
 // @flow strict-local
 
-import type {Readable} from 'stream';
+import type {CacheBackend, FilePath} from '@parcel/types';
 
-import type {FilePath} from '@parcel/types';
-
-import type {FileSystem} from '@parcel/fs';
-import path from 'path';
-import logger from '@parcel/logger';
-import {serialize, deserialize, registerSerializableClass} from '@parcel/utils';
+import invariant from 'assert';
+import {PassThrough, Readable} from 'stream';
+import {deserialize, serialize, registerSerializableClass} from '@parcel/utils';
 // $FlowFixMe this is untyped
 import packageJson from '../package.json';
+import {FSCache} from './FSCache';
+
+export * from './FSCache';
+
+type SerializedCache = {|
+  backends: Array<Buffer>
+|};
 
 export default class Cache {
-  fs: FileSystem;
-  dir: FilePath;
+  backends: Array<CacheBackend>;
 
-  constructor(fs: FileSystem, cacheDir: FilePath) {
-    this.fs = fs;
-    this.dir = cacheDir;
+  constructor(backends: Array<CacheBackend>) {
+    this.backends = backends;
   }
 
-  _getCachePath(cacheId: string, extension: string = '.v8'): FilePath {
-    return path.join(
-      this.dir,
-      cacheId.slice(0, 2),
-      cacheId.slice(2) + extension
-    );
+  serialize(): SerializedCache {
+    return {
+      backends: this.backends.map(b => serialize(b))
+    };
+  }
+
+  static deserialize(opts: SerializedCache) {
+    return new Cache(opts.backends.map(b => deserialize(b)));
   }
 
   getStream(key: string): Readable {
-    return this.fs.createReadStream(this._getCachePath(key, '.blob'));
+    return new SerialGetStream(this.backends.map(b => () => b.getStream(key)));
+  }
+
+  // TODO: Uses of this should probably not be using the cache. Remove this.
+  _getCachePath(cacheId: string, extension: string = '.v8'): FilePath {
+    let fsCache = this.backends.find(b => b instanceof FSCache);
+    invariant(fsCache instanceof FSCache);
+    return fsCache._getCachePath(cacheId, extension);
   }
 
   async setStream(key: string, stream: Readable): Promise<string> {
-    return new Promise((resolve, reject) => {
-      stream
-        .pipe(this.fs.createWriteStream(this._getCachePath(key, '.blob')))
-        .on('error', reject)
-        .on('finish', () => resolve(key));
-    });
-  }
-
-  async blobExists(key: string): Promise<boolean> {
-    return this.fs.exists(this._getCachePath(key, '.blob'));
-  }
-
-  async getBlob(key: string, encoding?: buffer$Encoding) {
-    return this.fs.readFile(this._getCachePath(key, '.blob'), encoding);
-  }
-
-  async setBlob(key: string, contents: Buffer | string) {
-    await this.fs.writeFile(this._getCachePath(key, '.blob'), contents);
+    // Create PassThrough streams and pipe the origin stream through them to
+    // the destinations, sending data from the origin to multiple destinations.
+    // https://stackoverflow.com/questions/19553837/node-js-piping-the-same-readable-stream-into-multiple-writable-targets
+    await Promise.all(
+      this.backends.map(backend => {
+        let passThrough = new PassThrough();
+        stream.pipe(passThrough);
+        return backend.setStream(key, passThrough);
+      })
+    );
     return key;
   }
 
+  async blobExists(key: string): Promise<boolean> {
+    for (let backend of this.backends) {
+      if (await backend.blobExists(key)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   async get(key: string) {
-    try {
-      let data = await this.fs.readFile(this._getCachePath(key));
-      return deserialize(data);
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        return null;
-      } else {
-        throw err;
+    for (let backend of this.backends) {
+      let value = await backend.get(key);
+      if (value !== undefined) {
+        return value;
       }
     }
   }
 
   async set(key: string, value: mixed) {
-    try {
-      let blobPath = this._getCachePath(key);
-      let data = serialize(value);
-
-      await this.fs.writeFile(blobPath, data);
-      return key;
-    } catch (err) {
-      logger.error(`Error writing to cache: ${err.message}`);
-    }
+    await Promise.all(this.backends.map(b => b.set(key, value)));
   }
 }
 
-export async function createCacheDir(
-  fs: FileSystem,
-  dir: FilePath
-): Promise<void> {
-  // First, create the main cache directory if necessary.
-  await fs.mkdirp(dir);
+type StreamGetter = () => Readable;
+class SerialGetStream extends Readable {
+  _currentStream: Readable;
+  _currentStreamIndex: number = 0;
+  _streamGetters: Array<StreamGetter>;
 
-  // In parallel, create sub-directories for every possible hex value
-  // This speeds up large caches on many file systems since there are fewer files in a single directory.
-  let dirPromises = [];
-  for (let i = 0; i < 256; i++) {
-    dirPromises.push(
-      fs.mkdirp(path.join(dir, ('00' + i.toString(16)).slice(-2)))
-    );
+  constructor(streamGetters: Array<StreamGetter>) {
+    super();
+    if (streamGetters.length < 1) {
+      throw new TypeError('Requires at least one stream getter');
+    }
+    this._streamGetters = streamGetters;
+    this._subscribeToNextStream();
   }
 
-  await Promise.all(dirPromises);
+  _subscribeToNextStream() {
+    let currentStreamGetter = this._streamGetters[this._currentStreamIndex++];
+    if (currentStreamGetter == null) {
+      this.destroy();
+      return;
+    }
+
+    this._currentStream = currentStreamGetter();
+    this._currentStream.on('error', (error: Error) => {
+      // If the error occurs before the first byte has been read (the stream
+      // has never emitted any data), destroy it and move onto the next stream.
+      // e.g. reading a stream from cache can fs.createReadStream locally on disk,
+      //      and fall back to a remote stream.
+      // $FlowFixMe
+      if (this.bytesRead > 0) {
+        this.destroy(error);
+      } else {
+        this._subscribeToNextStream();
+      }
+    });
+    this._currentStream.on('readable', () => {
+      this.push(this._currentStream.read());
+    });
+    this._currentStream.on('end', () => {
+      this.destroy();
+    });
+  }
+
+  _read() {
+    // _read must be implemented.
+  }
 }
 
 registerSerializableClass(`${packageJson.version}:Cache`, Cache);
