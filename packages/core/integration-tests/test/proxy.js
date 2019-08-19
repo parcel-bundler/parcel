@@ -1,6 +1,5 @@
 const assert = require('assert');
 const path = require('path');
-const logger = require('@parcel/logger');
 const {
   bundler,
   getNextBuild,
