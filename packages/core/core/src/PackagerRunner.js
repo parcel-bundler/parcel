@@ -248,7 +248,11 @@ export default class PackagerRunner {
 
   async readFromCache(
     cacheKey: string
-  ): Promise<?{contents: Readable, map: ?Readable}> {
+  ): Promise<?{
+    contents: Readable,
+    map: ?Readable,
+    ...
+  }> {
     let contentKey = md5FromString(`${cacheKey}:content`);
     let mapKey = md5FromString(`${cacheKey}:map`);
 

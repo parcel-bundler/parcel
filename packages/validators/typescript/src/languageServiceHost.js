@@ -21,15 +21,18 @@ export default class LanguageServiceHost {
   fileExists: FileExistsFunc;
   readFile: ReadFileFunc;
   readDirectory: ReadDirectoryFunc;
-  files: {
-    [key: string]: {
-      version: number
-    }
-  };
+  files: {[key: string]: {version: number, ...}, ...};
   baseDir: string;
 
   constructor(
-    {fileNames, options}: {fileNames: FileNames, options: ParsedCommandLine},
+    {
+      fileNames,
+      options
+    }: {
+      fileNames: FileNames,
+      options: ParsedCommandLine,
+      ...
+    },
     ts: any,
     baseDir: string
   ) {

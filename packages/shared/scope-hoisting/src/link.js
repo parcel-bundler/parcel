@@ -34,7 +34,8 @@ export function link({
   bundle: Bundle,
   bundleGraph: BundleGraph,
   ast: AST,
-  options: PluginOptions
+  options: PluginOptions,
+  ...
 }) {
   let replacements: Map<Symbol, Symbol> = new Map();
   let imports: Map<Symbol, [Asset, Symbol]> = new Map();

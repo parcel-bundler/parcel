@@ -311,7 +311,11 @@ export default class InternalAsset {
 
   async getConfig(
     filePaths: Array<FilePath>,
-    options: ?{packageKey?: string, parse?: boolean}
+    options: ?{
+      packageKey?: string,
+      parse?: boolean,
+      ...
+    }
   ): Promise<ConfigResult | null> {
     let packageKey = options?.packageKey;
     let parse = options && options.parse;

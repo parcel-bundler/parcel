@@ -14,20 +14,23 @@ type OriginalPosition = {
   source: string,
   line: number,
   column: number,
-  name: string | null
+  name: string | null,
+  ...
 };
 
 type NullOriginalPosition = {
   source: null,
   line: null,
   column: null,
-  name: null
+  name: null,
+  ...
 };
 
-type Sources = {[key: string]: string | null};
+type Sources = {[key: string]: string | null, ...};
 type SerializedSourceMap = {
   mappings: Array<Mapping>,
-  sources: Sources
+  sources: Sources,
+  ...
 };
 
 export default class SourceMap {
@@ -322,7 +325,8 @@ export default class SourceMap {
         source: string,
         name: string | null,
         line: number,
-        column: number
+        column: number,
+        ...
       } = {
         source: mapping.source,
         name: typeof mapping.name === 'string' ? mapping.name : null,

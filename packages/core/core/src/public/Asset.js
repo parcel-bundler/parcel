@@ -99,7 +99,11 @@ class BaseAsset {
 
   getConfig(
     filePaths: Array<FilePath>,
-    options: ?{packageKey?: string, parse?: boolean}
+    options: ?{
+      packageKey?: string,
+      parse?: boolean,
+      ...
+    }
   ): Promise<ConfigResult | null> {
     return this.#asset.getConfig(filePaths, options);
   }

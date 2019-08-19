@@ -2,9 +2,7 @@
 
 import {makeDeferredWithPromise, type Deferred} from './Deferred';
 
-type PromiseQueueOpts = {
-  maxConcurrent: number
-};
+type PromiseQueueOpts = {maxConcurrent: number, ...};
 
 export default class PromiseQueue<T> {
   _deferred: ?Deferred<Array<T>>;

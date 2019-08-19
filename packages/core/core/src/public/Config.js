@@ -78,7 +78,11 @@ export default class PublicConfig implements IConfig {
   async getConfigFrom(
     searchPath: FilePath,
     filePaths: Array<FilePath>,
-    options: ?{parse?: boolean, exclude?: boolean}
+    options: ?{
+      parse?: boolean,
+      exclude?: boolean,
+      ...
+    }
   ): Promise<ConfigResult | null> {
     let parse = options && options.parse;
     let conf = await loadConfig(
@@ -102,7 +106,11 @@ export default class PublicConfig implements IConfig {
 
   async getConfig(
     filePaths: Array<FilePath>,
-    options: ?{parse?: boolean, exclude?: boolean}
+    options: ?{
+      parse?: boolean,
+      exclude?: boolean,
+      ...
+    }
   ): Promise<ConfigResult | null> {
     return this.getConfigFrom(this.searchPath, filePaths, options);
   }

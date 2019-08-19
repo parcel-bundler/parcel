@@ -49,8 +49,16 @@ export default class Parcel {
   #resolvedOptions = null; // ?ParcelOptions
   #runPackage; // (bundle: IBundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
   #watchEvents = new ValueEmitter<
-    | {+error: Error, +buildEvent?: void}
-    | {+buildEvent: BuildEvent, +error?: void}
+    | {
+        +error: Error,
+        +buildEvent?: void,
+        ...
+      }
+    | {
+        +buildEvent: BuildEvent,
+        +error?: void,
+        ...
+      }
   >();
   #watcherSubscription; // AsyncSubscription
   #watcherCount = 0; // number
@@ -236,7 +244,8 @@ export default class Parcel {
   }: {
     filePath: FilePath,
     env: EnvironmentOpts,
-    code?: string
+    code?: string,
+    ...
   }) {
     let [result] = await Promise.all([
       this.#assetGraphBuilder.runTransform({
@@ -258,7 +267,8 @@ export default class Parcel {
   }: {
     moduleSpecifier: ModuleSpecifier,
     sourcePath: FilePath,
-    env: EnvironmentOpts
+    env: EnvironmentOpts,
+    ...
   }): Promise<FilePath> {
     let resolved = await this.#assetGraphBuilder.resolverRunner.resolve(
       createDependency({
@@ -317,8 +327,10 @@ async function packageBundles({
     bundle: IBundle,
     bundleGraph: InternalBundleGraph,
     config: ParcelConfig,
-    options: ParcelOptions
-  }) => Promise<Stats>
+    options: ParcelOptions,
+    ...
+  }) => Promise<Stats>,
+  ...
 }): Promise<mixed> {
   let promises = [];
   for (let bundle of bundleGraph.getBundles()) {

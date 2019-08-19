@@ -42,6 +42,7 @@ declare module 'fast-glob' {
     sync<T: EntryItem>(
       patterns: string | Array<string>,
       options: FastGlobOptions<T>
-    ): Array<T>
+    ): Array<T>,
+    ...
   };
 }

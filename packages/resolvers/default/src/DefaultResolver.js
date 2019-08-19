@@ -68,9 +68,7 @@ function hasSideEffects(filePath: FilePath, pkg: InternalPackageJSON) {
   return true;
 }
 
-type InternalPackageJSON = PackageJSON & {
-  pkgdir: string
-};
+type InternalPackageJSON = PackageJSON & {pkgdir: string, ...};
 
 const EMPTY_SHIM = require.resolve('./_empty');
 

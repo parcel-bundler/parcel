@@ -8,7 +8,7 @@ import type {FileSystem} from '@parcel/fs';
 export default async function loadEnv(
   fs: FileSystem,
   filePath: string
-): Promise<{[string]: string}> {
+): Promise<{[string]: string, ...}> {
   const NODE_ENV = process.env.NODE_ENV ?? 'development';
 
   const dotenvFiles = [

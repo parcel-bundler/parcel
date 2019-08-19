@@ -7,14 +7,16 @@ import path from 'path';
 
 import type {Diagnostic} from 'typescript';
 
-type CodeFrameError = Error & {codeFrame?: string};
+type CodeFrameError = Error & {codeFrame?: string, ...};
 type Location = {
   line: number,
-  column: number
+  column: number,
+  ...
 };
 type CodeFrameLocation = {
   start: Location,
-  end?: Location
+  end?: Location,
+  ...
 };
 
 export default function formatDiagnostics(

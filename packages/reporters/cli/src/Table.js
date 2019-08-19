@@ -80,7 +80,7 @@ export function Cell(props: CellProps) {
   );
 }
 
-function getText(node: string | number | {props: CellProps}): string {
+function getText(node: string | number | {props: CellProps, ...}): string {
   if (typeof node === 'string' || typeof node === 'number') {
     return node.toString();
   }

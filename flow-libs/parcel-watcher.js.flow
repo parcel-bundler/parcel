@@ -37,6 +37,7 @@ declare module '@parcel/watcher' {
       dir: FilePath,
       snapshot: FilePath,
       opts: Options
-    ): Promise<FilePath>
+    ): Promise<FilePath>,
+    ...
   };
 }

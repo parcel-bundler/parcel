@@ -1,59 +1,54 @@
-// flow-typed signature: c76c624ba956befc8600f3a037a7c0a9
-// flow-typed version: 257092c42c/typescript_v3.3.x/flow_>=v0.42.x
+// flow-typed signature: a73d5be820ce9376397c9110a4a02d9e
+// flow-typed version: c6154227d1/typescript_v3.3.x/flow_>=v0.104.x
 
-declare module 'typescript' {
-  declare var versionMajorMinor: '3.3'; // "3.3";
+declare module "typescript" {
+  declare var versionMajorMinor: "3.3"; // "3.3";
   declare var version: string;
-  declare type MapLike<T> = {
-    [index: string]: T
-  };
+  declare type MapLike<T> = { [index: string]: T, ... };
 
   declare class SortedReadonlyArray<T> extends $ReadOnlyArray<T> {
-    __sortedArrayBrand: any;
+    __sortedArrayBrand: any
   }
 
   declare class SortedArray<T> extends Array<T> {
-    __sortedArrayBrand: any;
+    __sortedArrayBrand: any
   }
 
   declare class ReadonlyMap<T> {
-    get(key: string): T | void;
-    has(key: string): boolean;
-    forEach(action: (value: T, key: string) => void): void;
-    +size: number;
-    keys(): Iterator<string>;
-    values(): Iterator<T>;
-    entries(): Iterator<[string, T]>;
+    get(key: string): T | void,
+    has(key: string): boolean,
+    forEach(action: (value: T, key: string) => void): void,
+    +size: number,
+    keys(): Iterator<string>,
+    values(): Iterator<T>,
+    entries(): Iterator<[string, T]>
   }
 
   declare class Map<T> extends ReadonlyMap<T> {
-    set(key: string, value: T): this;
-    delete(key: string): boolean;
-    clear(): void;
+    set(key: string, value: T): this,
+    delete(key: string): boolean,
+    clear(): void
   }
 
-  declare type Iterator<T> = {
-    next():
-      | {
-          value: T,
-          done: false
-        }
-      | {
-          value: empty,
-          done: true
-        }
-  };
+  declare type Iterator<T> = { next():
+    | {
+    value: T,
+    done: false,
+    ...
+  }
+    | {
+    value: empty,
+    done: true,
+    ...
+  }, ... };
 
-  declare type Push<T> = {
-    push(...values: T[]): void
-  };
+  declare type Push<T> = { push(...values: T[]): void, ... };
 
-  declare type Path = string & {
-    __pathBrand: any
-  };
+  declare type Path = string & { __pathBrand: any, ... };
   declare type TextRange = {
     pos: number,
-    end: number
+    end: number,
+    ...
   };
 
   declare type JsDocSyntaxKind =
@@ -160,412 +155,807 @@ declare module 'typescript' {
     | typeof SyntaxKind.LessThanToken;
 
   declare var SyntaxKind: {
-    +Unknown: 0, // 0
-    +EndOfFileToken: 1, // 1
-    +SingleLineCommentTrivia: 2, // 2
-    +MultiLineCommentTrivia: 3, // 3
-    +NewLineTrivia: 4, // 4
-    +WhitespaceTrivia: 5, // 5
-    +ShebangTrivia: 6, // 6
-    +ConflictMarkerTrivia: 7, // 7
-    +NumericLiteral: 8, // 8
-    +BigIntLiteral: 9, // 9
-    +StringLiteral: 10, // 10
-    +JsxText: 11, // 11
-    +JsxTextAllWhiteSpaces: 12, // 12
-    +RegularExpressionLiteral: 13, // 13
-    +NoSubstitutionTemplateLiteral: 14, // 14
-    +TemplateHead: 15, // 15
-    +TemplateMiddle: 16, // 16
-    +TemplateTail: 17, // 17
-    +OpenBraceToken: 18, // 18
-    +CloseBraceToken: 19, // 19
-    +OpenParenToken: 20, // 20
-    +CloseParenToken: 21, // 21
-    +OpenBracketToken: 22, // 22
-    +CloseBracketToken: 23, // 23
-    +DotToken: 24, // 24
-    +DotDotDotToken: 25, // 25
-    +SemicolonToken: 26, // 26
-    +CommaToken: 27, // 27
-    +LessThanToken: 28, // 28
-    +LessThanSlashToken: 29, // 29
-    +GreaterThanToken: 30, // 30
-    +LessThanEqualsToken: 31, // 31
-    +GreaterThanEqualsToken: 32, // 32
-    +EqualsEqualsToken: 33, // 33
-    +ExclamationEqualsToken: 34, // 34
-    +EqualsEqualsEqualsToken: 35, // 35
-    +ExclamationEqualsEqualsToken: 36, // 36
-    +EqualsGreaterThanToken: 37, // 37
-    +PlusToken: 38, // 38
-    +MinusToken: 39, // 39
-    +AsteriskToken: 40, // 40
-    +AsteriskAsteriskToken: 41, // 41
-    +SlashToken: 42, // 42
-    +PercentToken: 43, // 43
-    +PlusPlusToken: 44, // 44
-    +MinusMinusToken: 45, // 45
-    +LessThanLessThanToken: 46, // 46
-    +GreaterThanGreaterThanToken: 47, // 47
-    +GreaterThanGreaterThanGreaterThanToken: 48, // 48
-    +AmpersandToken: 49, // 49
-    +BarToken: 50, // 50
-    +CaretToken: 51, // 51
-    +ExclamationToken: 52, // 52
-    +TildeToken: 53, // 53
-    +AmpersandAmpersandToken: 54, // 54
-    +BarBarToken: 55, // 55
-    +QuestionToken: 56, // 56
-    +ColonToken: 57, // 57
-    +AtToken: 58, // 58
-    +EqualsToken: 59, // 59
-    +PlusEqualsToken: 60, // 60
-    +MinusEqualsToken: 61, // 61
-    +AsteriskEqualsToken: 62, // 62
-    +AsteriskAsteriskEqualsToken: 63, // 63
-    +SlashEqualsToken: 64, // 64
-    +PercentEqualsToken: 65, // 65
-    +LessThanLessThanEqualsToken: 66, // 66
-    +GreaterThanGreaterThanEqualsToken: 67, // 67
-    +GreaterThanGreaterThanGreaterThanEqualsToken: 68, // 68
-    +AmpersandEqualsToken: 69, // 69
-    +BarEqualsToken: 70, // 70
-    +CaretEqualsToken: 71, // 71
-    +Identifier: 72, // 72
-    +BreakKeyword: 73, // 73
-    +CaseKeyword: 74, // 74
-    +CatchKeyword: 75, // 75
-    +ClassKeyword: 76, // 76
-    +ConstKeyword: 77, // 77
-    +ContinueKeyword: 78, // 78
-    +DebuggerKeyword: 79, // 79
-    +DefaultKeyword: 80, // 80
-    +DeleteKeyword: 81, // 81
-    +DoKeyword: 82, // 82
-    +ElseKeyword: 83, // 83
-    +EnumKeyword: 84, // 84
-    +ExportKeyword: 85, // 85
-    +ExtendsKeyword: 86, // 86
-    +FalseKeyword: 87, // 87
-    +FinallyKeyword: 88, // 88
-    +ForKeyword: 89, // 89
-    +FunctionKeyword: 90, // 90
-    +IfKeyword: 91, // 91
-    +ImportKeyword: 92, // 92
-    +InKeyword: 93, // 93
-    +InstanceOfKeyword: 94, // 94
-    +NewKeyword: 95, // 95
-    +NullKeyword: 96, // 96
-    +ReturnKeyword: 97, // 97
-    +SuperKeyword: 98, // 98
-    +SwitchKeyword: 99, // 99
-    +ThisKeyword: 100, // 100
-    +ThrowKeyword: 101, // 101
-    +TrueKeyword: 102, // 102
-    +TryKeyword: 103, // 103
-    +TypeOfKeyword: 104, // 104
-    +VarKeyword: 105, // 105
-    +VoidKeyword: 106, // 106
-    +WhileKeyword: 107, // 107
-    +WithKeyword: 108, // 108
-    +ImplementsKeyword: 109, // 109
-    +InterfaceKeyword: 110, // 110
-    +LetKeyword: 111, // 111
-    +PackageKeyword: 112, // 112
-    +PrivateKeyword: 113, // 113
-    +ProtectedKeyword: 114, // 114
-    +PublicKeyword: 115, // 115
-    +StaticKeyword: 116, // 116
-    +YieldKeyword: 117, // 117
-    +AbstractKeyword: 118, // 118
-    +AsKeyword: 119, // 119
-    +AnyKeyword: 120, // 120
-    +AsyncKeyword: 121, // 121
-    +AwaitKeyword: 122, // 122
-    +BooleanKeyword: 123, // 123
-    +ConstructorKeyword: 124, // 124
-    +DeclareKeyword: 125, // 125
-    +GetKeyword: 126, // 126
-    +InferKeyword: 127, // 127
-    +IsKeyword: 128, // 128
-    +KeyOfKeyword: 129, // 129
-    +ModuleKeyword: 130, // 130
-    +NamespaceKeyword: 131, // 131
-    +NeverKeyword: 132, // 132
-    +ReadonlyKeyword: 133, // 133
-    +RequireKeyword: 134, // 134
-    +NumberKeyword: 135, // 135
-    +ObjectKeyword: 136, // 136
-    +SetKeyword: 137, // 137
-    +StringKeyword: 138, // 138
-    +SymbolKeyword: 139, // 139
-    +TypeKeyword: 140, // 140
-    +UndefinedKeyword: 141, // 141
-    +UniqueKeyword: 142, // 142
-    +UnknownKeyword: 143, // 143
-    +FromKeyword: 144, // 144
-    +GlobalKeyword: 145, // 145
-    +BigIntKeyword: 146, // 146
-    +OfKeyword: 147, // 147
-    +QualifiedName: 148, // 148
-    +ComputedPropertyName: 149, // 149
-    +TypeParameter: 150, // 150
-    +Parameter: 151, // 151
-    +Decorator: 152, // 152
-    +PropertySignature: 153, // 153
-    +PropertyDeclaration: 154, // 154
-    +MethodSignature: 155, // 155
-    +MethodDeclaration: 156, // 156
-    +Constructor: 157, // 157
-    +GetAccessor: 158, // 158
-    +SetAccessor: 159, // 159
-    +CallSignature: 160, // 160
-    +ConstructSignature: 161, // 161
-    +IndexSignature: 162, // 162
-    +TypePredicate: 163, // 163
-    +TypeReference: 164, // 164
-    +FunctionType: 165, // 165
-    +ConstructorType: 166, // 166
-    +TypeQuery: 167, // 167
-    +TypeLiteral: 168, // 168
-    +ArrayType: 169, // 169
-    +TupleType: 170, // 170
-    +OptionalType: 171, // 171
-    +RestType: 172, // 172
-    +UnionType: 173, // 173
-    +IntersectionType: 174, // 174
-    +ConditionalType: 175, // 175
-    +InferType: 176, // 176
-    +ParenthesizedType: 177, // 177
-    +ThisType: 178, // 178
-    +TypeOperator: 179, // 179
-    +IndexedAccessType: 180, // 180
-    +MappedType: 181, // 181
-    +LiteralType: 182, // 182
-    +ImportType: 183, // 183
-    +ObjectBindingPattern: 184, // 184
-    +ArrayBindingPattern: 185, // 185
-    +BindingElement: 186, // 186
-    +ArrayLiteralExpression: 187, // 187
-    +ObjectLiteralExpression: 188, // 188
-    +PropertyAccessExpression: 189, // 189
-    +ElementAccessExpression: 190, // 190
-    +CallExpression: 191, // 191
-    +NewExpression: 192, // 192
-    +TaggedTemplateExpression: 193, // 193
-    +TypeAssertionExpression: 194, // 194
-    +ParenthesizedExpression: 195, // 195
-    +FunctionExpression: 196, // 196
-    +ArrowFunction: 197, // 197
-    +DeleteExpression: 198, // 198
-    +TypeOfExpression: 199, // 199
-    +VoidExpression: 200, // 200
-    +AwaitExpression: 201, // 201
-    +PrefixUnaryExpression: 202, // 202
-    +PostfixUnaryExpression: 203, // 203
-    +BinaryExpression: 204, // 204
-    +ConditionalExpression: 205, // 205
-    +TemplateExpression: 206, // 206
-    +YieldExpression: 207, // 207
-    +SpreadElement: 208, // 208
-    +ClassExpression: 209, // 209
-    +OmittedExpression: 210, // 210
-    +ExpressionWithTypeArguments: 211, // 211
-    +AsExpression: 212, // 212
-    +NonNullExpression: 213, // 213
-    +MetaProperty: 214, // 214
-    +SyntheticExpression: 215, // 215
-    +TemplateSpan: 216, // 216
-    +SemicolonClassElement: 217, // 217
-    +Block: 218, // 218
-    +VariableStatement: 219, // 219
-    +EmptyStatement: 220, // 220
-    +ExpressionStatement: 221, // 221
-    +IfStatement: 222, // 222
-    +DoStatement: 223, // 223
-    +WhileStatement: 224, // 224
-    +ForStatement: 225, // 225
-    +ForInStatement: 226, // 226
-    +ForOfStatement: 227, // 227
-    +ContinueStatement: 228, // 228
-    +BreakStatement: 229, // 229
-    +ReturnStatement: 230, // 230
-    +WithStatement: 231, // 231
-    +SwitchStatement: 232, // 232
-    +LabeledStatement: 233, // 233
-    +ThrowStatement: 234, // 234
-    +TryStatement: 235, // 235
-    +DebuggerStatement: 236, // 236
-    +VariableDeclaration: 237, // 237
-    +VariableDeclarationList: 238, // 238
-    +FunctionDeclaration: 239, // 239
-    +ClassDeclaration: 240, // 240
-    +InterfaceDeclaration: 241, // 241
-    +TypeAliasDeclaration: 242, // 242
-    +EnumDeclaration: 243, // 243
-    +ModuleDeclaration: 244, // 244
-    +ModuleBlock: 245, // 245
-    +CaseBlock: 246, // 246
-    +NamespaceExportDeclaration: 247, // 247
-    +ImportEqualsDeclaration: 248, // 248
-    +ImportDeclaration: 249, // 249
-    +ImportClause: 250, // 250
-    +NamespaceImport: 251, // 251
-    +NamedImports: 252, // 252
-    +ImportSpecifier: 253, // 253
-    +ExportAssignment: 254, // 254
-    +ExportDeclaration: 255, // 255
-    +NamedExports: 256, // 256
-    +ExportSpecifier: 257, // 257
-    +MissingDeclaration: 258, // 258
-    +ExternalModuleReference: 259, // 259
-    +JsxElement: 260, // 260
-    +JsxSelfClosingElement: 261, // 261
-    +JsxOpeningElement: 262, // 262
-    +JsxClosingElement: 263, // 263
-    +JsxFragment: 264, // 264
-    +JsxOpeningFragment: 265, // 265
-    +JsxClosingFragment: 266, // 266
-    +JsxAttribute: 267, // 267
-    +JsxAttributes: 268, // 268
-    +JsxSpreadAttribute: 269, // 269
-    +JsxExpression: 270, // 270
-    +CaseClause: 271, // 271
-    +DefaultClause: 272, // 272
-    +HeritageClause: 273, // 273
-    +CatchClause: 274, // 274
-    +PropertyAssignment: 275, // 275
-    +ShorthandPropertyAssignment: 276, // 276
-    +SpreadAssignment: 277, // 277
-    +EnumMember: 278, // 278
-    +SourceFile: 279, // 279
-    +Bundle: 280, // 280
-    +UnparsedSource: 281, // 281
-    +InputFiles: 282, // 282
-    +JSDocTypeExpression: 283, // 283
-    +JSDocAllType: 284, // 284
-    +JSDocUnknownType: 285, // 285
-    +JSDocNullableType: 286, // 286
-    +JSDocNonNullableType: 287, // 287
-    +JSDocOptionalType: 288, // 288
-    +JSDocFunctionType: 289, // 289
-    +JSDocVariadicType: 290, // 290
-    +JSDocComment: 291, // 291
-    +JSDocTypeLiteral: 292, // 292
-    +JSDocSignature: 293, // 293
-    +JSDocTag: 294, // 294
-    +JSDocAugmentsTag: 295, // 295
-    +JSDocClassTag: 296, // 296
-    +JSDocCallbackTag: 297, // 297
-    +JSDocEnumTag: 298, // 298
-    +JSDocParameterTag: 299, // 299
-    +JSDocReturnTag: 300, // 300
-    +JSDocThisTag: 301, // 301
-    +JSDocTypeTag: 302, // 302
-    +JSDocTemplateTag: 303, // 303
-    +JSDocTypedefTag: 304, // 304
-    +JSDocPropertyTag: 305, // 305
-    +SyntaxList: 306, // 306
-    +NotEmittedStatement: 307, // 307
-    +PartiallyEmittedExpression: 308, // 308
-    +CommaListExpression: 309, // 309
-    +MergeDeclarationMarker: 310, // 310
-    +EndOfDeclarationMarker: 311, // 311
-    +Count: 312, // 312
-    +FirstAssignment: 59, // 59
-    +LastAssignment: 71, // 71
-    +FirstCompoundAssignment: 60, // 60
-    +LastCompoundAssignment: 71, // 71
-    +FirstReservedWord: 73, // 73
-    +LastReservedWord: 108, // 108
-    +FirstKeyword: 73, // 73
-    +LastKeyword: 147, // 147
-    +FirstFutureReservedWord: 109, // 109
-    +LastFutureReservedWord: 117, // 117
-    +FirstTypeNode: 163, // 163
-    +LastTypeNode: 183, // 183
-    +FirstPunctuation: 18, // 18
-    +LastPunctuation: 71, // 71
-    +FirstToken: 0, // 0
-    +LastToken: 147, // 147
-    +FirstTriviaToken: 2, // 2
-    +LastTriviaToken: 7, // 7
-    +FirstLiteralToken: 8, // 8
-    +LastLiteralToken: 14, // 14
-    +FirstTemplateToken: 14, // 14
-    +LastTemplateToken: 17, // 17
-    +FirstBinaryOperator: 28, // 28
-    +LastBinaryOperator: 71, // 71
-    +FirstNode: 148, // 148
-    +FirstJSDocNode: 283, // 283
-    +LastJSDocNode: 305, // 305
-    +FirstJSDocTagNode: 294, // 294
-    +LastJSDocTagNode: 305 // 305
+    // 0
+    +Unknown: 0,
+    // 1
+    +EndOfFileToken: 1,
+    // 2
+    +SingleLineCommentTrivia: 2,
+    // 3
+    +MultiLineCommentTrivia: 3,
+    // 4
+    +NewLineTrivia: 4,
+    // 5
+    +WhitespaceTrivia: 5,
+    // 6
+    +ShebangTrivia: 6,
+    // 7
+    +ConflictMarkerTrivia: 7,
+    // 8
+    +NumericLiteral: 8,
+    // 9
+    +BigIntLiteral: 9,
+    // 10
+    +StringLiteral: 10,
+    // 11
+    +JsxText: 11,
+    // 12
+    +JsxTextAllWhiteSpaces: 12,
+    // 13
+    +RegularExpressionLiteral: 13,
+    // 14
+    +NoSubstitutionTemplateLiteral: 14,
+    // 15
+    +TemplateHead: 15,
+    // 16
+    +TemplateMiddle: 16,
+    // 17
+    +TemplateTail: 17,
+    // 18
+    +OpenBraceToken: 18,
+    // 19
+    +CloseBraceToken: 19,
+    // 20
+    +OpenParenToken: 20,
+    // 21
+    +CloseParenToken: 21,
+    // 22
+    +OpenBracketToken: 22,
+    // 23
+    +CloseBracketToken: 23,
+    // 24
+    +DotToken: 24,
+    // 25
+    +DotDotDotToken: 25,
+    // 26
+    +SemicolonToken: 26,
+    // 27
+    +CommaToken: 27,
+    // 28
+    +LessThanToken: 28,
+    // 29
+    +LessThanSlashToken: 29,
+    // 30
+    +GreaterThanToken: 30,
+    // 31
+    +LessThanEqualsToken: 31,
+    // 32
+    +GreaterThanEqualsToken: 32,
+    // 33
+    +EqualsEqualsToken: 33,
+    // 34
+    +ExclamationEqualsToken: 34,
+    // 35
+    +EqualsEqualsEqualsToken: 35,
+    // 36
+    +ExclamationEqualsEqualsToken: 36,
+    // 37
+    +EqualsGreaterThanToken: 37,
+    // 38
+    +PlusToken: 38,
+    // 39
+    +MinusToken: 39,
+    // 40
+    +AsteriskToken: 40,
+    // 41
+    +AsteriskAsteriskToken: 41,
+    // 42
+    +SlashToken: 42,
+    // 43
+    +PercentToken: 43,
+    // 44
+    +PlusPlusToken: 44,
+    // 45
+    +MinusMinusToken: 45,
+    // 46
+    +LessThanLessThanToken: 46,
+    // 47
+    +GreaterThanGreaterThanToken: 47,
+    // 48
+    +GreaterThanGreaterThanGreaterThanToken: 48,
+    // 49
+    +AmpersandToken: 49,
+    // 50
+    +BarToken: 50,
+    // 51
+    +CaretToken: 51,
+    // 52
+    +ExclamationToken: 52,
+    // 53
+    +TildeToken: 53,
+    // 54
+    +AmpersandAmpersandToken: 54,
+    // 55
+    +BarBarToken: 55,
+    // 56
+    +QuestionToken: 56,
+    // 57
+    +ColonToken: 57,
+    // 58
+    +AtToken: 58,
+    // 59
+    +EqualsToken: 59,
+    // 60
+    +PlusEqualsToken: 60,
+    // 61
+    +MinusEqualsToken: 61,
+    // 62
+    +AsteriskEqualsToken: 62,
+    // 63
+    +AsteriskAsteriskEqualsToken: 63,
+    // 64
+    +SlashEqualsToken: 64,
+    // 65
+    +PercentEqualsToken: 65,
+    // 66
+    +LessThanLessThanEqualsToken: 66,
+    // 67
+    +GreaterThanGreaterThanEqualsToken: 67,
+    // 68
+    +GreaterThanGreaterThanGreaterThanEqualsToken: 68,
+    // 69
+    +AmpersandEqualsToken: 69,
+    // 70
+    +BarEqualsToken: 70,
+    // 71
+    +CaretEqualsToken: 71,
+    // 72
+    +Identifier: 72,
+    // 73
+    +BreakKeyword: 73,
+    // 74
+    +CaseKeyword: 74,
+    // 75
+    +CatchKeyword: 75,
+    // 76
+    +ClassKeyword: 76,
+    // 77
+    +ConstKeyword: 77,
+    // 78
+    +ContinueKeyword: 78,
+    // 79
+    +DebuggerKeyword: 79,
+    // 80
+    +DefaultKeyword: 80,
+    // 81
+    +DeleteKeyword: 81,
+    // 82
+    +DoKeyword: 82,
+    // 83
+    +ElseKeyword: 83,
+    // 84
+    +EnumKeyword: 84,
+    // 85
+    +ExportKeyword: 85,
+    // 86
+    +ExtendsKeyword: 86,
+    // 87
+    +FalseKeyword: 87,
+    // 88
+    +FinallyKeyword: 88,
+    // 89
+    +ForKeyword: 89,
+    // 90
+    +FunctionKeyword: 90,
+    // 91
+    +IfKeyword: 91,
+    // 92
+    +ImportKeyword: 92,
+    // 93
+    +InKeyword: 93,
+    // 94
+    +InstanceOfKeyword: 94,
+    // 95
+    +NewKeyword: 95,
+    // 96
+    +NullKeyword: 96,
+    // 97
+    +ReturnKeyword: 97,
+    // 98
+    +SuperKeyword: 98,
+    // 99
+    +SwitchKeyword: 99,
+    // 100
+    +ThisKeyword: 100,
+    // 101
+    +ThrowKeyword: 101,
+    // 102
+    +TrueKeyword: 102,
+    // 103
+    +TryKeyword: 103,
+    // 104
+    +TypeOfKeyword: 104,
+    // 105
+    +VarKeyword: 105,
+    // 106
+    +VoidKeyword: 106,
+    // 107
+    +WhileKeyword: 107,
+    // 108
+    +WithKeyword: 108,
+    // 109
+    +ImplementsKeyword: 109,
+    // 110
+    +InterfaceKeyword: 110,
+    // 111
+    +LetKeyword: 111,
+    // 112
+    +PackageKeyword: 112,
+    // 113
+    +PrivateKeyword: 113,
+    // 114
+    +ProtectedKeyword: 114,
+    // 115
+    +PublicKeyword: 115,
+    // 116
+    +StaticKeyword: 116,
+    // 117
+    +YieldKeyword: 117,
+    // 118
+    +AbstractKeyword: 118,
+    // 119
+    +AsKeyword: 119,
+    // 120
+    +AnyKeyword: 120,
+    // 121
+    +AsyncKeyword: 121,
+    // 122
+    +AwaitKeyword: 122,
+    // 123
+    +BooleanKeyword: 123,
+    // 124
+    +ConstructorKeyword: 124,
+    // 125
+    +DeclareKeyword: 125,
+    // 126
+    +GetKeyword: 126,
+    // 127
+    +InferKeyword: 127,
+    // 128
+    +IsKeyword: 128,
+    // 129
+    +KeyOfKeyword: 129,
+    // 130
+    +ModuleKeyword: 130,
+    // 131
+    +NamespaceKeyword: 131,
+    // 132
+    +NeverKeyword: 132,
+    // 133
+    +ReadonlyKeyword: 133,
+    // 134
+    +RequireKeyword: 134,
+    // 135
+    +NumberKeyword: 135,
+    // 136
+    +ObjectKeyword: 136,
+    // 137
+    +SetKeyword: 137,
+    // 138
+    +StringKeyword: 138,
+    // 139
+    +SymbolKeyword: 139,
+    // 140
+    +TypeKeyword: 140,
+    // 141
+    +UndefinedKeyword: 141,
+    // 142
+    +UniqueKeyword: 142,
+    // 143
+    +UnknownKeyword: 143,
+    // 144
+    +FromKeyword: 144,
+    // 145
+    +GlobalKeyword: 145,
+    // 146
+    +BigIntKeyword: 146,
+    // 147
+    +OfKeyword: 147,
+    // 148
+    +QualifiedName: 148,
+    // 149
+    +ComputedPropertyName: 149,
+    // 150
+    +TypeParameter: 150,
+    // 151
+    +Parameter: 151,
+    // 152
+    +Decorator: 152,
+    // 153
+    +PropertySignature: 153,
+    // 154
+    +PropertyDeclaration: 154,
+    // 155
+    +MethodSignature: 155,
+    // 156
+    +MethodDeclaration: 156,
+    // 157
+    +Constructor: 157,
+    // 158
+    +GetAccessor: 158,
+    // 159
+    +SetAccessor: 159,
+    // 160
+    +CallSignature: 160,
+    // 161
+    +ConstructSignature: 161,
+    // 162
+    +IndexSignature: 162,
+    // 163
+    +TypePredicate: 163,
+    // 164
+    +TypeReference: 164,
+    // 165
+    +FunctionType: 165,
+    // 166
+    +ConstructorType: 166,
+    // 167
+    +TypeQuery: 167,
+    // 168
+    +TypeLiteral: 168,
+    // 169
+    +ArrayType: 169,
+    // 170
+    +TupleType: 170,
+    // 171
+    +OptionalType: 171,
+    // 172
+    +RestType: 172,
+    // 173
+    +UnionType: 173,
+    // 174
+    +IntersectionType: 174,
+    // 175
+    +ConditionalType: 175,
+    // 176
+    +InferType: 176,
+    // 177
+    +ParenthesizedType: 177,
+    // 178
+    +ThisType: 178,
+    // 179
+    +TypeOperator: 179,
+    // 180
+    +IndexedAccessType: 180,
+    // 181
+    +MappedType: 181,
+    // 182
+    +LiteralType: 182,
+    // 183
+    +ImportType: 183,
+    // 184
+    +ObjectBindingPattern: 184,
+    // 185
+    +ArrayBindingPattern: 185,
+    // 186
+    +BindingElement: 186,
+    // 187
+    +ArrayLiteralExpression: 187,
+    // 188
+    +ObjectLiteralExpression: 188,
+    // 189
+    +PropertyAccessExpression: 189,
+    // 190
+    +ElementAccessExpression: 190,
+    // 191
+    +CallExpression: 191,
+    // 192
+    +NewExpression: 192,
+    // 193
+    +TaggedTemplateExpression: 193,
+    // 194
+    +TypeAssertionExpression: 194,
+    // 195
+    +ParenthesizedExpression: 195,
+    // 196
+    +FunctionExpression: 196,
+    // 197
+    +ArrowFunction: 197,
+    // 198
+    +DeleteExpression: 198,
+    // 199
+    +TypeOfExpression: 199,
+    // 200
+    +VoidExpression: 200,
+    // 201
+    +AwaitExpression: 201,
+    // 202
+    +PrefixUnaryExpression: 202,
+    // 203
+    +PostfixUnaryExpression: 203,
+    // 204
+    +BinaryExpression: 204,
+    // 205
+    +ConditionalExpression: 205,
+    // 206
+    +TemplateExpression: 206,
+    // 207
+    +YieldExpression: 207,
+    // 208
+    +SpreadElement: 208,
+    // 209
+    +ClassExpression: 209,
+    // 210
+    +OmittedExpression: 210,
+    // 211
+    +ExpressionWithTypeArguments: 211,
+    // 212
+    +AsExpression: 212,
+    // 213
+    +NonNullExpression: 213,
+    // 214
+    +MetaProperty: 214,
+    // 215
+    +SyntheticExpression: 215,
+    // 216
+    +TemplateSpan: 216,
+    // 217
+    +SemicolonClassElement: 217,
+    // 218
+    +Block: 218,
+    // 219
+    +VariableStatement: 219,
+    // 220
+    +EmptyStatement: 220,
+    // 221
+    +ExpressionStatement: 221,
+    // 222
+    +IfStatement: 222,
+    // 223
+    +DoStatement: 223,
+    // 224
+    +WhileStatement: 224,
+    // 225
+    +ForStatement: 225,
+    // 226
+    +ForInStatement: 226,
+    // 227
+    +ForOfStatement: 227,
+    // 228
+    +ContinueStatement: 228,
+    // 229
+    +BreakStatement: 229,
+    // 230
+    +ReturnStatement: 230,
+    // 231
+    +WithStatement: 231,
+    // 232
+    +SwitchStatement: 232,
+    // 233
+    +LabeledStatement: 233,
+    // 234
+    +ThrowStatement: 234,
+    // 235
+    +TryStatement: 235,
+    // 236
+    +DebuggerStatement: 236,
+    // 237
+    +VariableDeclaration: 237,
+    // 238
+    +VariableDeclarationList: 238,
+    // 239
+    +FunctionDeclaration: 239,
+    // 240
+    +ClassDeclaration: 240,
+    // 241
+    +InterfaceDeclaration: 241,
+    // 242
+    +TypeAliasDeclaration: 242,
+    // 243
+    +EnumDeclaration: 243,
+    // 244
+    +ModuleDeclaration: 244,
+    // 245
+    +ModuleBlock: 245,
+    // 246
+    +CaseBlock: 246,
+    // 247
+    +NamespaceExportDeclaration: 247,
+    // 248
+    +ImportEqualsDeclaration: 248,
+    // 249
+    +ImportDeclaration: 249,
+    // 250
+    +ImportClause: 250,
+    // 251
+    +NamespaceImport: 251,
+    // 252
+    +NamedImports: 252,
+    // 253
+    +ImportSpecifier: 253,
+    // 254
+    +ExportAssignment: 254,
+    // 255
+    +ExportDeclaration: 255,
+    // 256
+    +NamedExports: 256,
+    // 257
+    +ExportSpecifier: 257,
+    // 258
+    +MissingDeclaration: 258,
+    // 259
+    +ExternalModuleReference: 259,
+    // 260
+    +JsxElement: 260,
+    // 261
+    +JsxSelfClosingElement: 261,
+    // 262
+    +JsxOpeningElement: 262,
+    // 263
+    +JsxClosingElement: 263,
+    // 264
+    +JsxFragment: 264,
+    // 265
+    +JsxOpeningFragment: 265,
+    // 266
+    +JsxClosingFragment: 266,
+    // 267
+    +JsxAttribute: 267,
+    // 268
+    +JsxAttributes: 268,
+    // 269
+    +JsxSpreadAttribute: 269,
+    // 270
+    +JsxExpression: 270,
+    // 271
+    +CaseClause: 271,
+    // 272
+    +DefaultClause: 272,
+    // 273
+    +HeritageClause: 273,
+    // 274
+    +CatchClause: 274,
+    // 275
+    +PropertyAssignment: 275,
+    // 276
+    +ShorthandPropertyAssignment: 276,
+    // 277
+    +SpreadAssignment: 277,
+    // 278
+    +EnumMember: 278,
+    // 279
+    +SourceFile: 279,
+    // 280
+    +Bundle: 280,
+    // 281
+    +UnparsedSource: 281,
+    // 282
+    +InputFiles: 282,
+    // 283
+    +JSDocTypeExpression: 283,
+    // 284
+    +JSDocAllType: 284,
+    // 285
+    +JSDocUnknownType: 285,
+    // 286
+    +JSDocNullableType: 286,
+    // 287
+    +JSDocNonNullableType: 287,
+    // 288
+    +JSDocOptionalType: 288,
+    // 289
+    +JSDocFunctionType: 289,
+    // 290
+    +JSDocVariadicType: 290,
+    // 291
+    +JSDocComment: 291,
+    // 292
+    +JSDocTypeLiteral: 292,
+    // 293
+    +JSDocSignature: 293,
+    // 294
+    +JSDocTag: 294,
+    // 295
+    +JSDocAugmentsTag: 295,
+    // 296
+    +JSDocClassTag: 296,
+    // 297
+    +JSDocCallbackTag: 297,
+    // 298
+    +JSDocEnumTag: 298,
+    // 299
+    +JSDocParameterTag: 299,
+    // 300
+    +JSDocReturnTag: 300,
+    // 301
+    +JSDocThisTag: 301,
+    // 302
+    +JSDocTypeTag: 302,
+    // 303
+    +JSDocTemplateTag: 303,
+    // 304
+    +JSDocTypedefTag: 304,
+    // 305
+    +JSDocPropertyTag: 305,
+    // 306
+    +SyntaxList: 306,
+    // 307
+    +NotEmittedStatement: 307,
+    // 308
+    +PartiallyEmittedExpression: 308,
+    // 309
+    +CommaListExpression: 309,
+    // 310
+    +MergeDeclarationMarker: 310,
+    // 311
+    +EndOfDeclarationMarker: 311,
+    // 312
+    +Count: 312,
+    // 59
+    +FirstAssignment: 59,
+    // 71
+    +LastAssignment: 71,
+    // 60
+    +FirstCompoundAssignment: 60,
+    // 71
+    +LastCompoundAssignment: 71,
+    // 73
+    +FirstReservedWord: 73,
+    // 108
+    +LastReservedWord: 108,
+    // 73
+    +FirstKeyword: 73,
+    // 147
+    +LastKeyword: 147,
+    // 109
+    +FirstFutureReservedWord: 109,
+    // 117
+    +LastFutureReservedWord: 117,
+    // 163
+    +FirstTypeNode: 163,
+    // 183
+    +LastTypeNode: 183,
+    // 18
+    +FirstPunctuation: 18,
+    // 71
+    +LastPunctuation: 71,
+    // 0
+    +FirstToken: 0,
+    // 147
+    +LastToken: 147,
+    // 2
+    +FirstTriviaToken: 2,
+    // 7
+    +LastTriviaToken: 7,
+    // 8
+    +FirstLiteralToken: 8,
+    // 14
+    +LastLiteralToken: 14,
+    // 14
+    +FirstTemplateToken: 14,
+    // 17
+    +LastTemplateToken: 17,
+    // 28
+    +FirstBinaryOperator: 28,
+    // 71
+    +LastBinaryOperator: 71,
+    // 148
+    +FirstNode: 148,
+    // 283
+    +FirstJSDocNode: 283,
+    // 305
+    +LastJSDocNode: 305,
+    // 294
+    +FirstJSDocTagNode: 294,
+    // 305
+    +LastJSDocTagNode: 305,
+    ...
   };
 
   declare var NodeFlags: {
-    +None: 0, // 0
-    +Let: 1, // 1
-    +Const: 2, // 2
-    +NestedNamespace: 4, // 4
-    +Synthesized: 8, // 8
-    +Namespace: 16, // 16
-    +ExportContext: 32, // 32
-    +ContainsThis: 64, // 64
-    +HasImplicitReturn: 128, // 128
-    +HasExplicitReturn: 256, // 256
-    +GlobalAugmentation: 512, // 512
-    +HasAsyncFunctions: 1024, // 1024
-    +DisallowInContext: 2048, // 2048
-    +YieldContext: 4096, // 4096
-    +DecoratorContext: 8192, // 8192
-    +AwaitContext: 16384, // 16384
-    +ThisNodeHasError: 32768, // 32768
-    +JavaScriptFile: 65536, // 65536
-    +ThisNodeOrAnySubNodesHasError: 131072, // 131072
-    +HasAggregatedChildData: 262144, // 262144
-    +JSDoc: 2097152, // 2097152
-    +JsonFile: 16777216, // 16777216
-    +BlockScoped: 3, // 3
-    +ReachabilityCheckFlags: 384, // 384
-    +ReachabilityAndEmitFlags: 1408, // 1408
-    +ContextFlags: 12679168, // 12679168
-    +TypeExcludesFlags: 20480 // 20480
+    // 0
+    +None: 0,
+    // 1
+    +Let: 1,
+    // 2
+    +Const: 2,
+    // 4
+    +NestedNamespace: 4,
+    // 8
+    +Synthesized: 8,
+    // 16
+    +Namespace: 16,
+    // 32
+    +ExportContext: 32,
+    // 64
+    +ContainsThis: 64,
+    // 128
+    +HasImplicitReturn: 128,
+    // 256
+    +HasExplicitReturn: 256,
+    // 512
+    +GlobalAugmentation: 512,
+    // 1024
+    +HasAsyncFunctions: 1024,
+    // 2048
+    +DisallowInContext: 2048,
+    // 4096
+    +YieldContext: 4096,
+    // 8192
+    +DecoratorContext: 8192,
+    // 16384
+    +AwaitContext: 16384,
+    // 32768
+    +ThisNodeHasError: 32768,
+    // 65536
+    +JavaScriptFile: 65536,
+    // 131072
+    +ThisNodeOrAnySubNodesHasError: 131072,
+    // 262144
+    +HasAggregatedChildData: 262144,
+    // 2097152
+    +JSDoc: 2097152,
+    // 16777216
+    +JsonFile: 16777216,
+    // 3
+    +BlockScoped: 3,
+    // 384
+    +ReachabilityCheckFlags: 384,
+    // 1408
+    +ReachabilityAndEmitFlags: 1408,
+    // 12679168
+    +ContextFlags: 12679168,
+    // 20480
+    +TypeExcludesFlags: 20480,
+    ...
   };
 
   declare var ModifierFlags: {
-    +None: 0, // 0
-    +Export: 1, // 1
-    +Ambient: 2, // 2
-    +Public: 4, // 4
-    +Private: 8, // 8
-    +Protected: 16, // 16
-    +Static: 32, // 32
-    +Readonly: 64, // 64
-    +Abstract: 128, // 128
-    +Async: 256, // 256
-    +Default: 512, // 512
-    +Const: 2048, // 2048
-    +HasComputedFlags: 536870912, // 536870912
-    +AccessibilityModifier: 28, // 28
-    +ParameterPropertyModifier: 92, // 92
-    +NonPublicAccessibilityModifier: 24, // 24
-    +TypeScriptModifier: 2270, // 2270
-    +ExportDefault: 513, // 513
-    +All: 3071 // 3071
+    // 0
+    +None: 0,
+    // 1
+    +Export: 1,
+    // 2
+    +Ambient: 2,
+    // 4
+    +Public: 4,
+    // 8
+    +Private: 8,
+    // 16
+    +Protected: 16,
+    // 32
+    +Static: 32,
+    // 64
+    +Readonly: 64,
+    // 128
+    +Abstract: 128,
+    // 256
+    +Async: 256,
+    // 512
+    +Default: 512,
+    // 2048
+    +Const: 2048,
+    // 536870912
+    +HasComputedFlags: 536870912,
+    // 28
+    +AccessibilityModifier: 28,
+    // 92
+    +ParameterPropertyModifier: 92,
+    // 24
+    +NonPublicAccessibilityModifier: 24,
+    // 2270
+    +TypeScriptModifier: 2270,
+    // 513
+    +ExportDefault: 513,
+    // 3071
+    +All: 3071,
+    ...
   };
 
   declare var JsxFlags: {
-    +None: 0, // 0
-    +IntrinsicNamedElement: 1, // 1
-    +IntrinsicIndexedElement: 2, // 2
-    +IntrinsicElement: 3 // 3
+    // 0
+    +None: 0,
+    // 1
+    +IntrinsicNamedElement: 1,
+    // 2
+    +IntrinsicIndexedElement: 2,
+    // 3
+    +IntrinsicElement: 3,
+    ...
   };
 
   declare type Node = {
     ...$Exact<TextRange>,
-
     kind: $Values<typeof SyntaxKind>,
     flags: $Values<typeof NodeFlags>,
     decorators?: NodeArray<Decorator>,
@@ -588,10 +978,11 @@ declare module 'typescript' {
     forEachChild<T>(
       cbNode: (node: Node) => T | void,
       cbNodeArray?: (nodes: NodeArray<Node>) => T | void
-    ): T | void
+    ): T | void,
+    ...
   };
 
-  declare type JSDocContainer = {};
+  declare type JSDocContainer = {...};
 
   declare type HasJSDoc =
     | ParameterDeclaration
@@ -659,13 +1050,14 @@ declare module 'typescript' {
     | EnumMember;
   declare type NodeArray<T: $ReadOnly<Node>> = {
     ...$Exact<TextRange>,
-    hasTrailingComma?: boolean
+    hasTrailingComma?: boolean,
+    ...
   } & $ReadOnlyArray<T>;
 
   declare type Token<TKind: $Values<typeof SyntaxKind>> = {
     ...$Exact<Node>,
-
-    kind: TKind
+    kind: TKind,
+    ...
   };
 
   declare type DotDotDotToken = Token<typeof SyntaxKind.DotDotDotToken>;
@@ -703,21 +1095,22 @@ declare module 'typescript' {
     escapedText: __String,
     originalKeywordKind?: $Values<typeof SyntaxKind>,
     isInJSDocNamespace?: boolean,
-    +text: string
+    +text: string,
+    ...
   };
 
   declare type TransientIdentifier = {
     ...$Exact<Identifier>,
-
-    resolvedSymbol: Symbol
+    resolvedSymbol: Symbol,
+    ...
   };
 
   declare type QualifiedName = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.QualifiedName,
     left: EntityName,
-    right: Identifier
+    right: Identifier,
+    ...
   };
 
   declare type EntityName = Identifier | QualifiedName;
@@ -734,59 +1127,59 @@ declare module 'typescript' {
     | BindingPattern;
   declare type Declaration = {
     ...$Exact<Node>,
-
-    _declarationBrand: any
+    _declarationBrand: any,
+    ...
   };
 
   declare type NamedDeclaration = {
     ...$Exact<Declaration>,
-
-    name?: DeclarationName
+    name?: DeclarationName,
+    ...
   };
 
   declare type DeclarationStatement = {
     ...$Exact<NamedDeclaration>,
     ...$Exact<Statement>,
-
-    name?: Identifier | StringLiteral | NumericLiteral
+    name?: Identifier | StringLiteral | NumericLiteral,
+    ...
   };
 
   declare type ComputedPropertyName = {
     ...$Exact<Node>,
-
     parent: Declaration,
     kind: typeof SyntaxKind.ComputedPropertyName,
-    expression: Expression
+    expression: Expression,
+    ...
   };
 
   declare type Decorator = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.Decorator,
     parent: NamedDeclaration,
-    expression: LeftHandSideExpression
+    expression: LeftHandSideExpression,
+    ...
   };
 
   declare type TypeParameterDeclaration = {
     ...$Exact<NamedDeclaration>,
-
     kind: typeof SyntaxKind.TypeParameter,
     parent: DeclarationWithTypeParameterChildren | InferTypeNode,
     name: Identifier,
     constraint?: TypeNode,
     default?: TypeNode,
-    expression?: Expression
+    expression?: Expression,
+    ...
   };
 
   declare type SignatureDeclarationBase = {
     ...$Exact<NamedDeclaration>,
     ...$Exact<JSDocContainer>,
-
-    kind: $ElementType<SignatureDeclaration, 'kind'>,
+    kind: $ElementType<SignatureDeclaration, "kind">,
     name?: PropertyName,
     typeParameters?: NodeArray<TypeParameterDeclaration>,
     parameters: NodeArray<ParameterDeclaration>,
-    type?: TypeNode
+    type?: TypeNode,
+    ...
   };
 
   declare type SignatureDeclaration =
@@ -806,90 +1199,90 @@ declare module 'typescript' {
   declare type CallSignatureDeclaration = {
     ...$Exact<SignatureDeclarationBase>,
     ...$Exact<TypeElement>,
-
-    kind: typeof SyntaxKind.CallSignature
+    kind: typeof SyntaxKind.CallSignature,
+    ...
   };
 
   declare type ConstructSignatureDeclaration = {
     ...$Exact<SignatureDeclarationBase>,
     ...$Exact<TypeElement>,
-
-    kind: typeof SyntaxKind.ConstructSignature
+    kind: typeof SyntaxKind.ConstructSignature,
+    ...
   };
 
   declare type BindingName = Identifier | BindingPattern;
   declare type VariableDeclaration = {
     ...$Exact<NamedDeclaration>,
-
     kind: typeof SyntaxKind.VariableDeclaration,
     parent: VariableDeclarationList | CatchClause,
     name: BindingName,
     exclamationToken?: ExclamationToken,
     type?: TypeNode,
-    initializer?: Expression
+    initializer?: Expression,
+    ...
   };
 
   declare type VariableDeclarationList = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.VariableDeclarationList,
     parent: VariableStatement | ForStatement | ForOfStatement | ForInStatement,
-    declarations: NodeArray<VariableDeclaration>
+    declarations: NodeArray<VariableDeclaration>,
+    ...
   };
 
   declare type ParameterDeclaration = {
     ...$Exact<NamedDeclaration>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.Parameter,
     parent: SignatureDeclaration,
     dotDotDotToken?: DotDotDotToken,
     name: BindingName,
     questionToken?: QuestionToken,
     type?: TypeNode,
-    initializer?: Expression
+    initializer?: Expression,
+    ...
   };
 
   declare type BindingElement = {
     ...$Exact<NamedDeclaration>,
-
     kind: typeof SyntaxKind.BindingElement,
     parent: BindingPattern,
     propertyName?: PropertyName,
     dotDotDotToken?: DotDotDotToken,
     name: BindingName,
-    initializer?: Expression
+    initializer?: Expression,
+    ...
   };
 
   declare type PropertySignature = {
     ...$Exact<TypeElement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.PropertySignature,
     name: PropertyName,
     questionToken?: QuestionToken,
     type?: TypeNode,
-    initializer?: Expression
+    initializer?: Expression,
+    ...
   };
 
   declare type PropertyDeclaration = {
     ...$Exact<ClassElement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.PropertyDeclaration,
     parent: ClassLikeDeclaration,
     name: PropertyName,
     questionToken?: QuestionToken,
     exclamationToken?: ExclamationToken,
     type?: TypeNode,
-    initializer?: Expression
+    initializer?: Expression,
+    ...
   };
 
   declare type ObjectLiteralElement = {
     ...$Exact<NamedDeclaration>,
-
     _objectLiteralBrandBrand: any,
-    name?: PropertyName
+    name?: PropertyName,
+    ...
   };
 
   declare type ObjectLiteralElementLike =
@@ -901,34 +1294,34 @@ declare module 'typescript' {
   declare type PropertyAssignment = {
     ...$Exact<ObjectLiteralElement>,
     ...$Exact<JSDocContainer>,
-
     parent: ObjectLiteralExpression,
     kind: typeof SyntaxKind.PropertyAssignment,
     name: PropertyName,
     questionToken?: QuestionToken,
-    initializer: Expression
+    initializer: Expression,
+    ...
   };
 
   declare type ShorthandPropertyAssignment = {
     ...$Exact<ObjectLiteralElement>,
     ...$Exact<JSDocContainer>,
-
     parent: ObjectLiteralExpression,
     kind: typeof SyntaxKind.ShorthandPropertyAssignment,
     name: Identifier,
     questionToken?: QuestionToken,
     exclamationToken?: ExclamationToken,
     equalsToken?: Token<typeof SyntaxKind.EqualsToken>,
-    objectAssignmentInitializer?: Expression
+    objectAssignmentInitializer?: Expression,
+    ...
   };
 
   declare type SpreadAssignment = {
     ...$Exact<ObjectLiteralElement>,
     ...$Exact<JSDocContainer>,
-
     parent: ObjectLiteralExpression,
     kind: typeof SyntaxKind.SpreadAssignment,
-    expression: Expression
+    expression: Expression,
+    ...
   };
 
   declare type VariableLikeDeclaration =
@@ -945,36 +1338,36 @@ declare module 'typescript' {
     | JSDocParameterTag;
   declare type PropertyLikeDeclaration = {
     ...$Exact<NamedDeclaration>,
-
-    name: PropertyName
+    name: PropertyName,
+    ...
   };
 
   declare type ObjectBindingPattern = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.ObjectBindingPattern,
     parent: VariableDeclaration | ParameterDeclaration | BindingElement,
-    elements: NodeArray<BindingElement>
+    elements: NodeArray<BindingElement>,
+    ...
   };
 
   declare type ArrayBindingPattern = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.ArrayBindingPattern,
     parent: VariableDeclaration | ParameterDeclaration | BindingElement,
-    elements: NodeArray<ArrayBindingElement>
+    elements: NodeArray<ArrayBindingElement>,
+    ...
   };
 
   declare type BindingPattern = ObjectBindingPattern | ArrayBindingPattern;
   declare type ArrayBindingElement = BindingElement | OmittedExpression;
   declare type FunctionLikeDeclarationBase = {
     ...$Exact<SignatureDeclarationBase>,
-
     _functionLikeDeclarationBrand: any,
     asteriskToken?: AsteriskToken,
     questionToken?: QuestionToken,
     exclamationToken?: ExclamationToken,
-    body?: Block | Expression
+    body?: Block | Expression,
+    ...
   };
 
   declare type FunctionLikeDeclaration =
@@ -989,19 +1382,19 @@ declare module 'typescript' {
   declare type FunctionDeclaration = {
     ...$Exact<FunctionLikeDeclarationBase>,
     ...$Exact<DeclarationStatement>,
-
     kind: typeof SyntaxKind.FunctionDeclaration,
     name?: Identifier,
-    body?: FunctionBody
+    body?: FunctionBody,
+    ...
   };
 
   declare type MethodSignature = {
     ...$Exact<SignatureDeclarationBase>,
     ...$Exact<TypeElement>,
-
     kind: typeof SyntaxKind.MethodSignature,
     parent: ObjectTypeDeclaration,
-    name: PropertyName
+    name: PropertyName,
+    ...
   };
 
   declare type MethodDeclaration = {
@@ -1009,28 +1402,28 @@ declare module 'typescript' {
     ...$Exact<ClassElement>,
     ...$Exact<ObjectLiteralElement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.MethodDeclaration,
     parent: ClassLikeDeclaration | ObjectLiteralExpression,
     name: PropertyName,
-    body?: FunctionBody
+    body?: FunctionBody,
+    ...
   };
 
   declare type ConstructorDeclaration = {
     ...$Exact<FunctionLikeDeclarationBase>,
     ...$Exact<ClassElement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.Constructor,
     parent: ClassLikeDeclaration,
-    body?: FunctionBody
+    body?: FunctionBody,
+    ...
   };
 
   declare type SemicolonClassElement = {
     ...$Exact<ClassElement>,
-
     kind: typeof SyntaxKind.SemicolonClassElement,
-    parent: ClassLikeDeclaration
+    parent: ClassLikeDeclaration,
+    ...
   };
 
   declare type GetAccessorDeclaration = {
@@ -1038,11 +1431,11 @@ declare module 'typescript' {
     ...$Exact<ClassElement>,
     ...$Exact<ObjectLiteralElement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.GetAccessor,
     parent: ClassLikeDeclaration | ObjectLiteralExpression,
     name: PropertyName,
-    body?: FunctionBody
+    body?: FunctionBody,
+    ...
   };
 
   declare type SetAccessorDeclaration = {
@@ -1050,11 +1443,11 @@ declare module 'typescript' {
     ...$Exact<ClassElement>,
     ...$Exact<ObjectLiteralElement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.SetAccessor,
     parent: ClassLikeDeclaration | ObjectLiteralExpression,
     name: PropertyName,
-    body?: FunctionBody
+    body?: FunctionBody,
+    ...
   };
 
   declare type AccessorDeclaration =
@@ -1064,20 +1457,19 @@ declare module 'typescript' {
     ...$Exact<SignatureDeclarationBase>,
     ...$Exact<ClassElement>,
     ...$Exact<TypeElement>,
-
     kind: typeof SyntaxKind.IndexSignature,
-    parent: ObjectTypeDeclaration
+    parent: ObjectTypeDeclaration,
+    ...
   };
 
   declare type TypeNode = {
     ...$Exact<Node>,
-
-    _typeNodeBrand: any
+    _typeNodeBrand: any,
+    ...
   };
 
   declare type KeywordTypeNode = {
     ...$Exact<TypeNode>,
-
     kind:
       | typeof SyntaxKind.AnyKeyword
       | typeof SyntaxKind.UnknownKeyword
@@ -1091,22 +1483,23 @@ declare module 'typescript' {
       | typeof SyntaxKind.VoidKeyword
       | typeof SyntaxKind.UndefinedKeyword
       | typeof SyntaxKind.NullKeyword
-      | typeof SyntaxKind.NeverKeyword
+      | typeof SyntaxKind.NeverKeyword,
+    ...
   };
 
   declare type ImportTypeNode = {
     ...$Exact<NodeWithTypeArguments>,
-
     kind: typeof SyntaxKind.ImportType,
     isTypeOf?: boolean,
     argument: TypeNode,
-    qualifier?: EntityName
+    qualifier?: EntityName,
+    ...
   };
 
   declare type ThisTypeNode = {
     ...$Exact<TypeNode>,
-
-    kind: typeof SyntaxKind.ThisType
+    kind: typeof SyntaxKind.ThisType,
+    ...
   };
 
   declare type FunctionOrConstructorTypeNode =
@@ -1115,27 +1508,27 @@ declare module 'typescript' {
   declare type FunctionOrConstructorTypeNodeBase = {
     ...$Exact<TypeNode>,
     ...$Exact<SignatureDeclarationBase>,
-
     kind: typeof SyntaxKind.FunctionType | typeof SyntaxKind.ConstructorType,
-    type: TypeNode
+    type: TypeNode,
+    ...
   };
 
   declare type FunctionTypeNode = {
     ...$Exact<FunctionOrConstructorTypeNodeBase>,
-
-    kind: typeof SyntaxKind.FunctionType
+    kind: typeof SyntaxKind.FunctionType,
+    ...
   };
 
   declare type ConstructorTypeNode = {
     ...$Exact<FunctionOrConstructorTypeNodeBase>,
-
-    kind: typeof SyntaxKind.ConstructorType
+    kind: typeof SyntaxKind.ConstructorType,
+    ...
   };
 
   declare type NodeWithTypeArguments = {
     ...$Exact<TypeNode>,
-
-    typeArguments?: NodeArray<TypeNode>
+    typeArguments?: NodeArray<TypeNode>,
+    ...
   };
 
   declare type TypeReferenceType =
@@ -1143,61 +1536,61 @@ declare module 'typescript' {
     | ExpressionWithTypeArguments;
   declare type TypeReferenceNode = {
     ...$Exact<NodeWithTypeArguments>,
-
     kind: typeof SyntaxKind.TypeReference,
-    typeName: EntityName
+    typeName: EntityName,
+    ...
   };
 
   declare type TypePredicateNode = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.TypePredicate,
     parent: SignatureDeclaration | JSDocTypeExpression,
     parameterName: Identifier | ThisTypeNode,
-    type: TypeNode
+    type: TypeNode,
+    ...
   };
 
   declare type TypeQueryNode = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.TypeQuery,
-    exprName: EntityName
+    exprName: EntityName,
+    ...
   };
 
   declare type TypeLiteralNode = {
     ...$Exact<TypeNode>,
     ...$Exact<Declaration>,
-
     kind: typeof SyntaxKind.TypeLiteral,
-    members: NodeArray<TypeElement>
+    members: NodeArray<TypeElement>,
+    ...
   };
 
   declare type ArrayTypeNode = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.ArrayType,
-    elementType: TypeNode
+    elementType: TypeNode,
+    ...
   };
 
   declare type TupleTypeNode = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.TupleType,
-    elementTypes: NodeArray<TypeNode>
+    elementTypes: NodeArray<TypeNode>,
+    ...
   };
 
   declare type OptionalTypeNode = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.OptionalType,
-    type: TypeNode
+    type: TypeNode,
+    ...
   };
 
   declare type RestTypeNode = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.RestType,
-    type: TypeNode
+    type: TypeNode,
+    ...
   };
 
   declare type UnionOrIntersectionTypeNode =
@@ -1205,80 +1598,80 @@ declare module 'typescript' {
     | IntersectionTypeNode;
   declare type UnionTypeNode = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.UnionType,
-    types: NodeArray<TypeNode>
+    types: NodeArray<TypeNode>,
+    ...
   };
 
   declare type IntersectionTypeNode = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.IntersectionType,
-    types: NodeArray<TypeNode>
+    types: NodeArray<TypeNode>,
+    ...
   };
 
   declare type ConditionalTypeNode = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.ConditionalType,
     checkType: TypeNode,
     extendsType: TypeNode,
     trueType: TypeNode,
-    falseType: TypeNode
+    falseType: TypeNode,
+    ...
   };
 
   declare type InferTypeNode = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.InferType,
-    typeParameter: TypeParameterDeclaration
+    typeParameter: TypeParameterDeclaration,
+    ...
   };
 
   declare type ParenthesizedTypeNode = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.ParenthesizedType,
-    type: TypeNode
+    type: TypeNode,
+    ...
   };
 
   declare type TypeOperatorNode = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.TypeOperator,
     operator: typeof SyntaxKind.KeyOfKeyword | typeof SyntaxKind.UniqueKeyword,
-    type: TypeNode
+    type: TypeNode,
+    ...
   };
 
   declare type IndexedAccessTypeNode = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.IndexedAccessType,
     objectType: TypeNode,
-    indexType: TypeNode
+    indexType: TypeNode,
+    ...
   };
 
   declare type MappedTypeNode = {
     ...$Exact<TypeNode>,
     ...$Exact<Declaration>,
-
     kind: typeof SyntaxKind.MappedType,
     readonlyToken?: ReadonlyToken | PlusToken | MinusToken,
     typeParameter: TypeParameterDeclaration,
     questionToken?: QuestionToken | PlusToken | MinusToken,
-    type?: TypeNode
+    type?: TypeNode,
+    ...
   };
 
   declare type LiteralTypeNode = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.LiteralType,
-    literal: BooleanLiteral | LiteralExpression | PrefixUnaryExpression
+    literal: BooleanLiteral | LiteralExpression | PrefixUnaryExpression,
+    ...
   };
 
   declare type StringLiteral = {
     ...$Exact<LiteralExpression>,
-
-    kind: typeof SyntaxKind.StringLiteral
+    kind: typeof SyntaxKind.StringLiteral,
+    ...
   };
 
   declare type StringLiteralLike =
@@ -1286,34 +1679,34 @@ declare module 'typescript' {
     | NoSubstitutionTemplateLiteral;
   declare type Expression = {
     ...$Exact<Node>,
-
-    _expressionBrand: any
+    _expressionBrand: any,
+    ...
   };
 
   declare type OmittedExpression = {
     ...$Exact<Expression>,
-
-    kind: typeof SyntaxKind.OmittedExpression
+    kind: typeof SyntaxKind.OmittedExpression,
+    ...
   };
 
   declare type PartiallyEmittedExpression = {
     ...$Exact<LeftHandSideExpression>,
-
     kind: typeof SyntaxKind.PartiallyEmittedExpression,
-    expression: Expression
+    expression: Expression,
+    ...
   };
 
   declare type UnaryExpression = {
     ...$Exact<Expression>,
-
-    _unaryExpressionBrand: any
+    _unaryExpressionBrand: any,
+    ...
   };
 
   declare type IncrementExpression = UpdateExpression;
   declare type UpdateExpression = {
     ...$Exact<UnaryExpression>,
-
-    _updateExpressionBrand: any
+    _updateExpressionBrand: any,
+    ...
   };
 
   declare type PrefixUnaryOperator =
@@ -1325,10 +1718,10 @@ declare module 'typescript' {
     | typeof SyntaxKind.ExclamationToken;
   declare type PrefixUnaryExpression = {
     ...$Exact<UpdateExpression>,
-
     kind: typeof SyntaxKind.PrefixUnaryExpression,
     operator: PrefixUnaryOperator,
-    operand: UnaryExpression
+    operand: UnaryExpression,
+    ...
   };
 
   declare type PostfixUnaryOperator =
@@ -1336,105 +1729,105 @@ declare module 'typescript' {
     | typeof SyntaxKind.MinusMinusToken;
   declare type PostfixUnaryExpression = {
     ...$Exact<UpdateExpression>,
-
     kind: typeof SyntaxKind.PostfixUnaryExpression,
     operand: LeftHandSideExpression,
-    operator: PostfixUnaryOperator
+    operator: PostfixUnaryOperator,
+    ...
   };
 
   declare type LeftHandSideExpression = {
     ...$Exact<UpdateExpression>,
-
-    _leftHandSideExpressionBrand: any
+    _leftHandSideExpressionBrand: any,
+    ...
   };
 
   declare type MemberExpression = {
     ...$Exact<LeftHandSideExpression>,
-
-    _memberExpressionBrand: any
+    _memberExpressionBrand: any,
+    ...
   };
 
   declare type PrimaryExpression = {
     ...$Exact<MemberExpression>,
-
-    _primaryExpressionBrand: any
+    _primaryExpressionBrand: any,
+    ...
   };
 
   declare type NullLiteral = {
     ...$Exact<PrimaryExpression>,
     ...$Exact<TypeNode>,
-
-    kind: typeof SyntaxKind.NullKeyword
+    kind: typeof SyntaxKind.NullKeyword,
+    ...
   };
 
   declare type BooleanLiteral = {
     ...$Exact<PrimaryExpression>,
     ...$Exact<TypeNode>,
-
-    kind: typeof SyntaxKind.TrueKeyword | typeof SyntaxKind.FalseKeyword
+    kind: typeof SyntaxKind.TrueKeyword | typeof SyntaxKind.FalseKeyword,
+    ...
   };
 
   declare type ThisExpression = {
     ...$Exact<PrimaryExpression>,
     ...$Exact<KeywordTypeNode>,
-
-    kind: typeof SyntaxKind.ThisKeyword
+    kind: typeof SyntaxKind.ThisKeyword,
+    ...
   };
 
   declare type SuperExpression = {
     ...$Exact<PrimaryExpression>,
-
-    kind: typeof SyntaxKind.SuperKeyword
+    kind: typeof SyntaxKind.SuperKeyword,
+    ...
   };
 
   declare type ImportExpression = {
     ...$Exact<PrimaryExpression>,
-
-    kind: typeof SyntaxKind.ImportKeyword
+    kind: typeof SyntaxKind.ImportKeyword,
+    ...
   };
 
   declare type DeleteExpression = {
     ...$Exact<UnaryExpression>,
-
     kind: typeof SyntaxKind.DeleteExpression,
-    expression: UnaryExpression
+    expression: UnaryExpression,
+    ...
   };
 
   declare type TypeOfExpression = {
     ...$Exact<UnaryExpression>,
-
     kind: typeof SyntaxKind.TypeOfExpression,
-    expression: UnaryExpression
+    expression: UnaryExpression,
+    ...
   };
 
   declare type VoidExpression = {
     ...$Exact<UnaryExpression>,
-
     kind: typeof SyntaxKind.VoidExpression,
-    expression: UnaryExpression
+    expression: UnaryExpression,
+    ...
   };
 
   declare type AwaitExpression = {
     ...$Exact<UnaryExpression>,
-
     kind: typeof SyntaxKind.AwaitExpression,
-    expression: UnaryExpression
+    expression: UnaryExpression,
+    ...
   };
 
   declare type YieldExpression = {
     ...$Exact<Expression>,
-
     kind: typeof SyntaxKind.YieldExpression,
     asteriskToken?: AsteriskToken,
-    expression?: Expression
+    expression?: Expression,
+    ...
   };
 
   declare type SyntheticExpression = {
     ...$Exact<Expression>,
-
     kind: typeof SyntaxKind.SyntheticExpression,
     isSpread: boolean,
-    type: Type
+    type: Type,
+    ...
   };
 
   declare type ExponentiationOperator = typeof SyntaxKind.AsteriskAsteriskToken;
@@ -1513,31 +1906,31 @@ declare module 'typescript' {
   declare type BinaryExpression = {
     ...$Exact<Expression>,
     ...$Exact<Declaration>,
-
     kind: typeof SyntaxKind.BinaryExpression,
     left: Expression,
     operatorToken: BinaryOperatorToken,
-    right: Expression
+    right: Expression,
+    ...
   };
 
   declare type AssignmentOperatorToken = Token<AssignmentOperator>;
   declare type AssignmentExpression<TOperator: AssignmentOperatorToken> = {
     ...$Exact<BinaryExpression>,
-
     left: LeftHandSideExpression,
-    operatorToken: TOperator
+    operatorToken: TOperator,
+    ...
   };
 
   declare type ObjectDestructuringAssignment = {
     ...$Exact<AssignmentExpression<EqualsToken>>,
-
-    left: ObjectLiteralExpression
+    left: ObjectLiteralExpression,
+    ...
   };
 
   declare type ArrayDestructuringAssignment = {
     ...$Exact<AssignmentExpression<EqualsToken>>,
-
-    left: ArrayLiteralExpression
+    left: ArrayLiteralExpression,
+    ...
   };
 
   declare type DestructuringAssignment =
@@ -1582,13 +1975,13 @@ declare module 'typescript' {
     | ArrayBindingOrAssignmentPattern;
   declare type ConditionalExpression = {
     ...$Exact<Expression>,
-
     kind: typeof SyntaxKind.ConditionalExpression,
     condition: Expression,
     questionToken: QuestionToken,
     whenTrue: Expression,
     colonToken: ColonToken,
-    whenFalse: Expression
+    whenFalse: Expression,
+    ...
   };
 
   declare type FunctionBody = Block;
@@ -1597,81 +1990,81 @@ declare module 'typescript' {
     ...$Exact<PrimaryExpression>,
     ...$Exact<FunctionLikeDeclarationBase>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.FunctionExpression,
     name?: Identifier,
-    body: FunctionBody
+    body: FunctionBody,
+    ...
   };
 
   declare type ArrowFunction = {
     ...$Exact<Expression>,
     ...$Exact<FunctionLikeDeclarationBase>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.ArrowFunction,
     equalsGreaterThanToken: EqualsGreaterThanToken,
     body: ConciseBody,
-    name: empty
+    name: empty,
+    ...
   };
 
   declare type LiteralLikeNode = {
     ...$Exact<Node>,
-
     text: string,
     isUnterminated?: boolean,
-    hasExtendedUnicodeEscape?: boolean
+    hasExtendedUnicodeEscape?: boolean,
+    ...
   };
 
   declare type LiteralExpression = {
     ...$Exact<LiteralLikeNode>,
     ...$Exact<PrimaryExpression>,
-
-    _literalExpressionBrand: any
+    _literalExpressionBrand: any,
+    ...
   };
 
   declare type RegularExpressionLiteral = {
     ...$Exact<LiteralExpression>,
-
-    kind: typeof SyntaxKind.RegularExpressionLiteral
+    kind: typeof SyntaxKind.RegularExpressionLiteral,
+    ...
   };
 
   declare type NoSubstitutionTemplateLiteral = {
     ...$Exact<LiteralExpression>,
-
-    kind: typeof SyntaxKind.NoSubstitutionTemplateLiteral
+    kind: typeof SyntaxKind.NoSubstitutionTemplateLiteral,
+    ...
   };
 
   declare type NumericLiteral = {
     ...$Exact<LiteralExpression>,
-
-    kind: typeof SyntaxKind.NumericLiteral
+    kind: typeof SyntaxKind.NumericLiteral,
+    ...
   };
 
   declare type BigIntLiteral = {
     ...$Exact<LiteralExpression>,
-
-    kind: typeof SyntaxKind.BigIntLiteral
+    kind: typeof SyntaxKind.BigIntLiteral,
+    ...
   };
 
   declare type TemplateHead = {
     ...$Exact<LiteralLikeNode>,
-
     kind: typeof SyntaxKind.TemplateHead,
-    parent: TemplateExpression
+    parent: TemplateExpression,
+    ...
   };
 
   declare type TemplateMiddle = {
     ...$Exact<LiteralLikeNode>,
-
     kind: typeof SyntaxKind.TemplateMiddle,
-    parent: TemplateSpan
+    parent: TemplateSpan,
+    ...
   };
 
   declare type TemplateTail = {
     ...$Exact<LiteralLikeNode>,
-
     kind: typeof SyntaxKind.TemplateTail,
-    parent: TemplateSpan
+    parent: TemplateSpan,
+    ...
   };
 
   declare type TemplateLiteral =
@@ -1679,55 +2072,55 @@ declare module 'typescript' {
     | NoSubstitutionTemplateLiteral;
   declare type TemplateExpression = {
     ...$Exact<PrimaryExpression>,
-
     kind: typeof SyntaxKind.TemplateExpression,
     head: TemplateHead,
-    templateSpans: NodeArray<TemplateSpan>
+    templateSpans: NodeArray<TemplateSpan>,
+    ...
   };
 
   declare type TemplateSpan = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.TemplateSpan,
     parent: TemplateExpression,
     expression: Expression,
-    literal: TemplateMiddle | TemplateTail
+    literal: TemplateMiddle | TemplateTail,
+    ...
   };
 
   declare type ParenthesizedExpression = {
     ...$Exact<PrimaryExpression>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.ParenthesizedExpression,
-    expression: Expression
+    expression: Expression,
+    ...
   };
 
   declare type ArrayLiteralExpression = {
     ...$Exact<PrimaryExpression>,
-
     kind: typeof SyntaxKind.ArrayLiteralExpression,
-    elements: NodeArray<Expression>
+    elements: NodeArray<Expression>,
+    ...
   };
 
   declare type SpreadElement = {
     ...$Exact<Expression>,
-
     kind: typeof SyntaxKind.SpreadElement,
     parent: ArrayLiteralExpression | CallExpression | NewExpression,
-    expression: Expression
+    expression: Expression,
+    ...
   };
 
   declare type ObjectLiteralExpressionBase<T: ObjectLiteralElement> = {
     ...$Exact<PrimaryExpression>,
     ...$Exact<Declaration>,
-
-    properties: NodeArray<T>
+    properties: NodeArray<T>,
+    ...
   };
 
   declare type ObjectLiteralExpression = {
     ...$Exact<ObjectLiteralExpressionBase<ObjectLiteralElementLike>>,
-
-    kind: typeof SyntaxKind.ObjectLiteralExpression
+    kind: typeof SyntaxKind.ObjectLiteralExpression,
+    ...
   };
 
   declare type EntityNameExpression =
@@ -1739,37 +2132,37 @@ declare module 'typescript' {
   declare type PropertyAccessExpression = {
     ...$Exact<MemberExpression>,
     ...$Exact<NamedDeclaration>,
-
     kind: typeof SyntaxKind.PropertyAccessExpression,
     expression: LeftHandSideExpression,
-    name: Identifier
+    name: Identifier,
+    ...
   };
 
   declare type SuperPropertyAccessExpression = {
     ...$Exact<PropertyAccessExpression>,
-
-    expression: SuperExpression
+    expression: SuperExpression,
+    ...
   };
 
   declare type PropertyAccessEntityNameExpression = {
     ...$Exact<PropertyAccessExpression>,
-
     _propertyAccessExpressionLikeQualifiedNameBrand?: any,
-    expression: EntityNameExpression
+    expression: EntityNameExpression,
+    ...
   };
 
   declare type ElementAccessExpression = {
     ...$Exact<MemberExpression>,
-
     kind: typeof SyntaxKind.ElementAccessExpression,
     expression: LeftHandSideExpression,
-    argumentExpression: Expression
+    argumentExpression: Expression,
+    ...
   };
 
   declare type SuperElementAccessExpression = {
     ...$Exact<ElementAccessExpression>,
-
-    expression: SuperExpression
+    expression: SuperExpression,
+    ...
   };
 
   declare type SuperProperty =
@@ -1778,50 +2171,50 @@ declare module 'typescript' {
   declare type CallExpression = {
     ...$Exact<LeftHandSideExpression>,
     ...$Exact<Declaration>,
-
     kind: typeof SyntaxKind.CallExpression,
     expression: LeftHandSideExpression,
     typeArguments?: NodeArray<TypeNode>,
-    arguments: NodeArray<Expression>
+    arguments: NodeArray<Expression>,
+    ...
   };
 
   declare type SuperCall = {
     ...$Exact<CallExpression>,
-
-    expression: SuperExpression
+    expression: SuperExpression,
+    ...
   };
 
   declare type ImportCall = {
     ...$Exact<CallExpression>,
-
-    expression: ImportExpression
+    expression: ImportExpression,
+    ...
   };
 
   declare type ExpressionWithTypeArguments = {
     ...$Exact<NodeWithTypeArguments>,
-
     kind: typeof SyntaxKind.ExpressionWithTypeArguments,
     parent: HeritageClause | JSDocAugmentsTag,
-    expression: LeftHandSideExpression
+    expression: LeftHandSideExpression,
+    ...
   };
 
   declare type NewExpression = {
     ...$Exact<PrimaryExpression>,
     ...$Exact<Declaration>,
-
     kind: typeof SyntaxKind.NewExpression,
     expression: LeftHandSideExpression,
     typeArguments?: NodeArray<TypeNode>,
-    arguments?: NodeArray<Expression>
+    arguments?: NodeArray<Expression>,
+    ...
   };
 
   declare type TaggedTemplateExpression = {
     ...$Exact<MemberExpression>,
-
     kind: typeof SyntaxKind.TaggedTemplateExpression,
     tag: LeftHandSideExpression,
     typeArguments?: NodeArray<TypeNode>,
-    template: TemplateLiteral
+    template: TemplateLiteral,
+    ...
   };
 
   declare type CallLikeExpression =
@@ -1832,45 +2225,45 @@ declare module 'typescript' {
     | JsxOpeningLikeElement;
   declare type AsExpression = {
     ...$Exact<Expression>,
-
     kind: typeof SyntaxKind.AsExpression,
     expression: Expression,
-    type: TypeNode
+    type: TypeNode,
+    ...
   };
 
   declare type TypeAssertion = {
     ...$Exact<UnaryExpression>,
-
     kind: typeof SyntaxKind.TypeAssertionExpression,
     type: TypeNode,
-    expression: UnaryExpression
+    expression: UnaryExpression,
+    ...
   };
 
   declare type AssertionExpression = TypeAssertion | AsExpression;
   declare type NonNullExpression = {
     ...$Exact<LeftHandSideExpression>,
-
     kind: typeof SyntaxKind.NonNullExpression,
-    expression: Expression
+    expression: Expression,
+    ...
   };
 
   declare type MetaProperty = {
     ...$Exact<PrimaryExpression>,
-
     kind: typeof SyntaxKind.MetaProperty,
     keywordToken:
       | typeof SyntaxKind.NewKeyword
       | typeof SyntaxKind.ImportKeyword,
-    name: Identifier
+    name: Identifier,
+    ...
   };
 
   declare type JsxElement = {
     ...$Exact<PrimaryExpression>,
-
     kind: typeof SyntaxKind.JsxElement,
     openingElement: JsxOpeningElement,
     children: NodeArray<JsxChild>,
-    closingElement: JsxClosingElement
+    closingElement: JsxClosingElement,
+    ...
   };
 
   declare type JsxOpeningLikeElement =
@@ -1883,98 +2276,98 @@ declare module 'typescript' {
     | JsxTagNamePropertyAccess;
   declare type JsxTagNamePropertyAccess = {
     ...$Exact<PropertyAccessExpression>,
-
-    expression: JsxTagNameExpression
+    expression: JsxTagNameExpression,
+    ...
   };
 
   declare type JsxAttributes = {
     ...$Exact<ObjectLiteralExpressionBase<JsxAttributeLike>>,
-
-    parent: JsxOpeningLikeElement
+    parent: JsxOpeningLikeElement,
+    ...
   };
 
   declare type JsxOpeningElement = {
     ...$Exact<Expression>,
-
     kind: typeof SyntaxKind.JsxOpeningElement,
     parent: JsxElement,
     tagName: JsxTagNameExpression,
     typeArguments?: NodeArray<TypeNode>,
-    attributes: JsxAttributes
+    attributes: JsxAttributes,
+    ...
   };
 
   declare type JsxSelfClosingElement = {
     ...$Exact<PrimaryExpression>,
-
     kind: typeof SyntaxKind.JsxSelfClosingElement,
     tagName: JsxTagNameExpression,
     typeArguments?: NodeArray<TypeNode>,
-    attributes: JsxAttributes
+    attributes: JsxAttributes,
+    ...
   };
 
   declare type JsxFragment = {
     ...$Exact<PrimaryExpression>,
-
     kind: typeof SyntaxKind.JsxFragment,
     openingFragment: JsxOpeningFragment,
     children: NodeArray<JsxChild>,
-    closingFragment: JsxClosingFragment
+    closingFragment: JsxClosingFragment,
+    ...
   };
 
   declare type JsxOpeningFragment = {
     ...$Exact<Expression>,
-
     kind: typeof SyntaxKind.JsxOpeningFragment,
-    parent: JsxFragment
+    parent: JsxFragment,
+    ...
   };
 
   declare type JsxClosingFragment = {
     ...$Exact<Expression>,
-
     kind: typeof SyntaxKind.JsxClosingFragment,
-    parent: JsxFragment
+    parent: JsxFragment,
+    ...
   };
 
   declare type JsxAttribute = {
     ...$Exact<ObjectLiteralElement>,
-
     kind: typeof SyntaxKind.JsxAttribute,
     parent: JsxAttributes,
     name: Identifier,
-    initializer?: StringLiteral | JsxExpression
+    initializer?: StringLiteral | JsxExpression,
+    ...
   };
 
   declare type JsxSpreadAttribute = {
     ...$Exact<ObjectLiteralElement>,
-
     kind: typeof SyntaxKind.JsxSpreadAttribute,
     parent: JsxAttributes,
-    expression: Expression
+    expression: Expression,
+    ...
   };
 
   declare type JsxClosingElement = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.JsxClosingElement,
     parent: JsxElement,
-    tagName: JsxTagNameExpression
+    tagName: JsxTagNameExpression,
+    ...
   };
 
   declare type JsxExpression = {
     ...$Exact<Expression>,
-
     kind: typeof SyntaxKind.JsxExpression,
     parent: JsxElement | JsxAttributeLike,
     dotDotDotToken?: Token<typeof SyntaxKind.DotDotDotToken>,
-    expression?: Expression
+    expression?: Expression,
+    ...
   };
 
   declare type JsxText = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.JsxText,
     containsOnlyWhiteSpaces: boolean,
-    parent: JsxElement
+    parent: JsxElement,
+    ...
   };
 
   declare type JsxChild =
@@ -1985,40 +2378,40 @@ declare module 'typescript' {
     | JsxFragment;
   declare type Statement = {
     ...$Exact<Node>,
-
-    _statementBrand: any
+    _statementBrand: any,
+    ...
   };
 
   declare type NotEmittedStatement = {
     ...$Exact<Statement>,
-
-    kind: typeof SyntaxKind.NotEmittedStatement
+    kind: typeof SyntaxKind.NotEmittedStatement,
+    ...
   };
 
   declare type CommaListExpression = {
     ...$Exact<Expression>,
-
     kind: typeof SyntaxKind.CommaListExpression,
-    elements: NodeArray<Expression>
+    elements: NodeArray<Expression>,
+    ...
   };
 
   declare type EmptyStatement = {
     ...$Exact<Statement>,
-
-    kind: typeof SyntaxKind.EmptyStatement
+    kind: typeof SyntaxKind.EmptyStatement,
+    ...
   };
 
   declare type DebuggerStatement = {
     ...$Exact<Statement>,
-
-    kind: typeof SyntaxKind.DebuggerStatement
+    kind: typeof SyntaxKind.DebuggerStatement,
+    ...
   };
 
   declare type MissingDeclaration = {
     ...$Exact<DeclarationStatement>,
-
     kind: typeof SyntaxKind.MissingDeclaration,
-    name?: Identifier
+    name?: Identifier,
+    ...
   };
 
   declare type BlockLike =
@@ -2028,181 +2421,181 @@ declare module 'typescript' {
     | CaseOrDefaultClause;
   declare type Block = {
     ...$Exact<Statement>,
-
     kind: typeof SyntaxKind.Block,
-    statements: NodeArray<Statement>
+    statements: NodeArray<Statement>,
+    ...
   };
 
   declare type VariableStatement = {
     ...$Exact<Statement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.VariableStatement,
-    declarationList: VariableDeclarationList
+    declarationList: VariableDeclarationList,
+    ...
   };
 
   declare type ExpressionStatement = {
     ...$Exact<Statement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.ExpressionStatement,
-    expression: Expression
+    expression: Expression,
+    ...
   };
 
   declare type IfStatement = {
     ...$Exact<Statement>,
-
     kind: typeof SyntaxKind.IfStatement,
     expression: Expression,
     thenStatement: Statement,
-    elseStatement?: Statement
+    elseStatement?: Statement,
+    ...
   };
 
   declare type IterationStatement = {
     ...$Exact<Statement>,
-
-    statement: Statement
+    statement: Statement,
+    ...
   };
 
   declare type DoStatement = {
     ...$Exact<IterationStatement>,
-
     kind: typeof SyntaxKind.DoStatement,
-    expression: Expression
+    expression: Expression,
+    ...
   };
 
   declare type WhileStatement = {
     ...$Exact<IterationStatement>,
-
     kind: typeof SyntaxKind.WhileStatement,
-    expression: Expression
+    expression: Expression,
+    ...
   };
 
   declare type ForInitializer = VariableDeclarationList | Expression;
   declare type ForStatement = {
     ...$Exact<IterationStatement>,
-
     kind: typeof SyntaxKind.ForStatement,
     initializer?: ForInitializer,
     condition?: Expression,
-    incrementor?: Expression
+    incrementor?: Expression,
+    ...
   };
 
   declare type ForInOrOfStatement = ForInStatement | ForOfStatement;
   declare type ForInStatement = {
     ...$Exact<IterationStatement>,
-
     kind: typeof SyntaxKind.ForInStatement,
     initializer: ForInitializer,
-    expression: Expression
+    expression: Expression,
+    ...
   };
 
   declare type ForOfStatement = {
     ...$Exact<IterationStatement>,
-
     kind: typeof SyntaxKind.ForOfStatement,
     awaitModifier?: AwaitKeywordToken,
     initializer: ForInitializer,
-    expression: Expression
+    expression: Expression,
+    ...
   };
 
   declare type BreakStatement = {
     ...$Exact<Statement>,
-
     kind: typeof SyntaxKind.BreakStatement,
-    label?: Identifier
+    label?: Identifier,
+    ...
   };
 
   declare type ContinueStatement = {
     ...$Exact<Statement>,
-
     kind: typeof SyntaxKind.ContinueStatement,
-    label?: Identifier
+    label?: Identifier,
+    ...
   };
 
   declare type BreakOrContinueStatement = BreakStatement | ContinueStatement;
   declare type ReturnStatement = {
     ...$Exact<Statement>,
-
     kind: typeof SyntaxKind.ReturnStatement,
-    expression?: Expression
+    expression?: Expression,
+    ...
   };
 
   declare type WithStatement = {
     ...$Exact<Statement>,
-
     kind: typeof SyntaxKind.WithStatement,
     expression: Expression,
-    statement: Statement
+    statement: Statement,
+    ...
   };
 
   declare type SwitchStatement = {
     ...$Exact<Statement>,
-
     kind: typeof SyntaxKind.SwitchStatement,
     expression: Expression,
     caseBlock: CaseBlock,
-    possiblyExhaustive?: boolean
+    possiblyExhaustive?: boolean,
+    ...
   };
 
   declare type CaseBlock = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.CaseBlock,
     parent: SwitchStatement,
-    clauses: NodeArray<CaseOrDefaultClause>
+    clauses: NodeArray<CaseOrDefaultClause>,
+    ...
   };
 
   declare type CaseClause = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.CaseClause,
     parent: CaseBlock,
     expression: Expression,
-    statements: NodeArray<Statement>
+    statements: NodeArray<Statement>,
+    ...
   };
 
   declare type DefaultClause = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.DefaultClause,
     parent: CaseBlock,
-    statements: NodeArray<Statement>
+    statements: NodeArray<Statement>,
+    ...
   };
 
   declare type CaseOrDefaultClause = CaseClause | DefaultClause;
   declare type LabeledStatement = {
     ...$Exact<Statement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.LabeledStatement,
     label: Identifier,
-    statement: Statement
+    statement: Statement,
+    ...
   };
 
   declare type ThrowStatement = {
     ...$Exact<Statement>,
-
     kind: typeof SyntaxKind.ThrowStatement,
-    expression?: Expression
+    expression?: Expression,
+    ...
   };
 
   declare type TryStatement = {
     ...$Exact<Statement>,
-
     kind: typeof SyntaxKind.TryStatement,
     tryBlock: Block,
     catchClause?: CatchClause,
-    finallyBlock?: Block
+    finallyBlock?: Block,
+    ...
   };
 
   declare type CatchClause = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.CatchClause,
     parent: TryStatement,
     variableDeclaration?: VariableDeclaration,
-    block: Block
+    block: Block,
+    ...
   };
 
   declare type ObjectTypeDeclaration =
@@ -2223,96 +2616,96 @@ declare module 'typescript' {
   declare type ClassLikeDeclarationBase = {
     ...$Exact<NamedDeclaration>,
     ...$Exact<JSDocContainer>,
-
     kind:
       | typeof SyntaxKind.ClassDeclaration
       | typeof SyntaxKind.ClassExpression,
     name?: Identifier,
     typeParameters?: NodeArray<TypeParameterDeclaration>,
     heritageClauses?: NodeArray<HeritageClause>,
-    members: NodeArray<ClassElement>
+    members: NodeArray<ClassElement>,
+    ...
   };
 
   declare type ClassDeclaration = {
     ...$Exact<ClassLikeDeclarationBase>,
     ...$Exact<DeclarationStatement>,
-
     kind: typeof SyntaxKind.ClassDeclaration,
-    name?: Identifier
+    name?: Identifier,
+    ...
   };
 
   declare type ClassExpression = {
     ...$Exact<ClassLikeDeclarationBase>,
     ...$Exact<PrimaryExpression>,
-
-    kind: typeof SyntaxKind.ClassExpression
+    kind: typeof SyntaxKind.ClassExpression,
+    ...
   };
 
   declare type ClassLikeDeclaration = ClassDeclaration | ClassExpression;
   declare type ClassElement = {
     ...$Exact<NamedDeclaration>,
-
     _classElementBrand: any,
-    name?: PropertyName
+    name?: PropertyName,
+    ...
   };
 
   declare type TypeElement = {
     ...$Exact<NamedDeclaration>,
-
     _typeElementBrand: any,
     name?: PropertyName,
-    questionToken?: QuestionToken
+    questionToken?: QuestionToken,
+    ...
   };
 
   declare type InterfaceDeclaration = {
     ...$Exact<DeclarationStatement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.InterfaceDeclaration,
     name: Identifier,
     typeParameters?: NodeArray<TypeParameterDeclaration>,
     heritageClauses?: NodeArray<HeritageClause>,
-    members: NodeArray<TypeElement>
+    members: NodeArray<TypeElement>,
+    ...
   };
 
   declare type HeritageClause = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.HeritageClause,
     parent: InterfaceDeclaration | ClassLikeDeclaration,
     token:
       | typeof SyntaxKind.ExtendsKeyword
       | typeof SyntaxKind.ImplementsKeyword,
-    types: NodeArray<ExpressionWithTypeArguments>
+    types: NodeArray<ExpressionWithTypeArguments>,
+    ...
   };
 
   declare type TypeAliasDeclaration = {
     ...$Exact<DeclarationStatement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.TypeAliasDeclaration,
     name: Identifier,
     typeParameters?: NodeArray<TypeParameterDeclaration>,
-    type: TypeNode
+    type: TypeNode,
+    ...
   };
 
   declare type EnumMember = {
     ...$Exact<NamedDeclaration>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.EnumMember,
     parent: EnumDeclaration,
     name: PropertyName,
-    initializer?: Expression
+    initializer?: Expression,
+    ...
   };
 
   declare type EnumDeclaration = {
     ...$Exact<DeclarationStatement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.EnumDeclaration,
     name: Identifier,
-    members: NodeArray<EnumMember>
+    members: NodeArray<EnumMember>,
+    ...
   };
 
   declare type ModuleName = Identifier | StringLiteral;
@@ -2320,156 +2713,156 @@ declare module 'typescript' {
   declare type ModuleDeclaration = {
     ...$Exact<DeclarationStatement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.ModuleDeclaration,
     parent: ModuleBody | SourceFile,
     name: ModuleName,
-    body?: ModuleBody | JSDocNamespaceDeclaration
+    body?: ModuleBody | JSDocNamespaceDeclaration,
+    ...
   };
 
   declare type NamespaceBody = ModuleBlock | NamespaceDeclaration;
   declare type NamespaceDeclaration = {
     ...$Exact<ModuleDeclaration>,
-
     name: Identifier,
-    body: NamespaceBody
+    body: NamespaceBody,
+    ...
   };
 
   declare type JSDocNamespaceBody = Identifier | JSDocNamespaceDeclaration;
   declare type JSDocNamespaceDeclaration = {
     ...$Exact<ModuleDeclaration>,
-
     name: Identifier,
-    body?: JSDocNamespaceBody
+    body?: JSDocNamespaceBody,
+    ...
   };
 
   declare type ModuleBlock = {
     ...$Exact<Node>,
     ...$Exact<Statement>,
-
     kind: typeof SyntaxKind.ModuleBlock,
     parent: ModuleDeclaration,
-    statements: NodeArray<Statement>
+    statements: NodeArray<Statement>,
+    ...
   };
 
   declare type ModuleReference = EntityName | ExternalModuleReference;
   declare type ImportEqualsDeclaration = {
     ...$Exact<DeclarationStatement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.ImportEqualsDeclaration,
     parent: SourceFile | ModuleBlock,
     name: Identifier,
-    moduleReference: ModuleReference
+    moduleReference: ModuleReference,
+    ...
   };
 
   declare type ExternalModuleReference = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.ExternalModuleReference,
     parent: ImportEqualsDeclaration,
-    expression: Expression
+    expression: Expression,
+    ...
   };
 
   declare type ImportDeclaration = {
     ...$Exact<Statement>,
-
     kind: typeof SyntaxKind.ImportDeclaration,
     parent: SourceFile | ModuleBlock,
     importClause?: ImportClause,
-    moduleSpecifier: Expression
+    moduleSpecifier: Expression,
+    ...
   };
 
   declare type NamedImportBindings = NamespaceImport | NamedImports;
   declare type ImportClause = {
     ...$Exact<NamedDeclaration>,
-
     kind: typeof SyntaxKind.ImportClause,
     parent: ImportDeclaration,
     name?: Identifier,
-    namedBindings?: NamedImportBindings
+    namedBindings?: NamedImportBindings,
+    ...
   };
 
   declare type NamespaceImport = {
     ...$Exact<NamedDeclaration>,
-
     kind: typeof SyntaxKind.NamespaceImport,
     parent: ImportClause,
-    name: Identifier
+    name: Identifier,
+    ...
   };
 
   declare type NamespaceExportDeclaration = {
     ...$Exact<DeclarationStatement>,
-
     kind: typeof SyntaxKind.NamespaceExportDeclaration,
-    name: Identifier
+    name: Identifier,
+    ...
   };
 
   declare type ExportDeclaration = {
     ...$Exact<DeclarationStatement>,
     ...$Exact<JSDocContainer>,
-
     kind: typeof SyntaxKind.ExportDeclaration,
     parent: SourceFile | ModuleBlock,
     exportClause?: NamedExports,
-    moduleSpecifier?: Expression
+    moduleSpecifier?: Expression,
+    ...
   };
 
   declare type NamedImports = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.NamedImports,
     parent: ImportClause,
-    elements: NodeArray<ImportSpecifier>
+    elements: NodeArray<ImportSpecifier>,
+    ...
   };
 
   declare type NamedExports = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.NamedExports,
     parent: ExportDeclaration,
-    elements: NodeArray<ExportSpecifier>
+    elements: NodeArray<ExportSpecifier>,
+    ...
   };
 
   declare type NamedImportsOrExports = NamedImports | NamedExports;
   declare type ImportSpecifier = {
     ...$Exact<NamedDeclaration>,
-
     kind: typeof SyntaxKind.ImportSpecifier,
     parent: NamedImports,
     propertyName?: Identifier,
-    name: Identifier
+    name: Identifier,
+    ...
   };
 
   declare type ExportSpecifier = {
     ...$Exact<NamedDeclaration>,
-
     kind: typeof SyntaxKind.ExportSpecifier,
     parent: NamedExports,
     propertyName?: Identifier,
-    name: Identifier
+    name: Identifier,
+    ...
   };
 
   declare type ImportOrExportSpecifier = ImportSpecifier | ExportSpecifier;
   declare type ExportAssignment = {
     ...$Exact<DeclarationStatement>,
-
     kind: typeof SyntaxKind.ExportAssignment,
     parent: SourceFile,
     isExportEquals?: boolean,
-    expression: Expression
+    expression: Expression,
+    ...
   };
 
   declare type FileReference = {
     ...$Exact<TextRange>,
-
-    fileName: string
+    fileName: string,
+    ...
   };
 
   declare type CheckJsDirective = {
     ...$Exact<TextRange>,
-
-    enabled: boolean
+    enabled: boolean,
+    ...
   };
 
   declare type CommentKind =
@@ -2477,77 +2870,77 @@ declare module 'typescript' {
     | typeof SyntaxKind.MultiLineCommentTrivia;
   declare type CommentRange = {
     ...$Exact<TextRange>,
-
     hasTrailingNewLine?: boolean,
-    kind: CommentKind
+    kind: CommentKind,
+    ...
   };
 
   declare type SynthesizedComment = {
     ...$Exact<CommentRange>,
-
     text: string,
     pos: -1,
-    end: -1
+    end: -1,
+    ...
   };
 
   declare type JSDocTypeExpression = {
     ...$Exact<TypeNode>,
-
     kind: typeof SyntaxKind.JSDocTypeExpression,
-    type: TypeNode
+    type: TypeNode,
+    ...
   };
 
   declare type JSDocType = {
     ...$Exact<TypeNode>,
-
-    _jsDocTypeBrand: any
+    _jsDocTypeBrand: any,
+    ...
   };
 
   declare type JSDocAllType = {
     ...$Exact<JSDocType>,
-
-    kind: typeof SyntaxKind.JSDocAllType
+    kind: typeof SyntaxKind.JSDocAllType,
+    ...
   };
 
   declare type JSDocUnknownType = {
     ...$Exact<JSDocType>,
-
-    kind: typeof SyntaxKind.JSDocUnknownType
+    kind: typeof SyntaxKind.JSDocUnknownType,
+    ...
   };
 
   declare type JSDocNonNullableType = {
     ...$Exact<JSDocType>,
-
     kind: typeof SyntaxKind.JSDocNonNullableType,
-    type: TypeNode
+    type: TypeNode,
+    ...
   };
 
   declare type JSDocNullableType = {
     ...$Exact<JSDocType>,
-
     kind: typeof SyntaxKind.JSDocNullableType,
-    type: TypeNode
+    type: TypeNode,
+    ...
   };
 
   declare type JSDocOptionalType = {
     ...$Exact<JSDocType>,
-
     kind: typeof SyntaxKind.JSDocOptionalType,
-    type: TypeNode
+    type: TypeNode,
+    ...
   };
 
   declare type JSDocFunctionType = {
     ...$Exact<JSDocType>,
     ...$Exact<SignatureDeclarationBase>,
-
-    kind: typeof SyntaxKind.JSDocFunctionType
+    kind: typeof SyntaxKind.JSDocFunctionType,
+    ...
   };
 
   declare type JSDocVariadicType = {
     ...$Exact<JSDocType>,
-
     kind: typeof SyntaxKind.JSDocVariadicType,
-    type: TypeNode
+    type: TypeNode,
+    ...
   };
 
   declare type JSDocTypeReferencingNode =
@@ -2557,175 +2950,187 @@ declare module 'typescript' {
     | JSDocNonNullableType;
   declare type JSDoc = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.JSDocComment,
     parent: HasJSDoc,
     tags?: NodeArray<JSDocTag>,
-    comment?: string
+    comment?: string,
+    ...
   };
 
   declare type JSDocTag = {
     ...$Exact<Node>,
-
     parent: JSDoc | JSDocTypeLiteral,
     tagName: Identifier,
-    comment?: string
+    comment?: string,
+    ...
   };
 
   declare type JSDocUnknownTag = {
     ...$Exact<JSDocTag>,
-
-    kind: typeof SyntaxKind.JSDocTag
+    kind: typeof SyntaxKind.JSDocTag,
+    ...
   };
 
   declare type JSDocAugmentsTag = {
     ...$Exact<JSDocTag>,
-
     kind: typeof SyntaxKind.JSDocAugmentsTag,
-    class: ExpressionWithTypeArguments & {
-      expression: Identifier | PropertyAccessEntityNameExpression
-    }
+    class: ExpressionWithTypeArguments & { expression: Identifier | PropertyAccessEntityNameExpression, ... },
+    ...
   };
 
   declare type JSDocClassTag = {
     ...$Exact<JSDocTag>,
-
-    kind: typeof SyntaxKind.JSDocClassTag
+    kind: typeof SyntaxKind.JSDocClassTag,
+    ...
   };
 
   declare type JSDocEnumTag = {
     ...$Exact<JSDocTag>,
-
     kind: typeof SyntaxKind.JSDocEnumTag,
-    typeExpression?: JSDocTypeExpression
+    typeExpression?: JSDocTypeExpression,
+    ...
   };
 
   declare type JSDocThisTag = {
     ...$Exact<JSDocTag>,
-
     kind: typeof SyntaxKind.JSDocThisTag,
-    typeExpression?: JSDocTypeExpression
+    typeExpression?: JSDocTypeExpression,
+    ...
   };
 
   declare type JSDocTemplateTag = {
     ...$Exact<JSDocTag>,
-
     kind: typeof SyntaxKind.JSDocTemplateTag,
     constraint: JSDocTypeExpression | void,
-    typeParameters: NodeArray<TypeParameterDeclaration>
+    typeParameters: NodeArray<TypeParameterDeclaration>,
+    ...
   };
 
   declare type JSDocReturnTag = {
     ...$Exact<JSDocTag>,
-
     kind: typeof SyntaxKind.JSDocReturnTag,
-    typeExpression?: JSDocTypeExpression
+    typeExpression?: JSDocTypeExpression,
+    ...
   };
 
   declare type JSDocTypeTag = {
     ...$Exact<JSDocTag>,
-
     kind: typeof SyntaxKind.JSDocTypeTag,
-    typeExpression?: JSDocTypeExpression
+    typeExpression?: JSDocTypeExpression,
+    ...
   };
 
   declare type JSDocTypedefTag = {
     ...$Exact<JSDocTag>,
     ...$Exact<NamedDeclaration>,
-
     parent: JSDoc,
     kind: typeof SyntaxKind.JSDocTypedefTag,
     fullName?: JSDocNamespaceDeclaration | Identifier,
     name?: Identifier,
-    typeExpression?: JSDocTypeExpression | JSDocTypeLiteral
+    typeExpression?: JSDocTypeExpression | JSDocTypeLiteral,
+    ...
   };
 
   declare type JSDocCallbackTag = {
     ...$Exact<JSDocTag>,
     ...$Exact<NamedDeclaration>,
-
     parent: JSDoc,
     kind: typeof SyntaxKind.JSDocCallbackTag,
     fullName?: JSDocNamespaceDeclaration | Identifier,
     name?: Identifier,
-    typeExpression: JSDocSignature
+    typeExpression: JSDocSignature,
+    ...
   };
 
   declare type JSDocSignature = {
     ...$Exact<JSDocType>,
     ...$Exact<Declaration>,
-
     kind: typeof SyntaxKind.JSDocSignature,
     typeParameters?: $ReadOnlyArray<JSDocTemplateTag>,
     parameters: $ReadOnlyArray<JSDocParameterTag>,
-    type: JSDocReturnTag | void
+    type: JSDocReturnTag | void,
+    ...
   };
 
   declare type JSDocPropertyLikeTag = {
     ...$Exact<JSDocTag>,
     ...$Exact<Declaration>,
-
     parent: JSDoc,
     name: EntityName,
     typeExpression?: JSDocTypeExpression,
     isNameFirst: boolean,
-    isBracketed: boolean
+    isBracketed: boolean,
+    ...
   };
 
   declare type JSDocPropertyTag = {
     ...$Exact<JSDocPropertyLikeTag>,
-
-    kind: typeof SyntaxKind.JSDocPropertyTag
+    kind: typeof SyntaxKind.JSDocPropertyTag,
+    ...
   };
 
   declare type JSDocParameterTag = {
     ...$Exact<JSDocPropertyLikeTag>,
-
-    kind: typeof SyntaxKind.JSDocParameterTag
+    kind: typeof SyntaxKind.JSDocParameterTag,
+    ...
   };
 
   declare type JSDocTypeLiteral = {
     ...$Exact<JSDocType>,
-
     kind: typeof SyntaxKind.JSDocTypeLiteral,
     jsDocPropertyTags?: $ReadOnlyArray<JSDocPropertyLikeTag>,
-    isArrayType?: boolean
+    isArrayType?: boolean,
+    ...
   };
 
   declare var FlowFlags: {
-    +Unreachable: 1, // 1
-    +Start: 2, // 2
-    +BranchLabel: 4, // 4
-    +LoopLabel: 8, // 8
-    +Assignment: 16, // 16
-    +TrueCondition: 32, // 32
-    +FalseCondition: 64, // 64
-    +SwitchClause: 128, // 128
-    +ArrayMutation: 256, // 256
-    +Referenced: 512, // 512
-    +Shared: 1024, // 1024
-    +PreFinally: 2048, // 2048
-    +AfterFinally: 4096, // 4096
-    +Label: 12, // 12
-    +Condition: 96 // 96
+    // 1
+    +Unreachable: 1,
+    // 2
+    +Start: 2,
+    // 4
+    +BranchLabel: 4,
+    // 8
+    +LoopLabel: 8,
+    // 16
+    +Assignment: 16,
+    // 32
+    +TrueCondition: 32,
+    // 64
+    +FalseCondition: 64,
+    // 128
+    +SwitchClause: 128,
+    // 256
+    +ArrayMutation: 256,
+    // 512
+    +Referenced: 512,
+    // 1024
+    +Shared: 1024,
+    // 2048
+    +PreFinally: 2048,
+    // 4096
+    +AfterFinally: 4096,
+    // 12
+    +Label: 12,
+    // 96
+    +Condition: 96,
+    ...
   };
 
-  declare type FlowLock = {
-    locked?: boolean
-  };
+  declare type FlowLock = { locked?: boolean, ... };
 
   declare type AfterFinallyFlow = {
     ...$Exact<FlowNodeBase>,
     ...$Exact<FlowLock>,
-
-    antecedent: FlowNode
+    antecedent: FlowNode,
+    ...
   };
 
   declare type PreFinallyFlow = {
     ...$Exact<FlowNodeBase>,
-
     antecedent: FlowNode,
-    lock: FlowLock
+    lock: FlowLock,
+    ...
   };
 
   declare type FlowNode =
@@ -2739,65 +3144,67 @@ declare module 'typescript' {
     | FlowArrayMutation;
   declare type FlowNodeBase = {
     flags: $Values<typeof FlowFlags>,
-    id?: number
+    id?: number,
+    ...
   };
 
   declare type FlowStart = {
     ...$Exact<FlowNodeBase>,
-
-    container?: FunctionExpression | ArrowFunction | MethodDeclaration
+    container?: FunctionExpression | ArrowFunction | MethodDeclaration,
+    ...
   };
 
   declare type FlowLabel = {
     ...$Exact<FlowNodeBase>,
-
-    antecedents: FlowNode[] | void
+    antecedents: FlowNode[] | void,
+    ...
   };
 
   declare type FlowAssignment = {
     ...$Exact<FlowNodeBase>,
-
     node: Expression | VariableDeclaration | BindingElement,
-    antecedent: FlowNode
+    antecedent: FlowNode,
+    ...
   };
 
   declare type FlowCondition = {
     ...$Exact<FlowNodeBase>,
-
     expression: Expression,
-    antecedent: FlowNode
+    antecedent: FlowNode,
+    ...
   };
 
   declare type FlowSwitchClause = {
     ...$Exact<FlowNodeBase>,
-
     switchStatement: SwitchStatement,
     clauseStart: number,
     clauseEnd: number,
-    antecedent: FlowNode
+    antecedent: FlowNode,
+    ...
   };
 
   declare type FlowArrayMutation = {
     ...$Exact<FlowNodeBase>,
-
     node: CallExpression | BinaryExpression,
-    antecedent: FlowNode
+    antecedent: FlowNode,
+    ...
   };
 
   declare type FlowType = Type | IncompleteType;
   declare type IncompleteType = {
     flags: $Values<typeof TypeFlags>,
-    type: Type
+    type: Type,
+    ...
   };
 
   declare type AmdDependency = {
     path: string,
-    name?: string
+    name?: string,
+    ...
   };
 
   declare type SourceFile = {
     ...$Exact<Declaration>,
-
     kind: typeof SyntaxKind.SourceFile,
     statements: NodeArray<Statement>,
     endOfFileToken: Token<typeof SyntaxKind.EndOfFileToken>,
@@ -2816,20 +3223,20 @@ declare module 'typescript' {
     getLineEndOfPosition(pos: number): number,
     getLineStarts(): $ReadOnlyArray<number>,
     getPositionOfLineAndCharacter(line: number, character: number): number,
-    update(newText: string, textChangeRange: TextChangeRange): SourceFile
+    update(newText: string, textChangeRange: TextChangeRange): SourceFile,
+    ...
   };
 
   declare type Bundle = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.Bundle,
     prepends: $ReadOnlyArray<InputFiles | UnparsedSource>,
-    sourceFiles: $ReadOnlyArray<SourceFile>
+    sourceFiles: $ReadOnlyArray<SourceFile>,
+    ...
   };
 
   declare type InputFiles = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.InputFiles,
     javascriptPath?: string,
     javascriptText: string,
@@ -2838,42 +3245,42 @@ declare module 'typescript' {
     declarationPath?: string,
     declarationText: string,
     declarationMapPath?: string,
-    declarationMapText?: string
+    declarationMapText?: string,
+    ...
   };
 
   declare type UnparsedSource = {
     ...$Exact<Node>,
-
     kind: typeof SyntaxKind.UnparsedSource,
     fileName?: string,
     text: string,
     sourceMapPath?: string,
-    sourceMapText?: string
+    sourceMapText?: string,
+    ...
   };
 
   declare type JsonSourceFile = {
     ...$Exact<SourceFile>,
-
-    statements: NodeArray<JsonObjectExpressionStatement>
+    statements: NodeArray<JsonObjectExpressionStatement>,
+    ...
   };
 
   declare type TsConfigSourceFile = {
     ...$Exact<JsonSourceFile>,
-
-    extendedSourceFiles?: string[]
+    extendedSourceFiles?: string[],
+    ...
   };
 
   declare type JsonMinusNumericLiteral = {
     ...$Exact<PrefixUnaryExpression>,
-
     kind: typeof SyntaxKind.PrefixUnaryExpression,
     operator: typeof SyntaxKind.MinusToken,
-    operand: NumericLiteral
+    operand: NumericLiteral,
+    ...
   };
 
   declare type JsonObjectExpressionStatement = {
     ...$Exact<ExpressionStatement>,
-
     expression:
       | ObjectLiteralExpression
       | ArrayLiteralExpression
@@ -2881,14 +3288,16 @@ declare module 'typescript' {
       | NumericLiteral
       | StringLiteral
       | BooleanLiteral
-      | NullLiteral
+      | NullLiteral,
+    ...
   };
 
   declare type ScriptReferenceHost = {
     getCompilerOptions(): CompilerOptions,
     getSourceFile(fileName: string): SourceFile | void,
     getSourceFileByPath(path: Path): SourceFile | void,
-    getCurrentDirectory(): string
+    getCurrentDirectory(): string,
+    ...
   };
 
   declare type ParseConfigHost = {
@@ -2902,12 +3311,11 @@ declare module 'typescript' {
     ): $ReadOnlyArray<string>,
     fileExists(path: string): boolean,
     readFile(path: string): string | void,
-    trace?: (s: string) => void
+    trace?: (s: string) => void,
+    ...
   };
 
-  declare type ResolvedConfigFileName = string & {
-    _isResolvedConfigFileName: empty
-  };
+  declare type ResolvedConfigFileName = string & { _isResolvedConfigFileName: empty, ... };
   declare type WriteFileCallback = (
     fileName: string,
     data: string,
@@ -2918,12 +3326,12 @@ declare module 'typescript' {
   declare class OperationCanceledException {}
   declare type CancellationToken = {
     isCancellationRequested(): boolean,
-    throwIfCancellationRequested(): void
+    throwIfCancellationRequested(): void,
+    ...
   };
 
   declare type Program = {
     ...$Exact<ScriptReferenceHost>,
-
     getRootFileNames(): $ReadOnlyArray<string>,
     getSourceFiles(): $ReadOnlyArray<SourceFile>,
     emit(
@@ -2956,19 +3364,22 @@ declare module 'typescript' {
     isSourceFileFromExternalLibrary(file: SourceFile): boolean,
     isSourceFileDefaultLibrary(file: SourceFile): boolean,
     getProjectReferences(): $ReadOnlyArray<ProjectReference> | void,
-    getResolvedProjectReferences(): $ReadOnlyArray<ResolvedProjectReference | void> | void
+    getResolvedProjectReferences(): $ReadOnlyArray<ResolvedProjectReference | void> | void,
+    ...
   };
 
   declare type ResolvedProjectReference = {
     commandLine: ParsedCommandLine,
     sourceFile: SourceFile,
-    references?: $ReadOnlyArray<ResolvedProjectReference | void>
+    references?: $ReadOnlyArray<ResolvedProjectReference | void>,
+    ...
   };
 
   declare type CustomTransformers = {
     before?: TransformerFactory<SourceFile>[],
     after?: TransformerFactory<SourceFile>[],
-    afterDeclarations?: TransformerFactory<Bundle | SourceFile>[]
+    afterDeclarations?: TransformerFactory<Bundle | SourceFile>[],
+    ...
   };
 
   declare type SourceMapSpan = {
@@ -2977,19 +3388,25 @@ declare module 'typescript' {
     sourceLine: number,
     sourceColumn: number,
     nameIndex?: number,
-    sourceIndex: number
+    sourceIndex: number,
+    ...
   };
 
   declare var ExitStatus: {
-    +Success: 0, // 0
-    +DiagnosticsPresent_OutputsSkipped: 1, // 1
-    +DiagnosticsPresent_OutputsGenerated: 2 // 2
+    // 0
+    +Success: 0,
+    // 1
+    +DiagnosticsPresent_OutputsSkipped: 1,
+    // 2
+    +DiagnosticsPresent_OutputsGenerated: 2,
+    ...
   };
 
   declare type EmitResult = {
     emitSkipped: boolean,
     diagnostics: $ReadOnlyArray<Diagnostic>,
-    emittedFiles?: string[]
+    emittedFiles?: string[],
+    ...
   };
 
   declare type TypeChecker = {
@@ -3026,9 +3443,7 @@ declare module 'typescript' {
       enclosingDeclaration?: Node,
       flags?: $Values<typeof NodeBuilderFlags>
     ):
-      | (SignatureDeclaration & {
-          typeArguments?: NodeArray<TypeNode>
-        })
+      | (SignatureDeclaration & { typeArguments?: NodeArray<TypeNode>, ... })
       | void,
     indexInfoToIndexSignatureDeclaration(
       indexInfo: IndexInfo,
@@ -3142,159 +3557,282 @@ declare module 'typescript' {
     runWithCancellationToken<T>(
       token: CancellationToken,
       cb: (checker: TypeChecker) => T
-    ): T
+    ): T,
+    ...
   };
 
   declare var NodeBuilderFlags: {
-    +None: 0, // 0
-    +NoTruncation: 1, // 1
-    +WriteArrayAsGenericType: 2, // 2
-    +GenerateNamesForShadowedTypeParams: 4, // 4
-    +UseStructuralFallback: 8, // 8
-    +ForbidIndexedAccessSymbolReferences: 16, // 16
-    +WriteTypeArgumentsOfSignature: 32, // 32
-    +UseFullyQualifiedType: 64, // 64
-    +UseOnlyExternalAliasing: 128, // 128
-    +SuppressAnyReturnType: 256, // 256
-    +WriteTypeParametersInQualifiedName: 512, // 512
-    +MultilineObjectLiterals: 1024, // 1024
-    +WriteClassExpressionAsTypeLiteral: 2048, // 2048
-    +UseTypeOfFunction: 4096, // 4096
-    +OmitParameterModifiers: 8192, // 8192
-    +UseAliasDefinedOutsideCurrentScope: 16384, // 16384
-    +AllowThisInObjectLiteral: 32768, // 32768
-    +AllowQualifedNameInPlaceOfIdentifier: 65536, // 65536
-    +AllowAnonymousIdentifier: 131072, // 131072
-    +AllowEmptyUnionOrIntersection: 262144, // 262144
-    +AllowEmptyTuple: 524288, // 524288
-    +AllowUniqueESSymbolType: 1048576, // 1048576
-    +AllowEmptyIndexInfoType: 2097152, // 2097152
-    +AllowNodeModulesRelativePaths: 67108864, // 67108864
-    +IgnoreErrors: 70221824, // 70221824
-    +InObjectTypeLiteral: 4194304, // 4194304
-    +InTypeAlias: 8388608, // 8388608
-    +InInitialEntityName: 16777216, // 16777216
-    +InReverseMappedType: 33554432 // 33554432
+    // 0
+    +None: 0,
+    // 1
+    +NoTruncation: 1,
+    // 2
+    +WriteArrayAsGenericType: 2,
+    // 4
+    +GenerateNamesForShadowedTypeParams: 4,
+    // 8
+    +UseStructuralFallback: 8,
+    // 16
+    +ForbidIndexedAccessSymbolReferences: 16,
+    // 32
+    +WriteTypeArgumentsOfSignature: 32,
+    // 64
+    +UseFullyQualifiedType: 64,
+    // 128
+    +UseOnlyExternalAliasing: 128,
+    // 256
+    +SuppressAnyReturnType: 256,
+    // 512
+    +WriteTypeParametersInQualifiedName: 512,
+    // 1024
+    +MultilineObjectLiterals: 1024,
+    // 2048
+    +WriteClassExpressionAsTypeLiteral: 2048,
+    // 4096
+    +UseTypeOfFunction: 4096,
+    // 8192
+    +OmitParameterModifiers: 8192,
+    // 16384
+    +UseAliasDefinedOutsideCurrentScope: 16384,
+    // 32768
+    +AllowThisInObjectLiteral: 32768,
+    // 65536
+    +AllowQualifedNameInPlaceOfIdentifier: 65536,
+    // 131072
+    +AllowAnonymousIdentifier: 131072,
+    // 262144
+    +AllowEmptyUnionOrIntersection: 262144,
+    // 524288
+    +AllowEmptyTuple: 524288,
+    // 1048576
+    +AllowUniqueESSymbolType: 1048576,
+    // 2097152
+    +AllowEmptyIndexInfoType: 2097152,
+    // 67108864
+    +AllowNodeModulesRelativePaths: 67108864,
+    // 70221824
+    +IgnoreErrors: 70221824,
+    // 4194304
+    +InObjectTypeLiteral: 4194304,
+    // 8388608
+    +InTypeAlias: 8388608,
+    // 16777216
+    +InInitialEntityName: 16777216,
+    // 33554432
+    +InReverseMappedType: 33554432,
+    ...
   };
 
   declare var TypeFormatFlags: {
-    +None: 0, // 0
-    +NoTruncation: 1, // 1
-    +WriteArrayAsGenericType: 2, // 2
-    +UseStructuralFallback: 8, // 8
-    +WriteTypeArgumentsOfSignature: 32, // 32
-    +UseFullyQualifiedType: 64, // 64
-    +SuppressAnyReturnType: 256, // 256
-    +MultilineObjectLiterals: 1024, // 1024
-    +WriteClassExpressionAsTypeLiteral: 2048, // 2048
-    +UseTypeOfFunction: 4096, // 4096
-    +OmitParameterModifiers: 8192, // 8192
-    +UseAliasDefinedOutsideCurrentScope: 16384, // 16384
-    +AllowUniqueESSymbolType: 1048576, // 1048576
-    +AddUndefined: 131072, // 131072
-    +WriteArrowStyleSignature: 262144, // 262144
-    +InArrayType: 524288, // 524288
-    +InElementType: 2097152, // 2097152
-    +InFirstTypeArgument: 4194304, // 4194304
-    +InTypeAlias: 8388608, // 8388608
-    +WriteOwnNameForAnyLike: 0, // 0
-    +NodeBuilderFlagsMask: 9469291 // 9469291
+    // 0
+    +None: 0,
+    // 1
+    +NoTruncation: 1,
+    // 2
+    +WriteArrayAsGenericType: 2,
+    // 8
+    +UseStructuralFallback: 8,
+    // 32
+    +WriteTypeArgumentsOfSignature: 32,
+    // 64
+    +UseFullyQualifiedType: 64,
+    // 256
+    +SuppressAnyReturnType: 256,
+    // 1024
+    +MultilineObjectLiterals: 1024,
+    // 2048
+    +WriteClassExpressionAsTypeLiteral: 2048,
+    // 4096
+    +UseTypeOfFunction: 4096,
+    // 8192
+    +OmitParameterModifiers: 8192,
+    // 16384
+    +UseAliasDefinedOutsideCurrentScope: 16384,
+    // 1048576
+    +AllowUniqueESSymbolType: 1048576,
+    // 131072
+    +AddUndefined: 131072,
+    // 262144
+    +WriteArrowStyleSignature: 262144,
+    // 524288
+    +InArrayType: 524288,
+    // 2097152
+    +InElementType: 2097152,
+    // 4194304
+    +InFirstTypeArgument: 4194304,
+    // 8388608
+    +InTypeAlias: 8388608,
+    // 0
+    +WriteOwnNameForAnyLike: 0,
+    // 9469291
+    +NodeBuilderFlagsMask: 9469291,
+    ...
   };
 
   declare var SymbolFormatFlags: {
-    +None: 0, // 0
-    +WriteTypeParametersOrArguments: 1, // 1
-    +UseOnlyExternalAliasing: 2, // 2
-    +AllowAnyNodeKind: 4, // 4
-    +UseAliasDefinedOutsideCurrentScope: 8 // 8
+    // 0
+    +None: 0,
+    // 1
+    +WriteTypeParametersOrArguments: 1,
+    // 2
+    +UseOnlyExternalAliasing: 2,
+    // 4
+    +AllowAnyNodeKind: 4,
+    // 8
+    +UseAliasDefinedOutsideCurrentScope: 8,
+    ...
   };
 
   declare var TypePredicateKind: {
-    +This: 0, // 0
-    +Identifier: 1 // 1
+    // 0
+    +This: 0,
+    // 1
+    +Identifier: 1,
+    ...
   };
 
   declare type TypePredicateBase = {
     kind: $Values<typeof TypePredicateKind>,
-    type: Type
+    type: Type,
+    ...
   };
 
   declare type ThisTypePredicate = {
     ...$Exact<TypePredicateBase>,
-
-    kind: typeof TypePredicateKind.This
+    kind: typeof TypePredicateKind.This,
+    ...
   };
 
   declare type IdentifierTypePredicate = {
     ...$Exact<TypePredicateBase>,
-
     kind: typeof TypePredicateKind.Identifier,
     parameterName: string,
-    parameterIndex: number
+    parameterIndex: number,
+    ...
   };
 
   declare type TypePredicate = IdentifierTypePredicate | ThisTypePredicate;
 
   declare var SymbolFlags: {
-    +None: 0, // 0
-    +FunctionScopedVariable: 1, // 1
-    +BlockScopedVariable: 2, // 2
-    +Property: 4, // 4
-    +EnumMember: 8, // 8
-    +Function: 16, // 16
-    +Class: 32, // 32
-    +Interface: 64, // 64
-    +ConstEnum: 128, // 128
-    +RegularEnum: 256, // 256
-    +ValueModule: 512, // 512
-    +NamespaceModule: 1024, // 1024
-    +TypeLiteral: 2048, // 2048
-    +ObjectLiteral: 4096, // 4096
-    +Method: 8192, // 8192
-    +Constructor: 16384, // 16384
-    +GetAccessor: 32768, // 32768
-    +SetAccessor: 65536, // 65536
-    +Signature: 131072, // 131072
-    +TypeParameter: 262144, // 262144
-    +TypeAlias: 524288, // 524288
-    +ExportValue: 1048576, // 1048576
-    +Alias: 2097152, // 2097152
-    +Prototype: 4194304, // 4194304
-    +ExportStar: 8388608, // 8388608
-    +Optional: 16777216, // 16777216
-    +Transient: 33554432, // 33554432
-    +Assignment: 67108864, // 67108864
-    +ModuleExports: 134217728, // 134217728
-    +Enum: 384, // 384
-    +Variable: 3, // 3
-    +Value: 67220415, // 67220415
-    +Type: 67897832, // 67897832
-    +Namespace: 1920, // 1920
-    +Module: 1536, // 1536
-    +Accessor: 98304, // 98304
-    +FunctionScopedVariableExcludes: 67220414, // 67220414
-    +BlockScopedVariableExcludes: 67220415, // 67220415
-    +ParameterExcludes: 67220415, // 67220415
-    +PropertyExcludes: 0, // 0
-    +EnumMemberExcludes: 68008959, // 68008959
-    +FunctionExcludes: 67219887, // 67219887
-    +ClassExcludes: 68008383, // 68008383
-    +InterfaceExcludes: 67897736, // 67897736
-    +RegularEnumExcludes: 68008191, // 68008191
-    +ConstEnumExcludes: 68008831, // 68008831
-    +ValueModuleExcludes: 110735, // 110735
-    +NamespaceModuleExcludes: 0, // 0
-    +MethodExcludes: 67212223, // 67212223
-    +GetAccessorExcludes: 67154879, // 67154879
-    +SetAccessorExcludes: 67187647, // 67187647
-    +TypeParameterExcludes: 67635688, // 67635688
-    +TypeAliasExcludes: 67897832, // 67897832
-    +AliasExcludes: 2097152, // 2097152
-    +ModuleMember: 2623475, // 2623475
-    +ExportHasLocal: 944, // 944
-    +BlockScoped: 418, // 418
-    +PropertyOrAccessor: 98308, // 98308
-    +ClassMember: 106500 // 106500
+    // 0
+    +None: 0,
+    // 1
+    +FunctionScopedVariable: 1,
+    // 2
+    +BlockScopedVariable: 2,
+    // 4
+    +Property: 4,
+    // 8
+    +EnumMember: 8,
+    // 16
+    +Function: 16,
+    // 32
+    +Class: 32,
+    // 64
+    +Interface: 64,
+    // 128
+    +ConstEnum: 128,
+    // 256
+    +RegularEnum: 256,
+    // 512
+    +ValueModule: 512,
+    // 1024
+    +NamespaceModule: 1024,
+    // 2048
+    +TypeLiteral: 2048,
+    // 4096
+    +ObjectLiteral: 4096,
+    // 8192
+    +Method: 8192,
+    // 16384
+    +Constructor: 16384,
+    // 32768
+    +GetAccessor: 32768,
+    // 65536
+    +SetAccessor: 65536,
+    // 131072
+    +Signature: 131072,
+    // 262144
+    +TypeParameter: 262144,
+    // 524288
+    +TypeAlias: 524288,
+    // 1048576
+    +ExportValue: 1048576,
+    // 2097152
+    +Alias: 2097152,
+    // 4194304
+    +Prototype: 4194304,
+    // 8388608
+    +ExportStar: 8388608,
+    // 16777216
+    +Optional: 16777216,
+    // 33554432
+    +Transient: 33554432,
+    // 67108864
+    +Assignment: 67108864,
+    // 134217728
+    +ModuleExports: 134217728,
+    // 384
+    +Enum: 384,
+    // 3
+    +Variable: 3,
+    // 67220415
+    +Value: 67220415,
+    // 67897832
+    +Type: 67897832,
+    // 1920
+    +Namespace: 1920,
+    // 1536
+    +Module: 1536,
+    // 98304
+    +Accessor: 98304,
+    // 67220414
+    +FunctionScopedVariableExcludes: 67220414,
+    // 67220415
+    +BlockScopedVariableExcludes: 67220415,
+    // 67220415
+    +ParameterExcludes: 67220415,
+    // 0
+    +PropertyExcludes: 0,
+    // 68008959
+    +EnumMemberExcludes: 68008959,
+    // 67219887
+    +FunctionExcludes: 67219887,
+    // 68008383
+    +ClassExcludes: 68008383,
+    // 67897736
+    +InterfaceExcludes: 67897736,
+    // 68008191
+    +RegularEnumExcludes: 68008191,
+    // 68008831
+    +ConstEnumExcludes: 68008831,
+    // 110735
+    +ValueModuleExcludes: 110735,
+    // 0
+    +NamespaceModuleExcludes: 0,
+    // 67212223
+    +MethodExcludes: 67212223,
+    // 67154879
+    +GetAccessorExcludes: 67154879,
+    // 67187647
+    +SetAccessorExcludes: 67187647,
+    // 67635688
+    +TypeParameterExcludes: 67635688,
+    // 67897832
+    +TypeAliasExcludes: 67897832,
+    // 2097152
+    +AliasExcludes: 2097152,
+    // 2623475
+    +ModuleMember: 2623475,
+    // 944
+    +ExportHasLocal: 944,
+    // 418
+    +BlockScoped: 418,
+    // 98308
+    +PropertyOrAccessor: 98308,
+    // 106500
+    +ClassMember: 106500,
+    ...
   };
 
   declare type Symbol = {
@@ -3313,106 +3851,167 @@ declare module 'typescript' {
     getDocumentationComment(
       typeChecker: TypeChecker | void
     ): SymbolDisplayPart[],
-    getJsDocTags(): JSDocTagInfo[]
+    getJsDocTags(): JSDocTagInfo[],
+    ...
   };
 
   declare var InternalSymbolName: {
-    +Call: '__call', // "__call"
-    +Constructor: '__constructor', // "__constructor"
-    +New: '__new', // "__new"
-    +Index: '__index', // "__index"
-    +ExportStar: '__export', // "__export"
-    +Global: '__global', // "__global"
-    +Missing: '__missing', // "__missing"
-    +Type: '__type', // "__type"
-    +Object: '__object', // "__object"
-    +JSXAttributes: '__jsxAttributes', // "__jsxAttributes"
-    +Class: '__class', // "__class"
-    +Function: '__function', // "__function"
-    +Computed: '__computed', // "__computed"
-    +Resolving: '__resolving__', // "__resolving__"
-    +ExportEquals: 'export=', // "export="
-    +Default: 'default', // "default"
-    +This: 'this' // "this"
+    // "__call"
+    +Call: "__call",
+    // "__constructor"
+    +Constructor: "__constructor",
+    // "__new"
+    +New: "__new",
+    // "__index"
+    +Index: "__index",
+    // "__export"
+    +ExportStar: "__export",
+    // "__global"
+    +Global: "__global",
+    // "__missing"
+    +Missing: "__missing",
+    // "__type"
+    +Type: "__type",
+    // "__object"
+    +Object: "__object",
+    // "__jsxAttributes"
+    +JSXAttributes: "__jsxAttributes",
+    // "__class"
+    +Class: "__class",
+    // "__function"
+    +Function: "__function",
+    // "__computed"
+    +Computed: "__computed",
+    // "__resolving__"
+    +Resolving: "__resolving__",
+    // "export="
+    +ExportEquals: "export=",
+    // "default"
+    +Default: "default",
+    // "this"
+    +This: "this",
+    ...
   };
 
   declare type __String =
-    | (string & {
-        __escapedIdentifier: void
-      })
-    | (void & {
-        __escapedIdentifier: void
-      })
+    | (string & { __escapedIdentifier: void, ... })
+    | (void & { __escapedIdentifier: void, ... })
     | $Values<typeof InternalSymbolName>;
 
   declare class ReadonlyUnderscoreEscapedMap<T> {
-    get(key: __String): T | void;
-    has(key: __String): boolean;
-    forEach(action: (value: T, key: __String) => void): void;
-    +size: number;
-    keys(): Iterator<__String>;
-    values(): Iterator<T>;
-    entries(): Iterator<[__String, T]>;
+    get(key: __String): T | void,
+    has(key: __String): boolean,
+    forEach(action: (value: T, key: __String) => void): void,
+    +size: number,
+    keys(): Iterator<__String>,
+    values(): Iterator<T>,
+    entries(): Iterator<[__String, T]>
   }
 
-  declare class UnderscoreEscapedMap<
-    T
-  > extends ReadonlyUnderscoreEscapedMap<T> {
-    set(key: __String, value: T): this;
-    delete(key: __String): boolean;
-    clear(): void;
+  declare class UnderscoreEscapedMap<T> extends ReadonlyUnderscoreEscapedMap<T> {
+    set(key: __String, value: T): this,
+    delete(key: __String): boolean,
+    clear(): void
   }
 
   declare type SymbolTable = UnderscoreEscapedMap<Symbol>;
 
   declare var TypeFlags: {
-    +Any: 1, // 1
-    +Unknown: 2, // 2
-    +String: 4, // 4
-    +Number: 8, // 8
-    +Boolean: 16, // 16
-    +Enum: 32, // 32
-    +BigInt: 64, // 64
-    +StringLiteral: 128, // 128
-    +NumberLiteral: 256, // 256
-    +BooleanLiteral: 512, // 512
-    +EnumLiteral: 1024, // 1024
-    +BigIntLiteral: 2048, // 2048
-    +ESSymbol: 4096, // 4096
-    +UniqueESSymbol: 8192, // 8192
-    +Void: 16384, // 16384
-    +Undefined: 32768, // 32768
-    +Null: 65536, // 65536
-    +Never: 131072, // 131072
-    +TypeParameter: 262144, // 262144
-    +Object: 524288, // 524288
-    +Union: 1048576, // 1048576
-    +Intersection: 2097152, // 2097152
-    +Index: 4194304, // 4194304
-    +IndexedAccess: 8388608, // 8388608
-    +Conditional: 16777216, // 16777216
-    +Substitution: 33554432, // 33554432
-    +NonPrimitive: 67108864, // 67108864
-    +Literal: 2944, // 2944
-    +Unit: 109440, // 109440
-    +StringOrNumberLiteral: 384, // 384
-    +PossiblyFalsy: 117724, // 117724
-    +StringLike: 132, // 132
-    +NumberLike: 296, // 296
-    +BigIntLike: 2112, // 2112
-    +BooleanLike: 528, // 528
-    +EnumLike: 1056, // 1056
-    +ESSymbolLike: 12288, // 12288
-    +VoidLike: 49152, // 49152
-    +UnionOrIntersection: 3145728, // 3145728
-    +StructuredType: 3670016, // 3670016
-    +TypeVariable: 8650752, // 8650752
-    +InstantiableNonPrimitive: 58982400, // 58982400
-    +InstantiablePrimitive: 4194304, // 4194304
-    +Instantiable: 63176704, // 63176704
-    +StructuredOrInstantiable: 66846720, // 66846720
-    +Narrowable: 133970943, // 133970943
-    +NotUnionOrUnit: 67637251 // 67637251
+    // 1
+    +Any: 1,
+    // 2
+    +Unknown: 2,
+    // 4
+    +String: 4,
+    // 8
+    +Number: 8,
+    // 16
+    +Boolean: 16,
+    // 32
+    +Enum: 32,
+    // 64
+    +BigInt: 64,
+    // 128
+    +StringLiteral: 128,
+    // 256
+    +NumberLiteral: 256,
+    // 512
+    +BooleanLiteral: 512,
+    // 1024
+    +EnumLiteral: 1024,
+    // 2048
+    +BigIntLiteral: 2048,
+    // 4096
+    +ESSymbol: 4096,
+    // 8192
+    +UniqueESSymbol: 8192,
+    // 16384
+    +Void: 16384,
+    // 32768
+    +Undefined: 32768,
+    // 65536
+    +Null: 65536,
+    // 131072
+    +Never: 131072,
+    // 262144
+    +TypeParameter: 262144,
+    // 524288
+    +Object: 524288,
+    // 1048576
+    +Union: 1048576,
+    // 2097152
+    +Intersection: 2097152,
+    // 4194304
+    +Index: 4194304,
+    // 8388608
+    +IndexedAccess: 8388608,
+    // 16777216
+    +Conditional: 16777216,
+    // 33554432
+    +Substitution: 33554432,
+    // 67108864
+    +NonPrimitive: 67108864,
+    // 2944
+    +Literal: 2944,
+    // 109440
+    +Unit: 109440,
+    // 384
+    +StringOrNumberLiteral: 384,
+    // 117724
+    +PossiblyFalsy: 117724,
+    // 132
+    +StringLike: 132,
+    // 296
+    +NumberLike: 296,
+    // 2112
+    +BigIntLike: 2112,
+    // 528
+    +BooleanLike: 528,
+    // 1056
+    +EnumLike: 1056,
+    // 12288
+    +ESSymbolLike: 12288,
+    // 49152
+    +VoidLike: 49152,
+    // 3145728
+    +UnionOrIntersection: 3145728,
+    // 3670016
+    +StructuredType: 3670016,
+    // 8650752
+    +TypeVariable: 8650752,
+    // 58982400
+    +InstantiableNonPrimitive: 58982400,
+    // 4194304
+    +InstantiablePrimitive: 4194304,
+    // 63176704
+    +Instantiable: 63176704,
+    // 66846720
+    +StructuredOrInstantiable: 66846720,
+    // 133970943
+    +Narrowable: 133970943,
+    // 67637251
+    +NotUnionOrUnit: 67637251,
+    ...
   };
 
   declare type DestructuringPattern =
@@ -3446,152 +4045,172 @@ declare module 'typescript' {
     isNumberLiteral(): boolean,
     isTypeParameter(): boolean,
     isClassOrInterface(): boolean,
-    isClass(): boolean
+    isClass(): boolean,
+    ...
   };
 
   declare type LiteralType = {
     ...$Exact<Type>,
-
     value: string | number | PseudoBigInt,
     freshType: LiteralType,
-    regularType: LiteralType
+    regularType: LiteralType,
+    ...
   };
 
   declare type UniqueESSymbolType = {
     ...$Exact<Type>,
-
     symbol: Symbol,
-    escapedName: __String
+    escapedName: __String,
+    ...
   };
 
   declare type StringLiteralType = {
     ...$Exact<LiteralType>,
-
-    value: string
+    value: string,
+    ...
   };
 
   declare type NumberLiteralType = {
     ...$Exact<LiteralType>,
-
-    value: number
+    value: number,
+    ...
   };
 
   declare type BigIntLiteralType = {
     ...$Exact<LiteralType>,
-
-    value: PseudoBigInt
+    value: PseudoBigInt,
+    ...
   };
 
-  declare type EnumType = {...$Exact<Type>};
+  declare type EnumType = { ...$Exact<Type>, ... };
 
   declare var ObjectFlags: {
-    +Class: 1, // 1
-    +Interface: 2, // 2
-    +Reference: 4, // 4
-    +Tuple: 8, // 8
-    +Anonymous: 16, // 16
-    +Mapped: 32, // 32
-    +Instantiated: 64, // 64
-    +ObjectLiteral: 128, // 128
-    +EvolvingArray: 256, // 256
-    +ObjectLiteralPatternWithComputedProperties: 512, // 512
-    +ContainsSpread: 1024, // 1024
-    +ReverseMapped: 2048, // 2048
-    +JsxAttributes: 4096, // 4096
-    +MarkerType: 8192, // 8192
-    +JSLiteral: 16384, // 16384
-    +FreshLiteral: 32768, // 32768
-    +ClassOrInterface: 3 // 3
+    // 1
+    +Class: 1,
+    // 2
+    +Interface: 2,
+    // 4
+    +Reference: 4,
+    // 8
+    +Tuple: 8,
+    // 16
+    +Anonymous: 16,
+    // 32
+    +Mapped: 32,
+    // 64
+    +Instantiated: 64,
+    // 128
+    +ObjectLiteral: 128,
+    // 256
+    +EvolvingArray: 256,
+    // 512
+    +ObjectLiteralPatternWithComputedProperties: 512,
+    // 1024
+    +ContainsSpread: 1024,
+    // 2048
+    +ReverseMapped: 2048,
+    // 4096
+    +JsxAttributes: 4096,
+    // 8192
+    +MarkerType: 8192,
+    // 16384
+    +JSLiteral: 16384,
+    // 32768
+    +FreshLiteral: 32768,
+    // 3
+    +ClassOrInterface: 3,
+    ...
   };
 
   declare type ObjectType = {
     ...$Exact<Type>,
-
-    objectFlags: $Values<typeof ObjectFlags>
+    objectFlags: $Values<typeof ObjectFlags>,
+    ...
   };
 
   declare type InterfaceType = {
     ...$Exact<ObjectType>,
-
     typeParameters: TypeParameter[] | void,
     outerTypeParameters: TypeParameter[] | void,
     localTypeParameters: TypeParameter[] | void,
-    thisType: TypeParameter | void
+    thisType: TypeParameter | void,
+    ...
   };
 
   declare type BaseType = ObjectType | IntersectionType;
   declare type InterfaceTypeWithDeclaredMembers = {
     ...$Exact<InterfaceType>,
-
     declaredProperties: Symbol[],
     declaredCallSignatures: Signature[],
     declaredConstructSignatures: Signature[],
     declaredStringIndexInfo?: IndexInfo,
-    declaredNumberIndexInfo?: IndexInfo
+    declaredNumberIndexInfo?: IndexInfo,
+    ...
   };
 
   declare type TypeReference = {
     ...$Exact<ObjectType>,
-
     target: GenericType,
-    typeArguments?: $ReadOnlyArray<Type>
+    typeArguments?: $ReadOnlyArray<Type>,
+    ...
   };
 
   declare type GenericType = {
     ...$Exact<InterfaceType>,
-    ...$Exact<TypeReference>
+    ...$Exact<TypeReference>,
+    ...
   };
 
   declare type TupleType = {
     ...$Exact<GenericType>,
-
     minLength: number,
     hasRestElement: boolean,
-    associatedNames?: __String[]
+    associatedNames?: __String[],
+    ...
   };
 
   declare type TupleTypeReference = {
     ...$Exact<TypeReference>,
-
-    target: TupleType
+    target: TupleType,
+    ...
   };
 
   declare type UnionOrIntersectionType = {
     ...$Exact<Type>,
-
-    types: Type[]
+    types: Type[],
+    ...
   };
 
-  declare type UnionType = {...$Exact<UnionOrIntersectionType>};
+  declare type UnionType = { ...$Exact<UnionOrIntersectionType>, ... };
 
-  declare type IntersectionType = {...$Exact<UnionOrIntersectionType>};
+  declare type IntersectionType = { ...$Exact<UnionOrIntersectionType>, ... };
 
   declare type StructuredType = ObjectType | UnionType | IntersectionType;
   declare type EvolvingArrayType = {
     ...$Exact<ObjectType>,
-
     elementType: Type,
-    finalArrayType?: Type
+    finalArrayType?: Type,
+    ...
   };
 
-  declare type InstantiableType = {...$Exact<Type>};
+  declare type InstantiableType = { ...$Exact<Type>, ... };
 
-  declare type TypeParameter = {...$Exact<InstantiableType>};
+  declare type TypeParameter = { ...$Exact<InstantiableType>, ... };
 
   declare type IndexedAccessType = {
     ...$Exact<InstantiableType>,
-
     objectType: Type,
     indexType: Type,
     constraint?: Type,
-    simplified?: Type
+    simplified?: Type,
+    ...
   };
 
   declare type TypeVariable = TypeParameter | IndexedAccessType;
   declare type IndexType = {
     ...$Exact<InstantiableType>,
-
-    type: InstantiableType | UnionOrIntersectionType
+    type: InstantiableType | UnionOrIntersectionType,
+    ...
   };
 
   declare type ConditionalRoot = {
@@ -3605,29 +4224,33 @@ declare module 'typescript' {
     outerTypeParameters?: TypeParameter[],
     instantiations?: Map<Type>,
     aliasSymbol?: Symbol,
-    aliasTypeArguments?: Type[]
+    aliasTypeArguments?: Type[],
+    ...
   };
 
   declare type ConditionalType = {
     ...$Exact<InstantiableType>,
-
     root: ConditionalRoot,
     checkType: Type,
     extendsType: Type,
     resolvedTrueType?: Type,
-    resolvedFalseType?: Type
+    resolvedFalseType?: Type,
+    ...
   };
 
   declare type SubstitutionType = {
     ...$Exact<InstantiableType>,
-
     typeVariable: TypeVariable,
-    substitute: Type
+    substitute: Type,
+    ...
   };
 
   declare var SignatureKind: {
-    +Call: 0, // 0
-    +Construct: 1 // 1
+    // 0
+    +Call: 0,
+    // 1
+    +Construct: 1,
+    ...
   };
 
   declare type Signature = {
@@ -3641,36 +4264,51 @@ declare module 'typescript' {
     getDocumentationComment(
       typeChecker: TypeChecker | void
     ): SymbolDisplayPart[],
-    getJsDocTags(): JSDocTagInfo[]
+    getJsDocTags(): JSDocTagInfo[],
+    ...
   };
 
   declare var IndexKind: {
-    +String: 0, // 0
-    +Number: 1 // 1
+    // 0
+    +String: 0,
+    // 1
+    +Number: 1,
+    ...
   };
 
   declare type IndexInfo = {
     type: Type,
     isReadonly: boolean,
-    declaration?: IndexSignatureDeclaration
+    declaration?: IndexSignatureDeclaration,
+    ...
   };
 
   declare var InferencePriority: {
-    +NakedTypeVariable: 1, // 1
-    +HomomorphicMappedType: 2, // 2
-    +MappedTypeConstraint: 4, // 4
-    +ReturnType: 8, // 8
-    +LiteralKeyof: 16, // 16
-    +NoConstraints: 32, // 32
-    +AlwaysStrict: 64, // 64
-    +PriorityImpliesCombination: 28 // 28
+    // 1
+    +NakedTypeVariable: 1,
+    // 2
+    +HomomorphicMappedType: 2,
+    // 4
+    +MappedTypeConstraint: 4,
+    // 8
+    +ReturnType: 8,
+    // 16
+    +LiteralKeyof: 16,
+    // 32
+    +NoConstraints: 32,
+    // 64
+    +AlwaysStrict: 64,
+    // 28
+    +PriorityImpliesCombination: 28,
+    ...
   };
 
   declare type JsFileExtensionInfo = FileExtensionInfo;
   declare type FileExtensionInfo = {
     extension: string,
     isMixedContent: boolean,
-    scriptKind?: $Values<typeof ScriptKind>
+    scriptKind?: $Values<typeof ScriptKind>,
+    ...
   };
 
   declare type DiagnosticMessage = {
@@ -3678,22 +4316,24 @@ declare module 'typescript' {
     category: $Values<typeof DiagnosticCategory>,
     code: number,
     message: string,
-    reportsUnnecessary?: {}
+    reportsUnnecessary?: {...},
+    ...
   };
 
   declare type DiagnosticMessageChain = {
     messageText: string,
     category: $Values<typeof DiagnosticCategory>,
     code: number,
-    next?: DiagnosticMessageChain
+    next?: DiagnosticMessageChain,
+    ...
   };
 
   declare type Diagnostic = {
     ...$Exact<DiagnosticRelatedInformation>,
-
-    reportsUnnecessary?: {},
+    reportsUnnecessary?: {...},
     source?: string,
-    relatedInformation?: DiagnosticRelatedInformation[]
+    relatedInformation?: DiagnosticRelatedInformation[],
+    ...
   };
 
   declare type DiagnosticRelatedInformation = {
@@ -3702,38 +4342,46 @@ declare module 'typescript' {
     file: SourceFile | void,
     start: number | void,
     length: number | void,
-    messageText: string | DiagnosticMessageChain
+    messageText: string | DiagnosticMessageChain,
+    ...
   };
 
   declare type DiagnosticWithLocation = {
     ...$Exact<Diagnostic>,
-
     file: SourceFile,
     start: number,
-    length: number
+    length: number,
+    ...
   };
 
   declare var DiagnosticCategory: {
-    +Warning: 0, // 0
-    +Error: 1, // 1
-    +Suggestion: 2, // 2
-    +Message: 3 // 3
+    // 0
+    +Warning: 0,
+    // 1
+    +Error: 1,
+    // 2
+    +Suggestion: 2,
+    // 3
+    +Message: 3,
+    ...
   };
 
   declare var ModuleResolutionKind: {
-    +Classic: 1, // 1
-    +NodeJs: 2 // 2
+    // 1
+    +Classic: 1,
+    // 2
+    +NodeJs: 2,
+    ...
   };
 
-  declare type PluginImport = {
-    name: string
-  };
+  declare type PluginImport = { name: string, ... };
 
   declare type ProjectReference = {
     path: string,
     originalPath?: string,
     prepend?: boolean,
-    circular?: boolean
+    circular?: boolean,
+    ...
   };
 
   declare type CompilerOptionsValue =
@@ -3748,6 +4396,7 @@ declare module 'typescript' {
     | null
     | void;
   declare type CompilerOptions = {
+    [option: string]: CompilerOptionsValue | TsConfigSourceFile | void,
     allowJs?: boolean,
     allowSyntheticDefaultImports?: boolean,
     allowUnreachableCode?: boolean,
@@ -3824,70 +4473,110 @@ declare module 'typescript' {
     types?: string[],
     typeRoots?: string[],
     esModuleInterop?: boolean,
-    [option: string]: CompilerOptionsValue | TsConfigSourceFile | void
+    ...
   };
 
   declare type TypeAcquisition = {
+    [option: string]: string[] | boolean | void,
     enableAutoDiscovery?: boolean,
     enable?: boolean,
     include?: string[],
     exclude?: string[],
-    [option: string]: string[] | boolean | void
+    ...
   };
 
   declare var ModuleKind: {
-    +None: 0, // 0
-    +CommonJS: 1, // 1
-    +AMD: 2, // 2
-    +UMD: 3, // 3
-    +System: 4, // 4
-    +ES2015: 5, // 5
-    +ESNext: 6 // 6
+    // 0
+    +None: 0,
+    // 1
+    +CommonJS: 1,
+    // 2
+    +AMD: 2,
+    // 3
+    +UMD: 3,
+    // 4
+    +System: 4,
+    // 5
+    +ES2015: 5,
+    // 6
+    +ESNext: 6,
+    ...
   };
 
   declare var JsxEmit: {
-    +None: 0, // 0
-    +Preserve: 1, // 1
-    +React: 2, // 2
-    +ReactNative: 3 // 3
+    // 0
+    +None: 0,
+    // 1
+    +Preserve: 1,
+    // 2
+    +React: 2,
+    // 3
+    +ReactNative: 3,
+    ...
   };
 
   declare var NewLineKind: {
-    +CarriageReturnLineFeed: 0, // 0
-    +LineFeed: 1 // 1
+    // 0
+    +CarriageReturnLineFeed: 0,
+    // 1
+    +LineFeed: 1,
+    ...
   };
 
   declare type LineAndCharacter = {
     line: number,
-    character: number
+    character: number,
+    ...
   };
 
   declare var ScriptKind: {
-    +Unknown: 0, // 0
-    +JS: 1, // 1
-    +JSX: 2, // 2
-    +TS: 3, // 3
-    +TSX: 4, // 4
-    +External: 5, // 5
-    +JSON: 6, // 6
-    +Deferred: 7 // 7
+    // 0
+    +Unknown: 0,
+    // 1
+    +JS: 1,
+    // 2
+    +JSX: 2,
+    // 3
+    +TS: 3,
+    // 4
+    +TSX: 4,
+    // 5
+    +External: 5,
+    // 6
+    +JSON: 6,
+    // 7
+    +Deferred: 7,
+    ...
   };
 
   declare var ScriptTarget: {
-    +ES3: 0, // 0
-    +ES5: 1, // 1
-    +ES2015: 2, // 2
-    +ES2016: 3, // 3
-    +ES2017: 4, // 4
-    +ES2018: 5, // 5
-    +ESNext: 6, // 6
-    +JSON: 100, // 100
-    +Latest: 6 // 6
+    // 0
+    +ES3: 0,
+    // 1
+    +ES5: 1,
+    // 2
+    +ES2015: 2,
+    // 3
+    +ES2016: 3,
+    // 4
+    +ES2017: 4,
+    // 5
+    +ES2018: 5,
+    // 6
+    +ESNext: 6,
+    // 100
+    +JSON: 100,
+    // 6
+    +Latest: 6,
+    ...
   };
 
   declare var LanguageVariant: {
-    +Standard: 0, // 0
-    +JSX: 1 // 1
+    // 0
+    +Standard: 0,
+    // 1
+    +JSX: 1,
+    ...
   };
 
   declare type ParsedCommandLine = {
@@ -3898,17 +4587,22 @@ declare module 'typescript' {
     raw?: any,
     errors: Diagnostic[],
     wildcardDirectories?: MapLike<$Values<typeof WatchDirectoryFlags>>,
-    compileOnSave?: boolean
+    compileOnSave?: boolean,
+    ...
   };
 
   declare var WatchDirectoryFlags: {
-    +None: 0, // 0
-    +Recursive: 1 // 1
+    // 0
+    +None: 0,
+    // 1
+    +Recursive: 1,
+    ...
   };
 
   declare type ExpandResult = {
     fileNames: string[],
-    wildcardDirectories: MapLike<$Values<typeof WatchDirectoryFlags>>
+    wildcardDirectories: MapLike<$Values<typeof WatchDirectoryFlags>>,
+    ...
   };
 
   declare type CreateProgramOptions = {
@@ -3917,7 +4611,8 @@ declare module 'typescript' {
     projectReferences?: $ReadOnlyArray<ProjectReference>,
     host?: CompilerHost,
     oldProgram?: Program,
-    configFileParsingDiagnostics?: $ReadOnlyArray<Diagnostic>
+    configFileParsingDiagnostics?: $ReadOnlyArray<Diagnostic>,
+    ...
   };
 
   declare type ModuleResolutionHost = {
@@ -3927,55 +4622,64 @@ declare module 'typescript' {
     directoryExists?: (directoryName: string) => boolean,
     realpath?: (path: string) => string,
     getCurrentDirectory?: () => string,
-    getDirectories?: (path: string) => string[]
+    getDirectories?: (path: string) => string[],
+    ...
   };
 
   declare type ResolvedModule = {
     resolvedFileName: string,
-    isExternalLibraryImport?: boolean
+    isExternalLibraryImport?: boolean,
+    ...
   };
 
   declare type ResolvedModuleFull = {
     ...$Exact<ResolvedModule>,
-
     extension: $Values<typeof Extension>,
-    packageId?: PackageId
+    packageId?: PackageId,
+    ...
   };
 
   declare type PackageId = {
     name: string,
     subModuleName: string,
-    version: string
+    version: string,
+    ...
   };
 
   declare var Extension: {
-    +Ts: '.ts', // ".ts"
-    +Tsx: '.tsx', // ".tsx"
-    +Dts: '.d.ts', // ".d.ts"
-    +Js: '.js', // ".js"
-    +Jsx: '.jsx', // ".jsx"
-    +Json: '.json' // ".json"
+    // ".ts"
+    +Ts: ".ts",
+    // ".tsx"
+    +Tsx: ".tsx",
+    // ".d.ts"
+    +Dts: ".d.ts",
+    // ".js"
+    +Js: ".js",
+    // ".jsx"
+    +Jsx: ".jsx",
+    // ".json"
+    +Json: ".json",
+    ...
   };
 
-  declare type ResolvedModuleWithFailedLookupLocations = {
-    +resolvedModule: ResolvedModuleFull | void
-  };
+  declare type ResolvedModuleWithFailedLookupLocations = { +resolvedModule: ResolvedModuleFull | void, ... };
 
   declare type ResolvedTypeReferenceDirective = {
     primary: boolean,
     resolvedFileName: string | void,
     packageId?: PackageId,
-    isExternalLibraryImport?: boolean
+    isExternalLibraryImport?: boolean,
+    ...
   };
 
   declare type ResolvedTypeReferenceDirectiveWithFailedLookupLocations = {
     +resolvedTypeReferenceDirective: ResolvedTypeReferenceDirective | void,
-    +failedLookupLocations: $ReadOnlyArray<string>
+    +failedLookupLocations: $ReadOnlyArray<string>,
+    ...
   };
 
   declare type CompilerHost = {
     ...$Exact<ModuleResolutionHost>,
-
     getSourceFile(
       fileName: string,
       languageVersion: $Values<typeof ScriptTarget>,
@@ -4016,70 +4720,110 @@ declare module 'typescript' {
       redirectedReference?: ResolvedProjectReference
     ) => (ResolvedTypeReferenceDirective | void)[],
     getEnvironmentVariable?: (name: string) => string | void,
-    createHash?: (data: string) => string
+    createHash?: (data: string) => string,
+    ...
   };
 
   declare type SourceMapRange = {
     ...$Exact<TextRange>,
-
-    source?: SourceMapSource
+    source?: SourceMapSource,
+    ...
   };
 
   declare type SourceMapSource = {
     fileName: string,
     text: string,
     skipTrivia?: (pos: number) => number,
-    getLineAndCharacterOfPosition(pos: number): LineAndCharacter
+    getLineAndCharacterOfPosition(pos: number): LineAndCharacter,
+    ...
   };
 
   declare var EmitFlags: {
-    +None: 0, // 0
-    +SingleLine: 1, // 1
-    +AdviseOnEmitNode: 2, // 2
-    +NoSubstitution: 4, // 4
-    +CapturesThis: 8, // 8
-    +NoLeadingSourceMap: 16, // 16
-    +NoTrailingSourceMap: 32, // 32
-    +NoSourceMap: 48, // 48
-    +NoNestedSourceMaps: 64, // 64
-    +NoTokenLeadingSourceMaps: 128, // 128
-    +NoTokenTrailingSourceMaps: 256, // 256
-    +NoTokenSourceMaps: 384, // 384
-    +NoLeadingComments: 512, // 512
-    +NoTrailingComments: 1024, // 1024
-    +NoComments: 1536, // 1536
-    +NoNestedComments: 2048, // 2048
-    +HelperName: 4096, // 4096
-    +ExportName: 8192, // 8192
-    +LocalName: 16384, // 16384
-    +InternalName: 32768, // 32768
-    +Indented: 65536, // 65536
-    +NoIndentation: 131072, // 131072
-    +AsyncFunctionBody: 262144, // 262144
-    +ReuseTempVariableScope: 524288, // 524288
-    +CustomPrologue: 1048576, // 1048576
-    +NoHoisting: 2097152, // 2097152
-    +HasEndOfDeclarationMarker: 4194304, // 4194304
-    +Iterator: 8388608, // 8388608
-    +NoAsciiEscaping: 16777216 // 16777216
+    // 0
+    +None: 0,
+    // 1
+    +SingleLine: 1,
+    // 2
+    +AdviseOnEmitNode: 2,
+    // 4
+    +NoSubstitution: 4,
+    // 8
+    +CapturesThis: 8,
+    // 16
+    +NoLeadingSourceMap: 16,
+    // 32
+    +NoTrailingSourceMap: 32,
+    // 48
+    +NoSourceMap: 48,
+    // 64
+    +NoNestedSourceMaps: 64,
+    // 128
+    +NoTokenLeadingSourceMaps: 128,
+    // 256
+    +NoTokenTrailingSourceMaps: 256,
+    // 384
+    +NoTokenSourceMaps: 384,
+    // 512
+    +NoLeadingComments: 512,
+    // 1024
+    +NoTrailingComments: 1024,
+    // 1536
+    +NoComments: 1536,
+    // 2048
+    +NoNestedComments: 2048,
+    // 4096
+    +HelperName: 4096,
+    // 8192
+    +ExportName: 8192,
+    // 16384
+    +LocalName: 16384,
+    // 32768
+    +InternalName: 32768,
+    // 65536
+    +Indented: 65536,
+    // 131072
+    +NoIndentation: 131072,
+    // 262144
+    +AsyncFunctionBody: 262144,
+    // 524288
+    +ReuseTempVariableScope: 524288,
+    // 1048576
+    +CustomPrologue: 1048576,
+    // 2097152
+    +NoHoisting: 2097152,
+    // 4194304
+    +HasEndOfDeclarationMarker: 4194304,
+    // 8388608
+    +Iterator: 8388608,
+    // 16777216
+    +NoAsciiEscaping: 16777216,
+    ...
   };
 
   declare type EmitHelper = {
     +name: string,
     +scoped: boolean,
     +text: string | ((node: EmitHelperUniqueNameCallback) => string),
-    +priority?: number
+    +priority?: number,
+    ...
   };
 
   declare type EmitHelperUniqueNameCallback = (name: string) => string;
 
   declare var EmitHint: {
-    +SourceFile: 0, // 0
-    +Expression: 1, // 1
-    +IdentifierName: 2, // 2
-    +MappedTypeParameter: 3, // 3
-    +Unspecified: 4, // 4
-    +EmbeddedStatement: 5 // 5
+    // 0
+    +SourceFile: 0,
+    // 1
+    +Expression: 1,
+    // 2
+    +IdentifierName: 2,
+    // 3
+    +MappedTypeParameter: 3,
+    // 4
+    +Unspecified: 4,
+    // 5
+    +EmbeddedStatement: 5,
+    ...
   };
 
   declare type TransformationContext = {
@@ -4101,7 +4845,8 @@ declare module 'typescript' {
       hint: $Values<typeof EmitHint>,
       node: Node,
       emitCallback: (hint: $Values<typeof EmitHint>, node: Node) => void
-    ) => void
+    ) => void,
+    ...
   };
 
   declare type TransformationResult<T: Node> = {
@@ -4113,7 +4858,8 @@ declare module 'typescript' {
       node: Node,
       emitCallback: (hint: $Values<typeof EmitHint>, node: Node) => void
     ): void,
-    dispose(): void
+    dispose(): void,
+    ...
   };
 
   declare type TransformerFactory<T: Node> = (
@@ -4134,7 +4880,8 @@ declare module 'typescript' {
       sourceFile: SourceFile
     ): string,
     printFile(sourceFile: SourceFile): string,
-    printBundle(bundle: Bundle): string
+    printBundle(bundle: Bundle): string,
+    ...
   };
 
   declare type PrintHandlers = {
@@ -4144,125 +4891,202 @@ declare module 'typescript' {
       node: Node | void,
       emitCallback: (hint: $Values<typeof EmitHint>, node: Node | void) => void
     ) => void,
-    substituteNode?: (hint: $Values<typeof EmitHint>, node: Node) => Node
+    substituteNode?: (hint: $Values<typeof EmitHint>, node: Node) => Node,
+    ...
   };
 
   declare type PrinterOptions = {
     removeComments?: boolean,
     newLine?: $Values<typeof NewLineKind>,
     omitTrailingSemicolon?: boolean,
-    noEmitHelpers?: boolean
+    noEmitHelpers?: boolean,
+    ...
   };
 
   declare type GetEffectiveTypeRootsHost = {
     directoryExists?: (directoryName: string) => boolean,
-    getCurrentDirectory?: () => string
+    getCurrentDirectory?: () => string,
+    ...
   };
 
   declare type TextSpan = {
     start: number,
-    length: number
+    length: number,
+    ...
   };
 
   declare type TextChangeRange = {
     span: TextSpan,
-    newLength: number
+    newLength: number,
+    ...
   };
 
   declare type SyntaxList = {
     ...$Exact<Node>,
-
-    _children: Node[]
+    _children: Node[],
+    ...
   };
 
   declare var ListFormat: {
-    +None: 0, // 0
-    +SingleLine: 0, // 0
-    +MultiLine: 1, // 1
-    +PreserveLines: 2, // 2
-    +LinesMask: 3, // 3
-    +NotDelimited: 0, // 0
-    +BarDelimited: 4, // 4
-    +AmpersandDelimited: 8, // 8
-    +CommaDelimited: 16, // 16
-    +AsteriskDelimited: 32, // 32
-    +DelimitersMask: 60, // 60
-    +AllowTrailingComma: 64, // 64
-    +Indented: 128, // 128
-    +SpaceBetweenBraces: 256, // 256
-    +SpaceBetweenSiblings: 512, // 512
-    +Braces: 1024, // 1024
-    +Parenthesis: 2048, // 2048
-    +AngleBrackets: 4096, // 4096
-    +SquareBrackets: 8192, // 8192
-    +BracketsMask: 15360, // 15360
-    +OptionalIfUndefined: 16384, // 16384
-    +OptionalIfEmpty: 32768, // 32768
-    +Optional: 49152, // 49152
-    +PreferNewLine: 65536, // 65536
-    +NoTrailingNewLine: 131072, // 131072
-    +NoInterveningComments: 262144, // 262144
-    +NoSpaceIfEmpty: 524288, // 524288
-    +SingleElement: 1048576, // 1048576
-    +Modifiers: 262656, // 262656
-    +HeritageClauses: 512, // 512
-    +SingleLineTypeLiteralMembers: 768, // 768
-    +MultiLineTypeLiteralMembers: 32897, // 32897
-    +TupleTypeElements: 528, // 528
-    +UnionTypeConstituents: 516, // 516
-    +IntersectionTypeConstituents: 520, // 520
-    +ObjectBindingPatternElements: 525136, // 525136
-    +ArrayBindingPatternElements: 524880, // 524880
-    +ObjectLiteralExpressionProperties: 526226, // 526226
-    +ArrayLiteralExpressionElements: 8914, // 8914
-    +CommaListElements: 528, // 528
-    +CallExpressionArguments: 2576, // 2576
-    +NewExpressionArguments: 18960, // 18960
-    +TemplateExpressionSpans: 262144, // 262144
-    +SingleLineBlockStatements: 768, // 768
-    +MultiLineBlockStatements: 129, // 129
-    +VariableDeclarationList: 528, // 528
-    +SingleLineFunctionBodyStatements: 768, // 768
-    +MultiLineFunctionBodyStatements: 1, // 1
-    +ClassHeritageClauses: 0, // 0
-    +ClassMembers: 129, // 129
-    +InterfaceMembers: 129, // 129
-    +EnumMembers: 145, // 145
-    +CaseBlockClauses: 129, // 129
-    +NamedImportsOrExportsElements: 525136, // 525136
-    +JsxElementOrFragmentChildren: 262144, // 262144
-    +JsxElementAttributes: 262656, // 262656
-    +CaseOrDefaultClauseStatements: 163969, // 163969
-    +HeritageClauseTypes: 528, // 528
-    +SourceFileStatements: 131073, // 131073
-    +Decorators: 49153, // 49153
-    +TypeArguments: 53776, // 53776
-    +TypeParameters: 53776, // 53776
-    +Parameters: 2576, // 2576
-    +IndexSignatureParameters: 8848, // 8848
-    +JSDocComment: 33 // 33
+    // 0
+    +None: 0,
+    // 0
+    +SingleLine: 0,
+    // 1
+    +MultiLine: 1,
+    // 2
+    +PreserveLines: 2,
+    // 3
+    +LinesMask: 3,
+    // 0
+    +NotDelimited: 0,
+    // 4
+    +BarDelimited: 4,
+    // 8
+    +AmpersandDelimited: 8,
+    // 16
+    +CommaDelimited: 16,
+    // 32
+    +AsteriskDelimited: 32,
+    // 60
+    +DelimitersMask: 60,
+    // 64
+    +AllowTrailingComma: 64,
+    // 128
+    +Indented: 128,
+    // 256
+    +SpaceBetweenBraces: 256,
+    // 512
+    +SpaceBetweenSiblings: 512,
+    // 1024
+    +Braces: 1024,
+    // 2048
+    +Parenthesis: 2048,
+    // 4096
+    +AngleBrackets: 4096,
+    // 8192
+    +SquareBrackets: 8192,
+    // 15360
+    +BracketsMask: 15360,
+    // 16384
+    +OptionalIfUndefined: 16384,
+    // 32768
+    +OptionalIfEmpty: 32768,
+    // 49152
+    +Optional: 49152,
+    // 65536
+    +PreferNewLine: 65536,
+    // 131072
+    +NoTrailingNewLine: 131072,
+    // 262144
+    +NoInterveningComments: 262144,
+    // 524288
+    +NoSpaceIfEmpty: 524288,
+    // 1048576
+    +SingleElement: 1048576,
+    // 262656
+    +Modifiers: 262656,
+    // 512
+    +HeritageClauses: 512,
+    // 768
+    +SingleLineTypeLiteralMembers: 768,
+    // 32897
+    +MultiLineTypeLiteralMembers: 32897,
+    // 528
+    +TupleTypeElements: 528,
+    // 516
+    +UnionTypeConstituents: 516,
+    // 520
+    +IntersectionTypeConstituents: 520,
+    // 525136
+    +ObjectBindingPatternElements: 525136,
+    // 524880
+    +ArrayBindingPatternElements: 524880,
+    // 526226
+    +ObjectLiteralExpressionProperties: 526226,
+    // 8914
+    +ArrayLiteralExpressionElements: 8914,
+    // 528
+    +CommaListElements: 528,
+    // 2576
+    +CallExpressionArguments: 2576,
+    // 18960
+    +NewExpressionArguments: 18960,
+    // 262144
+    +TemplateExpressionSpans: 262144,
+    // 768
+    +SingleLineBlockStatements: 768,
+    // 129
+    +MultiLineBlockStatements: 129,
+    // 528
+    +VariableDeclarationList: 528,
+    // 768
+    +SingleLineFunctionBodyStatements: 768,
+    // 1
+    +MultiLineFunctionBodyStatements: 1,
+    // 0
+    +ClassHeritageClauses: 0,
+    // 129
+    +ClassMembers: 129,
+    // 129
+    +InterfaceMembers: 129,
+    // 145
+    +EnumMembers: 145,
+    // 129
+    +CaseBlockClauses: 129,
+    // 525136
+    +NamedImportsOrExportsElements: 525136,
+    // 262144
+    +JsxElementOrFragmentChildren: 262144,
+    // 262656
+    +JsxElementAttributes: 262656,
+    // 163969
+    +CaseOrDefaultClauseStatements: 163969,
+    // 528
+    +HeritageClauseTypes: 528,
+    // 131073
+    +SourceFileStatements: 131073,
+    // 49153
+    +Decorators: 49153,
+    // 53776
+    +TypeArguments: 53776,
+    // 53776
+    +TypeParameters: 53776,
+    // 2576
+    +Parameters: 2576,
+    // 8848
+    +IndexSignatureParameters: 8848,
+    // 33
+    +JSDocComment: 33,
+    ...
   };
 
   declare type UserPreferences = {
     +disableSuggestions?: boolean,
-    +quotePreference?: 'auto' | 'double' | 'single',
+    +quotePreference?: "auto" | "double" | "single",
     +includeCompletionsForModuleExports?: boolean,
     +includeCompletionsWithInsertText?: boolean,
-    +importModuleSpecifierPreference?: 'relative' | 'non-relative',
-    +importModuleSpecifierEnding?: 'minimal' | 'index' | 'js',
+    +importModuleSpecifierPreference?: "relative" | "non-relative",
+    +importModuleSpecifierEnding?: "minimal" | "index" | "js",
     +allowTextChangesInNewFiles?: boolean,
-    +providePrefixAndSuffixTextForRename?: boolean
+    +providePrefixAndSuffixTextForRename?: boolean,
+    ...
   };
 
   declare type PseudoBigInt = {
     negative: boolean,
-    base10Value: string
+    base10Value: string,
+    ...
   };
 
   declare var FileWatcherEventKind: {
-    +Created: 0, // 0
-    +Changed: 1, // 1
-    +Deleted: 2 // 2
+    // 0
+    +Created: 0,
+    // 1
+    +Changed: 1,
+    // 2
+    +Deleted: 2,
+    ...
   };
 
   declare type FileWatcherCallback = (
@@ -4319,12 +5143,11 @@ declare module 'typescript' {
     clearTimeout?: (timeoutId: any) => void,
     clearScreen?: () => void,
     base64decode?: (input: string) => string,
-    base64encode?: (input: string) => string
+    base64encode?: (input: string) => string,
+    ...
   };
 
-  declare type FileWatcher = {
-    close(): void
-  };
+  declare type FileWatcher = { close(): void, ... };
 
   declare function getNodeMajorVersion(): number | void;
 
@@ -4363,7 +5186,8 @@ declare module 'typescript' {
     setTextPos(textPos: number): void,
     lookAhead<T>(callback: () => T): T,
     scanRange<T>(start: number, length: number, callback: () => T): T,
-    tryScan<T>(callback: () => T): T
+    tryScan<T>(callback: () => T): T,
+    ...
   };
 
   declare function tokenToString(t: $Values<typeof SyntaxKind>): string | void;
@@ -4582,7 +5406,8 @@ declare module 'typescript' {
 
   declare type ParameterPropertyDeclaration = ParameterDeclaration & {
     parent: ConstructorDeclaration,
-    name: Identifier
+    name: Identifier,
+    ...
   };
   declare function isParameterPropertyDeclaration(node: Node): boolean;
 
@@ -4606,7 +5431,8 @@ declare module 'typescript' {
       getExecutingFilePath(): string,
       resolvePath(path: string): string,
       fileExists(fileName: string): boolean,
-      readFile(fileName: string): string | void
+      readFile(fileName: string): string | void,
+      ...
     },
     errors?: Push<Diagnostic>
   ): void;
@@ -5153,15 +5979,13 @@ declare module 'typescript' {
   ): ParsedCommandLine;
 
   declare type DiagnosticReporter = (diagnostic: Diagnostic) => void;
-  declare type ConfigFileDiagnosticsReporter = {
-    onUnRecoverableConfigFileDiagnostic: DiagnosticReporter
-  };
+  declare type ConfigFileDiagnosticsReporter = { onUnRecoverableConfigFileDiagnostic: DiagnosticReporter, ... };
 
   declare type ParseConfigFileHost = {
     ...$Exact<ParseConfigHost>,
     ...$Exact<ConfigFileDiagnosticsReporter>,
-
-    getCurrentDirectory(): string
+    getCurrentDirectory(): string,
+    ...
   };
 
   declare function getParsedCommandLineOfConfigFile(
@@ -5175,7 +5999,8 @@ declare module 'typescript' {
     readFile: (path: string) => string | void
   ): {
     config?: any,
-    error?: Diagnostic
+    error?: Diagnostic,
+    ...
   };
 
   declare function parseConfigFileTextToJson(
@@ -5183,7 +6008,8 @@ declare module 'typescript' {
     jsonText: string
   ): {
     config?: any,
-    error?: Diagnostic
+    error?: Diagnostic,
+    ...
   };
 
   declare function readJsonConfigFile(
@@ -5222,7 +6048,8 @@ declare module 'typescript' {
     configFileName?: string
   ): {
     options: CompilerOptions,
-    errors: Diagnostic[]
+    errors: Diagnostic[],
+    ...
   };
 
   declare function convertTypeAcquisitionFromJson(
@@ -5231,7 +6058,8 @@ declare module 'typescript' {
     configFileName?: string
   ): {
     options: TypeAcquisition,
-    errors: Diagnostic[]
+    errors: Diagnostic[],
+    ...
   };
 
   declare function getEffectiveTypeRoots(
@@ -5254,26 +6082,25 @@ declare module 'typescript' {
 
   declare type ModuleResolutionCache = {
     ...$Exact<NonRelativeModuleNameResolutionCache>,
-
     getOrCreateCacheForDirectory(
       directoryName: string,
       redirectedReference?: ResolvedProjectReference
-    ): Map<ResolvedModuleWithFailedLookupLocations>
+    ): Map<ResolvedModuleWithFailedLookupLocations>,
+    ...
   };
 
-  declare type NonRelativeModuleNameResolutionCache = {
-    getOrCreateCacheForModuleName(
-      nonRelativeModuleName: string,
-      redirectedReference?: ResolvedProjectReference
-    ): PerModuleNameCache
-  };
+  declare type NonRelativeModuleNameResolutionCache = { getOrCreateCacheForModuleName(
+    nonRelativeModuleName: string,
+    redirectedReference?: ResolvedProjectReference
+  ): PerModuleNameCache, ... };
 
   declare type PerModuleNameCache = {
     get(directory: string): ResolvedModuleWithFailedLookupLocations | void,
     set(
       directory: string,
       result: ResolvedModuleWithFailedLookupLocations
-    ): void
+    ): void,
+    ...
   };
 
   declare function createModuleResolutionCache(
@@ -5382,7 +6209,7 @@ declare module 'typescript' {
   declare function createFalse(): BooleanLiteral &
     Token<typeof SyntaxKind.FalseKeyword>;
 
-  declare function createModifier<T: $ElementType<Modifier, 'kind'>>(
+  declare function createModifier<T: $ElementType<Modifier, "kind">>(
     kind: T
   ): Token<T>;
 
@@ -5622,7 +6449,7 @@ declare module 'typescript' {
   ): IndexSignatureDeclaration;
 
   declare function createKeywordTypeNode(
-    kind: $ElementType<KeywordTypeNode, 'kind'>
+    kind: $ElementType<KeywordTypeNode, "kind">
   ): KeywordTypeNode;
 
   declare function createTypePredicateNode(
@@ -5831,12 +6658,12 @@ declare module 'typescript' {
   ): MappedTypeNode;
 
   declare function createLiteralTypeNode(
-    literal: $ElementType<LiteralTypeNode, 'literal'>
+    literal: $ElementType<LiteralTypeNode, "literal">
   ): LiteralTypeNode;
 
   declare function updateLiteralTypeNode(
     node: LiteralTypeNode,
-    literal: $ElementType<LiteralTypeNode, 'literal'>
+    literal: $ElementType<LiteralTypeNode, "literal">
   ): LiteralTypeNode;
 
   declare function createObjectBindingPattern(
@@ -6198,7 +7025,7 @@ declare module 'typescript' {
   ): NonNullExpression;
 
   declare function createMetaProperty(
-    keywordToken: $ElementType<MetaProperty, 'keywordToken'>,
+    keywordToken: $ElementType<MetaProperty, "keywordToken">,
     name: Identifier
   ): MetaProperty;
 
@@ -6818,7 +7645,7 @@ declare module 'typescript' {
   ): DefaultClause;
 
   declare function createHeritageClause(
-    token: $ElementType<HeritageClause, 'token'>,
+    token: $ElementType<HeritageClause, "token">,
     types: $ReadOnlyArray<ExpressionWithTypeArguments>
   ): HeritageClause;
 
@@ -6884,10 +7711,10 @@ declare module 'typescript' {
     node: SourceFile,
     statements: $ReadOnlyArray<Statement>,
     isDeclarationFile?: boolean,
-    referencedFiles?: $ElementType<SourceFile, 'referencedFiles'>,
-    typeReferences?: $ElementType<SourceFile, 'typeReferenceDirectives'>,
+    referencedFiles?: $ElementType<SourceFile, "referencedFiles">,
+    typeReferences?: $ElementType<SourceFile, "typeReferenceDirectives">,
     hasNoDefaultLib?: boolean,
-    libReferences?: $ElementType<SourceFile, 'libReferenceDirectives'>
+    libReferences?: $ElementType<SourceFile, "libReferenceDirectives">
   ): SourceFile;
 
   declare function getMutableClone<T: Node>(node: T): T;
@@ -6924,7 +7751,7 @@ declare module 'typescript' {
 
   declare function createUnparsedSourceFile(
     inputFile: InputFiles,
-    type: 'js' | 'dts'
+    type: "js" | "dts"
   ): UnparsedSource;
 
   declare function createUnparsedSourceFile(
@@ -7257,7 +8084,8 @@ declare module 'typescript' {
   declare type FormatDiagnosticsHost = {
     getCurrentDirectory(): string,
     getCanonicalFileName(fileName: string): string,
-    getNewLine(): string
+    getNewLine(): string,
+    ...
   };
 
   declare function formatDiagnostics(
@@ -7296,9 +8124,7 @@ declare module 'typescript' {
     configFileParsingDiagnostics?: $ReadOnlyArray<Diagnostic>
   ): Program;
 
-  declare type ResolveProjectReferencePathHost = {
-    fileExists(fileName: string): boolean
-  };
+  declare type ResolveProjectReferencePathHost = { fileExists(fileName: string): boolean, ... };
 
   declare function resolveProjectReferencePath(
     ref: ProjectReference
@@ -7311,23 +8137,27 @@ declare module 'typescript' {
 
   declare type EmitOutput = {
     outputFiles: OutputFile[],
-    emitSkipped: boolean
+    emitSkipped: boolean,
+    ...
   };
 
   declare type OutputFile = {
     name: string,
     writeByteOrderMark: boolean,
-    text: string
+    text: string,
+    ...
   };
 
   declare type AffectedFileResult<T> = {
     result: T,
-    affected: SourceFile | Program
+    affected: SourceFile | Program,
+    ...
   } | void;
   declare type BuilderProgramHost = {
     useCaseSensitiveFileNames(): boolean,
     createHash?: (data: string) => string,
-    writeFile?: WriteFileCallback
+    writeFile?: WriteFileCallback,
+    ...
   };
 
   declare type BuilderProgram = {
@@ -7362,27 +8192,28 @@ declare module 'typescript' {
       emitOnlyDtsFiles?: boolean,
       customTransformers?: CustomTransformers
     ): EmitResult,
-    getCurrentDirectory(): string
+    getCurrentDirectory(): string,
+    ...
   };
 
   declare type SemanticDiagnosticsBuilderProgram = {
     ...$Exact<BuilderProgram>,
-
     getSemanticDiagnosticsOfNextAffectedFile(
       cancellationToken?: CancellationToken,
       ignoreSourceFile?: (sourceFile: SourceFile) => boolean
-    ): AffectedFileResult<$ReadOnlyArray<Diagnostic>>
+    ): AffectedFileResult<$ReadOnlyArray<Diagnostic>>,
+    ...
   };
 
   declare type EmitAndSemanticDiagnosticsBuilderProgram = {
     ...$Exact<BuilderProgram>,
-
     emitNextAffectedFile(
       writeFile?: WriteFileCallback,
       cancellationToken?: CancellationToken,
       emitOnlyDtsFiles?: boolean,
       customTransformers?: CustomTransformers
-    ): AffectedFileResult<EmitResult>
+    ): AffectedFileResult<EmitResult>,
+    ...
   };
 
   declare function createSemanticDiagnosticsBuilderProgram(
@@ -7467,7 +8298,8 @@ declare module 'typescript' {
       ms: number,
       ...args: any[]
     ) => any,
-    clearTimeout?: (timeoutId: any) => void
+    clearTimeout?: (timeoutId: any) => void,
+    ...
   };
 
   declare type ProgramHost<T: BuilderProgram> = {
@@ -7502,28 +8334,28 @@ declare module 'typescript' {
       typeReferenceDirectiveNames: string[],
       containingFile: string,
       redirectedReference?: ResolvedProjectReference
-    ) => (ResolvedTypeReferenceDirective | void)[]
+    ) => (ResolvedTypeReferenceDirective | void)[],
+    ...
   };
 
   declare type WatchCompilerHost<T: BuilderProgram> = {
     ...$Exact<ProgramHost<T>>,
     ...$Exact<WatchHost>,
-
-    afterProgramCreate?: (program: T) => void
+    afterProgramCreate?: (program: T) => void,
+    ...
   };
 
   declare type WatchCompilerHostOfFilesAndCompilerOptions<T: BuilderProgram> = {
     ...$Exact<WatchCompilerHost<T>>,
-
     rootFiles: string[],
     options: CompilerOptions,
-    projectReferences?: $ReadOnlyArray<ProjectReference>
+    projectReferences?: $ReadOnlyArray<ProjectReference>,
+    ...
   };
 
   declare type WatchCompilerHostOfConfigFile<T: BuilderProgram> = {
     ...$Exact<WatchCompilerHost<T>>,
     ...$Exact<ConfigFileDiagnosticsReporter>,
-
     configFileName: string,
     optionsToExtend?: CompilerOptions,
     readDirectory(
@@ -7532,19 +8364,18 @@ declare module 'typescript' {
       exclude?: $ReadOnlyArray<string>,
       include?: $ReadOnlyArray<string>,
       depth?: number
-    ): string[]
+    ): string[],
+    ...
   };
 
-  declare type Watch<T> = {
-    getProgram(): T
-  };
+  declare type Watch<T> = { getProgram(): T, ... };
 
-  declare type WatchOfConfigFile<T> = {...$Exact<Watch<T>>};
+  declare type WatchOfConfigFile<T> = { ...$Exact<Watch<T>>, ... };
 
   declare type WatchOfFilesAndCompilerOptions<T> = {
     ...$Exact<Watch<T>>,
-
-    updateRootFileNames(fileNames: string[]): void
+    updateRootFileNames(fileNames: string[]): void,
+    ...
   };
 
   declare function createWatchCompilerHost<T: BuilderProgram>(
@@ -7574,15 +8405,14 @@ declare module 'typescript' {
     host: WatchCompilerHostOfConfigFile<T>
   ): WatchOfConfigFile<T>;
 
-  declare type SourceFileLike = {
-    getLineAndCharacterOfPosition(pos: number): LineAndCharacter
-  };
+  declare type SourceFileLike = { getLineAndCharacterOfPosition(pos: number): LineAndCharacter, ... };
 
   declare type IScriptSnapshot = {
     getText(start: number, end: number): string,
     getLength(): number,
     getChangeRange(oldSnapshot: IScriptSnapshot): TextChangeRange | void,
-    dispose?: () => void
+    dispose?: () => void,
+    ...
   };
 
   declare function ScriptSnapshot$fromString(text: string): IScriptSnapshot;
@@ -7593,21 +8423,20 @@ declare module 'typescript' {
     libReferenceDirectives: FileReference[],
     importedFiles: FileReference[],
     ambientExternalModules?: string[],
-    isLibFile: boolean
+    isLibFile: boolean,
+    ...
   };
 
-  declare type HostCancellationToken = {
-    isCancellationRequested(): boolean
-  };
+  declare type HostCancellationToken = { isCancellationRequested(): boolean, ... };
 
   declare type InstallPackageOptions = {
     fileName: Path,
-    packageName: string
+    packageName: string,
+    ...
   };
 
   declare type LanguageServiceHost = {
     ...$Exact<GetEffectiveTypeRootsHost>,
-
     getCompilationSettings(): CompilerOptions,
     getNewLine?: () => string,
     getProjectVersion?: () => string,
@@ -7656,12 +8485,11 @@ declare module 'typescript' {
     installPackage?: (
       options: InstallPackageOptions
     ) => Promise<ApplyCodeActionCommandResult>,
-    writeFile?: (fileName: string, content: string) => void
+    writeFile?: (fileName: string, content: string) => void,
+    ...
   };
 
-  declare type WithMetadata<T> = T & {
-    metadata?: mixed
-  };
+  declare type WithMetadata<T> = T & { metadata?: mixed, ... };
   declare type LanguageService = {
     cleanupSemanticCache(): void,
     getSyntacticDiagnostics(fileName: string): DiagnosticWithLocation[],
@@ -7833,7 +8661,7 @@ declare module 'typescript' {
     ): $ReadOnlyArray<CodeFixAction>,
     getCombinedCodeFix(
       scope: CombinedCodeFixScope,
-      fixId: {},
+      fixId: {...},
       formatOptions: FormatCodeSettings,
       preferences: UserPreferences
     ): CombinedCodeActions,
@@ -7887,74 +8715,75 @@ declare module 'typescript' {
     ): $ReadOnlyArray<FileTextChanges>,
     getEmitOutput(fileName: string, emitOnlyDtsFiles?: boolean): EmitOutput,
     getProgram(): Program | void,
-    dispose(): void
+    dispose(): void,
+    ...
   };
 
-  declare type JsxClosingTagInfo = {
-    +newText: string
-  };
+  declare type JsxClosingTagInfo = { +newText: string, ... };
 
   declare type CombinedCodeFixScope = {
-    type: 'file',
-    fileName: string
+    type: "file",
+    fileName: string,
+    ...
   };
 
   declare type OrganizeImportsScope = CombinedCodeFixScope;
   declare type CompletionsTriggerCharacter =
-    | '.'
+    | "."
     | '"'
     | "'"
-    | '`'
-    | '/'
-    | '@'
-    | '<';
+    | "`"
+    | "/"
+    | "@"
+    | "<";
   declare type GetCompletionsAtPositionOptions = {
     ...$Exact<UserPreferences>,
-
     triggerCharacter?: CompletionsTriggerCharacter,
     includeExternalModuleExports?: boolean,
-    includeInsertTextCompletions?: boolean
+    includeInsertTextCompletions?: boolean,
+    ...
   };
 
-  declare type SignatureHelpTriggerCharacter = ',' | '(' | '<';
+  declare type SignatureHelpTriggerCharacter = "," | "(" | "<";
   declare type SignatureHelpRetriggerCharacter =
     | SignatureHelpTriggerCharacter
-    | ')';
-  declare type SignatureHelpItemsOptions = {
-    triggerReason?: SignatureHelpTriggerReason
-  };
+    | ")";
+  declare type SignatureHelpItemsOptions = { triggerReason?: SignatureHelpTriggerReason, ... };
 
   declare type SignatureHelpTriggerReason =
     | SignatureHelpInvokedReason
     | SignatureHelpCharacterTypedReason
     | SignatureHelpRetriggeredReason;
   declare type SignatureHelpInvokedReason = {
-    kind: 'invoked',
-    triggerCharacter?: void
+    kind: "invoked",
+    triggerCharacter?: void,
+    ...
   };
 
   declare type SignatureHelpCharacterTypedReason = {
-    kind: 'characterTyped',
-    triggerCharacter: SignatureHelpTriggerCharacter
+    kind: "characterTyped",
+    triggerCharacter: SignatureHelpTriggerCharacter,
+    ...
   };
 
   declare type SignatureHelpRetriggeredReason = {
-    kind: 'retrigger',
-    triggerCharacter?: SignatureHelpRetriggerCharacter
+    kind: "retrigger",
+    triggerCharacter?: SignatureHelpRetriggerCharacter,
+    ...
   };
 
-  declare type ApplyCodeActionCommandResult = {
-    successMessage: string
-  };
+  declare type ApplyCodeActionCommandResult = { successMessage: string, ... };
 
   declare type Classifications = {
     spans: number[],
-    endOfLineState: $Values<typeof EndOfLineState>
+    endOfLineState: $Values<typeof EndOfLineState>,
+    ...
   };
 
   declare type ClassifiedSpan = {
     textSpan: TextSpan,
-    classificationType: $Values<typeof ClassificationTypeNames>
+    classificationType: $Values<typeof ClassificationTypeNames>,
+    ...
   };
 
   declare type NavigationBarItem = {
@@ -7965,7 +8794,8 @@ declare module 'typescript' {
     childItems: NavigationBarItem[],
     indent: number,
     bolded: boolean,
-    grayed: boolean
+    grayed: boolean,
+    ...
   };
 
   declare type NavigationTree = {
@@ -7974,149 +8804,174 @@ declare module 'typescript' {
     kindModifiers: string,
     spans: TextSpan[],
     nameSpan: TextSpan | void,
-    childItems?: NavigationTree[]
+    childItems?: NavigationTree[],
+    ...
   };
 
   declare type TodoCommentDescriptor = {
     text: string,
-    priority: number
+    priority: number,
+    ...
   };
 
   declare type TodoComment = {
     descriptor: TodoCommentDescriptor,
     message: string,
-    position: number
+    position: number,
+    ...
   };
 
   declare type TextChange = {
     span: TextSpan,
-    newText: string
+    newText: string,
+    ...
   };
 
   declare type FileTextChanges = {
     fileName: string,
     textChanges: TextChange[],
-    isNewFile?: boolean
+    isNewFile?: boolean,
+    ...
   };
 
   declare type CodeAction = {
     description: string,
     changes: FileTextChanges[],
-    commands?: CodeActionCommand[]
+    commands?: CodeActionCommand[],
+    ...
   };
 
   declare type CodeFixAction = {
     ...$Exact<CodeAction>,
-
     fixName: string,
-    fixId?: {},
-    fixAllDescription?: string
+    fixId?: {...},
+    fixAllDescription?: string,
+    ...
   };
 
   declare type CombinedCodeActions = {
     changes: $ReadOnlyArray<FileTextChanges>,
-    commands?: $ReadOnlyArray<CodeActionCommand>
+    commands?: $ReadOnlyArray<CodeActionCommand>,
+    ...
   };
 
   declare type CodeActionCommand = InstallPackageAction | GenerateTypesAction;
-  declare type InstallPackageAction = {};
+  declare type InstallPackageAction = {...};
 
-  declare type GenerateTypesAction = {...$Exact<GenerateTypesOptions>};
+  declare type GenerateTypesAction = { ...$Exact<GenerateTypesOptions>, ... };
 
   declare type GenerateTypesOptions = {
     +file: string,
     +fileToGenerateTypesFor: string,
-    +outputFileName: string
+    +outputFileName: string,
+    ...
   };
 
   declare type ApplicableRefactorInfo = {
     name: string,
     description: string,
     inlineable?: boolean,
-    actions: RefactorActionInfo[]
+    actions: RefactorActionInfo[],
+    ...
   };
 
   declare type RefactorActionInfo = {
     name: string,
-    description: string
+    description: string,
+    ...
   };
 
   declare type RefactorEditInfo = {
     edits: FileTextChanges[],
     renameFilename?: string,
     renameLocation?: number,
-    commands?: CodeActionCommand[]
+    commands?: CodeActionCommand[],
+    ...
   };
 
   declare type TextInsertion = {
     newText: string,
-    caretOffset: number
+    caretOffset: number,
+    ...
   };
 
   declare type DocumentSpan = {
     textSpan: TextSpan,
     fileName: string,
     originalTextSpan?: TextSpan,
-    originalFileName?: string
+    originalFileName?: string,
+    ...
   };
 
   declare type RenameLocation = {
     ...$Exact<DocumentSpan>,
-
     +prefixText?: string,
-    +suffixText?: string
+    +suffixText?: string,
+    ...
   };
 
   declare type ReferenceEntry = {
     ...$Exact<DocumentSpan>,
-
     isWriteAccess: boolean,
     isDefinition: boolean,
-    isInString?: true
+    isInString?: true,
+    ...
   };
 
   declare type ImplementationLocation = {
     ...$Exact<DocumentSpan>,
-
     kind: $Values<typeof ScriptElementKind>,
-    displayParts: SymbolDisplayPart[]
+    displayParts: SymbolDisplayPart[],
+    ...
   };
 
   declare type DocumentHighlights = {
     fileName: string,
-    highlightSpans: HighlightSpan[]
+    highlightSpans: HighlightSpan[],
+    ...
   };
 
   declare var HighlightSpanKind: {
-    +none: 'none', // "none"
-    +definition: 'definition', // "definition"
-    +reference: 'reference', // "reference"
-    +writtenReference: 'writtenReference' // "writtenReference"
+    // "none"
+    +none: "none",
+    // "definition"
+    +definition: "definition",
+    // "reference"
+    +reference: "reference",
+    // "writtenReference"
+    +writtenReference: "writtenReference",
+    ...
   };
 
   declare type HighlightSpan = {
     fileName?: string,
     isInString?: true,
     textSpan: TextSpan,
-    kind: $Values<typeof HighlightSpanKind>
+    kind: $Values<typeof HighlightSpanKind>,
+    ...
   };
 
   declare type NavigateToItem = {
     name: string,
     kind: $Values<typeof ScriptElementKind>,
     kindModifiers: string,
-    matchKind: 'exact' | 'prefix' | 'substring' | 'camelCase',
+    matchKind: "exact" | "prefix" | "substring" | "camelCase",
     isCaseSensitive: boolean,
     fileName: string,
     textSpan: TextSpan,
     containerName: string,
-    containerKind: $Values<typeof ScriptElementKind>
+    containerKind: $Values<typeof ScriptElementKind>,
+    ...
   };
 
   declare var IndentStyle: {
-    +None: 0, // 0
-    +Block: 1, // 1
-    +Smart: 2 // 2
+    // 0
+    +None: 0,
+    // 1
+    +Block: 1,
+    // 2
+    +Smart: 2,
+    ...
   };
 
   declare type EditorOptions = {
@@ -8125,7 +8980,8 @@ declare module 'typescript' {
     TabSize: number,
     NewLineCharacter: string,
     ConvertTabsToSpaces: boolean,
-    IndentStyle: $Values<typeof IndentStyle>
+    IndentStyle: $Values<typeof IndentStyle>,
+    ...
   };
 
   declare type EditorSettings = {
@@ -8134,12 +8990,12 @@ declare module 'typescript' {
     tabSize?: number,
     newLineCharacter?: string,
     convertTabsToSpaces?: boolean,
-    indentStyle?: $Values<typeof IndentStyle>
+    indentStyle?: $Values<typeof IndentStyle>,
+    ...
   };
 
   declare type FormatCodeOptions = {
     ...$Exact<EditorOptions>,
-
     InsertSpaceAfterCommaDelimiter: boolean,
     InsertSpaceAfterSemicolonInForStatements: boolean,
     InsertSpaceBeforeAndAfterBinaryOperators: boolean,
@@ -8155,12 +9011,12 @@ declare module 'typescript' {
     InsertSpaceBeforeFunctionParenthesis?: boolean,
     PlaceOpenBraceOnNewLineForFunctions: boolean,
     PlaceOpenBraceOnNewLineForControlBlocks: boolean,
-    insertSpaceBeforeTypeAnnotation?: boolean
+    insertSpaceBeforeTypeAnnotation?: boolean,
+    ...
   };
 
   declare type FormatCodeSettings = {
     ...$Exact<EditorSettings>,
-
     +insertSpaceAfterCommaDelimiter?: boolean,
     +insertSpaceAfterSemicolonInForStatements?: boolean,
     +insertSpaceBeforeAndAfterBinaryOperators?: boolean,
@@ -8177,7 +9033,8 @@ declare module 'typescript' {
     +placeOpenBraceOnNewLineForFunctions?: boolean,
     +placeOpenBraceOnNewLineForControlBlocks?: boolean,
     +insertSpaceBeforeTypeAnnotation?: boolean,
-    +indentMultiLineObjectLiteralBeginningOnBlankLine?: boolean
+    +indentMultiLineObjectLiteralBeginningOnBlankLine?: boolean,
+    ...
   };
 
   declare function getDefaultFormatCodeSettings(
@@ -8186,62 +9043,89 @@ declare module 'typescript' {
 
   declare type DefinitionInfo = {
     ...$Exact<DocumentSpan>,
-
     kind: $Values<typeof ScriptElementKind>,
     name: string,
     containerKind: $Values<typeof ScriptElementKind>,
-    containerName: string
+    containerName: string,
+    ...
   };
 
   declare type DefinitionInfoAndBoundSpan = {
     definitions?: $ReadOnlyArray<DefinitionInfo>,
-    textSpan: TextSpan
+    textSpan: TextSpan,
+    ...
   };
 
   declare type ReferencedSymbolDefinitionInfo = {
     ...$Exact<DefinitionInfo>,
-
-    displayParts: SymbolDisplayPart[]
+    displayParts: SymbolDisplayPart[],
+    ...
   };
 
   declare type ReferencedSymbol = {
     definition: ReferencedSymbolDefinitionInfo,
-    references: ReferenceEntry[]
+    references: ReferenceEntry[],
+    ...
   };
 
   declare var SymbolDisplayPartKind: {
-    +aliasName: 0, // 0
-    +className: 1, // 1
-    +enumName: 2, // 2
-    +fieldName: 3, // 3
-    +interfaceName: 4, // 4
-    +keyword: 5, // 5
-    +lineBreak: 6, // 6
-    +numericLiteral: 7, // 7
-    +stringLiteral: 8, // 8
-    +localName: 9, // 9
-    +methodName: 10, // 10
-    +moduleName: 11, // 11
-    +operator: 12, // 12
-    +parameterName: 13, // 13
-    +propertyName: 14, // 14
-    +punctuation: 15, // 15
-    +space: 16, // 16
-    +text: 17, // 17
-    +typeParameterName: 18, // 18
-    +enumMemberName: 19, // 19
-    +functionName: 20, // 20
-    +regularExpressionLiteral: 21 // 21
+    // 0
+    +aliasName: 0,
+    // 1
+    +className: 1,
+    // 2
+    +enumName: 2,
+    // 3
+    +fieldName: 3,
+    // 4
+    +interfaceName: 4,
+    // 5
+    +keyword: 5,
+    // 6
+    +lineBreak: 6,
+    // 7
+    +numericLiteral: 7,
+    // 8
+    +stringLiteral: 8,
+    // 9
+    +localName: 9,
+    // 10
+    +methodName: 10,
+    // 11
+    +moduleName: 11,
+    // 12
+    +operator: 12,
+    // 13
+    +parameterName: 13,
+    // 14
+    +propertyName: 14,
+    // 15
+    +punctuation: 15,
+    // 16
+    +space: 16,
+    // 17
+    +text: 17,
+    // 18
+    +typeParameterName: 18,
+    // 19
+    +enumMemberName: 19,
+    // 20
+    +functionName: 20,
+    // 21
+    +regularExpressionLiteral: 21,
+    ...
   };
 
   declare type SymbolDisplayPart = {
     text: string,
-    kind: string
+    kind: string,
+    ...
   };
 
   declare type JSDocTagInfo = {
     name: string,
-    text?: string
+    text?: string,
+    ...
   };
 
   declare type QuickInfo = {
@@ -8250,7 +9134,8 @@ declare module 'typescript' {
     textSpan: TextSpan,
     displayParts?: SymbolDisplayPart[],
     documentation?: SymbolDisplayPart[],
-    tags?: JSDocTagInfo[]
+    tags?: JSDocTagInfo[],
+    ...
   };
 
   declare type RenameInfo = RenameInfoSuccess | RenameInfoFailure;
@@ -8261,23 +9146,24 @@ declare module 'typescript' {
     fullDisplayName: string,
     kind: $Values<typeof ScriptElementKind>,
     kindModifiers: string,
-    triggerSpan: TextSpan
+    triggerSpan: TextSpan,
+    ...
   };
 
   declare type RenameInfoFailure = {
     canRename: false,
-    localizedErrorMessage: string
+    localizedErrorMessage: string,
+    ...
   };
 
-  declare type RenameInfoOptions = {
-    +allowRenameOfImportPath?: boolean
-  };
+  declare type RenameInfoOptions = { +allowRenameOfImportPath?: boolean, ... };
 
   declare type SignatureHelpParameter = {
     name: string,
     documentation: SymbolDisplayPart[],
     displayParts: SymbolDisplayPart[],
-    isOptional: boolean
+    isOptional: boolean,
+    ...
   };
 
   declare type SignatureHelpItem = {
@@ -8287,7 +9173,8 @@ declare module 'typescript' {
     separatorDisplayParts: SymbolDisplayPart[],
     parameters: SignatureHelpParameter[],
     documentation: SymbolDisplayPart[],
-    tags: JSDocTagInfo[]
+    tags: JSDocTagInfo[],
+    ...
   };
 
   declare type SignatureHelpItems = {
@@ -8295,14 +9182,16 @@ declare module 'typescript' {
     applicableSpan: TextSpan,
     selectedItemIndex: number,
     argumentIndex: number,
-    argumentCount: number
+    argumentCount: number,
+    ...
   };
 
   declare type CompletionInfo = {
     isGlobalCompletion: boolean,
     isMemberCompletion: boolean,
     isNewIdentifierLocation: boolean,
-    entries: CompletionEntry[]
+    entries: CompletionEntry[],
+    ...
   };
 
   declare type CompletionEntry = {
@@ -8314,7 +9203,8 @@ declare module 'typescript' {
     replacementSpan?: TextSpan,
     hasAction?: true,
     source?: string,
-    isRecommended?: true
+    isRecommended?: true,
+    ...
   };
 
   declare type CompletionEntryDetails = {
@@ -8325,7 +9215,8 @@ declare module 'typescript' {
     documentation?: SymbolDisplayPart[],
     tags?: JSDocTagInfo[],
     codeActions?: CodeAction[],
-    source?: SymbolDisplayPart[]
+    source?: SymbolDisplayPart[],
+    ...
   };
 
   declare type OutliningSpan = {
@@ -8333,53 +9224,84 @@ declare module 'typescript' {
     hintSpan: TextSpan,
     bannerText: string,
     autoCollapse: boolean,
-    kind: $Values<typeof OutliningSpanKind>
+    kind: $Values<typeof OutliningSpanKind>,
+    ...
   };
 
   declare var OutliningSpanKind: {
-    +Comment: 'comment', // "comment"
-    +Region: 'region', // "region"
-    +Code: 'code', // "code"
-    +Imports: 'imports' // "imports"
+    // "comment"
+    +Comment: "comment",
+    // "region"
+    +Region: "region",
+    // "code"
+    +Code: "code",
+    // "imports"
+    +Imports: "imports",
+    ...
   };
 
   declare var OutputFileType: {
-    +JavaScript: 0, // 0
-    +SourceMap: 1, // 1
-    +Declaration: 2 // 2
+    // 0
+    +JavaScript: 0,
+    // 1
+    +SourceMap: 1,
+    // 2
+    +Declaration: 2,
+    ...
   };
 
   declare var EndOfLineState: {
-    +None: 0, // 0
-    +InMultiLineCommentTrivia: 1, // 1
-    +InSingleQuoteStringLiteral: 2, // 2
-    +InDoubleQuoteStringLiteral: 3, // 3
-    +InTemplateHeadOrNoSubstitutionTemplate: 4, // 4
-    +InTemplateMiddleOrTail: 5, // 5
-    +InTemplateSubstitutionPosition: 6 // 6
+    // 0
+    +None: 0,
+    // 1
+    +InMultiLineCommentTrivia: 1,
+    // 2
+    +InSingleQuoteStringLiteral: 2,
+    // 3
+    +InDoubleQuoteStringLiteral: 3,
+    // 4
+    +InTemplateHeadOrNoSubstitutionTemplate: 4,
+    // 5
+    +InTemplateMiddleOrTail: 5,
+    // 6
+    +InTemplateSubstitutionPosition: 6,
+    ...
   };
 
   declare var TokenClass: {
-    +Punctuation: 0, // 0
-    +Keyword: 1, // 1
-    +Operator: 2, // 2
-    +Comment: 3, // 3
-    +Whitespace: 4, // 4
-    +Identifier: 5, // 5
-    +NumberLiteral: 6, // 6
-    +BigIntLiteral: 7, // 7
-    +StringLiteral: 8, // 8
-    +RegExpLiteral: 9 // 9
+    // 0
+    +Punctuation: 0,
+    // 1
+    +Keyword: 1,
+    // 2
+    +Operator: 2,
+    // 3
+    +Comment: 3,
+    // 4
+    +Whitespace: 4,
+    // 5
+    +Identifier: 5,
+    // 6
+    +NumberLiteral: 6,
+    // 7
+    +BigIntLiteral: 7,
+    // 8
+    +StringLiteral: 8,
+    // 9
+    +RegExpLiteral: 9,
+    ...
   };
 
   declare type ClassificationResult = {
     finalLexState: $Values<typeof EndOfLineState>,
-    entries: ClassificationInfo[]
+    entries: ClassificationInfo[],
+    ...
   };
 
   declare type ClassificationInfo = {
     length: number,
-    classification: $Values<typeof TokenClass>
+    classification: $Values<typeof TokenClass>,
+    ...
   };
 
   declare type Classifier = {
@@ -8392,117 +9314,220 @@ declare module 'typescript' {
       text: string,
       endOfLineState: $Values<typeof EndOfLineState>,
       syntacticClassifierAbsent: boolean
-    ): Classifications
+    ): Classifications,
+    ...
   };
 
   declare var ScriptElementKind: {
-    +unknown: '', // ""
-    +warning: 'warning', // "warning"
-    +keyword: 'keyword', // "keyword"
-    +scriptElement: 'script', // "script"
-    +moduleElement: 'module', // "module"
-    +classElement: 'class', // "class"
-    +localClassElement: 'local class', // "local class"
-    +interfaceElement: 'interface', // "interface"
-    +typeElement: 'type', // "type"
-    +enumElement: 'enum', // "enum"
-    +enumMemberElement: 'enum member', // "enum member"
-    +variableElement: 'var', // "var"
-    +localVariableElement: 'local var', // "local var"
-    +functionElement: 'function', // "function"
-    +localFunctionElement: 'local function', // "local function"
-    +memberFunctionElement: 'method', // "method"
-    +memberGetAccessorElement: 'getter', // "getter"
-    +memberSetAccessorElement: 'setter', // "setter"
-    +memberVariableElement: 'property', // "property"
-    +constructorImplementationElement: 'constructor', // "constructor"
-    +callSignatureElement: 'call', // "call"
-    +indexSignatureElement: 'index', // "index"
-    +constructSignatureElement: 'construct', // "construct"
-    +parameterElement: 'parameter', // "parameter"
-    +typeParameterElement: 'type parameter', // "type parameter"
-    +primitiveType: 'primitive type', // "primitive type"
-    +label: 'label', // "label"
-    +alias: 'alias', // "alias"
-    +constElement: 'const', // "const"
-    +letElement: 'let', // "let"
-    +directory: 'directory', // "directory"
-    +externalModuleName: 'external module name', // "external module name"
-    +jsxAttribute: 'JSX attribute', // "JSX attribute"
-    +string: 'string' // "string"
+    // ""
+    +unknown: "",
+    // "warning"
+    +warning: "warning",
+    // "keyword"
+    +keyword: "keyword",
+    // "script"
+    +scriptElement: "script",
+    // "module"
+    +moduleElement: "module",
+    // "class"
+    +classElement: "class",
+    // "local class"
+    +localClassElement: "local class",
+    // "interface"
+    +interfaceElement: "interface",
+    // "type"
+    +typeElement: "type",
+    // "enum"
+    +enumElement: "enum",
+    // "enum member"
+    +enumMemberElement: "enum member",
+    // "var"
+    +variableElement: "var",
+    // "local var"
+    +localVariableElement: "local var",
+    // "function"
+    +functionElement: "function",
+    // "local function"
+    +localFunctionElement: "local function",
+    // "method"
+    +memberFunctionElement: "method",
+    // "getter"
+    +memberGetAccessorElement: "getter",
+    // "setter"
+    +memberSetAccessorElement: "setter",
+    // "property"
+    +memberVariableElement: "property",
+    // "constructor"
+    +constructorImplementationElement: "constructor",
+    // "call"
+    +callSignatureElement: "call",
+    // "index"
+    +indexSignatureElement: "index",
+    // "construct"
+    +constructSignatureElement: "construct",
+    // "parameter"
+    +parameterElement: "parameter",
+    // "type parameter"
+    +typeParameterElement: "type parameter",
+    // "primitive type"
+    +primitiveType: "primitive type",
+    // "label"
+    +label: "label",
+    // "alias"
+    +alias: "alias",
+    // "const"
+    +constElement: "const",
+    // "let"
+    +letElement: "let",
+    // "directory"
+    +directory: "directory",
+    // "external module name"
+    +externalModuleName: "external module name",
+    // "JSX attribute"
+    +jsxAttribute: "JSX attribute",
+    // "string"
+    +string: "string",
+    ...
   };
 
   declare var ScriptElementKindModifier: {
-    +none: '', // ""
-    +publicMemberModifier: 'public', // "public"
-    +privateMemberModifier: 'private', // "private"
-    +protectedMemberModifier: 'protected', // "protected"
-    +exportedModifier: 'export', // "export"
-    +ambientModifier: 'declare', // "declare"
-    +staticModifier: 'static', // "static"
-    +abstractModifier: 'abstract', // "abstract"
-    +optionalModifier: 'optional', // "optional"
-    +dtsModifier: '.d.ts', // ".d.ts"
-    +tsModifier: '.ts', // ".ts"
-    +tsxModifier: '.tsx', // ".tsx"
-    +jsModifier: '.js', // ".js"
-    +jsxModifier: '.jsx', // ".jsx"
-    +jsonModifier: '.json' // ".json"
+    // ""
+    +none: "",
+    // "public"
+    +publicMemberModifier: "public",
+    // "private"
+    +privateMemberModifier: "private",
+    // "protected"
+    +protectedMemberModifier: "protected",
+    // "export"
+    +exportedModifier: "export",
+    // "declare"
+    +ambientModifier: "declare",
+    // "static"
+    +staticModifier: "static",
+    // "abstract"
+    +abstractModifier: "abstract",
+    // "optional"
+    +optionalModifier: "optional",
+    // ".d.ts"
+    +dtsModifier: ".d.ts",
+    // ".ts"
+    +tsModifier: ".ts",
+    // ".tsx"
+    +tsxModifier: ".tsx",
+    // ".js"
+    +jsModifier: ".js",
+    // ".jsx"
+    +jsxModifier: ".jsx",
+    // ".json"
+    +jsonModifier: ".json",
+    ...
   };
 
   declare var ClassificationTypeNames: {
-    +comment: 'comment', // "comment"
-    +identifier: 'identifier', // "identifier"
-    +keyword: 'keyword', // "keyword"
-    +numericLiteral: 'number', // "number"
-    +bigintLiteral: 'bigint', // "bigint"
-    +operator: 'operator', // "operator"
-    +stringLiteral: 'string', // "string"
-    +whiteSpace: 'whitespace', // "whitespace"
-    +text: 'text', // "text"
-    +punctuation: 'punctuation', // "punctuation"
-    +className: 'class name', // "class name"
-    +enumName: 'enum name', // "enum name"
-    +interfaceName: 'interface name', // "interface name"
-    +moduleName: 'module name', // "module name"
-    +typeParameterName: 'type parameter name', // "type parameter name"
-    +typeAliasName: 'type alias name', // "type alias name"
-    +parameterName: 'parameter name', // "parameter name"
-    +docCommentTagName: 'doc comment tag name', // "doc comment tag name"
-    +jsxOpenTagName: 'jsx open tag name', // "jsx open tag name"
-    +jsxCloseTagName: 'jsx close tag name', // "jsx close tag name"
-    +jsxSelfClosingTagName: 'jsx self closing tag name', // "jsx self closing tag name"
-    +jsxAttribute: 'jsx attribute', // "jsx attribute"
-    +jsxText: 'jsx text', // "jsx text"
-    +jsxAttributeStringLiteralValue: 'jsx attribute string literal value' // "jsx attribute string literal value"
+    // "comment"
+    +comment: "comment",
+    // "identifier"
+    +identifier: "identifier",
+    // "keyword"
+    +keyword: "keyword",
+    // "number"
+    +numericLiteral: "number",
+    // "bigint"
+    +bigintLiteral: "bigint",
+    // "operator"
+    +operator: "operator",
+    // "string"
+    +stringLiteral: "string",
+    // "whitespace"
+    +whiteSpace: "whitespace",
+    // "text"
+    +text: "text",
+    // "punctuation"
+    +punctuation: "punctuation",
+    // "class name"
+    +className: "class name",
+    // "enum name"
+    +enumName: "enum name",
+    // "interface name"
+    +interfaceName: "interface name",
+    // "module name"
+    +moduleName: "module name",
+    // "type parameter name"
+    +typeParameterName: "type parameter name",
+    // "type alias name"
+    +typeAliasName: "type alias name",
+    // "parameter name"
+    +parameterName: "parameter name",
+    // "doc comment tag name"
+    +docCommentTagName: "doc comment tag name",
+    // "jsx open tag name"
+    +jsxOpenTagName: "jsx open tag name",
+    // "jsx close tag name"
+    +jsxCloseTagName: "jsx close tag name",
+    // "jsx self closing tag name"
+    +jsxSelfClosingTagName: "jsx self closing tag name",
+    // "jsx attribute"
+    +jsxAttribute: "jsx attribute",
+    // "jsx text"
+    +jsxText: "jsx text",
+    // "jsx attribute string literal value"
+    +jsxAttributeStringLiteralValue: "jsx attribute string literal value",
+    ...
   };
 
   declare var ClassificationType: {
-    +comment: 1, // 1
-    +identifier: 2, // 2
-    +keyword: 3, // 3
-    +numericLiteral: 4, // 4
-    +operator: 5, // 5
-    +stringLiteral: 6, // 6
-    +regularExpressionLiteral: 7, // 7
-    +whiteSpace: 8, // 8
-    +text: 9, // 9
-    +punctuation: 10, // 10
-    +className: 11, // 11
-    +enumName: 12, // 12
-    +interfaceName: 13, // 13
-    +moduleName: 14, // 14
-    +typeParameterName: 15, // 15
-    +typeAliasName: 16, // 16
-    +parameterName: 17, // 17
-    +docCommentTagName: 18, // 18
-    +jsxOpenTagName: 19, // 19
-    +jsxCloseTagName: 20, // 20
-    +jsxSelfClosingTagName: 21, // 21
-    +jsxAttribute: 22, // 22
-    +jsxText: 23, // 23
-    +jsxAttributeStringLiteralValue: 24, // 24
-    +bigintLiteral: 25 // 25
+    // 1
+    +comment: 1,
+    // 2
+    +identifier: 2,
+    // 3
+    +keyword: 3,
+    // 4
+    +numericLiteral: 4,
+    // 5
+    +operator: 5,
+    // 6
+    +stringLiteral: 6,
+    // 7
+    +regularExpressionLiteral: 7,
+    // 8
+    +whiteSpace: 8,
+    // 9
+    +text: 9,
+    // 10
+    +punctuation: 10,
+    // 11
+    +className: 11,
+    // 12
+    +enumName: 12,
+    // 13
+    +interfaceName: 13,
+    // 14
+    +moduleName: 14,
+    // 15
+    +typeParameterName: 15,
+    // 16
+    +typeAliasName: 16,
+    // 17
+    +parameterName: 17,
+    // 18
+    +docCommentTagName: 18,
+    // 19
+    +jsxOpenTagName: 19,
+    // 20
+    +jsxCloseTagName: 20,
+    // 21
+    +jsxSelfClosingTagName: 21,
+    // 22
+    +jsxAttribute: 22,
+    // 23
+    +jsxText: 23,
+    // 24
+    +jsxAttributeStringLiteralValue: 24,
+    // 25
+    +bigintLiteral: 25,
+    ...
   };
 
   declare function createClassifier(): Classifier;
@@ -8548,12 +9573,11 @@ declare module 'typescript' {
       compilationSettings: CompilerOptions
     ): void,
     releaseDocumentWithKey(path: Path, key: DocumentRegistryBucketKey): void,
-    reportStats(): string
+    reportStats(): string,
+    ...
   };
 
-  declare type DocumentRegistryBucketKey = string & {
-    __bucketKey: any
-  };
+  declare type DocumentRegistryBucketKey = string & { __bucketKey: any, ... };
   declare function createDocumentRegistry(
     useCaseSensitiveFileNames?: boolean,
     currentDirectory?: string
@@ -8571,13 +9595,15 @@ declare module 'typescript' {
     reportDiagnostics?: boolean,
     moduleName?: string,
     renamedDependencies?: MapLike<string>,
-    transformers?: CustomTransformers
+    transformers?: CustomTransformers,
+    ...
   };
 
   declare type TranspileOutput = {
     outputText: string,
     diagnostics?: Diagnostic[],
-    sourceMapText?: string
+    sourceMapText?: string,
+    ...
   };
 
   declare function transpileModule(
@@ -8649,117 +9675,111 @@ declare module 'typescript' {
     transformers: TransformerFactory<T>[],
     compilerOptions?: CompilerOptions
   ): TransformationResult<T>;
-  declare type ActionSet = 'action::set';
-  declare type ActionInvalidate = 'action::invalidate';
-  declare type ActionPackageInstalled = 'action::packageInstalled';
-  declare type ActionValueInspected = 'action::valueInspected';
-  declare type EventTypesRegistry = 'event::typesRegistry';
-  declare type EventBeginInstallTypes = 'event::beginInstallTypes';
-  declare type EventEndInstallTypes = 'event::endInstallTypes';
-  declare type EventInitializationFailed = 'event::initializationFailed';
-  declare type TypingInstallerResponse = {
-    +kind:
-      | ActionSet
-      | ActionInvalidate
-      | EventTypesRegistry
-      | ActionPackageInstalled
-      | ActionValueInspected
-      | EventBeginInstallTypes
-      | EventEndInstallTypes
-      | EventInitializationFailed
-  };
+  declare type ActionSet = "action::set";
+  declare type ActionInvalidate = "action::invalidate";
+  declare type ActionPackageInstalled = "action::packageInstalled";
+  declare type ActionValueInspected = "action::valueInspected";
+  declare type EventTypesRegistry = "event::typesRegistry";
+  declare type EventBeginInstallTypes = "event::beginInstallTypes";
+  declare type EventEndInstallTypes = "event::endInstallTypes";
+  declare type EventInitializationFailed = "event::initializationFailed";
+  declare type TypingInstallerResponse = { +kind:
+    | ActionSet
+    | ActionInvalidate
+    | EventTypesRegistry
+    | ActionPackageInstalled
+    | ActionValueInspected
+    | EventBeginInstallTypes
+    | EventEndInstallTypes
+    | EventInitializationFailed, ... };
 
-  declare type TypingInstallerRequestWithProjectName = {
-    +projectName: string
-  };
+  declare type TypingInstallerRequestWithProjectName = { +projectName: string, ... };
 
   declare type DiscoverTypings = {
     ...$Exact<TypingInstallerRequestWithProjectName>,
-
     +fileNames: string[],
     +projectRootPath: Path,
     +compilerOptions: CompilerOptions,
     +typeAcquisition: TypeAcquisition,
     +unresolvedImports: SortedReadonlyArray<string>,
     +cachePath?: string,
-    +kind: 'discover'
+    +kind: "discover",
+    ...
   };
 
   declare type CloseProject = {
     ...$Exact<TypingInstallerRequestWithProjectName>,
-
-    +kind: 'closeProject'
+    +kind: "closeProject",
+    ...
   };
 
-  declare type TypesRegistryRequest = {
-    +kind: 'typesRegistry'
-  };
+  declare type TypesRegistryRequest = { +kind: "typesRegistry", ... };
 
   declare type InstallPackageRequest = {
     ...$Exact<TypingInstallerRequestWithProjectName>,
-
-    +kind: 'installPackage',
+    +kind: "installPackage",
     +fileName: Path,
     +packageName: string,
-    +projectRootPath: Path
+    +projectRootPath: Path,
+    ...
   };
 
   declare type PackageInstalledResponse = {
     ...$Exact<ProjectResponse>,
-
     +kind: ActionPackageInstalled,
     +success: boolean,
-    +message: string
+    +message: string,
+    ...
   };
 
   declare type InitializationFailedResponse = {
     ...$Exact<TypingInstallerResponse>,
-
     +kind: EventInitializationFailed,
-    +message: string
+    +message: string,
+    ...
   };
 
   declare type ProjectResponse = {
     ...$Exact<TypingInstallerResponse>,
-
-    +projectName: string
+    +projectName: string,
+    ...
   };
 
   declare type InvalidateCachedTypings = {
     ...$Exact<ProjectResponse>,
-
-    +kind: ActionInvalidate
+    +kind: ActionInvalidate,
+    ...
   };
 
   declare type InstallTypes = {
     ...$Exact<ProjectResponse>,
-
     +kind: EventBeginInstallTypes | EventEndInstallTypes,
     +eventId: number,
     +typingsInstallerVersion: string,
-    +packagesToInstall: $ReadOnlyArray<string>
+    +packagesToInstall: $ReadOnlyArray<string>,
+    ...
   };
 
   declare type BeginInstallTypes = {
     ...$Exact<InstallTypes>,
-
-    +kind: EventBeginInstallTypes
+    +kind: EventBeginInstallTypes,
+    ...
   };
 
   declare type EndInstallTypes = {
     ...$Exact<InstallTypes>,
-
     +kind: EventEndInstallTypes,
-    +installSuccess: boolean
+    +installSuccess: boolean,
+    ...
   };
 
   declare type SetTypings = {
     ...$Exact<ProjectResponse>,
-
     +typeAcquisition: TypeAcquisition,
     +compilerOptions: CompilerOptions,
     +typings: string[],
     +unresolvedImports: SortedReadonlyArray<string>,
-    +kind: ActionSet
+    +kind: ActionSet,
+    ...
   };
 }

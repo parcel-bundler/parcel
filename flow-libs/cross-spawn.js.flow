@@ -20,6 +20,7 @@ declare module 'cross-spawn' {
       command: string,
       args: Array<string> | child_process$spawnSyncOpts,
       options?: child_process$spawnSyncOpts
-    ): child_process$spawnSyncRet
+    ): child_process$spawnSyncRet,
+    ...
   };
 }

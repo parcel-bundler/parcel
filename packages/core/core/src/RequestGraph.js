@@ -91,7 +91,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   invalidNodeIds: Set<NodeId> = new Set();
   runTransform: TransformationOpts => Promise<{
     assets: Array<AssetValue>,
-    configRequests: Array<ConfigRequest>
+    configRequests: Array<ConfigRequest>,
+    ...
   }>;
   runValidate: ValidationOpts => Promise<void>;
   loadConfigHandle: () => Promise<Config>;
@@ -420,19 +421,6 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     }
 
     return version;
-  }
-
-  addSubRequest(subRequestNode: SubRequestNode, nodeId: NodeId) {
-    if (!this.nodes.has(subRequestNode.id)) {
-      this.addNode(subRequestNode);
-      this.processNode(subRequestNode);
-    }
-
-    if (!this.hasEdge(nodeId, subRequestNode.id)) {
-      this.addEdge(nodeId, subRequestNode.id);
-    }
-
-    return subRequestNode;
   }
 
   //$FlowFixMe

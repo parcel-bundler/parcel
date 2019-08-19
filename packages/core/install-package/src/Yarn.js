@@ -23,7 +23,7 @@ type YarnStdOutMessage =
     |}
   | {|+type: 'success', data: string|}
   | {|+type: 'info', data: string|}
-  | {+type: 'tree' | 'progressStart' | 'progressTick'};
+  | {+type: 'tree' | 'progressStart' | 'progressTick', ...};
 
 type YarnStdErrMessage = {|
   +type: 'error' | 'warning',
@@ -34,7 +34,7 @@ let hasYarn: ?boolean;
 export default class Yarn {
   cwd: FilePath;
 
-  constructor({cwd}: {cwd: FilePath}) {
+  constructor({cwd}: {cwd: FilePath, ...}) {
     this.cwd = cwd;
   }
 

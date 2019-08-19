@@ -6,11 +6,9 @@ declare module 'resolve' {
     extensions?: Array<string>
   |};
 
-  declare module.exports: {
-    (
-      id: string,
-      opts?: ResolveOptions,
-      cb: (err: Error, res: string, pkg?: {[string]: any}) => mixed
-    ): void
-  };
+  declare module.exports: { (
+    id: string,
+    opts?: ResolveOptions,
+    cb: (err: Error, res: string, pkg?: { [string]: any, ... }) => mixed
+  ): void, ... };
 }

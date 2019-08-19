@@ -7,13 +7,18 @@
 declare module 'posthtml-parser' {
   declare type PostHTMLNode = {
     tag: string,
-    attrs?: {[string]: string},
-    content?: Array<string>
+    attrs?: { [string]: string, ... },
+    content?: Array<string>,
+    ...
   };
 
   declare var parser: (
     html: string,
-    options?: {lowerCaseAttributeNames?: boolean, lowerCaseTags?: boolean}
+    options?: {
+      lowerCaseAttributeNames?: boolean,
+      lowerCaseTags?: boolean,
+      ...
+    }
   ) => PostHTMLNode;
 
   declare module.exports: typeof parser;

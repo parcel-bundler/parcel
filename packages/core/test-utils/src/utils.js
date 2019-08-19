@@ -132,7 +132,7 @@ export function getNextBuild(b: Parcel): Promise<BuildEvent> {
 export async function run(
   bundleGraph: BundleGraph,
   globals: mixed,
-  opts: {require?: boolean} = {}
+  opts: {require?: boolean, ...} = {}
 ): Promise<mixed> {
   let bundles = [];
   bundleGraph.traverseBundles(bundle => {

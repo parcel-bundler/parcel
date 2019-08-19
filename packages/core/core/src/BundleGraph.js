@@ -47,7 +47,8 @@ export default class BundleGraph {
   }
 
   static deserialize(opts: {
-    _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>
+    _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>,
+    ...
   }): BundleGraph {
     return new BundleGraph(opts._graph);
   }
@@ -334,7 +335,11 @@ export default class BundleGraph {
 
   getBundleGroupsReferencedByBundle(
     bundle: Bundle
-  ): Array<{bundleGroup: BundleGroup, dependency: Dependency}> {
+  ): Array<{
+    bundleGroup: BundleGroup,
+    dependency: Dependency,
+    ...
+  }> {
     let node = nullthrows(
       this._graph.getNode(bundle.id),
       'Bundle graph must contain bundle'
