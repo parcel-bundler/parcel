@@ -11,7 +11,8 @@
     "parcel": "^2.0.0-alpha.1.1"
   },
   "dependencies": {
-    "@parcel/plugin": "^2.0.0-alpha.1.1"
+    "@parcel/plugin": "^2.0.0-alpha.1.1",
+    "fast-glob": "^3.0.4"
   },
   "publishConfig": {
     "access": "public"

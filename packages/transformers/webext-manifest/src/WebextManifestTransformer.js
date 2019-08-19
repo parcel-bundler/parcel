@@ -2,6 +2,8 @@
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json
 // https://developer.chrome.com/extensions/manifest
 
+import path from 'path';
+import glob from 'fast-glob';
 import {Transformer} from '@parcel/plugin';
 import type {MutableAsset} from '@parcel/types';
 
@@ -55,6 +57,21 @@ const handleContentScripts = (asset: MutableAsset, list) => {
   }));
 };
 
+const handleGlobs = (asset: MutableAsset, list) => {
+  if (!Array.isArray(list)) {
+    return list;
+  }
+  const dir = path.dirname(asset.filePath);
+  const deps = list.reduce((acc, pattern) => {
+    const files = glob
+      .sync(path.resolve(dir, pattern), {})
+      .map(file => path.relative(dir, file));
+    acc = acc.concat(files);
+    return acc;
+  }, []);
+  return handleArray(asset, deps);
+};
+
 const collectDependencies = (deps: JsonObject) => (
   asset: MutableAsset,
   json: JsonObject
@@ -103,6 +120,8 @@ const DEPS = {
     page: handleHtml
   }),
   content_scripts: handleContentScripts,
+  web_accessible_resources: handleGlobs,
+
   theme: collectDependencies({
     images: handleObject
   })

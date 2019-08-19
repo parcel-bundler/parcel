@@ -9,17 +9,19 @@ const {
 
 describe('pwa-manifest', function() {
   it('should support .webmanifest', async function() {
-    let b = await bundle(
+    const b = await bundle(
       path.join(__dirname, '/integration/pwa-manifest/index.html')
     );
 
     await assertBundles(b, [
       {
+        type: 'html',
         name: 'index.html',
         assets: ['index.html']
       },
       {
         type: 'webmanifest',
+        name: 'manifest.webmanifest',
         assets: ['manifest.webmanifest']
       },
       {
@@ -32,13 +34,14 @@ describe('pwa-manifest', function() {
       },
       {
         type: 'js',
+        name: 'serviceworker.js',
         assets: ['serviceworker.js']
       }
     ]);
   });
 
   it('should support .json webmanifest', async function() {
-    let b = await bundle(
+    const b = await bundle(
       path.join(__dirname, '/integration/pwa-manifest-json/index.html')
     );
 
@@ -49,6 +52,7 @@ describe('pwa-manifest', function() {
       },
       {
         type: 'webmanifest',
+        name: 'manifest.webmanifest',
         assets: ['manifest.json']
       },
       {
