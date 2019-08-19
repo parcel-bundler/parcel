@@ -9,7 +9,7 @@ import semver from 'semver';
 const BROWSER_CONTEXT = new Set(['browser', 'web-worker', 'service-worker']);
 
 // https://github.com/browserslist/browserslist/blob/04d7b3cc6ebeb62baf6d62aeb90f1bfd0c11117c/test/config.test.js#L23
-type BrowserslistConfig = {[string]: string | Array<string>};
+type BrowserslistConfig = {|[string]: string | Array<string>|};
 
 /**
  * Loads target node and browser versions from the following locations:

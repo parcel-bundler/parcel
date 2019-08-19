@@ -8,5 +8,6 @@ export type BabelConfig = {
 
 export type BabelTargets = {
   browsers?: string | Array<string>,
-  [string]: string
+  [string]: string,
+  ...
 };

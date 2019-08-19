@@ -7,7 +7,7 @@ import path from 'path';
 const URL_RE = /^(?:url\s*\(\s*)?['"]?(?:[#/]|(?:https?:)?\/\/)/i;
 
 export default new Transformer({
-  async getConfig({asset}) {
+  getConfig({asset}) {
     return asset.getConfig(['.stylusrc', '.stylusrc.js'], {
       packageKey: 'stylus'
     });

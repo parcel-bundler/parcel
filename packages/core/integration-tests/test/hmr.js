@@ -22,7 +22,7 @@ describe('hmr', function() {
     await fs.rimraf(path.join(__dirname, '/input'));
   });
 
-  afterEach(async function() {
+  afterEach(function() {
     stub.restore();
   });
 

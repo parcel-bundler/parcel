@@ -39,7 +39,7 @@ type PositionTickInfo = {|
 export default class Profiler {
   session: Session;
 
-  async startProfiling() {
+  startProfiling() {
     this.session = new Session();
     this.session.connect();
 
@@ -52,7 +52,7 @@ export default class Profiler {
     ]);
   }
 
-  async sendCommand(method: string, params: mixed) {
+  sendCommand(method: string, params: mixed): Promise<{profile: Profile, ...}> {
     invariant(this.session != null);
     return new Promise((resolve, reject) => {
       this.session.post(method, params, (err, params) => {

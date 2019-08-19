@@ -190,7 +190,7 @@ export default class Transformation {
       return null;
     }
 
-    let cacheKey = await this.getCacheKey(assets, configs);
+    let cacheKey = this.getCacheKey(assets, configs);
     let cachedAssets = await this.options.cache.get(cacheKey);
     if (!cachedAssets) {
       return null;
@@ -209,7 +209,7 @@ export default class Transformation {
     assets: Array<InternalAsset>,
     configs: ConfigMap
   ): Promise<void> {
-    let cacheKey = await this.getCacheKey(assets, configs);
+    let cacheKey = this.getCacheKey(assets, configs);
     await Promise.all(
       // TODO: account for impactfulOptions maybe being different per pipeline
       assets.map(asset => asset.commit(md5FromObject(this.impactfulOptions)))
@@ -217,10 +217,7 @@ export default class Transformation {
     this.options.cache.set(cacheKey, assets.map(a => a.value));
   }
 
-  async getCacheKey(
-    assets: Array<InternalAsset>,
-    configs: ConfigMap
-  ): Promise<string> {
+  getCacheKey(assets: Array<InternalAsset>, configs: ConfigMap): string {
     let assetsKeyInfo = assets.map(a => ({
       filePath: a.value.filePath,
       hash: a.value.hash,
@@ -309,7 +306,7 @@ export default class Transformation {
     return nextPipeline;
   }
 
-  async loadTransformerConfig(
+  loadTransformerConfig(
     filePath: FilePath,
     plugin: PackageName,
     parcelConfigPath: FilePath
@@ -474,14 +471,16 @@ class Pipeline {
     );
 
     // Create generate and postProcess functions that can be called later
-    this.generate = async (input: IMutableAsset): Promise<GenerateOutput> => {
+    this.generate = (input: IMutableAsset): Promise<GenerateOutput> => {
       if (transformer.generate) {
-        return transformer.generate({
-          asset: input,
-          config,
-          options: this.pluginOptions,
-          resolve
-        });
+        return Promise.resolve(
+          transformer.generate({
+            asset: input,
+            config,
+            options: this.pluginOptions,
+            resolve
+          })
+        );
       }
 
       throw new Error(

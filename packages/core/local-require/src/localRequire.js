@@ -54,7 +54,7 @@ async function localResolveBase(
   return resolved;
 }
 
-export async function localResolve(
+export function localResolve(
   name: string,
   path: FilePath,
   triedInstall: boolean = false
@@ -62,7 +62,7 @@ export async function localResolve(
   return localResolveBase(name, path, triedInstall, installPackage);
 }
 
-export async function localResolveFromWorker(
+export function localResolveFromWorker(
   workerApi: WorkerApi,
   name: string,
   path: FilePath,

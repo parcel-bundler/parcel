@@ -200,7 +200,7 @@ export default class WorkerFarm extends EventEmitter {
     }
   }
 
-  async processQueue(): Promise<void> {
+  processQueue(): void {
     if (this.ending || !this.callQueue.length) return;
 
     if (this.workers.size < this.options.maxConcurrentWorkers) {

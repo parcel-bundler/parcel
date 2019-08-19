@@ -30,7 +30,7 @@ export default new Transformer({
     return [asset];
   },
 
-  async generate({asset, options}) {
+  generate({asset, options}) {
     let sourceFileName: string = relativeUrl(
       options.projectRoot,
       asset.filePath

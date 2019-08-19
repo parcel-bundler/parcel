@@ -12,7 +12,7 @@ describe('sass', function() {
   it('should support requiring sass files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/sass/index.js'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -34,7 +34,7 @@ describe('sass', function() {
   it('should support requiring scss files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/scss/index.js'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -58,7 +58,7 @@ describe('sass', function() {
       path.join(__dirname, '/integration/scss-import/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -84,7 +84,7 @@ describe('sass', function() {
       path.join(__dirname, '/integration/scss-empty/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -108,7 +108,7 @@ describe('sass', function() {
       path.join(__dirname, '/integration/scss-url/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -148,7 +148,7 @@ describe('sass', function() {
       path.join(__dirname, '/integration/scss-postcss/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js', 'index.module.scss']
@@ -173,7 +173,7 @@ describe('sass', function() {
       path.join(__dirname, '/integration/sass-advanced-import/index.sass')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.css',
         assets: ['index.sass']
@@ -193,7 +193,7 @@ describe('sass', function() {
       path.join(__dirname, '/integration/scss-absolute-imports/style.scss')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'style.css',
         assets: ['style.scss']
@@ -240,7 +240,7 @@ To @import files from node_modules, use "library/style.sass"
       path.join(__dirname, '/integration/sass-node-modules-import/index.sass')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.css',
         assets: ['index.sass']
@@ -256,7 +256,7 @@ To @import files from node_modules, use "library/style.sass"
       path.join(__dirname, '/integration/sass-include-paths-import/index.sass')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.css',
         assets: ['index.sass']
