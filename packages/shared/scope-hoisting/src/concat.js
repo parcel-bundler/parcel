@@ -11,13 +11,17 @@ import fs from 'fs';
 import nullthrows from 'nullthrows';
 import {PromiseQueue} from '@parcel/utils';
 
+const EslintCommentsRegExp = /^\s*\/\/\s*eslint.*?$|^\s*\/\*\s*eslint.*?\s*\*\/$/gm;
+
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
-const HELPERS = fs.readFileSync(HELPERS_PATH, 'utf8');
+const HELPERS = fs
+  .readFileSync(HELPERS_PATH, 'utf8')
+  .replace(EslintCommentsRegExp, '');
 
 const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
-const PRELUDE = fs.readFileSync(PRELUDE_PATH, 'utf8');
-
-const EslintNoUnusedVarsRegExp = /\/\/\seslint-disable-next-line\sno-unused-vars/g;
+const PRELUDE = fs
+  .readFileSync(PRELUDE_PATH, 'utf8')
+  .replace(EslintCommentsRegExp, '');
 
 type AssetASTMap = Map<string, Object>;
 type TraversalContext = {|
@@ -46,9 +50,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   });
 
   let outputs = new Map(await queue.run());
-  let result = [
-    ...parse(HELPERS.replace(EslintNoUnusedVarsRegExp, ''), HELPERS_PATH)
-  ];
+  let result = [...parse(HELPERS, HELPERS_PATH)];
 
   // If this is an entry bundle and it has child bundles, we need to add the prelude code, which allows
   // registering modules dynamically at runtime.
