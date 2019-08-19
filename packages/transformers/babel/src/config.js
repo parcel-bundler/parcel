@@ -155,13 +155,13 @@ function getStats(options) {
   return {canBeRehydrated, dependsOnRelative, dependsOnLocal};
 }
 
-async function isExtended(/* babelrcPath */) {
+function isExtended(/* babelrcPath */) {
   // TODO: read and parse babelrc and check to see if extends property exists
   // need access to fs in case of memory filesystem
   return false;
 }
 
-async function isLocal(/* configItemPath */) {
+function isLocal(/* configItemPath */) {
   // TODO: check if realpath is different, need access to fs in case of memory filesystem
   return false;
 }
