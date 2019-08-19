@@ -215,9 +215,9 @@ export default class Server extends EventEmitter {
         );
         return this;
       }
-      for (const [context, options] of Object.entries(pkg)) {
+      for (const [context, options] of Object.entries(cfg)) {
         // each key is interpreted as context, and value as middleware options
-        app.use(context, httpProxyMiddleware(options));
+        app.use(httpProxyMiddleware(context, options));
       }
     }
 
@@ -239,7 +239,7 @@ export default class Server extends EventEmitter {
     };
 
     const app = connect();
-    await this.applyProxyTable();
+    await this.applyProxyTable(app);
     app.use(finalHandler);
 
     if (!this.options.https) {
