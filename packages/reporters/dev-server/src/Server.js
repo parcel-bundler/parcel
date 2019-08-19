@@ -211,7 +211,7 @@ export default class Server extends EventEmitter {
     } else if (filename === '.proxyrc') {
       if (typeof cfg !== 'object') {
         logger.warn(
-          "Proxy table in '.proxyrc.js' should be of object type. Skipping..."
+          "Proxy table in '.proxyrc' should be of object type. Skipping..."
         );
         return this;
       }
