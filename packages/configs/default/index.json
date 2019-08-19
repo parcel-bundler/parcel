@@ -33,6 +33,7 @@
     "*.css": "@parcel/packager-css",
     "*.js": "@parcel/packager-js",
     "*.webmanifest": "@parcel/packager-string",
+    "manifest.json": "@parcel/packager-string",
     "*": "@parcel/packager-raw"
   },
   "resolvers": ["@parcel/resolver-default"],

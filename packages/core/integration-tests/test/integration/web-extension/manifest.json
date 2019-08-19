@@ -8,6 +8,7 @@
   },
 
   "browser_action": {
+    "default_title": "Hello World",
     "default_icon": {
       "16": "images/icon16.png"
     },
@@ -16,16 +17,19 @@
       {
         "light": "firefox/light.png",
         "dark": "firefox/dark.png",
+        "size": 16
       }
     ]
   },
   "page_action": {
+    "browser_style": true,
     "default_icon": "images/icon32.png",
     "default_popup": "public/page-popup.html"
   },
 
   "background": {
-    "scripts": ["background.ts"]
+    "scripts": ["background.ts"],
+    "page": "public/background.html"
   },
   "content_scripts": [
     {
@@ -36,6 +40,7 @@
   "devtools_page": "public/devtools.html",
   "options_page": "public/options.html",
   "options_ui": {
+    "open_in_tab": true,
     "page": "public/options-ui.html"
   },
 
