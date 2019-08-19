@@ -211,13 +211,13 @@ export default class Server extends EventEmitter {
     } else if (filename === '.proxyrc') {
       if (typeof cfg !== 'object') {
         logger.warn(
-          "Proxy table in '.proxyrc.js' should be of object type. Skipping..."
+          "Proxy table in '.proxyrc' should be of object type. Skipping..."
         );
         return this;
       }
-      for (const [context, options] of Object.entries(pkg)) {
+      for (const [context, options] of Object.entries(cfg)) {
         // each key is interpreted as context, and value as middleware options
-        app.use(context, httpProxyMiddleware(options));
+        app.use(httpProxyMiddleware(context, options));
       }
     }
 
@@ -239,7 +239,7 @@ export default class Server extends EventEmitter {
     };
 
     const app = connect();
-    await this.applyProxyTable();
+    await this.applyProxyTable(app);
     app.use(finalHandler);
 
     if (!this.options.https) {
