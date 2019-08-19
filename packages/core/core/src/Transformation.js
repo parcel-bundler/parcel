@@ -211,7 +211,14 @@ export default class Transformation {
     let cacheKey = await this.getCacheKey(assets, configs);
     await Promise.all(
       // TODO: account for impactfulOptions maybe being different per pipeline
-      assets.map(asset => asset.commit(md5FromObject(this.impactfulOptions)))
+      assets.map(asset =>
+        asset.commit(
+          md5FromObject({
+            impactfulOptions: this.impactfulOptions,
+            configs: getImpactfulConfigInfo(configs)
+          })
+        )
+      )
     );
     this.options.cache.set(cacheKey, assets.map(a => a.value));
   }
@@ -225,14 +232,9 @@ export default class Transformation {
       hash: a.value.hash
     }));
 
-    let configsKeyInfo = [...configs].map(([, {resultHash, devDeps}]) => ({
-      resultHash,
-      devDeps: [...devDeps]
-    }));
-
     return md5FromObject({
       assets: assetsKeyInfo,
-      configs: configsKeyInfo,
+      configs: getImpactfulConfigInfo(configs),
       env: this.request.env,
       impactfulOptions: this.impactfulOptions
     });
@@ -515,4 +517,11 @@ function normalizeAssets(
       meta: result.meta
     };
   });
+}
+
+function getImpactfulConfigInfo(configs: ConfigMap) {
+  return [...configs].map(([, {resultHash, devDeps}]) => ({
+    resultHash,
+    devDeps: [...devDeps]
+  }));
 }
