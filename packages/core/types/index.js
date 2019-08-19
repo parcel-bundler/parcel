@@ -312,7 +312,7 @@ export type Stats = {|
 
 export type GenerateOutput = {|
   code: string,
-  map?: SourceMap
+  map?: ?SourceMap
 |};
 
 export type Blob = string | Buffer | Readable;
