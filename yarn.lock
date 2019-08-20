@@ -957,6 +957,14 @@
     cross-spawn "^6.0.5"
     kotlin-compiler "^1.3.0"
 
+"@jetbrains/kotlinc-js-api@^1.2.13":
+  version "1.2.13"
+  resolved "https://registry.yarnpkg.com/@jetbrains/kotlinc-js-api/-/kotlinc-js-api-1.2.13.tgz#7b55f97dc438237cb5d8fb05b466af9f73c5bc9e"
+  integrity sha512-VWJrLHmaSg0W91a04cy8QGyM0b61lnYKxKEsAnz54AyIMpll8VfKeLwnvIQrtZsWl4q2BYW5aj36WXXnS3+5SQ==
+  dependencies:
+    cross-spawn "^6.0.5"
+    kotlin-compiler "^1.3.21"
+
 "@lerna/add@3.15.0":
   version "3.15.0"
   resolved "https://registry.yarnpkg.com/@lerna/add/-/add-3.15.0.tgz#10be562f43cde59b60f299083d54ac39520ec60a"
@@ -7592,7 +7600,7 @@ kind-of@^6.0.0, kind-of@^6.0.2:
   resolved "https://registry.yarnpkg.com/kind-of/-/kind-of-6.0.2.tgz#01146b36a6218e64e58f3a8d66de5d7fc6f6d051"
   integrity sha512-s5kLOcnH0XqDO+FvuaLX8DDjZ18CGFk7VygH40QoKPUQhW4e2rvM0rwUq0t8IQDOwYSeLK01U90OjzBTme2QqA==
 
-kotlin-compiler@^1.3.0:
+kotlin-compiler@^1.3.0, kotlin-compiler@^1.3.21:
   version "1.3.41"
   resolved "https://registry.yarnpkg.com/kotlin-compiler/-/kotlin-compiler-1.3.41.tgz#6828c233f30daeb82fd0f68aaae77d035f6d6d31"
   integrity sha512-ixlLk80hjPyOcuDjacl3vJHAPsd10RE/hTBq8zS1IrnF+Ti3uk/ht4/TZr7ViDx9Zw5F/g8XwP/YDv0oK50I/g==
