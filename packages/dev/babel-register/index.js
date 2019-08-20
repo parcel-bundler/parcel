@@ -3,7 +3,8 @@ const path = require('path');
 
 require('@babel/register')({
   ignore: [filepath => filepath.includes(path.sep + 'node_modules' + path.sep)],
-  presets: [parcelBabelPreset]
+  presets: [parcelBabelPreset],
+  cwd: path.join(__dirname, '../../..')
 });
 
 // This adds the registration to the Node args, which are passed
