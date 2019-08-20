@@ -85,7 +85,7 @@ async function replaceInlineAssetContent(
 ) {
   const inlineNodes = [];
   tree.walk(node => {
-    if (node.attrs && node.attrs['data-parcelId']) {
+    if (node.attrs && node.attrs['data-parcelid']) {
       inlineNodes.push(node);
     }
     return node;
@@ -95,13 +95,13 @@ async function replaceInlineAssetContent(
     let newContent = await getAssetContent(
       bundleGraph,
       getBundleResult,
-      node.attrs['data-parcelId']
+      node.attrs['data-parcelid']
     );
 
     if (newContent) {
       node.content = newContent;
       // remove attr from output
-      delete node.attrs['data-parcelId'];
+      delete node.attrs['data-parcelid'];
     }
   }
 

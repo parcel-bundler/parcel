@@ -56,7 +56,7 @@ export default function extractInlineAssets(
         }
 
         // insert parcelId to allow us to retrieve node during packaging
-        node.attrs['data-parcelId'] = id;
+        node.attrs['data-parcelid'] = id;
 
         parts.push({
           id,
