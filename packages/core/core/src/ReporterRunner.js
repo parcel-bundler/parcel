@@ -40,7 +40,9 @@ export default class ReporterRunner {
       }
     });
 
-    patchConsole();
+    if (this.options.patchConsole) {
+      patchConsole();
+    }
   }
 
   async report(event: ReporterEvent) {

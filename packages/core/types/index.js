@@ -156,6 +156,7 @@ export type InitialParcelOptions = {|
   autoinstall?: boolean,
   logLevel?: LogLevel,
   profile?: boolean,
+  patchConsole?: boolean,
 
   inputFS?: FileSystem,
   outputFS?: FileSystem,
