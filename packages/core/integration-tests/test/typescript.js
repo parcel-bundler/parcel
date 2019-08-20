@@ -66,7 +66,7 @@ describe('typescript', function() {
       assert.equal(output.count(), 3);
     });
 
-    it.skip('should support json require', async function() {
+    it('should support json require', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/typescript-json/index.ts')
       );
