@@ -11,17 +11,17 @@ import fs from 'fs';
 import nullthrows from 'nullthrows';
 import {PromiseQueue} from '@parcel/utils';
 
-const EslintCommentsRegExp = /^\s*\/\/\s*eslint.*?$|^\s*\/\*\s*eslint.*?\s*\*\/$/gm;
+const eslintCommentsRegExp = /^\s*\/\/\s*eslint.*?$|^\s*\/\*\s*eslint.*?\s*\*\/$/gm;
 
 const HELPERS_PATH = path.join(__dirname, 'helpers.js');
 const HELPERS = fs
   .readFileSync(HELPERS_PATH, 'utf8')
-  .replace(EslintCommentsRegExp, '');
+  .replace(eslintCommentsRegExp, '');
 
 const PRELUDE_PATH = path.join(__dirname, 'prelude.js');
 const PRELUDE = fs
   .readFileSync(PRELUDE_PATH, 'utf8')
-  .replace(EslintCommentsRegExp, '');
+  .replace(eslintCommentsRegExp, '');
 
 type AssetASTMap = Map<string, Object>;
 type TraversalContext = {|
