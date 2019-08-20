@@ -14,7 +14,7 @@ const {
 } = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
 const os = require('os');
-const {execSync} = require('child_process');
+const {spawnSync} = require('child_process');
 const {NodeFS} = require('@parcel/fs');
 
 const parcelCli = require.resolve('parcel/src/bin.js');
@@ -323,13 +323,17 @@ describe('babel', function() {
     let distDir = path.resolve(fixtureDir, './dist');
 
     let build = () =>
-      execSync(`${parcelCli} build src/index.js --no-minify --no-scope-hoist`, {
-        cwd: fixtureDir,
-        env: {
-          ...process.env,
-          PARCEL_WORKERS: '0'
+      spawnSync(
+        'node',
+        [parcelCli, 'build', 'src/index.js', '--no-minify', '--no-scope-hoist'],
+        {
+          cwd: fixtureDir,
+          env: {
+            ...process.env,
+            PARCEL_WORKERS: '0'
+          }
         }
-      });
+      );
 
     build();
     let file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
@@ -356,13 +360,17 @@ describe('babel', function() {
     await ncp(path.join(fixtureDir), inputDir);
 
     let build = () =>
-      execSync(`${parcelCli} build index.js --no-minify --no-scope-hoist`, {
-        cwd: inputDir,
-        env: {
-          ...process.env,
-          PARCEL_WORKERS: '0'
+      spawnSync(
+        'node',
+        [parcelCli, 'build', 'index.js', '--no-minify', '--no-scope-hoist'],
+        {
+          cwd: inputDir,
+          env: {
+            ...process.env,
+            PARCEL_WORKERS: '0'
+          }
         }
-      });
+      );
 
     build();
     let file = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
