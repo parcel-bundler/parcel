@@ -30,6 +30,7 @@
     "@parcel/transformer-html": "^2.0.0-alpha.1.1",
     "@parcel/transformer-js": "^2.0.0-alpha.1.1",
     "@parcel/transformer-json": "^2.0.0-alpha.1.1",
+    "@parcel/transformer-kotlin": "^2.0.0-alpha.1.1",
     "@parcel/transformer-less": "^2.0.0-alpha.1.1",
     "@parcel/transformer-postcss": "^2.0.0-alpha.1.1",
     "@parcel/transformer-posthtml": "^2.0.0-alpha.1.1",

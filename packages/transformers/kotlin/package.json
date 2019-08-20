@@ -1,0 +1,16 @@
+{
+  "name": "@parcel/transformer-kotlin",
+  "version": "2.0.0-alpha.1.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/parcel-bundler/parcel.git"
+  },
+  "main": "src/KotlinTransformer",
+  "engines": {
+    "parcel": "^2.0.0-alpha.1.1"
+  },
+  "dependencies": {
+    "@parcel/plugin": "^2.0.0-alpha.1.1"
+  }
+}
