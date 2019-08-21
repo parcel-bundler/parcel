@@ -14,6 +14,7 @@ import packageJson from '../package.json';
 export class FSCache implements CacheBackend {
   fs: FileSystem;
   dir: FilePath;
+  writable = true;
 
   constructor(fs: FileSystem, cacheDir: FilePath) {
     this.fs = fs;

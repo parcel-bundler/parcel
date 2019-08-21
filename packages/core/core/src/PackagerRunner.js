@@ -263,9 +263,14 @@ export default class PackagerRunner {
 
     let mapExists = await this.options.cache.blobExists(mapKey);
 
+    let [contents, map] = await Promise.all([
+      this.options.cache.getStream(contentKey),
+      mapExists ? this.options.cache.getStream(mapKey) : Promise.resolve(null)
+    ]);
+
     return {
-      contents: this.options.cache.getStream(contentKey),
-      map: mapExists ? this.options.cache.getStream(mapKey) : null
+      contents,
+      map
     };
   }
 

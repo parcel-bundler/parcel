@@ -32,8 +32,26 @@ export default class Cache {
     return new Cache(opts.backends.map(b => deserialize(b)));
   }
 
-  getStream(key: string): Readable {
-    return new SerialGetStream(this.backends.map(b => () => b.getStream(key)));
+  async getStream(key: string): Promise<Readable> {
+    let missing = [];
+    for (let backend of this.backends) {
+      if (await backend.blobExists(key)) {
+        let stream = backend.getStream(key);
+        for (let miss of missing) {
+          if (miss.writable) {
+            let passThrough = new PassThrough();
+            stream.pipe(passThrough);
+            miss.setStream(key, passThrough);
+          }
+        }
+
+        return stream;
+      } else {
+        missing.push(backend);
+      }
+    }
+
+    throw new Error('Missing stream');
   }
 
   // TODO: Uses of this should probably not be using the cache. Remove this.
@@ -49,6 +67,10 @@ export default class Cache {
     // https://stackoverflow.com/questions/19553837/node-js-piping-the-same-readable-stream-into-multiple-writable-targets
     await Promise.all(
       this.backends.map(backend => {
+        if (!backend.writable) {
+          return Promise.resolve();
+        }
+
         let passThrough = new PassThrough();
         stream.pipe(passThrough);
         return backend.setStream(key, passThrough);
@@ -68,64 +90,24 @@ export default class Cache {
   }
 
   async get(key: string) {
+    let missing = [];
     for (let backend of this.backends) {
       let value = await backend.get(key);
       if (value !== null) {
+        await Promise.all(missing.map(b => b.set(key, value)));
         return value;
+      } else {
+        missing.push(backend);
       }
     }
   }
 
   async set(key: string, value: mixed) {
-    await Promise.all(this.backends.map(b => b.set(key, value)));
-  }
-}
-
-type StreamGetter = () => Readable;
-class SerialGetStream extends Readable {
-  _currentStream: Readable;
-  _currentStreamIndex: number = 0;
-  _streamGetters: Array<StreamGetter>;
-
-  constructor(streamGetters: Array<StreamGetter>) {
-    super();
-    if (streamGetters.length < 1) {
-      throw new TypeError('Requires at least one stream getter');
-    }
-    this._streamGetters = streamGetters;
-    this._subscribeToNextStream();
-  }
-
-  _subscribeToNextStream() {
-    let currentStreamGetter = this._streamGetters[this._currentStreamIndex++];
-    if (currentStreamGetter == null) {
-      this.destroy();
-      return;
-    }
-
-    this._currentStream = currentStreamGetter();
-    this._currentStream.on('error', (error: Error) => {
-      // If the error occurs before the first byte has been read (the stream
-      // has never emitted any data), destroy it and move onto the next stream.
-      // e.g. reading a stream from cache can fs.createReadStream locally on disk,
-      //      and fall back to a remote stream.
-      // $FlowFixMe
-      if (this.bytesRead > 0) {
-        this.destroy(error);
-      } else {
-        this._subscribeToNextStream();
-      }
-    });
-    this._currentStream.on('readable', () => {
-      this.push(this._currentStream.read());
-    });
-    this._currentStream.on('end', () => {
-      this.destroy();
-    });
-  }
-
-  _read() {
-    // _read must be implemented.
+    await Promise.all(
+      this.backends.map(b =>
+        b.writable ? b.set(key, value) : Promise.resolve()
+      )
+    );
   }
 }
 

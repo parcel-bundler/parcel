@@ -128,7 +128,7 @@ class BaseAsset {
     return this.#asset.getBuffer();
   }
 
-  getStream(): Readable {
+  getStream(): Promise<Readable> {
     return this.#asset.getStream();
   }
 

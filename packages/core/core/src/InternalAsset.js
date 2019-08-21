@@ -112,7 +112,7 @@ export default class InternalAsset {
   async commit(pipelineKey: string): Promise<void> {
     this.ast = null;
 
-    let contentStream = this.getStream();
+    let contentStream = await this.getStream();
     if (
       // $FlowFixMe
       typeof contentStream.bytesRead === 'number' &&
@@ -153,7 +153,7 @@ export default class InternalAsset {
 
   async getCode(): Promise<string> {
     if (this.value.contentKey != null) {
-      this.content = this.options.cache.getStream(this.value.contentKey);
+      this.content = await this.options.cache.getStream(this.value.contentKey);
     }
 
     if (typeof this.content === 'string' || this.content instanceof Buffer) {
@@ -167,7 +167,7 @@ export default class InternalAsset {
 
   async getBuffer(): Promise<Buffer> {
     if (this.value.contentKey != null) {
-      this.content = this.options.cache.getStream(this.value.contentKey);
+      this.content = await this.options.cache.getStream(this.value.contentKey);
     }
 
     if (typeof this.content === 'string' || this.content instanceof Buffer) {
@@ -178,9 +178,9 @@ export default class InternalAsset {
     return this.content;
   }
 
-  getStream(): Readable {
+  async getStream(): Promise<Readable> {
     if (this.value.contentKey != null) {
-      this.content = this.options.cache.getStream(this.value.contentKey);
+      this.content = await this.options.cache.getStream(this.value.contentKey);
     }
 
     return blobToStream(this.content);
