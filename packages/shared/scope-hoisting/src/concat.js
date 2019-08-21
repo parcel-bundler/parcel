@@ -46,12 +46,25 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   let outputs = new Map(await queue.run());
   let result = [...parse(HELPERS, HELPERS_PATH)];
 
-  // If this is an entry bundle and it has child bundles, we need to add the prelude code, which allows
-  // registering modules dynamically at runtime.
+  let siblings = bundleGraph
+    .getBundleGroupsContainingBundle(bundle)
+    .map(group =>
+      bundleGraph
+        .getBundlesInBundleGroup(group)
+        .filter(bundle => bundle.type === 'js')
+    );
+  // If this is an entry bundle and it has child/sibling bundles, we need to add the
+  // prelude code, which allows registering modules dynamically at runtime.
   let isEntry = !bundleGraph.hasParentBundleOfType(bundle, 'js');
   let hasChildBundles = bundle.hasChildBundles();
-  let needsPrelude = isEntry && hasChildBundles;
-  let registerEntry = !isEntry || hasChildBundles;
+  let isLastSibling =
+    siblings.some(group => group.length > 1) &&
+    siblings.some(
+      group => group.findIndex(b => bundle.id === b.id) === group.length - 1
+    );
+  let needsPrelude = isEntry && (hasChildBundles || isLastSibling);
+  let registerEntry =
+    !isEntry || hasChildBundles || siblings.some(group => group.length > 1);
   if (needsPrelude) {
     result.unshift(...parse(PRELUDE, PRELUDE_PATH));
   }
@@ -103,10 +116,11 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
         (!context.parent && registerEntry)
       ) {
         let exportsId = getName(asset, 'exports');
+        let initId = asset.meta.shouldWrap ? `, ${getName(asset, 'init')}` : '';
         statements.push(
           ...parse(`
           ${asset.meta.isES6Module ? `${exportsId}.__esModule = true;` : ''}
-          parcelRequire.register("${asset.id}", ${exportsId});
+          parcelRequire.register("${asset.id}", ${exportsId}${initId});
         `)
         );
       }
@@ -143,7 +157,10 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   return t.file(t.program(result));
 }
 
-async function processAsset(bundle: Bundle, asset: Asset) {
+async function processAsset(
+  bundle: Bundle,
+  asset: Asset
+): Promise<[string, Object]> {
   let code = await asset.getCode();
   let statements = parse(code, asset.filePath);
 
