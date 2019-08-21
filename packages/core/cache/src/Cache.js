@@ -70,7 +70,7 @@ export default class Cache {
   async get(key: string) {
     for (let backend of this.backends) {
       let value = await backend.get(key);
-      if (value !== undefined) {
+      if (value !== null) {
         return value;
       }
     }
