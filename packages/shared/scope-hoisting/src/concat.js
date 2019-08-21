@@ -39,7 +39,7 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
         }
         break;
       case 'asset':
-        queue.add(() => processAsset(bundle, node.value));
+        queue.add(async () => [node.value.id, await node.value.getCode()]);
     }
   });
 
@@ -89,7 +89,18 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
         return;
       }
 
-      let statements = nullthrows(outputs.get(asset.id));
+      // If this module is referenced by another JS bundle, or is an entry module in a child bundle,
+      // add code to register the module with the module system.
+      let shouldRegister =
+        bundleGraph.isAssetReferencedByAssetType(asset, 'js') ||
+        (!context.parent && registerEntry);
+
+      let statements = processAsset(
+        bundle,
+        asset,
+        nullthrows(outputs.get(asset.id)),
+        shouldRegister
+      );
       let statementIndices: Map<string, number> = new Map();
       for (let i = 0; i < statements.length; i++) {
         let statement = statements[i];
@@ -109,18 +120,21 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
         statements.splice(index, 0, ...ast);
       }
 
-      // If this module is referenced by another JS bundle, or is an entry module in a child bundle,
-      // add code to register the module with the module system.
-      if (
-        bundleGraph.isAssetReferencedByAssetType(asset, 'js') ||
-        (!context.parent && registerEntry)
-      ) {
+      if (shouldRegister) {
         let exportsId = getName(asset, 'exports');
-        let initId = asset.meta.shouldWrap ? `, ${getName(asset, 'init')}` : '';
+        let initId = getName(asset, 'init');
         statements.push(
           ...parse(`
-          ${asset.meta.isES6Module ? `${exportsId}.__esModule = true;` : ''}
-          parcelRequire.register("${asset.id}", ${exportsId}${initId});
+          ${
+            asset.meta.isES6Module && !asset.meta.shouldWrap
+              ? `${exportsId}.__esModule = true;`
+              : ''
+          }
+          ${
+            asset.meta.shouldWrap
+              ? `parcelRequire.register("${asset.id}", undefined, ${initId});`
+              : `parcelRequire.register("${asset.id}", ${exportsId});`
+          }
         `)
         );
       }
@@ -157,11 +171,12 @@ export async function concat(bundle: Bundle, bundleGraph: BundleGraph) {
   return t.file(t.program(result));
 }
 
-async function processAsset(
+function processAsset(
   bundle: Bundle,
-  asset: Asset
-): Promise<[string, Object]> {
-  let code = await asset.getCode();
+  asset: Asset,
+  code: string,
+  shouldRegister: boolean
+) {
   let statements = parse(code, asset.filePath);
 
   if (statements[0]) {
@@ -169,10 +184,10 @@ async function processAsset(
   }
 
   if (asset.meta.shouldWrap) {
-    statements = wrapModule(asset, statements);
+    statements = wrapModule(asset, statements, shouldRegister);
   }
 
-  return [asset.id, statements];
+  return statements;
 }
 
 function parse(code, filename) {
@@ -276,7 +291,7 @@ function findRequires(
   return result;
 }
 
-function wrapModule(asset: Asset, statements) {
+function wrapModule(asset: Asset, statements, shouldRegister: boolean) {
   let body = [];
   let decls = [];
   let fns = [];
@@ -330,6 +345,16 @@ function wrapModule(asset: Asset, statements) {
     } else {
       body.push(node);
     }
+  }
+
+  if (shouldRegister) {
+    let exportsId = getName(asset, 'exports');
+    body.push(
+      ...parse(`
+          ${asset.meta.isES6Module ? `${exportsId}.__esModule = true;` : ''}
+          parcelRequire.register("${asset.id}", ${exportsId});
+        `)
+    );
   }
 
   let executed = getName(asset, 'executed');
