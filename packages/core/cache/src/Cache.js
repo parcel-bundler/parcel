@@ -10,6 +10,7 @@ import packageJson from '../package.json';
 import {FSCache} from './FSCache';
 
 export * from './FSCache';
+export * from './HTTPCache';
 
 type SerializedCache = {|
   backends: Array<Buffer>
@@ -37,13 +38,13 @@ export default class Cache {
     for (let backend of this.backends) {
       if (await backend.blobExists(key)) {
         let stream = backend.getStream(key);
-        for (let miss of missing) {
-          if (miss.writable) {
-            let passThrough = new PassThrough();
-            stream.pipe(passThrough);
-            miss.setStream(key, passThrough);
-          }
-        }
+        // for (let miss of missing) {
+        //   if (miss.writable) {
+        //     let passThrough = new PassThrough();
+        //     stream.pipe(passThrough);
+        //     miss.setStream(key, passThrough);
+        //   }
+        // }
 
         return stream;
       } else {
@@ -56,9 +57,7 @@ export default class Cache {
 
   // TODO: Uses of this should probably not be using the cache. Remove this.
   _getCachePath(cacheId: string, extension: string = '.v8'): FilePath {
-    let fsCache = this.backends.find(b => b instanceof FSCache);
-    invariant(fsCache instanceof FSCache);
-    return fsCache._getCachePath(cacheId, extension);
+    return require('path').join('/tmp/parcelcachepath', cacheId, extension);
   }
 
   async setStream(key: string, stream: Readable): Promise<string> {
