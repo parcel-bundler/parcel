@@ -379,6 +379,7 @@ export class MemoryFS implements FileSystem {
     fn: (err: ?Error, events: Array<Event>) => mixed,
     opts: WatcherOptions
   ): Promise<AsyncSubscription> {
+    dir = this._normalizePath(dir);
     let watcher = new Watcher(fn, opts);
     let watchers = this.watchers.get(dir);
     if (!watchers) {
