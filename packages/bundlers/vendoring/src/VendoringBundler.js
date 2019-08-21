@@ -4,14 +4,14 @@ import type {Asset, Bundle} from '@parcel/types';
 
 import invariant from 'assert';
 import {Bundler} from '@parcel/plugin';
-import {md5FromString} from '@parcel/utils';
+// import {md5FromString} from '@parcel/utils';
 import nullthrows from 'nullthrows';
 
-const OPTIONS = {
-  minBundles: 1,
-  minBundleSize: 30000,
-  maxParallelRequests: 5
-};
+// const OPTIONS = {
+//   minBundles: 1,
+//   minBundleSize: 30000,
+//   maxParallelRequests: 5
+// };
 
 function isVendor(asset: Asset) {
   //TODO Yarn PnP?
@@ -20,12 +20,11 @@ function isVendor(asset: Asset) {
 
 export default new Bundler({
   // RULES:
+  // 0. Keep assets from inside node_modules seperated from 'user code'
   // 1. If dep.isAsync or dep.isEntry, start a new bundle group.
   // 2. If an asset is a different type than the current bundle, make a parallel bundle in the same bundle group.
   // 3. If an asset is already in a parent bundle in the same entry point, exclude from child bundles.
   // 4. If an asset is only in separate isolated entry points (e.g. workers, different HTML pages), duplicate it.
-  // 5. If the sub-graph from an asset is >= 30kb, and the number of parallel requests in the bundle group is < 5, create a new bundle containing the sub-graph.
-  // 6. If two assets are always seen together, put them in the same extracted bundle
 
   bundle({bundleGraph}) {
     // Step 1: create bundles for each of the explicit code split points.
@@ -130,29 +129,29 @@ export default new Bundler({
   },
 
   optimize({bundleGraph}) {
-    // // Step 2: remove assets that are duplicated in a parent bundle
-    // bundleGraph.traverseBundles({
-    //   exit(bundle) {
-    //     if (bundle.env.isIsolated()) {
-    //       // If a bundle's environment is isolated, it can't access assets present
-    //       // in any ancestor bundles. Don't deduplicate any assets.
-    //       return;
-    //     }
-    //     bundle.traverse(node => {
-    //       if (node.type !== 'dependency') {
-    //         return;
-    //       }
-    //       let dependency = node.value;
-    //       let assets = bundleGraph.getDependencyAssets(dependency);
-    //       for (let asset of assets) {
-    //         if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
-    //           bundleGraph.createAssetReference(dependency, asset);
-    //           bundleGraph.removeAssetGraphFromBundle(asset, bundle);
-    //         }
-    //       }
-    //     });
-    //   }
-    // });
+    // Step 2: remove assets that are duplicated in a parent bundle
+    bundleGraph.traverseBundles({
+      exit(bundle) {
+        if (bundle.env.isIsolated()) {
+          // If a bundle's environment is isolated, it can't access assets present
+          // in any ancestor bundles. Don't deduplicate any assets.
+          return;
+        }
+        bundle.traverse(node => {
+          if (node.type !== 'dependency') {
+            return;
+          }
+          let dependency = node.value;
+          let assets = bundleGraph.getDependencyAssets(dependency);
+          for (let asset of assets) {
+            if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
+              bundleGraph.createAssetReference(dependency, asset);
+              bundleGraph.removeAssetGraphFromBundle(asset, bundle);
+            }
+          }
+        });
+      }
+    });
     // // Step 3: Find duplicated assets in different bundle groups, and separate them into their own parallel bundles.
     // // If multiple assets are always seen together in the same bundles, combine them together.
     // let candidateBundles: Map<
