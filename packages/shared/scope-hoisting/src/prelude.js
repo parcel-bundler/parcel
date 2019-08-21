@@ -36,7 +36,5 @@ globalObject.parcelRequire = function(name) {
 
 globalObject.parcelRequire.register = function register(id, exports, init) {
   $parcel$modules[id] = exports;
-  if (init) {
-    $parcel$modules$init[id] = init;
-  }
+  $parcel$modules$init[id] = init;
 };
