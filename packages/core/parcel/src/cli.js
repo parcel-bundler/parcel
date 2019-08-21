@@ -2,7 +2,6 @@
 
 import type {ParcelConfigFile, InitialParcelOptions} from '@parcel/types';
 import {BuildError} from '@parcel/core';
-import {patchConsole} from '@parcel/logger';
 
 require('v8-compile-cache');
 
@@ -142,10 +141,9 @@ async function run(entries: Array<string>, command: any) {
       ...defaultConfig,
       filePath: require.resolve('@parcel/config-default')
     },
+    patchConsole: true,
     ...(await normalizeOptions(command))
   });
-
-  patchConsole();
 
   if (command.name() === 'watch' || command.name() === 'serve') {
     let {unsubscribe} = await parcel.watch(err => {
