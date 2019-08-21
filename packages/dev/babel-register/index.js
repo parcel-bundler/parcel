@@ -9,4 +9,4 @@ require('@babel/register')({
 
 // This adds the registration to the Node args, which are passed
 // to child processes by Node when we fork to create workers.
-process.execArgv.push('-r', '@parcel/babel-register');
+process.execArgv.push('-r', __filename);
