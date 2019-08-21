@@ -33,6 +33,7 @@ export class NodeFS implements FileSystem {
   createReadStream = fs.createReadStream;
   createWriteStream = fs.createWriteStream;
   cwd = process.cwd;
+  chdir = process.chdir;
 
   async realpath(originalPath: string): Promise<string> {
     try {
@@ -50,7 +51,7 @@ export class NodeFS implements FileSystem {
     });
   }
 
-  async watch(
+  watch(
     dir: FilePath,
     fn: (err: ?Error, events: Array<Event>) => mixed,
     opts: WatcherOptions
@@ -58,7 +59,7 @@ export class NodeFS implements FileSystem {
     return watcher.subscribe(dir, fn, opts);
   }
 
-  async getEventsSince(
+  getEventsSince(
     dir: FilePath,
     snapshot: FilePath,
     opts: WatcherOptions

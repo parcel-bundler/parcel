@@ -33,6 +33,7 @@ export class MemoryFS implements FileSystem {
   id: number;
   handle: Handle;
   farm: WorkerFarm;
+  _cwd: FilePath;
 
   constructor(workerFarm: WorkerFarm) {
     this.dirs = new Map([['/', new Directory()]]);
@@ -42,6 +43,7 @@ export class MemoryFS implements FileSystem {
     this.watchers = new Map();
     this.events = [];
     this.id = id++;
+    this._cwd = '/';
     instances.set(this.id, this);
   }
 
@@ -68,7 +70,11 @@ export class MemoryFS implements FileSystem {
   }
 
   cwd() {
-    return '/';
+    return this._cwd;
+  }
+
+  chdir(dir: FilePath) {
+    this._cwd = dir;
   }
 
   _normalizePath(filePath: FilePath, realpath: boolean = true): FilePath {
@@ -340,10 +346,11 @@ export class MemoryFS implements FileSystem {
     return Promise.resolve(filePath);
   }
 
-  async symlink(target: FilePath, path: FilePath) {
+  symlink(target: FilePath, path: FilePath) {
     target = this._normalizePath(target);
     path = this._normalizePath(path);
     this.symlinks.set(path, target);
+    return Promise.resolve();
   }
 
   exists(filePath: FilePath) {
@@ -367,7 +374,7 @@ export class MemoryFS implements FileSystem {
     }
   }
 
-  async watch(
+  watch(
     dir: FilePath,
     fn: (err: ?Error, events: Array<Event>) => mixed,
     opts: WatcherOptions
@@ -381,16 +388,18 @@ export class MemoryFS implements FileSystem {
 
     watchers.add(watcher);
 
-    return {
-      unsubscribe: async () => {
+    return Promise.resolve({
+      unsubscribe: () => {
         watchers = nullthrows(watchers);
         watchers.delete(watcher);
 
         if (watchers.size === 0) {
           this.watchers.delete(dir);
         }
+
+        return Promise.resolve();
       }
-    };
+    });
   }
 
   async getEventsSince(
@@ -731,16 +740,16 @@ class WorkerFS extends MemoryFS {
     return this.handleFn('ncp', [source, destination]);
   }
 
-  async realpath(filePath: FilePath) {
-    return this.handle('realpath', [filePath]);
+  realpath(filePath: FilePath) {
+    return this.handleFn('realpath', [filePath]);
   }
 
-  async symlink(target: FilePath, path: FilePath) {
-    return this.handle('symlink', [target, path]);
+  symlink(target: FilePath, path: FilePath) {
+    return this.handleFn('symlink', [target, path]);
   }
 
-  async exists(filePath: FilePath) {
-    return this.handle('exists', [filePath]);
+  exists(filePath: FilePath) {
+    return this.handleFn('exists', [filePath]);
   }
 }
 

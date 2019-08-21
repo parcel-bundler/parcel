@@ -15,7 +15,6 @@
   "dependencies": {
     "@parcel/logger": "^2.0.0-alpha.1.1",
     "@parcel/plugin": "^2.0.0-alpha.1.1",
-    "@parcel/reporter-cli": "^2.0.0-alpha.1.1",
     "@parcel/utils": "^2.0.0-alpha.1.1",
     "ansi-html": "^0.0.7",
     "connect": "^3.7.0",

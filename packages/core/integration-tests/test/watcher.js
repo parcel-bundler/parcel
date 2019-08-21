@@ -22,9 +22,7 @@ const distDir = path.join(inputDir, 'dist');
 describe('watcher', function() {
   let subscription;
   beforeEach(async function() {
-    await sleep(100);
     await outputFS.rimraf(inputDir);
-    await sleep(100);
   });
 
   afterEach(async () => {
@@ -91,7 +89,7 @@ describe('watcher', function() {
     await ncp(path.join(__dirname, 'integration/babel-default'), inputDir);
 
     let b = bundler(path.join(inputDir, 'index.js'), {
-      outputFS: fs,
+      inputFS: outputFS,
       targets: {
         main: {
           engines: {
@@ -104,14 +102,17 @@ describe('watcher', function() {
 
     subscription = await b.watch();
     await getNextBuild(b);
-    let distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    let distFile = await outputFS.readFile(
+      path.join(distDir, 'index.js'),
+      'utf8'
+    );
     assert(distFile.includes('Foo'));
-    await fs.writeFile(
+    await outputFS.writeFile(
       path.join(inputDir, 'index.js'),
       'console.log("no more dependencies")'
     );
     await getNextBuild(b);
-    distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    distFile = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!distFile.includes('Foo'));
   });
 

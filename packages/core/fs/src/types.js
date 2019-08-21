@@ -34,6 +34,7 @@ export interface FileSystem {
   createReadStream(path: FilePath): Readable;
   createWriteStream(path: FilePath, options: ?FileOptions): Writable;
   cwd(): FilePath;
+  chdir(dir: FilePath): void;
   watch(
     dir: FilePath,
     fn: (err: ?Error, events: Array<Event>) => mixed,

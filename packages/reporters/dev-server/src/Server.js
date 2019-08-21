@@ -136,7 +136,7 @@ export default class Server extends EventEmitter {
     }
   }
 
-  async serveDist(req: Request, res: Response, next: NextFunction) {
+  serveDist(req: Request, res: Response, next: NextFunction) {
     return this.serve(
       this.options.outputFS,
       this.options.distDir,

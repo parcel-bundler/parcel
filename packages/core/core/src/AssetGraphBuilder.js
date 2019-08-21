@@ -1,22 +1,23 @@
 // @flow strict-local
 
 import type WorkerFarm from '@parcel/workers';
-import type {ParcelOptions, Target} from '@parcel/types';
-
-import EventEmitter from 'events';
-import {md5FromObject, md5FromString} from '@parcel/utils';
 import type {Event} from '@parcel/watcher';
-
-import type {Asset} from './types';
-import AssetGraph from './AssetGraph';
-import type ParcelConfig from './ParcelConfig';
-import RequestGraph from './RequestGraph';
 import type {
+  Asset,
   AssetGraphNode,
   AssetRequest,
   AssetRequestNode,
-  DepPathRequestNode
+  DepPathRequestNode,
+  ParcelOptions,
+  Target
 } from './types';
+
+import EventEmitter from 'events';
+import {md5FromObject, md5FromString} from '@parcel/utils';
+
+import AssetGraph from './AssetGraph';
+import type ParcelConfig from './ParcelConfig';
+import RequestGraph from './RequestGraph';
 
 import dumpToGraphViz from './dumpGraphToGraphViz';
 import path from 'path';
