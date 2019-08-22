@@ -211,7 +211,7 @@ export default class InternalAsset {
   }
 
   generateCacheKey(key: string): string {
-    return md5FromString(key + this.value.id + JSON.stringify(this.value.env));
+    return md5FromString(key + this.value.id + (this.value.hash || ''));
   }
 
   addDependency(opts: DependencyOptions) {
@@ -344,7 +344,7 @@ export default class InternalAsset {
     return conf.config;
   }
 
-  async getPackage(): Promise<PackageJSON | null> {
+  getPackage(): Promise<PackageJSON | null> {
     return this.getConfig(['package.json']);
   }
 }

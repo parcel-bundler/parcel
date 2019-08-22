@@ -1,0 +1,5 @@
+{
+  "rules": {
+    "require-await": "off"
+  }
+}

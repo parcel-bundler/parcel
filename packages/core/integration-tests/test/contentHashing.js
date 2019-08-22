@@ -1,10 +1,19 @@
-const assert = require('assert');
-const path = require('path');
-const {bundle, rimraf, ncp, inputFS: fs} = require('@parcel/test-utils');
+import assert from 'assert';
+import path from 'path';
+import {bundle as _bundle, outputFS, ncp} from '@parcel/test-utils';
 
-describe.skip('content hashing', function() {
-  beforeEach(async function() {
-    await rimraf(path.join(__dirname, '/input'));
+function bundle(path) {
+  return _bundle(path, {
+    inputFS: outputFS,
+    disableCache: false
+  });
+}
+
+const distDir = '/dist';
+
+describe('content hashing', function() {
+  beforeEach(async () => {
+    await outputFS.rimraf(path.join(__dirname, '/input'));
   });
 
   it('should update content hash when content changes', async function() {
@@ -13,33 +22,29 @@ describe.skip('content hashing', function() {
       path.join(__dirname, '/input')
     );
 
-    await bundle(path.join(__dirname, '/input/index.html'), {
-      production: true
-    });
+    let bundleHtml = () => bundle(path.join(__dirname, '/input/index.html'));
+    await bundleHtml();
 
-    let html = await fs.readFile(
-      path.join(__dirname, '/dist/index.html'),
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
       'utf8'
     );
     let filename = html.match(
       /<link rel="stylesheet" href="[/\\]{1}(input\.[a-f0-9]+\.css)">/
     )[1];
-    assert(await fs.exists(path.join(__dirname, '/dist/', filename)));
+    assert(await outputFS.exists(path.join(distDir, filename)));
 
-    await fs.writeFile(
+    await outputFS.writeFile(
       path.join(__dirname, '/input/index.css'),
       'body { background: green }'
     );
+    await bundleHtml();
 
-    await bundle(path.join(__dirname, '/input/index.html'), {
-      production: true
-    });
-
-    html = await fs.readFile(path.join(__dirname, '/dist/index.html'), 'utf8');
+    html = await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8');
     let newFilename = html.match(
       /<link rel="stylesheet" href="[/\\]{1}(input\.[a-f0-9]+\.css)">/
     )[1];
-    assert(await fs.exists(path.join(__dirname, '/dist/', newFilename)));
+    assert(await outputFS.exists(path.join(distDir, newFilename)));
 
     assert.notEqual(filename, newFilename);
   });
@@ -50,23 +55,22 @@ describe.skip('content hashing', function() {
       path.join(__dirname, '/input')
     );
 
-    await bundle(path.join(__dirname, '/input/index.js'), {
-      production: true
-    });
+    let bundleJs = () => bundle(path.join(__dirname, '/input/index.js'));
+    await bundleJs();
 
-    let js = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     let filename = js.match(/\/(test\.[0-9a-f]+\.txt)/)[1];
-    assert(await fs.exists(path.join(__dirname, '/dist/', filename)));
+    assert(await outputFS.exists(path.join(distDir, filename)));
 
-    await fs.writeFile(path.join(__dirname, '/input/test.txt'), 'hello world');
+    await outputFS.writeFile(
+      path.join(__dirname, '/input/test.txt'),
+      'hello world'
+    );
+    await bundleJs();
 
-    await bundle(path.join(__dirname, '/input/index.js'), {
-      production: true
-    });
-
-    js = await fs.readFile(path.join(__dirname, '/dist/index.js'), 'utf8');
+    js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     let newFilename = js.match(/\/(test\.[0-9a-f]+\.txt)/)[1];
-    assert(await fs.exists(path.join(__dirname, '/dist/', newFilename)));
+    assert(await outputFS.exists(path.join(distDir, newFilename)));
 
     assert.notEqual(filename, newFilename);
   });

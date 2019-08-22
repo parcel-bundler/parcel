@@ -17,15 +17,35 @@ import path from 'path';
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
 
-import {promisify, syncPromise} from '@parcel/utils';
-import _ncp from 'ncp';
+import {syncPromise} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
 
 const workerFarm = createWorkerFarm();
 export const inputFS = new NodeFS();
 export const outputFS = new MemoryFS(workerFarm);
-export const ncp = promisify(_ncp);
+
+// Recursively copies a directory from the inputFS to the outputFS
+export async function ncp(source: FilePath, destination: FilePath) {
+  await outputFS.mkdirp(destination);
+  let files = await inputFS.readdir(source);
+  for (let file of files) {
+    let sourcePath = path.join(source, file);
+    let destPath = path.join(destination, file);
+    let stats = await inputFS.stat(sourcePath);
+    if (stats.isFile()) {
+      await new Promise((resolve, reject) => {
+        inputFS
+          .createReadStream(sourcePath)
+          .pipe(outputFS.createWriteStream(destPath))
+          .on('finish', () => resolve())
+          .on('error', reject);
+      });
+    } else if (stats.isDirectory()) {
+      await ncp(sourcePath, destPath);
+    }
+  }
+}
 
 // Mocha is currently run with exit: true because of this issue preventing us
 // from properly ending the workerfarm after the test run:
@@ -183,7 +203,7 @@ export async function run(
   return ctx;
 }
 
-export async function assertBundles(
+export function assertBundles(
   bundleGraph: BundleGraph,
   expectedBundles: Array<{|
     name?: string | RegExp,
@@ -317,7 +337,7 @@ function prepareBrowserContext(filePath: FilePath, globals: mixed): vm$Context {
               await outputFS.readFile(path.join(path.dirname(filePath), url))
             ).buffer;
           },
-          async text() {
+          text() {
             return outputFS.readFile(
               path.join(path.dirname(filePath), url),
               'utf8'

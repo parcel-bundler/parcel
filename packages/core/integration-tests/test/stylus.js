@@ -12,7 +12,7 @@ describe('stylus', function() {
   it('should support requiring stylus files', async function() {
     let b = await bundle(path.join(__dirname, '/integration/stylus/index.js'));
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -38,7 +38,7 @@ describe('stylus', function() {
 
     // a.styl shouldn't be included as a dependency that we can see.
     // stylus takes care of inlining it.
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -65,7 +65,7 @@ describe('stylus', function() {
       path.join(__dirname, '/integration/stylus-url/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']
@@ -101,7 +101,7 @@ describe('stylus', function() {
       path.join(__dirname, '/integration/stylus-postcss/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js', 'index.module.styl']
@@ -125,7 +125,7 @@ describe('stylus', function() {
       path.join(__dirname, '/integration/stylus-glob-import/index.js')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.js',
         assets: ['index.js']

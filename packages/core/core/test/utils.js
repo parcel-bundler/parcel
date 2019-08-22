@@ -28,5 +28,6 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   profile: false,
   inputFS,
   outputFS,
-  cache
+  cache,
+  patchConsole: false
 };

@@ -1327,7 +1327,7 @@ describe('scope hoisting', function() {
       path.join(__dirname, '/integration/html-js/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']
@@ -1350,7 +1350,7 @@ describe('scope hoisting', function() {
       path.join(__dirname, '/integration/html-js-dynamic/index.html')
     );
 
-    await assertBundles(b, [
+    assertBundles(b, [
       {
         name: 'index.html',
         assets: ['index.html']

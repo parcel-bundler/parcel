@@ -53,7 +53,7 @@ export async function resolve(fs: FileSystem, filePath: FilePath) {
   return readAndProcess(fs, configPath);
 }
 
-export async function create(fs: FileSystem, config: ParcelConfigFile) {
+export function create(fs: FileSystem, config: ParcelConfigFile) {
   return processConfig(fs, config, fs.cwd());
 }
 
@@ -101,7 +101,7 @@ export async function resolveExtends(
   if (ext.startsWith('.')) {
     return path.resolve(path.dirname(configPath), ext);
   } else {
-    let [resolved] = await localResolve(ext, configPath);
+    let [resolved] = await localResolve(ext, configPath, fs);
     return fs.realpath(resolved);
   }
 }

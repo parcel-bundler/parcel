@@ -4,16 +4,19 @@ import {Transformer} from '@parcel/plugin';
 import {promisify, resolve} from '@parcel/utils';
 import logger from '@parcel/logger';
 import {dirname} from 'path';
+import {NodeFS} from '@parcel/fs';
 
 // E.g: ~library/file.sass
 const WEBPACK_ALIAS_RE = /^~[^/]/;
+const fs = new NodeFS();
 
 let didWarnAboutNodeSass = false;
 
 async function warnAboutNodeSassBeingUnsupported(filePath) {
   if (!didWarnAboutNodeSass) {
     try {
-      await resolve('node-sass', {basedir: dirname(filePath)});
+      // TODO: replace this with the actual filesystem later
+      await resolve(fs, 'node-sass', {basedir: dirname(filePath)});
       logger.warn(
         '`node-sass` is unsupported in Parcel 2, it will use Dart Sass a.k.a. `sass`'
       );

@@ -18,7 +18,7 @@ const JSX_PRAGMA = {
  * Generates a babel config for JSX. Attempts to detect react or react-like libraries
  * and changes the pragma accordingly.
  */
-export default async function getJSXConfig(
+export default function getJSXConfig(
   asset: MutableAsset,
   pkg: ?PackageJSON,
   isSourceModule: boolean

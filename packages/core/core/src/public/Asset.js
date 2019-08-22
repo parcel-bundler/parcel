@@ -120,11 +120,11 @@ class BaseAsset {
     return this.#asset.getPackage();
   }
 
-  async getCode(): Promise<string> {
+  getCode(): Promise<string> {
     return this.#asset.getCode();
   }
 
-  async getBuffer(): Promise<Buffer> {
+  getBuffer(): Promise<Buffer> {
     return this.#asset.getBuffer();
   }
 

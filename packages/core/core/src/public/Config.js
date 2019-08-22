@@ -98,7 +98,7 @@ export default class PublicConfig implements IConfig {
     return conf.config;
   }
 
-  async getConfig(
+  getConfig(
     filePaths: Array<FilePath>,
     options: ?{
       parse?: boolean,

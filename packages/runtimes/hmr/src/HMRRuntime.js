@@ -11,7 +11,7 @@ const HMR_RUNTIME = fs.readFileSync(
 );
 
 export default new Runtime({
-  async apply({bundle, options}) {
+  apply({bundle, options}) {
     if (bundle.type !== 'js' || !options.hot) {
       return;
     }

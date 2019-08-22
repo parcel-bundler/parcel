@@ -26,7 +26,7 @@ export default async function getBabelConfig(
   }
 
   let plugins = await installPlugins(asset, config);
-  let babelVersion = await getBabelVersion(asset, pkg, plugins);
+  let babelVersion = getBabelVersion(asset, pkg, plugins);
 
   return {
     babelVersion,
@@ -40,7 +40,7 @@ export default async function getBabelConfig(
  *   - if `browserify.transforms` includes "babelify" in package.json (for legacy module compat)
  *   - the `source` field in package.json is used by the resolver
  */
-async function getBabelRc(asset, pkg, isSource) {
+function getBabelRc(asset, pkg, isSource) {
   // Support legacy browserify packages
   // $FlowFixMe
   let browserify = pkg && pkg.browserify;
@@ -155,7 +155,7 @@ function matchesPatterns(patterns, path) {
   });
 }
 
-async function getBabelVersion(asset, pkg, plugins) {
+function getBabelVersion(asset, pkg, plugins) {
   if (pkg) {
     // Check the package.json to determine the babel version that is installed
     let babelLegacy = getDependency(pkg, 'babel-core');
@@ -174,7 +174,7 @@ async function getBabelVersion(asset, pkg, plugins) {
   // or a new app that just added a .babelrc without manually installing a version of babel core.
   // We will attempt to infer a verison of babel and install it based on the dependencies of the plugins
   // in the config. This should only happen once since we save babel core into package.json for subsequent runs.
-  let inferred = await inferBabelVersion(asset, plugins);
+  let inferred = inferBabelVersion(asset, plugins);
   // let name = inferred === 6 ? 'babel-core' : `@babel/core`;
   // await installPackage([name], asset.filePath);
   return inferred;
@@ -210,7 +210,7 @@ const CORE_DEPS = new Set([
   'babel-generator'
 ]);
 
-async function inferBabelVersion(asset, plugins) {
+function inferBabelVersion(asset, plugins) {
   // Attempt to determine version based on dependencies of plugins
   let version;
 
@@ -264,7 +264,7 @@ function getMaxMajor(version) {
   }
 }
 
-async function installPlugins(asset, babelrc) {
+function installPlugins(asset, babelrc) {
   let presets = (babelrc.presets || []).map(p =>
     resolveModule('preset', getPluginName(p), asset.filePath)
   );

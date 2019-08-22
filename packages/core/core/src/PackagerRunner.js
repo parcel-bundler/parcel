@@ -177,7 +177,7 @@ export default class PackagerRunner {
     return optimized;
   }
 
-  async generateSourceMap(bundle: InternalBundle, map: SourceMap) {
+  generateSourceMap(bundle: InternalBundle, map: SourceMap): Promise<string> {
     // sourceRoot should be a relative path between outDir and rootDir for node.js targets
     let filePath = nullthrows(bundle.filePath);
     let sourceRoot: string = path.relative(
@@ -221,7 +221,10 @@ export default class PackagerRunner {
     });
   }
 
-  async getCacheKey(bundle: InternalBundle, bundleGraph: InternalBundleGraph) {
+  getCacheKey(
+    bundle: InternalBundle,
+    bundleGraph: InternalBundleGraph
+  ): string {
     let filePath = nullthrows(bundle.filePath);
     let packager = this.config.getPackagerName(filePath);
     let optimizers = this.config.getOptimizerNames(filePath);

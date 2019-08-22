@@ -36,7 +36,7 @@ describe('typescript', function() {
         {config}
       );
 
-      await assertBundles(b, [
+      assertBundles(b, [
         {
           type: 'js',
           assets: ['index.ts', 'Local.ts']
@@ -54,7 +54,7 @@ describe('typescript', function() {
         {config}
       );
 
-      await assertBundles(b, [
+      assertBundles(b, [
         {
           type: 'js',
           assets: ['index.ts', 'Local.ts']
@@ -66,7 +66,7 @@ describe('typescript', function() {
       assert.equal(output.count(), 3);
     });
 
-    it.skip('should support json require', async function() {
+    it('should support json require', async function() {
       let b = await bundle(
         path.join(__dirname, '/integration/typescript-json/index.ts')
       );
@@ -85,7 +85,7 @@ describe('typescript', function() {
         {config}
       );
 
-      await assertBundles(b, [
+      assertBundles(b, [
         {
           type: 'js',
           assets: ['index.ts']
@@ -103,7 +103,7 @@ describe('typescript', function() {
         {config}
       );
 
-      await assertBundles(b, [
+      assertBundles(b, [
         {
           name: 'index.js',
           assets: ['index.ts', 'test.txt.js']
@@ -129,7 +129,7 @@ describe('typescript', function() {
         }
       );
 
-      await assertBundles(b, [
+      assertBundles(b, [
         {
           type: 'js',
           assets: ['index.ts', 'Local.ts']
@@ -163,7 +163,7 @@ describe('typescript', function() {
         {config}
       );
 
-      await assertBundles(b, [
+      assertBundles(b, [
         {
           name: 'index.js',
           assets: ['index.ts', 'commonjs-module.js']

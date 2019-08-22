@@ -97,6 +97,7 @@ export type ParcelOptions = {|
   projectRoot: FilePath,
   lockFile: ?FilePath,
   profile: boolean,
+  patchConsole: ?boolean,
 
   inputFS: FileSystem,
   outputFS: FileSystem,

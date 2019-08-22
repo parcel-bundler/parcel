@@ -17,7 +17,7 @@ export default async function getEnvConfig(
 ) {
   // Load the target engines for the app and generate a @babel/preset-env config
   let targetEngines = asset.env.engines;
-  let targetEnv = await getEnvPlugins(targetEngines, true);
+  let targetEnv = getEnvPlugins(targetEngines, true);
   if (!targetEnv) {
     return null;
   }
@@ -26,7 +26,7 @@ export default async function getEnvConfig(
   // Otherwise, load the source engines and generate a babel-present-env config.
   if (!isSourceModule) {
     let sourceEngines = await getTargetEngines(asset);
-    let sourceEnv = (await getEnvPlugins(sourceEngines, false)) || targetEnv;
+    let sourceEnv = getEnvPlugins(sourceEngines, false) || targetEnv;
 
     // Do a diff of the returned plugins. We only need to process the remaining plugins to get to the app target.
     let sourcePlugins = new Set(sourceEnv.map(p => p[0]));
@@ -46,7 +46,7 @@ export default async function getEnvConfig(
 
 const envCache = new Map();
 
-async function getEnvPlugins(engines: Engines, useBuiltIns = false) {
+function getEnvPlugins(engines: Engines, useBuiltIns = false) {
   if (!engines) {
     return null;
   }

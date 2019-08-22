@@ -3,9 +3,10 @@ const path = require('path');
 
 require('@babel/register')({
   ignore: [filepath => filepath.includes(path.sep + 'node_modules' + path.sep)],
-  presets: [parcelBabelPreset]
+  presets: [parcelBabelPreset],
+  cwd: path.join(__dirname, '../../..')
 });
 
 // This adds the registration to the Node args, which are passed
 // to child processes by Node when we fork to create workers.
-process.execArgv.push('-r', '@parcel/babel-register');
+process.execArgv.push('-r', __filename);

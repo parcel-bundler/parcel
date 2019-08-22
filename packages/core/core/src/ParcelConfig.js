@@ -68,7 +68,7 @@ export default class ParcelConfig {
     };
   }
 
-  async loadPlugin(pluginName: PackageName) {
+  loadPlugin(pluginName: PackageName) {
     let plugin = this.pluginCache.get(pluginName);
     if (plugin) {
       return plugin;
@@ -79,7 +79,7 @@ export default class ParcelConfig {
     return plugin;
   }
 
-  async loadPlugins(plugins: Pipeline) {
+  loadPlugins(plugins: Pipeline) {
     return Promise.all(plugins.map(pluginName => this.loadPlugin(pluginName)));
   }
 
@@ -91,7 +91,7 @@ export default class ParcelConfig {
     return this.resolvers;
   }
 
-  async getResolvers(): Promise<Array<Resolver>> {
+  getResolvers(): Promise<Array<Resolver>> {
     return this.loadPlugins(this.getResolverNames());
   }
 
@@ -114,15 +114,15 @@ export default class ParcelConfig {
     return transformers;
   }
 
-  async getValidators(filePath: FilePath): Promise<Array<Validator>> {
+  getValidators(filePath: FilePath): Promise<Array<Validator>> {
     return this.loadPlugins(this.getValidatorNames(filePath));
   }
 
-  async getTransformers(filePath: FilePath): Promise<Array<Transformer>> {
+  getTransformers(filePath: FilePath): Promise<Array<Transformer>> {
     return this.loadPlugins(this.getTransformerNames(filePath));
   }
 
-  async getBundler(): Promise<Bundler> {
+  getBundler(): Promise<Bundler> {
     if (!this.bundler) {
       throw new Error('No bundler specified in .parcelrc config');
     }
@@ -130,7 +130,7 @@ export default class ParcelConfig {
     return this.loadPlugin(this.bundler);
   }
 
-  async getNamers(): Promise<Array<Namer>> {
+  getNamers(): Promise<Array<Namer>> {
     if (this.namers.length === 0) {
       throw new Error('No namer plugins specified in .parcelrc config');
     }
@@ -138,10 +138,10 @@ export default class ParcelConfig {
     return this.loadPlugins(this.namers);
   }
 
-  async getRuntimes(context: EnvironmentContext): Promise<Array<Runtime>> {
+  getRuntimes(context: EnvironmentContext): Promise<Array<Runtime>> {
     let runtimes = this.runtimes[context];
     if (!runtimes) {
-      return [];
+      return Promise.resolve([]);
     }
 
     return this.loadPlugins(runtimes);
@@ -158,7 +158,7 @@ export default class ParcelConfig {
     return packagerName;
   }
 
-  async getPackager(filePath: FilePath): Promise<Packager> {
+  getPackager(filePath: FilePath): Promise<Packager> {
     let packagerName = this.getPackagerName(filePath);
     return this.loadPlugin(packagerName);
   }
@@ -174,16 +174,16 @@ export default class ParcelConfig {
     return optimizers;
   }
 
-  async getOptimizers(filePath: FilePath): Promise<Array<Optimizer>> {
+  getOptimizers(filePath: FilePath): Promise<Array<Optimizer>> {
     let optimizers = this.getOptimizerNames(filePath);
     if (optimizers.length === 0) {
-      return [];
+      return Promise.resolve([]);
     }
 
     return this.loadPlugins(optimizers);
   }
 
-  async getReporters(): Promise<Array<Reporter>> {
+  getReporters(): Promise<Array<Reporter>> {
     return this.loadPlugins(this.reporters);
   }
 

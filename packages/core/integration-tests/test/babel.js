@@ -9,7 +9,6 @@ const {
   outputFS,
   distDir
 } = require('@parcel/test-utils');
-const {symlinkSync} = require('fs');
 
 describe('babel', function() {
   afterEach(async () => {
@@ -220,23 +219,26 @@ describe('babel', function() {
 
   it('should compile node_modules when symlinked with a source field in package.json', async function() {
     const inputDir = path.join(__dirname, '/input');
-    await inputFS.rimraf(inputDir);
-    await inputFS.mkdirp(path.join(inputDir, 'node_modules'));
+    await outputFS.rimraf(inputDir);
+    await outputFS.mkdirp(path.join(inputDir, 'node_modules'));
     await ncp(
       path.join(path.join(__dirname, '/integration/babel-node-modules-source')),
       inputDir
     );
 
     // Create the symlink here to prevent cross platform and git issues
-    symlinkSync(
+    await outputFS.symlink(
       path.join(inputDir, 'packages/foo'),
       path.join(inputDir, 'node_modules/foo'),
       'dir'
     );
 
-    await bundle(inputDir + '/index.js', {outputFS: inputFS});
+    await bundle(inputDir + '/index.js', {inputFS: outputFS});
 
-    let file = await inputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    let file = await outputFS.readFile(
+      path.join(outputFS.cwd(), 'dist', 'index.js'),
+      'utf8'
+    );
     assert(file.includes('function Foo'));
     assert(file.includes('function Bar'));
   });

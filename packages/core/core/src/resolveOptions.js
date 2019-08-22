@@ -77,6 +77,7 @@ export default async function resolveOptions(
   return {
     config: initialOptions.config,
     defaultConfig: initialOptions.defaultConfig,
+    patchConsole: initialOptions.patchConsole,
     env:
       initialOptions.env ??
       (await loadDotEnv(inputFS, path.join(rootDir, 'index'))),

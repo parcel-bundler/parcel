@@ -8,6 +8,7 @@ import {bus} from '@parcel/workers';
 import ParcelConfig from './ParcelConfig';
 import logger from '@parcel/logger';
 import PluginOptions from './public/PluginOptions';
+import {patchConsole} from '@parcel/logger';
 
 type Opts = {|
   config: ParcelConfig,
@@ -38,6 +39,10 @@ export default class ReporterRunner {
         });
       }
     });
+
+    if (this.options.patchConsole) {
+      patchConsole();
+    }
   }
 
   async report(event: ReporterEvent) {

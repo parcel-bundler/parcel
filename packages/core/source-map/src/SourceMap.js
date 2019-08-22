@@ -84,9 +84,9 @@ export default class SourceMap {
     return map;
   }
 
-  async getConsumer(map: RawMapInput): Promise<SourceMapConsumer> {
+  getConsumer(map: RawMapInput): Promise<SourceMapConsumer> {
     if (map instanceof SourceMapConsumer) {
-      return map;
+      return Promise.resolve(map);
     }
 
     let sourcemap: RawSourceMap =
@@ -121,11 +121,7 @@ export default class SourceMap {
     return this;
   }
 
-  async addMap(
-    map: SourceMap,
-    lineOffset: number = 0,
-    columnOffset: number = 0
-  ) {
+  addMap(map: SourceMap, lineOffset: number = 0, columnOffset: number = 0) {
     if (lineOffset === 0 && columnOffset === 0) {
       this.mappings.push(...map.mappings);
     } else {
@@ -210,7 +206,7 @@ export default class SourceMap {
     return this._extend(sourceMap);
   }
 
-  async _extend(extension: SourceMap) {
+  _extend(extension: SourceMap) {
     extension.eachMapping(mapping => {
       let originalMappingIndex = null;
       if (mapping.original != null) {
@@ -375,7 +371,7 @@ export default class SourceMap {
     rootDir?: string, // Parcel's rootDir where all mappings are relative to
     inlineSources?: boolean, // true = inline everything, false = inline nothing
     fs?: FileSystem
-  |}) {
+  |}): Promise<string> {
     let generator = new SourceMapGenerator({file, sourceRoot});
 
     this.eachMapping(mapping => {
