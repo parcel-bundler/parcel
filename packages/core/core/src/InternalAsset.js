@@ -269,12 +269,12 @@ export default class InternalAsset {
     let asset = new InternalAsset({
       value: createAsset({
         idBase: this.idBase,
-        id: result.id,
+        id: result.id || this.value.id,
         hash,
         filePath: this.value.filePath,
         type: result.type,
-        isIsolated: result.isIsolated,
-        isInline: result.isInline,
+        isIsolated: result.isIsolated || this.value.isIsolated,
+        isInline: result.isInline || this.value.isInline,
         env: mergeEnvironments(this.value.env, result.env),
         dependencies:
           this.value.type === result.type
