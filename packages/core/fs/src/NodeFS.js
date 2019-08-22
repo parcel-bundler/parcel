@@ -1,12 +1,18 @@
 // @flow
 import type {FileSystem} from './types';
 import type {FilePath} from '@parcel/types';
+import type {
+  Event,
+  Options as WatcherOptions,
+  AsyncSubscription
+} from '@parcel/watcher';
 
 import fs from 'fs';
 import ncp from 'ncp';
 import mkdirp from 'mkdirp';
 import rimraf from 'rimraf';
 import {registerSerializableClass, promisify} from '@parcel/utils';
+import watcher from '@parcel/watcher';
 import packageJSON from '../package.json';
 
 // Most of this can go away once we only support Node 10+, which includes
@@ -27,6 +33,7 @@ export class NodeFS implements FileSystem {
   createReadStream = fs.createReadStream;
   createWriteStream = fs.createWriteStream;
   cwd = process.cwd;
+  chdir = process.chdir;
 
   async realpath(originalPath: string): Promise<string> {
     try {
@@ -42,6 +49,30 @@ export class NodeFS implements FileSystem {
     return new Promise(resolve => {
       fs.exists(filePath, resolve);
     });
+  }
+
+  watch(
+    dir: FilePath,
+    fn: (err: ?Error, events: Array<Event>) => mixed,
+    opts: WatcherOptions
+  ): Promise<AsyncSubscription> {
+    return watcher.subscribe(dir, fn, opts);
+  }
+
+  getEventsSince(
+    dir: FilePath,
+    snapshot: FilePath,
+    opts: WatcherOptions
+  ): Promise<Array<Event>> {
+    return watcher.getEventsSince(dir, snapshot, opts);
+  }
+
+  async writeSnapshot(
+    dir: FilePath,
+    snapshot: FilePath,
+    opts: WatcherOptions
+  ): Promise<void> {
+    await watcher.writeSnapshot(dir, snapshot, opts);
   }
 
   static deserialize() {

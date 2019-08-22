@@ -8,7 +8,8 @@ const {
   assertBundleTree,
   nextBundle,
   ncp,
-  inputFS: fs
+  inputFS: fs,
+  outputFS
 } = require('@parcel/test-utils');
 const {sleep} = require('@parcel/test-utils');
 const {symlinkPrivilegeWarning} = require('@parcel/test-utils');
@@ -21,9 +22,7 @@ const distDir = path.join(inputDir, 'dist');
 describe('watcher', function() {
   let subscription;
   beforeEach(async function() {
-    await sleep(100);
-    await fs.rimraf(inputDir);
-    await sleep(100);
+    await outputFS.rimraf(inputDir);
   });
 
   afterEach(async () => {
@@ -54,11 +53,15 @@ describe('watcher', function() {
 
   it('should rebuild on a config file change', async function() {
     await ncp(path.join(__dirname, 'integration/custom-config'), inputDir);
+    await ncp(
+      path.dirname(require.resolve('@parcel/config-default')),
+      path.join(inputDir, 'node_modules', '@parcel', 'config-default')
+    );
     let copyPath = path.join(inputDir, 'configCopy');
     let configPath = path.join(inputDir, '.parcelrc');
 
     let b = bundler(path.join(inputDir, 'index.js'), {
-      outputFS: fs,
+      inputFS: outputFS,
       targets: {
         main: {
           engines: {
@@ -71,11 +74,14 @@ describe('watcher', function() {
 
     subscription = await b.watch();
     await getNextBuild(b);
-    let distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    let distFile = await outputFS.readFile(
+      path.join(distDir, 'index.js'),
+      'utf8'
+    );
     assert(!distFile.includes('() => null'));
-    await fs.copyFile(copyPath, configPath);
+    await outputFS.copyFile(copyPath, configPath);
     await getNextBuild(b);
-    distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    distFile = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(distFile.includes('() => null'));
   });
 
@@ -83,7 +89,7 @@ describe('watcher', function() {
     await ncp(path.join(__dirname, 'integration/babel-default'), inputDir);
 
     let b = bundler(path.join(inputDir, 'index.js'), {
-      outputFS: fs,
+      inputFS: outputFS,
       targets: {
         main: {
           engines: {
@@ -96,14 +102,17 @@ describe('watcher', function() {
 
     subscription = await b.watch();
     await getNextBuild(b);
-    let distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    let distFile = await outputFS.readFile(
+      path.join(distDir, 'index.js'),
+      'utf8'
+    );
     assert(distFile.includes('Foo'));
-    await fs.writeFile(
+    await outputFS.writeFile(
       path.join(inputDir, 'index.js'),
       'console.log("no more dependencies")'
     );
     await getNextBuild(b);
-    distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
+    distFile = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!distFile.includes('Foo'));
   });
 

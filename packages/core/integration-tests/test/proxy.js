@@ -3,15 +3,12 @@ const path = require('path');
 const {
   bundler,
   getNextBuild,
-  ncp,
-  sleep,
   inputFS,
   defaultConfig
 } = require('@parcel/test-utils');
 const http = require('http');
 const getPort = require('get-port');
 
-const inputDir = path.resolve(__dirname, './input');
 const config = {
   ...defaultConfig,
   reporters: ['@parcel/reporter-dev-server']
@@ -58,15 +55,12 @@ describe('proxy', function() {
   let subscription;
   let cwd;
   let server;
-  beforeEach(async function() {
-    await sleep(100);
-    await inputFS.rimraf(inputDir);
-    await sleep(100);
-    cwd = process.cwd();
+  beforeEach(function() {
+    cwd = inputFS.cwd();
   });
 
   afterEach(async () => {
-    process.chdir(cwd);
+    inputFS.chdir(cwd);
     if (subscription) {
       await subscription.unsubscribe();
     }
@@ -78,13 +72,11 @@ describe('proxy', function() {
   });
 
   it('should handle proxy table written in .proxyrc', async function() {
-    await ncp(path.join(__dirname, 'integration/proxyrc'), inputDir);
-    process.chdir(inputDir);
+    let dir = path.join(__dirname, 'integration/proxyrc');
+    inputFS.chdir(dir);
 
     let port = await getPort();
-    let b = bundler(path.join(inputDir, 'index.js'), {
-      // the server doesn't support custom file systems due to it's use of the `send` module.
-      outputFS: inputFS,
+    let b = bundler(path.join(dir, 'index.js'), {
       config,
       serve: {
         https: false,
@@ -106,13 +98,11 @@ describe('proxy', function() {
   });
 
   it('should handle proxy table written in .proxyrc.js', async function() {
-    await ncp(path.join(__dirname, 'integration/proxyrc-js'), inputDir);
-    process.chdir(inputDir);
+    let dir = path.join(__dirname, 'integration/proxyrc-js');
+    inputFS.chdir(dir);
 
     let port = await getPort();
-    let b = bundler(path.join(inputDir, 'index.js'), {
-      // the server doesn't support custom file systems due to it's use of the `send` module.
-      outputFS: inputFS,
+    let b = bundler(path.join(dir, 'index.js'), {
       config,
       serve: {
         https: false,

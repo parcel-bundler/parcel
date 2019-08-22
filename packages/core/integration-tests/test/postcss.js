@@ -263,7 +263,7 @@ describe('postcss', () => {
       path.join(__dirname, '/integration/postcss-autoinstall/yarn'),
       path.join(__dirname, '/input')
     );
-    await bundle(path.join(__dirname, '/input/index.css'), {outputFS: inputFS});
+    await bundle(path.join(__dirname, '/input/index.css'));
 
     // cssnext was installed
     let pkg = require('./input/package.json');
