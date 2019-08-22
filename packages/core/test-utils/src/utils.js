@@ -42,7 +42,6 @@ export async function ncp(source: FilePath, destination: FilePath) {
           .on('error', reject);
       });
     } else if (stats.isDirectory()) {
-      outputFS.mkdirp(destPath);
       await ncp(sourcePath, destPath);
     }
   }
