@@ -63,8 +63,7 @@ export default async function resolveOptions(
       : new Cache([
           // new FSCache(outputFS, cacheDir),
           new HTTPCache({
-            uri: 'http://172.16.101.61:9000/parceltest',
-            // uri: 'http://172.16.101.61:8001/parceltest',
+            uri: 'http://127.0.0.1:9000/parceltest',
             writable: true
           })
         ]);

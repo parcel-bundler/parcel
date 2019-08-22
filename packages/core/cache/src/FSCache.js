@@ -33,7 +33,7 @@ export class FSCache implements CacheBackend {
     return this.fs.createReadStream(this._getCachePath(key, '.blob'));
   }
 
-  async setStream(key: string, stream: Readable): Promise<string> {
+  setStream(key: string, stream: Readable): Promise<string> {
     return new Promise((resolve, reject) => {
       stream
         .pipe(this.fs.createWriteStream(this._getCachePath(key, '.blob')))
@@ -42,7 +42,7 @@ export class FSCache implements CacheBackend {
     });
   }
 
-  async blobExists(key: string): Promise<boolean> {
+  blobExists(key: string): Promise<boolean> {
     return this.fs.exists(this._getCachePath(key, '.blob'));
   }
 

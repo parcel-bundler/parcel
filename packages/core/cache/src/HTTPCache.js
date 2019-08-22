@@ -13,20 +13,58 @@ import {
 // $FlowFixMe this is untyped
 import packageJson from '../package.json';
 // $FlowFixMe this is untyped
-import request from 'got';
+import got from 'got';
+import URL from 'url';
 
 type HTTPOpts = {|
   uri: string,
-  writable?: boolean
+  writable?: boolean,
+  timeout?: number,
+  retries?: number
 |};
 
 export class HTTPCache implements CacheBackend {
   uri: string;
   writable: boolean;
+  timeout: number;
+  retries: number;
+  // $FlowFixMe
+  request: (uri: string, gotOptions: Object) => any;
 
   constructor(opts: HTTPOpts) {
     this.uri = opts.uri;
     this.writable = opts.writable ?? false;
+    this.request = async (uri, gotOptions) => {
+      try {
+        return await got(uri, {
+          timeout: opts.timeout ?? 25000,
+          retries: opts.retries ?? 2,
+          ...gotOptions
+        });
+      } catch (e) {
+        if (e.code === 'ETIMEDOUT') {
+          let {protocol, host} = URL.parse(uri);
+          throw new Error(
+            `Timed out trying to connect to ${URL.format({protocol, host})}.`
+          );
+        }
+
+        throw e;
+      }
+    };
+  }
+
+  serialize() {
+    return {
+      uri: this.uri,
+      writable: this.writable,
+      timeout: this.timeout,
+      retries: this.retries
+    };
+  }
+
+  static deserialize(opts: HTTPOpts) {
+    return new HTTPCache(opts);
   }
 
   _getCachePath(cacheId: string, extension: string = '.v8'): FilePath {
@@ -34,17 +72,15 @@ export class HTTPCache implements CacheBackend {
   }
 
   getStream(key: string): Readable {
-    return request
-      .get(this._getCachePath(key, '.blob'), {stream: true})
-      .on('response', response => {
-        if (response.statusCode >= 400) {
-          throw new Error('Not found');
-        }
-      });
+    return this.request(this._getCachePath(key, '.blob'), {
+      stream: true,
+      method: 'get'
+    });
   }
 
   async setStream(key: string, stream: Readable): Promise<string> {
-    await request.put(this._getCachePath(key, '.blob'), {
+    await this.request(this._getCachePath(key, '.blob'), {
+      method: 'put',
       body: await bufferStream(stream)
     });
     return key;
@@ -52,7 +88,7 @@ export class HTTPCache implements CacheBackend {
 
   async blobExists(key: string): Promise<boolean> {
     try {
-      await request.head(this._getCachePath(key, '.blob'));
+      await this.request(this._getCachePath(key, '.blob'), {method: 'head'});
       return true;
     } catch (e) {
       return false;
@@ -62,7 +98,8 @@ export class HTTPCache implements CacheBackend {
   async get(key: string) {
     let response;
     try {
-      response = await request.get(this._getCachePath(key), {
+      response = await this.request(this._getCachePath(key), {
+        method: 'get',
         encoding: null
       });
     } catch (e) {
@@ -78,21 +115,13 @@ export class HTTPCache implements CacheBackend {
   }
 
   async set(key: string, value: mixed) {
-    try {
-      await request.put(this._getCachePath(key), {
-        body: serialize(value),
-        headers: {
-          'content-type': 'application/octet-stream'
-        }
-      });
-    } catch (e) {
-      if (e.name === 'HTTPError') {
-        // TODO: Log 500+ verbosely?
-        return null;
-      } else {
-        throw e;
+    await this.request(this._getCachePath(key), {
+      method: 'put',
+      body: serialize(value),
+      headers: {
+        'content-type': 'application/octet-stream'
       }
-    }
+    });
     return key;
   }
 }

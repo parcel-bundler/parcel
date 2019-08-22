@@ -37,14 +37,16 @@ export default class Cache {
     let missing = [];
     for (let backend of this.backends) {
       if (await backend.blobExists(key)) {
-        let stream = backend.getStream(key);
-        // for (let miss of missing) {
-        //   if (miss.writable) {
-        //     let passThrough = new PassThrough();
-        //     stream.pipe(passThrough);
-        //     miss.setStream(key, passThrough);
-        //   }
-        // }
+        let backendStream = await backend.getStream(key);
+        let stream = new PassThrough();
+        backendStream.pipe(stream);
+        for (let miss of missing) {
+          if (miss.writable) {
+            let passThrough = new PassThrough();
+            backendStream.pipe(passThrough);
+            miss.setStream(key, passThrough);
+          }
+        }
 
         return stream;
       } else {
