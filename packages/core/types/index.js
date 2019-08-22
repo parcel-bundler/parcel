@@ -137,6 +137,7 @@ export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'verbose';
 export type BuildMode = 'development' | 'production' | string;
 
 export interface CacheBackend {
+  +init?: () => Promise<void>;
   writable: boolean;
   getStream(key: string): Readable;
   setStream(key: string, stream: Readable): Promise<string>;

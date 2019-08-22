@@ -30,7 +30,6 @@ import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 import {ValueEmitter} from '@parcel/events';
 import registerCoreWithSerializer from './registerCoreWithSerializer';
-import {createCacheDir} from '@parcel/cache';
 
 registerCoreWithSerializer();
 
@@ -75,12 +74,15 @@ export default class Parcel {
       this.#initialOptions
     );
     this.#resolvedOptions = resolvedOptions;
-    await createCacheDir(resolvedOptions.outputFS, resolvedOptions.cacheDir);
 
-    let {config} = await loadParcelConfig(
-      path.join(resolvedOptions.inputFS.cwd(), 'index'),
-      resolvedOptions
-    );
+    let [{config}] = await Promise.all([
+      loadParcelConfig(
+        path.join(resolvedOptions.inputFS.cwd(), 'index'),
+        resolvedOptions
+      ),
+      resolvedOptions.cache.init()
+    ]);
+
     this.#config = config;
     this.#farm = this.#initialOptions.workerFarm ?? createWorkerFarm();
 

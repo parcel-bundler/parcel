@@ -2,12 +2,10 @@
 
 import type {CacheBackend, FilePath} from '@parcel/types';
 
-import invariant from 'assert';
 import {PassThrough, Readable} from 'stream';
 import {deserialize, serialize, registerSerializableClass} from '@parcel/utils';
 // $FlowFixMe this is untyped
 import packageJson from '../package.json';
-import {FSCache} from './FSCache';
 
 export * from './FSCache';
 export * from './HTTPCache';
@@ -21,6 +19,12 @@ export default class Cache {
 
   constructor(backends: Array<CacheBackend>) {
     this.backends = backends;
+  }
+
+  async init() {
+    await this.backends.map(backend =>
+      typeof backend.init === 'function' ? backend.init() : Promise.resolve()
+    );
   }
 
   serialize(): SerializedCache {

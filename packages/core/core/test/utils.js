@@ -1,12 +1,12 @@
 // @flow
 import type {ParcelOptions} from '../src/types';
-import Cache, {createCacheDir, FSCache} from '@parcel/cache';
+import Cache, {FSCache} from '@parcel/cache';
 import tempy from 'tempy';
 import {inputFS, outputFS} from '@parcel/test-utils';
 
 let cacheDir = tempy.directory();
-createCacheDir(outputFS, cacheDir);
 export let cache = new Cache([new FSCache(outputFS, cacheDir)]);
+cache.init();
 
 export const DEFAULT_OPTIONS: ParcelOptions = {
   cacheDir: '.parcel-cache',

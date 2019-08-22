@@ -21,6 +21,22 @@ export class FSCache implements CacheBackend {
     this.dir = cacheDir;
   }
 
+  async init(): Promise<void> {
+    // First, create the main cache directory if necessary.
+    await this.fs.mkdirp(this.dir);
+
+    // In parallel, create sub-directories for every possible hex value
+    // This speeds up large caches on many file systems since there are fewer files in a single directory.
+    let dirPromises = [];
+    for (let i = 0; i < 256; i++) {
+      dirPromises.push(
+        this.fs.mkdirp(path.join(this.dir, ('00' + i.toString(16)).slice(-2)))
+      );
+    }
+
+    await Promise.all(dirPromises);
+  }
+
   _getCachePath(cacheId: string, extension: string = '.v8'): FilePath {
     return path.join(
       this.dir,
@@ -70,25 +86,6 @@ export class FSCache implements CacheBackend {
       logger.error(`Error writing to cache: ${err.message}`);
     }
   }
-}
-
-export async function createCacheDir(
-  fs: FileSystem,
-  dir: FilePath
-): Promise<void> {
-  // First, create the main cache directory if necessary.
-  await fs.mkdirp(dir);
-
-  // In parallel, create sub-directories for every possible hex value
-  // This speeds up large caches on many file systems since there are fewer files in a single directory.
-  let dirPromises = [];
-  for (let i = 0; i < 256; i++) {
-    dirPromises.push(
-      fs.mkdirp(path.join(dir, ('00' + i.toString(16)).slice(-2)))
-    );
-  }
-
-  await Promise.all(dirPromises);
 }
 
 registerSerializableClass(`${packageJson.version}:FSCache`, FSCache);
