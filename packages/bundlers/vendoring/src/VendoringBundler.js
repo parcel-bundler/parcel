@@ -105,9 +105,12 @@ export default new Bundler({
             bundle = existingBundle;
           } else {
             bundle = bundleGraph.createBundle({
-              entryAsset: asset,
+              entryAsset: dependency.isEntry ? asset : null,
               target: context.bundleGroup.target,
-              isEntry: context.bundleGroupDependency.isEntry
+              isEntry: context.bundleGroupDependency.isEntry,
+              type: asset.type,
+              env: asset.env,
+              id: asset.id
             });
             bundleGraph.addBundleToBundleGroup(bundle, context.bundleGroup);
             if (isVendor(asset)) {
