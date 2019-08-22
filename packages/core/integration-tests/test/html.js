@@ -587,10 +587,11 @@ describe('html', function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js/index.html'),
       {
-        production: true
+        minify: true
       }
     );
 
+    // inline bundles are not output, but are apart of the bundleGraph
     assertBundles(b, [
       {name: 'index.html', assets: ['index.html']},
       {type: 'js', isInline: true, assets: ['index.html']},
@@ -599,7 +600,14 @@ describe('html', function() {
       {type: 'js', isInline: true, assets: ['index.html']}
     ]);
 
-    let html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    let files = await outputFS.readdir(distDir);
+    // assert that the inline js files are not output
+    assert(!files.some(filename => filename.includes('js')));
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf-8'
+    );
 
     assert(!html.includes('`${hello} ${world}${end}`'));
     // asserts that ugify was ran when production flag is passed
