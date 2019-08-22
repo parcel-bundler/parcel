@@ -63,7 +63,8 @@ async function getAssetContent(
 ) {
   let inlineBundle: ?Bundle;
   bundleGraph.traverseBundles((bundle, context, {stop}) => {
-    if (bundle.id.includes(assetId)) {
+    let mainAsset = bundle.getMainEntry();
+    if (mainAsset && mainAsset.id === assetId) {
       inlineBundle = bundle;
       stop();
     }
