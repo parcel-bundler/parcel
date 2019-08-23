@@ -5,7 +5,9 @@ const {
   bundler,
   getNextBuild,
   inputFS,
-  defaultConfig
+  outputFS,
+  defaultConfig,
+  ncp
 } = require('@parcel/test-utils');
 const http = require('http');
 const https = require('https');
@@ -56,8 +58,6 @@ describe('server', function() {
   it('should serve files', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
-      // the server doesn't support custom file systems due to it's use of the `send` module.
-      outputFS: inputFS,
       config,
       serve: {
         https: false,
@@ -70,7 +70,7 @@ describe('server', function() {
     await getNextBuild(b);
 
     let data = await get('/index.js', port);
-    let distFile = await inputFS.readFile(
+    let distFile = await outputFS.readFile(
       path.join(distDir, 'index.js'),
       'utf8'
     );
@@ -78,11 +78,34 @@ describe('server', function() {
     assert.equal(data, distFile);
   });
 
+  it('should serve source files', async function() {
+    let port = await getPort();
+    let inputPath = path.join(__dirname, '/integration/commonjs/index.js');
+    let b = bundler(inputPath, {
+      config,
+      serve: {
+        https: false,
+        port: port,
+        host: 'localhost'
+      }
+    });
+
+    subscription = await b.watch();
+    await getNextBuild(b);
+
+    let data = await get(
+      '/__parcel_source_root/packages/core/integration-tests/test/integration/commonjs/index.js',
+      port
+    );
+    let inputFile = await inputFS.readFile(inputPath, 'utf8');
+
+    assert.equal(data, inputFile);
+  });
+
   // TODO: Implement this once HTMLTransformer is in
   it.skip('should serve a default page if the main bundle is an HTML asset', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
-      outputFS: inputFS,
       config,
       serve: {
         https: false,
@@ -97,20 +120,19 @@ describe('server', function() {
     let data = await get('/', port);
     assert.equal(
       data,
-      await inputFS.readFile(path.join(distDir, 'index.html'), 'utf8')
+      await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8')
     );
 
     data = await get('/foo/bar', port);
     assert.equal(
       data,
-      await inputFS.readFile(path.join(distDir, 'index.html'), 'utf8')
+      await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8')
     );
   });
 
   it('should serve a 404 if the file does not exist', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
-      outputFS: inputFS,
       config,
       serve: {
         https: false,
@@ -135,11 +157,11 @@ describe('server', function() {
   it('should serve a 500 if the bundler errored', async function() {
     let port = await getPort();
     let inputDir = path.join(__dirname, '/input/server-500');
-    await inputFS.ncp(path.join(__dirname, '/integration/commonjs'), inputDir);
+    await ncp(path.join(__dirname, '/integration/babel'), inputDir);
     let entry = path.join(inputDir, 'index.js');
 
     let b = bundler(entry, {
-      outputFS: inputFS,
+      inputFS: outputFS,
       config,
       serve: {
         https: false,
@@ -150,7 +172,7 @@ describe('server', function() {
 
     subscription = await b.watch();
     await getNextBuild(b);
-    await inputFS.writeFile(path.join(inputDir, 'local.js'), 'syntax\\error');
+    await outputFS.writeFile(path.join(inputDir, 'foo.js'), 'syntax\\error');
 
     // Await the second build failing (which means resolving with
     // a buildFailure event)
@@ -172,7 +194,6 @@ describe('server', function() {
   it('should support HTTPS', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
-      outputFS: inputFS,
       config,
       serve: {
         https: true,
@@ -187,14 +208,13 @@ describe('server', function() {
     let data = await get('/index.js', port, https);
     assert.equal(
       data,
-      await inputFS.readFile(path.join(distDir, 'index.js'), 'utf8')
+      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8')
     );
   });
 
   it('should support HTTPS via custom certificate', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
-      outputFS: inputFS,
       config,
       serve: {
         https: {
@@ -212,14 +232,13 @@ describe('server', function() {
     let data = await get('/index.js', port, https);
     assert.equal(
       data,
-      await inputFS.readFile(path.join(distDir, 'index.js'), 'utf8')
+      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8')
     );
   });
 
   it('should support setting a public url', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
-      outputFS: inputFS,
       config,
       serve: {
         https: false,
@@ -235,7 +254,7 @@ describe('server', function() {
     let data = await get('/dist/index.js', port);
     assert.equal(
       data,
-      await inputFS.readFile(path.join(distDir, 'index.js'), 'utf8')
+      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8')
     );
   });
 
@@ -243,7 +262,6 @@ describe('server', function() {
   it.skip('should serve static assets as well as html', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
-      outputFS: inputFS,
       config,
       serve: {
         https: false,
@@ -260,11 +278,11 @@ describe('server', function() {
     let data = await get('/', port);
     assert.equal(
       data,
-      await inputFS.readFile(path.join(distDir, 'index.html'), 'utf8')
+      await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8')
     );
 
     // When accessing /hello.txt we should get txt document.
-    await inputFS.writeFile(path.join(distDir, 'hello.txt'), 'hello');
+    await outputFS.writeFile(path.join(distDir, 'hello.txt'), 'hello');
     data = await get('/hello.txt', port);
     assert.equal(data, 'hello');
   });
@@ -272,7 +290,6 @@ describe('server', function() {
   it.skip('should work with query parameters that contain a dot', async function() {
     let port = await getPort();
     let b = bundler(path.join(__dirname, '/integration/commonjs/index.js'), {
-      outputFS: inputFS,
       config,
       serve: {
         https: false,
@@ -287,13 +304,12 @@ describe('server', function() {
     let data = await get('/index.js?foo=bar.baz', port);
     assert.equal(
       data,
-      await inputFS.readFile(path.join(distDir, 'index.js'), 'utf8')
+      await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8')
     );
   });
 
   it.skip('should work with paths that contain a dot', async function() {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
-      outputFS: inputFS,
       config,
       publicUrl: '/'
     });
@@ -302,13 +318,12 @@ describe('server', function() {
     let data = await get('/bar.baz');
     assert.equal(
       data,
-      await inputFS.readFile(path.join(distDir, 'index.html'), 'utf8')
+      await outputFS.readFile(path.join(distDir, 'index.html'), 'utf8')
     );
   });
 
   it.skip('should not log dev server access for log level <= 3', async function() {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
-      outputFS: inputFS,
       config,
       publicUrl: '/'
     });
@@ -324,7 +339,6 @@ describe('server', function() {
 
   it.skip('should log dev server access for log level > 3', async function() {
     let b = bundler(path.join(__dirname, '/integration/html/index.html'), {
-      outputFS: inputFS,
       config,
       publicUrl: '/'
     });

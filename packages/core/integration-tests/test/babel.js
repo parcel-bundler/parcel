@@ -6,16 +6,15 @@ const {
   getNextBuild,
   removeDistDirectory,
   run,
-  ncp,
   inputFS: fs,
   outputFS,
   distDir,
   sleep
 } = require('@parcel/test-utils');
-const {symlinkSync} = require('fs');
 const os = require('os');
 const {spawnSync} = require('child_process');
 const {NodeFS} = require('@parcel/fs');
+const {symlinkSync} = require('fs');
 
 const parcelCli = require.resolve('parcel/src/bin.js');
 const inputDir = path.join(__dirname, '/input');
@@ -25,7 +24,7 @@ describe('babel', function() {
   beforeEach(async function() {
     // TODO maybe don't do this for all tests
     await sleep(100);
-    await fs.rimraf(inputDir);
+    await outputFS.rimraf(inputDir);
     await sleep(100);
   });
 
@@ -194,9 +193,10 @@ describe('babel', function() {
   });
 
   it('should compile node_modules when symlinked with a source field in package.json', async function() {
+    const inputDir = path.join(__dirname, '/input');
     await fs.rimraf(inputDir);
     await fs.mkdirp(path.join(inputDir, 'node_modules'));
-    await ncp(
+    await fs.ncp(
       path.join(path.join(__dirname, '/integration/babel-node-modules-source')),
       inputDir
     );
@@ -280,7 +280,7 @@ describe('babel', function() {
     let differentPath = path.join(inputDir, 'differentConfig');
     let configPath = path.join(inputDir, '.babelrc');
 
-    await ncp(path.join(__dirname, 'integration/babel-custom'), inputDir);
+    await fs.ncp(path.join(__dirname, 'integration/babel-custom'), inputDir);
 
     let b = bundler(path.join(inputDir, 'index.js'), {
       outputFS: fs
@@ -303,6 +303,7 @@ describe('babel', function() {
     distFile = await fs.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!distFile.includes('hello there'));
     assert(distFile.includes('something different'));
+    // await fs.rimraf(inputDir);
   });
 
   it('should support compiling with babel using babel.config.js config', async function() {
@@ -357,7 +358,7 @@ describe('babel', function() {
 
     let fixtureDir = path.join(__dirname, '/integration/babel-plugin-upgrade');
     let distDir = path.resolve(inputDir, './dist');
-    await ncp(path.join(fixtureDir), inputDir);
+    await fs.ncp(path.join(fixtureDir), inputDir);
 
     let build = () =>
       spawnSync(

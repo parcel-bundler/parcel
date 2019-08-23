@@ -22,7 +22,6 @@ import BundleGraph from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
 import WorkerFarm from '@parcel/workers';
 import nullthrows from 'nullthrows';
-import watcher from '@parcel/watcher';
 import path from 'path';
 import AssetGraphBuilder, {BuildAbortError} from './AssetGraphBuilder';
 import loadParcelConfig from './loadParcelConfig';
@@ -287,7 +286,7 @@ export default class Parcel {
     let resolvedOptions = nullthrows(this.#resolvedOptions);
     let opts = this.#assetGraphBuilder.getWatcherOptions();
 
-    return watcher.subscribe(
+    return resolvedOptions.inputFS.watch(
       resolvedOptions.projectRoot,
       async (err, events) => {
         if (err) {

@@ -101,7 +101,7 @@ export async function resolveExtends(
   if (ext.startsWith('.')) {
     return path.resolve(path.dirname(configPath), ext);
   } else {
-    let [resolved] = await localResolve(ext, configPath);
+    let [resolved] = await localResolve(ext, configPath, fs);
     return fs.realpath(resolved);
   }
 }

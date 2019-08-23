@@ -2,6 +2,11 @@
 import type {FilePath} from '@parcel/types';
 import type {Stats} from 'fs';
 import type {Readable, Writable} from 'stream';
+import type {
+  Event,
+  Options as WatcherOptions,
+  AsyncSubscription
+} from '@parcel/watcher';
 
 export type FileOptions = {mode?: number, ...};
 
@@ -29,4 +34,20 @@ export interface FileSystem {
   createReadStream(path: FilePath): Readable;
   createWriteStream(path: FilePath, options: ?FileOptions): Writable;
   cwd(): FilePath;
+  chdir(dir: FilePath): void;
+  watch(
+    dir: FilePath,
+    fn: (err: ?Error, events: Array<Event>) => mixed,
+    opts: WatcherOptions
+  ): Promise<AsyncSubscription>;
+  getEventsSince(
+    dir: FilePath,
+    snapshot: FilePath,
+    opts: WatcherOptions
+  ): Promise<Array<Event>>;
+  writeSnapshot(
+    dir: FilePath,
+    snapshot: FilePath,
+    opts: WatcherOptions
+  ): Promise<void>;
 }

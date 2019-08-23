@@ -2,6 +2,7 @@ const parcelBabelPreset = require('@parcel/babel-preset');
 const path = require('path');
 
 require('@babel/register')({
+  cwd: path.join(__dirname, '../../..'),
   ignore: [
     filepath => filepath.includes(path.sep + 'node_modules' + path.sep),
     // Don't run babel over ignore integration tests fixtures.
@@ -14,4 +15,4 @@ require('@babel/register')({
 
 // This adds the registration to the Node args, which are passed
 // to child processes by Node when we fork to create workers.
-process.execArgv.push('-r', '@parcel/babel-register');
+process.execArgv.push('-r', __filename);

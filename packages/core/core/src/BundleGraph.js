@@ -40,6 +40,11 @@ type BundleGraphEdgeTypes =
   | 'references';
 
 export default class BundleGraph {
+  // A cache of bundle content hashes. Currently, a new BundleGraph is created in response
+  // to any asset change, so this doesn't need much invalidation. However, currently namers run
+  // before runtimes, and can access `getHash` despite runtimes altering bundle content later.
+  // TODO: Implement invalidation since runtimes can alter bundle contents?
+  _bundleContentHashes: Map<string, string> = new Map();
   _graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>;
 
   constructor(graph: Graph<BundleGraphNode, BundleGraphEdgeTypes>) {
@@ -282,11 +287,14 @@ export default class BundleGraph {
     return this._graph.getNodesConnectedFrom(bundleNode, 'bundle').length > 0;
   }
 
-  traverseBundles<TContext>(visit: GraphVisitor<Bundle, TContext>): ?TContext {
+  traverseBundles<TContext>(
+    visit: GraphVisitor<Bundle, TContext>,
+    startBundle?: Bundle
+  ): ?TContext {
     return this._graph.filteredTraverse(
       node => (node.type === 'bundle' ? node.value : null),
       visit,
-      null,
+      startBundle ? nullthrows(this._graph.getNode(startBundle.id)) : null,
       'bundle'
     );
   }
@@ -455,12 +463,28 @@ export default class BundleGraph {
     return {asset, exportSymbol: symbol, symbol: identifier};
   }
 
-  getHash(bundle: Bundle): string {
+  getContentHash(bundle: Bundle): string {
+    let existingHash = this._bundleContentHashes.get(bundle.id);
+    if (existingHash != null) {
+      return existingHash;
+    }
+
     let hash = crypto.createHash('md5');
     // TODO: sort??
     this.traverseAssets(bundle, asset => {
       hash.update(asset.outputHash);
     });
+
+    let hashHex = hash.digest('hex');
+    this._bundleContentHashes.set(bundle.id, hashHex);
+    return hashHex;
+  }
+
+  getHash(bundle: Bundle): string {
+    let hash = crypto.createHash('md5');
+    this.traverseBundles(childBundle => {
+      hash.update(this.getContentHash(childBundle));
+    }, bundle);
 
     return hash.digest('hex');
   }

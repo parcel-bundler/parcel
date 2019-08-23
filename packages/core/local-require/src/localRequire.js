@@ -2,15 +2,17 @@
 
 import type {FilePath, PackageJSON} from '@parcel/types';
 import type {WorkerApi} from '@parcel/workers';
+import type {FileSystem} from '@parcel/fs';
 
 import installPackage, {
   installPackageFromWorker
 } from '@parcel/install-package';
 import {dirname} from 'path';
-
 import {resolve} from '@parcel/utils';
+import {NodeFS} from '@parcel/fs';
 
 const cache: Map<string, [string, ?PackageJSON]> = new Map();
+const nodeFS = new NodeFS();
 
 export async function localRequireFromWorker(
   workerApi: WorkerApi,
@@ -23,6 +25,7 @@ export async function localRequireFromWorker(
     workerApi,
     name,
     path,
+    nodeFS,
     triedInstall
   );
   // $FlowFixMe this must be dynamic
@@ -32,6 +35,7 @@ export async function localRequireFromWorker(
 async function localResolveBase(
   name: string,
   path: FilePath,
+  fs: FileSystem = nodeFS,
   triedInstall: boolean = false,
   install: (Array<string>, FilePath) => Promise<mixed>
 ): Promise<[string, ?PackageJSON]> {
@@ -40,11 +44,14 @@ async function localResolveBase(
   let resolved = cache.get(key);
   if (!resolved) {
     try {
-      resolved = await resolve(name, {basedir, extensions: ['.js', '.json']});
+      resolved = await resolve(fs, name, {
+        basedir,
+        extensions: ['.js', '.json']
+      });
     } catch (e) {
       if (e.code === 'MODULE_NOT_FOUND' && !triedInstall) {
         await install([name], path);
-        return localResolve(name, path, true);
+        return localResolve(name, path, fs, true);
       }
       throw e;
     }
@@ -57,20 +64,23 @@ async function localResolveBase(
 export function localResolve(
   name: string,
   path: FilePath,
+  fs: FileSystem = nodeFS,
   triedInstall: boolean = false
 ): Promise<[string, ?PackageJSON]> {
-  return localResolveBase(name, path, triedInstall, installPackage);
+  return localResolveBase(name, path, fs, triedInstall, installPackage);
 }
 
 export function localResolveFromWorker(
   workerApi: WorkerApi,
   name: string,
   path: FilePath,
+  fs: FileSystem = nodeFS,
   triedInstall: boolean = false
 ) {
   return localResolveBase(
     name,
     path,
+    fs,
     triedInstall,
     installPackageFromWorker.bind(null, workerApi)
   );

@@ -156,6 +156,7 @@ export type InitialParcelOptions = {|
   autoinstall?: boolean,
   logLevel?: LogLevel,
   profile?: boolean,
+  patchConsole?: boolean,
 
   inputFS?: FileSystem,
   outputFS?: FileSystem,
@@ -349,7 +350,7 @@ export type Stats = {|
 
 export type GenerateOutput = {|
   code: string,
-  map?: SourceMap
+  map?: ?SourceMap
 |};
 
 export type Blob = string | Buffer | Readable;
