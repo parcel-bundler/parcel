@@ -1,5 +1,5 @@
 const assert = require('assert');
-const {bundle, assertBundleTree, run} = require('@parcel/test-utils');
+const {bundle, assertBundles, run} = require('@parcel/test-utils');
 const commandExists = require('command-exists');
 
 describe('kotlin', function() {
@@ -14,11 +14,12 @@ describe('kotlin', function() {
   it('should produce a basic kotlin bundle', async function() {
     let b = await bundle(__dirname + '/integration/kotlin/index.js');
 
-    //fails here "TypeError: assertBundleTree is not a function"
-    // await assertBundleTree(b, {
-    //   type: 'js',
-    //   assets: ['test.kt', 'index.js', 'browser.js', 'kotlin.js']
-    // });
+    await assertBundles(b, [
+      {
+        type: 'js',
+        assets: ['test.kt', 'index.js', 'browser.js', 'kotlin.js']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(output, 5);
