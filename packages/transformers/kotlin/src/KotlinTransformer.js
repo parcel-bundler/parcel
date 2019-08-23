@@ -1,7 +1,6 @@
 // @flow
 
 import {Transformer} from '@parcel/plugin';
-import fs from '@parcel/fs';
 import path from 'path';
 import os from 'os';
 
@@ -21,7 +20,7 @@ export default new Transformer({
     let dir = path.join(os.tmpdir(), id);
     let filename = path.join(dir, id + '.js');
 
-    await fs.mkdirp(dir);
+    await asset.fs.mkdirp(dir);
 
     await kotlinCompiler.compile({
       output: filename,
@@ -32,10 +31,10 @@ export default new Transformer({
       sourceMaps: options.sourceMaps
     });
 
-    let code = await fs.readFile(filename, 'utf8');
+    let code = await asset.fs.readFile(filename, 'utf8');
 
     if (options.sourceMaps) {
-      let sourceMap = await fs.readFile(filename + '.map', 'utf8');
+      let sourceMap = await asset.fs.readFile(filename + '.map', 'utf8');
 
       sourceMap = JSON.parse(sourceMap);
       sourceMap.sources = [this.relativeName];
@@ -50,7 +49,7 @@ export default new Transformer({
     asset.setCode(code);
 
     // delete temp directory
-    await fs.rimraf(dir);
+    await asset.fs.rimraf(dir);
 
     return [asset];
   }
