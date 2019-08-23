@@ -1,51 +1,43 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle, assertBundleTree, outputFS} = require('@parcel/test-utils');
+const {
+  bundle,
+  assertBundles,
+  outputFS,
+  distDir
+} = require('@parcel/test-utils');
 
-describe.skip('pug', function() {
+describe('pug', function() {
   it('should support bundling HTML', async function() {
     const b = await bundle(path.join(__dirname, '/integration/pug/index.pug'));
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.pug'],
-      childBundles: [
-        {
-          type: 'png',
-          assets: ['100x100.png'],
-          childBundles: []
-        },
-        {
-          type: 'svg',
-          assets: ['icons.svg'],
-          childBundles: []
-        },
-        {
-          type: 'css',
-          assets: ['index.css'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        },
-        {
-          type: 'js',
-          assets: ['index.js'],
-          childBundles: [
-            {
-              type: 'map'
-            }
-          ]
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        type: 'html',
+        name: 'index.html',
+        assets: ['index.pug']
+      },
+      {
+        type: 'png',
+        assets: ['100x100.png']
+      },
+      {
+        type: 'svg',
+        assets: ['icons.svg']
+      },
+      {
+        type: 'css',
+        assets: ['index.css']
+      },
+      {
+        type: 'js',
+        assets: ['index.js']
+      }
+    ]);
 
-    const files = await outputFS.readdir(path.join(__dirname, '/dist'));
-    const html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html')
-    );
-    for (const file of files) {
+    const files = await outputFS.readdir(distDir);
+    const html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    for (let file of files) {
       const ext = file.match(/\.([0-9a-z]+)(?:[?#]|$)/i)[0];
       if (file !== 'index.html' && ext !== '.map') {
         assert(html.includes(file));
@@ -58,15 +50,15 @@ describe.skip('pug', function() {
       path.join(__dirname, '/integration/pug-include-extends/index.pug')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.pug']
-    });
+    await assertBundles(b, [
+      {
+        type: 'html',
+        name: 'index.html',
+        assets: ['index.pug']
+      }
+    ]);
 
-    const html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
-      'utf-8'
-    );
+    const html = await outputFS.readFile(path.join(distDir, 'index.html'));
 
     assert(html.includes('<!DOCTYPE html>'));
     assert(html.includes("<h1>Yep, it's working!</h1>"));
@@ -77,16 +69,19 @@ describe.skip('pug', function() {
       path.join(__dirname, '/integration/pug-var/index.pug')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.pug']
-    });
+    await assertBundles(b, [
+      {
+        type: 'html',
+        name: 'index.html',
+        assets: ['index.pug']
+      },
+      {
+        type: 'png',
+        assets: ['100x100.png']
+      }
+    ]);
 
-    const html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
-      'utf-8'
-    );
-
+    const html = await outputFS.readFile(path.join(distDir, 'index.html'));
     assert(/src="\/?100x100.*.png"/.test(html));
   });
 
@@ -95,15 +90,15 @@ describe.skip('pug', function() {
       path.join(__dirname, '/integration/pug-mixins/index.pug')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.pug']
-    });
+    await assertBundles(b, [
+      {
+        type: 'html',
+        name: 'index.html',
+        assets: ['index.pug']
+      }
+    ]);
 
-    const html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
-      'utf-8'
-    );
+    const html = await outputFS.readFile(path.join(distDir, 'index.html'));
     assert(html.includes('Greetings, Parcel'));
   });
 
@@ -112,16 +107,33 @@ describe.skip('pug', function() {
       path.join(__dirname, '/integration/pug-filters/index.pug')
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.pug']
-    });
+    await assertBundles(b, [
+      {
+        type: 'html',
+        name: 'index.html',
+        assets: ['index.pug']
+      }
+    ]);
 
-    const html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
-      'utf-8'
-    );
+    const html = await outputFS.readFile(path.join(distDir, 'index.html'));
     assert(html.includes('FILTERED: Hello!'));
+  });
+
+  it('should support locals with config file', async function() {
+    const b = await bundle(
+      path.join(__dirname, '/integration/pug-locals/index.pug')
+    );
+
+    await assertBundles(b, [
+      {
+        type: 'html',
+        name: 'index.html',
+        assets: ['index.pug']
+      }
+    ]);
+
+    const html = await outputFS.readFile(path.join(distDir, 'index.html'));
+    assert(html.includes("It's a great!"));
   });
 
   it('should minify HTML in production mode', async function() {
@@ -132,16 +144,14 @@ describe.skip('pug', function() {
       }
     );
 
-    await assertBundleTree(b, {
-      name: 'index.html',
-      assets: ['index.pug']
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.pug']
+      }
+    ]);
 
-    const html = await outputFS.readFile(
-      path.join(__dirname, '/dist/index.html'),
-      'utf-8'
-    );
-
+    const html = await outputFS.readFile(path.join(distDir, 'index.html'));
     assert(html.includes('Minified'));
   });
 });

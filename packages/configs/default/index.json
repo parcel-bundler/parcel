@@ -17,6 +17,7 @@
       "@parcel/transformer-posthtml",
       "@parcel/transformer-html"
     ],
+    "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*": ["@parcel/transformer-raw"]
   },
