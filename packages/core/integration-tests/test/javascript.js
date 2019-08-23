@@ -671,25 +671,27 @@ describe('javascript', function() {
     assert(await outputFS.exists(path.join(distDir, output())));
   });
 
-  it.skip('should minify JS in production mode', async function() {
+  it('should minify JS in production mode', async function() {
     let b = await bundle(path.join(__dirname, '/integration/uglify/index.js'), {
-      production: true
+      minify: true,
+      scopeHoist: false
     });
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
 
-    let js = await outputFS.readFile('dist/index.js', 'utf8');
+    let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!js.includes('local.a'));
   });
 
-  it.skip('should use uglify config', async function() {
+  it('should use uglify config', async function() {
     await bundle(path.join(__dirname, '/integration/uglify-config/index.js'), {
-      production: true
+      minify: true,
+      scopeHoist: false
     });
 
-    let js = await outputFS.readFile('dist/index.js', 'utf8');
+    let js = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(!js.includes('console.log'));
     assert(!js.includes('// This is a comment'));
   });
@@ -987,31 +989,33 @@ describe('javascript', function() {
     assert.equal(output.test(), 'pkg-main-module');
   });
 
-  it.skip('should minify JSON files', async function() {
+  it('should minify JSON files', async function() {
     await bundle(path.join(__dirname, '/integration/uglify-json/index.json'), {
-      production: true
+      minify: true,
+      scopeHoist: false
     });
 
-    let json = await outputFS.readFile('dist/index.js', 'utf8');
+    let json = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(json.includes('{test:"test"}'));
   });
 
-  it.skip('should minify JSON5 files', async function() {
+  it('should minify JSON5 files', async function() {
     await bundle(
       path.join(__dirname, '/integration/uglify-json5/index.json5'),
       {
-        production: true
+        minify: true,
+        scopeHoist: false
       }
     );
 
-    let json = await outputFS.readFile('dist/index.js', 'utf8');
+    let json = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(json.includes('{test:"test"}'));
   });
 
   it.skip('should minify YAML for production', async function() {
     let b = await bundle(path.join(__dirname, '/integration/yaml/index.js'), {
-      scopeHoist: false,
-      production: true
+      minify: true,
+      scopeHoist: false
     });
 
     let output = await run(b);
@@ -1022,17 +1026,17 @@ describe('javascript', function() {
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 
-  it.skip('should minify TOML for production', async function() {
+  it('should minify TOML for production', async function() {
     let b = await bundle(path.join(__dirname, '/integration/toml/index.js'), {
-      scopeHoist: false,
-      production: true
+      minify: true,
+      scopeHoist: false
     });
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
     assert.equal(output(), 3);
 
-    let json = await outputFS.readFile('dist/index.js', 'utf8');
+    let json = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(json.includes('{a:1,b:{c:2}}'));
   });
 

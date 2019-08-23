@@ -19,12 +19,11 @@ export default new Optimizer({
       );
     }
 
-    let userConfig = await loadConfig(options.inputFS, bundle.filePath, [
-      '.terserrc',
-      '.uglifyrc',
-      '.uglifyrc.js',
-      '.terserrc.js'
-    ]);
+    let userConfig = await loadConfig(
+      options.inputFS,
+      nullthrows(bundle.getMainEntry()).filePath,
+      ['.terserrc', '.uglifyrc', '.uglifyrc.js', '.terserrc.js']
+    );
 
     let config = {
       warnings: true,
