@@ -251,7 +251,12 @@ function findRequires(
         if (!dep) {
           throw new Error(`Could not find dep for "${args[1].value}`);
         }
-        result.push(nullthrows(bundleGraph.getDependencyResolution(dep)));
+        let depRes = bundleGraph.getDependencyResolution(dep);
+        if (depRes) {
+          // can be missing if AssetGraph#resolveDependency optimized
+          // ("deferred") this dependency away as an unused reexport
+          result.push(depRes);
+        }
       }
     }
   });
