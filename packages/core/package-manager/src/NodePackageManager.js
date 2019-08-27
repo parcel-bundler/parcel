@@ -41,22 +41,6 @@ export class NodePackageManager implements PackageManager {
   }
 
   async require(name: ModuleSpecifier, from: FilePath) {
-    // let key = `${name}:${path.dirname(from)}`;
-    // let loading = this.loading.get(key);
-    // if (!loading) {
-    //   loading = this._require(name, from);
-    //   loading.finally(() => {
-    //       this.loading.delete(key);
-    //     });
-
-    //   this.loading.set(key, loading);
-    // } else {
-    //   console.log('loading', name)
-    // }
-
-    // return loading;
-
-    // return syncPromise(this._require(name, from));
     let {resolved} = await this.resolve(name, from);
     return this.load(resolved, from);
   }
