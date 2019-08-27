@@ -264,7 +264,7 @@ function getMaxMajor(version) {
   }
 }
 
-async function installPlugins(asset, babelrc, packageManager) {
+function installPlugins(asset, babelrc, packageManager) {
   let presets = (babelrc.presets || []).map(p =>
     resolveModule('preset', getPluginName(p), asset.filePath, packageManager)
   );
