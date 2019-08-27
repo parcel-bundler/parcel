@@ -51,7 +51,6 @@ export class NodePackageManager implements PackageManager {
   }
 
   load(resolved: FilePath, from: FilePath) {
-    // return require(resolved);
     if (!path.isAbsolute(resolved)) {
       // Node builtin module
       // $FlowFixMe

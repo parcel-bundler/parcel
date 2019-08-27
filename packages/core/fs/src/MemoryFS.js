@@ -727,8 +727,8 @@ class Stat {
 }
 
 class File extends Entry {
-  buffer: SharedArrayBuffer;
-  constructor(buffer: SharedArrayBuffer, mode: number) {
+  buffer: Buffer;
+  constructor(buffer: Buffer, mode: number) {
     super(S_IFREG | mode);
     this.buffer = buffer;
   }
@@ -738,7 +738,7 @@ class File extends Entry {
     return Buffer.from(this.buffer);
   }
 
-  write(buffer: SharedArrayBuffer, mode: number) {
+  write(buffer: Buffer, mode: number) {
     super.modify(S_IFREG | mode);
     this.buffer = buffer;
   }
@@ -754,18 +754,12 @@ class Directory extends Entry {
   }
 }
 
-function makeShared(
-  contents: Buffer | string | SharedArrayBuffer
-): SharedArrayBuffer {
-  if (contents instanceof SharedArrayBuffer) {
-    return contents;
-  }
-
+function makeShared(contents: Buffer | string): Buffer {
   if (
     typeof contents !== 'string' &&
     contents.buffer instanceof SharedArrayBuffer
   ) {
-    return contents.buffer;
+    return contents;
   }
 
   let length = Buffer.byteLength(contents);
@@ -777,7 +771,7 @@ function makeShared(
     contents.copy(buffer);
   }
 
-  return shared;
+  return buffer;
 }
 
 class WorkerFS extends MemoryFS {
