@@ -1,12 +1,12 @@
 // @flow
 
-import type {MutableAsset, AST, ParcelOptions} from '@parcel/types';
+import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
 
 import {babel6toBabel7} from './astConverter';
 
 export default async function babel6(
   asset: MutableAsset,
-  options: ParcelOptions,
+  options: PluginOptions,
   babelOptions: any
 ): Promise<?AST> {
   let babel = await options.packageManager.require(

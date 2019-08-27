@@ -1,9 +1,9 @@
 // @flow
-import type {MutableAsset, AST, ParcelOptions} from '@parcel/types';
+import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
 
 export default async function babel7(
   asset: MutableAsset,
-  options: ParcelOptions,
+  options: PluginOptions,
   babelOptions: any
 ): Promise<?AST> {
   let config = babelOptions.config;

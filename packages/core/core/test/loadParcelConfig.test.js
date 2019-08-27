@@ -15,24 +15,7 @@ import {
   readAndProcess,
   resolveParcelConfig
 } from '../src/loadParcelConfig';
-import {inputFS as fs, inputFS, outputFS} from '@parcel/test-utils';
-import {PackageManager} from '@parcel/package-manager';
-
-const packageManager = new PackageManager(fs);
-
-const DEFAULT_OPTIONS = {
-  cache: false,
-  cacheDir: '.parcel-cache',
-  entries: [],
-  logLevel: 'none',
-  rootDir: __dirname,
-  targets: [],
-  projectRoot: '',
-  lockFile: undefined,
-  inputFS,
-  outputFS,
-  packageManager
-};
+import {DEFAULT_OPTIONS} from './utils';
 
 describe('loadParcelConfig', () => {
   describe('validatePackageName', () => {
@@ -361,7 +344,7 @@ describe('loadParcelConfig', () => {
           },
           bundler: 'parcel-bundler-base'
         },
-        packageManager
+        DEFAULT_OPTIONS.packageManager
       );
 
       let ext = {
@@ -387,7 +370,7 @@ describe('loadParcelConfig', () => {
           packagers: {},
           reporters: []
         },
-        packageManager
+        DEFAULT_OPTIONS.packageManager
       );
 
       assert.deepEqual(mergeConfigs(base, ext), merged);

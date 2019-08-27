@@ -348,32 +348,22 @@ export type Validator = {|
   validate({
     asset: Asset,
     config: Config | void,
-    localRequire: LocalRequire,
     options: PluginOptions,
     ...
   }): Async<void>,
   getConfig?: ({
     asset: Asset,
     resolveConfig: ResolveConfigFn,
-    localRequire: LocalRequire,
     options: PluginOptions,
     ...
   }) => Async<Config | void>
 |};
-
-export type LocalRequire = (
-  name: string,
-  path: FilePath,
-  triedInstall?: boolean
-  // $FlowFixMe
-) => Promise<any>;
 
 export type Transformer = {
   getConfig?: ({
     asset: MutableAsset,
     resolve: ResolveFn,
     options: PluginOptions,
-    localRequire: LocalRequire,
     ...
   }) => Async<Config | void>,
   canReuseAST?: ({
@@ -393,7 +383,6 @@ export type Transformer = {
     config: ?Config,
     resolve: ResolveFn,
     options: PluginOptions,
-    localRequire: LocalRequire,
     ...
   }): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({

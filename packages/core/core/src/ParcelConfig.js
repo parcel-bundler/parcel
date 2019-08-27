@@ -24,7 +24,8 @@ type Pipeline = Array<PackageName>;
 type GlobMap<T> = {[Glob]: T, ...};
 type SerializedParcelConfig = {
   config: ResolvedParcelConfigFile,
-  packageManager: PackageManager
+  packageManager: PackageManager,
+  ...
 };
 
 export default class ParcelConfig {
@@ -65,6 +66,7 @@ export default class ParcelConfig {
 
   serialize(): SerializedParcelConfig {
     return {
+      $$raw: false,
       packageManager: this.packageManager,
       config: {
         filePath: this.filePath,

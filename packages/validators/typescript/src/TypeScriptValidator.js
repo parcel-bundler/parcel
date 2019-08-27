@@ -36,8 +36,8 @@ export default new Validator({
     };
   },
 
-  async validate({asset, config, localRequire}) {
-    let ts = await localRequire('typescript', asset.filePath);
+  async validate({asset, config, options}) {
+    let ts = await options.packageManager.require('typescript', asset.filePath);
 
     // This should never happen...
     if (!config) return;

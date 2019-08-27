@@ -43,7 +43,6 @@ async function getDependencies(
   filepath,
   asset,
   resolve,
-  localRequire,
   options,
   parcelOptions,
   seen = new Set()
@@ -137,7 +136,6 @@ async function getDependencies(
             resolved,
             asset,
             resolve,
-            localRequire,
             options,
             parcelOptions,
             seen

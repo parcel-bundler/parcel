@@ -1,20 +1,26 @@
 // @flow strict-local
 
-import type {PackageJSON} from '@parcel/types';
+import type {PackageJSON, FilePath, ModuleSpecifier} from '@parcel/types';
 import type {ResolveOptions} from 'resolve';
 import type {FileSystem} from '@parcel/fs';
 
 // $FlowFixMe TODO: Type promisify
 import promisify from './promisify';
+import _resolve from 'resolve';
 
-const _resolve = promisify(require('resolve'));
+const resolveAsync = promisify(_resolve);
 
-export default function resolve(
+export type ResolveResult = {|
+  resolved: FilePath | ModuleSpecifier,
+  pkg?: ?PackageJSON
+|};
+
+export async function resolve(
   fs: FileSystem,
   id: string,
   opts?: ResolveOptions
-): Promise<[string, ?PackageJSON]> {
-  return _resolve(id, {
+): Promise<ResolveResult> {
+  let res = await resolveAsync(id, {
     ...opts,
     async readFile(filename, callback) {
       try {
@@ -41,4 +47,49 @@ export default function resolve(
       }
     }
   });
+
+  if (typeof res === 'string') {
+    return {
+      resolved: res
+    };
+  }
+
+  return {
+    resolved: res[0],
+    pkg: res[1]
+  };
+}
+
+export function resolveSync(
+  fs: FileSystem,
+  id: string,
+  opts?: ResolveOptions
+): ResolveResult {
+  // $FlowFixMe
+  let res = _resolve.sync(id, {
+    ...opts,
+    readFileSync: (...args) => {
+      return fs.readFileSync(...args);
+    },
+    isFile: file => {
+      try {
+        var stat = fs.statSync(file);
+      } catch (err) {
+        return false;
+      }
+      return stat.isFile();
+    },
+    isDirectory: file => {
+      try {
+        var stat = fs.statSync(file);
+      } catch (err) {
+        return false;
+      }
+      return stat.isDirectory();
+    }
+  });
+
+  return {
+    resolved: res
+  };
 }

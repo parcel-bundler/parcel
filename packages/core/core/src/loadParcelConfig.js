@@ -6,7 +6,6 @@ import type {
   PackageName
 } from '@parcel/types';
 import type {ParcelOptions} from './types';
-import type {FileSystem} from '@parcel/fs';
 import {resolveConfig, resolve} from '@parcel/utils';
 import {parse} from 'json5';
 import path from 'path';
@@ -62,8 +61,11 @@ export async function resolveParcelConfig(
   return readAndProcess(configPath, options);
 }
 
-export async function create(config: ParcelConfigFile, options: ParcelOptions) {
-  return processConfig(config, options.inputFS.cwd(), options);
+export function create(
+  config: ResolvedParcelConfigFile,
+  options: ParcelOptions
+) {
+  return processConfig(config, config.filePath, options);
 }
 
 export async function readAndProcess(
@@ -115,8 +117,9 @@ export async function resolveExtends(
   if (ext.startsWith('.')) {
     return path.resolve(path.dirname(configPath), ext);
   } else {
-    let [resolved] = await resolve(options.inputFS, ext, {
-      basedir: path.dirname(configPath)
+    let {resolved} = await resolve(options.inputFS, ext, {
+      basedir: path.dirname(configPath),
+      extensions: ['.json']
     });
     return options.inputFS.realpath(resolved);
   }

@@ -229,7 +229,7 @@ export default class PackagerRunner {
     let optimizers = this.config.getOptimizerNames(filePath);
     let deps = Promise.all(
       [packager, ...optimizers].map(async pkg => {
-        let [, resolvedPkg] = await this.options.packageManager.resolve(
+        let {pkg: resolvedPkg} = await this.options.packageManager.resolve(
           `${pkg}/package.json`,
           `${this.config.filePath}/index` // TODO: is this right?
         );

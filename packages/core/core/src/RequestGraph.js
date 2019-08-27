@@ -391,13 +391,13 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   async runDepVersionRequest(requestNode: DepVersionRequestNode) {
     let {value: request} = requestNode;
     let {moduleSpecifier, resolveFrom} = request;
-    let [, resolvedPkg] = await this.options.packageManager.resolve(
+    let {pkg} = await this.options.packageManager.resolve(
       `${moduleSpecifier}/package.json`,
       `${resolveFrom}/index`
     );
 
     // TODO: Figure out how to handle when local plugin packages change, since version won't be enough
-    let version = nullthrows(resolvedPkg).version;
+    let version = nullthrows(pkg).version;
     request.result = version;
 
     return version;

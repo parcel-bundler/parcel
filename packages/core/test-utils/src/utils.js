@@ -20,6 +20,7 @@ import nullthrows from 'nullthrows';
 import {syncPromise} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
+import {NodePackageManager} from '@parcel/package-manager';
 
 const workerFarm = createWorkerFarm();
 export const inputFS = new NodeFS();
@@ -95,6 +96,7 @@ export function bundler(
     inputFS,
     outputFS,
     workerFarm,
+    packageManager: new NodePackageManager(inputFS),
     ...opts
   });
 }

@@ -6,10 +6,9 @@ import nullthrows from 'nullthrows';
 
 import {createWorkerFarm} from '../';
 import AssetGraphBuilder from '../src/AssetGraphBuilder';
-import {resolve} from '../src/loadParcelConfig';
 import {createDependency} from '../src/Dependency';
 import {createEnvironment} from '../src/Environment';
-import {inputFS} from '@parcel/test-utils';
+import {resolveParcelConfig} from '../src/loadParcelConfig';
 import {DEFAULT_OPTIONS} from './utils';
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');

@@ -1,12 +1,12 @@
 // @flow
 
-import type {FilePath, ParcelOptions} from '@parcel/types';
+import type {FilePath, PluginOptions} from '@parcel/types';
 import type {PackageManager} from '@parcel/package-manager';
 
 export default async function loadExternalPlugins(
-  plugins: Array<string> | {+[pluginName: string]: mixed},
+  plugins: Array<string> | {|+[pluginName: string]: mixed|},
   relative: FilePath,
-  options: ParcelOptions
+  options: PluginOptions
 ): Promise<Array<mixed>> {
   if (Array.isArray(plugins)) {
     return Promise.all(

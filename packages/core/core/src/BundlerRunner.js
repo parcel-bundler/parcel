@@ -99,12 +99,12 @@ export default class BundlerRunner {
 
   async getCacheKey(assetGraph: AssetGraph) {
     let bundler = this.config.bundler;
-    let [, resolvedPkg] = await this.options.packageManager.resolve(
+    let {pkg} = await this.options.packageManager.resolve(
       `${bundler}/package.json`,
       `${this.config.filePath}/index` // TODO: is this right?
     );
 
-    let version = nullthrows(resolvedPkg).version;
+    let version = nullthrows(pkg).version;
     return md5FromObject({
       bundler,
       version,

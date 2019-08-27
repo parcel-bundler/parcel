@@ -25,8 +25,8 @@ export default new Transformer({
     return config;
   },
 
-  async transform({asset, localRequire, config}) {
-    const less = await localRequire('less', asset.filePath);
+  async transform({asset, options, config}) {
+    const less = await options.packageManager.require('less', asset.filePath);
     const code = await asset.getCode();
     let css;
     try {

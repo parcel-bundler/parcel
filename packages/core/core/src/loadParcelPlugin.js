@@ -13,7 +13,7 @@ export default async function loadPlugin(
   pluginName: PackageName,
   resolveFrom: FilePath
 ) {
-  let [resolved, pkg] = await packageManager.resolve(
+  let {resolved, pkg} = await packageManager.resolve(
     pluginName,
     `${resolveFrom}/index`
   );

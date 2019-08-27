@@ -6,8 +6,9 @@ import path from 'path';
 export * from './types';
 export * from './NodeFS';
 export * from './MemoryFS';
+export * from './OverlayFS';
 
-// Recursively opies a directory from the sourceFS to the destinationFS
+// Recursively copies a directory from the sourceFS to the destinationFS
 export async function ncp(
   sourceFS: FileSystem,
   source: FilePath,

@@ -5,9 +5,9 @@ import path from 'path';
 import sinon from 'sinon';
 import logger from '@parcel/logger';
 import {inputFS} from '@parcel/test-utils';
-import {PackageManager} from '@parcel/package-manager';
+import {NodePackageManager} from '@parcel/package-manager';
 
-const packageManager = new PackageManager(inputFS);
+const packageManager = new NodePackageManager(inputFS);
 
 describe('ParcelConfig', () => {
   describe('matchGlobMap', () => {

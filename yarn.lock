@@ -1710,28 +1710,6 @@
     mkdirp "^0.5.1"
     rimraf "^2.6.2"
 
-"@parcel/install-package@^2.0.0-alpha.1.1":
-  version "2.0.0-alpha.1.1"
-  resolved "https://registry.yarnpkg.com/@parcel/install-package/-/install-package-2.0.0-alpha.1.1.tgz#eeff03113899216f473db209f4e9aff7cf1c2360"
-  integrity sha512-V4/OBOKJdLtpF5nzBnMW83RJ07HK1nP8rlaSa7pVzH7KkU+hyColtQaLDTgCbe+NC5R28zwrfQJ8a4ULWExvMQ==
-  dependencies:
-    "@parcel/fs" "^2.0.0-alpha.1.1"
-    "@parcel/logger" "^2.0.0-alpha.1.1"
-    "@parcel/utils" "^2.0.0-alpha.1.1"
-    "@parcel/workers" "^2.0.0-alpha.1.1"
-    command-exists "^1.2.6"
-    cross-spawn "^6.0.4"
-    nullthrows "^1.1.1"
-    split2 "^3.1.1"
-
-"@parcel/local-require@^2.0.0-alpha.1.1":
-  version "2.0.0-alpha.1.1"
-  resolved "https://registry.yarnpkg.com/@parcel/local-require/-/local-require-2.0.0-alpha.1.1.tgz#22d5d80396a288dae5d9b07f27bcb7f81bfc32a8"
-  integrity sha512-tsggGrG5EGWa80OUwiNri+4WKgBI91/Cv1bO8CHVjKWAYerNM39FdrxUV65TbuRIcrb5eK2aaHS8RI7fMpsSxw==
-  dependencies:
-    "@parcel/install-package" "^2.0.0-alpha.1.1"
-    "@parcel/utils" "^2.0.0-alpha.1.1"
-
 "@parcel/logger@^1.11.0":
   version "1.11.0"
   resolved "https://registry.yarnpkg.com/@parcel/logger/-/logger-1.11.0.tgz#91f39da14ba08dd85db247145698c62102960abb"
@@ -10958,6 +10936,13 @@ resolve@^1.0.0, resolve@^1.1.5, resolve@^1.1.6, resolve@^1.1.7, resolve@^1.10.0,
   version "1.11.1"
   resolved "https://registry.yarnpkg.com/resolve/-/resolve-1.11.1.tgz#ea10d8110376982fef578df8fc30b9ac30a07a3e"
   integrity sha512-vIpgF6wfuJOZI7KKKSP+HmiKggadPQAdsp5HiC1mvqnfp0gF1vdwgBWZIdrVft9pgqoMFQN+R7BSWZiBxx+BBw==
+  dependencies:
+    path-parse "^1.0.6"
+
+resolve@^1.12.0:
+  version "1.12.0"
+  resolved "https://registry.yarnpkg.com/resolve/-/resolve-1.12.0.tgz#3fc644a35c84a48554609ff26ec52b66fa577df6"
+  integrity sha512-B/dOmuoAik5bKcD6s6nXDCjzUKnaDvdkRyAk6rsmsKLipWj4797iothd7jmmUhWTfinVMU+wc56rYKsit2Qy4w==
   dependencies:
     path-parse "^1.0.6"
 

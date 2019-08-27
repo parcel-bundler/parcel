@@ -1,5 +1,5 @@
 // @flow
-import type {MutableAsset, PackageJSON, ParcelOptions} from '@parcel/types';
+import type {MutableAsset, PackageJSON, PluginOptions} from '@parcel/types';
 import semver from 'semver';
 import logger from '@parcel/logger';
 import path from 'path';
@@ -10,7 +10,7 @@ export default async function getBabelConfig(
   asset: MutableAsset,
   pkg: ?PackageJSON,
   isSource: boolean,
-  options: ParcelOptions
+  options: PluginOptions
 ) {
   let config = await getBabelRc(asset, pkg, isSource);
   if (!config) {
@@ -277,7 +277,7 @@ async function installPlugins(asset, babelrc, packageManager) {
 async function resolveModule(type, name, path, packageManager) {
   try {
     name = standardizeName(type, name);
-    let [, pkg] = await packageManager.resolve(name, path);
+    let {pkg} = await packageManager.resolve(name, path);
     return pkg;
   } catch (err) {
     return null;
