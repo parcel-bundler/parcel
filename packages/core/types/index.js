@@ -362,7 +362,6 @@ export type GenerateOutput = {|
 export type Blob = string | Buffer | Readable;
 
 export interface TransformerResult {
-  id?: string;
   type: string;
   code?: string;
   map?: ?SourceMap;

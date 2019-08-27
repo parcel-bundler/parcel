@@ -20,6 +20,7 @@ export default function extractInlineAssets(
 ): Array<TransformerResult> {
   let ast = nullthrows(asset.ast);
   let program: PostHTMLNode = ast.program;
+  let key = 0;
 
   // Extract inline <script> and <style> tags for processing.
   let parts = [];
@@ -27,7 +28,7 @@ export default function extractInlineAssets(
     if (node.tag === 'script' || node.tag === 'style') {
       let value = node.content && node.content.join('').trim();
       if (value != null) {
-        let id = md5FromString(value);
+        let parcelKey = md5FromString(`${asset.id}:${key++}`);
         let type;
 
         if (node.tag === 'style') {
@@ -56,16 +57,16 @@ export default function extractInlineAssets(
         }
 
         // insert parcelId to allow us to retrieve node during packaging
-        node.attrs['data-parcelid'] = id;
+        node.attrs['data-parcel-key'] = parcelKey;
 
         parts.push({
-          id,
           type,
           code: value,
           isIsolated: true,
           isInline: true,
           meta: {
             type: 'tag',
+            inlineKey: parcelKey,
             node
           }
         });

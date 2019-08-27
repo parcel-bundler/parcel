@@ -269,7 +269,6 @@ export default class InternalAsset {
     let asset = new InternalAsset({
       value: createAsset({
         idBase: this.idBase,
-        id: result.id || this.value.id,
         hash,
         filePath: this.value.filePath,
         type: result.type,

@@ -533,7 +533,6 @@ function normalizeAssets(
 
     let internalAsset = assetToInternalAsset(result);
     return {
-      id: result.id,
       type: result.type,
       content: internalAsset.content,
       ast: result.ast,

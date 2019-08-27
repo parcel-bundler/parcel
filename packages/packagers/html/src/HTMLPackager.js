@@ -64,7 +64,7 @@ async function getAssetContent(
   let inlineBundle: ?Bundle;
   bundleGraph.traverseBundles((bundle, context, {stop}) => {
     let mainAsset = bundle.getMainEntry();
-    if (mainAsset && mainAsset.id === assetId) {
+    if (mainAsset && mainAsset.meta && mainAsset.meta.inlineKey === assetId) {
       inlineBundle = bundle;
       stop();
     }
@@ -86,7 +86,7 @@ async function replaceInlineAssetContent(
 ) {
   const inlineNodes = [];
   tree.walk(node => {
-    if (node.attrs && node.attrs['data-parcelid']) {
+    if (node.attrs && node.attrs['data-parcel-key']) {
       inlineNodes.push(node);
     }
     return node;
@@ -96,13 +96,13 @@ async function replaceInlineAssetContent(
     let newContent = await getAssetContent(
       bundleGraph,
       getBundleResult,
-      node.attrs['data-parcelid']
+      node.attrs['data-parcel-key']
     );
 
     if (newContent) {
       node.content = newContent;
       // remove attr from output
-      delete node.attrs['data-parcelid'];
+      delete node.attrs['data-parcel-key'];
     }
   }
 
