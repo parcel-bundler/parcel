@@ -3,6 +3,7 @@ import type {ParcelOptions} from '../src/types';
 import Cache, {createCacheDir} from '@parcel/cache';
 import tempy from 'tempy';
 import {inputFS, outputFS} from '@parcel/test-utils';
+import {NodePackageManager} from '@parcel/package-manager';
 
 let cacheDir = tempy.directory();
 createCacheDir(outputFS, cacheDir);
@@ -29,5 +30,6 @@ export const DEFAULT_OPTIONS: ParcelOptions = {
   inputFS,
   outputFS,
   cache,
-  patchConsole: false
+  patchConsole: false,
+  packageManager: new NodePackageManager(inputFS)
 };

@@ -98,10 +98,16 @@ async function buildDefaultBabelConfig(config: Config) {
 
   if (babelOptions != null) {
     babelOptions.presets = (babelOptions.presets || []).map(preset =>
-      createConfigItem(preset, {type: 'preset', dirname: BABEL_TRANSFORMER_DIR})
+      createConfigItem(preset, {
+        type: 'preset',
+        dirname: BABEL_TRANSFORMER_DIR
+      })
     );
     babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
-      createConfigItem(plugin, {type: 'plugin', dirname: BABEL_TRANSFORMER_DIR})
+      createConfigItem(plugin, {
+        type: 'plugin',
+        dirname: BABEL_TRANSFORMER_DIR
+      })
     );
     config.shouldRehydrate();
     prepForReyhdration(babelOptions);

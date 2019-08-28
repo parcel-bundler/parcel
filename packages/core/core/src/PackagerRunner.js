@@ -19,7 +19,6 @@ import nullthrows from 'nullthrows';
 import path from 'path';
 import url from 'url';
 
-import {localResolve} from '@parcel/local-require';
 import {NamedBundle} from './public/Bundle';
 import {report} from './ReporterRunner';
 import BundleGraph from './public/BundleGraph';
@@ -230,7 +229,7 @@ export default class PackagerRunner {
     let optimizers = this.config.getOptimizerNames(filePath);
     let deps = Promise.all(
       [packager, ...optimizers].map(async pkg => {
-        let [, resolvedPkg] = await localResolve(
+        let {pkg: resolvedPkg} = await this.options.packageManager.resolve(
           `${pkg}/package.json`,
           `${this.config.filePath}/index` // TODO: is this right?
         );

@@ -25,6 +25,7 @@ import type {
 
 import type {FileSystem} from '@parcel/fs';
 import type Cache from '@parcel/cache';
+import type {PackageManager} from '@parcel/package-manager';
 
 export type Environment = {|
   context: EnvironmentContext,
@@ -102,7 +103,8 @@ export type ParcelOptions = {|
 
   inputFS: FileSystem,
   outputFS: FileSystem,
-  cache: Cache
+  cache: Cache,
+  packageManager: PackageManager
 |};
 
 export type NodeId = string;

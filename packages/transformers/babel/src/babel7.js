@@ -1,6 +1,7 @@
 // @flow
 
-import type {LocalRequire, MutableAsset, AST} from '@parcel/types';
+import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
+
 import packageJson from '../package.json';
 import invariant from 'assert';
 
@@ -9,24 +10,24 @@ invariant(typeof transformerVersion === 'string');
 
 export default async function babel7(
   asset: MutableAsset,
-  localRequire: LocalRequire,
-  options: any
+  options: PluginOptions,
+  babelOptions: any
 ): Promise<?AST> {
   // If this is an internally generated config, use our internal @babel/core,
   // otherwise require a local version from the package we're compiling.
-  let babel = options.internal
+  let babel = babelOptions.internal
     ? require('@babel/core')
-    : await localRequire('@babel/core', asset.filePath);
+    : await options.packageManager.require('@babel/core', asset.filePath);
 
   let config = {
-    ...options.config,
+    ...babelOptions.config,
     code: false,
     ast: true,
     filename: asset.filePath,
     babelrc: false,
     configFile: false,
     parserOpts: {
-      ...options.config.parserOpts,
+      ...babelOptions.config.parserOpts,
       allowReturnOutsideFunction: true,
       strictMode: false,
       sourceType: 'module',
@@ -35,7 +36,7 @@ export default async function babel7(
     caller: {
       name: 'parcel',
       version: transformerVersion,
-      targets: JSON.stringify(options.targets)
+      targets: JSON.stringify(babelOptions.targets)
     }
   };
 

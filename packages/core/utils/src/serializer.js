@@ -161,7 +161,10 @@ export function prepareForSerialization(object: any) {
           if (value && typeof value.serialize === 'function') {
             // If the object has a serialize method, call it
             serialized = value.serialize();
-            raw = true;
+            raw = (serialized && serialized.$$raw) ?? true;
+            if (serialized) {
+              delete serialized.$$raw;
+            }
           }
 
           return {

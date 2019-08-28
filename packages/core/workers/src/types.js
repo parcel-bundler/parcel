@@ -3,19 +3,21 @@
 import type {FilePath} from '@parcel/types';
 import type {JSONError} from '@parcel/utils';
 
-export type CallRequest =
-  | {|
-      args: $ReadOnlyArray<mixed>,
-      location: string,
-      method?: string
-    |}
-  | {|
-      args: $ReadOnlyArray<mixed>,
-      handle: number
-    |};
+export type LocationCallRequest = {|
+  args: $ReadOnlyArray<mixed>,
+  location: string,
+  method?: string
+|};
+
+export type HandleCallRequest = {|
+  args: $ReadOnlyArray<mixed>,
+  handle: number
+|};
+
+export type CallRequest = LocationCallRequest | HandleCallRequest;
 
 export type WorkerRequest = {|
-  args: Array<any>,
+  args: $ReadOnlyArray<any>,
   awaitResponse?: boolean,
   child?: ?number,
   idx?: number,

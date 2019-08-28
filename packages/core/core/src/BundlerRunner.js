@@ -27,7 +27,6 @@ import AssetGraphBuilder from './AssetGraphBuilder';
 import {report} from './ReporterRunner';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import {normalizeSeparators, unique, md5FromObject} from '@parcel/utils';
-import {localResolve} from '@parcel/local-require';
 import PluginOptions from './public/PluginOptions';
 
 type Opts = {|
@@ -100,12 +99,12 @@ export default class BundlerRunner {
 
   async getCacheKey(assetGraph: AssetGraph) {
     let bundler = this.config.bundler;
-    let [, resolvedPkg] = await localResolve(
+    let {pkg} = await this.options.packageManager.resolve(
       `${bundler}/package.json`,
       `${this.config.filePath}/index` // TODO: is this right?
     );
 
-    let version = nullthrows(resolvedPkg).version;
+    let version = nullthrows(pkg).version;
     return md5FromObject({
       bundler,
       version,

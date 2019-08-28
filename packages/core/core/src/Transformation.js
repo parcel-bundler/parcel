@@ -22,7 +22,6 @@ import invariant from 'assert';
 import path from 'path';
 import nullthrows from 'nullthrows';
 import {md5FromObject} from '@parcel/utils';
-import {localRequireFromWorker} from '@parcel/local-require';
 
 import {createDependency} from './Dependency';
 import PublicConfig from './public/Config';
@@ -250,7 +249,7 @@ export default class Transformation {
 
     let config = await this.loadConfig(configRequest);
     let result = nullthrows(config.result);
-    let parcelConfig = new ParcelConfig(result);
+    let parcelConfig = new ParcelConfig(result, this.options.packageManager);
 
     configs.set('parcel', config);
 
@@ -419,8 +418,6 @@ class Pipeline {
       )).filePath;
     };
 
-    let localRequire = localRequireFromWorker.bind(null, this.workerApi);
-
     // Load config for the transformer.
     let config = preloadedConfig;
     if (transformer.getConfig) {
@@ -428,8 +425,7 @@ class Pipeline {
       config = await transformer.getConfig({
         asset: new MutableAsset(asset),
         options: this.pluginOptions,
-        resolve,
-        localRequire
+        resolve
       });
     }
 
@@ -466,7 +462,6 @@ class Pipeline {
         asset: new MutableAsset(asset),
         config,
         options: this.pluginOptions,
-        localRequire,
         resolve
       })
     );

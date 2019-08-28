@@ -3,8 +3,11 @@
 import {Transformer} from '@parcel/plugin';
 
 export default new Transformer({
-  async transform({asset, localRequire}) {
-    const yaml = await localRequire('js-yaml', asset.filePath);
+  async transform({asset, options}) {
+    const yaml = await options.packageManager.require(
+      'js-yaml',
+      asset.filePath
+    );
     asset.type = 'js';
     asset.setCode(
       `module.exports = ${JSON.stringify(

@@ -18,9 +18,7 @@ import Logger, {patchConsole} from '@parcel/logger';
 import {errorToJson, jsonToError} from '@parcel/utils';
 import bus from './bus';
 import Profiler from './Profiler';
-
-// Import this to register it with the serializer in the worker
-import './Handle';
+import Handle from './Handle';
 
 type ChildCall = WorkerRequest & {|
   resolve: (result: Promise<any> | any) => void,
@@ -38,6 +36,7 @@ export class Child {
   child: ChildImpl;
   profiler: ?Profiler;
   workerApi: WorkerApi;
+  handles: Map<number, Handle> = new Map();
 
   constructor(ChildBackend: Class<ChildImpl>) {
     this.child = new ChildBackend(
@@ -57,7 +56,9 @@ export class Child {
     callMaster: (
       request: CallRequest,
       awaitResponse: ?boolean = true
-    ): Promise<mixed> => this.addCall(request, awaitResponse)
+    ): Promise<mixed> => this.addCall(request, awaitResponse),
+    createReverseHandle: (fn: (...args: Array<any>) => mixed): Handle =>
+      this.createReverseHandle(fn)
   };
 
   messageListener(message: WorkerMessage): void | Promise<void> {
@@ -79,7 +80,7 @@ export class Child {
   }
 
   async handleRequest(data: WorkerRequest): Promise<void> {
-    let {idx, method, args} = data;
+    let {idx, method, args, handle: handleId} = data;
     let child = nullthrows(data.child);
 
     const responseFromContent = (content: any): WorkerDataResponse => ({
@@ -99,7 +100,14 @@ export class Child {
     });
 
     let result;
-    if (method === 'childInit') {
+    if (handleId != null) {
+      try {
+        let fn = nullthrows(this.handles.get(handleId)).fn;
+        result = responseFromContent(fn(...args));
+      } catch (e) {
+        result = errorResponseFromError(e);
+      }
+    } else if (method === 'childInit') {
       try {
         let [moduleName] = args;
         result = responseFromContent(this.childInit(moduleName, child));
@@ -213,5 +221,15 @@ export class Child {
 
   handleEnd(): void {
     this.loggerDisposable.dispose();
+  }
+
+  createReverseHandle(fn: (...args: Array<any>) => mixed) {
+    let handle = new Handle({
+      fn,
+      workerApi: this.workerApi,
+      childId: this.childId
+    });
+    this.handles.set(handle.id, handle);
+    return handle;
   }
 }

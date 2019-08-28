@@ -3,6 +3,7 @@
 import type {ErrorWithCode, FilePath} from '@parcel/types';
 import type {
   CallRequest,
+  HandleCallRequest,
   WorkerRequest,
   WorkerDataResponse,
   WorkerErrorResponse,
@@ -10,6 +11,7 @@ import type {
 } from './types';
 import type {HandleFunction} from './Handle';
 
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
 import {
@@ -47,7 +49,9 @@ type WorkerModule = {|
 |};
 
 export type WorkerApi = {|
-  callMaster(CallRequest, ?boolean): Promise<mixed>
+  callMaster(CallRequest, ?boolean): Promise<mixed>,
+  createReverseHandle(fn: HandleFunction): Handle,
+  callChild?: (childId: number, request: HandleCallRequest) => Promise<mixed>
 |};
 
 export {Handle};
@@ -101,7 +105,18 @@ export default class WorkerFarm extends EventEmitter {
         awaitResponse
       });
       return deserialize(serialize(result));
-    }
+    },
+    createReverseHandle: (fn: HandleFunction): Handle =>
+      this.createReverseHandle(fn),
+    callChild: (childId: number, request: HandleCallRequest): Promise<mixed> =>
+      new Promise((resolve, reject) => {
+        nullthrows(this.workers.get(childId)).call({
+          ...request,
+          resolve,
+          reject,
+          retries: 0
+        });
+      })
   };
 
   warmupWorker(method: string, args: Array<any>): void {
@@ -412,6 +427,14 @@ export default class WorkerFarm extends EventEmitter {
 
   static isWorker() {
     return !!child;
+  }
+
+  static getWorkerApi() {
+    invariant(
+      child != null,
+      'WorkerFarm.getWorkerApi can only be called within workers'
+    );
+    return child.workerApi;
   }
 
   static getConcurrentCallsPerWorker() {

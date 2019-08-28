@@ -1,6 +1,7 @@
 // @flow strict-local
 
 import type {FilePath, Glob} from '@parcel/types';
+import type {Event} from '@parcel/watcher';
 import type {Config, ParcelOptions} from './types';
 
 import invariant from 'assert';
@@ -8,9 +9,7 @@ import invariant from 'assert';
 import {isMatch} from 'micromatch';
 import nullthrows from 'nullthrows';
 
-import {localResolve} from '@parcel/local-require';
 import {PromiseQueue, md5FromObject} from '@parcel/utils';
-import type {Event} from '@parcel/watcher';
 import WorkerFarm from '@parcel/workers';
 
 import {addDevDependency} from './InternalConfig';
@@ -411,12 +410,13 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     let version = result;
 
     if (version == null) {
-      let [, resolvedPkg] = await localResolve(
+      let {pkg} = await this.options.packageManager.resolve(
         `${moduleSpecifier}/package.json`,
-        resolveFrom
+        `${resolveFrom}/index`
       );
+
       // TODO: Figure out how to handle when local plugin packages change, since version won't be enough
-      version = nullthrows(resolvedPkg).version;
+      version = nullthrows(pkg).version;
       request.result = version;
     }
 
