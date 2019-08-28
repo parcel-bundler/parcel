@@ -7,6 +7,7 @@
     ],
     "*.{json,json5}": ["@parcel/transformer-json"],
     "*.toml": ["@parcel/transformer-toml"],
+    "*.yaml": ["@parcel/transformer-yaml"],
     "*.{styl,stylus}": ["@parcel/transformer-stylus"],
     "*.{sass,scss}": ["@parcel/transformer-sass"],
     "*.less": ["@parcel/transformer-less"],
@@ -16,6 +17,7 @@
       "@parcel/transformer-posthtml",
       "@parcel/transformer-html"
     ],
+    "*.pug": ["@parcel/transformer-pug"],
     "*.coffee": ["@parcel/transformer-coffeescript"],
     "*": ["@parcel/transformer-raw"]
   },

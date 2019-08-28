@@ -1,6 +1,5 @@
 var $parcel$modules = {};
 
-/* eslint-disable no-undef */
 var globalObject =
   typeof globalThis !== 'undefined'
     ? globalThis
@@ -11,7 +10,6 @@ var globalObject =
     : typeof global !== 'undefined'
     ? global
     : {};
-/* eslint-enable no-undef */
 
 globalObject.parcelRequire = function(name) {
   if (name in $parcel$modules) {

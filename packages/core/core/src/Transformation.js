@@ -131,15 +131,16 @@ export default class Transformation {
     initialAsset: InternalAsset
   ): Promise<Array<InternalAsset>> {
     let initialType = initialAsset.value.type;
-    // TODO: is this reading/writing from the cache every time we jump a pipeline? Seems possibly unnecessary...
-    let initialCacheEntry = await this.readFromCache(
+    let initialAssetCacheKey = this.getCacheKey(
       [initialAsset],
       pipeline.configs
     );
+    // TODO: is this reading/writing from the cache every time we jump a pipeline? Seems possibly unnecessary...
+    let initialCacheEntry = await this.readFromCache(initialAssetCacheKey);
 
     let assets = initialCacheEntry || (await pipeline.transform(initialAsset));
     if (!initialCacheEntry) {
-      await this.writeToCache(assets, pipeline.configs);
+      await this.writeToCache(initialAssetCacheKey, assets, pipeline.configs);
     }
 
     let finalAssets: Array<InternalAsset> = [];
@@ -166,8 +167,7 @@ export default class Transformation {
     }
 
     let processedCacheEntry = await this.readFromCache(
-      finalAssets,
-      pipeline.configs
+      this.getCacheKey(finalAssets, pipeline.configs)
     );
 
     invariant(pipeline.postProcess != null);
@@ -175,21 +175,21 @@ export default class Transformation {
       processedCacheEntry ?? (await pipeline.postProcess(assets)) ?? [];
 
     if (!processedCacheEntry) {
-      await this.writeToCache(processedFinalAssets, pipeline.configs);
+      await this.writeToCache(
+        this.getCacheKey(processedFinalAssets, pipeline.configs),
+        processedFinalAssets,
+        pipeline.configs
+      );
     }
 
     return processedFinalAssets;
   }
 
-  async readFromCache(
-    assets: Array<InternalAsset>,
-    configs: ConfigMap
-  ): Promise<null | Array<InternalAsset>> {
+  async readFromCache(cacheKey: string): Promise<null | Array<InternalAsset>> {
     if (this.options.disableCache || this.request.code != null) {
       return null;
     }
 
-    let cacheKey = this.getCacheKey(assets, configs);
     let cachedAssets = await this.options.cache.get(cacheKey);
     if (!cachedAssets) {
       return null;
@@ -205,10 +205,10 @@ export default class Transformation {
   }
 
   async writeToCache(
+    cacheKey: string,
     assets: Array<InternalAsset>,
     configs: ConfigMap
   ): Promise<void> {
-    let cacheKey = this.getCacheKey(assets, configs);
     await Promise.all(
       // TODO: account for impactfulOptions maybe being different per pipeline
       assets.map(asset =>
