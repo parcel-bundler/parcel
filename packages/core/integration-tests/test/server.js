@@ -94,7 +94,7 @@ describe('server', function() {
     await getNextBuild(b);
 
     let data = await get(
-      '/__parcel_source_root/packages/core/integration-tests/test/integration/commonjs/index.js',
+      '/__parcel_source_root/integration/commonjs/index.js',
       port
     );
     let inputFile = await inputFS.readFile(inputPath, 'utf8');
