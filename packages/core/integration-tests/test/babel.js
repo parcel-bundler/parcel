@@ -13,7 +13,6 @@ const {
 } = require('@parcel/test-utils');
 const os = require('os');
 const {spawnSync} = require('child_process');
-const {NodeFS} = require('@parcel/fs');
 const {symlinkSync} = require('fs');
 
 const parcelCli = require.resolve('parcel/src/bin.js');
