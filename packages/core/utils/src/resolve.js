@@ -73,19 +73,19 @@ export function resolveSync(
     },
     isFile: file => {
       try {
-        var stat = fs.statSync(file);
+        let stat = fs.statSync(file);
+        return stat.isFile();
       } catch (err) {
         return false;
       }
-      return stat.isFile();
     },
     isDirectory: file => {
       try {
-        var stat = fs.statSync(file);
+        let stat = fs.statSync(file);
+        return stat.isDirectory();
       } catch (err) {
         return false;
       }
-      return stat.isDirectory();
     }
   });
 
