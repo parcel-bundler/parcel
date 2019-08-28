@@ -79,12 +79,17 @@ export class OverlayFS implements FileSystem {
   cwd = readSync('cwd');
   chdir = readSync('chdir');
   realpath = checkExists('realpath');
-  exists = read('exists');
 
   readFileSync = readSync('readFileSync');
   statSync = readSync('statSync');
   existsSync = readSync('existsSync');
   realpathSync = checkExists('realpathSync');
+
+  async exists(filePath: FilePath): Promise<boolean> {
+    return (
+      (await this.writable.exists(filePath)) || this.readable.exists(filePath)
+    );
+  }
 
   async readdir(path: FilePath): Promise<FilePath[]> {
     // Read from both filesystems and merge the results
