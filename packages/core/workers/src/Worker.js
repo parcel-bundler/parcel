@@ -8,8 +8,9 @@ import {jsonToError} from '@parcel/utils';
 import {getWorkerBackend} from './backend';
 
 export type WorkerCall = {|
-  method: string,
-  args: Array<any>,
+  method?: string,
+  handle?: number,
+  args: $ReadOnlyArray<any>,
   retries: number,
   resolve: (result: Promise<any> | any) => void,
   reject: (error: any) => void
@@ -99,6 +100,7 @@ export default class Worker extends EventEmitter {
       type: 'request',
       idx: idx,
       child: this.id,
+      handle: call.handle,
       method: call.method,
       args: call.args
     });

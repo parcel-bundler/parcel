@@ -1,5 +1,5 @@
 // @flow
-import type {MutableAsset} from '@parcel/types';
+import type {MutableAsset, PluginOptions} from '@parcel/types';
 import getBabelRc from './babelrc';
 import getEnvConfig from './env';
 import getJSXConfig from './jsx';
@@ -9,7 +9,10 @@ import path from 'path';
 const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
 const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 
-export default async function getBabelConfig(asset: MutableAsset) {
+export default async function getBabelConfig(
+  asset: MutableAsset,
+  options: PluginOptions
+) {
   // Consider the module source code rather than precompiled if the resolver
   // used the `source` field, or it is not in node_modules.
   let pkg = await asset.getPackage();
@@ -21,7 +24,7 @@ export default async function getBabelConfig(asset: MutableAsset) {
     ) || !asset.filePath.includes(NODE_MODULES);
 
   // Try to resolve a .babelrc file. If one is found, consider the module source code.
-  let babelrc = await getBabelRc(asset, pkg, isSource);
+  let babelrc = await getBabelRc(asset, pkg, isSource, options);
   isSource = isSource || !!babelrc;
 
   let result = {};

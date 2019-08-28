@@ -25,11 +25,7 @@ type ParcelPostCSSConfig = {
 };
 
 export default new Transformer({
-  async getConfig({
-    asset,
-    localRequire,
-    resolve
-  }): Promise<?ParcelPostCSSConfig> {
+  async getConfig({asset, resolve, options}): Promise<?ParcelPostCSSConfig> {
     let configFile: mixed = await asset.getConfig(
       ['.postcssrc', '.postcssrc.json', '.postcssrc.js', 'postcss.config.js'],
       {packageKey: 'postcss'}
@@ -72,14 +68,10 @@ export default new Transformer({
       delete configFilePlugins['postcss-modules'];
     }
 
-    let plugins = await loadPlugins(
-      localRequire,
-      configFilePlugins,
-      asset.filePath
-    );
+    let plugins = await loadPlugins(configFilePlugins, asset.filePath, options);
 
     if (originalModulesConfig) {
-      let postcssModules = await localRequire(
+      let postcssModules = await options.packageManager.require(
         'postcss-modules',
         asset.filePath
       );

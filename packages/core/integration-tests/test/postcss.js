@@ -6,8 +6,14 @@ const {
   assertBundles,
   distDir,
   inputFS,
-  outputFS
+  outputFS,
+  ncp
 } = require('@parcel/test-utils');
+const {
+  NodePackageManager,
+  MockPackageInstaller
+} = require('@parcel/package-manager');
+const {OverlayFS} = require('@parcel/fs');
 
 describe('postcss', () => {
   it('should support transforming css modules with postcss', async () => {
@@ -230,54 +236,49 @@ describe('postcss', () => {
     assert(composes6Classes[2].startsWith('_test-2_'));
   });
 
-  it('should automatically install postcss plugins with npm if needed', async () => {
-    await inputFS.rimraf(path.join(__dirname, '/input'));
-    await inputFS.ncp(
+  it('should automatically install postcss plugins if needed', async () => {
+    await outputFS.rimraf(path.join(__dirname, '/input'));
+    await ncp(
       path.join(__dirname, '/integration/postcss-autoinstall/npm'),
       path.join(__dirname, '/input')
     );
+
+    let packageInstaller = new MockPackageInstaller();
+    packageInstaller.register(
+      'postcss-test',
+      inputFS,
+      path.join(__dirname, '/integration/postcss-autoinstall/postcss-test')
+    );
+
+    // The package manager uses an overlay filesystem, which performs writes to
+    // an in-memory fs and reads first from memory, then falling back to the real fs.
+    let fs = new OverlayFS(outputFS, inputFS);
+    let packageManager = new NodePackageManager(fs, packageInstaller);
+
     await bundle(path.join(__dirname, '/input/index.css'), {
-      outputFS: inputFS
+      inputFS: outputFS,
+      packageManager
     });
 
     // cssnext was installed
-    let pkg = require('./input/package.json');
-    assert(pkg.devDependencies['postcss-cssnext']);
+    let pkg = JSON.parse(
+      await outputFS.readFile(
+        path.join(__dirname, '/input/package.json'),
+        'utf8'
+      )
+    );
+    assert(pkg.devDependencies['postcss-test']);
 
-    // peer dependency caniuse-lite was installed
-    assert(pkg.devDependencies['caniuse-lite']);
-
-    // cssnext is applied
-    let css = await inputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert(css.includes('rgba'));
+    // postcss-test is applied
+    let css = await outputFS.readFile(
+      path.join(outputFS.cwd(), 'dist', 'index.css'),
+      'utf8'
+    );
+    assert(css.includes('background: green'));
 
     // Increase the timeout for just this test. It takes a while with npm.
     // This method works with arrow functions, and doesn't seem to be documented
     // on the main Mocha docs.
     // https://stackoverflow.com/questions/15971167/how-to-increase-timeout-for-a-single-test-case-in-mocha
-  }).timeout(150000);
-
-  it('should automatically install postcss plugins with yarn if needed', async () => {
-    await inputFS.rimraf(path.join(__dirname, '/input'));
-    await inputFS.ncp(
-      path.join(__dirname, '/integration/postcss-autoinstall/yarn'),
-      path.join(__dirname, '/input')
-    );
-    await bundle(path.join(__dirname, '/input/index.css'));
-
-    // cssnext was installed
-    let pkg = require('./input/package.json');
-    assert(pkg.devDependencies['postcss-cssnext']);
-
-    // peer dependency caniuse-lite was installed
-    assert(pkg.devDependencies['caniuse-lite']);
-
-    // appveyor is not currently writing to the yarn.lock file and will require further investigation
-    // let lockfile = await fs.readFile(path.join(__dirname, '/input/yarn.lock'), 'utf8');
-    // assert(lockfile.includes('postcss-cssnext'));
-
-    // cssnext is applied
-    let css = await inputFS.readFile(path.join(distDir, 'index.css'), 'utf8');
-    assert(css.includes('rgba'));
   });
 });

@@ -4,6 +4,7 @@ import type {Readable} from 'stream';
 import type SourceMap from '@parcel/source-map';
 import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
+import type {PackageManager} from '@parcel/package-manager';
 
 import type {AST as _AST, Config as _Config} from './unsafe';
 
@@ -160,7 +161,8 @@ export type InitialParcelOptions = {|
 
   inputFS?: FileSystem,
   outputFS?: FileSystem,
-  workerFarm?: WorkerFarm
+  workerFarm?: WorkerFarm,
+  packageManager?: PackageManager
 
   // contentHash
   // throwErrors
@@ -184,6 +186,7 @@ export interface PluginOptions {
   +cacheDir: FilePath;
   +inputFS: FileSystem;
   +outputFS: FileSystem;
+  +packageManager: PackageManager;
 }
 
 export type ServerOptions = {|
@@ -345,32 +348,22 @@ export type Validator = {|
   validate({
     asset: Asset,
     config: Config | void,
-    localRequire: LocalRequire,
     options: PluginOptions,
     ...
   }): Async<void>,
   getConfig?: ({
     asset: Asset,
     resolveConfig: ResolveConfigFn,
-    localRequire: LocalRequire,
     options: PluginOptions,
     ...
   }) => Async<Config | void>
 |};
-
-export type LocalRequire = (
-  name: string,
-  path: FilePath,
-  triedInstall?: boolean
-  // $FlowFixMe
-) => Promise<any>;
 
 export type Transformer = {
   getConfig?: ({
     asset: MutableAsset,
     resolve: ResolveFn,
     options: PluginOptions,
-    localRequire: LocalRequire,
     ...
   }) => Async<Config | void>,
   canReuseAST?: ({
@@ -390,7 +383,6 @@ export type Transformer = {
     config: ?Config,
     resolve: ResolveFn,
     options: PluginOptions,
-    localRequire: LocalRequire,
     ...
   }): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({

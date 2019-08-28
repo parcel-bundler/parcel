@@ -4,16 +4,23 @@ import assert from 'assert';
 import path from 'path';
 import sinon from 'sinon';
 import logger from '@parcel/logger';
+import {inputFS} from '@parcel/test-utils';
+import {NodePackageManager} from '@parcel/package-manager';
+
+const packageManager = new NodePackageManager(inputFS);
 
 describe('ParcelConfig', () => {
   describe('matchGlobMap', () => {
-    let config = new ParcelConfig({
-      filePath: '.parcelrc',
-      packagers: {
-        '*.css': 'parcel-packager-css',
-        '*.js': 'parcel-packager-js'
-      }
-    });
+    let config = new ParcelConfig(
+      {
+        filePath: '.parcelrc',
+        packagers: {
+          '*.css': 'parcel-packager-css',
+          '*.js': 'parcel-packager-js'
+        }
+      },
+      packageManager
+    );
 
     it('should return null array if no glob matches', () => {
       let result = config.matchGlobMap('foo.wasm', config.packagers);
@@ -27,13 +34,16 @@ describe('ParcelConfig', () => {
   });
 
   describe('matchGlobMapPipelines', () => {
-    let config = new ParcelConfig({
-      filePath: '.parcelrc',
-      transforms: {
-        '*.jsx': ['parcel-transform-jsx', '...'],
-        '*.{js,jsx}': ['parcel-transform-js']
-      }
-    });
+    let config = new ParcelConfig(
+      {
+        filePath: '.parcelrc',
+        transforms: {
+          '*.jsx': ['parcel-transform-jsx', '...'],
+          '*.{js,jsx}': ['parcel-transform-js']
+        }
+      },
+      packageManager
+    );
 
     it('should return an empty array if no pipeline matches', () => {
       let pipeline = config.matchGlobMapPipelines('foo.css', config.transforms);
@@ -56,12 +66,15 @@ describe('ParcelConfig', () => {
 
   describe('loadPlugin', () => {
     it('should warn if a plugin needs to specify an engines.parcel field in package.json', async () => {
-      let config = new ParcelConfig({
-        filePath: path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
-        transforms: {
-          '*.js': ['parcel-transformer-no-engines']
-        }
-      });
+      let config = new ParcelConfig(
+        {
+          filePath: path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
+          transforms: {
+            '*.js': ['parcel-transformer-no-engines']
+          }
+        },
+        packageManager
+      );
 
       sinon.stub(logger, 'warn');
       let plugin = await config.loadPlugin('parcel-transformer-no-engines');
@@ -76,12 +89,15 @@ describe('ParcelConfig', () => {
     });
 
     it('should error if a plugin specifies an invalid engines.parcel field in package.json', async () => {
-      let config = new ParcelConfig({
-        filePath: path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
-        transforms: {
-          '*.js': ['parcel-transformer-bad-engines']
-        }
-      });
+      let config = new ParcelConfig(
+        {
+          filePath: path.join(__dirname, 'fixtures', 'plugins', '.parcelrc'),
+          transforms: {
+            '*.js': ['parcel-transformer-bad-engines']
+          }
+        },
+        packageManager
+      );
 
       let errored = false;
       try {

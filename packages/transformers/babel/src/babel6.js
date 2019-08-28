@@ -1,17 +1,20 @@
 // @flow
 
-import type {LocalRequire, MutableAsset, AST} from '@parcel/types';
+import type {MutableAsset, AST, PluginOptions} from '@parcel/types';
 
 import {babel6toBabel7} from './astConverter';
 
 export default async function babel6(
   asset: MutableAsset,
-  localRequire: LocalRequire,
-  options: any
+  options: PluginOptions,
+  babelOptions: any
 ): Promise<?AST> {
-  let babel = await localRequire('babel-core', asset.filePath);
+  let babel = await options.packageManager.require(
+    'babel-core',
+    asset.filePath
+  );
 
-  let config = options.config;
+  let config = babelOptions.config;
   config.code = false;
   config.ast = true;
   config.filename = asset.filePath;

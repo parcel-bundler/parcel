@@ -1,16 +1,16 @@
 // @flow
-import type {MutableAsset, PackageJSON} from '@parcel/types';
+import type {MutableAsset, PackageJSON, PluginOptions} from '@parcel/types';
 import semver from 'semver';
 import logger from '@parcel/logger';
 import path from 'path';
-import {localResolve} from '@parcel/local-require';
 // import installPackage from '@parcel/install-package';
 import micromatch from 'micromatch';
 
 export default async function getBabelConfig(
   asset: MutableAsset,
   pkg: ?PackageJSON,
-  isSource: boolean
+  isSource: boolean,
+  options: PluginOptions
 ) {
   let config = await getBabelRc(asset, pkg, isSource);
   if (!config) {
@@ -25,8 +25,8 @@ export default async function getBabelConfig(
     return null;
   }
 
-  let plugins = await installPlugins(asset, config);
-  let babelVersion = getBabelVersion(asset, pkg, plugins);
+  let plugins = await installPlugins(asset, config, options.packageManager);
+  let babelVersion = await getBabelVersion(asset, pkg, plugins);
 
   return {
     babelVersion,
@@ -264,20 +264,20 @@ function getMaxMajor(version) {
   }
 }
 
-function installPlugins(asset, babelrc) {
+function installPlugins(asset, babelrc, packageManager) {
   let presets = (babelrc.presets || []).map(p =>
-    resolveModule('preset', getPluginName(p), asset.filePath)
+    resolveModule('preset', getPluginName(p), asset.filePath, packageManager)
   );
   let plugins = (babelrc.plugins || []).map(p =>
-    resolveModule('plugin', getPluginName(p), asset.filePath)
+    resolveModule('plugin', getPluginName(p), asset.filePath, packageManager)
   );
   return Promise.all([...presets, ...plugins]);
 }
 
-async function resolveModule(type, name, path) {
+async function resolveModule(type, name, path, packageManager) {
   try {
     name = standardizeName(type, name);
-    let [, pkg] = await localResolve(name, path);
+    let {pkg} = await packageManager.resolve(name, path);
     return pkg;
   } catch (err) {
     return null;

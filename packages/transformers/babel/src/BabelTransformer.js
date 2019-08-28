@@ -9,22 +9,22 @@ import getBabelConfig from './config';
 import {relativeUrl} from '@parcel/utils';
 
 export default new Transformer({
-  getConfig({asset}) {
-    return getBabelConfig(asset);
+  getConfig({asset, options}) {
+    return getBabelConfig(asset, options);
   },
 
   canReuseAST({ast}) {
     return ast.type === 'babel' && semver.satisfies(ast.version, '^7.0.0');
   },
 
-  async transform({asset, config, localRequire}) {
+  async transform({asset, config, options}) {
     if (config) {
       if (config[6]) {
-        asset.ast = await babel6(asset, localRequire, config[6]);
+        asset.ast = await babel6(asset, options, config[6]);
       }
 
       if (config[7]) {
-        asset.ast = await babel7(asset, localRequire, config[7]);
+        asset.ast = await babel7(asset, options, config[7]);
       }
     }
 

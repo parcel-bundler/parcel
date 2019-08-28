@@ -35,6 +35,11 @@ export class NodeFS implements FileSystem {
   cwd = process.cwd;
   chdir = process.chdir;
 
+  readFileSync = fs.readFileSync;
+  statSync = fs.statSync;
+  realpathSync = fs.realpathSync;
+  existsSync = fs.existsSync;
+
   async realpath(originalPath: string): Promise<string> {
     try {
       return await realpath(originalPath, 'utf8');

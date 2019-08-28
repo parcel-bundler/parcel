@@ -1,40 +1,29 @@
 // @flow strict-local
 
-import type {FilePath} from '@parcel/types';
+import type {PackageInstaller, InstallerOptions} from './types';
 
 import fs from 'fs';
 import path from 'path';
 import spawn from 'cross-spawn';
 import logger from '@parcel/logger';
-
 import promiseFromProcess from './promiseFromProcess';
+import {registerSerializableClass} from '@parcel/utils';
+// $FlowFixMe
+import pkg from '../package.json';
 
 const NPM_CMD = 'npm';
 
-export default class Npm {
-  cwd: FilePath;
-  packageLocation: ?FilePath;
-
-  constructor({
+export class Npm implements PackageInstaller {
+  async install({
+    modules,
     cwd,
-    packageLocation
-  }: {
-    cwd: FilePath,
-    packageLocation: ?FilePath,
-    ...
-  }) {
-    this.cwd = cwd;
-    this.packageLocation = packageLocation;
-  }
-
-  async install(
-    modules: Array<string>,
-    saveDev: boolean = true
-  ): Promise<void> {
+    packagePath,
+    saveDev = true
+  }: InstallerOptions): Promise<void> {
     // npm doesn't auto-create a package.json when installing,
     // so create an empty one if needed.
-    if (this.packageLocation == null) {
-      await fs.writeFile(path.join(this.cwd, 'package.json'), '{}');
+    if (packagePath == null) {
+      await fs.writeFile(path.join(cwd, 'package.json'), '{}');
     }
 
     let args = [
@@ -44,7 +33,7 @@ export default class Npm {
       saveDev ? '--save-dev' : '--save'
     ];
 
-    let installProcess = spawn(NPM_CMD, args, {cwd: this.cwd});
+    let installProcess = spawn(NPM_CMD, args, {cwd});
     let stdout = '';
     installProcess.stdout.on('data', str => {
       stdout += str;
@@ -76,4 +65,8 @@ export default class Npm {
   }
 }
 
-type NPMResults = {added: Array<{name: string, ...}>, ...};
+type NPMResults = {|
+  added: Array<{name: string, ...}>
+|};
+
+registerSerializableClass(`${pkg.version}:Npm`, Npm);

@@ -12,7 +12,7 @@ import Parcel, {createWorkerFarm} from '@parcel/core';
 import defaultConfigContents from '@parcel/config-default';
 import assert from 'assert';
 import vm from 'vm';
-import {NodeFS, MemoryFS} from '@parcel/fs';
+import {NodeFS, MemoryFS, ncp as _ncp} from '@parcel/fs';
 import path from 'path';
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
@@ -20,6 +20,7 @@ import nullthrows from 'nullthrows';
 import {syncPromise} from '@parcel/utils';
 import _chalk from 'chalk';
 import resolve from 'resolve';
+import {NodePackageManager} from '@parcel/package-manager';
 
 const workerFarm = createWorkerFarm();
 export const inputFS = new NodeFS();
@@ -27,24 +28,7 @@ export const outputFS = new MemoryFS(workerFarm);
 
 // Recursively copies a directory from the inputFS to the outputFS
 export async function ncp(source: FilePath, destination: FilePath) {
-  await outputFS.mkdirp(destination);
-  let files = await inputFS.readdir(source);
-  for (let file of files) {
-    let sourcePath = path.join(source, file);
-    let destPath = path.join(destination, file);
-    let stats = await inputFS.stat(sourcePath);
-    if (stats.isFile()) {
-      await new Promise((resolve, reject) => {
-        inputFS
-          .createReadStream(sourcePath)
-          .pipe(outputFS.createWriteStream(destPath))
-          .on('finish', () => resolve())
-          .on('error', reject);
-      });
-    } else if (stats.isDirectory()) {
-      await ncp(sourcePath, destPath);
-    }
-  }
+  await _ncp(inputFS, source, outputFS, destination);
 }
 
 // Mocha is currently run with exit: true because of this issue preventing us
@@ -112,6 +96,7 @@ export function bundler(
     inputFS,
     outputFS,
     workerFarm,
+    packageManager: new NodePackageManager(inputFS),
     ...opts
   });
 }

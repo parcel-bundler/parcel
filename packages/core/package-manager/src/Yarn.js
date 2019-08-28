@@ -1,14 +1,16 @@
 // @flow strict-local
 
-import type {FilePath} from '@parcel/types';
+import type {PackageInstaller, InstallerOptions} from './types';
 
 import commandExists from 'command-exists';
 import spawn from 'cross-spawn';
 import logger from '@parcel/logger';
 import split from 'split2';
-
 import JSONParseStream from './JSONParseStream';
 import promiseFromProcess from './promiseFromProcess';
+import {registerSerializableClass} from '@parcel/utils';
+// $FlowFixMe
+import pkg from '../package.json';
 
 const YARN_CMD = 'yarn';
 
@@ -23,7 +25,7 @@ type YarnStdOutMessage =
     |}
   | {|+type: 'success', data: string|}
   | {|+type: 'info', data: string|}
-  | {+type: 'tree' | 'progressStart' | 'progressTick', ...};
+  | {|+type: 'tree' | 'progressStart' | 'progressTick'|};
 
 type YarnStdErrMessage = {|
   +type: 'error' | 'warning',
@@ -31,13 +33,7 @@ type YarnStdErrMessage = {|
 |};
 
 let hasYarn: ?boolean;
-export default class Yarn {
-  cwd: FilePath;
-
-  constructor({cwd}: {cwd: FilePath, ...}) {
-    this.cwd = cwd;
-  }
-
+export class Yarn implements PackageInstaller {
   static async exists(): Promise<boolean> {
     if (hasYarn != null) {
       return hasYarn;
@@ -52,16 +48,17 @@ export default class Yarn {
     return hasYarn;
   }
 
-  async install(
-    modules: Array<string>,
-    saveDev: boolean = true
-  ): Promise<void> {
+  async install({
+    modules,
+    cwd,
+    saveDev = true
+  }: InstallerOptions): Promise<void> {
     let args = ['add', '--json', ...modules];
     if (saveDev) {
       args.push('-D');
     }
 
-    let installProcess = spawn(YARN_CMD, args, {cwd: this.cwd});
+    let installProcess = spawn(YARN_CMD, args, {cwd});
     installProcess.stdout
       // Invoking yarn with --json provides streaming, newline-delimited JSON output.
       .pipe(split())
@@ -119,3 +116,5 @@ export default class Yarn {
 function prefix(message: string): string {
   return 'yarn: ' + message;
 }
+
+registerSerializableClass(`${pkg.version}:Yarn`, Yarn);
