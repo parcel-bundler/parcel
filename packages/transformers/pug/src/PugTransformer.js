@@ -10,12 +10,12 @@ export default new Transformer({
     return config;
   },
 
-  async transform({asset, localRequire, config}) {
+  async transform({asset, config, options}) {
     if (!config) {
       return [asset];
     }
 
-    const pug = await localRequire('pug', asset.filePath);
+    const pug = await options.packageManager.require('pug', asset.filePath);
     const html = pug.compileFile(asset.filePath, {
       degug: true,
       compileDebug: false,
