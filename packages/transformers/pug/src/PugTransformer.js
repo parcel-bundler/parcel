@@ -5,9 +5,12 @@ import {Transformer} from '@parcel/plugin';
 
 export default new Transformer({
   async getConfig({asset}) {
-    const config =
-      (await asset.getConfig(['.pugrc', '.pugrc.js', 'pug.config.js'])) || {};
-    return config;
+    const config = await asset.getConfig([
+      '.pugrc',
+      '.pugrc.js',
+      'pug.config.js'
+    ]);
+    return config || {};
   },
 
   async transform({asset, config, options}) {
@@ -16,19 +19,25 @@ export default new Transformer({
     }
 
     const pug = await options.packageManager.require('pug', asset.filePath);
-    const html = pug.compileFile(asset.filePath, {
+    const content = await asset.getCode();
+    const render = pug.compile(content, {
       degug: true,
       compileDebug: false,
-      filename: path.basename(asset.filePath),
+      basedir: path.dirname(asset.filePath),
+      filename: asset.filePath,
       pretty: config.pretty || false,
       doctype: config.doctype,
       filters: config.filters,
       filterOptions: config.filterOptions,
       filterAliases: config.filterAliases
-    })(config.locals);
+    });
+
+    for (let filePath of render.dependencies) {
+      await asset.addConnectedFile({filePath});
+    }
 
     asset.type = 'html';
-    asset.setCode(html);
+    asset.setCode(render(config.locals));
 
     return [asset];
   }
