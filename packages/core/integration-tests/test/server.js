@@ -6,6 +6,7 @@ const {
   getNextBuild,
   inputFS,
   outputFS,
+  overlayFS,
   defaultConfig,
   ncp
 } = require('@parcel/test-utils');
@@ -161,7 +162,7 @@ describe('server', function() {
     let entry = path.join(inputDir, 'index.js');
 
     let b = bundler(entry, {
-      inputFS: outputFS,
+      inputFS: overlayFS,
       config,
       serve: {
         https: false,
@@ -184,8 +185,6 @@ describe('server', function() {
     } catch (err) {
       statusCode = err.statusCode;
       assert(err.data.includes('Expecting Unicode escape sequence'));
-    } finally {
-      await subscription.unsubscribe();
     }
 
     assert.equal(statusCode, 500);

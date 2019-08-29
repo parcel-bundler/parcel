@@ -18,11 +18,16 @@ const {symlinkSync} = require('fs');
 
 const inputDir = path.join(__dirname, '/input');
 const distDir = path.join(inputDir, 'dist');
-//const distDir = path.join(__dirname, '../dist');
 
 describe('watcher', function() {
   let subscription;
-  beforeEach(async function() {
+
+  before(async () => {
+    await fs.rimraf(inputDir);
+    await fs.mkdirp(inputDir);
+  });
+
+  beforeEach(async () => {
     await outputFS.rimraf(inputDir);
   });
 
