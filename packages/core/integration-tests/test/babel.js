@@ -110,12 +110,12 @@ describe('babel', function() {
     assert(file.includes('function Bar'));
   });
 
-  // TODO: rework this test ?
-  it('should support splitting core-js using browserlist', async function() {
+  it('should only include necessary parts of core-js using browserlist', async function() {
     await bundle(path.join(__dirname, '/integration/babel-core-js/index.js'));
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
-    assert(file.includes('async function'));
+    assert(file.includes('async function Bar() {}'));
+    assert(file.includes('esnext.global-this'));
     assert(!file.includes('regenerator'));
   });
 
