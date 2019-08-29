@@ -380,16 +380,25 @@ const VISITOR = {
     // For each specifier, rename the local variables to point to the imported name.
     // This will be replaced by the final variable name of the resolved asset in the packager.
     for (let specifier of path.node.specifiers) {
-      let id = getIdentifier(asset, 'import', specifier.local.name);
-      rename(path.scope, specifier.local.name, id.name);
-
+      let imported;
       if (t.isImportDefaultSpecifier(specifier)) {
-        dep.symbols.set('default', id.name);
+        imported = 'default';
       } else if (t.isImportSpecifier(specifier)) {
-        dep.symbols.set(specifier.imported.name, id.name);
+        imported = specifier.imported.name;
       } else if (t.isImportNamespaceSpecifier(specifier)) {
-        dep.symbols.set('*', id.name);
+        imported = '*';
+      } else {
+        throw new Error('Unknown import construct');
       }
+
+      let id = getIdentifier(asset, 'import', specifier.local.name);
+      let existing = dep.symbols.get(imported);
+      if (existing) {
+        id.name = existing;
+      } else {
+        dep.symbols.set(imported, id.name);
+      }
+      rename(path.scope, specifier.local.name, id.name);
     }
 
     addImport(asset, path);
@@ -455,15 +464,20 @@ const VISITOR = {
           imported = '*';
         } else if (t.isExportSpecifier(specifier)) {
           imported = specifier.local.name;
+        } else {
+          throw new Error('Unknown export construct');
         }
 
         let id = getIdentifier(asset, 'import', exported.name);
-        asset.symbols.set(exported.name, id.name);
 
         let dep = asset
           .getDependencies()
           .find(dep => dep.moduleSpecifier === source.value);
         if (dep && imported) {
+          let existing = dep.symbols.get(imported);
+          if (existing) {
+            id.name = existing;
+          }
           // this will merge with the existing dependency
           asset.addDependency({
             moduleSpecifier: dep.moduleSpecifier,
@@ -471,6 +485,8 @@ const VISITOR = {
             isWeak: true
           });
         }
+
+        asset.symbols.set(exported.name, id.name);
 
         path.insertAfter(
           EXPORT_ASSIGN_TEMPLATE({

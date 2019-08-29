@@ -1,5 +1,5 @@
-import Foo from "./c.js";
-export { default as Other } from "./c.js";
+import Foo from "./d.js";
+export { default as Other } from "./d.js";
 export function foo() {
 	return Foo;
 }
