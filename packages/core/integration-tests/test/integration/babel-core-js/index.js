@@ -1,3 +1,4 @@
-export async function Bar() {}
+import 'core-js/stable';
+import 'regenerator-runtime/runtime';
 
-globalThis.foo = 'foo';
+export async function Bar() {}
