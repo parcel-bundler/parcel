@@ -16,7 +16,7 @@ describe('loadSourceMap', () => {
     assert(!matchSourceMappingURL(code));
   });
 
-  it('should match >>referenced<< sourceMappingURL when correctly inserted at end of the bundle', () => {
+  it('should match referenced sourceMappingURL when correctly inserted at end of the bundle', () => {
     let code = fs.readFileSync(
       path.join(__dirname, './input/sourcemap/referenced.js'),
       'utf-8'
@@ -25,7 +25,7 @@ describe('loadSourceMap', () => {
     assert(!!matchSourceMappingURL(code));
   });
 
-  it('should match >>inline<< sourceMappingURL when correctly inserted at end of the bundle', () => {
+  it('should match inline sourceMappingURL when correctly inserted at end of the bundle', () => {
     // inline source map taken from https://github.com/thlorenz/inline-source-map
     let code = fs.readFileSync(
       path.join(__dirname, './input/sourcemap/inline.js'),
