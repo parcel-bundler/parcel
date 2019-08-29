@@ -36,7 +36,7 @@ export default async function getEnvOptions(config: Config) {
       [
         '@parcel/babel-preset-env',
         {
-          useBuiltIns: 'entry',
+          useBuiltIns: 'usage',
           corejs: 3,
           shippedProposals: true
         }
