@@ -11,7 +11,8 @@ const {
   inputFS: fs,
   sleep,
   symlinkPrivilegeWarning,
-  outputFS
+  outputFS,
+  overlayFS
 } = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
 
@@ -61,7 +62,7 @@ describe('watcher', function() {
     let configPath = path.join(inputDir, '.parcelrc');
 
     let b = bundler(path.join(inputDir, 'index.js'), {
-      inputFS: outputFS,
+      inputFS: overlayFS,
       targets: {
         main: {
           engines: {
@@ -89,7 +90,7 @@ describe('watcher', function() {
     await ncp(path.join(__dirname, 'integration/babel-default'), inputDir);
 
     let b = bundler(path.join(inputDir, 'index.js'), {
-      inputFS: outputFS,
+      inputFS: overlayFS,
       targets: {
         main: {
           engines: {
