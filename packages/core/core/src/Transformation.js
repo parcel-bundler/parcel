@@ -260,7 +260,7 @@ export default class Transformation {
         let thirdPartyConfig = await this.loadTransformerConfig(
           filePath,
           moduleName,
-          result.resolvedPath
+          result.filePath
         );
 
         if (thirdPartyConfig.shouldRehydrate) {
