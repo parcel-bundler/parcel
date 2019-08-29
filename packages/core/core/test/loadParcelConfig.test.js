@@ -242,6 +242,12 @@ describe('loadParcelConfig', () => {
         '.parcelrc'
       );
     });
+
+    it('should throw error on empty config file', () => {
+      assert.throws(() => {
+        validateConfigFile({}, '.parcelrc');
+      }, /.parcelrc can't be empty/);
+    });
   });
 
   describe('mergePipelines', () => {
