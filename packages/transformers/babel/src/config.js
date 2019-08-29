@@ -24,7 +24,9 @@ export async function load(config: Config, options: PluginOptions) {
     cwd: path.dirname(config.searchPath),
     root: options.projectRoot
   });
-  if (partialConfig && partialConfig.hasFilesystemConfig()) {
+  if (partialConfig == null) {
+    return;
+  } else if (partialConfig.hasFilesystemConfig()) {
     let {babelrc, config: configjs} = partialConfig;
     let {canBeRehydrated, dependsOnRelative, dependsOnLocal} = getStats(
       partialConfig.options
