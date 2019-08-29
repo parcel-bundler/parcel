@@ -263,12 +263,12 @@ export default class Transformation {
           result.resolvedPath
         );
 
-        if (thirdPartyConfig.shouldRehydrate === true) {
+        if (thirdPartyConfig.shouldRehydrate) {
           await plugin.rehydrateConfig({
             config: new PublicConfig(thirdPartyConfig, this.options),
             options: this.options
           });
-        } else if (thirdPartyConfig.shouldReload === true) {
+        } else if (thirdPartyConfig.shouldReload) {
           await plugin.loadConfig({
             config: new PublicConfig(thirdPartyConfig, this.options),
             options: this.options
