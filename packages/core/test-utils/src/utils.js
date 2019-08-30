@@ -174,7 +174,7 @@ export async function run(
 
   vm.createContext(ctx);
   vm.runInContext(
-    await outputFS.readFile(nullthrows(bundle.filePath), 'utf8'),
+    await overlayFS.readFile(nullthrows(bundle.filePath), 'utf8'),
     ctx
   );
 
@@ -285,7 +285,7 @@ function prepareBrowserContext(filePath: FilePath, globals: mixed): vm$Context {
               if (el.tag === 'script') {
                 vm.runInContext(
                   syncPromise(
-                    outputFS.readFile(
+                    overlayFS.readFile(
                       path.join(path.dirname(filePath), el.src),
                       'utf8'
                     )
@@ -325,11 +325,11 @@ function prepareBrowserContext(filePath: FilePath, globals: mixed): vm$Context {
         return Promise.resolve({
           async arrayBuffer() {
             return new Uint8Array(
-              await outputFS.readFile(path.join(path.dirname(filePath), url))
+              await overlayFS.readFile(path.join(path.dirname(filePath), url))
             ).buffer;
           },
           text() {
-            return outputFS.readFile(
+            return overlayFS.readFile(
               path.join(path.dirname(filePath), url),
               'utf8'
             );
@@ -354,11 +354,11 @@ function prepareNodeContext(filePath, globals) {
       preserveSymlinks: true,
       extensions: ['.js', '.json'],
       readFileSync: (...args) => {
-        return syncPromise(outputFS.readFile(...args));
+        return syncPromise(overlayFS.readFile(...args));
       },
       isFile: file => {
         try {
-          var stat = syncPromise(outputFS.stat(file));
+          var stat = syncPromise(overlayFS.stat(file));
         } catch (err) {
           return false;
         }
@@ -366,7 +366,7 @@ function prepareNodeContext(filePath, globals) {
       },
       isDirectory: file => {
         try {
-          var stat = syncPromise(outputFS.stat(file));
+          var stat = syncPromise(overlayFS.stat(file));
         } catch (err) {
           return false;
         }
@@ -374,15 +374,15 @@ function prepareNodeContext(filePath, globals) {
       }
     });
 
-    // Shim FS module using outputFS
+    // Shim FS module using overlayFS
     if (res === 'fs') {
       return {
         readFile: async (file, encoding, cb) => {
-          let res = await outputFS.readFile(file, encoding);
+          let res = await overlayFS.readFile(file, encoding);
           cb(null, res);
         },
         readFileSync: (file, encoding) => {
-          return syncPromise(outputFS.readFile(file, encoding));
+          return syncPromise(overlayFS.readFile(file, encoding));
         }
       };
     }
@@ -399,7 +399,7 @@ function prepareNodeContext(filePath, globals) {
     nodeCache[res] = ctx;
 
     vm.createContext(ctx);
-    vm.runInContext(syncPromise(outputFS.readFile(res, 'utf8')), ctx);
+    vm.runInContext(syncPromise(overlayFS.readFile(res, 'utf8')), ctx);
     return ctx.module.exports;
   };
 
