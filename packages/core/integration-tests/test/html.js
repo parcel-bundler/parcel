@@ -617,12 +617,28 @@ describe('html', function() {
   it('should process inline styles', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-styles/index.html'),
-      {production: true}
+      {minify: true}
     );
 
     await assertBundles(b, [
       {
         name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
         assets: ['index.html']
       },
       {

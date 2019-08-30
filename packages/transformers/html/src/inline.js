@@ -25,6 +25,7 @@ export default function extractInlineAssets(
   // Extract inline <script> and <style> tags for processing.
   let parts = [];
   new PostHTML().walk.call(program, (node: PostHTMLNode) => {
+    let parcelKey = md5FromString(`${asset.id}:${key++}`);
     if (node.tag === 'script' || node.tag === 'style') {
       let value = node.content && node.content.join('').trim();
       if (value != null) {
@@ -55,7 +56,7 @@ export default function extractInlineAssets(
           node.attrs = {};
         }
 
-        let parcelKey = md5FromString(`${asset.id}:${key++}`);
+        // allow a script/style tag to declare its key
         if (node.attrs['data-parcel-key']) {
           parcelKey = node.attrs['data-parcel-key'];
         }
@@ -93,9 +94,12 @@ export default function extractInlineAssets(
       parts.push({
         type: 'css',
         code: node.attrs.style,
+        uniqueKey: parcelKey,
         isIsolated: true,
+        isInline: true,
         meta: {
           type: 'attr',
+          inlineKey: parcelKey,
           node
         }
       });
