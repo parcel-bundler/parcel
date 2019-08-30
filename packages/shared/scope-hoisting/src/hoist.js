@@ -482,7 +482,9 @@ const VISITOR = {
           asset.addDependency({
             moduleSpecifier: dep.moduleSpecifier,
             symbols: new Map([[imported, id.name]]),
-            isWeak: true
+            // `symbols` is empty if this dependency was added by JSTransformer/collectDependencies
+            // in that case, override `isWeak`
+            isWeak: dep.symbols.size === 0 ? true : dep.isWeak
           });
         }
 
