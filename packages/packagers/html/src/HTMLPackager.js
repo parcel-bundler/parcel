@@ -1,4 +1,5 @@
 // @flow strict-local
+import type {Blob} from '@parcel/types';
 
 import assert from 'assert';
 import {Packager} from '@parcel/plugin';
@@ -60,7 +61,7 @@ async function getAssetContent(
   bundleGraph: BundleGraph,
   getBundleResult,
   assetId
-) {
+): Promise<?Blob> {
   let inlineBundle: ?Bundle;
   bundleGraph.traverseBundles((bundle, context, {stop}) => {
     let mainAsset = bundle.getMainEntry();
@@ -99,7 +100,7 @@ async function replaceInlineAssetContent(
       node.attrs['data-parcel-key']
     );
 
-    if (newContent) {
+    if (newContent == null) {
       node.content = newContent;
 
       if (node.attrs['parcel-should-delete-type'] === 'true') {

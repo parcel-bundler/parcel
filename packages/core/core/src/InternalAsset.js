@@ -47,7 +47,7 @@ type AssetOptions = {|
   stats: Stats,
   symbols?: Map<Symbol, Symbol>,
   sideEffects?: boolean,
-  uniqueKey?: string
+  uniqueKey?: ?string
 |};
 
 export function createAsset(options: AssetOptions): Asset {

@@ -52,39 +52,36 @@ export default class PackagerRunner {
   async getBundleResult(
     bundle: InternalBundle,
     bundleGraph: InternalBundleGraph
-  ): Promise<any> {
+  ): Promise<{|contents: Blob, map: Readable | string | null|}> {
     let result, cacheKey;
     if (!this.options.disableCache) {
       cacheKey = await this.getCacheKey(bundle, bundleGraph);
-      let cacheResult: ?{
+      let cacheResult: ?{|
         contents: Readable,
-        map: ?Readable,
-        ...
-      } = await this.readFromCache(cacheKey);
+        map: ?Readable
+      |} = await this.readFromCache(cacheKey);
 
       if (cacheResult) {
         result = cacheResult;
       }
     }
 
-    if (!result) {
-      let packaged = await this.package(bundle, bundleGraph);
-      let res = await this.optimize(
-        bundle,
-        bundleGraph,
-        packaged.contents,
-        packaged.map
-      );
+    let packaged = await this.package(bundle, bundleGraph);
+    let res = await this.optimize(
+      bundle,
+      bundleGraph,
+      packaged.contents,
+      packaged.map
+    );
 
-      let map = res.map ? await this.generateSourceMap(bundle, res.map) : null;
-      result = {
-        contents: res.contents,
-        map
-      };
+    let map = res.map ? await this.generateSourceMap(bundle, res.map) : null;
+    result = {
+      contents: res.contents,
+      map
+    };
 
-      if (cacheKey != null) {
-        await this.writeToCache(cacheKey, result.contents, map);
-      }
+    if (cacheKey != null) {
+      await this.writeToCache(cacheKey, result.contents, map);
     }
 
     return result;
@@ -277,11 +274,10 @@ export default class PackagerRunner {
 
   async readFromCache(
     cacheKey: string
-  ): Promise<?{
+  ): Promise<?{|
     contents: Readable,
-    map: ?Readable,
-    ...
-  }> {
+    map: ?Readable
+  |}> {
     let contentKey = md5FromString(`${cacheKey}:content`);
     let mapKey = md5FromString(`${cacheKey}:map`);
 
