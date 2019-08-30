@@ -679,12 +679,16 @@ describe('html', function() {
   it('should process inline non-js scripts', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-coffeescript/index.html'),
-      {production: true}
+      {minify: true}
     );
 
     await assertBundles(b, [
       {
         name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
         assets: ['index.html']
       }
     ]);
