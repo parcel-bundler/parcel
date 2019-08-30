@@ -101,6 +101,12 @@ async function replaceInlineAssetContent(
 
     if (newContent) {
       node.content = newContent;
+
+      if (node.attrs['parcel-should-delete-type'] === 'true') {
+        delete node.attrs.type;
+        delete node.attrs['parcel-should-delete-type'];
+      }
+
       // remove attr from output
       delete node.attrs['data-parcel-key'];
     }

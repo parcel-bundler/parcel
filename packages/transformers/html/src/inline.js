@@ -60,6 +60,16 @@ export default function extractInlineAssets(
           parcelKey = node.attrs['data-parcel-key'];
         }
 
+        // Inform packager to remove type, since CSS and JS are the defaults.
+        // Unless it's application/ld+json
+        if (
+          node.attrs &&
+          (node.tag === 'style' ||
+            (node.attrs.type && SCRIPT_TYPES[node.attrs.type] === 'js'))
+        ) {
+          node.attrs['parcel-should-delete-type'] = 'true';
+        }
+
         // insert parcelId to allow us to retrieve node during packaging
         node.attrs['data-parcel-key'] = parcelKey;
 

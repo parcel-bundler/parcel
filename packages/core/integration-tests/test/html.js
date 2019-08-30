@@ -639,13 +639,19 @@ describe('html', function() {
   it('should process inline styles using lang', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-sass/index.html'),
-      {production: true}
+      {minify: true}
     );
 
-    await assertBundles(b, {
-      name: 'index.html',
-      assets: ['index.html']
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'css',
+        assets: ['index.html']
+      }
+    ]);
 
     let html = await outputFS.readFile(
       path.join(distDir, 'index.html'),
