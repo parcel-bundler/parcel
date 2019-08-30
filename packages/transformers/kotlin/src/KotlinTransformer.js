@@ -5,11 +5,11 @@ import path from 'path';
 import os from 'os';
 
 export default new Transformer({
-  async transform({asset, localRequire, options}) {
+  async transform({asset, options}) {
     asset.type = 'js';
 
     // require kotlin
-    const kotlinCompiler = await localRequire(
+    const kotlinCompiler = await options.packageManager.require(
       '@jetbrains/kotlinc-js-api',
       asset.filePath
     );
