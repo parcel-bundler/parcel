@@ -2,7 +2,7 @@ import semver from 'semver';
 
 const COMPATIBLE_PARCEL_BABEL_TRANSFORMER_SEMVER = '^2.0.0-alpha.1.1';
 
-module.exports = function(api, opts) {
+export default function parcelBabelPresetEnv(api, opts) {
   let name = api.caller(caller => caller && caller.name);
   let version = api.caller(caller => caller && caller.version);
 
@@ -33,4 +33,4 @@ module.exports = function(api, opts) {
   return {
     presets: [['@babel/preset-env', opts]]
   };
-};
+}
