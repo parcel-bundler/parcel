@@ -3,9 +3,9 @@
 import {Transformer} from '@parcel/plugin';
 
 export default new Transformer({
-  async transform({asset, localRequire}) {
+  async transform({asset, options}) {
     asset.type = 'js';
-    const bsb = await localRequire('bsb-js', asset.filePath);
+    const bsb = await options.packageManager.require('bsb-js', asset.filePath);
 
     // This runs BuckleScript - the Reason to JS compiler.
     // Other Asset types use `localRequire` but the `bsb-js` package already
