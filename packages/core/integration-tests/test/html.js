@@ -724,21 +724,27 @@ describe('html', function() {
     assert(!html.includes('@import'));
   });
 
-  it.skip('should error on imports and requires in inline <script> tags', async function() {
-    let err;
-    try {
-      await bundle(
-        path.join(__dirname, '/integration/html-inline-js-require/index.html'),
-        {production: true}
-      );
-    } catch (e) {
-      err = e;
-    }
-
-    assert(err);
-    assert.equal(
-      err.message,
-      'Imports and requires are not supported inside inline <script> tags yet.'
+  it('should allow imports and requires in inline <script> tags', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/html-inline-js-require/index.html'),
+      {minify: true}
     );
+
+    await assertBundles(b, [
+      {
+        name: 'index.html',
+        assets: ['index.html']
+      },
+      {
+        type: 'js',
+        assets: ['index.html', 'test.js']
+      }
+    ]);
+
+    let html = await outputFS.readFile(
+      path.join(distDir, 'index.html'),
+      'utf8'
+    );
+    assert(html.includes('console.log("test")'));
   });
 });
