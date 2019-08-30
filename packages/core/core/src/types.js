@@ -75,7 +75,8 @@ export type Asset = {|
   contentKey: ?string,
   mapKey: ?string,
   symbols: Map<Symbol, Symbol>,
-  sideEffects: boolean
+  sideEffects: boolean,
+  uniqueKey?: ?string
 |};
 
 export type ParcelOptions = {|

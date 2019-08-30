@@ -28,7 +28,6 @@ export default function extractInlineAssets(
     if (node.tag === 'script' || node.tag === 'style') {
       let value = node.content && node.content.join('').trim();
       if (value != null) {
-        let parcelKey = md5FromString(`${asset.id}:${key++}`);
         let type;
 
         if (node.tag === 'style') {
@@ -56,12 +55,18 @@ export default function extractInlineAssets(
           node.attrs = {};
         }
 
+        let parcelKey = md5FromString(`${asset.id}:${key++}`);
+        if (node.attrs['data-parcel-key']) {
+          parcelKey = node.attrs['data-parcel-key'];
+        }
+
         // insert parcelId to allow us to retrieve node during packaging
         node.attrs['data-parcel-key'] = parcelKey;
 
         parts.push({
           type,
           code: value,
+          uniqueKey: parcelKey,
           isIsolated: true,
           isInline: true,
           meta: {

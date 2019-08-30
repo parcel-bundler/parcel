@@ -375,6 +375,7 @@ export interface TransformerResult {
   meta?: Meta;
   symbols?: Map<Symbol, Symbol>;
   sideEffects?: boolean;
+  uniqueKey?: ?string;
 }
 
 type Async<T> = T | Promise<T>;

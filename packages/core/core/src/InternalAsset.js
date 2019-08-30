@@ -46,16 +46,20 @@ type AssetOptions = {|
   meta?: Meta,
   stats: Stats,
   symbols?: Map<Symbol, Symbol>,
-  sideEffects?: boolean
+  sideEffects?: boolean,
+  uniqueKey?: string
 |};
 
 export function createAsset(options: AssetOptions): Asset {
   let idBase = options.idBase != null ? options.idBase : options.filePath;
+  let uniqueKey = options.uniqueKey || '';
   return {
     id:
       options.id != null
         ? options.id
-        : md5FromString(idBase + options.type + JSON.stringify(options.env)),
+        : md5FromString(
+            idBase + options.type + JSON.stringify(options.env) + uniqueKey
+          ),
     hash: options.hash,
     filePath: options.filePath,
     isIsolated: options.isIsolated == null ? false : options.isIsolated,
@@ -70,7 +74,8 @@ export function createAsset(options: AssetOptions): Asset {
     meta: options.meta || {},
     stats: options.stats,
     symbols: options.symbols || new Map(),
-    sideEffects: options.sideEffects != null ? options.sideEffects : true
+    sideEffects: options.sideEffects != null ? options.sideEffects : true,
+    uniqueKey: uniqueKey
   };
 }
 
@@ -286,7 +291,8 @@ export default class InternalAsset {
           size
         },
         symbols: new Map([...this.value.symbols, ...(result.symbols || [])]),
-        sideEffects: result.sideEffects ?? this.value.sideEffects
+        sideEffects: result.sideEffects ?? this.value.sideEffects,
+        uniqueKey: result.uniqueKey
       }),
       options: this.options,
       content,

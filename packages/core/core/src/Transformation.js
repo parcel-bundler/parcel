@@ -518,7 +518,11 @@ async function finalize(
 ): Promise<InternalAsset> {
   if (asset.ast && generate) {
     let result = await generate(new MutableAsset(asset));
-    return asset.createChildAsset({type: asset.value.type, ...result});
+    return asset.createChildAsset({
+      type: asset.value.type,
+      uniqueKey: asset.value.uniqueKey,
+      ...result
+    });
   }
   return asset;
 }
@@ -544,7 +548,8 @@ function normalizeAssets(
       env: result.env,
       isIsolated: result.isIsolated,
       isInline: result.isInline,
-      meta: result.meta
+      meta: result.meta,
+      uniqueKey: internalAsset.value.uniqueKey
     };
   });
 }
