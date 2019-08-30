@@ -20,8 +20,9 @@ import type {
   Stats,
   Symbol,
   TargetSourceMapOptions,
-  Config as ThirdPartyConfig
+  ConfigResult
 } from '@parcel/types';
+
 import type {FileSystem} from '@parcel/fs';
 import type Cache from '@parcel/cache';
 import type {PackageManager} from '@parcel/package-manager';
@@ -64,7 +65,7 @@ export type Asset = {|
   filePath: FilePath,
   type: string,
   dependencies: Map<string, Dependency>,
-  connectedFiles: Map<FilePath, File>,
+  includedFiles: Map<FilePath, File>,
   isIsolated: boolean,
   outputHash: string,
   env: Environment,
@@ -182,9 +183,10 @@ export type ConfigRequestNode = {|
 
 export type Config = {|
   searchPath: FilePath,
+  env: Environment,
   resolvedPath: ?FilePath,
   resultHash: ?string,
-  result: ThirdPartyConfig,
+  result: ConfigResult,
   includedFiles: Set<FilePath>,
   pkg: ?PackageJSON,
   watchGlob: ?Glob,
@@ -196,6 +198,7 @@ export type Config = {|
 
 export type ConfigRequest = {|
   filePath: FilePath,
+  env: Environment,
   plugin?: PackageName,
   //$FlowFixMe will lock this down more in a future commit
   meta: any,

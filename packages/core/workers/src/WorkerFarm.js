@@ -15,10 +15,12 @@ import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import EventEmitter from 'events';
 import {
+  deserialize,
   errorToJson,
   jsonToError,
   prepareForSerialization,
-  restoreDeserializedObject
+  restoreDeserializedObject,
+  serialize
 } from '@parcel/utils';
 import Worker, {type WorkerCall} from './Worker';
 import cpuCount from './cpuCount';
@@ -93,15 +95,17 @@ export default class WorkerFarm extends EventEmitter {
   }
 
   workerApi = {
-    callMaster: (
+    callMaster: async (
       request: CallRequest,
       awaitResponse: ?boolean = true
-    ): Promise<mixed> =>
+    ): Promise<mixed> => {
       // $FlowFixMe
-      this.processRequest({
+      let result = await this.processRequest({
         ...request,
         awaitResponse
-      }),
+      });
+      return deserialize(serialize(result));
+    },
     createReverseHandle: (fn: HandleFunction): Handle =>
       this.createReverseHandle(fn),
     callChild: (childId: number, request: HandleCallRequest): Promise<mixed> =>

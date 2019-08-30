@@ -6,10 +6,10 @@ import type {FileSystem} from '@parcel/fs';
 import type WorkerFarm from '@parcel/workers';
 import type {PackageManager} from '@parcel/package-manager';
 
-import type {AST as _AST, Config as _Config} from './unsafe';
+import type {AST as _AST, ConfigResult as _ConfigResult} from './unsafe';
 
 export type AST = _AST;
-export type Config = _Config;
+export type ConfigResult = _ConfigResult;
 
 export type JSONValue =
   | null
@@ -50,7 +50,7 @@ export type ResolvedParcelConfigFile = ParcelConfigFile & {
 };
 
 export type Engines = {
-  browsers?: Array<string>,
+  browsers?: string | Array<string>,
   electron?: SemverRange,
   node?: SemverRange,
   parcel?: SemverRange,
@@ -276,7 +276,7 @@ interface BaseAsset {
   getBuffer(): Promise<Buffer>;
   getStream(): Readable;
   getMap(): Promise<?SourceMap>;
-  getConnectedFiles(): $ReadOnlyArray<File>;
+  getIncludedFiles(): $ReadOnlyArray<File>;
   getDependencies(): $ReadOnlyArray<Dependency>;
   getConfig(
     filePaths: Array<FilePath>,
@@ -285,7 +285,7 @@ interface BaseAsset {
       parse?: boolean,
       ...
     }
-  ): Promise<Config | null>;
+  ): Promise<ConfigResult | null>;
   getPackage(): Promise<PackageJSON | null>;
 }
 
@@ -299,7 +299,7 @@ export interface MutableAsset extends BaseAsset {
   setCode(string): void;
   setBuffer(Buffer): void;
   setStream(Readable): void;
-  addConnectedFile(file: File): Promise<void>;
+  addIncludedFile(file: File): Promise<void>;
   addDependency(opts: DependencyOptions): string;
   addURLDependency(url: string, opts: $Shape<DependencyOptions>): string;
 }
@@ -307,6 +307,43 @@ export interface MutableAsset extends BaseAsset {
 export interface Asset extends BaseAsset {
   +outputHash: string;
   +stats: Stats;
+}
+
+export interface Config {
+  +searchPath: FilePath;
+  +result: ConfigResult;
+  +env: Environment;
+
+  setResolvedPath(filePath: FilePath): void;
+  setResult(result: ConfigResult): void; // TODO: fix
+  setResultHash(resultHash: string): void;
+  addIncludedFile(filePath: FilePath): void;
+  addDevDependency(name: PackageName, version?: Semver): void;
+  setWatchGlob(glob: string): void;
+  getConfigFrom(
+    searchPath: FilePath,
+    filePaths: Array<FilePath>,
+    options: ?{
+      packageKey?: string,
+      parse?: boolean,
+      exclude?: boolean,
+      ...
+    }
+  ): Promise<ConfigResult | null>;
+  getConfig(
+    filePaths: Array<FilePath>,
+    options: ?{
+      packageKey?: string,
+      parse?: boolean,
+      exclude?: boolean,
+      ...
+    }
+  ): Promise<ConfigResult | null>;
+  getPackage(): Promise<PackageJSON | null>;
+  isSource(): Promise<boolean>;
+  shouldRehydrate(): void;
+  shouldReload(): void;
+  shouldInvalidateOnStartup(): void;
 }
 
 export type Stats = {|
@@ -328,7 +365,7 @@ export interface TransformerResult {
   content?: Blob;
   ast?: ?AST;
   dependencies?: $ReadOnlyArray<DependencyOptions>;
-  connectedFiles?: $ReadOnlyArray<File>;
+  includedFiles?: $ReadOnlyArray<File>;
   isIsolated?: boolean;
   env?: EnvironmentOpts;
   meta?: Meta;
@@ -347,7 +384,7 @@ type ResolveConfigFn = (
 export type Validator = {|
   validate({
     asset: Asset,
-    config: Config | void,
+    config: ConfigResult | void,
     options: PluginOptions,
     ...
   }): Async<void>,
@@ -356,16 +393,27 @@ export type Validator = {|
     resolveConfig: ResolveConfigFn,
     options: PluginOptions,
     ...
-  }) => Async<Config | void>
+  }) => Async<ConfigResult | void>
 |};
 
 export type Transformer = {
+  // TODO: deprecate getConfig
   getConfig?: ({
     asset: MutableAsset,
     resolve: ResolveFn,
     options: PluginOptions,
     ...
-  }) => Async<Config | void>,
+  }) => Async<ConfigResult | void>,
+  loadConfig?: ({
+    config: Config,
+    options: PluginOptions,
+    ...
+  }) => Async<void>,
+  rehydrateConfig?: ({
+    config: Config,
+    options: PluginOptions,
+    ...
+  }) => Async<void>,
   canReuseAST?: ({
     ast: AST,
     options: PluginOptions,
@@ -373,28 +421,28 @@ export type Transformer = {
   }) => boolean,
   parse?: ({
     asset: MutableAsset,
-    config: ?Config,
+    config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions,
     ...
   }) => Async<?AST>,
   transform({
     asset: MutableAsset,
-    config: ?Config,
+    config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions,
     ...
   }): Async<Array<TransformerResult | MutableAsset>>,
   generate?: ({
     asset: MutableAsset,
-    config: ?Config,
+    config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions,
     ...
   }) => Async<GenerateOutput>,
   postProcess?: ({
     assets: Array<MutableAsset>,
-    config: ?Config,
+    config: ?ConfigResult,
     resolve: ResolveFn,
     options: PluginOptions,
     ...

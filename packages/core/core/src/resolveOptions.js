@@ -39,11 +39,11 @@ export default async function resolveOptions(
       : getRootDir(entries);
 
   let projectRootFile =
-    (await resolveConfig(inputFS, path.join(inputFS.cwd(), 'index'), [
+    (await resolveConfig(inputFS, path.join(rootDir, 'index'), [
       ...LOCK_FILE_NAMES,
       '.git',
       '.hg'
-    ])) || path.join(inputFS.cwd(), 'index');
+    ])) || path.join(inputFS.cwd(), 'index'); // ? Should this just be rootDir
 
   let lockFile = null;
   let rootFileName = path.basename(projectRootFile);

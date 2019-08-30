@@ -10,8 +10,8 @@ import type {
 } from './types';
 import type ParcelConfig from './ParcelConfig';
 
-import nullthrows from 'nullthrows';
 import path from 'path';
+import nullthrows from 'nullthrows';
 import {resolveConfig} from '@parcel/utils';
 
 import {report} from './ReporterRunner';
@@ -60,11 +60,13 @@ export default class Validation {
     });
 
     let asset = await this.loadAsset();
+
     let configRequest = {
       filePath: this.request.filePath,
       meta: {
         actionType: 'validation'
-      }
+      },
+      env: this.request.env
     };
 
     let config = await this.loadConfig(configRequest);

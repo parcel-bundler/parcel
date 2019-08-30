@@ -99,8 +99,7 @@ describe('sourcemaps', function() {
 
     let sourceMap = await new SourceMap().addMap(map);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
-    let sourcePath =
-      'packages/core/integration-tests/test/integration/sourcemap/index.js';
+    let sourcePath = 'integration/sourcemap/index.js';
     assert.equal(Object.keys(sourceMap.sources).length, 1);
     assert.strictEqual(sourceMap.sources[sourcePath], null);
 
@@ -148,14 +147,13 @@ describe('sourcemaps', function() {
     let sourceRoot = map.sourceRoot;
     assert.equal(
       sourceRoot,
-      '../../../../../../../',
+      '../../../',
       'sourceRoot should be the root of the source files, relative to the output directory.'
     );
 
     let sourceMap = await new SourceMap().addMap(map);
     let input = await inputFS.readFile(sourceFilename, 'utf8');
-    let sourcePath =
-      'packages/core/integration-tests/test/integration/sourcemap-node/index.js';
+    let sourcePath = 'integration/sourcemap-node/index.js';
     assert.equal(Object.keys(sourceMap.sources).length, 1);
     assert.strictEqual(sourceMap.sources[sourcePath], null);
     assert(
@@ -205,7 +203,7 @@ describe('sourcemaps', function() {
     let sourceRoot = map.sourceRoot;
     assert.equal(
       sourceRoot,
-      '../../../../../../../',
+      '../../../',
       'sourceRoot should be the root of the source files, relative to the output directory.'
     );
 
@@ -231,8 +229,7 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'const local',
-      sourcePath:
-        'packages/core/integration-tests/test/integration/sourcemap-nested/index.js'
+      sourcePath: 'integration/sourcemap-nested/index.js'
     });
 
     checkSourceMapping({
@@ -240,8 +237,7 @@ describe('sourcemaps', function() {
       source: inputs[0],
       generated: raw,
       str: 'local.a',
-      sourcePath:
-        'packages/core/integration-tests/test/integration/sourcemap-nested/index.js'
+      sourcePath: 'integration/sourcemap-nested/index.js'
     });
 
     checkSourceMapping({
@@ -249,8 +245,7 @@ describe('sourcemaps', function() {
       source: inputs[1],
       generated: raw,
       str: 'exports.a',
-      sourcePath:
-        'packages/core/integration-tests/test/integration/sourcemap-nested/local.js'
+      sourcePath: 'integration/sourcemap-nested/local.js'
     });
 
     checkSourceMapping({
@@ -259,8 +254,7 @@ describe('sourcemaps', function() {
       generated: raw,
       str: 'exports.count = function(a, b) {',
       generatedStr: 'exports.count = function (a, b) {',
-      sourcePath:
-        'packages/core/integration-tests/test/integration/sourcemap-nested/utils/util.js'
+      sourcePath: 'integration/sourcemap-nested/utils/util.js'
     });
 
     checkSourceMapping({
@@ -268,8 +262,7 @@ describe('sourcemaps', function() {
       source: inputs[2],
       generated: raw,
       str: 'return a + b',
-      sourcePath:
-        'packages/core/integration-tests/test/integration/sourcemap-nested/utils/util.js'
+      sourcePath: 'integration/sourcemap-nested/utils/util.js'
     });
   });
 

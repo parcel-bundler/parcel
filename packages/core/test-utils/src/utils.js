@@ -12,7 +12,7 @@ import Parcel, {createWorkerFarm} from '@parcel/core';
 import defaultConfigContents from '@parcel/config-default';
 import assert from 'assert';
 import vm from 'vm';
-import {NodeFS, MemoryFS, ncp as _ncp} from '@parcel/fs';
+import {NodeFS, MemoryFS, OverlayFS, ncp as _ncp} from '@parcel/fs';
 import path from 'path';
 import WebSocket from 'ws';
 import nullthrows from 'nullthrows';
@@ -25,6 +25,7 @@ import {NodePackageManager} from '@parcel/package-manager';
 const workerFarm = createWorkerFarm();
 export const inputFS = new NodeFS();
 export const outputFS = new MemoryFS(workerFarm);
+export const overlayFS = new OverlayFS(outputFS, inputFS);
 
 // Recursively copies a directory from the inputFS to the outputFS
 export async function ncp(source: FilePath, destination: FilePath) {

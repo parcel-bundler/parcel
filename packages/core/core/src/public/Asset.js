@@ -8,7 +8,7 @@ import type {FileSystem} from '@parcel/fs';
 import type {
   Asset as IAsset,
   AST,
-  Config,
+  ConfigResult,
   Dependency as IDependency,
   DependencyOptions,
   Environment as IEnvironment,
@@ -104,12 +104,12 @@ class BaseAsset {
       parse?: boolean,
       ...
     }
-  ): Promise<Config | null> {
+  ): Promise<ConfigResult | null> {
     return this.#asset.getConfig(filePaths, options);
   }
 
-  getConnectedFiles(): $ReadOnlyArray<File> {
-    return this.#asset.getConnectedFiles();
+  getIncludedFiles(): $ReadOnlyArray<File> {
+    return this.#asset.getIncludedFiles();
   }
 
   getDependencies(): $ReadOnlyArray<IDependency> {
@@ -194,8 +194,8 @@ export class MutableAsset extends BaseAsset implements IMutableAsset {
     return this.#asset.addDependency(dep);
   }
 
-  addConnectedFile(file: File): Promise<void> {
-    return this.#asset.addConnectedFile(file);
+  addIncludedFile(file: File): Promise<void> {
+    return this.#asset.addIncludedFile(file);
   }
 
   setBuffer(buffer: Buffer): void {

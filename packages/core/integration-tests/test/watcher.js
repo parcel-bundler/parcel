@@ -9,19 +9,25 @@ const {
   nextBundle,
   ncp,
   inputFS: fs,
-  outputFS
+  sleep,
+  symlinkPrivilegeWarning,
+  outputFS,
+  overlayFS
 } = require('@parcel/test-utils');
-const {sleep} = require('@parcel/test-utils');
-const {symlinkPrivilegeWarning} = require('@parcel/test-utils');
 const {symlinkSync} = require('fs');
 
 const inputDir = path.join(__dirname, '/input');
 const distDir = path.join(inputDir, 'dist');
-//const distDir = path.join(__dirname, '../dist');
 
 describe('watcher', function() {
   let subscription;
-  beforeEach(async function() {
+
+  before(async () => {
+    await fs.rimraf(inputDir);
+    await fs.mkdirp(inputDir);
+  });
+
+  beforeEach(async () => {
     await outputFS.rimraf(inputDir);
   });
 
@@ -61,7 +67,7 @@ describe('watcher', function() {
     let configPath = path.join(inputDir, '.parcelrc');
 
     let b = bundler(path.join(inputDir, 'index.js'), {
-      inputFS: outputFS,
+      inputFS: overlayFS,
       targets: {
         main: {
           engines: {
@@ -89,7 +95,7 @@ describe('watcher', function() {
     await ncp(path.join(__dirname, 'integration/babel-default'), inputDir);
 
     let b = bundler(path.join(inputDir, 'index.js'), {
-      inputFS: outputFS,
+      inputFS: overlayFS,
       targets: {
         main: {
           engines: {

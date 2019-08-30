@@ -1,10 +1,10 @@
 import assert from 'assert';
 import path from 'path';
-import {bundle as _bundle, outputFS, ncp} from '@parcel/test-utils';
+import {bundle as _bundle, overlayFS, outputFS, ncp} from '@parcel/test-utils';
 
 function bundle(path) {
   return _bundle(path, {
-    inputFS: outputFS,
+    inputFS: overlayFS,
     disableCache: false
   });
 }

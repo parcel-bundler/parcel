@@ -1,144 +1,226 @@
 // @flow
-import type {MutableAsset, PluginOptions} from '@parcel/types';
-import getBabelRc from './babelrc';
-import getEnvConfig from './env';
-import getJSXConfig from './jsx';
-import getFlowConfig from './flow';
+
+import type {Config, PluginOptions} from '@parcel/types';
+import type {BabelConfig} from './types';
+
+import nullthrows from 'nullthrows';
 import path from 'path';
+import {loadPartialConfig, createConfigItem} from '@babel/core';
+import {md5FromObject} from '@parcel/utils';
+import logger from '@parcel/logger';
+
+import getEnvOptions from './env';
+import getJSXOptions from './jsx';
+import getFlowOptions from './flow';
+import getTypescriptOptions from './typescript';
+import {enginesToBabelTargets} from './utils';
 
 const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
-const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
+const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 
-export default async function getBabelConfig(
-  asset: MutableAsset,
-  options: PluginOptions
-) {
-  // Consider the module source code rather than precompiled if the resolver
-  // used the `source` field, or it is not in node_modules.
-  let pkg = await asset.getPackage();
-  let isSource =
-    !!(
-      pkg &&
-      pkg.source &&
-      (await asset.fs.realpath(asset.filePath)) !== asset.filePath
-    ) || !asset.filePath.includes(NODE_MODULES);
+export async function load(config: Config, options: PluginOptions) {
+  let partialConfig = loadPartialConfig({
+    filename: config.searchPath,
+    cwd: path.dirname(config.searchPath),
+    root: options.projectRoot
+  });
+  if (partialConfig == null) {
+    return;
+  } else if (partialConfig.hasFilesystemConfig()) {
+    let {babelrc, config: configjs} = partialConfig;
+    let {canBeRehydrated, dependsOnRelative, dependsOnLocal} = getStats(
+      partialConfig.options
+    );
 
-  // Try to resolve a .babelrc file. If one is found, consider the module source code.
-  let babelrc = await getBabelRc(asset, pkg, isSource, options);
-  isSource = isSource || !!babelrc;
+    let configIsJS =
+      (babelrc != null && path.extname(babelrc) === '.js') || configjs != null;
 
-  let result = {};
-  mergeConfigs(result, babelrc);
+    // babel.config.js files get required by @babel/core so there's no use in including it for watch mode invalidation
+    if (configIsJS) {
+      logger.verbose(
+        'WARNING: Using a JavaScript Babel config file means losing out on some caching features of Parcel. Try using a .babelrc file instead.'
+      );
+      config.shouldInvalidateOnStartup();
+    } else {
+      config.setResolvedPath(babelrc);
+    }
 
-  // Typescript must use the plugin directly (not the typescript preset) and must
-  // come before preset env, otherwise proposals and nonstandard syntax is not
-  // transformed in time.
-  if (path.extname(asset.filePath).match(TYPESCRIPT_EXTNAME_RE)) {
-    let hasTypescript =
-      babelrc &&
-      (hasPlugin(babelrc.config.presets, [
-        '@babel/typescript',
-        '@babel/preset-typescript'
-      ]) ||
-        hasPlugin(babelrc.config.plugins, [
-          '@babel/transform-typescript',
-          '@babel/plugin-transform-typescript'
-        ]));
+    if (babelrc && (await isExtended(/*babelrc*/))) {
+      logger.verbose(
+        'WARNING: You are using `extends` in your Babel config, which means you are losing out on some of the caching features of Parcel. Maybe try using a reusable preset instead.'
+      );
+      config.shouldInvalidateOnStartup();
+    }
 
-    if (!hasTypescript) {
-      mergeConfigs(result, {
-        internal: true,
-        babelVersion: 7,
-        config: {
-          plugins: [
-            [
-              require('@babel/plugin-transform-typescript'),
-              {isTSX: path.extname(asset.filePath) === '.tsx'}
-            ]
-          ]
-        }
+    if (dependsOnRelative || dependsOnLocal) {
+      logger.verbose(
+        'WARNING: It looks like you are using local Babel plugins or presets. You will need to run with the `--no-cache` option in order to pick up changes to these until their containing package versions are bumped.'
+      );
+    }
+
+    if (canBeRehydrated) {
+      prepForReyhdration(partialConfig.options);
+      config.shouldRehydrate();
+      config.setResult({
+        internal: false,
+        config: partialConfig.options,
+        targets: enginesToBabelTargets(config.env.engines)
       });
+
+      await definePluginDependencies(config);
+      config.setResultHash(md5FromObject(partialConfig.options));
+    } else {
+      logger.warn(
+        'WARNING: You are using `require` to configure Babel plugins or presets. This means Babel transformations cannot be cached and will run on each build. Please use strings to configure Babel instead.'
+      );
+      config.shouldReload();
+      config.setResultHash(JSON.stringify(Date.now()));
+      config.shouldInvalidateOnStartup();
     }
   } else {
-    // Add Flow stripping config if it isn't already specified in the babelrc
-    let hasFlow =
-      babelrc &&
-      hasPlugin(babelrc.config.plugins, [
-        'transform-flow-strip-types',
-        '@babel/transform-flow-strip-types',
-        '@babel/plugin-transform-flow-strip-types'
-      ]);
+    await buildDefaultBabelConfig(config);
+  }
+}
 
-    if (!hasFlow) {
-      let flowConfig = await getFlowConfig(asset);
-      mergeConfigs(result, flowConfig);
-    }
+async function buildDefaultBabelConfig(config: Config) {
+  let babelOptions;
+  if (path.extname(config.searchPath).match(TYPESCRIPT_EXTNAME_RE)) {
+    babelOptions = getTypescriptOptions(config);
+  } else {
+    babelOptions = await getFlowOptions(config);
   }
 
-  // Add JSX config if it isn't already specified in the babelrc
-  let hasReact =
-    babelrc &&
-    (hasPlugin(babelrc.config.presets, [
-      'react',
-      '@babel/react',
-      '@babel/preset-react'
-    ]) ||
-      hasPlugin(babelrc.config.plugins, [
-        'transform-react-jsx',
-        '@babel/transform-react-jsx',
-        '@babel/plugin-transform-react-jsx'
-      ]));
+  let babelTargets;
+  let envOptions = await getEnvOptions(config);
+  if (envOptions != null) {
+    babelTargets = envOptions.targets;
+    babelOptions = mergeOptions(babelOptions, {presets: envOptions.presets});
+  }
+  babelOptions = mergeOptions(babelOptions, await getJSXOptions(config));
 
-  if (!hasReact) {
-    let jsxConfig = getJSXConfig(asset, pkg, isSource);
-    mergeConfigs(result, jsxConfig);
+  if (babelOptions != null) {
+    babelOptions.presets = (babelOptions.presets || []).map(preset =>
+      createConfigItem(preset, {
+        type: 'preset',
+        dirname: BABEL_TRANSFORMER_DIR
+      })
+    );
+    babelOptions.plugins = (babelOptions.plugins || []).map(plugin =>
+      createConfigItem(plugin, {
+        type: 'plugin',
+        dirname: BABEL_TRANSFORMER_DIR
+      })
+    );
+    config.shouldRehydrate();
+    prepForReyhdration(babelOptions);
   }
 
-  // Add a generated babel-preset-env config if it is not already specified in the babelrc
-  let hasEnv =
-    babelrc &&
-    hasPlugin(babelrc.config.presets, [
-      'env',
-      '@babel/env',
-      '@babel/preset-env'
-    ]);
+  config.setResult({
+    internal: true,
+    config: babelOptions,
+    targets: babelTargets
+  });
+  await definePluginDependencies(config);
+}
 
-  if (!hasEnv) {
-    let envConfig = await getEnvConfig(asset, isSource);
-    mergeConfigs(result, envConfig);
+function mergeOptions(result, config?: null | BabelConfig) {
+  if (
+    !config ||
+    ((!config.presets || config.presets.length === 0) &&
+      (!config.plugins || config.plugins.length === 0))
+  ) {
+    return result;
+  }
+
+  let merged = result;
+  if (merged) {
+    merged.presets = (merged.presets || []).concat(config.presets || []);
+    merged.plugins = (merged.plugins || []).concat(config.plugins || []);
+  } else {
+    result = config;
   }
 
   return result;
 }
 
-function mergeConfigs(result, config) {
-  if (
-    !config ||
-    ((!config.config.presets || config.config.presets.length === 0) &&
-      (!config.config.plugins || config.config.plugins.length === 0))
-  ) {
+function getStats(options) {
+  let canBeRehydrated = true;
+  let dependsOnRelative = false;
+  let dependsOnLocal = false;
+
+  let configItems = [...options.presets, ...options.plugins];
+
+  for (let configItem of configItems) {
+    if (!configItem.file) {
+      canBeRehydrated = false;
+    } else if (configItem.file.request.startsWith('.')) {
+      dependsOnRelative = true;
+    } else if (isLocal(/*configItem.file.resolved*/)) {
+      dependsOnLocal = true;
+    }
+  }
+
+  return {canBeRehydrated, dependsOnRelative, dependsOnLocal};
+}
+
+function isExtended(/* babelrcPath */) {
+  // TODO: read and parse babelrc and check to see if extends property exists
+  // need access to fs in case of memory filesystem
+  return false;
+}
+
+function isLocal(/* configItemPath */) {
+  // TODO: check if realpath is different, need access to fs in case of memory filesystem
+  return false;
+}
+
+function prepForReyhdration(options) {
+  // ConfigItem.value is a function which the v8 serializer chokes on
+  // It is being ommited here and will be rehydrated later using the path provided by ConfigItem.file
+  options.presets = (options.presets || []).map(configItem => ({
+    file: configItem.file,
+    options: configItem.options
+  }));
+  options.plugins = (options.plugins || []).map(configItem => ({
+    file: configItem.file,
+    options: configItem.options
+  }));
+}
+
+async function definePluginDependencies(config) {
+  let babelConfig = config.result.config;
+  if (babelConfig == null) {
     return;
   }
 
-  let merged = result[config.babelVersion];
-  if (merged) {
-    merged.config.presets = (merged.config.presets || []).concat(
-      config.config.presets || []
-    );
-    merged.config.plugins = (merged.config.plugins || []).concat(
-      config.config.plugins || []
-    );
-  } else {
-    result[config.babelVersion] = config;
-  }
-}
-
-function hasPlugin(arr, plugins) {
-  return (
-    Array.isArray(arr) && arr.some(p => plugins.includes(getPluginName(p)))
+  let configItems = [...babelConfig.presets, ...babelConfig.plugins];
+  await Promise.all(
+    configItems.map(async configItem => {
+      let pkg = nullthrows(
+        await config.getConfigFrom(configItem.file.resolved, ['package.json'], {
+          parse: true
+        })
+      );
+      config.addDevDependency(pkg.name, pkg.version);
+    })
   );
 }
 
-function getPluginName(p) {
-  return Array.isArray(p) ? p[0] : p;
+export function rehydrate(config: Config) {
+  config.result.config.presets = config.result.config.presets.map(
+    configItem => {
+      // $FlowFixMe
+      let value = require(configItem.file.resolved);
+      value = value.default ? value.default : value;
+      return createConfigItem([value, configItem.options], {type: 'preset'});
+    }
+  );
+  config.result.config.plugins = config.result.config.plugins.map(
+    configItem => {
+      // $FlowFixMe
+      let value = require(configItem.file.resolved);
+      value = value.default ? value.default : value;
+      return createConfigItem([value, configItem.options], {type: 'plugin'});
+    }
+  );
 }
