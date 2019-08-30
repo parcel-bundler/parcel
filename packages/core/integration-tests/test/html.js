@@ -713,7 +713,7 @@ describe('html', function() {
       },
       {
         type: 'css',
-        assets: ['test.css']
+        assets: ['index.html', 'test.css']
       }
     ]);
 
@@ -721,7 +721,7 @@ describe('html', function() {
       path.join(distDir, 'index.html'),
       'utf8'
     );
-    assert(html.includes('@import'));
+    assert(!html.includes('@import'));
   });
 
   it.skip('should error on imports and requires in inline <script> tags', async function() {
