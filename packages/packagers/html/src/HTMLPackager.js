@@ -100,7 +100,7 @@ async function replaceInlineAssetContent(
       node.attrs['data-parcel-key']
     );
 
-    if (newContent == null) {
+    if (newContent != null) {
       node.content = newContent;
 
       if (node.attrs['parcel-should-delete-type'] === 'true') {
