@@ -98,6 +98,11 @@ export function bundler(
     outputFS,
     workerFarm,
     packageManager: new NodePackageManager(inputFS),
+    defaultEngines: {
+      browsers: ['last 1 Chrome version'],
+      node: '8'
+    },
+    // $FlowFixMe
     ...opts
   });
 }

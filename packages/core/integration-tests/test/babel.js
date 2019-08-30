@@ -93,7 +93,11 @@ describe('babel', function() {
   });
 
   it('should compile with babel with default engines if no config', async function() {
-    await bundle(path.join(__dirname, '/integration/babel-default/index.js'));
+    await bundle(path.join(__dirname, '/integration/babel-default/index.js'), {
+      mode: 'production',
+      defaultEngines: null,
+      minify: false
+    });
 
     let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
     assert(file.includes('function Foo'));
