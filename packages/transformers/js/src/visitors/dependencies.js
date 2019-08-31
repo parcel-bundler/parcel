@@ -15,13 +15,13 @@ export default {
   ExportNamedDeclaration(node, asset) {
     asset.meta.isES6Module = true;
     if (node.source) {
-      addDependency(asset, node.source);
+      addDependency(asset, node.source, {isWeak: true});
     }
   },
 
   ExportAllDeclaration(node, asset) {
     asset.meta.isES6Module = true;
-    addDependency(asset, node.source);
+    addDependency(asset, node.source, {isWeak: true});
   },
 
   ExportDefaultDeclaration(node, asset) {
@@ -155,7 +155,8 @@ function addDependency(asset, node, opts = {}) {
     Object.assign(
       {
         moduleSpecifier: node.value,
-        loc: node.loc && node.loc.start
+        loc: node.loc && node.loc.start,
+        isWeak: false
       },
       opts
     )

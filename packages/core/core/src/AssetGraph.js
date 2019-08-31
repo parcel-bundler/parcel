@@ -127,11 +127,16 @@ export default class AssetGraph extends Graph<AssetGraphNode> {
     let assetGroupNode = nodeFromAssetGroup(assetGroup);
 
     // Defer transforming this dependency if it is marked as weak, there are no side effects,
-    // and no re-exported symbols are used by ancestor dependencies.
+    // no re-exported symbols are used by ancestor dependencies and the re-exporting asset isn't
+    // using a wildcard.
     // This helps with performance building large libraries like `lodash-es`, which re-exports
     // a huge number of functions since we can avoid even transforming the files that aren't used.
     let defer = false;
-    if (dependency.isWeak && assetGroup.sideEffects === false) {
+    if (
+      dependency.isWeak &&
+      assetGroup.sideEffects === false &&
+      !dependency.symbols.has('*')
+    ) {
       let assets = this.getNodesConnectedTo(depNode);
       let symbols = invertMap(dependency.symbols);
       let firstAsset = assets[0];

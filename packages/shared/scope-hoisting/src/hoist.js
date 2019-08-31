@@ -445,9 +445,6 @@ const VISITOR = {
     if (!asset.symbols.has('default')) {
       asset.symbols.set('default', identifier.name);
     }
-
-    // Mark the asset as an ES6 module, so we handle imports correctly in the packager.
-    asset.meta.isES6Module = true;
   },
 
   ExportNamedDeclaration(path, asset: MutableAsset) {
@@ -477,15 +474,9 @@ const VISITOR = {
           let existing = dep.symbols.get(imported);
           if (existing) {
             id.name = existing;
+          } else {
+            dep.symbols.set(imported, id.name);
           }
-          // this will merge with the existing dependency
-          asset.addDependency({
-            moduleSpecifier: dep.moduleSpecifier,
-            symbols: new Map([[imported, id.name]]),
-            // `symbols` is empty if this dependency was added by JSTransformer/collectDependencies
-            // in that case, override `isWeak`
-            isWeak: dep.symbols.size === 0 ? true : dep.isWeak
-          });
         }
 
         asset.symbols.set(exported.name, id.name);
@@ -519,9 +510,6 @@ const VISITOR = {
 
       path.remove();
     }
-
-    // Mark the asset as an ES6 module, so we handle imports correctly in the packager.
-    asset.meta.isES6Module = true;
   },
 
   ExportAllDeclaration(path, asset: MutableAsset) {
@@ -531,8 +519,6 @@ const VISITOR = {
     if (dep) {
       dep.symbols.set('*', '*');
     }
-
-    asset.meta.isES6Module = true;
 
     path.replaceWith(
       EXPORT_ALL_TEMPLATE({
