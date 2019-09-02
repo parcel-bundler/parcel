@@ -68,7 +68,7 @@ export default function extractInlineAssets(
           (node.tag === 'style' ||
             (node.attrs.type && SCRIPT_TYPES[node.attrs.type] === 'js'))
         ) {
-          node.attrs['parcel-should-delete-type'] = 'true';
+          delete node.attrs.type;
         }
 
         // insert parcelId to allow us to retrieve node during packaging
