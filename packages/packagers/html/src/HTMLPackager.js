@@ -65,7 +65,7 @@ async function getAssetContent(
   let inlineBundle: ?Bundle;
   bundleGraph.traverseBundles((bundle, context, {stop}) => {
     let mainAsset = bundle.getMainEntry();
-    if (mainAsset && mainAsset.meta && mainAsset.meta.inlineKey === assetId) {
+    if (mainAsset && mainAsset.uniqueKey === assetId) {
       inlineBundle = bundle;
       stop();
     }

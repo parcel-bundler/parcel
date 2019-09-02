@@ -82,7 +82,6 @@ export default function extractInlineAssets(
           isInline: true,
           meta: {
             type: 'tag',
-            inlineKey: parcelKey,
             node
           }
         });
@@ -99,7 +98,6 @@ export default function extractInlineAssets(
         isInline: true,
         meta: {
           type: 'attr',
-          inlineKey: parcelKey,
           node
         }
       });
