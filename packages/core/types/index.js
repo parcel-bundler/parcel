@@ -649,7 +649,7 @@ export type Packager = {|
     bundleGraph: BundleGraph,
     options: PluginOptions,
     sourceMapPath: FilePath,
-    getBundleResult: (
+    getInlineBundleContents: (
       Bundle,
       BundleGraph
     ) => Async<{|contents: Blob, map: Readable | string | null|}>,

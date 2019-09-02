@@ -149,7 +149,16 @@ export default class PackagerRunner {
       bundleGraph: new BundleGraph(bundleGraph, this.options),
       sourceMapPath: path.basename(bundle.filePath) + '.map',
       options: this.pluginOptions,
-      getBundleResult: (bundle: BundleType, bundleGraph: BundleGraphType) => {
+      getInlineBundleContents: (
+        bundle: BundleType,
+        bundleGraph: BundleGraphType
+      ) => {
+        if (!bundle.isInline) {
+          throw new Error(
+            'Bundle is not inline and unable to retireve contents'
+          );
+        }
+
         return this.getBundleResult(
           bundleToInternalBundle(bundle),
           bundleGraphToInternalBundleGraph(bundleGraph)

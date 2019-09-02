@@ -21,7 +21,7 @@ const metadataContent = new Set([
 ]);
 
 export default new Packager({
-  async package({bundle, bundleGraph, getBundleResult}) {
+  async package({bundle, bundleGraph, getInlineBundleContents}) {
     let assets = [];
     bundle.traverseAssets(asset => {
       assets.push(asset);
@@ -50,7 +50,7 @@ export default new Packager({
 
     let {html} = await posthtml([
       insertBundleReferences.bind(this, bundles),
-      replaceInlineAssetContent.bind(this, bundleGraph, getBundleResult)
+      replaceInlineAssetContent.bind(this, bundleGraph, getInlineBundleContents)
     ]).process(code);
 
     return {contents: html};
@@ -59,7 +59,7 @@ export default new Packager({
 
 async function getAssetContent(
   bundleGraph: BundleGraph,
-  getBundleResult,
+  getInlineBundleContents,
   assetId
 ): Promise<?Blob> {
   let inlineBundle: ?Bundle;
@@ -72,7 +72,10 @@ async function getAssetContent(
   });
 
   if (inlineBundle) {
-    const bundleResult = await getBundleResult(inlineBundle, bundleGraph);
+    const bundleResult = await getInlineBundleContents(
+      inlineBundle,
+      bundleGraph
+    );
 
     return bundleResult.contents;
   }
@@ -82,7 +85,7 @@ async function getAssetContent(
 
 async function replaceInlineAssetContent(
   bundleGraph: BundleGraph,
-  getBundleResult,
+  getInlineBundleContents,
   tree
 ) {
   const inlineNodes = [];
@@ -96,7 +99,7 @@ async function replaceInlineAssetContent(
   for (let node of inlineNodes) {
     let newContent = await getAssetContent(
       bundleGraph,
-      getBundleResult,
+      getInlineBundleContents,
       node.attrs['data-parcel-key']
     );
 
