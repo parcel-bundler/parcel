@@ -101,6 +101,10 @@ class BaseAsset {
     return this.#asset.value.symbols;
   }
 
+  get uniqueKey(): ?string {
+    return this.#asset.value.uniqueKey;
+  }
+
   getConfig(
     filePaths: Array<FilePath>,
     options: ?{

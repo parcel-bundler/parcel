@@ -273,6 +273,7 @@ interface BaseAsset {
   +type: string;
   +symbols: Map<Symbol, Symbol>;
   +sideEffects: boolean;
+  +uniqueKey: ?string;
 
   getCode(): Promise<string>;
   getBuffer(): Promise<Buffer>;
