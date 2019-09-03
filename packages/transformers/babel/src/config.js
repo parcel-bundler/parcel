@@ -177,14 +177,22 @@ function isLocal(/* configItemPath */) {
 function prepForReyhdration(options) {
   // ConfigItem.value is a function which the v8 serializer chokes on
   // It is being ommited here and will be rehydrated later using the path provided by ConfigItem.file
-  options.presets = (options.presets || []).map(configItem => ({
-    file: configItem.file,
-    options: configItem.options
-  }));
-  options.plugins = (options.plugins || []).map(configItem => ({
-    file: configItem.file,
-    options: configItem.options
-  }));
+  options.presets = (options.presets || []).map(
+    ({options, dirname, name, file}) => ({
+      options,
+      dirname,
+      name,
+      file
+    })
+  );
+  options.plugins = (options.plugins || []).map(
+    ({options, dirname, name, file}) => ({
+      options,
+      dirname,
+      name,
+      file
+    })
+  );
 }
 
 async function definePluginDependencies(config) {
@@ -212,7 +220,10 @@ export function rehydrate(config: Config) {
       // $FlowFixMe
       let value = require(configItem.file.resolved);
       value = value.default ? value.default : value;
-      return createConfigItem([value, configItem.options], {type: 'preset'});
+      return createConfigItem([value, configItem.options], {
+        type: 'preset',
+        dirname: configItem.dirname
+      });
     }
   );
   config.result.config.plugins = config.result.config.plugins.map(
