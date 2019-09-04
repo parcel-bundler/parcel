@@ -236,7 +236,11 @@ export default class BundlerRunner {
       // the node to it.
       // $FlowFixMe
       bundleGraph._graph.merge(subBundleGraph._graph);
-      summarizeBundle(bundle, bundleGraph);
+      subBundleGraph._graph.traverse(node => {
+        if (node.type === 'asset' || node.type === 'dependency') {
+          bundleGraph._graph.addEdge(bundle.id, node.id, 'contains');
+        }
+      });
 
       let entryIsReference = false;
       for (let asset of duplicated) {
@@ -305,14 +309,18 @@ function summarizeBundle(
   bundleGraph: InternalBundleGraph
 ): void {
   let size = 0;
-  bundleGraph.traverseBundle(bundle, node => {
-    if (node.type === 'dependency' || node.type === 'asset') {
-      bundleGraph._graph.addEdge(bundle.id, node.id, 'contains');
-    }
-    if (node.type === 'asset') {
-      size += node.value.stats.size;
-    }
-  });
+  bundleGraph.traverseBundle(
+    bundle,
+    node => {
+      if (node.type === 'dependency' || node.type === 'asset') {
+        bundleGraph._graph.addEdge(bundle.id, node.id, 'contains');
+      }
+      if (node.type === 'asset') {
+        size += node.value.stats.size;
+      }
+    },
+    true
+  );
 
   bundle.stats.size = size;
 }
