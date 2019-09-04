@@ -128,7 +128,6 @@ export default new Bundler({
 
           for (let asset of assets) {
             if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
-              bundleGraph.createAssetReference(dependency, asset);
               bundleGraph.removeAssetGraphFromBundle(asset, bundle);
             }
           }
@@ -237,12 +236,6 @@ export default new Bundler({
         bundleGraph.addAssetGraphToBundle(asset, sharedBundle);
         for (let bundle of sourceBundles) {
           bundleGraph.removeAssetGraphFromBundle(asset, bundle);
-          for (let dependency of bundleGraph.getDependenciesInBundle(
-            bundle,
-            asset
-          )) {
-            bundleGraph.createAssetReference(dependency, asset);
-          }
         }
       }
 

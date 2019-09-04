@@ -515,7 +515,6 @@ export interface BundlerOptimizeBundleGraph extends BundlerBundleGraph {
   findBundlesWithAsset(Asset): Array<Bundle>;
   getBundleGroupsContainingBundle(Bundle): Array<BundleGroup>;
   getBundlesInBundleGroup(BundleGroup): Array<Bundle>;
-  getDependenciesInBundle(Bundle, Asset): Array<Dependency>;
   getTotalSize(Asset): number;
   isAssetInAncestorBundles(Bundle, Asset): boolean;
   removeAssetFromBundle(Asset, Bundle): void;

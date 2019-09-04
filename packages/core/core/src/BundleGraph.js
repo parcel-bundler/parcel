@@ -152,21 +152,6 @@ export default class BundleGraph {
     });
   }
 
-  getDependenciesInBundle(bundle: Bundle, asset: Asset): Array<Dependency> {
-    let assetNode = this._graph.getNode(asset.id);
-    if (!assetNode) {
-      throw new Error('Asset not found');
-    }
-
-    return this._graph
-      .getNodesConnectedTo(assetNode)
-      .filter(node => this._graph.hasEdge(bundle.id, node.id, 'contains'))
-      .map(node => {
-        invariant(node.type === 'dependency');
-        return node.value;
-      });
-  }
-
   removeAssetFromBundle(asset: Asset, bundle: Bundle): void {
     this._graph.removeEdge(bundle.id, asset.id, 'contains');
   }
