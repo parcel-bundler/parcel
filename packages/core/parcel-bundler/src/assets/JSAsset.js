@@ -1,6 +1,7 @@
 const traverse = require('@babel/traverse').default;
 const codeFrame = require('@babel/code-frame').codeFrameColumns;
 const collectDependencies = require('../visitors/dependencies');
+// eslint-disable-next-line import/no-extraneous-dependencies
 const walk = require('babylon-walk');
 const Asset = require('../Asset');
 const babelParser = require('@babel/parser');

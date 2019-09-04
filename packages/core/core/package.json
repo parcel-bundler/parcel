@@ -23,7 +23,7 @@
     "@parcel/utils": "^2.0.0-alpha.1.1",
     "@parcel/workers": "^2.0.0-alpha.1.1",
     "abortcontroller-polyfill": "^1.1.9",
-    "browserslist": "^4.1.0",
+    "browserslist": "^4.6.6",
     "clone": "^2.1.1",
     "dotenv": "^7.0.0",
     "dotenv-expand": "^5.1.0",

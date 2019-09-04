@@ -3,6 +3,7 @@ const path = require('path');
 const concat = require('../scope-hoisting/concat');
 const urlJoin = require('../utils/urlJoin');
 const getExisting = require('../utils/getExisting');
+// eslint-disable-next-line import/no-extraneous-dependencies
 const walk = require('babylon-walk');
 const babylon = require('@babel/parser');
 const t = require('@babel/types');

@@ -14,12 +14,20 @@ import {createEnvironment} from './Environment';
 import path from 'path';
 import browserslist from 'browserslist';
 
-const DEVELOPMENT_BROWSERS = [
-  'last 1 Chrome version',
-  'last 1 Safari version',
-  'last 1 Firefox version',
-  'last 1 Edge version'
-];
+const DEFAULT_DEVELOPMENT_ENGINES = {
+  node: 'current',
+  browsers: [
+    'last 1 Chrome version',
+    'last 1 Safari version',
+    'last 1 Firefox version',
+    'last 1 Edge version'
+  ]
+};
+
+const DEFAULT_PRODUCTION_ENGINES = {
+  browsers: ['>= 0.25%'],
+  node: '8'
+};
 
 const DEFAULT_DIST_DIRNAME = 'dist';
 const COMMON_TARGETS = ['main', 'module', 'browser'];
@@ -46,7 +54,10 @@ export default class TargetResolver {
 
         // If an array of strings is passed, it's a filter on the resolved package
         // targets. Load them, and find the matching targets.
-        let packageTargets = await this.resolvePackageTargets(rootDir);
+        let packageTargets = await this.resolvePackageTargets(
+          rootDir,
+          initialOptions
+        );
         targets = optionTargets.map(target => {
           let matchingTarget = packageTargets.get(target);
           if (!matchingTarget) {
@@ -100,13 +111,16 @@ export default class TargetResolver {
             env: createEnvironment({
               context: 'browser',
               engines: {
-                browsers: DEVELOPMENT_BROWSERS
+                browsers: DEFAULT_DEVELOPMENT_ENGINES.browsers
               }
             })
           }
         ];
       } else {
-        let packageTargets = await this.resolvePackageTargets(rootDir);
+        let packageTargets = await this.resolvePackageTargets(
+          rootDir,
+          initialOptions
+        );
         targets = Array.from(packageTargets.values());
       }
     }
@@ -114,7 +128,10 @@ export default class TargetResolver {
     return targets;
   }
 
-  async resolvePackageTargets(rootDir: FilePath): Promise<Map<string, Target>> {
+  async resolvePackageTargets(
+    rootDir: FilePath,
+    options: InitialParcelOptions
+  ): Promise<Map<string, Target>> {
     let conf = await loadConfig(this.fs, path.join(rootDir, 'index'), [
       'package.json'
     ]);
@@ -232,6 +249,18 @@ export default class TargetResolver {
     // If no explicit targets were defined, add a default.
     if (targets.size === 0) {
       let context = browsers || !node ? 'browser' : 'node';
+      let defaultEngines =
+        options.defaultEngines ??
+        (options.mode === 'production'
+          ? DEFAULT_PRODUCTION_ENGINES
+          : DEFAULT_DEVELOPMENT_ENGINES);
+
+      if (context === 'browser' && pkgEngines.browsers == null) {
+        pkgEngines.browsers = defaultEngines.browsers;
+      } else if (context === 'node' && pkgEngines.node == null) {
+        pkgEngines.node = defaultEngines.node;
+      }
+
       targets.set('default', {
         name: 'default',
         distDir: path.resolve(this.fs.cwd(), DEFAULT_DIST_DIRNAME),

@@ -162,7 +162,8 @@ export type InitialParcelOptions = {|
   inputFS?: FileSystem,
   outputFS?: FileSystem,
   workerFarm?: WorkerFarm,
-  packageManager?: PackageManager
+  packageManager?: PackageManager,
+  defaultEngines?: Engines
 
   // contentHash
   // throwErrors
