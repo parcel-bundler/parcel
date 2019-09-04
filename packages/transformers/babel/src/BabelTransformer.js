@@ -13,8 +13,8 @@ export default new Transformer({
     await load(config, options);
   },
 
-  rehydrateConfig({config}) {
-    rehydrate(config);
+  rehydrateConfig({config, options}) {
+    return rehydrate(config, options);
   },
 
   canReuseAST({ast}) {

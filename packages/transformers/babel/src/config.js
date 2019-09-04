@@ -20,11 +20,16 @@ const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
 const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 
 export async function load(config: Config, options: PluginOptions) {
+  if (config.result != null) {
+    return reload(config, options);
+  }
+
   let partialConfig = loadPartialConfig({
     filename: config.searchPath,
     cwd: path.dirname(config.searchPath),
     root: options.projectRoot
   });
+  // loadPartialConfig returns null when the file should explicitly not be run through babel (ignore/exclude)
   if (partialConfig == null) {
     return;
   } else if (partialConfig.hasFilesystemConfig()) {
@@ -75,6 +80,9 @@ export async function load(config: Config, options: PluginOptions) {
         'WARNING: You are using `require` to configure Babel plugins or presets. This means Babel transformations cannot be cached and will run on each build. Please use strings to configure Babel instead.'
       );
       config.shouldReload();
+      config.setResult({
+        internal: false
+      });
       config.setResultHash(JSON.stringify(Date.now()));
       config.shouldInvalidateOnStartup();
     }
@@ -234,13 +242,17 @@ async function definePluginDependencies(config) {
   );
 }
 
-export function rehydrate(config: Config) {
+export async function rehydrate(config: Config, options: PluginOptions) {
+  let babelCore = config.result.internal
+    ? require('@babel/core')
+    : await options.packageManager.require('@babel/core', config.searchPath);
+
   config.result.config.presets = config.result.config.presets.map(
     configItem => {
       // $FlowFixMe
       let value = require(configItem.file.resolved);
       value = value.default ? value.default : value;
-      return createConfigItem([value, configItem.options], {
+      return babelCore.createConfigItem([value, configItem.options], {
         type: 'preset',
         dirname: configItem.dirname
       });
@@ -251,7 +263,29 @@ export function rehydrate(config: Config) {
       // $FlowFixMe
       let value = require(configItem.file.resolved);
       value = value.default ? value.default : value;
-      return createConfigItem([value, configItem.options], {type: 'plugin'});
+      return babelCore.createConfigItem([value, configItem.options], {
+        type: 'plugin',
+        dirname: configItem.dirname
+      });
     }
   );
+}
+
+export async function reload(config: Config, options: PluginOptions) {
+  let babelCore = await options.packageManager.require(
+    '@babel/core',
+    config.searchPath
+  );
+
+  let partialConfig = babelCore.loadPartialConfig({
+    filename: config.searchPath,
+    cwd: path.dirname(config.searchPath),
+    root: options.projectRoot
+  });
+
+  config.setResult({
+    internal: false,
+    config: partialConfig.options,
+    targets: enginesToBabelTargets(config.env.engines)
+  });
 }
