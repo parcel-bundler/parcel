@@ -226,7 +226,7 @@ export default class BundlerRunner {
 
         for (let asset of assets) {
           if (bundleGraph.isAssetInAncestorBundles(bundle, asset)) {
-            duplicated.push([asset, dependency]);
+            duplicated.push(asset);
             actions.skipChildren();
           }
         }
@@ -239,8 +239,7 @@ export default class BundlerRunner {
       summarizeBundle(bundle, bundleGraph);
 
       let entryIsReference = false;
-      for (let [asset, dependency] of duplicated) {
-        bundleGraph.createAssetReference(dependency, asset);
+      for (let asset of duplicated) {
         bundleGraph.removeAssetGraphFromBundle(asset, bundle);
 
         if (entry.id === asset.id) {

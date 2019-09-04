@@ -210,15 +210,6 @@ export class BundlerOptimizeBundleGraph extends BundlerBundleGraph
       .map(bundle => new Bundle(bundle, this.#graph, this.#options));
   }
 
-  getDependenciesInBundle(bundle: IBundle, asset: IAsset): Array<IDependency> {
-    return this.#graph
-      .getDependenciesInBundle(
-        bundleToInternalBundle(bundle),
-        assetToInternalAsset(asset).value
-      )
-      .map(dep => new Dependency(dep));
-  }
-
   getTotalSize(asset: IAsset): number {
     return this.#graph.getTotalSize(assetToInternalAsset(asset).value);
   }
