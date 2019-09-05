@@ -64,22 +64,26 @@ export default class ParcelConfig {
     return new ParcelConfig(serialized.config, serialized.packageManager);
   }
 
+  getConfig() {
+    return {
+      filePath: this.filePath,
+      resolvers: this.resolvers,
+      transforms: this.transforms,
+      validators: this.validators,
+      runtimes: this.runtimes,
+      bundler: this.bundler,
+      namers: this.namers,
+      packagers: this.packagers,
+      optimizers: this.optimizers,
+      reporters: this.reporters
+    };
+  }
+
   serialize(): SerializedParcelConfig {
     return {
       $$raw: false,
       packageManager: this.packageManager,
-      config: {
-        filePath: this.filePath,
-        resolvers: this.resolvers,
-        transforms: this.transforms,
-        validators: this.validators,
-        runtimes: this.runtimes,
-        bundler: this.bundler,
-        namers: this.namers,
-        packagers: this.packagers,
-        optimizers: this.optimizers,
-        reporters: this.reporters
-      }
+      config: this.getConfig()
     };
   }
 

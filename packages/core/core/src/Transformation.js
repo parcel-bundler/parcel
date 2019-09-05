@@ -25,11 +25,11 @@ import {md5FromObject} from '@parcel/utils';
 
 import {createDependency} from './Dependency';
 import PublicConfig from './public/Config';
+import ParcelConfig from './ParcelConfig';
 import ResolverRunner from './ResolverRunner';
 import {report} from './ReporterRunner';
 import {MutableAsset, assetToInternalAsset} from './public/Asset';
 import InternalAsset, {createAsset} from './InternalAsset';
-import ParcelConfig from './ParcelConfig';
 import summarizeRequest from './summarizeRequest';
 import PluginOptions from './public/PluginOptions';
 
@@ -249,7 +249,10 @@ export default class Transformation {
 
     let config = await this.loadConfig(configRequest);
     let result = nullthrows(config.result);
-    let parcelConfig = new ParcelConfig(result, this.options.packageManager);
+    let parcelConfig = new ParcelConfig(
+      config.result,
+      this.options.packageManager
+    );
 
     configs.set('parcel', config);
 
@@ -358,8 +361,10 @@ class Pipeline {
     }));
     this.configs = configs;
     this.options = options;
-    let parcelConfig = nullthrows(this.configs.get('parcel'));
-    parcelConfig = nullthrows(parcelConfig.result);
+    let parcelConfig = new ParcelConfig(
+      nullthrows(nullthrows(this.configs.get('parcel')).result),
+      this.options.packageManager
+    );
     this.resolverRunner = new ResolverRunner({
       config: parcelConfig,
       options

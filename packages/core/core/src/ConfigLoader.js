@@ -40,7 +40,7 @@ export default class ConfigLoader {
     );
 
     publicConfig.setResolvedPath(parcelConfig.filePath);
-    publicConfig.setResult(parcelConfig);
+    publicConfig.setResult(parcelConfig.getConfig());
     this.parcelConfig = parcelConfig;
 
     let devDeps = [];
