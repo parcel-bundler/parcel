@@ -1,1 +1,1 @@
-import './c';
+export {default} from './c';

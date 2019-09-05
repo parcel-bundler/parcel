@@ -619,15 +619,15 @@ describe('javascript', function() {
         assets: ['a.js', 'c.js', 'JSRuntime.js']
       },
       {
-        assets: ['b.js', 'c.js', 'JSRuntime.js']
+        assets: ['b.js', 'c.js']
       },
       {
         assets: ['1.js']
       }
     ]);
 
-    let output = await run(b);
-    assert.deepEqual(output, {default: {asdf: 1}});
+    let {default: promise} = await run(b);
+    assert.ok(await promise);
   });
 
   it('should support requiring JSON files', async function() {
