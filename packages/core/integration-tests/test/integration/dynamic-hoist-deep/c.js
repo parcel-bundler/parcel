@@ -1,1 +1,1 @@
-import('./1');
+export default import('./1');
