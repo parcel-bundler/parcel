@@ -28,7 +28,7 @@
   "devDependencies": {
     "doctoc": "^1.4.0",
     "eslint": "^5.16.0",
-    "flow-bin": "0.105.2",
+    "flow-bin": "0.107.0",
     "gulp": "^4.0.2",
     "gulp-babel": "^8.0.0",
     "lerna": "^3.3.2",
