@@ -54,7 +54,12 @@ export default new Packager({
         ) {
           // if this is a reference to another javascript asset, we should not include
           // its output, as its contents should already be loaded.
-          invariant(!bundle.hasAsset(resolved));
+          // invariant(
+          //   !bundle.hasAsset(resolved),
+          //   `Expected JS bundle ${
+          //     bundle.name
+          //   } to only contain JS, but contained ${resolved.filePath}`
+          // );
           wrapped += JSON.stringify(resolved.id) + ':[function() {},{}]';
         } else {
           return;

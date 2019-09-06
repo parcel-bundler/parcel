@@ -20,6 +20,10 @@ const TYPESCRIPT_EXTNAME_RE = /^\.tsx?/;
 const BABEL_TRANSFORMER_DIR = path.dirname(__dirname);
 
 export async function load(config: Config, options: PluginOptions) {
+  if (!(await config.isSource())) {
+    return;
+  }
+
   if (config.result != null) {
     return reload(config, options);
   }

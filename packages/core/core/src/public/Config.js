@@ -125,14 +125,9 @@ export default class PublicConfig implements IConfig {
   }
 
   async isSource() {
-    let pkg = await this.getPackage();
     return (
-      !!(
-        pkg &&
-        pkg.source != null &&
-        (await this.#options.inputFS.realpath(this.searchPath)) !==
-          this.searchPath
-      ) || !this.#config.searchPath.includes(NODE_MODULES)
+      (await this.#options.inputFS.realpath(this.searchPath)) !==
+        this.searchPath || !this.#config.searchPath.includes(NODE_MODULES)
     );
   }
 }

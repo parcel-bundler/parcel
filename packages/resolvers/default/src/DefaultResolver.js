@@ -221,7 +221,11 @@ class NodeResolver {
 
       default: {
         if (isURL) {
-          return path.resolve(dir, filename);
+          let resolvedPath = path.resolve(dir, filename);
+
+          return this.options.inputFS.existsSync(resolvedPath)
+            ? resolvedPath
+            : filename;
         }
 
         // Module
