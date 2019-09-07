@@ -29,6 +29,7 @@ export async function load(config: Config, options: PluginOptions) {
     cwd: path.dirname(config.searchPath),
     root: options.projectRoot
   });
+
   // loadPartialConfig returns null when the file should explicitly not be run through babel (ignore/exclude)
   if (partialConfig == null) {
     return;
@@ -247,27 +248,31 @@ export async function rehydrate(config: Config, options: PluginOptions) {
     ? require('@babel/core')
     : await options.packageManager.require('@babel/core', config.searchPath);
 
-  config.result.config.presets = config.result.config.presets.map(
-    configItem => {
-      // $FlowFixMe
-      let value = require(configItem.file.resolved);
+  config.result.config.presets = await Promise.all(
+    config.result.config.presets.map(async configItem => {
+      let value = await options.packageManager.require(
+        configItem.file.resolved,
+        config.searchPath
+      );
       value = value.default ? value.default : value;
       return babelCore.createConfigItem([value, configItem.options], {
         type: 'preset',
         dirname: configItem.dirname
       });
-    }
+    })
   );
-  config.result.config.plugins = config.result.config.plugins.map(
-    configItem => {
-      // $FlowFixMe
-      let value = require(configItem.file.resolved);
+  config.result.config.plugins = await Promise.all(
+    config.result.config.plugins.map(async configItem => {
+      let value = await options.packageManager.require(
+        configItem.file.resolved,
+        config.searchPath
+      );
       value = value.default ? value.default : value;
       return babelCore.createConfigItem([value, configItem.options], {
         type: 'plugin',
         dirname: configItem.dirname
       });
-    }
+    })
   );
 }
 
