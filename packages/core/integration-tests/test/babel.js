@@ -14,6 +14,7 @@ const {
 const os = require('os');
 const {spawnSync} = require('child_process');
 const {symlinkSync} = require('fs');
+const tempy = require('tempy');
 
 const parcelCli = require.resolve('parcel/src/bin.js');
 const inputDir = path.join(__dirname, '/input');
@@ -291,6 +292,16 @@ describe('babel', function() {
     assert(file.match(/return \d+;/));
   });
 
+  it('should support compiling with babel using babel.config.js config with a require in it', async function() {
+    await bundle(
+      path.join(__dirname, '/integration/babel-config-js-require/src/index.js')
+    );
+
+    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(!file.includes('REPLACE_ME'));
+    assert(file.match(/return \d+;/));
+  });
+
   it('should support multitarget builds using a custom babel config with @parcel/babel-preset-env', async function() {
     let fixtureDir = path.join(
       __dirname,
@@ -311,6 +322,50 @@ describe('babel', function() {
     assert(!legacy.includes('this.x ** 2'));
 
     await outputFS.rimraf(path.join(fixtureDir, 'dist'));
+  });
+
+  it('should support building with default babel config when running parcel globally', async function() {
+    let tmpDir = tempy.directory();
+    let distDir = path.join(tmpDir, 'dist');
+    await fs.ncp(
+      path.join(__dirname, '/integration/babel-default'),
+      path.join(tmpDir, '/input')
+    );
+    await bundle(path.join(tmpDir, '/input/index.js'), {
+      targets: {
+        main: {
+          engines: {
+            node: '^4.0.0'
+          },
+          distDir
+        }
+      }
+    });
+    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(file.includes('function Foo'));
+    assert(file.includes('function Bar'));
+  });
+
+  it('should support building with custom babel config when running parcel globally', async function() {
+    let tmpDir = tempy.directory();
+    let distDir = path.join(tmpDir, 'dist');
+    await fs.ncp(
+      path.join(__dirname, '/integration/babel-custom'),
+      path.join(tmpDir, '/input')
+    );
+    await bundle(path.join(tmpDir, '/input/index.js'), {
+      targets: {
+        main: {
+          engines: {
+            node: '^4.0.0'
+          },
+          distDir
+        }
+      }
+    });
+    let file = await outputFS.readFile(path.join(distDir, 'index.js'), 'utf8');
+    assert(!file.includes('REPLACE_ME'));
+    assert(file.includes('hello there'));
   });
 
   describe('tests needing the real filesystem', () => {
