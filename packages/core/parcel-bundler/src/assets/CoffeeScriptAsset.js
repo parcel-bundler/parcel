@@ -27,7 +27,7 @@ class CoffeeScriptAsset extends Asset {
       {
         type: 'js',
         value: this.options.sourceMaps ? transpiled.js : transpiled,
-        sourceMap
+        map: sourceMap
       }
     ];
   }
