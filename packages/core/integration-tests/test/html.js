@@ -586,9 +586,7 @@ describe('html', function() {
   it('should process inline JS', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/html-inline-js/index.html'),
-      {
-        minify: true
-      }
+      {minify: true}
     );
 
     // inline bundles are not output, but are apart of the bundleGraph
@@ -609,8 +607,6 @@ describe('html', function() {
       'utf-8'
     );
 
-    assert(!html.includes('`${hello} ${world}${end}`'));
-    // asserts that ugify was ran when production flag is passed
     assert(!html.includes('someArgument'));
   });
 
