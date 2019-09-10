@@ -199,21 +199,35 @@ export function assertBundles(
   expectedBundles: Array<{|
     name?: string | RegExp,
     type?: string,
-    assets: Array<string>
+    assets: Array<string>,
+    includedFiles?: {
+      [key: string]: Array<string>,
+      ...
+    }
   |}>
 ) {
   let actualBundles = [];
+  const byAlphabet = (a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1);
+
   bundleGraph.traverseBundles(bundle => {
     let assets = [];
+    const includedFiles = {};
+
     bundle.traverseAssets(asset => {
-      assets.push(path.basename(asset.filePath));
+      const name = path.basename(asset.filePath);
+      assets.push(name);
+      includedFiles[name] = asset
+        .getIncludedFiles()
+        .map(({filePath}) => path.basename(filePath))
+        .sort(byAlphabet);
     });
 
-    assets.sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1));
+    assets.sort(byAlphabet);
     actualBundles.push({
       name: path.basename(nullthrows(bundle.filePath)),
       type: bundle.type,
-      assets
+      assets,
+      includedFiles
     });
   });
 
@@ -223,11 +237,12 @@ export function assertBundles(
         'Expected bundle must include an array of expected assets'
       );
     }
-    bundle.assets.sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1));
+    bundle.assets.sort(byAlphabet);
   }
 
-  expectedBundles.sort((a, b) => (a.assets[0] < b.assets[0] ? -1 : 1));
-  actualBundles.sort((a, b) => (a.assets[0] < b.assets[0] ? -1 : 1));
+  const byAssets = (a, b) => (a.assets[0] < b.assets[0] ? -1 : 1);
+  expectedBundles.sort(byAssets);
+  actualBundles.sort(byAssets);
   assert.equal(
     actualBundles.length,
     expectedBundles.length,
@@ -258,6 +273,19 @@ export function assertBundles(
 
     if (bundle.assets) {
       assert.deepEqual(actualBundle.assets, bundle.assets);
+    }
+
+    if (bundle.includedFiles) {
+      for (let asset of actualBundle.assets) {
+        const files = bundle.includedFiles[asset];
+        if (!files) {
+          continue;
+        }
+        assert.deepEqual(
+          actualBundle.includedFiles[asset],
+          files.sort(byAlphabet)
+        );
+      }
     }
   }
 }

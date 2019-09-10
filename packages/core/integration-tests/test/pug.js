@@ -45,7 +45,7 @@ describe('pug', function() {
     }
   });
 
-  it('should support include and extends files', async function() {
+  it('should support include and extends files, connect files', async function() {
     const b = await bundle(
       path.join(__dirname, '/integration/pug-include-extends/index.pug')
     );
@@ -54,7 +54,10 @@ describe('pug', function() {
       {
         type: 'html',
         name: 'index.html',
-        assets: ['index.pug']
+        assets: ['index.pug'],
+        includedFiles: {
+          'index.pug': ['package.json', 'base.pug', 'other.pug', 'nested.pug']
+        }
       }
     ]);
 
@@ -62,6 +65,7 @@ describe('pug', function() {
 
     assert(html.includes('<!DOCTYPE html>'));
     assert(html.includes("<h1>Yep, it's working!</h1>"));
+    assert(html.includes('<p>And for nested.</p>'));
   });
 
   it('should support variables', async function() {

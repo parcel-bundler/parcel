@@ -1,17 +1,17 @@
 {
-  "name": "@parcel/ts-typecheck-example",
+  "name": "@parcel/eslint-example",
   "version": "2.0.0-alpha.1.1",
   "license": "MIT",
   "private": true,
   "scripts": {
-    "demo": "parcel build src/index.ts --no-cache"
+    "demo": "parcel build src/index.js --no-cache"
   },
-  "browserModern": "dist/modern/index.js",
+  "browser": "dist/legacy/index.js",
   "targets": {
-    "browserModern": {
+    "browser": {
       "engines": {
         "browsers": [
-          "last 1 Chrome version"
+          "> 0.25%"
         ]
       }
     }
@@ -19,6 +19,6 @@
   "devDependencies": {
     "@parcel/babel-register": "^2.0.0-alpha.1.1",
     "@parcel/core": "^2.0.0-alpha.1.1",
-    "@parcel/validator-typescript": "^2.0.0-alpha.1.1"
+    "@parcel/validator-eslint": "^2.0.0-alpha.1.1"
   }
 }
