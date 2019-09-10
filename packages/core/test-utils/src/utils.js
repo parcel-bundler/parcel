@@ -200,7 +200,7 @@ export function assertBundles(
     name?: string | RegExp,
     type?: string,
     assets: Array<string>,
-    connectedFiles?: {
+    includedFiles?: {
       [key: string]: Array<string>,
       ...
     }
@@ -211,12 +211,12 @@ export function assertBundles(
 
   bundleGraph.traverseBundles(bundle => {
     let assets = [];
-    const connectedFiles = {};
+    const includedFiles = {};
 
     bundle.traverseAssets(asset => {
       const name = path.basename(asset.filePath);
       assets.push(name);
-      connectedFiles[name] = asset
+      includedFiles[name] = asset
         .getIncludedFiles()
         .map(({filePath}) => path.basename(filePath))
         .sort(byAlphabet);
@@ -227,7 +227,7 @@ export function assertBundles(
       name: path.basename(nullthrows(bundle.filePath)),
       type: bundle.type,
       assets,
-      connectedFiles
+      includedFiles
     });
   });
 
@@ -275,14 +275,14 @@ export function assertBundles(
       assert.deepEqual(actualBundle.assets, bundle.assets);
     }
 
-    if (bundle.connectedFiles) {
+    if (bundle.includedFiles) {
       for (let asset of actualBundle.assets) {
-        const files = bundle.connectedFiles[asset];
+        const files = bundle.includedFiles[asset];
         if (!files) {
           continue;
         }
         assert.deepEqual(
-          actualBundle.connectedFiles[asset],
+          actualBundle.includedFiles[asset],
           files.sort(byAlphabet)
         );
       }

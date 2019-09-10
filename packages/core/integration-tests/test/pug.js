@@ -55,7 +55,7 @@ describe('pug', function() {
         type: 'html',
         name: 'index.html',
         assets: ['index.pug'],
-        connectedFiles: {
+        includedFiles: {
           'index.pug': ['package.json', 'base.pug', 'other.pug', 'nested.pug']
         }
       }
