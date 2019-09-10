@@ -594,10 +594,10 @@ describe('html', function() {
     // inline bundles are not output, but are apart of the bundleGraph
     assertBundles(b, [
       {name: 'index.html', assets: ['index.html']},
-      {type: 'js', isInline: true, assets: ['index.html']},
-      {type: 'js', isInline: true, assets: ['index.html']},
-      {type: 'js', isInline: true, assets: ['index.html']},
-      {type: 'js', isInline: true, assets: ['index.html']}
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']},
+      {type: 'js', assets: ['index.html']}
     ]);
 
     let files = await outputFS.readdir(distDir);
