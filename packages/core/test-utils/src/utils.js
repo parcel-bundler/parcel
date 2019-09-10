@@ -217,7 +217,7 @@ export function assertBundles(
       const name = path.basename(asset.filePath);
       assets.push(name);
       connectedFiles[name] = asset
-        .getConnectedFiles()
+        .getIncludedFiles()
         .map(({filePath}) => path.basename(filePath))
         .sort(byAlphabet);
     });
