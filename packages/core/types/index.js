@@ -512,7 +512,7 @@ export interface BundlerBundleGraph {
 }
 
 export interface BundlerOptimizeBundleGraph extends BundlerBundleGraph {
-  addAssetGraphToBundle(Asset, Bundle): void;
+  addAssetGraphToBundle(Asset, Bundle, Array<Bundle>): void;
   findBundlesWithAsset(Asset): Array<Bundle>;
   getBundleGroupsContainingBundle(Bundle): Array<BundleGroup>;
   getBundlesInBundleGroup(BundleGroup): Array<Bundle>;

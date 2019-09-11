@@ -41,10 +41,15 @@ export class BundlerBundleGraph implements IBundlerBundleGraph {
     );
   }
 
-  addAssetGraphToBundle(asset: IAsset, bundle: IBundle) {
+  addAssetGraphToBundle(
+    asset: IAsset,
+    bundle: IBundle,
+    bundles: Array<Bundle>
+  ) {
     this.#graph.addAssetGraphToBundle(
       assetToInternalAsset(asset).value,
-      bundleToInternalBundle(bundle)
+      bundleToInternalBundle(bundle),
+      bundles.map(bundleToInternalBundle)
     );
   }
 

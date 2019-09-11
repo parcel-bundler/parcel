@@ -64,25 +64,30 @@ export default class BundleGraph {
     this._graph.addEdge(bundle.id, asset.id, 'contains');
   }
 
-  addAssetGraphToBundle(asset: Asset, bundle: Bundle) {
+  addAssetGraphToBundle(asset: Asset, bundle: Bundle, bundles: Array<Bundle>) {
     // The root asset should be reached directly from the bundle in traversal.
     // Its children will be traversed from there.
     this._graph.addEdge(bundle.id, asset.id);
-    this._graph.traverse(node => {
-      if (node.type === 'asset' || node.type === 'dependency') {
-        this._graph.addEdge(bundle.id, node.id, 'contains');
-      }
-    }, nullthrows(this._graph.getNode(asset.id)));
+    this._graph.filteredTraverse(
+      // node => node,
+      node =>
+        node.type !== 'asset' ||
+        bundles.some(b => this.bundleHasAsset(b, node.value))
+          ? node
+          : null,
+      node => {
+        if (node.type === 'asset' || node.type === 'dependency') {
+          this._graph.addEdge(bundle.id, node.id, 'contains');
+        }
+      },
+      nullthrows(this._graph.getNode(asset.id))
+    );
   }
 
   removeAssetGraphFromBundle(asset: Asset, bundle: Bundle) {
     this._graph.removeEdge(bundle.id, asset.id);
     this._graph.traverse(node => {
       if (node.type === 'asset' || node.type === 'dependency') {
-        if (node.id === 'e9eedd8a9bf73708ca52c39bee88d392') {
-          asset;
-          debugger;
-        }
         this._graph.removeEdge(bundle.id, node.id, 'contains');
       }
     }, nullthrows(this._graph.getNode(asset.id)));
@@ -320,9 +325,6 @@ export default class BundleGraph {
     let size = 0;
     this._graph.traverse(node => {
       if (node.type === 'asset') {
-        if (node.id === 'e9eedd8a9bf73708ca52c39bee88d392') {
-          debugger;
-        }
         size += node.value.stats.size;
       }
     }, nullthrows(this._graph.getNode(asset.id)));

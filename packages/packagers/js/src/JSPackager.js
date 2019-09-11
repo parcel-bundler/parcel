@@ -43,7 +43,7 @@ export default new Packager({
 
     let stubsWritten = new Set();
     bundle.traverse(node => {
-      let wrapped = first ? '' : ',';
+      let wrapped = first ? '// BUNDLE ID: ' + bundle.id + '\n' : ',';
 
       if (node.type === 'dependency') {
         let resolved = bundleGraph.getDependencyResolution(node.value);
