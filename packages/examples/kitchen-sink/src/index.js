@@ -1,8 +1,8 @@
 import styles from './styles.css';
 import parcel from './parcel.webp';
 
-// import('./async');
-// import('./async2');
+import('./async');
+import('./async2');
 
 // new Worker('./worker.js');
 
