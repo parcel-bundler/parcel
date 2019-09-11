@@ -7,8 +7,8 @@ type CodeFrameError = Error & {codeFrame?: string, ...};
 let cliEngine = null;
 
 export default new Validator({
-  async validate({asset, options, localRequire}) {
-    let eslint = await localRequire('eslint', asset.filePath);
+  async validate({asset, options}) {
+    let eslint = await options.packageManager.require('eslint', asset.filePath);
     if (!cliEngine) {
       cliEngine = new eslint.CLIEngine({});
     }
