@@ -10,22 +10,24 @@ import semver from 'semver';
 import loadPlugins from './loadPlugins';
 
 export default new Transformer({
-  async getConfig({asset, options}) {
-    let config = await asset.getConfig(
+  async loadConfig({config, options}) {
+    let configResult = await config.getConfig(
       ['.posthtmlrc', '.posthtmlrc.js', 'posthtml.config.js'],
       {
         packageKey: 'posthtml'
       }
     );
 
-    config = config || {};
+    configResult = configResult || {};
+    configResult.plugins = await loadPlugins(
+      configResult.plugins,
+      config.searchPath,
+      options
+    );
 
-    // load plugins
-    config.plugins = await loadPlugins(config.plugins, asset.filePath, options);
-
-    // tells posthtml that we have already called parse
-    config.skipParse = true;
-    return config;
+    // configResult.skipParse = true;
+    console.log('loadConfig');
+    // config.setResult(configResult);
   },
 
   canReuseAST({ast}) {
@@ -33,6 +35,7 @@ export default new Transformer({
   },
 
   async parse({asset, config}) {
+    console.log(config);
     // if we don't have a config it is posthtml is not configure, don't parse
     if (!config) {
       return;

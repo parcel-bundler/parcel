@@ -265,6 +265,7 @@ export default class Transformation {
           moduleName,
           result.filePath
         );
+        console.log('preload', {moduleName, thirdPartyConfig});
 
         if (thirdPartyConfig.shouldRehydrate) {
           await plugin.rehydrateConfig({
@@ -277,6 +278,8 @@ export default class Transformation {
             options: this.options
           });
         }
+
+        console.log({moduleName, thirdPartyConfig});
 
         configs.set(moduleName, thirdPartyConfig);
       }

@@ -44,7 +44,7 @@ export class Child {
       this.handleEnd.bind(this)
     );
 
-    patchConsole();
+    // patchConsole();
     // Monitior all logging events inside this child process and forward to
     // the main process via the bus.
     this.loggerDisposable = Logger.onLog(event => {
